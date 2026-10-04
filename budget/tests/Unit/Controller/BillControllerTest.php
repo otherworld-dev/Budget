@@ -2421,6 +2421,134 @@ class BillControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
 
+	/**
+	 * Rita has write on Owen's bill 7 and on his joint account 1; she can also
+	 * post to her own account 9, which Owen can't.
+	 */
+	private function controllerForRitaOnOwensBill(): BillController {
+		$writable = ['rita' => [1, 9], 'owen' => [1, 2]];
+		$shares = $this->createMock(GranularShareService::class);
+		$shares->method('canAccess')->willReturn(true);
+		$shares->method('resolveOwner')->willReturn('owen');
+		$shares->method('canWrite')->willReturnCallback(
+			fn (string $user, string $type, int $id) => $type !== 'account' || in_array($id, $writable[$user] ?? [], true)
+		);
+		$shares->method('requireWriteAccess')->willReturnCallback(function (string $user, string $type, int $id) use ($writable): void {
+			if ($type === 'account' && !in_array($id, $writable[$user] ?? [], true)) {
+				throw new \OCA\Budget\Exception\ReadOnlyShareException();
+			}
+		});
+		return new BillController(
+			$this->request, $this->service, $this->validationService, $shares,
+			$this->createMock(\OCA\Budget\Service\Bill\BillSuggestionService::class),
+			$this->createMock(\OCA\Budget\Service\UpcomingBillsService::class),
+			$this->l, 'rita', $this->logger
+		);
+	}
+
+	public function testARecipientCannotMoveTheOwnersBillOntoAnAccountOnlySheCanUse(): void {
+		// Owen could no longer pay his own bill
+		$this->mockInput(json_encode(['accountId' => 9]));
+		$stored = new Bill();
+		$stored->setUserId('owen');
+		$stored->setAccountId(1);
+		$this->service->method('find')->willReturn($stored);
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controllerForRitaOnOwensBill()->update(7);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame("The owner of this bill can't use that account. Choose another one.", $response->getData()['error']);
+	}
+
+	public function testARecipientCannotPointTheOwnersTransferIntoAnAccountOnlySheCanUse(): void {
+		$this->mockInput(json_encode(['destinationAccountId' => 9]));
+		$stored = new Bill();
+		$stored->setUserId('owen');
+		$stored->setAccountId(1);
+		$stored->setIsTransfer(true);
+		$stored->setDestinationAccountId(2);
+		$this->service->method('find')->willReturn($stored);
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controllerForRitaOnOwensBill()->update(7);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	public function testARecipientMayMoveTheOwnersBillToAnAccountTheyBothUse(): void {
+		$this->mockInput(json_encode(['accountId' => 1]));
+		$stored = new Bill();
+		$stored->setUserId('owen');
+		$stored->setAccountId(null);
+		$this->service->method('find')->willReturn($stored);
+		$this->service->expects($this->once())->method('update')->with(7, 'owen', ['accountId' => 1])->willReturn(new Bill());
+
+		$response = $this->controllerForRitaOnOwensBill()->update(7);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	/**
+	 * Owen's transfer bill 7 pays his card 2, which Rita (write on the bill)
+	 * can't see. A dynamic amount is read off the card, so switching to one
+	 * showed her the card's balance as the bill's amount.
+	 */
+	private function owensCardPayment(): Bill {
+		$stored = new Bill();
+		$stored->setUserId('owen');
+		$stored->setAccountId(1);
+		$stored->setIsTransfer(true);
+		$stored->setDestinationAccountId(2);
+		$stored->setAmountType('fixed');
+		return $stored;
+	}
+
+	private function controllerSeeing(string $user, array $visibleAccounts): BillController {
+		$shares = $this->createMock(GranularShareService::class);
+		$shares->method('resolveOwner')->willReturn('owen');
+		$shares->method('canWrite')->willReturn(true);
+		$shares->method('canAccess')->willReturnCallback(
+			fn (string $u, string $type, int $id) => $type !== 'account' || in_array($id, $visibleAccounts, true)
+		);
+		return new BillController(
+			$this->request, $this->service, $this->validationService, $shares,
+			$this->createMock(\OCA\Budget\Service\Bill\BillSuggestionService::class),
+			$this->createMock(\OCA\Budget\Service\UpcomingBillsService::class),
+			$this->l, $user, $this->logger
+		);
+	}
+
+	public function testARecipientCannotReadAnUnsharedCardThroughADynamicAmount(): void {
+		$this->mockInput(json_encode(['amountType' => 'current_balance']));
+		$this->service->method('find')->willReturn($this->owensCardPayment());
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controllerSeeing('rita', [1])->update(7);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame("This amount is read from an account that isn't shared with you. Choose a fixed amount.", $response->getData()['error']);
+	}
+
+	public function testADynamicAmountIsFineForSomeoneWhoSeesTheCard(): void {
+		$this->mockInput(json_encode(['amountType' => 'current_balance']));
+		$this->service->method('find')->willReturn($this->owensCardPayment());
+		$this->service->expects($this->once())->method('update')->willReturn(new Bill());
+
+		$this->assertSame(Http::STATUS_OK, $this->controllerSeeing('rita', [1, 2])->update(7)->getStatus());
+	}
+
+	public function testAnUnchangedDynamicAmountKeepsSaving(): void {
+		// Owen set it; Rita's form sends it back with her other edits
+		$stored = $this->owensCardPayment();
+		$stored->setAmountType('current_balance');
+		$this->mockInput(json_encode(['name' => 'Card', 'amountType' => 'current_balance']));
+		$this->service->method('find')->willReturn($stored);
+		$this->service->expects($this->once())->method('update')->willReturn(new Bill());
+
+		$this->assertSame(Http::STATUS_OK, $this->controllerSeeing('rita', [1])->update(7)->getStatus());
+	}
+
 	public function testCreateFromDetectedRefusesAnAccountTheUserCannotPostTo(): void {
 		$this->mockInput(json_encode([
 			'bills' => [

@@ -113,6 +113,24 @@ class SharedExpenseServiceTest extends TestCase {
 		$this->assertTrue($result[0]['isSettled']);
 	}
 
+	/** Shared with me: a split whose transaction its sharer can no longer see keeps a label, never an empty line */
+	public function testGetExpensesSharedWithMeLabelsASplitWithoutItsTransaction(): void {
+		$row = ['id' => 1, 'owner_user_id' => 'alice', 'transaction_id' => 5, 'amount' => 5.0,
+			'is_settled' => false, 'notes' => null, 'currency' => 'GBP', 'created_at' => '2026-06-01',
+			'contact_name' => 'Bob', 'transaction_description' => null, 'transaction_date' => null,
+			'transaction_amount' => null, 'transaction_type' => null];
+		$noted = ['id' => 2, 'notes' => 'Taxi home'] + $row;
+		$this->expenseShareMapper->method('findSharedWithNextcloudUser')->willReturn([$row, $noted]);
+		$this->userManager->method('get')->willReturn(null);
+
+		$result = $this->service->getExpensesSharedWithMe('bob');
+
+		$this->assertSame('Shared expense', $result[0]['transactionDescription']);
+		$this->assertSame('Taxi home', $result[1]['transactionDescription']);
+		$this->assertNull($result[0]['transactionDate']);
+		$this->assertEqualsWithDelta(5.0, $result[0]['amount'], 0.001);
+	}
+
 	private function makeContact(int $id = 1, string $name = 'Alice', ?string $nextcloudUserId = null): Contact {
 		$contact = new Contact();
 		$contact->setId($id);
@@ -217,6 +235,35 @@ class SharedExpenseServiceTest extends TestCase {
 			});
 
 		$this->service->shareExpense('user1', 10, 1, 50.0);
+	}
+
+	/**
+	 * A transaction in an account shared with the user is someone else's
+	 * row, so the user-scoped lookups found neither it nor its account and
+	 * the split was stored with no currency, which every balance then
+	 * showed as US dollars.
+	 */
+	public function testShareExpenseOnASharedAccountKeepsItsCurrency(): void {
+		$this->transactionMapper->method('find')->willThrowException(new DoesNotExistException('not yours'));
+		$this->transactionMapper->method('findForAccounts')->with(10, [1, 7])->willReturn($this->makeTransaction(10, -100.0));
+		$this->contactMapper->method('find')->willReturn($this->makeContact());
+		$this->expenseShareMapper->method('insert')->willReturnArgument(0);
+
+		$share = $this->service->shareExpense('user1', 10, 1, 50.0, null, [1, 7]);
+
+		$this->assertSame('USD', $share->getCurrency());
+	}
+
+	public function testSplitFiftyFiftyOnASharedAccountKeepsItsCurrency(): void {
+		$this->transactionMapper->method('find')->willThrowException(new DoesNotExistException('not yours'));
+		$this->transactionMapper->method('findForAccounts')->willReturn($this->makeTransaction(10, -100.0));
+		$this->contactMapper->method('find')->willReturn($this->makeContact());
+		$this->expenseShareMapper->method('insert')->willReturnArgument(0);
+
+		$share = $this->service->splitFiftyFifty('user1', 10, 1, null, [1, 7]);
+
+		$this->assertSame('USD', $share->getCurrency());
+		$this->assertEquals(50.0, $share->getAmount());
 	}
 
 	// ===== splitFiftyFifty =====
@@ -511,6 +558,53 @@ class SharedExpenseServiceTest extends TestCase {
 		$this->service->settleWithContact('user1', 1, '2026-03-08');
 	}
 
+	/**
+	 * Settling a selection that spans two people recorded the whole sum
+	 * against the first one: one was shown as paid what both owed, the other
+	 * as having paid nothing.
+	 */
+	public function testSettleSelectedRecordsWhatEachPersonPaid(): void {
+		$doraGbp = $this->makeShare(6, 30.0, false, 5);
+		$doraGbp->setCurrency('GBP');
+		$walt = $this->makeShare(7, 40.0, false, 4);
+		$walt->setCurrency('GBP');
+		$doraUsd = $this->makeShare(8, 50.0, false, 5);
+		$doraUsd->setCurrency('USD');
+		$shares = [6 => $doraGbp, 7 => $walt, 8 => $doraUsd];
+		$this->expenseShareMapper->method('find')->willReturnCallback(fn (int $id) => $shares[$id]);
+		$this->expenseShareMapper->method('update')->willReturnArgument(0);
+		$this->contactMapper->method('find')->willReturnCallback(fn (int $id) => $this->makeContact($id));
+		$recorded = [];
+		$this->settlementMapper->method('insert')->willReturnCallback(function (Settlement $s) use (&$recorded) {
+			$recorded[] = [$s->getContactId(), $s->getCurrency(), $s->getAmount()];
+			return $s;
+		});
+
+		$this->service->settleSelectedShares('user1', [6, 7, 8], '2026-10-04');
+
+		$this->assertEqualsCanonicalizing([[5, 'GBP', 30.0], [5, 'USD', 50.0], [4, 'GBP', 40.0]], $recorded);
+		$this->assertTrue($doraGbp->getIsSettled() && $walt->getIsSettled() && $doraUsd->getIsSettled());
+	}
+
+	public function testSettleSelectedChangesNothingWhenOneIsNotTheUsers(): void {
+		$mine = $this->makeShare(6, 30.0, false, 5);
+		$this->expenseShareMapper->method('find')->willReturnCallback(function (int $id) use ($mine) {
+			if ($id !== 6) {
+				throw new DoesNotExistException('not yours');
+			}
+			return $mine;
+		});
+		$this->expenseShareMapper->expects($this->never())->method('update');
+		$this->settlementMapper->expects($this->never())->method('insert');
+
+		try {
+			$this->service->settleSelectedShares('user1', [6, 99], '2026-10-04');
+			$this->fail('expected a refusal');
+		} catch (DoesNotExistException $e) {
+			$this->assertFalse($mine->getIsSettled());
+		}
+	}
+
 	// ===== getBalanceSummary =====
 
 	public function testGetBalanceSummaryCalculatesDirections(): void {
@@ -613,7 +707,13 @@ class SharedExpenseServiceTest extends TestCase {
 		$this->assertEquals('owed', $result['direction']);
 	}
 
-	public function testGetContactDetailsSkipsDeletedTransactions(): void {
+	/**
+	 * A split is the user's own record of what the contact owes, so it stays
+	 * listed (and can be settled one by one) when its transaction is gone or
+	 * sits in an account no longer shared with them. It was left out while
+	 * still counting in the balance.
+	 */
+	public function testGetContactDetailsListsASplitWhoseTransactionIsGone(): void {
 		$contact = $this->makeContact();
 		$share = $this->makeShare(1, 50.0, false, 1, 999);
 
@@ -622,10 +722,42 @@ class SharedExpenseServiceTest extends TestCase {
 		$this->settlementMapper->method('findByContact')->willReturn([]);
 		$this->transactionMapper->method('find')
 			->willThrowException(new DoesNotExistException('Not found'));
+		$this->transactionMapper->method('findForAccounts')
+			->willThrowException(new DoesNotExistException('Not found'));
+
+		$result = $this->service->getContactDetails(1, 'user1', [1, 7]);
+
+		$this->assertCount(1, $result['shares']);
+		$this->assertSame(['id' => 999, 'date' => '', 'description' => 'Shared expense', 'amount' => null], $result['shares'][0]['transaction']);
+		$this->assertEquals(50.0, $result['balance']);
+	}
+
+	public function testASplitWithoutItsTransactionIsLabelledWithItsOwnNote(): void {
+		$share = $this->makeShare(1, 50.0, false, 1, 999);
+		$share->setNotes('Half the big shop');
+		$this->contactMapper->method('find')->willReturn($this->makeContact());
+		$this->expenseShareMapper->method('findByContact')->willReturn([$share]);
+		$this->settlementMapper->method('findByContact')->willReturn([]);
+		$this->transactionMapper->method('find')->willThrowException(new DoesNotExistException('Not found'));
 
 		$result = $this->service->getContactDetails(1, 'user1');
 
-		$this->assertEmpty($result['shares']);
+		$this->assertSame('Half the big shop', $result['shares'][0]['transaction']['description']);
+	}
+
+	/** A split of a transaction in an account shared with the user is listed, so it can be settled */
+	public function testGetContactDetailsListsSplitsOfTransactionsInSharedAccounts(): void {
+		$this->contactMapper->method('find')->willReturn($this->makeContact());
+		$this->expenseShareMapper->method('findByContact')->willReturn([$this->makeShare(1, 30.0, false, 1, 10)]);
+		$this->settlementMapper->method('findByContact')->willReturn([]);
+		$this->transactionMapper->method('find')->willThrowException(new DoesNotExistException('not yours'));
+		$this->transactionMapper->method('findForAccounts')->with(10, [1, 7])->willReturn($this->makeTransaction(10, -60.0));
+
+		$result = $this->service->getContactDetails(1, 'user1', [1, 7]);
+
+		$this->assertCount(1, $result['shares']);
+		$this->assertSame(10, $result['shares'][0]['transaction']['id']);
+		$this->assertEquals(30.0, $result['balance']);
 	}
 
 	private function makeIncomingRow(int $id, float $amount, bool $settled, int $txId, string $createdAt): array {
@@ -689,6 +821,27 @@ class SharedExpenseServiceTest extends TestCase {
 		$this->assertCount(1, $result['settlements']);
 		$this->assertTrue($result['settlements'][0]['incoming']);
 		$this->assertEqualsWithDelta(-20.0, $result['settlements'][0]['amount'], 0.001);
+	}
+
+	/** What the linked user split with me stays listed when I can't see its transaction */
+	public function testGetContactDetailsListsAnIncomingSplitWithoutItsTransaction(): void {
+		$this->contactMapper->method('find')->willReturn($this->makeContact(1, 'Alice', 'alice'));
+		$this->expenseShareMapper->method('findByContact')->willReturn([]);
+		$gone = $this->makeIncomingRow(7, 40.0, false, 1224, '2026-09-10 10:00:00');
+		$gone['transaction_description'] = null;
+		$gone['transaction_date'] = null;
+		$gone['transaction_amount'] = null;
+		$gone['transaction_type'] = null;
+		$this->expenseShareMapper->method('findSharedWithNextcloudUser')->willReturn([$gone]);
+		$this->settlementMapper->method('findByContact')->willReturn([]);
+		$this->settlementMapper->method('findSharedWithNextcloudUser')->willReturn([]);
+
+		$result = $this->service->getContactDetails(1, 'user1');
+
+		$this->assertCount(1, $result['shares']);
+		$this->assertTrue($result['shares'][0]['incoming']);
+		$this->assertSame(['id' => 1224, 'date' => '', 'description' => 'Shared expense', 'amount' => null], $result['shares'][0]['transaction']);
+		$this->assertEquals(['GBP' => -40.0], $result['balances']);
 	}
 
 	public function testGetContactDetailsMarksOwnSharesAsNotIncoming(): void {

@@ -11,6 +11,7 @@ use OCA\Budget\Service\SettingService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Db\DoesNotExistException;
+use OCP\AppFramework\Db\MultipleObjectsReturnedException;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\AnonRateLimit;
 use OCP\AppFramework\Http\Attribute\BruteForceProtection;
@@ -68,7 +69,9 @@ class CalendarFeedController extends Controller {
 
 		try {
 			$setting = $this->settingMapper->findByKeyValue(self::TOKEN_KEY, $token);
-		} catch (DoesNotExistException $e) {
+		} catch (DoesNotExistException|MultipleObjectsReturnedException $e) {
+			// Two users holding one token (a restored backup) can't tell
+			// whose feed it is: neither is served, and it was a 500
 			return $this->throttledNotFound();
 		}
 

@@ -204,6 +204,25 @@ class BillController extends Controller {
 	}
 
 	/**
+	 * Refuse a new account for someone else's bill that its owner can't post
+	 * to. Its payments are recorded as the owner, so a share recipient could
+	 * move the owner's bill onto her own account and leave the owner unable
+	 * to pay his own bill.
+	 *
+	 * @throws \InvalidArgumentException
+	 */
+	private function requireAccountsUsableByOwner(string $billOwner, ?int ...$accountIds): void {
+		if ($billOwner === $this->userId) {
+			return;
+		}
+		foreach ($accountIds as $accountId) {
+			if ($accountId !== null && !$this->granularShareService->canWrite($billOwner, 'account', $accountId)) {
+				throw new \InvalidArgumentException($this->l->t('The owner of this bill can\'t use that account. Choose another one.'));
+			}
+		}
+	}
+
+	/**
 	 * Create a new bill
 	 * @NoAdminRequired
 	 */
@@ -752,12 +771,32 @@ class BillController extends Controller {
 			$destinationInUpdates = array_key_exists('destinationAccountId', $updates);
 			if ($accountInUpdates || $destinationInUpdates) {
 				$storedBill = $this->service->find($id, $ownerId);
-				$this->requireWritableAccounts(
+				$changedAccounts = [
 					$accountInUpdates && $updates['accountId'] !== $storedBill->getAccountId()
 						? $updates['accountId'] : null,
 					$destinationInUpdates && $updates['destinationAccountId'] !== $storedBill->getDestinationAccountId()
-						? $updates['destinationAccountId'] : null
-				);
+						? $updates['destinationAccountId'] : null,
+				];
+				$this->requireWritableAccounts(...$changedAccounts);
+				$this->requireAccountsUsableByOwner($ownerId, ...$changedAccounts);
+			}
+
+			// A dynamic amount is read off the destination card, and the bill
+			// then shows it as its amount: switching a shared bill to one let
+			// a recipient read the balance of a card never shared with them.
+			// Only a change needs it; a form that sends back the stored type
+			// keeps saving.
+			if (isset($updates['amountType']) && $updates['amountType'] !== 'fixed') {
+				$storedBill = $storedBill ?? $this->service->find($id, $ownerId);
+				$destinationId = array_key_exists('destinationAccountId', $updates)
+					? $updates['destinationAccountId'] : $storedBill->getDestinationAccountId();
+				if ($updates['amountType'] !== ($storedBill->getAmountType() ?? 'fixed')
+					&& $destinationId !== null && !$this->canAccessEntity('account', (int)$destinationId)) {
+					return new DataResponse(
+						['error' => $this->l->t('This amount is read from an account that isn\'t shared with you. Choose a fixed amount.')],
+						Http::STATUS_BAD_REQUEST
+					);
+				}
 			}
 
 			if (empty($updates)) {

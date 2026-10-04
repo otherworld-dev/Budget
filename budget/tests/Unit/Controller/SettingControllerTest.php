@@ -157,7 +157,7 @@ class SettingControllerTest extends TestCase {
 
 	public function testUpdateCreatesNewSetting(): void {
 		$this->request->method('getParams')->willReturn([
-			'custom_key' => 'custom_value',
+			'transaction_columns_visible' => '{"vendor":false}',
 		]);
 		$this->mapper->method('findByKey')
 			->willThrowException(new DoesNotExistException(''));
@@ -167,7 +167,63 @@ class SettingControllerTest extends TestCase {
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 		$data = $response->getData();
-		$this->assertSame('custom_value', $data['settings']['custom_key']);
+		$this->assertSame('{"vendor":false}', $data['settings']['transaction_columns_visible']);
+	}
+
+	/**
+	 * Settings the app keeps for itself can't be written by the client. The
+	 * calendar feed token was settable: a chosen value hijacked the public
+	 * feed URL, and one already used by someone else broke their feed.
+	 */
+	public function testUpdateRefusesASettingTheAppKeepsForItself(): void {
+		$this->request->method('getParams')->willReturn([
+			'date_format' => 'd/m/Y',
+			'bills_feed_token' => str_repeat('a', 64),
+		]);
+		$this->mapper->expects($this->never())->method('insert');
+		$this->mapper->expects($this->never())->method('update');
+
+		$response = $this->controller->update();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame("This setting can't be changed: bills_feed_token", $response->getData()['error']);
+	}
+
+	public function testUpdateKeyRefusesASettingTheAppKeepsForItself(): void {
+		$this->request->method('getParam')->with('value')->willReturn('1');
+		$this->mapper->expects($this->never())->method('insert');
+		$this->mapper->expects($this->never())->method('update');
+
+		$response = $this->controller->updateKey('sample_data_loaded');
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	/** Every key the web app saves, so none of them stops saving */
+	#[\PHPUnit\Framework\Attributes\DataProvider('keysTheAppSaves')]
+	public function testUpdateAcceptsEveryKeyTheAppSaves(string $key): void {
+		$this->request->method('getParams')->willReturn([$key => 'x']);
+		$this->mapper->method('findByKey')->willThrowException(new DoesNotExistException(''));
+		$this->mapper->expects($this->once())->method('insert');
+
+		$this->assertSame(Http::STATUS_OK, $this->controller->update()->getStatus());
+	}
+
+	public static function keysTheAppSaves(): array {
+		$keys = [
+			// The Settings page
+			'anomaly_alerts_enabled', 'budget_alert_threshold', 'budget_period', 'budget_start_day', 'date_format',
+			'default_currency', 'digest_email_enabled', 'digest_enabled', 'digest_frequency', 'export_default_format',
+			'first_day_of_week', 'import_auto_apply_rules', 'import_skip_duplicates', 'notification_budget_alert',
+			'notification_forecast_warning', 'number_format_decimal_sep', 'number_format_decimals',
+			'number_format_thousands_sep', 'receipt_folder', 'report_email_enabled', 'report_files_enabled',
+			// The dashboard
+			'budget_alert_scope', 'budget_alert_muted_categories', 'dashboard_hero_config', 'dashboard_widgets_config',
+			'dashboard_grid_columns', 'dashboard_locked',
+			// The transaction list's columns and the What's new dialog
+			'transaction_columns_visible', 'whats_new_seen',
+		];
+		return array_combine($keys, array_map(static fn (string $key) => [$key], $keys));
 	}
 
 	public function testUpdateUpdatesRowAddedByAnOverlappingSave(): void {
@@ -275,7 +331,7 @@ class SettingControllerTest extends TestCase {
 			->willThrowException(new DoesNotExistException(''));
 		$this->mapper->expects($this->once())->method('insert');
 
-		$response = $this->controller->updateKey('new_key');
+		$response = $this->controller->updateKey('whats_new_seen');
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}

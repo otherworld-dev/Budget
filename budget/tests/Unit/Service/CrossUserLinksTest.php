@@ -227,6 +227,21 @@ class CrossUserLinksTest extends TestCase {
 	}
 
 	/**
+	 * Bob's recurring pension payment is funded from Alice's joint account.
+	 * Cut loose by her reset, it kept auto-posting, with no bank leg.
+	 */
+	public function testAResetStopsAPensionPaymentItFundedFromAutoPosting(): void {
+		$this->links->tables['budget_pen_recur'][60] = ['user_id' => 'bob', 'name' => null, 'created_at' => self::CREATED, 'source_account_id' => 10, 'auto_post_enabled' => true];
+		$this->links->capture('alice');
+		$this->links->clearUser('alice');
+
+		$this->links->apply([]);
+
+		$this->assertNull($this->links->tables['budget_pen_recur'][60]['source_account_id']);
+		$this->assertFalse($this->links->tables['budget_pen_recur'][60]['auto_post_enabled']);
+	}
+
+	/**
 	 * Bob restores his own backup: his bills on Alice's accounts may keep
 	 * them while he can still write to them, and only if each is the bill
 	 * he had here, pointing at the same account before.

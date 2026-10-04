@@ -148,6 +148,24 @@ class RecurringIncomeController extends Controller {
 		}
 	}
 
+	/**
+	 * A new account for an income has to be one the acting user may post to,
+	 * as for a bill, and one the income's owner may post to, since it is
+	 * received as them. Nothing was checked: a share recipient could point
+	 * the owner's income at the owner's private account and book money into
+	 * it, or move it onto her own account, which the owner then couldn't use.
+	 *
+	 * @throws \OCA\Budget\Exception\ReadOnlyShareException
+	 * @throws \InvalidArgumentException
+	 */
+	private function requireUsableAccount(string $incomeOwner, int $accountId): void {
+		$this->requireWriteAccess('account', $accountId);
+		if ($incomeOwner !== $this->userId
+			&& !$this->granularShareService->canWrite($incomeOwner, 'account', $accountId)) {
+			throw new \InvalidArgumentException($this->l->t('The owner of this income can\'t use that account. Choose another one.'));
+		}
+	}
+
 	/** A client id, with null, empty and 0 meaning none */
 	private static function idOrNull(mixed $raw): ?int {
 		return ($raw === null || $raw === '' || (int)$raw <= 0) ? null : (int)$raw;
@@ -236,6 +254,10 @@ class RecurringIncomeController extends Controller {
 				}
 			} else {
 				$startDate = null;
+			}
+
+			if (self::idOrNull($accountId) !== null) {
+				$this->requireUsableAccount($this->getEffectiveUserId(), (int)$accountId);
 			}
 
 			// A category the owner cannot see is refused, not stored: its
@@ -375,6 +397,9 @@ class RecurringIncomeController extends Controller {
 				$stored = $this->service->find($id, $ownerId);
 				$categoryId = array_key_exists('categoryId', $data) ? self::idOrNull($data['categoryId']) : $stored->getCategoryId();
 				$accountId = array_key_exists('accountId', $data) ? self::idOrNull($data['accountId']) : $stored->getAccountId();
+				if ($accountId !== null && $accountId !== $stored->getAccountId()) {
+					$this->requireUsableAccount($ownerId, $accountId);
+				}
 				if ($categoryId !== $stored->getCategoryId() || $accountId !== $stored->getAccountId()) {
 					$this->requireCategoryUsableByAccountOwner($ownerId, $categoryId, $accountId);
 				}
@@ -557,6 +582,10 @@ class RecurringIncomeController extends Controller {
 			foreach ((array)$data['incomes'] as $item) {
 				if (!is_array($item)) {
 					return new DataResponse(['error' => $this->l->t('Invalid request data')], Http::STATUS_BAD_REQUEST);
+				}
+				$detectedAccount = self::idOrNull($item['accountId'] ?? null);
+				if ($detectedAccount !== null) {
+					$this->requireUsableAccount($this->getEffectiveUserId(), $detectedAccount);
 				}
 				$raw = $item['categoryId'] ?? null;
 				$this->granularShareService->requireUsableCategory(

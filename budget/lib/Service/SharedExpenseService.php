@@ -16,6 +16,7 @@ use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\IDBConnection;
+use OCP\IL10N;
 use OCP\IUserManager;
 
 class SharedExpenseService {
@@ -41,6 +42,7 @@ class SharedExpenseService {
 		AccountMapper $accountMapper,
 		IUserManager $userManager,
 		IDBConnection $db,
+		private ?IL10N $l = null,
 	) {
 		$this->contactMapper = $contactMapper;
 		$this->expenseShareMapper = $expenseShareMapper;
@@ -77,7 +79,11 @@ class SharedExpenseService {
 				'ownerUserId' => $ownerId,
 				'ownerName' => $nameCache[$ownerId],
 				'transactionId' => (int)$row['transaction_id'],
-				'transactionDescription' => $row['transaction_description'] ?? null,
+				// Gone, or no longer visible to whoever split it: the split
+				// keeps its own note or a neutral label, never the row's text
+				'transactionDescription' => $row['transaction_date'] === null
+					? $this->splitLabel($row['notes'] ?? null)
+					: ($row['transaction_description'] ?? null),
 				'transactionDate' => $row['transaction_date'] ?? null,
 				'transactionAmount' => $row['transaction_amount'] !== null ? (float)$row['transaction_amount'] : null,
 				'transactionType' => $row['transaction_type'] ?? null,
@@ -89,19 +95,6 @@ class SharedExpenseService {
 		}
 
 		return $result;
-	}
-
-	/**
-	 * Get the currency for a transaction by looking up its account.
-	 */
-	private function getTransactionCurrency(int $transactionId, string $userId): ?string {
-		try {
-			$transaction = $this->transactionMapper->find($transactionId, $userId);
-			$account = $this->accountMapper->find($transaction->getAccountId(), $userId);
-			return $account->getCurrency() ?: null;
-		} catch (\Exception $e) {
-			return null;
-		}
 	}
 
 	// ==================== Contact Methods ====================
@@ -203,15 +196,7 @@ class SharedExpenseService {
 		?array $visibleAccountIds = null,
 	): ExpenseShare {
 		// Verify the transaction exists and is accessible to user
-		try {
-			$this->transactionMapper->find($transactionId, $userId);
-		} catch (DoesNotExistException $e) {
-			if (!empty($visibleAccountIds)) {
-				$this->transactionMapper->findForAccounts($transactionId, $visibleAccountIds);
-			} else {
-				throw $e;
-			}
-		}
+		$transaction = $this->findShareableTransaction($transactionId, $userId, $visibleAccountIds);
 		// Verify the contact exists and belongs to user
 		$this->contactMapper->find($contactId, $userId);
 
@@ -223,7 +208,10 @@ class SharedExpenseService {
 			}
 		}
 
-		$currency = $this->getTransactionCurrency($transactionId, $userId);
+		// By the account's id: a transaction in an account shared with the
+		// user is its owner's, and a user-scoped lookup stored no currency,
+		// which every balance then showed as US dollars
+		$currency = $this->accountCurrency($transaction);
 
 		$share = new ExpenseShare();
 		$share->setUserId($userId);
@@ -507,10 +495,17 @@ class SharedExpenseService {
 	}
 
 	/**
-	 * Settle selected shares by ID, creating per-currency settlements.
+	 * Settle selected shares by ID, creating one settlement per person and
+	 * currency.
+	 *
+	 * A selection spanning two people was recorded in one sum against the
+	 * first of them. Every id is looked up before anything changes: one that
+	 * wasn't the user's came after the shares before it were already marked
+	 * settled. A share already settled, or picked twice, counts once.
 	 *
 	 * @param int[] $shareIds
-	 * @return Settlement[] One settlement per currency
+	 * @return Settlement[] One settlement per person and currency
+	 * @throws DoesNotExistException when a share is not the user's
 	 */
 	public function settleSelectedShares(
 		string $userId,
@@ -518,23 +513,37 @@ class SharedExpenseService {
 		string $date,
 		?string $notes = null,
 	): array {
-		$contactId = null;
-		$byCurrency = [];
-
-		foreach ($shareIds as $shareId) {
+		$shares = [];
+		foreach (array_unique(array_map('intval', $shareIds)) as $shareId) {
 			$share = $this->expenseShareMapper->find($shareId, $userId);
-			if ($contactId === null) {
-				$contactId = $share->getContactId();
+			if (!$share->getIsSettled()) {
+				$shares[] = $share;
 			}
+		}
+
+		$totals = [];
+		foreach ($shares as $share) {
 			$currency = $share->getCurrency() ?? 'USD';
-			$byCurrency[$currency] = ($byCurrency[$currency] ?? 0.0) + $share->getAmount();
-			$share->setIsSettled(true);
-			$this->expenseShareMapper->update($share);
+			$contactId = $share->getContactId();
+			$totals[$contactId][$currency] = MoneyCalculator::add($totals[$contactId][$currency] ?? '0', (float)$share->getAmount());
 		}
 
 		$settlements = [];
-		foreach ($byCurrency as $currency => $total) {
-			$settlements[] = $this->recordSettlement($userId, $contactId, $total, $date, $notes, $currency);
+		$this->db->beginTransaction();
+		try {
+			foreach ($shares as $share) {
+				$share->setIsSettled(true);
+				$this->expenseShareMapper->update($share);
+			}
+			foreach ($totals as $contactId => $byCurrency) {
+				foreach ($byCurrency as $currency => $total) {
+					$settlements[] = $this->recordSettlement($userId, (int)$contactId, MoneyCalculator::toFloat($total), $date, $notes, (string)$currency);
+				}
+			}
+			$this->db->commit();
+		} catch (\Throwable $e) {
+			$this->db->rollBack();
+			throw $e;
 		}
 
 		return $settlements;
@@ -675,8 +684,12 @@ class SharedExpenseService {
 
 	/**
 	 * Get detailed balance for a specific contact including transaction history.
+	 *
+	 * @param int[]|null $visibleAccountIds also list splits of transactions in
+	 *                                      accounts shared with the user: they can be split, so they have to be
+	 *                                      listed to be settled one by one
 	 */
-	public function getContactDetails(int $contactId, string $userId): array {
+	public function getContactDetails(int $contactId, string $userId, ?array $visibleAccountIds = null): array {
 		$contact = $this->contactMapper->find($contactId, $userId);
 		$shares = $this->expenseShareMapper->findByContact($contactId, $userId);
 		$settlements = $this->settlementMapper->findByContact($contactId, $userId);
@@ -685,21 +698,25 @@ class SharedExpenseService {
 		$enrichedShares = [];
 		foreach ($shares as $share) {
 			try {
-				$transaction = $this->transactionMapper->find($share->getTransactionId(), $userId);
-				$enrichedShares[] = [
-					'share' => $share->jsonSerialize(),
-					'transaction' => [
-						'id' => $transaction->getId(),
-						'date' => $transaction->getDate(),
-						'description' => $transaction->getDescription(),
-						'amount' => $transaction->getAmount(),
-					],
-					'incoming' => false,
+				$transaction = $this->findShareableTransaction($share->getTransactionId(), $userId, $visibleAccountIds);
+				$details = [
+					'id' => $transaction->getId(),
+					'date' => $transaction->getDate(),
+					'description' => $transaction->getDescription(),
+					'amount' => $transaction->getAmount(),
 				];
 			} catch (DoesNotExistException $e) {
-				// Transaction was deleted, skip this share
-				continue;
+				// Deleted, or in an account no longer shared with the user.
+				// The split is their own record of what is owed, so it stays
+				// listed, to be settled; it was left out while still counting
+				// in the balance.
+				$details = $this->unavailableTransaction($share->getTransactionId(), $share->getNotes());
 			}
+			$enrichedShares[] = [
+				'share' => $share->jsonSerialize(),
+				'transaction' => $details,
+				'incoming' => false,
+			];
 		}
 
 		// Calculate per-currency balances from unsettled shares
@@ -727,10 +744,6 @@ class SharedExpenseService {
 						MoneyCalculator::add($balancesByCurrency[$currency] ?? 0.0, $amount)
 					);
 				}
-				if ($row['transaction_date'] === null) {
-					// Transaction was deleted, skip this share
-					continue;
-				}
 				$enrichedShares[] = [
 					'share' => [
 						'id' => (int)$row['id'],
@@ -743,12 +756,16 @@ class SharedExpenseService {
 						'createdAt' => $row['created_at'],
 						'currency' => $row['currency'] ?? null,
 					],
-					'transaction' => [
-						'id' => (int)$row['transaction_id'],
-						'date' => $row['transaction_date'],
-						'description' => $row['transaction_description'],
-						'amount' => (float)$row['transaction_amount'],
-					],
+					// Gone, or no longer visible to whoever split it (the
+					// query leaves its fields empty): listed all the same
+					'transaction' => $row['transaction_date'] === null
+						? $this->unavailableTransaction((int)$row['transaction_id'], $row['notes'] ?? null)
+						: [
+							'id' => (int)$row['transaction_id'],
+							'date' => $row['transaction_date'],
+							'description' => $row['transaction_description'],
+							'amount' => (float)$row['transaction_amount'],
+						],
 					'incoming' => true,
 				];
 			}
@@ -777,6 +794,32 @@ class SharedExpenseService {
 			'balance' => $totalBalance,
 			'direction' => abs($totalBalance) < 0.005 ? 'settled' : ($totalBalance > 0 ? 'owed' : 'owing'),
 		];
+	}
+
+	/**
+	 * What a split shows for a transaction that can't be read: deleted, or in
+	 * an account the person who split it can no longer see. Nothing of the
+	 * transaction: the split's own note, or a neutral label, and no date or
+	 * amount, so the split still lists, counts and settles by its own amount.
+	 *
+	 * @return array{id: int, date: string, description: string, amount: null}
+	 */
+	private function unavailableTransaction(int $transactionId, ?string $notes): array {
+		return [
+			'id' => $transactionId,
+			'date' => '',
+			'description' => $this->splitLabel($notes),
+			'amount' => null,
+		];
+	}
+
+	/** A split's own note, or a neutral label when it has none */
+	private function splitLabel(?string $notes): string {
+		$notes = trim((string)$notes);
+		if ($notes !== '') {
+			return $notes;
+		}
+		return $this->l !== null ? $this->l->t('Shared expense') : 'Shared expense';
 	}
 
 	/**

@@ -72,6 +72,22 @@ class CalendarFeedControllerTest extends TestCase {
 		$this->assertTrue($response->isThrottled());
 	}
 
+	/**
+	 * Two users holding the same token (a restored backup, or a token set by
+	 * hand) made the lookup throw, and the public feed answered with a 500.
+	 * Whose feed it is can't be told, so neither is served.
+	 */
+	public function testATokenTwoUsersHoldIsThrottled404(): void {
+		$this->settingMapper->method('findByKeyValue')
+			->willThrowException(new \OCP\AppFramework\Db\MultipleObjectsReturnedException('two rows'));
+		$this->icsService->expects($this->never())->method('generateBillsFeed');
+
+		$response = $this->controller->billsIcs(self::VALID_TOKEN);
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
+		$this->assertTrue($response->isThrottled());
+	}
+
 	public function testValidTokenServesOwnersFeed(): void {
 		// Response::cacheFor() resolves ITimeFactory through the server container
 		$timeFactory = $this->createMock(\OCP\AppFramework\Utility\ITimeFactory::class);

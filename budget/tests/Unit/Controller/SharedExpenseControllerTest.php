@@ -780,6 +780,37 @@ class SharedExpenseControllerTest extends TestCase {
 		$this->assertSame('deleted', $response->getData()['status']);
 	}
 
+	/**
+	 * Every lookup here is the user's own, so another user's id (or one that
+	 * is gone) is a 404 with nothing logged: it was a 500 and an error in
+	 * nextcloud.log.
+	 */
+	#[DataProvider('routesTakingIds')]
+	public function testSomeoneElsesIdIsNotFound(string $serviceMethod, \Closure $call): void {
+		$this->service->method($serviceMethod)->willThrowException(new DoesNotExistException('not yours'));
+		$this->logger->expects($this->never())->method('error');
+
+		$response = $call($this->controller);
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
+	}
+
+	public static function routesTakingIds(): array {
+		return [
+			'update contact' => ['updateContact', fn (SharedExpenseController $c) => $c->updateContact(9, 'Dora')],
+			'delete contact' => ['deleteContact', fn (SharedExpenseController $c) => $c->destroyContact(9)],
+			'contact details' => ['getContactDetails', fn (SharedExpenseController $c) => $c->contactDetails(9)],
+			'share an expense' => ['shareExpense', fn (SharedExpenseController $c) => $c->shareExpense(9, 9, 1.0)],
+			'split 50/50' => ['splitFiftyFifty', fn (SharedExpenseController $c) => $c->splitFiftyFifty(9, 9)],
+			'update a split' => ['updateExpenseShare', fn (SharedExpenseController $c) => $c->updateShare(9, 1.0)],
+			'mark a split settled' => ['markShareSettled', fn (SharedExpenseController $c) => $c->markSettled(9)],
+			'delete a split' => ['deleteExpenseShare', fn (SharedExpenseController $c) => $c->destroyShare(9)],
+			'settle selected' => ['settleSelectedShares', fn (SharedExpenseController $c) => $c->settleSelected([9], '2026-10-04')],
+			'record a settlement' => ['recordSettlement', fn (SharedExpenseController $c) => $c->recordSettlement(9, 1.0, '2026-10-04')],
+			'delete a settlement' => ['deleteSettlement', fn (SharedExpenseController $c) => $c->destroySettlement(9)],
+		];
+	}
+
 	public function testDestroySettlementHandlesError(): void {
 		$this->service->method('deleteSettlement')
 			->willThrowException(new \RuntimeException('not found'));

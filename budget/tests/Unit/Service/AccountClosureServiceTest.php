@@ -21,6 +21,7 @@ use OCA\Budget\Db\RecurringIncome;
 use OCA\Budget\Db\RecurringIncomeMapper;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Service\AccountClosureService;
+use OCA\Budget\Service\GranularShareService;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\IL10N;
 use PHPUnit\Framework\TestCase;
@@ -54,6 +55,8 @@ class AccountClosureServiceTest extends TestCase {
 	private array $mappings = [];
 	/** @var ImportRule[] */
 	private array $rules = [];
+	/** @var string[]|null who can write to the account; null = everyone */
+	private ?array $writers = null;
 	/** @var BillMapper&\PHPUnit\Framework\MockObject\MockObject */
 	private $billMapper;
 	/** @var RecurringIncomeMapper&\PHPUnit\Framework\MockObject\MockObject */
@@ -117,6 +120,11 @@ class AccountClosureServiceTest extends TestCase {
 			return $text;
 		});
 
+		$shares = $this->createMock(GranularShareService::class);
+		$shares->method('canWrite')->willReturnCallback(
+			fn (string $userId, string $type, int $id) => $this->writers === null || in_array($userId, $this->writers, true)
+		);
+
 		$this->service = new AccountClosureService(
 			$transactionMapper,
 			$billMapper,
@@ -127,7 +135,8 @@ class AccountClosureServiceTest extends TestCase {
 			$mappingMapper,
 			$ruleMapper,
 			$l,
-			$this->transactionService
+			$this->transactionService,
+			granularShareService: $shares,
 		);
 	}
 
@@ -278,26 +287,129 @@ class AccountClosureServiceTest extends TestCase {
 	/**
 	 * A bill or income someone the account is shared with set up posts into
 	 * it just the same, but only the owner's were looked at: a closed shared
-	 * account went on receiving their payments.
+	 * account went on receiving their payments. It blocks the close without
+	 * being named: its name is someone else's text.
 	 */
 	public function testRefusesWhenSomeoneItIsSharedWithPaysFromIt(): void {
-		$bill = $this->bill('Bob gym', 7);
+		$bill = $this->bill('<b>Ask Bob</b> before closing', 7);
 		$bill->setUserId('bob');
 		$this->bills[] = $bill;
 
-		$this->expectException(\InvalidArgumentException::class);
-		$this->expectExceptionMessageMatches('/Bob gym/');
+		$message = $this->refusal();
 
-		$this->service->assertClosable($this->account());
+		$this->assertStringContainsString('Items other people set up still use this account', $message);
+		$this->assertStringNotContainsString('Ask Bob', $message);
 	}
 
 	public function testRefusesWhenSomeoneItIsSharedWithIsPaidIntoIt(): void {
 		$this->incomes[] = $this->income('Bob salary', 7, 'bob');
 
-		$this->expectException(\InvalidArgumentException::class);
-		$this->expectExceptionMessageMatches('/Bob salary/');
+		$message = $this->refusal();
 
+		$this->assertStringContainsString('Items other people set up still use this account', $message);
+		$this->assertStringNotContainsString('Bob salary', $message);
+	}
+
+	public function testNamesTheOwnersItemsAndCountsOthersApart(): void {
+		$this->bills[] = $this->bill('Comcast', 7);
+		$this->incomes[] = $this->income('Bob salary', 7, 'bob');
+
+		$message = $this->refusal();
+
+		$this->assertStringContainsString('Bills: Comcast', $message);
+		$this->assertStringContainsString('Items other people set up still use this account', $message);
+		$this->assertStringNotContainsString('Bob salary', $message);
+	}
+
+	/**
+	 * Someone who can no longer post into the account (the share ended, or
+	 * was cut to read-only) has a schedule that can never pay into it again.
+	 * It blocked the owner's close all the same, and only they could fix it.
+	 */
+	public function testIgnoresSchedulesOfPeopleWhoCanNoLongerWriteToIt(): void {
+		$this->writers = ['alice', 'bob'];
+		$bill = $this->bill('Rita gym', 7);
+		$bill->setUserId('rita');
+		$this->bills[] = $bill;
+		$this->incomes[] = $this->income('Walt pinned this', 7, 'walt');
+
+		$this->assertSame([], $this->service->findOpenReferences($this->account()));
 		$this->service->assertClosable($this->account());
+	}
+
+	public function testStillRefusesForSomeoneWhoCanWriteToIt(): void {
+		$this->writers = ['alice', 'bob'];
+		$this->incomes[] = $this->income('Bob salary', 7, 'bob');
+
+		$this->assertStringContainsString('Items other people set up still use this account', $this->refusal());
+	}
+
+	/** A write recipient closing the owner's account sees only her own items by name */
+	public function testARecipientClosingSeesOnlyHerOwnItemsByName(): void {
+		$this->writers = ['alice', 'rita'];
+		$rita = $this->bill('Rita gym', 7);
+		$rita->setUserId('rita');
+		$this->bills = [$this->bill('Rent', 7), $rita];
+		$this->pensions[2] = $this->pension(2, 'Aviva workplace');
+		$this->contributions[] = $this->contribution(2, 7);
+		$this->rules[] = $this->rule('Route Amazon', [['type' => 'set_account', 'value' => 7]]);
+
+		$message = $this->refusal('rita');
+
+		$this->assertStringContainsString('Bills: Rita gym', $message);
+		$this->assertStringContainsString('Items other people set up still use this account', $message);
+		foreach (['Rent', 'Aviva workplace', 'Route Amazon', 'Pension', 'Import rules'] as $hidden) {
+			$this->assertStringNotContainsString($hidden, $message);
+		}
+	}
+
+	public function testClosingLetsGoOfTheSchedulesThatCanNoLongerPostIntoIt(): void {
+		$this->writers = ['alice', 'bob'];
+		$own = $this->bill('Comcast', 7);
+		$own->setId(1);
+		$stale = $this->bill('Rita gym', 7);
+		$stale->setId(2);
+		$stale->setUserId('rita');
+		$stale->setAutoPayEnabled(true);
+		$staleTransfer = $this->bill('Rita into it', 3, 7, true);
+		$staleTransfer->setId(3);
+		$staleTransfer->setUserId('rita');
+		$live = $this->bill('Bob gym', 7);
+		$live->setId(4);
+		$live->setUserId('bob');
+		$this->bills = [$own, $stale, $staleTransfer, $live];
+		$staleIncome = $this->income('Walt pinned this', 7, 'walt');
+		$this->incomes[] = $staleIncome;
+
+		$cleared = [];
+		$this->transactionService->method('deleteScheduledBillTransactions')
+			->willReturnCallback(function (int $billId) use (&$cleared) {
+				$cleared[] = $billId;
+			});
+		$this->billMapper->method('update')->willReturnArgument(0);
+		$this->incomeMapper->method('update')->willReturnArgument(0);
+
+		$this->assertSame(3, $this->service->detachStaleSchedules($this->account()));
+
+		$this->assertSame([2, 3], $cleared);
+		$this->assertNull($stale->getAccountId());
+		$this->assertFalse($stale->getAutoPayEnabled());
+		$this->assertTrue($stale->getIsActive(), 'still theirs to point at another account');
+		$this->assertSame(3, $staleTransfer->getAccountId());
+		$this->assertNull($staleTransfer->getDestinationAccountId());
+		$this->assertNull($staleIncome->getAccountId());
+		$this->assertSame(7, $own->getAccountId());
+		$this->assertSame(7, $live->getAccountId());
+	}
+
+	/** The refusal message, as $viewer (the owner by default) would see it */
+	private function refusal(?string $viewer = null): string {
+		try {
+			$this->service->assertClosable($this->account(), $viewer);
+		} catch (\InvalidArgumentException $e) {
+			return $e->getMessage();
+		}
+		$this->fail('expected a refusal');
 	}
 
 	// -- deleting the account (it can't be refused like closing) --
