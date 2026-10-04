@@ -49,7 +49,6 @@ class SettingController extends Controller {
 		'report_files_enabled' => 'false',
 		'report_email_enabled' => 'false',
 		'import_auto_apply_rules' => 'true',
-		'import_skip_duplicates' => 'true',
 		'receipt_folder' => AttachmentService::DEFAULT_RECEIPTS_FOLDER,
 		'export_default_format' => 'csv',
 		'budget_period' => 'monthly',
@@ -77,6 +76,10 @@ class SettingController extends Controller {
 		'dashboard_grid_columns',
 		'transaction_columns_visible',
 		'whats_new_seen',
+		// The Settings page's "Skip Duplicate Transactions" switch did
+		// nothing and is gone; nothing reads the key. Still accepted, and
+		// ignored, so a page loaded before the update can save its settings.
+		'import_skip_duplicates',
 	];
 
 	private static function isClientKey(string $key): bool {

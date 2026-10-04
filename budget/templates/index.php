@@ -4669,16 +4669,6 @@ style('budget', 'budget-app');
                             </label>
                         </div>
 
-                        <div class="setting-item checkbox-setting">
-                            <label>
-                                <input type="checkbox" id="setting-import-skip-duplicates" class="setting-input">
-                                <div>
-                                    <strong><?php p($l->t('Skip Duplicate Transactions')); ?></strong>
-                                    <small><?php p($l->t('Automatically skip duplicate transactions during import')); ?></small>
-                                </div>
-                            </label>
-                        </div>
-
                         <div class="setting-item">
                             <label for="setting-export-default-format">
                                 <strong><?php p($l->t('Default Export Format')); ?></strong>
