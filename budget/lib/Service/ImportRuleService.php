@@ -13,6 +13,7 @@ use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Service\Import\CriteriaEvaluator;
 use OCA\Budget\Service\Import\RuleActionApplicator;
+use OCA\Budget\Service\Import\SetupDefaultRules;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
@@ -401,53 +402,20 @@ class ImportRuleService extends AbstractCrudService {
 	public const DEFAULT_RULE_PRIORITY = 0;
 
 	public function createDefaultRules(string $userId): array {
-		// Listed in the order they used to rank (their old priorities 10, 10,
-		// 9, 8, 7, 5): at one priority the older rule runs first, so creating
-		// them in this order keeps their order among themselves.
-		$defaultRules = [
-			[
-				'name' => 'Grocery Stores',
-				'pattern' => 'grocery|supermarket|safeway|kroger|trader joe|whole foods',
+		// SetupDefaultRules lists them in the order they used to rank (their
+		// old priorities 10, 10, 9, 8, 7, 5): at one priority the older rule
+		// runs first, so creating them in that order keeps their order among
+		// themselves. Their patterns match whole words (V3-4).
+		$defaultRules = [];
+		foreach (SetupDefaultRules::DEFINITIONS as $name => $definition) {
+			$defaultRules[] = [
+				'name' => $name,
+				'pattern' => $definition['pattern'],
 				'field' => 'description',
 				'matchType' => 'regex',
-				'categoryName' => 'Groceries',
-			],
-			[
-				'name' => 'Gas Stations',
-				'pattern' => 'gas|fuel|shell|chevron|exxon|bp|mobil',
-				'field' => 'description',
-				'matchType' => 'regex',
-				'categoryName' => 'Gas',
-			],
-			[
-				'name' => 'Utilities',
-				'pattern' => 'electric|water|gas|utility|power|energy',
-				'field' => 'description',
-				'matchType' => 'regex',
-				'categoryName' => 'Utilities',
-			],
-			[
-				'name' => 'Restaurants',
-				'pattern' => 'restaurant|cafe|coffee|starbucks|mcdonald|burger',
-				'field' => 'description',
-				'matchType' => 'regex',
-				'categoryName' => 'Dining Out',
-			],
-			[
-				'name' => 'ATM Withdrawals',
-				'pattern' => 'ATM|withdrawal|cash',
-				'field' => 'description',
-				'matchType' => 'regex',
-				'categoryName' => 'Cash',
-			],
-			[
-				'name' => 'Online Shopping',
-				'pattern' => 'amazon|ebay|paypal|stripe',
-				'field' => 'description',
-				'matchType' => 'regex',
-				'categoryName' => 'Shopping',
-			],
-		];
+				'categoryName' => $definition['category'],
+			];
+		}
 
 		// Each rule sets the category it is named for. They were created with
 		// none: a rule with no action still matches first and stops the rules
@@ -459,9 +427,11 @@ class ImportRuleService extends AbstractCrudService {
 
 		$created = [];
 		foreach ($defaultRules as $ruleData) {
-			// Pressing the button again must not stack a second copy
+			// Pressing the button again must not stack a second copy, beside
+			// one made with this pattern or the one it had before
+			$patterns = [$ruleData['pattern'], SetupDefaultRules::RULES[$ruleData['name']] ?? null];
 			foreach ($existingRules as $existing) {
-				if ($existing->getName() === $ruleData['name'] && $existing->getPattern() === $ruleData['pattern']) {
+				if ($existing->getName() === $ruleData['name'] && in_array($existing->getPattern(), $patterns, true)) {
 					continue 2;
 				}
 			}
@@ -478,19 +448,7 @@ class ImportRuleService extends AbstractCrudService {
 					pattern: $ruleData['pattern'],
 					field: $ruleData['field'],
 					matchType: $ruleData['matchType'],
-					criteria: [
-						'version' => 2,
-						'root' => [
-							'operator' => 'AND',
-							'conditions' => [[
-								'type' => 'condition',
-								'field' => $ruleData['field'],
-								'matchType' => $ruleData['matchType'],
-								'pattern' => $ruleData['pattern'],
-								'negate' => false,
-							]],
-						],
-					],
+					criteria: SetupDefaultRules::criteriaFor($ruleData['pattern']),
 					schemaVersion: 2,
 					priority: self::DEFAULT_RULE_PRIORITY,
 					actions: [

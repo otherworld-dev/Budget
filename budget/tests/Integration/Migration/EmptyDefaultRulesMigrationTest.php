@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Tests\Integration\Migration;
 
 use OCA\Budget\Migration\Version001000122Date20261004;
+use OCA\Budget\Service\Import\SetupDefaultRules;
 use OCA\Budget\Tests\Integration\IntegrationTestCase;
 use OCP\DB\ISchemaWrapper;
 use OCP\Migration\IOutput;
@@ -82,6 +83,46 @@ class EmptyDefaultRulesMigrationTest extends IntegrationTestCase {
 
 		$this->assertSame([], $second);
 		$this->assertFalse((bool)$this->fetchRow('budget_import_rules', $empty)['active']);
+	}
+
+	/**
+	 * A default a 3.0 pre-release made with a category stays on and is given
+	 * the whole-word pattern (V3-4); one the user changed keeps its own.
+	 */
+	public function testUntouchedCategorisedDefaultsGetWholeWordPatterns(): void {
+		$category = $this->makeCategory();
+		$untouched = $this->makeRule($this->categorisedDefault('Utilities', $category));
+		$edited = $this->makeRule(['priority' => 3] + $this->categorisedDefault('Gas Stations', $category));
+
+		$messages = $this->runMigration();
+
+		$row = $this->fetchRow('budget_import_rules', $untouched);
+		$pattern = SetupDefaultRules::DEFINITIONS['Utilities']['pattern'];
+		$this->assertSame($pattern, $row['pattern']);
+		$this->assertSame($pattern, json_decode($row['criteria'], true)['root']['conditions'][0]['pattern']);
+		$this->assertTrue((bool)$row['active']);
+		$this->assertSame(0, (int)$row['priority']);
+		$this->assertSame($category, json_decode($row['actions'], true)['actions'][0]['value']);
+		$this->assertSame(SetupDefaultRules::RULES['Gas Stations'], $this->fetchRow('budget_import_rules', $edited)['pattern']);
+		$this->assertContains('Gave 1 default import rule(s) whole-word patterns', $messages);
+		$this->assertSame([], $this->runMigration(), 'a second run changed something');
+	}
+
+	/**
+	 * @return array<string, mixed> a rule row as a 3.0 pre-release's setup made it
+	 */
+	private function categorisedDefault(string $name, int $category): array {
+		$pattern = SetupDefaultRules::RULES[$name];
+		return [
+			'name' => $name,
+			'pattern' => $pattern,
+			'priority' => 0,
+			'schema_version' => 2,
+			'criteria' => json_encode(SetupDefaultRules::criteriaFor($pattern)),
+			'actions' => json_encode(['version' => 2, 'stopProcessing' => true, 'actions' => [
+				['type' => 'set_category', 'value' => $category, 'behavior' => 'always', 'priority' => 100],
+			]]),
+		];
 	}
 
 	/**
