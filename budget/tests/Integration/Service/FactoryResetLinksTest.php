@@ -86,6 +86,48 @@ class FactoryResetLinksTest extends IntegrationTestCase {
 		$this->assertSame($this->userId, $this->fetchRow('budget_contacts', $w['contact'])['nextcloud_user_id']);
 	}
 
+	/**
+	 * Bob, with write access, tagged a row in Alice's joint account with his
+	 * own tag. His reset deleted the tag but cleared tag links only through
+	 * his own transactions, so the link on Alice's row was left pointing at
+	 * a tag that no longer existed (T4-11). Alice's own tag stays.
+	 */
+	public function testAResetRemovesTheUsersTagsFromOtherUsersRows(): void {
+		$w = $this->sharedWorld();
+		[$bobsLink, $alicesLink] = $this->tagAlicesRow($w);
+
+		$this->reset->executeFactoryReset($this->bob);
+
+		$this->assertNull($this->fetchRow('budget_transaction_tags', $bobsLink));
+		$this->assertNotNull($this->fetchRow('budget_transaction_tags', $alicesLink));
+		$this->assertSame([], $this->danglingReferences());
+	}
+
+	/**
+	 * The same through a restore of Bob's own backup, which holds his tags
+	 * but not Alice's rows.
+	 */
+	public function testARestoreRemovesTheUsersTagsFromOtherUsersRows(): void {
+		$w = $this->sharedWorld();
+		[$bobsLink, $alicesLink] = $this->tagAlicesRow($w);
+		$migration = $this->service(\OCA\Budget\Service\MigrationService::class);
+
+		$migration->importAll($this->bob, $migration->exportAll($this->bob)['content']);
+
+		$this->assertNull($this->fetchRow('budget_transaction_tags', $bobsLink));
+		$this->assertNotNull($this->fetchRow('budget_transaction_tags', $alicesLink));
+		$this->assertSame([], $this->danglingReferences());
+	}
+
+	/**
+	 * @return array{0: int, 1: int} Bob's and Alice's tag links on Alice's joint row
+	 */
+	private function tagAlicesRow(array $w): array {
+		$bobsTag = $this->makeTag(null, $this->bob);
+		$alicesTag = $this->makeTag($this->makeTagSet($w['food']));
+		return [$this->tagTransaction($w['in'], $bobsTag), $this->tagTransaction($w['in'], $alicesTag)];
+	}
+
 	public function testADeletedUsersUidLeavesNoAccessBehind(): void {
 		$w = $this->sharedWorld();
 		$bobsShare = $this->insertRow('budget_shares', [
