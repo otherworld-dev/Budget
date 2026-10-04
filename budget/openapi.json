@@ -920,11 +920,24 @@
             "$ref": "#/components/responses/Unauthorised"
           },
           "412": {
-            "description": "error_code ocr_not_configured: no OCR provider is set up on this server (ocr_available is false). A 412 WITHOUT an error_code is Nextcloud reporting a missing OCS-APIRequest header.",
+            "description": "error_code ocr_not_configured: no OCR provider is set up on this server (ocr_available is false). A 412 WITHOUT an error_code is Nextcloud reporting a missing OCS-APIRequest header, with a bare {\"message\": \"CSRF check failed\"} and no OCS envelope.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ErrorEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "message": {
+                          "type": "string",
+                          "example": "CSRF check failed"
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
