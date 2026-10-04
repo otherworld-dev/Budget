@@ -335,19 +335,131 @@ class MigrationService {
 	}
 
 	/**
-	 * Export all user data as a ZIP archive.
+	 * Rows read per query, and per write, while exporting. The export used to
+	 * load every transaction as an entity, then encode each data set whole,
+	 * pretty-printed, and build the zip as one string: a ledger of about
+	 * 110,000 transactions ran out of a 512 MB memory limit, so no backup
+	 * could be made at all.
+	 */
+	private const EXPORT_BATCH = 1000;
+
+	/**
+	 * Export all user data as a ZIP archive, returned as a string.
 	 *
 	 * @return array{content: string, filename: string, contentType: string}
 	 */
 	public function exportAll(string $userId): array {
-		$exportData = $this->gatherExportData($userId);
-		$zipContent = $this->createZipArchive($exportData);
+		$export = $this->exportToFile($userId);
+		try {
+			$content = file_get_contents($export['path']);
+		} finally {
+			@unlink($export['path']);
+		}
+		if ($content === false) {
+			throw new \RuntimeException('Failed to read the export archive');
+		}
 
 		return [
-			'content' => $zipContent,
-			'filename' => 'budget_export_' . date('Y-m-d_His') . '.zip',
-			'contentType' => 'application/zip'
+			'content' => $content,
+			'filename' => $export['filename'],
+			'contentType' => $export['contentType'],
 		];
+	}
+
+	/**
+	 * Export all user data as a ZIP archive in a temporary file, which the
+	 * caller must delete.
+	 *
+	 * Memory stays flat whatever the size of the ledger: each data set is
+	 * read a batch of rows at a time and written straight to its own
+	 * temporary JSON file, and the zip is put together from those files. The
+	 * archive holds the same files with the same JSON as before, only not
+	 * pretty-printed, so every restore that read the old one reads this.
+	 *
+	 * @return array{path: string, filename: string, contentType: string}
+	 */
+	public function exportToFile(string $userId): array {
+		$parts = [];
+		$counts = [];
+		$zipPath = null;
+		try {
+			$writeList = function (string $key, iterable $rows) use (&$parts, &$counts): void {
+				$parts[$key] = self::tempPath();
+				$counts[$key] = self::writeJsonList($parts[$key], $rows);
+			};
+
+			$writeList('categories', self::mapEach($this->categoryMapper->findAll($userId), fn (Category $c) => $c->jsonSerialize()));
+			// Accounts with full (decrypted) data
+			$writeList('accounts', self::mapEach($this->accountMapper->findAll($userId), fn (Account $a) => $a->toArrayFull()));
+			$writeList('transactions', $this->exportTransactionRows($userId));
+			// The undo snapshot of the last payment stays out of the API's
+			// JSON, so the backup adds it: without it no restored bill could
+			// be marked unpaid (#365).
+			$writeList('bills', self::mapEach($this->billMapper->findAll($userId), fn (Bill $b) => $b->jsonSerialize() + [
+				'paidUndoState' => self::decodeJsonColumn($b->getPaidUndoState()),
+			]));
+			$writeList('import_rules', self::mapEach($this->importRuleMapper->findAll($userId), fn (ImportRule $r) => $r->jsonSerialize()));
+
+			// Settings are one JSON object of key => value
+			$settings = [];
+			foreach ($this->settingMapper->findAll($userId) as $setting) {
+				$settings[$setting->getKey()] = $setting->getValue();
+			}
+			$parts['settings'] = self::tempPath();
+			self::writeFile($parts['settings'], self::encodeJson($settings));
+			$counts['settings'] = count($settings);
+
+			// Everything else round-trips at the table level (#351)
+			foreach (self::EXTRA_TABLES_PRE + self::EXTRA_TABLES_POST as $key => $spec) {
+				$writeList($key, $this->exportTableRows($userId, $spec));
+			}
+
+			$manifestPath = self::tempPath();
+			$parts = ['manifest' => $manifestPath] + $parts;
+			self::writeFile($manifestPath, self::encodeJson([
+				'version' => self::EXPORT_VERSION,
+				'appId' => self::APP_ID,
+				'exportedAt' => date('c'),
+				'counts' => $counts,
+				// Receipt attachments reference files in the user's Files space by
+				// instance-specific fileId — the files themselves are not part of
+				// this archive, and attachment links are not restored on import.
+				'attachmentsNote' => 'Receipt files are not included; file references do not survive export/import.',
+				'excluded' => 'Not exported: audit log and idempotency keys (instance state), bank-sync connections (provider agreements and credentials are instance-specific and must be re-established), shares (reference users on the old server), receipt attachments (see attachmentsNote), fetched exchange-rate cache (manual rates are included).',
+			]));
+
+			$zipPath = self::tempPath();
+			$zip = new \ZipArchive();
+			if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+				throw new \RuntimeException('Failed to create ZIP archive');
+			}
+			// One JSON file per data set, manifest first. Each is read from
+			// its file when the archive is written out.
+			foreach ($parts as $key => $path) {
+				if (!$zip->addFile($path, $key . '.json')) {
+					$zip->close();
+					throw new \RuntimeException('Failed to create ZIP archive');
+				}
+			}
+			if (!$zip->close()) {
+				throw new \RuntimeException('Failed to create ZIP archive');
+			}
+
+			$result = [
+				'path' => $zipPath,
+				'filename' => 'budget_export_' . date('Y-m-d_His') . '.zip',
+				'contentType' => 'application/zip',
+			];
+			$zipPath = null;
+			return $result;
+		} finally {
+			foreach ($parts as $path) {
+				@unlink($path);
+			}
+			if ($zipPath !== null) {
+				@unlink($zipPath);
+			}
+		}
 	}
 
 	/**
@@ -563,96 +675,116 @@ class MigrationService {
 	}
 
 	/**
-	 * Gather all exportable data for a user.
+	 * The user's transactions as the archive holds them
+	 * (Transaction::jsonSerialize()), read EXPORT_BATCH rows at a time in id
+	 * order.
+	 *
+	 * @return \Generator<int, array<string, mixed>>
 	 */
-	private function gatherExportData(string $userId): array {
-		// Get categories
-		$categories = $this->categoryMapper->findAll($userId);
-		$categoriesData = array_map(fn (Category $c) => $c->jsonSerialize(), $categories);
-
-		// Get accounts with full (decrypted) data
-		$accounts = $this->accountMapper->findAll($userId);
-		$accountsData = array_map(fn (Account $a) => $a->toArrayFull(), $accounts);
-
-		// Get transactions
-		$transactions = $this->transactionMapper->findAll($userId);
-		$transactionsData = array_map(fn (Transaction $t) => $t->jsonSerialize(), $transactions);
-
-		// Get bills. The undo snapshot of the last payment stays out of the
-		// API's JSON, so the backup adds it: without it no restored bill
-		// could be marked unpaid (#365).
-		$bills = $this->billMapper->findAll($userId);
-		$billsData = array_map(fn (Bill $b) => $b->jsonSerialize() + [
-			'paidUndoState' => self::decodeJsonColumn($b->getPaidUndoState()),
-		], $bills);
-
-		// Get import rules
-		$importRules = $this->importRuleMapper->findAll($userId);
-		$importRulesData = array_map(fn (ImportRule $r) => $r->jsonSerialize(), $importRules);
-
-		// Get settings
-		$settings = $this->settingMapper->findAll($userId);
-		$settingsData = [];
-		foreach ($settings as $setting) {
-			$settingsData[$setting->getKey()] = $setting->getValue();
-		}
-
-		$data = [
-			'categories' => $categoriesData,
-			'accounts' => $accountsData,
-			'transactions' => $transactionsData,
-			'bills' => $billsData,
-			'import_rules' => $importRulesData,
-			'settings' => $settingsData
-		];
-
-		// Everything else round-trips at the table level (#351)
-		foreach (self::EXTRA_TABLES_PRE + self::EXTRA_TABLES_POST as $key => $spec) {
-			$data[$key] = $this->exportTable($userId, $spec);
-		}
-
-		$counts = [];
-		foreach ($data as $key => $rows) {
-			$counts[$key] = count($rows);
-		}
-
-		$manifest = [
-			'version' => self::EXPORT_VERSION,
-			'appId' => self::APP_ID,
-			'exportedAt' => date('c'),
-			'counts' => $counts,
-			// Receipt attachments reference files in the user's Files space by
-			// instance-specific fileId — the files themselves are not part of
-			// this archive, and attachment links are not restored on import.
-			'attachmentsNote' => 'Receipt files are not included; file references do not survive export/import.',
-			'excluded' => 'Not exported: audit log and idempotency keys (instance state), bank-sync connections (provider agreements and credentials are instance-specific and must be re-established), shares (reference users on the old server), receipt attachments (see attachmentsNote), fetched exchange-rate cache (manual rates are included).',
-		];
-
-		return ['manifest' => $manifest] + $data;
+	private function exportTransactionRows(string $userId): \Generator {
+		$lastId = 0;
+		do {
+			$qb = $this->db->getQueryBuilder();
+			$qb->select('t.*')
+				->from('budget_transactions', 't')
+				->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+				->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+				->andWhere($qb->expr()->gt('t.id', $qb->createNamedParameter($lastId, IQueryBuilder::PARAM_INT)))
+				->orderBy('t.id', 'ASC')
+				->setMaxResults(self::EXPORT_BATCH);
+			$rows = $this->fetchBatch($qb);
+			foreach ($rows as $row) {
+				$lastId = (int)$row['id'];
+				yield Transaction::fromRow($row)->jsonSerialize();
+			}
+		} while (count($rows) === self::EXPORT_BATCH);
 	}
 
 	/**
-	 * Create a ZIP archive from export data.
+	 * @return list<array<string, mixed>>
 	 */
-	private function createZipArchive(array $data): string {
-		$tempFile = tempnam(sys_get_temp_dir(), 'budget_export_');
-
-		$zip = new \ZipArchive();
-		if ($zip->open($tempFile, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
-			throw new \RuntimeException('Failed to create ZIP archive');
+	private function fetchBatch(IQueryBuilder $qb): array {
+		$result = $qb->executeQuery();
+		$rows = [];
+		while ($row = $result->fetch()) {
+			$rows[] = $row;
 		}
+		$result->closeCursor();
+		return $rows;
+	}
 
-		// One JSON file per data set, manifest included
-		foreach ($data as $key => $payload) {
-			$zip->addFromString($key . '.json', json_encode($payload, JSON_PRETTY_PRINT));
+	/**
+	 * Apply $fn to each item, lazily.
+	 *
+	 * @template T
+	 * @param iterable<T> $items
+	 * @param callable(T): mixed $fn
+	 */
+	private static function mapEach(iterable $items, callable $fn): \Generator {
+		foreach ($items as $item) {
+			yield $fn($item);
 		}
+	}
 
-		$zip->close();
+	/**
+	 * Write a JSON list to $path one item at a time.
+	 *
+	 * @param iterable<mixed> $items
+	 * @return int the number of items written
+	 */
+	private static function writeJsonList(string $path, iterable $items): int {
+		$handle = fopen($path, 'wb');
+		if ($handle === false) {
+			throw new \RuntimeException('Failed to write the export');
+		}
+		$count = 0;
+		try {
+			self::writeBytes($handle, '[');
+			foreach ($items as $item) {
+				self::writeBytes($handle, ($count > 0 ? ',' : '') . self::encodeJson($item));
+				$count++;
+			}
+			self::writeBytes($handle, ']');
+		} finally {
+			fclose($handle);
+		}
+		return $count;
+	}
 
-		$content = file_get_contents($tempFile);
-		unlink($tempFile);
+	private static function writeFile(string $path, string $content): void {
+		if (file_put_contents($path, $content) !== strlen($content)) {
+			throw new \RuntimeException('Failed to write the export');
+		}
+	}
 
-		return $content;
+	/**
+	 * @param resource $handle
+	 */
+	private static function writeBytes($handle, string $bytes): void {
+		if (fwrite($handle, $bytes) !== strlen($bytes)) {
+			throw new \RuntimeException('Failed to write the export');
+		}
+	}
+
+	/**
+	 * A value as JSON. Bytes that aren't valid UTF-8 (which SQLite will
+	 * store) become U+FFFD: json_encode() refuses them otherwise, and the
+	 * whole export failed over one bad character.
+	 */
+	private static function encodeJson(mixed $value): string {
+		$json = json_encode($value, JSON_INVALID_UTF8_SUBSTITUTE);
+		if ($json === false) {
+			throw new \RuntimeException('Failed to encode the export: ' . json_last_error_msg());
+		}
+		return $json;
+	}
+
+	private static function tempPath(): string {
+		$path = tempnam(sys_get_temp_dir(), 'budget_export_');
+		if ($path === false) {
+			throw new \RuntimeException('Failed to create a temporary file for the export');
+		}
+		return $path;
 	}
 
 	/**
@@ -1629,34 +1761,41 @@ class MigrationService {
 	}
 
 	/**
-	 * Export one registry table's rows for the user (raw columns, snake_case).
-	 * user_id is dropped (reassigned on import); id is kept for remapping.
+	 * Export one registry table's rows for the user (raw columns, snake_case),
+	 * EXPORT_BATCH rows at a time in id order. user_id is dropped (reassigned
+	 * on import); id is kept for remapping.
+	 *
+	 * @return \Generator<int, array<string, mixed>>
 	 */
-	private function exportTable(string $userId, array $spec): array {
-		$qb = $this->db->getQueryBuilder();
-		$qb->select('t.*')->from($spec['table'], 't');
-		if (($spec['scope'] ?? 'user') === 'user') {
-			$qb->where($qb->expr()->eq('t.user_id', $qb->createNamedParameter($userId)));
-		} else {
-			// Chain of joins ending at a table that has user_id
-			$prev = 't';
-			$alias = 't';
-			foreach ($spec['scope']['joins'] as $i => [$joinTable, $localColumn]) {
-				$alias = 'j' . $i;
-				$qb->innerJoin($prev, $joinTable, $alias, $qb->expr()->eq($prev . '.' . $localColumn, $alias . '.id'));
-				$prev = $alias;
+	private function exportTableRows(string $userId, array $spec): \Generator {
+		$lastId = 0;
+		do {
+			$qb = $this->db->getQueryBuilder();
+			$qb->select('t.*')->from($spec['table'], 't');
+			if (($spec['scope'] ?? 'user') === 'user') {
+				$qb->where($qb->expr()->eq('t.user_id', $qb->createNamedParameter($userId)));
+			} else {
+				// Chain of joins ending at a table that has user_id
+				$prev = 't';
+				$alias = 't';
+				foreach ($spec['scope']['joins'] as $i => [$joinTable, $localColumn]) {
+					$alias = 'j' . $i;
+					$qb->innerJoin($prev, $joinTable, $alias, $qb->expr()->eq($prev . '.' . $localColumn, $alias . '.id'));
+					$prev = $alias;
+				}
+				$qb->where($qb->expr()->eq($alias . '.user_id', $qb->createNamedParameter($userId)));
 			}
-			$qb->where($qb->expr()->eq($alias . '.user_id', $qb->createNamedParameter($userId)));
-		}
+			$qb->andWhere($qb->expr()->gt('t.id', $qb->createNamedParameter($lastId, IQueryBuilder::PARAM_INT)))
+				->orderBy('t.id', 'ASC')
+				->setMaxResults(self::EXPORT_BATCH);
 
-		$result = $qb->executeQuery();
-		$rows = [];
-		while ($row = $result->fetch()) {
-			unset($row['user_id']);
-			$rows[] = $row;
-		}
-		$result->closeCursor();
-		return $rows;
+			$rows = $this->fetchBatch($qb);
+			foreach ($rows as $row) {
+				$lastId = (int)$row['id'];
+				unset($row['user_id']);
+				yield $row;
+			}
+		} while (count($rows) === self::EXPORT_BATCH);
 	}
 
 	/**

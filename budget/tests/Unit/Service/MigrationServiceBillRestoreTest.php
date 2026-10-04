@@ -43,7 +43,7 @@ class MigrationServiceBillRestoreTest extends TestCase {
 			$expr = $this->createMock(\OCP\DB\QueryBuilder\IExpressionBuilder::class);
 			$expr->method('eq')->willReturn('eq');
 			$qb = $this->createMock(\OCP\DB\QueryBuilder\IQueryBuilder::class);
-			foreach (['select', 'from', 'where', 'andWhere', 'innerJoin'] as $m) {
+			foreach (['select', 'from', 'where', 'andWhere', 'innerJoin', 'orderBy', 'setMaxResults'] as $m) {
 				$qb->method($m)->willReturnSelf();
 			}
 			$qb->method('expr')->willReturn($expr);

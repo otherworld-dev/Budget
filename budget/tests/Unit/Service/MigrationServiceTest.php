@@ -43,7 +43,7 @@ class MigrationServiceTest extends TestCase {
 			$expr = $this->createMock(\OCP\DB\QueryBuilder\IExpressionBuilder::class);
 			$expr->method('eq')->willReturn('eq');
 			$qb = $this->createMock(\OCP\DB\QueryBuilder\IQueryBuilder::class);
-			foreach (['select', 'from', 'where', 'andWhere', 'innerJoin', 'leftJoin', 'delete', 'insert', 'update', 'set', 'setValue'] as $m) {
+			foreach (['select', 'from', 'where', 'andWhere', 'innerJoin', 'leftJoin', 'delete', 'insert', 'update', 'set', 'setValue', 'orderBy', 'setMaxResults'] as $m) {
 				$qb->method($m)->willReturnSelf();
 			}
 			$qb->method('expr')->willReturn($expr);
@@ -516,6 +516,86 @@ class MigrationServiceTest extends TestCase {
 
 		$zip->close();
 		unlink($tempFile);
+	}
+
+	/**
+	 * The export used to load every transaction as an entity and encode the
+	 * lot in one go, so a ledger of about 110,000 rows ran out of a 512 MB
+	 * memory limit and no backup could be made (T6-1). It now reads the
+	 * ledger a page at a time, after the last id it wrote, and never asks
+	 * the mapper for everything.
+	 */
+	public function testExportReadsTheLedgerAPageAtATime(): void {
+		$this->transactionMapper->expects($this->never())->method('findAll');
+		foreach ([$this->categoryMapper, $this->accountMapper, $this->billMapper, $this->importRuleMapper, $this->settingMapper] as $mapper) {
+			$mapper->method('findAll')->willReturn([]);
+		}
+		$total = 1500;
+		$pagesAfter = [];
+		$db = $this->createMock(IDBConnection::class);
+		$db->method('getQueryBuilder')->willReturnCallback(function () use ($total, &$pagesAfter) {
+			$state = ['table' => null, 'params' => []];
+			$qb = $this->createMock(\OCP\DB\QueryBuilder\IQueryBuilder::class);
+			foreach (['select', 'where', 'andWhere', 'innerJoin', 'orderBy', 'setMaxResults'] as $m) {
+				$qb->method($m)->willReturnSelf();
+			}
+			$qb->method('from')->willReturnCallback(function (string $table) use (&$state, $qb) {
+				$state['table'] = $table;
+				return $qb;
+			});
+			$qb->method('expr')->willReturn($this->createMock(\OCP\DB\QueryBuilder\IExpressionBuilder::class));
+			$qb->method('createNamedParameter')->willReturnCallback(function ($value) use (&$state) {
+				$state['params'][] = $value;
+				return ':p';
+			});
+			$qb->method('executeQuery')->willReturnCallback(function () use (&$state, $total, &$pagesAfter) {
+				$rows = [];
+				if ($state['table'] === 'budget_transactions') {
+					$after = (int)end($state['params']);
+					$pagesAfter[] = $after;
+					for ($id = $after + 1; $id <= min($total, $after + 1000); $id++) {
+						$rows[] = ['id' => $id, 'account_id' => 7, 'date' => '2026-01-01', 'description' => "Row $id",
+							'amount' => '1.50', 'type' => 'debit', 'status' => 'cleared', 'is_split' => 0, 'reconciled' => 0];
+					}
+				}
+				$result = $this->createMock(\OCP\DB\IResult::class);
+				$result->method('fetch')->willReturnOnConsecutiveCalls(...array_merge($rows, [false]));
+				return $result;
+			});
+			return $qb;
+		});
+		$service = new MigrationService($this->accountMapper, $this->transactionMapper, $this->categoryMapper,
+			$this->billMapper, $this->importRuleMapper, $this->settingMapper, $db);
+
+		$archive = $this->readTestZip($service->exportAll('user1')['content']);
+
+		$this->assertSame([0, 1000], $pagesAfter, 'Two pages, the second one after the last id of the first');
+		$transactions = json_decode($archive['transactions.json'], true);
+		$this->assertCount($total, $transactions);
+		$this->assertSame(range(1, $total), array_column($transactions, 'id'));
+		// The same shape the archive always had
+		$this->assertSame(array_keys((new Transaction())->jsonSerialize()), array_keys($transactions[0]));
+		$this->assertSame(1.5, $transactions[0]['amount']);
+		$this->assertSame(7, $transactions[0]['accountId']);
+		$this->assertSame($total, json_decode($archive['manifest.json'], true)['counts']['transactions']);
+	}
+
+	/**
+	 * @return array<string, string> entry name => contents
+	 */
+	private function readTestZip(string $content): array {
+		$path = tempnam(sys_get_temp_dir(), 'test_export_');
+		file_put_contents($path, $content);
+		$zip = new \ZipArchive();
+		$zip->open($path);
+		$entries = [];
+		for ($i = 0; $i < $zip->numFiles; $i++) {
+			$name = $zip->getNameIndex($i);
+			$entries[$name] = $zip->getFromName($name);
+		}
+		$zip->close();
+		unlink($path);
+		return $entries;
 	}
 
 	// ===== Helpers =====
