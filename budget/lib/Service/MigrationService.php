@@ -2214,6 +2214,13 @@ class MigrationService {
 			// last sent; without this every bill inside its reminder window
 			// got the same reminder again after a restore.
 			$bill->setLastReminderSent($billData['lastReminderSent'] ?? null);
+			// Which occurrence that was (migration 121). Guarded until that
+			// column's entity field is merged: the setters are magic, so
+			// method_exists() can't see them.
+			if (property_exists($bill, 'lastReminderDue')) {
+				$lastReminderDue = $billData['lastReminderDue'] ?? null;
+				$bill->{'setLastReminderDue'}(is_string($lastReminderDue) && $lastReminderDue !== '' ? $lastReminderDue : null);
+			}
 			$bill->setExcludedFromForecast(filter_var($billData['excludedFromForecast'] ?? false, FILTER_VALIDATE_BOOLEAN));
 			$bill->setCreateTransaction(filter_var($billData['createTransaction'] ?? true, FILTER_VALIDATE_BOOLEAN));
 			$bill->setCreatedAt($billData['createdAt'] ?? date('Y-m-d H:i:s'));

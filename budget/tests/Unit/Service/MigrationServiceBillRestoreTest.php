@@ -117,6 +117,23 @@ class MigrationServiceBillRestoreTest extends TestCase {
 	}
 
 	/**
+	 * Which occurrence the last reminder was for (migration 121) comes back
+	 * too, or each one would be reminded about again after a restore.
+	 */
+	public function testTheLastRemindedOccurrenceSurvivesARestore(): void {
+		if (!property_exists(Bill::class, 'lastReminderDue')) {
+			$this->markTestSkipped('budget_bills.last_reminder_due arrives with migration 121 (fix/r2-a2-schedules)');
+		}
+		$this->importBills([
+			['id' => 40, 'name' => 'Rent', 'amount' => 800.0, 'lastReminderDue' => '2026-10-03'],
+			['id' => 41, 'name' => 'Phone', 'amount' => 20.0],
+		], []);
+
+		$this->assertSame('2026-10-03', $this->inserted[0]->{'getLastReminderDue'}());
+		$this->assertNull($this->inserted[1]->{'getLastReminderDue'}());
+	}
+
+	/**
 	 * Before 2.52 a one-time bill had no start date (its date lives there
 	 * since #375), and marking one paid cleared its next due date. Migration
 	 * 104 rebuilt the date once, at the upgrade; a restore of an older backup
