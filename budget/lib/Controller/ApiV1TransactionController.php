@@ -373,16 +373,18 @@ class ApiV1TransactionController extends OCSController {
 				$reservation = $acquired;
 			}
 
-			// A shared account still belongs to whoever created it, so the row
-			// must be written under the owner's id — writing it under the
-			// acting user's id would orphan it from the account's ledger.
-			$effectiveUserId = $this->userId;
-			if (!in_array($accountId, $this->granularShareService->getOwnAccountIds($this->userId), true)) {
-				$this->requireWriteAccess('account', $accountId);
-				$effectiveUserId = $this->service->findAccountById($accountId)->getUserId();
-			}
-
 			try {
+				// A shared account still belongs to whoever created it, so the
+				// row must be written under the owner's id — writing it under
+				// the acting user's id would orphan it from the account's
+				// ledger. Checked inside this try: a refusal must release the
+				// key like any other failure before the insert.
+				$effectiveUserId = $this->userId;
+				if (!in_array($accountId, $this->granularShareService->getOwnAccountIds($this->userId), true)) {
+					$this->requireWriteAccess('account', $accountId);
+					$effectiveUserId = $this->service->findAccountById($accountId)->getUserId();
+				}
+
 				// The row lands in the owner's ledger: a category the owner
 				// cannot see is refused rather than stored (its name would
 				// come back on every read)

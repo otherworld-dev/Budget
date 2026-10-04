@@ -749,6 +749,43 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $controller->create()->getStatus());
 	}
 
+	/**
+	 * The account checks ran after the key was reserved but outside the
+	 * block that releases it, so a 403 or 404 kept the key for 7 days: the
+	 * documented retry with the same key on the right account waited ~5s
+	 * and got request_in_flight, every time.
+	 */
+	public function testARefusedAccountReleasesTheReservation(): void {
+		$this->params = $this->captureParams(['account_id' => '9', 'idempotency_key' => 'uuid-9']);
+		$this->granularShareService->method('canAccess')->willReturn(true);
+		$this->granularShareService->method('requireWriteAccess')
+			->willThrowException(new ReadOnlyShareException());
+
+		$keys = $this->createMock(IdempotencyKeyMapper::class);
+		$keys->method('insert')->willReturnArgument(0);
+		$keys->expects($this->once())->method('delete');
+		$this->service->expects($this->never())->method('create');
+
+		$response = $this->buildController($keys, $this->validationService)->create();
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	public function testAnAccountThatCannotBeFoundReleasesTheReservation(): void {
+		$this->params = $this->captureParams(['account_id' => '9', 'idempotency_key' => 'uuid-10']);
+		$this->granularShareService->method('canAccess')->willReturn(true);
+		$this->service->method('findAccountById')->willThrowException(new DoesNotExistException('gone'));
+
+		$keys = $this->createMock(IdempotencyKeyMapper::class);
+		$keys->method('insert')->willReturnArgument(0);
+		$keys->expects($this->once())->method('delete');
+		$this->service->expects($this->never())->method('create');
+
+		$response = $this->buildController($keys, $this->validationService)->create();
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
+	}
+
 	public function testAFailedReservationFinaliseNeverFailsTheRecordedTransaction(): void {
 		$this->params = $this->captureParams(['idempotency_key' => 'uuid-8']);
 		$this->service->method('create')->willReturn($this->transaction());
