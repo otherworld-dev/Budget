@@ -2692,4 +2692,87 @@ class TransactionServiceTest extends TestCase {
 
 		$this->assertCount(1, $result['linked']);
 	}
+
+	// ===== findAllForExport =====
+
+	/**
+	 * Rows by id, in the database's order rather than the export's
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function listRows(array $ids): array {
+		$rows = [];
+		foreach (array_reverse($ids) as $id) {
+			$rows[$id] = ['id' => $id, 'isSplit' => false];
+		}
+		return $rows;
+	}
+
+	/**
+	 * The CSV export paged findWithFilters() with OFFSET and counted the
+	 * matches for every page, so each batch sorted the whole ledger again:
+	 * 12 s at 63,000 rows, 107 s at 136,000 (T6-2). It now reads the ordered
+	 * ids once and the rows by id, a batch at a time, in that order.
+	 */
+	public function testExportReadsTheOrderedIdsOnceThenTheRowsInThatOrder(): void {
+		$this->mapper->expects($this->never())->method('findWithFilters');
+		$this->mapper->expects($this->once())->method('findOrderedIdsWithFilters')
+			->with('user1', ['sort' => 'amount'], [1, 2])
+			->willReturn([30, 10, 20, 50, 40]);
+		$fetched = [];
+		$this->mapper->method('findListRowsByIds')
+			->willReturnCallback(function (string $userId, array $ids, ?array $visible) use (&$fetched) {
+				$this->assertSame('user1', $userId);
+				$this->assertSame([1, 2], $visible);
+				$fetched[] = $ids;
+				return $this->listRows($ids);
+			});
+
+		$batches = iterator_to_array($this->service->findAllForExport('user1', ['sort' => 'amount'], [1, 2], 2), false);
+
+		$this->assertSame([[30, 10], [20, 50], [40]], $fetched);
+		$this->assertSame([[30, 10], [20, 50], [40]], array_map(fn (array $b) => array_column($b, 'id'), $batches));
+	}
+
+	public function testExportStillListsARowTheTagFilterRepeats(): void {
+		// Two of the chosen tags on one row join it twice; the export always
+		// listed it twice, and the same file must come out
+		$this->mapper->method('findOrderedIdsWithFilters')->willReturn([7, 7, 3]);
+		$this->mapper->method('findListRowsByIds')
+			->willReturnCallback(fn (string $u, array $ids) => $this->listRows($ids));
+
+		$batches = iterator_to_array($this->service->findAllForExport('user1', ['tagIds' => [1, 2]], null), false);
+
+		$this->assertSame([7, 7, 3], array_column($batches[0], 'id'));
+	}
+
+	public function testExportLeavesOutARowDeletedWhileItRuns(): void {
+		$this->mapper->method('findOrderedIdsWithFilters')->willReturn([5, 6, 7]);
+		$this->mapper->method('findListRowsByIds')
+			->willReturnCallback(fn (string $u, array $ids) => array_diff_key($this->listRows($ids), [6 => true]));
+
+		$batches = iterator_to_array($this->service->findAllForExport('user1', [], null), false);
+
+		$this->assertSame([5, 7], array_column($batches[0], 'id'));
+	}
+
+	public function testExportOfNothingYieldsNoBatch(): void {
+		$this->mapper->method('findOrderedIdsWithFilters')->willReturn([]);
+		$this->mapper->expects($this->never())->method('findListRowsByIds');
+
+		$this->assertSame([], iterator_to_array($this->service->findAllForExport('user1', [], null), false));
+	}
+
+	public function testExportStillAttachesSplitParts(): void {
+		$this->mapper->method('findOrderedIdsWithFilters')->willReturn([9]);
+		$this->mapper->method('findListRowsByIds')->willReturn([9 => ['id' => 9, 'isSplit' => true]]);
+		$this->splitsByTransactionId = [9 => [
+			['id' => 1, 'transactionId' => 9, 'categoryId' => 4, 'categoryName' => 'Food', 'amount' => 6.0, 'description' => null],
+		]];
+
+		$batches = iterator_to_array($this->service->findAllForExport('user1', [], null), false);
+
+		$this->assertTrue($batches[0][0]['isSplit']);
+		$this->assertSame('Food', $batches[0][0]['splitCategories'][0]['categoryName']);
+	}
 }

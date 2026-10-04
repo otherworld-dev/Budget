@@ -1087,6 +1087,92 @@ class TransactionMapper extends QBMapper {
 		$this->filterBuilder->applySorting($qb, $filters['sort'] ?? null, $filters['direction'] ?? null, 't');
 		$this->filterBuilder->applyPagination($qb, $limit, $offset);
 
+		$this->joinListColumns($qb);
+
+		$result = $qb->executeQuery();
+		$rows = $result->fetchAll();
+		$result->closeCursor();
+
+		// Convert to array format with extra fields
+		$transactions = array_map(static fn (array $row): array => self::listRow($row), $rows);
+
+		return [
+			'transactions' => $transactions,
+			'total' => $total
+		];
+	}
+
+	/**
+	 * The ids of every transaction findWithFilters() matches, in its order
+	 * (the requested sort, then id), for the CSV export to read in batches
+	 * with findListRowsByIds(). A row the tag filter's join repeats is
+	 * repeated here as well, as findWithFilters() lists it.
+	 *
+	 * The export used to page findWithFilters() with OFFSET, which sorted the
+	 * whole ledger again and counted the matches for every batch of 1,000:
+	 * 12 s for 63,000 rows, 107 s for 136,000 (T6-2).
+	 *
+	 * @param int[]|null $visibleAccountIds If provided, scope by account IDs instead of userId
+	 * @return int[]
+	 */
+	public function findOrderedIdsWithFilters(string $userId, array $filters, ?array $visibleAccountIds = null): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('t.id')
+			->from($this->getTableName(), 't')
+			->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
+
+		// Same scope, filters and sort as findWithFilters()
+		ReportScope::applyUserScope($qb, $userId, $visibleAccountIds, true);
+		$this->filterBuilder->applyTransactionFilters($qb, $filters, 't');
+		$this->filterBuilder->applySorting($qb, $filters['sort'] ?? null, $filters['direction'] ?? null, 't');
+
+		$result = $qb->executeQuery();
+		$ids = [];
+		while ($row = $result->fetch()) {
+			$ids[] = (int)$row['id'];
+		}
+		$result->closeCursor();
+
+		return $ids;
+	}
+
+	/**
+	 * findWithFilters()'s rows for the given transactions, keyed by id, in
+	 * no particular order. Still scoped to what the user may see.
+	 *
+	 * @param int[] $ids at most 1,000
+	 * @param int[]|null $visibleAccountIds If provided, scope by account IDs instead of userId
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function findListRowsByIds(string $userId, array $ids, ?array $visibleAccountIds = null): array {
+		if ($ids === []) {
+			return [];
+		}
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('t.*')
+			->from($this->getTableName(), 't')
+			->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+			->where($qb->expr()->in('t.id', $qb->createNamedParameter($ids, IQueryBuilder::PARAM_INT_ARRAY)));
+		ReportScope::applyUserScope($qb, $userId, $visibleAccountIds, true);
+		$this->joinListColumns($qb);
+
+		$result = $qb->executeQuery();
+		$rows = [];
+		while ($row = $result->fetch()) {
+			$listRow = self::listRow($row);
+			$rows[$listRow['id']] = $listRow;
+		}
+		$result->closeCursor();
+
+		return $rows;
+	}
+
+	/**
+	 * The names the transactions list shows beside each row: its account,
+	 * its category, and the account a transfer's other side is in.
+	 */
+	private function joinListColumns(IQueryBuilder $qb): void {
 		// Also select account name and currency
 		$qb->addSelect('a.name as account_name', 'a.currency as account_currency');
 
@@ -1098,48 +1184,45 @@ class TransactionMapper extends QBMapper {
 		$qb->leftJoin('t', $this->getTableName(), 'lt', $qb->expr()->eq('t.linked_transaction_id', 'lt.id'));
 		$qb->leftJoin('lt', 'budget_accounts', 'la', $qb->expr()->eq('lt.account_id', 'la.id'));
 		$qb->addSelect('la.id as linked_account_id', 'la.name as linked_account_name');
+	}
 
-		$result = $qb->executeQuery();
-		$rows = $result->fetchAll();
-		$result->closeCursor();
-
-		// Convert to array format with extra fields
-		$transactions = array_map(function ($row) {
-			return [
-				'id' => (int)$row['id'],
-				'accountId' => (int)$row['account_id'],
-				'categoryId' => $row['category_id'] ? (int)$row['category_id'] : null,
-				'date' => $row['date'],
-				'description' => $row['description'],
-				'vendor' => $row['vendor'],
-				'amount' => (float)$row['amount'],
-				'type' => $row['type'],
-				'reference' => $row['reference'],
-				'notes' => $row['notes'],
-				'importId' => $row['import_id'],
-				'reconciled' => (bool)$row['reconciled'],
-				'createdAt' => $row['created_at'],
-				'updatedAt' => $row['updated_at'],
-				'linkedTransactionId' => $row['linked_transaction_id'] ? (int)$row['linked_transaction_id'] : null,
-				// Tri-state: NULL predates the is_split column (#360) and must
-				// stay NULL here so attachSplitDetails() can tell "no parts
-				// came back" apart from "the export said this wasn't a split".
-				'isSplit' => isset($row['is_split']) ? (bool)$row['is_split'] : null,
-				'billId' => ($row['bill_id'] ?? null) ? (int)$row['bill_id'] : null,
-				'status' => $row['status'] ?? 'cleared',
-				'excludedFromForecast' => (bool)($row['excluded_from_forecast'] ?? false),
-				'pensionContribId' => ($row['pension_contrib_id'] ?? null) ? (int)$row['pension_contrib_id'] : null,
-				'accountName' => $row['account_name'],
-				'accountCurrency' => $row['account_currency'] ?? 'USD',
-				'categoryName' => $row['category_name'],
-				'linkedAccountId' => ($row['linked_account_id'] ?? null) ? (int)$row['linked_account_id'] : null,
-				'linkedAccountName' => $row['linked_account_name'] ?? null,
-			];
-		}, $rows);
-
+	/**
+	 * One row of the transactions list (and of the CSV export), from a row of
+	 * a query that joined joinListColumns().
+	 *
+	 * @param array<string, mixed> $row
+	 * @return array<string, mixed>
+	 */
+	private static function listRow(array $row): array {
 		return [
-			'transactions' => $transactions,
-			'total' => $total
+			'id' => (int)$row['id'],
+			'accountId' => (int)$row['account_id'],
+			'categoryId' => $row['category_id'] ? (int)$row['category_id'] : null,
+			'date' => $row['date'],
+			'description' => $row['description'],
+			'vendor' => $row['vendor'],
+			'amount' => (float)$row['amount'],
+			'type' => $row['type'],
+			'reference' => $row['reference'],
+			'notes' => $row['notes'],
+			'importId' => $row['import_id'],
+			'reconciled' => (bool)$row['reconciled'],
+			'createdAt' => $row['created_at'],
+			'updatedAt' => $row['updated_at'],
+			'linkedTransactionId' => $row['linked_transaction_id'] ? (int)$row['linked_transaction_id'] : null,
+			// Tri-state: NULL predates the is_split column (#360) and must
+			// stay NULL here so attachSplitDetails() can tell "no parts
+			// came back" apart from "the export said this wasn't a split".
+			'isSplit' => isset($row['is_split']) ? (bool)$row['is_split'] : null,
+			'billId' => ($row['bill_id'] ?? null) ? (int)$row['bill_id'] : null,
+			'status' => $row['status'] ?? 'cleared',
+			'excludedFromForecast' => (bool)($row['excluded_from_forecast'] ?? false),
+			'pensionContribId' => ($row['pension_contrib_id'] ?? null) ? (int)$row['pension_contrib_id'] : null,
+			'accountName' => $row['account_name'],
+			'accountCurrency' => $row['account_currency'] ?? 'USD',
+			'categoryName' => $row['category_name'],
+			'linkedAccountId' => ($row['linked_account_id'] ?? null) ? (int)$row['linked_account_id'] : null,
+			'linkedAccountName' => $row['linked_account_name'] ?? null,
 		];
 	}
 

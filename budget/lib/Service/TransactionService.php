@@ -1351,8 +1351,12 @@ class TransactionService {
 	 * the page being displayed, which an export neither shows nor needs. Split
 	 * detail is always attached — an unfiltered export names each split's
 	 * categories in the Category cell (#360), and a category-filtered one
-	 * reports the same per-category share the screen does (#359). Paging is
-	 * safe here because the sort always carries a secondary sort by id.
+	 * reports the same per-category share the screen does (#359).
+	 *
+	 * The matching ids are read once, in the list's order (the sort always
+	 * ends with id, so it is total), then the rows a batch at a time by id.
+	 * Paging with OFFSET sorted the whole ledger again and counted the
+	 * matches for every batch: 12 s for 63,000 rows, 107 s for 136,000 (T6-2).
 	 *
 	 * @param int[]|null $visibleAccountIds If provided, scope by account IDs instead of userId
 	 * @return \Generator<int, array<int, array<string, mixed>>>
@@ -1363,25 +1367,28 @@ class TransactionService {
 		?array $visibleAccountIds = null,
 		int $batchSize = 1000,
 	): \Generator {
-		$offset = 0;
+		$ids = $this->mapper->findOrderedIdsWithFilters($userId, $filters, $visibleAccountIds);
 
-		do {
-			$result = $this->mapper->findWithFilters($userId, $filters, $batchSize, $offset, $visibleAccountIds);
-			$batch = $result['transactions'] ?? [];
-
-			if (empty($batch)) {
-				return;
+		foreach (array_chunk($ids, $batchSize) as $chunk) {
+			$rows = $this->mapper->findListRowsByIds($userId, array_values(array_unique($chunk)), $visibleAccountIds);
+			$batch = [];
+			// In the ids' order, a row the tag filter repeats included; one
+			// deleted since the ids were read is left out
+			foreach ($chunk as $id) {
+				if (isset($rows[$id])) {
+					$batch[] = $rows[$id];
+				}
+			}
+			if ($batch === []) {
+				continue;
 			}
 
 			// Always attach, not just under a category filter as this did
 			// when #359 added it: without a filter there is no matched share,
 			// so a split exported with an empty Category cell. One extra
 			// query per batch of 1000 rows buys the column back (#360).
-			$batch = $this->attachSplitDetails($batch, $filters);
-
-			yield $batch;
-			$offset += $batchSize;
-		} while ($offset < (int)($result['total'] ?? 0));
+			yield $this->attachSplitDetails($batch, $filters);
+		}
 	}
 
 	/**
