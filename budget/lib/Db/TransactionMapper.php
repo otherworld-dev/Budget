@@ -91,6 +91,42 @@ class TransactionMapper extends QBMapper {
 	}
 
 	/**
+	 * The account each of a caller-supplied set of transactions sits in,
+	 * for the ones in $accountIds (the accounts the caller can see).
+	 *
+	 * A bulk action on a shared account has to run as each row's account
+	 * owner, so it needs the account of every row before it can group them;
+	 * one query per 500 ids rather than a find per row. Ids outside
+	 * $accountIds are simply absent from the result.
+	 *
+	 * @param int[] $ids
+	 * @param int[] $accountIds
+	 * @return array<int, int> transactionId => accountId
+	 */
+	public function findAccountIdsWithin(array $ids, array $accountIds): array {
+		if (empty($ids) || empty($accountIds)) {
+			return [];
+		}
+
+		$found = [];
+		foreach (array_chunk($ids, 500) as $chunk) {
+			$qb = $this->db->getQueryBuilder();
+			$qb->select('id', 'account_id')
+				->from($this->getTableName())
+				->where($qb->expr()->in('id', $qb->createNamedParameter($chunk, IQueryBuilder::PARAM_INT_ARRAY)))
+				->andWhere($qb->expr()->in('account_id', $qb->createNamedParameter(array_values($accountIds), IQueryBuilder::PARAM_INT_ARRAY)));
+
+			$result = $qb->executeQuery();
+			while ($row = $result->fetch()) {
+				$found[(int)$row['id']] = (int)$row['account_id'];
+			}
+			$result->closeCursor();
+		}
+
+		return $found;
+	}
+
+	/**
 	 * Find a transaction by ID without user scoping (for internal repair operations).
 	 */
 	public function findById(int $id): ?Transaction {

@@ -76,6 +76,18 @@ class TransactionService {
 		return $this->accountMapper->findById($accountId);
 	}
 
+	/**
+	 * The account of each of these transactions, for the ones in one of
+	 * $visibleAccountIds; the rest are left out.
+	 *
+	 * @param int[] $ids
+	 * @param int[] $visibleAccountIds
+	 * @return array<int, int> transactionId => accountId
+	 */
+	public function findAccountIdsWithin(array $ids, array $visibleAccountIds): array {
+		return $this->mapper->findAccountIdsWithin($ids, $visibleAccountIds);
+	}
+
 	public function findByAccount(string $userId, int $accountId, int $limit = 100, int $offset = 0): array {
 		return $this->mapper->findByAccount($accountId, $userId, $limit, $offset);
 	}

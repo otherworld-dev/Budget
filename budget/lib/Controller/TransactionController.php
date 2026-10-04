@@ -775,6 +775,122 @@ class TransactionController extends Controller {
 	}
 
 	/**
+	 * A transaction this user can see, and the user its rows belong to: the
+	 * owner of its account.
+	 *
+	 * The services scope every lookup to the user they are given, and a row
+	 * in an account shared with this user belongs to the account's owner, so
+	 * acting as themselves a recipient found nothing ("Transaction not
+	 * found") on rows they could see and edit. They act as the owner, after
+	 * the write check, as ApiV1TransactionController::findWritable() does
+	 * (#333/#334).
+	 *
+	 * @return array{0: \OCA\Budget\Db\Transaction, 1: string}
+	 * @throws DoesNotExistException when the user can't see the transaction
+	 * @throws ReadOnlyShareException when $write and the account is shared read-only
+	 */
+	private function findWithOwner(int $id, bool $write): array {
+		$transaction = $this->service->findForAccounts($id, $this->getVisibleAccountIds());
+		$accountId = (int)$transaction->getAccountId();
+		if (in_array($accountId, $this->granularShareService->getOwnAccountIds($this->userId), true)) {
+			return [$transaction, $this->userId];
+		}
+		if ($write) {
+			$this->requireWriteAccess('account', $accountId);
+		}
+		return [$transaction, $this->service->findAccountById($accountId)->getUserId()];
+	}
+
+	/**
+	 * The ids a bulk action names, grouped by the user each row belongs to
+	 * (its account's owner), keeping only rows this user may change; see
+	 * findWithOwner(). A row they can't see, or see read-only, is refused
+	 * on its own with a plain reason, never the failing lookup's SQL.
+	 *
+	 * @param array $ids as sent by the client
+	 * @return array{0: array<string, int[]>, 1: list<array{id: int, message: string}>}
+	 */
+	private function writableIdsByOwner(array $ids): array {
+		$ids = array_values(array_unique(array_map('intval', $ids)));
+		$accountOf = $this->service->findAccountIdsWithin($ids, $this->getVisibleAccountIds());
+		$ownAccountIds = $this->granularShareService->getOwnAccountIds($this->userId);
+
+		$ownerOf = [];
+		$byOwner = [];
+		$refused = [];
+		foreach ($ids as $id) {
+			$accountId = $accountOf[$id] ?? null;
+			if ($accountId === null) {
+				$refused[] = ['id' => $id, 'message' => $this->l->t('%1$s not found', [$this->l->t('Transaction')])];
+				continue;
+			}
+			if (!array_key_exists($accountId, $ownerOf)) {
+				if (in_array($accountId, $ownAccountIds, true)) {
+					$ownerOf[$accountId] = $this->userId;
+				} elseif ($this->granularShareService->canWrite($this->userId, 'account', $accountId)) {
+					$ownerOf[$accountId] = $this->service->findAccountById($accountId)->getUserId();
+				} else {
+					$ownerOf[$accountId] = null;
+				}
+			}
+			if ($ownerOf[$accountId] === null) {
+				$refused[] = ['id' => $id, 'message' => $this->l->t('This shared item is read-only')];
+				continue;
+			}
+			$byOwner[$ownerOf[$accountId]][] = $id;
+		}
+
+		return [$byOwner, $refused];
+	}
+
+	/**
+	 * Run a bulk service call once per owner from writableIdsByOwner() and
+	 * add up what each returns, counting the refused rows as failed.
+	 *
+	 * @param array<string, int[]> $byOwner
+	 * @param list<array{id: int, message: string}> $refused
+	 * @param callable(string, int[]): array $run
+	 * @param bool $withErrors whether the response lists each failure
+	 */
+	private function runAsOwners(array $byOwner, array $refused, callable $run, bool $withErrors = true): array {
+		$results = ['success' => 0, 'failed' => count($refused)];
+		if ($withErrors) {
+			$results['errors'] = $refused;
+		}
+		foreach ($byOwner as $owner => $ownerIds) {
+			$part = $run((string)$owner, $ownerIds);
+			$results['success'] += (int)($part['success'] ?? 0);
+			$results['failed'] += (int)($part['failed'] ?? 0);
+			if ($withErrors) {
+				$results['errors'] = array_merge($results['errors'], $part['errors'] ?? []);
+			}
+		}
+		return $results;
+	}
+
+	/**
+	 * The ledger-category check for a row of $ownerId's. On the user's own
+	 * rows the refusal stays the plain "Category not found"; on someone
+	 * else's it says whose categories are needed, as the API does.
+	 *
+	 * @throws \InvalidArgumentException
+	 */
+	private function requireOwnersCategory(string $ownerId, ?int $categoryId): void {
+		try {
+			$this->granularShareService->requireUsableCategory($ownerId, $categoryId);
+		} catch (\InvalidArgumentException $e) {
+			if ($ownerId === $this->userId) {
+				throw $e;
+			}
+			throw new \InvalidArgumentException(
+				$this->l->t("Category not found. It must be one of the account owner's categories"),
+				0,
+				$e
+			);
+		}
+	}
+
+	/**
 	 * Bulk delete transactions
 	 *
 	 * @NoAdminRequired
@@ -786,7 +902,9 @@ class TransactionController extends Controller {
 				return new DataResponse(['error' => $this->l->t('No transaction IDs provided')], Http::STATUS_BAD_REQUEST);
 			}
 
-			$results = $this->service->bulkDelete($this->getEffectiveUserId(), $ids);
+			[$byOwner, $refused] = $this->writableIdsByOwner($ids);
+			$results = $this->runAsOwners($byOwner, $refused,
+				fn (string $owner, array $ownerIds) => $this->service->bulkDelete($owner, $ownerIds));
 			return new DataResponse($results);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to delete transactions'));
@@ -805,7 +923,10 @@ class TransactionController extends Controller {
 				return new DataResponse(['error' => $this->l->t('No transaction IDs provided')], Http::STATUS_BAD_REQUEST);
 			}
 
-			$results = $this->service->bulkReconcile($this->getEffectiveUserId(), $ids, $reconciled);
+			[$byOwner, $refused] = $this->writableIdsByOwner($ids);
+			$results = $this->runAsOwners($byOwner, $refused,
+				fn (string $owner, array $ownerIds) => $this->service->bulkReconcile($owner, $ownerIds, $reconciled),
+				false);
 			return new DataResponse($results);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to update reconcile status'));
@@ -862,14 +983,20 @@ class TransactionController extends Controller {
 				$updates['notes'] = $notesValidation['sanitized'];
 			}
 
+			[$byOwner, $refused] = $this->writableIdsByOwner($ids);
+
 			if (array_key_exists('categoryId', $updates)) {
 				$raw = $updates['categoryId'];
 				$updates['categoryId'] = ($raw === null || $raw === '' || (int)$raw <= 0) ? null : (int)$raw;
-				// bulkEdit only reaches the caller's own transactions
-				$this->granularShareService->requireUsableCategory($this->getEffectiveUserId(), $updates['categoryId']);
+				// Each row lands in its account owner's ledger, so the category
+				// has to be one every owner in the selection can see
+				foreach (array_keys($byOwner) as $owner) {
+					$this->requireOwnersCategory((string)$owner, $updates['categoryId']);
+				}
 			}
 
-			$results = $this->service->bulkEdit($this->getEffectiveUserId(), $ids, $updates);
+			$results = $this->runAsOwners($byOwner, $refused,
+				fn (string $owner, array $ownerIds) => $this->service->bulkEdit($owner, $ownerIds, $updates));
 			return new DataResponse($results);
 		} catch (\InvalidArgumentException $e) {
 			return $this->handleValidationError($e);
@@ -946,7 +1073,9 @@ class TransactionController extends Controller {
 	 */
 	public function getSplits(int $id): DataResponse {
 		try {
-			$splits = $this->splitService->getSplits($id, $this->getEffectiveUserId());
+			// Readable by anyone who can see the transaction, read-only too
+			[, $owner] = $this->findWithOwner($id, false);
+			$splits = $this->splitService->getSplits($id, $owner);
 			return new DataResponse($splits);
 		} catch (\Exception $e) {
 			return $this->handleNotFoundError($e, $this->l->t('Transaction'), ['id' => $id]);
@@ -986,7 +1115,8 @@ class TransactionController extends Controller {
 				}
 			}
 
-			$splits = $this->splitService->splitTransaction($id, $this->getEffectiveUserId(), $data['splits']);
+			[, $owner] = $this->findWithOwner($id, true);
+			$splits = $this->splitService->splitTransaction($id, $owner, $data['splits']);
 			return new DataResponse($splits, Http::STATUS_CREATED);
 		} catch (\InvalidArgumentException $e) {
 			return $this->handleValidationError($e);
@@ -1003,7 +1133,8 @@ class TransactionController extends Controller {
 	#[UserRateLimit(limit: 30, period: 60)]
 	public function unsplit(int $id, ?int $categoryId = null): DataResponse {
 		try {
-			$transaction = $this->splitService->unsplitTransaction($id, $this->getEffectiveUserId(), $categoryId);
+			[, $owner] = $this->findWithOwner($id, true);
+			$transaction = $this->splitService->unsplitTransaction($id, $owner, $categoryId);
 			return new DataResponse($transaction);
 		} catch (\InvalidArgumentException $e) {
 			return $this->handleValidationError($e);
@@ -1026,7 +1157,15 @@ class TransactionController extends Controller {
 				return new DataResponse(['error' => $this->l->t('Invalid JSON data')], Http::STATUS_BAD_REQUEST);
 			}
 
-			$split = $this->splitService->updateSplit($splitId, $this->getEffectiveUserId(), $data);
+			[, $owner] = $this->findWithOwner($id, true);
+			// The write check was for transaction $id, so the part has to be
+			// one of its own: the service finds a part by its id alone, and
+			// as the owner any of their transactions' parts would do
+			$partIds = array_map(static fn ($part) => (int)$part->getId(), $this->splitService->getSplits($id, $owner));
+			if (!in_array($splitId, $partIds, true)) {
+				throw new DoesNotExistException('Split ' . $splitId . ' is not a part of transaction ' . $id);
+			}
+			$split = $this->splitService->updateSplit($splitId, $owner, $data);
 			return new DataResponse($split);
 		} catch (\InvalidArgumentException $e) {
 			return $this->handleValidationError($e);
