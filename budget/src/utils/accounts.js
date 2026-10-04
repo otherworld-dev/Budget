@@ -68,6 +68,28 @@ export function pickableAccounts(accounts, keepIds = [], { readOnlyShares = fals
 }
 
 /**
+ * The accounts a rule's Set Account may move rows into: the rule owner's
+ * own open accounts, as the server refuses any other when the rule is
+ * saved. For your own rule that is your accounts, not ones shared with
+ * you; for a rule shared with you, its owner's (those you can see). The
+ * account the rule already names stays listed, or editing the rule would
+ * silently drop it.
+ *
+ * @param {Array} accounts
+ * @param {string|null} ownerId The rule's owner; null for a new rule (yours)
+ * @param {number|string|null} keepId The account the rule names now
+ * @returns {Array}
+ */
+export function ruleTargetAccounts(accounts, ownerId, keepId) {
+    const keep = keepId === null || keepId === undefined ? '' : String(keepId);
+    const owners = ownerId
+        ? account => account.userId === ownerId
+        : account => !account._shared;
+    return list(accounts).filter(account => (keep !== '' && String(account.id) === keep)
+        || (owners(account) && !isClosedAccount(account)));
+}
+
+/**
  * The rows Mark Paid may offer to link the payment to. Linking writes the
  * payment onto an existing row, which the server refuses in an account
  * shared with you read-only, so only rows in accounts that take new

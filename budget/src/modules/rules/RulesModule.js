@@ -838,11 +838,13 @@ export default class RulesModule {
             tagSetsWithGlobal.unshift({ id: 'global', name: t('budget', 'Tags'), tags: globalTags });
         }
 
-        // Create new ActionBuilder instance with app data
+        // Create new ActionBuilder instance with app data. Set Account may
+        // only name the rule owner's own accounts (a new rule is yours).
         this.actionBuilder = new ActionBuilder(container, initialActions, {
             categories: this.categories,
             categoryTree: this.app.categoryTree,
             accounts: this.accounts,
+            accountOwner: this.currentRule?.userId || null,
             tagSets: tagSetsWithGlobal
         });
     }
