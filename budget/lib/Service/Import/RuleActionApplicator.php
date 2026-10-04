@@ -78,6 +78,35 @@ class RuleActionApplicator {
 		}
 	}
 
+	private function isOwnAccount(int $accountId, string $userId): bool {
+		try {
+			$this->accountMapper->find($accountId, $userId);
+			return true;
+		} catch (\Exception $e) {
+			return false;
+		}
+	}
+
+	/**
+	 * Whether a rule may move this transaction into $accountId: an account
+	 * the acting user can write to, with the same owner as the account the
+	 * row is in now. A row must not move into another user's ledger, as the
+	 * web edit already refuses: the move left that account's stored balance
+	 * stale and carried the rule owner's category into a ledger that can't
+	 * use it (R2-2).
+	 */
+	private function canMoveInto(Transaction $transaction, int $accountId, string $userId): bool {
+		if (!$this->canUseAccount($accountId, $userId)) {
+			return false;
+		}
+		try {
+			$currentOwner = $this->accountMapper->findById((int)$transaction->getAccountId())->getUserId();
+			return $currentOwner === $this->accountMapper->findById($accountId)->getUserId();
+		} catch (\Exception $e) {
+			return false;
+		}
+	}
+
 	/**
 	 * Apply all matching rules to a transaction.
 	 * Handles multiple rule matches with conflict resolution.
@@ -317,8 +346,8 @@ class RuleActionApplicator {
 
 			case 'set_account':
 				if ($this->shouldApply($type, $behavior, $transaction->getAccountId(), $appliedActions)) {
-					// Account must be writable by the acting user (own or shared to write)
-					if ($this->canUseAccount((int)$value, $userId)) {
+					// Writable by the acting user, and in the same ledger
+					if ($this->canMoveInto($transaction, (int)$value, $userId)) {
 						$oldValue = $transaction->getAccountId();
 						$transaction->setAccountId((int)$value);
 						$appliedActions[$type] = ['priority' => $priority, 'value' => $value];
@@ -624,8 +653,11 @@ class RuleActionApplicator {
 					break;
 
 				case 'set_account':
-					if ($value !== null && !$this->canUseAccount((int)$value, $userId)) {
-						$errors[] = "Action $idx: account $value is not available to the rule's owner (it must be theirs or shared with them with write access)";
+					// A rule runs on its owner's transactions, and a row never
+					// moves into another user's ledger: only the owner's own
+					// accounts are valid targets, a write share included
+					if ($value !== null && !$this->isOwnAccount((int)$value, $userId)) {
+						$errors[] = "Action $idx: account $value is not available to the rule's owner (it must be one of their own accounts)";
 					}
 					break;
 

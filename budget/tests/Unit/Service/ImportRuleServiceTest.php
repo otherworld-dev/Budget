@@ -612,6 +612,13 @@ class ImportRuleServiceTest extends TestCase {
 			->willReturnCallback(function (int $accountId, string $userId) use (&$recomputed) {
 				$recomputed[] = [$accountId, $userId];
 			});
+		// Balances are recomputed as each account's owner, whoever ran the rules
+		$transactionService->method('findAccountById')->willReturnCallback(function (int $id) {
+			$account = new \OCA\Budget\Db\Account();
+			$account->setId($id);
+			$account->setUserId($id === 7 ? 'owner7' : 'user1');
+			return $account;
+		});
 
 		$service = $this->getMockBuilder(ImportRuleService::class)
 			->setConstructorArgs([
@@ -664,6 +671,6 @@ class ImportRuleServiceTest extends TestCase {
 		$outcome = $service->applyRulesToTransactions('user1', [], []);
 
 		$this->assertSame(4, $outcome['success']);
-		$this->assertSame([[3, 'user1'], [7, 'user1']], $recomputed);
+		$this->assertSame([[3, 'user1'], [7, 'owner7']], $recomputed);
 	}
 }

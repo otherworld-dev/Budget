@@ -732,7 +732,10 @@ class ImportRuleService extends AbstractCrudService {
 
 		foreach (array_keys($touchedAccounts) as $accountId) {
 			try {
-				$this->transactionService->recalculateAccountBalance((int)$accountId, $userId);
+				// As the account's owner: recomputing a shared account as the
+				// user who ran the rules failed and left its balance stale
+				$owner = $this->transactionService->findAccountById((int)$accountId)->getUserId();
+				$this->transactionService->recalculateAccountBalance((int)$accountId, $owner);
 			} catch (\Exception $e) {
 				// The rows are already saved; one account's failure must not
 				// cost the others their recompute

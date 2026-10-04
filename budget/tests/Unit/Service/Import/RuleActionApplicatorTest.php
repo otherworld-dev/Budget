@@ -93,10 +93,22 @@ class RuleActionApplicatorTest extends TestCase {
 		return $category;
 	}
 
-	private function makeAccount(int $id): Account {
+	private function makeAccount(int $id, string $userId = 'user123'): Account {
 		$account = new Account();
 		$account->setId($id);
+		$account->setUserId($userId);
 		return $account;
+	}
+
+	/**
+	 * Owners of the accounts a set_account test touches, by account id
+	 *
+	 * @param array<int, string> $owners
+	 */
+	private function accountsOwnedBy(array $owners): void {
+		$this->accountMapper->method('findById')->willReturnCallback(
+			fn (int $id) => isset($owners[$id]) ? $this->makeAccount($id, $owners[$id]) : throw new \OCP\AppFramework\Db\DoesNotExistException('no account')
+		);
 	}
 
 	// ===== Single Action Tests =====
@@ -802,6 +814,7 @@ class RuleActionApplicatorTest extends TestCase {
 			->method('find')
 			->with(5, 'user123')
 			->willReturn($this->makeAccount(5));
+		$this->accountsOwnedBy([1 => 'user123', 5 => 'user123']);
 
 		$rule = $this->createRule([
 			'version' => 2,
@@ -1268,19 +1281,63 @@ class RuleActionApplicatorTest extends TestCase {
 		], 'user123');
 
 		$this->assertFalse($result['valid']);
-		$this->assertStringContainsString('write access', $result['errors'][0]);
+		$this->assertStringContainsString('one of their own accounts', $result['errors'][0]);
 	}
 
-	public function testValidateAcceptsAWritableSharedAccount(): void {
+	/**
+	 * A rule runs on its owner's own transactions, and a row may not move into
+	 * another user's ledger (the web edit refuses the same move): a write
+	 * share on the target is not enough any more.
+	 */
+	public function testValidateRefusesAnotherUsersAccountEvenWithWriteAccess(): void {
 		$this->accountMapper->method('find')->willThrowException(new \Exception('Account not found'));
-		$this->granularShareService->method('canWrite')->with('user123', 'account', 8)->willReturn(true);
+		$this->granularShareService->method('canWrite')->willReturn(true);
 
 		$result = $this->applicator->validateActions([
 			'version' => 2,
 			'actions' => [['type' => 'set_account', 'value' => 8, 'behavior' => 'always', 'priority' => 100]],
 		], 'user123');
 
-		$this->assertTrue($result['valid']);
+		$this->assertFalse($result['valid']);
+		$this->assertStringContainsString('one of their own accounts', $result['errors'][0]);
+	}
+
+	public function testARuleDoesNotMoveARowIntoAnotherUsersAccountEvenWithWriteAccess(): void {
+		// The shared account's stored balance went stale and the row took the
+		// rule owner's private category into another user's ledger (R2-2)
+		$transaction = $this->createTransaction(['accountId' => 1]);
+		$this->accountMapper->method('find')->willThrowException(new \Exception('Account not found'));
+		$this->granularShareService->method('canWrite')->willReturn(true);
+		$this->accountsOwnedBy([1 => 'user123', 8 => 'owner2']);
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [['type' => 'set_account', 'value' => 8, 'behavior' => 'always', 'priority' => 100]],
+		]);
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertArrayNotHasKey('account', $changes);
+		$this->assertSame(1, $transaction->getAccountId());
+	}
+
+	public function testASharedRuleDoesNotMoveARowIntoItsOwnersAccount(): void {
+		// owner2's rule targets owner2's account; it runs on user123's rows,
+		// which stay in user123's ledger
+		$transaction = $this->createTransaction(['accountId' => 1]);
+		$this->accountMapper->method('find')->willReturnCallback(
+			fn (int $id, string $userId) => $userId === 'owner2' ? $this->makeAccount($id, 'owner2') : throw new \Exception('Account not found')
+		);
+		$this->granularShareService->method('canWrite')->willReturn(true);
+		$this->accountsOwnedBy([1 => 'user123', 8 => 'owner2']);
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [['type' => 'set_account', 'value' => 8, 'behavior' => 'always', 'priority' => 100]],
+		]);
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertArrayNotHasKey('account', $changes);
+		$this->assertSame(1, $transaction->getAccountId());
 	}
 
 	public function testARuleDoesNotMoveARowIntoAReadOnlySharedAccount(): void {
