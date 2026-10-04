@@ -1057,6 +1057,8 @@ class BillService {
 		$hadScheduledTransaction = false;
 		$linkedExistingTransaction = false;
 		$paymentTransactionRecorded = false;
+		// A transfer's deposit this payment booked
+		$bookedDepositId = null;
 
 		// Reset auto-pay failed flag on successful manual payment
 		if ($bill->getAutoPayFailed()) {
@@ -1155,6 +1157,9 @@ class BillService {
 				// For transfers, also track the linked deposit transaction
 				if ($transaction->getLinkedTransactionId()) {
 					$createdTransactionIds[] = $transaction->getLinkedTransactionId();
+					if ($bill->getIsTransfer() ?? false) {
+						$bookedDepositId = $transaction->getLinkedTransactionId();
+					}
 				}
 
 				// Apply split template if defined
@@ -1257,6 +1262,19 @@ class BillService {
 			// working Mark Unpaid; the toast-based undo still has the ids below.
 			$bill->setPaidUndoState(null);
 			$this->logger->warning("Failed to persist the undo snapshot for bill {$id}: {$e->getMessage()}");
+		}
+
+		// The destination's statement may be in already: its own credit then
+		// takes the place of the deposit just booked, as it does when it
+		// comes in afterwards, rather than the money arriving twice
+		if ($bookedDepositId !== null) {
+			try {
+				if ($this->adoptDestinationCredit($bill, $bookedDepositId)) {
+					$bill = $this->find($id, $userId);
+				}
+			} catch (\Exception $e) {
+				$this->logger->warning("Failed to match bill {$id}'s deposit to the destination's own credit: {$e->getMessage()}");
+			}
 		}
 
 		return [
@@ -2219,6 +2237,39 @@ class BillService {
 			}
 		}
 		return true;
+	}
+
+	/**
+	 * Let the destination's own credit, already imported or synced, take the
+	 * place of the deposit a payment of the transfer just booked: the
+	 * statement came in first, and Mark Paid (or auto-pay) booked the
+	 * arrival beside it. The same test as replaceBookedDeposit(), the nearest
+	 * credit first, and only a row a statement or bank sync brought in.
+	 */
+	private function adoptDestinationCredit(Bill $bill, int $depositId): bool {
+		$deposit = $this->transactionService->findTransaction($depositId);
+		if ($deposit === null || $deposit->getType() !== 'credit') {
+			return false;
+		}
+		$days = $this->dueDateToleranceDays($bill->getFrequency());
+		$on = new \DateTimeImmutable($deposit->getDate());
+		$amount = abs((float)$deposit->getAmount());
+		$credits = $this->transactionService->findTransferArrivals(
+			$deposit->getAccountId(),
+			$amount,
+			$on->modify("-{$days} days")->format('Y-m-d'),
+			$on->modify("+{$days} days")->format('Y-m-d'),
+			$amount * 0.1
+		);
+		$credits = array_values(array_filter($credits, fn ($credit) => ($credit->getImportId() ?? '') !== ''));
+		usort($credits, fn ($a, $b) => [abs(strtotime($a->getDate()) - $on->getTimestamp()), abs((float)$a->getAmount() - $amount)]
+			<=> [abs(strtotime($b->getDate()) - $on->getTimestamp()), abs((float)$b->getAmount() - $amount)]);
+		foreach ($credits as $credit) {
+			if ($this->replaceBookedDeposit($bill, $credit)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**

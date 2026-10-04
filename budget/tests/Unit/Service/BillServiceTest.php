@@ -1971,6 +1971,48 @@ class BillServiceTest extends TestCase {
 		$this->assertNull($imported->getBillId());
 	}
 
+	/**
+	 * The savings statement came in first; Mark Paid then booked the
+	 * transfer's deposit beside the bank's own credit of it
+	 */
+	public function testMarkPaidLetsTheDestinationsCreditAlreadyThereTakeTheDepositsPlace(): void {
+		$bill = $this->setupAutoMatchBill([
+			'isTransfer' => true, 'destinationAccountId' => 2, 'autoDetectPattern' => null,
+			'nextDueDate' => '2026-06-15', 'createTransaction' => false,
+		]);
+		[$withdrawal, $deposit] = $this->bookedTransferPair('2026-06-15');
+		$credit = $this->makeImportedTx(['id' => 500, 'accountId' => 2, 'type' => 'credit', 'date' => '2026-06-14', 'description' => 'FROM CHECKING']);
+		$credit->setImportId('bank-2');
+		$this->linkable($withdrawal, $deposit, $credit);
+		$this->transactionService->method('clearScheduledBillTransaction')->willReturn(null);
+		$this->transactionService->method('createFromBill')->willReturn($withdrawal);
+		$this->transactionService->method('findTransferArrivals')->willReturn([$credit]);
+		$this->transactionService->expects($this->once())->method('replaceBookedRow')
+			->with($deposit, $credit, 'Auto-generated transfer: Netflix');
+
+		$result = $this->service->markPaid(1, 'user1', '2026-06-15', true);
+
+		$this->assertTrue($result['paymentTransactionRecorded']);
+		$snapshot = json_decode($bill->getPaidUndoState(), true);
+		$this->assertSame([600], $snapshot['createdTransactionIds'], 'Mark Unpaid must not delete the bank\'s credit');
+	}
+
+	public function testMarkPaidLeavesACreditNoStatementBroughtAlone(): void {
+		$this->setupAutoMatchBill([
+			'isTransfer' => true, 'destinationAccountId' => 2, 'autoDetectPattern' => null,
+			'nextDueDate' => '2026-06-15', 'createTransaction' => false,
+		]);
+		[$withdrawal, $deposit] = $this->bookedTransferPair('2026-06-15');
+		$typedIn = $this->makeImportedTx(['id' => 500, 'accountId' => 2, 'type' => 'credit', 'date' => '2026-06-14', 'description' => 'Savings']);
+		$this->linkable($withdrawal, $deposit, $typedIn);
+		$this->transactionService->method('clearScheduledBillTransaction')->willReturn(null);
+		$this->transactionService->method('createFromBill')->willReturn($withdrawal);
+		$this->transactionService->method('findTransferArrivals')->willReturn([$typedIn]);
+		$this->transactionService->expects($this->never())->method('replaceBookedRow');
+
+		$this->service->markPaid(1, 'user1', '2026-06-15', true);
+	}
+
 	public function testWhatWasAddedToABookedDepositGoesToTheArrivalTheBankRowGets(): void {
 		$bill = $this->setupAutoMatchBill([
 			'isTransfer' => true, 'destinationAccountId' => 2, 'autoDetectPattern' => null,

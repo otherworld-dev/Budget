@@ -1012,6 +1012,16 @@ class TransactionService {
 	}
 
 	/**
+	 * Credits in an account between two dates, within $margin of an amount,
+	 * that are free to be a transfer's arrival.
+	 *
+	 * @return Transaction[]
+	 */
+	public function findTransferArrivals(int $accountId, float $amount, string $from, string $to, float $margin): array {
+		return $this->mapper->findTransferArrivals($accountId, $amount, $from, $to, $margin);
+	}
+
+	/**
 	 * Debits in an account within $days of a date that no bill pays (or
 	 * only a deleted one): the rows Mark Paid offers to link, as entities.
 	 *

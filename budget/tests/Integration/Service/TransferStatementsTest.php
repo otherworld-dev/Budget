@@ -198,6 +198,22 @@ class TransferStatementsTest extends IntegrationTestCase {
 		$this->assertSame(1, $this->countRows('budget_transactions', ['account_id' => $this->savings, 'status' => 'cleared']));
 	}
 
+	/** The destination's statement first, then Mark Paid booked its deposit beside the bank's credit */
+	public function testTheDestinationsStatementThenMarkPaid(): void {
+		$bill = $this->transfer();
+		$this->importCsv($this->savings, $this->day(-11) . ",FROM CHECKING 0042,200.00\n");
+
+		$this->markPaid($bill);
+
+		$this->assertSame(['800.00', '200.00'], [$this->balance($this->checking), $this->balance($this->savings)]);
+		$this->assertSame(1, $this->countRows('budget_transactions', ['account_id' => $this->savings, 'status' => 'cleared']));
+
+		$this->service(BillService::class)->markUnpaid($bill, $this->userId);
+
+		$this->assertSame(1, $this->bankRows($this->savings), 'Mark Unpaid keeps the bank\'s credit');
+		$this->assertSame('1000.00', $this->balance($this->checking));
+	}
+
 	public function testMarkPaidThenTheSourcesStatementThenTheDestinations(): void {
 		$bill = $this->transfer();
 		$this->markPaid($bill);
