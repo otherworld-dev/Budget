@@ -3,10 +3,13 @@
  *
  * Its tile and list row offered Edit, and its page offered Edit, Reconcile,
  * Add Transaction and (for a card) a payment bill: all refused by the
- * server ("This shared item is read-only"). Opening its page also asked for
- * its reconciliation history and got a 403. Import is left out on any
+ * server ("This shared item is read-only"). Import is left out on any
  * account shared with you: an import runs as you, not as the account's
  * owner, and fails there.
+ *
+ * Its reconciliation history is readable with the share alone, so the page
+ * still shows it; but filtering the transactions to it looked for a
+ * reconciliation in progress, which needs write access and got a 403.
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -24,6 +27,7 @@ vi.mock('../../src/utils/notifications.js', () => ({
 }));
 
 import AccountsModule from '../../src/modules/accounts/AccountsModule.js';
+import TransactionsModule from '../../src/modules/transactions/TransactionsModule.js';
 
 const own = { id: 1, name: 'Mine', type: 'checking', balance: 10, currency: 'GBP' };
 const write = { ...own, id: 8, name: 'Joint', _shared: true, _canWrite: true, userId: 'owen' };
@@ -121,15 +125,50 @@ describe('the account page', () => {
             .toEqual([true, true, true, true]);
     });
 
-    it('doesn\'t ask for the reconciliation history of an account shared read-only', async () => {
+    it('still shows the reconciliation history of an account shared read-only', async () => {
+        // Reading it needs only the share; reconciling needs write
         global.OC = { generateUrl: (p) => p, requestToken: 'tok' };
-        global.fetch = vi.fn(async () => ({ ok: true, status: 200, headers: { get: () => null }, json: async () => [] }));
+        global.fetch = vi.fn(async () => ({
+            ok: true, status: 200, headers: { get: () => null },
+            json: async () => [{ statementDate: '2026-09-30', statementBalance: 10, reconciledCount: 3, completedAt: '2026-10-01' }],
+        }));
         const mod = makeModule();
         mod.currentAccount = readOnly;
 
         await mod.loadReconciliationHistory(readOnly.id);
 
+        expect(global.fetch).toHaveBeenCalledTimes(1);
+        expect(shown('recon-history-section')).toBe(true);
+    });
+});
+
+describe('the transactions page', () => {
+    function makeTransactions(accounts) {
+        const mod = Object.create(TransactionsModule.prototype);
+        mod.app = { accounts };
+        mod.reconcileMode = false;
+        mod.showReconcileResumeBanner = vi.fn();
+        return mod;
+    }
+
+    beforeEach(() => {
+        global.OC = { generateUrl: (p) => p, requestToken: 'tok' };
+        global.fetch = vi.fn(async () => ({ ok: true, status: 200, headers: { get: () => null }, json: async () => ({ session: null }) }));
+    });
+
+    it('doesn\'t look for a reconciliation in progress on an account shared read-only', async () => {
+        // Only someone who can write the account has one; asking is a 403
+        await makeTransactions([own, write, readOnly]).checkActiveReconcileSession(readOnly.id);
+
         expect(global.fetch).not.toHaveBeenCalled();
-        expect(shown('recon-history-section')).toBe(false);
+    });
+
+    it('looks on your own account and on one shared to write', async () => {
+        const mod = makeTransactions([own, write, readOnly]);
+
+        await mod.checkActiveReconcileSession(own.id);
+        await mod.checkActiveReconcileSession(write.id);
+
+        expect(global.fetch).toHaveBeenCalledTimes(2);
     });
 });

@@ -19,7 +19,7 @@ import { downloadTransactionsCsv } from '../../utils/helpers.js';
 import { apiFetch, ApiError } from '../../utils/api.js';
 import { once } from '../../utils/submitGuard.js';
 import { selectPossiblyUnavailable } from '../../utils/formSelects.js';
-import { openAccounts, pickableAccounts, accountOptionLabel, selectAccountValue, usableCategories, categoryTreeOf, sharedAccountOwner } from '../../utils/accounts.js';
+import { openAccounts, pickableAccounts, accountOptionLabel, selectAccountValue, usableCategories, categoryTreeOf, sharedAccountOwner, isReadOnlyShare } from '../../utils/accounts.js';
 import { offerableTags } from '../../utils/tags.js';
 import flatpickr from 'flatpickr';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
@@ -1795,6 +1795,10 @@ export default class TransactionsModule {
      */
     async checkActiveReconcileSession(accountId) {
         if (!accountId || this.reconcileMode) return;
+        // Reconciling needs write access: an account shared with you
+        // read-only has no session for you, and asking is a 403
+        const account = (this.accounts || []).find(a => String(a.id) === String(accountId));
+        if (isReadOnlyShare(account)) return;
         try {
             const state = await apiFetch(`/apps/budget/api/accounts/${accountId}/reconciliation/session`).catch(() => null);
             if (!state) return;

@@ -1276,11 +1276,6 @@ export default class AccountsModule {
         const section = document.getElementById('recon-history-section');
         const body = document.getElementById('recon-history-body');
         if (!section || !body) return;
-        // Not readable on an account shared with you read-only (a 403)
-        if (isReadOnlyShare(this.currentAccount)) {
-            section.style.display = 'none';
-            return;
-        }
 
         try {
             const history = await apiFetch(`/apps/budget/api/accounts/${accountId}/reconciliation/history`);
