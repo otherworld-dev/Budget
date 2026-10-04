@@ -980,7 +980,9 @@ export default class BillsModule {
         categorySelect.style.cssText = 'flex: 1;';
         categorySelect.innerHTML = `<option value="">${t('budget', 'No category')}</option>`;
         dom.populateCategorySelect(categorySelect, this.categoryTree || this.categories, { typeFilter: 'expense' });
-        if (split?.categoryId) categorySelect.value = split.categoryId;
+        // A shared bill's part may be filed under a category not shared with
+        // you: keep it, or the save would clear it (#370)
+        if (split?.categoryId) this.selectPossiblyUnavailable(categorySelect, split.categoryId);
 
         // Description input
         const descInput = document.createElement('input');

@@ -9,7 +9,7 @@ import { confirmDialog, promptDialog } from '../../utils/dialogs.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import { downloadTransactionsCsv, isLiabilityType, LIABILITY_ACCOUNT_TYPES } from '../../utils/helpers.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
-import { openAccounts } from '../../utils/accounts.js';
+import { openAccounts, usableCategories, categoryTreeOf } from '../../utils/accounts.js';
 import { showLoading, clearLoading, showLoadError } from '../../utils/loading.js';
 import { apiFetch, ApiError } from '../../utils/api.js';
 import { renderTransactionRow } from '../transactions/transactionRow.js';
@@ -2383,11 +2383,23 @@ export default class AccountsModule {
             });
         }
 
-        // Populate category dropdown (hierarchical with indentation)
+        // Populate category dropdown (hierarchical with indentation), for the
+        // account picked: one someone shared with you takes only their
+        // categories (usableCategories), so it follows the account
         const categorySelect = document.getElementById('quick-add-category');
-        if (categorySelect) {
+        const fillCategories = () => {
+            if (!categorySelect) return;
+            const current = categorySelect.value;
+            const account = (this.accounts || []).find(a => String(a.id) === accountSelect?.value);
+            const scoped = usableCategories(this.categories, [account], [current]);
             categorySelect.innerHTML = '<option value="">' + t('budget', 'No category') + '</option>';
-            dom.populateCategorySelect(categorySelect, this.categoryTree || this.categories);
+            dom.populateCategorySelect(categorySelect, scoped ? categoryTreeOf(scoped) : (this.categoryTree || this.categories));
+            categorySelect.value = current;
+        };
+        fillCategories();
+        if (accountSelect && !accountSelect.dataset.categoryScopeBound) {
+            accountSelect.dataset.categoryScopeBound = '1';
+            accountSelect.addEventListener('change', fillCategories);
         }
 
         // Set today's date as default

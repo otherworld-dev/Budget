@@ -2,6 +2,35 @@
  * Dropdowns on edit forms that may not list the value being edited.
  */
 import { translate as t } from '@nextcloud/l10n';
+import { escapeHtml } from './dom.js';
+import { usableCategories } from './accounts.js';
+
+/**
+ * The <option>s of a split part's category picker: the categories of the
+ * transaction's type, and only the owner's in an account someone shared
+ * with you (usableCategories). The part's own category is always kept, as
+ * a disabled "Unavailable" placeholder when it isn't shared with you, so a
+ * save sends it back instead of clearing it.
+ *
+ * @param {Array} categories Flat list
+ * @param {number|string|null} selectedId
+ * @param {string|null} transactionType 'credit' lists income categories, else expense
+ * @param {object|null} account The transaction's account
+ * @returns {string}
+ */
+export function categoryOptionsHtml(categories, selectedId = null, transactionType = null, account = null) {
+    if (!categories) return '';
+    const categoryType = transactionType === 'credit' ? 'income' : 'expense';
+    const offered = usableCategories(categories, [account], [selectedId]) || categories;
+    const hasSelected = selectedId !== null && selectedId !== undefined && selectedId !== '';
+    const unlisted = hasSelected && !offered.some(c => String(c.id) === String(selectedId))
+        ? `<option value="${escapeHtml(String(selectedId))}" selected disabled data-unavailable="1">${escapeHtml(t('budget', 'Unavailable (not shared with you)'))}</option>`
+        : '';
+    return unlisted + offered
+        .filter(c => c.type === categoryType)
+        .map(c => `<option value="${c.id}" ${hasSelected && String(c.id) === String(selectedId) ? 'selected' : ''}>${escapeHtml(c.name)}</option>`)
+        .join('');
+}
 
 /**
  * Select `value` even when the dropdown holds no option for it: a shared

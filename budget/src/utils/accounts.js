@@ -68,6 +68,64 @@ export function pickableAccounts(accounts, keepIds = [], { readOnlyShares = fals
 }
 
 /**
+ * The owner of an account someone shared with you; null for your own.
+ */
+export function sharedAccountOwner(account) {
+    return account && account._shared && account.userId ? account.userId : null;
+}
+
+/**
+ * The categories a transaction in these accounts can be filed under. A row
+ * is filed in its account owner's ledger, and the server accepts only a
+ * category that owner can see; from your side that is the owner's own
+ * categories shared with you. Your own accounts take every category listed,
+ * so this returns null for them (no restriction). Rows in two other
+ * people's accounts at once (a bulk edit) have none in common.
+ *
+ * @param {Array} categories Flat list, each with id, parentId and userId
+ * @param {Array} accounts The account(s) the row or rows are in
+ * @param {Array<number|string>} [keepIds] Categories the record already has,
+ *   kept so a save doesn't silently drop them
+ * @returns {Array|null} The usable categories, or null for no restriction
+ */
+export function usableCategories(categories, accounts, keepIds = []) {
+    const owners = new Set(list(accounts).map(sharedAccountOwner).filter(Boolean));
+    if (owners.size === 0) {
+        return null;
+    }
+    const owner = owners.size === 1 ? [...owners][0] : null;
+    const keep = new Set((keepIds || []).filter(id => id !== null && id !== undefined && id !== '').map(String));
+    return list(categories).filter(category => (owner !== null && category.userId === owner) || keep.has(String(category.id)));
+}
+
+/**
+ * A category tree built from a flat list by parentId, for the pickers. A
+ * category whose parent isn't in the list sits at the top level.
+ *
+ * @param {Array} categories
+ * @returns {Array}
+ */
+export function categoryTreeOf(categories) {
+    const nodes = new Map(list(categories).map(category => [String(category.id), { ...category, children: [] }]));
+    const parentOf = node => (node.parentId !== null && node.parentId !== undefined ? nodes.get(String(node.parentId)) : null);
+    // A damaged parent loop would leave its categories under nobody
+    const inLoop = (node) => {
+        const seen = new Set([node]);
+        for (let p = parentOf(node); p; p = parentOf(p)) {
+            if (seen.has(p)) return true;
+            seen.add(p);
+        }
+        return false;
+    };
+    const roots = [];
+    nodes.forEach(node => {
+        const parent = parentOf(node);
+        (parent && !inLoop(node) ? parent.children : roots).push(node);
+    });
+    return roots;
+}
+
+/**
  * The accounts a rule's Set Account may move rows into: the rule owner's
  * own open accounts, as the server refuses any other when the rule is
  * saved. For your own rule that is your accounts, not ones shared with
