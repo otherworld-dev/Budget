@@ -206,11 +206,18 @@ class FactoryResetServiceTest extends TestCase {
 	/**
 	 * Shared expenses reach their recipient through a contact linked to
 	 * their uid, so a new account given a deleted user's uid saw everything
-	 * shared with the old one. Access goes before any data, so a reset that
-	 * fails part way can't leave it in place.
+	 * shared with the old one: the purge revokes that access. It does so in
+	 * the same transaction as the data, after it, so it is gone exactly when
+	 * the data is gone.
 	 */
-	public function testPurgingADeletedUserRevokesAccessBeforeTheDataGoes(): void {
+	public function testPurgingADeletedUserRevokesAccessWithTheDataInsideTheTransaction(): void {
 		$this->billMapper->method('findAll')->willReturn([]);
+		$this->db->method('beginTransaction')->willReturnCallback(function () {
+			$this->deletes[] = ['table' => 'BEGIN', 'sql' => null, 'params' => []];
+		});
+		$this->db->method('commit')->willReturnCallback(function () {
+			$this->deletes[] = ['table' => 'COMMIT', 'sql' => null, 'params' => []];
+		});
 		$shares = $this->createMock(ShareMapper::class);
 		$shares->expects($this->once())->method('deleteAllForUser')->with('gone')
 			->willReturnCallback(function () {
@@ -225,19 +232,53 @@ class FactoryResetServiceTest extends TestCase {
 
 		$this->purgingService($shares, $contacts)->purgeDeletedUser('gone');
 
-		$this->assertSame(['shares', 'contacts'], array_slice($this->deletedTables(), 0, 2));
+		$order = array_flip($this->deletedTables());
+		$this->assertSame(0, $order['BEGIN']);
+		$this->assertGreaterThan($order['budget_accounts'], $order['shares']);
+		$this->assertGreaterThan($order['budget_transactions'], $order['shares']);
+		$this->assertSame(['shares', 'contacts', 'COMMIT'], array_slice($this->deletedTables(), -3));
 	}
 
-	public function testAFailedPurgeStillRevokesAccess(): void {
-		$this->billMapper->method('findAll')->willReturn([]);
+	/**
+	 * A purge that fails part way must change nothing, so it can be run
+	 * again (`occ budget:purge-deleted-users`). Revoking the shares first,
+	 * outside the transaction, left the data behind with nobody's access to
+	 * it and hid the shared links a second run needs to cut.
+	 */
+	public function testAFailedPurgeChangesNothingSoItCanBeRunAgain(): void {
+		$rent = new Bill();
+		$rent->setId(4);
+		$this->billMapper->method('findAll')->willReturn([$rent]);
+		$transactions = $this->createMock(TransactionService::class);
+		$transactions->expects($this->once())->method('deleteScheduledBillTransactions')->with(4)
+			->willReturnCallback(function () {
+				$this->deletes[] = ['table' => 'pending bill rows', 'sql' => null, 'params' => []];
+			});
+		$this->db->method('beginTransaction')->willReturnCallback(function () {
+			$this->deletes[] = ['table' => 'BEGIN', 'sql' => null, 'params' => []];
+		});
+		$this->db->expects($this->never())->method('commit');
+		$this->db->expects($this->once())->method('rollBack');
 		$this->failingTables['budget_expense_shares'] = 'DB error';
 		$shares = $this->createMock(ShareMapper::class);
-		$shares->expects($this->once())->method('deleteAllForUser')->with('gone');
+		$shares->expects($this->never())->method('deleteAllForUser');
 		$contacts = $this->createMock(ContactMapper::class);
-		$contacts->expects($this->once())->method('unlinkNextcloudUser')->with('gone');
+		$contacts->expects($this->never())->method('unlinkNextcloudUser');
+		$service = new FactoryResetService(
+			$this->accountMapper, $this->transactionMapper, $this->billMapper, $this->categoryMapper,
+			$this->importRuleMapper, $this->settingMapper, $this->attachmentMapper, $this->db,
+			null, $transactions, $shares, $contacts,
+		);
 
-		$this->expectExceptionMessage('DB error');
-		$this->purgingService($shares, $contacts)->purgeDeletedUser('gone');
+		try {
+			$service->purgeDeletedUser('gone');
+			$this->fail('the failure must reach the caller');
+		} catch (\Exception $e) {
+			$this->assertSame('DB error', $e->getMessage());
+		}
+
+		// The pending bill rows went inside the transaction that rolled back
+		$this->assertSame(['BEGIN', 'pending bill rows'], array_slice($this->deletedTables(), 0, 2));
 	}
 
 	public function testAResetLeavesContactLinksToTheUserAlone(): void {

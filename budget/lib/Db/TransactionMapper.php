@@ -2953,30 +2953,20 @@ class TransactionMapper extends QBMapper {
 	/**
 	 * Delete all transactions for a user (via account ownership)
 	 *
+	 * DELETE can't join, so the accounts are reached through a subquery, as
+	 * UserTableCleaner does. Binding every transaction id instead failed on
+	 * PostgreSQL past 65,535 rows (its limit on parameters per statement),
+	 * which aborted a factory reset or the purge of a deleted user.
+	 *
 	 * @param string $userId
 	 * @return int Number of deleted rows
 	 */
 	public function deleteAll(string $userId): int {
-		// DELETE doesn't support JOINs — use subquery to find IDs first
-		$sub = $this->db->getQueryBuilder();
-		$sub->select('t.id')
-			->from($this->getTableName(), 't')
-			->innerJoin('t', 'budget_accounts', 'a', $sub->expr()->eq('t.account_id', 'a.id'))
-			->where($sub->expr()->eq('a.user_id', $sub->createNamedParameter($userId, IQueryBuilder::PARAM_STR)));
-
-		$result = $sub->executeQuery();
-		$ids = array_column($result->fetchAll(), 'id');
-		$result->closeCursor();
-
-		if (empty($ids)) {
-			return 0;
-		}
-
-		$qb = $this->db->getQueryBuilder();
-		$qb->delete($this->getTableName())
-			->where($qb->expr()->in('id', $qb->createNamedParameter($ids, IQueryBuilder::PARAM_INT_ARRAY)));
-
-		return $qb->executeStatement();
+		return $this->db->executeStatement(
+			'DELETE FROM *PREFIX*' . $this->getTableName()
+				. ' WHERE account_id IN (SELECT id FROM *PREFIX*budget_accounts WHERE user_id = ?)',
+			[$userId]
+		);
 	}
 
 	/**
