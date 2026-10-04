@@ -195,9 +195,6 @@ class ImportRuleApplicator {
 	 */
 	private function applyActions(ImportRule $rule, array $transaction, string $userId): array {
 		$actions = $rule->getParsedActions();
-		// A rule shared with the importer may set a category the importer can't
-		// see; such actions are skipped rather than stamping an inaccessible id.
-		$ruleShared = ($rule->getUserId() !== null && $rule->getUserId() !== $userId);
 		$actionList = [];
 
 		if (isset($actions['version']) && $actions['version'] === 2) {
@@ -221,10 +218,12 @@ class ImportRuleApplicator {
 			switch ($type) {
 				case 'set_category':
 					if ($this->shouldApply($behavior, $transaction['categoryId'] ?? null)) {
-						// For a shared rule, only stamp the category if the importer
-						// can actually see it (co-shared); otherwise skip it.
-						if (!$ruleShared
-							|| $this->granularShareService->canAccess($userId, ShareItem::TYPE_CATEGORY, (int)$value)) {
+						// The row lands in the importer's ledger, so the category
+						// must be one they can use (own, or shared with them),
+						// whoever's rule it is: an unchecked id from an own rule
+						// put another user's category, and its name, on the row
+						// (R6-4). Otherwise the action is skipped.
+						if ($this->granularShareService->canAccess($userId, ShareItem::TYPE_CATEGORY, (int)$value)) {
 							$transaction['categoryId'] = (int)$value;
 						}
 					}

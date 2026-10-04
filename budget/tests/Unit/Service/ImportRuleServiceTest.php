@@ -198,6 +198,87 @@ class ImportRuleServiceTest extends TestCase {
 		$this->service->create('user1', 'With Actions', null, null, null, $criteria, 2, null, null, 0, $actions);
 	}
 
+	// ===== category actions must belong to the ledger (R6-4) =====
+
+	private function refusedActions(): array {
+		return ['valid' => false, 'errors' => ["Action 0: category 99 is not available to the rule's owner"]];
+	}
+
+	/**
+	 * A v1-schema rule stored its actions without validating them, so it
+	 * could carry another user's category, and switching it to v2 later
+	 * kept them unchecked.
+	 */
+	public function testCreateV1ValidatesItsActions(): void {
+		$actions = ['version' => 2, 'actions' => [['type' => 'set_category', 'value' => 99]]];
+		$this->actionApplicator->method('validateActions')->with($actions, 'user1')->willReturn($this->refusedActions());
+		$this->mapper->expects($this->never())->method('insert');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('category 99');
+		$this->service->create('user1', 'V1', 'shop', 'description', 'contains', null, 1, null, null, 0, $actions);
+	}
+
+	public function testCreateV2ValidatesTheCategoryColumn(): void {
+		$this->criteriaEvaluator->method('validate')->willReturn(['valid' => true]);
+		$this->actionApplicator->method('validateActions')->with(['categoryId' => 99], 'user1')->willReturn($this->refusedActions());
+		$this->mapper->expects($this->never())->method('insert');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->service->create('user1', 'V2', null, null, null, ['version' => 2, 'root' => []], 2, 99);
+	}
+
+	public function testUpdateV1ValidatesItsActions(): void {
+		$this->mapper->method('find')->willReturn($this->makeRule(['categoryId' => null]));
+		$actions = ['version' => 2, 'actions' => [['type' => 'set_category', 'value' => 99]]];
+		$this->actionApplicator->method('validateActions')->with($actions, 'user1')->willReturn($this->refusedActions());
+		$this->mapper->expects($this->never())->method('update');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->service->update(1, 'user1', ['actions' => $actions]);
+	}
+
+	public function testSwitchingToV2ChecksTheActionsItAlreadyHas(): void {
+		$rule = $this->makeRule(['categoryId' => null]);
+		$rule->setActionsFromArray(['version' => 2, 'actions' => [['type' => 'set_category', 'value' => 99]]]);
+		$this->mapper->method('find')->willReturn($rule);
+		$this->criteriaEvaluator->method('validate')->willReturn(['valid' => true]);
+		$this->actionApplicator->method('validateActions')
+			->with(['version' => 2, 'actions' => [['type' => 'set_category', 'value' => 99]]], 'user1')
+			->willReturn($this->refusedActions());
+		$this->mapper->expects($this->never())->method('update');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->service->update(1, 'user1', [
+			'schemaVersion' => 2,
+			'criteria' => ['version' => 2, 'root' => ['operator' => 'AND', 'conditions' => []]],
+		]);
+	}
+
+	public function testUpdateV2ValidatesACategoryColumnChange(): void {
+		$rule = $this->makeRule(['schemaVersion' => 2, 'categoryId' => null]);
+		$rule->setCriteriaFromArray(['version' => 2, 'root' => ['operator' => 'AND', 'conditions' => []]]);
+		$this->mapper->method('find')->willReturn($rule);
+		$this->actionApplicator->method('validateActions')->with(['categoryId' => 99], 'user1')->willReturn($this->refusedActions());
+		$this->mapper->expects($this->never())->method('update');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->service->update(1, 'user1', ['categoryId' => 99]);
+	}
+
+	public function testAnUnrelatedEditDoesNotRecheckStoredActions(): void {
+		// A rule whose category was unshared since must still be editable,
+		// not least to switch it off
+		$rule = $this->makeRule(['schemaVersion' => 2, 'categoryId' => null]);
+		$rule->setCriteriaFromArray(['version' => 2, 'root' => ['operator' => 'AND', 'conditions' => []]]);
+		$rule->setActionsFromArray(['version' => 2, 'actions' => [['type' => 'set_category', 'value' => 99]]]);
+		$this->mapper->method('find')->willReturn($rule);
+		$this->actionApplicator->expects($this->never())->method('validateActions');
+		$this->mapper->expects($this->once())->method('update')->willReturnCallback(fn ($r) => $r);
+
+		$this->service->update(1, 'user1', ['active' => false]);
+	}
+
 	// ===== update =====
 
 	public function testUpdateSetsTimestampAndCallsMapper(): void {

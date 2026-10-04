@@ -624,8 +624,12 @@ class RuleActionApplicator {
 		} elseif (isset($actions['actions'])) {
 			$actionList = $actions['actions'];
 		} else {
-			// Legacy format - no validation needed
-			return ['valid' => true, 'errors' => []];
+			// Legacy format: its category is the only reference to check
+			$categoryId = $actions['categoryId'] ?? null;
+			if ($categoryId !== null && !$this->canUseCategory((int)$categoryId, $userId)) {
+				$errors[] = "Action 0: category $categoryId is not available to the rule's owner (it must be theirs or shared with them)";
+			}
+			return ['valid' => empty($errors), 'errors' => $errors];
 		}
 
 		// Check action count

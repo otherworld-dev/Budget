@@ -1414,13 +1414,28 @@ class RuleActionApplicatorTest extends TestCase {
 		$this->assertStringContainsString('unknown action type', strtolower($result['errors'][0]));
 	}
 
-	public function testValidateLegacyFormatAlwaysValid(): void {
+	public function testValidateLegacyFormatWithAUsableCategory(): void {
+		$this->categoryMapper->method('find')->with(5, 'user123')->willReturn($this->makeCategory(5));
 		$actions = ['categoryId' => 5, 'vendor' => 'Test'];
 
 		$result = $this->applicator->validateActions($actions, 'user123');
 
 		$this->assertTrue($result['valid']);
 		$this->assertEmpty($result['errors']);
+	}
+
+	/**
+	 * The legacy shape was never checked, so a rule could carry any user's
+	 * category id (R6-4).
+	 */
+	public function testValidateLegacyFormatRefusesACategoryTheOwnerCannotUse(): void {
+		$this->categoryMapper->method('find')->willThrowException(new \Exception('Category not found'));
+		$this->granularShareService->method('canAccess')->willReturn(false);
+
+		$result = $this->applicator->validateActions(['categoryId' => 99], 'user123');
+
+		$this->assertFalse($result['valid']);
+		$this->assertStringContainsString('category 99', $result['errors'][0]);
 	}
 
 	// ===== Vendor if_empty Tests =====

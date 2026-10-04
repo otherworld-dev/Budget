@@ -60,6 +60,8 @@ class ImportRuleApplicatorTest extends TestCase {
 		]);
 		$this->ruleMapper->method('findActive')->willReturn([$rule]);
 		$this->evaluator->method('evaluate')->willReturn(true);
+		$this->granularShareService->method('canAccess')
+			->with('user1', 'category', 42)->willReturn(true);
 
 		$tx = ['description' => 'Groceries', 'amount' => 50.0];
 		$result = $this->applicator->applyRules('user1', $tx);
@@ -67,6 +69,25 @@ class ImportRuleApplicatorTest extends TestCase {
 		$this->assertSame(42, $result['categoryId']);
 		$this->assertSame(1, $result['appliedRule']['id']);
 		$this->assertSame('Test Rule', $result['appliedRule']['name']);
+	}
+
+	/**
+	 * The importer's own rule was trusted: an id saved in its actions without
+	 * a check (a v1-schema rule, R6-4) stamped another user's category on the
+	 * row, whose name the list then showed. Every rule's category must now be
+	 * one the importer's ledger can use.
+	 */
+	public function testOwnRuleSetCategorySkippedWhenTheCategoryIsNotUsable(): void {
+		$rule = $this->makeRule([
+			'actions' => ['version' => 2, 'actions' => [['type' => 'set_category', 'value' => 99]]],
+		]);
+		$this->ruleMapper->method('findActive')->willReturn([$rule]);
+		$this->evaluator->method('evaluate')->willReturn(true);
+		$this->granularShareService->method('canAccess')->willReturn(false);
+
+		$result = $this->applicator->applyRules('user1', ['description' => 'x']);
+
+		$this->assertArrayNotHasKey('categoryId', $result);
 	}
 
 	public function testSharedRuleSetCategoryAppliedWhenCoShared(): void {
@@ -510,6 +531,7 @@ class ImportRuleApplicatorTest extends TestCase {
 		]);
 		$this->ruleMapper->method('findActive')->willReturn([$rule]);
 		$this->evaluator->method('evaluate')->willReturn(true);
+		$this->granularShareService->method('canAccess')->willReturn(true);
 
 		$result = $this->applicator->applyRules('user1', ['description' => 'Test']);
 
@@ -606,6 +628,7 @@ class ImportRuleApplicatorTest extends TestCase {
 		]);
 		$this->ruleMapper->method('findActive')->willReturn([$rule]);
 		$this->evaluator->method('evaluate')->willReturn(true);
+		$this->granularShareService->method('canAccess')->willReturn(true);
 
 		$txns = [
 			['description' => 'A'],
@@ -706,6 +729,7 @@ class ImportRuleApplicatorTest extends TestCase {
 		]);
 		$this->ruleMapper->method('findActive')->willReturn([$rule]);
 		$this->evaluator->method('evaluate')->willReturn(true);
+		$this->granularShareService->method('canAccess')->willReturn(true);
 
 		$result = $this->applicator->applyRules('user1', ['description' => 'Test']);
 		$this->assertSame(10, $result['categoryId']);

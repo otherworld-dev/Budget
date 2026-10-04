@@ -136,10 +136,12 @@ class ImportRuleService extends AbstractCrudService {
 
 			// Validate actions if provided
 			if ($actions !== null) {
-				$actionValidation = $this->actionApplicator->validateActions($actions, $userId);
-				if (!$actionValidation['valid']) {
-					throw new \InvalidArgumentException('Invalid actions: ' . implode(', ', $actionValidation['errors']));
-				}
+				$this->assertValidActions($actions, $userId);
+			}
+			// The legacy column is still read (effectiveCategoryId(), Run
+			// rules), so it is held to the same rule as an action
+			if ($categoryId !== null) {
+				$this->assertValidActions(['categoryId' => $categoryId], $userId);
 			}
 		} else {
 			// v1 format: pattern, field, matchType required
@@ -154,6 +156,11 @@ class ImportRuleService extends AbstractCrudService {
 			}
 			if ($effectiveCategoryId !== null) {
 				$this->categoryMapper->find($effectiveCategoryId, $userId);
+			}
+			// A v1 rule may carry actions in the current format too, and the
+			// import applies them: they were stored unchecked (R6-4)
+			if ($actions !== null) {
+				$this->assertValidActions($actions, $userId);
 			}
 
 			// Validate match type
@@ -241,10 +248,14 @@ class ImportRuleService extends AbstractCrudService {
 
 			// Validate actions if being updated
 			if (isset($updates['actions'])) {
-				$actionValidation = $this->actionApplicator->validateActions($updates['actions'], $userId);
-				if (!$actionValidation['valid']) {
-					throw new \InvalidArgumentException('Invalid actions: ' . implode(', ', $actionValidation['errors']));
-				}
+				$this->assertValidActions($updates['actions'], $userId);
+			} elseif ($currentVersion !== 2) {
+				// Switching a v1 rule to v2 without resending its actions keeps
+				// the ones it was saved with, which a v1 save never checked
+				$this->assertValidActions($rule->getParsedActions(), $userId);
+			}
+			if (isset($updates['categoryId'])) {
+				$this->assertValidActions(['categoryId' => $updates['categoryId']], $userId);
 			}
 		} else {
 			// v1 validation (existing logic)
@@ -254,6 +265,9 @@ class ImportRuleService extends AbstractCrudService {
 			}
 			if (isset($updates['actions']) && isset($updates['actions']['categoryId'])) {
 				$this->categoryMapper->find($updates['actions']['categoryId'], $userId);
+			}
+			if (isset($updates['actions'])) {
+				$this->assertValidActions($updates['actions'], $userId);
 			}
 
 			// Validate match type if being updated
@@ -296,6 +310,19 @@ class ImportRuleService extends AbstractCrudService {
 		}
 
 		return $this->mapper->update($rule);
+	}
+
+	/**
+	 * Refuse actions that point at something the rule's owner can't use: a
+	 * category outside their ledger, an account that isn't theirs.
+	 *
+	 * @throws \InvalidArgumentException
+	 */
+	private function assertValidActions(array $actions, string $userId): void {
+		$validation = $this->actionApplicator->validateActions($actions, $userId);
+		if (!$validation['valid']) {
+			throw new \InvalidArgumentException('Invalid actions: ' . implode(', ', $validation['errors']));
+		}
 	}
 
 	public function testRules(string $userId, array $transactionData): array {
