@@ -229,18 +229,24 @@ class CategoryService extends AbstractCrudService {
 		// would not free a project (#391).
 		$this->assertNotUsedByProject($entity->getId(), $userId);
 
+		// Check for transactions on this category and on every one the cascade
+		// below deletes, before any of them goes. Checked after the children
+		// were deleted, a refusal on the parent (or on a later sibling) came
+		// with the earlier subcategories already gone, along with their
+		// budgets, tags and the bill and split links they released. Typed so
+		// the controller can offer to reassign them to No Category and retry
+		// (#332).
+		foreach ($this->collectSelfAndDescendantIds($entity->getId(), $userId) as $categoryId) {
+			if ($this->transactionMapper->findByCategory($categoryId, $userId, 1) !== []) {
+				throw new CategoryInUseException($this->l->t('Cannot delete this category because it has transactions assigned to it. Please reassign or delete them first.'));
+			}
+		}
+
 		// Cascade delete: Delete child categories first (recursively)
 		$children = $this->getCategoryMapper()->findChildren($userId, $entity->getId());
 		foreach ($children as $child) {
 			// Recursively delete child and its descendants
 			$this->delete($child->getId(), $userId);
-		}
-
-		// Check for transactions. Typed so the controller can offer to reassign
-		// them to No Category and retry (#332).
-		$transactions = $this->transactionMapper->findByCategory($entity->getId(), $userId, 1);
-		if (!empty($transactions)) {
-			throw new CategoryInUseException($this->l->t('Cannot delete this category because it has transactions assigned to it. Please reassign or delete them first.'));
 		}
 
 		$this->releaseReferences($entity->getId(), $userId);
