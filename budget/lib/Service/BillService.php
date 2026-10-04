@@ -1811,6 +1811,10 @@ class BillService {
 	 * same-period transaction in the batch falls outside the new window and
 	 * cannot double-advance the bill.
 	 *
+	 * A credit in a recurring transfer's destination is the bank's own row
+	 * of a deposit the app may already have booked for the transfer, and
+	 * takes that deposit's place (replaceBookedDeposit()).
+	 *
 	 * @param \OCA\Budget\Db\Transaction[] $transactions freshly created rows
 	 * @return int number of bills marked paid
 	 */
@@ -1822,21 +1826,36 @@ class BillService {
 		// Bills and recurring transfers alike: a transfer matches its
 		// withdrawal from the source account by its pattern (the transfer
 		// form's description pattern, which nothing used to read)
+		$active = $this->findActive($userId);
 		$bills = array_filter(
-			$this->findActive($userId),
+			$active,
 			fn (Bill $bill) => $this->matchPattern($bill) !== ''
 				&& $bill->getNextDueDate() !== null
 		);
-		if (empty($bills)) {
+		$transfersInto = [];
+		foreach ($active as $bill) {
+			if (($bill->getIsTransfer() ?? false) && $bill->getDestinationAccountId() !== null) {
+				$transfersInto[$bill->getDestinationAccountId()][] = $bill;
+			}
+		}
+		if (empty($bills) && $transfersInto === []) {
 			return 0;
 		}
 
 		$marked = 0;
 		foreach ($transactions as $transaction) {
-			if ($transaction->getType() !== 'debit') {
+			if (($transaction->getStatus() ?? 'cleared') === 'scheduled') {
 				continue;
 			}
-			if (($transaction->getStatus() ?? 'cleared') === 'scheduled') {
+			if ($transaction->getType() === 'credit') {
+				foreach ($transfersInto[$transaction->getAccountId()] ?? [] as $transfer) {
+					if ($this->replaceBookedDeposit($transfer, $transaction)) {
+						break;
+					}
+				}
+				continue;
+			}
+			if ($transaction->getType() !== 'debit') {
 				continue;
 			}
 
@@ -2033,6 +2052,82 @@ class BillService {
 		$snapshot['linkedTransactionId'] = $imported->getId();
 		$bill->setPaidUndoState(json_encode($snapshot));
 		$this->mapper->update($bill);
+		return true;
+	}
+
+	/**
+	 * Put the destination's own credit in the place of a deposit the app
+	 * booked for one of this transfer's payments.
+	 *
+	 * A transfer paid before the destination's statement is in books its
+	 * arrival (Mark Paid, or the source's statement paying it), and that
+	 * statement then brought the same money in a second time. Its credit now
+	 * takes the deposit's place, paired with the withdrawal, when it is in
+	 * the bill's due window around the deposit's date and within a tenth of
+	 * its amount (between currencies the deposit is only the app's estimate
+	 * of the bank's conversion). A reconciled deposit is left alone.
+	 */
+	private function replaceBookedDeposit(Bill $bill, \OCA\Budget\Db\Transaction $credit): bool {
+		// Read again: a payment earlier in the same import may have taken
+		// this credit as its arrival already. A bank-sync hold waits until
+		// it posts: one dropped later would take the arrival with it.
+		$current = $this->transactionService->findTransaction($credit->getId());
+		if ($current === null || $current->getType() !== 'credit'
+			|| $current->getAccountId() !== $bill->getDestinationAccountId()
+			|| in_array($current->getStatus() ?? 'cleared', ['scheduled', 'pending'], true)
+			|| $current->getBillId() !== null || $current->getLinkedTransactionId() !== null
+			|| $current->getPensionContribId() !== null) {
+			return false;
+		}
+
+		$days = $this->dueDateToleranceDays($bill->getFrequency());
+		$on = new \DateTimeImmutable($current->getDate());
+		$amount = (float)$current->getAmount();
+		$deposit = null;
+		$rank = null;
+		$candidates = $this->transactionService->findBookedBillRows(
+			$bill->getId(),
+			'credit',
+			'Auto-generated transfer:',
+			$on->modify("-{$days} days")->format('Y-m-d'),
+			$on->modify("+{$days} days")->format('Y-m-d')
+		);
+		foreach ($candidates as $row) {
+			$booked = abs((float)$row->getAmount());
+			if ($row->getAccountId() !== $current->getAccountId() || $row->getLinkedTransactionId() === null
+				|| abs((float)$row->getAmount() - $amount) > $booked * 0.1) {
+				continue;
+			}
+			$thisRank = [abs((float)$row->getAmount() - $amount), abs(strtotime($row->getDate()) - $on->getTimestamp())];
+			if ($rank === null || $thisRank < $rank) {
+				[$deposit, $rank] = [$row, $thisRank];
+			}
+		}
+		if ($deposit === null || $deposit->getReconciled()) {
+			return false;
+		}
+
+		try {
+			$linked = $this->transactionService->linkBillAsAccountOwner($current->getId(), $bill);
+			$this->transactionService->replaceBookedRow($deposit, $linked);
+		} catch (\Exception $e) {
+			$this->logger->warning("Failed to put imported transaction {$credit->getId()} in place of transfer {$bill->getId()}'s deposit: {$e->getMessage()}");
+			return false;
+		}
+
+		// Mark Unpaid deletes what the payment booked; the bank's credit
+		// isn't that, so the snapshot stops naming the deposit
+		$fresh = $this->find($bill->getId(), $bill->getUserId());
+		$raw = $fresh->getPaidUndoState();
+		$snapshot = ($raw !== null && $raw !== '') ? json_decode($raw, true) : null;
+		if (is_array($snapshot) && is_array($snapshot['createdTransactionIds'] ?? null)) {
+			$kept = array_values(array_filter($snapshot['createdTransactionIds'], fn ($id) => (int)$id !== $deposit->getId()));
+			if (count($kept) !== count($snapshot['createdTransactionIds'])) {
+				$snapshot['createdTransactionIds'] = $kept;
+				$fresh->setPaidUndoState(json_encode($snapshot));
+				$this->mapper->update($fresh);
+			}
+		}
 		return true;
 	}
 

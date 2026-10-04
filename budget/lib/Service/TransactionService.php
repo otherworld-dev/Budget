@@ -972,6 +972,36 @@ class TransactionService {
 	}
 
 	/**
+	 * Rows a bill booked for its payments between two dates, for matching
+	 * the bank's own row of the same payment.
+	 *
+	 * @return Transaction[]
+	 */
+	public function findBookedBillRows(int $billId, string $type, string $notesPrefix, string $from, string $to): array {
+		return $this->mapper->findBookedBillRows($billId, $type, $notesPrefix, $from, $to);
+	}
+
+	/**
+	 * Let the bank's own row of some money take the place of a row the app
+	 * booked for it, and delete the booked row. The booked row's other side
+	 * (a transfer's withdrawal, when the booked row is its deposit) stays,
+	 * paired with the bank row instead.
+	 *
+	 * The delete goes through delete(), as the booked row's account owner.
+	 */
+	public function replaceBookedRow(Transaction $booked, Transaction $bank): void {
+		$partnerId = $booked->getLinkedTransactionId();
+		if ($partnerId !== null) {
+			$this->mapper->unlinkTransaction($booked->getId());
+			$current = $this->mapper->findById($bank->getId());
+			if ($current !== null && $current->getLinkedTransactionId() === null) {
+				$this->mapper->linkTransactions($bank->getId(), $partnerId);
+			}
+		}
+		$this->delete($booked->getId(), $this->ownerOf($booked));
+	}
+
+	/**
 	 * A transaction by id with no owner scoping, for callers that check
 	 * access themselves. Null when it doesn't exist.
 	 */

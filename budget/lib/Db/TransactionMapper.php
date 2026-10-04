@@ -3013,6 +3013,39 @@ class TransactionMapper extends QBMapper {
 	}
 
 	/**
+	 * Rows a bill booked itself for its payments, of one type, between two
+	 * dates: carrying the bill and the notes it writes, with no import id,
+	 * and not a pending placeholder. These are what the bank's own row of
+	 * the same payment takes the place of.
+	 *
+	 * @param string $notesPrefix the notes the bill writes, e.g.
+	 *                            "Auto-generated transfer:"
+	 * @return Transaction[]
+	 */
+	public function findBookedBillRows(int $billId, string $type, string $notesPrefix, string $from, string $to): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('bill_id', $qb->createNamedParameter($billId, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->eq('type', $qb->createNamedParameter($type)))
+			->andWhere($qb->expr()->like('notes', $qb->createNamedParameter($this->db->escapeLikeParameter($notesPrefix) . '%')))
+			->andWhere($qb->expr()->orX(
+				$qb->expr()->isNull('import_id'),
+				$qb->expr()->eq('import_id', $qb->createNamedParameter(''))
+			))
+			->andWhere($qb->expr()->orX(
+				$qb->expr()->isNull('status'),
+				$qb->expr()->neq('status', $qb->createNamedParameter('scheduled'))
+			))
+			->andWhere($qb->expr()->gte('date', $qb->createNamedParameter($from)))
+			->andWhere($qb->expr()->lte('date', $qb->createNamedParameter($to)))
+			->orderBy('date', 'ASC')
+			->addOrderBy('id', 'ASC');
+
+		return $this->findEntities($qb);
+	}
+
+	/**
 	 * Credits the app booked for recurring income in an account between two
 	 * dates (by their "Auto-generated from income:" notes, as the income has
 	 * no column on the row), never an imported one.

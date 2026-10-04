@@ -1900,6 +1900,85 @@ class BillServiceTest extends TestCase {
 		$this->assertSame(1, $this->service->autoMatchPaidFromImport('user1', [$tx]));
 	}
 
+	/**
+	 * A transfer into account 2 paid on 15 June, its deposit (601) booked
+	 * by the app, and the destination's own credit of it just imported.
+	 *
+	 * @return array{0: Bill, 1: \OCA\Budget\Db\Transaction, 2: \OCA\Budget\Db\Transaction}
+	 */
+	private function transferWithBookedDeposit(array $deposit = []): array {
+		$bill = $this->setupAutoMatchBill([
+			'isTransfer' => true, 'destinationAccountId' => 2, 'autoDetectPattern' => null,
+			'nextDueDate' => '2026-07-15', 'lastPaidDate' => '2026-06-15',
+		]);
+		$bill->setTransferDescriptionPattern('SAVINGS TFR');
+		$bill->setPaidUndoState(json_encode([
+			'previousState' => ['nextDueDate' => '2026-06-15'],
+			'createdTransactionIds' => [600, 601],
+			'scheduledTransactionIds' => [602, 603],
+			'linkedTransactionId' => null,
+			'paidDate' => '2026-06-15',
+		]));
+		$booked = $this->makeImportedTx(array_merge(['id' => 601, 'accountId' => 2, 'type' => 'credit', 'date' => '2026-06-15', 'description' => ''], $deposit));
+		$booked->setNotes('Auto-generated transfer: Netflix');
+		$booked->setBillId(1);
+		$booked->setLinkedTransactionId(600);
+		$credit = $this->makeImportedTx(['id' => 500, 'accountId' => 2, 'type' => 'credit', 'date' => '2026-06-16', 'description' => 'FROM CHECKING']);
+		$credit->setImportId('bank-2');
+		$this->linkable($booked, $credit);
+		$this->transactionService->method('findBookedBillRows')->willReturn([$booked]);
+		return [$bill, $booked, $credit];
+	}
+
+	public function testTheDestinationsCreditTakesThePlaceOfTheDepositBookedForIt(): void {
+		// Paying the transfer booked its arrival, and the destination's own
+		// statement then brought the same money in a second time
+		[$bill, $deposit, $credit] = $this->transferWithBookedDeposit();
+		$this->transactionService->expects($this->once())->method('replaceBookedRow')->with($deposit, $credit);
+
+		$this->assertSame(0, $this->service->autoMatchPaidFromImport('user1', [$credit]), 'No bill was marked paid');
+
+		$this->assertSame(1, $credit->getBillId());
+		$this->assertSame('2026-07-15', $bill->getNextDueDate());
+		$snapshot = json_decode($bill->getPaidUndoState(), true);
+		$this->assertSame([600], $snapshot['createdTransactionIds'], 'Mark Unpaid must not delete the bank\'s credit');
+	}
+
+	public function testAReconciledDepositKeepsItsPlace(): void {
+		[, $deposit, $credit] = $this->transferWithBookedDeposit();
+		$deposit->setReconciled(true);
+		$this->transactionService->expects($this->never())->method('replaceBookedRow');
+
+		$this->service->autoMatchPaidFromImport('user1', [$credit]);
+
+		$this->assertNull($credit->getBillId());
+	}
+
+	public function testACreditFarFromTheDepositsAmountIsNotItsArrival(): void {
+		[, , $credit] = $this->transferWithBookedDeposit(['amount' => 30.0]);
+		$this->transactionService->expects($this->never())->method('replaceBookedRow');
+
+		$this->service->autoMatchPaidFromImport('user1', [$credit]);
+	}
+
+	public function testACreditAlreadyPairedIsLeftAlone(): void {
+		// The import's own transfer matching, or a withdrawal earlier in the
+		// same batch, took it as its arrival
+		[, , $credit] = $this->transferWithBookedDeposit();
+		$credit->setLinkedTransactionId(77);
+		$this->transactionService->expects($this->never())->method('replaceBookedRow');
+
+		$this->service->autoMatchPaidFromImport('user1', [$credit]);
+	}
+
+	public function testABankSyncHoldWaitsUntilItPosts(): void {
+		[, , $credit] = $this->transferWithBookedDeposit();
+		$credit->setStatus('pending');
+		$this->transactionService->expects($this->never())->method('replaceBookedRow');
+
+		$this->service->autoMatchPaidFromImport('user1', [$credit]);
+	}
+
 	public function testAutoMatchMatchesPatternInVendor(): void {
 		$this->setupAutoMatchBill();
 		$tx = $this->makeImportedTx(['description' => 'Card payment 9912', 'vendor' => 'Netflix Inc']);
