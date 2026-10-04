@@ -1088,7 +1088,7 @@ class CategoryService extends AbstractCrudService {
 			if (MoneyCalculator::compare($base, '0', 6) <= 0) {
 				continue;
 			}
-			$budgeted[] = BudgetPeriod::monthlyEquivalent($base, (string)($entry['period'] ?? 'monthly'));
+			$budgeted[] = [$base, (string)($entry['period'] ?? 'monthly')];
 		}
 
 		// The page's own income figures, in the base currency when the
@@ -1104,7 +1104,7 @@ class CategoryService extends AbstractCrudService {
 		}
 
 		$incomeTotal = MoneyCalculator::sum($income, 6);
-		$budgetedTotal = MoneyCalculator::sum($budgeted, 6);
+		$budgetedTotal = BudgetPeriod::monthlyTotal($budgeted);
 
 		return [
 			'month' => $month,

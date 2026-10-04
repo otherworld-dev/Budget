@@ -75,15 +75,23 @@ final class BudgetPeriod {
 	}
 
 	/**
-	 * A budget amount for $period as its monthly equivalent, by the yearly
-	 * ratios the Budget page's summary uses (formatters.prorateBudget).
+	 * Budget amounts of any periods as one monthly total, by the yearly
+	 * ratios the Budget page's summary uses (formatters.prorateBudget): each
+	 * amount turned yearly, added, and the sum divided by 12 once, so the
+	 * total is exact. Turned monthly one by one and cut at six places, a
+	 * weekly 100 and a yearly 27.50 came to 435.624999 instead of 435.625,
+	 * a penny below the page once rounded.
+	 *
+	 * @param list<array{0: string|float, 1: string}> $budgets [amount, period] pairs
+	 * @return string the monthly total, at ten places
 	 */
-	public static function monthlyEquivalent(string $amount, string $period): string {
-		$perYear = ['weekly' => '52', 'monthly' => '12', 'quarterly' => '4', 'yearly' => '1'][$period] ?? '12';
-		if ($perYear === '12') {
-			return $amount;
+	public static function monthlyTotal(array $budgets): string {
+		$yearly = '0';
+		foreach ($budgets as [$amount, $period]) {
+			$perYear = ['weekly' => '52', 'monthly' => '12', 'quarterly' => '4', 'yearly' => '1'][$period] ?? '12';
+			$yearly = MoneyCalculator::add($yearly, MoneyCalculator::multiply($amount, $perYear, 10), 10);
 		}
-		return MoneyCalculator::divide(MoneyCalculator::multiply($amount, $perYear, 6), '12', 6);
+		return MoneyCalculator::divide($yearly, '12', 10);
 	}
 
 	private static function clampedDay(\DateTime $monthStart, int $startDay): \DateTime {
