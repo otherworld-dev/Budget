@@ -589,6 +589,36 @@ class BillReminderJobTest extends TestCase {
 		$this->invokeRun();
 	}
 
+	public function testAPensionAutoPostFailureShowsThePensionsCurrency(): void {
+		// A euro pension's contribution read "£75.00" for a pound user
+		$this->mockGetAllUserIds(['user1']);
+		$this->settingService->method('get')->willReturn('GBP');
+		$schedule = new \OCA\Budget\Db\PensionRecurringContribution();
+		$schedule->setId(7);
+		$schedule->setPensionId(2);
+		$schedule->setAmount(75.0);
+		$this->pensionRecurService->method('findDueForAutoPost')->willReturn([$schedule]);
+		$this->pensionRecurService->method('processAutoPost')->willReturn([
+			'success' => false, 'disabled' => true, 'recurring' => $schedule, 'pensionName' => 'Euro pot',
+			'pensionCurrency' => 'EUR', 'message' => 'The account this contribution comes from no longer exists',
+		]);
+		$amount = null;
+		$notification = $this->createMock(INotification::class);
+		foreach (['setApp', 'setUser', 'setDateTime', 'setObject'] as $method) {
+			$notification->method($method)->willReturnSelf();
+		}
+		$notification->method('setSubject')->willReturnCallback(function (string $subject, array $params) use (&$amount, $notification) {
+			$amount = $params['amount'];
+			return $notification;
+		});
+		$this->notificationManager->method('createNotification')->willReturn($notification);
+		$this->billMapper->method('findActive')->willReturn([]);
+
+		$this->invokeRun();
+
+		$this->assertSame('€75.00', $amount);
+	}
+
 	public function testAPensionScheduleWithNothingDueSendsNothing(): void {
 		$this->mockGetAllUserIds(['user1']);
 		$schedule = new \OCA\Budget\Db\PensionRecurringContribution();

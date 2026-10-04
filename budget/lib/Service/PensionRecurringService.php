@@ -188,9 +188,12 @@ class PensionRecurringService {
 		$today = $this->userClock->today($userId);
 		$posted = 0;
 		$pensionName = null;
+		// The schedule's amount is in it, for telling the user about a failure
+		$pensionCurrency = null;
 		try {
 			$pension = $this->pensionMapper->find($recur->getPensionId(), $userId);
 			$pensionName = $pension->getName();
+			$pensionCurrency = $pension->getCurrency();
 			$this->requireContributions($pension);
 			while ($posted < self::MAX_AUTO_POST_CATCH_UP
 				&& $recur->getIsActive()
@@ -210,7 +213,8 @@ class PensionRecurringService {
 			$recur->setAutoPostEnabled(false);
 			$recur->setUpdatedAt(date('Y-m-d H:i:s'));
 			$this->recurringMapper->update($recur);
-			return ['success' => false, 'disabled' => true, 'recurring' => $recur, 'pensionName' => $pensionName, 'message' => $e->getMessage()];
+			return ['success' => false, 'disabled' => true, 'recurring' => $recur, 'pensionName' => $pensionName,
+				'pensionCurrency' => $pensionCurrency, 'message' => $e->getMessage()];
 		}
 
 		if ($posted === 0) {

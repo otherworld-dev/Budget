@@ -300,7 +300,8 @@ class BillReminderJob extends TimedJob {
 						$userId,
 						$result['recurring'] ?? $schedule,
 						$result['pensionName'] ?? '',
-						(string)($result['message'] ?? '')
+						(string)($result['message'] ?? ''),
+						$result['pensionCurrency'] ?? null
 					);
 				}
 			}
@@ -318,6 +319,7 @@ class BillReminderJob extends TimedJob {
 		$schedule,
 		string $pensionName,
 		string $reason,
+		?string $currency = null,
 	): void {
 		$notification = $notificationManager->createNotification();
 
@@ -329,7 +331,8 @@ class BillReminderJob extends TimedJob {
 				'recurringId' => $schedule->getId(),
 				'pensionId' => $schedule->getPensionId(),
 				'pensionName' => $pensionName,
-				'amount' => $this->formatAmount($settingService, $userId, (float)$schedule->getAmount()),
+				// In the pension's currency, as the contribution is
+				'amount' => $this->formatAmount($settingService, $userId, (float)$schedule->getAmount(), $currency),
 				'reason' => $reason,
 			]);
 
