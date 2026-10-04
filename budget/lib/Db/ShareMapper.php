@@ -105,6 +105,41 @@ class ShareMapper extends QBMapper {
 	}
 
 	/**
+	 * Delete the shares other users granted TO a user, with their items.
+	 * The shares the user granted are left alone.
+	 *
+	 * @return int shares deleted
+	 */
+	public function deleteSharedWithUser(string $userId): int {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('id')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('shared_with_user_id', $qb->createNamedParameter($userId, IQueryBuilder::PARAM_STR)));
+		$result = $qb->executeQuery();
+		$shareIds = [];
+		while ($row = $result->fetch()) {
+			$shareIds[] = (int)$row['id'];
+		}
+		$result->closeCursor();
+
+		if ($shareIds === []) {
+			return 0;
+		}
+
+		foreach (array_chunk($shareIds, 500) as $chunk) {
+			$delQb = $this->db->getQueryBuilder();
+			$delQb->delete('budget_share_items')
+				->where($delQb->expr()->in('share_id', $delQb->createNamedParameter($chunk, IQueryBuilder::PARAM_INT_ARRAY)));
+			$delQb->executeStatement();
+		}
+
+		$qb2 = $this->db->getQueryBuilder();
+		$qb2->delete($this->getTableName())
+			->where($qb2->expr()->eq('shared_with_user_id', $qb2->createNamedParameter($userId, IQueryBuilder::PARAM_STR)));
+		return $qb2->executeStatement();
+	}
+
+	/**
 	 * Delete all shares for a user (both as owner and recipient).
 	 * Also deletes associated share items to avoid orphaned rows.
 	 * Used by factory reset.
