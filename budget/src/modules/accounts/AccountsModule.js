@@ -9,7 +9,7 @@ import { confirmDialog, promptDialog } from '../../utils/dialogs.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import { downloadTransactionsCsv, isLiabilityType, LIABILITY_ACCOUNT_TYPES } from '../../utils/helpers.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
-import { openAccounts, usableCategories, categoryTreeOf } from '../../utils/accounts.js';
+import { openAccounts, usableCategories, categoryTreeOf, isReadOnlyShare } from '../../utils/accounts.js';
 import { showLoading, clearLoading, showLoadError } from '../../utils/loading.js';
 import { apiFetch, ApiError } from '../../utils/api.js';
 import { renderTransactionRow } from '../transactions/transactionRow.js';
@@ -559,9 +559,9 @@ export default class AccountsModule {
                         <span>${healthStatus.tooltip}</span>
                     </div>` : '<div class="account-status-placeholder"></div>'}
                     <div class="account-actions">
-                        <button class="account-action-btn edit-btn edit-account-btn" data-account-id="${accountId}" title="${t('budget', 'Edit Account')}" aria-label="${t('budget', 'Edit Account')}">
+                        ${isReadOnlyShare(account) ? '' : `<button class="account-action-btn edit-btn edit-account-btn" data-account-id="${accountId}" title="${t('budget', 'Edit Account')}" aria-label="${t('budget', 'Edit Account')}">
                             <span class="icon-rename" aria-hidden="true"></span>
-                        </button>
+                        </button>`}
                         ${account._shared ? '' : `<button class="account-action-btn delete-btn delete-account-btn" data-account-id="${accountId}" title="${t('budget', 'Delete Account')}" aria-label="${t('budget', 'Delete Account')}">
                             <span class="icon-delete" aria-hidden="true"></span>
                         </button>`}
@@ -607,9 +607,9 @@ export default class AccountsModule {
                 </div>
                 ${this.visibleAccountColumns(attributes, order).map(attr => cells[attr.key]()).join('')}
                 <div class="account-row-actions">
-                    <button class="account-action-btn edit-btn edit-account-btn" data-account-id="${accountId}" title="${t('budget', 'Edit')}" aria-label="${t('budget', 'Edit')}">
+                    ${isReadOnlyShare(account) ? '' : `<button class="account-action-btn edit-btn edit-account-btn" data-account-id="${accountId}" title="${t('budget', 'Edit')}" aria-label="${t('budget', 'Edit')}">
                         <span class="icon-rename" aria-hidden="true"></span>
-                    </button>
+                    </button>`}
                     ${account._shared ? '' : `<button class="account-action-btn delete-btn delete-account-btn" data-account-id="${accountId}" title="${t('budget', 'Delete')}" aria-label="${t('budget', 'Delete')}">
                         <span class="icon-delete" aria-hidden="true"></span>
                     </button>`}
@@ -1137,7 +1137,18 @@ export default class AccountsModule {
         const closedBadge = document.getElementById('account-closed-badge');
         if (closedBadge) closedBadge.style.display = account.closed ? 'inline-flex' : 'none';
         const reconcileBtn = document.getElementById('reconcile-account-btn');
-        if (reconcileBtn) reconcileBtn.style.display = account.closed ? 'none' : '';
+        // An account shared with you read-only takes no changes: no edit,
+        // reconciling or new transactions, all refused by the server
+        const readOnly = isReadOnlyShare(account);
+        if (reconcileBtn) reconcileBtn.style.display = account.closed || readOnly ? 'none' : '';
+        const editBtn = document.getElementById('edit-account-btn');
+        if (editBtn) editBtn.style.display = readOnly ? 'none' : '';
+        const addTransactionBtn = document.getElementById('account-add-transaction-btn');
+        if (addTransactionBtn) addTransactionBtn.style.display = readOnly ? 'none' : '';
+        // An import runs as you, not as the account's owner, so an import
+        // into any account shared with you fails
+        const importBtn = document.getElementById('account-import-btn');
+        if (importBtn) importBtn.style.display = account._shared ? 'none' : '';
 
         const institutionEl = document.getElementById('account-institution');
         if (account.institution) {
@@ -1265,6 +1276,11 @@ export default class AccountsModule {
         const section = document.getElementById('recon-history-section');
         const body = document.getElementById('recon-history-body');
         if (!section || !body) return;
+        // Not readable on an account shared with you read-only (a 403)
+        if (isReadOnlyShare(this.currentAccount)) {
+            section.style.display = 'none';
+            return;
+        }
 
         try {
             const history = await apiFetch(`/apps/budget/api/accounts/${accountId}/reconciliation/history`);
@@ -1711,7 +1727,8 @@ export default class AccountsModule {
                 };
                 infoEl.textContent = dynamicLabels[paymentBill.amountType]
                     || `${due} · ${this.formatCurrency(paymentBill.amount, account.currency)}`;
-            } else {
+            } else if (!isReadOnlyShare(account)) {
+                // A payment bill would post into the card
                 setupBtn.style.display = '';
             }
         } catch (error) {
