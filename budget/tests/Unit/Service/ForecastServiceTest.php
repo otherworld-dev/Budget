@@ -99,7 +99,9 @@ class ForecastServiceTest extends TestCase {
 
 		$account = $this->makeAccount(1, 10000.0, 'GBP');
 		$this->accountMapper->method('findAll')->willReturn([$account]);
-		$this->transactionMapper->method('getNetChangeAfterDateBatch')->willReturn([1 => 500.0]);
+		// Looked up for the accounts forecast, not by user: a shared account's
+		// future rows must come off its balance too
+		$this->transactionMapper->method('getNetChangeAfterDateForAccounts')->with([1])->willReturn([1 => 500.0]);
 		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturn([]);
 
 		// Pattern analysis returns empty monthly data

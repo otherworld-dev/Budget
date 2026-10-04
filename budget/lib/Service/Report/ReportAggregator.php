@@ -167,9 +167,15 @@ class ReportAggregator {
 		}
 
 		// Get future transaction adjustments to calculate balance as of today
-		// (the user's: a purchase dated it is already in the stored balance)
+		// (the user's: a purchase dated it is already in the stored balance),
+		// for the accounts in view: looked up by the viewer's own accounts, a
+		// shared account kept its future-dated rows for the person it is
+		// shared with, and showed less than the owner and the Accounts page
 		$today = $this->userClock?->today($userId) ?? date('Y-m-d');
-		$futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
+		$futureChanges = $this->transactionMapper->getNetChangeAfterDateForAccounts(
+			array_map(static fn ($a) => (int)$a->getId(), $accounts),
+			$today
+		);
 
 		// Money accumulates through MoneyCalculator, never float += (#274),
 		// and the totals are rounded to the currency they are in: the base

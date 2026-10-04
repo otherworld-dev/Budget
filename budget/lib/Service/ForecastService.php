@@ -62,6 +62,21 @@ class ForecastService {
 	}
 
 	/**
+	 * Net of each account's rows dated after $today, for the accounts being
+	 * forecast. By account rather than by the viewer's own accounts: a
+	 * shared account's future-dated rows were otherwise left in its balance
+	 * for the person it is shared with.
+	 *
+	 * @return array<int, float> account id => net change after today
+	 */
+	private function futureChanges(array $accounts, string $today): array {
+		return $this->transactionMapper->getNetChangeAfterDateForAccounts(
+			array_map(static fn ($a) => (int)$a->getId(), $accounts),
+			$today
+		);
+	}
+
+	/**
 	 * Invalidate all forecast cache entries for a user.
 	 * Call this when transactions are modified.
 	 */
@@ -97,9 +112,10 @@ class ForecastService {
 			$accounts = array_values(array_filter($accounts, static fn ($a) => !$a->getExcludedFromReports()));
 		}
 
-		// Get future transaction adjustments to calculate balance as of today
+		// Get future transaction adjustments to calculate balance as of today,
+		// for every account forecast, shared ones included
 		$today = $this->today($userId);
-		$futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
+		$futureChanges = $this->futureChanges($accounts, $today);
 
 		$forecast = [
 			'summary' => [],
@@ -167,9 +183,10 @@ class ForecastService {
 		// The live (all-accounts) forecast skips accounts flagged out of reports (#286)
 		$accounts = array_values(array_filter($accounts, static fn ($a) => !$a->getExcludedFromReports()));
 
-		// Get future transaction adjustments to calculate balance as of today
+		// Get future transaction adjustments to calculate balance as of today,
+		// for every account forecast, shared ones included
 		$today = $this->today($userId);
-		$futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
+		$futureChanges = $this->futureChanges($accounts, $today);
 
 		$currentBalance = 0.0;
 		$currencyCounts = [];
