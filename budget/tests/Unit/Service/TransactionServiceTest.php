@@ -1104,23 +1104,18 @@ class TransactionServiceTest extends TestCase {
 		$this->assertNull($this->service->clearScheduledBillTransaction('user1', 1, '2026-02-01', null, true));
 	}
 
-	public function testALinkedTransfersArrivalIsTheBankCreditAlreadyThere(): void {
-		// Linking the bank's withdrawal paid the transfer; the destination's
-		// own imported credit is its other leg rather than a second deposit
+	public function testALinkedTransferLeavesChoosingTheBanksCreditToTheBill(): void {
+		// It looked three days either side and took any credit of the
+		// amount, a salary included. The bill's service now lets the
+		// destination's own credit replace the deposit, by the same rules
+		// on every payment path.
 		$inserted = [];
 		$bill = $this->transferSetup('user1', $inserted);
 		$withdrawal = $this->makeTransaction(['id' => 70, 'accountId' => 10, 'billId' => 1, 'date' => '2026-02-01', 'amount' => 500.0]);
-		$arrival = $this->makeTransaction(['id' => 71, 'accountId' => 20, 'date' => '2026-02-02', 'amount' => 500.0]);
-		$arrival->setType('credit');
-		$this->mapper->method('findTransferArrivals')->with(20, 500.0, '2026-01-29', '2026-02-04')->willReturn([$arrival]);
-		$this->mapper->method('find')->willReturn($arrival);
-		$this->mapper->method('findById')->willReturn($arrival);
-		$this->mapper->method('update')->willReturnArgument(0);
-		$this->mapper->expects($this->once())->method('linkTransactions')->with(70, 71);
+		$this->mapper->expects($this->never())->method('findTransferArrivals');
 
-		$this->assertNull($this->service->completeTransferPayment($withdrawal, $bill));
-		$this->assertSame([], $inserted);
-		$this->assertSame(1, $arrival->getBillId());
+		$this->assertSame(1, $this->service->completeTransferPayment($withdrawal, $bill));
+		$this->assertSame([20, 'credit', 500.0], [$inserted[0]->getAccountId(), $inserted[0]->getType(), (float)$inserted[0]->getAmount()]);
 	}
 
 	public function testALinkedTransferWithNoArrivalBooksTheDeposit(): void {

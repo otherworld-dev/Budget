@@ -9,6 +9,8 @@ use OCA\Budget\Db\ManualExchangeRate;
 use OCA\Budget\Db\ManualExchangeRateMapper;
 use OCA\Budget\Service\BillService;
 use OCA\Budget\Service\ImportService;
+use OCA\Budget\Service\RecurringIncomeService;
+use OCA\Budget\Service\TransactionService;
 use OCA\Budget\Service\UserClock;
 use OCA\Budget\Tests\Integration\IntegrationTestCase;
 use OCP\DB\QueryBuilder\IQueryBuilder;
@@ -321,5 +323,90 @@ class TransferStatementsTest extends IntegrationTestCase {
 		$this->importCsv($this->checking, $this->day(-11) . ",SAVINGS TFR 0042,-100.00\n");
 
 		$this->assertSame(['900.00', '117.40'], [$this->balance($this->checking), $this->balance($euro)]);
+	}
+
+	/**
+	 * The bank credited the savings five days after the withdrawal (a
+	 * weekend, a bank holiday), and that statement came in first: the
+	 * source's statement then paid the transfer by linking its withdrawal,
+	 * looked three days either side, and booked a deposit beside it.
+	 */
+	public function testTheDestinationsCreditDaysLaterIsTheArrivalOfALinkedWithdrawal(): void {
+		$this->transfer();
+
+		$this->importCsv($this->savings, $this->day(-5) . ",FROM CHECKING 0042,200.00\n");
+		$this->importCsv($this->checking, $this->day(-10) . ",SAVINGS TFR 0042,-200.00\n");
+
+		$this->assertSame(['800.00', '200.00'], [$this->balance($this->checking), $this->balance($this->savings)]);
+		$this->assertSame(1, $this->countRows('budget_transactions', ['account_id' => $this->savings, 'status' => 'cleared']));
+	}
+
+	/** The same through the Mark Paid dialog's link, and through auto-pay catching up */
+	public function testEveryWayOfLinkingTheWithdrawalFindsTheCreditAlreadyThere(): void {
+		$bills = $this->service(BillService::class);
+		$bill = $this->transfer();
+		$this->importCsv($this->savings, $this->day(-5) . ",FROM CHECKING 0042,200.00\n");
+		$withdrawal = $this->service(TransactionService::class)->create($this->userId, $this->checking, $this->day(-10), 'SAVINGS TFR 0042', 200.0, 'debit', importId: 'bank-w1');
+
+		$bills->markPaid($bill, $this->userId, null, false, $withdrawal->getId(), $this->day(-10));
+
+		$this->assertSame(['800.00', '200.00'], [$this->balance($this->checking), $this->balance($this->savings)]);
+		$this->assertSame(1, $this->countRows('budget_transactions', ['account_id' => $this->savings, 'status' => 'cleared']));
+
+		// Auto-pay: next month's payment is due, its rows are already in
+		$second = $this->transfer();
+		$qb = $this->db()->getQueryBuilder();
+		$qb->update('budget_bills')->set('auto_pay_enabled', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL))
+			->where($qb->expr()->eq('id', $qb->createNamedParameter($second, IQueryBuilder::PARAM_INT)))->executeStatement();
+		$this->importCsv($this->savings, $this->day(-4) . ",FROM CHECKING 0043,200.00\n");
+		$this->service(TransactionService::class)->create($this->userId, $this->checking, $this->day(-9), 'SAVINGS TFR 0043', 200.0, 'debit', importId: 'bank-w2');
+
+		$result = $bills->processAutoPay($second, $this->userId);
+
+		$this->assertTrue($result['success'], (string)$result['message']);
+		$this->assertSame(['600.00', '400.00'], [$this->balance($this->checking), $this->balance($this->savings)]);
+		$this->assertSame(2, $this->countRows('budget_transactions', ['account_id' => $this->savings, 'status' => 'cleared']));
+	}
+
+	/**
+	 * A 2,000 top-up marked paid, a 2,000 salary due two days later into the
+	 * same account: the salary was taken as the top-up's arrival, the income
+	 * stayed expected, and auto-create booked the salary a second time.
+	 */
+	public function testASalaryIsNotTakenForATransfersArrival(): void {
+		$bill = $this->transfer($this->savings, $this->checking, 2000.0);
+		$this->markPaid($bill);
+		$incomes = $this->service(RecurringIncomeService::class);
+		$income = $incomes->create(userId: $this->userId, name: 'Salary', amount: 2000.0, frequency: 'monthly',
+			accountId: $this->checking, autoDetectPattern: 'ACME', autoCreateEnabled: true, startDate: $this->day(-40));
+		$qb = $this->db()->getQueryBuilder();
+		$qb->update('budget_recurring_income')->set('next_expected_date', $qb->createNamedParameter($this->day(-9)))
+			->where($qb->expr()->eq('id', $qb->createNamedParameter($income->getId(), IQueryBuilder::PARAM_INT)))->executeStatement();
+
+		$this->importCsv($this->checking, $this->day(-9) . ",ACME PAYROLL OCT,2000.00\n" . $this->day(-7) . ",TOPUP FROM SAVINGS,2000.00\n");
+		$incomes->processAutoCreate($income->getId(), $this->userId);
+
+		$this->assertSame('5000.00', $this->balance($this->checking), '1,000 + the top-up + one salary');
+		$this->assertSame(2, $this->countRows('budget_transactions', ['account_id' => $this->checking, 'status' => 'cleared']));
+		$this->assertSame($this->day(-9), substr((string)$this->fetchRow('budget_recurring_income', $income->getId())['last_received_date'], 0, 10));
+	}
+
+	/** A joint account: the partner's own credit of the same amount isn't the transfer's */
+	public function testTheCreditNamingTheTransferIsItsArrival(): void {
+		$bill = $this->transfer();
+		$this->markPaid($bill);
+
+		$this->importCsv($this->savings, $this->day(-11) . ",BOB SMITH SHARE,200.00\n" . $this->day(-10) . ",A SMITH SAVINGS TFR,200.00\n");
+
+		$qb = $this->db()->getQueryBuilder();
+		$qb->select('description', 'bill_id')->from('budget_transactions')
+			->where($qb->expr()->eq('account_id', $qb->createNamedParameter($this->savings, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->isNotNull('import_id'))
+			->orderBy('date');
+		$rows = $qb->executeQuery()->fetchAll();
+		$this->assertSame(['BOB SMITH SHARE' => null, 'A SMITH SAVINGS TFR' => $bill], array_map(
+			fn ($id) => $id === null ? null : (int)$id,
+			array_column($rows, 'bill_id', 'description')
+		));
 	}
 }

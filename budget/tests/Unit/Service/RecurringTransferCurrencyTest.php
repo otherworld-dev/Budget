@@ -223,27 +223,16 @@ class RecurringTransferCurrencyTest extends TestCase {
 	}
 
 	/**
-	 * The destination's own credit is the arrival. It was looked for at the
-	 * GBP figure, never found, and a second deposit booked beside it. The
-	 * bank's rate isn't the app's, so a credit within a tenth is taken.
+	 * The bank's own credit of a transfer between currencies is the app's
+	 * figure converted at the bank's rate, so the bill's service looks for
+	 * it within a tenth rather than at the exact amount
 	 */
-	public function testTheArrivalIsLookedForAtTheConvertedAmount(): void {
-		$this->conversion->method('convertBetween')->willReturn('117.6470588235');
-		$arrival = new Transaction();
-		$arrival->setId(71);
-		$arrival->setAccountId(2);
-		$arrival->setType('credit');
-		$arrival->setAmount(117.40);
-		$arrival->setDate('2026-02-02');
-		$this->rows[71] = $arrival;
-		$this->mapper->expects($this->once())->method('findTransferArrivals')
-			->with(2, 117.65, '2026-01-29', '2026-02-04', $this->callback(fn (float $margin) => abs($margin - 11.765) < 0.001))
-			->willReturn([$arrival]);
-		$this->mapper->expects($this->once())->method('linkTransactions')->with(70, 71);
+	public function testATransferBetweenTwoCurrenciesIsKnownAsSuch(): void {
+		$sameCurrency = $this->transfer();
+		$sameCurrency->setDestinationAccountId(1);
 
-		$this->assertNull($this->service->completeTransferPayment($this->bankWithdrawal(), $this->transfer()));
-		$this->assertSame([], $this->inserted);
-		$this->assertSame(9, $arrival->getBillId());
+		$this->assertTrue($this->service->transferBetweenCurrencies($this->transfer()));
+		$this->assertFalse($this->service->transferBetweenCurrencies($sameCurrency));
 	}
 
 	public function testWithNoRateALinkedWithdrawalGetsNoDeposit(): void {

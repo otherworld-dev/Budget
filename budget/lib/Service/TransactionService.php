@@ -952,19 +952,32 @@ class TransactionService {
 	}
 
 	/**
+	 * Whether a transfer's two accounts are in two currencies the app
+	 * converts between, so the bank's own credit of it is the app's figure
+	 * converted at the bank's rate rather than the same number.
+	 */
+	public function transferBetweenCurrencies(Bill $bill): bool {
+		if ($this->currencyConversion === null || $bill->getAccountId() === null || $bill->getDestinationAccountId() === null) {
+			return false;
+		}
+		[$from, $to] = $this->transferCurrencies($bill->getAccountId(), $bill->getDestinationAccountId());
+		return $from !== $to;
+	}
+
+	/**
 	 * Give a recurring transfer paid by linking its withdrawal the other leg.
 	 *
 	 * Linking only ever touched the withdrawal, so a transfer paid from an
-	 * imported bank row left its destination uncredited. Its arrival is, in
-	 * order: the row the withdrawal is already paired with; a credit of the
-	 * same amount within three days in the destination, the bank's own row
-	 * of the arrival; or failing both, a deposit booked as the destination
-	 * account's owner on the withdrawal's date.
+	 * imported bank row left its destination uncredited. Its arrival is the
+	 * row the withdrawal is already paired with, or else a deposit booked as
+	 * the destination account's owner on the withdrawal's date. Between two
+	 * currencies its amount is the withdrawal's converted into the
+	 * destination's (transferArrivalAmount()).
 	 *
-	 * Between two currencies the amount is the withdrawal's converted into
-	 * the destination's (transferArrivalAmount()), and the bank's own credit
-	 * is taken within a tenth of it, the nearest first: the bank converts at
-	 * its own rate, and charges.
+	 * The destination's own credit, when it is already in, then takes the
+	 * deposit's place: BillService chooses it, with the same rules whichever
+	 * way the transfer was paid. This only looked three days either side and
+	 * took any credit of the amount, a salary included.
 	 *
 	 * @param float|null $arrivalAmount what transferArrivalAmount() priced
 	 *                                  the arrival at, when the caller priced
@@ -988,26 +1001,6 @@ class TransactionService {
 		}
 
 		$arrivalAmount ??= $this->transferArrivalAmount($withdrawal, $bill);
-		[$from, $to] = $this->transferCurrencies($withdrawal->getAccountId(), $destination);
-		$margin = ($from === $to || $this->currencyConversion === null) ? 0.005 : abs($arrivalAmount) * 0.1;
-		$on = new \DateTimeImmutable($withdrawal->getDate());
-		$arrivals = $this->mapper->findTransferArrivals(
-			$destination,
-			$arrivalAmount,
-			$on->modify('-3 days')->format('Y-m-d'),
-			$on->modify('+3 days')->format('Y-m-d'),
-			$margin
-		);
-		if ($arrivals !== []) {
-			usort($arrivals, fn (Transaction $a, Transaction $b)
-				=> [abs((float)$a->getAmount() - $arrivalAmount), abs(strtotime($a->getDate()) - $on->getTimestamp())]
-				<=> [abs((float)$b->getAmount() - $arrivalAmount), abs(strtotime($b->getDate()) - $on->getTimestamp())]);
-			$arrival = $arrivals[0];
-			$this->mapper->linkTransactions($withdrawal->getId(), $arrival->getId());
-			$this->update($arrival->getId(), $this->ownerOf($arrival), ['billId' => $bill->getId()]);
-			return null;
-		}
-
 		$deposit = $this->create(
 			userId: $this->accountMapper->findById($destination)->getUserId(),
 			accountId: $destination,
