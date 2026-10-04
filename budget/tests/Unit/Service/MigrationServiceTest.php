@@ -1362,6 +1362,77 @@ class MigrationServiceTest extends TestCase {
 	}
 
 	/**
+	 * Settings that name accounts and categories by id were restored as
+	 * they were, so on another server the dashboard's filters and the alert
+	 * mutes pointed at whatever held those ids there, and on the same server
+	 * at nothing (R1-6). They follow the restored ids now; an id that didn't
+	 * come back is dropped, and everything else in them is left alone.
+	 */
+	public function testSettingsThatNameAccountsAndCategoriesFollowTheRestoredIds(): void {
+		$idMaps = ['accounts' => [3 => 30, 4 => 40], 'categories' => [12 => 120, 13 => 130]];
+		$widgets = '{"order":["spendingChart","accounts"],"visibility":{"spendingChart":true},"instances":{},'
+			. '"tileSettings":{"spendingChart":{"accountId":"3","hiddenCategories":[12,13,99],"dateRange":"30"},'
+			. '"recentTransactions":{"accountId":99,"rowCount":5},"trendChart":{"accountId":""},"budgetProgress":{}},'
+			. '"settings":{"trend-account-select":"4","net-worth-account-select":"99","accountsTile":{"order":[4,3,99],"hidden":[99,3]}}}';
+		$hero = '{"order":["accountIncome"],"settings":{"hero-account-income-select":"3"}}';
+
+		$settings = $this->importedSettings([
+			'dashboard_widgets_config' => $widgets,
+			'dashboard_hero_config' => $hero,
+			'budget_alert_muted_categories' => '[12,"13",99]',
+			'budget_alert_notified' => '{"12":"warning:2026-10-01","99":"danger:2026-10-01"}',
+			'anomaly_notified' => '{"13":"2026-09"}',
+			'default_currency' => 'GBP',
+			'transaction_columns_visible' => '{"date":true}',
+		], $idMaps);
+
+		$this->assertSame(
+			'{"order":["spendingChart","accounts"],"visibility":{"spendingChart":true},"instances":{},'
+			. '"tileSettings":{"spendingChart":{"accountId":"30","hiddenCategories":[120,130],"dateRange":"30"},'
+			. '"recentTransactions":{"rowCount":5},"trendChart":{"accountId":""},"budgetProgress":{}},'
+			. '"settings":{"trend-account-select":"40","accountsTile":{"order":[40,30],"hidden":[30]}}}',
+			$settings['dashboard_widgets_config']
+		);
+		$this->assertSame('{"order":["accountIncome"],"settings":{"hero-account-income-select":"30"}}', $settings['dashboard_hero_config']);
+		$this->assertSame('[120,130]', $settings['budget_alert_muted_categories']);
+		$this->assertSame(['120' => 'warning:2026-10-01'], json_decode($settings['budget_alert_notified'], true));
+		$this->assertSame(['130' => '2026-09'], json_decode($settings['anomaly_notified'], true));
+		$this->assertSame('GBP', $settings['default_currency']);
+		$this->assertSame('{"date":true}', $settings['transaction_columns_visible']);
+	}
+
+	/**
+	 * A setting that doesn't read as what it should be is restored as it
+	 * was rather than refused or emptied.
+	 */
+	public function testSettingsThatDontParseAreRestoredAsTheyWere(): void {
+		$settings = $this->importedSettings([
+			'dashboard_widgets_config' => 'not json',
+			'budget_alert_muted_categories' => '{"a":1}',
+			'anomaly_notified' => '"x"',
+		], ['accounts' => [], 'categories' => []]);
+
+		$this->assertSame('not json', $settings['dashboard_widgets_config']);
+		$this->assertSame('{"a":1}', $settings['budget_alert_muted_categories']);
+		$this->assertSame('"x"', $settings['anomaly_notified']);
+	}
+
+	/**
+	 * @param array<string, string> $archived
+	 * @return array<string, string> key => value as inserted
+	 */
+	private function importedSettings(array $archived, array $idMaps): array {
+		$inserted = [];
+		$this->settingMapper->method('insert')->willReturnCallback(function (Setting $s) use (&$inserted) {
+			$inserted[$s->getKey()] = $s->getValue();
+			return $s;
+		});
+		$method = new \ReflectionMethod($this->service, 'importSettings');
+		$method->invoke($this->service, 'user1', $archived, $idMaps);
+		return $inserted;
+	}
+
+	/**
 	 * "In credit" says which way a liability's OPENING balance points, not
 	 * today's balance. The restore signed today's balance with it and then
 	 * worked the opening balance out from that, so any card or loan whose

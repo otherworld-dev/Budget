@@ -1112,7 +1112,7 @@ class MigrationService {
 		$idMaps['import_rules'] = $this->importImportRules($userId, $data['import_rules'] ?? [], $idMaps);
 
 		// 6. Import settings
-		$this->importSettings($userId, $data['settings'] ?? []);
+		$this->importSettings($userId, $data['settings'] ?? [], $idMaps);
 
 		// 7. Everything else, table-level in dependency order (#351)
 		foreach (self::EXTRA_TABLES_POST as $key => $spec) {
@@ -2400,19 +2400,163 @@ class MigrationService {
 	}
 
 	/**
-	 * Import settings.
+	 * Import settings. The ones that name accounts or categories by id move
+	 * to the restored ids (remapSettingIds()).
+	 *
+	 * @param array<string, array<int, int>> $idMaps
 	 */
-	private function importSettings(string $userId, array $settings): void {
+	private function importSettings(string $userId, array $settings, array $idMaps = []): void {
 		$now = date('Y-m-d H:i:s');
 
 		foreach ($settings as $key => $value) {
 			$setting = new Setting();
 			$setting->setUserId($userId);
 			$setting->setKey($key);
-			$setting->setValue((string)$value);
+			$setting->setValue($this->remapSettingIds((string)$key, (string)$value, $idMaps));
 			$setting->setCreatedAt($now);
 			$setting->setUpdatedAt($now);
 			$this->settingMapper->insert($setting);
 		}
+	}
+
+	/**
+	 * A setting's value with the account and category ids it names moved to
+	 * the restored ids. Restored as they were, the dashboard's account
+	 * filters, the categories a tile hides and the muted budget alerts named
+	 * the ids from before the restore: nothing on the same server, and on
+	 * another server whatever held those ids there. An id that didn't come
+	 * back is dropped. A value that doesn't read as expected is left alone.
+	 *
+	 * @param array<string, array<int, int>> $idMaps
+	 */
+	private function remapSettingIds(string $key, string $value, array $idMaps): string {
+		return match ($key) {
+			'dashboard_widgets_config', 'dashboard_hero_config' => $this->remapDashboardConfig($value, $idMaps),
+			// BudgetAlertService: the categories muted on the alerts tile
+			'budget_alert_muted_categories' => $this->remapSettingIdList($value, $idMaps),
+			// BudgetAlertService and AnomalyDetectionService: what was last
+			// notified, per category
+			'budget_alert_notified', 'anomaly_notified' => $this->remapSettingIdKeys($value, $idMaps),
+			default => $value,
+		};
+	}
+
+	/**
+	 * The dashboard layout (DashboardModule). Ids sit in each tile's settings
+	 * (an account filter, the categories it hides), in the account pickers
+	 * ("trend-account-select", "hero-account-income-select" and so on) and
+	 * in the Accounts tile's order and hidden list.
+	 * Read as objects, not arrays, so an empty {} stays one: an array would
+	 * come back as [], and the dashboard's next save of it would be lost.
+	 *
+	 * @param array<string, array<int, int>> $idMaps
+	 */
+	private function remapDashboardConfig(string $value, array $idMaps): string {
+		$config = json_decode($value);
+		if (!$config instanceof \stdClass) {
+			return $value;
+		}
+		if (($config->tileSettings ?? null) instanceof \stdClass) {
+			foreach (get_object_vars($config->tileSettings) as $tile) {
+				if (!$tile instanceof \stdClass) {
+					continue;
+				}
+				if (isset($tile->accountId) && is_numeric($tile->accountId)) {
+					$id = $this->restoredSettingId((int)$tile->accountId, 'accounts', $idMaps);
+					if ($id === null) {
+						unset($tile->accountId);
+					} else {
+						$tile->accountId = is_string($tile->accountId) ? (string)$id : $id;
+					}
+				}
+				if (isset($tile->hiddenCategories) && is_array($tile->hiddenCategories)) {
+					$tile->hiddenCategories = $this->restoredSettingIds($tile->hiddenCategories, 'categories', $idMaps);
+				}
+			}
+		}
+		if (($config->settings ?? null) instanceof \stdClass) {
+			foreach (get_object_vars($config->settings) as $name => $setting) {
+				if ($name === 'accountsTile' && $setting instanceof \stdClass) {
+					foreach (['order', 'hidden'] as $list) {
+						if (isset($setting->{$list}) && is_array($setting->{$list})) {
+							$setting->{$list} = $this->restoredSettingIds($setting->{$list}, 'accounts', $idMaps);
+						}
+					}
+				} elseif (str_contains((string)$name, 'account') && str_ends_with((string)$name, '-select') && is_numeric($setting)) {
+					$id = $this->restoredSettingId((int)$setting, 'accounts', $idMaps);
+					if ($id === null) {
+						unset($config->settings->{$name});
+					} else {
+						$config->settings->{$name} = is_string($setting) ? (string)$id : $id;
+					}
+				}
+			}
+		}
+		return (string)json_encode($config, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+	}
+
+	/**
+	 * A JSON list of category ids, moved to the restored ids.
+	 *
+	 * @param array<string, array<int, int>> $idMaps
+	 */
+	private function remapSettingIdList(string $value, array $idMaps): string {
+		$ids = json_decode($value, true);
+		if (!is_array($ids) || !array_is_list($ids)) {
+			return $value;
+		}
+		return (string)json_encode($this->restoredSettingIds($ids, 'categories', $idMaps));
+	}
+
+	/**
+	 * A JSON object keyed by category id, with the keys moved to the
+	 * restored ids.
+	 *
+	 * @param array<string, array<int, int>> $idMaps
+	 */
+	private function remapSettingIdKeys(string $value, array $idMaps): string {
+		$entries = json_decode($value, true);
+		if (!is_array($entries)) {
+			return $value;
+		}
+		$restored = [];
+		foreach ($entries as $oldId => $entry) {
+			$id = is_numeric($oldId) ? $this->restoredSettingId((int)$oldId, 'categories', $idMaps) : null;
+			if ($id !== null) {
+				$restored[(string)$id] = $entry;
+			}
+		}
+		return (string)json_encode((object)$restored, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+	}
+
+	/**
+	 * @param list<mixed> $ids
+	 * @param 'accounts'|'categories' $map
+	 * @return list<int>
+	 */
+	private function restoredSettingIds(array $ids, string $map, array $idMaps): array {
+		$restored = [];
+		foreach ($ids as $oldId) {
+			$id = is_numeric($oldId) ? $this->restoredSettingId((int)$oldId, $map, $idMaps) : null;
+			if ($id !== null) {
+				$restored[] = $id;
+			}
+		}
+		return $restored;
+	}
+
+	/**
+	 * An account or category a setting names, at its restored id; the id
+	 * itself when it is another user's still shared with this one (as a
+	 * saved report's filter keeps it); null when it didn't come back.
+	 *
+	 * @param 'accounts'|'categories' $map
+	 */
+	private function restoredSettingId(int $oldId, string $map, array $idMaps): ?int {
+		if (isset($idMaps[$map][$oldId])) {
+			return (int)$idMaps[$map][$oldId];
+		}
+		$type = $map === 'accounts' ? ShareItem::TYPE_ACCOUNT : ShareItem::TYPE_CATEGORY;
+		return $this->crossUserLinks?->isSharedWithUser($type, $oldId) ? $oldId : null;
 	}
 }

@@ -7,6 +7,7 @@ namespace OCA\Budget\Tests\Integration\Service;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Service\AccountBalanceCalculator;
 use OCA\Budget\Service\MigrationService;
+use OCA\Budget\Service\SettingService;
 use OCA\Budget\Tests\Integration\DataModel;
 use OCA\Budget\Tests\Integration\FullDataset;
 use OCA\Budget\Tests\Integration\IntegrationTestCase;
@@ -389,6 +390,38 @@ class MigrationRoundTripTest extends IntegrationTestCase {
 			array_diff_key($source->toArrayFull(), $ignore),
 			array_diff_key($restored[0]->toArrayFull(), $ignore)
 		);
+	}
+
+	/**
+	 * The dashboard's tile filters, the Accounts tile's order and the muted
+	 * budget alerts name accounts and categories by id, and a restore copied
+	 * them as they were: on another server they named whatever held those
+	 * ids there, on the same one nothing at all (R1-6).
+	 */
+	public function testDashboardAndAlertSettingsPointAtTheRestoredRows(): void {
+		$current = $this->makeAccount(['name' => 'Current'])->getId();
+		$card = $this->makeAccount(['name' => 'Card', 'type' => 'credit_card'])->getId();
+		$groceries = $this->makeCategory(['name' => 'Groceries']);
+		$dining = $this->makeCategory(['name' => 'Dining']);
+		$settings = $this->service(SettingService::class);
+		$settings->set($this->userId, 'dashboard_widgets_config', json_encode([
+			'tileSettings' => ['spendingChart' => ['accountId' => (string)$card, 'hiddenCategories' => [$groceries]]],
+			'settings' => ['accountsTile' => ['order' => [$card, $current], 'hidden' => [$current]]],
+		]));
+		$settings->set($this->userId, 'budget_alert_muted_categories', json_encode([$dining]));
+		$target = $this->newUserId();
+
+		$this->migration->importAll($target, $this->migration->exportAll($this->userId)['content']);
+
+		$idOf = fn (string $table, string $name): int => (int)$this->db()->executeQuery(
+			'SELECT id FROM *PREFIX*' . $table . ' WHERE user_id = ? AND name = ?', [$target, $name]
+		)->fetchOne();
+		$widgets = json_decode((string)$settings->get($target, 'dashboard_widgets_config'), true);
+		$this->assertSame((string)$idOf('budget_accounts', 'Card'), $widgets['tileSettings']['spendingChart']['accountId']);
+		$this->assertSame([$idOf('budget_categories', 'Groceries')], $widgets['tileSettings']['spendingChart']['hiddenCategories']);
+		$this->assertSame([$idOf('budget_accounts', 'Card'), $idOf('budget_accounts', 'Current')], $widgets['settings']['accountsTile']['order']);
+		$this->assertSame([$idOf('budget_accounts', 'Current')], $widgets['settings']['accountsTile']['hidden']);
+		$this->assertSame([$idOf('budget_categories', 'Dining')], json_decode((string)$settings->get($target, 'budget_alert_muted_categories'), true));
 	}
 
 	/**
