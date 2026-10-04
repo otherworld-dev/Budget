@@ -271,6 +271,7 @@ class RecurringIncomeLifecycleTest extends TestCase {
 		$tx->setDate($fields['date'] ?? '2026-10-02');
 		$tx->setAmount($fields['amount'] ?? 14.90);
 		$tx->setDescription($fields['description'] ?? 'SWISSCOM REFUND 1234');
+		$this->rows[$tx->getId()] = $tx;
 		return $tx;
 	}
 
@@ -306,6 +307,40 @@ class RecurringIncomeLifecycleTest extends TestCase {
 
 		$this->assertSame(1, $matched);
 		$this->assertSame('2026-10-03', $this->stored->getNextExpectedDate(), 'Not received a second time');
+	}
+
+	public function testANewestFirstStatementStillReplacesTheOlderCredit(): void {
+		// Last week's pay was marked received and its credit booked; the
+		// statement lists this week's first, which was taken for the next
+		// payment and moved the income past the one the older row is
+		$income = $this->income(['frequency' => 'weekly', 'nextExpectedDate' => '2026-10-02', 'lastReceivedDate' => '2026-09-25']);
+		$income->setAutoDetectPattern('SWISSCOM');
+		$this->mapper->method('findActive')->willReturnCallback(fn () => [$this->stored]);
+		$generated = $this->bankCredit(['id' => 300, 'date' => '2026-09-25', 'description' => '']);
+		$generated->setNotes('Auto-generated from income: Salary');
+		$this->transactions->method('findGeneratedIncomeCredits')->willReturnCallback(
+			fn (int $account, string $from, string $to) => $from <= '2026-09-25' && $to >= '2026-09-25' ? [$generated] : []
+		);
+		$older = $this->bankCredit(['id' => 901, 'date' => '2026-09-25']);
+		$newer = $this->bankCredit(['id' => 902, 'date' => '2026-10-02']);
+		$this->transactions->expects($this->once())->method('replaceBookedRow')->with($generated, $older);
+
+		$this->assertSame(2, $this->service->autoMatchReceivedFromImport('user1', [$newer, $older]));
+
+		$this->assertSame('2026-10-02', $this->stored->getLastReceivedDate());
+	}
+
+	public function testACreditAlreadyTakenAsATransfersArrivalIsNotIncome(): void {
+		$income = $this->income(['nextExpectedDate' => '2026-10-03']);
+		$income->setAutoDetectPattern('SWISSCOM');
+		$this->mapper->method('findActive')->willReturnCallback(fn () => [$this->stored]);
+		$imported = $this->bankCredit([]);
+		$taken = clone $imported;
+		$taken->setBillId(12);
+		$this->rows[900] = $taken;
+
+		$this->assertSame(0, $this->service->autoMatchReceivedFromImport('user1', [$imported]));
+		$this->assertSame('2026-10-03', $this->stored->getNextExpectedDate());
 	}
 
 	public function testAnImportedCreditThatDoesNotFitIsLeftAlone(): void {

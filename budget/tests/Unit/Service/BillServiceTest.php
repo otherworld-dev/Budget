@@ -1716,7 +1716,8 @@ class BillServiceTest extends TestCase {
 
 	/**
 	 * Rows a payment may link: findTransaction() finds them, and linking
-	 * hands the row back with the bill's id, as the real service does.
+	 * hands the row back with the bill's id, as the real service does. The
+	 * ones a bill booked are found by findBookedBillRows() as its query does.
 	 */
 	private function linkable(\OCA\Budget\Db\Transaction ...$rows): void {
 		$byId = [];
@@ -1724,6 +1725,15 @@ class BillServiceTest extends TestCase {
 			$byId[$row->getId()] = $row;
 		}
 		$this->transactionService->method('findTransaction')->willReturnCallback(fn (int $id) => $byId[$id] ?? null);
+		$this->transactionService->method('findBookedBillRows')->willReturnCallback(
+			fn (int $billId, string $type, string $notesPrefix, string $from, string $to) => array_values(array_filter(
+				$byId,
+				fn ($row) => $row->getBillId() === $billId && $row->getType() === $type
+					&& str_starts_with((string)$row->getNotes(), $notesPrefix) && ($row->getImportId() ?? '') === ''
+					&& ($row->getStatus() ?? 'cleared') !== 'scheduled'
+					&& $row->getDate() >= $from && $row->getDate() <= $to
+			))
+		);
 		$this->transactionService->method('linkBillAsAccountOwner')->willReturnCallback(function (int $id, Bill $bill) use ($byId) {
 			$byId[$id]->setBillId($bill->getId());
 			return $byId[$id];
@@ -1803,6 +1813,48 @@ class BillServiceTest extends TestCase {
 		$snapshot = json_decode($bill->getPaidUndoState(), true);
 		$this->assertSame(500, $snapshot['linkedTransactionId']);
 		$this->assertSame([], $snapshot['createdTransactionIds']);
+	}
+
+	public function testANewestFirstStatementStillReplacesTheOlderBookedPayment(): void {
+		// June was marked paid by hand. The statement lists July first, which
+		// paid the next occurrence and moved the bill past June, so June's
+		// bank row was left beside the booked payment.
+		$bill = $this->setupAutoMatchBill(['nextDueDate' => '2026-07-15', 'lastPaidDate' => '2026-06-15']);
+		$bill->setPaidUndoState(json_encode([
+			'previousState' => ['nextDueDate' => '2026-06-15'], 'createdTransactionIds' => [600],
+			'linkedTransactionId' => null, 'paidDate' => '2026-06-15',
+		]));
+		$booked = $this->makeImportedTx(['id' => 600, 'date' => '2026-06-15', 'description' => '']);
+		$booked->setNotes('Auto-generated from bill: Netflix');
+		$booked->setBillId(1);
+		$june = $this->makeImportedTx(['id' => 501, 'date' => '2026-06-15']);
+		$july = $this->makeImportedTx(['id' => 502, 'date' => '2026-07-14']);
+		$this->linkable($booked, $june, $july);
+		$this->transactionService->expects($this->once())->method('replaceBookedRow')->with($booked, $june);
+
+		$this->assertSame(2, $this->service->autoMatchPaidFromImport('user1', [$july, $june]));
+
+		$this->assertSame(1, $june->getBillId());
+		$this->assertSame(1, $july->getBillId(), 'July pays the next occurrence');
+	}
+
+	public function testAnEarlierBookedPaymentIsReplacedToo(): void {
+		// Auto-pay booked May and June; only the last payment, the one the
+		// snapshot names, could take the bank's row in its place
+		$bill = $this->setupAutoMatchBill(['nextDueDate' => '2026-07-15', 'lastPaidDate' => '2026-06-15']);
+		$snapshot = json_encode(['previousState' => ['nextDueDate' => '2026-06-15'], 'createdTransactionIds' => [601], 'linkedTransactionId' => null, 'paidDate' => '2026-06-15']);
+		$bill->setPaidUndoState($snapshot);
+		$may = $this->makeImportedTx(['id' => 600, 'date' => '2026-05-15', 'description' => '']);
+		$may->setNotes('Auto-generated from bill: Netflix');
+		$may->setBillId(1);
+		$bankMay = $this->makeImportedTx(['id' => 500, 'date' => '2026-05-16']);
+		$this->linkable($may, $bankMay);
+		$this->transactionService->expects($this->once())->method('replaceBookedRow')->with($may, $bankMay);
+
+		$this->assertSame(1, $this->service->autoMatchPaidFromImport('user1', [$bankMay]));
+
+		$this->assertSame($snapshot, $bill->getPaidUndoState(), 'June\'s payment can still be undone');
+		$this->assertSame('2026-07-15', $bill->getNextDueDate());
 	}
 
 	public function testAnImportLeavesAReconciledPaymentAlone(): void {
@@ -1975,7 +2027,6 @@ class BillServiceTest extends TestCase {
 		$credit = $this->makeImportedTx(['id' => 500, 'accountId' => 2, 'type' => 'credit', 'date' => '2026-06-16', 'description' => 'FROM CHECKING']);
 		$credit->setImportId('bank-2');
 		$this->linkable($booked, $credit);
-		$this->transactionService->method('findBookedBillRows')->willReturn([$booked]);
 		return [$bill, $booked, $credit];
 	}
 

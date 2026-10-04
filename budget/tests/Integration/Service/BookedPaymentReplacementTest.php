@@ -98,6 +98,74 @@ class BookedPaymentReplacementTest extends IntegrationTestCase {
 		$this->assertSame(0, $this->countOrphans('budget_expense_shares', 'transaction_id'));
 	}
 
+	/** A monthly bill of 50 matched by "ELECTRIC CO", its next payment due on $due */
+	private function electricBill(string $due, string $frequency = 'monthly', float $amount = 50.0): int {
+		$bill = $this->service(BillService::class)->create(userId: $this->userId, name: 'Electric', amount: $amount, frequency: $frequency,
+			dueDay: (int)substr($due, 8, 2), accountId: $this->account, autoDetectPattern: 'ELECTRIC CO', createTransaction: false,
+			startDate: $frequency === 'weekly' ? $due : null);
+		$qb = $this->db()->getQueryBuilder();
+		$qb->update('budget_bills')->set('next_due_date', $qb->createNamedParameter($due))
+			->where($qb->expr()->eq('id', $qb->createNamedParameter($bill->getId(), IQueryBuilder::PARAM_INT)))->executeStatement();
+		return $bill->getId();
+	}
+
+	private function payOnDueDate(int $bill): void {
+		$bills = $this->service(BillService::class);
+		$due = $bills->find($bill, $this->userId)->getNextDueDate();
+		$bills->markPaid($bill, $this->userId, $due, true, null, $due);
+	}
+
+	/**
+	 * Last month was paid by hand; the statement lists this month's payment
+	 * first, as many banks do, which used to leave last month's bank row
+	 * beside the booked payment.
+	 */
+	public function testANewestFirstStatementReplacesTheOlderBillPayment(): void {
+		$bill = $this->electricBill($this->day(-35));
+		$this->payOnDueDate($bill);
+
+		$this->importCsv($this->day(-4) . ",ELECTRIC CO DD OCT,-50.00\n" . $this->day(-35) . ",ELECTRIC CO DD SEP,-50.00\n");
+
+		$this->assertSame('900.00', $this->balance());
+		$this->assertSame(2, $this->countRows('budget_transactions', ['account_id' => $this->account, 'bill_id' => $bill]));
+	}
+
+	/**
+	 * Four weeks of a weekly bill booked (auto-pay or Mark Paid), then the
+	 * month's statement: only the last booked payment used to make way.
+	 */
+	public function testEveryBookedPaymentAStatementBringsIsReplaced(): void {
+		$bill = $this->electricBill($this->day(-28), 'weekly', 25.0);
+		foreach ([0, 1, 2, 3] as $week) {
+			$this->payOnDueDate($bill);
+		}
+		$this->assertSame('900.00', $this->balance());
+
+		$lines = '';
+		foreach ([-28, -21, -14, -7] as $offset) {
+			$lines .= $this->day($offset) . ",ELECTRIC CO WINDOW,-25.00\n";
+		}
+		$this->importCsv($lines);
+
+		$this->assertSame('900.00', $this->balance());
+		$this->assertSame(4, $this->countRows('budget_transactions', ['account_id' => $this->account]));
+	}
+
+	public function testANewestFirstStatementReplacesTheOlderIncomeCredit(): void {
+		$incomes = $this->service(RecurringIncomeService::class);
+		$income = $incomes->create(userId: $this->userId, name: 'Wages', amount: 500.0, frequency: 'weekly',
+			accountId: $this->account, autoDetectPattern: 'ACME PAYROLL', startDate: $this->day(-14));
+		$qb = $this->db()->getQueryBuilder();
+		$qb->update('budget_recurring_income')->set('next_expected_date', $qb->createNamedParameter($this->day(-14)))
+			->where($qb->expr()->eq('id', $qb->createNamedParameter($income->getId(), IQueryBuilder::PARAM_INT)))->executeStatement();
+		$incomes->markReceived($income->getId(), $this->userId, $this->day(-14), true);
+
+		$this->importCsv($this->day(-7) . ",ACME PAYROLL 2,500.00\n" . $this->day(-14) . ",ACME PAYROLL 1,500.00\n");
+
+		$this->assertSame('2000.00', $this->balance());
+		$this->assertSame(2, $this->countRows('budget_transactions', ['account_id' => $this->account]));
+	}
+
 	public function testAnIncomesBankRowKeepsWhatTheUserAddedToTheBookedCredit(): void {
 		$incomes = $this->service(RecurringIncomeService::class);
 		$category = $this->makeCategory(['name' => 'Salary', 'type' => 'income']);

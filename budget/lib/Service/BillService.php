@@ -1842,6 +1842,12 @@ class BillService {
 			return 0;
 		}
 
+		// Oldest first, whatever order the statement lists them in: a bank
+		// row of a payment already booked takes its place before a later row
+		// pays the next occurrence. Newest-first files paid the next one
+		// first and left the bank's row beside the booked payment.
+		usort($transactions, fn ($a, $b) => [(string)$a->getDate(), (int)$a->getId()] <=> [(string)$b->getDate(), (int)$b->getId()]);
+
 		$marked = 0;
 		foreach ($transactions as $transaction) {
 			if (($transaction->getStatus() ?? 'cleared') === 'scheduled') {
@@ -1968,17 +1974,22 @@ class BillService {
 	}
 
 	/**
-	 * Put an imported bank row in place of the payment Mark Paid or auto-pay
-	 * already booked for the bill's last occurrence.
+	 * Put an imported bank row in place of a payment Mark Paid or auto-pay
+	 * already booked for the bill.
 	 *
-	 * Only that payment, the one the bill's undo snapshot names, and only a
-	 * row the app generated: not a bank row, not one linked to anything,
-	 * not reconciled. The generated row goes, the bank row is linked in its
-	 * place with the bill's category, splits and tags, and the snapshot
-	 * then names the bank row, so Mark Unpaid unlinks it rather than
-	 * deleting the bank's own record. The bill stays where it is. What the
-	 * user added to the generated row (a split with a contact, a receipt,
-	 * tags, notes) moves to the bank row; it was deleted with it.
+	 * The booked payment is the one nearest the bank row's own date within
+	 * the bill's due window (bookedPaymentNear()), whichever occurrence it
+	 * paid. Only the last one, the one the undo snapshot names, used to be
+	 * replaceable, so a statement bringing four weeks of a weekly bill left
+	 * three booked payments beside the bank's, and a newest-first statement
+	 * left the older one. Only a row the app generated is replaced: not a
+	 * bank row, not reconciled. The generated row goes, the bank row is
+	 * linked in its place with the bill's category, splits and tags, and
+	 * when it was the last payment the snapshot then names the bank row, so
+	 * Mark Unpaid unlinks it rather than deleting the bank's own record. The
+	 * bill stays where it is. What the user added to the generated row (a
+	 * split with a contact, a receipt, tags, notes) moves to the bank row;
+	 * it was deleted with it.
 	 *
 	 * A recurring transfer's booked pair goes as a whole, and the bank row
 	 * gets its arrival as Mark Paid's link does: the bank's own credit in the
@@ -1992,25 +2003,8 @@ class BillService {
 		}
 		$isTransfer = (bool)($bill->getIsTransfer() ?? false);
 		$generatedNote = $isTransfer ? 'Auto-generated transfer:' : 'Auto-generated from bill:';
-		$raw = $bill->getPaidUndoState();
-		$snapshot = ($raw !== null && $raw !== '') ? json_decode($raw, true) : null;
-		$ids = is_array($snapshot) && is_array($snapshot['createdTransactionIds'] ?? null) ? $snapshot['createdTransactionIds'] : [];
-		if ($ids === [] || ($snapshot['linkedTransactionId'] ?? null) !== null
-			|| !$this->withinDueWindow($bill, $imported->getDate(), (string)($snapshot['paidDate'] ?? ''))) {
-			return false;
-		}
-
-		$booked = null;
-		foreach ($ids as $id) {
-			$row = $this->transactionService->findTransaction((int)$id);
-			if ($row !== null && $row->getBillId() === $bill->getId() && $row->getType() === 'debit') {
-				$booked = $row;
-				break;
-			}
-		}
-		if ($booked === null || $booked->getReconciled() || ($booked->getImportId() ?? '') !== ''
-			|| !str_starts_with((string)$booked->getNotes(), $generatedNote)
-			|| abs((float)$booked->getAmount() - (float)$imported->getAmount()) > (float)$bill->getAmount() * 0.1) {
+		$booked = $this->bookedPaymentNear($bill, $imported, $generatedNote);
+		if ($booked === null || $booked->getReconciled()) {
 			return false;
 		}
 
@@ -2067,15 +2061,58 @@ class BillService {
 			return false;
 		}
 
-		$kept = array_values(array_filter($ids, fn ($id) => !in_array((int)$id, $removed, true)));
-		if ($deposit !== null) {
-			$kept[] = $deposit;
+		// The last payment's snapshot names the bank row from now on; an
+		// earlier payment has no snapshot left to change
+		$raw = $bill->getPaidUndoState();
+		$snapshot = ($raw !== null && $raw !== '') ? json_decode($raw, true) : null;
+		$ids = is_array($snapshot) && is_array($snapshot['createdTransactionIds'] ?? null) ? $snapshot['createdTransactionIds'] : [];
+		if (in_array($booked->getId(), array_map('intval', $ids), true)) {
+			$kept = [];
+			foreach ($ids as $id) {
+				if (!in_array((int)$id, $removed, true)) {
+					$kept[] = $id;
+				}
+			}
+			if ($deposit !== null) {
+				$kept[] = $deposit;
+			}
+			$snapshot['createdTransactionIds'] = $kept;
+			$snapshot['linkedTransactionId'] = $imported->getId();
+			$bill->setPaidUndoState(json_encode($snapshot));
+			$this->mapper->update($bill);
 		}
-		$snapshot['createdTransactionIds'] = $kept;
-		$snapshot['linkedTransactionId'] = $imported->getId();
-		$bill->setPaidUndoState(json_encode($snapshot));
-		$this->mapper->update($bill);
 		return true;
+	}
+
+	/**
+	 * The payment the app booked for the bill nearest a bank row's date:
+	 * within the bill's due window of it, in the row's account and within a
+	 * tenth of the bill's amount of it.
+	 */
+	private function bookedPaymentNear(Bill $bill, \OCA\Budget\Db\Transaction $imported, string $generatedNote): ?\OCA\Budget\Db\Transaction {
+		$days = $this->dueDateToleranceDays($bill->getFrequency());
+		$on = new \DateTimeImmutable($imported->getDate());
+		$nearest = null;
+		$rank = null;
+		$candidates = $this->transactionService->findBookedBillRows(
+			$bill->getId(),
+			'debit',
+			$generatedNote,
+			$on->modify("-{$days} days")->format('Y-m-d'),
+			$on->modify("+{$days} days")->format('Y-m-d')
+		);
+		foreach ($candidates as $row) {
+			$amountOff = abs((float)$row->getAmount() - (float)$imported->getAmount());
+			if ($row->getId() === $imported->getId() || $row->getAccountId() !== $imported->getAccountId()
+				|| $amountOff > (float)$bill->getAmount() * 0.1) {
+				continue;
+			}
+			$thisRank = [abs(strtotime($row->getDate()) - $on->getTimestamp()), $amountOff];
+			if ($rank === null || $thisRank < $rank) {
+				[$nearest, $rank] = [$row, $thisRank];
+			}
+		}
+		return $nearest;
 	}
 
 	/**
@@ -2091,21 +2128,20 @@ class BillService {
 	 * of the bank's conversion). A reconciled deposit is left alone.
 	 */
 	private function replaceBookedDeposit(Bill $bill, \OCA\Budget\Db\Transaction $credit): bool {
-		// Read again: a payment earlier in the same import may have taken
-		// this credit as its arrival already. A bank-sync hold waits until
-		// it posts: one dropped later would take the arrival with it.
-		$current = $this->transactionService->findTransaction($credit->getId());
-		if ($current === null || $current->getType() !== 'credit'
-			|| $current->getAccountId() !== $bill->getDestinationAccountId()
-			|| in_array($current->getStatus() ?? 'cleared', ['scheduled', 'pending'], true)
-			|| $current->getBillId() !== null || $current->getLinkedTransactionId() !== null
-			|| $current->getPensionContribId() !== null) {
+		// A bank-sync hold waits until it posts: one dropped later would
+		// take the arrival with it
+		$free = fn (\OCA\Budget\Db\Transaction $row): bool => $row->getType() === 'credit'
+			&& $row->getAccountId() === $bill->getDestinationAccountId()
+			&& !in_array($row->getStatus() ?? 'cleared', ['scheduled', 'pending'], true)
+			&& $row->getBillId() === null && $row->getLinkedTransactionId() === null
+			&& $row->getPensionContribId() === null;
+		if (!$free($credit)) {
 			return false;
 		}
 
 		$days = $this->dueDateToleranceDays($bill->getFrequency());
-		$on = new \DateTimeImmutable($current->getDate());
-		$amount = (float)$current->getAmount();
+		$on = new \DateTimeImmutable($credit->getDate());
+		$amount = (float)$credit->getAmount();
 		$deposit = null;
 		$rank = null;
 		$candidates = $this->transactionService->findBookedBillRows(
@@ -2116,17 +2152,23 @@ class BillService {
 			$on->modify("+{$days} days")->format('Y-m-d')
 		);
 		foreach ($candidates as $row) {
-			$booked = abs((float)$row->getAmount());
-			if ($row->getAccountId() !== $current->getAccountId() || $row->getLinkedTransactionId() === null
-				|| abs((float)$row->getAmount() - $amount) > $booked * 0.1) {
+			$amountOff = abs((float)$row->getAmount() - $amount);
+			if ($row->getAccountId() !== $credit->getAccountId() || $row->getLinkedTransactionId() === null
+				|| $amountOff > abs((float)$row->getAmount()) * 0.1) {
 				continue;
 			}
-			$thisRank = [abs((float)$row->getAmount() - $amount), abs(strtotime($row->getDate()) - $on->getTimestamp())];
+			$thisRank = [abs(strtotime($row->getDate()) - $on->getTimestamp()), $amountOff];
 			if ($rank === null || $thisRank < $rank) {
 				[$deposit, $rank] = [$row, $thisRank];
 			}
 		}
 		if ($deposit === null || $deposit->getReconciled()) {
+			return false;
+		}
+		// Read again: a payment earlier in the same import may have taken
+		// this credit as its arrival already
+		$current = $this->transactionService->findTransaction($credit->getId());
+		if ($current === null || !$free($current)) {
 			return false;
 		}
 
