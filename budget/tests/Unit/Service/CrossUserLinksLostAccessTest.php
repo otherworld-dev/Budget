@@ -78,7 +78,7 @@ class CrossUserLinksLostAccessTest extends TestCase {
 				47 => $entity('bob', 'Holiday', ['account_id' => 10]),
 			],
 			'budget_pen_recur' => [
-				48 => $entity('bob', 'Monthly pension', ['source_account_id' => 10]),
+				48 => $entity('bob', 'Monthly pension', ['source_account_id' => 10, 'auto_post_enabled' => true]),
 			],
 			'budget_pen_contribs' => [
 				49 => $entity('bob', 'Paid in September', ['source_account_id' => 10]),
@@ -142,6 +142,8 @@ class CrossUserLinksLostAccessTest extends TestCase {
 		$this->assertNull($t['budget_recurring_income'][45]['category_id']);
 		$this->assertNull($t['budget_savings_goals'][47]['account_id']);
 		$this->assertNull($t['budget_pen_recur'][48]['source_account_id']);
+		// It would go on posting with no bank leg, as when an account is deleted
+		$this->assertFalse($t['budget_pen_recur'][48]['auto_post_enabled']);
 		$this->assertNull($t['budget_import_rules'][39]['category_id']);
 		// A pension payment already made keeps the account it came from
 		$this->assertSame(10, $t['budget_pen_contribs'][49]['source_account_id']);

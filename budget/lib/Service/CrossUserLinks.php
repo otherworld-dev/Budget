@@ -410,9 +410,7 @@ class CrossUserLinks {
 					$values = [$column => $newId];
 					if ($newId === null) {
 						$detached++;
-						if ($table === 'budget_bills' && $type === ShareItem::TYPE_ACCOUNT) {
-							$values['auto_pay_enabled'] = false;
-						}
+						$values += self::alsoOnDetach($table, $type);
 					}
 					$this->updateRow($table, $id, $values);
 				}
@@ -595,13 +593,11 @@ class CrossUserLinks {
 						continue;
 					}
 					foreach ($this->readUsersReferencing($table, $column, $lost[$type], $recipientId, $hasUser) as $id => $_) {
-						$values = [$column => null];
 						if ($table === 'budget_bills' && $type === ShareItem::TYPE_ACCOUNT) {
 							// Its pending rows would only ever be refused
 							$this->transactionService->deleteScheduledBillTransactions($id);
-							$values['auto_pay_enabled'] = false;
 						}
-						$this->updateRow($table, $id, $values);
+						$this->updateRow($table, $id, [$column => null] + self::alsoOnDetach($table, $type));
 						$result['detached']++;
 					}
 				}
@@ -658,6 +654,26 @@ class CrossUserLinks {
 	// ==========================================
 	// Helpers
 	// ==========================================
+
+	/**
+	 * What else changes when a row lets go of another user's account: a bill
+	 * stops auto-paying (it would only mark itself paid without recording
+	 * anything), and a recurring pension payment stops auto-posting (it
+	 * would post with no bank leg), as when the account is deleted
+	 * (PensionRecurringContributionMapper::detachSourceAccount()).
+	 *
+	 * @return array<string, bool>
+	 */
+	private static function alsoOnDetach(string $table, string $type): array {
+		if ($type !== ShareItem::TYPE_ACCOUNT) {
+			return [];
+		}
+		return match ($table) {
+			'budget_bills' => ['auto_pay_enabled' => false],
+			'budget_pen_recur' => ['auto_post_enabled' => false],
+			default => [],
+		};
+	}
 
 	/** Whether the user can use another user's account (write) or category (any permission) */
 	private function usable(string $type, int $id): bool {

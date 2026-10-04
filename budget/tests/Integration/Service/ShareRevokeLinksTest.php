@@ -69,7 +69,7 @@ class ShareRevokeLinksTest extends IntegrationTestCase {
 		$ids['penRecur'] = $this->insertRow('budget_pen_recur', [
 			'user_id' => $this->bob, 'pension_id' => $ids['pension'], 'amount' => '100.00', 'frequency' => 'monthly',
 			'source_account_id' => $ids['joint'], 'next_due_date' => '2026-10-20', 'is_active' => true,
-			'created_at' => $now, 'updated_at' => $now,
+			'auto_post_enabled' => true, 'created_at' => $now, 'updated_at' => $now,
 		]);
 		$ids['rule'] = $this->insertRow('budget_import_rules', [
 			'user_id' => $this->bob, 'name' => 'Tesco', 'pattern' => 'TESCO', 'field' => 'description',
@@ -114,7 +114,9 @@ class ShareRevokeLinksTest extends IntegrationTestCase {
 		$this->assertNull($income['account_id']);
 		$this->assertNull($income['category_id']);
 		$this->assertNull($this->fetchRow('budget_savings_goals', $w['goal'])['account_id']);
-		$this->assertNull($this->fetchRow('budget_pen_recur', $w['penRecur'])['source_account_id']);
+		$penRecur = $this->fetchRow('budget_pen_recur', $w['penRecur']);
+		$this->assertNull($penRecur['source_account_id']);
+		$this->assertFalse((bool)$penRecur['auto_post_enabled']);
 		$this->assertNull($this->fetchRow('budget_import_rules', $w['rule'])['category_id']);
 		$this->assertNull($this->fetchRow('budget_transactions', $w['bobRow'])['category_id']);
 		$this->assertSame([null, $w['bobFun']], $this->splitPartsOf($w['bobSplit']));
