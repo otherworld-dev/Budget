@@ -2038,10 +2038,19 @@ export default class DashboardModule {
                 url += '&excludeShared=1';
             }
             const data = await apiFetch(url, { errorMessage: 'Failed to fetch spending data' });
-            this.updateTopCategoriesWidget(data.data || []);
+            this.updateTopCategoriesWidget(this._categorySpendingRows(data.data || []));
         } catch (error) {
             console.error('Failed to refresh top categories:', error);
         }
+    }
+
+    /**
+     * The spending report's rows for a category tile. The report ends with a
+     * row for money with no category (for the Reports page); the tiles show
+     * categories only, as on their first draw from the dashboard summary.
+     */
+    _categorySpendingRows(rows) {
+        return Array.isArray(rows) ? rows.filter(row => !row.uncategorized) : rows;
     }
 
     updateSavingsGoalsWidget(goals) {
@@ -3691,7 +3700,7 @@ export default class DashboardModule {
             const data = await apiFetch(url);
 
             if (data.data) {
-                this.updateSpendingChart(data.data, instanceId, { dateFrom: startStr, dateTo: endStr });
+                this.updateSpendingChart(this._categorySpendingRows(data.data), instanceId, { dateFrom: startStr, dateTo: endStr });
             }
         } catch (error) {
             console.error('Failed to refresh spending chart:', error);
