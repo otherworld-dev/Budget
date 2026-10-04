@@ -55,6 +55,9 @@ class ApiV1TransactionController extends OCSController {
 	/** Read by SharedAccessTrait. */
 	protected string $userId;
 
+	/** @var array<int, string|null> account id => its currency, this request */
+	private array $accountCurrencies = [];
+
 	public function __construct(
 		IRequest $request,
 		private TransactionService $service,
@@ -211,7 +214,7 @@ class ApiV1TransactionController extends OCSController {
 			// no longer split (kept on purpose, #356) are not its splits
 			$parts = $transaction->getIsSplit() === false ? [] : $this->splitsOf($transaction);
 
-			return new DataResponse(['splits' => ApiSerializer::splits($parts)]);
+			return new DataResponse(['splits' => ApiSerializer::splits($parts, $this->currencyOf($transaction->getAccountId()))]);
 		} catch (DoesNotExistException $e) {
 			return $this->notFound();
 		} catch (\Exception $e) {
@@ -235,7 +238,24 @@ class ApiV1TransactionController extends OCSController {
 		$row['isSplit'] = $parts !== [];
 		$row['linkedAccountName'] = $this->linkedAccountName($transaction, $visibleAccountIds);
 
-		return ApiSerializer::transaction($row);
+		return ApiSerializer::transaction($row, $this->currencyOf($transaction->getAccountId()));
+	}
+
+	/**
+	 * The currency an account's money is in, so its amounts are written in
+	 * that currency's places. A list row carries it; a single row is looked
+	 * up, once per account per request.
+	 */
+	private function currencyOf(int $accountId): ?string {
+		if (!array_key_exists($accountId, $this->accountCurrencies)) {
+			try {
+				$this->accountCurrencies[$accountId] = $this->service->findAccountById($accountId)->getCurrency();
+			} catch (DoesNotExistException $e) {
+				$this->accountCurrencies[$accountId] = null;
+			}
+		}
+
+		return $this->accountCurrencies[$accountId];
 	}
 
 	/**
@@ -447,7 +467,7 @@ class ApiV1TransactionController extends OCSController {
 			// succeed). A failed attach must not fail the request: the
 			// transaction is recorded, and a retry would duplicate the very
 			// thing the key protects.
-			$out = ApiSerializer::transaction($transaction);
+			$out = ApiSerializer::transaction($transaction, $this->currencyOf($accountId));
 			if ($categoryError !== null) {
 				$out['category_error'] = $categoryError;
 			}
@@ -476,7 +496,7 @@ class ApiV1TransactionController extends OCSController {
 				$splits = $this->readSplitsParam();
 				if ($splits !== null) {
 					$created = $this->splitService->splitTransaction($transaction->getId(), $effectiveUserId, $splits);
-					$out['splits'] = ApiSerializer::splits($created);
+					$out['splits'] = ApiSerializer::splits($created, $this->currencyOf($accountId));
 					// The transaction was serialised before the split ran, so
 					// its flags are stale: splitting sets is_split and clears
 					// the category. Correct them rather than re-reading the
@@ -669,10 +689,10 @@ class ApiV1TransactionController extends OCSController {
 			// Splits belong to the ledger owner, like the transaction and its
 			// receipts — a write on a shared account must not scope to the
 			// acting user, or it lands in the wrong ledger (see #333/#334).
-			[, $ownerId] = $this->findWritable($id);
+			[$transaction, $ownerId] = $this->findWritable($id);
 			$created = $this->splitService->splitTransaction($id, $ownerId, $splits);
 
-			return new DataResponse(['splits' => ApiSerializer::splits($created)], Http::STATUS_CREATED);
+			return new DataResponse(['splits' => ApiSerializer::splits($created, $this->currencyOf($transaction->getAccountId()))], Http::STATUS_CREATED);
 		} catch (DoesNotExistException $e) {
 			return $this->notFound();
 		} catch (\InvalidArgumentException $e) {
@@ -924,7 +944,10 @@ class ApiV1TransactionController extends OCSController {
 			$this->requireWriteAccess('account', $accountId);
 		}
 
-		return [$transaction, $this->service->findAccountById($accountId)->getUserId()];
+		$account = $this->service->findAccountById($accountId);
+		$this->accountCurrencies[$accountId] = $account->getCurrency();
+
+		return [$transaction, $account->getUserId()];
 	}
 
 	/**

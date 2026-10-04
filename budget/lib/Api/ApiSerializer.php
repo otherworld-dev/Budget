@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Api;
 
+use OCA\Budget\Enum\Currency;
 use OCP\AppFramework\Db\Entity;
 
 /**
@@ -36,9 +37,9 @@ final class ApiSerializer {
 			'name' => (string)($a['name'] ?? ''),
 			'type' => (string)($a['type'] ?? ''),
 			'currency' => (string)($a['currency'] ?? ''),
-			'balance' => self::money($a['balance'] ?? 0),
+			'balance' => self::money($a['balance'] ?? 0, $a['currency'] ?? null),
 			// Only set when the account is not in the user's base currency.
-			'balance_in_base_currency' => isset($a['convertedBalance']) ? self::money($a['convertedBalance']) : null,
+			'balance_in_base_currency' => isset($a['convertedBalance']) ? self::money($a['convertedBalance'], $a['baseCurrency'] ?? null) : null,
 			'base_currency' => $a['baseCurrency'] ?? null,
 			'institution' => $a['institution'] ?? null,
 			'shared' => (bool)($a['_shared'] ?? false),
@@ -69,8 +70,13 @@ final class ApiSerializer {
 		];
 	}
 
-	public static function transaction(Entity|array $transaction): array {
+	/**
+	 * @param string|null $currency The account's currency, for a row that
+	 *                              doesn't carry it (list rows join it in)
+	 */
+	public static function transaction(Entity|array $transaction, ?string $currency = null): array {
 		$t = self::toArray($transaction);
+		$currency ??= $t['accountCurrency'] ?? null;
 
 		$out = [
 			'id' => (int)($t['id'] ?? 0),
@@ -79,7 +85,7 @@ final class ApiSerializer {
 			'date' => $t['date'] ?? null,
 			'description' => (string)($t['description'] ?? ''),
 			'vendor' => $t['vendor'] ?? null,
-			'amount' => self::money($t['amount'] ?? 0),
+			'amount' => self::money($t['amount'] ?? 0, $currency),
 			'type' => (string)($t['type'] ?? ''),
 			'reference' => $t['reference'] ?? null,
 			'notes' => $t['notes'] ?? null,
@@ -93,7 +99,7 @@ final class ApiSerializer {
 			'linked_transaction_id' => isset($t['linkedTransactionId']) ? (int)$t['linkedTransactionId'] : null,
 			'linked_account_name' => $t['linkedAccountName'] ?? null,
 			// A split transaction's parts (#408); [] when it isn't split.
-			'splits' => self::splits($t['splitCategories'] ?? []),
+			'splits' => self::splits($t['splitCategories'] ?? [], $currency),
 		];
 
 		// List queries join these in; single-record lookups do not. Present
@@ -111,7 +117,7 @@ final class ApiSerializer {
 		// category sums this where it is present rather than over-counting
 		// every category the transaction touches (#359).
 		if (($t['matchedSplitAmount'] ?? null) !== null) {
-			$out['split_amount'] = self::money($t['matchedSplitAmount']);
+			$out['split_amount'] = self::money($t['matchedSplitAmount'], $currency);
 		}
 
 		return $out;
@@ -180,12 +186,13 @@ final class ApiSerializer {
 		$t = self::toArray($transaction);
 
 		$vendor = $t['vendor'] ?? null;
+		$currency = $t['accountCurrency'] ?? null;
 
 		return [
 			'id' => (int)($t['id'] ?? 0),
 			'merchant' => is_string($vendor) && $vendor !== '' ? $vendor : (string)($t['description'] ?? ''),
 			'date' => $t['date'] ?? null,
-			'amount' => self::money($t['amount'] ?? 0),
+			'amount' => self::money($t['amount'] ?? 0, $currency),
 			'currency' => $t['accountCurrency'] ?? null,
 			'account_name' => $t['accountName'] ?? null,
 			// Added for "capture and check" (#767): without type a client
@@ -194,7 +201,7 @@ final class ApiSerializer {
 			'type' => (string)($t['type'] ?? ''),
 			'category_name' => $t['categoryName'] ?? null,
 			'is_split' => (bool)($t['isSplit'] ?? false),
-			'splits' => self::splits($t['splitCategories'] ?? []),
+			'splits' => self::splits($t['splitCategories'] ?? [], $currency),
 			'linked_transaction_id' => isset($t['linkedTransactionId']) ? (int)$t['linkedTransactionId'] : null,
 			'linked_account_name' => $t['linkedAccountName'] ?? null,
 		];
@@ -208,7 +215,7 @@ final class ApiSerializer {
 	/**
 	 * Money as a fixed-point decimal string, never a JSON number.
 	 *
-	 * Every amount in this app is stored as DECIMAL(15,2) and calculated with
+	 * Every amount in this app is stored as a DECIMAL and calculated with
 	 * BCMath through MoneyCalculator, precisely so that a penny cannot go
 	 * missing. Handing a client a JSON number throws that away at the last
 	 * step: JSON numbers are IEEE doubles in most parsers, so 0.1 + 0.2 stops
@@ -219,10 +226,13 @@ final class ApiSerializer {
 	 * has — BigDecimal on Android, Decimal in .NET, decimal.Decimal in Python.
 	 * Clients that only display the figure can print it unchanged.
 	 *
-	 * Always two decimal places, matching the column scale: '0.00', '-12.50'.
+	 * In the currency's own places, never fewer than two: '0.00', '-12.50',
+	 * and a yen amount reads '1000.00' as it always has. A crypto amount
+	 * keeps its digits ('0.02200000'): at two places 0.022 BTC read '0.02',
+	 * and a client sending the read shape back to a PATCH changed the amount.
 	 */
-	private static function money(float|int|string $value): string {
-		return number_format((float)$value, 2, '.', '');
+	private static function money(float|int|string $value, ?string $currency = null): string {
+		return number_format((float)$value, max(2, Currency::decimalsFor($currency)), '.', '');
 	}
 
 	/**
@@ -231,24 +241,27 @@ final class ApiSerializer {
 	 * `amount` is a money string like every other figure in v1, so a client
 	 * can sum the parts without a float ever entering the arithmetic.
 	 */
-	public static function split(Entity|array $split): array {
+	public static function split(Entity|array $split, ?string $currency = null): array {
 		$data = self::toArray($split);
 
 		return [
 			'id' => isset($data['id']) ? (int)$data['id'] : null,
 			'transaction_id' => isset($data['transactionId']) ? (int)$data['transactionId'] : null,
-			'amount' => self::money($data['amount'] ?? 0),
+			'amount' => self::money($data['amount'] ?? 0, $currency),
 			'category_id' => isset($data['categoryId']) ? (int)$data['categoryId'] : null,
 			'category_name' => $data['categoryName'] ?? null,
 			'description' => $data['description'] ?? null,
 		];
 	}
 
-	/** @param iterable<Entity|array> $splits */
-	public static function splits(iterable $splits): array {
+	/**
+	 * @param iterable<Entity|array> $splits
+	 * @param string|null $currency The transaction's account currency
+	 */
+	public static function splits(iterable $splits, ?string $currency = null): array {
 		$out = [];
 		foreach ($splits as $split) {
-			$out[] = self::split($split);
+			$out[] = self::split($split, $currency);
 		}
 		return $out;
 	}
@@ -273,18 +286,22 @@ final class ApiSerializer {
 	 */
 	public static function budgetStatus(array $status): array {
 		$totals = $status['totals'] ?? [];
+		$currency = $status['currency'] ?? null;
 
 		return [
 			'month' => (string)($status['month'] ?? ''),
 			'start_date' => $status['startDate'] ?? null,
 			'end_date' => $status['endDate'] ?? null,
-			'currency' => $status['currency'] ?? null,
+			'currency' => $currency,
 			'totals' => [
-				'budgeted' => self::money($totals['budgeted'] ?? 0),
-				'spent' => self::money($totals['spent'] ?? 0),
-				'remaining' => self::money($totals['remaining'] ?? 0),
+				'budgeted' => self::money($totals['budgeted'] ?? 0, $currency),
+				'spent' => self::money($totals['spent'] ?? 0, $currency),
+				'remaining' => self::money($totals['remaining'] ?? 0, $currency),
 			],
-			'categories' => array_values(array_map([self::class, 'budgetLine'], $status['categories'] ?? [])),
+			'categories' => array_values(array_map(
+				static fn (array $line): array => self::budgetLine($line, $currency),
+				$status['categories'] ?? []
+			)),
 		];
 	}
 
@@ -295,17 +312,17 @@ final class ApiSerializer {
 	 * the page, which for a shared category can differ from where it is
 	 * stored.
 	 */
-	public static function budgetLine(array $line): array {
+	public static function budgetLine(array $line, ?string $currency = null): array {
 		return [
 			'category_id' => (int)($line['categoryId'] ?? 0),
 			'name' => (string)($line['name'] ?? ''),
 			'parent_id' => isset($line['parentId']) ? (int)$line['parentId'] : null,
 			'type' => (string)($line['type'] ?? ''),
 			'period' => (string)($line['period'] ?? 'monthly'),
-			'budgeted' => self::money($line['budgeted'] ?? 0),
-			'carried' => self::money($line['carried'] ?? 0),
-			'spent' => self::money($line['spent'] ?? 0),
-			'remaining' => self::money($line['remaining'] ?? 0),
+			'budgeted' => self::money($line['budgeted'] ?? 0, $currency),
+			'carried' => self::money($line['carried'] ?? 0, $currency),
+			'spent' => self::money($line['spent'] ?? 0, $currency),
+			'remaining' => self::money($line['remaining'] ?? 0, $currency),
 			'shared' => (bool)($line['shared'] ?? false),
 		];
 	}
@@ -321,7 +338,7 @@ final class ApiSerializer {
 		return [
 			'id' => (int)($b['id'] ?? 0),
 			'name' => (string)($b['name'] ?? ''),
-			'amount' => self::money($b['amount'] ?? 0),
+			'amount' => self::money($b['amount'] ?? 0, $b['currency'] ?? null),
 			'amount_type' => (string)($b['amountType'] ?? 'fixed'),
 			'currency' => $b['currency'] ?? null,
 			'frequency' => (string)($b['frequency'] ?? ''),

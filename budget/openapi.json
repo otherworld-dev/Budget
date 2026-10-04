@@ -1732,16 +1732,16 @@
           },
           "balance": {
             "type": "string",
-            "pattern": "^-?\\d+\\.\\d{2}$",
+            "pattern": "^-?\\d+\\.\\d{2,8}$",
             "example": "-1246.50",
-            "description": "Decimal string, two places. As of today; future-dated transactions are excluded. Liability accounts (credit_card, loan, mortgage, line_of_credit) carry a NEGATIVE balance for the amount owed; a positive value means the account is in credit. Parse into an exact decimal type, never a float."
+            "description": "Decimal string in the currency's places: two for most currencies (a zero-place one like JPY too), three for JOD, up to eight for crypto. As of today; future-dated transactions are excluded. Liability accounts (credit_card, loan, mortgage, line_of_credit) carry a NEGATIVE balance for the amount owed; a positive value means the account is in credit. Parse into an exact decimal type, never a float."
           },
           "balance_in_base_currency": {
             "type": "string",
-            "pattern": "^-?\\d+\\.\\d{2}$",
+            "pattern": "^-?\\d+\\.\\d{2,8}$",
             "nullable": true,
             "example": "-1465.20",
-            "description": "Decimal string, two places. Set only when the account is not already in the user's base currency."
+            "description": "Decimal string in the base currency's places. Set only when the account is not already in the user's base currency."
           },
           "base_currency": {
             "type": "string",
@@ -1860,9 +1860,9 @@
           },
           "amount": {
             "type": "string",
-            "pattern": "^\\d+\\.\\d{2}$",
+            "pattern": "^\\d+\\.\\d{2,8}$",
             "example": "15.00",
-            "description": "Decimal string, two places. Always positive; type carries the direction. Parse into an exact decimal type, never a float."
+            "description": "Decimal string in the currency's places: two for most currencies (a zero-place one like JPY too), three for JOD, up to eight for crypto of the account's currency. Always positive; type carries the direction. Parse into an exact decimal type, never a float."
           },
           "type": {
             "type": "string",
@@ -1926,7 +1926,7 @@
           },
           "split_amount": {
             "type": "string",
-            "description": "Present only when categoryId was used and this split transaction matched through one of its parts: the sum of its parts in that category. Total this instead of amount when adding up a category, or every category the transaction touches gets the full amount.",
+            "description": "Present only when categoryId was used and this split transaction matched through one of its parts: the sum of its parts in that category. Total this instead of amount when adding up a category, or every category the transaction touches gets the full amount. In the account currency's places, like amount.",
             "example": "12.40"
           },
           "splits": {
@@ -1994,9 +1994,9 @@
           },
           "amount": {
             "type": "string",
-            "pattern": "^\\d+(\\.\\d{1,2})?$",
+            "pattern": "^\\d+(\\.\\d{1,8})?$",
             "example": "42.50",
-            "description": "Always positive; `type` carries the direction. A negative amount is refused with 400 (error_code invalid_amount). Accepted as a number or a decimal string; always returned as a two-place string."
+            "description": "Always positive; `type` carries the direction. A negative amount is refused with 400 (error_code invalid_amount). Accepted as a number or a decimal string; returned in the account currency's places (at least two), so 0.015 on a Bitcoin account reads back as \"0.01500000\"."
           },
           "type": {
             "type": "string",
@@ -2247,8 +2247,9 @@
           },
           "amount": {
             "type": "string",
-            "pattern": "^\\d+\\.\\d{2}$",
-            "example": "15.00"
+            "pattern": "^\\d+\\.\\d{2,8}$",
+            "example": "15.00",
+            "description": "Decimal string in the currency's places: two for most currencies (a zero-place one like JPY too), three for JOD, up to eight for crypto of the account's currency."
           },
           "currency": {
             "type": "string",
@@ -2316,7 +2317,7 @@
           },
           "amount": {
             "type": "string",
-            "description": "Fixed-point decimal string, as everywhere else in v1.",
+            "description": "Fixed-point decimal string, as everywhere else in v1, in the account currency's places.",
             "example": "3.40"
           },
           "category_id": {
@@ -2408,25 +2409,25 @@
           },
           "budgeted": {
             "type": "string",
-            "pattern": "^-?\\d+\\.\\d{2}$",
+            "pattern": "^-?\\d+\\.\\d{2,8}$",
             "example": "400.00",
             "description": "The budget for the period, including any envelope carry-over."
           },
           "carried": {
             "type": "string",
-            "pattern": "^-?\\d+\\.\\d{2}$",
+            "pattern": "^-?\\d+\\.\\d{2,8}$",
             "example": "0.00",
             "description": "Envelope carry-over into this month, already included in budgeted."
           },
           "spent": {
             "type": "string",
-            "pattern": "^-?\\d+\\.\\d{2}$",
+            "pattern": "^-?\\d+\\.\\d{2,8}$",
             "example": "431.20",
             "description": "Net of refunds, so it can be negative."
           },
           "remaining": {
             "type": "string",
-            "pattern": "^-?\\d+\\.\\d{2}$",
+            "pattern": "^-?\\d+\\.\\d{2,8}$",
             "example": "-31.20",
             "description": "budgeted minus spent; negative when overspent."
           },
@@ -2458,7 +2459,7 @@
           "currency": {
             "type": "string",
             "example": "GBP",
-            "description": "The user's base currency. Amounts are added up as stored, with no conversion, as on the Budget page."
+            "description": "The user's base currency. Amounts are added up as stored, with no conversion, as on the Budget page. Every figure is written in its places (at least two)."
           },
           "totals": {
             "type": "object",
@@ -2466,17 +2467,17 @@
             "properties": {
               "budgeted": {
                 "type": "string",
-                "pattern": "^-?\\d+\\.\\d{2}$",
+                "pattern": "^-?\\d+\\.\\d{2,8}$",
                 "example": "1450.00"
               },
               "spent": {
                 "type": "string",
-                "pattern": "^-?\\d+\\.\\d{2}$",
+                "pattern": "^-?\\d+\\.\\d{2,8}$",
                 "example": "912.40"
               },
               "remaining": {
                 "type": "string",
-                "pattern": "^-?\\d+\\.\\d{2}$",
+                "pattern": "^-?\\d+\\.\\d{2,8}$",
                 "example": "537.60",
                 "description": "budgeted minus spent; an overspent category reduces it."
               }
@@ -2505,9 +2506,9 @@
           },
           "amount": {
             "type": "string",
-            "pattern": "^-?\\d+\\.\\d{2}$",
+            "pattern": "^-?\\d+\\.\\d{2,8}$",
             "example": "12.99",
-            "description": "The stored amount. For an amount_type other than fixed, the real figure is only worked out from the card's statement when the bill is paid."
+            "description": "The stored amount. For an amount_type other than fixed, the real figure is only worked out from the card's statement when the bill is paid. In the bill currency's places (at least two)."
           },
           "amount_type": {
             "type": "string",

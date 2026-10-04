@@ -1306,6 +1306,51 @@ class ApiV1TransactionControllerTest extends TestCase {
 		return $s;
 	}
 
+	// ── money in the account currency's places ──────────────────────
+
+	private function bitcoinAccount(int $id = 1): Account {
+		$account = new Account();
+		$account->setId($id);
+		$account->setUserId('user1');
+		$account->setCurrency('BTC');
+		return $account;
+	}
+
+	/**
+	 * A single row carries no account currency, so it was written at two
+	 * places: 0.015 BTC read "0.02", and the read shape sent back to PATCH
+	 * moved the amount. Its account says how many places it has.
+	 */
+	public function testShowWritesACryptoAmountInItsCurrencysPlaces(): void {
+		$transaction = $this->checkTransaction(55, 1, false);
+		$transaction->setAmount(0.015);
+		$this->service->method('findForAccounts')->willReturn($transaction);
+		$this->service->method('findAccountById')->with(1)->willReturn($this->bitcoinAccount());
+
+		$this->assertSame('0.01500000', $this->controller->show(55)->getData()['amount']);
+	}
+
+	public function testCreateAnswersInTheAccountsCurrencysPlaces(): void {
+		$transaction = $this->transaction();
+		$transaction->setAmount(0.015);
+		$this->service->method('create')->willReturn($transaction);
+		$this->service->method('findAccountById')->willReturn($this->bitcoinAccount());
+		$this->params = $this->captureParams(['amount' => '0.015']);
+
+		$this->assertSame('0.01500000', $this->controller->create()->getData()['amount']);
+	}
+
+	public function testSplitPartsAnswerInTheAccountsCurrencysPlaces(): void {
+		$this->service->method('findForAccounts')->willReturn($this->splitTransaction(5, 1, '0.015'));
+		$this->service->method('findAccountById')->willReturn($this->bitcoinAccount());
+		$this->splitService->method('splitTransaction')->willReturn([$this->part(1, 5, 0.005, null), $this->part(2, 5, 0.01, null)]);
+		$this->params = ['splits' => json_encode([['amount' => '0.005'], ['amount' => '0.01']])];
+
+		$parts = $this->controller->createSplits(5)->getData()['splits'];
+
+		$this->assertSame(['0.00500000', '0.01000000'], array_column($parts, 'amount'));
+	}
+
 	public function testSplitsOutsideTheCallersAccountsAreNotFound(): void {
 		$this->service->method('findForAccounts')->willThrowException(new DoesNotExistException('nope'));
 		$this->splitService->expects($this->never())->method('getSplits');
@@ -1355,9 +1400,14 @@ class ApiV1TransactionControllerTest extends TestCase {
 		]);
 		$this->granularShareService->method('resolveOwner')->willReturn('owner1');
 		$this->splitService->method('getSplits')->willReturn([$this->part(1, 55, 20.0, 'All of it')]);
-		$account = new Account();
-		$account->setName('Current');
-		$this->service->method('findAccountById')->with(2)->willReturn($account);
+		// The row's own account (for its currency) and the partner's (for its name)
+		$this->service->method('findAccountById')->willReturnCallback(static function (int $id): Account {
+			$account = new Account();
+			$account->setId($id);
+			$account->setName($id === 2 ? 'Current' : 'Shared card');
+			$account->setCurrency('GBP');
+			return $account;
+		});
 
 		$data = $this->controller->show(55)->getData();
 
