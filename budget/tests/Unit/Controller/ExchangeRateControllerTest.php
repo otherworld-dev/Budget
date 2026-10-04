@@ -135,6 +135,15 @@ class ExchangeRateControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 	}
 
+	public function testRefreshIsRateLimited(): void {
+		// Each call makes two outbound fetches; nothing limited how often
+		$attrs = (new \ReflectionMethod(ExchangeRateController::class, 'refresh'))
+			->getAttributes(\OCP\AppFramework\Http\Attribute\UserRateLimit::class);
+
+		$this->assertCount(1, $attrs);
+		$this->assertSame(['limit' => 5, 'period' => 60], $attrs[0]->getArguments());
+	}
+
 	// ── setManualRate ───────────────────────────────────────────────
 
 	public function testSetManualRateSuccess(): void {

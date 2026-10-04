@@ -744,6 +744,9 @@ class AccountController extends Controller {
 	 */
 	public function getBalanceHistory(int $id, int $days = 30): DataResponse {
 		try {
+			// One point per day, built in a loop: an unbounded count ran one
+			// request out of memory. Ten years, as net worth snapshots allow.
+			$days = max(1, min($days, 3650));
 			$history = $this->service->getBalanceHistory($id, $this->getEffectiveUserId(), $days);
 			return new DataResponse($history);
 		} catch (\Exception $e) {

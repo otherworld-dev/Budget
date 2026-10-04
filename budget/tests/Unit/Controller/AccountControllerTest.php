@@ -956,6 +956,22 @@ class AccountControllerTest extends TestCase {
 		$this->assertCount(1, $response->getData());
 	}
 
+	public function testGetBalanceHistoryClampsTheDays(): void {
+		// A day count of 100000000 looped that many times in one request
+		$asked = [];
+		$this->service->method('getBalanceHistory')->willReturnCallback(function (int $id, string $user, int $days) use (&$asked) {
+			$asked[] = $days;
+			return [];
+		});
+
+		$this->controller->getBalanceHistory(1, 100000000);
+		$this->controller->getBalanceHistory(1, 0);
+		$this->controller->getBalanceHistory(1, -5);
+		$this->controller->getBalanceHistory(1, 365);
+
+		$this->assertSame([3650, 1, 1, 365], $asked);
+	}
+
 	public function testGetBalanceHistoryReturnsNotFoundOnError(): void {
 		$this->service->method('getBalanceHistory')->willThrowException(new \RuntimeException('not found'));
 
