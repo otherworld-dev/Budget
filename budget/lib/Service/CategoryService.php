@@ -1057,7 +1057,7 @@ class CategoryService extends AbstractCrudService {
 		foreach ($categories as $category) {
 			$byId[$category->getId()] = $category;
 		}
-		$outOfReports = $this->reportExcludedBranchIds($categories);
+		$outOfReports = BudgetScope::reportExcludedIds($categories);
 
 		$budgeted = [];
 		foreach ($effectiveBudgets as $catId => $entry) {
@@ -1104,34 +1104,6 @@ class CategoryService extends AbstractCrudService {
 			'budgeted' => round(MoneyCalculator::toFloat($budgetedTotal), 2),
 			'amount' => round(MoneyCalculator::toFloat(MoneyCalculator::subtract($incomeTotal, $budgetedTotal, 6)), 2),
 		];
-	}
-
-	/**
-	 * Categories flagged excluded_from_reports, plus everything under them:
-	 * the Budget page drops a flagged category's whole branch.
-	 *
-	 * @param Category[] $categories
-	 * @return array<int, true>
-	 */
-	private function reportExcludedBranchIds(array $categories): array {
-		$flagged = [];
-		$parents = [];
-		foreach ($categories as $category) {
-			$flagged[$category->getId()] = (bool)($category->getExcludedFromReports() ?? false);
-			$parents[$category->getId()] = $category->getParentId();
-		}
-		$excluded = [];
-		foreach (array_keys($flagged) as $id) {
-			$cursor = $id;
-			for ($depth = 0; $cursor !== null && $depth < 64 && isset($flagged[$cursor]); $depth++) {
-				if ($flagged[$cursor]) {
-					$excluded[$id] = true;
-					break;
-				}
-				$cursor = $parents[$cursor];
-			}
-		}
-		return $excluded;
 	}
 
 	private function getBudgetStatus(float $percentage): string {

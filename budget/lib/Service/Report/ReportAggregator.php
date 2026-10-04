@@ -469,8 +469,11 @@ class ReportAggregator {
 		$resolvedBudgets = [];
 		$resolvedBases = [];
 		$notBudgeted = BudgetScope::excludedCategoryIds($categories);
+		// The whole branch under a category kept out of reports, as the
+		// Budget page drops it, not just the flagged category itself
+		$outOfReports = BudgetScope::reportExcludedIds($categories);
 		foreach ($categories as $category) {
-			if ($category->getExcludedFromReports() || isset($notBudgeted[$category->getId()])) {
+			if (isset($outOfReports[$category->getId()]) || isset($notBudgeted[$category->getId()])) {
 				continue;
 			}
 			$catId = $category->getId();

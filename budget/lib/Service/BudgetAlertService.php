@@ -248,6 +248,8 @@ class BudgetAlertService {
 		$recurringBudgets = $this->recurringBudgetService->getMonthlyBudgetsByCategory($userId, $currentMonth);
 		$carryovers = $this->carryoverService->getCarryovers($userId, $currentMonth, $categories, $visibleAccountIds);
 		$notBudgeted = BudgetScope::excludedCategoryIds($categories);
+		// A whole branch kept out of reports, as the Budget page drops it
+		$outOfReports = BudgetScope::reportExcludedIds($categories);
 		$alertScope = $this->getAlertScope($userId);
 		$mutedCategories = $this->getMutedCategoryIds($userId);
 
@@ -258,7 +260,8 @@ class BudgetAlertService {
 		$resolvedBudgets = [];
 		$budgetedIds = [];
 		foreach ($categories as $category) {
-			if (!$this->isSpendingBudget($category) || isset($notBudgeted[$category->getId()])) {
+			if (!$this->isSpendingBudget($category) || isset($notBudgeted[$category->getId()])
+				|| isset($outOfReports[$category->getId()])) {
 				continue;
 			}
 			$resolved = $this->resolveEffectiveBudget($category, $snapshotOverrides, $recurringBudgets, $carryovers);
@@ -447,13 +450,15 @@ class BudgetAlertService {
 		$recurringBudgets = $this->recurringBudgetService->getMonthlyBudgetsByCategory($userId, $currentMonth);
 		$carryovers = $this->carryoverService->getCarryovers($userId, $currentMonth, $categories, $visibleAccountIds);
 		$notBudgeted = BudgetScope::excludedCategoryIds($categories);
+		$outOfReports = BudgetScope::reportExcludedIds($categories);
 
 		// Base budget > 0, or a non-zero envelope carryover (see getAlerts)
 		$categoriesWithBudgets = [];
 		$resolvedBudgets = [];
 		$budgetedIds = [];
 		foreach ($categories as $category) {
-			if (!$this->isSpendingBudget($category) || isset($notBudgeted[$category->getId()])) {
+			if (!$this->isSpendingBudget($category) || isset($notBudgeted[$category->getId()])
+				|| isset($outOfReports[$category->getId()])) {
 				continue;
 			}
 			$resolved = $this->resolveEffectiveBudget($category, $snapshotOverrides, $recurringBudgets, $carryovers);
