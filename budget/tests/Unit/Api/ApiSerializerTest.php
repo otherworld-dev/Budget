@@ -440,8 +440,27 @@ class ApiSerializerTest extends TestCase {
 	public function testBudgetLineKeysAreFixed(): void {
 		$this->assertSame([
 			'category_id', 'name', 'parent_id', 'type', 'period',
-			'budgeted', 'carried', 'spent', 'remaining', 'shared',
+			'budgeted', 'carried', 'spent', 'remaining', 'shared', 'period_to_date',
 		], array_keys(ApiSerializer::budgetLine([])));
+	}
+
+	public function testABudgetLineHasNoPeriodSoFarUnlessQuarterlyOrYearly(): void {
+		$this->assertNull(ApiSerializer::budgetLine(['period' => 'weekly'])['period_to_date']);
+	}
+
+	public function testAYearlyBudgetLineCarriesTheYearSoFar(): void {
+		$line = ApiSerializer::budgetLine([
+			'categoryId' => 22, 'period' => 'yearly', 'budgeted' => '100.0000000000', 'spent' => '0', 'remaining' => '100',
+			'periodToDate' => ['startDate' => '2026-01-01', 'endDate' => '2026-10-31', 'budgeted' => '1200.0000000000', 'spent' => '400.5'],
+		], 'GBP');
+
+		$this->assertSame('100.00', $line['budgeted']);
+		$this->assertSame([
+			'start_date' => '2026-01-01',
+			'end_date' => '2026-10-31',
+			'budgeted' => '1200.00',
+			'spent' => '400.50',
+		], $line['period_to_date']);
 	}
 
 	public function testBudgetStatusRemainingIsBudgetedLessSpentAsShown(): void {

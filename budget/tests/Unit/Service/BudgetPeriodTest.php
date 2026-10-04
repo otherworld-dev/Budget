@@ -112,4 +112,33 @@ class BudgetPeriodTest extends TestCase {
 		$this->assertSame('500.0000000000', BudgetPeriod::monthlyTotal([['300', 'quarterly'], ['400', 'monthly']]));
 		$this->assertSame('0.0000000000', BudgetPeriod::monthlyTotal([]));
 	}
+
+	public function testATotalForAnyPeriodIsExact(): void {
+		$this->assertSame('2400.0000000000', BudgetPeriod::totalFor([['1200', 'yearly'], ['100', 'monthly']], 'yearly'));
+		$this->assertSame('900.0000000000', BudgetPeriod::totalFor([['900', 'quarterly']], 'quarterly'));
+		$this->assertSame('86.6666666666', BudgetPeriod::totalFor([['20', 'weekly']], 'monthly'));
+	}
+
+	public function testTheYearSoFarRunsFromJanuaryToTheEndOfTheMonth(): void {
+		$this->assertSame(['2026-01-01', '2026-10-31'], BudgetPeriod::toDateRange('yearly', '2026-10', 1));
+		$this->assertSame(['2026-01-01', '2026-01-31'], BudgetPeriod::toDateRange('yearly', '2026-01', 1));
+	}
+
+	public function testTheQuarterSoFarStartsWithTheQuartersFirstMonth(): void {
+		$this->assertSame(['2026-10-01', '2026-11-30'], BudgetPeriod::toDateRange('quarterly', '2026-11', 1));
+		$this->assertSame(['2026-07-01', '2026-09-30'], BudgetPeriod::toDateRange('quarterly', '2026-09', 1));
+		$this->assertSame(['2026-01-01', '2026-01-31'], BudgetPeriod::toDateRange('quarterly', '2026-01', 1));
+	}
+
+	public function testThePeriodSoFarIsMadeOfWholeBudgetMonths(): void {
+		// January 2026 with the 25th is 25 December to 24 January
+		$this->assertSame(['2025-12-25', '2026-10-24'], BudgetPeriod::toDateRange('yearly', '2026-10', 25));
+		// With the 10th, October is 10 October to 9 November
+		$this->assertSame(['2026-10-10', '2026-12-09'], BudgetPeriod::toDateRange('quarterly', '2026-11', 10));
+	}
+
+	public function testAWeeklyOrMonthlyBudgetHasNoPeriodSoFar(): void {
+		$this->assertNull(BudgetPeriod::toDateRange('weekly', '2026-10', 1));
+		$this->assertNull(BudgetPeriod::toDateRange('monthly', '2026-10', 1));
+	}
 }
