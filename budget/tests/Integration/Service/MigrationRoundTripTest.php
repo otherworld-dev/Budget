@@ -298,6 +298,27 @@ class MigrationRoundTripTest extends IntegrationTestCase {
 		$this->assertSame([], $this->danglingReferences());
 	}
 
+	/**
+	 * Unlinking a bank feed was silent: bank sync just stopped importing
+	 * into the account and nothing said why (R1-8). The restore says how
+	 * many it had to unlink; one that followed its account isn't mentioned.
+	 */
+	public function testARestoreSaysHowManyBankLinksItHadToRemove(): void {
+		$this->seedEveryTable($this->userId);
+		$archive = $this->migration->exportAll($this->userId)['content'];
+		$bankWarnings = static fn (array $result): array => array_values(array_filter(
+			$result['warnings'],
+			static fn (string $warning): bool => str_contains($warning, 'Bank Sync')
+		));
+
+		$kept = $this->migration->importAll($this->userId, $archive);
+		$unlinked = $this->migration->importAll($this->userId, $this->renameArchivedAccounts($archive));
+
+		$this->assertSame([], $bankWarnings($kept));
+		$this->assertCount(1, $bankWarnings($unlinked));
+		$this->assertStringContainsString('1 bank account link', $bankWarnings($unlinked)[0]);
+	}
+
 	private function renameArchivedAccounts(string $zipContent): string {
 		$path = tempnam(sys_get_temp_dir(), 'budget-it-');
 		file_put_contents($path, $zipContent);

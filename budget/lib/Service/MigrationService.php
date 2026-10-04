@@ -505,7 +505,9 @@ class MigrationService {
 			// Import in dependency order with ID remapping
 			$idMaps = $this->importData($userId, $importData);
 
-			$this->rePointBankMappings(self::bankMappingTargets($bankMappings, $importData['accounts'] ?? [], $idMaps['accounts'] ?? []));
+			$bankTargets = self::bankMappingTargets($bankMappings, $importData['accounts'] ?? [], $idMaps['accounts'] ?? []);
+			$this->rePointBankMappings($bankTargets);
+			$bankLinksRemoved = count(array_filter($bankTargets, static fn ($accountId): bool => $accountId === null));
 
 			// Point those links at the restored rows, or cut them
 			$links = $this->crossUserLinks?->apply($idMaps) ?? ['sharesDropped' => 0, 'othersDetached' => 0];
@@ -551,7 +553,7 @@ class MigrationService {
 				'success' => true,
 				'message' => 'Import completed successfully',
 				'counts' => $this->countData($importData),
-				'warnings' => $this->restoreWarnings($links['sharesDropped'], $this->billsDetached, $links['othersDetached'], $this->userLinksRemoved),
+				'warnings' => $this->restoreWarnings($links['sharesDropped'], $this->billsDetached, $links['othersDetached'], $this->userLinksRemoved, $bankLinksRemoved),
 			];
 		} catch (\Throwable $e) {
 			// PHP errors too: only \Exception used to roll back
@@ -661,7 +663,7 @@ class MigrationService {
 	 *
 	 * @return string[]
 	 */
-	private function restoreWarnings(int $sharesDropped, int $billsDetached, int $othersDetached, int $userLinksRemoved = 0): array {
+	private function restoreWarnings(int $sharesDropped, int $billsDetached, int $othersDetached, int $userLinksRemoved = 0, int $bankLinksRemoved = 0): array {
 		$warnings = [];
 		if ($sharesDropped > 0) {
 			$warnings[] = $this->n(
@@ -689,6 +691,14 @@ class MigrationService {
 				'%n contact was linked to a Nextcloud user you can\'t share with on this server, so the link was removed.',
 				'%n contacts were linked to Nextcloud users you can\'t share with on this server, so the links were removed.',
 				$userLinksRemoved
+			);
+		}
+		if ($bankLinksRemoved > 0) {
+			// bankMappingTargets(): a feed only follows the same account
+			$warnings[] = $this->n(
+				'%n bank account link could not be matched to an account in this backup, so Bank Sync no longer imports into it. Choose the account again in Bank Sync.',
+				'%n bank account links could not be matched to accounts in this backup, so Bank Sync no longer imports into them. Choose the accounts again in Bank Sync.',
+				$bankLinksRemoved
 			);
 		}
 		return $warnings;
