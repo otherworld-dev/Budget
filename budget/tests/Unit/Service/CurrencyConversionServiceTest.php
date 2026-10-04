@@ -401,6 +401,60 @@ class CurrencyConversionServiceTest extends TestCase {
 		$this->assertNull($this->service->convertBetween(100.0, 'GBP', 'JPY', 'user1'));
 	}
 
+	// ===== Memo (T6-7) =====
+
+	/**
+	 * Reports convert a row at a time, and every conversion read the base
+	 * currency setting and the user's manual rates again: about 3,000
+	 * queries for an all-time summary (T6-7). Each is read once now.
+	 */
+	public function testTheBaseCurrencyAndEachManualRateAreReadOnce(): void {
+		$this->settingService->expects($this->once())->method('get')
+			->with('user1', 'default_currency')->willReturn('GBP');
+		$manual = new ManualExchangeRate();
+		$manual->setRatePerEur('1.2000000000');
+		$this->manualRateMapper->expects($this->exactly(2))->method('findByUserAndCurrency')
+			->willReturnCallback(fn ($userId, $currency) => $currency === 'USD' ? $manual : null);
+		$this->exchangeRateService->method('getRateLocal')
+			->willReturnCallback(fn (string $currency) => $currency === 'GBP' ? '0.8000000000' : null);
+
+		for ($i = 0; $i < 50; $i++) {
+			// 120 USD = 100 EUR = 80 GBP
+			$this->assertEqualsWithDelta(80.0, $this->service->convertToBaseFloat('120', 'USD', 'user1'), 0.0001);
+			$this->assertSame('GBP', $this->service->getBaseCurrency('user1'));
+		}
+	}
+
+	public function testEachUserHasTheirOwnBaseCurrencyAndRates(): void {
+		$this->settingService->method('get')
+			->willReturnCallback(fn (string $userId) => $userId === 'bob' ? 'USD' : 'GBP');
+		$this->manualRateMapper->method('findByUserAndCurrency')->willReturn(null);
+
+		$this->assertSame('GBP', $this->service->getBaseCurrency('alice'));
+		$this->assertSame('USD', $this->service->getBaseCurrency('bob'));
+		$this->assertSame('GBP', $this->service->getBaseCurrency('alice'));
+	}
+
+	/**
+	 * A write to anyone's settings or manual rates drops the memo, so a
+	 * conversion after it sees the new value (the mappers and the reset /
+	 * restore table cleaner report every write).
+	 */
+	public function testAWriteToSettingsOrRatesIsSeenByTheNextConversion(): void {
+		$currency = 'GBP';
+		$this->settingService->method('get')->willReturnCallback(function () use (&$currency) {
+			return $currency;
+		});
+
+		$this->assertSame('GBP', $this->service->getBaseCurrency('user1'));
+		$currency = 'EUR';
+		$this->assertSame('GBP', $this->service->getBaseCurrency('user1'), 'memoized until a write');
+
+		CurrencyConversionService::userDataChanged();
+
+		$this->assertSame('EUR', $this->service->getBaseCurrency('user1'));
+	}
+
 	private function makeAccount(?string $currency, int $id): Account {
 		$account = new Account();
 		$account->setId($id);

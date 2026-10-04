@@ -4,16 +4,36 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Db;
 
+use OCA\Budget\Service\CurrencyConversionService;
 use OCP\AppFramework\Db\DoesNotExistException;
+use OCP\AppFramework\Db\Entity;
 use OCP\AppFramework\Db\QBMapper;
 use OCP\IDBConnection;
 
 /**
+ * Every write here tells CurrencyConversionService, which memoizes each
+ * user's manual rates for the request.
+ *
  * @template-extends QBMapper<ManualExchangeRate>
  */
 class ManualExchangeRateMapper extends QBMapper {
 	public function __construct(IDBConnection $db) {
 		parent::__construct($db, 'budget_manual_rates', ManualExchangeRate::class);
+	}
+
+	public function insert(Entity $entity): Entity {
+		CurrencyConversionService::userDataChanged();
+		return parent::insert($entity);
+	}
+
+	public function update(Entity $entity): Entity {
+		CurrencyConversionService::userDataChanged();
+		return parent::update($entity);
+	}
+
+	public function delete(Entity $entity): Entity {
+		CurrencyConversionService::userDataChanged();
+		return parent::delete($entity);
 	}
 
 	/**
