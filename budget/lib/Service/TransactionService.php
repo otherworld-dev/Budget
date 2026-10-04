@@ -972,6 +972,16 @@ class TransactionService {
 	}
 
 	/**
+	 * Debits in an account within $days of a date that no bill pays (or
+	 * only a deleted one): the rows Mark Paid offers to link, as entities.
+	 *
+	 * @return Transaction[]
+	 */
+	public function findUnclaimedDebits(int $accountId, string $date, int $days): array {
+		return $this->mapper->findBillPaymentCandidates($accountId, $date, $days);
+	}
+
+	/**
 	 * Rows a bill booked for its payments between two dates, for matching
 	 * the bank's own row of the same payment.
 	 *

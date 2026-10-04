@@ -2215,7 +2215,9 @@ class BillService {
 	 * Attempt to auto-pay a bill and handle success/failure.
 	 *
 	 * Pays every occurrence due by the owner's today (at most
-	 * MAX_AUTO_PAY_CATCH_UP), each dated on its own due date. Payments made
+	 * MAX_AUTO_PAY_CATCH_UP), each dated on its own due date. An occurrence
+	 * whose bank row is already in the account (unclaimedPaymentFor()) is
+	 * paid by linking that row, as an import would have. Payments made
 	 * before a failure stay paid; auto-pay then switches itself off.
 	 *
 	 * @param int $id Bill ID
@@ -2259,7 +2261,12 @@ class BillService {
 			$result = null;
 			do {
 				$due = (string)$bill->getNextDueDate();
-				$result = $this->markPaid($id, $userId, min($due, $today), true, null, $due);
+				// The bank's own row of the occurrence, already imported, is
+				// its payment: catching up booked another beside each one
+				$existing = $this->unclaimedPaymentFor($bill, $due);
+				$result = $existing !== null
+					? $this->markPaid($id, $userId, $existing->getDate(), false, $existing->getId(), $due)
+					: $this->markPaid($id, $userId, min($due, $today), true, null, $due);
 
 				// Paid with nothing booked (the account is gone, the row failed):
 				// put the bill back and fail, rather than report success and move
@@ -2304,6 +2311,32 @@ class BillService {
 				'bill' => $bill,
 			];
 		}
+	}
+
+	/**
+	 * A row already in the bill's account that is the payment of the
+	 * occurrence due on $due, as an import would have matched it: it carries
+	 * the bill's pattern, is within a tenth of its amount and in its due
+	 * window, and no bill pays it. The nearest the due date wins.
+	 */
+	private function unclaimedPaymentFor(Bill $bill, string $due): ?\OCA\Budget\Db\Transaction {
+		if ($bill->getAccountId() === null || $this->matchPattern($bill) === '') {
+			return null;
+		}
+		$nearest = null;
+		$rank = null;
+		foreach ($this->transactionService->findUnclaimedDebits($bill->getAccountId(), $due, $this->dueDateToleranceDays($bill->getFrequency())) as $row) {
+			// A deleted bill's row is offered too, but linking it would fail
+			if ((int)($row->getBillId() ?? 0) !== 0 || $row->getPensionContribId() !== null
+				|| !$this->importedTransactionLooksLikeBill($bill, $row) || !$this->withinDueWindow($bill, $row->getDate(), $due)) {
+				continue;
+			}
+			$thisRank = [abs(strtotime($row->getDate()) - strtotime($due)), abs((float)$row->getAmount() - (float)$bill->getAmount())];
+			if ($rank === null || $thisRank < $rank) {
+				[$nearest, $rank] = [$row, $thisRank];
+			}
+		}
+		return $nearest;
 	}
 
 	private function checkIfPaidInPeriod(Bill $bill, string $startDate, string $endDate): bool {

@@ -453,6 +453,55 @@ class BillLifecycleTest extends TestCase {
 		$this->assertSame('2026-09-28', $this->stored->getLastPaidDate());
 	}
 
+	public function testAutoPayCatchUpLinksTheBankRowsAlreadyThere(): void {
+		// Three of the four weeks auto-pay fell behind on were already in the
+		// account from a statement: it booked four more rows beside them
+		$bill = $this->bill(['frequency' => 'weekly', 'dueDay' => 1, 'nextDueDate' => '2026-09-07']);
+		$bill->setAutoPayEnabled(true);
+		$bill->setAutoDetectPattern('RENT');
+		$rows = [];
+		foreach (['2026-09-07', '2026-09-15', '2026-09-21'] as $i => $date) {
+			$rows[80 + $i] = $this->bankRow(80 + $i, 3, $date);
+			$rows[80 + $i]->setDescription('RENT PAYMENT');
+		}
+		$this->transactions->method('findUnclaimedDebits')->willReturnCallback(
+			fn (int $account, string $date, int $days) => array_values(array_filter(
+				$rows,
+				fn (Transaction $row) => $row->getBillId() === null && abs(strtotime($row->getDate()) - strtotime($date)) <= $days * 86400
+			))
+		);
+		$this->transactions->method('findTransaction')->willReturnCallback(fn (int $id) => $rows[$id] ?? null);
+		$this->transactions->method('linkBillAsAccountOwner')->willReturnCallback(function (int $id, Bill $bill) use ($rows) {
+			$rows[$id]->setBillId($bill->getId());
+			return $rows[$id];
+		});
+
+		$result = $this->service->processAutoPay(1, 'user1');
+
+		$this->assertTrue($result['success']);
+		$this->assertSame(4, $result['count']);
+		$payments = array_values(array_filter($this->calls, fn (string $c) => str_starts_with($c, 'create:20')));
+		$this->assertSame(['create:2026-09-28'], $payments, 'Only the week with no bank row is booked');
+		$this->assertSame([1, 1, 1], array_map(fn (Transaction $row) => $row->getBillId(), array_values($rows)));
+		$this->assertSame('2026-10-05', $this->stored->getNextDueDate());
+	}
+
+	public function testAutoPayCatchUpLeavesARowAnotherBillPaysAlone(): void {
+		$bill = $this->bill(['frequency' => 'weekly', 'dueDay' => 1, 'nextDueDate' => '2026-09-28']);
+		$bill->setAutoPayEnabled(true);
+		$bill->setAutoDetectPattern('RENT');
+		$row = $this->bankRow(80, 3, '2026-09-28');
+		$row->setDescription('RENT PAYMENT');
+		$row->setBillId(44);
+		$this->transactions->method('findUnclaimedDebits')->willReturn([$row]);
+		$this->transactions->expects($this->never())->method('linkBillAsAccountOwner');
+
+		$result = $this->service->processAutoPay(1, 'user1');
+
+		$this->assertTrue($result['success']);
+		$this->assertSame(['create:2026-09-28'], array_values(array_filter($this->calls, fn (string $c) => str_starts_with($c, 'create:20'))));
+	}
+
 	public function testAutoPayCatchUpStopsAtItsCap(): void {
 		// A daily bill a year behind books at most 60 rows in one run
 		$bill = $this->bill(['frequency' => 'daily', 'dueDay' => null, 'nextDueDate' => '2025-09-01']);
