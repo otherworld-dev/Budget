@@ -94,20 +94,29 @@ class FactoryResetService {
 	 * @return array<string, int>
 	 */
 	private function reset(string $userId, bool $userDeleted): array {
-		// Recipients of the shares this user granted, read before the rows go
-		// so their pending invitations can be dismissed afterwards
-		$grantedShares = $this->findGrantedShares($userId);
+		try {
+			// Recipients of the shares this user granted, read before the rows go
+			// so their pending invitations can be dismissed afterwards
+			$grantedShares = $this->findGrantedShares($userId);
 
-		// What other users' data points at in this user's, read while the
-		// shares that put it there still exist
-		$this->crossUserLinks?->capture($userId);
+			// What other users' data points at in this user's, read while the
+			// shares that put it there still exist
+			$this->crossUserLinks?->capture($userId);
 
-		// A bill can pre-book into another user's account shared with this
-		// one. The transactions delete below only reaches the user's own
-		// accounts, so those pending rows outlived the bill, and the
-		// scheduled job later booked them into the other user's balance.
-		// Read here; deleted inside the transaction below.
-		$billIds = $this->findBillIds($userId);
+			// A bill can pre-book into another user's account shared with this
+			// one. The transactions delete below only reaches the user's own
+			// accounts, so those pending rows outlived the bill, and the
+			// scheduled job later booked them into the other user's balance.
+			// Read here; deleted inside the transaction below.
+			$billIds = $this->findBillIds($userId);
+		} catch (\Throwable $e) {
+			// Nothing was deleted yet, but a deleted uid's access goes all the
+			// same, as when the purge fails inside its transaction
+			if ($userDeleted) {
+				$this->revokeAccessGivenTo($userId);
+			}
+			throw $e;
+		}
 
 		// One transaction for everything, the deleted user's access included:
 		// a reset or purge that fails part way leaves the data as it was and

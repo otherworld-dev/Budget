@@ -322,6 +322,20 @@ class FactoryResetServiceTest extends TestCase {
 		$this->assertSame(['rollback', 'shares to the uid', 'contact links'], $steps);
 	}
 
+	public function testAPurgeFailingBeforeItsTransactionStillCutsTheAccess(): void {
+		// Reading what to delete can fail before the transaction starts:
+		// the access other users gave the uid must go all the same
+		$this->billMapper->method('findAll')->willThrowException(new \RuntimeException('bills table locked'));
+		$this->db->expects($this->never())->method('beginTransaction');
+		$shares = $this->createMock(ShareMapper::class);
+		$shares->expects($this->once())->method('deleteSharedWithUser')->with('gone');
+		$contacts = $this->createMock(ContactMapper::class);
+		$contacts->expects($this->once())->method('unlinkNextcloudUser')->with('gone');
+
+		$this->expectExceptionMessage('bills table locked');
+		$this->purgingService($shares, $contacts)->purgeDeletedUser('gone');
+	}
+
 	public function testAFailingRevocationIsLoggedAndTheOtherStillRuns(): void {
 		$this->billMapper->method('findAll')->willReturn([]);
 		$this->failingTables['budget_expense_shares'] = 'DB error';
