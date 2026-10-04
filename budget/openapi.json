@@ -2418,13 +2418,13 @@
               "quarterly",
               "yearly"
             ],
-            "description": "The period the budget is set for. budgeted and spent are for this period: a weekly budget covers the week holding the month's 15th, a quarterly one the calendar quarter and a yearly one the calendar year."
+            "description": "The period the budget is set for. budgeted, spent and remaining are always for the budget month, whatever the period: see budgeted, and period_to_date for a quarterly or yearly budget's whole period."
           },
           "budgeted": {
             "type": "string",
             "pattern": "^-?\\d+\\.\\d{2,8}$",
             "example": "400.00",
-            "description": "The budget for the period, including any envelope carry-over."
+            "description": "The budget's share of the month, including any envelope carry-over. A budget set for another period is turned monthly by its share of a year: a weekly budget times 52 divided by 12, a quarterly one divided by 3 and a yearly one divided by 12. A parent adds its direct subcategories' budgets the same way."
           },
           "carried": {
             "type": "string",
@@ -2436,7 +2436,7 @@
             "type": "string",
             "pattern": "^-?\\d+\\.\\d{2,8}$",
             "example": "431.20",
-            "description": "Net of refunds, so it can be negative."
+            "description": "Spending in the budget month, net of refunds, so it can be negative."
           },
           "remaining": {
             "type": "string",
@@ -2447,6 +2447,37 @@
           "shared": {
             "type": "boolean",
             "description": "A category someone else shared with the user; its budget is theirs."
+          },
+          "period_to_date": {
+            "type": "object",
+            "nullable": true,
+            "description": "A quarterly or yearly budget's whole period so far, which the Budget page shows on the row as \"400.00 of 1,200.00 this year\". null for a weekly or monthly budget. Absent on older servers.",
+            "properties": {
+              "start_date": {
+                "type": "string",
+                "format": "date",
+                "example": "2026-01-01",
+                "description": "The first day of the quarter's or year's first budget month, which follows the user's budget start day."
+              },
+              "end_date": {
+                "type": "string",
+                "format": "date",
+                "example": "2026-10-31",
+                "description": "The last day of the budget month asked for."
+              },
+              "budgeted": {
+                "type": "string",
+                "pattern": "^-?\\d+\\.\\d{2,8}$",
+                "example": "1200.00",
+                "description": "The budget for the whole quarter or year. A parent adds its direct subcategories' budgets turned to its period."
+              },
+              "spent": {
+                "type": "string",
+                "pattern": "^-?\\d+\\.\\d{2,8}$",
+                "example": "400.00",
+                "description": "Spending from start_date to end_date, net of refunds; a parent's covers its branch."
+              }
+            }
           }
         }
       },
@@ -2476,7 +2507,7 @@
           },
           "totals": {
             "type": "object",
-            "description": "The Budget page's summary cards, for expense categories only. budgeted is each budgeted category's budget turned into a monthly amount; spent is the spending of every expense category, budgeted or not, each over its own period.",
+            "description": "The Budget page's summary cards, for expense categories only. budgeted is each budgeted category's budget turned into a monthly amount; spent is the budget month's spending in every expense category, budgeted or not.",
             "properties": {
               "budgeted": {
                 "type": "string",

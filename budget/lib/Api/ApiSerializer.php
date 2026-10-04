@@ -315,13 +315,17 @@ final class ApiSerializer {
 	}
 
 	/**
-	 * One budgeted category of GET /budget/status. `budgeted` includes any
-	 * envelope carry-over, which `carried` repeats for context; a parent's
-	 * figures cover its branch, as on the page. `parent_id` is its parent on
-	 * the page, which for a shared category can differ from where it is
-	 * stored.
+	 * One budgeted category of GET /budget/status. `budgeted` is the
+	 * budget's share of the month, so a weekly or yearly budget is turned
+	 * monthly, and includes any envelope carry-over, which `carried` repeats
+	 * for context; a parent's figures cover its branch, as on the page.
+	 * `parent_id` is its parent on the page, which for a shared category can
+	 * differ from where it is stored. `period_to_date` is what a quarterly or
+	 * yearly row shows beside the month: the budget for its whole period and
+	 * the spending so far, null for any other period.
 	 */
 	public static function budgetLine(array $line, ?string $currency = null): array {
+		$toDate = $line['periodToDate'] ?? null;
 		return [
 			'category_id' => (int)($line['categoryId'] ?? 0),
 			'name' => (string)($line['name'] ?? ''),
@@ -333,6 +337,12 @@ final class ApiSerializer {
 			'spent' => self::money($line['spent'] ?? 0, $currency),
 			'remaining' => self::money($line['remaining'] ?? 0, $currency),
 			'shared' => (bool)($line['shared'] ?? false),
+			'period_to_date' => is_array($toDate) ? [
+				'start_date' => $toDate['startDate'] ?? null,
+				'end_date' => $toDate['endDate'] ?? null,
+				'budgeted' => self::money($toDate['budgeted'] ?? 0, $currency),
+				'spent' => self::money($toDate['spent'] ?? 0, $currency),
+			] : null,
 		];
 	}
 

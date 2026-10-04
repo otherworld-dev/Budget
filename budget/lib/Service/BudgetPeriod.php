@@ -86,12 +86,52 @@ final class BudgetPeriod {
 	 * @return string the monthly total, at ten places
 	 */
 	public static function monthlyTotal(array $budgets): string {
+		return self::totalFor($budgets, 'monthly');
+	}
+
+	/**
+	 * Budget amounts of any periods as one total for $period, the same way
+	 * monthlyTotal() makes a monthly one: a yearly 1,200 and a monthly 100
+	 * are 2,400 a year.
+	 *
+	 * @param list<array{0: string|float, 1: string}> $budgets [amount, period] pairs
+	 * @return string the total, at ten places
+	 */
+	public static function totalFor(array $budgets, string $period): string {
 		$yearly = '0';
-		foreach ($budgets as [$amount, $period]) {
-			$perYear = ['weekly' => '52', 'monthly' => '12', 'quarterly' => '4', 'yearly' => '1'][$period] ?? '12';
-			$yearly = MoneyCalculator::add($yearly, MoneyCalculator::multiply($amount, $perYear, 10), 10);
+		foreach ($budgets as [$amount, $from]) {
+			$yearly = MoneyCalculator::add($yearly, MoneyCalculator::multiply($amount, self::perYear($from), 10), 10);
 		}
-		return MoneyCalculator::divide($yearly, '12', 10);
+		return MoneyCalculator::divide($yearly, self::perYear($period), 10);
+	}
+
+	/**
+	 * The dates a quarterly or yearly budget has run by the end of budget
+	 * month $month: from the start of the first budget month of its calendar
+	 * quarter or year to the end of $month, so with a start day it is made
+	 * of whole budget months. Null for a weekly or monthly budget.
+	 *
+	 * @return array{0: string, 1: string}|null
+	 */
+	public static function toDateRange(string $period, string $month, int $startDay): ?array {
+		$monthNumber = (int)substr($month, 5, 2);
+		$first = match ($period) {
+			'yearly' => 1,
+			'quarterly' => intdiv($monthNumber - 1, 3) * 3 + 1,
+			default => null,
+		};
+		if ($first === null) {
+			return null;
+		}
+		return [
+			self::range(sprintf('%s-%02d', substr($month, 0, 4), $first), $startDay)[0],
+			self::range($month, $startDay)[1],
+		];
+	}
+
+	/** How many of a budget period make a year; an unknown one is monthly. */
+	private static function perYear(string $period): string {
+		return ['weekly' => '52', 'monthly' => '12', 'quarterly' => '4', 'yearly' => '1'][$period] ?? '12';
 	}
 
 	private static function clampedDay(\DateTime $monthStart, int $startDay): \DateTime {

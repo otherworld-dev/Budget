@@ -21,17 +21,6 @@ vi.mock('@nextcloud/l10n', () => ({
 
 import CategoriesModule from '../../src/modules/categories/CategoriesModule.js';
 
-function makeModule(categories, spendingResponse) {
-    const mod = Object.create(CategoriesModule.prototype);
-    mod.app = { settings: {}, categories };
-    mod.categorySpending = {};
-    mod.budgetMonth = '2026-05';
-    mod.renderBudgetTree = vi.fn();
-    mod.updateBudgetSummary = vi.fn();
-    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => spendingResponse });
-    return mod;
-}
-
 beforeEach(() => {
     global.OC = { generateUrl: (p) => p, requestToken: 'tok' };
 });
@@ -65,29 +54,43 @@ describe('calculateCategorySpending', () => {
     });
 });
 
-describe('recalculateCategorySpending', () => {
+describe('the spending a budget period change reloads', () => {
+    // A period change saves and reloads the page's spending through
+    // calculateCategorySpending(), which no longer depends on the period:
+    // every row is the selected month's, in its category's direction
+    function load(categoryTree, responses) {
+        const mod = Object.create(CategoriesModule.prototype);
+        mod.app = { settings: {}, categoryTree };
+        mod.categoryTree = categoryTree;
+        mod.budgetMonth = '2026-05';
+        global.fetch = vi.fn(async (url) => ({ ok: true, json: async () => responses(url) }));
+        return mod;
+    }
+
     it('asks for the credit direction for an income category', async () => {
-        const mod = makeModule([{ id: 3, type: 'income' }], [{ categoryId: 3, spent: 3000 }]);
+        const mod = load([{ id: 3, type: 'income', budgetPeriod: 'yearly', children: [] }],
+            (url) => (url.includes('transactionType=credit') ? [{ categoryId: 3, spent: 3000 }] : []));
 
-        await mod.recalculateCategorySpending(3, 'monthly');
+        await mod.calculateCategorySpending();
 
-        expect(global.fetch.mock.calls[0][0]).toContain('transactionType=credit');
+        expect(global.fetch.mock.calls.every(([url]) => url.includes('transactionType=credit'))).toBe(true);
         expect(mod.categorySpending[3]).toBe(3000);
     });
 
     it('asks for the debit direction for an expense category', async () => {
-        const mod = makeModule([{ id: 7, type: 'expense' }], [{ categoryId: 7, spent: 120 }]);
+        const mod = load([{ id: 7, type: 'expense', budgetPeriod: 'weekly', children: [] }], () => []);
 
-        await mod.recalculateCategorySpending(7, 'monthly');
+        await mod.calculateCategorySpending();
 
         expect(global.fetch.mock.calls[0][0]).toContain('transactionType=debit');
     });
 
-    it('scopes the window to the selected budget month like the bulk load', async () => {
-        const mod = makeModule([{ id: 7, type: 'expense' }], []);
+    it('scopes the window to the selected budget month whatever the period', async () => {
+        const mod = load([{ id: 7, type: 'expense', budgetPeriod: 'weekly', children: [] }], () => []);
 
-        await mod.recalculateCategorySpending(7, 'monthly');
+        await mod.calculateCategorySpending();
 
         expect(global.fetch.mock.calls[0][0]).toContain('startDate=2026-05-01');
+        expect(global.fetch.mock.calls[0][0]).toContain('endDate=2026-05-31');
     });
 });

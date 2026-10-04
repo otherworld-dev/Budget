@@ -566,6 +566,31 @@ export function budgetMonthRange(month, startDay = 1) {
 }
 
 /**
+ * The dates a quarterly or yearly budget has run by the end of a budget
+ * month: from the start of the first budget month of its calendar quarter
+ * or year to the end of the month, so with a budget start day it is made of
+ * whole budget months. The Budget page shows a quarterly or yearly row's
+ * spending over these dates beside the month's. As BudgetPeriod::toDateRange
+ * on the server.
+ *
+ * @param {string} period - weekly, monthly, quarterly or yearly
+ * @param {string} month - YYYY-MM
+ * @param {number} [startDay=1] - Day of month the budget cycle starts
+ * @returns {object|null} {start, end}, or null for a weekly or monthly budget
+ */
+export function periodToDateRange(period, month, startDay = 1) {
+    const monthNumber = parseInt(month.slice(5, 7), 10);
+    let first;
+    if (period === 'yearly') first = 1;
+    else if (period === 'quarterly') first = Math.floor((monthNumber - 1) / 3) * 3 + 1;
+    else return null;
+    return {
+        start: budgetMonthRange(`${month.slice(0, 4)}-${String(first).padStart(2, '0')}`, startDay).start,
+        end: budgetMonthRange(month, startDay).end,
+    };
+}
+
+/**
  * Move a YYYY-MM month by whole months.
  *
  * @param {string} month - YYYY-MM

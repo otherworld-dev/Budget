@@ -11389,6 +11389,20 @@ button.danger:hover {
     text-align: right;
 }
 
+/* A quarterly or yearly row's whole period so far, on a line of its own
+   under the month's bar */
+.budget-progress-wrapper {
+    flex-wrap: wrap;
+}
+
+.budget-period-to-date {
+    flex-basis: 100%;
+    font-size: 0.75rem;
+    color: var(--color-text-maxcontrast);
+    text-align: right;
+    cursor: help;
+}
+
 /* No Budget Indicator */
 .no-budget {
     color: var(--color-text-maxcontrast);

@@ -84,7 +84,7 @@ class BudgetStatusServiceTest extends TestCase {
 
 	private function assertFigures(array $expected, array $line): void {
 		foreach ($expected as $key => $value) {
-			$this->assertSame($value, self::money($line[$key]), "$key of category {$line['categoryId']}");
+			$this->assertSame($value, self::money($line[$key]), $key . ' of ' . (isset($line['categoryId']) ? "category {$line['categoryId']}" : 'the period so far'));
 		}
 	}
 
@@ -133,7 +133,13 @@ class BudgetStatusServiceTest extends TestCase {
 		$this->assertFigures(['spent' => '100.00', 'remaining' => '300.00'], $this->line($status, 12));
 	}
 
-	public function testEachPeriodIsMeasuredOverItsOwnDatesAndProratedInTheTotals(): void {
+	/**
+	 * Every row counts the month's spending against its budget's share of
+	 * the month, whatever the period: a weekly budget was measured over the
+	 * week holding the 15th and a yearly one over the whole year, so the
+	 * Spent card added a year's spending to one month's budgets.
+	 */
+	public function testEveryPeriodCountsTheMonthsSpendingAgainstItsShareOfTheMonth(): void {
 		$this->tree = [
 			self::cat(20, 'Lunch', ['budgetPeriod' => 'weekly']),
 			self::cat(21, 'Car', ['budgetPeriod' => 'quarterly']),
@@ -146,31 +152,125 @@ class BudgetStatusServiceTest extends TestCase {
 			22 => self::budget(1200, 'yearly'),
 			23 => self::budget(100),
 		];
-		// 15 September 2026 is a Tuesday: its week is 14-20 September
+		$this->spending['2026-09-01|2026-09-30|debit'] = [self::spent(20, 45), self::spent(21, 20), self::spent(23, 40)];
+		// The week holding the 15th, the quarter and the year count no more
 		$this->spending['2026-09-14|2026-09-20|debit'] = [self::spent(20, 30)];
 		$this->spending['2026-07-01|2026-09-30|debit'] = [self::spent(21, 250)];
 		$this->spending['2026-01-01|2026-12-31|debit'] = [self::spent(22, 900)];
-		// The monthly query also sees Lunch; the page ignores it for a weekly category
-		$this->spending['2026-09-01|2026-09-30|debit'] = [self::spent(23, 40), self::spent(20, 999)];
 
 		$status = $this->service->forMonth('user1', '2026-09');
 
-		$this->assertFigures(['budgeted' => '52.00', 'spent' => '30.00', 'remaining' => '22.00'], $this->line($status, 20));
+		// 52 a week is 52 * 52 / 12 = 225.33 a month
+		$this->assertFigures(['budgeted' => '225.33', 'spent' => '45.00', 'remaining' => '180.33'], $this->line($status, 20));
 		$this->assertSame('weekly', $this->line($status, 20)['period']);
-		$this->assertFigures(['budgeted' => '300.00', 'spent' => '250.00'], $this->line($status, 21));
-		$this->assertFigures(['budgeted' => '1200.00', 'spent' => '900.00'], $this->line($status, 22));
-		// Budgeted: 52*52/12 + 300/3 + 1200/12 + 100 = 525.33. Spent is each
-		// category's own-period figure, added as is: 30 + 250 + 900 + 40.
-		$this->assertSame(['525.33', '1220.00', '-694.67'], array_map(self::money(...), array_values($status['totals'])));
+		$this->assertFigures(['budgeted' => '100.00', 'spent' => '20.00', 'remaining' => '80.00'], $this->line($status, 21));
+		$this->assertFigures(['budgeted' => '100.00', 'spent' => '0.00', 'remaining' => '100.00'], $this->line($status, 22));
+		$this->assertFigures(['budgeted' => '100.00', 'spent' => '40.00'], $this->line($status, 23));
+		// The cards add the rows up: 225.33 + 100 + 100 + 100 and 45 + 20 + 40
+		$this->assertSame(['525.33', '105.00', '420.33'], array_map(self::money(...), array_values($status['totals'])));
 	}
 
-	public function testTheWeekIsTheOneHoldingTheFifteenthEvenOnASunday(): void {
-		// 15 November 2026 is a Sunday: its week started Monday 9th
-		$this->tree = [self::cat(20, 'Lunch', ['budgetPeriod' => 'weekly'])];
-		$this->budgets = [20 => self::budget(50, 'weekly')];
-		$this->spending['2026-11-09|2026-11-15|debit'] = [self::spent(20, 12)];
+	/**
+	 * R7: Gym, weekly 20, with 10 spent on 2 October. Measured over the week
+	 * of the 15th it showed nothing spent while the alerts showed the 10.
+	 */
+	public function testAWeeklyBudgetIsTheMonthsSpendingAgainstFiftyTwoWeeksOverTwelve(): void {
+		$this->tree = [self::cat(20, 'Gym', ['budgetPeriod' => 'weekly'])];
+		$this->budgets = [20 => self::budget(20, 'weekly')];
+		$this->spending['2026-10-01|2026-10-31|debit'] = [self::spent(20, 10)];
 
-		$this->assertFigures(['spent' => '12.00'], $this->line($this->service->forMonth('user1', '2026-11'), 20));
+		$status = $this->service->forMonth('user1', '2026-10');
+
+		$line = $this->line($status, 20);
+		$this->assertFigures(['budgeted' => '86.67', 'spent' => '10.00', 'remaining' => '76.67'], $line);
+		$this->assertNull($line['periodToDate']);
+		$this->assertSame(['86.67', '10.00', '76.67'], array_map(self::money(...), array_values($status['totals'])));
+	}
+
+	/**
+	 * R7: Car, yearly 1200, with 400 spent in June. October's Spent card
+	 * counted June's 400 against October's 100; now the month counts only
+	 * its own spending, and the row says how much of the year has gone.
+	 */
+	public function testAYearlyBudgetCountsThisMonthAndShowsTheYearSoFar(): void {
+		$this->tree = [self::cat(22, 'Car', ['budgetPeriod' => 'yearly']), self::cat(23, 'Groceries')];
+		$this->budgets = [22 => self::budget(1200, 'yearly'), 23 => self::budget(400)];
+		$this->spending['2026-10-01|2026-10-31|debit'] = [self::spent(23, 50)];
+		$this->spending['2026-01-01|2026-10-31|debit'] = [self::spent(22, 400), self::spent(23, 450)];
+
+		$status = $this->service->forMonth('user1', '2026-10');
+
+		$car = $this->line($status, 22);
+		$this->assertFigures(['budgeted' => '100.00', 'spent' => '0.00', 'remaining' => '100.00'], $car);
+		$this->assertSame(['2026-01-01', '2026-10-31'], [$car['periodToDate']['startDate'], $car['periodToDate']['endDate']]);
+		$this->assertFigures(['budgeted' => '1200.00', 'spent' => '400.00'], $car['periodToDate']);
+		$this->assertNull($this->line($status, 23)['periodToDate']);
+		$this->assertSame(['500.00', '50.00', '450.00'], array_map(self::money(...), array_values($status['totals'])));
+	}
+
+	public function testAQuarterlyBudgetShowsTheQuarterSoFar(): void {
+		$this->tree = [self::cat(21, 'Holiday', ['budgetPeriod' => 'quarterly'])];
+		$this->budgets = [21 => self::budget(900, 'quarterly')];
+		$this->spending['2026-11-01|2026-11-30|debit'] = [self::spent(21, 50)];
+		// October and November so far of the October to December quarter
+		$this->spending['2026-10-01|2026-11-30|debit'] = [self::spent(21, 350)];
+
+		$line = $this->line($this->service->forMonth('user1', '2026-11'), 21);
+
+		$this->assertFigures(['budgeted' => '300.00', 'spent' => '50.00', 'remaining' => '250.00'], $line);
+		$this->assertSame(['2026-10-01', '2026-11-30'], [$line['periodToDate']['startDate'], $line['periodToDate']['endDate']]);
+		$this->assertFigures(['budgeted' => '900.00', 'spent' => '350.00'], $line['periodToDate']);
+	}
+
+	public function testTheYearSoFarIsTheYearsBudgetMonthsWithAStartDay(): void {
+		// With the 25th, October is 25 September to 24 October and the
+		// year's first budget month, January, began on 25 December
+		$this->startDay = 25;
+		$this->tree = [self::cat(22, 'Car', ['budgetPeriod' => 'yearly'])];
+		$this->budgets = [22 => self::budget(1200, 'yearly')];
+		$this->spending['2026-09-25|2026-10-24|debit'] = [self::spent(22, 30)];
+		$this->spending['2025-12-25|2026-10-24|debit'] = [self::spent(22, 430)];
+
+		$line = $this->line($this->service->forMonth('user1', '2026-10'), 22);
+
+		$this->assertFigures(['spent' => '30.00', 'remaining' => '70.00'], $line);
+		$this->assertSame(['2025-12-25', '2026-10-24'], [$line['periodToDate']['startDate'], $line['periodToDate']['endDate']]);
+		$this->assertFigures(['spent' => '430.00'], $line['periodToDate']);
+	}
+
+	/**
+	 * R7: a yearly Car of 1200 over a monthly Fuel of 100 showed "Total
+	 * 1,300", a year's budget plus a month's. The branch is now 200 a
+	 * month, and its year so far 2,400 with the spending of both.
+	 */
+	public function testAYearlyParentAddsItsChildrenAsAShareOfTheMonth(): void {
+		$this->tree = [self::cat(22, 'Car', ['budgetPeriod' => 'yearly', 'children' => [
+			self::cat(24, 'Fuel', ['parentId' => 22]),
+		]])];
+		$this->budgets = [22 => self::budget(1200, 'yearly'), 24 => self::budget(100)];
+		$this->spending['2026-10-01|2026-10-31|debit'] = [self::spent(24, 60)];
+		$this->spending['2026-01-01|2026-10-31|debit'] = [self::spent(22, 400), self::spent(24, 100)];
+
+		$status = $this->service->forMonth('user1', '2026-10');
+
+		$car = $this->line($status, 22);
+		$this->assertFigures(['budgeted' => '200.00', 'spent' => '60.00', 'remaining' => '140.00'], $car);
+		$this->assertFigures(['budgeted' => '2400.00', 'spent' => '500.00'], $car['periodToDate']);
+		$this->assertFigures(['budgeted' => '100.00', 'spent' => '60.00'], $this->line($status, 24));
+		$this->assertSame(['200.00', '60.00', '140.00'], array_map(self::money(...), array_values($status['totals'])));
+	}
+
+	public function testAPastMonthsYearSoFarEndsWithThatMonth(): void {
+		$this->tree = [self::cat(22, 'Car', ['budgetPeriod' => 'yearly'])];
+		$this->budgets = [22 => self::budget(1200, 'yearly')];
+		$this->spending['2026-06-01|2026-06-30|debit'] = [self::spent(22, 400)];
+		$this->spending['2026-01-01|2026-06-30|debit'] = [self::spent(22, 400)];
+
+		$line = $this->line($this->service->forMonth('user1', '2026-06'), 22);
+
+		// June itself is over its share of the year; the year is not
+		$this->assertFigures(['budgeted' => '100.00', 'spent' => '400.00', 'remaining' => '-300.00'], $line);
+		$this->assertFigures(['budgeted' => '1200.00', 'spent' => '400.00'], $line['periodToDate']);
 	}
 
 	public function testAnEnvelopesCarryIsPartOfItsBudget(): void {

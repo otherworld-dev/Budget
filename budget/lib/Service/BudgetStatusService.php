@@ -48,17 +48,21 @@ class BudgetStatusService {
 		$rows = self::flatten($tree);
 
 		[$periods, $ownBudget] = $this->ownBudgets($userId, $rows, $budgets, $month, $month < $currentMonth);
-		$ownSpent = $this->ownSpending($userId, $rows, $month, $accountIds);
+		// Every row is measured over the month, whatever its period
+		$ownSpent = $this->ownSpending($userId, $rows, $startDate, $endDate, $accountIds);
 		$spent = $ownSpent;
-		$branchBudget = [];
-		self::aggregateParents($tree, $spent, $branchBudget, $ownBudget);
+		self::branchSpending($tree, $spent);
+		$monthlyBudget = self::rowBudgets($tree, $ownBudget, $periods, 'monthly');
 
 		return [
 			'month' => $month,
 			'startDate' => $startDate,
 			'endDate' => $endDate,
 			'totals' => self::totals($rows, $periods, $ownBudget, $ownSpent),
-			'categories' => self::lines($rows, $budgets, $periods, $ownBudget, $branchBudget, $spent),
+			'categories' => self::lines(
+				$rows, $budgets, $periods, $monthlyBudget, $spent,
+				$this->periodsToDate($userId, $tree, $rows, $periods, $ownBudget, $month, $accountIds)
+			),
 		];
 	}
 
@@ -102,32 +106,24 @@ class BudgetStatusService {
 	}
 
 	/**
-	 * Each row's own spent: calculateCategorySpending(). Categories are
-	 * grouped by their budgetPeriod COLUMN, not a month's adjusted period,
-	 * and each group is measured over its own dates, so a weekly category
-	 * shows one week and a yearly one the whole calendar year (page rule).
+	 * Each row's own spent between two dates: calculateCategorySpending().
 	 * Expense rows net debits, income rows net credits.
 	 *
 	 * @return array<int, string> by category id; absent means 0
 	 */
-	private function ownSpending(string $userId, array $rows, string $month, array $accountIds): array {
-		$startDay = $this->carryoverService->budgetStartDay($userId);
+	private function ownSpending(string $userId, array $rows, string $start, string $end, array $accountIds): array {
 		$groups = [];
 		foreach ($rows as $row) {
-			$period = ((string)($row['budgetPeriod'] ?? '')) ?: 'monthly';
 			$type = ($row['type'] ?? '') === 'income' ? 'credit' : 'debit';
-			$groups["$period:$type"]['period'] = $period;
-			$groups["$period:$type"]['type'] = $type;
-			$groups["$period:$type"]['ids'][(int)$row['id']] = true;
+			$groups[$type][(int)$row['id']] = true;
 		}
 
 		$spent = [];
-		foreach ($groups as $group) {
-			[$start, $end] = self::periodRange($group['period'], $month, $startDay);
-			$summary = $this->categoryService->getAllCategorySpending($userId, $start, $end, $accountIds, $group['type']);
+		foreach ($groups as $type => $ids) {
+			$summary = $this->categoryService->getAllCategorySpending($userId, $start, $end, $accountIds, $type);
 			foreach ($summary as $item) {
 				$id = (int)$item['categoryId'];
-				if (isset($group['ids'][$id])) {
+				if (isset($ids[$id])) {
 					$spent[$id] = MoneyCalculator::add((float)$item['spent'], '0', self::SCALE);
 				}
 			}
@@ -136,72 +132,105 @@ class BudgetStatusService {
 	}
 
 	/**
-	 * The dates a budget period covers in the selected month: the page's
-	 * getPeriodDateRange() with the month's 15th as the reference day.
+	 * What a quarterly or yearly row shows beside the month's figures, "400
+	 * of 1,200 this year": the row's budget for its whole period, and its
+	 * spending from the start of the period to the end of the month, over
+	 * the branch as the month's figures are.
 	 *
-	 * @return array{0: string, 1: string}
+	 * @return array<int, array{startDate: string, endDate: string, budgeted: string, spent: string}> by category id
 	 */
-	private static function periodRange(string $period, string $month, int $startDay): array {
-		$reference = new \DateTimeImmutable($month . '-15');
-		switch ($period) {
-			case 'weekly':
-				// Monday to Sunday of the week holding the 15th
-				$monday = $reference->modify('-' . ((int)$reference->format('N') - 1) . ' days');
-				return [$monday->format('Y-m-d'), $monday->modify('+6 days')->format('Y-m-d')];
-			case 'quarterly':
-				$first = sprintf('%s-%02d-01', $reference->format('Y'), intdiv((int)$reference->format('n') - 1, 3) * 3 + 1);
-				return [$first, (new \DateTimeImmutable($first))->modify('+2 months')->format('Y-m-t')];
-			case 'yearly':
-				return [$reference->format('Y') . '-01-01', $reference->format('Y') . '-12-31'];
-			default:
-				// Only the monthly period honours the budget start day
-				return BudgetPeriod::range($month, $startDay);
+	private function periodsToDate(string $userId, array $tree, array $rows, array $periods, array $ownBudget, string $month, array $accountIds): array {
+		$startDay = $this->carryoverService->budgetStartDay($userId);
+		$toDate = [];
+		$budgets = null;
+		foreach (array_unique(array_values($periods)) as $period) {
+			$range = BudgetPeriod::toDateRange($period, $month, $startDay);
+			if ($range === null) {
+				continue;
+			}
+			$spent = $this->ownSpending($userId, $rows, $range[0], $range[1], $accountIds);
+			self::branchSpending($tree, $spent);
+			$budgets ??= self::rowBudgets($tree, $ownBudget, $periods, null);
+			foreach ($periods as $id => $rowPeriod) {
+				if ($rowPeriod === $period) {
+					$toDate[$id] = [
+						'startDate' => $range[0],
+						'endDate' => $range[1],
+						'budgeted' => $budgets[$id],
+						'spent' => $spent[$id] ?? '0',
+					];
+				}
+			}
 		}
+		return $toDate;
 	}
 
 	/**
-	 * aggregateParentSpending(): a parent's spent becomes its own plus its
-	 * children's, which already hold theirs, so it covers every level. Its
-	 * budget becomes its own plus each DIRECT child's own budget only, so a
-	 * grandchild's budget never reaches its grandparent (page rule).
+	 * aggregateParentSpending()'s spent: a parent's becomes its own plus its
+	 * children's, which already hold theirs, so it covers every level.
 	 *
 	 * @param array<int, string> $spent own spent in, branch spent out
-	 * @param array<int, string> $branchBudget filled for every parent
-	 * @param array<int, string> $ownBudget
 	 */
-	private static function aggregateParents(array $nodes, array &$spent, array &$branchBudget, array $ownBudget): void {
+	private static function branchSpending(array $nodes, array &$spent): void {
 		foreach ($nodes as $node) {
 			$children = $node['children'] ?? [];
 			if ($children === []) {
 				continue;
 			}
-			self::aggregateParents($children, $spent, $branchBudget, $ownBudget);
+			self::branchSpending($children, $spent);
 
 			$id = (int)$node['id'];
-			$branchSpent = [$spent[$id] ?? '0'];
-			$budget = [$ownBudget[$id]];
+			$branch = [$spent[$id] ?? '0'];
 			foreach ($children as $child) {
-				$branchSpent[] = $spent[(int)$child['id']] ?? '0';
-				$budget[] = $ownBudget[(int)$child['id']];
+				$branch[] = $spent[(int)$child['id']] ?? '0';
 			}
-			$spent[$id] = MoneyCalculator::sum($branchSpent, self::SCALE);
-			$branchBudget[$id] = MoneyCalculator::sum($budget, self::SCALE);
+			$spent[$id] = MoneyCalculator::sum($branch, self::SCALE);
 		}
+	}
+
+	/**
+	 * The budget each row shows, as a total for $in, or for the row's own
+	 * period when null. A parent's is its own budget plus each DIRECT
+	 * child's own budget only, so a grandchild's budget never reaches its
+	 * grandparent (page rule); budgets of other periods count by their
+	 * yearly ratios, so a yearly 1,200 is 100 a month.
+	 *
+	 * @param array<int, string> $ownBudget in each row's own period
+	 * @param array<int, string> $periods
+	 * @return array<int, string> by category id
+	 */
+	private static function rowBudgets(array $nodes, array $ownBudget, array $periods, ?string $in): array {
+		$budgets = [];
+		foreach ($nodes as $node) {
+			$id = (int)$node['id'];
+			$children = $node['children'] ?? [];
+			$parts = [[$ownBudget[$id], $periods[$id]]];
+			foreach ($children as $child) {
+				$parts[] = [$ownBudget[(int)$child['id']], $periods[(int)$child['id']]];
+			}
+			$budgets[$id] = BudgetPeriod::totalFor($parts, $in ?? $periods[$id]);
+			$budgets += self::rowBudgets($children, $ownBudget, $periods, $in);
+		}
+		return $budgets;
 	}
 
 	/**
 	 * The rows renderBudgetCategoryNodes() draws with a budget: a parent
 	 * shows its branch, and hasBudget keeps an envelope whose overspend used
-	 * up the month, since it still owes something.
+	 * up the month, since it still owes something. Every row's budget is
+	 * its share of the month, and a quarterly or yearly row also has its
+	 * period so far.
 	 *
+	 * @param array<int, string> $rowBudget each row's budget for the month
+	 * @param array<int, array<string, string>> $toDate periodsToDate()
 	 * @return list<array<string, mixed>>
 	 */
-	private static function lines(array $rows, array $budgets, array $periods, array $ownBudget, array $branchBudget, array $spent): array {
+	private static function lines(array $rows, array $budgets, array $periods, array $rowBudget, array $spent, array $toDate): array {
 		$lines = [];
 		foreach ($rows as $row) {
 			$id = (int)$row['id'];
 			$entry = $budgets[$id] ?? [];
-			$budget = $row['hasChildren'] ? $branchBudget[$id] : $ownBudget[$id];
+			$budget = $rowBudget[$id];
 			$carried = MoneyCalculator::add((float)($entry['carried'] ?? 0), '0', self::SCALE);
 			$hasBudget = MoneyCalculator::compare($budget, '0', self::SCALE) > 0
 				|| (!empty($entry['rollover']) && MoneyCalculator::compare(MoneyCalculator::abs($carried, self::SCALE), '0.005', self::SCALE) >= 0);
@@ -220,6 +249,7 @@ class BudgetStatusService {
 				'spent' => $spentHere,
 				'remaining' => MoneyCalculator::subtract($budget, $spentHere, self::SCALE),
 				'shared' => !empty($row['_shared']),
+				'periodToDate' => $toDate[$id] ?? null,
 			];
 		}
 		return $lines;
@@ -227,8 +257,8 @@ class BudgetStatusService {
 
 	/**
 	 * The summary cards, updateBudgetSummary() for expenses: each budgeted
-	 * row's own budget turned monthly, and the own spent of EVERY expense
-	 * row, budgeted or not, each over its own period (page rule).
+	 * row's own budget turned monthly, and the month's own spent of EVERY
+	 * expense row, budgeted or not (page rule).
 	 *
 	 * @return array{budgeted: string, spent: string, remaining: string}
 	 */
