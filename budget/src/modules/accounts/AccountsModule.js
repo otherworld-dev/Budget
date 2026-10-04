@@ -9,7 +9,7 @@ import { confirmDialog, promptDialog } from '../../utils/dialogs.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import { downloadTransactionsCsv, isLiabilityType, LIABILITY_ACCOUNT_TYPES } from '../../utils/helpers.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
-import { openAccounts } from '../../utils/accounts.js';
+import { openAccounts, usableCategories, categoryTreeOf, isReadOnlyShare } from '../../utils/accounts.js';
 import { showLoading, clearLoading, showLoadError } from '../../utils/loading.js';
 import { apiFetch, ApiError } from '../../utils/api.js';
 import { renderTransactionRow } from '../transactions/transactionRow.js';
@@ -559,9 +559,9 @@ export default class AccountsModule {
                         <span>${healthStatus.tooltip}</span>
                     </div>` : '<div class="account-status-placeholder"></div>'}
                     <div class="account-actions">
-                        <button class="account-action-btn edit-btn edit-account-btn" data-account-id="${accountId}" title="${t('budget', 'Edit Account')}" aria-label="${t('budget', 'Edit Account')}">
+                        ${isReadOnlyShare(account) ? '' : `<button class="account-action-btn edit-btn edit-account-btn" data-account-id="${accountId}" title="${t('budget', 'Edit Account')}" aria-label="${t('budget', 'Edit Account')}">
                             <span class="icon-rename" aria-hidden="true"></span>
-                        </button>
+                        </button>`}
                         ${account._shared ? '' : `<button class="account-action-btn delete-btn delete-account-btn" data-account-id="${accountId}" title="${t('budget', 'Delete Account')}" aria-label="${t('budget', 'Delete Account')}">
                             <span class="icon-delete" aria-hidden="true"></span>
                         </button>`}
@@ -607,9 +607,9 @@ export default class AccountsModule {
                 </div>
                 ${this.visibleAccountColumns(attributes, order).map(attr => cells[attr.key]()).join('')}
                 <div class="account-row-actions">
-                    <button class="account-action-btn edit-btn edit-account-btn" data-account-id="${accountId}" title="${t('budget', 'Edit')}" aria-label="${t('budget', 'Edit')}">
+                    ${isReadOnlyShare(account) ? '' : `<button class="account-action-btn edit-btn edit-account-btn" data-account-id="${accountId}" title="${t('budget', 'Edit')}" aria-label="${t('budget', 'Edit')}">
                         <span class="icon-rename" aria-hidden="true"></span>
-                    </button>
+                    </button>`}
                     ${account._shared ? '' : `<button class="account-action-btn delete-btn delete-account-btn" data-account-id="${accountId}" title="${t('budget', 'Delete')}" aria-label="${t('budget', 'Delete')}">
                         <span class="icon-delete" aria-hidden="true"></span>
                     </button>`}
@@ -1137,7 +1137,18 @@ export default class AccountsModule {
         const closedBadge = document.getElementById('account-closed-badge');
         if (closedBadge) closedBadge.style.display = account.closed ? 'inline-flex' : 'none';
         const reconcileBtn = document.getElementById('reconcile-account-btn');
-        if (reconcileBtn) reconcileBtn.style.display = account.closed ? 'none' : '';
+        // An account shared with you read-only takes no changes: no edit,
+        // reconciling or new transactions, all refused by the server
+        const readOnly = isReadOnlyShare(account);
+        if (reconcileBtn) reconcileBtn.style.display = account.closed || readOnly ? 'none' : '';
+        const editBtn = document.getElementById('edit-account-btn');
+        if (editBtn) editBtn.style.display = readOnly ? 'none' : '';
+        const addTransactionBtn = document.getElementById('account-add-transaction-btn');
+        if (addTransactionBtn) addTransactionBtn.style.display = readOnly ? 'none' : '';
+        // An import runs as you, not as the account's owner, so an import
+        // into any account shared with you fails
+        const importBtn = document.getElementById('account-import-btn');
+        if (importBtn) importBtn.style.display = account._shared ? 'none' : '';
 
         const institutionEl = document.getElementById('account-institution');
         if (account.institution) {
@@ -1711,7 +1722,8 @@ export default class AccountsModule {
                 };
                 infoEl.textContent = dynamicLabels[paymentBill.amountType]
                     || `${due} · ${this.formatCurrency(paymentBill.amount, account.currency)}`;
-            } else {
+            } else if (!isReadOnlyShare(account)) {
+                // A payment bill would post into the card
                 setupBtn.style.display = '';
             }
         } catch (error) {
@@ -2383,11 +2395,23 @@ export default class AccountsModule {
             });
         }
 
-        // Populate category dropdown (hierarchical with indentation)
+        // Populate category dropdown (hierarchical with indentation), for the
+        // account picked: one someone shared with you takes only their
+        // categories (usableCategories), so it follows the account
         const categorySelect = document.getElementById('quick-add-category');
-        if (categorySelect) {
+        const fillCategories = () => {
+            if (!categorySelect) return;
+            const current = categorySelect.value;
+            const account = (this.accounts || []).find(a => String(a.id) === accountSelect?.value);
+            const scoped = usableCategories(this.categories, [account], [current]);
             categorySelect.innerHTML = '<option value="">' + t('budget', 'No category') + '</option>';
-            dom.populateCategorySelect(categorySelect, this.categoryTree || this.categories);
+            dom.populateCategorySelect(categorySelect, scoped ? categoryTreeOf(scoped) : (this.categoryTree || this.categories));
+            categorySelect.value = current;
+        };
+        fillCategories();
+        if (accountSelect && !accountSelect.dataset.categoryScopeBound) {
+            accountSelect.dataset.categoryScopeBound = '1';
+            accountSelect.addEventListener('change', fillCategories);
         }
 
         // Set today's date as default
@@ -2634,18 +2658,52 @@ export default class AccountsModule {
             return;
         }
 
+        // Which opening of the dialog a load belongs to: one for an account
+        // opened earlier (or before Add Account) must never fill it.
+        const load = {};
+        this._accountDialogLoad = load;
+        const form = document.getElementById('account-form');
+        // While it loads the fields can't be used and Save is off; Cancel
+        // stays usable
+        const setLoading = (loading) => {
+            const fields = form?.querySelector('.modal-scroll');
+            const save = form?.querySelector('[type="submit"]');
+            fields?.toggleAttribute('inert', loading);
+            if (save) save.disabled = loading;
+            if (loading) {
+                form?.setAttribute('aria-busy', 'true');
+            } else {
+                form?.removeAttribute('aria-busy');
+            }
+        };
+
         if (accountId) {
             title.textContent = t('budget', 'Edit Account');
+            // Cleared and unusable until this account's values are in. It used
+            // to show the previous account's values meanwhile, and anything
+            // typed in that moment was overwritten by the load while Save
+            // still reported success.
+            this.resetAccountForm();
+            setLoading(true);
             // Populate first, THEN apply type-conditional field visibility. The load
             // is async, so running the conditionals on a fixed timer raced it — if
             // they ran before the type was set, the type-specific fields (credit
             // limit, etc.) stayed hidden until the type was toggled (#330).
-            this.loadAccountData(accountId).then(() => {
+            this.loadAccountData(accountId, () => this._accountDialogLoad === load).then((loaded) => {
+                if (this._accountDialogLoad !== load) return;
+                setLoading(false);
+                if (!loaded) {
+                    // An empty form's Save would create a new account
+                    this.hideModals();
+                    return;
+                }
                 this.setupAccountTypeConditionals();
                 this.setupBankingFieldValidation();
+                document.getElementById('account-name')?.focus();
             });
         } else {
             title.textContent = t('budget', 'Add Account');
+            setLoading(false);
             this.resetAccountForm();
             setTimeout(() => {
                 this.setupAccountTypeConditionals();
@@ -2663,9 +2721,20 @@ export default class AccountsModule {
         }
     }
 
-    async loadAccountData(accountId) {
+    /**
+     * Fill the dialog with an account.
+     *
+     * @param {number} accountId
+     * @param {Function} [stillWanted] - False once the dialog has been opened
+     *   again, for another account or to add one: the answer is dropped
+     * @returns {Promise<boolean>} Whether the dialog now holds the account
+     */
+    async loadAccountData(accountId, stillWanted = () => true) {
         try {
             const account = await apiFetch(`/apps/budget/api/accounts/${accountId}`);
+            if (!stillWanted()) {
+                return false;
+            }
 
             document.getElementById('account-id').value = account.id;
             document.getElementById('account-name').value = account.name;
@@ -2772,9 +2841,13 @@ export default class AccountsModule {
             const excludedEl = document.getElementById('account-excluded-from-reports');
             if (excludedEl) excludedEl.checked = account.excludedFromReports || false;
             this.syncClosedControl(account);
+            return true;
         } catch (error) {
             console.error('Failed to load account data:', error);
-            showError(t('budget', 'Failed to load account data'));
+            if (stillWanted()) {
+                showError(t('budget', 'Failed to load account data'));
+            }
+            return false;
         }
     }
 

@@ -9,7 +9,7 @@ import { confirmDialog, promptDialog } from '../../utils/dialogs.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import { groupImportErrors } from '../../utils/helpers.js';
 import { apiFetch, ApiError } from '../../utils/api.js';
-import { openAccounts } from '../../utils/accounts.js';
+import { importTargetAccounts } from '../../utils/accounts.js';
 import MultiSelect from '../../utils/multiselect.js';
 
 /**
@@ -2093,7 +2093,7 @@ export default class ImportModule {
         if (!select) return;
         const current = select.value;
         select.innerHTML = `<option value="">${asFallback ? t('budget', 'Skip rows without an account') : t('budget', 'Select account…')}</option>`;
-        openAccounts(accounts).forEach(account => {
+        importTargetAccounts(accounts).forEach(account => {
             const option = document.createElement('option');
             option.value = account.id;
             const accountNum = account.accountNumber ? ` - ${account.accountNumber}` : '';
@@ -2178,7 +2178,7 @@ export default class ImportModule {
             // Build account options HTML with auto-match selection
             const suggestedMatch = sourceAccount.suggestedMatch;
             let optionsHtml = `<option value="">${t('budget', 'Skip this account')}</option>`;
-            openAccounts(accounts).forEach(account => {
+            importTargetAccounts(accounts).forEach(account => {
                 const accountNum = account.accountNumber ? ` - ${account.accountNumber}` : '';
                 const selected = suggestedMatch === account.id ? ' selected' : '';
                 optionsHtml += `<option value="${account.id}"${selected}>${dom.escapeHtml(account.name)} (${account.type}${dom.escapeHtml(accountNum)})</option>`;

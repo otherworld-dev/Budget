@@ -2342,6 +2342,22 @@ class BillServiceTest extends TestCase {
 		$this->assertSame($paidDate, $result[0]['lastPaidDate']);
 	}
 
+	public function testFindUnrecordedPaymentsTellsATransfersDestination(): void {
+		// The card offers Record transaction only when the user can write
+		// both accounts a transfer posts into
+		$paidDate = date('Y-m-d', strtotime('-10 days'));
+		$transfer = $this->makeBill(['id' => 7, 'isTransfer' => true, 'accountId' => 1, 'destinationAccountId' => 4, 'lastPaidDate' => $paidDate]);
+		$bill = $this->makeBill(['id' => 8, 'accountId' => 1, 'lastPaidDate' => $paidDate]);
+		$this->mapper->method('findAll')->willReturn([$transfer, $bill]);
+		$this->transactionService->method('findRecordedBillTransactions')->willReturn([]);
+
+		$result = $this->service->findUnrecordedPayments('user1');
+		usort($result, static fn ($a, $b) => $a['billId'] <=> $b['billId']);
+
+		$this->assertSame([true, 4], [$result[0]['isTransfer'], $result[0]['destinationAccountId']]);
+		$this->assertSame([false, null], [$result[1]['isTransfer'], $result[1]['destinationAccountId']]);
+	}
+
 	public function testFindUnrecordedPaymentsIgnoresRecordedPayment(): void {
 		$paidDate = date('Y-m-d', strtotime('-10 days'));
 		$bill = $this->makeBill(['id' => 7, 'lastPaidDate' => $paidDate]);

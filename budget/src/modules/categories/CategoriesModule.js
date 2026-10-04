@@ -13,6 +13,7 @@ import { expenseProgressStatus, progressBarAttrs, overBudgetText } from '../../u
 import { showLoadError } from '../../utils/loading.js';
 import { nextCategoryColor, distinctCategoryColors } from '../../utils/colors.js';
 import { parentPickerTree } from './parentPicker.js';
+import { roundMoney } from '../../utils/money.js';
 
 export default class CategoriesModule {
     constructor(app) {
@@ -2332,7 +2333,9 @@ export default class CategoriesModule {
             return;
         }
 
-        if (headerEl) headerEl.style.display = 'grid';
+        // Left to the stylesheet, which hides the column header on phones:
+        // an inline 'grid' showed it there, cut off at the screen's edge
+        if (headerEl) headerEl.style.display = '';
         if (emptyState) emptyState.style.display = 'none';
 
         treeContainer.innerHTML = this.renderBudgetCategoryNodes(filteredCategories, 0);
@@ -2699,7 +2702,13 @@ export default class CategoriesModule {
             totalSpent += spent;
         });
 
-        const totalRemaining = totalBudgeted - totalSpent;
+        // Whole pennies, as the server adds them: monthly equivalents of
+        // weekly budgets carry fractions, and a float sum dropped a penny
+        // from Remaining against Budgeted - Spent (and v1's budget status)
+        const decimals = formatters.currencyDecimals(formatters.getPrimaryCurrency([], this.settings), this.settings);
+        totalBudgeted = roundMoney(totalBudgeted, decimals);
+        totalSpent = roundMoney(totalSpent, decimals);
+        const totalRemaining = roundMoney(totalBudgeted - totalSpent, decimals);
 
         // Update DOM
         const budgetedEl = document.getElementById('budget-total-budgeted');

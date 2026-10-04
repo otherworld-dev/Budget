@@ -68,6 +68,64 @@ export function pickableAccounts(accounts, keepIds = [], { readOnlyShares = fals
 }
 
 /**
+ * The owner of an account someone shared with you; null for your own.
+ */
+export function sharedAccountOwner(account) {
+    return account && account._shared && account.userId ? account.userId : null;
+}
+
+/**
+ * The categories a transaction in these accounts can be filed under. A row
+ * is filed in its account owner's ledger, and the server accepts only a
+ * category that owner can see; from your side that is the owner's own
+ * categories shared with you. Your own accounts take every category listed,
+ * so this returns null for them (no restriction). Rows in two other
+ * people's accounts at once (a bulk edit) have none in common.
+ *
+ * @param {Array} categories Flat list, each with id, parentId and userId
+ * @param {Array} accounts The account(s) the row or rows are in
+ * @param {Array<number|string>} [keepIds] Categories the record already has,
+ *   kept so a save doesn't silently drop them
+ * @returns {Array|null} The usable categories, or null for no restriction
+ */
+export function usableCategories(categories, accounts, keepIds = []) {
+    const owners = new Set(list(accounts).map(sharedAccountOwner).filter(Boolean));
+    if (owners.size === 0) {
+        return null;
+    }
+    const owner = owners.size === 1 ? [...owners][0] : null;
+    const keep = new Set((keepIds || []).filter(id => id !== null && id !== undefined && id !== '').map(String));
+    return list(categories).filter(category => (owner !== null && category.userId === owner) || keep.has(String(category.id)));
+}
+
+/**
+ * A category tree built from a flat list by parentId, for the pickers. A
+ * category whose parent isn't in the list sits at the top level.
+ *
+ * @param {Array} categories
+ * @returns {Array}
+ */
+export function categoryTreeOf(categories) {
+    const nodes = new Map(list(categories).map(category => [String(category.id), { ...category, children: [] }]));
+    const parentOf = node => (node.parentId !== null && node.parentId !== undefined ? nodes.get(String(node.parentId)) : null);
+    // A damaged parent loop would leave its categories under nobody
+    const inLoop = (node) => {
+        const seen = new Set([node]);
+        for (let p = parentOf(node); p; p = parentOf(p)) {
+            if (seen.has(p)) return true;
+            seen.add(p);
+        }
+        return false;
+    };
+    const roots = [];
+    nodes.forEach(node => {
+        const parent = parentOf(node);
+        (parent && !inLoop(node) ? parent.children : roots).push(node);
+    });
+    return roots;
+}
+
+/**
  * The accounts a rule's Set Account may move rows into: the rule owner's
  * own open accounts, as the server refuses any other when the rule is
  * saved. For your own rule that is your accounts, not ones shared with
@@ -106,6 +164,63 @@ export function linkableCandidates(candidates, accounts) {
         const account = byId.get(String(candidate?.transaction?.accountId));
         return !account || takesNewActivity(account);
     });
+}
+
+/**
+ * Whether you can post into the account with this id: your own, or one
+ * shared with you to write. An id missing from your accounts (its share
+ * ended, or it is someone else's you were never shown) counts as not
+ * writable.
+ *
+ * @param {Array} accounts
+ * @param {number|string} accountId
+ * @returns {boolean}
+ */
+export function canWriteAccountId(accounts, accountId) {
+    const account = list(accounts).find(candidate => String(candidate.id) === String(accountId));
+    return !!account && !isReadOnlyShare(account);
+}
+
+function hasId(id) {
+    return id !== null && id !== undefined && id !== '';
+}
+
+/**
+ * Whether a bill's or recurring transfer's payment actions (Mark Paid, Mark
+ * Unpaid and its undo, Skip and Undo skip, Record missed payment) may write
+ * into its accounts: it has no account or one you can write, and a transfer
+ * also has a destination you can write. A transfer whose destination is gone
+ * (a share ended) is refused by the server, so it can't either. Whether you
+ * can write the bill itself is a separate check (isReadOnlyShare).
+ *
+ * @param {object} bill bill or transfer
+ * @param {Array} accounts
+ * @returns {boolean}
+ */
+export function billAccountsWritable(bill, accounts) {
+    const accountId = bill?.accountId ?? bill?.account_id ?? null;
+    if (hasId(accountId) && !canWriteAccountId(accounts, accountId)) {
+        return false;
+    }
+    if (bill?.isTransfer ?? bill?.is_transfer ?? false) {
+        const destinationId = bill.destinationAccountId ?? bill.destination_account_id ?? null;
+        return hasId(destinationId) && canWriteAccountId(accounts, destinationId);
+    }
+    return true;
+}
+
+/**
+ * Whether Mark Received on a recurring income (it always books the payment)
+ * and its undo may write into its account: it has none, or one you can
+ * write. Skip and Undo skip don't touch the account.
+ *
+ * @param {object} income
+ * @param {Array} accounts
+ * @returns {boolean}
+ */
+export function incomeAccountWritable(income, accounts) {
+    const accountId = income?.accountId ?? income?.account_id ?? null;
+    return !hasId(accountId) || canWriteAccountId(accounts, accountId);
 }
 
 /** Display text for an account option; a closed one says so. */
@@ -165,4 +280,20 @@ export function accountCurrency(accounts, accountId) {
     }
     const account = list(accounts).find(candidate => String(candidate.id) === String(accountId));
     return account?.currency || null;
+}
+
+/**
+ * The accounts an import can post into: a statement file on the import
+ * screen, or a bank sync mapping. Only your own open accounts: an import
+ * runs as you, not as the account's owner, so it fails on an account
+ * someone shared with you, even to write. The account a bank mapping
+ * already points at stays listed, so the mapping still reads true.
+ *
+ * @param {Array} accounts
+ * @param {Array<number|string>} [keepIds]
+ * @returns {Array}
+ */
+export function importTargetAccounts(accounts, keepIds = []) {
+    const keep = new Set((keepIds || []).filter(hasId).map(String));
+    return list(accounts).filter(account => (!account._shared && !isClosedAccount(account)) || keep.has(String(account.id)));
 }

@@ -3,7 +3,7 @@ import { showSuccess, showError } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { apiFetch } from '../../utils/api.js';
 import { refreshBankSyncNav } from './bankSyncStatus.js';
-import { pickableAccounts, accountOptionLabel } from '../../utils/accounts.js';
+import { importTargetAccounts, accountOptionLabel } from '../../utils/accounts.js';
 import { userLocale } from '../../utils/formatters.js';
 import { escapeHtml } from '../../utils/dom.js';
 
@@ -728,8 +728,9 @@ export default class BankSyncModule {
         if (!container) return;
 
         // A mapping syncs NEW transactions in, so closed accounts are not offered
-        // — except one a mapping already targets (#372).
-        const accounts = pickableAccounts(this.app.accounts, mappings.map(m => m.budgetAccountId));
+        // — except one a mapping already targets (#372). Nor are accounts
+        // shared with you: the sync imports as you, not as their owner.
+        const accounts = importTargetAccounts(this.app.accounts, mappings.map(m => m.budgetAccountId));
         const accountOptions = accounts.map(a =>
             `<option value="${a.id}">${escapeHtml(accountOptionLabel(a))} (${a.currency})</option>`
         ).join('');

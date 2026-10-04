@@ -78,6 +78,7 @@ import { setupChartTheme } from './utils/chartTheme.js';
 import { setupHeaderMenus } from './utils/headerMenu.js';
 import { setupClickableCards } from './utils/clickableCards.js';
 import { transactionTotalsByCurrency } from './utils/helpers.js';
+import { categoryOptionsHtml } from './utils/formSelects.js';
 import { apiFetch, ApiError } from './utils/api.js';
 
 // Configuration
@@ -3679,17 +3680,8 @@ class BudgetApp {
     /**
      * Get category options HTML
      */
-    getCategoryOptions(selectedId = null, transactionType = null) {
-        if (!this.categories) return '';
-
-        // Determine category type based on transaction type
-        // credit = income categories, debit = expense categories
-        const categoryType = transactionType === 'credit' ? 'income' : 'expense';
-
-        return this.categories
-            .filter(c => c.type === categoryType)
-            .map(c => `<option value="${c.id}" ${c.id === selectedId ? 'selected' : ''}>${dom.escapeHtml(c.name)}</option>`)
-            .join('');
+    getCategoryOptions(selectedId = null, transactionType = null, account = null) {
+        return categoryOptionsHtml(this.categories, selectedId, transactionType, account);
     }
 
     /**

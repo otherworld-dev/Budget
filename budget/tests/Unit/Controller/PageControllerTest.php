@@ -205,7 +205,30 @@ class PageControllerTest extends TestCase {
 
 		$accounts = (new \ReflectionMethod(PageController::class, 'quickAddAccounts'))->invoke($this->controller);
 
-		$this->assertSame([['id' => 1, 'name' => 'Current'], ['id' => 4, 'name' => 'Joint']], $accounts);
+		$this->assertSame([['id' => 1, 'name' => 'Current', 'owner' => null], ['id' => 4, 'name' => 'Joint', 'owner' => null]], $accounts);
+	}
+
+	public function testQuickAddTellsTheOwnersOfSharedAccountsAndCategories(): void {
+		// A row in someone else's account takes only their categories; the
+		// page filters the category list by the account's owner (V4-4)
+		$own = new \OCA\Budget\Db\Account();
+		$own->setId(1);
+		$own->setName('Current');
+		$this->accountMapper->method('findOpen')->willReturn([$own]);
+		$this->granularShareService->method('getSharedAccounts')->willReturn([
+			['id' => 4, 'name' => 'Joint', 'closed' => false, 'userId' => 'owen'],
+		]);
+		$this->granularShareService->method('canWrite')->willReturn(true);
+		$this->categoryMapper->method('findAll')->willReturn([$this->category(1, 'Food', 'expense', null)]);
+		$this->granularShareService->method('getSharedCategories')->willReturn([
+			['id' => 10, 'name' => 'House', 'type' => 'expense', 'parentId' => null, '_sharedBy' => 'owen'],
+		]);
+
+		$accounts = (new \ReflectionMethod(PageController::class, 'quickAddAccounts'))->invoke($this->controller);
+		$categories = (new \ReflectionMethod(PageController::class, 'quickAddCategories'))->invoke($this->controller);
+
+		$this->assertSame([null, 'owen'], array_column($accounts, 'owner'));
+		$this->assertSame([1 => null, 10 => 'owen'], array_column($categories, 'owner', 'id'));
 	}
 
 	/** @return list<array{int, string, int}> */

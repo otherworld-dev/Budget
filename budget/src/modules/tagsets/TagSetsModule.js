@@ -579,9 +579,12 @@ export default class TagSetsModule {
         const container = document.getElementById('transaction-tags-container');
         if (!container) return;
 
-        // Load global tags and category tag sets in parallel
+        // Load global tags and category tag sets in parallel. Not for a
+        // category you can't see (a shared row's category its owner didn't
+        // share with you): that request is refused.
         await this.loadGlobalTags();
-        const tagSets = categoryId ? await this.loadTagSetsForCategory(categoryId) : [];
+        const visible = !this.categories?.length || this.categories.some(c => String(c.id) === String(categoryId));
+        const tagSets = categoryId && visible ? await this.loadTagSetsForCategory(categoryId) : [];
 
         // Load current tags for this transaction
         const currentTags = await this.loadTransactionTags(transactionId);

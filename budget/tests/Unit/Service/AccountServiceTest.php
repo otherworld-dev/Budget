@@ -668,16 +668,20 @@ class AccountServiceTest extends TestCase {
 
 		$result = $this->service->getBalanceHistory(1, 'user1', 3);
 
-		// Working backwards from 1000 (current stored balance):
-		// i=0 (today):    1000 - 100 = 900 (opening balance of today)
-		// i=1 (yesterday): 900 - (-50) = 950 (opening balance of yesterday)
-		// i=2 (2 days ago): 950 (no changes, opening balance of 2 days ago)
+		// Each date's balance at the END of that day, working back from
+		// 1000 (current stored balance). It used to record each day's
+		// opening balance, so the line ended a day behind and never showed
+		// today: the account tile read 1000 while its trend ended at 900.
+		// today:      1000
+		// yesterday:  1000 - 100 = 900
+		// 2 days ago:  900 - (-50) = 950
 		$this->assertCount(3, $result);
 
 		// Result is reversed so earliest date first
 		$this->assertEquals(950.0, $result[0]['balance']);  // 2 days ago
-		$this->assertEquals(950.0, $result[1]['balance']);  // yesterday
-		$this->assertEquals(900.0, $result[2]['balance']);  // today
+		$this->assertEquals(900.0, $result[1]['balance']);  // yesterday
+		$this->assertEquals(1000.0, $result[2]['balance']); // today = the current balance
+		$this->assertSame(date('Y-m-d'), $result[2]['date']);
 	}
 
 	public function testGetBalanceHistoryNoDailyChanges(): void {

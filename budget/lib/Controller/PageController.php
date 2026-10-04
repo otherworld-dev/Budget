@@ -106,11 +106,15 @@ class PageController extends Controller {
 	 * closed accounts (#372) and accounts shared with the user read-only,
 	 * whose save was refused (R2-5).
 	 *
-	 * @return list<array{id: int, name: string}>
+	 * Each row says whose ledger it is (`owner`, null for the user's own), so
+	 * the page offers only that owner's categories for an account shared with
+	 * the user: the server takes no other there (V4-4).
+	 *
+	 * @return list<array{id: int, name: string, owner: ?string}>
 	 */
 	private function quickAddAccounts(): array {
 		$accountList = array_map(
-			fn ($a) => ['id' => $a->getId(), 'name' => $a->getName()],
+			fn ($a) => ['id' => $a->getId(), 'name' => $a->getName(), 'owner' => null],
 			$this->accountMapper->findOpen($this->userId)
 		);
 		foreach ($this->granularShareService->getSharedAccounts($this->userId) as $sa) {
@@ -118,7 +122,7 @@ class PageController extends Controller {
 				|| !$this->granularShareService->canWrite($this->userId, 'account', (int)$sa['id'])) {
 				continue;
 			}
-			$accountList[] = ['id' => $sa['id'], 'name' => $sa['name']];
+			$accountList[] = ['id' => $sa['id'], 'name' => $sa['name'], 'owner' => $sa['userId'] ?? null];
 		}
 		return $accountList;
 	}
@@ -134,7 +138,10 @@ class PageController extends Controller {
 	 * (populateCategorySelect). A shared subcategory whose parent wasn't
 	 * shared goes at the top level.
 	 *
-	 * @return list<array{id: int, name: string, type: string, level: int}>
+	 * A shared category carries its owner (`owner`, null for the user's own),
+	 * matched against the account's (see quickAddAccounts).
+	 *
+	 * @return list<array{id: int, name: string, type: string, level: int, owner: ?string}>
 	 */
 	private function quickAddCategories(): array {
 		$rows = array_map(fn ($c) => [
@@ -142,6 +149,7 @@ class PageController extends Controller {
 			'name' => $c->getName(),
 			'type' => $c->getType(),
 			'parentId' => $c->getParentId(),
+			'owner' => null,
 		], $this->categoryMapper->findAll($this->userId));
 		foreach ($this->granularShareService->getSharedCategories($this->userId) as $sc) {
 			$rows[] = [
@@ -149,6 +157,7 @@ class PageController extends Controller {
 				'name' => $sc['name'],
 				'type' => $sc['type'] ?? 'expense',
 				'parentId' => $sc['parentId'] ?? null,
+				'owner' => $sc['_sharedBy'] ?? ($sc['userId'] ?? null),
 			];
 		}
 
@@ -169,7 +178,7 @@ class PageController extends Controller {
 				}
 				$seen[$row['id']] = true;
 				$level = $levels[$row['type']] ?? 0;
-				$list[] = ['id' => $row['id'], 'name' => $row['name'], 'type' => $row['type'], 'level' => $level];
+				$list[] = ['id' => $row['id'], 'name' => $row['name'], 'type' => $row['type'], 'level' => $level, 'owner' => $row['owner']];
 				$walk($children[$row['id']] ?? [], [$row['type'] => $level + 1] + $levels);
 			}
 		};

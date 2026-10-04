@@ -53,11 +53,13 @@ class PensionScheduleQueriesTest extends IntegrationTestCase {
 
 	/**
 	 * A pension contribution's bank leg is in the account balance, so the
-	 * balance history before it is higher by its amount.
+	 * balance history before it is higher by its amount. Each day shows its
+	 * closing balance.
 	 */
 	public function testBalanceHistoryReversesAPensionLeg(): void {
 		$account = $this->makeAccount(['openingBalance' => 1000.0, 'balance' => 1000.0]);
 		$yesterday = date('Y-m-d', strtotime('-1 day'));
+		$dayBefore = date('Y-m-d', strtotime('-2 days'));
 		$this->makeTransaction($account->getId(), [
 			'date' => $yesterday, 'amount' => '200.00', 'type' => 'debit', 'pension_contrib_id' => 999001,
 		]);
@@ -67,7 +69,8 @@ class PensionScheduleQueriesTest extends IntegrationTestCase {
 		$byDate = array_column($history, 'balance', 'date');
 
 		$this->assertEqualsWithDelta(800.0, $byDate[date('Y-m-d')], 0.001);
-		$this->assertEqualsWithDelta(1000.0, $byDate[$yesterday], 0.001, 'The day began before the contribution left');
+		$this->assertEqualsWithDelta(800.0, $byDate[$yesterday], 0.001, 'The day closed after the contribution left');
+		$this->assertEqualsWithDelta(1000.0, $byDate[$dayBefore], 0.001, 'The day before closed before it left');
 	}
 
 	/** The job asks with the user's own date */
