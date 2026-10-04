@@ -184,6 +184,41 @@ class InMemoryCrossUserLinks extends CrossUserLinks {
 		return $rows;
 	}
 
+	protected function readUsersReferencing(string $table, string $column, array $ids, string $userId, bool $hasUser): array {
+		$found = [];
+		foreach ($this->table($table) as $id => $row) {
+			$value = $row[$column] ?? null;
+			if ($value === null || !in_array((int)$value, $ids, true)) {
+				continue;
+			}
+			if ($hasUser) {
+				$theirs = ($row['user_id'] ?? null) === $userId;
+			} elseif ($table === 'budget_transactions') {
+				$theirs = $this->accountOwner($row['account_id']) === $userId;
+			} elseif ($table === 'budget_tx_splits') {
+				$parent = $this->table('budget_transactions')[$row['transaction_id']] ?? null;
+				$theirs = $parent !== null && $this->accountOwner($parent['account_id']) === $userId;
+			} else {
+				$theirs = false;
+			}
+			if ($theirs) {
+				$found[$id] = (int)$value;
+			}
+		}
+		return $found;
+	}
+
+	protected function readExpenseSharesIn(string $userId, array $accountIds): array {
+		$ids = [];
+		foreach ($this->table('budget_expense_shares') as $id => $row) {
+			$transaction = $this->table('budget_transactions')[$row['transaction_id']] ?? null;
+			if ($row['user_id'] === $userId && $transaction !== null && in_array((int)$transaction['account_id'], $accountIds, true)) {
+				$ids[] = $id;
+			}
+		}
+		return $ids;
+	}
+
 	protected function updateRow(string $table, int $id, array $values): void {
 		foreach ($values as $column => $value) {
 			$this->tables[$table][$id][$column] = $value;

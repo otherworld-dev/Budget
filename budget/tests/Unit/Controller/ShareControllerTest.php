@@ -7,6 +7,7 @@ namespace OCA\Budget\Tests\Unit\Controller;
 use OCA\Budget\Controller\ShareController;
 use OCA\Budget\Db\Share;
 use OCA\Budget\Service\BillService;
+use OCA\Budget\Service\CrossUserLinks;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\ShareService;
 use OCP\AppFramework\Db\DoesNotExistException;
@@ -187,6 +188,54 @@ class ShareControllerTest extends TestCase {
 		$billService->expects($this->once())->method('dropUnwritablePlaceholders')->with('user1');
 
 		$this->assertSame(Http::STATUS_OK, $controller->leave(1)->getStatus());
+	}
+
+	private function controllerCuttingLinks(CrossUserLinks $links): ShareController {
+		return new ShareController($this->request, $this->shareService, $this->granularShareService,
+			$this->l, 'user1', $this->logger, null, null, $links);
+	}
+
+	public function testRevokeCutsTheRecipientsLinksToWhatTheyLost(): void {
+		$links = $this->createMock(CrossUserLinks::class);
+		$this->shareService->method('findById')->with(1)->willReturn($this->makeShare('user1', 'bob'));
+		$this->shareService->expects($this->once())->method('revoke')->with(1, 'user1');
+		$links->expects($this->once())->method('cutLostAccess')->with('bob', 'user1');
+
+		$this->assertSame(Http::STATUS_OK, $this->controllerCuttingLinks($links)->revoke(1)->getStatus());
+	}
+
+	public function testLeaveCutsTheLeavingUsersLinksToTheOwnersData(): void {
+		$links = $this->createMock(CrossUserLinks::class);
+		$this->shareService->method('findById')->with(1)->willReturn($this->makeShare('alice', 'user1'));
+		$links->expects($this->once())->method('cutLostAccess')->with('user1', 'alice');
+
+		$this->assertSame(Http::STATUS_OK, $this->controllerCuttingLinks($links)->leave(1)->getStatus());
+	}
+
+	public function testUnsharingCategoriesCutsTheRecipientsLinks(): void {
+		$links = $this->createMock(CrossUserLinks::class);
+		$this->request->method('getParam')->willReturnMap([['entityIds', [], []], ['permission', 'read', 'read']]);
+		$this->shareService->method('findById')->with(1)->willReturn($this->makeShare('user1', 'bob'));
+		$links->expects($this->once())->method('cutLostAccess')->with('bob', 'user1');
+
+		$this->assertSame(Http::STATUS_OK, $this->controllerCuttingLinks($links)->updateTypeItems(1, 'category')->getStatus());
+	}
+
+	public function testUnsharingBillsCutsNothing(): void {
+		$links = $this->createMock(CrossUserLinks::class);
+		$this->request->method('getParam')->willReturnMap([['entityIds', [], []], ['permission', 'read', 'read']]);
+		$links->expects($this->never())->method('cutLostAccess');
+
+		$this->assertSame(Http::STATUS_OK, $this->controllerCuttingLinks($links)->updateTypeItems(1, 'bill')->getStatus());
+	}
+
+	public function testARevokeStandsWhenTheCleanupFails(): void {
+		$links = $this->createMock(CrossUserLinks::class);
+		$this->shareService->method('findById')->willReturn($this->makeShare('user1', 'bob'));
+		$links->method('cutLostAccess')->willThrowException(new \RuntimeException('database gone'));
+		$this->logger->expects($this->once())->method('warning');
+
+		$this->assertSame(Http::STATUS_OK, $this->controllerCuttingLinks($links)->revoke(1)->getStatus());
 	}
 
 	public function testRevokeReturnsSuccess(): void {

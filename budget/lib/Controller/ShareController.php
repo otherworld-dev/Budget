@@ -8,6 +8,7 @@ use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Db\ShareItem;
 use OCA\Budget\Service\AutoShareService;
 use OCA\Budget\Service\BillService;
+use OCA\Budget\Service\CrossUserLinks;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\ShareService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
@@ -38,6 +39,7 @@ class ShareController extends Controller {
 		LoggerInterface $logger,
 		?AutoShareService $autoShareService = null,
 		private ?BillService $billService = null,
+		private ?CrossUserLinks $crossUserLinks = null,
 	) {
 		parent::__construct(Application::APP_ID, $request);
 		$this->shareService = $shareService;
@@ -150,9 +152,9 @@ class ShareController extends Controller {
 	 */
 	public function revoke(int $id): DataResponse {
 		try {
-			$recipient = $this->billService !== null ? $this->shareService->findById($id)->getSharedWithUserId() : null;
+			$recipient = $this->cleansUp() ? $this->shareService->findById($id)->getSharedWithUserId() : null;
 			$this->shareService->revoke($id, $this->userId);
-			$this->dropLostPlaceholders($recipient);
+			$this->cleanUpLostAccess($recipient, $this->userId);
 			return new DataResponse(['status' => 'success']);
 		} catch (\InvalidArgumentException $e) {
 			return $this->handleValidationError($e);
@@ -170,8 +172,9 @@ class ShareController extends Controller {
 	 */
 	public function leave(int $id): DataResponse {
 		try {
+			$owner = $this->crossUserLinks !== null ? $this->shareService->findById($id)->getOwnerUserId() : null;
 			$this->shareService->leave($id, $this->userId);
-			$this->dropLostPlaceholders($this->userId);
+			$this->cleanUpLostAccess($this->userId, $owner);
 			return new DataResponse(['status' => 'success']);
 		} catch (\InvalidArgumentException $e) {
 			return $this->handleValidationError($e);
@@ -230,8 +233,8 @@ class ShareController extends Controller {
 				$entityIds,
 				$permission
 			);
-			if ($type === ShareItem::TYPE_ACCOUNT && $this->billService !== null) {
-				$this->dropLostPlaceholders($this->shareService->findById($id)->getSharedWithUserId());
+			if (($type === ShareItem::TYPE_ACCOUNT || $type === ShareItem::TYPE_CATEGORY) && $this->cleansUp()) {
+				$this->cleanUpLostAccess($this->shareService->findById($id)->getSharedWithUserId(), $this->userId);
 			}
 
 			return new DataResponse(['status' => 'success']);
@@ -281,6 +284,35 @@ class ShareController extends Controller {
 			return $this->handleValidationError($e);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to update auto-share configuration'));
+		}
+	}
+
+	/** Whether anything is wired up to clean up after a share change */
+	private function cleansUp(): bool {
+		return $this->billService !== null || $this->crossUserLinks !== null;
+	}
+
+	/**
+	 * A share that ended or narrowed leaves the recipient's own data pointing
+	 * at what they lost: their pending bill rows in accounts they can no
+	 * longer write to go, and whatever of theirs is filed under the owner's
+	 * accounts and categories they can no longer see lets go of them, as a
+	 * reset does for everyone (CrossUserLinks). Placeholders first: they are
+	 * found through the bills' accounts. A failure here must not undo the
+	 * share change that already happened.
+	 */
+	private function cleanUpLostAccess(?string $recipientUserId, ?string $ownerUserId): void {
+		if ($recipientUserId === null) {
+			return;
+		}
+		$this->dropLostPlaceholders($recipientUserId);
+		if ($this->crossUserLinks === null || $ownerUserId === null) {
+			return;
+		}
+		try {
+			$this->crossUserLinks->cutLostAccess($recipientUserId, $ownerUserId);
+		} catch (\Throwable $e) {
+			$this->logger?->warning('Failed to cut links to unshared items after a share change: ' . $e->getMessage());
 		}
 	}
 
