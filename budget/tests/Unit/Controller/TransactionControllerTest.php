@@ -988,6 +988,48 @@ class TransactionControllerTest extends TestCase {
 		$this->assertStringContainsString("account owner's categories", $response->getData()['error']);
 	}
 
+	// ── bulk-categorize applies the ledger-category rule (R6-3) ─────
+
+	public function testBulkCategorizeRefusesAnotherUsersCategory(): void {
+		// 999 is nobody user1 can see: stored, its name came back in the list
+		$this->service->expects($this->never())->method('bulkCategorize');
+
+		$response = $this->controllerForSharedRows()->bulkCategorize([['id' => 1, 'categoryId' => 999]]);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame(['success' => 0, 'failed' => 1], $response->getData());
+	}
+
+	public function testBulkCategorizeChecksEachRowAgainstItsOwner(): void {
+		$calls = [];
+		$this->service->method('bulkCategorize')->willReturnCallback(function (string $owner, array $updates) use (&$calls) {
+			$calls[$owner] = $updates;
+			return ['success' => count($updates), 'failed' => 0];
+		});
+
+		$response = $this->controllerForSharedRows()->bulkCategorize([
+			['id' => 1, 'categoryId' => 25],  // user1's row, user1's category
+			['id' => 3, 'categoryId' => 25],  // owner1's row: owner1 can't see 25
+			['id' => 4, 'categoryId' => 2],   // owner1's row, owner1's category
+			['id' => 5, 'categoryId' => 2],   // read-only share
+			['id' => 2, 'categoryId' => null],
+		]);
+
+		$this->assertSame([
+			'user1' => [['id' => 1, 'categoryId' => 25], ['id' => 2, 'categoryId' => null]],
+			'owner1' => [['id' => 4, 'categoryId' => 2]],
+		], $calls);
+		$this->assertSame(['success' => 3, 'failed' => 2], $response->getData());
+	}
+
+	public function testBulkCategorizeCountsAMalformedEntryAsFailed(): void {
+		$this->service->expects($this->never())->method('bulkCategorize');
+
+		$response = $this->controllerForSharedRows()->bulkCategorize([['categoryId' => 2], 'junk']);
+
+		$this->assertSame(['success' => 0, 'failed' => 2], $response->getData());
+	}
+
 	public function testBulkEditOfASharedRowWithTheOwnersCategory(): void {
 		$this->service->expects($this->once())->method('bulkEdit')
 			->with('owner1', [3], ['categoryId' => 2])

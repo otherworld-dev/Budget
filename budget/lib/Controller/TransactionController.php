@@ -580,7 +580,38 @@ class TransactionController extends Controller {
 	#[UserRateLimit(limit: 10, period: 60)]
 	public function bulkCategorize(array $updates): DataResponse {
 		try {
-			$results = $this->service->bulkCategorize($this->getEffectiveUserId(), $updates);
+			$categoryOf = [];
+			$malformed = 0;
+			foreach ($updates as $update) {
+				if (!is_array($update) || !isset($update['id']) || !is_numeric($update['id'])) {
+					$malformed++;
+					continue;
+				}
+				$raw = $update['categoryId'] ?? null;
+				$categoryOf[(int)$update['id']] = ($raw === null || $raw === '' || (int)$raw <= 0) ? null : (int)$raw;
+			}
+
+			[$byOwner, $refused] = $this->writableIdsByOwner(array_keys($categoryOf));
+			$results = ['success' => 0, 'failed' => $malformed + count($refused)];
+			foreach ($byOwner as $owner => $ownerIds) {
+				// The category check every other write path makes (#359): the
+				// row is in its account owner's ledger, and any other id was
+				// stored and its name shown back in the transaction list
+				$usable = [];
+				foreach ($ownerIds as $id) {
+					try {
+						$this->granularShareService->requireUsableCategory((string)$owner, $categoryOf[$id]);
+						$usable[] = ['id' => $id, 'categoryId' => $categoryOf[$id]];
+					} catch (\InvalidArgumentException $e) {
+						$results['failed']++;
+					}
+				}
+				if ($usable !== []) {
+					$part = $this->service->bulkCategorize((string)$owner, $usable);
+					$results['success'] += (int)($part['success'] ?? 0);
+					$results['failed'] += (int)($part['failed'] ?? 0);
+				}
+			}
 			return new DataResponse($results);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to categorize transactions'));
