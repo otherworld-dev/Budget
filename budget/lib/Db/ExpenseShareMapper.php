@@ -133,6 +133,12 @@ class ExpenseShareMapper extends QBMapper {
 	 * Pass $ownerUserId to narrow it to what one user shared with them — the
 	 * recipient's contact card for that user (#390).
 	 *
+	 * The transaction's fields are null when it is gone, or when it sits in
+	 * an account the sharer can no longer see. A split can be made on a
+	 * transaction in an account shared with the sharer, which is someone
+	 * else's row: read live, it went on showing the recipient that row after
+	 * the account stopped being shared, later edits included.
+	 *
 	 * @return array[] Rows with keys: id, owner_user_id, transaction_id, amount,
 	 *                 is_settled, notes, currency, created_at, contact_name,
 	 *                 transaction_description, transaction_date, transaction_amount,
@@ -149,7 +155,10 @@ class ExpenseShareMapper extends QBMapper {
 			->selectAlias('t.type', 'transaction_type')
 			->from($this->getTableName(), 'es')
 			->innerJoin('es', 'budget_contacts', 'c', $qb->expr()->eq('es.contact_id', 'c.id'))
-			->leftJoin('es', 'budget_transactions', 't', $qb->expr()->eq('es.transaction_id', 't.id'))
+			->leftJoin('es', 'budget_transactions', 't', $qb->expr()->andX(
+				$qb->expr()->eq('es.transaction_id', 't.id'),
+				$this->sharerSeesTransaction($qb)
+			))
 			->where($qb->expr()->eq('c.nextcloud_user_id', $qb->createNamedParameter($nextcloudUserId)))
 			->orderBy('es.created_at', 'DESC');
 
@@ -162,6 +171,23 @@ class ExpenseShareMapper extends QBMapper {
 		$result->closeCursor();
 
 		return $rows;
+	}
+
+	/**
+	 * SQL for "transaction t is in an account the split's creator (es.user_id)
+	 * can see": one they own, or one shared with them by an accepted share,
+	 * whatever its permission. Correlated EXISTS, so the join still gives one
+	 * row per split; identifiers unquoted, as in QueryFilterBuilder.
+	 */
+	private function sharerSeesTransaction(IQueryBuilder $qb): string {
+		$accountType = $qb->createNamedParameter(ShareItem::TYPE_ACCOUNT);
+		$accepted = $qb->createNamedParameter(Share::STATUS_ACCEPTED);
+		return '(EXISTS (SELECT 1 FROM ' . $qb->getTableName('budget_accounts') . ' esa'
+			. ' WHERE esa.id = t.account_id AND esa.user_id = es.user_id)'
+			. ' OR EXISTS (SELECT 1 FROM ' . $qb->getTableName('budget_share_items') . ' esi'
+			. ' INNER JOIN ' . $qb->getTableName('budget_shares') . ' ess ON ess.id = esi.share_id'
+			. ' WHERE esi.entity_type = ' . $accountType . ' AND esi.entity_id = t.account_id'
+			. ' AND ess.shared_with_user_id = es.user_id AND ess.status = ' . $accepted . '))';
 	}
 
 	/**
