@@ -423,8 +423,8 @@ class ImportRuleController extends Controller {
 	/**
 	 * The tags among $tagIds that $userId can see and use: their own global
 	 * tags, and tags in a tag set whose category is theirs or shared with
-	 * them. The same rule as GranularShareService::getUsableTagIds() on the
-	 * D1 branch, which isn't on this one; switch to it once both are merged.
+	 * them. Keep in step with GranularShareService::getUsableTagIds(), which
+	 * applies the same rule to bills, goals and transactions.
 	 *
 	 * @param int[] $tagIds
 	 * @return int[]
