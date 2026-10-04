@@ -680,6 +680,124 @@ class ImportRuleServiceTest extends TestCase {
 		);
 	}
 
+	// ===== a run over many rows (T6-3) =====
+
+	/**
+	 * @return ImportRuleService&\PHPUnit\Framework\MockObject\MockObject
+	 */
+	private function serviceWithRows(array ...$batches): ImportRuleService {
+		$transactionService = $this->createMock(\OCA\Budget\Service\TransactionService::class);
+		$transactionService->method('findAccountById')->willReturnCallback(function (int $id) {
+			$account = new \OCA\Budget\Db\Account();
+			$account->setUserId('user1');
+			return $account;
+		});
+		$service = $this->getMockBuilder(ImportRuleService::class)
+			->setConstructorArgs([
+				$this->mapper, $this->categoryMapper, $this->transactionMapper, $transactionService,
+				$this->db, $this->criteriaEvaluator, $this->actionApplicator, $this->granularShareService,
+			])
+			->onlyMethods(['findTransactionsForRules', 'findActiveIncludingShared'])
+			->getMock();
+		$service->method('findTransactionsForRules')->willReturnOnConsecutiveCalls(...$batches);
+		$service->method('findActiveIncludingShared')->willReturn([$this->makeRule(['schemaVersion' => 2])]);
+		$this->criteriaEvaluator->method('evaluate')->willReturn(true);
+
+		$result = $this->createMock(\OCP\DB\IResult::class);
+		$result->method('fetchOne')->willReturn('checking');
+		$qb = $this->createMock(\OCP\DB\QueryBuilder\IQueryBuilder::class);
+		$qb->method('expr')->willReturn($this->createMock(\OCP\DB\QueryBuilder\IExpressionBuilder::class));
+		foreach (['select', 'from', 'where', 'andWhere', 'setMaxResults'] as $fluent) {
+			$qb->method($fluent)->willReturnSelf();
+		}
+		$qb->method('executeQuery')->willReturn($result);
+		$this->db->method('getQueryBuilder')->willReturn($qb);
+
+		return $service;
+	}
+
+	/** @return \OCA\Budget\Db\Transaction[] */
+	private function rows(int $count): array {
+		$rows = [];
+		for ($id = 1; $id <= $count; $id++) {
+			$tx = new \OCA\Budget\Db\Transaction();
+			$tx->setId($id);
+			$tx->setAccountId(3);
+			$tx->setDescription('grocery run');
+			$tx->setAmount(10.0);
+			$tx->setType('debit');
+			$tx->setDate('2026-09-01');
+			$rows[] = $tx;
+		}
+		return $rows;
+	}
+
+	/**
+	 * Every changed row was its own autocommitted UPDATE: 27,000 rows took
+	 * 96 s. Rows are now saved in chunks, one database transaction each.
+	 */
+	public function testARunSavesItsRowsInOneTransactionPerChunk(): void {
+		$service = $this->serviceWithRows($this->rows(3));
+		$this->actionApplicator->method('applyRules')->willReturn(['category' => ['old' => null, 'new' => 5]]);
+		$this->transactionMapper->expects($this->exactly(3))->method('update')->willReturnArgument(0);
+		$this->db->expects($this->once())->method('beginTransaction');
+		$this->db->expects($this->once())->method('commit');
+		$this->db->expects($this->never())->method('rollBack');
+
+		$outcome = $service->applyRulesToTransactions('user1', [], []);
+
+		$this->assertSame(3, $outcome['success']);
+	}
+
+	/**
+	 * After a failed statement PostgreSQL refuses the rest of the transaction,
+	 * and committing it then throws everything away: the chunk is rolled back
+	 * and done again one row at a time from the rows as stored, so only the
+	 * row that fails is lost, as it was before.
+	 */
+	public function testAFailedSaveRedoesTheChunkOneRowAtATime(): void {
+		$service = $this->serviceWithRows($this->rows(3), $this->rows(3));
+		$this->actionApplicator->method('applyRules')->willReturn(['category' => ['old' => null, 'new' => 5]]);
+		$this->transactionMapper->method('update')->willReturnCallback(function (\OCA\Budget\Db\Transaction $tx) {
+			if ($tx->getId() === 2) {
+				throw new \OCP\DB\Exception('value too long');
+			}
+			return $tx;
+		});
+		$this->db->method('inTransaction')->willReturn(true);
+		$this->db->expects($this->once())->method('beginTransaction');
+		$this->db->expects($this->never())->method('commit');
+		$this->db->expects($this->once())->method('rollBack');
+
+		$outcome = $service->applyRulesToTransactions('user1', [], []);
+
+		$this->assertSame(2, $outcome['success']);
+		$this->assertSame(1, $outcome['failed']);
+		$this->assertSame([1, 3], array_column($outcome['applied'], 'transactionId'));
+	}
+
+	public function testTheListOfChangedRowsIsCapped(): void {
+		$service = $this->serviceWithRows($this->rows(501), []);
+		$this->actionApplicator->method('applyRules')->willReturn(['category' => ['old' => null, 'new' => 5]]);
+		$this->transactionMapper->method('update')->willReturnArgument(0);
+
+		$outcome = $service->applyRulesToTransactions('user1', [], []);
+
+		$this->assertSame(501, $outcome['success']);
+		$this->assertCount(500, $outcome['applied']);
+		$this->assertTrue($outcome['appliedTruncated']);
+	}
+
+	public function testThePreviewListIsCapped(): void {
+		$service = $this->serviceWithRows($this->rows(501));
+
+		$preview = $service->previewRuleApplication('user1', [], []);
+
+		$this->assertSame(501, $preview['matchCount']);
+		$this->assertCount(500, $preview['preview']);
+		$this->assertTrue($preview['previewTruncated']);
+	}
+
 	/**
 	 * A bulk rule run recomputes each touched account's ledger once, after
 	 * the run — not once per changed row, which re-summed the whole account

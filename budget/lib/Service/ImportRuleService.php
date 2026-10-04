@@ -547,6 +547,11 @@ class ImportRuleService extends AbstractCrudService {
 			$qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($filters['accountId'], IQueryBuilder::PARAM_INT)));
 		}
 
+		// Particular rows: a chunk of a rule run done again row by row
+		if (!empty($filters['ids'])) {
+			$qb->andWhere($qb->expr()->in('t.id', $qb->createNamedParameter(array_map('intval', $filters['ids']), IQueryBuilder::PARAM_INT_ARRAY)));
+		}
+
 		// Filter by date range
 		if (!empty($filters['startDate'])) {
 			$qb->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($filters['startDate'])));
@@ -621,16 +626,19 @@ class ImportRuleService extends AbstractCrudService {
 
 			foreach ($rules as $rule) {
 				if ($this->testRule($rule, $transactionData)) {
-					// Show ALL matching transactions in preview
-					$preview[] = [
-						'transactionId' => $transaction->getId(),
-						'transactionDescription' => $transaction->getDescription(),
-						'transactionDate' => $transaction->getDate(),
-						'transactionAmount' => $transaction->getAmount(),
-						'transactionCategoryId' => $transaction->getCategoryId(),
-						'ruleId' => $rule->getId(),
-						'ruleName' => $rule->getName()
-					];
+					// Listed up to a limit: a whole ledger's matches came to
+					// 5 MB (T6-3). matchCount still counts every one.
+					if (count($preview) < self::RESULT_LIST_LIMIT) {
+						$preview[] = [
+							'transactionId' => $transaction->getId(),
+							'transactionDescription' => $transaction->getDescription(),
+							'transactionDate' => $transaction->getDate(),
+							'transactionAmount' => $transaction->getAmount(),
+							'transactionCategoryId' => $transaction->getCategoryId(),
+							'ruleId' => $rule->getId(),
+							'ruleName' => $rule->getName()
+						];
+					}
 					$matchCount++;
 					break; // First matching rule wins
 				}
@@ -640,7 +648,8 @@ class ImportRuleService extends AbstractCrudService {
 		return [
 			'totalTransactions' => count($transactions),
 			'matchCount' => $matchCount,
-			'preview' => $preview
+			'preview' => $preview,
+			'previewTruncated' => $matchCount > count($preview),
 		];
 	}
 
@@ -674,90 +683,14 @@ class ImportRuleService extends AbstractCrudService {
 			return $b->getPriority() - $a->getPriority();
 		});
 
-		$success = 0;
-		$failed = 0;
-		$skipped = 0;
-		$applied = [];
-		// Accounts whose ledger a rule changed, recomputed once each after the
-		// run rather than once per changed row
-		$touchedAccounts = [];
-
-		foreach ($transactions as $transaction) {
-			$transactionData = $this->extractTransactionData($transaction, $userId);
-
-			// Find all matching rules
-			$matchingRules = [];
-			foreach ($rules as $rule) {
-				if ($this->testRule($rule, $transactionData)) {
-					$matchingRules[] = $rule;
-
-					// Check stop_processing flag
-					if ($rule->getStopProcessing() ?? true) {
-						break; // Don't evaluate more rules
-					}
-				}
-			}
-
-			if (empty($matchingRules)) {
-				$skipped++;
-				continue;
-			}
-
-			try {
-				// Apply all matching rules
-				$changes = $this->actionApplicator->applyRules($transaction, $matchingRules, $userId);
-
-				if (!empty($changes)) {
-					$transaction->setUpdatedAt(date('Y-m-d H:i:s'));
-					$updatedTransaction = $this->transactionMapper->update($transaction);
-
-					// Rules can change type (set_type) or account (set_account) —
-					// both affect balances, so the ledger is recomputed once the
-					// run is over. Recomputing it here, per changed row, redid
-					// the whole account's sum for every row a rule touched.
-					if (isset($changes['type']) || isset($changes['account'])) {
-						$touchedAccounts[$updatedTransaction->getAccountId()] = true;
-						if (isset($changes['account']) && !empty($changes['account']['old'])) {
-							$touchedAccounts[(int)$changes['account']['old']] = true;
-						}
-					}
-
-					// Apply deferred tag actions after transaction is persisted
-					$this->actionApplicator->applyDeferredTagActions($updatedTransaction, $changes, $userId, $changes);
-
-					// Apply deferred transfer linking
-					if (!empty($changes['_deferred_link_transfer'])) {
-						try {
-							$matches = $this->transactionService->findPotentialMatches($updatedTransaction->getId(), $userId, 3);
-							if (!empty($matches)) {
-								$this->transactionService->linkTransactions($updatedTransaction->getId(), $matches[0]->getId(), $userId);
-								$changes['transferLinked'] = $matches[0]->getId();
-							}
-						} catch (\Exception $e) {
-							// Silently skip — no match found or already linked
-						}
-					}
-
-					$success++;
-					$applied[] = [
-						'transactionId' => $updatedTransaction->getId(),
-						'date' => $updatedTransaction->getDate(),
-						'description' => $updatedTransaction->getDescription(),
-						'amount' => $updatedTransaction->getAmount(),
-						'categoryId' => $updatedTransaction->getCategoryId(),
-						'isSplit' => (bool)$updatedTransaction->getIsSplit(),
-						'rules' => array_map(fn ($r) => ['id' => $r->getId(), 'name' => $r->getName()], $matchingRules),
-						'changes' => $changes
-					];
-				} else {
-					$skipped++;
-				}
-			} catch (\Exception $e) {
-				$failed++;
-			}
+		$outcome = self::emptyRunOutcome();
+		foreach (array_chunk($transactions, self::RUN_CHUNK) as $chunk) {
+			$this->applyRulesToChunk($chunk, $rules, $userId, $outcome);
 		}
 
-		foreach (array_keys($touchedAccounts) as $accountId) {
+		// Accounts whose ledger a rule changed, recomputed once each after the
+		// run rather than once per changed row
+		foreach (array_keys($outcome['touched']) as $accountId) {
 			try {
 				// As the account's owner: recomputing a shared account as the
 				// user who ran the rules failed and left its balance stale
@@ -776,11 +709,169 @@ class ImportRuleService extends AbstractCrudService {
 
 		return [
 			'totalTransactions' => count($transactions),
-			'success' => $success,
-			'failed' => $failed,
-			'skipped' => $skipped,
-			'applied' => $applied
+			'success' => $outcome['success'],
+			'failed' => $outcome['failed'],
+			'skipped' => $outcome['skipped'],
+			// Listed up to a limit: a run over a whole ledger sent every
+			// change back, 6 MB for 27,000 rows (T6-3). The counts are whole.
+			'applied' => $outcome['applied'],
+			'appliedTruncated' => $outcome['success'] > count($outcome['applied']),
 		];
+	}
+
+	/** Rows a rule run saves per database transaction (T6-3) */
+	private const RUN_CHUNK = 500;
+
+	/** Rows a rule run or preview lists back to the browser (T6-3) */
+	private const RESULT_LIST_LIMIT = 500;
+
+	/**
+	 * @return array{success: int, failed: int, skipped: int, applied: array, touched: array<int, true>}
+	 */
+	private static function emptyRunOutcome(): array {
+		return ['success' => 0, 'failed' => 0, 'skipped' => 0, 'applied' => [], 'touched' => []];
+	}
+
+	/**
+	 * Apply the rules to one chunk of rows, saved in one database transaction.
+	 *
+	 * Every changed row used to be its own autocommitted UPDATE, so a run
+	 * over a whole ledger synced to disk once per row: 27,000 changed rows
+	 * took 96 s (T6-3). A row that fails is counted and left as before. But
+	 * after a failed statement PostgreSQL refuses the rest of a transaction,
+	 * and committing it then drops every change in it, so when anything in
+	 * the chunk fails at the database the chunk is rolled back and done again
+	 * one row at a time, each saved on its own, from the rows as stored.
+	 *
+	 * @param Transaction[] $chunk
+	 * @param ImportRule[] $rules
+	 * @param array{success: int, failed: int, skipped: int, applied: array, touched: array<int, true>} $outcome
+	 */
+	private function applyRulesToChunk(array $chunk, array $rules, string $userId, array &$outcome): void {
+		$chunkOutcome = self::emptyRunOutcome();
+		$this->db->beginTransaction();
+		try {
+			foreach ($chunk as $transaction) {
+				$this->applyRulesToRow($transaction, $rules, $userId, $chunkOutcome, true);
+			}
+			// A failed statement whose error was handled further down (a tag,
+			// a transfer link) still leaves PostgreSQL refusing what follows
+			$probe = $this->db->getQueryBuilder();
+			$probe->select('id')->from('budget_import_rules')->setMaxResults(1);
+			$probe->executeQuery()->closeCursor();
+			$this->db->commit();
+		} catch (\Throwable $e) {
+			if ($this->db->inTransaction()) {
+				$this->db->rollBack();
+			}
+			$this->logger?->warning('A rule run saved one chunk row by row after a database error', [
+				'app' => 'budget',
+				'exception' => $e,
+			]);
+			$chunkOutcome = self::emptyRunOutcome();
+			$ids = array_map(static fn (Transaction $transaction) => $transaction->getId(), $chunk);
+			foreach ($this->findTransactionsForRules($userId, ['ids' => $ids]) as $transaction) {
+				$this->applyRulesToRow($transaction, $rules, $userId, $chunkOutcome, false);
+			}
+		}
+
+		$outcome['success'] += $chunkOutcome['success'];
+		$outcome['failed'] += $chunkOutcome['failed'];
+		$outcome['skipped'] += $chunkOutcome['skipped'];
+		$outcome['touched'] += $chunkOutcome['touched'];
+		foreach ($chunkOutcome['applied'] as $entry) {
+			if (count($outcome['applied']) >= self::RESULT_LIST_LIMIT) {
+				break;
+			}
+			$outcome['applied'][] = $entry;
+		}
+	}
+
+	/**
+	 * Apply the matching rules to one row and save it.
+	 *
+	 * @param ImportRule[] $rules
+	 * @param array{success: int, failed: int, skipped: int, applied: array, touched: array<int, true>} $outcome
+	 * @param bool $inChunkTransaction A database error is passed up, for the chunk to be done again row by row
+	 */
+	private function applyRulesToRow(Transaction $transaction, array $rules, string $userId, array &$outcome, bool $inChunkTransaction): void {
+		$transactionData = $this->extractTransactionData($transaction, $userId);
+
+		// Find all matching rules
+		$matchingRules = [];
+		foreach ($rules as $rule) {
+			if ($this->testRule($rule, $transactionData)) {
+				$matchingRules[] = $rule;
+
+				// Check stop_processing flag
+				if ($rule->getStopProcessing() ?? true) {
+					break; // Don't evaluate more rules
+				}
+			}
+		}
+
+		if (empty($matchingRules)) {
+			$outcome['skipped']++;
+			return;
+		}
+
+		try {
+			// Apply all matching rules
+			$changes = $this->actionApplicator->applyRules($transaction, $matchingRules, $userId);
+
+			if (!empty($changes)) {
+				$transaction->setUpdatedAt(date('Y-m-d H:i:s'));
+				$updatedTransaction = $this->transactionMapper->update($transaction);
+
+				// Rules can change type (set_type) or account (set_account) —
+				// both affect balances, so the ledger is recomputed once the
+				// run is over. Recomputing it here, per changed row, redid
+				// the whole account's sum for every row a rule touched.
+				if (isset($changes['type']) || isset($changes['account'])) {
+					$outcome['touched'][$updatedTransaction->getAccountId()] = true;
+					if (isset($changes['account']) && !empty($changes['account']['old'])) {
+						$outcome['touched'][(int)$changes['account']['old']] = true;
+					}
+				}
+
+				// Apply deferred tag actions after transaction is persisted
+				$this->actionApplicator->applyDeferredTagActions($updatedTransaction, $changes, $userId, $changes);
+
+				// Apply deferred transfer linking
+				if (!empty($changes['_deferred_link_transfer'])) {
+					try {
+						$matches = $this->transactionService->findPotentialMatches($updatedTransaction->getId(), $userId, 3);
+						if (!empty($matches)) {
+							$this->transactionService->linkTransactions($updatedTransaction->getId(), $matches[0]->getId(), $userId);
+							$changes['transferLinked'] = $matches[0]->getId();
+						}
+					} catch (\Exception $e) {
+						// Silently skip — no match found or already linked
+					}
+				}
+
+				$outcome['success']++;
+				$outcome['applied'][] = [
+					'transactionId' => $updatedTransaction->getId(),
+					'date' => $updatedTransaction->getDate(),
+					'description' => $updatedTransaction->getDescription(),
+					'amount' => $updatedTransaction->getAmount(),
+					'categoryId' => $updatedTransaction->getCategoryId(),
+					'isSplit' => (bool)$updatedTransaction->getIsSplit(),
+					'rules' => array_map(fn ($r) => ['id' => $r->getId(), 'name' => $r->getName()], $matchingRules),
+					'changes' => $changes
+				];
+			} else {
+				$outcome['skipped']++;
+			}
+		} catch (\OCP\DB\Exception $e) {
+			if ($inChunkTransaction) {
+				throw $e;
+			}
+			$outcome['failed']++;
+		} catch (\Exception $e) {
+			$outcome['failed']++;
+		}
 	}
 
 	/**
