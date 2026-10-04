@@ -1153,6 +1153,8 @@ class BillService {
 				$deposit = $this->transactionService->completeTransferPayment($linked, $bill, $arrivalAmount);
 				if ($deposit !== null) {
 					$createdTransactionIds[] = $deposit;
+					// The destination's own credit may be in already (below)
+					$bookedDepositId = $deposit;
 				}
 			}
 			$linkedExistingTransaction = true;
@@ -1280,10 +1282,12 @@ class BillService {
 
 		// The destination's statement may be in already: its own credit then
 		// takes the place of the deposit just booked, as it does when it
-		// comes in afterwards, rather than the money arriving twice
+		// comes in afterwards, rather than the money arriving twice. The
+		// same for a payment that booked the deposit and one that linked the
+		// bank's withdrawal.
 		if ($bookedDepositId !== null) {
 			try {
-				if ($this->adoptDestinationCredit($bill, $bookedDepositId)) {
+				if ($this->adoptArrival($bill, $bookedDepositId) !== null) {
 					$bill = $this->find($id, $userId);
 				}
 			} catch (\Exception $e) {
@@ -2129,6 +2133,10 @@ class BillService {
 						$this->transactionService->deleteAsAccountOwner($bookedDeposit->getId(), false, $bill->getId());
 					}
 				}
+				// The destination's own credit, already in, is the arrival
+				if ($deposit !== null && $this->adoptArrival($bill, $deposit) !== null) {
+					$deposit = null;
+				}
 			}
 		} catch (\Exception $e) {
 			$this->logger->warning("Failed to put imported transaction {$imported->getId()} in place of bill {$bill->getId()}'s payment: {$e->getMessage()}");
@@ -2190,32 +2198,22 @@ class BillService {
 	}
 
 	/**
-	 * Put the destination's own credit in the place of a deposit the app
-	 * booked for one of this transfer's payments.
+	 * A credit just imported or synced into a transfer's destination: when it
+	 * is near a deposit the app booked for one of the transfer's payments,
+	 * that deposit's arrival is chosen (adoptArrival()), and the statement no
+	 * longer brings the same money in a second time.
 	 *
-	 * A transfer paid before the destination's statement is in books its
-	 * arrival (Mark Paid, or the source's statement paying it), and that
-	 * statement then brought the same money in a second time. Its credit now
-	 * takes the deposit's place, paired with the withdrawal, when it is in
-	 * the bill's due window around the deposit's date and within a tenth of
-	 * its amount (between currencies the deposit is only the app's estimate
-	 * of the bank's conversion). A reconciled deposit is left alone.
+	 * @return bool whether this credit became the arrival
 	 */
 	private function replaceBookedDeposit(Bill $bill, \OCA\Budget\Db\Transaction $credit): bool {
-		// A bank-sync hold waits until it posts: one dropped later would
-		// take the arrival with it
-		$free = fn (\OCA\Budget\Db\Transaction $row): bool => $row->getType() === 'credit'
-			&& $row->getAccountId() === $bill->getDestinationAccountId()
-			&& !in_array($row->getStatus() ?? 'cleared', ['scheduled', 'pending'], true)
-			&& $row->getBillId() === null && $row->getLinkedTransactionId() === null
-			&& $row->getPensionContribId() === null;
-		if (!$free($credit)) {
+		// Income patterns are checked once a deposit is near (bestArrivalFor())
+		if ($credit->getAccountId() !== $bill->getDestinationAccountId() || !$this->couldBeArrival($credit, [])) {
 			return false;
 		}
 
 		$days = $this->dueDateToleranceDays($bill->getFrequency());
 		$on = new \DateTimeImmutable($credit->getDate());
-		$amount = (float)$credit->getAmount();
+		$margin = $this->arrivalMargin($bill, (float)$credit->getAmount());
 		$deposit = null;
 		$rank = null;
 		$candidates = $this->transactionService->findBookedBillRows(
@@ -2226,9 +2224,8 @@ class BillService {
 			$on->modify("+{$days} days")->format('Y-m-d')
 		);
 		foreach ($candidates as $row) {
-			$amountOff = abs((float)$row->getAmount() - $amount);
-			if ($row->getAccountId() !== $credit->getAccountId() || $row->getLinkedTransactionId() === null
-				|| $amountOff > abs((float)$row->getAmount()) * 0.1) {
+			$amountOff = abs((float)$row->getAmount() - (float)$credit->getAmount());
+			if ($row->getAccountId() !== $credit->getAccountId() || $row->getLinkedTransactionId() === null || $amountOff > $margin) {
 				continue;
 			}
 			$thisRank = [abs(strtotime($row->getDate()) - $on->getTimestamp()), $amountOff];
@@ -2236,22 +2233,46 @@ class BillService {
 				[$deposit, $rank] = [$row, $thisRank];
 			}
 		}
-		if ($deposit === null || $deposit->getReconciled()) {
-			return false;
+		// The deposit's arrival is whichever credit fits it best, which may
+		// be a later row of the same statement
+		return $deposit !== null && $this->adoptArrival($bill, $deposit->getId()) === $credit->getId();
+	}
+
+	/**
+	 * Let the destination's own credit of a transfer's payment take the
+	 * place of the deposit the app booked for it, so the money arrives once.
+	 *
+	 * Every payment path comes here with the deposit it booked: Mark Paid,
+	 * linking the bank's withdrawal (the dialog, an import, auto-pay), and an
+	 * import of the destination's statement. The credit has to be in the
+	 * bill's due window around the deposit's date and of its amount: exactly
+	 * within one currency, within a tenth between two (the deposit is only
+	 * the app's estimate of the bank's conversion). A credit that is a
+	 * recurring income's (its pattern is in the text), or one a bill, a
+	 * transfer or a pension already has, never is: a salary of the same
+	 * amount was taken, and auto-create then booked the salary again. Of the
+	 * rest, one naming the transfer wins, then the one nearest the deposit.
+	 * A reconciled deposit stays.
+	 *
+	 * @return int|null the credit that took the deposit's place
+	 */
+	private function adoptArrival(Bill $bill, int $depositId): ?int {
+		$deposit = $this->transactionService->findTransaction($depositId);
+		if ($deposit === null || $deposit->getType() !== 'credit' || $deposit->getReconciled()
+			|| $deposit->getBillId() !== $bill->getId() || ($deposit->getImportId() ?? '') !== '') {
+			return null;
 		}
-		// Read again: a payment earlier in the same import may have taken
-		// this credit as its arrival already
-		$current = $this->transactionService->findTransaction($credit->getId());
-		if ($current === null || !$free($current)) {
-			return false;
+		$arrival = $this->bestArrivalFor($bill, $deposit);
+		if ($arrival === null) {
+			return null;
 		}
 
 		try {
-			$linked = $this->transactionService->linkBillAsAccountOwner($current->getId(), $bill);
+			$linked = $this->transactionService->linkBillAsAccountOwner($arrival->getId(), $bill);
 			$this->transactionService->replaceBookedRow($deposit, $linked, 'Auto-generated transfer: ' . $bill->getName());
 		} catch (\Exception $e) {
-			$this->logger->warning("Failed to put imported transaction {$credit->getId()} in place of transfer {$bill->getId()}'s deposit: {$e->getMessage()}");
-			return false;
+			$this->logger->warning("Failed to put transaction {$arrival->getId()} in place of transfer {$bill->getId()}'s deposit: {$e->getMessage()}");
+			return null;
 		}
 
 		// Mark Unpaid deletes what the payment booked; the bank's credit
@@ -2267,21 +2288,11 @@ class BillService {
 				$this->mapper->update($fresh);
 			}
 		}
-		return true;
+		return $arrival->getId();
 	}
 
-	/**
-	 * Let the destination's own credit, already imported or synced, take the
-	 * place of the deposit a payment of the transfer just booked: the
-	 * statement came in first, and Mark Paid (or auto-pay) booked the
-	 * arrival beside it. The same test as replaceBookedDeposit(), the nearest
-	 * credit first, and only a row a statement or bank sync brought in.
-	 */
-	private function adoptDestinationCredit(Bill $bill, int $depositId): bool {
-		$deposit = $this->transactionService->findTransaction($depositId);
-		if ($deposit === null || $deposit->getType() !== 'credit') {
-			return false;
-		}
+	/** The destination's credit that best fits a booked deposit, by adoptArrival()'s rules */
+	private function bestArrivalFor(Bill $bill, \OCA\Budget\Db\Transaction $deposit): ?\OCA\Budget\Db\Transaction {
 		$days = $this->dueDateToleranceDays($bill->getFrequency());
 		$on = new \DateTimeImmutable($deposit->getDate());
 		$amount = abs((float)$deposit->getAmount());
@@ -2290,17 +2301,112 @@ class BillService {
 			$amount,
 			$on->modify("-{$days} days")->format('Y-m-d'),
 			$on->modify("+{$days} days")->format('Y-m-d'),
-			$amount * 0.1
+			$this->arrivalMargin($bill, $amount)
 		);
-		$credits = array_values(array_filter($credits, fn ($credit) => ($credit->getImportId() ?? '') !== ''));
-		usort($credits, fn ($a, $b) => [abs(strtotime($a->getDate()) - $on->getTimestamp()), abs((float)$a->getAmount() - $amount)]
-			<=> [abs(strtotime($b->getDate()) - $on->getTimestamp()), abs((float)$b->getAmount() - $amount)]);
+		$incomePatterns = $this->incomePatternsInto($deposit->getAccountId(), $bill->getUserId());
+		$names = $this->transferNames($bill);
+		$best = null;
+		$rank = null;
 		foreach ($credits as $credit) {
-			if ($this->replaceBookedDeposit($bill, $credit)) {
-				return true;
+			if ($credit->getId() === $deposit->getId() || !$this->couldBeArrival($credit, $incomePatterns)) {
+				continue;
+			}
+			$text = mb_strtolower($credit->getDescription() . ' ' . ($credit->getVendor() ?? ''));
+			$named = array_filter($names, fn (string $name) => str_contains($text, $name)) !== [];
+			$thisRank = [$named ? 0 : 1, abs(strtotime($credit->getDate()) - $on->getTimestamp()), abs((float)$credit->getAmount() - $amount)];
+			if ($rank === null || $thisRank < $rank) {
+				[$best, $rank] = [$credit, $thisRank];
 			}
 		}
-		return false;
+		if ($best === null) {
+			return null;
+		}
+		// Read again: a payment earlier in the same import may have taken it
+		$current = $this->transactionService->findTransaction($best->getId());
+		return ($current !== null && $this->couldBeArrival($current, $incomePatterns)) ? $current : null;
+	}
+
+	/**
+	 * How far the destination's credit may be from the deposit: none within
+	 * one currency, a tenth between two, where the bank converts at its own
+	 * rate and charges.
+	 */
+	private function arrivalMargin(Bill $bill, float $amount): float {
+		return $this->transactionService->transferBetweenCurrencies($bill) ? abs($amount) * 0.1 : 0.005;
+	}
+
+	/**
+	 * Whether a credit is free to be a transfer's arrival: settled (a bank
+	 * sync hold waits until it posts, as one dropped later would take the
+	 * arrival with it), not the app's own row, not already a bill's,
+	 * transfer's or pension's, and not a recurring income's.
+	 *
+	 * @param string[] $incomePatterns lower-case patterns of the incomes paid into its account
+	 */
+	private function couldBeArrival(\OCA\Budget\Db\Transaction $credit, array $incomePatterns): bool {
+		if ($credit->getType() !== 'credit' || in_array($credit->getStatus() ?? 'cleared', ['scheduled', 'pending'], true)
+			|| (int)($credit->getBillId() ?? 0) !== 0 || $credit->getLinkedTransactionId() !== null
+			|| $credit->getPensionContribId() !== null) {
+			return false;
+		}
+		foreach (\OCA\Budget\Db\TransactionMapper::GENERATED_NOTE_PREFIXES as $prefix) {
+			if (str_starts_with((string)$credit->getNotes(), $prefix)) {
+				return false;
+			}
+		}
+		$text = mb_strtolower($credit->getDescription() . ' ' . ($credit->getVendor() ?? ''));
+		foreach ($incomePatterns as $pattern) {
+			if (str_contains($text, $pattern)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * Lower-case auto-detect patterns of the active recurring income paid
+	 * into an account (whoever owns it), and of the user's own income with
+	 * no account set, as the income match reads them
+	 *
+	 * @return string[]
+	 */
+	private function incomePatternsInto(int $accountId, string $userId): array {
+		if ($this->incomeMapper === null) {
+			return [];
+		}
+		$incomes = $this->incomeMapper->findActiveByAccount($accountId);
+		foreach ($this->incomeMapper->findActive($userId) as $income) {
+			if ($income->getAccountId() === null) {
+				$incomes[] = $income;
+			}
+		}
+		$patterns = [];
+		foreach ($incomes as $income) {
+			$pattern = mb_strtolower(trim((string)$income->getAutoDetectPattern()));
+			if ($pattern !== '') {
+				$patterns[$pattern] = $pattern;
+			}
+		}
+		return array_values($patterns);
+	}
+
+	/**
+	 * Lower-case words the destination's credit of a transfer may carry: its
+	 * description pattern, its name and the source account's name
+	 *
+	 * @return string[]
+	 */
+	private function transferNames(Bill $bill): array {
+		$names = [$this->matchPattern($bill), (string)$bill->getName()];
+		if ($bill->getAccountId() !== null) {
+			try {
+				$names[] = (string)$this->accountMapper->findById($bill->getAccountId())->getName();
+			} catch (DoesNotExistException $e) {
+				// a source that is gone names nothing
+			}
+		}
+		$names = array_map(fn (string $name) => mb_strtolower(trim($name)), $names);
+		return array_values(array_unique(array_filter($names, fn (string $name) => mb_strlen($name) >= 3)));
 	}
 
 	/**

@@ -1735,6 +1735,16 @@ class BillServiceTest extends TestCase {
 					&& $row->getDate() >= $from && $row->getDate() <= $to
 			))
 		);
+		$this->transactionService->method('findTransferArrivals')->willReturnCallback(
+			fn (int $accountId, float $amount, string $from, string $to, float $margin) => array_values(array_filter(
+				$byId,
+				fn ($row) => $row->getAccountId() === $accountId && $row->getType() === 'credit'
+					&& $row->getBillId() === null && $row->getLinkedTransactionId() === null
+					&& ($row->getStatus() ?? 'cleared') !== 'scheduled'
+					&& $row->getDate() >= $from && $row->getDate() <= $to
+					&& abs((float)$row->getAmount() - $amount) <= $margin
+			))
+		);
 		$this->transactionService->method('linkBillAsAccountOwner')->willReturnCallback(function (int $id, Bill $bill) use ($byId) {
 			$byId[$id]->setBillId($bill->getId());
 			return $byId[$id];
@@ -1998,20 +2008,108 @@ class BillServiceTest extends TestCase {
 		$this->assertSame([600], $snapshot['createdTransactionIds'], 'Mark Unpaid must not delete the bank\'s credit');
 	}
 
-	public function testMarkPaidLeavesACreditNoStatementBroughtAlone(): void {
+	public function testMarkPaidLeavesACreditTheAppBookedForIncomeAlone(): void {
 		$this->setupAutoMatchBill([
 			'isTransfer' => true, 'destinationAccountId' => 2, 'autoDetectPattern' => null,
 			'nextDueDate' => '2026-06-15', 'createTransaction' => false,
 		]);
 		[$withdrawal, $deposit] = $this->bookedTransferPair('2026-06-15');
-		$typedIn = $this->makeImportedTx(['id' => 500, 'accountId' => 2, 'type' => 'credit', 'date' => '2026-06-14', 'description' => 'Savings']);
-		$this->linkable($withdrawal, $deposit, $typedIn);
+		$wages = $this->makeImportedTx(['id' => 500, 'accountId' => 2, 'type' => 'credit', 'date' => '2026-06-14', 'description' => '']);
+		$wages->setNotes('Auto-generated from income: Wages');
+		$this->linkable($withdrawal, $deposit, $wages);
 		$this->transactionService->method('clearScheduledBillTransaction')->willReturn(null);
 		$this->transactionService->method('createFromBill')->willReturn($withdrawal);
-		$this->transactionService->method('findTransferArrivals')->willReturn([$typedIn]);
 		$this->transactionService->expects($this->never())->method('replaceBookedRow');
 
 		$this->service->markPaid(1, 'user1', '2026-06-15', true);
+	}
+
+	/**
+	 * The withdrawal linked as the payment (an import, the Mark Paid dialog,
+	 * auto-pay): the destination's credit already in, five days later, was
+	 * left beside the deposit booked for it, as only three days were looked at
+	 */
+	public function testLinkingTheWithdrawalLetsTheDestinationsCreditAlreadyThereBeItsArrival(): void {
+		$bill = $this->setupAutoMatchBill([
+			'isTransfer' => true, 'destinationAccountId' => 2, 'autoDetectPattern' => null,
+			'nextDueDate' => '2026-06-15', 'createTransaction' => false,
+		]);
+		$bankWithdrawal = $this->makeImportedTx(['id' => 700, 'date' => '2026-06-15', 'description' => 'SAVINGS TFR']);
+		$bankWithdrawal->setImportId('bank-1');
+		$deposit = $this->makeImportedTx(['id' => 601, 'accountId' => 2, 'type' => 'credit', 'date' => '2026-06-15', 'description' => '']);
+		$deposit->setNotes('Auto-generated transfer: Netflix');
+		$deposit->setBillId(1);
+		$deposit->setLinkedTransactionId(700);
+		$credit = $this->makeImportedTx(['id' => 500, 'accountId' => 2, 'type' => 'credit', 'date' => '2026-06-20', 'description' => 'FROM CHECKING']);
+		$credit->setImportId('bank-2');
+		$this->linkable($bankWithdrawal, $deposit, $credit);
+		$this->transactionService->method('completeTransferPayment')->willReturn(601);
+		$this->transactionService->expects($this->once())->method('replaceBookedRow')
+			->with($deposit, $credit, 'Auto-generated transfer: Netflix');
+
+		$this->service->markPaid(1, 'user1', null, false, 700);
+
+		$snapshot = json_decode($bill->getPaidUndoState(), true);
+		$this->assertSame([], $snapshot['createdTransactionIds'], 'Mark Unpaid must not delete the bank\'s credit');
+		$this->assertSame(1, $credit->getBillId());
+	}
+
+	/**
+	 * The salary came in two days after a 2,000 top-up was marked paid and
+	 * was taken as the top-up's arrival: the income stayed expected and
+	 * auto-create booked the salary a second time
+	 */
+	public function testARecurringIncomesCreditIsNeverATransfersArrival(): void {
+		$salary = $this->makeImportedTx(['id' => 510, 'accountId' => 2, 'type' => 'credit', 'date' => '2026-06-17', 'description' => 'ACME PAYROLL']);
+		$topUp = $this->makeImportedTx(['id' => 511, 'accountId' => 2, 'type' => 'credit', 'date' => '2026-06-19', 'description' => 'FROM SAVINGS']);
+		[, $deposit] = $this->transferWithBookedDeposit([], [$salary, $topUp]);
+		$income = new \OCA\Budget\Db\RecurringIncome();
+		$income->setAccountId(2);
+		$income->setAutoDetectPattern('ACME');
+		$this->incomeMapper->method('findActiveByAccount')->with(2)->willReturn([$income]);
+		$this->transactionService->expects($this->once())->method('replaceBookedRow')->with($deposit, $topUp);
+
+		$this->service->autoMatchPaidFromImport('user1', [$topUp, $salary]);
+
+		$this->assertNull($salary->getBillId(), 'Left for the income');
+		$this->assertSame(1, $topUp->getBillId());
+	}
+
+	public function testTheCreditNamingTheTransferIsItsArrival(): void {
+		// A joint account: the partner's own 15.99 came in the same day
+		$partners = $this->makeImportedTx(['id' => 510, 'accountId' => 2, 'type' => 'credit', 'date' => '2026-06-15', 'description' => 'BOB SMITH SHARE']);
+		$ours = $this->makeImportedTx(['id' => 511, 'accountId' => 2, 'type' => 'credit', 'date' => '2026-06-17', 'description' => 'A SMITH SAVINGS TFR']);
+		[, $deposit] = $this->transferWithBookedDeposit([], [$partners, $ours]);
+		$this->transactionService->expects($this->once())->method('replaceBookedRow')->with($deposit, $ours);
+
+		$this->service->autoMatchPaidFromImport('user1', [$ours, $partners]);
+	}
+
+	public function testTheCreditNearestTheDepositIsItsArrivalNotTheOldest(): void {
+		$earlier = $this->makeImportedTx(['id' => 510, 'accountId' => 2, 'type' => 'credit', 'date' => '2026-06-04', 'description' => 'CREDIT']);
+		$nearer = $this->makeImportedTx(['id' => 511, 'accountId' => 2, 'type' => 'credit', 'date' => '2026-06-16', 'description' => 'CREDIT']);
+		[, $deposit] = $this->transferWithBookedDeposit([], [$earlier, $nearer]);
+		$this->transactionService->expects($this->once())->method('replaceBookedRow')->with($deposit, $nearer);
+
+		$this->service->autoMatchPaidFromImport('user1', [$nearer, $earlier]);
+	}
+
+	public function testWithinOneCurrencyTheArrivalIsTheExactAmount(): void {
+		[, , $credit] = $this->transferWithBookedDeposit();
+		$credit->setAmount(16.50);
+		$this->transactionService->expects($this->never())->method('replaceBookedRow');
+
+		$this->service->autoMatchPaidFromImport('user1', [$credit]);
+	}
+
+	public function testBetweenCurrenciesTheArrivalMayBeATenthOff(): void {
+		// The bank converts at its own rate: 117.40 for the app's 117.65
+		[, $deposit, $credit] = $this->transferWithBookedDeposit();
+		$credit->setAmount(15.20);
+		$this->transactionService->method('transferBetweenCurrencies')->willReturn(true);
+		$this->transactionService->expects($this->once())->method('replaceBookedRow')->with($deposit, $credit);
+
+		$this->service->autoMatchPaidFromImport('user1', [$credit]);
 	}
 
 	public function testWhatWasAddedToABookedDepositGoesToTheArrivalTheBankRowGets(): void {
@@ -2094,7 +2192,7 @@ class BillServiceTest extends TestCase {
 	 *
 	 * @return array{0: Bill, 1: \OCA\Budget\Db\Transaction, 2: \OCA\Budget\Db\Transaction}
 	 */
-	private function transferWithBookedDeposit(array $deposit = []): array {
+	private function transferWithBookedDeposit(array $deposit = [], ?array $credits = null): array {
 		$bill = $this->setupAutoMatchBill([
 			'isTransfer' => true, 'destinationAccountId' => 2, 'autoDetectPattern' => null,
 			'nextDueDate' => '2026-07-15', 'lastPaidDate' => '2026-06-15',
@@ -2113,7 +2211,8 @@ class BillServiceTest extends TestCase {
 		$booked->setLinkedTransactionId(600);
 		$credit = $this->makeImportedTx(['id' => 500, 'accountId' => 2, 'type' => 'credit', 'date' => '2026-06-16', 'description' => 'FROM CHECKING']);
 		$credit->setImportId('bank-2');
-		$this->linkable($booked, $credit);
+		// $credits: the destination's own rows a test puts there instead
+		$this->linkable($booked, ...($credits ?? [$credit]));
 		return [$bill, $booked, $credit];
 	}
 
