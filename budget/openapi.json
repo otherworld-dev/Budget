@@ -3,7 +3,7 @@
   "info": {
     "title": "Nextcloud Budget REST API",
     "version": "1.0",
-    "description": "Public, versioned API for reading a Budget instance and recording, editing and deleting transactions from outside the web UI — a phone capture app, a script, or automation tooling.\n\nAuthenticate with a Nextcloud app password (personal settings > Security), or a token obtained through Nextcloud's Login flow v2. Every request must also send `OCS-APIRequest: true`; without it Nextcloud answers 412.\n\nEvery response is wrapped in an OCS envelope — the payload is at `ocs.data`, and `ocs.meta.statuscode` mirrors the HTTP status. Schemas below describe the contents of `ocs.data`.\n\nThe internal endpoints the web UI itself calls (under /apps/budget/api/..., without /ocs/) are not part of this contract and change without notice.",
+    "description": "Public, versioned API for reading a Budget instance and recording, editing and deleting transactions from outside the web UI — a phone capture app, a script, or automation tooling.\n\nAuthenticate with a Nextcloud app password (personal settings > Security), or a token obtained through Nextcloud's Login flow v2. Every request must also send `OCS-APIRequest: true`; without it Nextcloud answers 412.\n\nEvery answer from this API is wrapped in an OCS envelope: the payload is at `ocs.data`, and `ocs.meta.statuscode` mirrors the HTTP status. Schemas below describe the contents of `ocs.data`.\n\nSome errors come from Nextcloud itself, before the request reaches the API, and follow its conventions instead: 401 when not authenticated (`ocs.meta.statuscode` 997), 404 for an unknown route (998), 500 for a body that is not valid JSON (996), 412 with a plain `{\"message\": \"CSRF check failed\"}` and no envelope when the OCS-APIRequest header is missing, and 429 with an empty body when a rate limit is reached. Branch on the HTTP status, never on `statuscode`.\n\nThe internal endpoints the web UI itself calls (under /apps/budget/api/..., without /ocs/) are not part of this contract and change without notice.",
     "license": {
       "name": "AGPL-3.0",
       "url": "https://www.gnu.org/licenses/agpl-3.0.html"
@@ -412,6 +412,9 @@
                 }
               }
             }
+          },
+          "500": {
+            "$ref": "#/components/responses/MalformedBody"
           }
         }
       }
@@ -545,6 +548,9 @@
           },
           "429": {
             "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/MalformedBody"
           }
         }
       },
@@ -681,7 +687,7 @@
         ],
         "operationId": "uploadReceipt",
         "summary": "Attach a receipt photo",
-        "description": "Owner-only. The file is stored in the user's own Files under Budget/Receipts/<year>/ and referenced from the transaction. Rate limited to 10 per minute per user.",
+        "description": "Owner-only. The file is stored in the user's own Files, in their receipts folder (Budget/Receipts unless they changed it in Settings) under <year>/<month>/ of the transaction's date, and referenced from the transaction. Rate limited to 10 per minute per user.",
         "requestBody": {
           "required": true,
           "content": {
@@ -1005,7 +1011,7 @@
       },
       "post": {
         "summary": "Split a transaction into per-category parts",
-        "description": "Replaces any existing splits. The parts must sum to the transaction amount and there must be at least two. Intended for capture apps that read a receipt and let the user categorise each item.\n\nOwner-scoped: on a shared account the splits are written to the account owner's ledger, like the transaction and its receipts. A read-only share gets 403.",
+        "description": "Replaces any existing splits. The parts must sum to the transaction amount and there must be at least two. Intended for capture apps that read a receipt and let the user categorise each item.\n\nOwner-scoped: on a shared account the splits are written to the account owner's ledger, like the transaction and its receipts. A read-only share gets 403. Rate limited to 60 per minute per user.",
         "operationId": "createSplits",
         "tags": [
           "transactions"
@@ -1137,6 +1143,18 @@
                 }
               }
             }
+          },
+          "500": {
+            "$ref": "#/components/responses/MalformedBody"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorised"
+          },
+          "412": {
+            "$ref": "#/components/responses/MissingOcsHeader"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           }
         }
       },
@@ -1365,7 +1383,7 @@
     },
     "responses": {
       "Unauthorised": {
-        "description": "Not authenticated, or the app password has been revoked.",
+        "description": "Not authenticated, or the app password has been revoked. Nextcloud answers this itself: `ocs.meta.statuscode` is 997, not 401.",
         "content": {
           "application/json": {
             "schema": {
@@ -1405,17 +1423,23 @@
         }
       },
       "RateLimited": {
-        "description": "Too many requests; wait and retry.",
+        "description": "Too many requests; wait and retry. Nextcloud's rate limiter answers with an empty body. After repeated failed logins its brute-force protection answers 429 too, with an OCS envelope (`ocs.meta.message` \"Reached maximum delay\")."
+      },
+      "MissingOcsHeader": {
+        "description": "The OCS-APIRequest: true header is missing. Nextcloud answers this itself, without an OCS envelope.",
         "content": {
           "application/json": {
             "schema": {
-              "$ref": "#/components/schemas/OcsFailure"
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "CSRF check failed"
+                }
+              }
             }
           }
         }
-      },
-      "MissingOcsHeader": {
-        "description": "The OCS-APIRequest: true header is missing."
       },
       "Conflict": {
         "description": "The change was refused because of what the transaction is; ocs.data.error_code says which. transfer_leg: one side of a transfer, whose amount, type and date cannot change on their own. reconciled: a reconciled row, whose amount, type or date (or the row itself) only changes with confirm_reconciled set. split: a split transaction, whose categories are changed through /transactions/{id}/splits.",
@@ -1423,6 +1447,16 @@
           "application/json": {
             "schema": {
               "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      },
+      "MalformedBody": {
+        "description": "The body is not valid JSON. Nextcloud answers this itself, before the API sees the request: HTTP 500 with `ocs.meta.statuscode` 996. Nothing was changed.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/OcsFailure"
             }
           }
         }
@@ -1529,6 +1563,10 @@
           "error_code": {
             "type": "string",
             "description": "Stable machine-readable code, present on failures clients must distinguish programmatically: ocr_not_configured, ocr_quota_exhausted, ocr_extraction_failed, idempotency_key_conflict, request_in_flight, field_not_editable, invalid_amount, transfer_leg, reconciled, split. Switch on this, never on the error text."
+          },
+          "hint": {
+            "type": "string",
+            "description": "Present only next to detail, when the database is missing a table or column this version needs (an unfinished update): what an administrator can run to finish it."
           }
         }
       },
@@ -1686,7 +1724,7 @@
           "type": {
             "type": "string",
             "example": "checking",
-            "description": "checking, savings, credit_card, cash, investment, crypto, loan, other."
+            "description": "checking, savings, credit_card, investment, loan, cash, money_market, cryptocurrency, mortgage or line_of_credit. Treat a type you do not know as an asset account."
           },
           "currency": {
             "type": "string",
@@ -1896,7 +1934,7 @@
             "items": {
               "$ref": "#/components/schemas/Split"
             },
-            "description": "Always present. The parts of a split transaction, [] when it isn't split. On a create that supplied splits: the parts just created when they were accepted, or [] when they were rejected, in which case splits_error is also present and is_split is false. Check splits_error, not the presence of this field, to tell whether the split happened."
+            "description": "Always present. The parts of a split transaction, [] when it isn't split. On a create that supplied splits: the parts just created when they were accepted, or [] when they were rejected, in which case splits_error is also present and is_split is false. Check splits_error, not the presence of this field, to tell whether the split happened. Before 3.0 a create response only had this field when the splits it sent were accepted, so a client that tested for its presence must check splits_error instead."
           },
           "splits_error": {
             "type": "string",
@@ -2142,7 +2180,7 @@
       },
       "Capabilities": {
         "type": "object",
-        "description": "Minimal discovery for capture clients: three keys, exactly. GET / (Info) carries the same facts and more.",
+        "description": "Minimal discovery for capture clients. ocr_available, currency and version are always present; the *_available flags are added as features land, so an older server leaves them out: read a missing one as false. GET / (Info) also describes the server and the user, with feature flags of its own, but does not repeat every flag here.",
         "required": [
           "ocr_available",
           "currency",

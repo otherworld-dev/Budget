@@ -773,7 +773,8 @@ class ApiV1TransactionController extends OCSController {
 
 	/**
 	 * Upload a receipt photo as multipart/form-data under the field `file`.
-	 * The file is stored in the user's own Files under Budget/Receipts/<year>.
+	 * The file is stored in the user's own Files, in their receipts folder
+	 * under <year>/<month>/ of the transaction's date.
 	 */
 	#[NoAdminRequired]
 	#[UserRateLimit(limit: 10, period: 60)]
