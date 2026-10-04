@@ -1069,6 +1069,17 @@ class BillController extends Controller {
 	 * @NoAdminRequired
 	 */
 	public function statusForMonth(?string $month = null): DataResponse {
+		// Checked here: anything but YYYY-MM made date() throw a TypeError in
+		// the service, which the catch below doesn't take, so a 500
+		if ($month === '') {
+			$month = null;
+		} elseif ($month !== null && !preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $month)) {
+			return new DataResponse(
+				['error' => $this->l->t('Invalid month format. Use YYYY-MM')],
+				Http::STATUS_BAD_REQUEST
+			);
+		}
+
 		try {
 			$status = $this->service->getBillStatusForMonth($this->getEffectiveUserId(), $month);
 			return new DataResponse($status);
