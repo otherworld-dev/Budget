@@ -359,6 +359,11 @@
                                     "photo_error": {
                                       "type": "string",
                                       "description": "Present only when the transaction was recorded but the inline photo could not be attached. Never re-post in that case; retry with the same idempotency_key (which heals the photo) or attach via POST /transactions/{id}/receipts."
+                                    },
+                                    "category_error": {
+                                      "type": "string",
+                                      "description": "Present only when the category_id sent is not one the account owner can use. The transaction is recorded anyway, uncategorised (category_id null), so never re-post; set a category later with PATCH /transactions/{id}. A replay of the same idempotency_key returns the recorded transaction without this field.",
+                                      "example": "Category not found. It must be one of the account owner's categories"
                                     }
                                   }
                                 }
@@ -374,7 +379,7 @@
             }
           },
           "400": {
-            "description": "Invalid input; ocs.data.error says what. This includes a list or an object sent for a field that takes one value (\"vendor must be a single value\"), a negative amount (error_code invalid_amount), and a `category_id` the account owner cannot use (see NewTransaction.category_id), answered with the error \"Category not found. It must be one of the account owner's categories\".",
+            "description": "Invalid input; ocs.data.error says what. This includes a list or an object sent for a field that takes one value (\"vendor must be a single value\"), and a negative amount (error_code invalid_amount). A `category_id` the account owner cannot use is not a 400: see category_error.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1965,7 +1970,7 @@
           },
           "category_id": {
             "type": "integer",
-            "description": "Omit to file as uncategorised. Must be a category the account owner can use: one of their own categories, or one shared with them. On an account shared with you that means the owner's categories, not yours (match Category.owner against Account.owner); any other id is refused with 400 and the error \"Category not found. It must be one of the account owner's categories\", and nothing is recorded."
+            "description": "Omit to file as uncategorised. Must be a category the account owner can use: one of their own categories, or one shared with them. On an account shared with you that means the owner's categories, not yours (match Category.owner against Account.owner); any other id is left off: the transaction is recorded uncategorised and the response carries category_error."
           },
           "description": {
             "type": "string",

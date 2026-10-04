@@ -399,9 +399,17 @@ class ApiV1TransactionController extends OCSController {
 				}
 
 				// The row lands in the owner's ledger: a category the owner
-				// cannot see is refused rather than stored (its name would
-				// come back on every read)
-				$this->requireOwnersCategory($effectiveUserId, $categoryId);
+				// can't use is never stored (its name would come back on every
+				// read). The capture is kept, uncategorised, and the response
+				// says why: refusing it lost the purchase for a client that
+				// offers its own categories on a shared account.
+				$categoryError = null;
+				try {
+					$this->requireOwnersCategory($effectiveUserId, $categoryId);
+				} catch (\InvalidArgumentException $e) {
+					$categoryError = $e->getMessage();
+					$categoryId = null;
+				}
 
 				$transaction = $this->service->create(
 					$effectiveUserId,
@@ -440,6 +448,9 @@ class ApiV1TransactionController extends OCSController {
 			// transaction is recorded, and a retry would duplicate the very
 			// thing the key protects.
 			$out = ApiSerializer::transaction($transaction);
+			if ($categoryError !== null) {
+				$out['category_error'] = $categoryError;
+			}
 			$photo = $this->request->getUploadedFile('photo');
 			if ($photo) {
 				try {

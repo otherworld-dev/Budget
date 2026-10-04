@@ -543,23 +543,38 @@ class ApiV1TransactionControllerTest extends TestCase {
 
 	/**
 	 * Any category id used to be stored as-is, and every read then carried
-	 * that category's name — another user's included. The owner's visible
-	 * categories are the only ones accepted, and a refusal must also release
-	 * the idempotency reservation so an honest retry is not blocked.
+	 * that category's name — another user's included. Only the owner's
+	 * usable categories are stored. Refusing the whole request lost the
+	 * capture for a 2.54-era client that offers its own categories on a
+	 * shared account, so the transaction is recorded uncategorised and the
+	 * response says why, like photo_error and splits_error.
 	 */
-	public function testCreateRejectsACategoryTheOwnerCannotSee(): void {
+	public function testACategoryTheOwnerCannotUseIsLeftOffAndTheCaptureKept(): void {
 		$this->granularShareService->method('requireUsableCategory')
 			->willThrowException(new \InvalidArgumentException('Category not found'));
-		$this->service->expects($this->never())->method('create');
-		$this->idempotencyKeys->expects($this->once())->method('delete');
+		$this->service->expects($this->once())->method('create')
+			->with('user1', 1, '2026-08-01', 'Weekly shop', 42.5, 'debit', null)
+			->willReturn($this->transaction());
+		// The key now belongs to the recorded transaction
+		$this->idempotencyKeys->expects($this->never())->method('delete');
+		$this->idempotencyKeys->expects($this->once())->method('update');
 		$this->params = $this->captureParams(['category_id' => '999', 'idempotency_key' => 'k1']);
 
 		$response = $this->controller->create();
+		$data = $response->getData();
 
-		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+		$this->assertNull($data['category_id']);
 		// Says whose category it must be: a share recipient's own category
 		// is refused too, and "not found" alone read as a wrong id
-		$this->assertSame("Category not found. It must be one of the account owner's categories", $response->getData()['error']);
+		$this->assertSame("Category not found. It must be one of the account owner's categories", $data['category_error']);
+	}
+
+	public function testAUsableCategoryLeavesNoCategoryError(): void {
+		$this->service->method('create')->willReturn($this->transaction());
+		$this->params = $this->captureParams(['category_id' => '7']);
+
+		$this->assertArrayNotHasKey('category_error', $this->controller->create()->getData());
 	}
 
 	public function testCreateChecksTheCategoryAgainstTheAccountOwner(): void {
