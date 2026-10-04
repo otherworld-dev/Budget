@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace OCA\Budget\Service;
 
 use OCA\Budget\Db\CategoryMapper;
+use OCA\Budget\Db\ReportScope;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\TransactionReportQueries;
+use OCA\Budget\Enum\Currency;
 use OCA\Budget\Service\Report\ReportAggregator;
 
 /**
@@ -30,10 +32,22 @@ class YearOverYearService {
 		TransactionReportQueries $reportQueries,
 		private ?UserClock $userClock = null,
 		private ?ReportAggregator $reportAggregator = null,
+		private ?CurrencyTotals $currencyTotals = null,
 	) {
 		$this->transactionMapper = $transactionMapper;
 		$this->categoryMapper = $categoryMapper;
 		$this->reportQueries = $reportQueries;
+	}
+
+	/**
+	 * Decimals of the currency this comparison's money is in (see
+	 * CurrencyTotals::reportCurrency()): eight for a bitcoin account, two
+	 * when the currency can't be told.
+	 *
+	 * @param int[]|null $visibleAccountIds
+	 */
+	private function decimals(string $userId, ?int $accountId, ?array $visibleAccountIds): int {
+		return Currency::decimalsFor($this->currencyTotals?->reportCurrency($userId, $accountId, $visibleAccountIds));
 	}
 
 	/**
@@ -47,6 +61,7 @@ class YearOverYearService {
 	 */
 	public function compareMonth(string $userId, int $month, int $years = 3, ?int $accountId = null, ?array $visibleAccountIds = null): array {
 		$currentYear = (int)substr($this->today($userId), 0, 4);
+		$decimals = $this->decimals($userId, $accountId, $visibleAccountIds);
 		$results = [];
 
 		for ($i = 0; $i < $years; $i++) {
@@ -54,7 +69,7 @@ class YearOverYearService {
 			$startDate = sprintf('%04d-%02d-01', $year, $month);
 			$endDate = date('Y-m-t', strtotime($startDate));
 
-			$monthData = $this->getMonthSummary($userId, $startDate, $endDate, $accountId, $visibleAccountIds);
+			$monthData = $this->getMonthSummary($userId, $startDate, $endDate, $accountId, $visibleAccountIds, $decimals);
 			$monthData['year'] = $year;
 			$monthData['month'] = $month;
 			$monthData['monthName'] = date('F', strtotime($startDate));
@@ -91,6 +106,7 @@ class YearOverYearService {
 	public function compareYears(string $userId, int $years = 3, ?int $accountId = null, ?array $visibleAccountIds = null): array {
 		$today = $this->today($userId);
 		$currentYear = (int)substr($today, 0, 4);
+		$decimals = $this->decimals($userId, $accountId, $visibleAccountIds);
 		$results = [];
 
 		for ($i = 0; $i < $years; $i++) {
@@ -103,7 +119,7 @@ class YearOverYearService {
 				$endDate = $today;
 			}
 
-			$yearData = $this->getYearSummary($userId, $year, $startDate, $endDate, $accountId, $visibleAccountIds);
+			$yearData = $this->getYearSummary($userId, $year, $startDate, $endDate, $accountId, $visibleAccountIds, $decimals);
 			$yearData['year'] = $year;
 			$yearData['isCurrent'] = ($year === $currentYear);
 
@@ -187,12 +203,13 @@ class YearOverYearService {
 			);
 		}
 
+		$decimals = $this->decimals($userId, $accountId, $visibleAccountIds);
 		foreach ($expenseCategories as $category) {
 			$categoryYears = [];
 			$anySpending = false;
 			for ($i = 0; $i < $years; $i++) {
 				$year = $currentYear - $i;
-				$spending = round((float)($spendingByYear[$year][$category->getId()] ?? 0), 2);
+				$spending = round((float)($spendingByYear[$year][$category->getId()] ?? 0), $decimals);
 				$anySpending = $anySpending || $spending != 0.0;
 
 				$categoryYears[] = [
@@ -249,6 +266,7 @@ class YearOverYearService {
 		$today = $this->today($userId);
 		$currentYear = (int)substr($today, 0, 4);
 		$currentMonth = (int)substr($today, 5, 2);
+		$decimals = $this->decimals($userId, $accountId, $visibleAccountIds);
 		$result = [];
 
 		for ($i = 0; $i < $years; $i++) {
@@ -266,7 +284,8 @@ class YearOverYearService {
 
 			for ($month = 1; $month <= $maxMonth; $month++) {
 				$monthSummary = $this->summarise(
-					isset($byMonth[sprintf('%04d-%02d', $year, $month)]) ? [$byMonth[sprintf('%04d-%02d', $year, $month)]] : []
+					isset($byMonth[sprintf('%04d-%02d', $year, $month)]) ? [$byMonth[sprintf('%04d-%02d', $year, $month)]] : [],
+					$decimals
 				);
 				$monthSummary['month'] = $month;
 				$monthSummary['monthName'] = date('M', mktime(0, 0, 0, $month, 1));
@@ -274,12 +293,14 @@ class YearOverYearService {
 				$yearData['months'][] = $monthSummary;
 			}
 
-			// Calculate totals
-			$yearData['totalIncome'] = MoneyCalculator::toFloat(MoneyCalculator::sum(array_column($yearData['months'], 'income')));
-			$yearData['totalExpenses'] = MoneyCalculator::toFloat(MoneyCalculator::sum(array_column($yearData['months'], 'expenses')));
-			$yearData['totalSavings'] = MoneyCalculator::toFloat(MoneyCalculator::subtract($yearData['totalIncome'], $yearData['totalExpenses']));
-			$yearData['avgMonthlyIncome'] = $maxMonth > 0 ? round($yearData['totalIncome'] / $maxMonth, 2) : 0;
-			$yearData['avgMonthlyExpenses'] = $maxMonth > 0 ? round($yearData['totalExpenses'] / $maxMonth, 2) : 0;
+			// Totals from the months as the report gave them, not from the
+			// rounded month figures, so a year matches Cash Flow for it
+			$yearTotals = $this->summarise(array_values($byMonth), $decimals);
+			$yearData['totalIncome'] = $yearTotals['income'];
+			$yearData['totalExpenses'] = $yearTotals['expenses'];
+			$yearData['totalSavings'] = $yearTotals['savings'];
+			$yearData['avgMonthlyIncome'] = $maxMonth > 0 ? round($yearData['totalIncome'] / $maxMonth, $decimals) : 0;
+			$yearData['avgMonthlyExpenses'] = $maxMonth > 0 ? round($yearData['totalExpenses'] / $maxMonth, $decimals) : 0;
 
 			$result[] = $yearData;
 		}
@@ -318,19 +339,23 @@ class YearOverYearService {
 
 	/**
 	 * Totals of some months of cash flow, money added through MoneyCalculator
-	 * (#274).
+	 * (#274) at the report's full scale and rounded once, to $decimals. Summed
+	 * at two places, bcmath truncated: converted figures (which carry eight)
+	 * came out a penny below Cash Flow and the dashboard, and a bitcoin
+	 * account's year read 0.
 	 *
 	 * @param array<array{income: float, expenses: float, count?: int, ...}> $months
+	 * @param int $decimals the decimals of the currency the money is in
 	 * @return array{income: float, expenses: float, savings: float, transactionCount: int}
 	 */
-	private function summarise(array $months): array {
-		$income = MoneyCalculator::sum(array_column($months, 'income'));
-		$expenses = MoneyCalculator::sum(array_column($months, 'expenses'));
+	private function summarise(array $months, int $decimals = 2): array {
+		$income = MoneyCalculator::sum(array_column($months, 'income'), ReportScope::MERGE_SCALE);
+		$expenses = MoneyCalculator::sum(array_column($months, 'expenses'), ReportScope::MERGE_SCALE);
 
 		return [
-			'income' => MoneyCalculator::toFloat($income),
-			'expenses' => MoneyCalculator::toFloat($expenses),
-			'savings' => MoneyCalculator::toFloat(MoneyCalculator::subtract($income, $expenses)),
+			'income' => round(MoneyCalculator::toFloat($income), $decimals),
+			'expenses' => round(MoneyCalculator::toFloat($expenses), $decimals),
+			'savings' => round(MoneyCalculator::toFloat(MoneyCalculator::subtract($income, $expenses, ReportScope::MERGE_SCALE)), $decimals),
 			'transactionCount' => (int)array_sum(array_column($months, 'count')),
 		];
 	}
@@ -338,25 +363,25 @@ class YearOverYearService {
 	/**
 	 * Get month summary data.
 	 */
-	private function getMonthSummary(string $userId, string $startDate, string $endDate, ?int $accountId = null, ?array $visibleAccountIds = null): array {
+	private function getMonthSummary(string $userId, string $startDate, string $endDate, ?int $accountId = null, ?array $visibleAccountIds = null, int $decimals = 2): array {
 		return $this->summarise(array_values(
 			$this->cashFlowByMonth($userId, $startDate, $endDate, $accountId, $visibleAccountIds)
-		));
+		), $decimals);
 	}
 
 	/**
 	 * Get year summary data with monthly breakdowns.
 	 */
-	private function getYearSummary(string $userId, int $year, string $startDate, string $endDate, ?int $accountId = null, ?array $visibleAccountIds = null): array {
+	private function getYearSummary(string $userId, int $year, string $startDate, string $endDate, ?int $accountId = null, ?array $visibleAccountIds = null, int $decimals = 2): array {
 		$months = array_values($this->cashFlowByMonth($userId, $startDate, $endDate, $accountId, $visibleAccountIds));
-		$summary = $this->summarise($months);
+		$summary = $this->summarise($months, $decimals);
 
 		// Months with any activity, as before: an empty month is not averaged in
 		$monthCount = count(array_filter($months, static fn (array $m) => ($m['count'] ?? 0) > 0));
 
 		return $summary + [
-			'avgMonthlyIncome' => $monthCount > 0 ? round($summary['income'] / $monthCount, 2) : 0,
-			'avgMonthlyExpenses' => $monthCount > 0 ? round($summary['expenses'] / $monthCount, 2) : 0,
+			'avgMonthlyIncome' => $monthCount > 0 ? round($summary['income'] / $monthCount, $decimals) : 0,
+			'avgMonthlyExpenses' => $monthCount > 0 ? round($summary['expenses'] / $monthCount, $decimals) : 0,
 			'monthsWithData' => $monthCount,
 		];
 	}

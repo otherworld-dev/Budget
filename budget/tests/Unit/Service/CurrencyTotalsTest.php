@@ -55,4 +55,24 @@ class CurrencyTotalsTest extends TestCase {
 		// An account with no rate is left out rather than added as pounds
 		$this->assertSame(['XAU'], $result['unconverted']);
 	}
+
+	public function testAReportIsInTheCurrencyItsAccountsShareElseTheBaseCurrency(): void {
+		$hidden = $this->account(9, 'USD');
+		$hidden->setExcludedFromReports(true);
+		$mapper = $this->createMock(\OCA\Budget\Db\AccountMapper::class);
+		$mapper->method('findById')->willReturnCallback(fn (int $id) => $this->account($id, 'BTC'));
+		$mapper->method('findByIds')->willReturnCallback(fn (array $ids) => array_map(
+			fn (int $id) => $id === 9 ? $hidden : $this->account($id, $id === 3 ? 'EUR' : 'JPY'),
+			$ids
+		));
+		$mapper->method('findAll')->willReturn([]);
+		$totals = new CurrencyTotals($this->conversion, $mapper);
+
+		$this->assertSame('BTC', $totals->reportCurrency('alice', 7, [1, 2]));
+		// An account kept out of reports doesn't make the rest mixed
+		$this->assertSame('JPY', $totals->reportCurrency('alice', null, [1, 2, 9]));
+		$this->assertSame('GBP', $totals->reportCurrency('alice', null, [1, 3]));
+		$this->assertSame('GBP', $totals->reportCurrency('alice', null, null));
+		$this->assertNull((new CurrencyTotals($this->conversion))->reportCurrency('alice', null, null));
+	}
 }
