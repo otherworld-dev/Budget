@@ -4,6 +4,7 @@
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
+import { once } from '../../utils/submitGuard.js';
 import { confirmDialog, promptDialog } from '../../utils/dialogs.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import { groupImportErrors } from '../../utils/helpers.js';
@@ -554,7 +555,12 @@ export default class ImportModule {
         nameInput?.focus();
     }
 
-    async saveCurrentTemplate() {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveCurrentTemplate() {
+        return once('import-template-save', document.querySelector('#import-save-template-form [type="submit"]'), () => this._saveCurrentTemplate());
+    }
+
+    async _saveCurrentTemplate() {
         const nameInput = document.getElementById('import-template-name');
         const name = (nameInput?.value || '').trim();
         if (!name) {

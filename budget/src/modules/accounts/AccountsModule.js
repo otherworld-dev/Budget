@@ -4,6 +4,7 @@
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
+import { once } from '../../utils/submitGuard.js';
 import { confirmDialog, promptDialog } from '../../utils/dialogs.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import { downloadTransactionsCsv, isLiabilityType, LIABILITY_ACCOUNT_TYPES } from '../../utils/helpers.js';
@@ -2284,7 +2285,12 @@ export default class AccountsModule {
     }
 
     // Phase 4: Quick Add Transaction methods
-    async saveQuickAddTransaction() {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveQuickAddTransaction() {
+        return once('quick-add-save', document.querySelector('#quick-add-form [type="submit"]'), () => this._saveQuickAddTransaction());
+    }
+
+    async _saveQuickAddTransaction() {
         // Helper function to safely get and clean form values
         const getFormValue = (id, defaultValue = null, isNumeric = false, isInteger = false) => {
             const element = document.getElementById(id);
@@ -2432,7 +2438,12 @@ export default class AccountsModule {
         }
     }
 
-    async saveAccount() {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveAccount() {
+        return once('account-save', document.querySelector('#account-form [type="submit"]'), () => this._saveAccount());
+    }
+
+    async _saveAccount() {
         try {
             // Get form elements
             const nameElement = document.getElementById('account-name');

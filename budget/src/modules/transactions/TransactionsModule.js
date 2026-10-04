@@ -17,6 +17,7 @@ import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue } from '../../utils/datepicker.js';
 import { downloadTransactionsCsv } from '../../utils/helpers.js';
 import { apiFetch, ApiError } from '../../utils/api.js';
+import { once } from '../../utils/submitGuard.js';
 import { openAccounts, pickableAccounts, accountOptionLabel, selectAccountValue } from '../../utils/accounts.js';
 import { offerableTags } from '../../utils/tags.js';
 import flatpickr from 'flatpickr';
@@ -2832,7 +2833,12 @@ export default class TransactionsModule {
         }
     }
 
-    async saveTransaction() {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveTransaction() {
+        return once('transaction-save', document.querySelector('#transaction-form [type="submit"]'), () => this._saveTransaction());
+    }
+
+    async _saveTransaction() {
         // Get form values
         const id = document.getElementById('transaction-id').value;
         const date = document.getElementById('transaction-date').value;

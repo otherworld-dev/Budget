@@ -5,6 +5,7 @@ import { translate as t } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
+import { once } from '../../utils/submitGuard.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue } from '../../utils/datepicker.js';
 import { computeSplit, toCents } from './splitMath.js';
@@ -301,7 +302,12 @@ export default class SharedExpensesModule {
         this._userPicker.setSelected(linked ? { uid: linked, displayName: '' } : null);
     }
 
-    async saveContact() {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveContact() {
+        return once('contact-save', document.querySelector('#contact-form [type="submit"]'), () => this._saveContact());
+    }
+
+    async _saveContact() {
         const id = document.getElementById('contact-id').value;
         const name = document.getElementById('contact-name').value.trim();
         const email = document.getElementById('contact-email').value.trim();
@@ -571,7 +577,12 @@ export default class SharedExpensesModule {
         }
     }
 
-    async saveSettlement() {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveSettlement() {
+        return once('settlement-save', document.querySelector('#settlement-form [type="submit"]'), () => this._saveSettlement());
+    }
+
+    async _saveSettlement() {
         const contactId = parseInt(document.getElementById('settlement-contact-id').value);
         const date = document.getElementById('settlement-date').value;
         const notes = document.getElementById('settlement-notes').value.trim();
@@ -869,7 +880,12 @@ export default class SharedExpensesModule {
         this._renderSharePeople();
     }
 
-    async saveShareExpense() {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveShareExpense() {
+        return once('share-expense-save', document.querySelector('#share-expense-form [type="submit"]'), () => this._saveShareExpense());
+    }
+
+    async _saveShareExpense() {
         const s = this._share;
         if (!s) return;
 

@@ -4,6 +4,7 @@
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
+import { once } from '../../utils/submitGuard.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import Chart from '../../utils/chart.js';
@@ -1541,7 +1542,12 @@ export default class CategoriesModule {
         this.populateCategoryParentDropdown(excludeId ?? null, selectedId ?? null, scope);
     }
 
-    async saveCategory() {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveCategory() {
+        return once('category-save', document.querySelector('#category-form [type="submit"]'), () => this._saveCategory());
+    }
+
+    async _saveCategory() {
         const categoryId = document.getElementById('category-id').value;
         const name = document.getElementById('category-name').value.trim();
         const type = document.getElementById('category-type').value;

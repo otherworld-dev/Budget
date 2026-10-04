@@ -5,6 +5,7 @@ import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
+import { once } from '../../utils/submitGuard.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import { offerableTags } from '../../utils/tags.js';
@@ -392,7 +393,12 @@ export default class SavingsModule {
         modal.style.display = 'flex';
     }
 
-    async saveGoal() {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveGoal() {
+        return once('goal-save', document.querySelector('#goal-form [type="submit"]'), () => this._saveGoal());
+    }
+
+    async _saveGoal() {
         const goalId = document.getElementById('goal-id').value;
         const tagValue = document.getElementById('goal-tag')?.value;
 
@@ -481,7 +487,12 @@ export default class SavingsModule {
         modal.style.display = 'flex';
     }
 
-    async addMoneyToGoal() {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    addMoneyToGoal() {
+        return once('goal-add-money', document.querySelector('#add-to-goal-form [type="submit"]'), () => this._addMoneyToGoal());
+    }
+
+    async _addMoneyToGoal() {
         const goalId = document.getElementById('add-to-goal-id').value;
         const amount = parseFloat(document.getElementById('add-amount').value) || 0;
 
