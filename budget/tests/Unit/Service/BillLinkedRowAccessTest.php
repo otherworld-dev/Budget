@@ -24,8 +24,9 @@ use Psr\Log\LoggerInterface;
 
 /**
  * Mark Paid by linking a transaction that already exists. The row's id comes
- * from the browser, so it must be one the user paying can see, and the row
- * only takes the bill's category when its own ledger can use it.
+ * from the browser, and linking changes the row, so it must be in an account
+ * the user paying can write to. The row only takes the bill's category when
+ * its own ledger can use it.
  *
  * Bob owns the bill. Carol pays it through a share of the bill. The row sits
  * in account 30, which belongs to Dave and is shared with Bob for writing.
@@ -34,8 +35,10 @@ class BillLinkedRowAccessTest extends TestCase {
 	private BillService $service;
 	private BillMapper $mapper;
 	private TransactionService $transactions;
-	/** @var array<string, int[]> user => accounts they can see */
-	private array $visible = ['bob' => [10, 30]];
+	/** @var array<string, int[]> user => accounts they can write to */
+	private array $writable = ['bob' => [10, 30]];
+	/** @var array<string, int[]> user => accounts they can only read */
+	private array $readable = [];
 	/** @var array<string, int[]> user => categories their ledger can use */
 	private array $usable = ['bob' => [5]];
 
@@ -46,10 +49,11 @@ class BillLinkedRowAccessTest extends TestCase {
 
 		$shares = $this->createMock(GranularShareService::class);
 		$shares->method('canWrite')->willReturnCallback(
-			fn (string $user, string $type, int $id) => $type === 'account' && $user === 'bob' && in_array($id, [10, 30], true)
+			fn (string $user, string $type, int $id) => $type === 'account' && in_array($id, $this->writable[$user] ?? [], true)
 		);
 		$shares->method('canAccess')->willReturnCallback(
-			fn (string $user, string $type, int $id) => $type === 'account' && in_array($id, $this->visible[$user] ?? [], true)
+			fn (string $user, string $type, int $id) => $type === 'account'
+				&& in_array($id, array_merge($this->writable[$user] ?? [], $this->readable[$user] ?? []), true)
 		);
 		$shares->method('requireUsableCategory')->willReturnCallback(function (string $owner, ?int $categoryId) {
 			if ($categoryId !== null && !in_array($categoryId, $this->usable[$owner] ?? [], true)) {
@@ -125,7 +129,20 @@ class BillLinkedRowAccessTest extends TestCase {
 		$this->service->markPaid(1, 'bob', null, false, 77, null, 'carol');
 	}
 
-	public function testARowInTheBillsOwnAccountNeedsTheUserToSeeItToo(): void {
+	public function testARowTheUserPayingMayOnlyReadIsNotLinked(): void {
+		// Linking gives the row a bill, a category and tags: a read-only
+		// share of the account doesn't allow that
+		$this->readable['carol'] = [30];
+		$this->bill(null);
+		$this->row(30);
+		$this->transactions->expects($this->never())->method('linkBillAsAccountOwner');
+
+		$this->expectExceptionMessage('That transaction can\'t pay this bill');
+		$this->service->markPaid(1, 'bob', null, false, 77, null, 'carol');
+	}
+
+	public function testARowInTheBillsOwnAccountNeedsTheUserToWriteToItToo(): void {
+		$this->readable['carol'] = [10];
 		$this->bill(10);
 		$this->row(10);
 		$this->transactions->expects($this->never())->method('linkBillAsAccountOwner');
@@ -134,8 +151,8 @@ class BillLinkedRowAccessTest extends TestCase {
 		$this->service->markPaid(1, 'bob', null, false, 77, null, 'carol');
 	}
 
-	public function testSomeoneWhoCanSeeTheRowLinksIt(): void {
-		$this->visible['carol'] = [30];
+	public function testSomeoneWhoCanWriteToTheRowsAccountLinksIt(): void {
+		$this->writable['carol'] = [30];
 		$this->bill(null);
 		$this->row(30);
 		$this->transactions->expects($this->once())->method('linkBillAsAccountOwner')->willReturn(new Transaction());

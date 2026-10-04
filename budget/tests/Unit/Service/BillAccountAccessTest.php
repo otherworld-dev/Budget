@@ -215,8 +215,18 @@ class BillAccountAccessTest extends TestCase {
 		$this->assertSame([], $this->service->findMatchingTransactions(1, 'bob', 'bob'));
 	}
 
-	public function testMatchingTransactionsAreListedForAUserWhoCanSeeTheAccount(): void {
+	public function testMatchingTransactionsAreHiddenFromAUserWhoCanOnlyReadTheAccount(): void {
+		// Linking one changes it, which a read-only share doesn't allow
 		$this->visible[10] = true;
+		$this->bill();
+		$this->transactionService->expects($this->never())->method('findBillPaymentCandidates');
+
+		$this->assertSame([], $this->service->findMatchingTransactions(1, 'bob', 'carol'));
+	}
+
+	public function testMatchingTransactionsAreListedForAUserWhoCanWriteToTheAccount(): void {
+		$this->visible[10] = true;
+		$this->writable[10] = true;
 		$this->bill();
 		$this->transactionService->expects($this->once())->method('findBillPaymentCandidates')->willReturn([['id' => 3]]);
 

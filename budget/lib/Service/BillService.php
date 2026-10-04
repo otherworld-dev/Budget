@@ -238,11 +238,12 @@ class BillService {
 			return [];
 		}
 
-		// The candidates are full rows from the bill's account. A user who
-		// can't see that account (a share since revoked, or a bill shared
-		// without its account) gets none of them.
+		// The candidates are full rows from the bill's account, offered for
+		// linking, which changes them. A user who can't write to that account
+		// (a share since revoked or cut to read, or a bill shared without its
+		// account) gets none of them: Mark Paid would refuse the link.
 		if ($this->granularShareService !== null
-			&& !$this->granularShareService->canAccess($actingUserId ?? $userId, ShareItem::TYPE_ACCOUNT, (int)$bill->getAccountId())) {
+			&& !$this->granularShareService->canWrite($actingUserId ?? $userId, ShareItem::TYPE_ACCOUNT, (int)$bill->getAccountId())) {
 			return [];
 		}
 
@@ -1070,11 +1071,12 @@ class BillService {
 				? $rowAccount === $bill->getAccountId()
 				: ($this->granularShareService === null
 					|| $this->granularShareService->canWrite($bill->getUserId(), ShareItem::TYPE_ACCOUNT, (int)$rowAccount)));
-			// ...and in one the user paying can see, as the Mark Paid dialog
-			// lists them: a share of the bill alone let them link, and change,
-			// a row of an account hidden from them
+			// ...and in one the user paying can write to, as the Mark Paid
+			// dialog lists them: linking gives the row a bill, a category and
+			// tags, and a share of the bill alone let them do that to a row of
+			// an account hidden from them or shared with them read-only
 			if ($allowed && $actingUserId !== null && $this->granularShareService !== null
-				&& !$this->granularShareService->canAccess($actingUserId, ShareItem::TYPE_ACCOUNT, (int)$rowAccount)) {
+				&& !$this->granularShareService->canWrite($actingUserId, ShareItem::TYPE_ACCOUNT, (int)$rowAccount)) {
 				$allowed = false;
 			}
 			if (!$allowed) {
