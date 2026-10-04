@@ -9,7 +9,7 @@ import { confirmDialog, promptDialog } from '../../utils/dialogs.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import { groupImportErrors } from '../../utils/helpers.js';
 import { apiFetch, ApiError } from '../../utils/api.js';
-import { importTargetAccounts } from '../../utils/accounts.js';
+import { importTargetAccounts, accountCurrency } from '../../utils/accounts.js';
 import MultiSelect from '../../utils/multiselect.js';
 
 /**
@@ -1743,7 +1743,10 @@ export default class ImportModule {
             this.updateImportSummary(result);
             const previewTable = document.getElementById('preview-table');
             if (previewTable) previewTable.style.display = '';
-            this.showTransactionPreview(result.transactions);
+            this.showTransactionPreview(result.transactions, {
+                accountId: requestBody.accountId ?? null,
+                accountsToCreate: result.accountsToCreate || [],
+            });
             this.filterPreviewTransactions();
         } catch (error) {
             console.error('Failed to process import data:', error);
@@ -1982,7 +1985,32 @@ export default class ImportModule {
         }).join('');
     }
 
-    showTransactionPreview(transactions) {
+    /**
+     * The currency a previewed row will be stored in: its account's. An
+     * OFX/QIF row names the account it is routed to; a row from a file with
+     * an account column goes to the account it names (matched or about to be
+     * created) or, with a blank cell, to the chosen one; any other row to the
+     * chosen account. Null, for the default currency, when none is known.
+     *
+     * @param {object} transaction a previewed row
+     * @param {{accountId?: number|null, accountsToCreate?: Array}} context
+     * @returns {string|null}
+     */
+    previewRowCurrency(transaction, context = {}) {
+        const accounts = this.availableAccounts?.length ? this.availableAccounts : this.accounts;
+        if (transaction.destinationAccountId) {
+            return accountCurrency(accounts, transaction.destinationAccountId);
+        }
+        const name = transaction._accountName ?? '';
+        if (name !== '') {
+            const named = (context.accountsToCreate || []).find(account => account.name === name);
+            if (!named) return null;
+            return (named.exists ? accountCurrency(accounts, named.existingId) : null) || named.currency || null;
+        }
+        return accountCurrency(accounts, context.accountId ?? null);
+    }
+
+    showTransactionPreview(transactions, context = {}) {
         const tbody = document.querySelector('#preview-table tbody');
         if (!tbody) return;
 
@@ -2022,7 +2050,7 @@ export default class ImportModule {
                 <td>${dom.escapeHtml(transaction.description || '')}</td>
                 <td class="preview-notes"${showNotes ? '' : ' style="display: none;"'} title="${dom.escapeHtml(notes)}">${dom.escapeHtml(notes)}</td>
                 <td class="${amount < 0 ? 'negative' : 'positive'}">
-                    ${this.formatCurrency(amount)}
+                    ${this.formatCurrency(amount, this.previewRowCurrency(transaction, context))}
                 </td>
                 <td data-preview-cell="category">${dom.escapeHtml(this.getCategoryLabel(transaction))}</td>
                 <td>
@@ -2172,7 +2200,7 @@ export default class ImportModule {
             if (sourceAccount.currency) details.push(sourceAccount.currency);
             if (sourceAccount.transactionCount) details.push(n('budget', '%n transaction', '%n transactions', sourceAccount.transactionCount));
             if (sourceAccount.ledgerBalance !== null && sourceAccount.ledgerBalance !== undefined) {
-                details.push(t('budget', 'Balance: {balance}', { balance: this.formatCurrency(sourceAccount.ledgerBalance) }, undefined, { escape: false }));
+                details.push(t('budget', 'Balance: {balance}', { balance: this.formatCurrency(sourceAccount.ledgerBalance, sourceAccount.currency || null) }, undefined, { escape: false }));
             }
 
             // Build account options HTML with auto-match selection
