@@ -281,3 +281,19 @@ export function accountCurrency(accounts, accountId) {
     const account = list(accounts).find(candidate => String(candidate.id) === String(accountId));
     return account?.currency || null;
 }
+
+/**
+ * The accounts an import can post into: a statement file on the import
+ * screen, or a bank sync mapping. Only your own open accounts: an import
+ * runs as you, not as the account's owner, so it fails on an account
+ * someone shared with you, even to write. The account a bank mapping
+ * already points at stays listed, so the mapping still reads true.
+ *
+ * @param {Array} accounts
+ * @param {Array<number|string>} [keepIds]
+ * @returns {Array}
+ */
+export function importTargetAccounts(accounts, keepIds = []) {
+    const keep = new Set((keepIds || []).filter(hasId).map(String));
+    return list(accounts).filter(account => (!account._shared && !isClosedAccount(account)) || keep.has(String(account.id)));
+}
