@@ -630,6 +630,8 @@ class SharedExpenseController extends Controller {
 				array_map(fn ($s) => $s->jsonSerialize(), $settlements),
 				Http::STATUS_CREATED
 			);
+		} catch (DoesNotExistException $e) {
+			return $this->notFound($this->l->t('Contact not found'));
 		} catch (\Exception $e) {
 			$this->logger->error('Failed to settle with contact', [
 				'exception' => $e,

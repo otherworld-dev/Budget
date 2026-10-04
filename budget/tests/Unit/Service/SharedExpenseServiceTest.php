@@ -605,6 +605,16 @@ class SharedExpenseServiceTest extends TestCase {
 		}
 	}
 
+	/** Someone else's contact id was answered "settled" with nothing done; it is not the user's */
+	public function testSettlingWithSomeoneElsesContactIsRefused(): void {
+		$this->contactMapper->method('find')->willThrowException(new DoesNotExistException('not yours'));
+		$this->expenseShareMapper->expects($this->never())->method('update');
+		$this->settlementMapper->expects($this->never())->method('insert');
+
+		$this->expectException(DoesNotExistException::class);
+		$this->service->settleWithContact('user1', 9, '2026-10-04');
+	}
+
 	// ===== getBalanceSummary =====
 
 	public function testGetBalanceSummaryCalculatesDirections(): void {
