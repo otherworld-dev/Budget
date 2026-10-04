@@ -146,6 +146,56 @@ class RecurringTransferCurrencyTest extends TestCase {
 		$this->assertSame(['credit', 500.0, 'cleared'], [$this->inserted[1]->getType(), (float)$this->inserted[1]->getAmount(), $this->inserted[1]->getStatus()]);
 	}
 
+	/**
+	 * 2.54.0 pre-booked GBP 100 out and EUR 100 in. Paying a fixed amount
+	 * cleared that pair as it stood, so the euro account got EUR 100.
+	 */
+	public function testClearingAPairBookedWithOneNumberConvertsTheDeposit(): void {
+		$this->conversion->method('convertBetween')->willReturnCallback(
+			fn (float $amount, string $from, string $to) => $from === 'GBP' && $to === 'EUR' ? (string)($amount / 0.85) : null
+		);
+		$this->service->createFromBill('alice', $this->transfer(), null, 'scheduled');
+		$this->inserted[1]->setAmount(100.0);
+		$this->scheduled = $this->inserted;
+
+		$this->service->clearScheduledBillTransaction('alice', 9, '2026-02-03', null, true, $this->transfer());
+
+		$this->assertSame(['debit', 100.0, 'cleared'], [$this->inserted[0]->getType(), (float)$this->inserted[0]->getAmount(), $this->inserted[0]->getStatus()]);
+		$this->assertSame(['credit', 117.65, 'cleared'], [$this->inserted[1]->getType(), (float)$this->inserted[1]->getAmount(), $this->inserted[1]->getStatus()]);
+	}
+
+	public function testAPairAlreadyConvertedIsClearedAsItStands(): void {
+		// Including a deposit the user put right by hand
+		$this->conversion->method('convertBetween')->willReturn('117.6470588235');
+		$this->service->createFromBill('alice', $this->transfer(), null, 'scheduled');
+		$this->inserted[1]->setAmount(117.40);
+		$this->scheduled = $this->inserted;
+
+		$this->service->clearScheduledBillTransaction('alice', 9, '2026-02-03', null, true, $this->transfer());
+
+		$this->assertSame([100.0, 117.40], [(float)$this->inserted[0]->getAmount(), (float)$this->inserted[1]->getAmount()]);
+		$this->assertSame(['cleared', 'cleared'], [$this->inserted[0]->getStatus(), $this->inserted[1]->getStatus()]);
+	}
+
+	public function testWithNoRateAPairBookedWithOneNumberIsNotCleared(): void {
+		// The same number on both legs, as 2.54.0 booked them; no rate since
+		$rate = true;
+		$this->conversion->method('convertBetween')->willReturnCallback(function (float $amount) use (&$rate) {
+			return $rate ? (string)$amount : null;
+		});
+		$this->service->createFromBill('alice', $this->transfer(), null, 'scheduled');
+		$this->scheduled = $this->inserted;
+		$rate = false;
+
+		try {
+			$this->service->clearScheduledBillTransaction('alice', 9, '2026-02-03', null, true, $this->transfer());
+			$this->fail('Clearing must not book the same number in two currencies');
+		} catch (\Exception $e) {
+			$this->assertStringContainsString('exchange rate', $e->getMessage());
+		}
+		$this->assertSame(['scheduled', 'scheduled'], [$this->inserted[0]->getStatus(), $this->inserted[1]->getStatus()]);
+	}
+
 	/** The bank's own withdrawal of the transfer, in the source's currency */
 	private function bankWithdrawal(): Transaction {
 		$tx = new Transaction();

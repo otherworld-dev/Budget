@@ -549,6 +549,16 @@ class TransactionService {
 			$priced->setAmount($amount);
 			[$withdrawalAmount, $depositAmount] = $this->transferLegAmounts($priced, $userId, $clearedDate);
 			$legAmounts = ['debit' => $withdrawalAmount, 'credit' => $depositAmount];
+		} elseif ($isTransfer && $bill !== null && ($withdrawalLeg = $this->unconvertedPairWithdrawal($allScheduled)) !== null) {
+			// A pair 2.54.0 booked between two currencies carries the
+			// source's number on both legs, and was cleared as it stood:
+			// GBP 100 out, EUR 100 in. Its deposit is converted now, as a
+			// pair booked today is.
+			$priced = clone $bill;
+			$priced->setAmount((float)$withdrawalLeg->getAmount());
+			$priced->setAmountType('fixed');
+			[$withdrawalAmount, $depositAmount] = $this->transferLegAmounts($priced, $userId, $clearedDate);
+			$legAmounts = ['debit' => $withdrawalAmount, 'credit' => $depositAmount];
 		}
 
 		foreach ($allScheduled as $scheduled) {
@@ -559,8 +569,10 @@ class TransactionService {
 				// account — update under the owner (#334).
 				$ownerUserId = $this->accountMapper->findById($scheduled->getAccountId())->getUserId();
 				$updates = ['status' => 'cleared', 'date' => $clearedDate];
-				if ($amount !== null) {
-					$updates['amount'] = $legAmounts[$scheduled->getType()] ?? $amount;
+				if ($legAmounts !== null) {
+					$updates['amount'] = $legAmounts[$scheduled->getType()] ?? $amount ?? $scheduled->getAmount();
+				} elseif ($amount !== null) {
+					$updates['amount'] = $amount;
 				}
 				$updated = $this->update($scheduled->getId(), $ownerUserId, $updates);
 				if ($cleared === null) {
@@ -576,6 +588,34 @@ class TransactionService {
 		}
 
 		return $cleared;
+	}
+
+	/**
+	 * The withdrawal of the pre-booked transfer pair about to be cleared
+	 * (the first row and its partner) when both legs carry the same number
+	 * in two different currencies, as 2.54.0 booked them. Null for any other
+	 * pair, a converted one or one the user put right, which is cleared as
+	 * it stands.
+	 *
+	 * @param Transaction[] $scheduled
+	 */
+	private function unconvertedPairWithdrawal(array $scheduled): ?Transaction {
+		$first = $scheduled[0] ?? null;
+		if ($first === null || $first->getLinkedTransactionId() === null || $this->currencyConversion === null) {
+			return null;
+		}
+		$partner = null;
+		foreach ($scheduled as $row) {
+			if ($row->getId() === $first->getLinkedTransactionId()) {
+				$partner = $row;
+			}
+		}
+		if ($partner === null) {
+			return null;
+		}
+		[$withdrawal, $deposit] = $first->getType() === 'debit' ? [$first, $partner] : [$partner, $first];
+		[$from, $to] = $this->transferCurrencies($withdrawal->getAccountId(), $deposit->getAccountId());
+		return $from !== $to && abs((float)$withdrawal->getAmount() - (float)$deposit->getAmount()) < 0.005 ? $withdrawal : null;
 	}
 
 	/**

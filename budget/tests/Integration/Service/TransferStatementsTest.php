@@ -252,6 +252,24 @@ class TransferStatementsTest extends IntegrationTestCase {
 		$this->assertSame(['900.00', '117.40'], [$this->balance($this->checking), $this->balance($euro)]);
 	}
 
+	/**
+	 * 2.54.0 pre-booked GBP 100 out and EUR 100 in; paying it after the
+	 * upgrade cleared the pair as it stood.
+	 */
+	public function testAPairBookedBy254BetweenCurrenciesIsConvertedWhenPaid(): void {
+		$euro = $this->euroAccount();
+		$bill = $this->transfer($this->checking, $euro, 100.0);
+		$qb = $this->db()->getQueryBuilder();
+		$qb->update('budget_transactions')->set('amount', $qb->createNamedParameter('100.00'))
+			->where($qb->expr()->eq('bill_id', $qb->createNamedParameter($bill, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->eq('type', $qb->createNamedParameter('credit')))
+			->executeStatement();
+
+		$this->markPaid($bill);
+
+		$this->assertSame(['900.00', '117.65'], [$this->balance($this->checking), $this->balance($euro)]);
+	}
+
 	public function testBetweenCurrenciesTheDestinationsStatementFirst(): void {
 		$euro = $this->euroAccount();
 		$this->transfer($this->checking, $euro, 100.0);
