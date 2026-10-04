@@ -76,6 +76,9 @@ class MigrationService {
 	 *           whole when that row didn't come back: see remapSnapshotRefs()
 	 *   billKeyedType  dismissals of this suggestion_type are keyed by a
 	 *           bill id: see remapBillKeyedDismissal()
+	 *   userLink  a column naming a Nextcloud user the row is linked to,
+	 *           kept only when the restoring user could link it today
+	 *           (ContactLinkPolicy)
 	 *
 	 * PRE entries import after categories/accounts, before transactions and
 	 * bills (bills remap their tagIds through the tags map). POST entries
@@ -255,6 +258,8 @@ class MigrationService {
 			'table' => 'budget_contacts',
 			'scope' => 'user',
 			'idMap' => 'contacts',
+			// A linked contact's shared expenses reach that user
+			'userLink' => 'nextcloud_user_id',
 		],
 		'expense_shares' => [
 			'table' => 'budget_expense_shares',
@@ -306,6 +311,9 @@ class MigrationService {
 	/** Restored bills that lost an account they used, per restore */
 	private int $billsDetached = 0;
 
+	/** Restored contacts whose link to a Nextcloud user was removed, per restore */
+	private int $userLinksRemoved = 0;
+
 	public function __construct(
 		private AccountMapper $accountMapper,
 		private TransactionMapper $transactionMapper,
@@ -319,6 +327,9 @@ class MigrationService {
 		// Always wired through DI; without it a restore leaves links to
 		// other users' data out, as it did before
 		private ?CrossUserLinks $crossUserLinks = null,
+		// Always wired through DI; without it no contact keeps its link to
+		// a Nextcloud user
+		private ?ContactLinkPolicy $contactLinks = null,
 	) {
 		$this->tableCleaner = new UserTableCleaner($db);
 	}
@@ -483,6 +494,7 @@ class MigrationService {
 			// shared accounts), read before it is deleted
 			$this->crossUserLinks?->capture($userId);
 			$this->billsDetached = 0;
+			$this->userLinksRemoved = 0;
 			// Bank connections stay through a restore, so their account
 			// mappings must follow the accounts to their new ids
 			$bankMappings = $this->readBankMappings($userId);
@@ -539,7 +551,7 @@ class MigrationService {
 				'success' => true,
 				'message' => 'Import completed successfully',
 				'counts' => $this->countData($importData),
-				'warnings' => $this->restoreWarnings($links['sharesDropped'], $this->billsDetached, $links['othersDetached']),
+				'warnings' => $this->restoreWarnings($links['sharesDropped'], $this->billsDetached, $links['othersDetached'], $this->userLinksRemoved),
 			];
 		} catch (\Throwable $e) {
 			// PHP errors too: only \Exception used to roll back
@@ -649,7 +661,7 @@ class MigrationService {
 	 *
 	 * @return string[]
 	 */
-	private function restoreWarnings(int $sharesDropped, int $billsDetached, int $othersDetached): array {
+	private function restoreWarnings(int $sharesDropped, int $billsDetached, int $othersDetached, int $userLinksRemoved = 0): array {
 		$warnings = [];
 		if ($sharesDropped > 0) {
 			$warnings[] = $this->n(
@@ -670,6 +682,13 @@ class MigrationService {
 				'%n item of someone you share with used an account, category or bill that did not come back in this restore, and has been unlinked from it.',
 				'%n items of people you share with used an account, category or bill that did not come back in this restore, and have been unlinked from it.',
 				$othersDetached
+			);
+		}
+		if ($userLinksRemoved > 0) {
+			$warnings[] = $this->n(
+				'%n contact was linked to a Nextcloud user you can\'t share with on this server, so the link was removed.',
+				'%n contacts were linked to Nextcloud users you can\'t share with on this server, so the links were removed.',
+				$userLinksRemoved
 			);
 		}
 		return $warnings;
@@ -1938,6 +1957,7 @@ class MigrationService {
 			if ($row === null) {
 				continue;
 			}
+			$row = $this->checkUserLink($userId, $spec, $row);
 			$oldId = isset($row['id']) ? (int)$row['id'] : null;
 			unset($row['id'], $row['user_id']);
 			// Archive content is user-supplied: its keys become SQL column
@@ -1966,6 +1986,28 @@ class MigrationService {
 			}
 		}
 		return $count;
+	}
+
+	/**
+	 * A row's link to a Nextcloud user (the spec's 'userLink' column), kept
+	 * only when the restoring user could make that link today. Copied as it
+	 * was, a crafted backup linked a contact to anyone on the server, past
+	 * the sharing settings creating a contact enforces, and that user was
+	 * shown the contact's shared expenses.
+	 *
+	 * @param array<string, mixed> $row
+	 * @return array<string, mixed>
+	 */
+	private function checkUserLink(string $userId, array $spec, array $row): array {
+		$column = $spec['userLink'] ?? null;
+		if ($column === null || ($row[$column] ?? null) === null || $row[$column] === '') {
+			return $row;
+		}
+		if ($this->contactLinks === null || !is_string($row[$column]) || !$this->contactLinks->mayLink($userId, $row[$column])) {
+			$row[$column] = null;
+			$this->userLinksRemoved++;
+		}
+		return $row;
 	}
 
 	/**
