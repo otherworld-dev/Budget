@@ -50,6 +50,33 @@ class EmptyDefaultRulesTest extends TestCase {
 		]]]]);
 	}
 
+	/**
+	 * A restore builds the rule from a pre-3.0 archive, whose actions come
+	 * back as an empty list, and checks it before saving it (V2-1).
+	 */
+	public function testARestoredRuleIsJudgedTheSameWay(): void {
+		$rule = new \OCA\Budget\Db\ImportRule();
+		$rule->setName('Gas Stations');
+		$rule->setPattern(self::GAS);
+		$rule->setField('description');
+		$rule->setMatchType('regex');
+		$rule->setPriority(10);
+		$rule->setActive(true);
+		$rule->setApplyOnImport(true);
+		$rule->setStopProcessing(true);
+		$rule->setSchemaVersion(1);
+		$rule->setActionsFromArray([]);
+
+		$this->assertTrue(\OCA\Budget\Service\Import\SetupDefaultRules::isUntouchedEmptyDefaultRule($rule));
+
+		\OCA\Budget\Service\Import\SetupDefaultRules::retire($rule);
+		$this->assertFalse($rule->getActive());
+		$this->assertSame(0, $rule->getPriority());
+
+		$rule->setActionsFromArray(['categoryId' => 4]);
+		$this->assertFalse(\OCA\Budget\Service\Import\SetupDefaultRules::isUntouchedEmptyDefaultRule($rule));
+	}
+
 	public function testTheRuleSetupMadeIsSwitchedOff(): void {
 		$this->assertTrue(Version001000122Date20261004::isUntouchedEmptyDefault($this->row()));
 	}

@@ -76,7 +76,7 @@ class ImportRuleApplicator {
 				continue;
 			}
 
-			if (!$this->ruleMatches($rule, $transaction)) {
+			if (!$this->ruleApplies($rule, $transaction, $userId)) {
 				continue;
 			}
 
@@ -129,7 +129,7 @@ class ImportRuleApplicator {
 					continue;
 				}
 
-				if ($this->ruleMatches($rule, $transaction)) {
+				if ($this->ruleApplies($rule, $transaction, $userId)) {
 					$previews[] = [
 						'transactionIndex' => $index,
 						'transaction' => $transaction,
@@ -166,7 +166,7 @@ class ImportRuleApplicator {
 					continue;
 				}
 
-				if ($this->ruleMatches($rule, $transaction)) {
+				if ($this->ruleApplies($rule, $transaction, $userId)) {
 					$matched++;
 					$ruleId = $rule->getId();
 					$ruleUsage[$ruleId] = ($ruleUsage[$ruleId] ?? 0) + 1;
@@ -187,6 +187,15 @@ class ImportRuleApplicator {
 			'matchRate' => count($transactions) > 0 ? $matched / count($transactions) : 0,
 			'ruleUsage' => $ruleUsage,
 		];
+	}
+
+	/**
+	 * Whether a rule takes this row: it matches, and it has something it
+	 * can do to it (see hasSomethingToDo()). Only such a rule is applied,
+	 * shown as the row's rule, and can stop the rules after it.
+	 */
+	private function ruleApplies(ImportRule $rule, array $transaction, string $userId): bool {
+		return $this->ruleMatches($rule, $transaction) && $this->hasSomethingToDo($rule, $userId);
 	}
 
 	/**
@@ -212,6 +221,63 @@ class ImportRuleApplicator {
 		return $this->criteriaEvaluator->evaluate($rule->getCriteria(), $transaction, $schemaVersion);
 	}
 
+	/** Action types the import carries out (Set Account is the target's to decide) */
+	private const IMPORT_ACTION_TYPES = [
+		'set_category', 'set_vendor', 'set_description', 'set_notes', 'set_type', 'set_reference',
+		'regex_replace', 'change_case', 'replace_text', 'add_tags', 'link_transfer', 'set_forecast_exclude',
+	];
+
+	/**
+	 * A rule's actions as one list: the current format as stored, or an
+	 * older rule's category and vendor, kept in its own columns (or in that
+	 * shape), converted as Run rules converts them.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function actionListOf(ImportRule $rule): array {
+		$actions = $rule->getParsedActions();
+
+		if (isset($actions['version']) && $actions['version'] === 2) {
+			$list = $actions['actions'] ?? [];
+		} elseif (isset($actions['actions'])) {
+			$list = $actions['actions'];
+		} else {
+			$list = RuleActionApplicator::convertLegacyActions($actions);
+		}
+
+		return is_array($list) ? array_values(array_filter($list, 'is_array')) : [];
+	}
+
+	/**
+	 * Whether a matching rule has anything it can do to this importer's row.
+	 *
+	 * A rule that can't do anything must not count as a match: a match stops
+	 * the rules after it, so a rule with no actions, or only a category the
+	 * importer can't use (a deleted one, say), or only Set Account (which an
+	 * import leaves to the chosen account) would keep the user's other rules
+	 * from running while changing nothing itself. That is how setup's empty
+	 * default rules, back from a pre-3.0 backup, blocked the user's own rules
+	 * once older rules matched at import again (V2-1). Such a rule is passed
+	 * over as if it didn't match.
+	 */
+	private function hasSomethingToDo(ImportRule $rule, string $userId): bool {
+		foreach ($this->actionListOf($rule) as $action) {
+			$type = $action['type'] ?? null;
+			if ($type === 'set_category') {
+				$value = $action['value'] ?? null;
+				if ($value !== null && $value !== ''
+					&& $this->granularShareService->canAccess($userId, ShareItem::TYPE_CATEGORY, (int)$value)) {
+					return true;
+				}
+				continue;
+			}
+			if (in_array($type, self::IMPORT_ACTION_TYPES, true)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	/**
 	 * Extract and apply v2 actions from a rule to a transaction array.
 	 *
@@ -219,18 +285,7 @@ class ImportRuleApplicator {
 	 *                       rule owner when the rule was shared with them).
 	 */
 	private function applyActions(ImportRule $rule, array $transaction, string $userId): array {
-		$actions = $rule->getParsedActions();
-
-		if (isset($actions['version']) && $actions['version'] === 2) {
-			$actionList = $actions['actions'] ?? [];
-		} elseif (isset($actions['actions'])) {
-			$actionList = $actions['actions'];
-		} else {
-			// An older rule's category and vendor, kept in its own columns
-			// (or in that shape): applied as Run rules applies them, through
-			// the same checks as any other action
-			$actionList = RuleActionApplicator::convertLegacyActions($actions);
-		}
+		$actionList = $this->actionListOf($rule);
 
 		// Sort by priority (higher first)
 		usort($actionList, fn ($a, $b) => ($b['priority'] ?? 50) - ($a['priority'] ?? 50));

@@ -12,6 +12,9 @@ use OCA\Budget\Service\Import\ImportRuleApplicator;
 use PHPUnit\Framework\TestCase;
 
 class ImportRuleApplicatorTest extends TestCase {
+	/** An action any rule can carry out, for tests about matching */
+	private const VENDOR_ACTION = ['version' => 2, 'actions' => [['type' => 'set_vendor', 'value' => 'Shop']]];
+
 	private ImportRuleApplicator $applicator;
 	private ImportRuleMapper $ruleMapper;
 	private CriteriaEvaluator $evaluator;
@@ -198,6 +201,7 @@ class ImportRuleApplicatorTest extends TestCase {
 	}
 
 	public function testItCountsInThePreviewAndStatistics(): void {
+		$this->granularShareService->method('canAccess')->willReturn(true);
 		$applicator = $this->applicatorWithRealMatching([$this->legacyRule()]);
 		$rows = [['description' => 'TESCO'], ['description' => 'ALDI']];
 
@@ -775,7 +779,7 @@ class ImportRuleApplicatorTest extends TestCase {
 	// ── previewRuleApplications ─────────────────────────────────────
 
 	public function testPreviewRuleApplications(): void {
-		$rule = $this->makeRule(['id' => 5, 'name' => 'Grocery Rule']);
+		$rule = $this->makeRule(['id' => 5, 'name' => 'Grocery Rule', 'actions' => self::VENDOR_ACTION]);
 		$this->ruleMapper->method('findActive')->willReturn([$rule]);
 
 		// Only first transaction matches
@@ -807,8 +811,8 @@ class ImportRuleApplicatorTest extends TestCase {
 	// ── getMatchStatistics ──────────────────────────────────────────
 
 	public function testGetMatchStatistics(): void {
-		$rule1 = $this->makeRule(['id' => 1]);
-		$rule2 = $this->makeRule(['id' => 2]);
+		$rule1 = $this->makeRule(['id' => 1, 'actions' => self::VENDOR_ACTION]);
+		$rule2 = $this->makeRule(['id' => 2, 'actions' => self::VENDOR_ACTION]);
 		$this->ruleMapper->method('findActive')->willReturn([$rule1, $rule2]);
 
 		// tx1 matches rule1, tx2 matches rule1, tx3 no match
@@ -876,8 +880,64 @@ class ImportRuleApplicatorTest extends TestCase {
 		$tx = ['description' => 'Test'];
 		$result = $this->applicator->applyRules('user1', $tx);
 
-		// No action applied, but appliedRule still tracked
-		$this->assertArrayHasKey('appliedRule', $result);
+		// A rule with nothing it can do is not the row's rule (V2-1)
+		$this->assertArrayNotHasKey('appliedRule', $result);
 		$this->assertArrayNotHasKey('categoryId', $result);
+	}
+
+	// ── a rule with nothing to do never takes a row (V2-1) ──────────
+
+	public static function rulesWithNothingToDo(): array {
+		return [
+			'no actions at all' => [['version' => 2, 'stopProcessing' => true, 'actions' => []]],
+			'an action of no known type' => [['version' => 2, 'actions' => [['type' => 'bogus', 'value' => 1]]]],
+			'a category nobody can use' => [['version' => 2, 'actions' => [['type' => 'set_category', 'value' => 404]]]],
+			'only Set Account, which an import leaves alone' => [['version' => 2, 'actions' => [['type' => 'set_account', 'value' => 9]]]],
+		];
+	}
+
+	/**
+	 * Matching stops the rules after it, so a rule that changes nothing
+	 * would keep the user's own rules from running. Setup's empty default
+	 * rules, back from a pre-3.0 backup, did exactly that once older rules
+	 * matched at import again.
+	 */
+	#[\PHPUnit\Framework\Attributes\DataProvider('rulesWithNothingToDo')]
+	public function testARuleWithNothingToDoDoesNotStopTheNextRule(array $actions): void {
+		$blocker = $this->makeRule(['id' => 1, 'name' => 'Gas Stations', 'actions' => $actions]);
+		$blocker->setPriority(10);
+		$mine = $this->makeRule(['id' => 2, 'name' => 'Shell garage', 'actions' => [
+			'version' => 2, 'actions' => [['type' => 'set_category', 'value' => 7]],
+		]]);
+		$this->ruleMapper->method('findActive')->willReturn([$blocker, $mine]);
+		$this->evaluator->method('evaluate')->willReturn(true);
+		$this->granularShareService->method('canAccess')
+			->willReturnCallback(fn (string $user, string $type, int $id) => $id === 7);
+
+		$result = $this->applicator->applyRules('user1', ['description' => 'SHELL GARAGE SHOP']);
+
+		$this->assertSame(7, $result['categoryId']);
+		$this->assertSame('Shell garage', $result['appliedRule']['name']);
+		$this->assertSame([0], array_column($this->applicator->previewRuleApplications('user1', [['description' => 'x']]), 'transactionIndex'));
+		$this->assertSame([2 => 1], $this->applicator->getMatchStatistics('user1', [['description' => 'x']])['ruleUsage']);
+	}
+
+	public function testAnOldRuleWhoseCategoryIsGoneDoesNotStopTheNextRule(): void {
+		// Deleting a category leaves rules pointing at it; before 3.0 such a
+		// rule never matched at import, so newer rules ran
+		$this->granularShareService->method('canAccess')
+			->willReturnCallback(fn (string $user, string $type, int $id) => $id === 7);
+		$mine = $this->makeRule(['id' => 9, 'name' => 'Tesco groceries',
+			'criteria' => json_encode(['version' => 2, 'root' => ['operator' => 'AND', 'conditions' => [
+				['type' => 'condition', 'field' => 'description', 'matchType' => 'contains', 'pattern' => 'TESCO', 'negate' => false],
+			]]]),
+			'actions' => ['version' => 2, 'actions' => [['type' => 'set_category', 'value' => 7]]],
+		]);
+		$mine->setPriority(0);
+		$applicator = $this->applicatorWithRealMatching([$this->legacyRule(['categoryId' => 404, 'priority' => 5]), $mine]);
+
+		$result = $applicator->applyRules('user1', ['description' => 'TESCO STORES']);
+
+		$this->assertSame('Tesco groceries', $result['appliedRule']['name'] ?? null);
 	}
 }
