@@ -161,6 +161,8 @@ export function currencyDecimals(currency, settings = {}) {
     if (config && config.decimals !== undefined) {
         return config.decimals;
     }
+    // Decimal Places = 0 is a display choice (formatCurrency honours it); an
+    // amount field still takes pence, or 12.99 could not be entered at all.
     return parseInt(settings.number_format_decimals) || 2;
 }
 
@@ -179,8 +181,10 @@ export function currencyStep(currency, settings = {}) {
 export function formatCurrency(amount, currency, settings) {
     const currencyCode = currency || getPrimaryCurrency([], settings);
     const config = CURRENCY_CONFIG[currencyCode] || { symbol: currencyCode, position: 'prefix' };
-    // Use currency-native decimals for crypto, user setting for fiat
-    const decimals = config.decimals !== undefined ? config.decimals : (parseInt(settings.number_format_decimals) || 2);
+    // Use currency-native decimals for crypto, user setting for fiat. A
+    // setting of 0 is a choice, not "unset": `parseInt(...) || 2` read it as 2.
+    const chosen = parseInt(settings?.number_format_decimals, 10);
+    const decimals = config.decimals !== undefined ? config.decimals : (Number.isNaN(chosen) ? 2 : chosen);
     const decimalSep = settings.number_format_decimal_sep || '.';
     const thousandsSep = settings.number_format_thousands_sep ?? ',';
 
