@@ -273,9 +273,12 @@ class MigrationRoundTripTest extends IntegrationTestCase {
 			[$this->userId]
 		)->fetchAll();
 		$this->assertSame([['name' => 'Current', 'user_id' => $this->userId]], $mapped);
-		$this->assertNotContains($ids['current'], array_map('intval', $this->db()->executeQuery(
+		// fetchAll() + array_column, not fetchFirstColumn(): NC 30's result
+		// adapter doesn't have it
+		$accountIds = array_column($this->db()->executeQuery(
 			'SELECT id FROM *PREFIX*budget_accounts WHERE user_id = ?', [$this->userId]
-		)->fetchFirstColumn()), 'The account really came back under a new id');
+		)->fetchAll(), 'id');
+		$this->assertNotContains($ids['current'], array_map('intval', $accountIds), 'The account really came back under a new id');
 	}
 
 	/**
