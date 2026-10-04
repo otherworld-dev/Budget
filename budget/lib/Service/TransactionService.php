@@ -699,6 +699,11 @@ class TransactionService {
 	 * the same bill: a recurring transfer's deposit, or the other side Convert
 	 * to transfer created for a bill's payment. A row of that bill that is
 	 * already gone (deleted by hand, or with its other side) is nothing to do.
+	 * The other side goes only when the app booked it (bookedByApp()): the
+	 * bank's own row, or one the user entered, was linked as the payment and
+	 * records money that really moved, so it stays and only lets go of the
+	 * bill. Mark Unpaid on a transfer paid from the bank's withdrawal deleted
+	 * that withdrawal along with the deposit booked for it.
 	 *
 	 * Goes through delete() and thus deleteWithChildren() — never the mapper
 	 * directly (#359).
@@ -732,10 +737,40 @@ class TransactionService {
 			$partner = $this->mapper->findById($partnerId);
 			if ($partner !== null && $partner->getBillId() === $onlyForBillId
 				&& (!$onlyIfScheduled || ($partner->getStatus() ?? 'cleared') === 'scheduled')) {
-				$this->delete($partnerId, $this->ownerOf($partner));
+				if ($this->bookedByApp($partner)) {
+					$this->delete($partnerId, $this->ownerOf($partner));
+				} else {
+					$this->update($partnerId, $this->ownerOf($partner), ['billId' => null]);
+				}
 			}
 		}
 		return true;
+	}
+
+	/** Notes the app writes on the rows it books for a bill's payment */
+	private const BILL_BOOKED_NOTE_PREFIXES = [
+		'Auto-generated from bill:',
+		'Auto-generated transfer:',
+		// The other side Convert to transfer makes for a bill's payment
+		'Auto-created transfer counterpart',
+	];
+
+	/**
+	 * Whether the app booked this row for a bill, rather than an import or
+	 * bank sync bringing it in or the user entering it. Only such a row may
+	 * go with a bill's revert as the other side of one it deletes.
+	 */
+	private function bookedByApp(Transaction $row): bool {
+		if (($row->getImportId() ?? '') !== '') {
+			return false;
+		}
+		$notes = (string)$row->getNotes();
+		foreach (self::BILL_BOOKED_NOTE_PREFIXES as $prefix) {
+			if (str_starts_with($notes, $prefix)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -767,7 +802,7 @@ class TransactionService {
 			$rows = [$row];
 			if ($row->getLinkedTransactionId() !== null) {
 				$partner = $this->mapper->findById($row->getLinkedTransactionId());
-				if ($partner !== null && $partner->getBillId() === $billId) {
+				if ($partner !== null && $partner->getBillId() === $billId && $this->bookedByApp($partner)) {
 					$rows[] = $partner;
 				}
 			}
