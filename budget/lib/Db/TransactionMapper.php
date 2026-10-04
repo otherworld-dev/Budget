@@ -461,14 +461,23 @@ class TransactionMapper extends QBMapper {
 	 * is counted twice, and each counts a transaction once however many of its
 	 * parts land in the category.
 	 *
+	 * With $visibleAccountIds the rows are those in the accounts the viewer
+	 * can see, whoever owns them, instead of $userId's own accounts: see
+	 * scopeCategoryDetail().
+	 *
+	 * @param int[]|null $visibleAccountIds
 	 * @return array{count: int, total: float}
 	 */
-	public function getCategorySummary(string $userId, int $categoryId, ?array $categoryIds = null): array {
+	public function getCategorySummary(string $userId, int $categoryId, ?array $categoryIds = null, ?array $visibleAccountIds = null): array {
 		// Use array of IDs (parent + children) if provided, otherwise single ID
 		$ids = $categoryIds ?? [$categoryId];
 
-		$direct = $this->getCategoryDirectSummary($userId, $ids);
-		$split = $this->getCategorySplitSummary($userId, $ids);
+		if ($visibleAccountIds === []) {
+			return ['count' => 0, 'total' => 0.0];
+		}
+
+		$direct = $this->getCategoryDirectSummary($userId, $ids, $visibleAccountIds);
+		$split = $this->getCategorySplitSummary($userId, $ids, $visibleAccountIds);
 
 		return [
 			'count' => $direct['count'] + $split['count'],
@@ -477,10 +486,31 @@ class TransactionMapper extends QBMapper {
 	}
 
 	/**
+	 * The account scope of the Category Details queries.
+	 *
+	 * A category shared with someone is read as its owner ($userId), and
+	 * scoping to the owner's accounts showed the person it was shared with
+	 * every one of them, including accounts never shared with them (their
+	 * rows, totals and monthly figures). Given the viewer's visible
+	 * accounts, the rows are the ones in those accounts, as on the
+	 * transactions list the panel's View All opens.
+	 *
+	 * @param int[]|null $visibleAccountIds never empty here: callers return early
+	 */
+	private function scopeCategoryDetail(IQueryBuilder $qb, string $userId, ?array $visibleAccountIds): void {
+		if ($visibleAccountIds !== null) {
+			$qb->andWhere($qb->expr()->in('a.id', $qb->createNamedParameter(array_map('intval', $visibleAccountIds), IQueryBuilder::PARAM_INT_ARRAY)));
+		} else {
+			$qb->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)));
+		}
+	}
+
+	/**
 	 * @param int[] $ids
+	 * @param int[]|null $visibleAccountIds
 	 * @return array{count: int, total: float}
 	 */
-	private function getCategoryDirectSummary(string $userId, array $ids): array {
+	private function getCategoryDirectSummary(string $userId, array $ids, ?array $visibleAccountIds = null): array {
 		$qb = $this->db->getQueryBuilder();
 		$qb->selectAlias($qb->func()->count('t.id'), 'count')
 			->selectAlias($qb->createFunction(
@@ -489,8 +519,8 @@ class TransactionMapper extends QBMapper {
 			->from($this->getTableName(), 't')
 			->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
 
-		$qb->andWhere($qb->expr()->in('t.category_id', $qb->createNamedParameter($ids, IQueryBuilder::PARAM_INT_ARRAY)))
-			->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)));
+		$qb->andWhere($qb->expr()->in('t.category_id', $qb->createNamedParameter($ids, IQueryBuilder::PARAM_INT_ARRAY)));
+		$this->scopeCategoryDetail($qb, $userId, $visibleAccountIds);
 
 		// Leave a transaction whose parts speak for it to the companion query
 		// below — the direct/split partition directRowPredicate() explains (#360).
@@ -514,9 +544,10 @@ class TransactionMapper extends QBMapper {
 	 * getCategoryDirectSummary — see getCategorySummary (#359).
 	 *
 	 * @param int[] $ids
+	 * @param int[]|null $visibleAccountIds
 	 * @return array{count: int, total: float}
 	 */
-	private function getCategorySplitSummary(string $userId, array $ids): array {
+	private function getCategorySplitSummary(string $userId, array $ids, ?array $visibleAccountIds = null): array {
 		$qb = $this->db->getQueryBuilder();
 		$qb->selectAlias($qb->createFunction('COUNT(DISTINCT t.id)'), 'count')
 			->selectAlias($qb->createFunction(
@@ -527,8 +558,8 @@ class TransactionMapper extends QBMapper {
 			->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
 
 		$qb->andWhere($qb->expr()->in('s.category_id', $qb->createNamedParameter($ids, IQueryBuilder::PARAM_INT_ARRAY)))
-			->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
 			->andWhere(ReportScope::splitParentPredicate($qb));
+		$this->scopeCategoryDetail($qb, $userId, $visibleAccountIds);
 
 		ReportScope::excludeScheduledFuture($qb, 't', $this->reportToday($userId));
 		ReportScope::excludeReportExcludedAccounts($qb);
@@ -552,10 +583,12 @@ class TransactionMapper extends QBMapper {
 	 *
 	 * With $byDay the rows are per day instead ('month' holds Y-m-d), for a
 	 * caller that folds them into budget months under a custom start day.
+	 * $visibleAccountIds scopes like getCategorySummary().
 	 *
+	 * @param int[]|null $visibleAccountIds
 	 * @return array<array{month: string, total: float, count: int, splitCount: int}>
 	 */
-	public function getCategoryMonthlySpending(string $userId, int $categoryId, int $months = 6, ?array $categoryIds = null, ?string $startDate = null, ?string $endDate = null, ?int $accountId = null, string $categoryType = 'expense', bool $byDay = false): array {
+	public function getCategoryMonthlySpending(string $userId, int $categoryId, int $months = 6, ?array $categoryIds = null, ?string $startDate = null, ?string $endDate = null, ?int $accountId = null, string $categoryType = 'expense', bool $byDay = false, ?array $visibleAccountIds = null): array {
 		if (!$startDate) {
 			$startDate = date('Y-m-01', strtotime("-{$months} months"));
 		}
@@ -564,6 +597,10 @@ class TransactionMapper extends QBMapper {
 		}
 
 		$ids = $categoryIds ?? [$categoryId];
+
+		if ($visibleAccountIds === []) {
+			return [];
+		}
 
 		// Report the magnitude in the category's natural direction as positive:
 		// expense categories sum debits, income categories sum credits (#265).
@@ -580,9 +617,9 @@ class TransactionMapper extends QBMapper {
 			->from($this->getTableName(), 't')
 			->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
 			->where($qb->expr()->in('t.category_id', $qb->createNamedParameter($ids, IQueryBuilder::PARAM_INT_ARRAY)))
-			->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
 			->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
 			->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)));
+		$this->scopeCategoryDetail($qb, $userId, $visibleAccountIds);
 
 		if ($accountId !== null) {
 			$qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
@@ -610,7 +647,7 @@ class TransactionMapper extends QBMapper {
 		], $data);
 
 		$split = $this->getCategorySplitMonthlySpending(
-			$userId, $ids, $startDate, $endDate, $accountId, $primaryType, $bucketExpr
+			$userId, $ids, $startDate, $endDate, $accountId, $primaryType, $bucketExpr, $visibleAccountIds
 		);
 
 		return $this->mergeCategoryMonthlySeries($direct, $split);
@@ -621,6 +658,7 @@ class TransactionMapper extends QBMapper {
 	 * getCategoryMonthlySpending (#359).
 	 *
 	 * @param int[] $ids
+	 * @param int[]|null $visibleAccountIds
 	 * @return array<array{month: string, total: float, count: int, splitCount: int}>
 	 */
 	private function getCategorySplitMonthlySpending(
@@ -631,6 +669,7 @@ class TransactionMapper extends QBMapper {
 		?int $accountId,
 		string $primaryType,
 		string $bucketExpr,
+		?array $visibleAccountIds = null,
 	): array {
 		$qb = $this->db->getQueryBuilder();
 		$qb->select($qb->createFunction($bucketExpr . ' as month'))
@@ -642,10 +681,10 @@ class TransactionMapper extends QBMapper {
 			->innerJoin('s', $this->getTableName(), 't', $qb->expr()->eq('s.transaction_id', 't.id'))
 			->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
 			->where($qb->expr()->in('s.category_id', $qb->createNamedParameter($ids, IQueryBuilder::PARAM_INT_ARRAY)))
-			->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
 			->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
 			->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
 			->andWhere(ReportScope::splitParentPredicate($qb));
+		$this->scopeCategoryDetail($qb, $userId, $visibleAccountIds);
 
 		if ($accountId !== null) {
 			$qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
@@ -711,18 +750,20 @@ class TransactionMapper extends QBMapper {
 	 * A split transaction appears once, carrying the share of it that belongs to
 	 * the category ('amount') alongside the whole transaction
 	 * ('transactionAmount'), so the panel can list what it counted (#359).
+	 * $visibleAccountIds scopes like getCategorySummary().
 	 *
 	 * @param int[] $categoryIds
+	 * @param int[]|null $visibleAccountIds
 	 * @return array<array<string, mixed>>
 	 */
-	public function findCategoryTransactionRows(string $userId, array $categoryIds, int $limit = 5): array {
-		if (empty($categoryIds) || $limit < 1) {
+	public function findCategoryTransactionRows(string $userId, array $categoryIds, int $limit = 5, ?array $visibleAccountIds = null): array {
+		if (empty($categoryIds) || $limit < 1 || $visibleAccountIds === []) {
 			return [];
 		}
 
 		$rows = array_merge(
-			$this->findCategoryDirectRows($userId, $categoryIds, $limit),
-			$this->findCategorySplitRows($userId, $categoryIds, $limit)
+			$this->findCategoryDirectRows($userId, $categoryIds, $limit, $visibleAccountIds),
+			$this->findCategorySplitRows($userId, $categoryIds, $limit, $visibleAccountIds)
 		);
 
 		// Each branch is already its own top-$limit, so the global top-$limit is
@@ -734,15 +775,16 @@ class TransactionMapper extends QBMapper {
 
 	/**
 	 * @param int[] $categoryIds
+	 * @param int[]|null $visibleAccountIds
 	 * @return array<array<string, mixed>>
 	 */
-	private function findCategoryDirectRows(string $userId, array $categoryIds, int $limit): array {
+	private function findCategoryDirectRows(string $userId, array $categoryIds, int $limit, ?array $visibleAccountIds = null): array {
 		$qb = $this->db->getQueryBuilder();
 		$qb->select('t.id', 't.date', 't.description', 't.vendor', 't.type', 't.amount', 't.account_id', 't.status', 't.category_id')
 			->from($this->getTableName(), 't')
 			->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-			->where($qb->expr()->in('t.category_id', $qb->createNamedParameter($categoryIds, IQueryBuilder::PARAM_INT_ARRAY)))
-			->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)));
+			->where($qb->expr()->in('t.category_id', $qb->createNamedParameter($categoryIds, IQueryBuilder::PARAM_INT_ARRAY)));
+		$this->scopeCategoryDetail($qb, $userId, $visibleAccountIds);
 
 		// Same partition complement the badge (getCategoryTransactionCounts)
 		// applies: a row the pre-#360 bulk edit stamped with BOTH a category_id
@@ -782,9 +824,10 @@ class TransactionMapper extends QBMapper {
 
 	/**
 	 * @param int[] $categoryIds
+	 * @param int[]|null $visibleAccountIds
 	 * @return array<array<string, mixed>>
 	 */
-	private function findCategorySplitRows(string $userId, array $categoryIds, int $limit): array {
+	private function findCategorySplitRows(string $userId, array $categoryIds, int $limit, ?array $visibleAccountIds = null): array {
 		$qb = $this->db->getQueryBuilder();
 		$qb->select('t.id', 't.date', 't.description', 't.vendor', 't.type', 't.amount', 't.account_id', 't.status')
 			->selectAlias($qb->func()->sum('s.amount'), 'portion')
@@ -793,8 +836,8 @@ class TransactionMapper extends QBMapper {
 			->innerJoin('s', $this->getTableName(), 't', $qb->expr()->eq('s.transaction_id', 't.id'))
 			->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
 			->where($qb->expr()->in('s.category_id', $qb->createNamedParameter($categoryIds, IQueryBuilder::PARAM_INT_ARRAY)))
-			->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
 			->andWhere(ReportScope::splitParentPredicate($qb));
+		$this->scopeCategoryDetail($qb, $userId, $visibleAccountIds);
 
 		ReportScope::excludeScheduledFuture($qb, 't', $this->reportToday($userId));
 		ReportScope::excludeReportExcludedAccounts($qb);

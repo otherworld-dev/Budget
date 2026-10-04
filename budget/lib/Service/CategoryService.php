@@ -530,8 +530,14 @@ class CategoryService extends AbstractCrudService {
 	 * period the Budget page lists under it, and "this month" is the period
 	 * running today. They follow $viewerId's start day (the person looking,
 	 * who may not own a shared category); null means $userId.
+	 *
+	 * $visibleAccountIds are the accounts the viewer can see: the figures
+	 * come from those, never from accounts of the owner's that weren't
+	 * shared with them. Null keeps $userId's own accounts.
+	 *
+	 * @param int[]|null $visibleAccountIds
 	 */
-	public function getCategoryDetails(int $categoryId, string $userId, ?string $startDate = null, ?string $endDate = null, ?int $accountId = null, ?string $viewerId = null): array {
+	public function getCategoryDetails(int $categoryId, string $userId, ?string $startDate = null, ?string $endDate = null, ?int $accountId = null, ?string $viewerId = null, ?array $visibleAccountIds = null): array {
 		$category = $this->find($categoryId, $userId); // Verify ownership
 
 		$scope = $this->resolveDetailScope($category, $userId);
@@ -540,9 +546,9 @@ class CategoryService extends AbstractCrudService {
 		$viewerId ??= $userId;
 		$startDay = $this->carryoverService->budgetStartDay($viewerId);
 
-		$summary = $this->transactionMapper->getCategorySummary($userId, $categoryId, $categoryIds);
+		$summary = $this->transactionMapper->getCategorySummary($userId, $categoryId, $categoryIds, $visibleAccountIds);
 		$monthlySpending = $this->transactionMapper->getCategoryMonthlySpending(
-			$userId, $categoryId, 12, $categoryIds, $startDate, $endDate, $accountId, $category->getType(), $startDay > 1
+			$userId, $categoryId, 12, $categoryIds, $startDate, $endDate, $accountId, $category->getType(), $startDay > 1, $visibleAccountIds
 		);
 		if ($startDay > 1) {
 			$monthlySpending = $this->foldDaysIntoBudgetMonths($monthlySpending, $startDay);
@@ -642,15 +648,17 @@ class CategoryService extends AbstractCrudService {
 	 * allocations the same way, so the panel lists the transactions behind the
 	 * figures above it rather than a different set (#359). Each split row
 	 * carries the share belonging to this category, the whole transaction it
-	 * came from, and its parts.
+	 * came from, and its parts. $visibleAccountIds scopes the rows as in
+	 * getCategoryDetails().
 	 *
+	 * @param int[]|null $visibleAccountIds
 	 * @return array<array<string, mixed>>
 	 */
-	public function getCategoryTransactions(int $categoryId, string $userId, int $limit = 5): array {
+	public function getCategoryTransactions(int $categoryId, string $userId, int $limit = 5, ?array $visibleAccountIds = null): array {
 		$category = $this->find($categoryId, $userId); // Verify ownership
 		$scope = $this->resolveDetailScope($category, $userId);
 
-		$rows = $this->transactionMapper->findCategoryTransactionRows($userId, $scope['ids'], $limit);
+		$rows = $this->transactionMapper->findCategoryTransactionRows($userId, $scope['ids'], $limit, $visibleAccountIds);
 
 		$splitIds = [];
 		foreach ($rows as $row) {

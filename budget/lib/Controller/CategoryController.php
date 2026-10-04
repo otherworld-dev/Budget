@@ -670,8 +670,15 @@ class CategoryController extends Controller {
 			if ($owner === null) {
 				return new DataResponse(['error' => $this->l->t('%1$s not found', [$this->l->t('Category')])], Http::STATUS_NOT_FOUND);
 			}
+			// Sharing a category shares its name and budget, not the owner's
+			// accounts: only rows in accounts this user can see count, and an
+			// account they can't see is not one they can ask about
+			$visibleAccountIds = $this->getVisibleAccountIds();
+			if ($accountId !== null && !in_array($accountId, $visibleAccountIds, true)) {
+				return new DataResponse(['error' => $this->l->t('Account not found')], Http::STATUS_NOT_FOUND);
+			}
 			// The months follow the viewer's budget start day, like the rest of their view
-			$details = $this->service->getCategoryDetails($id, $owner, $startDate, $endDate, $accountId, $this->userId);
+			$details = $this->service->getCategoryDetails($id, $owner, $startDate, $endDate, $accountId, $this->userId, $visibleAccountIds);
 			return new DataResponse($details);
 		} catch (\Exception $e) {
 			return $this->handleNotFoundError($e, $this->l->t('Category'), ['categoryId' => $id]);
@@ -690,8 +697,9 @@ class CategoryController extends Controller {
 				return new DataResponse(['error' => $this->l->t('%1$s not found', [$this->l->t('Category')])], Http::STATUS_NOT_FOUND);
 			}
 			// Two queries per call now that split shares are listed alongside
-			// direct rows, so cap what a caller can ask for (#359).
-			$transactions = $this->service->getCategoryTransactions($id, $owner, max(1, min($limit, 100)));
+			// direct rows, so cap what a caller can ask for (#359). Only rows
+			// in accounts this user can see, as in details().
+			$transactions = $this->service->getCategoryTransactions($id, $owner, max(1, min($limit, 100)), $this->getVisibleAccountIds());
 			return new DataResponse($transactions);
 		} catch (\Exception $e) {
 			return $this->handleNotFoundError($e, $this->l->t('Category'), ['categoryId' => $id]);
