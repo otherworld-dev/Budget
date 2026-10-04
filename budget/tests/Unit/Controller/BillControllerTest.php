@@ -1694,6 +1694,31 @@ class BillControllerTest extends TestCase {
 		$this->controller->statusForMonth();
 	}
 
+	/**
+	 * month=9 reached date('Y-m-t', strtotime('9-01')): strtotime gave false,
+	 * date() threw a TypeError the catch (\Exception) let through, and the
+	 * request answered 500.
+	 */
+	public function testStatusForAMalformedMonthIsABadRequest(): void {
+		$this->service->expects($this->never())->method('getBillStatusForMonth');
+
+		foreach (['9', '2026-9', '2026-13', '2026-00', 'abc', '2026-09-01'] as $month) {
+			$response = $this->controller->statusForMonth($month);
+
+			$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus(), $month);
+			$this->assertSame(['error' => 'Invalid month format. Use YYYY-MM'], $response->getData());
+		}
+	}
+
+	public function testStatusForAnEmptyMonthIsTheCurrentOne(): void {
+		$this->service->expects($this->once())
+			->method('getBillStatusForMonth')
+			->with('user1', $this->identicalTo(null))
+			->willReturn([]);
+
+		$this->assertSame(Http::STATUS_OK, $this->controller->statusForMonth('')->getStatus());
+	}
+
 	// ── detect ──────────────────────────────────────────────────────
 
 	public function testDetectReturnsDetectedBills(): void {

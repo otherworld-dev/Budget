@@ -632,8 +632,10 @@ class BudgetApp {
             } else if (e.target.id === 'confirm-selected-btn') {
                 this.handleConfirmSelected();
             } else if (e.target.classList.contains('autocomplete-item')) {
+                // The institution suggestions: the picker lives on the accounts
+                // module, the app shell has no selectInstitution of its own
                 const bankName = e.target.getAttribute('data-bank-name');
-                this.selectInstitution(bankName);
+                this.accountsModule?.selectInstitution(bankName);
             } else if (e.target.id === 'empty-categories-add-btn' || e.target.closest('#empty-categories-add-btn')) {
                 this.showAddCategoryModal();
             } else if (e.target.id === 'create-default-categories-btn' || e.target.closest('#create-default-categories-btn')) {

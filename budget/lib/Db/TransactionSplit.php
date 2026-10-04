@@ -24,7 +24,10 @@ use OCP\AppFramework\Db\Entity;
 class TransactionSplit extends Entity implements JsonSerializable {
 	protected int $transactionId = 0;
 	protected ?int $categoryId = null;
-	protected string $amount = '0';
+	// Null, not '0': Entity skips a setter whose value equals the current
+	// one, so with '0' here setAmount('0') left the amount out of the INSERT
+	// and the NOT NULL column refused the row
+	protected ?string $amount = null;
 	protected ?string $description = null;
 	protected string $createdAt = '';
 

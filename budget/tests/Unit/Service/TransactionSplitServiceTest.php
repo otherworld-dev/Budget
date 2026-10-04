@@ -10,6 +10,8 @@ use OCA\Budget\Db\TransactionSplit;
 use OCA\Budget\Db\TransactionSplitMapper;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\TransactionSplitService;
+use OCP\IDBConnection;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 class TransactionSplitServiceTest extends TestCase {
@@ -131,6 +133,92 @@ class TransactionSplitServiceTest extends TestCase {
 
 		$this->expectException(\InvalidArgumentException::class);
 		$this->service->updateSplit(1, 'user1', ['categoryId' => 42]);
+	}
+
+	/**
+	 * The old parts were deleted before the new ones were checked, so a part
+	 * the database refused (a zero amount) left the transaction with some of
+	 * its parts, or none, while the request answered 400.
+	 */
+	#[DataProvider('unusablePartAmounts')]
+	public function testAnUnusablePartIsRefusedBeforeTheOldPartsAreDeleted(mixed $amount, string $reason): void {
+		$this->transactionMapper->method('find')->willReturn($this->makeTransaction(50.00, true));
+		$this->splitMapper->expects($this->never())->method('deleteByTransaction');
+		$this->splitMapper->expects($this->never())->method('insert');
+		$this->transactionMapper->expects($this->never())->method('update');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage($reason);
+
+		$this->service->splitTransaction(100, 'user1', [
+			['categoryId' => 1, 'amount' => 50.00],
+			['categoryId' => 2, 'amount' => $amount],
+		]);
+	}
+
+	public static function unusablePartAmounts(): array {
+		return [
+			'zero' => [0, 'Split 1: amount cannot be zero'],
+			'zero float' => [0.0, 'Split 1: amount cannot be zero'],
+			'zero string' => ['0.00', 'Split 1: amount cannot be zero'],
+			'not a number' => ['abc', 'Split 1: amount is required'],
+			'a list' => [['5'], 'Split 1: amount is required'],
+			'missing' => [null, 'Split 1: amount is required'],
+		];
+	}
+
+	public function testANegativePartIsStillAllowed(): void {
+		$this->transactionMapper->method('find')->willReturn($this->makeTransaction(50.00));
+		$this->transactionMapper->method('update')->willReturnArgument(0);
+		$this->splitMapper->expects($this->exactly(2))->method('insert')->willReturnArgument(0);
+		$this->splitMapper->method('findByTransaction')->willReturn([]);
+
+		$this->service->splitTransaction(100, 'user1', [
+			['categoryId' => 1, 'amount' => '60.00'],
+			['categoryId' => 2, 'amount' => '-10.00'],
+		]);
+	}
+
+	/** The delete, the inserts and the flag on the transaction land together */
+	public function testASplitIsWrittenInOneDatabaseTransaction(): void {
+		$db = $this->createMock(IDBConnection::class);
+		$db->expects($this->once())->method('beginTransaction');
+		$db->expects($this->once())->method('commit');
+		$db->expects($this->never())->method('rollBack');
+		$service = new TransactionSplitService($this->splitMapper, $this->transactionMapper, $this->granularShareService, $db);
+		$this->transactionMapper->method('find')->willReturn($this->makeTransaction(100.00));
+		$this->transactionMapper->method('update')->willReturnArgument(0);
+		$this->splitMapper->method('insert')->willReturnArgument(0);
+		$this->splitMapper->method('findByTransaction')->willReturn([]);
+
+		$service->splitTransaction(100, 'user1', [
+			['categoryId' => 1, 'amount' => 60.00],
+			['categoryId' => 2, 'amount' => 40.00],
+		]);
+	}
+
+	public function testAWriteThatFailsHalfwayRollsTheWholeSplitBack(): void {
+		$db = $this->createMock(IDBConnection::class);
+		$db->expects($this->once())->method('beginTransaction');
+		$db->expects($this->never())->method('commit');
+		$db->expects($this->once())->method('rollBack');
+		$service = new TransactionSplitService($this->splitMapper, $this->transactionMapper, $this->granularShareService, $db);
+		$this->transactionMapper->method('find')->willReturn($this->makeTransaction(100.00, true));
+		$this->transactionMapper->expects($this->never())->method('update');
+		$inserted = 0;
+		$this->splitMapper->method('insert')->willReturnCallback(function (TransactionSplit $split) use (&$inserted) {
+			if (++$inserted === 2) {
+				throw new \RuntimeException('database went away');
+			}
+			return $split;
+		});
+
+		$this->expectException(\RuntimeException::class);
+
+		$service->splitTransaction(100, 'user1', [
+			['categoryId' => 1, 'amount' => 60.00],
+			['categoryId' => 2, 'amount' => 40.00],
+		]);
 	}
 
 	public function testSplitTransactionThrowsWhenAmountsMismatch(): void {
