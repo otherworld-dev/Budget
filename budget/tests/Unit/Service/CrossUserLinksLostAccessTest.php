@@ -152,11 +152,10 @@ class CrossUserLinksLostAccessTest extends TestCase {
 		$this->assertNull($t['budget_transactions'][100]['category_id']);
 		$this->assertNull($t['budget_tx_splits'][110]['category_id']);
 
-		// His split of Alice's transaction with a contact goes; his split of
-		// his own row stays
-		$this->assertArrayNotHasKey(120, $t['budget_expense_shares']);
-		$this->assertArrayHasKey(121, $t['budget_expense_shares']);
-		$this->assertSame(1, $result['expenseSharesRemoved']);
+		// His splits with contacts are his own record of what they owe him:
+		// kept, Alice's transaction included (it just stops showing)
+		$this->assertSame([120, 121, 122, 123], array_keys($t['budget_expense_shares']));
+		$this->assertSame(11, $result['detached']);
 
 		// Alice's own data is hers, and Bob's links to Carol's are untouched
 		$this->assertSame(20, $t['budget_transactions'][101]['category_id']);
@@ -200,7 +199,7 @@ class CrossUserLinksLostAccessTest extends TestCase {
 		$result = $this->links->cutLostAccess('bob', 'alice');
 		$t = $this->links->tables;
 
-		$this->assertSame(['detached' => 0, 'expenseSharesRemoved' => 0], $result);
+		$this->assertSame(['detached' => 0], $result);
 		$this->assertSame(10, $t['budget_bills'][40]['account_id']);
 		$this->assertSame(10, $t['budget_recurring_income'][45]['account_id']);
 		$this->assertArrayHasKey(120, $t['budget_expense_shares']);
@@ -217,7 +216,7 @@ class CrossUserLinksLostAccessTest extends TestCase {
 	}
 
 	public function testTheOwnerThemselvesIsNeverCut(): void {
-		$this->assertSame(['detached' => 0, 'expenseSharesRemoved' => 0], $this->links->cutLostAccess('alice', 'alice'));
+		$this->assertSame(['detached' => 0], $this->links->cutLostAccess('alice', 'alice'));
 		$this->assertSame(20, $this->links->tables['budget_bills'][44]['category_id']);
 	}
 }

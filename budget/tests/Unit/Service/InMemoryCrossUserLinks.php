@@ -208,17 +208,6 @@ class InMemoryCrossUserLinks extends CrossUserLinks {
 		return $found;
 	}
 
-	protected function readExpenseSharesIn(string $userId, array $accountIds): array {
-		$ids = [];
-		foreach ($this->table('budget_expense_shares') as $id => $row) {
-			$transaction = $this->table('budget_transactions')[$row['transaction_id']] ?? null;
-			if ($row['user_id'] === $userId && $transaction !== null && in_array((int)$transaction['account_id'], $accountIds, true)) {
-				$ids[] = $id;
-			}
-		}
-		return $ids;
-	}
-
 	protected function updateRow(string $table, int $id, array $values): void {
 		foreach ($values as $column => $value) {
 			$this->tables[$table][$id][$column] = $value;

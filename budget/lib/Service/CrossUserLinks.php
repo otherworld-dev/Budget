@@ -545,25 +545,26 @@ class CrossUserLinks {
 	 * user gets from apply(), limited to the accounts and categories the
 	 * recipient can no longer see. Left alone, a revoked recipient's rows,
 	 * split parts and bills kept the owner's category (her lists showed its
-	 * live name, and re-saving such a row was refused), her bills kept
-	 * pointing at the owner's account, and her splits of the owner's
-	 * transactions with contacts kept showing those transactions.
+	 * live name, and re-saving such a row was refused), and her bills kept
+	 * pointing at the owner's account.
 	 *
 	 * Rows in the recipient's accounts, split parts on them, and her bills,
 	 * income and rules filed under a lost category go to No category, as do
 	 * her bills' split template parts. Her bills, income, goals and recurring
-	 * pension payments on a lost account let go of it, a bill that does stops
-	 * auto-paying and loses its pending rows, and her splits of transactions
-	 * in a lost account with contacts are removed. A pension payment already
-	 * made keeps the account it came from: that is history.
+	 * pension payments on a lost account let go of it, and a bill that does
+	 * stops auto-paying and loses its pending rows. A pension payment already
+	 * made keeps the account it came from: that is history. So do her splits
+	 * of the owner's transactions with contacts, her own record of what they
+	 * owe her: they stay, and stop showing the transaction they were made
+	 * from (ExpenseShareMapper::findSharedWithNextcloudUser()).
 	 *
 	 * An account she can still see but no longer write to is not lost: a bill
 	 * on it is refused when it next pays, and works again if write comes back.
 	 *
-	 * @return array{detached: int, expenseSharesRemoved: int}
+	 * @return array{detached: int}
 	 */
 	public function cutLostAccess(string $recipientId, string $ownerId): array {
-		$result = ['detached' => 0, 'expenseSharesRemoved' => 0];
+		$result = ['detached' => 0];
 		if ($recipientId === $ownerId) {
 			return $result;
 		}
@@ -603,13 +604,6 @@ class CrossUserLinks {
 				}
 			}
 			$result['detached'] += $this->cutSplitTemplateCategories($recipientId, $lost[ShareItem::TYPE_CATEGORY]);
-
-			if ($lost[ShareItem::TYPE_ACCOUNT] !== []) {
-				foreach ($this->readExpenseSharesIn($recipientId, $lost[ShareItem::TYPE_ACCOUNT]) as $id) {
-					$this->deleteRow('budget_expense_shares', $id);
-					$result['expenseSharesRemoved']++;
-				}
-			}
 			$this->db->commit();
 		} catch (\Throwable $e) {
 			$this->db->rollBack();
@@ -993,29 +987,6 @@ class CrossUserLinks {
 			}
 		}
 		return $found;
-	}
-
-	/**
-	 * $userId's expense shares (splits with contacts) of transactions in
-	 * one of $accountIds.
-	 *
-	 * @param int[] $accountIds
-	 * @return int[]
-	 */
-	protected function readExpenseSharesIn(string $userId, array $accountIds): array {
-		$ids = [];
-		foreach (array_chunk($accountIds, self::CHUNK) as $chunk) {
-			$qb = $this->db->getQueryBuilder();
-			$qb->select('es.id')
-				->from('budget_expense_shares', 'es')
-				->innerJoin('es', 'budget_transactions', 't', $qb->expr()->eq('t.id', 'es.transaction_id'))
-				->where($qb->expr()->eq('es.user_id', $qb->createNamedParameter($userId)))
-				->andWhere($qb->expr()->in('t.account_id', $qb->createNamedParameter($chunk, IQueryBuilder::PARAM_INT_ARRAY)));
-			foreach ($this->fetchAll($qb) as $row) {
-				$ids[] = (int)$row['id'];
-			}
-		}
-		return $ids;
 	}
 
 	/**

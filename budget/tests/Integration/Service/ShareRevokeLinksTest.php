@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace OCA\Budget\Tests\Integration\Service;
 
 use OCA\Budget\Service\CrossUserLinks;
+use OCA\Budget\Service\GranularShareService;
+use OCA\Budget\Service\SharedExpenseService;
 use OCA\Budget\Tests\Integration\IntegrationTestCase;
 
 /**
@@ -120,9 +122,11 @@ class ShareRevokeLinksTest extends IntegrationTestCase {
 		$this->assertNull($this->fetchRow('budget_import_rules', $w['rule'])['category_id']);
 		$this->assertNull($this->fetchRow('budget_transactions', $w['bobRow'])['category_id']);
 		$this->assertSame([null, $w['bobFun']], $this->splitPartsOf($w['bobSplit']));
-		$this->assertNull($this->fetchRow('budget_expense_shares', $w['shareOfAlices']));
+		// Bob's splits with his contact are his own record of what they owe
+		// him, the one of Alice's transaction included
+		$this->assertNotNull($this->fetchRow('budget_expense_shares', $w['shareOfAlices']));
 		$this->assertNotNull($this->fetchRow('budget_expense_shares', $w['shareOfBobs']));
-		$this->assertSame(1, $result['expenseSharesRemoved']);
+		$this->assertSame(['detached' => 10], $result);
 
 		// Alice's own row is hers
 		$this->assertSame($w['food'], (int)$this->fetchRow('budget_transactions', $w['aliceRow'])['category_id']);
@@ -143,5 +147,50 @@ class ShareRevokeLinksTest extends IntegrationTestCase {
 		$this->assertSame($w['food'], (int)$this->fetchRow('budget_transactions', $w['bobRow'])['category_id']);
 		$this->assertSame([null, $w['bobFun']], $this->splitPartsOf($w['bobSplit']));
 		$this->assertNotNull($this->fetchRow('budget_expense_shares', $w['shareOfAlices']));
+	}
+
+	/**
+	 * Bob's split of Alice's transaction outlives the share: listed under a
+	 * neutral label with its own amount, counted in the balance with his
+	 * contact and settleable, with nothing of Alice's transaction in it.
+	 */
+	public function testARevokedRecipientsSplitWithAContactStaysUsable(): void {
+		$w = $this->sharedWorld();
+		$this->db()->executeStatement('DELETE FROM *PREFIX*budget_share_items WHERE share_id = ?', [$w['share']]);
+		$this->db()->executeStatement('DELETE FROM *PREFIX*budget_shares WHERE id = ?', [$w['share']]);
+		$this->links->cutLostAccess($this->bob, $this->userId);
+
+		$this->assertTheSplitOfAlicesTransactionStaysUsable($w);
+	}
+
+	/** The same for a transaction Alice deleted, which takes only her own splits with it */
+	public function testASplitOfATransactionTheOwnerDeletedStaysUsable(): void {
+		$w = $this->sharedWorld();
+		$this->db()->executeStatement('DELETE FROM *PREFIX*budget_transactions WHERE id = ?', [$w['aliceRow']]);
+
+		$this->assertTheSplitOfAlicesTransactionStaysUsable($w);
+	}
+
+	/** @param array<string, int> $w */
+	private function assertTheSplitOfAlicesTransactionStaysUsable(array $w): void {
+		$expenses = $this->service(SharedExpenseService::class);
+		$visible = $this->service(GranularShareService::class)->getVisibleAccountIds($this->bob);
+
+		$details = $expenses->getContactDetails($w['contact'], $this->bob, $visible);
+
+		$listed = [];
+		foreach ($details['shares'] as $item) {
+			$listed[$item['share']['id']] = $item['transaction'];
+		}
+		$this->assertSame(['id' => $w['aliceRow'], 'date' => '', 'description' => 'Shared expense', 'amount' => null], $listed[$w['shareOfAlices']]);
+		$this->assertSame('Test transaction', $listed[$w['shareOfBobs']]['description']);
+		$this->assertStringNotContainsString('Alice groceries', json_encode($details));
+		// Both open splits of 5.00 count
+		$this->assertEqualsWithDelta(10.0, $details['balance'], 0.001);
+
+		$expenses->settleSelectedShares($this->bob, [$w['shareOfAlices']], '2026-10-04');
+
+		$this->assertTrue((bool)$this->fetchRow('budget_expense_shares', $w['shareOfAlices'])['is_settled']);
+		$this->assertEqualsWithDelta(5.0, $expenses->getContactDetails($w['contact'], $this->bob, $visible)['balance'], 0.001);
 	}
 }
