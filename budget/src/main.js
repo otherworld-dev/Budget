@@ -242,8 +242,7 @@ class BudgetApp {
         if (link) {
             initialView = link.view;
             if (initialView === 'transactions' && link.search) {
-                const searchInput = document.getElementById('filter-search');
-                if (searchInput) searchInput.value = link.search;
+                this.transactionsModule.applySearchLink(link.search);
             }
         }
         // Seed the initial history entry with state (preserving any deep-link

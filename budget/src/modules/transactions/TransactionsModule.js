@@ -784,6 +784,25 @@ export default class TransactionsModule {
         this._maybeCheckReconcileSession(this.app.transactionFilters.account);
     }
 
+    /**
+     * Arrive with a search applied, as a result picked in Nextcloud's
+     * unified search does (#/transactions?search=...): the list is filtered
+     * by it, and the Filters panel opens to show why. Typing the term into
+     * the closed panel's search box alone filtered nothing.
+     *
+     * @param {string} search
+     */
+    applySearchLink(search) {
+        this.app.transactionFilters = { ...(this.app.transactionFilters || {}), search };
+        this.app.currentPage = 1;
+        const panel = document.getElementById('transactions-filters');
+        if (panel?.style.display === 'none') {
+            this.toggleFiltersPanel();
+        } else {
+            this.syncFilterControlsFromState();
+        }
+    }
+
     clearFilters() {
         this.resetAllMatchingSelectionOnFilterChange();
         // Clearing is just syncing to an empty filter set — one enumeration
