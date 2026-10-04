@@ -18,8 +18,12 @@ use OCA\Budget\Db\TransactionTag;
 use OCA\Budget\Db\TransactionTagMapper;
 use OCA\Budget\Enum\Currency;
 use OCP\AppFramework\Db\DoesNotExistException;
+use OCP\IDBConnection;
 
 class TransactionService {
+	/** Rows bulkDelete() removes per database transaction */
+	private const BULK_DELETE_CHUNK = 500;
+
 	private TransactionMapper $mapper;
 	private AccountMapper $accountMapper;
 	private TransactionTagMapper $transactionTagMapper;
@@ -40,6 +44,7 @@ class TransactionService {
 		private \OCA\Budget\Db\PensionContributionMapper $pensionContributionMapper,
 		private UserClock $userClock,
 		private ?CurrencyConversionService $currencyConversion = null,
+		private ?IDBConnection $db = null,
 	) {
 		$this->mapper = $mapper;
 		$this->accountMapper = $accountMapper;
@@ -1428,18 +1433,30 @@ class TransactionService {
 		$results = ['success' => 0, 'failed' => 0, 'errors' => []];
 		$affectedAccountIds = [];
 
-		foreach ($ids as $id) {
-			try {
-				$accountId = $this->delete($id, $userId, true, false);
-				$affectedAccountIds[$accountId] = true;
-				$results['success']++;
-			} catch (\Exception $e) {
-				$results['failed']++;
-				$results['errors'][] = [
-					'id' => $id,
-					'message' => $e->getMessage()
-				];
+		// A database transaction per chunk of rows. Every row is a statement
+		// per child table, and committed one by one (each flushed to disk on
+		// MySQL) 10,000 rows took 56 s (T6-5). A chunk the database fails
+		// part way (a deadlock; PostgreSQL refusing everything after one
+		// failed statement) is rolled back and done again a row at a time, as
+		// before, so the counts always say what happened.
+		foreach (array_chunk($ids, self::BULK_DELETE_CHUNK) as $chunk) {
+			if ($this->db === null) {
+				$done = $this->deleteEach($userId, $chunk, false);
+			} else {
+				$this->db->beginTransaction();
+				try {
+					$done = $this->deleteEach($userId, $chunk, true);
+					$this->db->commit();
+				} catch (\Throwable $e) {
+					$this->db->rollBack();
+					$done = $this->deleteEach($userId, $chunk, false);
+				}
 			}
+
+			$results['success'] += $done['success'];
+			$results['failed'] += $done['failed'];
+			array_push($results['errors'], ...$done['errors']);
+			$affectedAccountIds += $done['accounts'];
 		}
 
 		foreach (array_keys($affectedAccountIds) as $accountId) {
@@ -1447,6 +1464,37 @@ class TransactionService {
 		}
 
 		return $results;
+	}
+
+	/**
+	 * bulkDelete()'s rows, one at a time. An id the user can't delete only
+	 * fails itself.
+	 *
+	 * @param bool $inTransaction a database error is passed up, as it voids
+	 *                            the whole transaction
+	 * @return array{success: int, failed: int, errors: list<array{id: mixed, message: string}>, accounts: array<int, true>}
+	 */
+	private function deleteEach(string $userId, array $ids, bool $inTransaction): array {
+		$done = ['success' => 0, 'failed' => 0, 'errors' => [], 'accounts' => []];
+
+		foreach ($ids as $id) {
+			try {
+				$accountId = $this->delete($id, $userId, true, false);
+				$done['accounts'][$accountId] = true;
+				$done['success']++;
+			} catch (\Exception $e) {
+				if ($inTransaction && $e instanceof \OCP\DB\Exception) {
+					throw $e;
+				}
+				$done['failed']++;
+				$done['errors'][] = [
+					'id' => $id,
+					'message' => $e->getMessage()
+				];
+			}
+		}
+
+		return $done;
 	}
 
 	/**

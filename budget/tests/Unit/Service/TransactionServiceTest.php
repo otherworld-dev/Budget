@@ -1883,6 +1883,104 @@ class TransactionServiceTest extends TestCase {
 		$this->assertEquals(1, $result['failed']);
 	}
 
+	/** The service as the container builds it, with a database connection */
+	private function serviceWithConnection(\OCP\IDBConnection $db): TransactionService {
+		return new TransactionService(
+			$this->mapper,
+			$this->accountMapper,
+			$this->transactionTagMapper,
+			$this->splitMapper,
+			$this->expenseShareMapper,
+			$this->createMock(DismissedImportMapper::class),
+			$this->attachmentMapper,
+			$this->createMock(\OCA\Budget\Service\AuditService::class),
+			$this->createMock(\OCA\Budget\Db\PensionContributionMapper::class),
+			$this->userClock,
+			null,
+			$db,
+		);
+	}
+
+	/**
+	 * Each row's delete is a statement per child table, and committed one
+	 * at a time (each flushed to disk on MySQL) 10,000 rows took 56 s (T6-5).
+	 * They now go a chunk of 500 per database transaction.
+	 */
+	public function testBulkDeleteCommitsAChunkOfRowsAtATime(): void {
+		$this->mapper->method('find')->willReturnCallback(fn (int $id) => $this->makeTransaction(['id' => $id]));
+		$this->mapper->method('delete')->willReturnArgument(0);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount());
+		$db = $this->createMock(\OCP\IDBConnection::class);
+		$open = 0;
+		$deletedWhileOpen = 0;
+		$db->expects($this->exactly(3))->method('beginTransaction')->willReturnCallback(function () use (&$open) {
+			$open++;
+		});
+		$db->expects($this->exactly(3))->method('commit')->willReturnCallback(function () use (&$open) {
+			$open--;
+		});
+		$db->expects($this->never())->method('rollBack');
+		$this->transactionTagMapper->method('deleteByTransaction')->willReturnCallback(function () use (&$open, &$deletedWhileOpen) {
+			$deletedWhileOpen += $open;
+			return 0;
+		});
+
+		$result = $this->serviceWithConnection($db)->bulkDelete('user1', range(1, 1200));
+
+		$this->assertSame(1200, $result['success']);
+		$this->assertSame(0, $result['failed']);
+		$this->assertSame(1200, $deletedWhileOpen, 'every row is deleted inside a chunk transaction');
+	}
+
+	public function testAnIdTheUserCannotSeeStillOnlyFailsItself(): void {
+		$this->mapper->method('find')->willReturnCallback(function (int $id) {
+			if ($id === 999) {
+				throw new DoesNotExistException('Not found');
+			}
+			return $this->makeTransaction(['id' => $id]);
+		});
+		$this->mapper->method('delete')->willReturnArgument(0);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount());
+		$db = $this->createMock(\OCP\IDBConnection::class);
+		$db->expects($this->once())->method('commit');
+		$db->expects($this->never())->method('rollBack');
+
+		$result = $this->serviceWithConnection($db)->bulkDelete('user1', [1, 999, 3]);
+
+		$this->assertSame(2, $result['success']);
+		$this->assertSame(1, $result['failed']);
+		$this->assertSame(999, $result['errors'][0]['id']);
+	}
+
+	/**
+	 * A database error inside a chunk (a deadlock, or PostgreSQL refusing
+	 * every statement after one fails) voids the whole transaction: the
+	 * chunk is rolled back and done again a row at a time, as it always
+	 * was, so the counts still say what happened.
+	 */
+	public function testAChunkTheDatabaseFailsIsRolledBackAndDoneRowByRow(): void {
+		$this->mapper->method('find')->willReturnCallback(fn (int $id) => $this->makeTransaction(['id' => $id]));
+		$this->accountMapper->method('find')->willReturn($this->makeAccount());
+		$attempts = 0;
+		$this->mapper->method('delete')->willReturnCallback(function (Transaction $tx) use (&$attempts) {
+			$attempts++;
+			if ($attempts === 2) {
+				throw new \OCP\DB\Exception('Deadlock found when trying to get lock');
+			}
+			return $tx;
+		});
+		$db = $this->createMock(\OCP\IDBConnection::class);
+		$db->expects($this->once())->method('beginTransaction');
+		$db->expects($this->never())->method('commit');
+		$db->expects($this->once())->method('rollBack');
+
+		$result = $this->serviceWithConnection($db)->bulkDelete('user1', [1, 2, 3]);
+
+		$this->assertSame(3, $result['success']);
+		$this->assertSame(0, $result['failed']);
+		$this->assertSame(5, $attempts, 'two rows in the rolled-back chunk, then all three again');
+	}
+
 	// ===== findIdsWithFilters() =====
 
 	public function testFindIdsWithFiltersDelegatesToMapper(): void {
