@@ -314,6 +314,7 @@ export default class TagSetsModule {
             await apiFetch(`/apps/budget/api/transactions/${transactionId}/tags`, {
                 method: 'PUT',
                 body: { tagIds },
+                errorMessage: t('budget', 'Failed to update tags'),
             });
 
             // Update cache
@@ -321,6 +322,8 @@ export default class TagSetsModule {
             return true;
         } catch (error) {
             console.error('Failed to save transaction tags:', error);
+            // The server says why, e.g. a tag the account's owner can't see
+            showError(error.message || t('budget', 'Failed to update tags'));
         }
         return false;
     }

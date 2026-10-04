@@ -4884,9 +4884,15 @@ export default class TransactionsModule {
         cell.innerHTML = `<span style="color: var(--color-text-maxcontrast); font-size: 11px;">${t('budget', 'Loading...')}</span>`;
 
         try {
+            // A row in an account someone shared with you is tagged as its
+            // owner, who can't see your own tags (the server refuses them):
+            // only the tags of the row's category can go on it.
+            const account = this.accounts?.find(a => a.id === transaction.accountId);
+            const ownersRow = !!account?._shared;
+
             // Load both global tags and category tag sets
             const [globalTagsResponse, tagSets] = await Promise.all([
-                apiFetch('/apps/budget/api/tags/global').catch(() => []),
+                ownersRow ? Promise.resolve([]) : apiFetch('/apps/budget/api/tags/global').catch(() => []),
                 categoryId ? this.loadTagSetsForCategory(categoryId) : Promise.resolve([])
             ]);
 
@@ -5060,7 +5066,8 @@ export default class TransactionsModule {
         try {
             await apiFetch(`/apps/budget/api/transactions/${transactionId}/tags`, {
                 method: 'PUT',
-                body: { tagIds }
+                body: { tagIds },
+                errorMessage: t('budget', 'Failed to update tags'),
             });
 
             await this.app.loadTransactionTags(transactionId);
@@ -5072,6 +5079,8 @@ export default class TransactionsModule {
             }
         } catch (error) {
             console.error('Failed to save tags:', error);
+            // The server says why, e.g. a tag the account's owner can't see
+            showError(error.message || t('budget', 'Failed to update tags'));
             this.cancelInlineEdit(cell);
         }
     }
