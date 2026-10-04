@@ -3393,6 +3393,11 @@ button.danger:hover {
 }
 
 /* Loading States */
+/* The account dialog's fields while the account it edits loads (inert then) */
+#account-form[aria-busy="true"] .modal-scroll {
+    opacity: 0.6;
+}
+
 .account-card.loading {
     opacity: 0.6;
     pointer-events: none;

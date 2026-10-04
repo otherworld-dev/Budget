@@ -2634,18 +2634,52 @@ export default class AccountsModule {
             return;
         }
 
+        // Which opening of the dialog a load belongs to: one for an account
+        // opened earlier (or before Add Account) must never fill it.
+        const load = {};
+        this._accountDialogLoad = load;
+        const form = document.getElementById('account-form');
+        // While it loads the fields can't be used and Save is off; Cancel
+        // stays usable
+        const setLoading = (loading) => {
+            const fields = form?.querySelector('.modal-scroll');
+            const save = form?.querySelector('[type="submit"]');
+            fields?.toggleAttribute('inert', loading);
+            if (save) save.disabled = loading;
+            if (loading) {
+                form?.setAttribute('aria-busy', 'true');
+            } else {
+                form?.removeAttribute('aria-busy');
+            }
+        };
+
         if (accountId) {
             title.textContent = t('budget', 'Edit Account');
+            // Cleared and unusable until this account's values are in. It used
+            // to show the previous account's values meanwhile, and anything
+            // typed in that moment was overwritten by the load while Save
+            // still reported success.
+            this.resetAccountForm();
+            setLoading(true);
             // Populate first, THEN apply type-conditional field visibility. The load
             // is async, so running the conditionals on a fixed timer raced it — if
             // they ran before the type was set, the type-specific fields (credit
             // limit, etc.) stayed hidden until the type was toggled (#330).
-            this.loadAccountData(accountId).then(() => {
+            this.loadAccountData(accountId, () => this._accountDialogLoad === load).then((loaded) => {
+                if (this._accountDialogLoad !== load) return;
+                setLoading(false);
+                if (!loaded) {
+                    // An empty form's Save would create a new account
+                    this.hideModals();
+                    return;
+                }
                 this.setupAccountTypeConditionals();
                 this.setupBankingFieldValidation();
+                document.getElementById('account-name')?.focus();
             });
         } else {
             title.textContent = t('budget', 'Add Account');
+            setLoading(false);
             this.resetAccountForm();
             setTimeout(() => {
                 this.setupAccountTypeConditionals();
@@ -2663,9 +2697,20 @@ export default class AccountsModule {
         }
     }
 
-    async loadAccountData(accountId) {
+    /**
+     * Fill the dialog with an account.
+     *
+     * @param {number} accountId
+     * @param {Function} [stillWanted] - False once the dialog has been opened
+     *   again, for another account or to add one: the answer is dropped
+     * @returns {Promise<boolean>} Whether the dialog now holds the account
+     */
+    async loadAccountData(accountId, stillWanted = () => true) {
         try {
             const account = await apiFetch(`/apps/budget/api/accounts/${accountId}`);
+            if (!stillWanted()) {
+                return false;
+            }
 
             document.getElementById('account-id').value = account.id;
             document.getElementById('account-name').value = account.name;
@@ -2772,9 +2817,13 @@ export default class AccountsModule {
             const excludedEl = document.getElementById('account-excluded-from-reports');
             if (excludedEl) excludedEl.checked = account.excludedFromReports || false;
             this.syncClosedControl(account);
+            return true;
         } catch (error) {
             console.error('Failed to load account data:', error);
-            showError(t('budget', 'Failed to load account data'));
+            if (stillWanted()) {
+                showError(t('budget', 'Failed to load account data'));
+            }
+            return false;
         }
     }
 
