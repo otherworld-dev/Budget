@@ -19,7 +19,7 @@ import { downloadTransactionsCsv } from '../../utils/helpers.js';
 import { apiFetch, ApiError } from '../../utils/api.js';
 import { once } from '../../utils/submitGuard.js';
 import { selectPossiblyUnavailable } from '../../utils/formSelects.js';
-import { openAccounts, pickableAccounts, accountOptionLabel, selectAccountValue, usableCategories, categoryTreeOf } from '../../utils/accounts.js';
+import { openAccounts, pickableAccounts, accountOptionLabel, selectAccountValue, usableCategories, categoryTreeOf, sharedAccountOwner } from '../../utils/accounts.js';
 import { offerableTags } from '../../utils/tags.js';
 import flatpickr from 'flatpickr';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
@@ -2064,7 +2064,7 @@ export default class TransactionsModule {
                 if (excludeForecastEl) excludeForecastEl.checked = !!transaction.excludedFromForecast;
 
                 // Receipt attachments (only on saved transactions)
-                this.setupAttachmentsSection(transaction.id);
+                this.setupAttachmentsSection(transaction.id, (this.accounts || []).find(a => a.id === transaction.accountId) || null);
 
                 // Scanning can still fill gaps on an existing transaction —
                 // it only writes into fields that are empty.
@@ -2723,9 +2723,20 @@ export default class TransactionsModule {
      * @param {?number} transactionId null while adding — the transaction does
      *   not exist yet, so chosen receipts are held and attached after save.
      */
-    setupAttachmentsSection(transactionId) {
+    /**
+     * @param {number|null} transactionId The saved transaction, or null when adding
+     * @param {object|null} [account] Its account. Receipts belong to the
+     *   account's owner, so on a row in an account shared with you the
+     *   section stays hidden instead of asking for them (a 404 every time).
+     */
+    setupAttachmentsSection(transactionId, account = null) {
         const group = document.getElementById('transaction-attachments-group');
         if (!group) return;
+        if (transactionId && sharedAccountOwner(account)) {
+            group.style.display = 'none';
+            this._attachmentTxId = null;
+            return;
+        }
         group.style.display = '';
         this._attachmentTxId = transactionId;
 
