@@ -980,71 +980,28 @@ export default class AccountsModule {
         });
     }
 
+    /**
+     * Each tile's balance trend: the account's daily balances over the last
+     * week, as the server works them out for the dashboard's account chart
+     * (signed, scheduled rows left out, shared accounts included). This
+     * used to query the transactions list with parameter names it doesn't
+     * read and wait for an array it never sends, so no line was drawn.
+     */
     async loadAccountSparklines(accounts) {
-        // Load balance history for each account and render sparklines
         for (const account of accounts) {
             try {
                 const accountId = account.id || account.Id;
                 if (!accountId) continue;
 
-                // Get transactions for this account from the last 7 days
-                const endDate = new Date();
-                const startDate = new Date();
-                startDate.setDate(startDate.getDate() - 7);
+                const history = await apiFetch(`/apps/budget/api/accounts/${accountId}/balance-history?days=7`)
+                    .catch(() => null);
+                if (!Array.isArray(history)) continue;
 
-                const transactions = await apiFetch(
-                    `/apps/budget/api/transactions?account=${accountId}&startDate=${formatters.formatDateForAPI(startDate)}&endDate=${formatters.formatDateForAPI(endDate)}`
-                ).catch(() => null);
-                if (!Array.isArray(transactions)) continue;
-
-                // Calculate daily balances
-                const balanceHistory = this.calculateBalanceHistory(account, transactions, 7);
-
-                // Render sparkline
-                this.renderSparkline(accountId, balanceHistory);
+                this.renderSparkline(accountId, history.map(day => parseFloat(day.balance) || 0));
             } catch (error) {
                 console.error(`Failed to load sparkline for account ${account.id}:`, error);
             }
         }
-    }
-
-    calculateBalanceHistory(account, transactions, days) {
-        const currentBalance = parseFloat(account.balance) || 0;
-        const balances = [];
-
-        // Sort transactions by date descending
-        const sortedTxns = [...transactions].sort((a, b) =>
-            new Date(b.date || b.Date) - new Date(a.date || a.Date)
-        );
-
-        // Start with current balance and work backwards
-        let runningBalance = currentBalance;
-        const today = new Date();
-        today.setHours(23, 59, 59, 999);
-
-        for (let i = 0; i < days; i++) {
-            const date = new Date(today);
-            date.setDate(date.getDate() - i);
-            date.setHours(0, 0, 0, 0);
-
-            // Find transactions on this day and reverse their effect
-            const dayTxns = sortedTxns.filter(tx => {
-                const txnDate = new Date(tx.date || tx.Date);
-                txnDate.setHours(0, 0, 0, 0);
-                return txnDate.getTime() === date.getTime();
-            });
-
-            // Store the balance at end of this day
-            balances.unshift(runningBalance);
-
-            // Reverse transactions to get previous day's balance
-            dayTxns.forEach(tx => {
-                const amount = parseFloat(tx.amount || tx.Amount) || 0;
-                runningBalance -= amount;
-            });
-        }
-
-        return balances;
     }
 
     renderSparkline(accountId, balances) {
