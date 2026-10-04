@@ -211,6 +211,34 @@ class ApiErrorHandlerTraitTest extends TestCase {
 		$this->assertSame('Transaction not found', $response->getData()['error']);
 	}
 
+	/**
+	 * An id that is missing or someone else's is the request's lookup
+	 * failing, not the app: every such 404 went to nextcloud.log as a
+	 * level-3 error, normal shared-account screens included.
+	 */
+	public function testAnIdThatIsNotThereIsNotLoggedAsAnError(): void {
+		$logger = $this->createMock(LoggerInterface::class);
+		$logger->expects($this->never())->method('error');
+		$logger->expects($this->once())->method('debug');
+		$this->subject->callSetLogger($logger);
+
+		$response = $this->subject->callHandleNotFoundError(
+			new \OCP\AppFramework\Db\DoesNotExistException('Did expect one result but found none'),
+			'Transaction'
+		);
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
+		$this->assertSame('Transaction not found', $response->getData()['error']);
+	}
+
+	public function testAFailureAnsweredWithA404IsStillLoggedAsAnError(): void {
+		$logger = $this->createMock(LoggerInterface::class);
+		$logger->expects($this->once())->method('error');
+		$this->subject->callSetLogger($logger);
+
+		$this->subject->callHandleNotFoundError(new \RuntimeException('database gone'), 'Transaction');
+	}
+
 	public function testHandleNotFoundErrorOnDbExceptionStillAddsDetail(): void {
 		$response = $this->subject->callHandleNotFoundError(
 			new DbException('SQLSTATE[42S02]: Base table or view not found'),
