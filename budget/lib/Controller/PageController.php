@@ -115,7 +115,7 @@ class PageController extends Controller {
 		);
 		foreach ($this->granularShareService->getSharedAccounts($this->userId) as $sa) {
 			if (!empty($sa['closed'])
-				|| !$this->granularShareService->canWrite((string)$this->userId, 'account', (int)$sa['id'])) {
+				|| !$this->granularShareService->canWrite($this->userId, 'account', (int)$sa['id'])) {
 				continue;
 			}
 			$accountList[] = ['id' => $sa['id'], 'name' => $sa['name']];
