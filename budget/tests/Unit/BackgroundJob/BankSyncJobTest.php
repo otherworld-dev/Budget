@@ -11,6 +11,7 @@ use OCA\Budget\Service\AdminSettingService;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\IJob;
 use OCP\BackgroundJob\IJobList;
+use OCP\IUserManager;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
@@ -28,6 +29,8 @@ class BankSyncJobTest extends TestCase {
 	private array $added = [];
 	/** @var array<int, true> connection ids whose job is still queued */
 	private array $pending = [];
+	/** @var string[] uids Nextcloud no longer knows */
+	private array $deleted = [];
 
 	protected function setUp(): void {
 		$this->adminSettings = $this->createMock(AdminSettingService::class);
@@ -41,12 +44,16 @@ class BankSyncJobTest extends TestCase {
 				$this->added[] = [$class, $argument];
 			});
 
+		$users = $this->createMock(IUserManager::class);
+		$users->method('userExists')->willReturnCallback(fn (string $uid) => !in_array($uid, $this->deleted, true));
+
 		$this->job = new BankSyncJob(
 			$this->createMock(ITimeFactory::class),
 			$this->adminSettings,
 			$this->connectionMapper,
 			$this->jobList,
-			$this->logger
+			$this->logger,
+			$users,
 		);
 	}
 
@@ -119,6 +126,24 @@ class BankSyncJobTest extends TestCase {
 			['id' => 2, 'userId' => 'user2'],
 		]);
 		$this->pending = [1 => true];
+
+		$this->invokeRun();
+
+		$this->assertSame([[BankSyncConnectionJob::class, ['userId' => 'user2', 'connectionId' => 2]]], $this->added);
+	}
+
+	/**
+	 * A user deleted before 3.0 kept their bank connections, and the daily
+	 * run went on logging in to their bank and importing into accounts
+	 * nobody owns. Their connections are skipped, never deleted here.
+	 */
+	public function testRunSkipsTheConnectionsOfAUserNextcloudNoLongerKnows(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$this->connectionMapper->method('findActiveIdsForSync')->willReturn([
+			['id' => 1, 'userId' => 'frank'],
+			['id' => 2, 'userId' => 'user2'],
+		]);
+		$this->deleted = ['frank'];
 
 		$this->invokeRun();
 

@@ -9,6 +9,7 @@ use OCP\DB\IResult;
 use OCP\DB\QueryBuilder\IExpressionBuilder;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
+use OCP\IUserManager;
 use PHPUnit\Framework\TestCase;
 
 class JobUsersTest extends TestCase {
@@ -18,6 +19,24 @@ class JobUsersTest extends TestCase {
 	private array $tables = [];
 	/** @var array<int, mixed> expressions passed to where()/andWhere() */
 	private array $conditions = [];
+	/** @var string[] uids Nextcloud no longer knows */
+	private array $deleted = [];
+	/** @var string[] uids whose user backend throws when asked */
+	private array $unreachable = [];
+	/** @var string[] every userExists() call, in order */
+	private array $lookups = [];
+
+	private function userManager(): IUserManager {
+		$users = $this->createMock(IUserManager::class);
+		$users->method('userExists')->willReturnCallback(function (string $uid): bool {
+			$this->lookups[] = $uid;
+			if (in_array($uid, $this->unreachable, true)) {
+				throw new \RuntimeException('LDAP server unavailable');
+			}
+			return !in_array($uid, $this->deleted, true);
+		});
+		return $users;
+	}
 
 	private function usersReturning(array ...$resultSets): JobUsers {
 		$db = $this->createMock(IDBConnection::class);
@@ -53,7 +72,48 @@ class JobUsersTest extends TestCase {
 			return $qb;
 		});
 
-		return new JobUsers($db);
+		return new JobUsers($db, $this->userManager());
+	}
+
+	/**
+	 * A user deleted before 3.0, or whose purge failed, still had rows in
+	 * every table, so every job kept running for them: auto-pay booked into
+	 * accounts other users had shared with them, notifications and digests
+	 * went to nobody (R8-3).
+	 */
+	public function testUsersNextcloudNoLongerKnowsAreSkipped(): void {
+		$this->deleted = ['frank'];
+		$users = $this->usersReturning(['alice', 'frank', 'bob']);
+
+		$this->assertSame(['alice', 'bob'], $users->from('budget_bills', ['is_active' => true]));
+	}
+
+	public function testDeletedUsersAreSkippedByEveryEnumeration(): void {
+		$this->deleted = ['frank'];
+		$users = $this->usersReturning(['frank', 'dora'], ['frank'], ['frank', 'erin']);
+
+		$this->assertSame(['dora'], $users->accountOwners());
+		$this->assertSame([], $users->withSettingEnabled('digest_enabled'));
+		$this->assertSame(['erin'], $users->from('budget_accounts', ['interest_enabled' => true]));
+	}
+
+	/**
+	 * A user backend that can't answer (an LDAP server that is down) must
+	 * not make the job act for the user: skipped for this run, picked up on
+	 * the next. Nothing is ever deleted from here.
+	 */
+	public function testAUserTheBackendCannotAnswerForIsSkippedThisRun(): void {
+		$this->unreachable = ['ldapuser'];
+		$users = $this->usersReturning(['alice', 'ldapuser']);
+
+		$this->assertSame(['alice'], $users->accountOwners());
+	}
+
+	public function testEachUserIsLookedUpOnce(): void {
+		$users = $this->usersReturning(['carol', 'alice', 'carol', 'alice']);
+
+		$this->assertSame(['alice', 'carol'], $users->accountOwners());
+		$this->assertSame(['alice', 'carol'], $this->lookups);
 	}
 
 	public function testFromReturnsDistinctSortedUserIds(): void {

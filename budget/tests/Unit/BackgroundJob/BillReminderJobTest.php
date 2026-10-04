@@ -16,6 +16,7 @@ use OCA\Budget\Service\SettingService;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\IJob;
 use OCP\IDBConnection;
+use OCP\IUserManager;
 use OCP\Notification\IManager as INotificationManager;
 use OCP\Notification\INotification;
 use PHPUnit\Framework\TestCase;
@@ -53,6 +54,8 @@ class BillReminderJobTest extends TestCase {
 
 		$container = $this->createMock(ContainerInterface::class);
 		$container->method('get')->willReturnMap([
+			// JobUsers keeps only users Nextcloud still knows
+			[IUserManager::class, $this->createConfiguredMock(IUserManager::class, ['userExists' => true])],
 			[BillMapper::class, $this->billMapper],
 			[BillService::class, $this->billService],
 			[RecurringIncomeMapper::class, $this->incomeMapper],

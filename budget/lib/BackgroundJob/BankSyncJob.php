@@ -10,6 +10,7 @@ use OCA\Budget\Service\AdminSettingService;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\IJobList;
 use OCP\BackgroundJob\TimedJob;
+use OCP\IUserManager;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -34,6 +35,7 @@ class BankSyncJob extends TimedJob {
 		private BankConnectionMapper $connectionMapper,
 		private IJobList $jobList,
 		private LoggerInterface $logger,
+		private IUserManager $userManager,
 	) {
 		parent::__construct($time);
 
@@ -52,6 +54,11 @@ class BankSyncJob extends TimedJob {
 			$queued = 0;
 			$waiting = 0;
 			foreach ($this->connectionMapper->findActiveIdsForSync() as $ref) {
+				// A user deleted before 3.0 kept their connections: never log
+				// in to their bank for them (occ budget:purge-deleted-users)
+				if (!$this->userExists((string)$ref['userId'])) {
+					continue;
+				}
 				$jobArgument = ['userId' => $ref['userId'], 'connectionId' => $ref['id']];
 				if ($this->jobList->has(BankSyncConnectionJob::class, $jobArgument)) {
 					$waiting++;
@@ -71,6 +78,15 @@ class BankSyncJob extends TimedJob {
 				'Bank sync job failed: ' . $e->getMessage(),
 				['app' => 'budget', 'exception' => $e]
 			);
+		}
+	}
+
+	/** A backend that can't answer (LDAP down) skips the user this run */
+	private function userExists(string $userId): bool {
+		try {
+			return $this->userManager->userExists($userId);
+		} catch (\Throwable $e) {
+			return false;
 		}
 	}
 }
