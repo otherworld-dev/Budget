@@ -332,10 +332,12 @@ class BudgetCarryoverService {
 	}
 
 	/**
-	 * Spending (direct + split allocations) per category per chain month.
-	 * With the default start day this is two month-grouped queries; with a
-	 * custom start day the rows come back per-day and are folded into the
-	 * shifted period of each chain month.
+	 * Spending (direct + split allocations) per category per chain month,
+	 * net of refunds and of the other leg of a transfer filed under the same
+	 * category, as the Budget page counts Spent: the envelope carries what
+	 * the page showed as left. With the default start day this is two
+	 * month-grouped queries; with a custom start day the rows come back
+	 * per-day and are folded into the shifted period of each chain month.
 	 *
 	 * @param string[] $months ascending chain months
 	 * @param int[]|null $visibleAccountIds accounts in scope (own + shared)
