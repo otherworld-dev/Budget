@@ -219,6 +219,35 @@ class SharedExpenseServiceTest extends TestCase {
 		$this->service->shareExpense('user1', 10, 1, 50.0);
 	}
 
+	/**
+	 * A transaction in an account shared with the user is someone else's
+	 * row, so the user-scoped lookups found neither it nor its account and
+	 * the split was stored with no currency, which every balance then
+	 * showed as US dollars.
+	 */
+	public function testShareExpenseOnASharedAccountKeepsItsCurrency(): void {
+		$this->transactionMapper->method('find')->willThrowException(new DoesNotExistException('not yours'));
+		$this->transactionMapper->method('findForAccounts')->with(10, [1, 7])->willReturn($this->makeTransaction(10, -100.0));
+		$this->contactMapper->method('find')->willReturn($this->makeContact());
+		$this->expenseShareMapper->method('insert')->willReturnArgument(0);
+
+		$share = $this->service->shareExpense('user1', 10, 1, 50.0, null, [1, 7]);
+
+		$this->assertSame('USD', $share->getCurrency());
+	}
+
+	public function testSplitFiftyFiftyOnASharedAccountKeepsItsCurrency(): void {
+		$this->transactionMapper->method('find')->willThrowException(new DoesNotExistException('not yours'));
+		$this->transactionMapper->method('findForAccounts')->willReturn($this->makeTransaction(10, -100.0));
+		$this->contactMapper->method('find')->willReturn($this->makeContact());
+		$this->expenseShareMapper->method('insert')->willReturnArgument(0);
+
+		$share = $this->service->splitFiftyFifty('user1', 10, 1, null, [1, 7]);
+
+		$this->assertSame('USD', $share->getCurrency());
+		$this->assertEquals(50.0, $share->getAmount());
+	}
+
 	// ===== splitFiftyFifty =====
 
 	public function testSplitFiftyFiftyExpensePositiveShare(): void {
@@ -626,6 +655,21 @@ class SharedExpenseServiceTest extends TestCase {
 		$result = $this->service->getContactDetails(1, 'user1');
 
 		$this->assertEmpty($result['shares']);
+	}
+
+	/** A split of a transaction in an account shared with the user is listed, so it can be settled */
+	public function testGetContactDetailsListsSplitsOfTransactionsInSharedAccounts(): void {
+		$this->contactMapper->method('find')->willReturn($this->makeContact());
+		$this->expenseShareMapper->method('findByContact')->willReturn([$this->makeShare(1, 30.0, false, 1, 10)]);
+		$this->settlementMapper->method('findByContact')->willReturn([]);
+		$this->transactionMapper->method('find')->willThrowException(new DoesNotExistException('not yours'));
+		$this->transactionMapper->method('findForAccounts')->with(10, [1, 7])->willReturn($this->makeTransaction(10, -60.0));
+
+		$result = $this->service->getContactDetails(1, 'user1', [1, 7]);
+
+		$this->assertCount(1, $result['shares']);
+		$this->assertSame(10, $result['shares'][0]['transaction']['id']);
+		$this->assertEquals(30.0, $result['balance']);
 	}
 
 	private function makeIncomingRow(int $id, float $amount, bool $settled, int $txId, string $createdAt): array {

@@ -238,7 +238,7 @@ class SharedExpenseController extends Controller {
 	#[UserRateLimit(limit: 30, period: 60)]
 	public function contactDetails(int $id): DataResponse {
 		try {
-			$details = $this->service->getContactDetails($id, $this->getEffectiveUserId());
+			$details = $this->service->getContactDetails($id, $this->getEffectiveUserId(), $this->getVisibleAccountIds());
 			return new DataResponse($details);
 		} catch (\Exception $e) {
 			$this->logger->error('Failed to get contact details', [

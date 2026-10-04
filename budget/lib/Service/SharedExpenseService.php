@@ -91,19 +91,6 @@ class SharedExpenseService {
 		return $result;
 	}
 
-	/**
-	 * Get the currency for a transaction by looking up its account.
-	 */
-	private function getTransactionCurrency(int $transactionId, string $userId): ?string {
-		try {
-			$transaction = $this->transactionMapper->find($transactionId, $userId);
-			$account = $this->accountMapper->find($transaction->getAccountId(), $userId);
-			return $account->getCurrency() ?: null;
-		} catch (\Exception $e) {
-			return null;
-		}
-	}
-
 	// ==================== Contact Methods ====================
 
 	/**
@@ -203,15 +190,7 @@ class SharedExpenseService {
 		?array $visibleAccountIds = null,
 	): ExpenseShare {
 		// Verify the transaction exists and is accessible to user
-		try {
-			$this->transactionMapper->find($transactionId, $userId);
-		} catch (DoesNotExistException $e) {
-			if (!empty($visibleAccountIds)) {
-				$this->transactionMapper->findForAccounts($transactionId, $visibleAccountIds);
-			} else {
-				throw $e;
-			}
-		}
+		$transaction = $this->findShareableTransaction($transactionId, $userId, $visibleAccountIds);
 		// Verify the contact exists and belongs to user
 		$this->contactMapper->find($contactId, $userId);
 
@@ -223,7 +202,10 @@ class SharedExpenseService {
 			}
 		}
 
-		$currency = $this->getTransactionCurrency($transactionId, $userId);
+		// By the account's id: a transaction in an account shared with the
+		// user is its owner's, and a user-scoped lookup stored no currency,
+		// which every balance then showed as US dollars
+		$currency = $this->accountCurrency($transaction);
 
 		$share = new ExpenseShare();
 		$share->setUserId($userId);
@@ -675,8 +657,12 @@ class SharedExpenseService {
 
 	/**
 	 * Get detailed balance for a specific contact including transaction history.
+	 *
+	 * @param int[]|null $visibleAccountIds also list splits of transactions in
+	 *                                      accounts shared with the user: they can be split, so they have to be
+	 *                                      listed to be settled one by one
 	 */
-	public function getContactDetails(int $contactId, string $userId): array {
+	public function getContactDetails(int $contactId, string $userId, ?array $visibleAccountIds = null): array {
 		$contact = $this->contactMapper->find($contactId, $userId);
 		$shares = $this->expenseShareMapper->findByContact($contactId, $userId);
 		$settlements = $this->settlementMapper->findByContact($contactId, $userId);
@@ -685,7 +671,7 @@ class SharedExpenseService {
 		$enrichedShares = [];
 		foreach ($shares as $share) {
 			try {
-				$transaction = $this->transactionMapper->find($share->getTransactionId(), $userId);
+				$transaction = $this->findShareableTransaction($share->getTransactionId(), $userId, $visibleAccountIds);
 				$enrichedShares[] = [
 					'share' => $share->jsonSerialize(),
 					'transaction' => [
