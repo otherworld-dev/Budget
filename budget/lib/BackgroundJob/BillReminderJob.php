@@ -64,6 +64,8 @@ class BillReminderJob extends TimedJob {
 					// overdue notices a day off either side of UTC
 					$today = new \DateTime($clock instanceof UserClock ? $clock->today($userId) : date('Y-m-d'));
 					$today->setTime(0, 0, 0);
+					// The same calendar for when the last notice went out
+					$zone = $clock instanceof UserClock ? $clock->now($userId)->getTimezone() : new \DateTimeZone('UTC');
 
 					// Process auto-pay BEFORE reminders to avoid sending reminder for auto-paid bill
 					$autoPay = $this->processAutoPayForUser($userId, $today->format('Y-m-d'), $billMapper, $billService, $notificationManager, $settingService, $logger);
@@ -103,16 +105,16 @@ class BillReminderJob extends TimedJob {
 						// Check if we should send a reminder
 						if ($daysUntilDue < 0) {
 							// Bill is overdue - send overdue notification if not already sent
-							if ($this->shouldSendReminder($bill, $dueDate, true)) {
+							if ($this->shouldSendReminder($bill, $dueDate, true, $zone)) {
 								$this->sendOverdueNotification($notificationManager, $settingService, $userId, $bill, $daysUntilDue);
-								$this->markReminderSent($billMapper, $bill);
+								$this->markReminderSent($billMapper, $bill, $nextDueDate);
 								$notificationCount++;
 							}
 						} elseif ($daysUntilDue <= $bill->getReminderDays()) {
 							// Within reminder window
-							if ($this->shouldSendReminder($bill, $dueDate)) {
+							if ($this->shouldSendReminder($bill, $dueDate, false, $zone)) {
 								$this->sendReminderNotification($notificationManager, $settingService, $userId, $bill, $daysUntilDue);
-								$this->markReminderSent($billMapper, $bill);
+								$this->markReminderSent($billMapper, $bill, $nextDueDate);
 								$notificationCount++;
 							}
 						}
@@ -148,21 +150,41 @@ class BillReminderJob extends TimedJob {
 	 * the due date. "More than a week before the due date" read every
 	 * reminder sent 8 to 30 days out as an old one and resent it every six
 	 * hours, and a reminder two days out stopped the overdue notice for good.
+	 *
+	 * The bill remembers the due date its last notice was for, so a notice
+	 * for an earlier occurrence says nothing about this one: the overdue
+	 * notice of a bill paid late fell inside the next occurrence's reminder
+	 * window, and that reminder was never sent. When it went out is read on
+	 * the user's calendar, as their today is: stamped in UTC and read as a
+	 * UTC date, a notice sent after midnight east of UTC looked a day old,
+	 * and every run that day sent it again.
 	 */
-	private function shouldSendReminder($bill, \DateTime $dueDate, bool $overdue = false): bool {
+	private function shouldSendReminder($bill, \DateTime $dueDate, bool $overdue = false, ?\DateTimeZone $zone = null): bool {
 		$lastReminderSent = $bill->getLastReminderSent();
 		if (!$lastReminderSent) {
 			return true;
 		}
 
-		$lastReminder = new \DateTime($lastReminderSent);
-		$lastReminder->setTime(0, 0, 0);
+		$due = $dueDate->format('Y-m-d');
+		$sentFor = $bill->getLastReminderDue();
+		if ($sentFor !== null && $sentFor !== '' && $sentFor !== $due) {
+			return true;
+		}
+		$sentOn = (new \DateTimeImmutable($lastReminderSent, new \DateTimeZone('UTC')))
+			->setTimezone($zone ?? new \DateTimeZone('UTC'))
+			->format('Y-m-d');
 
 		if ($overdue) {
-			return $lastReminder <= $dueDate;
+			// Sent on or before the due date, it was the reminder
+			return $sentOn <= $due;
 		}
-		$windowStart = (clone $dueDate)->modify('-' . max(0, $bill->getReminderDays() ?? 7) . ' days');
-		return $lastReminder < $windowStart;
+		if ($sentFor === $due) {
+			return false;
+		}
+		// Sent before the due date was remembered: one inside the window was
+		// this occurrence's
+		$windowStart = (clone $dueDate)->modify('-' . max(0, $bill->getReminderDays() ?? 7) . ' days')->format('Y-m-d');
+		return $sentOn < $windowStart;
 	}
 
 	private function sendReminderNotification(
@@ -211,8 +233,9 @@ class BillReminderJob extends TimedJob {
 		$notificationManager->notify($notification);
 	}
 
-	private function markReminderSent(BillMapper $billMapper, $bill): void {
+	private function markReminderSent(BillMapper $billMapper, $bill, string $dueDate): void {
 		$bill->setLastReminderSent(date('Y-m-d H:i:s'));
+		$bill->setLastReminderDue($dueDate);
 		$billMapper->update($bill);
 	}
 

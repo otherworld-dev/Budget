@@ -143,6 +143,61 @@ class BillReminderJobTest extends TestCase {
 		$this->assertTrue($this->invokeShouldSendReminder($bill, new \DateTime('2026-04-15')));
 	}
 
+	public function testAReminderSentAfterMidnightEastOfUtcGoesOutOnce(): void {
+		// Sent at 01:00 on 5 October in Sydney, stamped 14:00 on 4 October
+		// UTC. Read as a UTC date it was older than the window opening on the
+		// 5th, and every run that day sent it again
+		$bill = $this->makeBill(['reminderDays' => 3, 'lastReminderSent' => '2026-10-04 14:00:00']);
+
+		$this->assertFalse($this->invokeShouldSendReminder($bill, new \DateTime('2026-10-08'), false, 'Australia/Sydney'));
+	}
+
+	public function testAnOverdueNoticeSentAfterMidnightEastOfUtcGoesOutOnce(): void {
+		$bill = $this->makeBill(['reminderDays' => 3, 'lastReminderSent' => '2026-10-04 14:00:00']);
+
+		$this->assertFalse($this->invokeShouldSendReminder($bill, new \DateTime('2026-10-04'), true, 'Australia/Sydney'));
+	}
+
+	public function testALatePaymentDoesNotSwallowTheNextReminder(): void {
+		// A weekly bill reminded a week ahead: the overdue notice for 4
+		// October went out on the 5th, inside the next occurrence's window,
+		// and the reminder for the 11th was never sent
+		$bill = $this->makeBill(['reminderDays' => 7, 'nextDueDate' => '2026-10-11',
+			'lastReminderSent' => '2026-10-05 08:00:00', 'lastReminderDue' => '2026-10-04']);
+
+		$this->assertTrue($this->invokeShouldSendReminder($bill, new \DateTime('2026-10-11')));
+	}
+
+	public function testEachNoticeGoesOutOncePerDueDate(): void {
+		// The reminder for 15 October went out on the 13th
+		$bill = $this->makeBill(['reminderDays' => 3, 'lastReminderSent' => '2026-10-13 08:00:00', 'lastReminderDue' => '2026-10-15']);
+		$this->assertFalse($this->invokeShouldSendReminder($bill, new \DateTime('2026-10-15')));
+		// ...even after the window is shortened to one day
+		$bill->setReminderDays(1);
+		$this->assertFalse($this->invokeShouldSendReminder($bill, new \DateTime('2026-10-15')));
+		// The overdue notice still follows it, once
+		$this->assertTrue($this->invokeShouldSendReminder($bill, new \DateTime('2026-10-15'), true));
+		$bill->setLastReminderSent('2026-10-16 08:00:00');
+		$this->assertFalse($this->invokeShouldSendReminder($bill, new \DateTime('2026-10-15'), true));
+	}
+
+	public function testANoticeRecordsTheDueDateItWasFor(): void {
+		$this->mockGetAllUserIds(['user1']);
+		$this->billMapper->method('findDueForAutoPay')->willReturn([]);
+		$tomorrow = (new \DateTime('+1 day'))->format('Y-m-d');
+		$bill = $this->makeBill(['reminderDays' => 3, 'nextDueDate' => $tomorrow]);
+		$this->billMapper->method('findActive')->willReturn([$bill]);
+		$notification = $this->createMock(INotification::class);
+		foreach (['setApp', 'setUser', 'setDateTime', 'setObject', 'setSubject'] as $method) {
+			$notification->method($method)->willReturnSelf();
+		}
+		$this->notificationManager->method('createNotification')->willReturn($notification);
+		$this->billMapper->expects($this->once())->method('update')
+			->with($this->callback(fn (Bill $b) => $b->getLastReminderDue() === $tomorrow && $b->getLastReminderSent() !== null));
+
+		$this->invokeRun();
+	}
+
 	// ===== formatAmount() =====
 
 	public function testFormatAmountWithUsd(): void {
@@ -505,6 +560,9 @@ class BillReminderJobTest extends TestCase {
 		$bill->setReminderDays($overrides['reminderDays'] ?? null);
 		$bill->setNextDueDate($overrides['nextDueDate'] ?? '2099-06-15');
 		$bill->setLastReminderSent($overrides['lastReminderSent'] ?? null);
+		if (isset($overrides['lastReminderDue'])) {
+			$bill->setLastReminderDue($overrides['lastReminderDue']);
+		}
 		return $bill;
 	}
 
@@ -532,9 +590,9 @@ class BillReminderJobTest extends TestCase {
 		$this->db->method('getQueryBuilder')->willReturn($qb);
 	}
 
-	private function invokeShouldSendReminder($bill, \DateTime $dueDate, bool $overdue = false): bool {
+	private function invokeShouldSendReminder($bill, \DateTime $dueDate, bool $overdue = false, string $zone = 'UTC'): bool {
 		$method = new \ReflectionMethod($this->job, 'shouldSendReminder');
-		return $method->invoke($this->job, $bill, $dueDate, $overdue);
+		return $method->invoke($this->job, $bill, $dueDate, $overdue, new \DateTimeZone($zone));
 	}
 
 	private function invokeFormatAmount(string $userId, float $amount): string {

@@ -242,7 +242,7 @@ class BillMapper extends QBMapper {
 		'name', 'description', 'amount', 'amount_type', 'frequency', 'due_day', 'due_month',
 		'category_id', 'account_id', 'auto_detect_pattern', 'is_active',
 		'last_paid_date', 'next_due_date', 'notes', 'reminder_days',
-		'last_reminder_sent', 'custom_recurrence_pattern', 'auto_pay_enabled',
+		'last_reminder_sent', 'last_reminder_due', 'custom_recurrence_pattern', 'auto_pay_enabled',
 		'auto_pay_failed', 'is_transfer', 'destination_account_id',
 		'transfer_description_pattern', 'tag_ids', 'start_date', 'end_date',
 		'remaining_payments', 'split_template', 'excluded_from_forecast',
