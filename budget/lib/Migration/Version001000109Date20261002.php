@@ -50,6 +50,9 @@ class Version001000109Date20261002 extends SimpleMigrationStep {
 		$qb->select('t.id', 't.account_id', 't.date', 'b.last_paid_date', 'b.paid_undo_state')
 			->from('budget_transactions', 't')
 			->innerJoin('t', 'budget_bills', 'b', $qb->expr()->eq('b.id', 't.bill_id'))
+			// A row whose account no longer exists belongs to no one: put back
+			// to pending, it stopped the bill's delete and a factory reset
+			->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('a.id', 't.account_id'))
 			->where($qb->expr()->eq('t.status', $qb->createNamedParameter('cleared')))
 			->andWhere($qb->expr()->eq('t.date', 'b.next_due_date'))
 			->andWhere($qb->expr()->eq('b.is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))

@@ -2562,6 +2562,28 @@ class TransactionServiceTest extends TestCase {
 		$this->assertSame([11, 12], $deleted);
 	}
 
+	/**
+	 * A pending row whose account no longer exists stopped the bill's delete,
+	 * a factory reset and a deleted user's purge: looking up its owner threw.
+	 */
+	public function testABillsPendingRowWhoseAccountIsGoneIsDeletedToo(): void {
+		$accounts = $this->createMock(AccountMapper::class);
+		$accounts->method('findById')->willThrowException(new DoesNotExistException('No account 999999'));
+		$service = new TransactionService(
+			$this->mapper, $accounts, $this->transactionTagMapper, $this->splitMapper, $this->expenseShareMapper,
+			$this->createMock(DismissedImportMapper::class), $this->attachmentMapper, $this->auditService,
+			$this->createMock(\OCA\Budget\Db\PensionContributionMapper::class), $this->userClock
+		);
+		$orphan = $this->makeTransaction(['id' => 11, 'billId' => 44, 'accountId' => 999999]);
+		$orphan->setStatus('scheduled');
+		$this->mapper->method('findAllScheduledByBillId')->willReturn([$orphan]);
+
+		$this->splitMapper->expects($this->once())->method('deleteByTransaction')->with(11);
+		$this->mapper->expects($this->once())->method('delete')->with($orphan);
+
+		$service->deleteScheduledBillTransactions(44);
+	}
+
 	public function testDeletingABillsScheduledTransactionsTakesTheirTagsAndAttachments(): void {
 		$tx = $this->makeTransaction(['id' => 11, 'status' => 'scheduled']);
 		$this->mapper->method('findAllScheduledByBillId')->willReturn([$tx]);

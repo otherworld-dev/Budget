@@ -587,7 +587,7 @@ class TransactionService {
 			// A bill with a split template puts real split rows on every
 			// placeholder it generates, so deleting the bill has to take them
 			// with it.
-			$this->deleteWithChildren($transaction, $this->ownerOf($transaction));
+			$this->deleteWithChildren($transaction, $this->ownerOrNobody($transaction));
 		}
 	}
 
@@ -647,6 +647,21 @@ class TransactionService {
 	 */
 	private function ownerOf(Transaction $transaction): string {
 		return $this->accountMapper->findById($transaction->getAccountId())->getUserId();
+	}
+
+	/**
+	 * ownerOf(), or no one for a row whose account no longer exists (an
+	 * account deleted before accounts took their rows with them). Looking
+	 * that owner up stopped a bill's delete, a factory reset and a deleted
+	 * user's purge. The row still goes with its tags and splits; expense
+	 * shares and attachment links, which belong to a user, are left alone.
+	 */
+	private function ownerOrNobody(Transaction $transaction): string {
+		try {
+			return $this->ownerOf($transaction);
+		} catch (DoesNotExistException $e) {
+			return '';
+		}
 	}
 
 	/**

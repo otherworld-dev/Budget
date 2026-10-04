@@ -137,6 +137,22 @@ class UnpaidPlaceholderRestoreMigrationTest extends IntegrationTestCase {
 		}
 	}
 
+	/**
+	 * A row in an account that no longer exists belongs to no one. Put back
+	 * to pending, it stopped the bill's delete and its owner's factory reset.
+	 */
+	public function testARowWhoseAccountIsGoneIsLeftAlone(): void {
+		$account = $this->makeAccount()->getId();
+		$gone = $this->makeAccount(['name' => 'Closed long ago'])->getId();
+		$bill = $this->bill($account, '2026-09-01');
+		$orphan = $this->row($gone, $bill, '2026-09-01');
+		$this->db()->executeStatement('DELETE FROM *PREFIX*budget_accounts WHERE id = ?', [$gone]);
+
+		$this->runMigration();
+
+		$this->assertSame('cleared', $this->fetchRow('budget_transactions', $orphan)['status']);
+	}
+
 	private function runMigration(): void {
 		$schema = $this->createMock(ISchemaWrapper::class);
 		$schema->method('hasTable')->willReturn(true);
