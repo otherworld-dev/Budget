@@ -417,30 +417,88 @@ class ImportRuleService extends AbstractCrudService {
 			]
 		];
 
+		// Each rule sets the category it is named for. They were created with
+		// none: a rule with no action still matches first and stops the rules
+		// after it, so "Create default categories" left every user with six
+		// rules that kept their own rules from ever running (T3). A rule whose
+		// category the user doesn't have is not created at all.
+		$categories = $this->categoryMapper->findAll($userId);
+		$existingRules = $this->mapper->findAll($userId);
+
 		$created = [];
 		foreach ($defaultRules as $ruleData) {
-			try {
-				// Find category by name (this is simplified - in practice you'd need better category matching)
-				$categoryId = null; // Would need to implement category lookup
+			// Pressing the button again must not stack a second copy
+			foreach ($existingRules as $existing) {
+				if ($existing->getName() === $ruleData['name'] && $existing->getPattern() === $ruleData['pattern']) {
+					continue 2;
+				}
+			}
 
-				$rule = $this->create(
+			$categoryId = self::defaultRuleCategoryId($categories, $ruleData['categoryName']);
+			if ($categoryId === null) {
+				continue;
+			}
+
+			try {
+				$created[] = $this->create(
 					userId: $userId,
 					name: $ruleData['name'],
 					pattern: $ruleData['pattern'],
 					field: $ruleData['field'],
 					matchType: $ruleData['matchType'],
-					categoryId: $categoryId,
-					priority: $ruleData['priority']
+					criteria: [
+						'version' => 2,
+						'root' => [
+							'operator' => 'AND',
+							'conditions' => [[
+								'type' => 'condition',
+								'field' => $ruleData['field'],
+								'matchType' => $ruleData['matchType'],
+								'pattern' => $ruleData['pattern'],
+								'negate' => false,
+							]],
+						],
+					],
+					schemaVersion: 2,
+					priority: $ruleData['priority'],
+					actions: [
+						'version' => 2,
+						'stopProcessing' => true,
+						'actions' => [[
+							'type' => 'set_category',
+							'value' => $categoryId,
+							'behavior' => 'always',
+							'priority' => 100,
+						]],
+					],
 				);
-
-				$created[] = $rule;
 			} catch (\Exception $e) {
-				// Skip if category not found or other error
 				continue;
 			}
 		}
 
 		return $created;
+	}
+
+	/**
+	 * The user's expense category a default rule files into: a top-level one
+	 * of that name, else the only one of that name at any level (the default
+	 * tree has Groceries under Food). Null when there is none, or several
+	 * subcategories share the name and none of them is clearly meant.
+	 *
+	 * @param \OCA\Budget\Db\Category[] $categories
+	 */
+	private static function defaultRuleCategoryId(array $categories, string $name): ?int {
+		$matches = array_values(array_filter(
+			$categories,
+			static fn ($category) => $category->getName() === $name && $category->getType() === 'expense'
+		));
+		foreach ($matches as $category) {
+			if ($category->getParentId() === null) {
+				return $category->getId();
+			}
+		}
+		return count($matches) === 1 ? $matches[0]->getId() : null;
 	}
 
 	/**

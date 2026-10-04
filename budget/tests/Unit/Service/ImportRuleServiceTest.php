@@ -291,6 +291,106 @@ class ImportRuleServiceTest extends TestCase {
 		$this->assertSame(['min' => '2026-01-01', 'max' => '2026-12-31'], $stored['root']['conditions'][0]['pattern']);
 	}
 
+	// ===== default rules =====
+
+	/**
+	 * @return \OCA\Budget\Db\Category[] the default tree's categories the rules name
+	 */
+	private function defaultCategories(): array {
+		$tree = [
+			[10, 'Food', null], [11, 'Groceries', 10], [14, 'Dining Out', 10],
+			[12, 'Transportation', null], [13, 'Gas', 12],
+			[15, 'Shopping', null],
+			[16, 'Housing', null], [17, 'Utilities', 16],
+			[18, 'Income', null],
+		];
+		$categories = [];
+		foreach ($tree as [$id, $name, $parentId]) {
+			$category = new \OCA\Budget\Db\Category();
+			$category->setId($id);
+			$category->setName($name);
+			$category->setType($name === 'Income' ? 'income' : 'expense');
+			$category->setParentId($parentId);
+			$categories[] = $category;
+		}
+		return $categories;
+	}
+
+	/**
+	 * "Create default categories" also made six rules with no category, which
+	 * matched first, did nothing and stopped every rule after them (T3). Each
+	 * default rule now sets the category it is named for, found in the tree
+	 * the button has just made, subcategories included.
+	 */
+	public function testDefaultRulesSetTheCategoryTheyAreNamedFor(): void {
+		$this->categoryMapper->method('findAll')->willReturn($this->defaultCategories());
+		$this->mapper->method('findAll')->willReturn([]);
+		$this->criteriaEvaluator->method('validate')->willReturn(['valid' => true]);
+		$this->actionApplicator->method('validateActions')->willReturn(['valid' => true, 'errors' => []]);
+
+		$inserted = [];
+		$this->mapper->method('insert')->willReturnCallback(function (ImportRule $r) use (&$inserted) {
+			$r->setId(count($inserted) + 1);
+			$inserted[] = $r;
+			return $r;
+		});
+
+		$created = $this->service->createDefaultRules('user1');
+
+		$categoryByRule = [];
+		foreach ($created as $rule) {
+			$this->assertSame(2, $rule->getSchemaVersion());
+			$this->assertTrue($rule->getActive());
+			$actions = $rule->getParsedActions()['actions'];
+			$this->assertCount(1, $actions);
+			$this->assertSame('set_category', $actions[0]['type']);
+			$condition = $rule->getParsedCriteria()['root']['conditions'][0];
+			$this->assertSame('regex', $condition['matchType']);
+			$this->assertSame($rule->getPattern(), $condition['pattern']);
+			$categoryByRule[$rule->getName()] = $actions[0]['value'];
+		}
+
+		// No "Cash" category exists, so no ATM rule that could only block others
+		$this->assertSame([
+			'Grocery Stores' => 11,
+			'Gas Stations' => 13,
+			'Restaurants' => 14,
+			'Online Shopping' => 15,
+			'Utilities' => 17,
+		], $categoryByRule);
+	}
+
+	public function testDefaultRulesAreNotAddedTwice(): void {
+		$this->categoryMapper->method('findAll')->willReturn($this->defaultCategories());
+		$this->criteriaEvaluator->method('validate')->willReturn(['valid' => true]);
+		$this->actionApplicator->method('validateActions')->willReturn(['valid' => true, 'errors' => []]);
+		$existing = $this->makeRule([
+			'name' => 'Grocery Stores',
+			'pattern' => 'grocery|supermarket|safeway|kroger|trader joe|whole foods',
+		]);
+		$this->mapper->method('findAll')->willReturn([$existing]);
+
+		$names = [];
+		$this->mapper->method('insert')->willReturnCallback(function (ImportRule $r) use (&$names) {
+			$names[] = $r->getName();
+			$r->setId(99);
+			return $r;
+		});
+
+		$this->service->createDefaultRules('user1');
+
+		$this->assertNotContains('Grocery Stores', $names);
+		$this->assertContains('Gas Stations', $names);
+	}
+
+	public function testNoDefaultRuleIsMadeWithoutItsCategory(): void {
+		$this->categoryMapper->method('findAll')->willReturn([]);
+		$this->mapper->method('findAll')->willReturn([]);
+		$this->mapper->expects($this->never())->method('insert');
+
+		$this->assertSame([], $this->service->createDefaultRules('user1'));
+	}
+
 	// ===== delete =====
 
 	public function testDeleteFindsAndRemoves(): void {
