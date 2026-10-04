@@ -77,7 +77,13 @@ class ReportAggregator {
 		array $visibleAccountIds = [],
 	): array {
 		if ($accountId) {
-			$accounts = [$this->accountMapper->find($accountId, $userId)];
+			// One account selected: an account shared with the user is in
+			// their visible accounts but not their own, which find() is
+			// scoped to, so a summary of it failed (the dashboard tiles set
+			// to it among them). Anything else stays refused.
+			$accounts = [in_array($accountId, $visibleAccountIds, true)
+				? $this->accountMapper->findById($accountId)
+				: $this->accountMapper->find($accountId, $userId)];
 		} elseif (!empty($visibleAccountIds)) {
 			$accounts = $this->accountMapper->findByIds($visibleAccountIds);
 		} else {
@@ -609,8 +615,10 @@ class ReportAggregator {
 				);
 			}
 		} else {
+			// Still within the viewer's accounts: without them the query is
+			// scoped to the viewer's own, and a shared account came back empty
 			$cashFlow = $this->reportQueries->getCashFlowByMonth(
-				$userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers
+				$userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
 			);
 		}
 
@@ -727,8 +735,9 @@ class ReportAggregator {
 				}
 			}
 		} else {
+			// Within the viewer's accounts, as getCashFlowReport() does
 			$monthlyData = $this->reportQueries->getMonthlyTrendData(
-				$userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, false
+				$userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, false, $visibleAccountIds
 			);
 			$dataByMonth = [];
 			foreach ($monthlyData as $row) {
