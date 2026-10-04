@@ -560,6 +560,8 @@ class SharedExpenseService {
 		string $date,
 		?string $notes = null,
 	): array {
+		// Someone else's contact id was answered as settled with nothing done
+		$this->contactMapper->find($contactId, $userId);
 		$shares = $this->expenseShareMapper->findUnsettledByContact($contactId, $userId);
 
 		$byCurrency = [];

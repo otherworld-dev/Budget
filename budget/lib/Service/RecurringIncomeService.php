@@ -8,6 +8,7 @@ use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\RecurringIncome;
 use OCA\Budget\Db\RecurringIncomeMapper;
 use OCA\Budget\Db\ShareItem;
+use OCA\Budget\Exception\ReadOnlyShareException;
 use OCA\Budget\Service\Bill\FrequencyCalculator;
 use OCA\Budget\Service\Income\RecurringIncomeDetector;
 use OCP\IL10N;
@@ -253,7 +254,7 @@ class RecurringIncomeService extends AbstractCrudService {
 	 *                                  refused, instead of booking the money twice.
 	 * @throws \InvalidArgumentException
 	 */
-	public function markReceived(int $id, string $userId, ?string $receivedDate = null, bool $createTransaction = false, ?string $expectedDate = null): RecurringIncome {
+	public function markReceived(int $id, string $userId, ?string $receivedDate = null, bool $createTransaction = false, ?string $expectedDate = null, ?string $actingUserId = null): RecurringIncome {
 		$income = $this->find($id, $userId);
 
 		if (!$income->getIsActive() || $income->getNextExpectedDate() === null) {
@@ -265,6 +266,7 @@ class RecurringIncomeService extends AbstractCrudService {
 		$willBook = $createTransaction && $income->getAccountId() !== null;
 		if ($willBook) {
 			$this->requireWritableAccount($income);
+			$this->requireWritableByActingUser($income, $actingUserId);
 		}
 
 		$received = $receivedDate ?? $this->today($userId);
@@ -299,7 +301,7 @@ class RecurringIncomeService extends AbstractCrudService {
 	 *
 	 * @throws \InvalidArgumentException when there is nothing to revert
 	 */
-	public function markUnreceived(int $id, string $userId): RecurringIncome {
+	public function markUnreceived(int $id, string $userId, ?string $actingUserId = null): RecurringIncome {
 		$income = $this->find($id, $userId);
 		$raw = $income->getReceivedUndoState();
 		$snapshot = ($raw !== null && $raw !== '') ? json_decode($raw, true) : null;
@@ -310,6 +312,7 @@ class RecurringIncomeService extends AbstractCrudService {
 		$ids = is_array($snapshot['transactionIds'] ?? null) ? $snapshot['transactionIds'] : [];
 		if ($ids !== []) {
 			$this->requireWritableAccount($income);
+			$this->requireWritableByActingUser($income, $actingUserId);
 		}
 		foreach ($ids as $transactionId) {
 			// Only this income's own credit: the snapshot holds ids, and
@@ -426,6 +429,23 @@ class RecurringIncomeService extends AbstractCrudService {
 		if ($this->granularShareService !== null && $income->getAccountId() !== null
 			&& !$this->granularShareService->canWrite($income->getUserId(), ShareItem::TYPE_ACCOUNT, (int)$income->getAccountId())) {
 			throw new \InvalidArgumentException($this->l->t('This income uses an account you can no longer change. Edit it and choose another account.'));
+		}
+	}
+
+	/**
+	 * Receiving with a payment, or undoing one, books into or deletes from
+	 * the income's account, so the person doing it needs write access to the
+	 * account as well as the income: a share of the income alone let them
+	 * book into an account never shared with them, or one shared read-only.
+	 * Marking it received without booking anything needs only the income.
+	 *
+	 * @throws ReadOnlyShareException
+	 */
+	private function requireWritableByActingUser(RecurringIncome $income, ?string $actingUserId): void {
+		if ($actingUserId !== null && $actingUserId !== $income->getUserId()
+			&& $this->granularShareService !== null && $income->getAccountId() !== null
+			&& !$this->granularShareService->canWrite($actingUserId, ShareItem::TYPE_ACCOUNT, (int)$income->getAccountId())) {
+			throw new ReadOnlyShareException();
 		}
 	}
 

@@ -204,6 +204,28 @@ class BillController extends Controller {
 	}
 
 	/**
+	 * Paying, unpaying, skipping and recording a missed payment book into,
+	 * or delete from, the bill's account (and a transfer's destination),
+	 * pre-booked rows included. Someone the bill alone is shared with at
+	 * write was let do that to an account hidden from them or shared with
+	 * them read-only. The bill's owner is checked by BillService, with a
+	 * message saying how to fix it; a bill with no account books nowhere.
+	 *
+	 * @throws \OCA\Budget\Exception\ReadOnlyShareException
+	 */
+	private function requireBillAccountsWritable(int $id): void {
+		$owner = $this->billOwner($id);
+		if ($owner === $this->userId) {
+			return;
+		}
+		$bill = $this->service->find($id, $owner);
+		$this->requireWritableAccounts(
+			$bill->getAccountId(),
+			($bill->getIsTransfer() ?? false) ? $bill->getDestinationAccountId() : null
+		);
+	}
+
+	/**
 	 * Refuse a new account for someone else's bill that its owner can't post
 	 * to. Its payments are recorded as the owner, so a share recipient could
 	 * move the owner's bill onto her own account and leave the owner unable
@@ -897,6 +919,7 @@ class BillController extends Controller {
 	public function recordMissedPayment(int $id): DataResponse {
 		try {
 			$this->requireWriteAccess('bill', $id);
+			$this->requireBillAccountsWritable($id);
 			$result = $this->service->recordMissedPayment($id, $this->billOwner($id));
 			return new DataResponse($result);
 		} catch (\InvalidArgumentException $e) {
@@ -933,6 +956,7 @@ class BillController extends Controller {
 	public function markPaid(int $id, ?string $paidDate = null): DataResponse {
 		try {
 			$this->requireWriteAccess('bill', $id);
+			$this->requireBillAccountsWritable($id);
 			$params = $this->request->getParams();
 			// Whether to record the payment itself. It used to be called
 			// createNextTransaction, which is what it also did until #376
@@ -969,6 +993,7 @@ class BillController extends Controller {
 	public function undoPaid(int $id, bool $confirmReconciled = false): DataResponse {
 		try {
 			$this->requireWriteAccess('bill', $id);
+			$this->requireBillAccountsWritable($id);
 			$bill = $this->service->markUnpaid($id, $this->billOwner($id), $confirmReconciled);
 			return new DataResponse($bill);
 		} catch (ReconciledPaymentException $e) {
@@ -990,6 +1015,7 @@ class BillController extends Controller {
 	public function markUnpaid(int $id, bool $confirmReconciled = false): DataResponse {
 		try {
 			$this->requireWriteAccess('bill', $id);
+			$this->requireBillAccountsWritable($id);
 			$bill = $this->service->markUnpaid($id, $this->billOwner($id), $confirmReconciled);
 			return new DataResponse($bill);
 		} catch (ReconciledPaymentException $e) {
@@ -1021,6 +1047,7 @@ class BillController extends Controller {
 	public function skipPayment(int $id): DataResponse {
 		try {
 			$this->requireWriteAccess('bill', $id);
+			$this->requireBillAccountsWritable($id);
 			$result = $this->service->skipPayment($id, $this->billOwner($id));
 			return new DataResponse($result);
 		} catch (\InvalidArgumentException $e) {
@@ -1038,6 +1065,7 @@ class BillController extends Controller {
 	public function undoSkip(int $id): DataResponse {
 		try {
 			$this->requireWriteAccess('bill', $id);
+			$this->requireBillAccountsWritable($id);
 			$params = $this->request->getParams();
 			$previousNextDueDate = $params['previousNextDueDate'] ?? null;
 

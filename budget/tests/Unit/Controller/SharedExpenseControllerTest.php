@@ -808,6 +808,7 @@ class SharedExpenseControllerTest extends TestCase {
 			'settle selected' => ['settleSelectedShares', fn (SharedExpenseController $c) => $c->settleSelected([9], '2026-10-04')],
 			'record a settlement' => ['recordSettlement', fn (SharedExpenseController $c) => $c->recordSettlement(9, 1.0, '2026-10-04')],
 			'delete a settlement' => ['deleteSettlement', fn (SharedExpenseController $c) => $c->destroySettlement(9)],
+			'settle with a contact' => ['settleWithContact', fn (SharedExpenseController $c) => $c->settleWithContact(9, '2026-10-04')],
 		];
 	}
 

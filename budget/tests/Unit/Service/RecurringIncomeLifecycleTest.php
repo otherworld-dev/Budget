@@ -38,6 +38,8 @@ class RecurringIncomeLifecycleTest extends TestCase {
 	/** @var array<int, Transaction> */
 	private array $rows = [];
 	private bool $accountWritable = true;
+	/** @var string[]|null who can write to the income's account; null = $accountWritable for everyone */
+	private ?array $writers = null;
 
 	protected function setUp(): void {
 		$this->mapper = $this->createMock(RecurringIncomeMapper::class);
@@ -72,7 +74,9 @@ class RecurringIncomeLifecycleTest extends TestCase {
 		$clock = $this->createMock(UserClock::class);
 		$clock->method('today')->willReturn(self::TODAY);
 		$this->shares = $this->createMock(GranularShareService::class);
-		$this->shares->method('canWrite')->willReturnCallback(fn () => $this->accountWritable);
+		$this->shares->method('canWrite')->willReturnCallback(
+			fn (string $user) => $this->writers === null ? $this->accountWritable : in_array($user, $this->writers, true)
+		);
 
 		$l = $this->createMock(IL10N::class);
 		$l->method('t')->willReturnArgument(0);
@@ -225,6 +229,55 @@ class RecurringIncomeLifecycleTest extends TestCase {
 
 		$this->expectException(\InvalidArgumentException::class);
 		$this->service->markReceived(1, 'user1', self::TODAY, true);
+	}
+
+	/**
+	 * Wendy has write on user1's income, not on the account it is paid into.
+	 * A share of the income alone let her book into that account, and delete
+	 * from it again by undoing.
+	 */
+	public function testARecipientCannotReceiveIntoAnAccountSheCannotWriteTo(): void {
+		$this->writers = ['user1'];
+		$this->income([]);
+
+		try {
+			$this->service->markReceived(1, 'user1', self::TODAY, true, null, 'wendy');
+			$this->fail('expected a refusal');
+		} catch (\OCA\Budget\Exception\ReadOnlyShareException $e) {
+			$this->assertSame([], $this->booked);
+			$this->assertSame('2026-10-03', $this->stored->getNextExpectedDate());
+		}
+	}
+
+	public function testARecipientMayMarkReceivedWithoutBookingAnything(): void {
+		$this->writers = ['user1'];
+		$this->income([]);
+
+		$income = $this->service->markReceived(1, 'user1', self::TODAY, false, null, 'wendy');
+
+		$this->assertSame([], $this->booked);
+		$this->assertSame('2026-11-03', $income->getNextExpectedDate());
+	}
+
+	public function testARecipientCannotUndoAReceiptThatBookedIntoAnAccountSheCannotWriteTo(): void {
+		$this->writers = ['user1'];
+		$this->income([]);
+		$this->service->markReceived(1, 'user1', self::TODAY, true, null, 'user1');
+		$this->transactions->expects($this->never())->method('deleteAsAccountOwner');
+
+		$this->expectException(\OCA\Budget\Exception\ReadOnlyShareException::class);
+		$this->service->markUnreceived(1, 'user1', 'wendy');
+	}
+
+	public function testARecipientWhoCanWriteToTheAccountReceivesAndUndoes(): void {
+		$this->writers = ['user1', 'wendy'];
+		$this->income([]);
+		$this->transactions->expects($this->once())->method('deleteAsAccountOwner');
+
+		$this->service->markReceived(1, 'user1', self::TODAY, true, null, 'wendy');
+		$this->service->markUnreceived(1, 'user1', 'wendy');
+
+		$this->assertCount(1, $this->booked);
 	}
 
 	// ── auto-create ─────────────────────────────────────────────────

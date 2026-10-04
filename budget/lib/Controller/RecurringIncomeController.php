@@ -487,7 +487,7 @@ class RecurringIncomeController extends Controller {
 			// is refused instead of booking the money twice
 			$expectedDate = is_string($params['expectedDate'] ?? null) ? $params['expectedDate'] : null;
 
-			$income = $this->service->markReceived($id, $this->incomeOwner($id), $receivedDate, $createTransaction, $expectedDate);
+			$income = $this->service->markReceived($id, $this->incomeOwner($id), $receivedDate, $createTransaction, $expectedDate, $this->userId);
 			return new DataResponse($income);
 		} catch (\InvalidArgumentException $e) {
 			return $this->handleError($e, $e->getMessage(), Http::STATUS_BAD_REQUEST, ['incomeId' => $id]);
@@ -504,7 +504,7 @@ class RecurringIncomeController extends Controller {
 	public function markUnreceived(int $id): DataResponse {
 		try {
 			$this->requireWriteAccess('recurring_income', $id);
-			$income = $this->service->markUnreceived($id, $this->incomeOwner($id));
+			$income = $this->service->markUnreceived($id, $this->incomeOwner($id), $this->userId);
 			return new DataResponse($income);
 		} catch (\InvalidArgumentException $e) {
 			return $this->handleError($e, $e->getMessage(), Http::STATUS_BAD_REQUEST, ['incomeId' => $id]);

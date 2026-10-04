@@ -702,6 +702,29 @@ class RecurringIncomeControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
 
+	/** The service checks the account against the person receiving, not only the owner */
+	public function testReceivingAndUndoingPassTheActingUser(): void {
+		$this->request->method('getParams')->willReturn(['createTransaction' => true]);
+		$this->service->expects($this->once())->method('markReceived')
+			->with(7, 'owner1', null, true, null, 'user1')->willReturn(new RecurringIncome());
+		$this->service->expects($this->once())->method('markUnreceived')
+			->with(7, 'owner1', 'user1')->willReturn(new RecurringIncome());
+
+		$controller = $this->controllerOwnedBy('owner1');
+		$this->assertSame(Http::STATUS_OK, $controller->markReceived(7)->getStatus());
+		$this->assertSame(Http::STATUS_OK, $controller->markUnreceived(7)->getStatus());
+	}
+
+	public function testReceivingIntoAnAccountTheRecipientCannotWriteToIsForbidden(): void {
+		$this->request->method('getParams')->willReturn(['createTransaction' => true]);
+		$this->service->method('markReceived')->willThrowException(new \OCA\Budget\Exception\ReadOnlyShareException());
+
+		$response = $this->controllerOwnedBy('owner1')->markReceived(7);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+		$this->assertSame('This shared item is read-only', $response->getData()['error']);
+	}
+
 	public function testMarkReceivedPassesTheShownDateAndReadsFalseAsFalse(): void {
 		// A bare (bool) cast turned the string "false" into true and booked
 		// a transaction nobody asked for
