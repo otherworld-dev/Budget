@@ -2861,6 +2861,11 @@ class BudgetApp {
 
         container.innerHTML = plan.debts.map((debt, index) => {
             const balance = parseFloat(debt.originalBalance) || 0;
+            // The plan is in the base currency; a debt in another one also
+            // shows what it owes in its own
+            const ownBalance = debt.currency && plan.currency && debt.currency !== plan.currency
+                ? ` (${this.formatCurrency(parseFloat(debt.nativeBalance) || 0, debt.currency)})`
+                : '';
             const rate = parseFloat(debt.interestRate) || 0;
             const minPayment = parseFloat(debt.minimumPayment) || 0;
             const interest = parseFloat(debt.interestPaid) || 0;
@@ -2877,7 +2882,7 @@ class BudgetApp {
                 <div class="debt-card" data-debt-id="${debt.id || ''}" style="border-left-color: ${this._debtColor(index)};">
                     <div class="debt-card-header">
                         <span class="debt-card-name">${dom.escapeHtml(debt.name)}</span>
-                        <span class="debt-card-balance">${this.formatCurrency(balance, currency)}</span>
+                        <span class="debt-card-balance">${this.formatCurrency(balance, currency)}${dom.escapeHtml(ownBalance)}</span>
                     </div>
                     <div class="debt-card-meta">
                         ${rate > 0 ? `<div>${t('budget', 'Interest Rate')}: ${rate.toFixed(1)}%</div>` : ''}
