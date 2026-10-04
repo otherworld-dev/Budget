@@ -2069,7 +2069,8 @@ class BillService {
 	 *
 	 * @param int $id Bill ID
 	 * @param string $userId User ID
-	 * @return array ['success' => bool, 'message' => string, 'bill' => ?Bill, 'count' => int occurrences paid (on success)]
+	 * @return array ['success' => bool, 'message' => string, 'bill' => ?Bill, 'count' => int occurrences paid (on success),
+	 *               'disabled' => bool whether a failure switched auto-pay off; false when there was nothing to pay]
 	 */
 	public function processAutoPay(int $id, string $userId): array {
 		try {
@@ -2081,6 +2082,7 @@ class BillService {
 					'success' => false,
 					'message' => $this->l->t('Auto-pay is not enabled for this bill'),
 					'bill' => null,
+					'disabled' => false,
 				];
 			}
 
@@ -2094,6 +2096,7 @@ class BillService {
 					'success' => false,
 					'message' => $this->l->t('Bill has no account associated'),
 					'bill' => $this->find($id, $userId),
+					'disabled' => true,
 				];
 			}
 
@@ -2101,14 +2104,27 @@ class BillService {
 			// due date, as income auto-create and pension auto-post do. Paying
 			// one per run, dated the day of the run, left a weekly bill weeks
 			// behind and then caught it up in a burst of rows all dated today.
-			// The caller only asks for a bill already due, so the first
-			// occurrence is always paid (dated no later than today).
+			// The caller asks for a bill that was due when it looked. Another
+			// run, or the owner's own Mark Paid, may have paid it since: that
+			// is nothing to pay, not a failure. A second run at once used to
+			// pay the next occurrence early, or be refused as "already
+			// recorded" and switch auto-pay off.
 			$today = $this->today($userId);
 			$paid = 0;
 			$result = null;
-			do {
+			while ($paid < self::MAX_AUTO_PAY_CATCH_UP
+				&& $bill->getIsActive()
+				&& $bill->getNextDueDate() !== null
+				&& $bill->getNextDueDate() <= $today) {
 				$due = (string)$bill->getNextDueDate();
-				$result = $this->markPaid($id, $userId, min($due, $today), true, null, $due);
+				try {
+					$result = $this->markPaid($id, $userId, min($due, $today), true, null, $due);
+				} catch (\InvalidArgumentException $e) {
+					if ($this->find($id, $userId)->getNextDueDate() !== $due) {
+						break;
+					}
+					throw $e;
+				}
 
 				// Paid with nothing booked (the account is gone, the row failed):
 				// put the bill back and fail, rather than report success and move
@@ -2123,10 +2139,16 @@ class BillService {
 				}
 				$paid++;
 				$bill = $result['bill'];
-			} while ($paid < self::MAX_AUTO_PAY_CATCH_UP
-				&& $bill->getIsActive()
-				&& $bill->getNextDueDate() !== null
-				&& $bill->getNextDueDate() <= $today);
+			}
+
+			if ($result === null) {
+				return [
+					'success' => false,
+					'message' => 'Nothing due',
+					'bill' => $bill,
+					'disabled' => false,
+				];
+			}
 
 			return [
 				'success' => true,
@@ -2151,6 +2173,7 @@ class BillService {
 				'success' => false,
 				'message' => 'Auto-pay failed: ' . $e->getMessage(),
 				'bill' => $bill,
+				'disabled' => true,
 			];
 		}
 	}

@@ -279,7 +279,20 @@ class RecurringIncomeLifecycleTest extends TestCase {
 		$result = $this->service->processAutoCreate(1, 'user1');
 
 		$this->assertFalse($result['success']);
+		$this->assertTrue($result['disabled']);
 		$this->assertFalse($this->stored->getAutoCreateEnabled());
+	}
+
+	public function testAutoCreateWithNothingDueIsNotAFailure(): void {
+		// Another run booked it first: the job reported "Nothing due" as a
+		// failed auto-create
+		$this->income(['nextExpectedDate' => '2026-10-03', 'autoCreateEnabled' => true]);
+
+		$result = $this->service->processAutoCreate(1, 'user1');
+
+		$this->assertFalse($result['success']);
+		$this->assertFalse($result['disabled']);
+		$this->assertTrue($this->stored->getAutoCreateEnabled());
 	}
 
 	// ── imported credits ────────────────────────────────────────────

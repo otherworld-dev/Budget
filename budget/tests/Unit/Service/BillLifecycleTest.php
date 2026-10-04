@@ -39,6 +39,8 @@ class BillLifecycleTest extends TestCase {
 	/** @var string[] */
 	private array $calls = [];
 	private bool $bookingFails = false;
+	/** Runs before each lookup of the bill: another process changing it in between */
+	private ?\Closure $beforeFind = null;
 
 	protected function setUp(): void {
 		$this->mapper = $this->createMock(BillMapper::class);
@@ -51,7 +53,12 @@ class BillLifecycleTest extends TestCase {
 			$this->stored = $bill;
 			return $bill;
 		});
-		$this->mapper->method('find')->willReturnCallback(fn () => clone $this->stored);
+		$this->mapper->method('find')->willReturnCallback(function () {
+			if ($this->beforeFind !== null) {
+				($this->beforeFind)();
+			}
+			return clone $this->stored;
+		});
 		$this->mapper->method('updateFields')->willReturnCallback(function (int $id, string $user, array $fields) {
 			foreach ($fields as $column => $value) {
 				$this->stored->{'set' . str_replace('_', '', ucwords($column, '_'))}($value);
@@ -482,6 +489,42 @@ class BillLifecycleTest extends TestCase {
 		$this->assertSame(['create:2026-09-07', 'create:2026-09-14', 'create:2026-09-21', 'create:2026-09-28'], $payments);
 		$this->assertSame('2026-10-05', $this->stored->getNextDueDate());
 		$this->assertSame('2026-09-28', $this->stored->getLastPaidDate());
+	}
+
+	public function testAutoPayLeavesABillAnotherRunHasAlreadyPaid(): void {
+		// Two runs at once (a forced run during cron): the second found the
+		// bill already paid by the first and paid the next occurrence early
+		$bill = $this->bill(['nextDueDate' => '2026-10-15']);
+		$bill->setAutoPayEnabled(true);
+
+		$result = $this->service->processAutoPay(1, 'user1');
+
+		$this->assertFalse($result['success']);
+		$this->assertFalse($result['disabled']);
+		$this->assertSame([], array_filter($this->calls, fn (string $c) => str_starts_with($c, 'create:')));
+		$this->assertSame('2026-10-15', $this->stored->getNextDueDate());
+		$this->assertTrue($this->stored->getAutoPayEnabled());
+	}
+
+	public function testAutoPayRacedByAnotherRunIsNotAFailure(): void {
+		// The other run paid 15 September between this run's look and its
+		// payment: "already recorded" switched auto-pay off and told the user
+		// it had failed
+		$bill = $this->bill(['nextDueDate' => '2026-09-15']);
+		$bill->setAutoPayEnabled(true);
+		$finds = 0;
+		$this->beforeFind = function () use (&$finds) {
+			if (++$finds === 2) {
+				$this->stored->setNextDueDate('2026-10-15');
+			}
+		};
+
+		$result = $this->service->processAutoPay(1, 'user1');
+
+		$this->assertFalse($result['success']);
+		$this->assertFalse($result['disabled']);
+		$this->assertTrue($this->stored->getAutoPayEnabled());
+		$this->assertFalse($this->stored->getAutoPayFailed());
 	}
 
 	public function testAutoPayCatchUpStopsAtItsCap(): void {

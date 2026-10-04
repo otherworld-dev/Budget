@@ -37,6 +37,8 @@ class BillReminderJobTest extends TestCase {
 	private $pensionRecurMapper;
 	/** @var PensionRecurringService&\PHPUnit\Framework\MockObject\MockObject */
 	private $pensionRecurService;
+	/** @var \OCA\Budget\Db\RecurringIncome[] what findDueForAutoCreate returns */
+	private array $dueIncome = [];
 
 	protected function setUp(): void {
 		$this->timeFactory = $this->createMock(ITimeFactory::class);
@@ -67,7 +69,7 @@ class BillReminderJobTest extends TestCase {
 		\OC::$server = $container;
 
 		// Default: no income due for auto-create, no pension schedules due
-		$this->incomeMapper->method('findDueForAutoCreate')->willReturn([]);
+		$this->incomeMapper->method('findDueForAutoCreate')->willReturnCallback(fn () => $this->dueIncome);
 		$this->pensionRecurMapper->method('findDueForAutoPost')->willReturn([]);
 
 		$this->job = new BillReminderJob($this->timeFactory);
@@ -426,6 +428,58 @@ class BillReminderJobTest extends TestCase {
 		$this->notificationManager->expects($this->once())->method('notify');
 
 		$this->billMapper->method('findActive')->willReturn([]);
+
+		$this->invokeRun();
+	}
+
+	public function testAnAutoPayAnotherRunAlreadyMadeSendsNothing(): void {
+		// Two runs at once: the second found nothing left to pay and told the
+		// user auto-pay had failed
+		$this->mockGetAllUserIds(['user1']);
+		$this->billMapper->method('findDueForAutoPay')->willReturn([$this->makeBill(['id' => 10])]);
+		$this->billService->method('processAutoPay')->willReturn([
+			'success' => false, 'disabled' => false, 'message' => 'Nothing due', 'bill' => null,
+		]);
+		$this->billMapper->method('findActive')->willReturn([]);
+		$this->notificationManager->expects($this->never())->method('notify');
+
+		$this->invokeRun();
+	}
+
+	public function testAnIncomeAutoCreateWithNothingDueSendsNothing(): void {
+		$this->mockGetAllUserIds(['user1']);
+		$this->billMapper->method('findDueForAutoPay')->willReturn([]);
+		$this->billMapper->method('findActive')->willReturn([]);
+		$income = new \OCA\Budget\Db\RecurringIncome();
+		$income->setId(4);
+		$this->dueIncome = [$income];
+		$this->incomeService->method('processAutoCreate')->willReturn([
+			'success' => false, 'disabled' => false, 'message' => 'Nothing due', 'income' => $income,
+		]);
+		$this->notificationManager->expects($this->never())->method('notify');
+
+		$this->invokeRun();
+	}
+
+	public function testAnIncomeAutoCreateThatSwitchedItselfOffSaysSo(): void {
+		$this->mockGetAllUserIds(['user1']);
+		$this->billMapper->method('findDueForAutoPay')->willReturn([]);
+		$this->billMapper->method('findActive')->willReturn([]);
+		$income = new \OCA\Budget\Db\RecurringIncome();
+		$income->setId(4);
+		$income->setName('Wages');
+		$income->setAmount(100.0);
+		$this->dueIncome = [$income];
+		$this->incomeService->method('processAutoCreate')->willReturn([
+			'success' => false, 'disabled' => true, 'message' => 'No account set for income', 'income' => $income,
+		]);
+		$notification = $this->createMock(INotification::class);
+		foreach (['setApp', 'setUser', 'setDateTime', 'setObject'] as $method) {
+			$notification->method($method)->willReturnSelf();
+		}
+		$notification->method('setSubject')->with('income_auto_create_failed', $this->anything())->willReturnSelf();
+		$this->notificationManager->method('createNotification')->willReturn($notification);
+		$this->notificationManager->expects($this->once())->method('notify');
 
 		$this->invokeRun();
 	}

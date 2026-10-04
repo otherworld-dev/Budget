@@ -167,7 +167,8 @@ class BillAccountAccessTest extends TestCase {
 	}
 
 	public function testAutoPayStopsAndIsDisabledOnceTheAccountIsNoLongerWritable(): void {
-		$this->bill(['autoPayEnabled' => true]);
+		// Due, as the job only asks for bills that are
+		$this->bill(['autoPayEnabled' => true])->setNextDueDate('2026-06-15');
 		$this->transactionService->expects($this->never())->method('createFromBill');
 		$this->transactionService->expects($this->never())->method('clearScheduledBillTransaction');
 		$this->mapper->expects($this->once())->method('updateFields')

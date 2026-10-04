@@ -371,7 +371,9 @@ class BillReminderJob extends TimedJob {
 						$userId,
 						$result['bill']
 					);
-				} else {
+				} elseif ($result['disabled'] ?? true) {
+					// Only a failure that switched auto-pay off: a bill another
+					// run had just paid is nothing to report
 					$failedCount++;
 					$this->sendAutoPayFailureNotification(
 						$notificationManager,
@@ -468,7 +470,7 @@ class BillReminderJob extends TimedJob {
 						$userId,
 						$result['income']
 					);
-				} else {
+				} elseif ($result['disabled'] ?? true) {
 					$failedCount++;
 					$this->sendAutoCreateIncomeFailureNotification(
 						$notificationManager,
