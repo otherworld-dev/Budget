@@ -144,6 +144,16 @@ class RepairServiceTest extends TestCase {
 					&& $t->getDate() >= $from && $t->getDate() <= $to));
 			}
 		);
+		// As the database answers: plain rows, newest first, then by id
+		$this->transactionMapper->method('findRowsByDateRange')->willReturnCallback(
+			function (int $accountId, string $from, string $to) use ($ledger) {
+				$this->dateRangeReads[] = [$accountId, $from, $to];
+				$rows = array_map(fn (Transaction $t) => self::row($t), array_values(array_filter($ledger,
+					fn (Transaction $t) => $t->getAccountId() === $accountId && $t->getDate() >= $from && $t->getDate() <= $to)));
+				usort($rows, fn (array $a, array $b) => [$b['date'], $b['id']] <=> [$a['date'], $a['id']]);
+				return $rows;
+			}
+		);
 		$this->transactionMapper->method('findRecordedByBillIds')->willReturnCallback(
 			fn (array $billIds) => array_values(array_filter($ledger, fn (Transaction $t) => in_array($t->getBillId(), $billIds, true) && !$scheduled($t)))
 		);
@@ -158,6 +168,26 @@ class RepairServiceTest extends TestCase {
 			}
 			return null;
 		});
+	}
+
+	/** A transaction as a database row, as Transaction::fromRow() reads it back */
+	private static function row(Transaction $t): array {
+		return [
+			'id' => $t->getId(),
+			'account_id' => $t->getAccountId(),
+			'category_id' => $t->getCategoryId(),
+			'date' => $t->getDate(),
+			'amount' => $t->getAmount(),
+			'type' => $t->getType(),
+			'status' => $t->getStatus(),
+			'vendor' => $t->getVendor(),
+			'description' => $t->getDescription(),
+			'notes' => $t->getNotes(),
+			'created_at' => $t->getCreatedAt(),
+			'bill_id' => $t->getBillId(),
+			'reconciled' => $t->getReconciled(),
+			'import_id' => $t->getImportId(),
+		];
 	}
 
 	/**

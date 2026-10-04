@@ -87,6 +87,26 @@ class RepairService {
 		return $this->userClock !== null ? $this->userClock->today($userId) : date('Y-m-d');
 	}
 
+	/**
+	 * The index of the first row dated on or before $date, in rows sorted
+	 * newest first (count($rows) when there is none).
+	 *
+	 * @param list<array<string, mixed>> $rows
+	 */
+	private static function firstRowOnOrBefore(array $rows, string $date): int {
+		$low = 0;
+		$high = count($rows);
+		while ($low < $high) {
+			$mid = intdiv($low + $high, 2);
+			if ((string)$rows[$mid]['date'] > $date) {
+				$low = $mid + 1;
+			} else {
+				$high = $mid;
+			}
+		}
+		return $low;
+	}
+
 	private static function addDays(string $date, int $days): string {
 		return (new \DateTimeImmutable($date))->modify(($days >= 0 ? '+' : '') . $days . ' days')->format('Y-m-d');
 	}
@@ -225,11 +245,14 @@ class RepairService {
 		$accountId = $account->getId();
 		// The account's rows near each payment come from one read per year
 		// of payments, not one query per payment (T6-9: 859 queries for a
-		// long history). A year's read holds every payment's three-day
-		// window, in the same order (date, then id, newest first) the
-		// per-payment read had. Only the latest year is kept in memory.
+		// long history). A year's rows hold every payment's three-day
+		// window; they come newest first (date, then id), so a window is
+		// found by binary search and lists its rows in the order the
+		// per-payment read did. Only rows inside a window become entities,
+		// each once; only the latest year is kept in memory.
 		$year = null;
 		$yearRows = [];
+		$entities = [];
 
 		foreach ($autoGen as $tx) {
 			// Checked against a statement: it stays, whatever else is there
@@ -245,16 +268,18 @@ class RepairService {
 			$to = self::addDays($tx->getDate(), 3);
 			if ($year !== substr($tx->getDate(), 0, 4)) {
 				$year = substr($tx->getDate(), 0, 4);
-				$yearRows = $this->transactionMapper->findByDateRange(
+				$yearRows = $this->transactionMapper->findRowsByDateRange(
 					$accountId,
 					self::addDays($year . '-01-01', -3),
 					self::addDays($year . '-12-31', 3)
 				);
+				$entities = [];
 			}
-			$candidates = array_filter(
-				$yearRows,
-				static fn (Transaction $row): bool => $row->getDate() >= $from && $row->getDate() <= $to
-			);
+			$candidates = [];
+			$rowCount = count($yearRows);
+			for ($i = self::firstRowOnOrBefore($yearRows, $to); $i < $rowCount && (string)$yearRows[$i]['date'] >= $from; $i++) {
+				$candidates[] = $entities[$i] ??= Transaction::fromRow($yearRows[$i]);
+			}
 			$amount = (float)$tx->getAmount();
 			$match = null;
 			$matchIsCertain = false;

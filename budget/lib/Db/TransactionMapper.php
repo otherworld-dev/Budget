@@ -353,6 +353,24 @@ class TransactionMapper extends QBMapper {
 	}
 
 	public function findByDateRange(int $accountId, string $startDate, string $endDate): array {
+		return $this->findEntities($this->dateRangeQuery($accountId, $startDate, $endDate));
+	}
+
+	/**
+	 * findByDateRange() as plain rows, newest first, for a caller that makes
+	 * entities (Transaction::fromRow()) of only the few rows it needs.
+	 *
+	 * @return list<array<string, mixed>>
+	 */
+	public function findRowsByDateRange(int $accountId, string $startDate, string $endDate): array {
+		$result = $this->dateRangeQuery($accountId, $startDate, $endDate)->executeQuery();
+		$rows = $result->fetchAll();
+		$result->closeCursor();
+
+		return $rows;
+	}
+
+	private function dateRangeQuery(int $accountId, string $startDate, string $endDate): IQueryBuilder {
 		$qb = $this->db->getQueryBuilder();
 		$qb->select('*')
 			->from($this->getTableName())
@@ -362,7 +380,7 @@ class TransactionMapper extends QBMapper {
 			->orderBy('date', 'DESC')
 			->addOrderBy('id', 'DESC');
 
-		return $this->findEntities($qb);
+		return $qb;
 	}
 
 	/**
