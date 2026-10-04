@@ -39,6 +39,7 @@ class EmptyDefaultRulesMigrationTest extends IntegrationTestCase {
 		$openedInEditor = $this->makeRule([
 			'name' => 'Online Shopping',
 			'pattern' => Version001000122Date20261004::DEFAULT_RULES['Online Shopping'],
+			'priority' => 5,
 			'schema_version' => 2,
 			'criteria' => json_encode(['version' => 2, 'root' => ['operator' => 'AND', 'conditions' => [[
 				'type' => 'condition', 'field' => 'description', 'matchType' => 'regex',
@@ -46,22 +47,30 @@ class EmptyDefaultRulesMigrationTest extends IntegrationTestCase {
 			]]]]),
 			'actions' => json_encode(['version' => 2, 'stopProcessing' => true, 'actions' => []]),
 		]);
-		$withCategory = $this->makeRule(['name' => 'Restaurants', 'pattern' => Version001000122Date20261004::DEFAULT_RULES['Restaurants'], 'category_id' => $this->makeCategory()]);
+		$withCategory = $this->makeRule(['name' => 'Restaurants', 'pattern' => Version001000122Date20261004::DEFAULT_RULES['Restaurants'], 'priority' => 8, 'category_id' => $this->makeCategory()]);
 		$withAction = $this->makeRule([
 			'name' => 'Utilities',
 			'pattern' => Version001000122Date20261004::DEFAULT_RULES['Utilities'],
+			'priority' => 9,
 			'actions' => json_encode(['version' => 2, 'actions' => [['type' => 'set_category', 'value' => 3]]]),
 		]);
 		$usersOwn = $this->makeRule(['pattern' => 'shell garage']);
+		$priorityChanged = $this->makeRule(['name' => 'ATM Withdrawals', 'pattern' => Version001000122Date20261004::DEFAULT_RULES['ATM Withdrawals'], 'priority' => 40]);
 
 		$messages = $this->runMigration();
 
-		$this->assertFalse((bool)$this->fetchRow('budget_import_rules', $empty)['active']);
-		$this->assertFalse((bool)$this->fetchRow('budget_import_rules', $openedInEditor)['active']);
-		foreach ([$withCategory, $withAction, $usersOwn] as $id) {
-			$this->assertTrue((bool)$this->fetchRow('budget_import_rules', $id)['active'], "rule {$id} was switched off");
+		foreach ([$empty, $openedInEditor] as $id) {
+			$row = $this->fetchRow('budget_import_rules', $id);
+			$this->assertFalse((bool)$row['active'], "rule {$id} is still on");
+			$this->assertSame(0, (int)$row['priority'], "rule {$id} still outranks the user's rules");
 		}
-		$this->assertSame(5, $this->countRows('budget_import_rules', ['user_id' => $this->userId]));
+		$untouched = [$withCategory => 8, $withAction => 9, $usersOwn => 10, $priorityChanged => 40];
+		foreach ($untouched as $id => $priority) {
+			$row = $this->fetchRow('budget_import_rules', $id);
+			$this->assertTrue((bool)$row['active'], "rule {$id} was switched off");
+			$this->assertSame($priority, (int)$row['priority'], "rule {$id} was moved");
+		}
+		$this->assertSame(6, $this->countRows('budget_import_rules', ['user_id' => $this->userId]));
 		$this->assertContains('Switched off 2 default import rule(s) that had no action', $messages);
 	}
 

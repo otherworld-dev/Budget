@@ -25,7 +25,22 @@ class EmptyDefaultRulesTest extends TestCase {
 			'vendor_name' => null,
 			'actions' => null,
 			'criteria' => null,
+			'priority' => 10,
+			'stop_processing' => '1',
+			'apply_on_import' => '1',
+			'group_name' => null,
 		];
+	}
+
+	public static function booleanSpellings(): array {
+		return [[true], [1], ['1'], ['t'], [null]];
+	}
+
+	#[\PHPUnit\Framework\Attributes\DataProvider('booleanSpellings')]
+	public function testEveryDatabasesTrueCounts(mixed $true): void {
+		$row = $this->row(['stop_processing' => $true, 'apply_on_import' => $true]);
+
+		$this->assertTrue(Version001000122Date20261004::isUntouchedEmptyDefault($row));
 	}
 
 	private function editorCriteria(string $pattern = self::GAS): string {
@@ -65,6 +80,10 @@ class EmptyDefaultRulesTest extends TestCase {
 				['type' => 'condition', 'field' => 'amount', 'matchType' => 'greater_than', 'pattern' => 20, 'negate' => false],
 			]]])]],
 			'not a default rule at all' => [['name' => 'Coffee', 'pattern' => 'coffee']],
+			'priority changed' => [['priority' => 50]],
+			'set to carry on to later rules' => [['stop_processing' => '0']],
+			'not applied on import' => [['apply_on_import' => false]],
+			'put in a group' => [['group_name' => 'Car']],
 		];
 	}
 

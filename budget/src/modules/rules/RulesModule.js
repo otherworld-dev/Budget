@@ -11,6 +11,13 @@ import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import { showLoadError } from '../../utils/loading.js';
 import { apiFetch } from '../../utils/api.js';
 
+/**
+ * Priority a new rule starts at: above the 0 that the rules "Create default
+ * categories" adds get (ImportRuleService::DEFAULT_RULE_PRIORITY), so a rule
+ * the user makes outranks them. 0 is the lowest the form accepts.
+ */
+export const NEW_RULE_PRIORITY = 1;
+
 export default class RulesModule {
     constructor(app) {
         this.app = app;
@@ -782,6 +789,10 @@ export default class RulesModule {
         } else {
             // New rule - use v2 format with empty criteria
             title.textContent = t('budget', 'Add Rule');
+            // One above the rules "Create default categories" adds (0), so
+            // a rule the user makes wins when both match. An existing rule
+            // keeps its own priority, 0 included.
+            document.getElementById('rule-priority').value = String(NEW_RULE_PRIORITY);
             if (v1Section) v1Section.style.display = 'none';
             if (v2Section) v2Section.style.display = 'block';
             this.initializeCriteriaBuilder(null);

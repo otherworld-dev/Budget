@@ -392,7 +392,18 @@ class ImportRuleService extends AbstractCrudService {
 		}
 	}
 
+	/**
+	 * The priority setup gives its rules: the lowest there is, below the 1 a
+	 * rule made in the rule editor starts at, so a rule the user makes wins
+	 * whenever both match. At 5-10 the defaults matched first and kept the
+	 * user's own rules from running (T3). The 0-100 range is the editor's.
+	 */
+	public const DEFAULT_RULE_PRIORITY = 0;
+
 	public function createDefaultRules(string $userId): array {
+		// Listed in the order they used to rank (their old priorities 10, 10,
+		// 9, 8, 7, 5): at one priority the older rule runs first, so creating
+		// them in this order keeps their order among themselves.
 		$defaultRules = [
 			[
 				'name' => 'Grocery Stores',
@@ -400,7 +411,6 @@ class ImportRuleService extends AbstractCrudService {
 				'field' => 'description',
 				'matchType' => 'regex',
 				'categoryName' => 'Groceries',
-				'priority' => 10
 			],
 			[
 				'name' => 'Gas Stations',
@@ -408,23 +418,6 @@ class ImportRuleService extends AbstractCrudService {
 				'field' => 'description',
 				'matchType' => 'regex',
 				'categoryName' => 'Gas',
-				'priority' => 10
-			],
-			[
-				'name' => 'Restaurants',
-				'pattern' => 'restaurant|cafe|coffee|starbucks|mcdonald|burger',
-				'field' => 'description',
-				'matchType' => 'regex',
-				'categoryName' => 'Dining Out',
-				'priority' => 8
-			],
-			[
-				'name' => 'Online Shopping',
-				'pattern' => 'amazon|ebay|paypal|stripe',
-				'field' => 'description',
-				'matchType' => 'regex',
-				'categoryName' => 'Shopping',
-				'priority' => 5
 			],
 			[
 				'name' => 'Utilities',
@@ -432,7 +425,13 @@ class ImportRuleService extends AbstractCrudService {
 				'field' => 'description',
 				'matchType' => 'regex',
 				'categoryName' => 'Utilities',
-				'priority' => 9
+			],
+			[
+				'name' => 'Restaurants',
+				'pattern' => 'restaurant|cafe|coffee|starbucks|mcdonald|burger',
+				'field' => 'description',
+				'matchType' => 'regex',
+				'categoryName' => 'Dining Out',
 			],
 			[
 				'name' => 'ATM Withdrawals',
@@ -440,8 +439,14 @@ class ImportRuleService extends AbstractCrudService {
 				'field' => 'description',
 				'matchType' => 'regex',
 				'categoryName' => 'Cash',
-				'priority' => 7
-			]
+			],
+			[
+				'name' => 'Online Shopping',
+				'pattern' => 'amazon|ebay|paypal|stripe',
+				'field' => 'description',
+				'matchType' => 'regex',
+				'categoryName' => 'Shopping',
+			],
 		];
 
 		// Each rule sets the category it is named for. They were created with
@@ -487,7 +492,7 @@ class ImportRuleService extends AbstractCrudService {
 						],
 					],
 					schemaVersion: 2,
-					priority: $ruleData['priority'],
+					priority: self::DEFAULT_RULE_PRIORITY,
 					actions: [
 						'version' => 2,
 						'stopProcessing' => true,

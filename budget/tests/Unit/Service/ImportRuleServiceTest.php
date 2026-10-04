@@ -431,14 +431,37 @@ class ImportRuleServiceTest extends TestCase {
 			$categoryByRule[$rule->getName()] = $actions[0]['value'];
 		}
 
-		// No "Cash" category exists, so no ATM rule that could only block others
+		// No "Cash" category exists, so no ATM rule that could only block
+		// others. Created in the order they used to rank.
 		$this->assertSame([
 			'Grocery Stores' => 11,
 			'Gas Stations' => 13,
+			'Utilities' => 17,
 			'Restaurants' => 14,
 			'Online Shopping' => 15,
-			'Utilities' => 17,
 		], $categoryByRule);
+	}
+
+	/**
+	 * At 5-10 the defaults outranked a rule made in the editor (which starts
+	 * at 1, and used to start at 0), so an overlapping rule of the user's
+	 * never ran. They now take the lowest priority there is.
+	 */
+	public function testDefaultRulesRankBelowTheUsersOwnRules(): void {
+		$this->categoryMapper->method('findAll')->willReturn($this->defaultCategories());
+		$this->mapper->method('findAll')->willReturn([]);
+		$this->criteriaEvaluator->method('validate')->willReturn(['valid' => true]);
+		$this->actionApplicator->method('validateActions')->willReturn(['valid' => true, 'errors' => []]);
+		$this->mapper->method('insert')->willReturnCallback(function (ImportRule $r) {
+			$r->setId(1);
+			return $r;
+		});
+
+		$created = $this->service->createDefaultRules('user1');
+
+		$this->assertNotEmpty($created);
+		$this->assertSame([0], array_values(array_unique(array_map(fn (ImportRule $r) => $r->getPriority(), $created))));
+		$this->assertSame(0, ImportRuleService::DEFAULT_RULE_PRIORITY);
 	}
 
 	public function testDefaultRulesAreNotAddedTwice(): void {
