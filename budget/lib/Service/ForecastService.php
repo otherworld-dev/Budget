@@ -38,6 +38,7 @@ class ForecastService {
 		ForecastProjector $projector,
 		?ICacheFactory $cacheFactory = null,
 		private ?UserClock $userClock = null,
+		private ?CurrencyTotals $currencyTotals = null,
 	) {
 		$this->accountMapper = $accountMapper;
 		$this->transactionMapper = $transactionMapper;
@@ -188,14 +189,28 @@ class ForecastService {
 		$today = $this->today($userId);
 		$futureChanges = $this->futureChanges($accounts, $today);
 
+		// Accounts in more than one currency are added up in the base
+		// currency, as the dashboard summary adds them: the balances and the
+		// history were summed as stored, so euros counted as pounds and half a
+		// bitcoin as 50p. An account whose currency has no rate stays out.
+		$conversion = $this->currencyTotals?->accountRates($accounts, $userId);
+		$rates = ($conversion['currency'] ?? null) !== null ? $conversion['rates'] : null;
+
 		$currentBalance = 0.0;
 		$currencyCounts = [];
 
 		foreach ($accounts as $account) {
+			if ($rates !== null && !isset($rates[$account->getId()])) {
+				continue;
+			}
+
 			// Calculate balance as of today (stored balance minus future transactions)
 			$storedBalance = $account->getBalance();
 			$futureChange = $futureChanges[$account->getId()] ?? 0;
 			$accountBalance = $storedBalance - $futureChange;
+			if ($rates !== null) {
+				$accountBalance = (float)MoneyCalculator::multiply($accountBalance, $rates[$account->getId()], 10);
+			}
 
 			$currentBalance += $accountBalance;
 			$currency = $account->getCurrency() ?? 'USD';
@@ -204,7 +219,9 @@ class ForecastService {
 
 		// Determine primary currency
 		$primaryCurrency = 'USD';
-		if (!empty($currencyCounts)) {
+		if ($rates !== null) {
+			$primaryCurrency = (string)$conversion['currency'];
+		} elseif (!empty($currencyCounts)) {
 			arsort($currencyCounts);
 			$primaryCurrency = array_key_first($currencyCounts);
 		}
@@ -213,6 +230,13 @@ class ForecastService {
 		$endDate = $today;
 		$startDate = (new \DateTimeImmutable($today))->modify('-12 months')->format('Y-m-d');
 		$transactions = $this->transactionMapper->findAllByUserAndDateRange($userId, $startDate, $endDate, null, $visibleAccountIds);
+		if ($rates !== null) {
+			// The history of an account left out above stays out with it
+			$transactions = array_values(array_filter(
+				$transactions,
+				static fn ($t) => isset($rates[(int)$t->getAccountId()])
+			));
+		}
 
 		// Drop extraordinary/one-time transactions so they don't skew the
 		// projection averages. They still affect the real (current) balance
@@ -221,8 +245,8 @@ class ForecastService {
 		// Transfers between the accounts forecast are neither income nor spending
 		$transactions = PatternAnalyzer::withoutInternalTransfers($transactions);
 
-		// Analyze patterns
-		$monthlyData = $this->patternAnalyzer->aggregateMonthlyData($transactions);
+		// Analyze patterns, each amount in the forecast's currency
+		$monthlyData = $this->patternAnalyzer->aggregateMonthlyData($transactions, $rates ?? []);
 		$months = count($monthlyData);
 
 		// Calculate averages and trends
@@ -273,7 +297,7 @@ class ForecastService {
 		}
 
 		$savingsRate = $avgIncome > 0 ? ($avgSavings / $avgIncome) * 100 : 0;
-		$categoryBreakdown = $this->patternAnalyzer->getCategoryBreakdown($userId, $transactions);
+		$categoryBreakdown = $this->patternAnalyzer->getCategoryBreakdown($userId, $transactions, $rates ?? []);
 		$transactionCount = count($transactions);
 		$confidence = $this->projector->calculateDataConfidence($months, $transactionCount, $incomeValues, $expenseValues);
 
