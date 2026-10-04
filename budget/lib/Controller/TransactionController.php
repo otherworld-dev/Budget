@@ -1250,6 +1250,7 @@ class TransactionController extends Controller {
 			// came back on the row. Tags already on it may stay.
 			$current = array_map(static fn ($tag) => (int)$tag->getId(), $this->tagService->getTransactionTags($id, $owner));
 			$this->granularShareService->requireUsableTags($this->userId, array_values(array_diff($tagIds, $current)));
+			$tagIds = array_values(array_unique(array_merge($tagIds, $this->ownersTagsHiddenFrom($owner, $current))));
 			$transactionTags = $this->tagService->setTransactionTags($id, $owner, $tagIds);
 
 			return new DataResponse([
@@ -1262,6 +1263,24 @@ class TransactionController extends Controller {
 	}
 
 	/**
+	 * The tags on a row of $owner's that stay when someone else saves its
+	 * tags: the owner's own ones this user can't see. Saving a row's tags
+	 * replaces them all, so a recipient's save would otherwise strip the
+	 * owner's tags they were never shown; only the tags they can see are
+	 * theirs to change. An id the owner can't use either is not kept.
+	 *
+	 * @param int[] $current the tags on the row now
+	 * @return int[]
+	 */
+	private function ownersTagsHiddenFrom(string $owner, array $current): array {
+		if ($owner === $this->userId || $current === []) {
+			return [];
+		}
+		$hidden = array_diff($current, $this->granularShareService->getUsableTagIds($this->userId, $current));
+		return array_values(array_intersect($hidden, $this->granularShareService->getUsableTagIds($owner, $hidden)));
+	}
+
+	/**
 	 * Clear all tags from a transaction
 	 *
 	 * @NoAdminRequired
@@ -1270,7 +1289,15 @@ class TransactionController extends Controller {
 	public function clearTags(int $id): DataResponse {
 		try {
 			[, $owner] = $this->findWithOwner($id, true);
-			$this->tagService->clearTransactionTags($id, $owner);
+			$current = $owner === $this->userId
+				? []
+				: array_map(static fn ($tag) => (int)$tag->getId(), $this->tagService->getTransactionTags($id, $owner));
+			$kept = $this->ownersTagsHiddenFrom($owner, $current);
+			if ($kept === []) {
+				$this->tagService->clearTransactionTags($id, $owner);
+			} else {
+				$this->tagService->setTransactionTags($id, $owner, $kept);
+			}
 			return new DataResponse(['status' => 'success']);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to clear transaction tags'), Http::STATUS_BAD_REQUEST, ['transactionId' => $id]);

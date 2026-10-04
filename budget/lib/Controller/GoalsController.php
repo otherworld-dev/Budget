@@ -319,10 +319,25 @@ class GoalsController extends Controller {
 			$owner = $this->granularShareService->resolveOwner($this->userId, 'savings_goal', $id)
 				?? $this->userId;
 
-			// Only a tag or account that changes is checked: the edit form
-			// sends back what is stored, which the editor may not see
-			if (($updateTagId && $tagId !== null) || ($updateAccountId && $accountId !== null)) {
+			if ($updateTagId || $updateAccountId) {
 				$stored = $this->service->find($id, $owner);
+				// The edit form can't show a link its user can't see, so it
+				// sends it back empty, and someone else's save unlinked the
+				// owner's goal. A link the editor can't see stays as it is.
+				if ($owner !== $this->userId) {
+					$storedTagId = $stored->getTagId();
+					if ($storedTagId !== null
+						&& $this->granularShareService->getUsableTagIds($this->userId, [$storedTagId]) === []) {
+						$updateTagId = false;
+					}
+					$storedAccountId = $stored->getAccountId();
+					if ($storedAccountId !== null
+						&& !in_array($storedAccountId, $this->granularShareService->getVisibleAccountIds($this->userId), true)) {
+						$updateAccountId = false;
+					}
+				}
+				// Only a tag or account that changes is checked: the edit
+				// form sends back what is stored
 				$this->requireUsableLinks(
 					$owner,
 					$updateTagId && $tagId !== $stored->getTagId() ? $tagId : null,

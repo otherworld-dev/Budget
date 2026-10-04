@@ -791,6 +791,7 @@ class BillController extends Controller {
 			if (array_key_exists('tagIds', $updates) || $accountInUpdates || $destinationInUpdates
 				|| array_key_exists('isTransfer', $updates)) {
 				$storedBill = $storedBill ?? $this->service->find($id, $ownerId);
+				$updates = $this->keepTagsTheEditorCannotSee($ownerId, $storedBill, $updates);
 				$this->requireChangedBillTagsUsable($ownerId, $storedBill, $updates);
 			}
 
@@ -1595,6 +1596,33 @@ class BillController extends Controller {
 				throw new \InvalidArgumentException($this->l->t('This account belongs to someone else, who cannot see one of the tags. Choose tags from a category shared with them, or no tags.'));
 			}
 		}
+	}
+
+	/**
+	 * The tags of a shared bill as someone other than its owner saves it.
+	 *
+	 * The bill form only lists the tags its user can see and saves exactly
+	 * the ticked ones, so a recipient's save silently stripped the owner's
+	 * own tags off the bill. The tags the editor can't see stay as they are;
+	 * the ones they can see are replaced by what they sent. The owner's save
+	 * still replaces the whole list.
+	 *
+	 * @param array<string, mixed> $updates
+	 * @return array<string, mixed>
+	 */
+	private function keepTagsTheEditorCannotSee(string $billOwner, Bill $stored, array $updates): array {
+		if ($billOwner === $this->userId || !array_key_exists('tagIds', $updates)) {
+			return $updates;
+		}
+		$storedTags = $stored->getTagIdsArray();
+		$hidden = array_diff($storedTags, $this->granularShareService->getUsableTagIds($this->userId, $storedTags));
+		if ($hidden === []) {
+			return $updates;
+		}
+		$decoded = $updates['tagIds'] === null ? [] : json_decode((string)$updates['tagIds'], true);
+		$sent = array_map('intval', is_array($decoded) ? $decoded : []);
+		$updates['tagIds'] = json_encode(array_values(array_unique(array_merge($sent, $hidden))));
+		return $updates;
 	}
 
 	/**

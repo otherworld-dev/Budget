@@ -822,7 +822,11 @@ class TransactionControllerTest extends TestCase {
 				throw new \InvalidArgumentException('Category not found');
 			}
 		});
-		// user1 can see tags 1-9
+		// user1 can see tags 1-9; owner1 can use those and their own 50-59
+		$shares->method('getUsableTagIds')->willReturnCallback(fn (string $user, array $ids) => array_values(array_filter(
+			array_map('intval', $ids),
+			fn (int $id) => $id < 10 || ($user === 'owner1' && $id >= 50 && $id < 60)
+		)));
 		$this->tagChecks = [];
 		$shares->method('requireUsableTags')->willReturnCallback(function (string $user, array $ids): void {
 			$this->tagChecks[] = [$user, array_values($ids)];
@@ -1020,6 +1024,44 @@ class TransactionControllerTest extends TestCase {
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 		$this->assertSame([['user1', [3]]], $this->tagChecks);
+	}
+
+	public function testARecipientsTagSaveKeepsTheOwnersTagsSheCannotSee(): void {
+		// 50 is owner1's own tag on the row; user1 sends only what she
+		// picked. 99 is an old id neither of them can use: it goes.
+		$this->requestParams(['tagIds' => [4]]);
+		$this->tagService->method('getTransactionTags')->with(8, 'owner1')
+			->willReturn([$this->tag(50), $this->tag(3), $this->tag(99)]);
+		$this->tagService->expects($this->once())->method('setTransactionTags')
+			->with(8, 'owner1', [4, 50])->willReturn([]);
+
+		$response = $this->controllerForSharedRows(4)->setTags(8);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testARecipientClearingTagsKeepsTheOwnersTagsSheCannotSee(): void {
+		$this->tagService->method('getTransactionTags')->with(8, 'owner1')
+			->willReturn([$this->tag(50), $this->tag(3)]);
+		$this->tagService->expects($this->never())->method('clearTransactionTags');
+		$this->tagService->expects($this->once())->method('setTransactionTags')
+			->with(8, 'owner1', [50])->willReturn([]);
+
+		$response = $this->controllerForSharedRows(4)->clearTags(8);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testTheOwnerReplacesAllOfARowsTags(): void {
+		$this->requestParams(['tagIds' => [4]]);
+		$this->tagService->method('getTransactionTags')->with(8, 'user1')
+			->willReturn([$this->tag(50), $this->tag(3)]);
+		$this->tagService->expects($this->once())->method('setTransactionTags')
+			->with(8, 'user1', [4])->willReturn([]);
+
+		$response = $this->controllerForSharedRows(1)->setTags(8);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
 
 	public function testATagTheUserCannotSeeIsRefused(): void {

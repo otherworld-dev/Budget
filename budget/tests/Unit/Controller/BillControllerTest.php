@@ -290,13 +290,16 @@ class BillControllerTest extends TestCase {
 		$shares->method('resolveOwner')->willReturnCallback(
 			fn ($user, $type, $id) => $type === 'account' ? ($id === 4 ? 'alice' : $user) : $billOwner
 		);
-		$usable = ['user1' => range(1, 9), $billOwner => $billOwner === 'user1' ? range(1, 9) : range(5, 9), 'alice' => [8, 9]];
+		$usable = ['user1' => range(1, 9), $billOwner => $billOwner === 'user1' ? range(1, 9) : array_merge(range(5, 9), [42]), 'alice' => [8, 9]];
 		$shares->method('requireUsableTags')->willReturnCallback(function (string $user, array $ids) use ($usable, &$checks): void {
 			$checks[] = [$user, array_values($ids)];
 			if (array_diff($ids, $usable[$user] ?? []) !== []) {
 				throw new \InvalidArgumentException('Invalid tag ID');
 			}
 		});
+		$shares->method('getUsableTagIds')->willReturnCallback(
+			fn (string $user, array $ids) => array_values(array_intersect(array_map('intval', $ids), $usable[$user] ?? []))
+		);
 		return new BillController($this->request, $this->service, $this->validationService, $shares,
 			$this->createMock(\OCA\Budget\Service\Bill\BillSuggestionService::class), $this->upcomingBills,
 			$this->l, 'user1', $this->logger);
@@ -375,6 +378,45 @@ class BillControllerTest extends TestCase {
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 		$this->assertSame([['user1', [6]], ['owen', [6]]], $checks);
+	}
+
+	public function testARecipientsSaveKeepsTheOwnersTagsSheCannotSee(): void {
+		// Bill 5 is owen's; 42 is his own tag, which user1's form never
+		// shows, so saving it sent only her ticked tags and dropped 42
+		$this->service->method('find')->willReturn($this->storedBillWithTags([42, 6]));
+		$this->mockInput(json_encode(['name' => 'Phone', 'tagIds' => [7]]));
+		$this->service->expects($this->once())->method('update')
+			->with(5, 'owen', $this->callback(fn (array $updates) => json_decode($updates['tagIds'], true) === [7, 42]))
+			->willReturn(new \OCA\Budget\Db\Bill());
+
+		$response = $this->controllerCheckingTags('owen')->update(5);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testARecipientClearingTheTagsOnlyClearsTheOnesSheCanSee(): void {
+		$this->service->method('find')->willReturn($this->storedBillWithTags([42, 6]));
+		$this->mockInput(json_encode(['tagIds' => []]));
+		$this->service->expects($this->once())->method('update')
+			->with(5, 'owen', $this->callback(fn (array $updates) => json_decode($updates['tagIds'], true) === [42]))
+			->willReturn(new \OCA\Budget\Db\Bill());
+
+		$response = $this->controllerCheckingTags('owen')->update(5);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testTheOwnerStillReplacesAllOfTheBillsTags(): void {
+		// An old id even the owner can't use goes when they save without it
+		$this->service->method('find')->willReturn($this->storedBillWithTags([42, 6]));
+		$this->mockInput(json_encode(['tagIds' => [7]]));
+		$this->service->expects($this->once())->method('update')
+			->with(5, 'user1', $this->callback(fn (array $updates) => json_decode($updates['tagIds'], true) === [7]))
+			->willReturn(new \OCA\Budget\Db\Bill());
+
+		$response = $this->controllerCheckingTags()->update(5);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
 
 	public function testMovingATaggedBillOntoAnotherUsersAccountChecksItsTags(): void {
