@@ -60,6 +60,37 @@ class SavedReportControllerTest extends TestCase {
 		$this->assertSame($reports, $response->getData());
 	}
 
+	/**
+	 * The entity had jsonSerialize() without implementing JsonSerializable,
+	 * so the list reached the browser as [{"id":1}]: the Saved reports menu
+	 * showed blank entries and choosing one loaded nothing.
+	 */
+	public function testIndexSendsEachReportsNameAndConfigToTheBrowser(): void {
+		$this->service->method('getAll')->willReturn([
+			$this->makeReport(1, 'Monthly spending', ['reportType' => 'spending', 'accountIds' => [4]]),
+		]);
+
+		$wire = json_decode(json_encode($this->controller->index()->getData()), true);
+
+		$this->assertSame([[
+			'id' => 1,
+			'name' => 'Monthly spending',
+			'config' => ['reportType' => 'spending', 'accountIds' => [4]],
+			'createdAt' => '2026-09-01 10:00:00',
+			'updatedAt' => '2026-09-01 10:00:00',
+		]], $wire);
+	}
+
+	public function testANewReportComesBackWithItsName(): void {
+		$this->service->method('create')->willReturn($this->makeReport(7, 'Groceries'));
+
+		$wire = json_decode(json_encode($this->controller->create('Groceries', ['type' => 'spending'])->getData()), true);
+
+		$this->assertSame(7, $wire['id']);
+		$this->assertSame('Groceries', $wire['name']);
+		$this->assertArrayNotHasKey('userId', $wire);
+	}
+
 	public function testIndexWithNoReportsIsAnEmptyList(): void {
 		$this->service->method('getAll')->willReturn([]);
 
