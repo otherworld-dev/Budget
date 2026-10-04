@@ -1612,11 +1612,6 @@
     .dashboard-hero {
         grid-template-columns: repeat(2, 1fr);
     }
-
-    /* Accounts Page */
-    .accounts-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
 }
 
 @media (max-width: 768px) {
@@ -1652,21 +1647,13 @@
         margin: 0 auto;
     }
 
-    /* Accounts Page */
-    .accounts-summary-header {
-        grid-template-columns: 1fr;
-    }
-
+    /* Accounts Page (its columns are set after the base rules, below) */
     .summary-card {
         padding: 16px;
     }
 
     .summary-value {
         font-size: 20px;
-    }
-
-    .accounts-grid {
-        grid-template-columns: 1fr;
     }
 
     .account-card {
@@ -3310,8 +3297,23 @@ button.danger:hover {
     overflow: hidden;
 }
 
+/* Accounts page columns. These must come after the base rules above, which
+   have the same specificity: set with the dashboard's media queries near the
+   top of the file they never applied, and a phone showed three 114px cards
+   with the summary row running off the screen. */
+@media (max-width: 1200px) {
+    .accounts-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
 /* Enhanced Account List View for smaller screens */
 @media (max-width: 768px) {
+    .accounts-summary-header,
+    .accounts-grid {
+        grid-template-columns: 1fr;
+    }
+
     #accounts-list {
         gap: 1px;
         padding: 16px 0;
@@ -6653,6 +6655,10 @@ button.danger:hover {
         gap: 8px;
     }
 
+    .categories-actions {
+        flex-wrap: wrap;
+    }
+
     .categories-tabs {
         align-self: center;
     }
@@ -8243,6 +8249,9 @@ button.danger:hover {
 .system-info-table {
     width: 100%;
     border-collapse: collapse;
+    /* The value column takes what the label leaves, and wraps, so a
+       long value can't push the box past a phone's edge */
+    table-layout: fixed;
 }
 .system-info-table td {
     padding: 4px 8px;
@@ -8256,6 +8265,7 @@ button.danger:hover {
 .system-info-value {
     color: var(--color-main-text);
     font-weight: 500;
+    overflow-wrap: anywhere;
 }
 .system-info-log {
     max-height: 200px;
@@ -10274,8 +10284,12 @@ button.danger:hover {
         align-self: flex-start;
     }
 
-    .bill-actions {
+    /* Wrap rather than push the last buttons off the card (longer labels,
+       German's "Bezahlt kennzeichnen") */
+    .bill-actions,
+    .income-actions {
         justify-content: flex-end;
+        flex-wrap: wrap;
     }
 
     .detected-bills-panel {

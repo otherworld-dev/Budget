@@ -2332,7 +2332,9 @@ export default class CategoriesModule {
             return;
         }
 
-        if (headerEl) headerEl.style.display = 'grid';
+        // Left to the stylesheet, which hides the column header on phones:
+        // an inline 'grid' showed it there, cut off at the screen's edge
+        if (headerEl) headerEl.style.display = '';
         if (emptyState) emptyState.style.display = 'none';
 
         treeContainer.innerHTML = this.renderBudgetCategoryNodes(filteredCategories, 0);
