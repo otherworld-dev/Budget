@@ -348,7 +348,11 @@ class ReportAggregator {
 
 		// Spending breakdown. Excluded and muted categories are dropped by
 		// the mapper's report choke point (#219), never filtered here.
-		$spending = $this->transactionMapper->getSpendingSummary(
+		// Across accounts in more than one currency it is in the base
+		// currency, as the Spending report is: the dashboard's spending tiles
+		// draw from this on load and from that report once their settings
+		// change, and summed as stored they changed figures in between.
+		$spendingQuery = fn (?array $accountIds): array => $this->transactionMapper->getSpendingSummary(
 			$userId,
 			$startDate,
 			$endDate,
@@ -356,9 +360,9 @@ class ReportAggregator {
 			$tagIds,
 			$includeUntagged,
 			$excludeTransfers,
-			!empty($visibleAccountIds) ? $visibleAccountIds : null
+			$accountIds
 		);
-		$summary['spending'] = $spending;
+		$summary['spending'] = $this->spendingInBase($userId, $accountId, !empty($visibleAccountIds) ? $visibleAccountIds : null, $spendingQuery);
 
 		// Generate trend data (with currency conversion for multi-account view)
 		$summary['trends'] = $this->generateTrendData($userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, !empty($visibleAccountIds) ? $visibleAccountIds : null);
@@ -1114,14 +1118,7 @@ class ReportAggregator {
 	): array {
 		if ($categoryId !== null) {
 			// Single category
-			$dimensions = $this->reportQueries->getTagDimensionsForCategory(
-				$userId,
-				$categoryId,
-				$startDate,
-				$endDate,
-				$accountId,
-				$visibleAccountIds
-			);
+			$dimensions = $this->tagDimensionsInBase($userId, $categoryId, $startDate, $endDate, $accountId, $visibleAccountIds);
 
 			$category = $this->categoryMapper->find($categoryId, $userId);
 
@@ -1135,20 +1132,19 @@ class ReportAggregator {
 			];
 		}
 
-		// All categories with spending
-		$spending = $this->transactionMapper->getSpendingSummary($userId, $startDate, $endDate, visibleAccountIds: $visibleAccountIds);
+		// All categories with spending, in the base currency across accounts
+		// in more than one, as the tag totals below are
+		$spending = $this->spendingInBase(
+			$userId,
+			null,
+			$visibleAccountIds,
+			fn (?array $accountIds): array => $this->transactionMapper->getSpendingSummary($userId, $startDate, $endDate, visibleAccountIds: $accountIds)
+		);
 		$result = [];
 
 		foreach ($spending as $categoryData) {
 			$catId = (int)$categoryData['id'];
-			$dimensions = $this->reportQueries->getTagDimensionsForCategory(
-				$userId,
-				$catId,
-				$startDate,
-				$endDate,
-				$accountId,
-				$visibleAccountIds
-			);
+			$dimensions = $this->tagDimensionsInBase($userId, $catId, $startDate, $endDate, $accountId, $visibleAccountIds);
 
 			if (!empty($dimensions)) {
 				$result[] = [
@@ -1162,5 +1158,75 @@ class ReportAggregator {
 		}
 
 		return ['categories' => $result];
+	}
+
+	/**
+	 * Spending per category (getSpendingSummary() rows) in the base currency
+	 * across accounts in more than one, largest first, as the Spending
+	 * report's category grouping is. One selected account is in one
+	 * currency and is left as it is.
+	 *
+	 * @param int[]|null $visibleAccountIds
+	 * @param callable(int[]|null): array[] $query
+	 * @return array[]
+	 */
+	private function spendingInBase(string $userId, ?int $accountId, ?array $visibleAccountIds, callable $query): array {
+		if ($accountId !== null || $this->currencyTotals === null) {
+			return $query($visibleAccountIds);
+		}
+		$rows = $this->currencyTotals->rowsInBase($userId, $visibleAccountIds, $query, ['id'], ['total'], ['count']);
+		usort($rows, static fn (array $a, array $b) => (float)$b['total'] <=> (float)$a['total']);
+		return $rows;
+	}
+
+	/**
+	 * A category's tag dimensions with each tag's total in the base
+	 * currency across accounts in more than one: the tags of each currency
+	 * are converted and added up per tag set and tag, then grouped and
+	 * sorted as getTagDimensionsForCategory() groups and sorts them.
+	 *
+	 * @param int[]|null $visibleAccountIds
+	 * @return array[]
+	 */
+	private function tagDimensionsInBase(string $userId, int $categoryId, string $startDate, string $endDate, ?int $accountId, ?array $visibleAccountIds): array {
+		$query = fn (?array $accountIds): array => $this->reportQueries->getTagDimensionsForCategory(
+			$userId, $categoryId, $startDate, $endDate, $accountId, $accountIds
+		);
+		if ($accountId !== null || $this->currencyTotals === null
+			|| $this->currencyTotals->currencyGroups($userId, $visibleAccountIds) === null) {
+			return $query($visibleAccountIds);
+		}
+
+		$tags = $this->currencyTotals->rowsInBase(
+			$userId,
+			$visibleAccountIds,
+			static function (?array $accountIds) use ($query): array {
+				$rows = [];
+				foreach ($query($accountIds) as $dimension) {
+					foreach ($dimension['tags'] as $tag) {
+						$rows[] = ['tagSetId' => $dimension['tagSetId'], 'tagSetName' => $dimension['tagSetName']] + $tag;
+					}
+				}
+				return $rows;
+			},
+			['tagSetId', 'tagId'],
+			['total'],
+			['count']
+		);
+		usort($tags, static fn (array $a, array $b) => ((int)$a['tagSetId'] <=> (int)$b['tagSetId']) ?: ((float)$b['total'] <=> (float)$a['total']));
+
+		$dimensions = [];
+		foreach ($tags as $tag) {
+			$tagSetId = (int)$tag['tagSetId'];
+			$dimensions[$tagSetId] ??= ['tagSetId' => $tagSetId, 'tagSetName' => $tag['tagSetName'], 'tags' => []];
+			$dimensions[$tagSetId]['tags'][] = [
+				'tagId' => $tag['tagId'],
+				'name' => $tag['name'],
+				'color' => $tag['color'],
+				'total' => $tag['total'],
+				'count' => $tag['count'],
+			];
+		}
+		return array_values($dimensions);
 	}
 }
