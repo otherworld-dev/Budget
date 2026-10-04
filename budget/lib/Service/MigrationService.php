@@ -2398,6 +2398,10 @@ class MigrationService {
 			// treats them on upgrade (V2-1).
 			if ($rule->getActive() && SetupDefaultRules::isUntouchedEmptyDefaultRule($rule)) {
 				SetupDefaultRules::retire($rule);
+			} else {
+				// One a 3.0 pre-release made with a category matches whole
+				// words now, as on upgrade (V3-4)
+				SetupDefaultRules::refreshPattern($rule);
 			}
 
 			$inserted = $this->importRuleMapper->insert($rule);

@@ -511,6 +511,65 @@ class TransactionNormalizerTest extends TestCase {
 		);
 	}
 
+	public static function amountsThatCannotBeThousands(): array {
+		return [
+			'8 decimals (crypto)' => ['0.00012345', 0.00012345],
+			'8 decimals, trailing zeros' => ['117.50000000', 117.5],
+			'4 decimals' => ['12.3456', 12.3456],
+			'negative, 8 decimals' => ['-0.00150000', 0.0015],
+			'decimal comma, 8 decimals' => ['0,00012345', 0.00012345],
+			'decimal comma, 4 decimals' => ['12,3456', 12.3456],
+			'nothing before the point' => ['.123', 0.123],
+			'a zero before the point' => ['0.123', 0.123],
+			'a zero before the comma' => ['0,123', 0.123],
+			'four digits before the point' => ['1234.567', 1234.567],
+			'with a currency code' => ['0.00012345 BTC', 0.00012345],
+		];
+	}
+
+	/**
+	 * A lone separator was read as a thousands separator unless it sat in
+	 * the last 3 characters, so an exchange's 8-decimal amounts came in 10^8
+	 * times too big: "117.50000000" became 11,750,000,000 (V5-4). A number
+	 * written with thousands separators has exactly three digits after each
+	 * one and no leading zero, so anything else is a decimal.
+	 */
+	#[\PHPUnit\Framework\Attributes\DataProvider('amountsThatCannotBeThousands')]
+	public function testParseAmountReadsALoneSeparatorThatCannotGroupThousandsAsDecimal(string $value, float $amount): void {
+		$result = $this->normalizer->mapRowToTransaction(['2024-01-01', $value, 'Test'], ['date' => 0, 'amount' => 1, 'description' => 2]);
+
+		$this->assertEqualsWithDelta($amount, $result['amount'], 1e-9);
+	}
+
+	public static function amountsThatReadAsBefore(): array {
+		return [
+			// Ambiguous: three digits after a lone separator stay thousands
+			'1.234' => ['1.234', 1234.0],
+			'12,345' => ['12,345', 12345.0],
+			'999.000' => ['999.000', 999000.0],
+			// Clearly grouped or clearly decimal, as always
+			'1.234.567' => ['1.234.567', 1234567.0],
+			'1,234,567' => ['1,234,567', 1234567.0],
+			'1,234.56' => ['1,234.56', 1234.56],
+			'1.234,56' => ['1.234,56', 1234.56],
+			'117.50' => ['117.50', 117.5],
+			'12,5' => ['12,5', 12.5],
+			'45.' => ['45.', 45.0],
+			'42' => ['42', 42.0],
+		];
+	}
+
+	/**
+	 * Every amount that could be a thousands-grouped number reads exactly as
+	 * it did, so the import id built from it doesn't change.
+	 */
+	#[\PHPUnit\Framework\Attributes\DataProvider('amountsThatReadAsBefore')]
+	public function testParseAmountReadsEverythingElseAsBefore(string $value, float $amount): void {
+		$result = $this->normalizer->mapRowToTransaction(['2024-01-01', $value, 'Test'], ['date' => 0, 'amount' => 1, 'description' => 2]);
+
+		$this->assertEqualsWithDelta($amount, $result['amount'], 1e-9);
+	}
+
 	public function testParseAmountTypeColumnStillWinsOverTrailingMinus(): void {
 		// #333's rule is unchanged: an explicit type column decides.
 		$row = ['2024-01-01', '91,29-', 'Income', 'Test'];

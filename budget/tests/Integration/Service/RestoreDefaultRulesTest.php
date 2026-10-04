@@ -37,7 +37,7 @@ class RestoreDefaultRulesTest extends IntegrationTestCase {
 	 */
 	private function restoredRules(string $user): array {
 		$rows = $this->db()->executeQuery(
-			'SELECT name, active, priority FROM *PREFIX*budget_import_rules WHERE user_id = ?', [$user]
+			'SELECT name, active, priority, pattern, criteria, actions FROM *PREFIX*budget_import_rules WHERE user_id = ?', [$user]
 		)->fetchAll();
 		return array_column($rows, null, 'name');
 	}
@@ -63,5 +63,48 @@ class RestoreDefaultRulesTest extends IntegrationTestCase {
 		$this->assertTrue((bool)$rules['Grocery Stores']['active']);
 		$this->assertSame(10, (int)$rules['Grocery Stores']['priority']);
 		$this->assertTrue((bool)$rules['Shell garage']['active']);
+	}
+
+	/**
+	 * A default a 3.0 pre-release made with a category, still as it made it,
+	 * comes back matching whole words (V3-4); one the user changed doesn't.
+	 */
+	public function testARestoreGivesUntouchedCategorisedDefaultsWholeWordPatterns(): void {
+		$this->makeAccount();
+		$category = $this->makeCategory(['name' => 'Utilities']);
+		$this->rule($this->categorisedDefault('Utilities', $category));
+		$this->rule(['stop_processing' => false] + $this->categorisedDefault('Restaurants', $category));
+		$migration = $this->service(MigrationService::class);
+		$target = $this->newUserId();
+
+		$migration->importAll($target, $migration->exportAll($this->userId)['content']);
+
+		$rules = $this->restoredRules($target);
+		$pattern = SetupDefaultRules::DEFINITIONS['Utilities']['pattern'];
+		$this->assertSame($pattern, $rules['Utilities']['pattern']);
+		$this->assertSame($pattern, json_decode($rules['Utilities']['criteria'], true)['root']['conditions'][0]['pattern']);
+		$this->assertTrue((bool)$rules['Utilities']['active']);
+		$this->assertSame(0, (int)$rules['Utilities']['priority']);
+		$action = json_decode($rules['Utilities']['actions'], true)['actions'][0];
+		$this->assertSame('set_category', $action['type']);
+		$this->assertNotSame($category, $action['value'], 'the category was not remapped to the restored one');
+		$this->assertSame(SetupDefaultRules::RULES['Restaurants'], $rules['Restaurants']['pattern']);
+	}
+
+	/**
+	 * @return array<string, mixed> a rule row as a 3.0 pre-release's setup made it
+	 */
+	private function categorisedDefault(string $name, int $category): array {
+		$pattern = SetupDefaultRules::RULES[$name];
+		return [
+			'name' => $name,
+			'pattern' => $pattern,
+			'priority' => 0,
+			'schema_version' => 2,
+			'criteria' => json_encode(SetupDefaultRules::criteriaFor($pattern)),
+			'actions' => json_encode(['version' => 2, 'stopProcessing' => true, 'actions' => [
+				['type' => 'set_category', 'value' => $category, 'behavior' => 'always', 'priority' => 100],
+			]]),
+		];
 	}
 }

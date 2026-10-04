@@ -52,12 +52,31 @@ class Version001000122Date20261004 extends SimpleMigrationStep {
 			->andWhere($qb->expr()->eq('active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)));
 		$result = $qb->executeQuery();
 		$ids = [];
+		$refresh = [];
 		while ($row = $result->fetch()) {
 			if (self::isUntouchedEmptyDefault($row)) {
 				$ids[] = (int)$row['id'];
+			} elseif (SetupDefaultRules::isUntouchedCategorisedDefault($row)) {
+				// Made by a 3.0 pre-release with a category but the old
+				// substring pattern: it stays on, matching whole words
+				$refresh[(int)$row['id']] = (string)$row['name'];
 			}
 		}
 		$result->closeCursor();
+
+		foreach ($refresh as $id => $name) {
+			$matching = SetupDefaultRules::currentMatching($name);
+			$update = $this->db->getQueryBuilder();
+			$update->update('budget_import_rules')
+				->set('pattern', $update->createNamedParameter($matching['pattern']))
+				->set('criteria', $update->createNamedParameter($matching['criteria']))
+				->set('updated_at', $update->createNamedParameter(date('Y-m-d H:i:s')))
+				->where($update->expr()->eq('id', $update->createNamedParameter($id, IQueryBuilder::PARAM_INT)));
+			$update->executeStatement();
+		}
+		if ($refresh !== []) {
+			$output->info('Gave ' . count($refresh) . ' default import rule(s) whole-word patterns');
+		}
 
 		$now = date('Y-m-d H:i:s');
 		foreach (array_chunk($ids, 500) as $chunk) {
