@@ -64,6 +64,40 @@ class TransactionTagServiceTest extends TestCase {
 		return $tt;
 	}
 
+	// ===== getTagsForTransactions =====
+
+	public function testGetTagsForTransactionsGroupsTheTagsOfEachTransaction(): void {
+		$this->transactionTagMapper->expects($this->once())
+			->method('findTagIdsByTransactions')
+			->with([5, 9, 12])
+			->willReturn([5 => [2, 3], 9 => [3, 99]]);
+		// One lookup for every tag on the page; tag 99 has gone
+		$this->tagMapper->expects($this->once())
+			->method('findByIds')
+			->with([2, 3, 99])
+			->willReturn([2 => $this->makeTag(2), 3 => $this->makeTag(3)]);
+
+		$result = $this->service->getTagsForTransactions([5, 9, 12]);
+
+		$this->assertSame([5, 9], array_keys($result));
+		$this->assertSame([2, 3], array_map(fn (Tag $tag) => $tag->getId(), $result[5]));
+		$this->assertSame([3], array_map(fn (Tag $tag) => $tag->getId(), $result[9]));
+	}
+
+	public function testGetTagsForTransactionsLeavesOutATransactionWhoseTagsAreAllGone(): void {
+		$this->transactionTagMapper->method('findTagIdsByTransactions')->willReturn([5 => [99]]);
+		$this->tagMapper->method('findByIds')->willReturn([]);
+
+		$this->assertSame([], $this->service->getTagsForTransactions([5]));
+	}
+
+	public function testGetTagsForTransactionsWithoutTagsLooksUpNoTags(): void {
+		$this->transactionTagMapper->method('findTagIdsByTransactions')->willReturn([]);
+		$this->tagMapper->expects($this->never())->method('findByIds');
+
+		$this->assertSame([], $this->service->getTagsForTransactions([5, 9]));
+	}
+
 	// ===== setTransactionTags =====
 
 	public function testSetTransactionTagsWithEmptyTagIdsClears(): void {

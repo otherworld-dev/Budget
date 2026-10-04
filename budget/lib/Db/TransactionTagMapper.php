@@ -31,6 +31,35 @@ class TransactionTagMapper extends QBMapper {
 	}
 
 	/**
+	 * The tag ids on each of the given transactions: one query per 500
+	 * transactions (old SQLite builds cap bound variables at 999) rather than
+	 * one per transaction.
+	 *
+	 * @param int[] $transactionIds
+	 * @return array<int, int[]> transactionId => tagIds, for the transactions that have any
+	 */
+	public function findTagIdsByTransactions(array $transactionIds): array {
+		$ids = array_values(array_unique(array_map('intval', $transactionIds)));
+		$byTransaction = [];
+		foreach (array_chunk($ids, 500) as $chunk) {
+			$qb = $this->db->getQueryBuilder();
+			$qb->select('transaction_id', 'tag_id')
+				->from($this->getTableName())
+				->where($qb->expr()->in('transaction_id', $qb->createNamedParameter($chunk, IQueryBuilder::PARAM_INT_ARRAY)))
+				->orderBy('transaction_id')
+				->addOrderBy('tag_id');
+
+			$result = $qb->executeQuery();
+			while ($row = $result->fetch()) {
+				$byTransaction[(int)$row['transaction_id']][] = (int)$row['tag_id'];
+			}
+			$result->closeCursor();
+		}
+
+		return $byTransaction;
+	}
+
+	/**
 	 * Find all transaction IDs that have any of the specified tags
 	 * Used for filtering transactions by tags
 	 *

@@ -997,32 +997,19 @@ export default class TagSetsModule {
     }
 
     /**
-     * Load all transaction tags for filtering
+     * Take the tags of the listed transactions from the list's own answer:
+     * a map of transaction id to its tags, for the rows that have any. They
+     * used to be fetched with one request per row, a few hundred for a long
+     * page.
+     *
+     * @param {object|undefined} tagsByTransaction - The list response's `tags`
      */
-    async loadAllTransactionTags() {
-        if (!this.transactions || this.transactions.length === 0) {
-            this.transactionTags = {};
-            return;
-        }
-
-        try {
-            // Load tags for each transaction
-            const tagPromises = this.transactions.map(async (transaction) => {
-                const tags = await apiFetch(`/apps/budget/api/transactions/${transaction.id}/tags`).catch(() => null);
-                return { transactionId: transaction.id, tags: Array.isArray(tags) ? tags : [] };
-            });
-
-            const results = await Promise.all(tagPromises);
-
-            // Store tags by transaction ID
-            this.transactionTags = {};
-            results.forEach(result => {
-                this.transactionTags[result.transactionId] = result.tags;
-            });
-        } catch (error) {
-            console.error('Failed to load transaction tags:', error);
-            this.transactionTags = {};
-        }
+    async loadAllTransactionTags(tagsByTransaction) {
+        this.transactionTags = {};
+        (this.transactions || []).forEach(transaction => {
+            const tags = tagsByTransaction?.[transaction.id];
+            this.transactionTags[transaction.id] = Array.isArray(tags) ? tags : [];
+        });
     }
 
     /**

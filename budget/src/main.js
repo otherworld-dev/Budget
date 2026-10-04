@@ -1478,7 +1478,7 @@ class BudgetApp {
 
             // Load tags, shared status and attachment counts for all displayed transactions
             await Promise.all([
-                this.loadAllTransactionTags(),
+                this.loadAllTransactionTags(result.tags),
                 this.loadSharedTransactionIds(),
                 this.loadAttachmentCounts(),
             ]);
@@ -4049,8 +4049,8 @@ class BudgetApp {
         return this.tagSetsModule.renderCategoryTagSetsList(categoryId, readOnly);
     }
 
-    async loadAllTransactionTags() {
-        return this.tagSetsModule.loadAllTransactionTags();
+    async loadAllTransactionTags(tagsByTransaction) {
+        return this.tagSetsModule.loadAllTransactionTags(tagsByTransaction);
     }
 
     async loadSharedTransactionIds() {
