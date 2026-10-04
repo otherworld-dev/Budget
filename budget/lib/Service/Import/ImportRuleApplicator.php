@@ -221,9 +221,9 @@ class ImportRuleApplicator {
 		return $this->criteriaEvaluator->evaluate($rule->getCriteria(), $transaction, $schemaVersion);
 	}
 
-	/** Action types the import carries out (Set Account is the target's to decide) */
+	/** Action types the import carries out besides Set Category, which is checked on its own (Set Account is the target's to decide) */
 	private const IMPORT_ACTION_TYPES = [
-		'set_category', 'set_vendor', 'set_description', 'set_notes', 'set_type', 'set_reference',
+		'set_vendor', 'set_description', 'set_notes', 'set_type', 'set_reference',
 		'regex_replace', 'change_case', 'replace_text', 'add_tags', 'link_transfer', 'set_forecast_exclude',
 	];
 
