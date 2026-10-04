@@ -569,6 +569,30 @@ class AccountController extends Controller {
 	}
 
 	/** @return int[] ids of the accounts the caller owns (not shared to them) */
+	/**
+	 * The user account $id belongs to, after checking this user may use it.
+	 *
+	 * The reconcile, interest and valuation services look the account up
+	 * among the user they are given, and an account shared with this user
+	 * belongs to its owner: as themselves, a recipient got "Failed to
+	 * reconcile account" or "Account not found" on an account they can see.
+	 * Changes need write access; reading needs the account to be visible.
+	 * One they can't see at all is not found, rather than read-only.
+	 *
+	 * @throws DoesNotExistException
+	 * @throws \OCA\Budget\Exception\ReadOnlyShareException
+	 */
+	private function accountOwner(int $id, bool $write): string {
+		$owner = $this->granularShareService->resolveOwner($this->userId, 'account', $id);
+		if ($owner === null) {
+			throw new DoesNotExistException('Account ' . $id . ' is not accessible to ' . $this->userId);
+		}
+		if ($write && $owner !== $this->userId) {
+			$this->requireWriteAccess('account', $id);
+		}
+		return $owner;
+	}
+
 	private function ownAccountIds(): array {
 		return array_map('intval', $this->granularShareService->getOwnAccountIds($this->userId));
 	}
@@ -789,9 +813,10 @@ class AccountController extends Controller {
 	 */
 	public function reconcile(int $id, float $statementBalance, ?string $statementDate = null): DataResponse {
 		try {
-			$this->requireWriteAccess('account', $id);
-			$result = $this->service->reconcile($id, $this->getEffectiveUserId(), $statementBalance, $statementDate);
+			$result = $this->service->reconcile($id, $this->accountOwner($id, true), $statementBalance, $statementDate);
 			return new DataResponse($result);
+		} catch (DoesNotExistException $e) {
+			return $this->handleNotFoundError($e, $this->l->t('Account'), ['accountId' => $id]);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to reconcile account'), Http::STATUS_BAD_REQUEST, ['accountId' => $id]);
 		}
@@ -804,7 +829,7 @@ class AccountController extends Controller {
 	#[UserRateLimit(limit: 10, period: 60)]
 	public function completeReconciliation(int $id): DataResponse {
 		try {
-			$this->requireWriteAccess('account', $id);
+			$owner = $this->accountOwner($id, true);
 			$data = $this->request->getParams();
 			$transactionIds = $data['transactionIds'] ?? [];
 			if (count($transactionIds) > 500) {
@@ -812,8 +837,10 @@ class AccountController extends Controller {
 			}
 			$transactionIds = array_map('intval', $transactionIds);
 
-			$result = $this->service->completeReconciliation($id, $this->getEffectiveUserId(), $transactionIds);
+			$result = $this->service->completeReconciliation($id, $owner, $transactionIds);
 			return new DataResponse($result);
+		} catch (DoesNotExistException $e) {
+			return $this->handleNotFoundError($e, $this->l->t('Account'), ['accountId' => $id]);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to complete reconciliation'), Http::STATUS_BAD_REQUEST, ['accountId' => $id]);
 		}
@@ -828,8 +855,9 @@ class AccountController extends Controller {
 	#[UserRateLimit(limit: 30, period: 60)]
 	public function getInterestDetails(int $id): DataResponse {
 		try {
-			$result = $this->interestService->calculateAccruedInterest($id, $this->getEffectiveUserId());
-			$result['rateHistory'] = $this->interestService->getRateHistory($id, $this->getEffectiveUserId());
+			$owner = $this->accountOwner($id, false);
+			$result = $this->interestService->calculateAccruedInterest($id, $owner);
+			$result['rateHistory'] = $this->interestService->getRateHistory($id, $owner);
 			return new DataResponse($result);
 		} catch (\Exception $e) {
 			return $this->handleNotFoundError($e, $this->l->t('Account'), ['accountId' => $id]);
@@ -843,7 +871,7 @@ class AccountController extends Controller {
 	#[UserRateLimit(limit: 30, period: 60)]
 	public function getInterestRates(int $id): DataResponse {
 		try {
-			$rates = $this->interestService->getRateHistory($id, $this->getEffectiveUserId());
+			$rates = $this->interestService->getRateHistory($id, $this->accountOwner($id, false));
 			return new DataResponse($rates);
 		} catch (\Exception $e) {
 			return $this->handleNotFoundError($e, $this->l->t('Account'), ['accountId' => $id]);
@@ -857,7 +885,7 @@ class AccountController extends Controller {
 	#[UserRateLimit(limit: 30, period: 60)]
 	public function addInterestRate(int $id): DataResponse {
 		try {
-			$this->requireWriteAccess('account', $id);
+			$owner = $this->accountOwner($id, true);
 			$params = $this->request->getParams();
 			$rate = (float)($params['rate'] ?? 0);
 			$compoundingFrequency = $params['compoundingFrequency'] ?? 'daily';
@@ -876,8 +904,10 @@ class AccountController extends Controller {
 				return new DataResponse(['error' => $this->l->t('Invalid date format. Use YYYY-MM-DD')], Http::STATUS_BAD_REQUEST);
 			}
 
-			$interestRate = $this->interestService->addRateChange($id, $this->getEffectiveUserId(), $rate, $compoundingFrequency, $effectiveDate);
+			$interestRate = $this->interestService->addRateChange($id, $owner, $rate, $compoundingFrequency, $effectiveDate);
 			return new DataResponse($interestRate);
+		} catch (DoesNotExistException $e) {
+			return $this->handleNotFoundError($e, $this->l->t('Account'), ['accountId' => $id]);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to add interest rate'), Http::STATUS_BAD_REQUEST, ['accountId' => $id]);
 		}
@@ -890,9 +920,22 @@ class AccountController extends Controller {
 	#[UserRateLimit(limit: 30, period: 60)]
 	public function deleteInterestRate(int $id, int $rateId): DataResponse {
 		try {
-			$this->requireWriteAccess('account', $id);
-			$this->interestService->deleteRateChange($rateId, $this->getEffectiveUserId());
+			$owner = $this->accountOwner($id, true);
+			// The rate is found by its id alone: it has to be one of this
+			// account's, or a write share of one account reached the rates
+			// of the owner's others
+			$rateIds = array_map(static fn ($rate) => (int)$rate->getId(), $this->interestService->getRateHistory($id, $owner));
+			if (!in_array($rateId, $rateIds, true)) {
+				return $this->handleNotFoundError(
+					new DoesNotExistException('Rate ' . $rateId . ' is not on account ' . $id),
+					$this->l->t('Interest Rate'),
+					['accountId' => $id, 'rateId' => $rateId]
+				);
+			}
+			$this->interestService->deleteRateChange($rateId, $owner);
 			return new DataResponse(['status' => 'ok']);
+		} catch (DoesNotExistException $e) {
+			return $this->handleNotFoundError($e, $this->l->t('Account'), ['accountId' => $id]);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to delete interest rate'), Http::STATUS_BAD_REQUEST, ['accountId' => $id, 'rateId' => $rateId]);
 		}
@@ -907,7 +950,7 @@ class AccountController extends Controller {
 	#[UserRateLimit(limit: 30, period: 60)]
 	public function getValuation(int $id): DataResponse {
 		try {
-			$result = $this->investmentService->calculateUnrealisedPnL($id, $this->getEffectiveUserId());
+			$result = $this->investmentService->calculateUnrealisedPnL($id, $this->accountOwner($id, false));
 			return new DataResponse($result);
 		} catch (\Exception $e) {
 			return $this->handleNotFoundError($e, $this->l->t('Account'), ['accountId' => $id]);
