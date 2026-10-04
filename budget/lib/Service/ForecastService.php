@@ -349,14 +349,20 @@ class ForecastService {
 		// money coming in.
 		$recurringIncome = $months > 0 ? $this->recurringMonthlyIncome($userId, $accounts, $rates) : 0.0;
 
-		// Likewise no trend takes projected spending below what is already
-		// known: the user's bills from the accounts forecast, and the least
-		// spent in any complete month of the history. A falling line through
-		// three uneven months (1,060, 11 and 131) projected no spending at
-		// all, and the forecast showed six months of income saved whole.
-		$spendingFloor = $months > 0
-			? max($this->billsMonthlySpending($userId, $accounts, $rates), min($expenseValues))
-			: 0.0;
+		// Spending follows its trend only upwards. The forecast is there to
+		// warn before money runs out, so it errs on spending more: a falling
+		// line is projected as the average of the months it learns from
+		// instead. Followed down, a line through three uneven months (1,060,
+		// 11 and 131) projected next to no spending at all, and the forecast
+		// showed six months of income saved whole. The trend stays as it is
+		// for the direction shown beside the average.
+		$projectedExpenseTrend = max(0.0, $expenseTrend);
+
+		// And never below the bills paid from the accounts forecast, which
+		// are known to keep coming however little the history shows. (The
+		// least spent in a complete month needs no floor of its own: the
+		// average is never below it.)
+		$spendingFloor = $months > 0 ? $this->billsMonthlySpending($userId, $accounts, $rates) : 0.0;
 
 		// Generate monthly projections
 		$monthlyProjections = [];
@@ -371,7 +377,7 @@ class ForecastService {
 			$monthLabel = $projectionDate->format('M Y');
 
 			$projectedIncome = max(0, $recurringIncome, $avgIncome + ($incomeTrend * $i));
-			$projectedExpenses = max(0, $spendingFloor, $avgExpenses + ($expenseTrend * $i));
+			$projectedExpenses = max(0, $spendingFloor, $avgExpenses + ($projectedExpenseTrend * $i));
 			$monthlySavings = $projectedIncome - $projectedExpenses;
 
 			$projectedBalance += $monthlySavings;
