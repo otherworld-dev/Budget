@@ -223,6 +223,13 @@ class RepairService {
 	 */
 	private function findAutoGenDuplicatesOfManualEntries(Account $account, array $autoGen, array &$duplicates, array &$usedOriginals): void {
 		$accountId = $account->getId();
+		// The account's rows near each payment come from one read per year
+		// of payments, not one query per payment (T6-9: 859 queries for a
+		// long history). A year's read holds every payment's three-day
+		// window, in the same order (date, then id, newest first) the
+		// per-payment read had. Only the latest year is kept in memory.
+		$year = null;
+		$yearRows = [];
 
 		foreach ($autoGen as $tx) {
 			// Checked against a statement: it stays, whatever else is there
@@ -234,10 +241,19 @@ class RepairService {
 				continue;
 			}
 
-			$candidates = $this->transactionMapper->findByDateRange(
-				$accountId,
-				self::addDays($tx->getDate(), -3),
-				self::addDays($tx->getDate(), 3)
+			$from = self::addDays($tx->getDate(), -3);
+			$to = self::addDays($tx->getDate(), 3);
+			if ($year !== substr($tx->getDate(), 0, 4)) {
+				$year = substr($tx->getDate(), 0, 4);
+				$yearRows = $this->transactionMapper->findByDateRange(
+					$accountId,
+					self::addDays($year . '-01-01', -3),
+					self::addDays($year . '-12-31', 3)
+				);
+			}
+			$candidates = array_filter(
+				$yearRows,
+				static fn (Transaction $row): bool => $row->getDate() >= $from && $row->getDate() <= $to
 			);
 			$amount = (float)$tx->getAmount();
 			$match = null;
