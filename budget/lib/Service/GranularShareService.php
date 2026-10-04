@@ -153,6 +153,34 @@ class GranularShareService {
 	}
 
 	/**
+	 * The other half of the category rule when someone writes into a ledger
+	 * that isn't theirs (an account shared with them to write): the category
+	 * must be one they can see, as well as one the owner can use, which
+	 * requireUsableCategory() checks. With the owner's check alone, a write
+	 * recipient could file a row under one of the owner's categories that was
+	 * never shared with them, by its id, and read its name back.
+	 *
+	 * A category the row already carries ($kept) may stay, so a row the owner
+	 * filed under such a category keeps saving. The owner writing to their own
+	 * ledger is not affected.
+	 *
+	 * @param array<int|null> $kept
+	 * @throws \InvalidArgumentException
+	 */
+	public function requireCategoryVisibleToWriter(string $ownerId, string $writerId, ?int $categoryId, array $kept = []): void {
+		if ($categoryId === null || $writerId === $ownerId) {
+			return;
+		}
+		$allowed = array_flip(array_map('intval', array_merge(
+			array_values(array_filter($kept, static fn ($id) => $id !== null)),
+			$this->getVisibleCategoryIds($writerId)
+		)));
+		if (!isset($allowed[$categoryId])) {
+			throw new \InvalidArgumentException($this->l->t('Category not found'));
+		}
+	}
+
+	/**
 	 * The ids among $tagIds that belong to $userId's ledger or to one shared
 	 * with them: their own global tags, and the tags of categories they can
 	 * see (their own, and ones shared with them).

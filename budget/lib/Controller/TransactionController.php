@@ -366,6 +366,8 @@ class TransactionController extends Controller {
 				$categoryId = null;
 			}
 			$this->granularShareService->requireUsableCategory($effectiveUserId, $categoryId);
+			// ...and on someone else's account, one this user can see too
+			$this->granularShareService->requireCategoryVisibleToWriter($effectiveUserId, $this->userId, $categoryId);
 
 			$transaction = $this->service->create(
 				$effectiveUserId,
@@ -496,10 +498,12 @@ class TransactionController extends Controller {
 
 			// Resolve account owner for shared accounts
 			$effectiveUserId = $this->userId;
+			$storedCategoryId = null;
 			try {
 				$this->service->find($id, $this->userId);
 			} catch (\Exception $e) {
 				$existing = $this->service->findForAccounts($id, $this->getVisibleAccountIds());
+				$storedCategoryId = $existing->getCategoryId();
 				if ($existing->getAccountId() !== null) {
 					$this->requireWriteAccess('account', $existing->getAccountId());
 					$account = $this->service->findAccountById($existing->getAccountId());
@@ -509,6 +513,11 @@ class TransactionController extends Controller {
 
 			if (array_key_exists('categoryId', $updates)) {
 				$this->granularShareService->requireUsableCategory($effectiveUserId, $updates['categoryId']);
+				// A row the owner filed under a category this user can't see
+				// keeps saving with it; changing to one is refused
+				$this->granularShareService->requireCategoryVisibleToWriter(
+					$effectiveUserId, $this->userId, $updates['categoryId'], [$storedCategoryId]
+				);
 			}
 
 			// The service only checks the new account against the ledger
@@ -606,6 +615,7 @@ class TransactionController extends Controller {
 				foreach ($ownerIds as $id) {
 					try {
 						$this->granularShareService->requireUsableCategory((string)$owner, $categoryOf[$id]);
+						$this->granularShareService->requireCategoryVisibleToWriter((string)$owner, $this->userId, $categoryOf[$id]);
 						$usable[] = ['id' => $id, 'categoryId' => $categoryOf[$id]];
 					} catch (\InvalidArgumentException $e) {
 						$results['failed']++;
@@ -905,6 +915,31 @@ class TransactionController extends Controller {
 	}
 
 	/**
+	 * The categories a transaction carries now, its own and its parts'. A
+	 * write recipient may keep these on it even when one was never shared
+	 * with them (GranularShareService::requireCategoryVisibleToWriter()), so
+	 * a split the owner filed that way can still be edited.
+	 *
+	 * @return array<int|null>
+	 */
+	private function categoriesOn(\OCA\Budget\Db\Transaction $transaction, string $owner): array {
+		$ids = [$transaction->getCategoryId()];
+		foreach ($this->splitService->getSplits((int)$transaction->getId(), $owner) as $part) {
+			$ids[] = $part->getCategoryId();
+		}
+		return $ids;
+	}
+
+	/** A split part's category as the split service reads it: empty or 0 is none. */
+	private static function partCategoryOf(mixed $raw): ?int {
+		if ($raw === null || $raw === '' || $raw === false || !is_numeric($raw)) {
+			return null;
+		}
+		$id = (int)$raw;
+		return $id > 0 ? $id : null;
+	}
+
+	/**
 	 * The ledger-category check for a row of $ownerId's. On the user's own
 	 * rows the refusal stays the plain "Category not found"; on someone
 	 * else's it says whose categories are needed, as the API does.
@@ -1028,6 +1063,7 @@ class TransactionController extends Controller {
 				// has to be one every owner in the selection can see
 				foreach (array_keys($byOwner) as $owner) {
 					$this->requireOwnersCategory((string)$owner, $updates['categoryId']);
+					$this->granularShareService->requireCategoryVisibleToWriter((string)$owner, $this->userId, $updates['categoryId']);
 				}
 			}
 
@@ -1151,7 +1187,15 @@ class TransactionController extends Controller {
 				}
 			}
 
-			[, $owner] = $this->findWithOwner($id, true);
+			[$transaction, $owner] = $this->findWithOwner($id, true);
+			if ($owner !== $this->userId) {
+				$kept = $this->categoriesOn($transaction, $owner);
+				foreach ($data['splits'] as $split) {
+					$this->granularShareService->requireCategoryVisibleToWriter(
+						$owner, $this->userId, self::partCategoryOf(is_array($split) ? ($split['categoryId'] ?? null) : null), $kept
+					);
+				}
+			}
 			$splits = $this->splitService->splitTransaction($id, $owner, $data['splits']);
 			return new DataResponse($splits, Http::STATUS_CREATED);
 		} catch (\InvalidArgumentException $e) {
@@ -1169,7 +1213,12 @@ class TransactionController extends Controller {
 	#[UserRateLimit(limit: 30, period: 60)]
 	public function unsplit(int $id, ?int $categoryId = null): DataResponse {
 		try {
-			[, $owner] = $this->findWithOwner($id, true);
+			[$transaction, $owner] = $this->findWithOwner($id, true);
+			if ($owner !== $this->userId) {
+				$this->granularShareService->requireCategoryVisibleToWriter(
+					$owner, $this->userId, $categoryId, $this->categoriesOn($transaction, $owner)
+				);
+			}
 			$transaction = $this->splitService->unsplitTransaction($id, $owner, $categoryId);
 			return new DataResponse($transaction);
 		} catch (\InvalidArgumentException $e) {
@@ -1197,9 +1246,19 @@ class TransactionController extends Controller {
 			// The write check was for transaction $id, so the part has to be
 			// one of its own: the service finds a part by its id alone, and
 			// as the owner any of their transactions' parts would do
-			$partIds = array_map(static fn ($part) => (int)$part->getId(), $this->splitService->getSplits($id, $owner));
-			if (!in_array($splitId, $partIds, true)) {
+			$part = null;
+			foreach ($this->splitService->getSplits($id, $owner) as $candidate) {
+				if ((int)$candidate->getId() === $splitId) {
+					$part = $candidate;
+				}
+			}
+			if ($part === null) {
 				throw new DoesNotExistException('Split ' . $splitId . ' is not a part of transaction ' . $id);
+			}
+			if (isset($data['categoryId'])) {
+				$this->granularShareService->requireCategoryVisibleToWriter(
+					$owner, $this->userId, self::partCategoryOf($data['categoryId']), [$part->getCategoryId()]
+				);
 			}
 			$split = $this->splitService->updateSplit($splitId, $owner, $data);
 			return new DataResponse($split);

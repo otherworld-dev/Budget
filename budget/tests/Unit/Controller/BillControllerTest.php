@@ -314,6 +314,72 @@ class BillControllerTest extends TestCase {
 		return $bill;
 	}
 
+	// ── a write recipient and the owner's unshared categories ───────
+
+	/** Bill 5 and its account 4 are owen's; user1 sees categories below 16. */
+	private function controllerForAWriteRecipient(): BillController {
+		$shares = $this->createMock(GranularShareService::class);
+		$shares->method('canAccess')->willReturn(true);
+		$shares->method('canWrite')->willReturn(true);
+		$shares->method('resolveOwner')->willReturn('owen');
+		$shares->method('requireCategoryVisibleToWriter')->willReturnCallback(
+			function (string $owner, string $writer, ?int $categoryId, array $kept = []): void {
+				if ($categoryId !== null && $writer !== $owner && !in_array($categoryId, $kept, true) && $categoryId >= 16) {
+					throw new \InvalidArgumentException('Category not found');
+				}
+			}
+		);
+		return new BillController($this->request, $this->service, $this->validationService, $shares,
+			$this->createMock(\OCA\Budget\Service\Bill\BillSuggestionService::class), $this->upcomingBills,
+			$this->l, 'user1', $this->logger);
+	}
+
+	private function owensBill(?int $categoryId, ?array $splitTemplate = null): \OCA\Budget\Db\Bill {
+		$bill = new \OCA\Budget\Db\Bill();
+		$bill->setId(5);
+		$bill->setUserId('owen');
+		$bill->setAccountId(4);
+		$bill->setAmount(20.0);
+		$bill->setIsTransfer(false);
+		$bill->setCategoryId($categoryId);
+		if ($splitTemplate !== null) {
+			$bill->setSplitTemplate(json_encode($splitTemplate));
+		}
+		return $bill;
+	}
+
+	public function testARecipientCannotFileTheOwnersBillUnderAnUnsharedCategory(): void {
+		$this->service->method('find')->willReturn($this->owensBill(null));
+		$this->mockInput(json_encode(['categoryId' => 16]));
+		$this->service->expects($this->never())->method('update');
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $this->controllerForAWriteRecipient()->update(5)->getStatus());
+	}
+
+	public function testABillKeepsTheUnsharedCategoryItAlreadyHas(): void {
+		$this->service->method('find')->willReturn($this->owensBill(16));
+		$this->mockInput(json_encode(['name' => 'Gym', 'categoryId' => 16]));
+		$this->service->expects($this->once())->method('update')->willReturn(new \OCA\Budget\Db\Bill());
+
+		$this->assertSame(Http::STATUS_OK, $this->controllerForAWriteRecipient()->update(5)->getStatus());
+	}
+
+	public function testARecipientsSplitTemplateCannotUseAnUnsharedCategory(): void {
+		$this->service->method('find')->willReturn($this->owensBill(null));
+		$this->mockInput(json_encode(['splitTemplate' => [['categoryId' => 16, 'amount' => 10], ['categoryId' => 2, 'amount' => 10]]]));
+		$this->service->expects($this->never())->method('update');
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $this->controllerForAWriteRecipient()->update(5)->getStatus());
+	}
+
+	public function testASplitTemplateKeepsTheUnsharedCategoriesItHas(): void {
+		$this->service->method('find')->willReturn($this->owensBill(null, [['categoryId' => 16, 'amount' => 10], ['categoryId' => 2, 'amount' => 10]]));
+		$this->mockInput(json_encode(['splitTemplate' => [['categoryId' => 16, 'amount' => 12], ['categoryId' => 2, 'amount' => 8]]]));
+		$this->service->expects($this->once())->method('update')->willReturn(new \OCA\Budget\Db\Bill());
+
+		$this->assertSame(Http::STATUS_OK, $this->controllerForAWriteRecipient()->update(5)->getStatus());
+	}
+
 	public function testABillCannotTakeATagItsCreatorCannotSee(): void {
 		// Any id was stored, then read back with its name off the payments
 		$this->mockInput(json_encode(['name' => 'Gym', 'amount' => 30, 'tagIds' => [3, 42]]));

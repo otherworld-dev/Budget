@@ -2026,6 +2026,82 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_CREATED, $this->controller->createSplits(10)->getStatus());
 	}
 
+	// ── a write recipient and the owner's unshared categories ───────
+
+	/**
+	 * user1 sees categories below 16; 16 and up are owner2's, never shared.
+	 * The check is only made for someone writing into another's ledger.
+	 */
+	private function writerSees(): void {
+		$this->granularShareService->method('requireCategoryVisibleToWriter')->willReturnCallback(
+			function (string $owner, string $writer, ?int $categoryId, array $kept = []): void {
+				if ($categoryId === null || $writer === $owner || in_array($categoryId, $kept, true)) {
+					return;
+				}
+				if ($categoryId >= 16) {
+					throw new \InvalidArgumentException('Category not found');
+				}
+			}
+		);
+	}
+
+	public function testAnEditCannotFileASharedRowUnderAnUnsharedCategory(): void {
+		$this->writerSees();
+		$this->existing(['accountId' => 9], 'owner2');
+		$this->params = ['category_id' => 16];
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->editor()->update(10);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Category not found', $response->getData()['error']);
+	}
+
+	public function testAnEditKeepsTheCategoryARowAlreadyHas(): void {
+		$this->writerSees();
+		$this->existing(['accountId' => 9, 'categoryId' => 16], 'owner2');
+		$this->params = ['category_id' => 16, 'notes' => 'checked'];
+		$this->service->expects($this->once())->method('update')->willReturn($this->transaction());
+
+		$this->assertSame(Http::STATUS_OK, $this->editor()->update(10)->getStatus());
+	}
+
+	public function testACaptureOnASharedAccountLeavesOffACategoryTheCallerCannotSee(): void {
+		$this->writerSees();
+		$owner = new Account();
+		$owner->setUserId('owner2');
+		$this->service->method('findAccountById')->willReturn($owner);
+		$this->service->expects($this->once())->method('create')
+			->with('owner2', 9, $this->anything(), $this->anything(), $this->anything(), $this->anything(), null)
+			->willReturn($this->transaction());
+		$this->params = $this->captureParams(['account_id' => '9', 'category_id' => '16']);
+
+		$response = $this->controller->create();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+		$this->assertSame('Category not found', $response->getData()['category_error']);
+	}
+
+	public function testSplittingASharedRowIntoAnUnsharedCategoryIsRefused(): void {
+		$this->writerSees();
+		$this->existing(['accountId' => 9], 'owner2');
+		$this->splitService->method('getSplits')->willReturn([]);
+		$this->params = ['splits' => json_encode([['amount' => '30.00', 'category_id' => 16], ['amount' => '12.50']])];
+		$this->splitService->expects($this->never())->method('splitTransaction');
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $this->controller->createSplits(10)->getStatus());
+	}
+
+	public function testUnsplittingASharedRowToAnUnsharedCategoryIsRefused(): void {
+		$this->writerSees();
+		$this->existing(['accountId' => 9, 'isSplit' => true], 'owner2');
+		$this->splitService->method('getSplits')->willReturn([]);
+		$this->params = ['category_id' => 17];
+		$this->splitService->expects($this->never())->method('unsplitTransaction');
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $this->controller->unsplit(10)->getStatus());
+	}
+
 	public function testSplittingOnAReadOnlyShareIsForbidden(): void {
 		$this->existing(['accountId' => 9], 'owner2');
 		$this->readOnlyShare();

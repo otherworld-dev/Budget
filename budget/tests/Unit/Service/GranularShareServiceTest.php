@@ -238,6 +238,42 @@ class GranularShareServiceTest extends TestCase {
 	}
 
 	// =============================================
+	// a writer into someone else's ledger (V4 / D1 decision 3)
+	// =============================================
+
+	public function testAWriterMayUseACategoryTheyCanSee(): void {
+		// alice sees her own 1 and 2 and bob's 10, shared with her
+		$this->aliceSeesCategories([1, 2], [10]);
+
+		$this->service->requireCategoryVisibleToWriter('bob', 'alice', 10);
+		$this->service->requireCategoryVisibleToWriter('bob', 'alice', null);
+		$this->addToAssertionCount(2);
+	}
+
+	public function testAWriterCannotUseTheOwnersUnsharedCategory(): void {
+		// bob's category 11 was never shared with alice
+		$this->aliceSeesCategories([1, 2], [10]);
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('Category not found');
+		$this->service->requireCategoryVisibleToWriter('bob', 'alice', 11);
+	}
+
+	public function testACategoryTheRowAlreadyCarriesMayStay(): void {
+		$this->aliceSeesCategories([1, 2], [10]);
+
+		$this->service->requireCategoryVisibleToWriter('bob', 'alice', 11, [11, null]);
+		$this->addToAssertionCount(1);
+	}
+
+	public function testTheOwnerIsNotAskedAboutTheirOwnLedger(): void {
+		$this->categoryMapper->expects($this->never())->method('findAll');
+
+		$this->service->requireCategoryVisibleToWriter('alice', 'alice', 11);
+		$this->addToAssertionCount(1);
+	}
+
+	// =============================================
 	// usable tags (R6-2 / T4-6)
 	// =============================================
 

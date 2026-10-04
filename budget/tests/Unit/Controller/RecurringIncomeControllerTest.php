@@ -879,7 +879,35 @@ class RecurringIncomeControllerTest extends TestCase {
 				throw new \OCA\Budget\Exception\ReadOnlyShareException();
 			}
 		});
+		// Rita sees categories below 16; 16 and up are owen's, never shared
+		$shares->method('requireCategoryVisibleToWriter')->willReturnCallback(
+			function (string $owner, string $writer, ?int $categoryId, array $kept = []): void {
+				if ($categoryId !== null && $writer !== $owner && !in_array($categoryId, $kept, true) && $categoryId >= 16) {
+					throw new \InvalidArgumentException('Category not found');
+				}
+			}
+		);
 		return new RecurringIncomeController($this->request, $this->service, $this->validationService, $shares, $this->l, 'rita', $this->logger);
+	}
+
+	public function testARecipientCannotFileTheOwnersIncomeUnderAnUnsharedCategory(): void {
+		$this->service->method('find')->willReturn($this->owensIncomeOn(1));
+		$this->request->method('getParams')->willReturn(['categoryId' => 16]);
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controllerForRita()->update(1);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	public function testAnIncomeKeepsTheUnsharedCategoryItAlreadyHas(): void {
+		$income = $this->owensIncomeOn(1);
+		$income->setCategoryId(16);
+		$this->service->method('find')->willReturn($income);
+		$this->request->method('getParams')->willReturn(['categoryId' => 16, 'notes' => 'checked']);
+		$this->service->expects($this->once())->method('update')->willReturn(new RecurringIncome());
+
+		$this->assertSame(Http::STATUS_OK, $this->controllerForRita()->update(1)->getStatus());
 	}
 
 	private function owensIncomeOn(?int $accountId): RecurringIncome {

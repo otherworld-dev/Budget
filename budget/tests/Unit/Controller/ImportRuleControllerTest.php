@@ -759,6 +759,24 @@ class ImportRuleControllerTest extends TestCase {
 		$this->assertSame($results, $response->getData());
 	}
 
+	public function testApplyRefusesARuleIdThatIsNotAnId(): void {
+		// [null] reached the service's int parameter: a TypeError and a 500
+		$this->service->expects($this->never())->method('applyRulesToTransactions');
+		$this->service->expects($this->never())->method('previewRuleApplication');
+
+		foreach ([[null], ['x'], [1, [2]], [1.5], [-3]] as $ruleIds) {
+			$this->assertSame(Http::STATUS_BAD_REQUEST, $this->controller->apply($ruleIds)->getStatus());
+			$this->assertSame(Http::STATUS_BAD_REQUEST, $this->controller->preview($ruleIds)->getStatus());
+		}
+	}
+
+	public function testApplyAcceptsIdsSentAsStrings(): void {
+		$this->service->expects($this->once())->method('applyRulesToTransactions')
+			->with('user1', [2, 5], $this->anything())->willReturn([]);
+
+		$this->assertSame(Http::STATUS_OK, $this->controller->apply(['2', 5])->getStatus());
+	}
+
 	public function testApplyHandlesError(): void {
 		$this->service->method('applyRulesToTransactions')
 			->willThrowException(new \RuntimeException('error'));

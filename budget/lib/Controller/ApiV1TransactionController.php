@@ -426,6 +426,9 @@ class ApiV1TransactionController extends OCSController {
 				$categoryError = null;
 				try {
 					$this->requireOwnersCategory($effectiveUserId, $categoryId);
+					// On someone else's account it must be one the caller can
+					// see too, or the owner's unshared names came back by id
+					$this->granularShareService->requireCategoryVisibleToWriter($effectiveUserId, $this->userId, $categoryId);
 				} catch (\InvalidArgumentException $e) {
 					$categoryError = $e->getMessage();
 					$categoryId = null;
@@ -690,6 +693,12 @@ class ApiV1TransactionController extends OCSController {
 			// receipts — a write on a shared account must not scope to the
 			// acting user, or it lands in the wrong ledger (see #333/#334).
 			[$transaction, $ownerId] = $this->findWritable($id);
+			if ($ownerId !== $this->userId) {
+				$kept = $this->categoriesOn($transaction, $ownerId);
+				foreach ($splits as $split) {
+					$this->granularShareService->requireCategoryVisibleToWriter($ownerId, $this->userId, $split['categoryId'] ?? null, $kept);
+				}
+			}
 			$created = $this->splitService->splitTransaction($id, $ownerId, $splits);
 
 			return new DataResponse(['splits' => ApiSerializer::splits($created, $this->currencyOf($transaction->getAccountId()))], Http::STATUS_CREATED);
@@ -852,6 +861,11 @@ class ApiV1TransactionController extends OCSController {
 
 			if (array_key_exists('categoryId', $updates)) {
 				$this->requireOwnersCategory($ownerId, $updates['categoryId']);
+				// The category it already has may stay; a new one must be one
+				// the caller can see
+				$this->granularShareService->requireCategoryVisibleToWriter(
+					$ownerId, $this->userId, $updates['categoryId'], [$transaction->getCategoryId()]
+				);
 			}
 
 			$updated = $this->service->update($id, $ownerId, $updates);
@@ -912,6 +926,11 @@ class ApiV1TransactionController extends OCSController {
 		try {
 			[$transaction, $ownerId] = $this->findWritable($id);
 			if ($transaction->getIsSplit()) {
+				if ($ownerId !== $this->userId) {
+					$this->granularShareService->requireCategoryVisibleToWriter(
+						$ownerId, $this->userId, $categoryId, $this->categoriesOn($transaction, $ownerId)
+					);
+				}
 				$transaction = $this->splitService->unsplitTransaction($id, $ownerId, $categoryId);
 			}
 
@@ -948,6 +967,20 @@ class ApiV1TransactionController extends OCSController {
 		$this->accountCurrencies[$accountId] = $account->getCurrency();
 
 		return [$transaction, $account->getUserId()];
+	}
+
+	/**
+	 * The categories a transaction carries now, its own and its parts'; the
+	 * caller may keep these on it even when one was never shared with them.
+	 *
+	 * @return array<int|null>
+	 */
+	private function categoriesOn(Transaction $transaction, string $ownerId): array {
+		$ids = [$transaction->getCategoryId()];
+		foreach ($this->splitService->getSplits((int)$transaction->getId(), $ownerId) as $part) {
+			$ids[] = $part->getCategoryId();
+		}
+		return $ids;
 	}
 
 	/**
