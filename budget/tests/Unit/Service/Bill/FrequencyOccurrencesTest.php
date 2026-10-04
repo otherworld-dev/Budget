@@ -125,6 +125,49 @@ class FrequencyOccurrencesTest extends TestCase {
 		$this->assertSame('2026-11-15', $this->calc->calculateNextDueDate('semi-monthly', 15, null, '2026-10-30', null, true));
 	}
 
+	/** @return array<string, array{0: string, 1: ?int, 2: ?int, 3: string, 4: string, 5: string}> */
+	public static function datesSavedBefore30(): array {
+		// [frequency, day, month, start date, date 2.54.0 saved, next date]
+		return [
+			// No day: 2.54.0 used the 1st. November's payment is the 20th's
+			'monthly, no day' => ['monthly', null, null, '2026-03-20', '2026-11-01', '2026-12-20'],
+			// No day or month: 1 January, the year's payment
+			'yearly, no day or month' => ['yearly', null, null, '2025-03-14', '2027-01-01', '2028-03-14'],
+			'yearly, no month' => ['yearly', 14, null, '2025-03-14', '2027-01-14', '2028-03-14'],
+			'yearly, no day' => ['yearly', null, 3, '2025-03-14', '2027-03-01', '2028-03-14'],
+			// No month: the first month of the calendar quarter, that
+			// quarter's payment
+			'quarterly from February' => ['quarterly', null, null, '2026-02-14', '2026-10-01', '2027-02-14'],
+			'quarterly from March' => ['quarterly', null, null, '2026-03-14', '2026-10-01', '2027-03-14'],
+			'quarterly, no day' => ['quarterly', null, 2, '2026-02-14', '2026-11-01', '2027-02-14'],
+			// No month: January and July, that half-year's payment
+			'half-yearly' => ['semi-annually', null, null, '2026-03-14', '2026-07-01', '2027-03-14'],
+			// No day: the 1st and the 16th, the month's first and second
+			'semi-monthly first' => ['semi-monthly', null, null, '2026-01-20', '2026-11-01', '2026-11-20'],
+			'semi-monthly second' => ['semi-monthly', null, null, '2026-01-20', '2026-11-16', '2026-12-05'],
+			'semi-monthly second, early day' => ['semi-monthly', null, null, '2026-01-10', '2026-11-16', '2026-12-10'],
+			// Dates past their period's occurrence advance as before. 2.54.0
+			// moved a quarterly bill on the 31st from 31 January to 31 May,
+			// which is April's payment, late
+			'late quarterly' => ['quarterly', 31, 1, '2026-01-31', '2026-05-31', '2026-07-31'],
+			// The 28th was October's second payment of a bill on the 20th
+			'late semi-monthly' => ['semi-monthly', 20, null, '2026-01-20', '2026-10-28', '2026-11-05'],
+			// A weekly bill realigns on its start date's week instead
+			'weekly' => ['weekly', null, null, '2026-09-07', '2026-10-01', '2026-10-05'],
+			// A date on the schedule is untouched
+			'on the schedule' => ['monthly', null, null, '2026-03-20', '2026-11-20', '2026-12-20'],
+		];
+	}
+
+	#[DataProvider('datesSavedBefore30')]
+	public function testADateSavedBefore30CountsAsItsPeriodsOccurrence(string $frequency, ?int $day, ?int $month,
+		string $start, string $saved, string $next): void {
+		// 2.54.0 put a schedule with no day or month on the 1st or in
+		// January; 3.0 takes them from the start date. Paying 1 November moved
+		// the bill to 20 November, and auto-pay paid November twice
+		$this->assertSame($next, $this->calc->calculateNextDueDate($frequency, $day, $month, $saved, null, true, $start));
+	}
+
 	public function testOccurrenceBeforeIsTheLastOneEarlier(): void {
 		$this->assertSame('2026-10-15', $this->calc->occurrenceBefore('monthly', 15, null, '2026-11-15'));
 		$this->assertSame('2026-02-28', $this->calc->occurrenceBefore('monthly', 31, null, '2026-03-31'));

@@ -437,6 +437,37 @@ class BillLifecycleTest extends TestCase {
 		$this->assertSame('2026-11-20', $this->stored->getNextDueDate());
 	}
 
+	public function testPayingADateSavedBefore30SettlesItsMonth(): void {
+		// 2.54.0 saved a bill with no day on the 1st. Paying 1 October moved
+		// it to 20 October, so October was paid twice
+		$this->bill(['dueDay' => null, 'startDate' => '2026-03-20', 'nextDueDate' => '2026-10-01']);
+
+		$this->service->markPaid(1, 'user1', self::TODAY, false);
+
+		$this->assertSame('2026-11-20', $this->stored->getNextDueDate());
+	}
+
+	public function testSkippingADateSavedBefore30SkipsItsMonth(): void {
+		$this->bill(['dueDay' => null, 'startDate' => '2026-03-20', 'nextDueDate' => '2026-10-01']);
+
+		$this->service->skipPayment(1, 'user1');
+
+		$this->assertSame('2026-11-20', $this->stored->getNextDueDate());
+	}
+
+	public function testAutoPayPaysAMonthSavedBefore30Once(): void {
+		// Auto-pay booked 1 September and 20 September for one monthly bill
+		$bill = $this->bill(['dueDay' => null, 'startDate' => '2026-03-20', 'nextDueDate' => '2026-09-01']);
+		$bill->setAutoPayEnabled(true);
+
+		$result = $this->service->processAutoPay(1, 'user1');
+
+		$payments = array_values(array_filter($this->calls, fn (string $c) => str_starts_with($c, 'create:20')));
+		$this->assertSame(['create:2026-09-01'], $payments);
+		$this->assertSame(1, $result['count']);
+		$this->assertSame('2026-10-20', $this->stored->getNextDueDate());
+	}
+
 	public function testAutoPayCatchesUpEveryOwedOccurrenceOnItsOwnDate(): void {
 		// A weekly bill three weeks behind paid one occurrence per run, every
 		// row dated the day of the run
