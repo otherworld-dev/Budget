@@ -591,14 +591,17 @@ class ImportService {
 	 * against previously imported data still works); repeats get an _occN
 	 * suffix, which also dedups correctly when the same file is re-imported.
 	 * OFX FITIDs pass through untouched: a repeated FITID genuinely is the
-	 * same transaction.
+	 * same transaction. QIF has no ids of its own: QifParser makes one from
+	 * the row's content, so its repeats are counted like a content hash's,
+	 * or two identical purchases imported as one (R5-7).
 	 *
 	 * @param string $baseId Import ID from TransactionNormalizer::generateImportId
 	 * @param int|string $accountKey Destination account discriminator for the counter
 	 * @param array &$counts Per-import occurrence counter, keyed by account + base ID
+	 * @param bool $contentId The base ID is built from the row's content, whatever its prefix
 	 */
-	private function occurrenceAwareImportId(string $baseId, int|string $accountKey, array &$counts): string {
-		if (!str_starts_with($baseId, 'hash_')) {
+	private function occurrenceAwareImportId(string $baseId, int|string $accountKey, array &$counts, bool $contentId = false): string {
+		if (!$contentId && !str_starts_with($baseId, 'hash_')) {
 			return $baseId;
 		}
 		$key = $accountKey . '|' . $baseId;
@@ -782,7 +785,8 @@ class ImportService {
 					$importId = $this->occurrenceAwareImportId(
 						$this->normalizer->generateImportId('preview', $sourceId . '_' . $index, $this->normalizer->ofxImportIdentity($txn)),
 						(int)$destAccountId,
-						$hashCounts
+						$hashCounts,
+						$format === 'qif'
 					);
 					// Within-batch repeats of non-hash IDs (e.g. a repeated OFX
 					// FITID = the same transaction twice in one file) are
@@ -1294,7 +1298,8 @@ class ImportService {
 						$importId = $this->occurrenceAwareImportId(
 							$this->normalizer->generateImportId($fileId, $sourceId . '_' . $index, $this->normalizer->ofxImportIdentity($txn)),
 							(int)$destAccountId,
-							$hashCounts
+							$hashCounts,
+							$format === 'qif'
 						);
 
 						if ($skipDuplicates && $this->duplicateDetector->isDuplicateByImportId((int)$destAccountId, $importId)) {

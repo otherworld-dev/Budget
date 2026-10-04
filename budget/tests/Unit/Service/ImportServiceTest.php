@@ -1028,6 +1028,84 @@ class ImportServiceTest extends TestCase {
 		$this->assertSame(['hash_abc', 'hash_abc_occ2'], $checkedIds);
 	}
 
+	/**
+	 * QIF has no transaction ids: the parser makes one from the row's content,
+	 * so two identical purchases got one id and the second was skipped as a
+	 * duplicate. The second occurrence now gets an _occ2 suffix like a CSV
+	 * row does; the first keeps exactly the id it had, so files imported
+	 * before still dedupe (R5-7).
+	 */
+	private function mockQifFileWithTwins(): void {
+		$this->mockImportFile('import_user1_0123456789abcdef0123456789abcdef.qif', 'qif data');
+		$this->parserFactory->method('detectFormat')->willReturn('qif');
+		$twin = ['date' => '2026-09-16', 'rawAmount' => -2.20, 'amount' => 2.20, 'description' => 'Twin', 'id' => 'qif_0123'];
+		$this->parserFactory->method('parseFull')->willReturn([
+			'accounts' => [['accountId' => 'Account 1', 'transactions' => [$twin, $twin]]],
+		]);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount(7, 'Checking'));
+		$this->normalizer->method('mapOfxTransaction')->willReturn([
+			'date' => '2026-09-16', 'amount' => 2.20, 'type' => 'debit', 'description' => 'Twin',
+		]);
+		$this->normalizer->method('ofxImportIdentity')->willReturnArgument(0);
+		$this->normalizer->method('generateImportId')->willReturn('ofx_fitid_qif_0123');
+		$this->ruleApplicator->method('applyRules')->willReturnArgument(1);
+	}
+
+	public function testTwoIdenticalQifRowsBothImport(): void {
+		$this->mockQifFileWithTwins();
+		$checked = [];
+		$this->duplicateDetector->method('isDuplicateByImportId')
+			->willReturnCallback(function ($accountId, $importId) use (&$checked) {
+				$checked[] = $importId;
+				return false;
+			});
+		$created = [];
+		$this->transactionService->method('create')->willReturnCallback(function (...$args) use (&$created) {
+			$created[] = $args[10];
+			$tx = new Transaction();
+			$tx->setId(count($created));
+			return $tx;
+		});
+
+		$result = $this->service->processImport('user1', 'import_user1_0123456789abcdef0123456789abcdef.qif', [], null, ['Account 1' => 7]);
+
+		$this->assertSame(2, $result['imported']);
+		$this->assertSame(['ofx_fitid_qif_0123', 'ofx_fitid_qif_0123_occ2'], $created);
+	}
+
+	public function testPreviewShowsBothIdenticalQifRows(): void {
+		$this->mockQifFileWithTwins();
+		$this->duplicateDetector->method('isDuplicate')->willReturn(false);
+
+		$result = $this->service->previewImport('user1', 'import_user1_0123456789abcdef0123456789abcdef.qif', [], null, ['Account 1' => 7]);
+
+		$this->assertSame(2, $result['validTransactions']);
+		$this->assertSame(0, $result['duplicates']);
+	}
+
+	public function testARepeatedOfxFitidIsStillOneTransaction(): void {
+		// A bank's own FITID is the transaction's identity: a repeat in one
+		// OFX file is the same transaction, as before
+		$this->mockImportFile('import_user1_0123456789abcdef0123456789abcdef.ofx', 'ofx data');
+		$this->parserFactory->method('detectFormat')->willReturn('ofx');
+		$row = ['date' => '2026-09-16', 'rawAmount' => -2.20, 'description' => 'Twin', 'id' => 'FIT1'];
+		$this->parserFactory->method('parseFull')->willReturn([
+			'accounts' => [['accountId' => '1234567', 'transactions' => [$row, $row]]],
+		]);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount(7, 'Checking'));
+		$this->normalizer->method('mapOfxTransaction')->willReturn([
+			'date' => '2026-09-16', 'amount' => 2.20, 'type' => 'debit', 'description' => 'Twin',
+		]);
+		$this->normalizer->method('generateImportId')->willReturn('ofx_fitid_FIT1');
+		$this->duplicateDetector->method('isDuplicate')->willReturn(false);
+		$this->ruleApplicator->method('applyRules')->willReturnArgument(1);
+
+		$result = $this->service->previewImport('user1', 'import_user1_0123456789abcdef0123456789abcdef.ofx', [], null, ['1234567' => 7]);
+
+		$this->assertSame(1, $result['validTransactions']);
+		$this->assertSame(1, $result['duplicates']);
+	}
+
 	// ===== OFX/QIF column mapping (#338) =====
 
 	/**
