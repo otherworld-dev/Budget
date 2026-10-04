@@ -834,6 +834,100 @@ class RecurringIncomeControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
 	}
 
+	// ── the account an income books into ────────────────────────────
+
+	/**
+	 * Owen shares his income 1 and his joint account 1 with Rita, both at
+	 * write. Owen's private account 2 was never shared with her, and Owen
+	 * can't post to Rita's own account 9.
+	 */
+	private function controllerForRita(): RecurringIncomeController {
+		$writable = ['rita' => [1, 9], 'owen' => [1, 2]];
+		$shares = $this->createMock(GranularShareService::class);
+		$shares->method('canAccess')->willReturn(true);
+		$shares->method('resolveOwner')->willReturnCallback(
+			fn (string $user, string $type, int $id) => ($type === 'account' && $id === 9) ? 'rita' : 'owen'
+		);
+		$shares->method('canWrite')->willReturnCallback(
+			fn (string $user, string $type, int $id) => $type !== 'account' || in_array($id, $writable[$user] ?? [], true)
+		);
+		$shares->method('requireWriteAccess')->willReturnCallback(function (string $user, string $type, int $id) use ($writable): void {
+			if ($type === 'account' && !in_array($id, $writable[$user] ?? [], true)) {
+				throw new \OCA\Budget\Exception\ReadOnlyShareException();
+			}
+		});
+		return new RecurringIncomeController($this->request, $this->service, $this->validationService, $shares, $this->l, 'rita', $this->logger);
+	}
+
+	private function owensIncomeOn(?int $accountId): RecurringIncome {
+		$income = new RecurringIncome();
+		$income->setId(1);
+		$income->setUserId('owen');
+		$income->setAccountId($accountId);
+		return $income;
+	}
+
+	public function testARecipientCannotPointTheOwnersIncomeAtAnAccountNeverSharedWithHer(): void {
+		$this->service->method('find')->willReturn($this->owensIncomeOn(1));
+		$this->request->method('getParams')->willReturn(['accountId' => 2]);
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controllerForRita()->update(1);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	public function testARecipientCannotMoveTheOwnersIncomeOntoAnAccountOnlySheCanUse(): void {
+		$this->service->method('find')->willReturn($this->owensIncomeOn(1));
+		$this->request->method('getParams')->willReturn(['accountId' => 9]);
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controllerForRita()->update(1);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame("The owner of this income can't use that account. Choose another one.", $response->getData()['error']);
+	}
+
+	public function testARecipientMayMoveTheIncomeToAnAccountTheyBothUse(): void {
+		$this->service->method('find')->willReturn($this->owensIncomeOn(null));
+		$this->request->method('getParams')->willReturn(['accountId' => 1]);
+		$this->service->expects($this->once())->method('update')->with(1, 'owen', ['accountId' => 1])->willReturn(new RecurringIncome());
+
+		$response = $this->controllerForRita()->update(1);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testTheStoredAccountKeepsSavingWhateverItIs(): void {
+		// The form sends back what is stored, shared with the editor or not
+		$this->service->method('find')->willReturn($this->owensIncomeOn(2));
+		$this->request->method('getParams')->willReturn(['name' => 'Salary', 'accountId' => 2]);
+		$this->service->expects($this->once())->method('update')->willReturn(new RecurringIncome());
+
+		$response = $this->controllerForRita()->update(1);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testNewIncomeCannotBookIntoAnAccountTheUserCannotWriteTo(): void {
+		$this->service->expects($this->never())->method('create');
+
+		$response = $this->controllerForRita()->create('Salary', 10.0, accountId: 2);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	public function testDetectedIncomeCannotBookIntoAnAccountTheUserCannotWriteTo(): void {
+		$this->request->method('getParams')->willReturn(['incomes' => [
+			['suggestedName' => 'Salary', 'amount' => 2000, 'frequency' => 'monthly', 'accountId' => 2],
+		]]);
+		$this->service->expects($this->never())->method('createFromDetected');
+
+		$response = $this->controllerForRita()->createFromDetected();
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
 	// ── createFromDetected ──────────────────────────────────────────
 
 	private function controllerValidatingFor(): RecurringIncomeController {
