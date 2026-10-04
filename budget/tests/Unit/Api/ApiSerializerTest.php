@@ -444,6 +444,20 @@ class ApiSerializerTest extends TestCase {
 		], array_keys(ApiSerializer::budgetLine([])));
 	}
 
+	public function testBudgetStatusRemainingIsBudgetedLessSpentAsShown(): void {
+		// Converted spending carries fractions: rounding the three totals on
+		// their own gave 1746.42 against the page's 3106.67 - 1360.24
+		$result = ApiSerializer::budgetStatus([
+			'month' => '2026-10',
+			'currency' => 'EUR',
+			'totals' => ['budgeted' => '3106.666667', 'spent' => '1360.244000', 'remaining' => '1746.422667'],
+		]);
+
+		$this->assertSame('3106.67', $result['totals']['budgeted']);
+		$this->assertSame('1360.24', $result['totals']['spent']);
+		$this->assertSame('1746.43', $result['totals']['remaining']);
+	}
+
 	public function testBudgetStatusAmountsAreMoneyStrings(): void {
 		$result = ApiSerializer::budgetStatus([
 			'month' => '2026-09',

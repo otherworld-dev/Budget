@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Api;
 
 use OCA\Budget\Enum\Currency;
+use OCA\Budget\Service\MoneyCalculator;
 use OCP\AppFramework\Db\Entity;
 
 /**
@@ -287,6 +288,8 @@ final class ApiSerializer {
 	public static function budgetStatus(array $status): array {
 		$totals = $status['totals'] ?? [];
 		$currency = $status['currency'] ?? null;
+		$budgeted = self::money($totals['budgeted'] ?? 0, $currency);
+		$spent = self::money($totals['spent'] ?? 0, $currency);
 
 		return [
 			'month' => (string)($status['month'] ?? ''),
@@ -294,9 +297,15 @@ final class ApiSerializer {
 			'end_date' => $status['endDate'] ?? null,
 			'currency' => $currency,
 			'totals' => [
-				'budgeted' => self::money($totals['budgeted'] ?? 0, $currency),
-				'spent' => self::money($totals['spent'] ?? 0, $currency),
-				'remaining' => self::money($totals['remaining'] ?? 0, $currency),
+				'budgeted' => $budgeted,
+				'spent' => $spent,
+				// From the two figures as shown, as the Budget page works it
+				// out, so the three always add up: rounding each total on its
+				// own left Remaining a penny off Budgeted - Spent
+				'remaining' => self::money(
+					MoneyCalculator::subtract($budgeted, $spent, max(2, Currency::decimalsFor($currency))),
+					$currency
+				),
 			],
 			'categories' => array_values(array_map(
 				static fn (array $line): array => self::budgetLine($line, $currency),
