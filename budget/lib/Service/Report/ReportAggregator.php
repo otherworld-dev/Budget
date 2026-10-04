@@ -470,6 +470,7 @@ class ReportAggregator {
 		$incomeCategoryIds = [];
 		$resolvedBudgets = [];
 		$resolvedBases = [];
+		$resolvedPeriods = [];
 		$notBudgeted = BudgetScope::excludedCategoryIds($categories);
 		// The whole branch under a category kept out of reports, as the
 		// Budget page drops it, not just the flagged category itself
@@ -479,13 +480,18 @@ class ReportAggregator {
 				continue;
 			}
 			$catId = $category->getId();
+			// The period the budget is set for: the month's adjustment's, as
+			// its amount is, else the category's
+			$period = isset($snapshotOverrides[$catId])
+				? (string)($snapshotOverrides[$catId]['period'] ?? 'monthly')
+				: ($category->getBudgetPeriod() ?? 'monthly');
 			$budgeted = isset($snapshotOverrides[$catId])
 				? (float)($snapshotOverrides[$catId]['amount'] ?? 0)
 				: (float)($category->getBudgetAmount() ?? 0);
 			if ($budgeted <= 0 && isset($recurringBudgets[$catId])) {
 				$budgeted = $this->recurringBudgetService->convertMonthlyToPeriod(
 					(float)$recurringBudgets[$catId],
-					$category->getBudgetPeriod() ?? 'monthly'
+					$period
 				);
 			}
 			$carried = (float)($carryovers[$catId] ?? 0);
@@ -498,6 +504,7 @@ class ReportAggregator {
 				}
 				$resolvedBases[$catId] = $budgeted;
 				$resolvedBudgets[$catId] = round($budgeted + $carried, 2);
+				$resolvedPeriods[$catId] = $period;
 			}
 		}
 
@@ -555,6 +562,10 @@ class ReportAggregator {
 					'categoryName' => $category->getName(),
 					'type' => $isIncome ? 'income' : 'expense',
 					'budgeted' => $budgeted,
+					// What 'budgeted' is a budget for: a weekly or yearly
+					// amount is not one month's, so the dashboard's Budget
+					// remaining prorates it as the Budget page's summary does
+					'period' => $resolvedPeriods[$categoryId],
 					'baseBudget' => $resolvedBases[$categoryId],
 					'carried' => round($budgeted - $resolvedBases[$categoryId], 2),
 					'spent' => $spent,

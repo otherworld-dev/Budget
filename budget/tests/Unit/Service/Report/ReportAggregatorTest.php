@@ -721,6 +721,24 @@ class ReportAggregatorTest extends TestCase {
 		$this->assertSame([1, 2, 3, 4], $asked);
 	}
 
+	public function testBudgetReportSaysWhichPeriodEachBudgetIsFor(): void {
+		// Insurance is yearly; Transport is monthly but this month's
+		// adjustment made it weekly
+		$insurance = $this->makeCategory(1, 'Insurance', 'expense');
+		$insurance->setBudgetAmount(600.0);
+		$insurance->setBudgetPeriod('yearly');
+		$transport = $this->makeCategory(2, 'Transport', 'expense');
+		$transport->setBudgetAmount(200.0);
+		$this->categoryMapper->method('findAll')->willReturn([$insurance, $transport]);
+		$this->budgetSnapshotMapper->method('findEffectiveBatch')->willReturn([2 => ['amount' => 50.0, 'period' => 'weekly']]);
+		$this->transactionMapper->method('getCategorySpendingBatch')->willReturn([]);
+
+		$result = $this->aggregator->getBudgetReport('user1', '2026-09-01', '2026-09-30');
+
+		$this->assertSame(['yearly', 'weekly'], array_column($result['categories'], 'period'));
+		$this->assertSame([600.0, 50.0], array_column($result['categories'], 'budgeted'));
+	}
+
 	public function testBudgetReportLeavesOutABudgetUnderAParentKeptOutOfReports(): void {
 		// The Budget page drops Business and everything under it, so the
 		// dashboard's budget tiles must not count Travel's budget either
