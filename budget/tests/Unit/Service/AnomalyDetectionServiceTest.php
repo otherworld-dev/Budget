@@ -17,7 +17,7 @@ use PHPUnit\Framework\TestCase;
 class TestableAnomalyDetectionService extends AnomalyDetectionService {
 	public string $now = '2026-06-20';
 
-	protected function getNow(): \DateTimeImmutable {
+	protected function getNow(?string $userId = null): \DateTimeImmutable {
 		return new \DateTimeImmutable($this->now);
 	}
 }

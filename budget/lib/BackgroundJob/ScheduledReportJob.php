@@ -7,6 +7,7 @@ namespace OCA\Budget\BackgroundJob;
 use OCA\Budget\BackgroundJob\Support\JobUsers;
 use OCA\Budget\Service\Report\ScheduledReportService;
 use OCA\Budget\Service\SettingService;
+use OCA\Budget\Service\UserClock;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\TimedJob;
 use OCP\IDBConnection;
@@ -36,12 +37,17 @@ class ScheduledReportJob extends TimedJob {
 		$settingService = Server::get(SettingService::class);
 		$reportService = Server::get(ScheduledReportService::class);
 		$logger = Server::get(LoggerInterface::class);
+		$clock = Server::get(UserClock::class);
 
-		$targetMonth = date('Y-m', strtotime('first day of last month'));
 		$delivered = 0;
+		$deliveredMonths = [];
 
 		foreach ($this->getEligibleUserIds($db) as $userId) {
 			try {
+				// Last month on the user's calendar, not the server's: on the
+				// server's UTC date a user west of Greenwich got the month's
+				// report hours before the month had ended for them
+				$targetMonth = $clock->now($userId)->modify('first day of last month')->format('Y-m');
 				if ($settingService->get($userId, 'report_last_month') === $targetMonth) {
 					continue;
 				}
@@ -55,6 +61,7 @@ class ScheduledReportJob extends TimedJob {
 				if ($reportService->deliverMonthlyReport($userId, $targetMonth, $toFiles, $toEmail)) {
 					$settingService->set($userId, 'report_last_month', $targetMonth);
 					$delivered++;
+					$deliveredMonths[$targetMonth] = true;
 				} else {
 					$logger->warning("Scheduled report for {$userId} failed on all channels — will retry tomorrow", ['app' => 'budget']);
 				}
@@ -63,7 +70,8 @@ class ScheduledReportJob extends TimedJob {
 			}
 		}
 
-		$logger->info("Scheduled report job completed: {$delivered} reports delivered for {$targetMonth}", ['app' => 'budget']);
+		$months = implode(', ', array_keys($deliveredMonths)) ?: 'no month';
+		$logger->info("Scheduled report job completed: {$delivered} reports delivered for {$months}", ['app' => 'budget']);
 	}
 
 	/**
