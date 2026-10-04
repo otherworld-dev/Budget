@@ -41,6 +41,7 @@ class AccountClosureService {
 		private ImportRuleMapper $importRuleMapper,
 		private IL10N $l,
 		private ?TransactionService $transactionService = null,
+		private ?UserClock $userClock = null,
 	) {
 	}
 
@@ -65,7 +66,11 @@ class AccountClosureService {
 			));
 		}
 
-		if ($this->transactionMapper->hasRowsAfterDate((int)$account->getId(), date('Y-m-d'))) {
+		// After today on the account owner's calendar, not the server's: in
+		// Sydney a row dated today counted as after today until mid-morning,
+		// and in Los Angeles one dated tomorrow no longer did by the evening
+		$today = $this->userClock?->today((string)$account->getUserId()) ?? date('Y-m-d');
+		if ($this->transactionMapper->hasRowsAfterDate((int)$account->getId(), $today)) {
 			throw new \InvalidArgumentException($this->l->t(
 				'This account still has transactions dated after today. Delete or move them, then close it.'
 			));

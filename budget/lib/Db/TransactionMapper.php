@@ -2263,9 +2263,12 @@ class TransactionMapper extends QBMapper {
 	}
 
 	/**
-	 * Whether the account holds any real transaction dated after $afterDate.
-	 * Scheduled placeholders are not counted, matching getNetChangeAfterDate():
-	 * they belong to their bill, which the closure guard checks on its own (#372).
+	 * Whether the account holds any transaction booked for after $afterDate.
+	 * A bill's pre-booked payment (scheduled, with a bill) is not counted:
+	 * it belongs to its bill, which the closure guard checks on its own
+	 * (#372). Every other scheduled row is: a purchase entered for next week
+	 * is stored as scheduled, and skipping it let a zero-balance account
+	 * close and go negative when the row cleared.
 	 */
 	public function hasRowsAfterDate(int $accountId, string $afterDate): bool {
 		$qb = $this->db->getQueryBuilder();
@@ -2276,7 +2279,8 @@ class TransactionMapper extends QBMapper {
 			->andWhere(
 				$qb->expr()->orX(
 					$qb->expr()->neq('t.status', $qb->createNamedParameter('scheduled')),
-					$qb->expr()->isNull('t.status')
+					$qb->expr()->isNull('t.status'),
+					$qb->expr()->isNull('t.bill_id')
 				)
 			);
 
@@ -2905,10 +2909,19 @@ class TransactionMapper extends QBMapper {
 	}
 
 	/**
-	 * Direct (non-split) debit spending per category per bucket over a date
+	 * Direct (non-split) NET spending per category per bucket over a date
 	 * range, in one query. Bucket is the calendar month (YYYY-MM) by default,
 	 * or the exact date (YYYY-MM-DD) with $byDay — used by the budget
 	 * carryover chain when a custom budget start day shifts period bounds.
+	 *
+	 * Netted as the Budget page nets its Spent figures (getSpendingSummary
+	 * with netOpposite): a credit filed under the category takes its amount
+	 * back off, so a refund reduces what was spent and the two legs of a
+	 * transfer filed under one category cancel out. Summing debits alone
+	 * made the envelope carry a different amount than the page showed as
+	 * left: a refunded purchase counted in full, and a monthly transfer to
+	 * savings filed under a Savings category overspent the envelope by the
+	 * whole transfer every month.
 	 *
 	 * @return array<int, array<string, float>> categoryId => bucket => total
 	 */
@@ -2919,13 +2932,12 @@ class TransactionMapper extends QBMapper {
 
 		$qb->select('t.category_id')
 			->selectAlias($qb->createFunction($bucketExpr), 'bucket')
-			->selectAlias($qb->func()->sum('t.amount'), 'total')
+			->selectAlias($qb->createFunction(ReportScope::signedAmountSum($qb, 'debit', 't.amount')), 'total')
 			->from($this->getTableName(), 't')
 			->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
 			->where($qb->expr()->isNotNull('t.category_id'))
 			->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
 			->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
-			->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
 			// Leave rows with split parts to the companion query — the
 			// direct/split partition directRowPredicate() explains (#360).
 			->andWhere(ReportScope::directRowPredicate($qb))

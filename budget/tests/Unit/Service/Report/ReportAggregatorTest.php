@@ -721,6 +721,44 @@ class ReportAggregatorTest extends TestCase {
 		$this->assertSame([1, 2, 3, 4], $asked);
 	}
 
+	public function testBudgetReportSaysWhichPeriodEachBudgetIsFor(): void {
+		// Insurance is yearly; Transport is monthly but this month's
+		// adjustment made it weekly
+		$insurance = $this->makeCategory(1, 'Insurance', 'expense');
+		$insurance->setBudgetAmount(600.0);
+		$insurance->setBudgetPeriod('yearly');
+		$transport = $this->makeCategory(2, 'Transport', 'expense');
+		$transport->setBudgetAmount(200.0);
+		$this->categoryMapper->method('findAll')->willReturn([$insurance, $transport]);
+		$this->budgetSnapshotMapper->method('findEffectiveBatch')->willReturn([2 => ['amount' => 50.0, 'period' => 'weekly']]);
+		$this->transactionMapper->method('getCategorySpendingBatch')->willReturn([]);
+
+		$result = $this->aggregator->getBudgetReport('user1', '2026-09-01', '2026-09-30');
+
+		$this->assertSame(['yearly', 'weekly'], array_column($result['categories'], 'period'));
+		$this->assertSame([600.0, 50.0], array_column($result['categories'], 'budgeted'));
+	}
+
+	public function testBudgetReportLeavesOutABudgetUnderAParentKeptOutOfReports(): void {
+		// The Budget page drops Business and everything under it, so the
+		// dashboard's budget tiles must not count Travel's budget either
+		$business = $this->makeCategory(1, 'Business', 'expense', null, true);
+		$travel = $this->makeCategory(2, 'Travel', 'expense', 1);
+		$travel->setBudgetAmount(100.0);
+		$food = $this->makeCategory(3, 'Food', 'expense');
+		$food->setBudgetAmount(300.0);
+		$this->categoryMapper->method('findAll')->willReturn([$business, $travel, $food]);
+		$this->budgetSnapshotMapper->method('findEffectiveBatch')->willReturn([]);
+		$this->transactionMapper->method('getCategorySpendingBatch')
+			->willReturnCallback(static fn (array $ids) => array_intersect_key([2 => 150.0, 3 => 65.0], array_flip($ids)));
+
+		$result = $this->aggregator->getBudgetReport('user1', '2026-09-01', '2026-09-30');
+
+		$this->assertSame([3], array_column($result['categories'], 'categoryId'));
+		$this->assertEqualsWithDelta(300.0, $result['totals']['budgeted'], 0.001);
+		$this->assertEqualsWithDelta(65.0, $result['totals']['spent'], 0.001);
+	}
+
 	// ===== getCategoryMonthlyReport (#288) =====
 
 	private function makeCategory(int $id, string $name, string $type, ?int $parentId = null, bool $excluded = false): \OCA\Budget\Db\Category {

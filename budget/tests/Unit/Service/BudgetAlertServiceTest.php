@@ -291,6 +291,26 @@ class BudgetAlertServiceTest extends TestCase {
 		$this->assertSame(3, $statuses[0]['categoryId']);
 	}
 
+	/**
+	 * The Budget page and the API's budget status drop a branch kept out of
+	 * reports whole. Alerts checked the subcategory's own flag only, so a
+	 * budgeted subcategory under such a parent raised a danger alert and
+	 * added its budget and spending to the widget's totals.
+	 */
+	public function testReportExcludedParentAlsoSilencesItsChildren(): void {
+		$business = $this->makeCategory(['id' => 1, 'name' => 'Business', 'budgetAmount' => 0.0]);
+		$business->setExcludedFromReports(true);
+		$travel = $this->makeCategory(['id' => 2, 'name' => 'Travel', 'parentId' => 1, 'budgetAmount' => 100.0]);
+		$food = $this->makeCategory(['id' => 3, 'name' => 'Food', 'budgetAmount' => 300.0]);
+		$this->setupMocksForBudgetStatus([$business, $travel, $food], 150.0);
+
+		$this->assertSame([3], array_column($this->service->getBudgetStatus(self::USER_ID), 'categoryId'));
+		$this->assertSame([], $this->service->getAlerts(self::USER_ID));
+		$summary = $this->service->getSummary(self::USER_ID);
+		$this->assertEqualsWithDelta(300.0, $summary['totalBudget'], 0.001);
+		$this->assertEqualsWithDelta(150.0, $summary['totalSpent'], 0.001);
+	}
+
 	// ===== A budget measures its branch (#551) =====
 
 	/**

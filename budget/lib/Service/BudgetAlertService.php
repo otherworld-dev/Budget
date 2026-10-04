@@ -45,6 +45,7 @@ class BudgetAlertService {
 		private AmountFormatter $amountFormatter,
 		private ?GranularShareService $granularShareService = null,
 		private ?UserClock $userClock = null,
+		private ?CurrencyTotals $currencyTotals = null,
 	) {
 		$this->categoryMapper = $categoryMapper;
 		$this->budgetSnapshotMapper = $budgetSnapshotMapper;
@@ -248,6 +249,8 @@ class BudgetAlertService {
 		$recurringBudgets = $this->recurringBudgetService->getMonthlyBudgetsByCategory($userId, $currentMonth);
 		$carryovers = $this->carryoverService->getCarryovers($userId, $currentMonth, $categories, $visibleAccountIds);
 		$notBudgeted = BudgetScope::excludedCategoryIds($categories);
+		// A whole branch kept out of reports, as the Budget page drops it
+		$outOfReports = BudgetScope::reportExcludedIds($categories);
 		$alertScope = $this->getAlertScope($userId);
 		$mutedCategories = $this->getMutedCategoryIds($userId);
 
@@ -258,7 +261,8 @@ class BudgetAlertService {
 		$resolvedBudgets = [];
 		$budgetedIds = [];
 		foreach ($categories as $category) {
-			if (!$this->isSpendingBudget($category) || isset($notBudgeted[$category->getId()])) {
+			if (!$this->isSpendingBudget($category) || isset($notBudgeted[$category->getId()])
+				|| isset($outOfReports[$category->getId()])) {
 				continue;
 			}
 			$resolved = $this->resolveEffectiveBudget($category, $snapshotOverrides, $recurringBudgets, $carryovers);
@@ -447,13 +451,15 @@ class BudgetAlertService {
 		$recurringBudgets = $this->recurringBudgetService->getMonthlyBudgetsByCategory($userId, $currentMonth);
 		$carryovers = $this->carryoverService->getCarryovers($userId, $currentMonth, $categories, $visibleAccountIds);
 		$notBudgeted = BudgetScope::excludedCategoryIds($categories);
+		$outOfReports = BudgetScope::reportExcludedIds($categories);
 
 		// Base budget > 0, or a non-zero envelope carryover (see getAlerts)
 		$categoriesWithBudgets = [];
 		$resolvedBudgets = [];
 		$budgetedIds = [];
 		foreach ($categories as $category) {
-			if (!$this->isSpendingBudget($category) || isset($notBudgeted[$category->getId()])) {
+			if (!$this->isSpendingBudget($category) || isset($notBudgeted[$category->getId()])
+				|| isset($outOfReports[$category->getId()])) {
 				continue;
 			}
 			$resolved = $this->resolveEffectiveBudget($category, $snapshotOverrides, $recurringBudgets, $carryovers);
@@ -688,7 +694,7 @@ class BudgetAlertService {
 
 		$spendingByPeriod = [];
 		foreach ($membersByPeriod as $period => $members) {
-			$spendingByPeriod[$period] = $this->transactionMapper->getCategorySpendingBatch(
+			$query = fn (?array $accountIds): array => $this->transactionMapper->getCategorySpendingBatch(
 				array_keys($members),
 				$periodRanges[$period]['start'],
 				$periodRanges[$period]['end'],
@@ -696,8 +702,12 @@ class BudgetAlertService {
 				null,
 				false,
 				$userId,
-				$visibleAccountIds
+				$accountIds
 			);
+			// In the base currency when the accounts hold more than one, as
+			// the Budget page's Spent is
+			$spendingByPeriod[$period] = $this->currencyTotals?->amountsInBase($userId, $visibleAccountIds, $query)
+				?? $query($visibleAccountIds);
 		}
 
 		$spent = [];

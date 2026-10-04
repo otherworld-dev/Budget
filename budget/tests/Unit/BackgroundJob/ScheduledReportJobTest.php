@@ -28,8 +28,15 @@ class ScheduledReportJobTest extends TestCase {
 	private array $writes = [];
 	/** @var array<int, mixed> values bound into the eligibility query */
 	private array $boundParams = [];
+	/** @var array<string, string> userId => that user's "now"; the real now otherwise */
+	private array $nowByUser = [];
 
 	protected function setUp(): void {
+		$clock = $this->createMock(\OCA\Budget\Service\UserClock::class);
+		$clock->method('now')->willReturnCallback(
+			fn (?string $userId) => new \DateTimeImmutable($this->nowByUser[$userId] ?? 'now')
+		);
+
 		$this->db = $this->createMock(IDBConnection::class);
 		$this->reportService = $this->createMock(ScheduledReportService::class);
 		$this->logger = $this->createMock(LoggerInterface::class);
@@ -50,6 +57,7 @@ class ScheduledReportJobTest extends TestCase {
 			[SettingService::class, $this->settingService],
 			[ScheduledReportService::class, $this->reportService],
 			[LoggerInterface::class, $this->logger],
+			[\OCA\Budget\Service\UserClock::class, $clock],
 		]);
 		\OC::$server = $container;
 
@@ -299,6 +307,31 @@ class ScheduledReportJobTest extends TestCase {
 			['alice', self::lastMonth(), true, false],
 			['bob', self::lastMonth(), false, true],
 		], $calls);
+	}
+
+	/**
+	 * "Last month" is each user's: on the server's UTC date, the evening of
+	 * the 31st in Los Angeles was already the 1st, and the month was
+	 * reported before it ended there.
+	 */
+	public function testLastMonthIsOnEachUsersCalendar(): void {
+		$this->givenEligibleUsers(['alice', 'bob']);
+		$this->settings['alice'] = ['report_files_enabled' => 'true'];
+		$this->settings['bob'] = ['report_files_enabled' => 'true'];
+		$this->nowByUser = [
+			'alice' => '2030-07-31 20:00 America/Los_Angeles',
+			'bob' => '2030-08-01 09:00 Australia/Sydney',
+		];
+		$calls = [];
+		$this->reportService->method('deliverMonthlyReport')
+			->willReturnCallback(function (string $userId, string $month) use (&$calls) {
+				$calls[$userId] = $month;
+				return true;
+			});
+
+		$this->invokeRun();
+
+		$this->assertSame(['alice' => '2030-06', 'bob' => '2030-07'], $calls);
 	}
 
 	// ── summary log ─────────────────────────────────────────────────

@@ -946,10 +946,12 @@ export default class DashboardModule {
         // Spending budgets only: an income target still to arrive is not
         // money left to spend
         const spending = budgetData.categories.filter(cat => cat.type !== 'income');
+        // A weekly, quarterly or yearly budget counts its share of the
+        // month, as the Budget page's Remaining card counts it: spent is
+        // this month's, and a yearly 600 is not 600 left this month
+        const monthsBudget = (cat) => formatters.prorateBudget(cat.budgeted || cat.budget || 0, cat.period || 'monthly', 'monthly');
         const totalRemaining = spending.reduce((sum, cat) => {
-            const budget = cat.budgeted || cat.budget || 0;
-            const spent = cat.spent || 0;
-            const remaining = budget - spent;
+            const remaining = monthsBudget(cat) - (cat.spent || 0);
             return sum + (remaining > 0 ? remaining : 0);
         }, 0);
 
@@ -958,11 +960,7 @@ export default class DashboardModule {
 
         const changeEl = document.getElementById('hero-budget-remaining-change');
         if (changeEl) {
-            const categoryCount = spending.filter(c => {
-                const budget = c.budgeted || c.budget || 0;
-                const spent = c.spent || 0;
-                return (budget - spent) > 0;
-            }).length;
+            const categoryCount = spending.filter(c => (monthsBudget(c) - (c.spent || 0)) > 0).length;
             changeEl.textContent = n('budget', '%n category under budget', '%n categories under budget', categoryCount);
         }
     }

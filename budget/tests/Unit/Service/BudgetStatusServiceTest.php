@@ -102,6 +102,21 @@ class BudgetStatusServiceTest extends TestCase {
 		$this->assertSame(['400.00', '431.20', '-31.20'], array_map(self::money(...), array_values($status['totals'])));
 	}
 
+	/**
+	 * A weekly 100 and a yearly 27.50 are 435.625 a month. Each turned
+	 * monthly and cut at six places they summed to 435.624999, so the total
+	 * came out a penny below the page's (4031.12 against 4031.13).
+	 */
+	public function testMixedPeriodTotalsAreExactNotAPennyShort(): void {
+		$this->tree = [self::cat(1, 'Rent'), self::cat(2, 'Groceries'), self::cat(3, 'Insurance')];
+		$this->budgets = [1 => self::budget(3595.5), 2 => self::budget(100, 'weekly'), 3 => self::budget(27.5, 'yearly')];
+		$this->spending['2026-10-01|2026-10-31|debit'] = [self::spent(1, 1450)];
+
+		$status = $this->service->forMonth('user1', '2026-10');
+
+		$this->assertSame(['4031.13', '1450.00', '2581.13'], array_map(self::money(...), array_values($status['totals'])));
+	}
+
 	public function testNoMonthMeansTheBudgetMonthRunningToday(): void {
 		$this->assertSame('2026-09', $this->service->forMonth('user1')['month']);
 	}

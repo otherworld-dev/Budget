@@ -14,6 +14,7 @@ use OCA\Budget\Enum\Currency;
 use OCA\Budget\Service\BudgetCarryoverService;
 use OCA\Budget\Service\BudgetScope;
 use OCA\Budget\Service\CurrencyConversionService;
+use OCA\Budget\Service\CurrencyTotals;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\MoneyCalculator;
 use OCA\Budget\Service\RecurringBudgetService;
@@ -51,6 +52,7 @@ class ReportAggregator {
 		private ?GranularShareService $granularShareService = null,
 		private ?CategoryMuteMapper $categoryMuteMapper = null,
 		private ?UserClock $userClock = null,
+		private ?CurrencyTotals $currencyTotals = null,
 	) {
 		$this->accountMapper = $accountMapper;
 		$this->transactionMapper = $transactionMapper;
@@ -167,9 +169,15 @@ class ReportAggregator {
 		}
 
 		// Get future transaction adjustments to calculate balance as of today
-		// (the user's: a purchase dated it is already in the stored balance)
+		// (the user's: a purchase dated it is already in the stored balance),
+		// for the accounts in view: looked up by the viewer's own accounts, a
+		// shared account kept its future-dated rows for the person it is
+		// shared with, and showed less than the owner and the Accounts page
 		$today = $this->userClock?->today($userId) ?? date('Y-m-d');
-		$futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
+		$futureChanges = $this->transactionMapper->getNetChangeAfterDateForAccounts(
+			array_map(static fn ($a) => (int)$a->getId(), $accounts),
+			$today
+		);
 
 		// Money accumulates through MoneyCalculator, never float += (#274),
 		// and the totals are rounded to the currency they are in: the base
@@ -462,19 +470,28 @@ class ReportAggregator {
 		$incomeCategoryIds = [];
 		$resolvedBudgets = [];
 		$resolvedBases = [];
+		$resolvedPeriods = [];
 		$notBudgeted = BudgetScope::excludedCategoryIds($categories);
+		// The whole branch under a category kept out of reports, as the
+		// Budget page drops it, not just the flagged category itself
+		$outOfReports = BudgetScope::reportExcludedIds($categories);
 		foreach ($categories as $category) {
-			if ($category->getExcludedFromReports() || isset($notBudgeted[$category->getId()])) {
+			if (isset($outOfReports[$category->getId()]) || isset($notBudgeted[$category->getId()])) {
 				continue;
 			}
 			$catId = $category->getId();
+			// The period the budget is set for: the month's adjustment's, as
+			// its amount is, else the category's
+			$period = isset($snapshotOverrides[$catId])
+				? (string)($snapshotOverrides[$catId]['period'] ?? 'monthly')
+				: ($category->getBudgetPeriod() ?? 'monthly');
 			$budgeted = isset($snapshotOverrides[$catId])
 				? (float)($snapshotOverrides[$catId]['amount'] ?? 0)
 				: (float)($category->getBudgetAmount() ?? 0);
 			if ($budgeted <= 0 && isset($recurringBudgets[$catId])) {
 				$budgeted = $this->recurringBudgetService->convertMonthlyToPeriod(
 					(float)$recurringBudgets[$catId],
-					$category->getBudgetPeriod() ?? 'monthly'
+					$period
 				);
 			}
 			$carried = (float)($carryovers[$catId] ?? 0);
@@ -487,6 +504,7 @@ class ReportAggregator {
 				}
 				$resolvedBases[$catId] = $budgeted;
 				$resolvedBudgets[$catId] = round($budgeted + $carried, 2);
+				$resolvedPeriods[$catId] = $period;
 			}
 		}
 
@@ -505,11 +523,18 @@ class ReportAggregator {
 			[], ...array_map(fn (int $id) => $branches[$id] ?? [$id], $roots)
 		)));
 		$spendingScope = !empty($visibleAccountIds) ? $visibleAccountIds : null;
-		$memberSpending = $this->transactionMapper->getCategorySpendingBatch(
-			$memberIds($expenseCategoryIds), $startDate, $endDate, 'debit', $accountId, false, $userId, $spendingScope
-		) + $this->transactionMapper->getCategorySpendingBatch(
-			$memberIds($incomeCategoryIds), $startDate, $endDate, 'credit', $accountId, false, $userId, $spendingScope
-		);
+		$spending = function (array $categoryIds, string $type) use ($startDate, $endDate, $accountId, $userId, $spendingScope): array {
+			$query = fn (?array $accountIds): array => $this->transactionMapper->getCategorySpendingBatch(
+				$categoryIds, $startDate, $endDate, $type, $accountId, false, $userId, $accountIds
+			);
+			// Across accounts in more than one currency, in the base currency
+			// as the Budget page's Spent is; one account is in one currency
+			return $accountId === null && $this->currencyTotals !== null
+				? $this->currencyTotals->amountsInBase($userId, $spendingScope, $query)
+				: $query($spendingScope);
+		};
+		$memberSpending = $spending($memberIds($expenseCategoryIds), 'debit')
+			+ $spending($memberIds($incomeCategoryIds), 'credit');
 		$categorySpending = [];
 		foreach ($categoryIds as $catId) {
 			$spent = '0';
@@ -537,6 +562,10 @@ class ReportAggregator {
 					'categoryName' => $category->getName(),
 					'type' => $isIncome ? 'income' : 'expense',
 					'budgeted' => $budgeted,
+					// What 'budgeted' is a budget for: a weekly or yearly
+					// amount is not one month's, so the dashboard's Budget
+					// remaining prorates it as the Budget page's summary does
+					'period' => $resolvedPeriods[$categoryId],
 					'baseBudget' => $resolvedBases[$categoryId],
 					'carried' => round($budgeted - $resolvedBases[$categoryId], 2),
 					'spent' => $spent,

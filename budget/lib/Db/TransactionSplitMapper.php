@@ -212,10 +212,12 @@ class TransactionSplitMapper extends QBMapper {
 
 	/**
 	 * Split allocations per category per bucket over a date range, in one
-	 * query. Mirrors the semantics of getSplitTransactionIds + getCategoryTotals
-	 * (debit split parents, scheduled-future excluded) but adds the time
-	 * dimension for the budget carryover chain. Bucket is the calendar month
+	 * query, for the budget carryover chain. Bucket is the calendar month
 	 * (YYYY-MM) by default, or the exact date with $byDay.
+	 *
+	 * Net, as its direct companion is: a part of a credit split parent (a
+	 * refund split across categories) takes its amount back off, signed by
+	 * the parent's direction as the Budget page's own split half signs it.
 	 *
 	 * The companion of TransactionMapper::getCategorySpendingByBucketBatch(),
 	 * scoped through the same ReportScope predicates so the two halves of the
@@ -234,7 +236,7 @@ class TransactionSplitMapper extends QBMapper {
 
 		$qb->select('s.category_id')
 			->selectAlias($qb->createFunction($bucketExpr), 'bucket')
-			->selectAlias($qb->func()->sum('s.amount'), 'total')
+			->selectAlias($qb->createFunction(ReportScope::signedAmountSum($qb, 'debit', 's.amount')), 'total')
 			->from($this->getTableName(), 's')
 			->innerJoin('s', 'budget_transactions', 't', $qb->expr()->eq('s.transaction_id', 't.id'))
 			->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
@@ -242,7 +244,6 @@ class TransactionSplitMapper extends QBMapper {
 		$qb->andWhere($qb->expr()->isNotNull('s.category_id'))
 			->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($startDate)))
 			->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($endDate)))
-			->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
 			->andWhere(ReportScope::splitParentPredicate($qb))
 			->groupBy('s.category_id')
 			->addGroupBy($qb->createFunction($bucketExpr));

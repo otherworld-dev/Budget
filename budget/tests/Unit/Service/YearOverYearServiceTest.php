@@ -162,6 +162,65 @@ class YearOverYearServiceTest extends TestCase {
 		$this->assertSame(0.0, $result['years'][1]['savings']);
 	}
 
+	/**
+	 * Converted figures carry eight places. Summed at two, bcmath truncated
+	 * them, so a month came out a penny below Cash Flow and the dashboard,
+	 * and a bitcoin account's figures read 0.
+	 *
+	 * @param array{0: float, 1: float} $month income and expenses as Cash Flow gives them
+	 * @param array{0: float, 1: float} $expected
+	 */
+	#[\PHPUnit\Framework\Attributes\DataProvider('currencyCases')]
+	public function testFiguresAreRoundedToTheReportsCurrencyNotTruncated(string $currency, ?int $accountId, array $month, array $expected): void {
+		$aggregator = $this->createMock(\OCA\Budget\Service\Report\ReportAggregator::class);
+		$aggregator->method('getCashFlowReport')
+			->willReturn(['data' => [$this->month(date('Y') . '-03', $month[0], $month[1], 2)]]);
+		$this->reportQueries->method('getCashFlowByMonth')
+			->willReturn([$this->month(date('Y') . '-03', $month[0], $month[1], 2)]);
+		$currencies = $this->createMock(\OCA\Budget\Service\CurrencyTotals::class);
+		$currencies->method('reportCurrency')->with('user1', $accountId, null)->willReturn($currency);
+		$service = new YearOverYearService(
+			$this->transactionMapper, $this->categoryMapper, $this->reportQueries, null, $aggregator, $currencies
+		);
+
+		$month3 = $service->compareMonth('user1', 3, 1, $accountId)['years'][0];
+		$trend = $service->getMonthlyTrends('user1', 1, $accountId)['years'][0];
+
+		$this->assertSame($expected, [$month3['income'], $month3['expenses']]);
+		$this->assertSame($expected, [$trend['months'][2]['income'], $trend['months'][2]['expenses']]);
+		$this->assertSame($expected, [$trend['totalIncome'], $trend['totalExpenses']]);
+	}
+
+	/**
+	 * Category spending across accounts in more than one currency is in the
+	 * base currency like the yearly figures; a single account is left as it is.
+	 */
+	public function testCategorySpendingAcrossCurrenciesIsConverted(): void {
+		$this->categoryMapper->method('findAll')->willReturn([$this->makeCategory(1, 'Food')]);
+		$this->transactionMapper->method('getCategorySpendingBatch')->willReturn([1 => 110.0]);
+		$currencies = $this->createMock(\OCA\Budget\Service\CurrencyTotals::class);
+		$currencies->method('reportCurrency')->willReturn('GBP');
+		$currencies->expects($this->once())->method('amountsInBase')
+			->with('user1', [4, 5], $this->isType('callable'))
+			->willReturn([1 => 93.5]);
+		$service = new YearOverYearService(
+			$this->transactionMapper, $this->categoryMapper, $this->reportQueries, null, null, $currencies
+		);
+
+		$all = $service->compareCategorySpending('user1', 1, null, [4, 5]);
+		$one = $service->compareCategorySpending('user1', 1, 4, [4, 5]);
+
+		$this->assertSame(93.5, $all['categories'][0]['years'][0]['spending']);
+		$this->assertSame(110.0, $one['categories'][0]['years'][0]['spending']);
+	}
+
+	public static function currencyCases(): array {
+		return [
+			'converted pounds round to the penny' => ['GBP', null, [3235.04999999, 580.29999999], [3235.05, 580.3]],
+			'a bitcoin account keeps its satoshis' => ['BTC', 7, [0.00512345, 0.001], [0.00512345, 0.001]],
+		];
+	}
+
 	// ===== compareYears =====
 
 	public function testCompareYearsReturnsYearData(): void {

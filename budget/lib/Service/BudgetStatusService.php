@@ -241,11 +241,11 @@ class BudgetStatusService {
 			}
 			$id = (int)$row['id'];
 			if (MoneyCalculator::compare($ownBudget[$id], '0', self::SCALE) > 0) {
-				$budgeted[] = BudgetPeriod::monthlyEquivalent($ownBudget[$id], $periods[$id]);
+				$budgeted[] = [$ownBudget[$id], $periods[$id]];
 			}
 			$spent[] = $ownSpent[$id] ?? '0';
 		}
-		$budgetedTotal = MoneyCalculator::sum($budgeted, self::SCALE);
+		$budgetedTotal = BudgetPeriod::monthlyTotal($budgeted);
 		$spentTotal = MoneyCalculator::sum($spent, self::SCALE);
 
 		return [

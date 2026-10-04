@@ -105,4 +105,11 @@ class BudgetPeriodTest extends TestCase {
 
 		$this->assertSame([], $misses);
 	}
+
+	public function testAMonthlyTotalOfMixedPeriodsIsExact(): void {
+		// 100 x 52 / 12 + 27.50 / 12 = 435.625, not 433.333333 + 2.291666
+		$this->assertSame('435.6250000000', BudgetPeriod::monthlyTotal([['100', 'weekly'], ['27.50', 'yearly']]));
+		$this->assertSame('500.0000000000', BudgetPeriod::monthlyTotal([['300', 'quarterly'], ['400', 'monthly']]));
+		$this->assertSame('0.0000000000', BudgetPeriod::monthlyTotal([]));
+	}
 }

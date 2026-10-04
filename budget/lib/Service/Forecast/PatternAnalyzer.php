@@ -156,12 +156,26 @@ class PatternAnalyzer {
 	}
 
 	/**
+	 * An amount of $transaction's in the forecast's currency: times its
+	 * account's rate when the forecast converts, else as it is.
+	 *
+	 * @param array<int, string> $accountRates
+	 */
+	public static function inForecastCurrency(float $amount, $transaction, array $accountRates): float {
+		$rate = $accountRates[(int)$transaction->getAccountId()] ?? '1';
+		return $rate === '1' ? $amount : (float)MoneyCalculator::multiply($amount, $rate, 10);
+	}
+
+	/**
 	 * Aggregate transactions into monthly totals.
 	 *
 	 * @param array $transactions List of transaction entities
+	 * @param array<int, string> $accountRates account id => multiplier into the
+	 *                                         forecast's currency (CurrencyTotals::accountRates()); empty
+	 *                                         when the accounts share one currency
 	 * @return array Monthly income/expense totals
 	 */
-	public function aggregateMonthlyData(array $transactions): array {
+	public function aggregateMonthlyData(array $transactions, array $accountRates = []): array {
 		$monthlyData = [];
 
 		foreach ($transactions as $transaction) {
@@ -171,10 +185,11 @@ class PatternAnalyzer {
 				$monthlyData[$month] = ['income' => 0.0, 'expenses' => 0.0];
 			}
 
+			$amount = self::inForecastCurrency((float)$transaction->getAmount(), $transaction, $accountRates);
 			if ($transaction->getType() === 'credit') {
-				$monthlyData[$month]['income'] += $transaction->getAmount();
+				$monthlyData[$month]['income'] += $amount;
 			} else {
-				$monthlyData[$month]['expenses'] += $transaction->getAmount();
+				$monthlyData[$month]['expenses'] += $amount;
 			}
 		}
 
@@ -189,9 +204,10 @@ class PatternAnalyzer {
 	 *
 	 * @param string $userId User ID
 	 * @param array $transactions List of transactions
+	 * @param array<int, string> $accountRates as for aggregateMonthlyData()
 	 * @return array Category breakdown with trends
 	 */
-	public function getCategoryBreakdown(string $userId, array $transactions): array {
+	public function getCategoryBreakdown(string $userId, array $transactions, array $accountRates = []): array {
 		$categoryTotals = [];
 
 		// A split has no category of its own — its categories live on its
@@ -236,12 +252,12 @@ class PatternAnalyzer {
 
 			if ($parts !== null && $parts !== []) {
 				foreach ($parts as $part) {
-					$add((int)($part['categoryId'] ?? 0), $month, (float)($part['amount'] ?? 0));
+					$add((int)($part['categoryId'] ?? 0), $month, self::inForecastCurrency((float)($part['amount'] ?? 0), $transaction, $accountRates));
 				}
 				continue;
 			}
 
-			$add((int)($transaction->getCategoryId() ?? 0), $month, (float)$transaction->getAmount());
+			$add((int)($transaction->getCategoryId() ?? 0), $month, self::inForecastCurrency((float)$transaction->getAmount(), $transaction, $accountRates));
 		}
 
 		// Batch load all categories at once (replaces N+1 pattern)
