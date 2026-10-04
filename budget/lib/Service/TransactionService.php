@@ -1037,10 +1037,8 @@ class TransactionService {
 		// If a split transaction's amount changed (e.g. inline-edited in the
 		// list), rescale its splits proportionally so they keep summing to the
 		// new amount instead of reflecting the old total (#297 follow-up).
-		if (array_key_exists('amount', $updates)
-			&& $transaction->getIsSplit()
-			&& abs((float)$oldAmount - (float)$transaction->getAmount()) > 0.001) {
-			$this->rescaleSplits($id, (float)$oldAmount, (float)$transaction->getAmount());
+		if (array_key_exists('amount', $updates) && $transaction->getIsSplit()) {
+			$this->rescaleSplitsAfterAmountChange($transaction, (float)$oldAmount);
 		}
 
 		// Recompute affected account balances from the ledger. This replaces the
@@ -1061,12 +1059,34 @@ class TransactionService {
 	}
 
 	/**
+	 * Rescale a split transaction's parts once its amount has changed by at
+	 * least half of the smallest unit of its account's currency. The fixed
+	 * tenth-of-a-penny threshold ignored a change of 0.0005 of a bitcoin,
+	 * and the parts went on summing to the old amount.
+	 */
+	private function rescaleSplitsAfterAmountChange(Transaction $transaction, float $oldAmount): void {
+		try {
+			$decimals = Currency::decimalsFor($this->accountMapper->findById($transaction->getAccountId())->getCurrency());
+		} catch (DoesNotExistException $e) {
+			$decimals = 2;
+		}
+		if (abs($oldAmount - (float)$transaction->getAmount()) * (10 ** $decimals) < 0.5) {
+			return;
+		}
+		$this->rescaleSplits($transaction->getId(), $oldAmount, (float)$transaction->getAmount(), $decimals);
+	}
+
+	/**
 	 * Proportionally rescale a split transaction's parts to a new total so the
 	 * splits keep summing to the transaction amount after an amount edit. The
 	 * last split absorbs any rounding remainder so the sum stays exact. When the
 	 * old amount was 0 (no proportions to preserve) shares are split evenly.
+	 *
+	 * @param int $decimals the account currency's decimals, which each part is
+	 *                      rounded to: pennies lost all but two of bitcoin's eight
+	 *                      places, and split 1001 yen into 500.5 and 500.5
 	 */
-	private function rescaleSplits(int $transactionId, float $oldAmount, float $newAmount): void {
+	private function rescaleSplits(int $transactionId, float $oldAmount, float $newAmount, int $decimals = 2): void {
 		$splits = $this->splitMapper->findByTransaction($transactionId);
 		$count = count($splits);
 		if ($count < 2) {
@@ -1077,22 +1097,24 @@ class TransactionService {
 		// rounded half away from zero, as round() did, then the last part
 		// takes the new total less the others, so the sum is exact.
 		$scale = 10;
-		// bcadd truncates toward zero, so nudging by half a penny away from
-		// zero first rounds to the nearest penny
-		$toPenny = static fn (string $exact): string => MoneyCalculator::add(
+		// bcadd truncates toward zero, so nudging by half a unit away from
+		// zero first rounds to the nearest unit of the currency
+		$half = $decimals > 0 ? '0.' . str_repeat('0', $decimals) . '5' : '0.5';
+		$toUnit = static fn (string $exact): string => MoneyCalculator::add(
 			$exact,
-			MoneyCalculator::compare($exact, '0', $scale) < 0 ? '-0.005' : '0.005'
+			MoneyCalculator::compare($exact, '0', $scale) < 0 ? '-' . $half : $half,
+			$decimals
 		);
 		$proportional = MoneyCalculator::compare($oldAmount, '0', $scale) > 0;
 		$running = '0';
 		foreach (array_values($splits) as $i => $split) {
 			if ($i === $count - 1) {
-				$amount = $toPenny(MoneyCalculator::subtract($newAmount, $running, $scale));
+				$amount = $toUnit(MoneyCalculator::subtract($newAmount, $running, $scale));
 			} else {
-				$amount = $toPenny($proportional
+				$amount = $toUnit($proportional
 					? MoneyCalculator::divide(MoneyCalculator::multiply($newAmount, $split->getAmount(), $scale), $oldAmount, $scale)
 					: MoneyCalculator::divide($newAmount, (string)$count, $scale));
-				$running = MoneyCalculator::add($running, $amount);
+				$running = MoneyCalculator::add($running, $amount, $scale);
 			}
 			$split->setAmount($amount);
 			$this->splitMapper->update($split);
@@ -1233,6 +1255,10 @@ class TransactionService {
 				$pageIds[$tx['id']] = true;
 			}
 
+			// At the account currency's precision, as the stored balance is
+			// (#331): in pennies a bitcoin wallet's register read 0.50, 0.50,
+			// 0.49 against a balance of 0.49746912
+			$scale = Currency::decimalsFor($account->getCurrency());
 			$running = $openingBalance;
 			$projected = $openingBalance;
 			$runningBalances = [];
@@ -1240,11 +1266,11 @@ class TransactionService {
 				$amount = (string)$row['amount'];
 				$isScheduled = ($row['status'] ?? null) === 'scheduled';
 				if ($row['type'] === 'credit') {
-					$projected = MoneyCalculator::add($projected, $amount);
-					$running = $isScheduled ? $running : MoneyCalculator::add($running, $amount);
+					$projected = MoneyCalculator::add($projected, $amount, $scale);
+					$running = $isScheduled ? $running : MoneyCalculator::add($running, $amount, $scale);
 				} else {
-					$projected = MoneyCalculator::subtract($projected, $amount);
-					$running = $isScheduled ? $running : MoneyCalculator::subtract($running, $amount);
+					$projected = MoneyCalculator::subtract($projected, $amount, $scale);
+					$running = $isScheduled ? $running : MoneyCalculator::subtract($running, $amount, $scale);
 				}
 				if (isset($pageIds[(int)$row['id']])) {
 					$runningBalances[(int)$row['id']] = $isScheduled ? $projected : $running;
@@ -1544,8 +1570,8 @@ class TransactionService {
 		$transaction = $this->mapper->update($transaction);
 
 		// Split parts must keep summing to the row, as on an amount edit
-		if ($transaction->getIsSplit() && abs($oldAmount - (float)$transaction->getAmount()) > 0.001) {
-			$this->rescaleSplits($transaction->getId(), $oldAmount, (float)$transaction->getAmount());
+		if ($transaction->getIsSplit()) {
+			$this->rescaleSplitsAfterAmountChange($transaction, $oldAmount);
 		}
 
 		return $transaction;
