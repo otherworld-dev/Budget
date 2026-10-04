@@ -159,7 +159,7 @@ class RuleActionApplicator {
 	 * @param array $legacyActions Legacy format: {categoryId, vendor, notes}
 	 * @return array v2 format: [{type, value, behavior, priority}, ...]
 	 */
-	private function convertLegacyActions(array $legacyActions): array {
+	public static function convertLegacyActions(array $legacyActions): array {
 		$actions = [];
 
 		if (isset($legacyActions['categoryId']) && $legacyActions['categoryId'] !== null) {

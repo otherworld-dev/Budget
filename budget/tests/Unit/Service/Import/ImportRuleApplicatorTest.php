@@ -104,6 +104,107 @@ class ImportRuleApplicatorTest extends TestCase {
 		$this->assertSame([$high, $low], $this->applicator->rulesFor('user1'));
 	}
 
+	// ── rules from before the rules engine (schema 1) ───────────────
+
+	/**
+	 * A rule made before 2.28: field, pattern and match type in their own
+	 * columns, the category in category_id, no criteria and no actions.
+	 */
+	private function legacyRule(array $overrides = []): ImportRule {
+		$rule = new ImportRule();
+		$rule->setId($overrides['id'] ?? 3);
+		$rule->setUserId('user1');
+		$rule->setName($overrides['name'] ?? 'Tesco');
+		$rule->setField($overrides['field'] ?? 'description');
+		$rule->setPattern($overrides['pattern'] ?? 'tesco');
+		$rule->setMatchType($overrides['matchType'] ?? 'contains');
+		$rule->setCategoryId($overrides['categoryId'] ?? 5);
+		$rule->setVendorName($overrides['vendorName'] ?? null);
+		$rule->setPriority($overrides['priority'] ?? 0);
+		$rule->setActive(true);
+		$rule->setSchemaVersion(1);
+		if (isset($overrides['actions'])) {
+			$rule->setActionsFromArray($overrides['actions']);
+		}
+		return $rule;
+	}
+
+	private function applicatorWithRealMatching(array $rules): ImportRuleApplicator {
+		$mapper = $this->createMock(ImportRuleMapper::class);
+		$mapper->method('findActive')->willReturn($rules);
+		$mapper->method('findActiveByIds')->willReturn([]);
+		return new ImportRuleApplicator(
+			$mapper,
+			new CriteriaEvaluator($this->createMock(\Psr\Log\LoggerInterface::class)),
+			$this->granularShareService
+		);
+	}
+
+	/**
+	 * Up to 2.27 the import matched these rules on their columns and set
+	 * their category. Since 2.28 it read only the criteria column, which
+	 * they don't have, so they matched nothing at import or bank sync,
+	 * while Run rules still applied them.
+	 */
+	public function testARuleFromBeforeTheRulesEngineCategorisesAtImport(): void {
+		$this->granularShareService->method('canAccess')->with('user1', 'category', 5)->willReturn(true);
+		$applicator = $this->applicatorWithRealMatching([$this->legacyRule()]);
+
+		$result = $applicator->applyRules('user1', ['description' => 'TESCO STORES 2041', 'amount' => 12.5, 'type' => 'debit']);
+
+		$this->assertSame(5, $result['categoryId']);
+		$this->assertSame('Tesco', $result['appliedRule']['name']);
+	}
+
+	public function testItsVendorIsSetToo(): void {
+		$this->granularShareService->method('canAccess')->willReturn(true);
+		$applicator = $this->applicatorWithRealMatching([$this->legacyRule(['vendorName' => 'Tesco'])]);
+
+		$result = $applicator->applyRules('user1', ['description' => 'TESCO STORES 2041']);
+
+		$this->assertSame('Tesco', $result['vendor']);
+	}
+
+	public function testItMatchesOnItsOwnFieldAndMatchType(): void {
+		$this->granularShareService->method('canAccess')->willReturn(true);
+		$applicator = $this->applicatorWithRealMatching([
+			$this->legacyRule(['field' => 'vendor', 'matchType' => 'starts_with', 'pattern' => 'acme']),
+		]);
+
+		$this->assertSame(5, $applicator->applyRules('user1', ['description' => 'x', 'vendor' => 'ACME LTD'])['categoryId'] ?? null);
+		$this->assertArrayNotHasKey('categoryId', $applicator->applyRules('user1', ['description' => 'ACME', 'vendor' => 'THE ACME']));
+	}
+
+	public function testItsCategoryMustStillBelongToTheLedger(): void {
+		// The R6-4 check applies to it like any other rule
+		$this->granularShareService->method('canAccess')->willReturn(false);
+		$applicator = $this->applicatorWithRealMatching([$this->legacyRule()]);
+
+		$result = $applicator->applyRules('user1', ['description' => 'TESCO STORES']);
+
+		$this->assertArrayNotHasKey('categoryId', $result);
+	}
+
+	public function testItsCategoryInTheOldActionShapeIsSetToo(): void {
+		$this->granularShareService->method('canAccess')->willReturn(true);
+		$applicator = $this->applicatorWithRealMatching([
+			$this->legacyRule(['categoryId' => null, 'actions' => ['categoryId' => 8, 'vendor' => 'Tesco']]),
+		]);
+
+		$result = $applicator->applyRules('user1', ['description' => 'TESCO']);
+
+		$this->assertSame(8, $result['categoryId']);
+		$this->assertSame('Tesco', $result['vendor']);
+	}
+
+	public function testItCountsInThePreviewAndStatistics(): void {
+		$applicator = $this->applicatorWithRealMatching([$this->legacyRule()]);
+		$rows = [['description' => 'TESCO'], ['description' => 'ALDI']];
+
+		$this->assertSame([0], array_column($applicator->previewRuleApplications('user1', $rows), 'transactionIndex'));
+		$this->assertSame(1, $applicator->getMatchStatistics('user1', $rows)['matched']);
+	}
+
 	public function testOwnRuleSetCategorySkippedWhenTheCategoryIsNotUsable(): void {
 		$rule = $this->makeRule([
 			'actions' => ['version' => 2, 'actions' => [['type' => 'set_category', 'value' => 99]]],

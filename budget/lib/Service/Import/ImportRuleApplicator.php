@@ -76,11 +76,7 @@ class ImportRuleApplicator {
 				continue;
 			}
 
-			// Match using CriteriaEvaluator
-			$criteria = $rule->getCriteria();
-			$schemaVersion = $rule->getSchemaVersion() ?? 2;
-
-			if (!$this->criteriaEvaluator->evaluate($criteria, $transaction, $schemaVersion)) {
+			if (!$this->ruleMatches($rule, $transaction)) {
 				continue;
 			}
 
@@ -133,10 +129,7 @@ class ImportRuleApplicator {
 					continue;
 				}
 
-				$criteria = $rule->getCriteria();
-				$schemaVersion = $rule->getSchemaVersion() ?? 2;
-
-				if ($this->criteriaEvaluator->evaluate($criteria, $transaction, $schemaVersion)) {
+				if ($this->ruleMatches($rule, $transaction)) {
 					$previews[] = [
 						'transactionIndex' => $index,
 						'transaction' => $transaction,
@@ -173,10 +166,7 @@ class ImportRuleApplicator {
 					continue;
 				}
 
-				$criteria = $rule->getCriteria();
-				$schemaVersion = $rule->getSchemaVersion() ?? 2;
-
-				if ($this->criteriaEvaluator->evaluate($criteria, $transaction, $schemaVersion)) {
+				if ($this->ruleMatches($rule, $transaction)) {
 					$matched++;
 					$ruleId = $rule->getId();
 					$ruleUsage[$ruleId] = ($ruleUsage[$ruleId] ?? 0) + 1;
@@ -200,6 +190,29 @@ class ImportRuleApplicator {
 	}
 
 	/**
+	 * Whether a rule matches a transaction.
+	 *
+	 * A rule from before the rules engine (schema 1: a field, a pattern and
+	 * a match type, no criteria) is matched on those columns, as Run rules
+	 * matches it. Since 2.28.0 the import read only the criteria column,
+	 * which such a rule doesn't have, so every rule made before 2.28 and
+	 * never opened in the rule editor silently stopped working on import and
+	 * bank sync, while it still worked in Run rules.
+	 */
+	private function ruleMatches(ImportRule $rule, array $transaction): bool {
+		$schemaVersion = $rule->getSchemaVersion() ?? 2;
+		if ($schemaVersion === 1) {
+			return $this->criteriaEvaluator->evaluate([
+				'field' => $rule->getField(),
+				'pattern' => $rule->getPattern(),
+				'matchType' => $rule->getMatchType(),
+			], $transaction, 1);
+		}
+
+		return $this->criteriaEvaluator->evaluate($rule->getCriteria(), $transaction, $schemaVersion);
+	}
+
+	/**
 	 * Extract and apply v2 actions from a rule to a transaction array.
 	 *
 	 * @param string $userId The user performing the import (may differ from the
@@ -207,12 +220,16 @@ class ImportRuleApplicator {
 	 */
 	private function applyActions(ImportRule $rule, array $transaction, string $userId): array {
 		$actions = $rule->getParsedActions();
-		$actionList = [];
 
 		if (isset($actions['version']) && $actions['version'] === 2) {
 			$actionList = $actions['actions'] ?? [];
 		} elseif (isset($actions['actions'])) {
 			$actionList = $actions['actions'];
+		} else {
+			// An older rule's category and vendor, kept in its own columns
+			// (or in that shape): applied as Run rules applies them, through
+			// the same checks as any other action
+			$actionList = RuleActionApplicator::convertLegacyActions($actions);
 		}
 
 		// Sort by priority (higher first)
