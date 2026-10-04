@@ -705,12 +705,16 @@ class PensionService {
 		return $pool[0]['id'];
 	}
 
-	/** Whether a bank row's text names the pension or its provider */
+	/**
+	 * Whether a bank row's text names the pension or its provider: as a word
+	 * of its own, so "AXA" isn't found in "TAXATION". A reference number may
+	 * follow it straight on, as banks print them.
+	 */
 	private function namesPension(PensionAccount $pension, array $row): bool {
 		$text = mb_strtolower(($row['description'] ?? '') . ' ' . ($row['vendor'] ?? ''));
 		foreach ([$pension->getProvider(), $pension->getName()] as $name) {
 			$name = mb_strtolower(trim((string)$name));
-			if (mb_strlen($name) >= 3 && str_contains($text, $name)) {
+			if (mb_strlen($name) >= 3 && preg_match('/(?<!\p{L})' . preg_quote($name, '/') . '(?!\p{L})/u', $text) === 1) {
 				return true;
 			}
 		}

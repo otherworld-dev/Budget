@@ -46,6 +46,8 @@ use OCP\AppFramework\Db\Entity;
  * @method void setReminderDays(?int $reminderDays)
  * @method string|null getLastReminderSent()
  * @method void setLastReminderSent(?string $lastReminderSent)
+ * @method string|null getLastReminderDue()
+ * @method void setLastReminderDue(?string $lastReminderDue)
  * @method string|null getCustomRecurrencePattern()
  * @method void setCustomRecurrencePattern(?string $customRecurrencePattern)
  * @method bool getAutoPayEnabled()
@@ -94,6 +96,7 @@ class Bill extends Entity implements JsonSerializable {
 	protected $createdAt;
 	protected $reminderDays;      // Days before due date to send reminder
 	protected $lastReminderSent;  // When last reminder was sent
+	protected $lastReminderDue;   // The due date that reminder (or overdue notice) was for
 	protected $customRecurrencePattern;  // JSON pattern for custom frequency
 	protected $autoPayEnabled;    // Automatically mark bill as paid when due
 	protected $autoPayFailed;     // Tracks if last auto-pay attempt failed
@@ -241,6 +244,7 @@ class Bill extends Entity implements JsonSerializable {
 			'createdAt' => $this->getCreatedAt(),
 			'reminderDays' => $this->getReminderDays(),
 			'lastReminderSent' => $this->getLastReminderSent(),
+			'lastReminderDue' => $this->getLastReminderDue(),
 			'customRecurrencePattern' => $this->getCustomRecurrencePattern(),
 			'autoPayEnabled' => $this->getAutoPayEnabled(),
 			'autoPayFailed' => $this->getAutoPayFailed(),

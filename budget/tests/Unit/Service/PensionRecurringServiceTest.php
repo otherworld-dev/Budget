@@ -400,6 +400,24 @@ class PensionRecurringServiceTest extends TestCase {
 		$this->assertFalse($recur->getAutoPostEnabled());
 	}
 
+	public function testAFailedAutoPostSaysWhichCurrencyItsAmountIsIn(): void {
+		// The notice showed a euro pension's €75 as £75.00, in the user's
+		// default currency
+		$recur = $this->makeRecur(['pensionId' => 3, 'nextDueDate' => '2026-10-01']);
+		$this->recurringMapper->method('find')->willReturn($recur);
+		$pension = $this->makePension(3, 'defined_benefit');
+		$pension->setCurrency('EUR');
+		$pensionMapper = $this->createMock(PensionAccountMapper::class);
+		$pensionMapper->method('find')->willReturn($pension);
+		$service = new PensionRecurringService($this->recurringMapper, $pensionMapper, $this->pensionService,
+			new FrequencyCalculator(), $this->userClock, $this->l10n());
+
+		$result = $service->processAutoPost(5, 'user1');
+
+		$this->assertTrue($result['disabled']);
+		$this->assertSame('EUR', $result['pensionCurrency']);
+	}
+
 	public function testCreateRefusesAScheduleOnAPensionWithNoPot(): void {
 		$pensionMapper = $this->createMock(PensionAccountMapper::class);
 		$pensionMapper->method('find')->willReturn($this->makePension(3, 'state'));

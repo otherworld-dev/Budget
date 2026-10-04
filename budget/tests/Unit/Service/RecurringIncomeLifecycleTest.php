@@ -250,6 +250,28 @@ class RecurringIncomeLifecycleTest extends TestCase {
 		$this->assertSame('2026-10-03', $this->stored->getNextExpectedDate());
 	}
 
+	public function testAutoCreateBooksAMonthSavedBefore30Once(): void {
+		// 2.54.0 saved an income with no expected day on the 1st. Auto-create
+		// booked 1 August and 20 August, then 20 September
+		$income = $this->income(['nextExpectedDate' => '2026-08-01', 'autoCreateEnabled' => true, 'startDate' => '2026-03-20']);
+		$income->setExpectedDay(null);
+
+		$this->service->processAutoCreate(1, 'user1');
+
+		$this->assertSame(['2026-08-01', '2026-09-20'], array_column($this->booked, 'date'));
+		$this->assertSame('2026-10-20', $this->stored->getNextExpectedDate());
+	}
+
+	public function testReceivingAYearSavedBefore30SettlesThatYear(): void {
+		// No day or month: 2.54.0 expected it on 1 January
+		$income = $this->income(['frequency' => 'yearly', 'nextExpectedDate' => '2027-01-01', 'startDate' => '2025-04-06']);
+		$income->setExpectedDay(null);
+
+		$this->service->markReceived(1, 'user1', self::TODAY);
+
+		$this->assertSame('2028-04-06', $this->stored->getNextExpectedDate());
+	}
+
 	public function testAutoCreateThatCannotBookSwitchesItselfOff(): void {
 		// A missing account failed and notified every six hours, forever
 		$this->income(['nextExpectedDate' => '2026-09-03', 'autoCreateEnabled' => true, 'accountId' => null]);
@@ -257,7 +279,20 @@ class RecurringIncomeLifecycleTest extends TestCase {
 		$result = $this->service->processAutoCreate(1, 'user1');
 
 		$this->assertFalse($result['success']);
+		$this->assertTrue($result['disabled']);
 		$this->assertFalse($this->stored->getAutoCreateEnabled());
+	}
+
+	public function testAutoCreateWithNothingDueIsNotAFailure(): void {
+		// Another run booked it first: the job reported "Nothing due" as a
+		// failed auto-create
+		$this->income(['nextExpectedDate' => '2026-10-03', 'autoCreateEnabled' => true]);
+
+		$result = $this->service->processAutoCreate(1, 'user1');
+
+		$this->assertFalse($result['success']);
+		$this->assertFalse($result['disabled']);
+		$this->assertTrue($this->stored->getAutoCreateEnabled());
 	}
 
 	// ── imported credits ────────────────────────────────────────────

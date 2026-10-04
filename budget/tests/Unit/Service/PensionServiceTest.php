@@ -497,6 +497,28 @@ class PensionServiceTest extends TestCase {
 		$this->assertSame(1, $this->service->adoptImportedDuplicates('user1', [$imported]));
 	}
 
+	public function testAProviderInsideAnotherWordDoesNotNameThePension(): void {
+		// "AXA" is inside "TAXATION": a tax payment of the same amount was
+		// taken for the pension's leg, category, date gap and all
+		$imported = $this->importedRow(900, '2026-10-05');
+		$imported->setDescription('HMRC TAXATION');
+		$imported->setCategoryId(4);
+		$this->adoptingSetup($imported, 'AXA');
+		$this->transactionService->expects($this->never())->method('deleteAsAccountOwner');
+
+		$this->assertSame(0, $this->service->adoptImportedDuplicates('user1', [$imported]));
+	}
+
+	public function testAProviderFollowedByItsReferenceStillNamesThePension(): void {
+		$imported = $this->importedRow(900, '2026-10-05');
+		$imported->setDescription('AXA123456 PENSION');
+		$imported->setCategoryId(4);
+		$this->adoptingSetup($imported, 'AXA');
+		$this->transactionService->expects($this->once())->method('deleteAsAccountOwner')->with(555);
+
+		$this->assertSame(1, $this->service->adoptImportedDuplicates('user1', [$imported]));
+	}
+
 	public function testAReconciledLegIsLeftAlone(): void {
 		$this->ownAccount();
 		$imported = $this->importedRow(900, '2026-10-02');

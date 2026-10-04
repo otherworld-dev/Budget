@@ -238,11 +238,12 @@ class BillService {
 			return [];
 		}
 
-		// The candidates are full rows from the bill's account. A user who
-		// can't see that account (a share since revoked, or a bill shared
-		// without its account) gets none of them.
+		// The candidates are full rows from the bill's account, offered for
+		// linking, which changes them. A user who can't write to that account
+		// (a share since revoked or cut to read, or a bill shared without its
+		// account) gets none of them: Mark Paid would refuse the link.
 		if ($this->granularShareService !== null
-			&& !$this->granularShareService->canAccess($actingUserId ?? $userId, ShareItem::TYPE_ACCOUNT, (int)$bill->getAccountId())) {
+			&& !$this->granularShareService->canWrite($actingUserId ?? $userId, ShareItem::TYPE_ACCOUNT, (int)$bill->getAccountId())) {
 			return [];
 		}
 
@@ -1009,9 +1010,10 @@ class BillService {
 	 *                            with no upcoming row - while the placeholder for the occurrence
 	 *                            just paid stayed behind, still scheduled, still looking due (#376).
 	 * @param int|null $existingTransactionId Link an existing transaction instead of creating a new one
+	 * @param string|null $actingUserId The user paying, when it is a person (the bill may be shared with them)
 	 * @return array Updated bill with undo data
 	 */
-	public function markPaid(int $id, string $userId, ?string $paidDate = null, bool $recordPayment = true, ?int $existingTransactionId = null, ?string $expectedDueDate = null): array {
+	public function markPaid(int $id, string $userId, ?string $paidDate = null, bool $recordPayment = true, ?int $existingTransactionId = null, ?string $expectedDueDate = null, ?string $actingUserId = null): array {
 		$bill = $this->find($id, $userId);
 
 		// A paid one-time bill, an ended or paused one: a second click
@@ -1061,6 +1063,7 @@ class BillService {
 		// account, or for a bill with no account in one its owner can write
 		// to: the id comes from the browser and could name anyone's row.
 		$existingRow = null;
+		$linkCategory = true;
 		if ($existingTransactionId !== null) {
 			$existingRow = $this->transactionService->findTransaction($existingTransactionId);
 			$rowAccount = $existingRow?->getAccountId();
@@ -1068,9 +1071,20 @@ class BillService {
 				? $rowAccount === $bill->getAccountId()
 				: ($this->granularShareService === null
 					|| $this->granularShareService->canWrite($bill->getUserId(), ShareItem::TYPE_ACCOUNT, (int)$rowAccount)));
+			// ...and in one the user paying can write to, as the Mark Paid
+			// dialog lists them: linking gives the row a bill, a category and
+			// tags, and a share of the bill alone let them do that to a row of
+			// an account hidden from them or shared with them read-only
+			if ($allowed && $actingUserId !== null && $this->granularShareService !== null
+				&& !$this->granularShareService->canWrite($actingUserId, ShareItem::TYPE_ACCOUNT, (int)$rowAccount)) {
+				$allowed = false;
+			}
 			if (!$allowed) {
 				throw new \InvalidArgumentException($this->l->t('That transaction can\'t pay this bill'));
 			}
+			// A bill with no account pays from other people's accounts too:
+			// the row takes its category only when the row's ledger can use it
+			$linkCategory = $this->categoryUsableIn($bill->getCategoryId(), (int)$rowAccount);
 		}
 
 		// The payment's date: a linked row's own, else today so the payment
@@ -1107,7 +1121,7 @@ class BillService {
 			// a row in an account shared with the bill's owner can be linked,
 			// and gives the row the bill's category, tags and splits.
 			try {
-				$linked = $this->transactionService->linkBillAsAccountOwner($existingRow->getId(), $bill);
+				$linked = $this->transactionService->linkBillAsAccountOwner($existingRow->getId(), $bill, $linkCategory);
 			} catch (\InvalidArgumentException $e) {
 				throw new \InvalidArgumentException($this->l->t('That transaction already pays another bill'));
 			}
@@ -1670,6 +1684,23 @@ class BillService {
 	}
 
 	/**
+	 * Whether a row in this account may be filed under the category: the
+	 * account owner's ledger has to be able to use it, as for any row they
+	 * keep. The split template is held to the same rule by the split itself.
+	 */
+	private function categoryUsableIn(?int $categoryId, int $accountId): bool {
+		if ($categoryId === null || $this->granularShareService === null) {
+			return true;
+		}
+		try {
+			$this->granularShareService->requireUsableCategory($this->accountMapper->findById($accountId)->getUserId(), $categoryId);
+			return true;
+		} catch (\Exception $e) {
+			return false;
+		}
+	}
+
+	/**
 	 * Convert an amount to base currency if needed. Returns unchanged if already base.
 	 */
 	private function convertToBase(float $amount, ?string $fromCurrency, string $baseCurrency, string $userId): float {
@@ -2040,7 +2071,8 @@ class BillService {
 	 *
 	 * @param int $id Bill ID
 	 * @param string $userId User ID
-	 * @return array ['success' => bool, 'message' => string, 'bill' => ?Bill, 'count' => int occurrences paid (on success)]
+	 * @return array ['success' => bool, 'message' => string, 'bill' => ?Bill, 'count' => int occurrences paid (on success),
+	 *               'disabled' => bool whether a failure switched auto-pay off; false when there was nothing to pay]
 	 */
 	public function processAutoPay(int $id, string $userId): array {
 		try {
@@ -2052,6 +2084,7 @@ class BillService {
 					'success' => false,
 					'message' => $this->l->t('Auto-pay is not enabled for this bill'),
 					'bill' => null,
+					'disabled' => false,
 				];
 			}
 
@@ -2065,6 +2098,7 @@ class BillService {
 					'success' => false,
 					'message' => $this->l->t('Bill has no account associated'),
 					'bill' => $this->find($id, $userId),
+					'disabled' => true,
 				];
 			}
 
@@ -2072,14 +2106,27 @@ class BillService {
 			// due date, as income auto-create and pension auto-post do. Paying
 			// one per run, dated the day of the run, left a weekly bill weeks
 			// behind and then caught it up in a burst of rows all dated today.
-			// The caller only asks for a bill already due, so the first
-			// occurrence is always paid (dated no later than today).
+			// The caller asks for a bill that was due when it looked. Another
+			// run, or the owner's own Mark Paid, may have paid it since: that
+			// is nothing to pay, not a failure. A second run at once used to
+			// pay the next occurrence early, or be refused as "already
+			// recorded" and switch auto-pay off.
 			$today = $this->today($userId);
 			$paid = 0;
 			$result = null;
-			do {
+			while ($paid < self::MAX_AUTO_PAY_CATCH_UP
+				&& $bill->getIsActive()
+				&& $bill->getNextDueDate() !== null
+				&& $bill->getNextDueDate() <= $today) {
 				$due = (string)$bill->getNextDueDate();
-				$result = $this->markPaid($id, $userId, min($due, $today), true, null, $due);
+				try {
+					$result = $this->markPaid($id, $userId, min($due, $today), true, null, $due);
+				} catch (\InvalidArgumentException $e) {
+					if ($this->find($id, $userId)->getNextDueDate() !== $due) {
+						break;
+					}
+					throw $e;
+				}
 
 				// Paid with nothing booked (the account is gone, the row failed):
 				// put the bill back and fail, rather than report success and move
@@ -2094,10 +2141,16 @@ class BillService {
 				}
 				$paid++;
 				$bill = $result['bill'];
-			} while ($paid < self::MAX_AUTO_PAY_CATCH_UP
-				&& $bill->getIsActive()
-				&& $bill->getNextDueDate() !== null
-				&& $bill->getNextDueDate() <= $today);
+			}
+
+			if ($result === null) {
+				return [
+					'success' => false,
+					'message' => 'Nothing due',
+					'bill' => $bill,
+					'disabled' => false,
+				];
+			}
 
 			return [
 				'success' => true,
@@ -2122,6 +2175,7 @@ class BillService {
 				'success' => false,
 				'message' => 'Auto-pay failed: ' . $e->getMessage(),
 				'bill' => $bill,
+				'disabled' => true,
 			];
 		}
 	}

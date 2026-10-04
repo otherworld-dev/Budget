@@ -830,6 +830,20 @@ class TransactionServiceTest extends TestCase {
 		$this->assertSame(5, $linked->getCategoryId());
 	}
 
+	public function testALinkCanLeaveTheBillsCategoryOff(): void {
+		// A bill with no account pays from someone else's account, whose
+		// ledger can't use the bill's category
+		$tx = $this->makeTransaction(['id' => 78, 'accountId' => 10, 'categoryId' => null]);
+		$this->mapper->method('findById')->willReturn($tx);
+		$this->mapper->method('find')->willReturn($tx);
+		$this->mapper->method('update')->willReturnArgument(0);
+
+		$linked = $this->service->linkBillAsAccountOwner(78, $this->makeBill(['id' => 9, 'categoryId' => 5]), false);
+
+		$this->assertSame(9, $linked->getBillId());
+		$this->assertNull($linked->getCategoryId());
+	}
+
 	public function testLinkingKeepsACategoryTheRowAlreadyHas(): void {
 		$tx = $this->makeTransaction(['id' => 79, 'accountId' => 10, 'categoryId' => 8]);
 		$this->mapper->method('findById')->willReturn($tx);
@@ -2560,6 +2574,28 @@ class TransactionServiceTest extends TestCase {
 		$this->service->deleteScheduledBillTransactions(44);
 
 		$this->assertSame([11, 12], $deleted);
+	}
+
+	/**
+	 * A pending row whose account no longer exists stopped the bill's delete,
+	 * a factory reset and a deleted user's purge: looking up its owner threw.
+	 */
+	public function testABillsPendingRowWhoseAccountIsGoneIsDeletedToo(): void {
+		$accounts = $this->createMock(AccountMapper::class);
+		$accounts->method('findById')->willThrowException(new DoesNotExistException('No account 999999'));
+		$service = new TransactionService(
+			$this->mapper, $accounts, $this->transactionTagMapper, $this->splitMapper, $this->expenseShareMapper,
+			$this->createMock(DismissedImportMapper::class), $this->attachmentMapper, $this->auditService,
+			$this->createMock(\OCA\Budget\Db\PensionContributionMapper::class), $this->userClock
+		);
+		$orphan = $this->makeTransaction(['id' => 11, 'billId' => 44, 'accountId' => 999999]);
+		$orphan->setStatus('scheduled');
+		$this->mapper->method('findAllScheduledByBillId')->willReturn([$orphan]);
+
+		$this->splitMapper->expects($this->once())->method('deleteByTransaction')->with(11);
+		$this->mapper->expects($this->once())->method('delete')->with($orphan);
+
+		$service->deleteScheduledBillTransactions(44);
 	}
 
 	public function testDeletingABillsScheduledTransactionsTakesTheirTagsAndAttachments(): void {

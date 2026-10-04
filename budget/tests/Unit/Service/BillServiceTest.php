@@ -1552,7 +1552,8 @@ class BillServiceTest extends TestCase {
 	// ── processAutoPay ──────────────────────────────────────────────
 
 	public function testProcessAutoPaySuccess(): void {
-		$bill = $this->makeBill(['autoPayEnabled' => true, 'accountId' => 1]);
+		// Due, as the job only asks for bills that are
+		$bill = $this->makeBill(['autoPayEnabled' => true, 'accountId' => 1, 'nextDueDate' => '2026-06-15']);
 		$this->mapper->method('find')->willReturn($bill);
 		$this->mapper->method('update')->willReturnArgument(0);
 		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-07-15');

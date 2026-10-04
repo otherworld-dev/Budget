@@ -933,7 +933,7 @@ class BillController extends Controller {
 			// tab is refused instead of paying it twice
 			$expectedDueDate = is_string($params['dueDate'] ?? null) ? $params['dueDate'] : null;
 
-			$result = $this->service->markPaid($id, $this->billOwner($id), $paidDate, $recordPayment, $existingTransactionId, $expectedDueDate);
+			$result = $this->service->markPaid($id, $this->billOwner($id), $paidDate, $recordPayment, $existingTransactionId, $expectedDueDate, $this->userId);
 			return new DataResponse($result);
 		} catch (\InvalidArgumentException $e) {
 			// Service-only validation keeps its message (#362)

@@ -39,6 +39,8 @@ class BillLifecycleTest extends TestCase {
 	/** @var string[] */
 	private array $calls = [];
 	private bool $bookingFails = false;
+	/** Runs before each lookup of the bill: another process changing it in between */
+	private ?\Closure $beforeFind = null;
 
 	protected function setUp(): void {
 		$this->mapper = $this->createMock(BillMapper::class);
@@ -51,7 +53,12 @@ class BillLifecycleTest extends TestCase {
 			$this->stored = $bill;
 			return $bill;
 		});
-		$this->mapper->method('find')->willReturnCallback(fn () => clone $this->stored);
+		$this->mapper->method('find')->willReturnCallback(function () {
+			if ($this->beforeFind !== null) {
+				($this->beforeFind)();
+			}
+			return clone $this->stored;
+		});
 		$this->mapper->method('updateFields')->willReturnCallback(function (int $id, string $user, array $fields) {
 			foreach ($fields as $column => $value) {
 				$this->stored->{'set' . str_replace('_', '', ucwords($column, '_'))}($value);
@@ -437,6 +444,37 @@ class BillLifecycleTest extends TestCase {
 		$this->assertSame('2026-11-20', $this->stored->getNextDueDate());
 	}
 
+	public function testPayingADateSavedBefore30SettlesItsMonth(): void {
+		// 2.54.0 saved a bill with no day on the 1st. Paying 1 October moved
+		// it to 20 October, so October was paid twice
+		$this->bill(['dueDay' => null, 'startDate' => '2026-03-20', 'nextDueDate' => '2026-10-01']);
+
+		$this->service->markPaid(1, 'user1', self::TODAY, false);
+
+		$this->assertSame('2026-11-20', $this->stored->getNextDueDate());
+	}
+
+	public function testSkippingADateSavedBefore30SkipsItsMonth(): void {
+		$this->bill(['dueDay' => null, 'startDate' => '2026-03-20', 'nextDueDate' => '2026-10-01']);
+
+		$this->service->skipPayment(1, 'user1');
+
+		$this->assertSame('2026-11-20', $this->stored->getNextDueDate());
+	}
+
+	public function testAutoPayPaysAMonthSavedBefore30Once(): void {
+		// Auto-pay booked 1 September and 20 September for one monthly bill
+		$bill = $this->bill(['dueDay' => null, 'startDate' => '2026-03-20', 'nextDueDate' => '2026-09-01']);
+		$bill->setAutoPayEnabled(true);
+
+		$result = $this->service->processAutoPay(1, 'user1');
+
+		$payments = array_values(array_filter($this->calls, fn (string $c) => str_starts_with($c, 'create:20')));
+		$this->assertSame(['create:2026-09-01'], $payments);
+		$this->assertSame(1, $result['count']);
+		$this->assertSame('2026-10-20', $this->stored->getNextDueDate());
+	}
+
 	public function testAutoPayCatchesUpEveryOwedOccurrenceOnItsOwnDate(): void {
 		// A weekly bill three weeks behind paid one occurrence per run, every
 		// row dated the day of the run
@@ -451,6 +489,42 @@ class BillLifecycleTest extends TestCase {
 		$this->assertSame(['create:2026-09-07', 'create:2026-09-14', 'create:2026-09-21', 'create:2026-09-28'], $payments);
 		$this->assertSame('2026-10-05', $this->stored->getNextDueDate());
 		$this->assertSame('2026-09-28', $this->stored->getLastPaidDate());
+	}
+
+	public function testAutoPayLeavesABillAnotherRunHasAlreadyPaid(): void {
+		// Two runs at once (a forced run during cron): the second found the
+		// bill already paid by the first and paid the next occurrence early
+		$bill = $this->bill(['nextDueDate' => '2026-10-15']);
+		$bill->setAutoPayEnabled(true);
+
+		$result = $this->service->processAutoPay(1, 'user1');
+
+		$this->assertFalse($result['success']);
+		$this->assertFalse($result['disabled']);
+		$this->assertSame([], array_filter($this->calls, fn (string $c) => str_starts_with($c, 'create:')));
+		$this->assertSame('2026-10-15', $this->stored->getNextDueDate());
+		$this->assertTrue($this->stored->getAutoPayEnabled());
+	}
+
+	public function testAutoPayRacedByAnotherRunIsNotAFailure(): void {
+		// The other run paid 15 September between this run's look and its
+		// payment: "already recorded" switched auto-pay off and told the user
+		// it had failed
+		$bill = $this->bill(['nextDueDate' => '2026-09-15']);
+		$bill->setAutoPayEnabled(true);
+		$finds = 0;
+		$this->beforeFind = function () use (&$finds) {
+			if (++$finds === 2) {
+				$this->stored->setNextDueDate('2026-10-15');
+			}
+		};
+
+		$result = $this->service->processAutoPay(1, 'user1');
+
+		$this->assertFalse($result['success']);
+		$this->assertFalse($result['disabled']);
+		$this->assertTrue($this->stored->getAutoPayEnabled());
+		$this->assertFalse($this->stored->getAutoPayFailed());
 	}
 
 	public function testAutoPayCatchUpStopsAtItsCap(): void {

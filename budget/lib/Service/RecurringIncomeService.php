@@ -191,17 +191,18 @@ class RecurringIncomeService extends AbstractCrudService {
 	 * create switches itself off, so the job doesn't fail and notify every
 	 * six hours forever.
 	 *
-	 * @return array ['success' => bool, 'message' => string, 'income' => ?RecurringIncome]
+	 * @return array ['success' => bool, 'message' => string, 'income' => ?RecurringIncome,
+	 *               'disabled' => bool whether a failure switched auto-create off; false when nothing was due]
 	 */
 	public function processAutoCreate(int $incomeId, string $userId): array {
 		try {
 			$income = $this->find($incomeId, $userId);
 		} catch (\Exception $e) {
 			$this->logger->warning("Auto-create failed for income {$incomeId}: {$e->getMessage()}");
-			return ['success' => false, 'message' => $e->getMessage()];
+			return ['success' => false, 'message' => $e->getMessage(), 'disabled' => false];
 		}
 		if (!$income->getAutoCreateEnabled() || !$income->getIsActive()) {
-			return ['success' => false, 'message' => 'Auto-create not enabled'];
+			return ['success' => false, 'message' => 'Auto-create not enabled', 'disabled' => false];
 		}
 
 		$today = $this->today($userId);
@@ -229,11 +230,12 @@ class RecurringIncomeService extends AbstractCrudService {
 			// Whatever booked before the failure stays booked and settled
 			$income->setAutoCreateEnabled(false);
 			$this->mapper->update($income);
-			return ['success' => false, 'message' => $e->getMessage(), 'income' => $income];
+			return ['success' => false, 'message' => $e->getMessage(), 'income' => $income, 'disabled' => true];
 		}
 
 		if ($booked === 0) {
-			return ['success' => false, 'message' => 'Nothing due', 'income' => $income];
+			// Another run booked it first: nothing to report
+			return ['success' => false, 'message' => 'Nothing due', 'income' => $income, 'disabled' => false];
 		}
 		return ['success' => true, 'income' => $income, 'count' => $booked];
 	}
