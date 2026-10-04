@@ -267,16 +267,26 @@ class DebtPayoffService {
 		$totalInterest = 0;
 		$totalPaid = 0;
 
+		// What the plan pays every month until everything is paid: every
+		// debt's minimum plus the extra. A paid-off debt's minimum is not
+		// saved but rolls on to the next debt in the strategy's order, which
+		// is what a snowball or avalanche is. The freed minimum used to count
+		// only in the month the debt was cleared, so the monthly payment
+		// shrank with every debt paid off (75, then 50, then 25) and the
+		// last debt took years longer than the plan's own headline payment.
+		$monthlyBudget = array_sum(array_column($debtData, 'minimumPayment')) + $extraPayment;
+
 		while ($this->hasActiveDebts($debtData) && $month < self::MAX_MONTHS) {
 			$month++;
 			$monthData = ['month' => $month, 'payments' => [], 'debtsPaidOff' => []];
-			$monthlyExtra = $extraPayment;
+			$available = $monthlyBudget;
 			if ($lumpSum > 0 && $month === $lumpSumMonth) {
-				$monthlyExtra += $lumpSum;
+				$available += $lumpSum;
 			}
-			$availableExtra = $monthlyExtra;
 
-			// Apply interest and minimum payments first
+			// Apply interest and minimum payments first. The minimums of the
+			// debts still open never add up to more than the budget, which
+			// holds every debt's minimum
 			foreach ($debtData as &$debt) {
 				if ($debt['paidOff']) {
 					continue;
@@ -292,6 +302,7 @@ class DebtPayoffService {
 				$payment = min($debt['minimumPayment'], $debt['balance']);
 				$debt['balance'] -= $payment;
 				$totalPaid += $payment;
+				$available -= $payment;
 
 				$monthData['payments'][] = [
 					'debtId' => $debt['id'],
@@ -308,45 +319,56 @@ class DebtPayoffService {
 					$debt['payoffMonth'] = $month;
 					$debt['balance'] = 0;
 					$monthData['debtsPaidOff'][] = $debt['name'];
-					// Freed minimum payment goes to extra pool
-					$availableExtra += $debt['minimumPayment'];
 				}
 			}
 			unset($debt);
 
-			// Apply extra payments to priority debt (first non-paid-off)
+			// The rest of the budget (the extra, freed minimums and whatever a
+			// debt cleared with less than its minimum left over) goes to the
+			// priority debt, and on to the next when that one is cleared: the
+			// month pays its whole budget and never more
 			foreach ($debtData as &$debt) {
-				if ($debt['paidOff'] || $availableExtra <= 0) {
+				if ($available <= 0.005) {
+					break;
+				}
+				if ($debt['paidOff']) {
 					continue;
 				}
 
-				$extraToApply = min($availableExtra, $debt['balance']);
-				if ($extraToApply > 0) {
-					$debt['balance'] -= $extraToApply;
-					$totalPaid += $extraToApply;
-					$availableExtra -= $extraToApply;
+				$extraToApply = min($available, $debt['balance']);
+				$debt['balance'] -= $extraToApply;
+				$totalPaid += $extraToApply;
+				$available -= $extraToApply;
 
-					$monthData['payments'][] = [
-						'debtId' => $debt['id'],
-						'name' => $debt['name'],
-						'payment' => round($extraToApply, 2),
-						'remainingBalance' => round($debt['balance'], 2),
-						'type' => 'extra',
-					];
+				$monthData['payments'][] = [
+					'debtId' => $debt['id'],
+					'name' => $debt['name'],
+					'payment' => round($extraToApply, 2),
+					'remainingBalance' => round($debt['balance'], 2),
+					'type' => 'extra',
+				];
 
-					if ($debt['balance'] <= 0.01) {
-						$debt['paidOff'] = true;
-						$debt['payoffMonth'] = $month;
-						$debt['balance'] = 0;
-						if (!in_array($debt['name'], $monthData['debtsPaidOff'])) {
-							$monthData['debtsPaidOff'][] = $debt['name'];
-						}
-						$availableExtra += $debt['minimumPayment'];
+				if ($debt['balance'] <= 0.01) {
+					$debt['paidOff'] = true;
+					$debt['payoffMonth'] = $month;
+					$debt['balance'] = 0;
+					if (!in_array($debt['name'], $monthData['debtsPaidOff'])) {
+						$monthData['debtsPaidOff'][] = $debt['name'];
 					}
 				}
-				break; // Only apply extra to one debt at a time
 			}
 			unset($debt);
+
+			// Each entry's remaining balance is the debt's at the end of the
+			// month, whichever of its payments the charts read
+			$monthEnd = [];
+			foreach ($debtData as $debt) {
+				$monthEnd[$debt['id']] = round($debt['balance'], 2);
+			}
+			foreach ($monthData['payments'] as &$entry) {
+				$entry['remainingBalance'] = $monthEnd[$entry['debtId']];
+			}
+			unset($entry);
 
 			// Re-sort after each payoff for proper prioritization
 			if (!empty($monthData['debtsPaidOff'])) {

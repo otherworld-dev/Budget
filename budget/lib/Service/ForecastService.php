@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Service;
 
 use OCA\Budget\Db\AccountMapper;
+use OCA\Budget\Db\BillMapper;
 use OCA\Budget\Db\RecurringIncomeMapper;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Enum\Frequency;
@@ -50,6 +51,7 @@ class ForecastService {
 		private ?UserClock $userClock = null,
 		private ?CurrencyTotals $currencyTotals = null,
 		private ?RecurringIncomeMapper $incomeMapper = null,
+		private ?BillMapper $billMapper = null,
 	) {
 		$this->accountMapper = $accountMapper;
 		$this->transactionMapper = $transactionMapper;
@@ -99,6 +101,37 @@ class ForecastService {
 		if ($this->incomeMapper === null) {
 			return 0.0;
 		}
+		return $this->monthlyTotal($this->incomeMapper->findActive($userId), $accounts, $rates);
+	}
+
+	/**
+	 * The user's active bills paid from the accounts forecast, as a monthly
+	 * amount in the forecast's currency. A transfer between accounts is not
+	 * spending, so transfer bills don't count; nor do one-off bills or a
+	 * custom pattern, as for income.
+	 *
+	 * @param array<int, string>|null $rates account id => multiplier, when converting
+	 */
+	private function billsMonthlySpending(string $userId, array $accounts, ?array $rates): float {
+		if ($this->billMapper === null) {
+			return 0.0;
+		}
+		$bills = array_filter(
+			$this->billMapper->findActive($userId),
+			static fn ($bill) => !($bill->getIsTransfer() ?? false)
+		);
+		return $this->monthlyTotal($bills, $accounts, $rates);
+	}
+
+	/**
+	 * Recurring income or bills (anything with an amount, a frequency and
+	 * an account) into or from the accounts forecast, as one monthly
+	 * amount in the forecast's currency.
+	 *
+	 * @param iterable<\OCA\Budget\Db\RecurringIncome|\OCA\Budget\Db\Bill> $items
+	 * @param array<int, string>|null $rates
+	 */
+	private function monthlyTotal(iterable $items, array $accounts, ?array $rates): float {
 		$inForecast = [];
 		foreach ($accounts as $account) {
 			if ($rates === null || isset($rates[$account->getId()])) {
@@ -107,13 +140,13 @@ class ForecastService {
 		}
 
 		$total = 0.0;
-		foreach ($this->incomeMapper->findActive($userId) as $income) {
-			$accountId = (int)($income->getAccountId() ?? 0);
-			$frequency = Frequency::tryFrom((string)$income->getFrequency());
+		foreach ($items as $item) {
+			$accountId = (int)($item->getAccountId() ?? 0);
+			$frequency = Frequency::tryFrom((string)$item->getFrequency());
 			if (!isset($inForecast[$accountId]) || $frequency === null || $frequency === Frequency::ONE_TIME) {
 				continue;
 			}
-			$monthly = $frequency->toMonthlyAmount((float)$income->getAmount());
+			$monthly = $frequency->toMonthlyAmount((float)$item->getAmount());
 			$total += $rates !== null ? (float)MoneyCalculator::multiply($monthly, $rates[$accountId], 10) : $monthly;
 		}
 		return $total;
@@ -316,6 +349,15 @@ class ForecastService {
 		// money coming in.
 		$recurringIncome = $months > 0 ? $this->recurringMonthlyIncome($userId, $accounts, $rates) : 0.0;
 
+		// Likewise no trend takes projected spending below what is already
+		// known: the user's bills from the accounts forecast, and the least
+		// spent in any complete month of the history. A falling line through
+		// three uneven months (1,060, 11 and 131) projected no spending at
+		// all, and the forecast showed six months of income saved whole.
+		$spendingFloor = $months > 0
+			? max($this->billsMonthlySpending($userId, $accounts, $rates), min($expenseValues))
+			: 0.0;
+
 		// Generate monthly projections
 		$monthlyProjections = [];
 		$projectedBalance = $currentBalance;
@@ -329,7 +371,7 @@ class ForecastService {
 			$monthLabel = $projectionDate->format('M Y');
 
 			$projectedIncome = max(0, $recurringIncome, $avgIncome + ($incomeTrend * $i));
-			$projectedExpenses = max(0, $avgExpenses + ($expenseTrend * $i));
+			$projectedExpenses = max(0, $spendingFloor, $avgExpenses + ($expenseTrend * $i));
 			$monthlySavings = $projectedIncome - $projectedExpenses;
 
 			$projectedBalance += $monthlySavings;
