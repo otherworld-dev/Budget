@@ -1605,7 +1605,14 @@ export default class TransactionsModule {
         // whole ledger, scheduled rows years out included (#374).
         const filterAccount = document.getElementById('filter-account');
         if (filterAccount) {
-            filterAccount.value = String(state.session.accountId);
+            // Started from an account's page, the filter has no options yet,
+            // and a value with no option to match is dropped: the list then
+            // showed every account's transactions
+            const accountId = String(state.session.accountId);
+            if (![...filterAccount.options].some(option => option.value === accountId)) {
+                this.populateFilterDropdowns();
+            }
+            filterAccount.value = accountId;
             // Through the helper: these inputs are flatpickr-managed, and a
             // bare .value assignment leaves the picker's own state behind.
             setDateValue('filter-date-to', state.session.statementDate || '');
