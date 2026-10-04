@@ -806,6 +806,45 @@ class TransactionService {
 	}
 
 	/**
+	 * What a recurring transfer's withdrawal arrives as in its destination:
+	 * the withdrawal's own amount between accounts in one currency, else that
+	 * amount converted at the bill owner's rate for the withdrawal's day, as
+	 * createFromBill() prices its deposit. The bank's withdrawal is in the
+	 * source's currency, and its number booked as the deposit turned GBP 100
+	 * out into EUR 100 in.
+	 *
+	 * @throws \Exception when no rate between the two currencies is known,
+	 *                    rather than booking the same number in both
+	 */
+	public function transferArrivalAmount(Transaction $withdrawal, Bill $bill): float {
+		$amount = (float)$withdrawal->getAmount();
+		[$from, $to] = $this->transferCurrencies($withdrawal->getAccountId(), (int)$bill->getDestinationAccountId());
+		if ($from === $to || $this->currencyConversion === null) {
+			return $amount;
+		}
+		$converted = $this->currencyConversion->convertBetween($amount, $from, $to, $bill->getUserId(), $withdrawal->getDate());
+		if ($converted === null) {
+			throw new \Exception("No exchange rate between {$from} and {$to} to book transfer {$bill->getName()}");
+		}
+		return round((float)$converted, Currency::decimalsFor($to));
+	}
+
+	/**
+	 * The currencies of a transfer's two accounts. One with no currency set
+	 * counts as the other's, as transferLegAmounts() treats it.
+	 *
+	 * @return array{0: string, 1: string}
+	 */
+	private function transferCurrencies(int $sourceAccountId, int $destinationAccountId): array {
+		$from = strtoupper((string)$this->accountMapper->findById($sourceAccountId)->getCurrency());
+		$to = strtoupper((string)$this->accountMapper->findById($destinationAccountId)->getCurrency());
+		if ($from === '' || $to === '') {
+			return [$from ?: $to, $from ?: $to];
+		}
+		return [$from, $to];
+	}
+
+	/**
 	 * Give a recurring transfer paid by linking its withdrawal the other leg.
 	 *
 	 * Linking only ever touched the withdrawal, so a transfer paid from an
@@ -815,10 +854,20 @@ class TransactionService {
 	 * of the arrival; or failing both, a deposit booked as the destination
 	 * account's owner on the withdrawal's date.
 	 *
+	 * Between two currencies the amount is the withdrawal's converted into
+	 * the destination's (transferArrivalAmount()), and the bank's own credit
+	 * is taken within a tenth of it, the nearest first: the bank converts at
+	 * its own rate, and charges.
+	 *
+	 * @param float|null $arrivalAmount what transferArrivalAmount() priced
+	 *                                  the arrival at, when the caller priced
+	 *                                  it before changing anything
 	 * @return int|null the id of a deposit booked here, so a revert can
 	 *                  remove it; null when an existing row was used
+	 * @throws \Exception when the arrival is between two currencies with no
+	 *                    rate known, before anything is booked
 	 */
-	public function completeTransferPayment(Transaction $withdrawal, Bill $bill): ?int {
+	public function completeTransferPayment(Transaction $withdrawal, Bill $bill, ?float $arrivalAmount = null): ?int {
 		if ($withdrawal->getLinkedTransactionId() !== null) {
 			$partner = $this->mapper->findById($withdrawal->getLinkedTransactionId());
 			if ($partner !== null && $partner->getBillId() === null) {
@@ -831,16 +880,21 @@ class TransactionService {
 			return null;
 		}
 
+		$arrivalAmount ??= $this->transferArrivalAmount($withdrawal, $bill);
+		[$from, $to] = $this->transferCurrencies($withdrawal->getAccountId(), $destination);
+		$margin = ($from === $to || $this->currencyConversion === null) ? 0.005 : abs($arrivalAmount) * 0.1;
 		$on = new \DateTimeImmutable($withdrawal->getDate());
 		$arrivals = $this->mapper->findTransferArrivals(
 			$destination,
-			(float)$withdrawal->getAmount(),
+			$arrivalAmount,
 			$on->modify('-3 days')->format('Y-m-d'),
-			$on->modify('+3 days')->format('Y-m-d')
+			$on->modify('+3 days')->format('Y-m-d'),
+			$margin
 		);
 		if ($arrivals !== []) {
 			usort($arrivals, fn (Transaction $a, Transaction $b)
-				=> abs(strtotime($a->getDate()) - $on->getTimestamp()) <=> abs(strtotime($b->getDate()) - $on->getTimestamp()));
+				=> [abs((float)$a->getAmount() - $arrivalAmount), abs(strtotime($a->getDate()) - $on->getTimestamp())]
+				<=> [abs((float)$b->getAmount() - $arrivalAmount), abs(strtotime($b->getDate()) - $on->getTimestamp())]);
 			$arrival = $arrivals[0];
 			$this->mapper->linkTransactions($withdrawal->getId(), $arrival->getId());
 			$this->update($arrival->getId(), $this->ownerOf($arrival), ['billId' => $bill->getId()]);
@@ -852,7 +906,7 @@ class TransactionService {
 			accountId: $destination,
 			date: $withdrawal->getDate(),
 			description: $bill->getDescription() ?? '',
-			amount: (float)$withdrawal->getAmount(),
+			amount: $arrivalAmount,
 			type: 'credit',
 			categoryId: $bill->getCategoryId(),
 			vendor: $bill->getName(),

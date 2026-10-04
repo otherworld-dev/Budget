@@ -2984,9 +2984,12 @@ class TransactionMapper extends QBMapper {
 	 * amount between two dates: not linked to another row, not paying a bill,
 	 * not pending.
 	 *
+	 * @param float $margin how far the credit may be from $amount: half a
+	 *                      cent by default, more when the amount is a
+	 *                      conversion the bank made at its own rate
 	 * @return Transaction[] nearest-dated first is up to the caller
 	 */
-	public function findTransferArrivals(int $accountId, float $amount, string $from, string $to): array {
+	public function findTransferArrivals(int $accountId, float $amount, string $from, string $to, float $margin = 0.005): array {
 		$qb = $this->db->getQueryBuilder();
 		$qb->select('*')
 			->from($this->getTableName())
@@ -2998,9 +3001,10 @@ class TransactionMapper extends QBMapper {
 				$qb->expr()->isNull('status'),
 				$qb->expr()->neq('status', $qb->createNamedParameter('scheduled'))
 			))
-			// Decimal amounts compared with a half-cent margin, not as floats
-			->andWhere($qb->expr()->gte('amount', $qb->createNamedParameter(number_format($amount - 0.005, 3, '.', ''))))
-			->andWhere($qb->expr()->lte('amount', $qb->createNamedParameter(number_format($amount + 0.005, 3, '.', ''))))
+			// Decimal amounts compared within a margin, not as floats, at the
+			// column's eight places
+			->andWhere($qb->expr()->gte('amount', $qb->createNamedParameter(number_format($amount - $margin, 8, '.', ''))))
+			->andWhere($qb->expr()->lte('amount', $qb->createNamedParameter(number_format($amount + $margin, 8, '.', ''))))
 			->andWhere($qb->expr()->gte('date', $qb->createNamedParameter($from)))
 			->andWhere($qb->expr()->lte('date', $qb->createNamedParameter($to)))
 			->orderBy('date', 'ASC');

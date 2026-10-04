@@ -1101,6 +1101,14 @@ class BillService {
 
 		// Handle transaction: either link existing or create new
 		if ($existingRow !== null) {
+			// A transfer's arrival is priced before anything changes: with no
+			// rate between its two currencies it can't be booked, and the
+			// withdrawal linked first left the bill half paid
+			$arrivalAmount = null;
+			if (($bill->getIsTransfer() ?? false) && $bill->getDestinationAccountId() !== null
+				&& $existingRow->getLinkedTransactionId() === null) {
+				$arrivalAmount = $this->transactionService->transferArrivalAmount($existingRow, $bill);
+			}
 			// Link first, and only then drop the pre-booked row: a failed
 			// link used to be logged and ignored, with the row already gone
 			// and the bill moved on. The link runs as the account's owner, so
@@ -1119,7 +1127,7 @@ class BillService {
 			// in the destination, or a deposit booked for it (which a revert
 			// removes). Linking used to leave the destination uncredited.
 			if ($bill->getIsTransfer() ?? false) {
-				$deposit = $this->transactionService->completeTransferPayment($linked, $bill);
+				$deposit = $this->transactionService->completeTransferPayment($linked, $bill, $arrivalAmount);
 				if ($deposit !== null) {
 					$createdTransactionIds[] = $deposit;
 				}
@@ -1990,6 +1998,18 @@ class BillService {
 			// deleteAsAccountOwner() takes the booked deposit with it
 			$removed[] = $booked->getLinkedTransactionId();
 		}
+		// The bank row's arrival is priced before the booked pair goes: with
+		// no rate between the two currencies it can't take the pair's place
+		$arrivalAmount = null;
+		$current = $this->transactionService->findTransaction($imported->getId()) ?? $imported;
+		if ($isTransfer && $bill->getDestinationAccountId() !== null && $current->getLinkedTransactionId() === null) {
+			try {
+				$arrivalAmount = $this->transactionService->transferArrivalAmount($current, $bill);
+			} catch (\Exception $e) {
+				$this->logger->warning("Imported transaction {$imported->getId()} can't take the place of bill {$bill->getId()}'s payment: {$e->getMessage()}");
+				return false;
+			}
+		}
 		$deposit = null;
 		try {
 			$linked = $this->transactionService->linkBillAsAccountOwner($imported->getId(), $bill);
@@ -1998,7 +2018,7 @@ class BillService {
 			}
 			$this->transactionService->deleteAsAccountOwner($booked->getId(), false, $bill->getId());
 			if ($isTransfer) {
-				$deposit = $this->transactionService->completeTransferPayment($linked, $bill);
+				$deposit = $this->transactionService->completeTransferPayment($linked, $bill, $arrivalAmount);
 			}
 		} catch (\Exception $e) {
 			$this->logger->warning("Failed to put imported transaction {$imported->getId()} in place of bill {$bill->getId()}'s payment: {$e->getMessage()}");

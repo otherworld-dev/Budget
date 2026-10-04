@@ -1870,6 +1870,36 @@ class BillServiceTest extends TestCase {
 		$this->assertSame([901], $snapshot['createdTransactionIds'], 'A deposit booked here goes on revert');
 	}
 
+	public function testAWithdrawalIsNotLinkedToATransferWhoseArrivalCannotBePriced(): void {
+		// No rate between the two currencies: the withdrawal was linked and
+		// the pre-booked rows deleted before booking the arrival failed,
+		// leaving the bill half paid. It is priced first now.
+		$bill = $this->setupAutoMatchBill(['isTransfer' => true, 'destinationAccountId' => 2, 'autoDetectPattern' => null]);
+		$bill->setTransferDescriptionPattern('NETFLIX');
+		$tx = $this->makeImportedTx();
+		$this->transactionService->method('findTransaction')->willReturn($tx);
+		$this->transactionService->method('transferArrivalAmount')->willThrowException(new \Exception('No exchange rate between GBP and CHF'));
+		$this->transactionService->expects($this->never())->method('linkBillAsAccountOwner');
+		$this->transactionService->expects($this->never())->method('deleteScheduledBillTransactions');
+		$this->transactionService->expects($this->never())->method('completeTransferPayment');
+
+		$this->assertSame(0, $this->service->autoMatchPaidFromImport('user1', [$tx]));
+		$this->assertSame('2026-06-15', $bill->getNextDueDate());
+		$this->assertNull($bill->getPaidUndoState());
+	}
+
+	public function testTheWithdrawalsArrivalIsPricedBeforeItIsLinked(): void {
+		$bill = $this->setupAutoMatchBill(['isTransfer' => true, 'destinationAccountId' => 2, 'autoDetectPattern' => null]);
+		$bill->setTransferDescriptionPattern('NETFLIX');
+		$tx = $this->makeImportedTx();
+		$this->linkable($tx);
+		$this->transactionService->method('transferArrivalAmount')->willReturn(117.65);
+		$this->transactionService->expects($this->once())->method('completeTransferPayment')
+			->with($tx, $this->isInstanceOf(Bill::class), 117.65)->willReturn(901);
+
+		$this->assertSame(1, $this->service->autoMatchPaidFromImport('user1', [$tx]));
+	}
+
 	public function testAutoMatchMatchesPatternInVendor(): void {
 		$this->setupAutoMatchBill();
 		$tx = $this->makeImportedTx(['description' => 'Card payment 9912', 'vendor' => 'Netflix Inc']);

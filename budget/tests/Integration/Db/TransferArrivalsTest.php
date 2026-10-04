@@ -29,4 +29,24 @@ class TransferArrivalsTest extends IntegrationTestCase {
 
 		$this->assertSame([$arrival], array_map(fn ($t) => $t->getId(), $found));
 	}
+
+	/**
+	 * Between currencies the bank converts at its own rate, so its credit is
+	 * looked for within a margin of the app's figure, to the column's eight
+	 * places (a crypto amount, too).
+	 */
+	public function testAMarginFindsTheBanksOwnConversion(): void {
+		$account = $this->makeAccount(['name' => 'Euro savings', 'type' => 'savings', 'currency' => 'EUR'])->getId();
+		$near = $this->makeTransaction($account, ['type' => 'credit', 'amount' => '117.40', 'date' => '2026-02-02']);
+		$this->makeTransaction($account, ['type' => 'credit', 'amount' => '105.80', 'date' => '2026-02-02']);
+		$coin = $this->makeAccount(['name' => 'Wallet', 'type' => 'cryptocurrency', 'currency' => 'BTC'])->getId();
+		$sats = $this->makeTransaction($coin, ['type' => 'credit', 'amount' => '0.00210000', 'date' => '2026-02-02']);
+		$this->makeTransaction($coin, ['type' => 'credit', 'amount' => '0.00200000', 'date' => '2026-02-02']);
+		$mapper = $this->service(TransactionMapper::class);
+		$ids = fn (array $rows) => array_map(fn ($t) => $t->getId(), $rows);
+
+		$this->assertSame([$near], $ids($mapper->findTransferArrivals($account, 117.65, '2026-01-29', '2026-02-04', 11.765)));
+		$this->assertSame([], $ids($mapper->findTransferArrivals($account, 117.65, '2026-01-29', '2026-02-04')));
+		$this->assertSame([$sats], $ids($mapper->findTransferArrivals($coin, 0.0023, '2026-01-29', '2026-02-04', 0.00023)));
+	}
 }
