@@ -396,6 +396,10 @@ class RecurringIncomeController extends Controller {
 			if (array_key_exists('categoryId', $data) || array_key_exists('accountId', $data)) {
 				$stored = $this->service->find($id, $ownerId);
 				$categoryId = array_key_exists('categoryId', $data) ? self::idOrNull($data['categoryId']) : $stored->getCategoryId();
+				// Someone it's shared with may only choose a category they can
+				// see (an unshared one of the owner's came back by name); the
+				// one the income already has may stay
+				$this->granularShareService->requireCategoryVisibleToWriter($ownerId, $this->userId, $categoryId, [$stored->getCategoryId()]);
 				$accountId = array_key_exists('accountId', $data) ? self::idOrNull($data['accountId']) : $stored->getAccountId();
 				if ($accountId !== null && $accountId !== $stored->getAccountId()) {
 					$this->requireUsableAccount($ownerId, $accountId);

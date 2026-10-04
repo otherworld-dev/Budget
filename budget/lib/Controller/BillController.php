@@ -814,6 +814,16 @@ class BillController extends Controller {
 				array_key_exists('categoryId', $updates) ? $updates['categoryId'] : null,
 				isset($data['splitTemplate']) && is_array($data['splitTemplate']) ? $data['splitTemplate'] : null
 			);
+			if ($ownerId !== $this->userId
+				&& (array_key_exists('categoryId', $updates) || (isset($data['splitTemplate']) && is_array($data['splitTemplate'])))) {
+				$storedBill = $storedBill ?? $this->service->find($id, $ownerId);
+				$this->requireCategoriesVisibleToEditor(
+					$ownerId,
+					$storedBill,
+					array_key_exists('categoryId', $updates) ? $updates['categoryId'] : null,
+					isset($data['splitTemplate']) && is_array($data['splitTemplate']) ? $data['splitTemplate'] : []
+				);
+			}
 			if (isset($data['splitTemplate']) || array_key_exists('accountId', $updates)) {
 				$storedBill = $storedBill ?? $this->service->find($id, $ownerId);
 				$this->requireSplitsUsableByAccountOwner(
@@ -1704,6 +1714,33 @@ class BillController extends Controller {
 			$added !== [] || $accountsChanged ? $tagIds : [],
 			[$accountId, $isTransfer ? $destinationId : null]
 		);
+	}
+
+	/**
+	 * Someone the bill is shared with may only give it, or its split, a
+	 * category they can see: with the owner's check alone they could put one
+	 * of the owner's categories that was never shared with them on it, by id,
+	 * and read its name off the payments it books. Categories the bill
+	 * already uses may stay, so an unchanged bill keeps saving.
+	 *
+	 * @param array<array-key, mixed> $splitTemplate
+	 * @throws \InvalidArgumentException
+	 */
+	private function requireCategoriesVisibleToEditor(string $billOwner, Bill $stored, mixed $categoryId, array $splitTemplate): void {
+		$normalise = static fn (mixed $raw): ?int
+			=> ($raw === null || $raw === '' || !is_numeric($raw) || (int)$raw <= 0) ? null : (int)$raw;
+		$kept = [$stored->getCategoryId()];
+		foreach ($stored->getSplitTemplateArray() as $split) {
+			$kept[] = is_array($split) ? $normalise($split['categoryId'] ?? null) : null;
+		}
+		$this->granularShareService->requireCategoryVisibleToWriter($billOwner, $this->userId, $normalise($categoryId), $kept);
+		foreach ($splitTemplate as $split) {
+			if (is_array($split)) {
+				$this->granularShareService->requireCategoryVisibleToWriter(
+					$billOwner, $this->userId, $normalise($split['categoryId'] ?? null), $kept
+				);
+			}
+		}
 	}
 
 	private function requireUsableCategories(string $ownerId, mixed $categoryId, ?array $splitTemplate): void {
