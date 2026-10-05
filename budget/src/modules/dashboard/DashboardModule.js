@@ -584,6 +584,7 @@ export default class DashboardModule {
                 return this.refreshAssetValueChart(days);
             },
             topCategories: () => this.refreshTopCategoriesWidget('topCategories'),
+            budgetProgress: () => this.refreshBudgetProgressWidget('budgetProgress'),
         };
 
         for (const [widgetId, refreshFn] of Object.entries(widgetRefreshMap)) {
