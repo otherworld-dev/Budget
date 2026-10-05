@@ -6,12 +6,18 @@ namespace OCA\Budget\Tests\Unit\Service\Import\Preset;
 
 use OCA\Budget\Db\Account;
 use OCA\Budget\Db\AccountMapper;
+use OCA\Budget\Db\BudgetSnapshotMapper;
 use OCA\Budget\Db\Category;
+use OCA\Budget\Db\CategoryMapper;
+use OCA\Budget\Db\TagMapper;
 use OCA\Budget\Db\TagSet;
+use OCA\Budget\Db\TagSetMapper;
 use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Db\TransactionTagMapper;
 use OCA\Budget\Service\AccountService;
 use OCA\Budget\Service\BillService;
+use OCA\Budget\Service\BudgetCarryoverService;
 use OCA\Budget\Service\CategoryService;
 use OCA\Budget\Service\Import\DuplicateDetector;
 use OCA\Budget\Service\Import\FileValidator;
@@ -21,6 +27,7 @@ use OCA\Budget\Service\Import\Preset\PresetRegistry;
 use OCA\Budget\Service\Import\TransactionNormalizer;
 use OCA\Budget\Service\ImportAccountLinkService;
 use OCA\Budget\Service\ImportService;
+use OCA\Budget\Service\RecurringBudgetService;
 use OCA\Budget\Service\SettingService;
 use OCA\Budget\Service\TagSetService;
 use OCA\Budget\Service\TransactionService;
@@ -120,13 +127,22 @@ class AppExportImportTest extends TestCase {
 			return $account;
 		});
 
-		$categoryService = $this->createMock(CategoryService::class);
-		$categoryService->method('findOrCreate')->willReturnCallback(
-			fn (string $userId, string $name, string $type) => $this->findOrCreateCategory($name, $type, null)
-		);
-		$categoryService->method('findOrCreateSubcategory')->willReturnCallback(
-			fn (string $userId, string $name, string $type, int $parentId) => $this->findOrCreateCategory($name, $type, $parentId)
-		);
+		// The real lookup rules over an in-memory category table
+		$categoryMapper = $this->createMock(CategoryMapper::class);
+		$categoryMapper->method('findByName')->willReturnCallback(function (string $userId, string $name, string $type, ?int $parentId = null) {
+			foreach ($this->categories as $category) {
+				if ($category->getName() === $name && $category->getType() === $type && $category->getParentId() === $parentId) {
+					return $category;
+				}
+			}
+			return null;
+		});
+		$categoryMapper->method('findAll')->willReturnCallback(fn () => array_values($this->categories));
+		$categoryMapper->method('insert')->willReturnCallback(function (Category $category) {
+			$category->setId(count($this->categories) + 1);
+			$this->categories[$category->getId()] = $category;
+			return $category;
+		});
 
 		$tagSetService = $this->createMock(TagSetService::class);
 		$tagSetService->method('findByCategory')->willReturn([]);
@@ -169,6 +185,18 @@ class AppExportImportTest extends TestCase {
 
 		$settingService = $this->createMock(SettingService::class);
 		$settingService->method('get')->willReturn(null);
+
+		$categoryService = new CategoryService(
+			$categoryMapper,
+			$this->createMock(TransactionMapper::class),
+			$this->createMock(BudgetSnapshotMapper::class),
+			$this->createMock(TagSetMapper::class),
+			$this->createMock(TagMapper::class),
+			$this->createMock(TransactionTagMapper::class),
+			$l,
+			$this->createMock(BudgetCarryoverService::class),
+			$this->createMock(RecurringBudgetService::class)
+		);
 
 		// The rows a preset import compares a file against (R5-4)
 		$transactionMapper = $this->createMock(TransactionMapper::class);
@@ -218,20 +246,17 @@ class AppExportImportTest extends TestCase {
 		return false;
 	}
 
-	private function findOrCreateCategory(string $name, string $type, ?int $parentId): Category {
-		foreach ($this->categories as $category) {
-			if ($category->getName() === $name && $category->getType() === $type && $category->getParentId() === $parentId) {
-				return $category;
-			}
-		}
+	/** A category the user already had before the import. */
+	private function seedCategory(string $name, string $type, ?int $parentId = null): int {
 		$category = new Category();
 		$category->setId(count($this->categories) + 1);
+		$category->setUserId('user1');
 		$category->setName($name);
 		$category->setType($type);
 		$category->setParentId($parentId);
-		$category->setCreatedAt(date('Y-m-d H:i:s'));
+		$category->setCreatedAt('2026-01-01 00:00:00');
 		$this->categories[$category->getId()] = $category;
-		return $category;
+		return $category->getId();
 	}
 
 	private function import(string $fixture, string $presetId): array {
@@ -281,7 +306,7 @@ class AppExportImportTest extends TestCase {
 		}
 		$category = $this->categories[$id];
 		$parent = $category->getParentId();
-		return $parent !== null ? $this->categories[$parent]->getName() . ' / ' . $category->getName() : $category->getName();
+		return $parent !== null ? $this->categoryPath($parent) . ' / ' . $category->getName() : $category->getName();
 	}
 
 	private function assertSecondImportAddsNothing(string $fixture, string $presetId): void {
@@ -719,5 +744,107 @@ class AppExportImportTest extends TestCase {
 		$this->service->processImport('user1', 'import_user1_fedcba9876543210fedcba9876543210.csv', ['date' => 3, 'description' => [1, 2], 'amount' => 0], null, null, true, true, ';', 'mint');
 
 		$this->assertSame($ids, array_column($this->ledger, 'importId'));
+	}
+
+	// ===== a path in the category column (#421) =====
+
+	private const CATEGORY_MAPPING = ['date' => 0, 'description' => 1, 'amount' => 2, 'category' => 3, 'skipFirstRow' => true];
+
+	/**
+	 * A statement with a category column, imported into one account, the
+	 * way a Skrooge export comes in.
+	 *
+	 * @param array<int, array{0: string, 1: string, 2: string, 3: string}> $rows date, payee, amount, category
+	 */
+	private function importWithCategories(array $rows): array {
+		$account = new Account();
+		$account->setId(1);
+		$account->setName('Current');
+		$account->setType('checking');
+		$account->setCurrency('EUR');
+		$this->accounts[1] = $account;
+
+		$lines = ['Date,Payee,Amount,Category'];
+		foreach ($rows as $row) {
+			$lines[] = implode(',', array_map(fn (string $cell) => '"' . $cell . '"', $row));
+		}
+		$this->fileContent = implode("\n", $lines) . "\n";
+		return $this->service->processImport('user1', self::FILE_ID, self::CATEGORY_MAPPING, 1, null, true, true, ',', null);
+	}
+
+	/**
+	 * Skrooge writes a subcategory as its whole path. The cell was taken as
+	 * one name, so every row made a flat "Food > Groceries" category
+	 * instead of using the Groceries under Food.
+	 */
+	public function testAPathInTheCategoryColumnFindsTheSubcategory(): void {
+		$food = $this->seedCategory('Food', 'expense');
+		$groceries = $this->seedCategory('Groceries', 'expense', $food);
+
+		$result = $this->importWithCategories([['2026-09-01', 'Corner shop', '-12.50', 'Food > Groceries']]);
+
+		$this->assertSame([], $result['errors']);
+		$this->assertSame($groceries, $this->rowWhere('Corner shop')['categoryId']);
+		$this->assertCount(2, $this->categories, 'Nothing is created');
+		$this->assertSame(0, $result['categoriesCreated'] ?? 0);
+	}
+
+	public function testAPathCreatesTheLevelsThatAreMissing(): void {
+		$this->seedCategory('Food', 'expense');
+
+		$result = $this->importWithCategories([
+			['2026-09-01', 'Market', '-3.20', 'Food > Groceries > Fruit'],
+			['2026-09-02', 'Bakery', '-2.10', 'Food>Groceries>Bread'],
+		]);
+
+		$this->assertSame('Food / Groceries / Fruit', $this->categoryPath($this->rowWhere('Market')['categoryId']));
+		$this->assertSame('Food / Groceries / Bread', $this->categoryPath($this->rowWhere('Bakery')['categoryId']));
+		$this->assertCount(4, $this->categories, 'Food is reused, and Groceries is made once');
+		$this->assertSame(3, $result['categoriesCreated']);
+	}
+
+	public function testANewSubcategoryTakesItsParentsType(): void {
+		$this->seedCategory('Income', 'income');
+
+		$this->importWithCategories([['2026-09-01', 'Payroll correction', '-40.00', 'Income > Corrections']]);
+
+		$category = $this->categories[$this->rowWhere('Payroll correction')['categoryId']];
+		$this->assertSame('Income / Corrections', $this->categoryPath($category->getId()));
+		$this->assertSame('income', $category->getType());
+	}
+
+	/**
+	 * A category an earlier import made from the whole cell keeps getting
+	 * its rows, so a statement imported every month does not split its
+	 * history between two categories.
+	 */
+	public function testACategoryNamedWithTheWholePathIsStillUsed(): void {
+		$flat = $this->seedCategory('Food > Groceries', 'expense');
+
+		$this->importWithCategories([['2026-09-01', 'Corner shop', '-12.50', 'Food > Groceries']]);
+
+		$this->assertSame($flat, $this->rowWhere('Corner shop')['categoryId']);
+		$this->assertCount(1, $this->categories);
+	}
+
+	/**
+	 * A refund names the category the spending went to. Only an income
+	 * category of that name was looked for, so each refund made an income
+	 * twin of an expense category the user already had.
+	 */
+	#[\PHPUnit\Framework\Attributes\DataProvider('refundCategoryCells')]
+	public function testARefundIsFiledUnderTheSpendingCategory(string $cell): void {
+		$food = $this->seedCategory('Food', 'expense');
+		$groceries = $this->seedCategory('Groceries', 'expense', $food);
+
+		$this->importWithCategories([['2026-09-03', 'Refund', '4.20', $cell]]);
+
+		$this->assertSame('credit', $this->rowWhere('Refund')['type']);
+		$this->assertSame($groceries, $this->rowWhere('Refund')['categoryId']);
+		$this->assertCount(2, $this->categories);
+	}
+
+	public static function refundCategoryCells(): array {
+		return ['path' => ['Food > Groceries'], 'name only' => ['Groceries']];
 	}
 }

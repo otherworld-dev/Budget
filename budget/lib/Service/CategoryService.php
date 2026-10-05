@@ -95,16 +95,16 @@ class CategoryService extends AbstractCrudService {
 	}
 
 	/**
-	 * Find an existing category by name/type or create it.
+	 * The category an importer naming $name means, if the user has one.
 	 *
 	 * A top-level category of that name comes first, then the only one of
 	 * that name at any level: an importer naming "Groceries" means the
 	 * user's Food > Groceries, and a second, top-level "Groceries" beside it
 	 * split the spending in two (T3-7). Several subcategories sharing the
 	 * name (Insurance under Housing and under Healthcare) are not guessed
-	 * between; a top-level one is created, as before.
+	 * between.
 	 */
-	public function findOrCreate(string $userId, string $name, string $type): Category {
+	public function findExisting(string $userId, string $name, string $type): ?Category {
 		$existing = $this->getCategoryMapper()->findByName($userId, $name, $type, null);
 		if ($existing !== null) {
 			return $existing;
@@ -114,8 +114,17 @@ class CategoryService extends AbstractCrudService {
 			$this->getCategoryMapper()->findAll($userId),
 			static fn (Category $category) => $category->getName() === $name && $category->getType() === $type
 		));
-		if (count($sameName) === 1) {
-			return $sameName[0];
+		return count($sameName) === 1 ? $sameName[0] : null;
+	}
+
+	/**
+	 * Find an existing category by name/type (see findExisting()) or create
+	 * it at the top level.
+	 */
+	public function findOrCreate(string $userId, string $name, string $type): Category {
+		$existing = $this->findExisting($userId, $name, $type);
+		if ($existing !== null) {
+			return $existing;
 		}
 
 		$category = new Category();

@@ -214,10 +214,7 @@ class CategoryTransferService {
 					$path = $parent . ' ' . self::PATH_SEPARATOR . ' ' . $path;
 				}
 			}
-			$segments = array_values(array_filter(
-				array_map('trim', explode(self::PATH_SEPARATOR, $path)),
-				static fn (string $s) => $s !== ''
-			));
+			$segments = self::splitPath($path);
 			if ($segments === []) {
 				continue;
 			}
@@ -235,6 +232,20 @@ class CategoryTransferService {
 			$this->insertPath($roots, $segments, $attrs);
 		}
 		return $roots;
+	}
+
+	/**
+	 * The levels of a "Food > Groceries" path, outermost first, trimmed and
+	 * with empty levels dropped. The transaction import reads its category
+	 * column with this too, so a path means the same in both files (#421).
+	 *
+	 * @return string[]
+	 */
+	public static function splitPath(string $path): array {
+		return array_values(array_filter(
+			array_map('trim', explode(self::PATH_SEPARATOR, $path)),
+			static fn (string $s) => $s !== ''
+		));
 	}
 
 	/**
