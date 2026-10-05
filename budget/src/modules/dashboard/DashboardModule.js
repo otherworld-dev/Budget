@@ -278,7 +278,7 @@ export default class DashboardModule {
             this.updateSavingsRateHero(summary);
             this.updateCashFlowHero(summary);
             this.updateBudgetRemainingHero(budgetData);
-            this.updateBudgetHealthHero(budgetAlerts);
+            this.updateBudgetHealthHero(budgetAlerts, budgetData);
 
             // Per-Account Hero Tiles
             this._lastSummary = summary;
@@ -584,6 +584,7 @@ export default class DashboardModule {
                 return this.refreshAssetValueChart(days);
             },
             topCategories: () => this.refreshTopCategoriesWidget('topCategories'),
+            budgetProgress: () => this.refreshBudgetProgressWidget('budgetProgress'),
         };
 
         for (const [widgetId, refreshFn] of Object.entries(widgetRefreshMap)) {
@@ -966,13 +967,19 @@ export default class DashboardModule {
         }
     }
 
-    updateBudgetHealthHero(budgetAlerts) {
+    /**
+     * Share of this month's spending budgets with no alert. Counted from the
+     * budget report: it counted the rows of an element that doesn't exist,
+     * so it always read "--". An income target isn't a spending budget, and
+     * the alerts leave it out too; an envelope overdrawn by its carried
+     * overspend still counts, as on the Budget Progress tile.
+     */
+    updateBudgetHealthHero(budgetAlerts, budgetData = null) {
         const el = document.getElementById('hero-budget-health-value');
         if (!el) return;
 
-        // Get total number of budget categories from the existing budget progress widget
-        const budgetProgressContainer = document.getElementById('budget-progress-categories');
-        const totalBudgets = budgetProgressContainer ? budgetProgressContainer.querySelectorAll('.budget-category-item').length : 0;
+        const totalBudgets = (budgetData?.categories || []).filter(c => c.type !== 'income'
+            && ((c.budgeted || c.budget || 0) > 0 || Math.abs(c.carried || 0) >= 0.005)).length;
 
         if (totalBudgets === 0) {
             el.textContent = '--';
@@ -2347,7 +2354,7 @@ export default class DashboardModule {
                         const remaining = budget - spent;
                         return `
                             <tr>
-                                <td>${dom.escapeHtml(cat.name)}</td>
+                                <td>${dom.escapeHtml(cat.categoryName || cat.name)}</td>
                                 <td>${this.formatCurrency(budget)}</td>
                                 <td>${this.formatCurrency(spent)}</td>
                                 <td class="${remaining >= 0 ? 'positive' : 'negative'}">
