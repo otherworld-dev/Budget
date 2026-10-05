@@ -59,6 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **An account's transaction list shows the same details as the Transactions page**, including the pending, not in forecast and pension badges and the reference, and a transfer's label is translated in both.
 - **Import History lists your imports.** The tab was always empty. It now shows each import's date, account, number of transactions and the dates they cover. The Download and Rollback buttons have gone, as there was nothing to download and rolling back never removed anything.
 - **The Skip Duplicate Transactions switch has gone from Settings.** It never did anything: duplicates are skipped on import unless you tick **Import flagged duplicates too** on the import screen.
+- **Reconciliation History shows the latest two.** An account's page listed every reconciliation, up to 20, above its transactions. It now shows the two most recent, with **Show all** under them for the rest and **Show fewer** to fold them away again. Two or fewer show as before. Suggested by @SGiersch ([#418](https://github.com/otherworld-dev/Budget/issues/418))
 
 ### Fixed
 - **Quick Add's drop-down lists no longer cut off the bottom of their text.** The account, type and category fields were a few pixels too short for the text in them, so the bottoms of the letters were lost. Every field on the page is now the same height, and tall enough for its text.
