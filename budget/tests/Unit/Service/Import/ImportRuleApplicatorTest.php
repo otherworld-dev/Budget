@@ -367,9 +367,11 @@ class ImportRuleApplicatorTest extends TestCase {
 				'actions' => [[
 					'type' => 'regex_replace',
 					'field' => 'description',
-					// \C matches one byte even on characters
-					'pattern' => '(?<=^.{18})\C',
-					'replacement' => '',
+					// \C matches one byte, cutting "ä" in half on characters
+					// and on bytes alike (PCRE 10.44, PHP 8.4, won't compile
+					// \C with the u flag, so the replace runs on bytes there)
+					'pattern' => '^(Zahlung B)\C',
+					'replacement' => '$1',
 				]],
 			],
 		]);

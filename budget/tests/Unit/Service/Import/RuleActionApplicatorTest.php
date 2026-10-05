@@ -276,8 +276,10 @@ class RuleActionApplicatorTest extends TestCase {
 	}
 
 	public function testRegexReplaceNeverStoresTextThatIsNotUtf8(): void {
-		// \C matches a single byte even on characters, so it can still cut
-		// "ü" in half; that result is dropped instead of saved
+		// \C matches a single byte, so it cuts "ä" in half; that result is
+		// dropped instead of saved. (PCRE 10.44, PHP 8.4, won't compile \C
+		// with the u flag at all, so the replace runs on bytes there: the
+		// pattern must split a character on bytes as well as characters.)
 		$transaction = $this->createTransaction(['description' => 'Zahlung Bäckerei Müller']);
 		$this->logger->expects($this->atLeastOnce())->method('warning');
 		$rule = $this->createRule([
@@ -285,8 +287,8 @@ class RuleActionApplicatorTest extends TestCase {
 			'actions' => [[
 				'type' => 'regex_replace',
 				'field' => 'description',
-				'pattern' => '(?<=^.{18})\C',
-				'replacement' => '',
+				'pattern' => '^(Zahlung B)\C',
+				'replacement' => '$1',
 			]],
 		]);
 
