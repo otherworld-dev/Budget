@@ -17,7 +17,9 @@ import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue } from '../../utils/datepicker.js';
 import { downloadTransactionsCsv } from '../../utils/helpers.js';
 import { apiFetch, ApiError } from '../../utils/api.js';
-import { openAccounts, pickableAccounts, accountOptionLabel, selectAccountValue } from '../../utils/accounts.js';
+import { once } from '../../utils/submitGuard.js';
+import { selectPossiblyUnavailable, unavailableCategoryLabel } from '../../utils/formSelects.js';
+import { openAccounts, pickableAccounts, accountOptionLabel, selectAccountValue, usableCategories, categoryTreeOf, sharedAccountOwner, isReadOnlyShare } from '../../utils/accounts.js';
 import { offerableTags } from '../../utils/tags.js';
 import flatpickr from 'flatpickr';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
@@ -783,6 +785,25 @@ export default class TransactionsModule {
         this._maybeCheckReconcileSession(this.app.transactionFilters.account);
     }
 
+    /**
+     * Arrive with a search applied, as a result picked in Nextcloud's
+     * unified search does (#/transactions?search=...): the list is filtered
+     * by it, and the Filters panel opens to show why. Typing the term into
+     * the closed panel's search box alone filtered nothing.
+     *
+     * @param {string} search
+     */
+    applySearchLink(search) {
+        this.app.transactionFilters = { ...(this.app.transactionFilters || {}), search };
+        this.app.currentPage = 1;
+        const panel = document.getElementById('transactions-filters');
+        if (panel?.style.display === 'none') {
+            this.toggleFiltersPanel();
+        } else {
+            this.syncFilterControlsFromState();
+        }
+    }
+
     clearFilters() {
         this.resetAllMatchingSelectionOnFilterChange();
         // Clearing is just syncing to an empty filter set — one enumeration
@@ -1203,11 +1224,17 @@ export default class TransactionsModule {
             countElement.textContent = this.selectedTransactions.size;
         }
 
-        // Populate category dropdown
+        // Populate category dropdown: only categories every selected row's
+        // ledger takes (a row in an account shared with you is filed in its
+        // owner's ledger), as far as the loaded page shows their accounts
         if (categorySelect && this.categories) {
             categorySelect.innerHTML = `<option value="">${t('budget', 'Don\'t change')}</option>`
                 + `<option value="none">${t('budget', 'Uncategorized')}</option>`;
-            dom.populateCategorySelect(categorySelect, this.categoryTree || this.categories);
+            const selectedAccounts = (this.transactions || [])
+                .filter(tx => this.selectedTransactions.has(tx.id))
+                .map(tx => (this.accounts || []).find(a => a.id === tx.accountId));
+            const scoped = usableCategories(this.categories, selectedAccounts);
+            dom.populateCategorySelect(categorySelect, scoped ? categoryTreeOf(scoped) : (this.categoryTree || this.categories));
         }
 
         // Reset form
@@ -1578,7 +1605,14 @@ export default class TransactionsModule {
         // whole ledger, scheduled rows years out included (#374).
         const filterAccount = document.getElementById('filter-account');
         if (filterAccount) {
-            filterAccount.value = String(state.session.accountId);
+            // Started from an account's page, the filter has no options yet,
+            // and a value with no option to match is dropped: the list then
+            // showed every account's transactions
+            const accountId = String(state.session.accountId);
+            if (![...filterAccount.options].some(option => option.value === accountId)) {
+                this.populateFilterDropdowns();
+            }
+            filterAccount.value = accountId;
             // Through the helper: these inputs are flatpickr-managed, and a
             // bare .value assignment leaves the picker's own state behind.
             setDateValue('filter-date-to', state.session.statementDate || '');
@@ -1768,6 +1802,10 @@ export default class TransactionsModule {
      */
     async checkActiveReconcileSession(accountId) {
         if (!accountId || this.reconcileMode) return;
+        // Reconciling needs write access: an account shared with you
+        // read-only has no session for you, and asking is a 403
+        const account = (this.accounts || []).find(a => String(a.id) === String(accountId));
+        if (isReadOnlyShare(account)) return;
         try {
             const state = await apiFetch(`/apps/budget/api/accounts/${accountId}/reconciliation/session`).catch(() => null);
             if (!state) return;
@@ -1996,6 +2034,10 @@ export default class TransactionsModule {
     showTransactionModal(transaction = null, preSelectedAccountId = null) {
         const modal = document.getElementById('transaction-modal');
         if (modal) {
+            // The saved transaction being edited, wherever it was opened from
+            // (an account's register, a link): the list's page may not hold it.
+            this._formTransaction = transaction?.id ? transaction : null;
+
             const titleEl = document.getElementById('transaction-modal-title');
             if (titleEl) {
                 titleEl.textContent = transaction?.id
@@ -2033,7 +2075,7 @@ export default class TransactionsModule {
                 if (excludeForecastEl) excludeForecastEl.checked = !!transaction.excludedFromForecast;
 
                 // Receipt attachments (only on saved transactions)
-                this.setupAttachmentsSection(transaction.id);
+                this.setupAttachmentsSection(transaction.id, (this.accounts || []).find(a => a.id === transaction.accountId) || null);
 
                 // Scanning can still fill gaps on an existing transaction —
                 // it only writes into fields that are empty.
@@ -2117,6 +2159,15 @@ export default class TransactionsModule {
             // crypto accounts accept up to 8 decimals instead of just 2 (#331).
             this._updateAmountStep();
 
+            // Only the categories the chosen account can take, now and
+            // whenever the account changes; a saved row keeps its own
+            this._refreshFormCategoryOptions(transaction?.id ? (transaction.categoryId ?? '') : undefined);
+            const accountPicker = document.getElementById('transaction-account');
+            if (accountPicker && !this._categoryScopeBound) {
+                this._categoryScopeBound = true;
+                accountPicker.addEventListener('change', () => this._refreshFormCategoryOptions());
+            }
+
             // Set up inline split toggle
             this.setupInlineSplitToggle();
 
@@ -2134,6 +2185,54 @@ export default class TransactionsModule {
             modal.style.display = 'flex';
             this._keepKeyboardDownWhenViewing(transaction);
         }
+    }
+
+    /** The account picked in the transaction form, if any. */
+    _formAccount() {
+        const id = document.getElementById('transaction-account')?.value;
+        return id ? (this.accounts || []).find(a => String(a.id) === String(id)) || null : null;
+    }
+
+    /**
+     * Rebuild the form's category choices, and its split rows', for the
+     * account picked. A row in an account someone shared with you is filed
+     * in their ledger, which only takes their categories: your own were
+     * offered and then refused on save ("Category not found"). The category
+     * the transaction already has is always kept, even one its owner didn't
+     * share with you: the server lets a row keep its category, and an empty
+     * select would have cleared it on save. Such a category is named, as
+     * the row came with its name, but not offered as a choice.
+     *
+     * @param {number|string|null} [recordCategoryId] The category of the
+     *   saved transaction being opened; omitted when the account changes
+     */
+    _refreshFormCategoryOptions(recordCategoryId = undefined) {
+        const select = document.getElementById('transaction-category');
+        if (!select || !this.categories) return;
+        const account = this._formAccount();
+        const keepUnlisted = recordCategoryId !== undefined
+            || select.selectedOptions?.[0]?.dataset.unavailable === '1';
+        const current = recordCategoryId !== undefined ? String(recordCategoryId ?? '') : select.value;
+        const scoped = usableCategories(this.categories, [account], [current]);
+        select.innerHTML = `<option value="">${t('budget', 'No category')}</option>`;
+        dom.populateCategorySelect(select, scoped ? categoryTreeOf(scoped) : (this.categoryTree || this.categories));
+        if (keepUnlisted) {
+            // Only the saved row's own category can be kept unlisted
+            const record = this._formTransaction;
+            const name = record && String(record.categoryId ?? '') === current ? record.categoryName : null;
+            selectPossiblyUnavailable(select, current, name ? unavailableCategoryLabel(name) : null);
+        } else {
+            select.value = current;
+        }
+
+        const type = document.getElementById('transaction-type')?.value;
+        document.querySelectorAll('#inline-splits-container .inline-split-category').forEach(splitSelect => {
+            const value = splitSelect.value;
+            const name = splitSelect.selectedOptions?.[0]?.dataset.categoryName || null;
+            splitSelect.innerHTML = `<option value="">${t('budget', 'Uncategorized')}</option>`
+                + this.app.getCategoryOptions(value ? parseInt(value, 10) : null, type, account, name);
+            splitSelect.value = value;
+        });
     }
 
     /**
@@ -2640,9 +2739,20 @@ export default class TransactionsModule {
      * @param {?number} transactionId null while adding — the transaction does
      *   not exist yet, so chosen receipts are held and attached after save.
      */
-    setupAttachmentsSection(transactionId) {
+    /**
+     * @param {number|null} transactionId The saved transaction, or null when adding
+     * @param {object|null} [account] Its account. Receipts belong to the
+     *   account's owner, so on a row in an account shared with you the
+     *   section stays hidden instead of asking for them (a 404 every time).
+     */
+    setupAttachmentsSection(transactionId, account = null) {
         const group = document.getElementById('transaction-attachments-group');
         if (!group) return;
+        if (transactionId && sharedAccountOwner(account)) {
+            group.style.display = 'none';
+            this._attachmentTxId = null;
+            return;
+        }
         group.style.display = '';
         this._attachmentTxId = transactionId;
 
@@ -2828,7 +2938,12 @@ export default class TransactionsModule {
         }
     }
 
-    async saveTransaction() {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveTransaction() {
+        return once('transaction-save', document.querySelector('#transaction-form [type="submit"]'), () => this._saveTransaction());
+    }
+
+    async _saveTransaction() {
         // Get form values
         const id = document.getElementById('transaction-id').value;
         const date = document.getElementById('transaction-date').value;
@@ -2976,9 +3091,22 @@ export default class TransactionsModule {
             }
         }
 
+        // Split unticked on a split transaction: unsplit it into the category
+        // picked. The update alone can't, as the server keeps a split
+        // transaction's category empty while its parts exist.
+        const edited = this._editedTransaction(id);
+        const unsplitting = !!(edited && (edited.isSplit || edited.is_split) && !splitToggleEl?.checked);
+
         try {
             let created = null;
             if (id) {
+                if (unsplitting) {
+                    await apiFetch(`/apps/budget/api/transactions/${id}/splits`, {
+                        method: 'DELETE',
+                        body: { categoryId: data.categoryId },
+                        errorMessage: t('budget', 'Failed to unsplit transaction'),
+                    });
+                }
                 // Update existing transaction
                 await apiFetch(`/apps/budget/api/transactions/${id}`, {
                     method: 'PUT',
@@ -3044,6 +3172,19 @@ export default class TransactionsModule {
         }
     }
 
+    /**
+     * The saved transaction the form is editing: the one it was opened with,
+     * else the list's copy. Null for a new transaction.
+     *
+     * @param {string|number} id - The form's transaction id
+     */
+    _editedTransaction(id) {
+        const txId = parseInt(id);
+        if (!txId) return null;
+        if (this._formTransaction?.id === txId) return this._formTransaction;
+        return this.transactions?.find(tx => tx.id === txId) || null;
+    }
+
     // ===========================
     // Inline Split UI
     // ===========================
@@ -3061,7 +3202,7 @@ export default class TransactionsModule {
         const isEdit = !!txId;
         const typeSelect = document.getElementById('transaction-type');
         const isTransfer = typeSelect?.value === 'transfer';
-        const transaction = isEdit ? this.transactions?.find(tx => tx.id === parseInt(txId)) : null;
+        const transaction = this._editedTransaction(txId);
         const isSplit = transaction?.isSplit || transaction?.is_split;
 
         // Reset state
@@ -3199,7 +3340,7 @@ export default class TransactionsModule {
                 <label>${t('budget', 'Category')}</label>
                 <select aria-label="${t('budget', 'Category')}" class="inline-split-category">
                     <option value="">${t('budget', 'Uncategorized')}</option>
-                    ${this.app.getCategoryOptions(existingSplit?.categoryId || null, transactionType)}
+                    ${this.app.getCategoryOptions(existingSplit?.categoryId || null, transactionType, this._formAccount(), existingSplit?.categoryName || null)}
                 </select>
             </div>
             <div class="split-field split-description-field">
@@ -4499,6 +4640,8 @@ export default class TransactionsModule {
             if (!row || e.target.closest('input, button, a, select, .linked-indicator, .cell-editing, .editing')) return;
             e.preventDefault();
             e.stopPropagation();
+            // A row in an account shared read-only can't be changed
+            if (row.dataset.readOnly) return;
             this.editTransaction(parseInt(row.dataset.transactionId, 10));
         }, true);
 
@@ -4548,7 +4691,7 @@ export default class TransactionsModule {
                 this.createTextEditor(cell, value, 'description');
                 break;
             case 'categoryId':
-                this.createCategoryEditor(cell, value);
+                this.createCategoryEditor(cell, value, transaction);
                 break;
             case 'amount':
                 this.createAmountEditor(cell, transaction);
@@ -4642,7 +4785,7 @@ export default class TransactionsModule {
         input.select();
     }
 
-    createCategoryEditor(cell, currentCategoryId) {
+    createCategoryEditor(cell, currentCategoryId, transaction = null) {
         const container = document.createElement('div');
         container.className = 'category-autocomplete';
 
@@ -4651,9 +4794,16 @@ export default class TransactionsModule {
         input.className = 'category-autocomplete-input';
         input.placeholder = t('budget', 'Type to search...');
 
+        // A row in an account someone shared with you takes only their
+        // categories (see _refreshFormCategoryOptions)
+        const account = transaction ? (this.accounts || []).find(a => a.id === transaction.accountId) : null;
+        const scoped = usableCategories(this.categories, [account], [currentCategoryId]);
+
         // Try hierarchical first (for categories page), then flat (for transactions page)
         let categoryData = null;
-        if (this.categoryTree && this.categoryTree.length > 0) {
+        if (scoped) {
+            categoryData = categoryTreeOf(scoped);
+        } else if (this.categoryTree && this.categoryTree.length > 0) {
             categoryData = this.categoryTree;
         } else if (this.allCategories && this.allCategories.length > 0) {
             categoryData = this.allCategories;
@@ -4664,9 +4814,13 @@ export default class TransactionsModule {
         // Build flat list of categories for search
         const flatCategories = categoryData ? this.getFlatCategoryList(categoryData) : [];
 
-        // Set current category name as value
+        // Set current category name as value (one not shared with you is
+        // kept as it is, named as the row came, as the cell shows it; only a
+        // change is saved)
         const currentCategory = flatCategories.find(c => c.id === parseInt(currentCategoryId));
-        input.value = currentCategory ? currentCategory.name : '';
+        input.value = currentCategory
+            ? currentCategory.name
+            : (currentCategoryId ? (transaction?.categoryName || unavailableCategoryLabel(null)) : '');
         input.dataset.categoryId = currentCategoryId || '';
 
         const dropdown = document.createElement('div');
@@ -4827,9 +4981,15 @@ export default class TransactionsModule {
         cell.innerHTML = `<span style="color: var(--color-text-maxcontrast); font-size: 11px;">${t('budget', 'Loading...')}</span>`;
 
         try {
+            // A row in an account someone shared with you is tagged as its
+            // owner, who can't see your own tags (the server refuses them):
+            // only the tags of the row's category can go on it.
+            const account = this.accounts?.find(a => a.id === transaction.accountId);
+            const ownersRow = !!account?._shared;
+
             // Load both global tags and category tag sets
             const [globalTagsResponse, tagSets] = await Promise.all([
-                apiFetch('/apps/budget/api/tags/global').catch(() => []),
+                ownersRow ? Promise.resolve([]) : apiFetch('/apps/budget/api/tags/global').catch(() => []),
                 categoryId ? this.loadTagSetsForCategory(categoryId) : Promise.resolve([])
             ]);
 
@@ -5003,7 +5163,8 @@ export default class TransactionsModule {
         try {
             await apiFetch(`/apps/budget/api/transactions/${transactionId}/tags`, {
                 method: 'PUT',
-                body: { tagIds }
+                body: { tagIds },
+                errorMessage: t('budget', 'Failed to update tags'),
             });
 
             await this.app.loadTransactionTags(transactionId);
@@ -5015,6 +5176,8 @@ export default class TransactionsModule {
             }
         } catch (error) {
             console.error('Failed to save tags:', error);
+            // The server says why, e.g. a tag the account's owner can't see
+            showError(error.message || t('budget', 'Failed to update tags'));
             this.cancelInlineEdit(cell);
         }
     }

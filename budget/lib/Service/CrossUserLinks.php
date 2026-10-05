@@ -410,9 +410,7 @@ class CrossUserLinks {
 					$values = [$column => $newId];
 					if ($newId === null) {
 						$detached++;
-						if ($table === 'budget_bills' && $type === ShareItem::TYPE_ACCOUNT) {
-							$values['auto_pay_enabled'] = false;
-						}
+						$values += self::alsoOnDetach($table, $type);
 					}
 					$this->updateRow($table, $id, $values);
 				}
@@ -538,8 +536,138 @@ class CrossUserLinks {
 	}
 
 	// ==========================================
+	// A share that ended or narrowed
+	// ==========================================
+
+	/**
+	 * Cut what $recipientId's own data still points at in $ownerId's after a
+	 * share between them ended or narrowed: the cleanup a reset or a deleted
+	 * user gets from apply(), limited to the accounts and categories the
+	 * recipient can no longer see. Left alone, a revoked recipient's rows,
+	 * split parts and bills kept the owner's category (her lists showed its
+	 * live name, and re-saving such a row was refused), and her bills kept
+	 * pointing at the owner's account.
+	 *
+	 * Rows in the recipient's accounts, split parts on them, and her bills,
+	 * income and rules filed under a lost category go to No category, as do
+	 * her bills' split template parts. Her bills, income, goals and recurring
+	 * pension payments on a lost account let go of it, and a bill that does
+	 * stops auto-paying and loses its pending rows. A pension payment already
+	 * made keeps the account it came from: that is history. So do her splits
+	 * of the owner's transactions with contacts, her own record of what they
+	 * owe her: they stay, and stop showing the transaction they were made
+	 * from (ExpenseShareMapper::findSharedWithNextcloudUser()).
+	 *
+	 * An account she can still see but no longer write to is not lost: a bill
+	 * on it is refused when it next pays, and works again if write comes back.
+	 *
+	 * @return array{detached: int}
+	 */
+	public function cutLostAccess(string $recipientId, string $ownerId): array {
+		$result = ['detached' => 0];
+		if ($recipientId === $ownerId) {
+			return $result;
+		}
+
+		$shared = $this->readSharedWithUser($recipientId);
+		$lost = [];
+		foreach ([ShareItem::TYPE_ACCOUNT => 'budget_accounts', ShareItem::TYPE_CATEGORY => 'budget_categories'] as $type => $table) {
+			$lost[$type] = [];
+			foreach ($this->readOwned($table, $ownerId, []) as $row) {
+				if (!isset($shared[$type][(int)$row['id']])) {
+					$lost[$type][] = (int)$row['id'];
+				}
+			}
+		}
+		if ($lost[ShareItem::TYPE_ACCOUNT] === [] && $lost[ShareItem::TYPE_CATEGORY] === []) {
+			return $result;
+		}
+
+		$this->db->beginTransaction();
+		try {
+			foreach (self::REFERENCES as $type => $columns) {
+				if ($lost[$type] === []) {
+					continue;
+				}
+				foreach ($columns as [$table, $column, $hasUser]) {
+					if ($table === 'budget_pen_contribs') {
+						continue;
+					}
+					foreach ($this->readUsersReferencing($table, $column, $lost[$type], $recipientId, $hasUser) as $id => $_) {
+						if ($table === 'budget_bills' && $type === ShareItem::TYPE_ACCOUNT) {
+							// Its pending rows would only ever be refused
+							$this->transactionService->deleteScheduledBillTransactions($id);
+						}
+						$this->updateRow($table, $id, [$column => null] + self::alsoOnDetach($table, $type));
+						$result['detached']++;
+					}
+				}
+			}
+			$result['detached'] += $this->cutSplitTemplateCategories($recipientId, $lost[ShareItem::TYPE_CATEGORY]);
+			$this->db->commit();
+		} catch (\Throwable $e) {
+			$this->db->rollBack();
+			throw $e;
+		}
+
+		return $result;
+	}
+
+	/**
+	 * The parts of $userId's bill split templates filed under one of
+	 * $categoryIds lose the category; the parts themselves stay.
+	 *
+	 * @param int[] $categoryIds
+	 */
+	private function cutSplitTemplateCategories(string $userId, array $categoryIds): int {
+		if ($categoryIds === []) {
+			return 0;
+		}
+		$cut = 0;
+		foreach ($this->readSplitTemplates([$userId]) as $row) {
+			$template = json_decode((string)$row['split_template'], true);
+			if (!is_array($template)) {
+				continue;
+			}
+			$changed = false;
+			foreach ($template as $i => $part) {
+				if (is_array($part) && isset($part['categoryId']) && is_numeric($part['categoryId'])
+					&& in_array((int)$part['categoryId'], $categoryIds, true)) {
+					$template[$i]['categoryId'] = null;
+					$changed = true;
+					$cut++;
+				}
+			}
+			if ($changed) {
+				$this->updateRow('budget_bills', (int)$row['id'], ['split_template' => json_encode(array_values($template))]);
+			}
+		}
+		return $cut;
+	}
+
+	// ==========================================
 	// Helpers
 	// ==========================================
+
+	/**
+	 * What else changes when a row lets go of another user's account: a bill
+	 * stops auto-paying (it would only mark itself paid without recording
+	 * anything), and a recurring pension payment stops auto-posting (it
+	 * would post with no bank leg), as when the account is deleted
+	 * (PensionRecurringContributionMapper::detachSourceAccount()).
+	 *
+	 * @return array<string, bool>
+	 */
+	private static function alsoOnDetach(string $table, string $type): array {
+		if ($type !== ShareItem::TYPE_ACCOUNT) {
+			return [];
+		}
+		return match ($table) {
+			'budget_bills' => ['auto_pay_enabled' => false],
+			'budget_pen_recur' => ['auto_post_enabled' => false],
+			default => [],
+		};
+	}
 
 	/** Whether the user can use another user's account (write) or category (any permission) */
 	private function usable(string $type, int $id): bool {
@@ -820,6 +948,45 @@ class CrossUserLinks {
 	 */
 	protected function existingTransactionIds(array $ids): array {
 		return array_map(static fn (array $row) => (int)$row['id'], $this->readTransactions($ids));
+	}
+
+	/**
+	 * $userId's rows whose $column holds one of $ids: by user_id when the
+	 * table has one; a transaction by the owner of its account; a split part
+	 * by the owner of its transaction's account.
+	 *
+	 * @param int[] $ids
+	 * @return array<int, int> row id => the id it holds
+	 */
+	protected function readUsersReferencing(string $table, string $column, array $ids, string $userId, bool $hasUser): array {
+		if (!$hasUser && $table !== 'budget_transactions' && $table !== 'budget_tx_splits') {
+			return [];
+		}
+		$found = [];
+		foreach (array_chunk($ids, self::CHUNK) as $chunk) {
+			$qb = $this->db->getQueryBuilder();
+			if ($hasUser) {
+				$qb->select('r.id', 'r.' . $column)
+					->from($table, 'r')
+					->where($qb->expr()->eq('r.user_id', $qb->createNamedParameter($userId)));
+			} elseif ($table === 'budget_transactions') {
+				$qb->select('r.id', 'r.' . $column)
+					->from($table, 'r')
+					->innerJoin('r', 'budget_accounts', 'a', $qb->expr()->eq('a.id', 'r.account_id'))
+					->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)));
+			} else {
+				$qb->select('r.id', 'r.' . $column)
+					->from($table, 'r')
+					->innerJoin('r', 'budget_transactions', 't', $qb->expr()->eq('t.id', 'r.transaction_id'))
+					->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('a.id', 't.account_id'))
+					->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)));
+			}
+			$qb->andWhere($qb->expr()->in('r.' . $column, $qb->createNamedParameter($chunk, IQueryBuilder::PARAM_INT_ARRAY)));
+			foreach ($this->fetchAll($qb) as $row) {
+				$found[(int)$row['id']] = (int)$row[$column];
+			}
+		}
+		return $found;
 	}
 
 	/**

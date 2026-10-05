@@ -8,6 +8,7 @@ use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\RecurringIncome;
 use OCA\Budget\Db\RecurringIncomeMapper;
 use OCA\Budget\Db\ShareItem;
+use OCA\Budget\Exception\ReadOnlyShareException;
 use OCA\Budget\Service\Bill\FrequencyCalculator;
 use OCA\Budget\Service\Income\RecurringIncomeDetector;
 use OCP\IL10N;
@@ -191,17 +192,18 @@ class RecurringIncomeService extends AbstractCrudService {
 	 * create switches itself off, so the job doesn't fail and notify every
 	 * six hours forever.
 	 *
-	 * @return array ['success' => bool, 'message' => string, 'income' => ?RecurringIncome]
+	 * @return array ['success' => bool, 'message' => string, 'income' => ?RecurringIncome,
+	 *               'disabled' => bool whether a failure switched auto-create off; false when nothing was due]
 	 */
 	public function processAutoCreate(int $incomeId, string $userId): array {
 		try {
 			$income = $this->find($incomeId, $userId);
 		} catch (\Exception $e) {
 			$this->logger->warning("Auto-create failed for income {$incomeId}: {$e->getMessage()}");
-			return ['success' => false, 'message' => $e->getMessage()];
+			return ['success' => false, 'message' => $e->getMessage(), 'disabled' => false];
 		}
 		if (!$income->getAutoCreateEnabled() || !$income->getIsActive()) {
-			return ['success' => false, 'message' => 'Auto-create not enabled'];
+			return ['success' => false, 'message' => 'Auto-create not enabled', 'disabled' => false];
 		}
 
 		$today = $this->today($userId);
@@ -229,11 +231,12 @@ class RecurringIncomeService extends AbstractCrudService {
 			// Whatever booked before the failure stays booked and settled
 			$income->setAutoCreateEnabled(false);
 			$this->mapper->update($income);
-			return ['success' => false, 'message' => $e->getMessage(), 'income' => $income];
+			return ['success' => false, 'message' => $e->getMessage(), 'income' => $income, 'disabled' => true];
 		}
 
 		if ($booked === 0) {
-			return ['success' => false, 'message' => 'Nothing due', 'income' => $income];
+			// Another run booked it first: nothing to report
+			return ['success' => false, 'message' => 'Nothing due', 'income' => $income, 'disabled' => false];
 		}
 		return ['success' => true, 'income' => $income, 'count' => $booked];
 	}
@@ -251,7 +254,7 @@ class RecurringIncomeService extends AbstractCrudService {
 	 *                                  refused, instead of booking the money twice.
 	 * @throws \InvalidArgumentException
 	 */
-	public function markReceived(int $id, string $userId, ?string $receivedDate = null, bool $createTransaction = false, ?string $expectedDate = null): RecurringIncome {
+	public function markReceived(int $id, string $userId, ?string $receivedDate = null, bool $createTransaction = false, ?string $expectedDate = null, ?string $actingUserId = null): RecurringIncome {
 		$income = $this->find($id, $userId);
 
 		if (!$income->getIsActive() || $income->getNextExpectedDate() === null) {
@@ -263,6 +266,7 @@ class RecurringIncomeService extends AbstractCrudService {
 		$willBook = $createTransaction && $income->getAccountId() !== null;
 		if ($willBook) {
 			$this->requireWritableAccount($income);
+			$this->requireWritableByActingUser($income, $actingUserId);
 		}
 
 		$received = $receivedDate ?? $this->today($userId);
@@ -297,7 +301,7 @@ class RecurringIncomeService extends AbstractCrudService {
 	 *
 	 * @throws \InvalidArgumentException when there is nothing to revert
 	 */
-	public function markUnreceived(int $id, string $userId): RecurringIncome {
+	public function markUnreceived(int $id, string $userId, ?string $actingUserId = null): RecurringIncome {
 		$income = $this->find($id, $userId);
 		$raw = $income->getReceivedUndoState();
 		$snapshot = ($raw !== null && $raw !== '') ? json_decode($raw, true) : null;
@@ -308,6 +312,7 @@ class RecurringIncomeService extends AbstractCrudService {
 		$ids = is_array($snapshot['transactionIds'] ?? null) ? $snapshot['transactionIds'] : [];
 		if ($ids !== []) {
 			$this->requireWritableAccount($income);
+			$this->requireWritableByActingUser($income, $actingUserId);
 		}
 		foreach ($ids as $transactionId) {
 			// Only this income's own credit: the snapshot holds ids, and
@@ -424,6 +429,23 @@ class RecurringIncomeService extends AbstractCrudService {
 		if ($this->granularShareService !== null && $income->getAccountId() !== null
 			&& !$this->granularShareService->canWrite($income->getUserId(), ShareItem::TYPE_ACCOUNT, (int)$income->getAccountId())) {
 			throw new \InvalidArgumentException($this->l->t('This income uses an account you can no longer change. Edit it and choose another account.'));
+		}
+	}
+
+	/**
+	 * Receiving with a payment, or undoing one, books into or deletes from
+	 * the income's account, so the person doing it needs write access to the
+	 * account as well as the income: a share of the income alone let them
+	 * book into an account never shared with them, or one shared read-only.
+	 * Marking it received without booking anything needs only the income.
+	 *
+	 * @throws ReadOnlyShareException
+	 */
+	private function requireWritableByActingUser(RecurringIncome $income, ?string $actingUserId): void {
+		if ($actingUserId !== null && $actingUserId !== $income->getUserId()
+			&& $this->granularShareService !== null && $income->getAccountId() !== null
+			&& !$this->granularShareService->canWrite($actingUserId, ShareItem::TYPE_ACCOUNT, (int)$income->getAccountId())) {
+			throw new ReadOnlyShareException();
 		}
 	}
 
@@ -742,6 +764,11 @@ class RecurringIncomeService extends AbstractCrudService {
 			return 0;
 		}
 
+		// Oldest first, whatever order the statement lists them in: the
+		// bank's row of a payment already booked replaces it before a later
+		// row is taken for the next payment (newest-first files left it)
+		usort($transactions, fn ($a, $b) => [(string)$a->getDate(), (int)$a->getId()] <=> [(string)$b->getDate(), (int)$b->getId()]);
+
 		$matched = 0;
 		foreach ($transactions as $transaction) {
 			if ($transaction->getType() !== 'credit' || ($transaction->getStatus() ?? 'cleared') === 'scheduled'
@@ -751,6 +778,13 @@ class RecurringIncomeService extends AbstractCrudService {
 			foreach ($incomes as $key => $income) {
 				if (!$this->creditLooksLikeIncome($income, $transaction)) {
 					continue;
+				}
+				// The bill match runs first and may have taken it as a
+				// transfer's arrival since it was imported
+				$current = $this->transactionService->findTransaction($transaction->getId());
+				if ($current === null || $current->getBillId() !== null || $current->getLinkedTransactionId() !== null
+					|| $current->getPensionContribId() !== null) {
+					break;
 				}
 				try {
 					if ($this->replaceGeneratedCredit($income, $transaction)) {
@@ -792,41 +826,71 @@ class RecurringIncomeService extends AbstractCrudService {
 
 	/** Roughly half an interval either side of an expected date, at most two weeks */
 	private function withinExpectedWindow(RecurringIncome $income, string $date, string $expected): bool {
-		$tolerance = match ($income->getFrequency()) {
+		return abs((strtotime($date) - strtotime($expected)) / 86400) <= self::expectedWindowDays($income->getFrequency());
+	}
+
+	private static function expectedWindowDays(?string $frequency): int {
+		return match ($frequency) {
 			'daily' => 1,
 			'weekly' => 3,
 			'biweekly' => 6,
 			'semi-monthly' => 7,
 			default => 15,
 		};
-		return abs((strtotime($date) - strtotime($expected)) / 86400) <= $tolerance;
 	}
 
 	/**
 	 * Put the bank's row in place of a credit auto-create (or Mark Received)
-	 * already booked for the income's last payment: the app's credit goes,
-	 * the bank's stays, and the income isn't received a second time.
+	 * already booked for one of the income's payments: the app's credit goes,
+	 * the bank's stays, and the income isn't received a second time. What
+	 * the user added to the app's credit (a split with a contact, a receipt,
+	 * tags), and its category, move to the bank's row.
+	 *
+	 * The credit is the app's one nearest the bank row's own date, within
+	 * the income's window of it. Only the last payment's credit used to be
+	 * looked for, so a statement bringing several weeks of auto-created
+	 * wages, or listing the newest first, left the others beside the bank's.
 	 */
 	private function replaceGeneratedCredit(RecurringIncome $income, \OCA\Budget\Db\Transaction $imported): bool {
-		$last = $income->getLastReceivedDate();
-		if ($last === null || $income->getAccountId() === null
-			|| !$this->withinExpectedWindow($income, $imported->getDate(), $last)) {
+		if ($income->getAccountId() === null) {
 			return false;
 		}
+		$days = self::expectedWindowDays($income->getFrequency());
+		$on = new \DateTimeImmutable($imported->getDate());
 		$prefix = 'Auto-generated from income: ' . $income->getName();
-		foreach ($this->transactionService->findGeneratedIncomeCredits((int)$income->getAccountId(), $last, $last) as $generated) {
+		$nearest = null;
+		$rank = null;
+		$candidates = $this->transactionService->findGeneratedIncomeCredits(
+			(int)$income->getAccountId(),
+			$on->modify("-{$days} days")->format('Y-m-d'),
+			$on->modify("+{$days} days")->format('Y-m-d')
+		);
+		foreach ($candidates as $generated) {
+			$amountOff = abs((float)$generated->getAmount() - (float)$imported->getAmount());
 			if ($generated->getId() === $imported->getId() || $generated->getReconciled()
 				|| (string)$generated->getNotes() !== $prefix
-				|| abs((float)$generated->getAmount() - (float)$imported->getAmount()) > (float)$income->getAmount() * 0.2) {
+				|| $amountOff > (float)$income->getAmount() * 0.2) {
 				continue;
 			}
-			$this->transactionService->deleteAsAccountOwner($generated->getId());
-			// The undo snapshot named the credit just removed
+			$thisRank = [abs(strtotime($generated->getDate()) - $on->getTimestamp()), $amountOff];
+			if ($rank === null || $thisRank < $rank) {
+				[$nearest, $rank] = [$generated, $thisRank];
+			}
+		}
+		if ($nearest === null) {
+			return false;
+		}
+
+		$this->transactionService->replaceBookedRow($nearest, $imported, $prefix);
+		// Mark Unreceived can't take back a receipt whose credit is gone
+		$raw = $income->getReceivedUndoState();
+		$snapshot = ($raw !== null && $raw !== '') ? json_decode($raw, true) : null;
+		$ids = is_array($snapshot) && is_array($snapshot['transactionIds'] ?? null) ? array_map('intval', $snapshot['transactionIds']) : [];
+		if (in_array($nearest->getId(), $ids, true)) {
 			$income->setReceivedUndoState(null);
 			$this->writeFields($income->getId(), $income->getUserId(), ['received_undo_state' => null]);
-			return true;
 		}
-		return false;
+		return true;
 	}
 
 	/**

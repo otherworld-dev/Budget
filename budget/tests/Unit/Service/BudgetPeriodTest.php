@@ -105,4 +105,80 @@ class BudgetPeriodTest extends TestCase {
 
 		$this->assertSame([], $misses);
 	}
+
+	public function testAMonthlyTotalOfMixedPeriodsIsExact(): void {
+		// 100 x 52 / 12 + 27.50 / 12 = 435.625, not 433.333333 + 2.291666
+		$this->assertSame('435.6250000000', BudgetPeriod::monthlyTotal([['100', 'weekly'], ['27.50', 'yearly']]));
+		$this->assertSame('500.0000000000', BudgetPeriod::monthlyTotal([['300', 'quarterly'], ['400', 'monthly']]));
+		$this->assertSame('0.0000000000', BudgetPeriod::monthlyTotal([]));
+	}
+
+	public function testATotalForAnyPeriodIsExact(): void {
+		$this->assertSame('2400.0000000000', BudgetPeriod::totalFor([['1200', 'yearly'], ['100', 'monthly']], 'yearly'));
+		$this->assertSame('900.0000000000', BudgetPeriod::totalFor([['900', 'quarterly']], 'quarterly'));
+		$this->assertSame('86.6666666666', BudgetPeriod::totalFor([['20', 'weekly']], 'monthly'));
+	}
+
+	public function testTheYearSoFarRunsFromJanuaryToTheEndOfTheMonth(): void {
+		$this->assertSame(['2026-01-01', '2026-10-31'], BudgetPeriod::toDateRange('yearly', '2026-10', 1));
+		$this->assertSame(['2026-01-01', '2026-01-31'], BudgetPeriod::toDateRange('yearly', '2026-01', 1));
+	}
+
+	public function testTheQuarterSoFarStartsWithTheQuartersFirstMonth(): void {
+		$this->assertSame(['2026-10-01', '2026-11-30'], BudgetPeriod::toDateRange('quarterly', '2026-11', 1));
+		$this->assertSame(['2026-07-01', '2026-09-30'], BudgetPeriod::toDateRange('quarterly', '2026-09', 1));
+		$this->assertSame(['2026-01-01', '2026-01-31'], BudgetPeriod::toDateRange('quarterly', '2026-01', 1));
+	}
+
+	public function testThePeriodSoFarIsMadeOfWholeBudgetMonths(): void {
+		// January 2026 with the 25th is 25 December to 24 January
+		$this->assertSame(['2025-12-25', '2026-10-24'], BudgetPeriod::toDateRange('yearly', '2026-10', 25));
+		// With the 10th, October is 10 October to 9 November
+		$this->assertSame(['2026-10-10', '2026-12-09'], BudgetPeriod::toDateRange('quarterly', '2026-11', 10));
+	}
+
+	public function testAWeeklyOrMonthlyBudgetHasNoPeriodSoFar(): void {
+		$this->assertNull(BudgetPeriod::toDateRange('weekly', '2026-10', 1));
+		$this->assertNull(BudgetPeriod::toDateRange('monthly', '2026-10', 1));
+	}
+
+	public function testABudgetMonthIsOneMonth(): void {
+		$this->assertSame('1', BudgetPeriod::monthsIn('2026-10-01', '2026-10-31', 1));
+		$this->assertSame('1', BudgetPeriod::monthsIn('2026-09-25', '2026-10-24', 25));
+		$this->assertSame('1', BudgetPeriod::monthsIn('2028-02-01', '2028-02-29', 1));
+	}
+
+	public function testWholeBudgetMonthsCountOneEach(): void {
+		$this->assertSame('3', BudgetPeriod::monthsIn('2026-08-01', '2026-10-31', 1));
+		$this->assertSame('12', BudgetPeriod::monthsIn('2026-01-01', '2026-12-31', 1));
+		$this->assertSame('3', BudgetPeriod::monthsIn('2026-07-25', '2026-10-24', 25));
+	}
+
+	public function testAPartMonthCountsItsShareOfTheDays(): void {
+		// Half of a 30-day month, and 1 to 15 October of 31 days
+		$this->assertSame('0.5000000000', BudgetPeriod::monthsIn('2026-09-01', '2026-09-15', 1));
+		$this->assertEqualsWithDelta(15 / 31, (float)BudgetPeriod::monthsIn('2026-10-01', '2026-10-15', 1), 1e-9);
+		// 29 and 30 September, then 1 to 5 October: 2/30 + 5/31
+		$this->assertEqualsWithDelta(2 / 30 + 5 / 31, (float)BudgetPeriod::monthsIn('2026-09-29', '2026-10-05', 1), 1e-9);
+		// A calendar month with the 25th: 1 to 24 October of 25 September to
+		// 24 October (30 days), and 25 to 31 October of the next (31 days)
+		$this->assertEqualsWithDelta(24 / 30 + 7 / 31, (float)BudgetPeriod::monthsIn('2026-10-01', '2026-10-31', 25), 1e-9);
+	}
+
+	public function testABackwardsRangeIsNoMonths(): void {
+		$this->assertSame('0', BudgetPeriod::monthsIn('2026-10-31', '2026-10-01', 1));
+	}
+
+	public function testABudgetsShareOfARangeIsItsMonthlyShareTimesTheMonths(): void {
+		// One month: a weekly 20 is 20 x 52 / 12, a yearly 1,200 is 100
+		$this->assertSame('86.6666666666', BudgetPeriod::shareOf('20', 'weekly', '1'));
+		$this->assertSame('100.0000000000', BudgetPeriod::shareOf('1200', 'yearly', '1'));
+		$this->assertSame('300.0000000000', BudgetPeriod::shareOf('900', 'quarterly', '1'));
+		$this->assertSame('400.0000000000', BudgetPeriod::shareOf('400', 'monthly', '1'));
+		// Three months: 13 weeks of 20, a quarter, a quarter of a year
+		$this->assertSame('260.0000000000', BudgetPeriod::shareOf('20', 'weekly', '3'));
+		$this->assertSame('900.0000000000', BudgetPeriod::shareOf('900', 'quarterly', '3'));
+		$this->assertSame('300.0000000000', BudgetPeriod::shareOf('1200', 'yearly', '3'));
+		$this->assertSame('1200.0000000000', BudgetPeriod::shareOf('400', 'monthly', '3'));
+	}
 }

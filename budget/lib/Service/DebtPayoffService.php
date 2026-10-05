@@ -8,6 +8,7 @@ use OCA\Budget\Db\Account;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\DebtScenarioMapper;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Enum\Currency;
 
 /**
  * Service for calculating debt payoff strategies.
@@ -33,10 +34,30 @@ class DebtPayoffService {
 		TransactionMapper $transactionMapper,
 		?DebtScenarioMapper $scenarioMapper = null,
 		private ?UserClock $userClock = null,
+		private ?CurrencyConversionService $conversionService = null,
 	) {
 		$this->accountMapper = $accountMapper;
 		$this->transactionMapper = $transactionMapper;
 		$this->scenarioMapper = $scenarioMapper;
+	}
+
+	/**
+	 * An amount of $debt's in the user's base currency, which the summary
+	 * and the plan work in: the plan pools payments across debts, and the
+	 * Debt Payoff page shows every figure in the base currency. Added as
+	 * stored, a dollar card owing 276.96 read as a debt of 276.96 pounds.
+	 * A currency with no rate is left as it is.
+	 */
+	private function toBase(float $amount, Account $debt, string $userId): float {
+		if ($this->conversionService === null) {
+			return $amount;
+		}
+		$currency = $debt->getCurrency() ?: $this->conversionService->getBaseCurrency($userId);
+		return (float)$this->conversionService->convertToBase($amount, $currency, $userId);
+	}
+
+	private function baseCurrency(string $userId): ?string {
+		return $this->conversionService?->getBaseCurrency($userId);
 	}
 
 	/**
@@ -76,13 +97,13 @@ class DebtPayoffService {
 				// Paid off, or in credit — not a debt to plan a payoff for (#353)
 				continue;
 			}
-			$balance = abs($signedBalance);
+			$balance = $this->toBase(abs($signedBalance), $debt, $userId);
 
 			// Use MoneyCalculator for precise accumulation
-			$totalBalance = MoneyCalculator::add($totalBalance, (string)$balance);
+			$totalBalance = MoneyCalculator::add($totalBalance, $balance, 8);
 
-			$minPayment = (string)($debt->getMinimumPayment() ?? 0);
-			$totalMinimumPayment = MoneyCalculator::add($totalMinimumPayment, $minPayment);
+			$minPayment = $this->toBase((float)($debt->getMinimumPayment() ?? 0), $debt, $userId);
+			$totalMinimumPayment = MoneyCalculator::add($totalMinimumPayment, $minPayment, 8);
 
 			$rate = (float)($debt->getInterestRate() ?? 0);
 			if ($rate > $highestRate) {
@@ -104,11 +125,13 @@ class DebtPayoffService {
 		}
 
 		return [
-			'totalBalance' => MoneyCalculator::toFloat($totalBalance),
-			'totalMinimumPayment' => MoneyCalculator::toFloat($totalMinimumPayment),
+			'totalBalance' => round(MoneyCalculator::toFloat($totalBalance), 2),
+			'totalMinimumPayment' => round(MoneyCalculator::toFloat($totalMinimumPayment), 2),
 			'debtCount' => $activeDebtCount,
 			'highestInterestRate' => round($highestRate, 2),
 			'lowestBalance' => $lowestBalance === PHP_FLOAT_MAX ? 0 : round($lowestBalance, 2),
+			// The currency the amounts are in
+			'currency' => $this->baseCurrency($userId),
 		];
 	}
 
@@ -171,8 +194,13 @@ class DebtPayoffService {
 				// Paid off, or in credit — not a debt to plan a payoff for (#353)
 				continue;
 			}
-			$balance = abs($signedBalance);
-			$minimumPayment = (float)($debt->getMinimumPayment() ?? 25); // Default $25 minimum
+			// The plan runs in the base currency (see toBase()); each debt
+			// keeps its own balance in its own currency for showing beside it
+			$nativeBalance = abs($signedBalance);
+			$balance = $this->toBase($nativeBalance, $debt, $userId);
+			$minimumPayment = $debt->getMinimumPayment() !== null
+				? $this->toBase((float)$debt->getMinimumPayment(), $debt, $userId)
+				: 25.0; // Default minimum, in the base currency
 			$interestRate = (float)($debt->getInterestRate() ?? 0) / 100; // Convert percentage to decimal
 
 			// Minimum payment should be at least enough to cover monthly interest + some principal
@@ -187,6 +215,8 @@ class DebtPayoffService {
 				'type' => $debt->getType(),
 				'balance' => $balance,
 				'originalBalance' => $balance,
+				'currency' => $debt->getCurrency() ?: $this->baseCurrency($userId),
+				'nativeBalance' => $nativeBalance,
 				'minimumPayment' => $minimumPayment,
 				'interestRate' => $interestRate,
 				'monthlyRate' => $interestRate / 12,
@@ -237,16 +267,26 @@ class DebtPayoffService {
 		$totalInterest = 0;
 		$totalPaid = 0;
 
+		// What the plan pays every month until everything is paid: every
+		// debt's minimum plus the extra. A paid-off debt's minimum is not
+		// saved but rolls on to the next debt in the strategy's order, which
+		// is what a snowball or avalanche is. The freed minimum used to count
+		// only in the month the debt was cleared, so the monthly payment
+		// shrank with every debt paid off (75, then 50, then 25) and the
+		// last debt took years longer than the plan's own headline payment.
+		$monthlyBudget = array_sum(array_column($debtData, 'minimumPayment')) + $extraPayment;
+
 		while ($this->hasActiveDebts($debtData) && $month < self::MAX_MONTHS) {
 			$month++;
 			$monthData = ['month' => $month, 'payments' => [], 'debtsPaidOff' => []];
-			$monthlyExtra = $extraPayment;
+			$available = $monthlyBudget;
 			if ($lumpSum > 0 && $month === $lumpSumMonth) {
-				$monthlyExtra += $lumpSum;
+				$available += $lumpSum;
 			}
-			$availableExtra = $monthlyExtra;
 
-			// Apply interest and minimum payments first
+			// Apply interest and minimum payments first. The minimums of the
+			// debts still open never add up to more than the budget, which
+			// holds every debt's minimum
 			foreach ($debtData as &$debt) {
 				if ($debt['paidOff']) {
 					continue;
@@ -262,6 +302,7 @@ class DebtPayoffService {
 				$payment = min($debt['minimumPayment'], $debt['balance']);
 				$debt['balance'] -= $payment;
 				$totalPaid += $payment;
+				$available -= $payment;
 
 				$monthData['payments'][] = [
 					'debtId' => $debt['id'],
@@ -278,45 +319,56 @@ class DebtPayoffService {
 					$debt['payoffMonth'] = $month;
 					$debt['balance'] = 0;
 					$monthData['debtsPaidOff'][] = $debt['name'];
-					// Freed minimum payment goes to extra pool
-					$availableExtra += $debt['minimumPayment'];
 				}
 			}
 			unset($debt);
 
-			// Apply extra payments to priority debt (first non-paid-off)
+			// The rest of the budget (the extra, freed minimums and whatever a
+			// debt cleared with less than its minimum left over) goes to the
+			// priority debt, and on to the next when that one is cleared: the
+			// month pays its whole budget and never more
 			foreach ($debtData as &$debt) {
-				if ($debt['paidOff'] || $availableExtra <= 0) {
+				if ($available <= 0.005) {
+					break;
+				}
+				if ($debt['paidOff']) {
 					continue;
 				}
 
-				$extraToApply = min($availableExtra, $debt['balance']);
-				if ($extraToApply > 0) {
-					$debt['balance'] -= $extraToApply;
-					$totalPaid += $extraToApply;
-					$availableExtra -= $extraToApply;
+				$extraToApply = min($available, $debt['balance']);
+				$debt['balance'] -= $extraToApply;
+				$totalPaid += $extraToApply;
+				$available -= $extraToApply;
 
-					$monthData['payments'][] = [
-						'debtId' => $debt['id'],
-						'name' => $debt['name'],
-						'payment' => round($extraToApply, 2),
-						'remainingBalance' => round($debt['balance'], 2),
-						'type' => 'extra',
-					];
+				$monthData['payments'][] = [
+					'debtId' => $debt['id'],
+					'name' => $debt['name'],
+					'payment' => round($extraToApply, 2),
+					'remainingBalance' => round($debt['balance'], 2),
+					'type' => 'extra',
+				];
 
-					if ($debt['balance'] <= 0.01) {
-						$debt['paidOff'] = true;
-						$debt['payoffMonth'] = $month;
-						$debt['balance'] = 0;
-						if (!in_array($debt['name'], $monthData['debtsPaidOff'])) {
-							$monthData['debtsPaidOff'][] = $debt['name'];
-						}
-						$availableExtra += $debt['minimumPayment'];
+				if ($debt['balance'] <= 0.01) {
+					$debt['paidOff'] = true;
+					$debt['payoffMonth'] = $month;
+					$debt['balance'] = 0;
+					if (!in_array($debt['name'], $monthData['debtsPaidOff'])) {
+						$monthData['debtsPaidOff'][] = $debt['name'];
 					}
 				}
-				break; // Only apply extra to one debt at a time
 			}
 			unset($debt);
+
+			// Each entry's remaining balance is the debt's at the end of the
+			// month, whichever of its payments the charts read
+			$monthEnd = [];
+			foreach ($debtData as $debt) {
+				$monthEnd[$debt['id']] = round($debt['balance'], 2);
+			}
+			foreach ($monthData['payments'] as &$entry) {
+				$entry['remainingBalance'] = $monthEnd[$entry['debtId']];
+			}
+			unset($entry);
 
 			// Re-sort after each payoff for proper prioritization
 			if (!empty($monthData['debtsPaidOff'])) {
@@ -340,6 +392,15 @@ class DebtPayoffService {
 				'name' => $debt['name'],
 				'type' => $debt['type'],
 				'originalBalance' => round($debt['originalBalance'], 2),
+				// What it owes in its own currency, which the plan's figures
+				// (all in the base currency) are converted from
+				'currency' => $debt['currency'],
+				'nativeBalance' => round($debt['nativeBalance'], Currency::decimalsFor($debt['currency'])),
+				// What the plan pays on it each month before any extra: the
+				// account's minimum, 25 when none is set, or more when that
+				// would not cover the interest. The Debt Payoff page adds these
+				// up for its Monthly Payment, which read 0 without them.
+				'minimumPayment' => round($debt['minimumPayment'], 2),
 				'interestRate' => round($debt['interestRate'] * 100, 2),
 				'interestPaid' => round($debt['interestPaid'], 2),
 				'payoffMonth' => $debt['payoffMonth'],
@@ -348,6 +409,8 @@ class DebtPayoffService {
 
 		return [
 			'strategy' => $strategy,
+			// The currency every amount of the plan is in
+			'currency' => $this->baseCurrency($userId),
 			'strategyName' => $strategy === 'avalanche' ? 'Debt Avalanche' : 'Debt Snowball',
 			'strategyDescription' => $strategy === 'avalanche'
 				? 'Pay highest interest rate debts first (saves most money)'

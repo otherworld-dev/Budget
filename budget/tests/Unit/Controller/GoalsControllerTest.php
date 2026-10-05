@@ -32,6 +32,10 @@ class GoalsControllerTest extends TestCase {
 	private array $sharedIds = [];
 	/** Shared goal ids held at Full control. */
 	private array $manageableIds = [];
+	/** Tag ids each user may use (requireUsableTags). */
+	private array $usableTags = ['user1' => [1, 2, 3, 4, 5, 6], 'owner2' => [5, 6, 77]];
+	/** Account ids each user can see (getVisibleAccountIds). */
+	private array $visibleAccounts = ['user1' => [1, 2, 4], 'owner2' => [4, 30]];
 
 	protected function setUp(): void {
 		$this->request = $this->createMock(IRequest::class);
@@ -66,6 +70,17 @@ class GoalsControllerTest extends TestCase {
 		);
 		$granularShareService->method('getSharedSavingsGoalIds')->willReturnCallback(
 			fn ($u) => $this->sharedIds
+		);
+		$granularShareService->method('requireUsableTags')->willReturnCallback(function (string $u, array $ids): void {
+			if (array_diff($ids, $this->usableTags[$u] ?? []) !== []) {
+				throw new \InvalidArgumentException('Invalid tag ID');
+			}
+		});
+		$granularShareService->method('getVisibleAccountIds')->willReturnCallback(
+			fn (string $u) => $this->visibleAccounts[$u] ?? []
+		);
+		$granularShareService->method('getUsableTagIds')->willReturnCallback(
+			fn (string $u, array $ids) => array_values(array_intersect(array_map('intval', $ids), $this->usableTags[$u] ?? []))
 		);
 
 		$this->controller = new GoalsController(
@@ -411,6 +426,146 @@ class GoalsControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 		$this->assertSame(8, $captured[0]);
 		$this->assertSame('owner2', $captured[1]); // owner, not the recipient
+	}
+
+	// ── a goal's tag and account (T4-5) ─────────────────────────────
+
+	public function testCreateRefusesATagTheUserCannotSee(): void {
+		$this->service->expects($this->never())->method('create');
+
+		$response = $this->controller->create('Holiday', 1000.0, tagId: 77);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Invalid tag ID', $response->getData()['error']);
+	}
+
+	public function testCreateRefusesAnAccountTheUserCannotSee(): void {
+		$this->service->expects($this->never())->method('create');
+
+		$response = $this->controller->create('Holiday', 1000.0, accountId: 30);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Invalid account ID', $response->getData()['error']);
+	}
+
+	private function storedSharedGoal(?int $tagId, ?int $accountId): void {
+		$this->ownerMap = [8 => 'owner2'];
+		$goal = $this->makeGoal(['id' => 8, 'userId' => 'owner2']);
+		$goal->setTagId($tagId);
+		$goal->setAccountId($accountId);
+		$this->service->method('find')->with(8, 'owner2')->willReturn($goal);
+	}
+
+	public function testARecipientCannotLinkTheOwnersPrivateTag(): void {
+		// Tag 77 is owner2's alone: the goal then summed owner2's tagged
+		// spending and showed it to user1 (T4-5)
+		$this->storedSharedGoal(null, null);
+		$this->request->method('getParams')->willReturn(['tagId' => 77]);
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controller->update(8, tagId: 77);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	public function testARecipientCannotLinkTheOwnersPrivateAccount(): void {
+		$this->storedSharedGoal(null, null);
+		$this->request->method('getParams')->willReturn(['accountId' => 30]);
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controller->update(8, accountId: 30);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Invalid account ID', $response->getData()['error']);
+	}
+
+	public function testARecipientCannotLinkATagTheOwnerCannotUse(): void {
+		// Tag 3 is user1's own: the goal's sum is the owner's rows, so it
+		// would count nothing and put user1's tag on owner2's goal
+		$this->storedSharedGoal(null, null);
+		$this->request->method('getParams')->willReturn(['tagId' => 3]);
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controller->update(8, tagId: 3);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	public function testARecipientMayLinkATagAndAccountTheyBothSee(): void {
+		$this->storedSharedGoal(null, null);
+		$this->request->method('getParams')->willReturn(['tagId' => 5, 'accountId' => 4]);
+		$this->service->expects($this->once())->method('update')
+			->with(8, 'owner2', null, null, null, null, null, null, 5, true, 4, true)
+			->willReturn($this->makeGoal(['id' => 8]));
+
+		$response = $this->controller->update(8, tagId: 5, accountId: 4);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testAGoalsStoredTagAndAccountKeepSaving(): void {
+		// The edit form sends back what is stored, which user1 may not see
+		$this->storedSharedGoal(77, 30);
+		$this->request->method('getParams')->willReturn(['name' => 'Renamed', 'tagId' => 77, 'accountId' => 30]);
+		$this->service->expects($this->once())->method('update')->willReturn($this->makeGoal(['id' => 8]));
+
+		$response = $this->controller->update(8, 'Renamed', tagId: 77, accountId: 30);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testARecipientsSaveKeepsLinksSheCannotSee(): void {
+		// The form can't show owner2's tag 77 or account 30, so it sends
+		// both as empty: saving unlinked the owner's goal
+		$this->storedSharedGoal(77, 30);
+		$this->request->method('getParams')->willReturn(['name' => 'Renamed', 'tagId' => null, 'accountId' => null]);
+		$this->service->expects($this->once())->method('update')
+			->with(8, 'owner2', 'Renamed', null, null, null, null, null, null, false, null, false)
+			->willReturn($this->makeGoal(['id' => 8]));
+
+		$response = $this->controller->update(8, 'Renamed');
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testARecipientCannotReplaceALinkSheCannotSee(): void {
+		// Only the links she can see are hers to change
+		$this->storedSharedGoal(77, 30);
+		$this->request->method('getParams')->willReturn(['tagId' => 5, 'accountId' => 4]);
+		$this->service->expects($this->once())->method('update')
+			->with(8, 'owner2', null, null, null, null, null, null, 5, false, 4, false)
+			->willReturn($this->makeGoal(['id' => 8]));
+
+		$response = $this->controller->update(8, tagId: 5, accountId: 4);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testARecipientMayClearALinkSheCanSee(): void {
+		$this->storedSharedGoal(5, 4);
+		$this->request->method('getParams')->willReturn(['tagId' => null, 'accountId' => null]);
+		$this->service->expects($this->once())->method('update')
+			->with(8, 'owner2', null, null, null, null, null, null, null, true, null, true)
+			->willReturn($this->makeGoal(['id' => 8]));
+
+		$response = $this->controller->update(8);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testTheOwnerMayClearAnyLink(): void {
+		$goal = $this->makeGoal(['id' => 3]);
+		$goal->setTagId(77);
+		$goal->setAccountId(30);
+		$this->service->method('find')->with(3, 'user1')->willReturn($goal);
+		$this->request->method('getParams')->willReturn(['tagId' => null, 'accountId' => null]);
+		$this->service->expects($this->once())->method('update')
+			->with(3, 'user1', null, null, null, null, null, null, null, true, null, true)
+			->willReturn($goal);
+
+		$response = $this->controller->update(3);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
 
 	public function testUpdateReadOnlyShareReturns403(): void {

@@ -7,6 +7,7 @@ namespace OCA\Budget\Service;
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Service\Bill\BillSuggestionService;
 use OCA\Budget\Service\Mail\BudgetMailService;
+use OCA\Budget\Service\Report\ReportAggregator;
 use OCP\L10N\IFactory;
 use OCP\Notification\IManager as INotificationManager;
 
@@ -35,7 +36,33 @@ class DigestService {
 		private IFactory $l10nFactory,
 		private \OCA\Budget\Db\TransactionMapper $transactionMapper,
 		private ?UserClock $userClock = null,
+		private ?ReportAggregator $reportAggregator = null,
 	) {
+	}
+
+	/**
+	 * Income and spending over the period, as the Cash Flow report counts
+	 * them for the same dates and accounts: transfers between the user's own
+	 * accounts left out, as money moved rather than earned or spent, and
+	 * accounts in other currencies converted to the base currency. Adding up
+	 * each account's credits and debits counted both legs of a transfer (a
+	 * move to savings was income and spending at once) and added euros to
+	 * pounds.
+	 *
+	 * @return array{income: float, expenses: float}
+	 */
+	private function periodTotals(string $userId, string $start, string $end): array {
+		if ($this->reportAggregator !== null) {
+			$totals = $this->reportAggregator->getCashFlowReport($userId, null, $start, $end)['totals'];
+			return ['income' => (float)($totals['income'] ?? 0), 'expenses' => (float)($totals['expenses'] ?? 0)];
+		}
+
+		$totals = ['income' => 0.0, 'expenses' => 0.0];
+		foreach ($this->transactionMapper->getAccountSummaries($userId, $start, $end) as $summary) {
+			$totals['income'] += (float)($summary['income'] ?? 0);
+			$totals['expenses'] += (float)($summary['expenses'] ?? 0);
+		}
+		return $totals;
 	}
 
 	/**
@@ -46,12 +73,8 @@ class DigestService {
 	public function buildDigest(string $userId, string $frequency): array {
 		[$start, $end] = $this->periodRange($frequency, $userId);
 
-		// Income/expenses over the period (all accounts, scheduled excluded)
-		$totals = ['income' => 0.0, 'expenses' => 0.0];
-		foreach ($this->transactionMapper->getAccountSummaries($userId, $start, $end) as $summary) {
-			$totals['income'] += (float)($summary['income'] ?? 0);
-			$totals['expenses'] += (float)($summary['expenses'] ?? 0);
-		}
+		// Income/expenses over the period, as Cash Flow gives them
+		$totals = $this->periodTotals($userId, $start, $end);
 
 		$budget = $this->budgetAlertService->getSummary($userId);
 

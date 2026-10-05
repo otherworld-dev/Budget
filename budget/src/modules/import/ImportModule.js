@@ -4,11 +4,12 @@
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
+import { once } from '../../utils/submitGuard.js';
 import { confirmDialog, promptDialog } from '../../utils/dialogs.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import { groupImportErrors } from '../../utils/helpers.js';
 import { apiFetch, ApiError } from '../../utils/api.js';
-import { openAccounts } from '../../utils/accounts.js';
+import { importTargetAccounts, accountCurrency } from '../../utils/accounts.js';
 import MultiSelect from '../../utils/multiselect.js';
 
 /**
@@ -554,7 +555,12 @@ export default class ImportModule {
         nameInput?.focus();
     }
 
-    async saveCurrentTemplate() {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveCurrentTemplate() {
+        return once('import-template-save', document.querySelector('#import-save-template-form [type="submit"]'), () => this._saveCurrentTemplate());
+    }
+
+    async _saveCurrentTemplate() {
         const nameInput = document.getElementById('import-template-name');
         const name = (nameInput?.value || '').trim();
         if (!name) {
@@ -583,7 +589,7 @@ export default class ImportModule {
             // every later import. The server keeps only the four fields these
             // formats can resolve (#340).
             requestBody.mapping = this.getCurrentMapping();
-            requestBody.applyRules = true;
+            requestBody.applyRules = this.applyRulesChosen();
         }
 
         try {
@@ -1045,6 +1051,12 @@ export default class ImportModule {
             }
         }
 
+        // "Apply import rules" starts each new file from the user's setting
+        // (on unless they switched it off); a template may change it, and the
+        // box decides what the preview shows and the import does (T3-9)
+        const applyRules = document.getElementById('apply-rules');
+        if (applyRules) applyRules.checked = this.settings?.import_auto_apply_rules !== 'false';
+
         // Populate column mapping dropdowns
         this.populateColumnMappings(uploadResult.columns);
         this.applyFormatDefaults(uploadResult.format, uploadResult.columns || []);
@@ -1490,6 +1502,15 @@ export default class ImportModule {
         this.validateMappingStep();
     }
 
+    /**
+     * Whether this import runs the user's import rules: the "Apply import
+     * rules" box, on when there is no box to read.
+     */
+    applyRulesChosen() {
+        const box = document.getElementById('apply-rules');
+        return box ? box.checked : true;
+    }
+
     getCurrentMapping() {
         return {
             date: document.getElementById('map-date')?.value || null,
@@ -1668,6 +1689,8 @@ export default class ImportModule {
             fileId: this.currentImportData.fileId,
             mapping: mapping,
             skipDuplicates: false,
+            // The preview shows what the import will do (T3-9)
+            applyRules: this.applyRulesChosen(),
             delimiter: document.getElementById('csv-delimiter')?.value || ',',
             // Whatever the mapping screen was decoded with must be what gets
             // parsed and imported, or the preview lies about the result (#371)
@@ -1720,7 +1743,10 @@ export default class ImportModule {
             this.updateImportSummary(result);
             const previewTable = document.getElementById('preview-table');
             if (previewTable) previewTable.style.display = '';
-            this.showTransactionPreview(result.transactions);
+            this.showTransactionPreview(result.transactions, {
+                accountId: requestBody.accountId ?? null,
+                accountsToCreate: result.accountsToCreate || [],
+            });
             this.filterPreviewTransactions();
         } catch (error) {
             console.error('Failed to process import data:', error);
@@ -1917,6 +1943,8 @@ export default class ImportModule {
         }
 
         container.innerHTML = warnings.map(warning => {
+            // The context line is escaped as a whole below, so t() neither
+            // escapes nor sanitises the account name ("&" showed as "&amp;")
             const account = warning.accountName || t('budget', 'this account');
             let headline;
             let context;
@@ -1935,7 +1963,7 @@ export default class ImportModule {
                 context = /* xgettext:no-javascript-format */ t('budget', 'but {percent}% of what is already in {account} is an expense. If that looks wrong, go back and map the column holding the transaction type before importing.', {
                     percent: warning.existingOppositePercent,
                     account: account,
-                }, undefined, { escape: false });
+                }, undefined, { escape: false, sanitize: false });
             } else {
                 headline = t('budget', '{matching} of {total} rows would be added as an expense', {
                     matching: warning.matching,
@@ -1944,7 +1972,7 @@ export default class ImportModule {
                 context = /* xgettext:no-javascript-format */ t('budget', 'but {percent}% of what is already in {account} is income. If that looks wrong, go back and map the column holding the transaction type before importing.', {
                     percent: warning.existingOppositePercent,
                     account: account,
-                }, undefined, { escape: false });
+                }, undefined, { escape: false, sanitize: false });
             }
 
             return `<div class="import-direction-warning">
@@ -1957,7 +1985,32 @@ export default class ImportModule {
         }).join('');
     }
 
-    showTransactionPreview(transactions) {
+    /**
+     * The currency a previewed row will be stored in: its account's. An
+     * OFX/QIF row names the account it is routed to; a row from a file with
+     * an account column goes to the account it names (matched or about to be
+     * created) or, with a blank cell, to the chosen one; any other row to the
+     * chosen account. Null, for the default currency, when none is known.
+     *
+     * @param {object} transaction a previewed row
+     * @param {{accountId?: number|null, accountsToCreate?: Array}} context
+     * @returns {string|null}
+     */
+    previewRowCurrency(transaction, context = {}) {
+        const accounts = this.availableAccounts?.length ? this.availableAccounts : this.accounts;
+        if (transaction.destinationAccountId) {
+            return accountCurrency(accounts, transaction.destinationAccountId);
+        }
+        const name = transaction._accountName ?? '';
+        if (name !== '') {
+            const named = (context.accountsToCreate || []).find(account => account.name === name);
+            if (!named) return null;
+            return (named.exists ? accountCurrency(accounts, named.existingId) : null) || named.currency || null;
+        }
+        return accountCurrency(accounts, context.accountId ?? null);
+    }
+
+    showTransactionPreview(transactions, context = {}) {
         const tbody = document.querySelector('#preview-table tbody');
         if (!tbody) return;
 
@@ -1997,7 +2050,7 @@ export default class ImportModule {
                 <td>${dom.escapeHtml(transaction.description || '')}</td>
                 <td class="preview-notes"${showNotes ? '' : ' style="display: none;"'} title="${dom.escapeHtml(notes)}">${dom.escapeHtml(notes)}</td>
                 <td class="${amount < 0 ? 'negative' : 'positive'}">
-                    ${this.formatCurrency(amount)}
+                    ${this.formatCurrency(amount, this.previewRowCurrency(transaction, context))}
                 </td>
                 <td data-preview-cell="category">${dom.escapeHtml(this.getCategoryLabel(transaction))}</td>
                 <td>
@@ -2068,7 +2121,7 @@ export default class ImportModule {
         if (!select) return;
         const current = select.value;
         select.innerHTML = `<option value="">${asFallback ? t('budget', 'Skip rows without an account') : t('budget', 'Select account…')}</option>`;
-        openAccounts(accounts).forEach(account => {
+        importTargetAccounts(accounts).forEach(account => {
             const option = document.createElement('option');
             option.value = account.id;
             const accountNum = account.accountNumber ? ` - ${account.accountNumber}` : '';
@@ -2147,13 +2200,13 @@ export default class ImportModule {
             if (sourceAccount.currency) details.push(sourceAccount.currency);
             if (sourceAccount.transactionCount) details.push(n('budget', '%n transaction', '%n transactions', sourceAccount.transactionCount));
             if (sourceAccount.ledgerBalance !== null && sourceAccount.ledgerBalance !== undefined) {
-                details.push(t('budget', 'Balance: {balance}', { balance: this.formatCurrency(sourceAccount.ledgerBalance) }, undefined, { escape: false }));
+                details.push(t('budget', 'Balance: {balance}', { balance: this.formatCurrency(sourceAccount.ledgerBalance, sourceAccount.currency || null) }, undefined, { escape: false }));
             }
 
             // Build account options HTML with auto-match selection
             const suggestedMatch = sourceAccount.suggestedMatch;
             let optionsHtml = `<option value="">${t('budget', 'Skip this account')}</option>`;
-            openAccounts(accounts).forEach(account => {
+            importTargetAccounts(accounts).forEach(account => {
                 const accountNum = account.accountNumber ? ` - ${account.accountNumber}` : '';
                 const selected = suggestedMatch === account.id ? ' selected' : '';
                 optionsHtml += `<option value="${account.id}"${selected}>${dom.escapeHtml(account.name)} (${account.type}${dom.escapeHtml(accountNum)})</option>`;
@@ -2390,7 +2443,9 @@ export default class ImportModule {
             fileId: this.currentImportData.fileId,
             mapping: mapping,
             skipDuplicates: !(document.getElementById('import-duplicates')?.checked ?? false),
-            applyRules: true,
+            // The box was ignored and rules always ran (T3-9). A template's
+            // own choice is already in it, set when the template was picked.
+            applyRules: this.applyRulesChosen(),
             delimiter: document.getElementById('csv-delimiter')?.value || ',',
             // Whatever the mapping screen was decoded with must be what gets
             // parsed and imported, or the preview lies about the result (#371)
@@ -2405,11 +2460,6 @@ export default class ImportModule {
         // Include saved template ID if selected (server resolves the mapping/routing)
         if (this.selectedTemplate) {
             requestBody.templateId = this.selectedTemplate;
-            // OFX/QIF routing templates carry their own apply-rules option (no UI control).
-            const tpl = this.userTemplates.find(t => t.id === this.selectedTemplate);
-            if (tpl && typeof tpl.applyRules === 'boolean') {
-                requestBody.applyRules = tpl.applyRules;
-            }
         }
 
         // Check if preset has accountColumn or manual mapping has account column

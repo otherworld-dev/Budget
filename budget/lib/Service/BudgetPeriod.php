@@ -75,15 +75,117 @@ final class BudgetPeriod {
 	}
 
 	/**
-	 * A budget amount for $period as its monthly equivalent, by the yearly
-	 * ratios the Budget page's summary uses (formatters.prorateBudget).
+	 * Budget amounts of any periods as one monthly total, by the yearly
+	 * ratios the Budget page's summary uses (formatters.prorateBudget): each
+	 * amount turned yearly, added, and the sum divided by 12 once, so the
+	 * total is exact. Turned monthly one by one and cut at six places, a
+	 * weekly 100 and a yearly 27.50 came to 435.624999 instead of 435.625,
+	 * a penny below the page once rounded.
+	 *
+	 * @param list<array{0: string|float, 1: string}> $budgets [amount, period] pairs
+	 * @return string the monthly total, at ten places
 	 */
-	public static function monthlyEquivalent(string $amount, string $period): string {
-		$perYear = ['weekly' => '52', 'monthly' => '12', 'quarterly' => '4', 'yearly' => '1'][$period] ?? '12';
-		if ($perYear === '12') {
-			return $amount;
+	public static function monthlyTotal(array $budgets): string {
+		return self::totalFor($budgets, 'monthly');
+	}
+
+	/**
+	 * Budget amounts of any periods as one total for $period, the same way
+	 * monthlyTotal() makes a monthly one: a yearly 1,200 and a monthly 100
+	 * are 2,400 a year.
+	 *
+	 * @param list<array{0: string|float, 1: string}> $budgets [amount, period] pairs
+	 * @return string the total, at ten places
+	 */
+	public static function totalFor(array $budgets, string $period): string {
+		$yearly = '0';
+		foreach ($budgets as [$amount, $from]) {
+			$yearly = MoneyCalculator::add($yearly, MoneyCalculator::multiply($amount, self::perYear($from), 10), 10);
 		}
-		return MoneyCalculator::divide(MoneyCalculator::multiply($amount, $perYear, 6), '12', 6);
+		return MoneyCalculator::divide($yearly, self::perYear($period), 10);
+	}
+
+	/**
+	 * The dates a quarterly or yearly budget has run by the end of budget
+	 * month $month: from the start of the first budget month of its calendar
+	 * quarter or year to the end of $month, so with a start day it is made
+	 * of whole budget months. Null for a weekly or monthly budget.
+	 *
+	 * @return array{0: string, 1: string}|null
+	 */
+	public static function toDateRange(string $period, string $month, int $startDay): ?array {
+		$monthNumber = (int)substr($month, 5, 2);
+		$first = match ($period) {
+			'yearly' => 1,
+			'quarterly' => intdiv($monthNumber - 1, 3) * 3 + 1,
+			default => null,
+		};
+		if ($first === null) {
+			return null;
+		}
+		return [
+			self::range(sprintf('%s-%02d', substr($month, 0, 4), $first), $startDay)[0],
+			self::range($month, $startDay)[1],
+		];
+	}
+
+	/**
+	 * How many budget months the dates [start, end] cover: one for each
+	 * whole budget month, and for a month the range only partly covers its
+	 * share of that month's days (1 to 15 September is 0.5).
+	 *
+	 * @return string at ten places, or a whole number when every month is whole
+	 */
+	public static function monthsIn(string $start, string $end, int $startDay): string {
+		if ($start > $end) {
+			return '0';
+		}
+		$whole = 0;
+		$part = null;
+		$month = \DateTime::createFromFormat('!Y-m', self::monthContaining($start, $startDay));
+		// Bounded: a thousand years of months is more than any range asks for
+		for ($guard = 0; $guard < 12000; $guard++) {
+			[$monthStart, $monthEnd] = self::range($month->format('Y-m'), $startDay);
+			if ($monthStart > $end) {
+				break;
+			}
+			$from = max($start, $monthStart);
+			$to = min($end, $monthEnd);
+			if ($from === $monthStart && $to === $monthEnd) {
+				$whole++;
+			} else {
+				$part = MoneyCalculator::add($part ?? '0', MoneyCalculator::divide(
+					(string)self::days($from, $to),
+					(string)self::days($monthStart, $monthEnd),
+					10
+				), 10);
+			}
+			$month->modify('first day of next month');
+		}
+		return $part === null ? (string)$whole : MoneyCalculator::add((string)$whole, $part, 10);
+	}
+
+	/**
+	 * A budget's share of a span of $months budget months (monthsIn()): its
+	 * monthly share, by the yearly ratios the Budget page uses, times the
+	 * months. A weekly 20 is 86.67 for one month and 260 for three, a
+	 * yearly 1,200 is 100 and 300, and a monthly 400 is 400 and 1,200.
+	 *
+	 * @return string at ten places
+	 */
+	public static function shareOf(string|float $amount, string $period, string $months): string {
+		$yearly = MoneyCalculator::multiply($amount, self::perYear($period), 10);
+		return MoneyCalculator::divide(MoneyCalculator::multiply($yearly, $months, 10), '12', 10);
+	}
+
+	/** The days from $from to $to, both included. */
+	private static function days(string $from, string $to): int {
+		return (int)\DateTime::createFromFormat('!Y-m-d', $from)->diff(\DateTime::createFromFormat('!Y-m-d', $to))->days + 1;
+	}
+
+	/** How many of a budget period make a year; an unknown one is monthly. */
+	private static function perYear(string $period): string {
+		return ['weekly' => '52', 'monthly' => '12', 'quarterly' => '4', 'yearly' => '1'][$period] ?? '12';
 	}
 
 	private static function clampedDay(\DateTime $monthStart, int $startDay): \DateTime {

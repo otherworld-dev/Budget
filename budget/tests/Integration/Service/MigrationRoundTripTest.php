@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace OCA\Budget\Tests\Integration\Service;
 
 use OCA\Budget\Db\AccountMapper;
+use OCA\Budget\Service\AccountBalanceCalculator;
 use OCA\Budget\Service\MigrationService;
+use OCA\Budget\Service\SettingService;
 use OCA\Budget\Tests\Integration\DataModel;
 use OCA\Budget\Tests\Integration\FullDataset;
 use OCA\Budget\Tests\Integration\IntegrationTestCase;
@@ -296,6 +298,27 @@ class MigrationRoundTripTest extends IntegrationTestCase {
 		$this->assertSame([], $this->danglingReferences());
 	}
 
+	/**
+	 * Unlinking a bank feed was silent: bank sync just stopped importing
+	 * into the account and nothing said why (R1-8). The restore says how
+	 * many it had to unlink; one that followed its account isn't mentioned.
+	 */
+	public function testARestoreSaysHowManyBankLinksItHadToRemove(): void {
+		$this->seedEveryTable($this->userId);
+		$archive = $this->migration->exportAll($this->userId)['content'];
+		$bankWarnings = static fn (array $result): array => array_values(array_filter(
+			$result['warnings'],
+			static fn (string $warning): bool => str_contains($warning, 'Bank Sync')
+		));
+
+		$kept = $this->migration->importAll($this->userId, $archive);
+		$unlinked = $this->migration->importAll($this->userId, $this->renameArchivedAccounts($archive));
+
+		$this->assertSame([], $bankWarnings($kept));
+		$this->assertCount(1, $bankWarnings($unlinked));
+		$this->assertStringContainsString('1 bank account link', $bankWarnings($unlinked)[0]);
+	}
+
 	private function renameArchivedAccounts(string $zipContent): string {
 		$path = tempnam(sys_get_temp_dir(), 'budget-it-');
 		file_put_contents($path, $zipContent);
@@ -388,6 +411,122 @@ class MigrationRoundTripTest extends IntegrationTestCase {
 			array_diff_key($source->toArrayFull(), $ignore),
 			array_diff_key($restored[0]->toArrayFull(), $ignore)
 		);
+	}
+
+	/**
+	 * The calendar feed token opens the user's bills feed without a login
+	 * and must be unique. A backup carried it, so restoring one into another
+	 * account duplicated it and the feed answered 404 for both. It isn't
+	 * exported, an older archive's copy is ignored, and the user's own token
+	 * stays through their restore, so their subscription keeps working.
+	 */
+	public function testTheCalendarFeedLinkStaysWithItsOwner(): void {
+		$token = bin2hex(random_bytes(32));
+		$settings = $this->service(SettingService::class);
+		$settings->set($this->userId, 'bills_feed_token', $token);
+		$settings->set($this->userId, 'default_currency', 'EUR');
+		$archive = $this->migration->exportAll($this->userId)['content'];
+		$this->assertArrayNotHasKey('bills_feed_token', $this->archivedSettings($archive));
+
+		$other = $this->newUserId();
+		$this->migration->importAll($other, $this->withArchivedSetting($archive, 'bills_feed_token', $token));
+		$this->migration->importAll($this->userId, $archive);
+
+		$this->assertNull($settings->get($other, 'bills_feed_token'));
+		$this->assertSame('EUR', $settings->get($other, 'default_currency'));
+		$this->assertSame($token, $settings->get($this->userId, 'bills_feed_token'));
+		$this->assertSame($this->userId, $this->service(\OCA\Budget\Db\SettingMapper::class)->findByKeyValue('bills_feed_token', $token)->getUserId());
+	}
+
+	/**
+	 * @return array<string, mixed>
+	 */
+	private function archivedSettings(string $zipContent): array {
+		$path = tempnam(sys_get_temp_dir(), 'budget-it-');
+		file_put_contents($path, $zipContent);
+		$zip = new \ZipArchive();
+		$zip->open($path);
+		$settings = json_decode((string)$zip->getFromName('settings.json'), true);
+		$zip->close();
+		unlink($path);
+		return $settings;
+	}
+
+	private function withArchivedSetting(string $zipContent, string $key, string $value): string {
+		$path = tempnam(sys_get_temp_dir(), 'budget-it-');
+		file_put_contents($path, $zipContent);
+		$zip = new \ZipArchive();
+		$zip->open($path);
+		$settings = json_decode((string)$zip->getFromName('settings.json'), true);
+		$settings[$key] = $value;
+		$zip->addFromString('settings.json', json_encode($settings));
+		$zip->close();
+		$content = (string)file_get_contents($path);
+		unlink($path);
+		return $content;
+	}
+
+	/**
+	 * The dashboard's tile filters, the Accounts tile's order and the muted
+	 * budget alerts name accounts and categories by id, and a restore copied
+	 * them as they were: on another server they named whatever held those
+	 * ids there, on the same one nothing at all (R1-6).
+	 */
+	public function testDashboardAndAlertSettingsPointAtTheRestoredRows(): void {
+		$current = $this->makeAccount(['name' => 'Current'])->getId();
+		$card = $this->makeAccount(['name' => 'Card', 'type' => 'credit_card'])->getId();
+		$groceries = $this->makeCategory(['name' => 'Groceries']);
+		$dining = $this->makeCategory(['name' => 'Dining']);
+		$settings = $this->service(SettingService::class);
+		$settings->set($this->userId, 'dashboard_widgets_config', json_encode([
+			'tileSettings' => ['spendingChart' => ['accountId' => (string)$card, 'hiddenCategories' => [$groceries]]],
+			'settings' => ['accountsTile' => ['order' => [$card, $current], 'hidden' => [$current]]],
+		]));
+		$settings->set($this->userId, 'budget_alert_muted_categories', json_encode([$dining]));
+		$target = $this->newUserId();
+
+		$this->migration->importAll($target, $this->migration->exportAll($this->userId)['content']);
+
+		$idOf = fn (string $table, string $name): int => (int)$this->db()->executeQuery(
+			'SELECT id FROM *PREFIX*' . $table . ' WHERE user_id = ? AND name = ?', [$target, $name]
+		)->fetchOne();
+		$widgets = json_decode((string)$settings->get($target, 'dashboard_widgets_config'), true);
+		$this->assertSame((string)$idOf('budget_accounts', 'Card'), $widgets['tileSettings']['spendingChart']['accountId']);
+		$this->assertSame([$idOf('budget_categories', 'Groceries')], $widgets['tileSettings']['spendingChart']['hiddenCategories']);
+		$this->assertSame([$idOf('budget_accounts', 'Card'), $idOf('budget_accounts', 'Current')], $widgets['settings']['accountsTile']['order']);
+		$this->assertSame([$idOf('budget_accounts', 'Current')], $widgets['settings']['accountsTile']['hidden']);
+		$this->assertSame([$idOf('budget_categories', 'Dining')], json_decode((string)$settings->get($target, 'budget_alert_muted_categories'), true));
+	}
+
+	/**
+	 * "In credit" describes a liability's opening balance, not today's
+	 * balance. The restore signed today's balance with it, so a card opened
+	 * at 0 owed that an overpayment had put 40.22 in credit came back 40.22
+	 * owed with an opening balance of -80.44 (T3-1), and a loan opened in
+	 * credit that now owes came back in credit.
+	 */
+	public function testLiabilitiesComeBackOnTheSameSideWhicheverWayTheirLedgerWent(): void {
+		$card = $this->makeAccount(['name' => 'Card', 'type' => 'credit_card', 'liabilityInCredit' => false])->getId();
+		$this->makeTransaction($card, ['type' => 'credit', 'amount' => '100.00']);
+		$this->makeTransaction($card, ['type' => 'debit', 'amount' => '59.78']);
+		$loan = $this->makeAccount(['name' => 'Loan', 'type' => 'loan', 'openingBalance' => 10.0, 'liabilityInCredit' => true])->getId();
+		$this->makeTransaction($loan, ['type' => 'debit', 'amount' => '30.00']);
+		$mortgage = $this->makeAccount(['name' => 'Mortgage', 'type' => 'mortgage', 'openingBalance' => -1000.0])->getId();
+		$this->makeTransaction($mortgage, ['type' => 'credit', 'amount' => '100.00']);
+		$accounts = $this->service(AccountMapper::class);
+		foreach ([$card, $loan, $mortgage] as $id) {
+			$this->service(AccountBalanceCalculator::class)->recalculate($accounts->findById($id));
+		}
+		$target = $this->newUserId();
+
+		$this->migration->importAll($target, $this->migration->exportAll($this->userId)['content']);
+
+		$restored = [];
+		foreach ($accounts->findAll($target) as $account) {
+			$restored[$account->getName()] = [(float)$account->getOpeningBalance(), (float)$account->getBalance(), $account->getLiabilityInCredit()];
+		}
+		ksort($restored);
+		$this->assertSame(['Card' => [0.0, 40.22, false], 'Loan' => [10.0, -20.0, true], 'Mortgage' => [-1000.0, -900.0, null]], $restored);
 	}
 
 	/**

@@ -4,6 +4,7 @@
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
+import { once } from '../../utils/submitGuard.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import Chart from '../../utils/chart.js';
@@ -12,6 +13,7 @@ import { expenseProgressStatus, progressBarAttrs, overBudgetText } from '../../u
 import { showLoadError } from '../../utils/loading.js';
 import { nextCategoryColor, distinctCategoryColors } from '../../utils/colors.js';
 import { parentPickerTree } from './parentPicker.js';
+import { roundMoney } from '../../utils/money.js';
 
 export default class CategoriesModule {
     constructor(app) {
@@ -1541,7 +1543,12 @@ export default class CategoriesModule {
         this.populateCategoryParentDropdown(excludeId ?? null, selectedId ?? null, scope);
     }
 
-    async saveCategory() {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveCategory() {
+        return once('category-save', document.querySelector('#category-form [type="submit"]'), () => this._saveCategory());
+    }
+
+    async _saveCategory() {
         const categoryId = document.getElementById('category-id').value;
         const name = document.getElementById('category-name').value.trim();
         const type = document.getElementById('category-type').value;
@@ -2195,44 +2202,56 @@ export default class CategoriesModule {
         // Get all categories (not just ones with budgets — parents need children's spending)
         const allCategories = this.flattenCategories(budgetTree);
 
-        // Group categories by period and type to minimize API calls
         // Income categories need credit transactions, expense categories need debit
-        const groups = {};
-
+        const idsByType = {};
         allCategories.forEach(cat => {
-            const period = cat.budgetPeriod || 'monthly';
             const txType = cat.type === 'income' ? 'credit' : 'debit';
-            const key = `${period}:${txType}`;
-            if (!groups[key]) {
-                groups[key] = { period, txType, categoryIds: [] };
-            }
-            groups[key].categoryIds.push(cat.id);
+            (idsByType[txType] = idsByType[txType] || []).push(cat.id);
         });
 
-        // Fetch spending for each period+type group
-        try {
-            for (const { period, txType, categoryIds } of Object.values(groups)) {
-                if (categoryIds.length === 0) continue;
+        // Every row counts the month's spending, whatever its budget's
+        // period: a weekly or yearly budget is compared as its share of the
+        // month. A quarterly or yearly row also shows its period so far.
+        const startDay = this._budgetStartDay();
+        const month = budgetMonth || this._currentBudgetMonth();
+        const monthRange = formatters.budgetMonthRange(month, startDay);
+        const periodRanges = {};
+        allCategories.forEach(cat => {
+            for (const period of [cat.budgetPeriod, this._getEffectiveBudgetPeriod(cat.id, cat.budgetPeriod)]) {
+                const range = formatters.periodToDateRange(period || 'monthly', month, startDay);
+                if (range) periodRanges[period] = range;
+            }
+        });
 
-                // Get date range for this period
-                const startDay = period === 'monthly' ? parseInt(this.app.settings?.budget_start_day || '1', 10) : 1;
-                // The selected month is the cycle holding its 15th
-                const referenceDate = budgetMonth ? `${budgetMonth}-15` : null;
-                const dateRange = formatters.getPeriodDateRange(period, startDay, referenceDate);
-
-                // Fetch spending for this period and transaction type
-                const spendingData = await apiFetch(
-                    `/apps/budget/api/categories/spending?startDate=${dateRange.start}&endDate=${dateRange.end}&transactionType=${txType}`
+        // One request per date range and direction; the first month of a
+        // quarter is also its quarter so far
+        const answers = {};
+        const spendingOver = async (range, txType) => {
+            const key = `${range.start}|${range.end}|${txType}`;
+            if (!(key in answers)) {
+                answers[key] = await apiFetch(
+                    `/apps/budget/api/categories/spending?startDate=${range.start}&endDate=${range.end}&transactionType=${txType}`
                 ).catch(() => null);
+            }
+            return answers[key];
+        };
+        const collect = async (range, into) => {
+            for (const [txType, categoryIds] of Object.entries(idsByType)) {
+                const spendingData = await spendingOver(range, txType);
+                (spendingData || []).forEach(item => {
+                    if (categoryIds.includes(item.categoryId)) {
+                        into[item.categoryId] = parseFloat(item.spent) || 0;
+                    }
+                });
+            }
+        };
 
-                if (spendingData) {
-                    // Map spending to categories
-                    spendingData.forEach(item => {
-                        if (categoryIds.includes(item.categoryId)) {
-                            categorySpending[item.categoryId] = parseFloat(item.spent) || 0;
-                        }
-                    });
-                }
+        const periodSpending = {};
+        try {
+            await collect(monthRange, categorySpending);
+            for (const [period, range] of Object.entries(periodRanges)) {
+                periodSpending[period] = { range, spent: {} };
+                await collect(range, periodSpending[period].spent);
             }
         } catch (error) {
             console.error('Failed to fetch category spending:', error);
@@ -2240,6 +2259,7 @@ export default class CategoriesModule {
 
         if (generation !== this._spendingGeneration) return;
         this.categorySpending = categorySpending;
+        this._periodSpending = periodSpending;
         this._ownSpending = {};
         this._budgetTree = budgetTree;
 
@@ -2267,24 +2287,52 @@ export default class CategoriesModule {
                 }
 
                 // Sum all children's spending and budgets into this parent.
-                // Budgets fall back to the recurring-derived amount when unset (#269).
+                // Budgets fall back to the recurring-derived amount when unset
+                // (#269), and count as their share of the month as the
+                // spending is the month's.
                 let childSpentTotal = 0;
                 let childBudgetTotal = 0;
                 for (const child of category.children) {
                     childSpentTotal += this.categorySpending[child.id] || 0;
-                    const childPeriod = this._getEffectiveBudgetPeriod(child.id, child.budgetPeriod);
-                    childBudgetTotal += this._getEffectiveBudgetForCalc(child.id, child.budgetAmount, childPeriod);
+                    childBudgetTotal += this._getBudgetFor(child, 'monthly');
                 }
 
                 // Own spending + children's spending (idempotent)
                 this.categorySpending[category.id] = this._ownSpending[category.id] + childSpentTotal;
 
                 // Store aggregated budget: parent's own budget + children's budgets
-                const ownPeriod = this._getEffectiveBudgetPeriod(category.id, category.budgetPeriod);
-                const ownBudget = this._getEffectiveBudgetForCalc(category.id, category.budgetAmount, ownPeriod);
-                category._aggregatedBudget = ownBudget + childBudgetTotal;
+                category._aggregatedBudget = this._getBudgetFor(category, 'monthly') + childBudgetTotal;
             }
         }
+    }
+
+    /**
+     * A category's own budget (as _getEffectiveBudgetForCalc) as an amount
+     * for another period, by the yearly ratios: a yearly 1,200 is 100 a
+     * month, and a weekly 20 is 86.67.
+     */
+    _getBudgetFor(category, period) {
+        const ownPeriod = this._getEffectiveBudgetPeriod(category.id, category.budgetPeriod);
+        const budget = this._getEffectiveBudgetForCalc(category.id, category.budgetAmount, ownPeriod);
+        return formatters.prorateBudget(budget, ownPeriod, period);
+    }
+
+    /**
+     * What a quarterly or yearly row shows beside the month's figures, "400
+     * of 1,200 this year": its budget for the whole period (a parent's adds
+     * its direct children's, as the month's does) and the spending of its
+     * branch from the period's start to the end of the month. Null for a
+     * weekly or monthly row, or before the spending has loaded.
+     */
+    _getPeriodToDate(category) {
+        const period = this._getEffectiveBudgetPeriod(category.id, category.budgetPeriod);
+        const loaded = this._periodSpending?.[period];
+        if (!loaded) return null;
+        const branchSpent = (cat) => (cat.children || [])
+            .reduce((sum, child) => sum + branchSpent(child), loaded.spent[cat.id] || 0);
+        const budget = (category.children || [])
+            .reduce((sum, child) => sum + this._getBudgetFor(child, period), this._getBudgetFor(category, period));
+        return { period, budget, spent: branchSpent(category), start: loaded.range.start, end: loaded.range.end };
     }
 
     /**
@@ -2326,7 +2374,9 @@ export default class CategoriesModule {
             return;
         }
 
-        if (headerEl) headerEl.style.display = 'grid';
+        // Left to the stylesheet, which hides the column header on phones:
+        // an inline 'grid' showed it there, cut off at the screen's edge
+        if (headerEl) headerEl.style.display = '';
         if (emptyState) emptyState.style.display = 'none';
 
         treeContainer.innerHTML = this.renderBudgetCategoryNodes(filteredCategories, 0);
@@ -2355,13 +2405,17 @@ export default class CategoriesModule {
             const rolloverEligible = category.type === 'expense' && effectivePeriod === 'monthly';
             const carriedProjected = this.budgetMonth && this.budgetMonth > this._currentBudgetMonth();
 
-            // Get spending for this category (already calculated for the period)
+            // Get spending for this category (the month's, already calculated)
             const spent = this.categorySpending[category.id] || 0;
+
+            // The month's spending is compared with the budget's share of the
+            // month: a weekly 20 is 86.67, a yearly 1,200 is 100
+            const monthlyBudgetAmount = formatters.prorateBudget(effectiveBudgetAmount, effectivePeriod, 'monthly');
 
             // For parents, use aggregated budget (own + children's); for leaves, use effective budget
             const budget = (hasChildren && category._aggregatedBudget != null)
                 ? category._aggregatedBudget
-                : effectiveBudgetAmount;
+                : monthlyBudgetAmount;
 
             const remaining = budget - spent;
             // An envelope whose overspend has used up this month's budget has
@@ -2387,6 +2441,28 @@ export default class CategoriesModule {
                 // For expenses: under budget is good, over is bad. Shared with
                 // project budgets so the two never colour a figure differently
                 progressStatus = expenseProgressStatus(percentage);
+            }
+
+            // What the row is measured against when it isn't the amount typed
+            // in: a parent's total, or a weekly, quarterly or yearly budget's
+            // share of the month
+            const perMonth = (amount) => t('budget', '{amount} a month', { amount: this.formatCurrency(amount) });
+            let budgetHint = '';
+            if (hasChildren && budget > monthlyBudgetAmount) {
+                budgetHint = `<span class="budget-aggregate-hint">${t('budget', 'Total')}: ${effectivePeriod === 'monthly' ? this.formatCurrency(budget) : perMonth(budget)}</span>`;
+            } else if (effectivePeriod !== 'monthly' && budget > 0) {
+                budgetHint = `<span class="budget-aggregate-hint budget-monthly-hint">${perMonth(budget)}</span>`;
+            }
+
+            // A quarterly or yearly row also shows its whole period so far
+            const toDate = hasBudget ? this._getPeriodToDate(category) : null;
+            let toDateHint = '';
+            if (toDate && toDate.budget > 0) {
+                const day = (date) => formatters.parseLocalDate(date).toLocaleDateString(formatters.userLocale(), { day: 'numeric', month: 'short', year: 'numeric' });
+                const figures = { spent: this.formatCurrency(toDate.spent), budget: this.formatCurrency(toDate.budget) };
+                toDateHint = `<span class="budget-period-to-date" title="${dom.escapeHtml(day(toDate.start) + ' \u2013 ' + day(toDate.end))}">${toDate.period === 'yearly'
+                    ? t('budget', '{spent} of {budget} this year', figures)
+                    : t('budget', '{spent} of {budget} this quarter', figures)}</span>`;
             }
 
             // For income, negative remaining = exceeded target (good), positive = not yet reached (neutral)
@@ -2430,7 +2506,7 @@ export default class CategoriesModule {
                             ? t('budget', '{base} − {over} overspent = {available} available', { base: this.formatCurrency(baseBudgetAmount), over: this.formatCurrency(Math.abs(carried)), available: this.formatCurrency(effectiveBudgetAmount) })
                             : t('budget', '{base} + {carried} carried = {available} available', { base: this.formatCurrency(baseBudgetAmount), carried: this.formatCurrency(carried), available: this.formatCurrency(effectiveBudgetAmount) })
                         ) + (carriedProjected ? ' ' + t('budget', '(projected)') : '')}">${carried < 0 ? '\u2212' : '+'}${this.formatCurrency(Math.abs(carried))}${carriedProjected ? '*' : ''}</span>` : ''}
-                        ${hasChildren && budget > effectiveBudgetAmount ? `<span class="budget-aggregate-hint">${t('budget', 'Total')}: ${this.formatCurrency(budget)}</span>` : ''}
+                        ${budgetHint}
                     </div>
                     <div data-label="${t('budget', 'Period')}">
                         <select class="budget-period-select" data-category-id="${category.id}" aria-label="${t('budget', 'Budget period for {category}', { category: category.name })}" ${lockedAttrs}>
@@ -2453,6 +2529,7 @@ export default class CategoriesModule {
                             </div>
                             <span class="budget-progress-text">${Math.round(percentage)}%</span>
                             ${overBudgetText(!isIncome && spent - budget > 0.005)}
+                            ${toDateHint}
                         ` : `<span class="no-budget">${t('budget', 'No budget set')}</span>`}
                     </div>
                 </div>
@@ -2491,14 +2568,13 @@ export default class CategoriesModule {
                 // Pro-rate budget from current period to new period
                 const proratedBudget = formatters.prorateBudget(currentBudget, currentPeriod, newPeriod);
 
-                // Save both the new period and pro-rated amount
+                // Save both the new period and pro-rated amount. The save
+                // loads the page's figures again, the month's spending and
+                // the new period's so far with them.
                 await this.saveCategoryBudget(categoryId, {
                     budgetPeriod: newPeriod,
                     budgetAmount: proratedBudget
                 });
-
-                // Recalculate spending for the new period
-                await this.recalculateCategorySpending(categoryId, newPeriod);
 
                 // Update old period data attribute for next change
                 e.target.dataset.oldPeriod = newPeriod;
@@ -2536,42 +2612,6 @@ export default class CategoriesModule {
                 }
             });
         });
-    }
-
-    async recalculateCategorySpending(categoryId, period) {
-        try {
-            // Get date range for the period — same reference month as the
-            // bulk load (calculateCategorySpending), or the refreshed figure
-            // covers a different window than every other row on the page
-            const startDay = period === 'monthly' ? parseInt(this.app.settings?.budget_start_day || '1', 10) : 1;
-            const referenceDate = this.budgetMonth ? `${this.budgetMonth}-15` : null;
-            const dateRange = formatters.getPeriodDateRange(period, startDay, referenceDate);
-
-            // Same direction as the bulk load: income categories are measured
-            // by credits. Omitting the type made the netted response answer
-            // debit-primary, flipping an income category's Spent to a large
-            // negative until the next full reload (#361).
-            const category = (this.app.categories || []).find(c => c.id === categoryId);
-            const txType = category?.type === 'income' ? 'credit' : 'debit';
-
-            // Fetch spending for this category in the period
-            const spendingData = await apiFetch(
-                `/apps/budget/api/categories/spending?startDate=${dateRange.start}&endDate=${dateRange.end}&transactionType=${txType}`
-            );
-
-            // Find this category's spending in the response
-            const categorySpending = spendingData.find(item => item.categoryId === categoryId);
-            const spent = categorySpending ? parseFloat(categorySpending.spent) || 0 : 0;
-
-            // Update local spending data for this category
-            this.categorySpending[categoryId] = spent;
-
-            // Re-render to show updated spending
-            this.renderBudgetTree();
-            this.updateBudgetSummary();
-        } catch (error) {
-            console.error('Failed to recalculate spending:', error);
-        }
     }
 
     async saveCategoryBudget(categoryId, updates) {
@@ -2627,25 +2667,15 @@ export default class CategoriesModule {
                 Object.assign(category, updates);
             }
 
-            // Update effective budgets cache locally
-            if (this._effectiveBudgets) {
-                if (!this._effectiveBudgets[categoryId]) {
-                    this._effectiveBudgets[categoryId] = { amount: 0, period: 'monthly' };
-                }
-                if ('budgetAmount' in updates) {
-                    this._effectiveBudgets[categoryId].amount = updates.budgetAmount;
-                }
-                if ('budgetPeriod' in updates) {
-                    this._effectiveBudgets[categoryId].period = updates.budgetPeriod;
-                }
-            }
-
-            // Re-aggregate parent budgets and re-render
-            this.aggregateParentSpending(this.categoryTree || []);
-            this.renderBudgetTree();
+            // Every figure on the page reads the budget available as the
+            // server composed it (with any carryover), so patching the amount
+            // here left Remaining, the parent's total and the summary on the
+            // old budget. Fetch the composed budgets again and redraw, as the
+            // envelope toggle does; that also moves "Ready to assign".
+            await this.fetchEffectiveBudgets();
+            await this.calculateCategorySpending();
+            this._renderBudgetTreeKeepingInput();
             this.updateBudgetSummary();
-            // A budget change moves "Ready to assign"; not awaited
-            this.refreshReadyToAssign();
 
             // Refresh dashboard if currently viewing it
             if (window.location.hash === '' || window.location.hash === '#/dashboard') {
@@ -2657,6 +2687,24 @@ export default class CategoriesModule {
             console.error('Failed to save budget:', error);
             showError(t('budget', 'Failed to update budget: {message}', { message: error.message }));
         }
+    }
+
+    /**
+     * Redraw the budget rows, keeping the budget box being typed in: a save
+     * redraws every row, and after Tab the typing has already moved on to
+     * the next box.
+     */
+    _renderBudgetTreeKeepingInput() {
+        const active = document.activeElement;
+        const typing = active?.classList?.contains('budget-input')
+            ? { id: active.dataset.categoryId, value: active.value }
+            : null;
+        this.renderBudgetTree();
+        if (!typing) return;
+        const input = document.querySelector(`.budget-input[data-category-id="${typing.id}"]`);
+        if (!input || input.disabled) return;
+        input.value = typing.value;
+        input.focus();
     }
 
     updateBudgetSummary() {
@@ -2685,7 +2733,13 @@ export default class CategoriesModule {
             totalSpent += spent;
         });
 
-        const totalRemaining = totalBudgeted - totalSpent;
+        // Whole pennies, as the server adds them: monthly equivalents of
+        // weekly budgets carry fractions, and a float sum dropped a penny
+        // from Remaining against Budgeted - Spent (and v1's budget status)
+        const decimals = formatters.currencyDecimals(formatters.getPrimaryCurrency([], this.settings), this.settings);
+        totalBudgeted = roundMoney(totalBudgeted, decimals);
+        totalSpent = roundMoney(totalSpent, decimals);
+        const totalRemaining = roundMoney(totalBudgeted - totalSpent, decimals);
 
         // Update DOM
         const budgetedEl = document.getElementById('budget-total-budgeted');
@@ -2699,23 +2753,6 @@ export default class CategoriesModule {
         if (countEl) countEl.textContent = categoriesWithBudget;
 
         this.renderReadyToAssign();
-    }
-
-    /**
-     * Re-read the selected month's "Ready to assign" figure after a budget
-     * edit, leaving the locally updated budgets alone.
-     */
-    async refreshReadyToAssign() {
-        const month = this.budgetMonth;
-        try {
-            const data = await apiFetch(`/apps/budget/api/budget-snapshots/${month}/budgets`).catch(() => null);
-            if (!data) return;
-            if (this.budgetMonth !== month) return;
-            this._readyToAssign = data.readyToAssign || null;
-            this.renderReadyToAssign();
-        } catch (error) {
-            console.error('Failed to refresh ready to assign:', error);
-        }
     }
 
     /**

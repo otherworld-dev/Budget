@@ -378,6 +378,51 @@ class ShareServiceTest extends TestCase {
 		$this->service->leave(1, 'recipient1');
 	}
 
+	// ===== the invitation notification =====
+
+	/**
+	 * Answering an invitation, or leaving the share, left "… shared their
+	 * budget with you. Open Budget to accept or decline" in the recipient's
+	 * notifications; only a revoke dismissed it.
+	 */
+	#[\PHPUnit\Framework\Attributes\DataProvider('answers')]
+	public function testAnsweringOrLeavingDismissesTheInvitation(string $method): void {
+		$this->mapper->method('findById')->willReturn($this->makeShare(['status' => Share::STATUS_PENDING]));
+		$this->mapper->method('update')->willReturnArgument(0);
+		$dismissed = [];
+		$notification = $this->createMock(INotification::class);
+		$notification->method('setApp')->willReturnCallback(function (string $app) use (&$dismissed, $notification) {
+			$dismissed['app'] = $app;
+			return $notification;
+		});
+		$notification->method('setUser')->willReturnCallback(function (string $user) use (&$dismissed, $notification) {
+			$dismissed['user'] = $user;
+			return $notification;
+		});
+		$notification->method('setObject')->willReturnCallback(function (string $type, string $id) use (&$dismissed, $notification) {
+			$dismissed['object'] = [$type, $id];
+			return $notification;
+		});
+		$this->notificationManager->method('createNotification')->willReturn($notification);
+		$this->notificationManager->expects($this->once())->method('markProcessed')->with($notification);
+
+		$this->service->$method(1, 'recipient1');
+
+		$this->assertSame(['app' => 'budget', 'user' => 'recipient1', 'object' => ['share', '1']], $dismissed);
+	}
+
+	public static function answers(): array {
+		return ['accept' => ['accept'], 'decline' => ['decline'], 'leave' => ['leave']];
+	}
+
+	public function testAnAcceptStandsWhenTheNotificationCannotBeDismissed(): void {
+		$this->mapper->method('findById')->willReturn($this->makeShare(['status' => Share::STATUS_PENDING]));
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->notificationManager->method('createNotification')->willThrowException(new \RuntimeException('notifications app gone'));
+
+		$this->assertSame(Share::STATUS_ACCEPTED, $this->service->accept(1, 'recipient1')->getStatus());
+	}
+
 	// ===== getOutgoingShares() =====
 
 	public function testGetOutgoingSharesDelegatesToMapper(): void {

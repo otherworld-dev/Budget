@@ -14,8 +14,9 @@ import { isoWeekday } from '../../utils/helpers.js';
 import { apiFetch } from '../../utils/api.js';
 import { offerableTags, offerableTagSets } from '../../utils/tags.js';
 import { showLoadError } from '../../utils/loading.js';
-import { openAccounts, pickableAccounts, accountOptionLabel, accountCurrency } from '../../utils/accounts.js';
+import { openAccounts, pickableAccounts, accountOptionLabel, accountCurrency, linkableCandidates } from '../../utils/accounts.js';
 import { requestMarkUnpaid } from '../../utils/billUnpaid.js';
+import { selectPossiblyUnavailable, unavailableCategoryLabel } from '../../utils/formSelects.js';
 
 /**
  * The date to open the form on for a one-time transfer saved before the
@@ -306,7 +307,7 @@ export default class TransfersModule {
             // Status, date and actions follow the transfer's next occurrence,
             // not the calendar month (#399); an inactive transfer offers
             // nothing to pay, which markPaid would still execute (#365)
-            const row = billRowState(transfer, today, this.settings);
+            const row = billRowState(transfer, today, this.settings, this.accounts);
             const statusClass = row.status;
             const statusText = row.statusText;
 
@@ -346,6 +347,7 @@ export default class TransfersModule {
                             ${autoPayFailed ? `<span class="status-badge badge-extra auto-pay-failed" title="${t('budget', 'Auto-pay failed - disabled')}"><span class="icon-error"></span> ${t('budget', 'Auto-pay Failed')}</span>` : ''}
                         </div>
                     </div>
+                    ${row.accountHint ? `<p class="bill-account-hint">${dom.escapeHtml(row.accountHint)}</p>` : ''}
                     <div class="bill-actions">
                         ${row.canPay ? `
                             <button class="bill-action-btn transfer-paid-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Mark as paid')}">
@@ -359,18 +361,18 @@ export default class TransfersModule {
                                 ${t('budget', 'Skip')}
                             </button>
                         ` : ''}
-                        ${transfer.canMarkUnpaid ? `
+                        ${row.canUnpay ? `
                             <button class="bill-action-btn transfer-unpaid-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Revert the last payment')}">
                                 <span class="icon-history" aria-hidden="true"></span>
                                 ${t('budget', 'Mark Unpaid')}
                             </button>
                         ` : ''}
-                        <button class="bill-action-btn transfer-edit-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Edit transfer')}" aria-label="${t('budget', 'Edit transfer')}">
+                        ${row.canWrite ? `<button class="bill-action-btn transfer-edit-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Edit transfer')}" aria-label="${t('budget', 'Edit transfer')}">
                             <span class="icon-rename" aria-hidden="true"></span>
-                        </button>
-                        <button class="bill-action-btn transfer-delete-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Delete transfer')}" aria-label="${t('budget', 'Delete transfer')}">
+                        </button>` : ''}
+                        ${transfer._shared && !transfer._canManage ? '' : `<button class="bill-action-btn transfer-delete-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Delete transfer')}" aria-label="${t('budget', 'Delete transfer')}">
                             <span class="icon-delete" aria-hidden="true"></span>
-                        </button>
+                        </button>`}
                     </div>
                 </div>
             `;
@@ -609,6 +611,19 @@ export default class TransfersModule {
         // Add modal to body
         document.body.insertAdjacentHTML('beforeend', modalHtml);
 
+        // A transfer shared with you may use a category or account its owner
+        // didn't share with you, which the pickers can't list: the category
+        // read "No category" and saving cleared it off the owner's transfer,
+        // and a missing account stopped the form saving at all. They are kept
+        // selected and sent back unchanged (#370, as bills and income do).
+        // The category is named, as the transfer came; an account isn't.
+        if (isEdit) {
+            selectPossiblyUnavailable(document.getElementById('transfer-category'), transfer.categoryId ?? null,
+                transfer.categoryName ? unavailableCategoryLabel(transfer.categoryName) : null);
+            selectPossiblyUnavailable(document.getElementById('recurring-transfer-from-account'), transfer.accountId ?? null);
+            selectPossiblyUnavailable(document.getElementById('recurring-transfer-to-account'), transfer.destinationAccountId ?? null);
+        }
+
         // Initialize flatpickr on the transaction date input
         const transferDateInput = document.getElementById('transfer-transaction-date');
         if (transferDateInput) {
@@ -655,7 +670,13 @@ export default class TransfersModule {
         };
         const updateAmountTypeVisibility = () => {
             const destination = this.accounts.find(a => a.id === parseInt(toAccountSelect.value));
-            const cardLike = !!destination && ['credit_card', 'line_of_credit'].includes(destination.type);
+            // A destination not shared with you can't be looked at, so the
+            // transfer keeps the amount type it has rather than dropping to
+            // fixed (the server refuses switching it to a dynamic one)
+            const hiddenDestination = !destination && toAccountSelect.selectedOptions[0]?.dataset.unavailable === '1';
+            const cardLike = hiddenDestination
+                ? isEdit && (transfer.amountType || 'fixed') !== 'fixed'
+                : !!destination && ['credit_card', 'line_of_credit'].includes(destination.type);
             if (!cardLike && amountTypeSelect.value !== 'fixed') {
                 amountTypeSelect.value = 'fixed';
             }
@@ -960,8 +981,10 @@ export default class TransfersModule {
             // page does. Booking a new pair moved the money a second time.
             let choice = { action: 'create' };
             if (transfer.accountId || transfer.account_id) {
-                const candidates = await apiFetch(`/apps/budget/api/bills/${transferId}/matching-transactions`)
+                const found = await apiFetch(`/apps/budget/api/bills/${transferId}/matching-transactions`)
                     .catch(() => null);
+                // Only rows the payment can be linked to
+                const candidates = found ? linkableCandidates(found, this.accounts) : null;
                 if (candidates && candidates.length > 0) {
                     choice = await showMatchingTransactionDialog(transfer, candidates, this.settings);
                     if (choice === null) {
@@ -1026,20 +1049,22 @@ export default class TransfersModule {
                 method: 'POST',
                 errorMessage: t('budget', 'Failed to skip transfer'),
             });
-            this._undoData = {
+            const undoData = {
                 transferId,
                 previousNextDueDate: result.previousNextDueDate ?? null,
                 action: 'skip'
             };
+            this._undoData = undoData;
 
             await this.loadTransfers();
             this.renderTransfers();
             this.updateSummary();
 
+            // The toast undoes this skip, whatever was done since
             showUndoNotification(
                 t('budget', 'Payment skipped. Advanced to next due date.'),
-                () => this.undoSkipTransfer(),
-                () => { this._undoData = null; }
+                () => this.undoSkipTransfer(undoData),
+                () => this._dropUndo(undoData)
             );
         } catch (error) {
             console.error('Failed to skip transfer:', error);
@@ -1047,20 +1072,34 @@ export default class TransfersModule {
         }
     }
 
-    async undoSkipTransfer() {
-        if (!this._undoData || this._undoData.action !== 'skip') {
+    /**
+     * An undo toast ran out: its action can't be undone any more. A later
+     * action may have replaced the latest undo data; only drop our own.
+     */
+    _dropUndo(undoData) {
+        undoData.spent = true;
+        if (this._undoData === undoData) this._undoData = null;
+    }
+
+    /**
+     * @param {object} undoData - The skip to undo; each toast passes its own,
+     *   so an older toast never reverts a later action
+     */
+    async undoSkipTransfer(undoData = this._undoData) {
+        if (!undoData || undoData.spent || undoData.action !== 'skip') {
             return;
         }
+        undoData.spent = true;
 
         try {
-            const { transferId, previousNextDueDate } = this._undoData;
+            const { transferId, previousNextDueDate } = undoData;
 
             await apiFetch(`/apps/budget/api/bills/${transferId}/undo-skip`, {
                 method: 'POST',
                 body: { previousNextDueDate },
             });
 
-            this._undoData = null;
+            if (this._undoData === undoData) this._undoData = null;
             await this.loadTransfers();
             this.renderTransfers();
             this.updateSummary();
@@ -1134,10 +1173,12 @@ export default class TransfersModule {
         if (!container) return;
 
         try {
-            // Load global tags and category tag sets in parallel
+            // Load global tags and category tag sets in parallel; a category
+            // not shared with you has none you can read (the server says 400)
+            const listed = categoryId && (!this.categories?.length || this.categories.some(c => String(c.id) === String(categoryId)));
             const [globalTagsResponse, categoryTagSets] = await Promise.all([
                 apiFetch('/apps/budget/api/tags/global').catch(() => []),
-                categoryId ? apiFetch(`/apps/budget/api/tag-sets?categoryId=${categoryId}`).catch(() => []) : Promise.resolve([])
+                listed ? apiFetch(`/apps/budget/api/tag-sets?categoryId=${categoryId}`).catch(() => []) : Promise.resolve([])
             ]);
 
             // Get existing tag IDs if editing

@@ -8,7 +8,8 @@ use OCA\Budget\Controller\MigrationController;
 use OCA\Budget\Service\AuditService;
 use OCA\Budget\Service\MigrationService;
 use OCP\AppFramework\Http;
-use OCP\AppFramework\Http\DataDownloadResponse;
+use OCP\AppFramework\Http\IOutput;
+use OCP\AppFramework\Http\StreamResponse;
 use OCP\IL10N;
 use OCP\IRequest;
 use PHPUnit\Framework\TestCase;
@@ -43,24 +44,47 @@ class MigrationControllerTest extends TestCase {
 
 	// ── export ──────────────────────────────────────────────────────
 
-	public function testExportReturnsDownloadResponse(): void {
-		$this->migrationService->method('exportAll')
+	/**
+	 * The archive is streamed from the temporary file the service wrote, not
+	 * held in memory as a string, and the file doesn't outlive the download.
+	 */
+	public function testExportStreamsTheArchiveFile(): void {
+		$path = $this->archiveFile('zipdata');
+		$this->migrationService->expects($this->never())->method('exportAll');
+		$this->migrationService->method('exportToFile')
 			->with('user1')
 			->willReturn([
-				'content' => 'zipdata',
+				'path' => $path,
 				'filename' => 'budget_export_2026-03-09.zip',
 				'contentType' => 'application/zip',
 			]);
 
 		$response = $this->controller->export();
 
-		$this->assertInstanceOf(DataDownloadResponse::class, $response);
+		$this->assertInstanceOf(StreamResponse::class, $response);
+		// getHeaders() needs a booted server; read the raw header map instead
+		$headersProp = new \ReflectionProperty(\OCP\AppFramework\Http\Response::class, 'headers');
+		$headersProp->setAccessible(true);
+		$headers = $headersProp->getValue($response);
+		$this->assertSame('attachment; filename="budget_export_2026-03-09.zip"', $headers['Content-Disposition']);
+		$this->assertSame('application/zip', $headers['Content-Type']);
+		$this->assertFileDoesNotExist($path);
+
+		$output = $this->createMock(IOutput::class);
+		$output->method('getHttpResponseCode')->willReturn(Http::STATUS_OK);
+		$streamed = null;
+		$output->method('setReadfile')->willReturnCallback(function ($handle) use (&$streamed) {
+			$streamed = stream_get_contents($handle);
+			return true;
+		});
+		$response->callback($output);
+		$this->assertSame('zipdata', $streamed);
 	}
 
 	public function testExportLogsAuditEvent(): void {
-		$this->migrationService->method('exportAll')
+		$this->migrationService->method('exportToFile')
 			->willReturn([
-				'content' => 'zipdata',
+				'path' => $this->archiveFile('zipdata'),
 				'filename' => 'budget_export.zip',
 				'contentType' => 'application/zip',
 			]);
@@ -79,12 +103,18 @@ class MigrationControllerTest extends TestCase {
 	}
 
 	public function testExportHandlesError(): void {
-		$this->migrationService->method('exportAll')
+		$this->migrationService->method('exportToFile')
 			->willThrowException(new \RuntimeException('error'));
 
 		$response = $this->controller->export();
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	private function archiveFile(string $content): string {
+		$path = tempnam(sys_get_temp_dir(), 'budget_test_');
+		file_put_contents($path, $content);
+		return $path;
 	}
 
 	// ── preview ─────────────────────────────────────────────────────
@@ -285,5 +315,39 @@ class MigrationControllerTest extends TestCase {
 		@unlink($tmpFile);
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	/**
+	 * A PHP error from a damaged archive used to escape every catch and come
+	 * back as a 500 with the stack trace (R6-5). Every action answers a
+	 * plain 400 now, and the details only go to the log.
+	 */
+	public function testAPhpErrorIsAPlain400NotATrace(): void {
+		$tmpFile = tempnam(sys_get_temp_dir(), 'budget_test_');
+		file_put_contents($tmpFile, 'fake zip content');
+		$this->request->method('getUploadedFile')->with('file')->willReturn([
+			'name' => 'data.zip',
+			'tmp_name' => $tmpFile,
+			'error' => UPLOAD_ERR_OK,
+		]);
+		$this->request->method('getParam')->with('confirmed', false)->willReturn(true);
+		$error = new \TypeError('Cannot access offset of type array in isset or empty in /var/www/html/apps/budget/lib/Service/MigrationService.php:1157');
+		$this->migrationService->method('importAll')->willThrowException($error);
+		$this->migrationService->method('previewImport')->willThrowException($error);
+		$this->migrationService->method('exportToFile')->willThrowException($error);
+		$this->logger->expects($this->exactly(3))->method('error');
+
+		$responses = [
+			'import' => $this->controller->import(),
+			'preview' => $this->controller->preview(),
+			'export' => $this->controller->export(),
+		];
+
+		@unlink($tmpFile);
+		foreach ($responses as $action => $response) {
+			$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus(), $action);
+			$this->assertStringNotContainsString('MigrationService', json_encode($response->getData()), $action);
+		}
+		$this->assertSame('Failed to import data', $responses['import']->getData()['error']);
 	}
 }

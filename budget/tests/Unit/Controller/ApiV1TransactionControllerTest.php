@@ -22,6 +22,7 @@ use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
 use OCP\IL10N;
 use OCP\IRequest;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
@@ -73,6 +74,10 @@ class ApiV1TransactionControllerTest extends TestCase {
 
 		$this->granularShareService->method('getVisibleAccountIds')->willReturn([1, 2, 9]);
 		$this->granularShareService->method('getOwnAccountIds')->willReturn([1, 2]);
+		// Visible means the user's own accounts and the one shared with them
+		$this->granularShareService->method('canAccess')->willReturnCallback(
+			static fn (string $userId, string $type, int $id): bool => $type === 'account' && in_array($id, [1, 2, 9], true)
+		);
 
 		$this->controller = $this->buildController($this->idempotencyKeys, $this->validationService);
 	}
@@ -133,7 +138,9 @@ class ApiV1TransactionControllerTest extends TestCase {
 			'total' => 137,
 		]);
 
-		$response = $this->controller->index(limit: 25, offset: 50);
+		$this->params = ['limit' => '25', 'offset' => '50'];
+
+		$response = $this->controller->index();
 		$data = $response->getData();
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
@@ -154,7 +161,9 @@ class ApiV1TransactionControllerTest extends TestCase {
 			)
 			->willReturn(['transactions' => [], 'total' => 0]);
 
-		$data = $this->controller->index(limit: 100000)->getData();
+		$this->params = ['limit' => '100000'];
+
+		$data = $this->controller->index()->getData();
 
 		$this->assertSame(ApiV1TransactionController::MAX_LIMIT, $data['limit']);
 	}
@@ -164,10 +173,41 @@ class ApiV1TransactionControllerTest extends TestCase {
 			->with('user1', $this->anything(), 1, 0, $this->anything())
 			->willReturn(['transactions' => [], 'total' => 0]);
 
-		$data = $this->controller->index(limit: -5, offset: -20)->getData();
+		$this->params = ['limit' => '-5', 'offset' => '-20'];
+
+		$data = $this->controller->index()->getData();
 
 		$this->assertSame(1, $data['limit']);
 		$this->assertSame(0, $data['offset']);
+	}
+
+	public function testIndexTreatsAGarbageLimitAndOffsetAsTheDefaults(): void {
+		$this->service->method('findWithFilters')
+			->with('user1', $this->anything(), ApiV1TransactionController::DEFAULT_LIMIT, 0, $this->anything())
+			->willReturn(['transactions' => [], 'total' => 0]);
+		$this->params = ['limit' => 'abc', 'offset' => ['x']];
+
+		$data = $this->controller->index()->getData();
+
+		$this->assertSame(ApiV1TransactionController::DEFAULT_LIMIT, $data['limit']);
+		$this->assertSame(0, $data['offset']);
+	}
+
+	/**
+	 * Nextcloud 35's dispatcher range-checks any controller parameter named
+	 * `limit` (1-500) and answers an empty 400 before the controller runs,
+	 * so limit=0, -1, 1000 or abc never reached the clamp the docs promise.
+	 * limit and offset are read from the request by hand instead, as
+	 * recent() always has.
+	 */
+	public function testIndexLeavesLimitAndOffsetOutOfTheFrameworkBinding(): void {
+		$names = array_map(
+			static fn (\ReflectionParameter $p) => $p->getName(),
+			(new \ReflectionMethod(ApiV1TransactionController::class, 'index'))->getParameters()
+		);
+
+		$this->assertNotContains('limit', $names);
+		$this->assertNotContains('offset', $names);
 	}
 
 	public function testIndexScopesToVisibleAccounts(): void {
@@ -417,6 +457,53 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_FORBIDDEN, $this->controller->create()->getStatus());
 	}
 
+	/**
+	 * An account the caller cannot see answered 403 "This shared item is
+	 * read-only": wrong, and it confirmed nothing the caller could act on.
+	 * Not found, like every other id outside their accounts.
+	 */
+	public function testCreateToAnAccountTheCallerCannotSeeIsNotFound(): void {
+		$this->params = $this->captureParams(['account_id' => '999999']);
+		// As the real check answers for an account that is not theirs
+		$this->granularShareService->method('requireWriteAccess')
+			->willThrowException(new ReadOnlyShareException());
+		$this->service->expects($this->never())->method('create');
+
+		$response = $this->controller->create();
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
+		$this->assertSame('Account not found', $response->getData()['error']);
+	}
+
+	/**
+	 * A list or an object where one value belongs was cast: text fields
+	 * saved the string "Array" (with a PHP warning), account_id [5] read as
+	 * account 1, and every such idempotency key was the same "Array".
+	 */
+	#[DataProvider('createValueFields')]
+	public function testCreateRefusesAListWhereOneValueBelongs(string $field): void {
+		$this->params = $this->captureParams([$field => ['x']]);
+		$this->service->expects($this->never())->method('create');
+		$this->idempotencyKeys->expects($this->never())->method('insert');
+
+		$response = $this->controller->create();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame("{$field} must be a single value", $response->getData()['error']);
+	}
+
+	public static function createValueFields(): array {
+		$fields = ['account_id', 'accountId', 'date', 'merchant', 'description', 'vendor', 'type', 'reference', 'notes', 'idempotency_key'];
+		return array_combine($fields, array_map(static fn (string $f) => [$f], $fields));
+	}
+
+	public function testCreateRefusesAnObjectWhereOneValueBelongs(): void {
+		$this->params = $this->captureParams(['notes' => ['text' => 'x']]);
+		$this->service->expects($this->never())->method('create');
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $this->controller->create()->getStatus());
+	}
+
 	public function testCreateRejectsAnUnknownType(): void {
 		$this->params = $this->captureParams(['type' => 'sideways']);
 		$this->service->expects($this->never())->method('create');
@@ -456,23 +543,38 @@ class ApiV1TransactionControllerTest extends TestCase {
 
 	/**
 	 * Any category id used to be stored as-is, and every read then carried
-	 * that category's name — another user's included. The owner's visible
-	 * categories are the only ones accepted, and a refusal must also release
-	 * the idempotency reservation so an honest retry is not blocked.
+	 * that category's name — another user's included. Only the owner's
+	 * usable categories are stored. Refusing the whole request lost the
+	 * capture for a 2.54-era client that offers its own categories on a
+	 * shared account, so the transaction is recorded uncategorised and the
+	 * response says why, like photo_error and splits_error.
 	 */
-	public function testCreateRejectsACategoryTheOwnerCannotSee(): void {
+	public function testACategoryTheOwnerCannotUseIsLeftOffAndTheCaptureKept(): void {
 		$this->granularShareService->method('requireUsableCategory')
 			->willThrowException(new \InvalidArgumentException('Category not found'));
-		$this->service->expects($this->never())->method('create');
-		$this->idempotencyKeys->expects($this->once())->method('delete');
+		$this->service->expects($this->once())->method('create')
+			->with('user1', 1, '2026-08-01', 'Weekly shop', 42.5, 'debit', null)
+			->willReturn($this->transaction());
+		// The key now belongs to the recorded transaction
+		$this->idempotencyKeys->expects($this->never())->method('delete');
+		$this->idempotencyKeys->expects($this->once())->method('update');
 		$this->params = $this->captureParams(['category_id' => '999', 'idempotency_key' => 'k1']);
 
 		$response = $this->controller->create();
+		$data = $response->getData();
 
-		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+		$this->assertNull($data['category_id']);
 		// Says whose category it must be: a share recipient's own category
 		// is refused too, and "not found" alone read as a wrong id
-		$this->assertSame("Category not found. It must be one of the account owner's categories", $response->getData()['error']);
+		$this->assertSame("Category not found. It must be one of the account owner's categories", $data['category_error']);
+	}
+
+	public function testAUsableCategoryLeavesNoCategoryError(): void {
+		$this->service->method('create')->willReturn($this->transaction());
+		$this->params = $this->captureParams(['category_id' => '7']);
+
+		$this->assertArrayNotHasKey('category_error', $this->controller->create()->getData());
 	}
 
 	public function testCreateChecksTheCategoryAgainstTheAccountOwner(): void {
@@ -749,6 +851,41 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $controller->create()->getStatus());
 	}
 
+	/**
+	 * The account checks ran after the key was reserved but outside the
+	 * block that releases it, so a 403 or 404 kept the key for 7 days: the
+	 * documented retry with the same key on the right account waited ~5s
+	 * and got request_in_flight, every time.
+	 */
+	public function testARefusedAccountReleasesTheReservation(): void {
+		$this->params = $this->captureParams(['account_id' => '9', 'idempotency_key' => 'uuid-9']);
+		$this->granularShareService->method('requireWriteAccess')
+			->willThrowException(new ReadOnlyShareException());
+
+		$keys = $this->createMock(IdempotencyKeyMapper::class);
+		$keys->method('insert')->willReturnArgument(0);
+		$keys->expects($this->once())->method('delete');
+		$this->service->expects($this->never())->method('create');
+
+		$response = $this->buildController($keys, $this->validationService)->create();
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	public function testAnAccountThatCannotBeFoundReleasesTheReservation(): void {
+		$this->params = $this->captureParams(['account_id' => '9', 'idempotency_key' => 'uuid-10']);
+		$this->service->method('findAccountById')->willThrowException(new DoesNotExistException('gone'));
+
+		$keys = $this->createMock(IdempotencyKeyMapper::class);
+		$keys->method('insert')->willReturnArgument(0);
+		$keys->expects($this->once())->method('delete');
+		$this->service->expects($this->never())->method('create');
+
+		$response = $this->buildController($keys, $this->validationService)->create();
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
+	}
+
 	public function testAFailedReservationFinaliseNeverFailsTheRecordedTransaction(): void {
 		$this->params = $this->captureParams(['idempotency_key' => 'uuid-8']);
 		$this->service->method('create')->willReturn($this->transaction());
@@ -1006,6 +1143,68 @@ class ApiV1TransactionControllerTest extends TestCase {
 		}
 	}
 
+	/**
+	 * A part amount that isn't a number was cast to 0.0 here, so the service
+	 * could only call it zero. It goes on as sent, for the service to refuse
+	 * as what it is, before any stored part is touched.
+	 */
+	public function testANonNumericPartAmountIsHandedOnAsSentNotReadAsZero(): void {
+		$this->expectOwnerResolution();
+		$this->params = $this->captureParams([
+			'splits' => json_encode([['amount' => 'abc', 'category_id' => 12], ['amount' => '23.77']]),
+		]);
+		$this->splitService->expects($this->once())
+			->method('splitTransaction')
+			->with(5, 'owner1', $this->callback(static fn (array $s): bool => $s[0]['amount'] === 'abc' && $s[1]['amount'] === 23.77))
+			->willThrowException(new \InvalidArgumentException('Split 0: amount is required'));
+
+		$response = $this->controller->createSplits(5);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Split 0: amount is required', $response->getData()['error']);
+	}
+
+	/** Cast, a description read "Array" and a category id read 1 */
+	public function testASplitPartWithAListForAValueIsRefused(): void {
+		$this->expectOwnerResolution();
+		$this->splitService->expects($this->never())->method('splitTransaction');
+
+		foreach ([['description' => ['x']], ['category_id' => [12]], ['categoryId' => ['a' => 1]]] as $bad) {
+			$this->params = ['splits' => json_encode([['amount' => '20.00'] + $bad, ['amount' => '3.77']])];
+			$response = $this->controller->createSplits(5);
+
+			$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus(), json_encode($bad));
+			$this->assertSame('splits must be an array of {"amount", "category_id", "description"} objects', $response->getData()['error']);
+		}
+	}
+
+	/**
+	 * A splits field sent with a create but unusable was dropped without a
+	 * word: the capture came back unsplit and nothing said why. It is a
+	 * rejected split set like any other.
+	 */
+	public function testAnUnusableSplitsFieldOnCreateIsReportedNotDropped(): void {
+		$this->service->method('create')->willReturn($this->splitTransaction());
+		$this->splitService->expects($this->never())->method('splitTransaction');
+
+		foreach (['not json', json_encode(['nope']), json_encode([['amount' => '1', 'description' => ['x']], ['amount' => '22.77']])] as $payload) {
+			$this->params = $this->captureParams(['amount' => '23.77', 'splits' => $payload]);
+			$data = $this->controller->create()->getData();
+
+			$this->assertSame('splits must be an array of {"amount", "category_id", "description"} objects', $data['splits_error'] ?? null, $payload);
+			$this->assertSame([], $data['splits']);
+			$this->assertFalse($data['is_split']);
+		}
+	}
+
+	public function testAnEmptySplitsListOnCreateMeansNoSplits(): void {
+		$this->service->method('create')->willReturn($this->splitTransaction());
+		$this->splitService->expects($this->never())->method('splitTransaction');
+		$this->params = $this->captureParams(['amount' => '23.77', 'splits' => '[]']);
+
+		$this->assertArrayNotHasKey('splits_error', $this->controller->create()->getData());
+	}
+
 	public function testSplittingAnUnknownTransactionIsNotFound(): void {
 		$this->params = $this->captureParams([
 			'splits' => json_encode([['amount' => '1.00'], ['amount' => '2.00']]),
@@ -1107,6 +1306,51 @@ class ApiV1TransactionControllerTest extends TestCase {
 		return $s;
 	}
 
+	// ── money in the account currency's places ──────────────────────
+
+	private function bitcoinAccount(int $id = 1): Account {
+		$account = new Account();
+		$account->setId($id);
+		$account->setUserId('user1');
+		$account->setCurrency('BTC');
+		return $account;
+	}
+
+	/**
+	 * A single row carries no account currency, so it was written at two
+	 * places: 0.015 BTC read "0.02", and the read shape sent back to PATCH
+	 * moved the amount. Its account says how many places it has.
+	 */
+	public function testShowWritesACryptoAmountInItsCurrencysPlaces(): void {
+		$transaction = $this->checkTransaction(55, 1, false);
+		$transaction->setAmount(0.015);
+		$this->service->method('findForAccounts')->willReturn($transaction);
+		$this->service->method('findAccountById')->with(1)->willReturn($this->bitcoinAccount());
+
+		$this->assertSame('0.01500000', $this->controller->show(55)->getData()['amount']);
+	}
+
+	public function testCreateAnswersInTheAccountsCurrencysPlaces(): void {
+		$transaction = $this->transaction();
+		$transaction->setAmount(0.015);
+		$this->service->method('create')->willReturn($transaction);
+		$this->service->method('findAccountById')->willReturn($this->bitcoinAccount());
+		$this->params = $this->captureParams(['amount' => '0.015']);
+
+		$this->assertSame('0.01500000', $this->controller->create()->getData()['amount']);
+	}
+
+	public function testSplitPartsAnswerInTheAccountsCurrencysPlaces(): void {
+		$this->service->method('findForAccounts')->willReturn($this->splitTransaction(5, 1, '0.015'));
+		$this->service->method('findAccountById')->willReturn($this->bitcoinAccount());
+		$this->splitService->method('splitTransaction')->willReturn([$this->part(1, 5, 0.005, null), $this->part(2, 5, 0.01, null)]);
+		$this->params = ['splits' => json_encode([['amount' => '0.005'], ['amount' => '0.01']])];
+
+		$parts = $this->controller->createSplits(5)->getData()['splits'];
+
+		$this->assertSame(['0.00500000', '0.01000000'], array_column($parts, 'amount'));
+	}
+
 	public function testSplitsOutsideTheCallersAccountsAreNotFound(): void {
 		$this->service->method('findForAccounts')->willThrowException(new DoesNotExistException('nope'));
 		$this->splitService->expects($this->never())->method('getSplits');
@@ -1156,9 +1400,14 @@ class ApiV1TransactionControllerTest extends TestCase {
 		]);
 		$this->granularShareService->method('resolveOwner')->willReturn('owner1');
 		$this->splitService->method('getSplits')->willReturn([$this->part(1, 55, 20.0, 'All of it')]);
-		$account = new Account();
-		$account->setName('Current');
-		$this->service->method('findAccountById')->with(2)->willReturn($account);
+		// The row's own account (for its currency) and the partner's (for its name)
+		$this->service->method('findAccountById')->willReturnCallback(static function (int $id): Account {
+			$account = new Account();
+			$account->setId($id);
+			$account->setName($id === 2 ? 'Current' : 'Shared card');
+			$account->setCurrency('GBP');
+			return $account;
+		});
 
 		$data = $this->controller->show(55)->getData();
 
@@ -1405,6 +1654,32 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->service->expects($this->once())->method('update')
 			->with(10, 'user1', $this->callback(static fn (array $u): bool => $u['notes'] === 'Refund line'))
 			->willReturn($this->transaction());
+
+		$this->assertSame(Http::STATUS_OK, $this->editor()->update(10)->getStatus());
+	}
+
+	#[DataProvider('editValueFields')]
+	public function testUpdateRefusesAListWhereOneValueBelongs(string $field): void {
+		$this->existing();
+		$this->params = ['id' => 10, $field => ['x']];
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->editor()->update(10);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame("{$field} must be a single value", $response->getData()['error']);
+	}
+
+	public static function editValueFields(): array {
+		$fields = ['date', 'type', 'description', 'vendor', 'reference', 'notes', 'merchant', 'account_id', 'status', 'reconciled'];
+		return array_combine($fields, array_map(static fn (string $f) => [$f], $fields));
+	}
+
+	/** The read shape carries `splits` as a list; sending it back stays fine */
+	public function testUpdateStillTakesTheReadShapeWithItsSplitsList(): void {
+		$this->existing();
+		$this->params = ['id' => 10, 'description' => 'Edited', 'splits' => [], 'account_id' => 1, 'reconciled' => false, 'status' => 'cleared'];
+		$this->service->expects($this->once())->method('update')->willReturn($this->transaction());
 
 		$this->assertSame(Http::STATUS_OK, $this->editor()->update(10)->getStatus());
 	}
@@ -1749,6 +2024,82 @@ class ApiV1TransactionControllerTest extends TestCase {
 			->willReturn([]);
 
 		$this->assertSame(Http::STATUS_CREATED, $this->controller->createSplits(10)->getStatus());
+	}
+
+	// ── a write recipient and the owner's unshared categories ───────
+
+	/**
+	 * user1 sees categories below 16; 16 and up are owner2's, never shared.
+	 * The check is only made for someone writing into another's ledger.
+	 */
+	private function writerSees(): void {
+		$this->granularShareService->method('requireCategoryVisibleToWriter')->willReturnCallback(
+			function (string $owner, string $writer, ?int $categoryId, array $kept = []): void {
+				if ($categoryId === null || $writer === $owner || in_array($categoryId, $kept, true)) {
+					return;
+				}
+				if ($categoryId >= 16) {
+					throw new \InvalidArgumentException('Category not found');
+				}
+			}
+		);
+	}
+
+	public function testAnEditCannotFileASharedRowUnderAnUnsharedCategory(): void {
+		$this->writerSees();
+		$this->existing(['accountId' => 9], 'owner2');
+		$this->params = ['category_id' => 16];
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->editor()->update(10);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Category not found', $response->getData()['error']);
+	}
+
+	public function testAnEditKeepsTheCategoryARowAlreadyHas(): void {
+		$this->writerSees();
+		$this->existing(['accountId' => 9, 'categoryId' => 16], 'owner2');
+		$this->params = ['category_id' => 16, 'notes' => 'checked'];
+		$this->service->expects($this->once())->method('update')->willReturn($this->transaction());
+
+		$this->assertSame(Http::STATUS_OK, $this->editor()->update(10)->getStatus());
+	}
+
+	public function testACaptureOnASharedAccountLeavesOffACategoryTheCallerCannotSee(): void {
+		$this->writerSees();
+		$owner = new Account();
+		$owner->setUserId('owner2');
+		$this->service->method('findAccountById')->willReturn($owner);
+		$this->service->expects($this->once())->method('create')
+			->with('owner2', 9, $this->anything(), $this->anything(), $this->anything(), $this->anything(), null)
+			->willReturn($this->transaction());
+		$this->params = $this->captureParams(['account_id' => '9', 'category_id' => '16']);
+
+		$response = $this->controller->create();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+		$this->assertSame('Category not found', $response->getData()['category_error']);
+	}
+
+	public function testSplittingASharedRowIntoAnUnsharedCategoryIsRefused(): void {
+		$this->writerSees();
+		$this->existing(['accountId' => 9], 'owner2');
+		$this->splitService->method('getSplits')->willReturn([]);
+		$this->params = ['splits' => json_encode([['amount' => '30.00', 'category_id' => 16], ['amount' => '12.50']])];
+		$this->splitService->expects($this->never())->method('splitTransaction');
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $this->controller->createSplits(10)->getStatus());
+	}
+
+	public function testUnsplittingASharedRowToAnUnsharedCategoryIsRefused(): void {
+		$this->writerSees();
+		$this->existing(['accountId' => 9, 'isSplit' => true], 'owner2');
+		$this->splitService->method('getSplits')->willReturn([]);
+		$this->params = ['category_id' => 17];
+		$this->splitService->expects($this->never())->method('unsplitTransaction');
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $this->controller->unsplit(10)->getStatus());
 	}
 
 	public function testSplittingOnAReadOnlyShareIsForbidden(): void {

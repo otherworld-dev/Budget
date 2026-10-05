@@ -13,6 +13,7 @@ use OCA\Budget\Service\ManualExchangeRateService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
+use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\IL10N;
 use OCP\IRequest;
@@ -166,8 +167,11 @@ class ExchangeRateController extends Controller {
 	/**
 	 * Trigger a manual refresh of exchange rates.
 	 *
+	 * Each refresh fetches from the rate providers, so it is rate limited.
+	 *
 	 * @NoAdminRequired
 	 */
+	#[UserRateLimit(limit: 5, period: 60)]
 	public function refresh(): DataResponse {
 		try {
 			$this->exchangeRateService->fetchLatestRates();

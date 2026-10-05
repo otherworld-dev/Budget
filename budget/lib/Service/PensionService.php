@@ -673,8 +673,15 @@ class PensionService {
 	private function swapLeg(PensionContribution $contribution, int $oldLegId, int $newLegId, int $accountId): void {
 		$this->db->beginTransaction();
 		try {
-			// Deleting the old leg unlinks the entry from it first
-			$this->transactionService->deleteAsAccountOwner($oldLegId);
+			// What the user added to the app's leg (a receipt, tags, a split
+			// with a contact) moves to the bank's row, and deleting the old
+			// leg unlinks the entry from it first
+			$oldLeg = $this->transactionMapper->findById($oldLegId);
+			$newLeg = $this->transactionMapper->findById($newLegId);
+			if ($oldLeg === null || $newLeg === null) {
+				throw new DoesNotExistException("Pension leg {$oldLegId} or {$newLegId} no longer exists");
+			}
+			$this->transactionService->replaceBookedRow($oldLeg, $newLeg, (string)$contribution->getNote());
 			$contribution->setTransactionId($newLegId);
 			$this->contributionMapper->update($contribution);
 			$owner = $this->accountMapper->findById($accountId)->getUserId();
@@ -705,12 +712,16 @@ class PensionService {
 		return $pool[0]['id'];
 	}
 
-	/** Whether a bank row's text names the pension or its provider */
+	/**
+	 * Whether a bank row's text names the pension or its provider: as a word
+	 * of its own, so "AXA" isn't found in "TAXATION". A reference number may
+	 * follow it straight on, as banks print them.
+	 */
 	private function namesPension(PensionAccount $pension, array $row): bool {
 		$text = mb_strtolower(($row['description'] ?? '') . ' ' . ($row['vendor'] ?? ''));
 		foreach ([$pension->getProvider(), $pension->getName()] as $name) {
 			$name = mb_strtolower(trim((string)$name));
-			if (mb_strlen($name) >= 3 && str_contains($text, $name)) {
+			if (mb_strlen($name) >= 3 && preg_match('/(?<!\p{L})' . preg_quote($name, '/') . '(?!\p{L})/u', $text) === 1) {
 				return true;
 			}
 		}

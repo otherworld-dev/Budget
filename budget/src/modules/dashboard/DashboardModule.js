@@ -21,6 +21,7 @@ import { groupProjects, progressFor } from '../projects/projectMath.js';
 import { progressBarAttrs, overBudgetText } from '../../utils/budgetProgress.js';
 import { apiFetch, ApiError } from '../../utils/api.js';
 import { hiddenCategoryBranch, withoutHiddenCategories, categoryPickerRows } from '../../utils/categoryVisibility.js';
+import { rowCategoryName } from '../transactions/transactionRow.js';
 
 const GRIDSTACK_SIZE_MAP = {
     xs: { w: 1, h: 1 },
@@ -277,7 +278,7 @@ export default class DashboardModule {
             this.updateSavingsRateHero(summary);
             this.updateCashFlowHero(summary);
             this.updateBudgetRemainingHero(budgetData);
-            this.updateBudgetHealthHero(budgetAlerts);
+            this.updateBudgetHealthHero(budgetAlerts, budgetData);
 
             // Per-Account Hero Tiles
             this._lastSummary = summary;
@@ -583,6 +584,7 @@ export default class DashboardModule {
                 return this.refreshAssetValueChart(days);
             },
             topCategories: () => this.refreshTopCategoriesWidget('topCategories'),
+            budgetProgress: () => this.refreshBudgetProgressWidget('budgetProgress'),
         };
 
         for (const [widgetId, refreshFn] of Object.entries(widgetRefreshMap)) {
@@ -946,10 +948,12 @@ export default class DashboardModule {
         // Spending budgets only: an income target still to arrive is not
         // money left to spend
         const spending = budgetData.categories.filter(cat => cat.type !== 'income');
+        // A weekly, quarterly or yearly budget counts its share of the
+        // month, as the Budget page counts it; the budget report already
+        // sends it so for the month asked for
+        const monthsBudget = (cat) => cat.budgeted || cat.budget || 0;
         const totalRemaining = spending.reduce((sum, cat) => {
-            const budget = cat.budgeted || cat.budget || 0;
-            const spent = cat.spent || 0;
-            const remaining = budget - spent;
+            const remaining = monthsBudget(cat) - (cat.spent || 0);
             return sum + (remaining > 0 ? remaining : 0);
         }, 0);
 
@@ -958,22 +962,24 @@ export default class DashboardModule {
 
         const changeEl = document.getElementById('hero-budget-remaining-change');
         if (changeEl) {
-            const categoryCount = spending.filter(c => {
-                const budget = c.budgeted || c.budget || 0;
-                const spent = c.spent || 0;
-                return (budget - spent) > 0;
-            }).length;
+            const categoryCount = spending.filter(c => (monthsBudget(c) - (c.spent || 0)) > 0).length;
             changeEl.textContent = n('budget', '%n category under budget', '%n categories under budget', categoryCount);
         }
     }
 
-    updateBudgetHealthHero(budgetAlerts) {
+    /**
+     * Share of this month's spending budgets with no alert. Counted from the
+     * budget report: it counted the rows of an element that doesn't exist,
+     * so it always read "--". An income target isn't a spending budget, and
+     * the alerts leave it out too; an envelope overdrawn by its carried
+     * overspend still counts, as on the Budget Progress tile.
+     */
+    updateBudgetHealthHero(budgetAlerts, budgetData = null) {
         const el = document.getElementById('hero-budget-health-value');
         if (!el) return;
 
-        // Get total number of budget categories from the existing budget progress widget
-        const budgetProgressContainer = document.getElementById('budget-progress-categories');
-        const totalBudgets = budgetProgressContainer ? budgetProgressContainer.querySelectorAll('.budget-category-item').length : 0;
+        const totalBudgets = (budgetData?.categories || []).filter(c => c.type !== 'income'
+            && ((c.budgeted || c.budget || 0) > 0 || Math.abs(c.carried || 0) >= 0.005)).length;
 
         if (totalBudgets === 0) {
             el.textContent = '--';
@@ -1343,10 +1349,12 @@ export default class DashboardModule {
             return cell(dot('#999'), dom.escapeHtml(t('budget', 'Split')), dom.escapeHtml(t('budget', 'Split transaction')));
         }
 
+        // A row in an account shared with you may be filed under an owner's
+        // category not shared with you: named as the row came (rowCategoryName)
         const category = this.categories?.find(c => c.id === tx.categoryId || c.id === tx.category_id);
         return cell(
             dot(category ? category.color : '#999'),
-            dom.escapeHtml(category ? category.name : uncategorized),
+            dom.escapeHtml(rowCategoryName(tx, category) ?? uncategorized),
             ''
         );
     }
@@ -2038,10 +2046,19 @@ export default class DashboardModule {
                 url += '&excludeShared=1';
             }
             const data = await apiFetch(url, { errorMessage: 'Failed to fetch spending data' });
-            this.updateTopCategoriesWidget(data.data || []);
+            this.updateTopCategoriesWidget(this._categorySpendingRows(data.data || []));
         } catch (error) {
             console.error('Failed to refresh top categories:', error);
         }
+    }
+
+    /**
+     * The spending report's rows for a category tile. The report ends with a
+     * row for money with no category (for the Reports page); the tiles show
+     * categories only, as on their first draw from the dashboard summary.
+     */
+    _categorySpendingRows(rows) {
+        return Array.isArray(rows) ? rows.filter(row => !row.uncategorized) : rows;
     }
 
     updateSavingsGoalsWidget(goals) {
@@ -2337,7 +2354,7 @@ export default class DashboardModule {
                         const remaining = budget - spent;
                         return `
                             <tr>
-                                <td>${dom.escapeHtml(cat.name)}</td>
+                                <td>${dom.escapeHtml(cat.categoryName || cat.name)}</td>
                                 <td>${this.formatCurrency(budget)}</td>
                                 <td>${this.formatCurrency(spent)}</td>
                                 <td class="${remaining >= 0 ? 'positive' : 'negative'}">
@@ -3691,7 +3708,7 @@ export default class DashboardModule {
             const data = await apiFetch(url);
 
             if (data.data) {
-                this.updateSpendingChart(data.data, instanceId, { dateFrom: startStr, dateTo: endStr });
+                this.updateSpendingChart(this._categorySpendingRows(data.data), instanceId, { dateFrom: startStr, dateTo: endStr });
             }
         } catch (error) {
             console.error('Failed to refresh spending chart:', error);
@@ -4236,11 +4253,11 @@ export default class DashboardModule {
         this._wrapCardsForGridstack(gridEl);
         const positions = this._computeInitialPositions();
 
-        // Effective column count: collapse to 1 on narrow screens (#249).
-        const initialColumns = this._responsiveColumnCount();
-
+        // The saved layout is laid out at its full width first. A phone then
+        // collapses it to one column (#249, _setupResponsiveColumns below),
+        // so gridstack keeps the full layout to go back to.
         this.gridstack = GridStack.init({
-            column: initialColumns,
+            column: this.gridColumns || 3,
             cellHeight: 100,
             margin: 10,
             float: false,
@@ -4249,9 +4266,6 @@ export default class DashboardModule {
             disableResize: true,
             staticGrid: false,
         }, gridEl);
-
-        // Re-flow to a single full-width column on phones and back on resize.
-        this._setupResponsiveColumns();
 
         // Disable dragging if dashboard is locked or on a touch screen (must
         // be done after init so that drag handlers are created and can be
@@ -4282,15 +4296,17 @@ export default class DashboardModule {
             }
         });
 
+        // Re-flow to a single full-width column on phones and back on resize.
+        this._setupResponsiveColumns();
+
         // Listen for changes (drag end) — delay to avoid saving during initial layout
         this._gridstackReady = false;
         setTimeout(() => { this._gridstackReady = true; }, 500);
         this.gridstack.on('change', (_event, _changedItems) => {
             // Only the user's own rearranging is saved. Tiles shrinking or
             // growing with their data, and the one-column reflow on a phone,
-            // happen while locked and are how the layout is shown, not a new
-            // layout.
-            if (this._gridstackReady && !this.dashboardLocked && !this._compactingTiles) {
+            // are how the layout is shown, not a new layout.
+            if (this._gridstackReady && !this.dashboardLocked && !this._compactingTiles && !this._reflowingColumns) {
                 this._saveGridstackPositions();
             }
         });
@@ -4318,15 +4334,54 @@ export default class DashboardModule {
     _applyResponsiveColumns() {
         if (!this.gridstack) return;
         const target = this._responsiveColumnCount();
-        if (this.gridstack.getColumn() !== target) {
-            this.gridstack.column(target, 'moveScale');
+        const current = this.gridstack.getColumn();
+        if (current === target) return;
+        // Going to one column on a phone, and back, changes only how the
+        // layout is shown, so it isn't saved.
+        this._reflowingColumns = current === 1 || target === 1;
+        try {
+            const layout = target === 1
+                ? (_column, _oldColumn, newNodes, nodes) => this._stackInOrder(newNodes, nodes)
+                : 'moveScale';
+            this.gridstack.column(target, layout);
             this._updateFullWidthTiles(target);
+        } finally {
+            this._reflowingColumns = false;
         }
+    }
+
+    /**
+     * Gridstack layout for one column: each tile full width, one under
+     * another in the saved order. A phone keeps its own order this way,
+     * since rearranging there saves only the order (see
+     * _saveGridstackPositions).
+     */
+    _stackInOrder(newNodes, nodes) {
+        const order = this.dashboardConfig.widgets?.order || [];
+        const rank = node => {
+            const index = order.indexOf(node.el?.getAttribute('gs-id') ?? node.id);
+            return index === -1 ? order.length : index;
+        };
+        let y = 0;
+        [...nodes]
+            .sort((a, b) => rank(a) - rank(b) || a.y - b.y || a.x - b.x)
+            .forEach(node => {
+                node.x = 0;
+                node.w = 1;
+                node.y = y;
+                y += node.h;
+                newNodes.push(node);
+            });
+    }
+
+    /** The grid shows fewer columns than the saved layout has: a phone. */
+    _gridNarrowed() {
+        return !!this.gridstack && this.gridstack.getColumn() < (this.gridColumns || 3);
     }
 
     /** Apply responsive columns now and on viewport resize (debounced, bound once). */
     _setupResponsiveColumns() {
-        this._updateFullWidthTiles(this._responsiveColumnCount());
+        this._applyResponsiveColumns();
         if (this._responsiveColumnsBound) return;
         this._responsiveColumnsBound = true;
         let resizeTimer = null;
@@ -4428,7 +4483,12 @@ export default class DashboardModule {
         });
 
         if (!this.dashboardConfig.widgets) this.dashboardConfig.widgets = {};
-        this.dashboardConfig.widgets.positions = positions;
+        // On a phone these are one-column positions: saving them would put
+        // every tile in one narrow column on a wider screen. A move there
+        // changes the order only.
+        if (!this._gridNarrowed()) {
+            this.dashboardConfig.widgets.positions = positions;
+        }
 
         // Update order from sorted positions — but don't overwrite with empty
         // (preserves order for tiles temporarily hidden)
@@ -5229,6 +5289,13 @@ export default class DashboardModule {
             const wrapper = card.closest('.grid-stack-item');
             if (wrapper) {
                 this.gridstack.update(wrapper, { w, h: mapped.h });
+            }
+            // A phone shows every tile full width, so keep the new size in
+            // the saved layout for a wider screen.
+            const saved = this.dashboardConfig.widgets.positions?.[widgetId];
+            if (saved && this._gridNarrowed()) {
+                saved.w = w;
+                saved.h = mapped.h;
             }
         }
 

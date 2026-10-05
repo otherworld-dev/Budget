@@ -8,6 +8,7 @@ use OCA\Budget\Db\ImportRule;
 use OCA\Budget\Db\ImportRuleMapper;
 use OCA\Budget\Db\ShareItem;
 use OCA\Budget\Service\GranularShareService;
+use Psr\Log\LoggerInterface;
 
 /**
  * Applies import rules to automatically categorize and tag transactions during import.
@@ -17,15 +18,18 @@ class ImportRuleApplicator {
 	private ImportRuleMapper $importRuleMapper;
 	private CriteriaEvaluator $criteriaEvaluator;
 	private GranularShareService $granularShareService;
+	private ?LoggerInterface $logger;
 
 	public function __construct(
 		ImportRuleMapper $importRuleMapper,
 		CriteriaEvaluator $criteriaEvaluator,
 		GranularShareService $granularShareService,
+		?LoggerInterface $logger = null,
 	) {
 		$this->importRuleMapper = $importRuleMapper;
 		$this->criteriaEvaluator = $criteriaEvaluator;
 		$this->granularShareService = $granularShareService;
+		$this->logger = $logger;
 	}
 
 	/**
@@ -45,14 +49,26 @@ class ImportRuleApplicator {
 	}
 
 	/**
+	 * The rules an import of $userId's runs, to load once and hand to
+	 * applyRules() for every row: loading them per row cost a query plus
+	 * hydrating and sorting every rule, for each row of the file (T6-4).
+	 *
+	 * @return ImportRule[]
+	 */
+	public function rulesFor(string $userId): array {
+		return $this->activeRulesFor($userId);
+	}
+
+	/**
 	 * Apply matching rules to a single transaction.
 	 *
 	 * @param string $userId The user ID
 	 * @param array $transaction Transaction data
+	 * @param ImportRule[]|null $rules From rulesFor(); loaded here when not given
 	 * @return array Transaction data with rules applied
 	 */
-	public function applyRules(string $userId, array $transaction): array {
-		$rules = $this->activeRulesFor($userId);
+	public function applyRules(string $userId, array $transaction, ?array $rules = null): array {
+		$rules ??= $this->activeRulesFor($userId);
 
 		foreach ($rules as $rule) {
 			// Skip rules not meant for import
@@ -60,11 +76,7 @@ class ImportRuleApplicator {
 				continue;
 			}
 
-			// Match using CriteriaEvaluator
-			$criteria = $rule->getCriteria();
-			$schemaVersion = $rule->getSchemaVersion() ?? 2;
-
-			if (!$this->criteriaEvaluator->evaluate($criteria, $transaction, $schemaVersion)) {
+			if (!$this->ruleApplies($rule, $transaction, $userId)) {
 				continue;
 			}
 
@@ -117,10 +129,7 @@ class ImportRuleApplicator {
 					continue;
 				}
 
-				$criteria = $rule->getCriteria();
-				$schemaVersion = $rule->getSchemaVersion() ?? 2;
-
-				if ($this->criteriaEvaluator->evaluate($criteria, $transaction, $schemaVersion)) {
+				if ($this->ruleApplies($rule, $transaction, $userId)) {
 					$previews[] = [
 						'transactionIndex' => $index,
 						'transaction' => $transaction,
@@ -157,10 +166,7 @@ class ImportRuleApplicator {
 					continue;
 				}
 
-				$criteria = $rule->getCriteria();
-				$schemaVersion = $rule->getSchemaVersion() ?? 2;
-
-				if ($this->criteriaEvaluator->evaluate($criteria, $transaction, $schemaVersion)) {
+				if ($this->ruleApplies($rule, $transaction, $userId)) {
 					$matched++;
 					$ruleId = $rule->getId();
 					$ruleUsage[$ruleId] = ($ruleUsage[$ruleId] ?? 0) + 1;
@@ -184,23 +190,102 @@ class ImportRuleApplicator {
 	}
 
 	/**
+	 * Whether a rule takes this row: it matches, and it has something it
+	 * can do to it (see hasSomethingToDo()). Only such a rule is applied,
+	 * shown as the row's rule, and can stop the rules after it.
+	 */
+	private function ruleApplies(ImportRule $rule, array $transaction, string $userId): bool {
+		return $this->ruleMatches($rule, $transaction) && $this->hasSomethingToDo($rule, $userId);
+	}
+
+	/**
+	 * Whether a rule matches a transaction.
+	 *
+	 * A rule from before the rules engine (schema 1: a field, a pattern and
+	 * a match type, no criteria) is matched on those columns, as Run rules
+	 * matches it. Since 2.28.0 the import read only the criteria column,
+	 * which such a rule doesn't have, so every rule made before 2.28 and
+	 * never opened in the rule editor silently stopped working on import and
+	 * bank sync, while it still worked in Run rules.
+	 */
+	private function ruleMatches(ImportRule $rule, array $transaction): bool {
+		$schemaVersion = $rule->getSchemaVersion() ?? 2;
+		if ($schemaVersion === 1) {
+			return $this->criteriaEvaluator->evaluate([
+				'field' => $rule->getField(),
+				'pattern' => $rule->getPattern(),
+				'matchType' => $rule->getMatchType(),
+			], $transaction, 1);
+		}
+
+		return $this->criteriaEvaluator->evaluate($rule->getCriteria(), $transaction, $schemaVersion);
+	}
+
+	/** Action types the import carries out besides Set Category, which is checked on its own (Set Account is the target's to decide) */
+	private const IMPORT_ACTION_TYPES = [
+		'set_vendor', 'set_description', 'set_notes', 'set_type', 'set_reference',
+		'regex_replace', 'change_case', 'replace_text', 'add_tags', 'link_transfer', 'set_forecast_exclude',
+	];
+
+	/**
+	 * A rule's actions as one list: the current format as stored, or an
+	 * older rule's category and vendor, kept in its own columns (or in that
+	 * shape), converted as Run rules converts them.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function actionListOf(ImportRule $rule): array {
+		$actions = $rule->getParsedActions();
+
+		if (isset($actions['version']) && $actions['version'] === 2) {
+			$list = $actions['actions'] ?? [];
+		} elseif (isset($actions['actions'])) {
+			$list = $actions['actions'];
+		} else {
+			$list = RuleActionApplicator::convertLegacyActions($actions);
+		}
+
+		return is_array($list) ? array_values(array_filter($list, 'is_array')) : [];
+	}
+
+	/**
+	 * Whether a matching rule has anything it can do to this importer's row.
+	 *
+	 * A rule that can't do anything must not count as a match: a match stops
+	 * the rules after it, so a rule with no actions, or only a category the
+	 * importer can't use (a deleted one, say), or only Set Account (which an
+	 * import leaves to the chosen account) would keep the user's other rules
+	 * from running while changing nothing itself. That is how setup's empty
+	 * default rules, back from a pre-3.0 backup, blocked the user's own rules
+	 * once older rules matched at import again (V2-1). Such a rule is passed
+	 * over as if it didn't match.
+	 */
+	private function hasSomethingToDo(ImportRule $rule, string $userId): bool {
+		foreach ($this->actionListOf($rule) as $action) {
+			$type = $action['type'] ?? null;
+			if ($type === 'set_category') {
+				$value = $action['value'] ?? null;
+				if ($value !== null && $value !== ''
+					&& $this->granularShareService->canAccess($userId, ShareItem::TYPE_CATEGORY, (int)$value)) {
+					return true;
+				}
+				continue;
+			}
+			if (in_array($type, self::IMPORT_ACTION_TYPES, true)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
 	 * Extract and apply v2 actions from a rule to a transaction array.
 	 *
 	 * @param string $userId The user performing the import (may differ from the
 	 *                       rule owner when the rule was shared with them).
 	 */
 	private function applyActions(ImportRule $rule, array $transaction, string $userId): array {
-		$actions = $rule->getParsedActions();
-		// A rule shared with the importer may set a category the importer can't
-		// see; such actions are skipped rather than stamping an inaccessible id.
-		$ruleShared = ($rule->getUserId() !== null && $rule->getUserId() !== $userId);
-		$actionList = [];
-
-		if (isset($actions['version']) && $actions['version'] === 2) {
-			$actionList = $actions['actions'] ?? [];
-		} elseif (isset($actions['actions'])) {
-			$actionList = $actions['actions'];
-		}
+		$actionList = $this->actionListOf($rule);
 
 		// Sort by priority (higher first)
 		usort($actionList, fn ($a, $b) => ($b['priority'] ?? 50) - ($a['priority'] ?? 50));
@@ -217,10 +302,12 @@ class ImportRuleApplicator {
 			switch ($type) {
 				case 'set_category':
 					if ($this->shouldApply($behavior, $transaction['categoryId'] ?? null)) {
-						// For a shared rule, only stamp the category if the importer
-						// can actually see it (co-shared); otherwise skip it.
-						if (!$ruleShared
-							|| $this->granularShareService->canAccess($userId, ShareItem::TYPE_CATEGORY, (int)$value)) {
+						// The row lands in the importer's ledger, so the category
+						// must be one they can use (own, or shared with them),
+						// whoever's rule it is: an unchecked id from an own rule
+						// put another user's category, and its name, on the row
+						// (R6-4). Otherwise the action is skipped.
+						if ($this->granularShareService->canAccess($userId, ShareItem::TYPE_CATEGORY, (int)$value)) {
 							$transaction['categoryId'] = (int)$value;
 						}
 					}
@@ -280,8 +367,8 @@ class ImportRuleApplicator {
 					if ($pattern === '' || !is_string($current)) {
 						break;
 					}
-					$normalizedPattern = RegexPattern::toPcre($pattern);
-					if ($normalizedPattern === null || @preg_match($normalizedPattern, '') === false) {
+					$normalizedPattern = RegexPattern::forReplace($pattern);
+					if ($normalizedPattern === null) {
 						break;
 					}
 					$targetCurrent = $transaction[$targetField] ?? null;
@@ -290,6 +377,14 @@ class ImportRuleApplicator {
 						// No match means preg_replace handed back the source unchanged;
 						// writing that into a different target would copy it verbatim.
 						if ($updated === null || $matchCount === 0) {
+							break;
+						}
+						// Text that is not UTF-8 breaks every list it appears in
+						if (!mb_check_encoding($updated, 'UTF-8')) {
+							$this->logger?->warning('Regex replace skipped: the result is not valid UTF-8', [
+								'app' => 'budget',
+								'ruleId' => $rule->getId(),
+							]);
 							break;
 						}
 						$transaction[$targetField] = $updated;

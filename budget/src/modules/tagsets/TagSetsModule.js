@@ -4,6 +4,7 @@
 import { translate as t } from '@nextcloud/l10n';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showInfo } from '../../utils/notifications.js';
+import { once } from '../../utils/submitGuard.js';
 import { confirmDialog, promptDialog } from '../../utils/dialogs.js';
 import { offerableTags, offerableTagSets } from '../../utils/tags.js';
 import { showLoading } from '../../utils/loading.js';
@@ -219,7 +220,12 @@ export default class TagSetsModule {
         return `#${f(0)}${f(8)}${f(4)}`;
     }
 
-    async saveGlobalTag() {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveGlobalTag() {
+        return once('global-tag-save', document.querySelector('#global-tag-form [type="submit"]'), () => this._saveGlobalTag());
+    }
+
+    async _saveGlobalTag() {
         const tagId = document.getElementById('global-tag-id').value;
         const name = document.getElementById('global-tag-name').value.trim();
         const color = document.getElementById('global-tag-color').value;
@@ -308,6 +314,7 @@ export default class TagSetsModule {
             await apiFetch(`/apps/budget/api/transactions/${transactionId}/tags`, {
                 method: 'PUT',
                 body: { tagIds },
+                errorMessage: t('budget', 'Failed to update tags'),
             });
 
             // Update cache
@@ -315,6 +322,8 @@ export default class TagSetsModule {
             return true;
         } catch (error) {
             console.error('Failed to save transaction tags:', error);
+            // The server says why, e.g. a tag the account's owner can't see
+            showError(error.message || t('budget', 'Failed to update tags'));
         }
         return false;
     }
@@ -570,9 +579,12 @@ export default class TagSetsModule {
         const container = document.getElementById('transaction-tags-container');
         if (!container) return;
 
-        // Load global tags and category tag sets in parallel
+        // Load global tags and category tag sets in parallel. Not for a
+        // category you can't see (a shared row's category its owner didn't
+        // share with you): that request is refused.
         await this.loadGlobalTags();
-        const tagSets = categoryId ? await this.loadTagSetsForCategory(categoryId) : [];
+        const visible = !this.categories?.length || this.categories.some(c => String(c.id) === String(categoryId));
+        const tagSets = categoryId && visible ? await this.loadTagSetsForCategory(categoryId) : [];
 
         // Load current tags for this transaction
         const currentTags = await this.loadTransactionTags(transactionId);
@@ -847,7 +859,13 @@ export default class TagSetsModule {
     /**
      * Save a tag set from the modal form
      */
-    async saveTagSet(e) {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveTagSet(e) {
+        e.preventDefault();
+        return once('tag-set-save', e.target?.querySelector?.('[type="submit"]') ?? null, () => this._saveTagSet(e));
+    }
+
+    async _saveTagSet(e) {
         e.preventDefault();
 
         const categoryId = document.getElementById('tag-set-category-id').value;
@@ -914,7 +932,13 @@ export default class TagSetsModule {
     /**
      * Save edited tag set from the modal form
      */
-    async saveEditTagSet(e) {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveEditTagSet(e) {
+        e.preventDefault();
+        return once('tag-set-edit-save', e.target?.querySelector?.('[type="submit"]') ?? null, () => this._saveEditTagSet(e));
+    }
+
+    async _saveEditTagSet(e) {
         e.preventDefault();
 
         const tagSetId = parseInt(document.getElementById('edit-tag-set-id').value);
@@ -979,32 +1003,19 @@ export default class TagSetsModule {
     }
 
     /**
-     * Load all transaction tags for filtering
+     * Take the tags of the listed transactions from the list's own answer:
+     * a map of transaction id to its tags, for the rows that have any. They
+     * used to be fetched with one request per row, a few hundred for a long
+     * page.
+     *
+     * @param {object|undefined} tagsByTransaction - The list response's `tags`
      */
-    async loadAllTransactionTags() {
-        if (!this.transactions || this.transactions.length === 0) {
-            this.transactionTags = {};
-            return;
-        }
-
-        try {
-            // Load tags for each transaction
-            const tagPromises = this.transactions.map(async (transaction) => {
-                const tags = await apiFetch(`/apps/budget/api/transactions/${transaction.id}/tags`).catch(() => null);
-                return { transactionId: transaction.id, tags: Array.isArray(tags) ? tags : [] };
-            });
-
-            const results = await Promise.all(tagPromises);
-
-            // Store tags by transaction ID
-            this.transactionTags = {};
-            results.forEach(result => {
-                this.transactionTags[result.transactionId] = result.tags;
-            });
-        } catch (error) {
-            console.error('Failed to load transaction tags:', error);
-            this.transactionTags = {};
-        }
+    async loadAllTransactionTags(tagsByTransaction) {
+        this.transactionTags = {};
+        (this.transactions || []).forEach(transaction => {
+            const tags = tagsByTransaction?.[transaction.id];
+            this.transactionTags[transaction.id] = Array.isArray(tags) ? tags : [];
+        });
     }
 
     /**
@@ -1046,7 +1057,13 @@ export default class TagSetsModule {
     /**
      * Save a tag from the modal form
      */
-    async saveTag(e) {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveTag(e) {
+        e.preventDefault();
+        return once('tag-save', e.target?.querySelector?.('[type="submit"]') ?? null, () => this._saveTag(e));
+    }
+
+    async _saveTag(e) {
         e.preventDefault();
 
         const tagSetId = parseInt(document.getElementById('tag-set-id').value);
@@ -1120,7 +1137,13 @@ export default class TagSetsModule {
     /**
      * Save edited tag from the modal form
      */
-    async saveEditTag(e) {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveEditTag(e) {
+        e.preventDefault();
+        return once('tag-edit-save', e.target?.querySelector?.('[type="submit"]') ?? null, () => this._saveEditTag(e));
+    }
+
+    async _saveEditTag(e) {
         e.preventDefault();
 
         const tagId = parseInt(document.getElementById('edit-tag-id').value);

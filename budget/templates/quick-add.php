@@ -23,7 +23,7 @@ $categories = json_decode($_['categories'], true);
             <select id="qa-account" required>
                 <option value=""><?php p($l->t('Select account...')); ?></option>
                 <?php foreach ($accounts as $account): ?>
-                    <option value="<?php p($account['id']); ?>"><?php p($account['name']); ?></option>
+                    <option value="<?php p($account['id']); ?>" data-owner="<?php p($account['owner'] ?? ''); ?>"><?php p($account['name']); ?></option>
                 <?php endforeach; ?>
             </select>
         </div>
@@ -56,7 +56,7 @@ $categories = json_decode($_['categories'], true);
             <select id="qa-category">
                 <option value=""><?php p($l->t('Uncategorized')); ?></option>
                 <?php foreach ($categories as $cat): ?>
-                    <option value="<?php p($cat['id']); ?>" data-type="<?php p($cat['type']); ?>"><?php p(str_repeat("\u{00A0}\u{00A0}", $cat['level']) . $cat['name']); ?></option>
+                    <option value="<?php p($cat['id']); ?>" data-type="<?php p($cat['type']); ?>" data-owner="<?php p($cat['owner'] ?? ''); ?>"><?php p(str_repeat("\u{00A0}\u{00A0}", $cat['level']) . $cat['name']); ?></option>
                 <?php endforeach; ?>
             </select>
         </div>
@@ -109,22 +109,34 @@ $categories = json_decode($_['categories'], true);
     var typeSelect = document.getElementById('qa-type');
     var categorySelect = document.getElementById('qa-category');
 
-    // Filter categories by type
+    var accountSelect = document.getElementById('qa-account');
+
+    // Filter categories by type, and by the account's owner: an account
+    // someone shared with you takes only their categories (the server
+    // refuses any other there)
+    function offered(opt) {
+        var catType = typeSelect.value === 'credit' ? 'income' : 'expense';
+        var account = accountSelect.options[accountSelect.selectedIndex];
+        var owner = account ? (account.dataset.owner || '') : '';
+        return opt.dataset.type === catType && (owner === '' || opt.dataset.owner === owner);
+    }
+
     function filterCategories() {
-        var type = typeSelect.value;
-        var catType = type === 'credit' ? 'income' : 'expense';
         var options = categorySelect.querySelectorAll('option[data-type]');
         options.forEach(function(opt) {
-            opt.style.display = opt.dataset.type === catType ? '' : 'none';
+            var show = offered(opt);
+            opt.style.display = show ? '' : 'none';
+            opt.disabled = !show;
         });
         // Reset selection if current is hidden
         var selected = categorySelect.options[categorySelect.selectedIndex];
-        if (selected && selected.dataset.type && selected.dataset.type !== catType) {
+        if (selected && selected.dataset.type && !offered(selected)) {
             categorySelect.value = '';
         }
     }
 
     typeSelect.addEventListener('change', filterCategories);
+    accountSelect.addEventListener('change', filterCategories);
     filterCategories();
 
     function showStatus(message, isError) {

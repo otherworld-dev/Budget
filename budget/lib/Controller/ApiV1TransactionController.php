@@ -55,6 +55,9 @@ class ApiV1TransactionController extends OCSController {
 	/** Read by SharedAccessTrait. */
 	protected string $userId;
 
+	/** @var array<int, string|null> account id => its currency, this request */
+	private array $accountCurrencies = [];
+
 	public function __construct(
 		IRequest $request,
 		private TransactionService $service,
@@ -92,11 +95,14 @@ class ApiV1TransactionController extends OCSController {
 		?string $dateFrom = null,
 		?string $dateTo = null,
 		?string $search = null,
-		int $limit = self::DEFAULT_LIMIT,
-		int $offset = 0,
 	): DataResponse {
-		$limit = max(1, min($limit, self::MAX_LIMIT));
-		$offset = max(0, $offset);
+		// limit and offset are read by hand, like recent()'s: Nextcloud 35
+		// range-checks any bound parameter named `limit` (1-500) and answers
+		// an empty 400 before this runs, where the docs promise a clamp
+		$rawLimit = $this->request->getParam('limit');
+		$rawOffset = $this->request->getParam('offset');
+		$limit = max(1, min(is_numeric($rawLimit) ? (int)$rawLimit : self::DEFAULT_LIMIT, self::MAX_LIMIT));
+		$offset = max(0, is_numeric($rawOffset) ? (int)$rawOffset : 0);
 
 		foreach (['dateFrom' => $dateFrom, 'dateTo' => $dateTo] as $field => $value) {
 			if ($value !== null && !$this->validationService->validateDate($value, $field, false)['valid']) {
@@ -208,7 +214,7 @@ class ApiV1TransactionController extends OCSController {
 			// no longer split (kept on purpose, #356) are not its splits
 			$parts = $transaction->getIsSplit() === false ? [] : $this->splitsOf($transaction);
 
-			return new DataResponse(['splits' => ApiSerializer::splits($parts)]);
+			return new DataResponse(['splits' => ApiSerializer::splits($parts, $this->currencyOf($transaction->getAccountId()))]);
 		} catch (DoesNotExistException $e) {
 			return $this->notFound();
 		} catch (\Exception $e) {
@@ -232,7 +238,24 @@ class ApiV1TransactionController extends OCSController {
 		$row['isSplit'] = $parts !== [];
 		$row['linkedAccountName'] = $this->linkedAccountName($transaction, $visibleAccountIds);
 
-		return ApiSerializer::transaction($row);
+		return ApiSerializer::transaction($row, $this->currencyOf($transaction->getAccountId()));
+	}
+
+	/**
+	 * The currency an account's money is in, so its amounts are written in
+	 * that currency's places. A list row carries it; a single row is looked
+	 * up, once per account per request.
+	 */
+	private function currencyOf(int $accountId): ?string {
+		if (!array_key_exists($accountId, $this->accountCurrencies)) {
+			try {
+				$this->accountCurrencies[$accountId] = $this->service->findAccountById($accountId)->getCurrency();
+			} catch (DoesNotExistException $e) {
+				$this->accountCurrencies[$accountId] = null;
+			}
+		}
+
+		return $this->accountCurrencies[$accountId];
 	}
 
 	/**
@@ -292,6 +315,11 @@ class ApiV1TransactionController extends OCSController {
 	#[UserRateLimit(limit: 60, period: 60)]
 	public function create(): DataResponse {
 		$p = $this->request->getParams();
+
+		$listed = self::fieldWithAList($p, ['account_id', 'accountId', 'date', 'merchant', 'description', 'vendor', 'type', 'reference', 'notes', 'idempotency_key']);
+		if ($listed !== null) {
+			return $this->notASingleValue($listed);
+		}
 
 		$accountId = (int)($p['account_id'] ?? $p['accountId'] ?? 0);
 		// An empty category field means "uncategorised" (stored as NULL) —
@@ -373,20 +401,38 @@ class ApiV1TransactionController extends OCSController {
 				$reservation = $acquired;
 			}
 
-			// A shared account still belongs to whoever created it, so the row
-			// must be written under the owner's id — writing it under the
-			// acting user's id would orphan it from the account's ledger.
-			$effectiveUserId = $this->userId;
-			if (!in_array($accountId, $this->granularShareService->getOwnAccountIds($this->userId), true)) {
-				$this->requireWriteAccess('account', $accountId);
-				$effectiveUserId = $this->service->findAccountById($accountId)->getUserId();
-			}
-
 			try {
+				// A shared account still belongs to whoever created it, so the
+				// row must be written under the owner's id — writing it under
+				// the acting user's id would orphan it from the account's
+				// ledger. Checked inside this try: a refusal must release the
+				// key like any other failure before the insert.
+				$effectiveUserId = $this->userId;
+				if (!in_array($accountId, $this->granularShareService->getOwnAccountIds($this->userId), true)) {
+					// One the caller can't see is not found, as every other id
+					// outside their accounts is; 403 is for a read-only share
+					if (!$this->canAccessEntity('account', $accountId)) {
+						throw new DoesNotExistException('Account not visible to the caller');
+					}
+					$this->requireWriteAccess('account', $accountId);
+					$effectiveUserId = $this->service->findAccountById($accountId)->getUserId();
+				}
+
 				// The row lands in the owner's ledger: a category the owner
-				// cannot see is refused rather than stored (its name would
-				// come back on every read)
-				$this->requireOwnersCategory($effectiveUserId, $categoryId);
+				// can't use is never stored (its name would come back on every
+				// read). The capture is kept, uncategorised, and the response
+				// says why: refusing it lost the purchase for a client that
+				// offers its own categories on a shared account.
+				$categoryError = null;
+				try {
+					$this->requireOwnersCategory($effectiveUserId, $categoryId);
+					// On someone else's account it must be one the caller can
+					// see too, or the owner's unshared names came back by id
+					$this->granularShareService->requireCategoryVisibleToWriter($effectiveUserId, $this->userId, $categoryId);
+				} catch (\InvalidArgumentException $e) {
+					$categoryError = $e->getMessage();
+					$categoryId = null;
+				}
 
 				$transaction = $this->service->create(
 					$effectiveUserId,
@@ -424,7 +470,10 @@ class ApiV1TransactionController extends OCSController {
 			// succeed). A failed attach must not fail the request: the
 			// transaction is recorded, and a retry would duplicate the very
 			// thing the key protects.
-			$out = ApiSerializer::transaction($transaction);
+			$out = ApiSerializer::transaction($transaction, $this->currencyOf($accountId));
+			if ($categoryError !== null) {
+				$out['category_error'] = $categoryError;
+			}
 			$photo = $this->request->getUploadedFile('photo');
 			if ($photo) {
 				try {
@@ -443,12 +492,14 @@ class ApiV1TransactionController extends OCSController {
 			// so a rejected split set reports itself rather than failing the
 			// request — a retry would duplicate the very thing the key guards.
 			// The total is unaffected either way, so the fallback state is a
-			// correct unsplit transaction the user can split later.
-			$splits = $this->readSplitsParam();
-			if ($splits !== null) {
-				try {
+			// correct unsplit transaction the user can split later. A splits
+			// field that can't be read as parts is a rejected set too, not
+			// one to drop without a word.
+			try {
+				$splits = $this->readSplitsParam();
+				if ($splits !== null) {
 					$created = $this->splitService->splitTransaction($transaction->getId(), $effectiveUserId, $splits);
-					$out['splits'] = ApiSerializer::splits($created);
+					$out['splits'] = ApiSerializer::splits($created, $this->currencyOf($accountId));
 					// The transaction was serialised before the split ran, so
 					// its flags are stale: splitting sets is_split and clears
 					// the category. Correct them rather than re-reading the
@@ -456,14 +507,14 @@ class ApiV1TransactionController extends OCSController {
 					// would otherwise believe the split never happened.
 					$out['is_split'] = true;
 					$out['category_id'] = null;
-				} catch (\Throwable $e) {
-					// Stated rather than left to the snapshot: a client that
-					// checks splits_error sees no parts next to it, ever
-					$out['splits'] = [];
-					$out['splits_error'] = $e instanceof \InvalidArgumentException
-						? $e->getMessage()
-						: $this->l->t('The transaction was recorded, but it could not be split');
 				}
+			} catch (\Throwable $e) {
+				// Stated rather than left to the snapshot: a client that
+				// checks splits_error sees no parts next to it, ever
+				$out['splits'] = [];
+				$out['splits_error'] = $e instanceof \InvalidArgumentException
+					? $e->getMessage()
+					: $this->l->t('The transaction was recorded, but it could not be split');
 			}
 
 			return new DataResponse($out, Http::STATUS_CREATED);
@@ -632,19 +683,25 @@ class ApiV1TransactionController extends OCSController {
 	#[NoAdminRequired]
 	#[UserRateLimit(limit: 60, period: 60)]
 	public function createSplits(int $id): DataResponse {
-		$splits = $this->readSplitsParam();
-		if ($splits === null) {
-			return $this->splitsRefused($this->l->t('splits must be an array of {"amount", "category_id", "description"} objects'));
-		}
-
 		try {
+			$splits = $this->readSplitsParam();
+			if ($splits === null) {
+				return $this->splitsRefused($this->unusableSplits()->getMessage());
+			}
+
 			// Splits belong to the ledger owner, like the transaction and its
 			// receipts — a write on a shared account must not scope to the
 			// acting user, or it lands in the wrong ledger (see #333/#334).
-			[, $ownerId] = $this->findWritable($id);
+			[$transaction, $ownerId] = $this->findWritable($id);
+			if ($ownerId !== $this->userId) {
+				$kept = $this->categoriesOn($transaction, $ownerId);
+				foreach ($splits as $split) {
+					$this->granularShareService->requireCategoryVisibleToWriter($ownerId, $this->userId, $split['categoryId'] ?? null, $kept);
+				}
+			}
 			$created = $this->splitService->splitTransaction($id, $ownerId, $splits);
 
-			return new DataResponse(['splits' => ApiSerializer::splits($created)], Http::STATUS_CREATED);
+			return new DataResponse(['splits' => ApiSerializer::splits($created, $this->currencyOf($transaction->getAccountId()))], Http::STATUS_CREATED);
 		} catch (DoesNotExistException $e) {
 			return $this->notFound();
 		} catch (\InvalidArgumentException $e) {
@@ -673,7 +730,8 @@ class ApiV1TransactionController extends OCSController {
 	 * are snake_case on the wire like the rest of v1; camelCase is tolerated
 	 * because the split service and the web UI already speak it.
 	 *
-	 * @return array|null null when the parameter is absent or unusable
+	 * @return array|null null when the parameter is absent or an empty list
+	 * @throws \InvalidArgumentException when it is sent but can't be read as parts
 	 */
 	private function readSplitsParam(): ?array {
 		$raw = $this->request->getParam('splits');
@@ -682,31 +740,32 @@ class ApiV1TransactionController extends OCSController {
 		}
 
 		if (is_string($raw)) {
-			$decoded = json_decode($raw, true);
-			if (!is_array($decoded)) {
-				return null;
-			}
-			$raw = $decoded;
+			$raw = json_decode($raw, true);
 		}
-
-		if (!is_array($raw) || $raw === []) {
+		if (!is_array($raw)) {
+			throw $this->unusableSplits();
+		}
+		if ($raw === []) {
 			return null;
 		}
 
 		$splits = [];
 		foreach ($raw as $entry) {
-			if (!is_array($entry)) {
-				return null;
-			}
-			if (!isset($entry['amount'])) {
-				return null;
+			if (!is_array($entry) || !isset($entry['amount'])) {
+				throw $this->unusableSplits();
 			}
 			$categoryId = $entry['category_id'] ?? $entry['categoryId'] ?? null;
+			// A list or an object where one value belongs: cast, the
+			// description read "Array" and the category id 1
+			if (($categoryId !== null && !is_scalar($categoryId))
+				|| (isset($entry['description']) && !is_scalar($entry['description']))) {
+				throw $this->unusableSplits();
+			}
 			$splits[] = [
-				// The service sums these, so they must be numeric; a
-				// non-numeric string would silently count as zero and let a
-				// set of parts "reconcile" that does not.
-				'amount' => (float)$entry['amount'],
+				// Anything that isn't a number goes on as sent: cast, it read
+				// as zero. The split service refuses both before it touches
+				// the parts already stored.
+				'amount' => is_numeric($entry['amount']) ? (float)$entry['amount'] : $entry['amount'],
 				'categoryId' => $categoryId === null || $categoryId === '' ? null : (int)$categoryId,
 				'description' => isset($entry['description']) && $entry['description'] !== ''
 					? mb_substr((string)$entry['description'], 0, 255)
@@ -715,6 +774,10 @@ class ApiV1TransactionController extends OCSController {
 		}
 
 		return $splits;
+	}
+
+	private function unusableSplits(): \InvalidArgumentException {
+		return new \InvalidArgumentException($this->l->t('splits must be an array of {"amount", "category_id", "description"} objects'));
 	}
 
 	/**
@@ -739,7 +802,8 @@ class ApiV1TransactionController extends OCSController {
 
 	/**
 	 * Upload a receipt photo as multipart/form-data under the field `file`.
-	 * The file is stored in the user's own Files under Budget/Receipts/<year>.
+	 * The file is stored in the user's own Files, in their receipts folder
+	 * under <year>/<month>/ of the transaction's date.
 	 */
 	#[NoAdminRequired]
 	#[UserRateLimit(limit: 10, period: 60)]
@@ -797,6 +861,11 @@ class ApiV1TransactionController extends OCSController {
 
 			if (array_key_exists('categoryId', $updates)) {
 				$this->requireOwnersCategory($ownerId, $updates['categoryId']);
+				// The category it already has may stay; a new one must be one
+				// the caller can see
+				$this->granularShareService->requireCategoryVisibleToWriter(
+					$ownerId, $this->userId, $updates['categoryId'], [$transaction->getCategoryId()]
+				);
 			}
 
 			$updated = $this->service->update($id, $ownerId, $updates);
@@ -857,6 +926,11 @@ class ApiV1TransactionController extends OCSController {
 		try {
 			[$transaction, $ownerId] = $this->findWritable($id);
 			if ($transaction->getIsSplit()) {
+				if ($ownerId !== $this->userId) {
+					$this->granularShareService->requireCategoryVisibleToWriter(
+						$ownerId, $this->userId, $categoryId, $this->categoriesOn($transaction, $ownerId)
+					);
+				}
 				$transaction = $this->splitService->unsplitTransaction($id, $ownerId, $categoryId);
 			}
 
@@ -889,7 +963,24 @@ class ApiV1TransactionController extends OCSController {
 			$this->requireWriteAccess('account', $accountId);
 		}
 
-		return [$transaction, $this->service->findAccountById($accountId)->getUserId()];
+		$account = $this->service->findAccountById($accountId);
+		$this->accountCurrencies[$accountId] = $account->getCurrency();
+
+		return [$transaction, $account->getUserId()];
+	}
+
+	/**
+	 * The categories a transaction carries now, its own and its parts'; the
+	 * caller may keep these on it even when one was never shared with them.
+	 *
+	 * @return array<int|null>
+	 */
+	private function categoriesOn(Transaction $transaction, string $ownerId): array {
+		$ids = [$transaction->getCategoryId()];
+		foreach ($this->splitService->getSplits((int)$transaction->getId(), $ownerId) as $part) {
+			$ids[] = $part->getCategoryId();
+		}
+		return $ids;
 	}
 
 	/**
@@ -914,6 +1005,13 @@ class ApiV1TransactionController extends OCSController {
 
 	/** The service updates a PATCH body asks for, or the 400 that refuses it. */
 	private function readUpdates(array $p, Transaction $current): array|DataResponse {
+		// Not `splits`: the read shape, which may be sent back whole, has it
+		// as a list
+		$listed = self::fieldWithAList($p, ['date', 'type', 'description', 'vendor', 'reference', 'notes', 'merchant', 'account_id', 'status', 'reconciled']);
+		if ($listed !== null) {
+			return $this->notASingleValue($listed);
+		}
+
 		$unchanged = [
 			'account_id' => static fn ($v): bool => (int)$v === $current->getAccountId(),
 			'status' => static fn ($v): bool => (string)$v === ($current->getStatus() ?? 'cleared'),
@@ -1061,6 +1159,30 @@ class ApiV1TransactionController extends OCSController {
 		}
 
 		return (int)$raw > 0 ? (int)$raw : null;
+	}
+
+	/**
+	 * The first of $fields sent as a list or an object, where one value
+	 * belongs, or null. Cast, a list read as the text "Array" (with a PHP
+	 * warning) and as id 1.
+	 *
+	 * @param string[] $fields
+	 */
+	private static function fieldWithAList(array $p, array $fields): ?string {
+		foreach ($fields as $field) {
+			if (isset($p[$field]) && !is_scalar($p[$field])) {
+				return $field;
+			}
+		}
+
+		return null;
+	}
+
+	private function notASingleValue(string $field): DataResponse {
+		return new DataResponse(
+			['error' => $this->l->t('%s must be a single value', [$field])],
+			Http::STATUS_BAD_REQUEST
+		);
 	}
 
 	private function badAmount(string $message): DataResponse {

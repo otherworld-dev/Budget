@@ -35,6 +35,49 @@ class DuplicateDetectorTest extends TestCase {
 		$this->assertFalse($this->detector->isDuplicateByImportId(1, 'import-456'));
 	}
 
+	// ── a batch: one query per account for a whole import (T6-4) ────
+
+	public function testABatchReadsEachAccountsImportIdsOnce(): void {
+		$mapper = $this->createMock(\OCA\Budget\Db\TransactionMapper::class);
+		$mapper->expects($this->exactly(2))->method('findImportIds')
+			->willReturnCallback(fn (int $accountId) => $accountId === 1 ? ['hash_a', 'ofx_fitid_7'] : []);
+		$this->transactionService->expects($this->never())->method('existsByImportId');
+		$detector = new DuplicateDetector($this->transactionService, $mapper);
+
+		$detector->beginBatch();
+		$this->assertTrue($detector->isDuplicateByImportId(1, 'hash_a'));
+		$this->assertTrue($detector->isDuplicate(1, [], 'ofx_fitid_7'));
+		$this->assertFalse($detector->isDuplicateByImportId(1, 'hash_b'));
+		$this->assertFalse($detector->isDuplicateByImportId(2, 'hash_a'));
+		$this->assertFalse($detector->isDuplicateByImportId(2, 'hash_c'));
+		$detector->endBatch();
+	}
+
+	public function testARowTheImportAddedIsADuplicateAfterwards(): void {
+		// A repeated FITID in one file is skipped as the same transaction
+		$mapper = $this->createMock(\OCA\Budget\Db\TransactionMapper::class);
+		$mapper->method('findImportIds')->willReturn([]);
+		$detector = new DuplicateDetector($this->transactionService, $mapper);
+
+		$detector->beginBatch();
+		$this->assertFalse($detector->isDuplicateByImportId(1, 'ofx_fitid_7'));
+		$detector->remember(1, 'ofx_fitid_7');
+		$this->assertTrue($detector->isDuplicateByImportId(1, 'ofx_fitid_7'));
+		$detector->endBatch();
+	}
+
+	public function testOutsideABatchEveryCheckAsksTheDatabase(): void {
+		$mapper = $this->createMock(\OCA\Budget\Db\TransactionMapper::class);
+		$mapper->expects($this->never())->method('findImportIds');
+		$this->transactionService->expects($this->exactly(2))->method('existsByImportId')->willReturn(true);
+		$detector = new DuplicateDetector($this->transactionService, $mapper);
+
+		$detector->beginBatch();
+		$detector->endBatch();
+		$this->assertTrue($detector->isDuplicateByImportId(1, 'hash_a'));
+		$this->assertTrue($detector->isDuplicateByImportId(1, 'hash_a'));
+	}
+
 	// ── isDuplicate ─────────────────────────────────────────────────
 
 	public function testIsDuplicateWithImportId(): void {

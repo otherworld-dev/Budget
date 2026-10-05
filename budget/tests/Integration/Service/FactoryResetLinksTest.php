@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Tests\Integration\Service;
 
+use OCA\Budget\Service\BillService;
 use OCA\Budget\Service\FactoryResetService;
 use OCA\Budget\Tests\Integration\FullDataset;
 use OCA\Budget\Tests\Integration\IntegrationTestCase;
@@ -86,6 +87,48 @@ class FactoryResetLinksTest extends IntegrationTestCase {
 		$this->assertSame($this->userId, $this->fetchRow('budget_contacts', $w['contact'])['nextcloud_user_id']);
 	}
 
+	/**
+	 * Bob, with write access, tagged a row in Alice's joint account with his
+	 * own tag. His reset deleted the tag but cleared tag links only through
+	 * his own transactions, so the link on Alice's row was left pointing at
+	 * a tag that no longer existed (T4-11). Alice's own tag stays.
+	 */
+	public function testAResetRemovesTheUsersTagsFromOtherUsersRows(): void {
+		$w = $this->sharedWorld();
+		[$bobsLink, $alicesLink] = $this->tagAlicesRow($w);
+
+		$this->reset->executeFactoryReset($this->bob);
+
+		$this->assertNull($this->fetchRow('budget_transaction_tags', $bobsLink));
+		$this->assertNotNull($this->fetchRow('budget_transaction_tags', $alicesLink));
+		$this->assertSame([], $this->danglingReferences());
+	}
+
+	/**
+	 * The same through a restore of Bob's own backup, which holds his tags
+	 * but not Alice's rows.
+	 */
+	public function testARestoreRemovesTheUsersTagsFromOtherUsersRows(): void {
+		$w = $this->sharedWorld();
+		[$bobsLink, $alicesLink] = $this->tagAlicesRow($w);
+		$migration = $this->service(\OCA\Budget\Service\MigrationService::class);
+
+		$migration->importAll($this->bob, $migration->exportAll($this->bob)['content']);
+
+		$this->assertNull($this->fetchRow('budget_transaction_tags', $bobsLink));
+		$this->assertNotNull($this->fetchRow('budget_transaction_tags', $alicesLink));
+		$this->assertSame([], $this->danglingReferences());
+	}
+
+	/**
+	 * @return array{0: int, 1: int} Bob's and Alice's tag links on Alice's joint row
+	 */
+	private function tagAlicesRow(array $w): array {
+		$bobsTag = $this->makeTag(null, $this->bob);
+		$alicesTag = $this->makeTag($this->makeTagSet($w['food']));
+		return [$this->tagTransaction($w['in'], $bobsTag), $this->tagTransaction($w['in'], $alicesTag)];
+	}
+
 	public function testADeletedUsersUidLeavesNoAccessBehind(): void {
 		$w = $this->sharedWorld();
 		$bobsShare = $this->insertRow('budget_shares', [
@@ -99,5 +142,36 @@ class FactoryResetLinksTest extends IntegrationTestCase {
 		$this->assertNull($this->fetchRow('budget_shares', $w['share']));
 		$this->assertNull($this->fetchRow('budget_contacts', $w['contact'])['nextcloud_user_id']);
 		$this->assertNull($this->fetchRow('budget_bills', $w['netflix'])['account_id']);
+	}
+
+	/**
+	 * A pending bill row in an account that no longer exists (deleted before
+	 * accounts took their rows with them). Looking up its owner threw, so the
+	 * bill couldn't be deleted and a factory reset failed with nothing done.
+	 */
+	public function testAPendingRowInAnAccountThatIsGoneStopsNeitherABillDeleteNorAReset(): void {
+		$account = $this->makeAccount()->getId();
+		$gone = $this->makeAccount(['name' => 'Closed long ago'])->getId();
+		$bill = fn (string $name) => $this->insertRow('budget_bills', [
+			'user_id' => $this->userId, 'name' => $name, 'amount' => '20.00', 'frequency' => 'monthly', 'due_day' => 1,
+			'account_id' => $account, 'is_active' => true, 'next_due_date' => '2026-11-01', 'created_at' => $this->now(),
+		]);
+		$deleted = $bill('Gym');
+		$kept = $bill('Phone');
+		$orphans = [];
+		foreach ([$deleted, $kept] as $billId) {
+			$orphans[] = $this->makeTransaction($gone, ['bill_id' => $billId, 'status' => 'scheduled', 'date' => '2026-11-01']);
+		}
+		$this->db()->executeStatement('DELETE FROM *PREFIX*budget_accounts WHERE id = ?', [$gone]);
+
+		$this->service(BillService::class)->delete($deleted, $this->userId);
+
+		$this->assertNull($this->fetchRow('budget_bills', $deleted));
+		$this->assertNull($this->fetchRow('budget_transactions', $orphans[0]));
+
+		$this->reset->executeFactoryReset($this->userId);
+
+		$this->assertNull($this->fetchRow('budget_bills', $kept));
+		$this->assertNull($this->fetchRow('budget_transactions', $orphans[1]));
 	}
 }

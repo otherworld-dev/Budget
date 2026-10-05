@@ -259,6 +259,7 @@ class AccountService extends AbstractCrudService {
 	 * and use the actual owner's userId for the update.
 	 */
 	public function update(int $id, string $userId, array $updates): Entity {
+		$actingUserId = $userId;
 		// Try owner lookup first; fall back to ID-only for shared accounts
 		try {
 			$existing = $this->find($id, $userId);
@@ -272,10 +273,12 @@ class AccountService extends AbstractCrudService {
 		// Gated on the STORED state before anything is written, so a refusal
 		// leaves the account untouched. Reopening, and re-sending the flag for
 		// an account that is already closed, need no check.
+		$closing = false;
 		if (array_key_exists('closed', $updates)) {
 			$updates['closed'] = filter_var($updates['closed'], FILTER_VALIDATE_BOOLEAN);
 			if ($updates['closed'] && !($existing->getClosed() ?? false) && $this->closureService !== null) {
-				$this->closureService->assertClosable($existing);
+				$this->closureService->assertClosable($existing, $actingUserId);
+				$closing = true;
 			}
 		}
 		// -------------------------------------------------------------------
@@ -316,6 +319,10 @@ class AccountService extends AbstractCrudService {
 		// -------------------------------------------------------------------
 
 		$account = parent::update($id, $userId, $updates);
+		if ($closing) {
+			// What can no longer post into it lets go of it (#372)
+			$this->closureService?->detachStaleSchedules($existing);
+		}
 
 		if (isset($updates['openingBalance'])) {
 			$newBalance = $this->balanceCalculator->balanceFor($id, $account->getOpeningBalance(), $account->getCurrency());
@@ -619,19 +626,23 @@ class AccountService extends AbstractCrudService {
 		$balance = (float)($account->getBalance() ?? 0);
 		$history = [];
 
-		// Work backwards from current balance - O(days) instead of O(days × transactions)
+		// Work backwards from current balance - O(days) instead of O(days × transactions).
+		// Each date gets its balance at the END of the day, so today's is the
+		// current balance. Recording after reversing the day's change gave the
+		// day's opening balance instead: the line ended a day behind the
+		// account's own figure and never showed today.
 		for ($i = 0; $i < $days; $i++) {
 			$date = $today->modify("-{$i} days")->format('Y-m-d');
-
-			// Reverse the day's net change to get the balance at start of day
-			if (isset($dailyChanges[$date])) {
-				$balance = MoneyCalculator::subtract($balance, (float)$dailyChanges[$date], Currency::decimalsFor($account->getCurrency()));
-			}
 
 			$history[] = [
 				'date' => $date,
 				'balance' => (float)$balance
 			];
+
+			// Reverse the day's net change: the balance at the end of the day before
+			if (isset($dailyChanges[$date])) {
+				$balance = MoneyCalculator::subtract($balance, (float)$dailyChanges[$date], Currency::decimalsFor($account->getCurrency()));
+			}
 		}
 
 		return array_reverse($history);

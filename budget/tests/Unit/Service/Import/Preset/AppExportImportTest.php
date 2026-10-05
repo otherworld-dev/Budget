@@ -170,10 +170,26 @@ class AppExportImportTest extends TestCase {
 		$settingService = $this->createMock(SettingService::class);
 		$settingService->method('get')->willReturn(null);
 
+		// The rows a preset import compares a file against (R5-4)
+		$transactionMapper = $this->createMock(TransactionMapper::class);
+		$transactionMapper->method('findImportComparables')->willReturnCallback(function (int $accountId, string $from, string $to) {
+			$rows = [];
+			foreach ($this->ledger as $id => $row) {
+				if ($row['accountId'] === $accountId && $row['date'] >= $from && $row['date'] <= $to) {
+					$rows[] = [
+						'id' => $id, 'date' => $row['date'], 'amount' => (string)$row['amount'], 'type' => $row['type'],
+						'description' => $row['description'], 'vendor' => $row['vendor'], 'notes' => $row['notes'],
+						'import_id' => $row['importId'],
+					];
+				}
+			}
+			return $rows;
+		});
+
 		$this->service = new ImportService(
 			$appData,
 			$transactionService,
-			$this->createMock(TransactionMapper::class),
+			$transactionMapper,
 			$accountMapper,
 			$accountService,
 			$this->createMock(FileValidator::class),
@@ -557,6 +573,139 @@ class AppExportImportTest extends TestCase {
 		$this->expectException(\Exception::class);
 		$this->expectExceptionMessage('does not look like a YNAB export. Columns missing: Memo, Outflow, Inflow');
 		$this->import('actual-budget-export.csv', 'ynab');
+	}
+
+	// ===== A file imported earlier with a manual mapping (R5-4) =====
+
+	private const YNAB_MANUAL = ['date' => 2, 'description' => 3, 'notes' => 7, 'expenseColumn' => 8, 'incomeColumn' => 9, 'account' => 0, 'skipFirstRow' => true];
+	private const MINT_MANUAL = ['date' => 0, 'description' => 1, 'amount' => 3, 'type' => 4, 'account' => 6, 'skipFirstRow' => true];
+	private const FILE_ID = 'import_user1_0123456789abcdef0123456789abcdef.csv';
+
+	private function importManually(string $content, array $mapping): array {
+		$this->fileContent = $content;
+		return $this->service->processImport('user1', self::FILE_ID, $mapping, null, null, true, true, ',', null);
+	}
+
+	/**
+	 * 2.54 could only import a YNAB or Mint export with a manual mapping. 3.0
+	 * selects the app's preset for the same file, whose import ids are built
+	 * differently, and every row was imported a second time.
+	 */
+	public function testAPresetRecognisesTheRowsAManualMappingImported(): void {
+		$first = $this->importManually((string)file_get_contents(self::FIXTURES . 'ynab-register.csv'), self::YNAB_MANUAL);
+		$this->assertSame(10, $first['imported']);
+		$manualIds = array_column($this->ledger, 'importId');
+
+		$this->fileContent = (string)file_get_contents(self::FIXTURES . 'ynab-register.csv');
+		$preview = $this->service->previewImport('user1', self::FILE_ID, [], null, null, false, ',', 'ynab');
+		$this->assertSame(10, $preview['duplicates']);
+		$this->assertSame([true], array_values(array_unique(array_column($preview['transactions'], 'isDuplicate'))));
+
+		$again = $this->import('ynab-register.csv', 'ynab');
+		$this->assertSame(0, $again['imported']);
+		$this->assertCount(10, $this->ledger);
+		$this->assertSame($manualIds, array_column($this->ledger, 'importId'), 'Import ids are not touched');
+	}
+
+	public function testAMintPresetRecognisesTheRowsAManualMappingImported(): void {
+		$this->importManually((string)file_get_contents(self::FIXTURES . 'mint-transactions.csv'), self::MINT_MANUAL);
+		$this->assertCount(6, $this->ledger);
+
+		$again = $this->import('mint-transactions.csv', 'mint');
+
+		$this->assertSame(0, $again['imported']);
+		$this->assertCount(6, $this->ledger);
+	}
+
+	public function testRecognisedRowsCanStillBeImportedOnPurpose(): void {
+		$this->importManually((string)file_get_contents(self::FIXTURES . 'ynab-register.csv'), self::YNAB_MANUAL);
+
+		$this->fileContent = (string)file_get_contents(self::FIXTURES . 'ynab-register.csv');
+		$again = $this->service->processImport('user1', self::FILE_ID, [], null, null, false, true, ',', 'ynab');
+
+		$this->assertSame(10, $again['imported']);
+		$this->assertCount(20, $this->ledger);
+	}
+
+	public function testEachStoredRowStandsForOneRowOfTheFile(): void {
+		// The earlier import held one of two identical purchases; the second
+		// one is new and must still import
+		$header = "\"Account\",\"Flag\",\"Date\",\"Payee\",\"Category Group/Category\",\"Category Group\",\"Category\",\"Memo\",\"Outflow\",\"Inflow\",\"Cleared\"\n";
+		$coffee = "\"Checking\",\"\",\"01/03/2024\",\"Corner Cafe\",\"\",\"\",\"\",\"\",\"\$3.50\",\"\$0.00\",\"Cleared\"\n";
+		$this->importManually($header . $coffee, self::YNAB_MANUAL);
+		$this->assertCount(1, $this->ledger);
+
+		$this->fileContent = $header . $coffee . $coffee;
+		$preview = $this->service->previewImport('user1', self::FILE_ID, [], null, null, false, ',', 'ynab');
+		$this->assertSame(1, $preview['duplicates']);
+
+		$again = $this->service->processImport('user1', self::FILE_ID, [], null, null, true, true, ',', 'ynab');
+		$this->assertSame(1, $again['imported']);
+		$this->assertCount(2, $this->ledger);
+	}
+
+	public function testADifferentPurchaseOnTheSameDayIsNotADuplicate(): void {
+		$header = "\"Account\",\"Flag\",\"Date\",\"Payee\",\"Category Group/Category\",\"Category Group\",\"Category\",\"Memo\",\"Outflow\",\"Inflow\",\"Cleared\"\n";
+		$this->importManually($header . "\"Checking\",\"\",\"01/03/2024\",\"Corner Cafe\",\"\",\"\",\"\",\"\",\"\$3.50\",\"\$0.00\",\"Cleared\"\n", self::YNAB_MANUAL);
+
+		$this->fileContent = $header . "\"Checking\",\"\",\"01/03/2024\",\"Book Shop\",\"\",\"\",\"\",\"\",\"\$3.50\",\"\$0.00\",\"Cleared\"\n";
+		$again = $this->service->processImport('user1', self::FILE_ID, [], null, null, true, true, ',', 'ynab');
+
+		$this->assertSame(1, $again['imported']);
+	}
+
+	// ===== a re-exported register (V2-2) =====
+
+	private const MINT_HEADER = "\"Date\",\"Description\",\"Original Description\",\"Amount\",\"Transaction Type\",\"Category\",\"Account Name\",\"Labels\",\"Notes\"\n";
+
+	private function mintRow(string $original): string {
+		return "\"9/01/2026\",\"Netflix\",\"{$original}\",\"9.99\",\"debit\",\"Entertainment\",\"Card\",\"\",\"\"\n";
+	}
+
+	private function importText(string $content, string $presetId): array {
+		$this->fileContent = $content;
+		return $this->service->processImport('user1', self::FILE_ID, [], null, null, true, true, ',', $presetId);
+	}
+
+	/**
+	 * A new charge listed above one already imported, same payee, day and
+	 * amount: the new row took the stored row that belonged to the old one,
+	 * so both were skipped and the new charge was never stored. Each stored
+	 * row now goes to the file row that carries its import id first.
+	 */
+	#[\PHPUnit\Framework\Attributes\DataProvider('rowOrders')]
+	public function testANewRowNeverTakesTheStoredRowOfAnOldOne(bool $newFirst): void {
+		$this->importText(self::MINT_HEADER . $this->mintRow('NETFLIX.COM 111'), 'mint');
+		$this->assertCount(1, $this->ledger);
+
+		$rows = [$this->mintRow('NETFLIX.COM 222'), $this->mintRow('NETFLIX.COM 111')];
+		$content = self::MINT_HEADER . implode('', $newFirst ? $rows : array_reverse($rows));
+		$this->fileContent = $content;
+		$preview = $this->service->previewImport('user1', self::FILE_ID, [], null, null, false, ',', 'mint');
+		$again = $this->importText($content, 'mint');
+
+		$this->assertSame(1, $preview['duplicates']);
+		$this->assertSame(1, $again['imported']);
+		$this->assertCount(2, $this->ledger);
+	}
+
+	public static function rowOrders(): array {
+		return ['new row first' => [true], 'old row first' => [false]];
+	}
+
+	/**
+	 * Two payees with the same memo are two transactions: matching on the
+	 * memo alone hid Spotify behind Netflix.
+	 */
+	public function testAMemoAloneDoesNotMakeTwoRowsTheSame(): void {
+		$header = "\"Account\",\"Flag\",\"Date\",\"Payee\",\"Category Group/Category\",\"Category Group\",\"Category\",\"Memo\",\"Outflow\",\"Inflow\",\"Cleared\"\n";
+		$row = fn (string $payee) => "\"Current\",\"\",\"09/01/2026\",\"{$payee}\",\"Bills: Subscriptions\",\"Bills\",\"Subscriptions\",\"Subscription\",\"£9.99\",\"£0.00\",\"Cleared\"\n";
+		$this->importText($header . $row('Netflix'), 'ynab');
+
+		$again = $this->importText($header . $row('Spotify') . $row('Netflix'), 'ynab');
+
+		$this->assertSame(1, $again['imported']);
+		$this->assertSame(['Netflix', 'Spotify'], array_column($this->ledger, 'description'));
 	}
 
 	public function testImportIdsDoNotDependOnTheMappingSentWithTheRequest(): void {

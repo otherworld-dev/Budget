@@ -7,12 +7,22 @@ namespace OCA\Budget\Service\Report;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\TransactionReportQueries;
+use OCA\Budget\Service\CurrencyTotals;
 use OCA\Budget\Service\MoneyCalculator;
 
 /**
  * Handles calculation of spending and income metrics.
+ *
+ * Across accounts in more than one currency every grouping is in the base
+ * currency, converted the way the Cash Flow report converts its figures:
+ * summed as stored, euros were added to pounds, and the Income & Expenses
+ * report's net drifted from Cash Flow's for the same period. A selected
+ * account is in one currency and is left as it is.
  */
 class ReportCalculator {
+	/** How many vendors or payers a grouping lists */
+	private const TOP_ROWS = 15;
+
 	private AccountMapper $accountMapper;
 	private TransactionMapper $transactionMapper;
 	private TransactionReportQueries $reportQueries;
@@ -21,10 +31,64 @@ class ReportCalculator {
 		AccountMapper $accountMapper,
 		TransactionMapper $transactionMapper,
 		TransactionReportQueries $reportQueries,
+		private ?CurrencyTotals $currencyTotals = null,
 	) {
 		$this->accountMapper = $accountMapper;
 		$this->transactionMapper = $transactionMapper;
 		$this->reportQueries = $reportQueries;
+	}
+
+	/**
+	 * A grouping's rows, in the base currency across accounts in more than
+	 * one (see the class comment), sorted with $sort.
+	 *
+	 * @param int[]|null $visibleAccountIds
+	 * @param callable(int[]|null): array[] $query the grouping over the given accounts
+	 * @param string[]|null $keyColumns what makes two currencies' rows the same row; null when no two are
+	 * @param string[] $moneyColumns
+	 * @param callable(array, array): int $sort
+	 * @return array[]
+	 */
+	private function inBase(string $userId, ?int $accountId, ?array $visibleAccountIds, callable $query, ?array $keyColumns, callable $sort, array $moneyColumns = ['total']): array {
+		if ($accountId !== null || $this->currencyTotals === null) {
+			return $query($visibleAccountIds);
+		}
+		$rows = $this->currencyTotals->rowsInBase($userId, $visibleAccountIds, $query, $keyColumns, $moneyColumns, ['count']);
+		usort($rows, $sort);
+		return $rows;
+	}
+
+	private static function byTotalDescending(array $a, array $b): int {
+		return (float)$b['total'] <=> (float)$a['total'];
+	}
+
+	private static function byMonth(array $a, array $b): int {
+		return strcmp((string)$a['month'], (string)$b['month']);
+	}
+
+	/**
+	 * The largest vendors or payers of a grouping. Across currencies every
+	 * row of each currency is converted before the largest are picked, so a
+	 * vendor paid in two currencies is ranked on its whole.
+	 *
+	 * @param int[]|null $visibleAccountIds
+	 * @param callable(int, int[]|null): array[] $query the grouping cut to the given number of rows
+	 * @return array[]
+	 */
+	private function topRowsInBase(string $userId, ?int $accountId, ?array $visibleAccountIds, callable $query): array {
+		if ($accountId !== null || $this->currencyTotals === null) {
+			return $query(self::TOP_ROWS, $visibleAccountIds);
+		}
+		$rows = $this->currencyTotals->rowsInBase(
+			$userId,
+			$visibleAccountIds,
+			static fn (?array $accountIds): array => $query(PHP_INT_MAX, $accountIds),
+			['name', 'unknown'],
+			['total'],
+			['count']
+		);
+		usort($rows, self::byTotalDescending(...));
+		return array_slice($rows, 0, self::TOP_ROWS);
 	}
 
 	/**
@@ -44,11 +108,16 @@ class ReportCalculator {
 		string $endDate,
 		?array $visibleAccountIds = null,
 	): array {
-		return $this->transactionMapper->getSpendingSummary(
-			$userId, $startDate, $endDate, $accountId,
-			excludeTransfers: $accountId === null,
-			visibleAccountIds: $visibleAccountIds,
-			includeUncategorized: true
+		return $this->inBase(
+			$userId, $accountId, $visibleAccountIds,
+			fn (?array $accountIds): array => $this->transactionMapper->getSpendingSummary(
+				$userId, $startDate, $endDate, $accountId,
+				excludeTransfers: $accountId === null,
+				visibleAccountIds: $accountIds,
+				includeUncategorized: true
+			),
+			['id'],
+			self::byTotalDescending(...)
 		);
 	}
 
@@ -62,13 +131,17 @@ class ReportCalculator {
 		string $endDate,
 		?array $visibleAccountIds = null,
 	): array {
-		$data = $this->reportQueries->getSpendingByMonth($userId, $accountId, $startDate, $endDate, $visibleAccountIds);
-		return array_map(fn ($row) => [
-			'name' => $this->formatMonthLabel($row['month']),
-			'month' => $row['month'],
-			'total' => (float)$row['total'],
-			'count' => (int)$row['count']
-		], $data);
+		return $this->inBase(
+			$userId, $accountId, $visibleAccountIds,
+			fn (?array $accountIds): array => array_map(fn ($row) => [
+				'name' => $this->formatMonthLabel($row['month']),
+				'month' => $row['month'],
+				'total' => (float)$row['total'],
+				'count' => (int)$row['count']
+			], $this->reportQueries->getSpendingByMonth($userId, $accountId, $startDate, $endDate, $accountIds)),
+			['month'],
+			self::byMonth(...)
+		);
 	}
 
 	/**
@@ -81,7 +154,10 @@ class ReportCalculator {
 		string $endDate,
 		?array $visibleAccountIds = null,
 	): array {
-		return $this->reportQueries->getSpendingByVendor($userId, $accountId, $startDate, $endDate, visibleAccountIds: $visibleAccountIds);
+		return $this->topRowsInBase(
+			$userId, $accountId, $visibleAccountIds,
+			fn (int $limit, ?array $accountIds): array => $this->reportQueries->getSpendingByVendor($userId, $accountId, $startDate, $endDate, $limit, $accountIds)
+		);
 	}
 
 	/**
@@ -95,7 +171,14 @@ class ReportCalculator {
 		?array $visibleAccountIds = null,
 		?int $accountId = null,
 	): array {
-		return $this->reportQueries->getSpendingByAccountAggregated($userId, $startDate, $endDate, $visibleAccountIds, $accountId);
+		// Each account is in one currency, so no two rows are the same row
+		return $this->inBase(
+			$userId, $accountId, $visibleAccountIds,
+			fn (?array $accountIds): array => $this->reportQueries->getSpendingByAccountAggregated($userId, $startDate, $endDate, $accountIds, $accountId),
+			null,
+			self::byTotalDescending(...),
+			['total', 'average']
+		);
 	}
 
 	/**
@@ -115,12 +198,17 @@ class ReportCalculator {
 		string $endDate,
 		?array $visibleAccountIds = null,
 	): array {
-		return $this->transactionMapper->getSpendingSummary(
-			$userId, $startDate, $endDate, $accountId,
-			excludeTransfers: $accountId === null,
-			visibleAccountIds: $visibleAccountIds,
-			transactionType: 'credit',
-			includeUncategorized: true
+		return $this->inBase(
+			$userId, $accountId, $visibleAccountIds,
+			fn (?array $accountIds): array => $this->transactionMapper->getSpendingSummary(
+				$userId, $startDate, $endDate, $accountId,
+				excludeTransfers: $accountId === null,
+				visibleAccountIds: $accountIds,
+				transactionType: 'credit',
+				includeUncategorized: true
+			),
+			['id'],
+			self::byTotalDescending(...)
 		);
 	}
 
@@ -134,13 +222,17 @@ class ReportCalculator {
 		string $endDate,
 		?array $visibleAccountIds = null,
 	): array {
-		$data = $this->reportQueries->getIncomeByMonth($userId, $accountId, $startDate, $endDate, $visibleAccountIds);
-		return array_map(fn ($row) => [
-			'name' => $this->formatMonthLabel($row['month']),
-			'month' => $row['month'],
-			'total' => (float)$row['total'],
-			'count' => (int)$row['count']
-		], $data);
+		return $this->inBase(
+			$userId, $accountId, $visibleAccountIds,
+			fn (?array $accountIds): array => array_map(fn ($row) => [
+				'name' => $this->formatMonthLabel($row['month']),
+				'month' => $row['month'],
+				'total' => (float)$row['total'],
+				'count' => (int)$row['count']
+			], $this->reportQueries->getIncomeByMonth($userId, $accountId, $startDate, $endDate, $accountIds)),
+			['month'],
+			self::byMonth(...)
+		);
 	}
 
 	/**
@@ -153,7 +245,10 @@ class ReportCalculator {
 		string $endDate,
 		?array $visibleAccountIds = null,
 	): array {
-		return $this->reportQueries->getIncomeBySource($userId, $accountId, $startDate, $endDate, visibleAccountIds: $visibleAccountIds);
+		return $this->topRowsInBase(
+			$userId, $accountId, $visibleAccountIds,
+			fn (int $limit, ?array $accountIds): array => $this->reportQueries->getIncomeBySource($userId, $accountId, $startDate, $endDate, $limit, $accountIds)
+		);
 	}
 
 	/**
@@ -231,14 +326,19 @@ class ReportCalculator {
 		?int $categoryId = null,
 		?array $visibleAccountIds = null,
 	): array {
-		return $this->reportQueries->getSpendingByTag(
-			$userId,
-			$tagSetId,
-			$startDate,
-			$endDate,
-			$accountId,
-			$categoryId,
-			$visibleAccountIds
+		return $this->inBase(
+			$userId, $accountId, $visibleAccountIds,
+			fn (?array $accountIds): array => $this->reportQueries->getSpendingByTag(
+				$userId,
+				$tagSetId,
+				$startDate,
+				$endDate,
+				$accountId,
+				$categoryId,
+				$accountIds
+			),
+			['tagId'],
+			self::byTotalDescending(...)
 		);
 	}
 
@@ -254,14 +354,19 @@ class ReportCalculator {
 		?int $categoryId = null,
 		?array $visibleAccountIds = null,
 	): array {
-		return $this->reportQueries->getIncomeByTag(
-			$userId,
-			$tagSetId,
-			$startDate,
-			$endDate,
-			$accountId,
-			$categoryId,
-			$visibleAccountIds
+		return $this->inBase(
+			$userId, $accountId, $visibleAccountIds,
+			fn (?array $accountIds): array => $this->reportQueries->getIncomeByTag(
+				$userId,
+				$tagSetId,
+				$startDate,
+				$endDate,
+				$accountId,
+				$categoryId,
+				$accountIds
+			),
+			['tagId'],
+			self::byTotalDescending(...)
 		);
 	}
 }

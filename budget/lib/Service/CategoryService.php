@@ -53,6 +53,7 @@ class CategoryService extends AbstractCrudService {
 		private ?ProjectAllocationMapper $projectAllocationMapper = null,
 		private ?BillMapper $billMapper = null,
 		private ?RecurringIncomeMapper $incomeMapper = null,
+		private ?CurrencyTotals $currencyTotals = null,
 	) {
 		$this->mapper = $mapper;
 		$this->transactionMapper = $transactionMapper;
@@ -95,11 +96,26 @@ class CategoryService extends AbstractCrudService {
 
 	/**
 	 * Find an existing category by name/type or create it.
+	 *
+	 * A top-level category of that name comes first, then the only one of
+	 * that name at any level: an importer naming "Groceries" means the
+	 * user's Food > Groceries, and a second, top-level "Groceries" beside it
+	 * split the spending in two (T3-7). Several subcategories sharing the
+	 * name (Insurance under Housing and under Healthcare) are not guessed
+	 * between; a top-level one is created, as before.
 	 */
 	public function findOrCreate(string $userId, string $name, string $type): Category {
 		$existing = $this->getCategoryMapper()->findByName($userId, $name, $type, null);
 		if ($existing !== null) {
 			return $existing;
+		}
+
+		$sameName = array_values(array_filter(
+			$this->getCategoryMapper()->findAll($userId),
+			static fn (Category $category) => $category->getName() === $name && $category->getType() === $type
+		));
+		if (count($sameName) === 1) {
+			return $sameName[0];
 		}
 
 		$category = new Category();
@@ -229,18 +245,24 @@ class CategoryService extends AbstractCrudService {
 		// would not free a project (#391).
 		$this->assertNotUsedByProject($entity->getId(), $userId);
 
+		// Check for transactions on this category and on every one the cascade
+		// below deletes, before any of them goes. Checked after the children
+		// were deleted, a refusal on the parent (or on a later sibling) came
+		// with the earlier subcategories already gone, along with their
+		// budgets, tags and the bill and split links they released. Typed so
+		// the controller can offer to reassign them to No Category and retry
+		// (#332).
+		foreach ($this->collectSelfAndDescendantIds($entity->getId(), $userId) as $categoryId) {
+			if ($this->transactionMapper->findByCategory($categoryId, $userId, 1) !== []) {
+				throw new CategoryInUseException($this->l->t('Cannot delete this category because it has transactions assigned to it. Please reassign or delete them first.'));
+			}
+		}
+
 		// Cascade delete: Delete child categories first (recursively)
 		$children = $this->getCategoryMapper()->findChildren($userId, $entity->getId());
 		foreach ($children as $child) {
 			// Recursively delete child and its descendants
 			$this->delete($child->getId(), $userId);
-		}
-
-		// Check for transactions. Typed so the controller can offer to reassign
-		// them to No Category and retry (#332).
-		$transactions = $this->transactionMapper->findByCategory($entity->getId(), $userId, 1);
-		if (!empty($transactions)) {
-			throw new CategoryInUseException($this->l->t('Cannot delete this category because it has transactions assigned to it. Please reassign or delete them first.'));
 		}
 
 		$this->releaseReferences($entity->getId(), $userId);
@@ -530,8 +552,14 @@ class CategoryService extends AbstractCrudService {
 	 * period the Budget page lists under it, and "this month" is the period
 	 * running today. They follow $viewerId's start day (the person looking,
 	 * who may not own a shared category); null means $userId.
+	 *
+	 * $visibleAccountIds are the accounts the viewer can see: the figures
+	 * come from those, never from accounts of the owner's that weren't
+	 * shared with them. Null keeps $userId's own accounts.
+	 *
+	 * @param int[]|null $visibleAccountIds
 	 */
-	public function getCategoryDetails(int $categoryId, string $userId, ?string $startDate = null, ?string $endDate = null, ?int $accountId = null, ?string $viewerId = null): array {
+	public function getCategoryDetails(int $categoryId, string $userId, ?string $startDate = null, ?string $endDate = null, ?int $accountId = null, ?string $viewerId = null, ?array $visibleAccountIds = null): array {
 		$category = $this->find($categoryId, $userId); // Verify ownership
 
 		$scope = $this->resolveDetailScope($category, $userId);
@@ -540,9 +568,9 @@ class CategoryService extends AbstractCrudService {
 		$viewerId ??= $userId;
 		$startDay = $this->carryoverService->budgetStartDay($viewerId);
 
-		$summary = $this->transactionMapper->getCategorySummary($userId, $categoryId, $categoryIds);
+		$summary = $this->transactionMapper->getCategorySummary($userId, $categoryId, $categoryIds, $visibleAccountIds);
 		$monthlySpending = $this->transactionMapper->getCategoryMonthlySpending(
-			$userId, $categoryId, 12, $categoryIds, $startDate, $endDate, $accountId, $category->getType(), $startDay > 1
+			$userId, $categoryId, 12, $categoryIds, $startDate, $endDate, $accountId, $category->getType(), $startDay > 1, $visibleAccountIds
 		);
 		if ($startDay > 1) {
 			$monthlySpending = $this->foldDaysIntoBudgetMonths($monthlySpending, $startDay);
@@ -642,15 +670,17 @@ class CategoryService extends AbstractCrudService {
 	 * allocations the same way, so the panel lists the transactions behind the
 	 * figures above it rather than a different set (#359). Each split row
 	 * carries the share belonging to this category, the whole transaction it
-	 * came from, and its parts.
+	 * came from, and its parts. $visibleAccountIds scopes the rows as in
+	 * getCategoryDetails().
 	 *
+	 * @param int[]|null $visibleAccountIds
 	 * @return array<array<string, mixed>>
 	 */
-	public function getCategoryTransactions(int $categoryId, string $userId, int $limit = 5): array {
+	public function getCategoryTransactions(int $categoryId, string $userId, int $limit = 5, ?array $visibleAccountIds = null): array {
 		$category = $this->find($categoryId, $userId); // Verify ownership
 		$scope = $this->resolveDetailScope($category, $userId);
 
-		$rows = $this->transactionMapper->findCategoryTransactionRows($userId, $scope['ids'], $limit);
+		$rows = $this->transactionMapper->findCategoryTransactionRows($userId, $scope['ids'], $limit, $visibleAccountIds);
 
 		$splitIds = [];
 		foreach ($rows as $row) {
@@ -701,15 +731,28 @@ class CategoryService extends AbstractCrudService {
 	 * whose refunds exceed its spending is genuinely negative, and an abs()
 	 * here would flip it back into looking like money spent.
 	 *
+	 * Accounts in more than one currency are converted to the base currency
+	 * first, as Cash Flow converts them: summed as stored, a 12.99 dollar
+	 * subscription counted as 12.99 pounds against a budget in pounds, and
+	 * the API's budget status labelled the mixed sum with the base currency.
+	 * The Budget page, the API's budget status, Ready to Assign and the
+	 * dashboard's spending tiles all read their spending here.
+	 *
 	 * @param int[]|null $visibleAccountIds If provided, scope by account IDs for cross-user aggregation
 	 */
 	public function getAllCategorySpending(string $userId, string $startDate, string $endDate, ?array $visibleAccountIds = null, string $transactionType = 'debit'): array {
-		$summary = $this->transactionMapper->getSpendingSummary(
+		$query = fn (?array $accountIds): array => $this->transactionMapper->getSpendingSummary(
 			$userId, $startDate, $endDate,
-			visibleAccountIds: $visibleAccountIds,
+			visibleAccountIds: $accountIds,
 			transactionType: $transactionType,
 			netOpposite: true
 		);
+		if ($this->currencyTotals === null) {
+			$summary = $query($visibleAccountIds);
+		} else {
+			$summary = $this->currencyTotals->rowsInBase($userId, $visibleAccountIds, $query, ['id'], ['total'], ['count']);
+			usort($summary, static fn (array $a, array $b) => (float)$b['total'] <=> (float)$a['total']);
+		}
 
 		return array_map(fn ($item) => [
 			'categoryId' => (int)$item['id'],
@@ -1034,8 +1077,8 @@ class CategoryService extends AbstractCrudService {
 	 * earlier month's income, so counting it again would take it twice.
 	 * Rollover therefore never changes this figure.
 	 *
-	 * Amounts are summed as stored, with no currency conversion, as the
-	 * Budget page's own totals are.
+	 * Income from accounts in more than one currency is converted to the
+	 * base currency, as the Budget page's spending is (getAllCategorySpending()).
 	 *
 	 * @param int[]|null $visibleAccountIds account scope, as the page's other calls
 	 * @param array<int, array>|null $effectiveBudgets resolveEffectiveBudgets()
@@ -1051,7 +1094,7 @@ class CategoryService extends AbstractCrudService {
 		foreach ($categories as $category) {
 			$byId[$category->getId()] = $category;
 		}
-		$outOfReports = $this->reportExcludedBranchIds($categories);
+		$outOfReports = BudgetScope::reportExcludedIds($categories);
 
 		$budgeted = [];
 		foreach ($effectiveBudgets as $catId => $entry) {
@@ -1068,27 +1111,23 @@ class CategoryService extends AbstractCrudService {
 			if (MoneyCalculator::compare($base, '0', 6) <= 0) {
 				continue;
 			}
-			$budgeted[] = BudgetPeriod::monthlyEquivalent($base, (string)($entry['period'] ?? 'monthly'));
+			$budgeted[] = [$base, (string)($entry['period'] ?? 'monthly')];
 		}
 
+		// The page's own income figures, in the base currency when the
+		// accounts hold more than one
 		$income = [];
-		$rows = $this->transactionMapper->getSpendingSummary(
-			$userId, $startDate, $endDate,
-			visibleAccountIds: $visibleAccountIds,
-			transactionType: 'credit',
-			netOpposite: true
-		);
-		foreach ($rows as $row) {
-			$catId = (int)($row['id'] ?? 0);
+		foreach ($this->getAllCategorySpending($userId, $startDate, $endDate, $visibleAccountIds, 'credit') as $row) {
+			$catId = $row['categoryId'];
 			$category = $byId[$catId] ?? null;
 			if ($category === null || $category->getType() !== 'income' || isset($outOfReports[$catId])) {
 				continue;
 			}
-			$income[] = (string)($row['total'] ?? 0);
+			$income[] = $row['spent'];
 		}
 
 		$incomeTotal = MoneyCalculator::sum($income, 6);
-		$budgetedTotal = MoneyCalculator::sum($budgeted, 6);
+		$budgetedTotal = BudgetPeriod::monthlyTotal($budgeted);
 
 		return [
 			'month' => $month,
@@ -1098,34 +1137,6 @@ class CategoryService extends AbstractCrudService {
 			'budgeted' => round(MoneyCalculator::toFloat($budgetedTotal), 2),
 			'amount' => round(MoneyCalculator::toFloat(MoneyCalculator::subtract($incomeTotal, $budgetedTotal, 6)), 2),
 		];
-	}
-
-	/**
-	 * Categories flagged excluded_from_reports, plus everything under them:
-	 * the Budget page drops a flagged category's whole branch.
-	 *
-	 * @param Category[] $categories
-	 * @return array<int, true>
-	 */
-	private function reportExcludedBranchIds(array $categories): array {
-		$flagged = [];
-		$parents = [];
-		foreach ($categories as $category) {
-			$flagged[$category->getId()] = (bool)($category->getExcludedFromReports() ?? false);
-			$parents[$category->getId()] = $category->getParentId();
-		}
-		$excluded = [];
-		foreach (array_keys($flagged) as $id) {
-			$cursor = $id;
-			for ($depth = 0; $cursor !== null && $depth < 64 && isset($flagged[$cursor]); $depth++) {
-				if ($flagged[$cursor]) {
-					$excluded[$id] = true;
-					break;
-				}
-				$cursor = $parents[$cursor];
-			}
-		}
-		return $excluded;
 	}
 
 	private function getBudgetStatus(float $percentage): string {

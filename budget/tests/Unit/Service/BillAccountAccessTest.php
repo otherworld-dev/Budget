@@ -117,6 +117,41 @@ class BillAccountAccessTest extends TestCase {
 		$this->service->markPaid(1, 'bob');
 	}
 
+	/**
+	 * A transfer whose destination was taken away (a share ended, the owner
+	 * of that account reset or was deleted, or it was closed) still said
+	 * "transfer": Mark Paid then "paid" it with nothing recorded and moved
+	 * it on. It is refused with the reason until a destination is chosen.
+	 */
+	public function testATransferThatLostItsDestinationIsRefusedNotPaidWithNothingRecorded(): void {
+		$this->writable[10] = true;
+		$this->bill(['isTransfer' => true, 'destinationAccountId' => null]);
+		$this->expectNothingWritten();
+
+		$this->expectExceptionMessage('This bill uses an account you can no longer change. Edit the bill and choose another account.');
+		$this->service->markPaid(1, 'bob', null, true);
+	}
+
+	public function testATransferThatLostItsDestinationCannotBeSkippedEither(): void {
+		$this->writable[10] = true;
+		$this->bill(['isTransfer' => true, 'destinationAccountId' => null]);
+		$this->expectNothingWritten();
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->service->skipPayment(1, 'bob');
+	}
+
+	public function testATransferThatLostItsDestinationStopsAutoPaying(): void {
+		$this->writable[10] = true;
+		$this->bill(['isTransfer' => true, 'destinationAccountId' => null, 'autoPayEnabled' => true])->setNextDueDate('2026-06-15');
+		$this->transactionService->expects($this->never())->method('createFromBill');
+		$this->transactionService->expects($this->never())->method('clearScheduledBillTransaction');
+		$this->mapper->expects($this->once())->method('updateFields')
+			->with(1, 'bob', ['auto_pay_enabled' => false, 'auto_pay_failed' => true]);
+
+		$this->assertFalse($this->service->processAutoPay(1, 'bob')['success']);
+	}
+
 	public function testMarkPaidStillWorksOnAWritableAccount(): void {
 		$this->writable[10] = true;
 		$this->bill();
@@ -167,7 +202,8 @@ class BillAccountAccessTest extends TestCase {
 	}
 
 	public function testAutoPayStopsAndIsDisabledOnceTheAccountIsNoLongerWritable(): void {
-		$this->bill(['autoPayEnabled' => true]);
+		// Due, as the job only asks for bills that are
+		$this->bill(['autoPayEnabled' => true])->setNextDueDate('2026-06-15');
 		$this->transactionService->expects($this->never())->method('createFromBill');
 		$this->transactionService->expects($this->never())->method('clearScheduledBillTransaction');
 		$this->mapper->expects($this->once())->method('updateFields')
@@ -214,8 +250,18 @@ class BillAccountAccessTest extends TestCase {
 		$this->assertSame([], $this->service->findMatchingTransactions(1, 'bob', 'bob'));
 	}
 
-	public function testMatchingTransactionsAreListedForAUserWhoCanSeeTheAccount(): void {
+	public function testMatchingTransactionsAreHiddenFromAUserWhoCanOnlyReadTheAccount(): void {
+		// Linking one changes it, which a read-only share doesn't allow
 		$this->visible[10] = true;
+		$this->bill();
+		$this->transactionService->expects($this->never())->method('findBillPaymentCandidates');
+
+		$this->assertSame([], $this->service->findMatchingTransactions(1, 'bob', 'carol'));
+	}
+
+	public function testMatchingTransactionsAreListedForAUserWhoCanWriteToTheAccount(): void {
+		$this->visible[10] = true;
+		$this->writable[10] = true;
 		$this->bill();
 		$this->transactionService->expects($this->once())->method('findBillPaymentCandidates')->willReturn([['id' => 3]]);
 

@@ -274,6 +274,228 @@ class BillControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
 
+	// ── a bill's tags must be ones the people involved can use (R6-2/T4-6) ──
+
+	/**
+	 * Bills are $billOwner's; account 4 is Alice's. Who may use which tag:
+	 * user1 tags 1-9, $billOwner (when someone else) tags 5-9, Alice 8-9.
+	 *
+	 * @param list<array{0: string, 1: int[]}> $checks the tag checks made
+	 */
+	private function controllerCheckingTags(string $billOwner = 'user1', ?array &$checks = null): BillController {
+		$checks = [];
+		$shares = $this->createMock(GranularShareService::class);
+		$shares->method('canAccess')->willReturn(true);
+		$shares->method('canWrite')->willReturn(true);
+		$shares->method('resolveOwner')->willReturnCallback(
+			fn ($user, $type, $id) => $type === 'account' ? ($id === 4 ? 'alice' : $user) : $billOwner
+		);
+		$usable = ['user1' => range(1, 9), $billOwner => $billOwner === 'user1' ? range(1, 9) : array_merge(range(5, 9), [42]), 'alice' => [8, 9]];
+		$shares->method('requireUsableTags')->willReturnCallback(function (string $user, array $ids) use ($usable, &$checks): void {
+			$checks[] = [$user, array_values($ids)];
+			if (array_diff($ids, $usable[$user] ?? []) !== []) {
+				throw new \InvalidArgumentException('Invalid tag ID');
+			}
+		});
+		$shares->method('getUsableTagIds')->willReturnCallback(
+			fn (string $user, array $ids) => array_values(array_intersect(array_map('intval', $ids), $usable[$user] ?? []))
+		);
+		return new BillController($this->request, $this->service, $this->validationService, $shares,
+			$this->createMock(\OCA\Budget\Service\Bill\BillSuggestionService::class), $this->upcomingBills,
+			$this->l, 'user1', $this->logger);
+	}
+
+	private function storedBillWithTags(array $tagIds, ?int $accountId = 2): \OCA\Budget\Db\Bill {
+		$bill = new \OCA\Budget\Db\Bill();
+		$bill->setId(5);
+		$bill->setAccountId($accountId);
+		$bill->setIsTransfer(false);
+		$bill->setTagIdsArray($tagIds);
+		return $bill;
+	}
+
+	// ── a write recipient and the owner's unshared categories ───────
+
+	/** Bill 5 and its account 4 are owen's; user1 sees categories below 16. */
+	private function controllerForAWriteRecipient(): BillController {
+		$shares = $this->createMock(GranularShareService::class);
+		$shares->method('canAccess')->willReturn(true);
+		$shares->method('canWrite')->willReturn(true);
+		$shares->method('resolveOwner')->willReturn('owen');
+		$shares->method('requireCategoryVisibleToWriter')->willReturnCallback(
+			function (string $owner, string $writer, ?int $categoryId, array $kept = []): void {
+				if ($categoryId !== null && $writer !== $owner && !in_array($categoryId, $kept, true) && $categoryId >= 16) {
+					throw new \InvalidArgumentException('Category not found');
+				}
+			}
+		);
+		return new BillController($this->request, $this->service, $this->validationService, $shares,
+			$this->createMock(\OCA\Budget\Service\Bill\BillSuggestionService::class), $this->upcomingBills,
+			$this->l, 'user1', $this->logger);
+	}
+
+	private function owensBill(?int $categoryId, ?array $splitTemplate = null): \OCA\Budget\Db\Bill {
+		$bill = new \OCA\Budget\Db\Bill();
+		$bill->setId(5);
+		$bill->setUserId('owen');
+		$bill->setAccountId(4);
+		$bill->setAmount(20.0);
+		$bill->setIsTransfer(false);
+		$bill->setCategoryId($categoryId);
+		if ($splitTemplate !== null) {
+			$bill->setSplitTemplate(json_encode($splitTemplate));
+		}
+		return $bill;
+	}
+
+	public function testARecipientCannotFileTheOwnersBillUnderAnUnsharedCategory(): void {
+		$this->service->method('find')->willReturn($this->owensBill(null));
+		$this->mockInput(json_encode(['categoryId' => 16]));
+		$this->service->expects($this->never())->method('update');
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $this->controllerForAWriteRecipient()->update(5)->getStatus());
+	}
+
+	public function testABillKeepsTheUnsharedCategoryItAlreadyHas(): void {
+		$this->service->method('find')->willReturn($this->owensBill(16));
+		$this->mockInput(json_encode(['name' => 'Gym', 'categoryId' => 16]));
+		$this->service->expects($this->once())->method('update')->willReturn(new \OCA\Budget\Db\Bill());
+
+		$this->assertSame(Http::STATUS_OK, $this->controllerForAWriteRecipient()->update(5)->getStatus());
+	}
+
+	public function testARecipientsSplitTemplateCannotUseAnUnsharedCategory(): void {
+		$this->service->method('find')->willReturn($this->owensBill(null));
+		$this->mockInput(json_encode(['splitTemplate' => [['categoryId' => 16, 'amount' => 10], ['categoryId' => 2, 'amount' => 10]]]));
+		$this->service->expects($this->never())->method('update');
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $this->controllerForAWriteRecipient()->update(5)->getStatus());
+	}
+
+	public function testASplitTemplateKeepsTheUnsharedCategoriesItHas(): void {
+		$this->service->method('find')->willReturn($this->owensBill(null, [['categoryId' => 16, 'amount' => 10], ['categoryId' => 2, 'amount' => 10]]));
+		$this->mockInput(json_encode(['splitTemplate' => [['categoryId' => 16, 'amount' => 12], ['categoryId' => 2, 'amount' => 8]]]));
+		$this->service->expects($this->once())->method('update')->willReturn(new \OCA\Budget\Db\Bill());
+
+		$this->assertSame(Http::STATUS_OK, $this->controllerForAWriteRecipient()->update(5)->getStatus());
+	}
+
+	public function testABillCannotTakeATagItsCreatorCannotSee(): void {
+		// Any id was stored, then read back with its name off the payments
+		$this->mockInput(json_encode(['name' => 'Gym', 'amount' => 30, 'tagIds' => [3, 42]]));
+		$this->service->expects($this->never())->method('create');
+
+		$response = $this->controllerCheckingTags()->create();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Invalid tag ID', $response->getData()['error']);
+	}
+
+	public function testABillOnAnotherUsersAccountNeedsTagsTheyCanUse(): void {
+		// The payments are booked into Alice's ledger with the bill's tags
+		$this->mockInput(json_encode(['name' => 'Gym', 'amount' => 30, 'accountId' => 4, 'tagIds' => [3]]));
+		$this->service->expects($this->never())->method('create');
+
+		$response = $this->controllerCheckingTags()->create();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertStringContainsString('cannot see one of the tags', $response->getData()['error']);
+	}
+
+	public function testABillOnAnotherUsersAccountMayUseTagsSharedWithThem(): void {
+		$this->mockInput(json_encode(['name' => 'Gym', 'amount' => 30, 'accountId' => 4, 'tagIds' => [8]]));
+		$this->service->expects($this->once())->method('create')->willReturn(new \OCA\Budget\Db\Bill());
+
+		$response = $this->controllerCheckingTags()->create();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+	}
+
+	public function testAnEditChecksOnlyTheTagsNewToTheBill(): void {
+		// 42 is already on the bill (an old id user1 can't see): it may stay
+		$this->service->method('find')->willReturn($this->storedBillWithTags([42]));
+		$this->mockInput(json_encode(['tagIds' => [42, 3]]));
+		$this->service->expects($this->once())->method('update')->willReturn(new \OCA\Budget\Db\Bill());
+
+		$response = $this->controllerCheckingTags('user1', $checks)->update(5);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame([['user1', [3]]], $checks);
+	}
+
+	public function testARecipientCannotPutHerOwnTagOnTheOwnersBill(): void {
+		// Bill 5 is owen's, shared with user1 to write: user1's tag 3 is
+		// hers alone, so owen's payments would carry it into his ledger
+		$this->service->method('find')->willReturn($this->storedBillWithTags([]));
+		$this->mockInput(json_encode(['tagIds' => [3]]));
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controllerCheckingTags('owen')->update(5);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	public function testARecipientMayUseATagTheyBothSee(): void {
+		$this->service->method('find')->willReturn($this->storedBillWithTags([]));
+		$this->mockInput(json_encode(['tagIds' => [6]]));
+		$this->service->expects($this->once())->method('update')->willReturn(new \OCA\Budget\Db\Bill());
+
+		$response = $this->controllerCheckingTags('owen', $checks)->update(5);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame([['user1', [6]], ['owen', [6]]], $checks);
+	}
+
+	public function testARecipientsSaveKeepsTheOwnersTagsSheCannotSee(): void {
+		// Bill 5 is owen's; 42 is his own tag, which user1's form never
+		// shows, so saving it sent only her ticked tags and dropped 42
+		$this->service->method('find')->willReturn($this->storedBillWithTags([42, 6]));
+		$this->mockInput(json_encode(['name' => 'Phone', 'tagIds' => [7]]));
+		$this->service->expects($this->once())->method('update')
+			->with(5, 'owen', $this->callback(fn (array $updates) => json_decode($updates['tagIds'], true) === [7, 42]))
+			->willReturn(new \OCA\Budget\Db\Bill());
+
+		$response = $this->controllerCheckingTags('owen')->update(5);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testARecipientClearingTheTagsOnlyClearsTheOnesSheCanSee(): void {
+		$this->service->method('find')->willReturn($this->storedBillWithTags([42, 6]));
+		$this->mockInput(json_encode(['tagIds' => []]));
+		$this->service->expects($this->once())->method('update')
+			->with(5, 'owen', $this->callback(fn (array $updates) => json_decode($updates['tagIds'], true) === [42]))
+			->willReturn(new \OCA\Budget\Db\Bill());
+
+		$response = $this->controllerCheckingTags('owen')->update(5);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testTheOwnerStillReplacesAllOfTheBillsTags(): void {
+		// An old id even the owner can't use goes when they save without it
+		$this->service->method('find')->willReturn($this->storedBillWithTags([42, 6]));
+		$this->mockInput(json_encode(['tagIds' => [7]]));
+		$this->service->expects($this->once())->method('update')
+			->with(5, 'user1', $this->callback(fn (array $updates) => json_decode($updates['tagIds'], true) === [7]))
+			->willReturn(new \OCA\Budget\Db\Bill());
+
+		$response = $this->controllerCheckingTags()->update(5);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testMovingATaggedBillOntoAnotherUsersAccountChecksItsTags(): void {
+		$this->service->method('find')->willReturn($this->storedBillWithTags([3], 2));
+		$this->mockInput(json_encode(['accountId' => 4]));
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controllerCheckingTags()->update(5);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertStringContainsString('cannot see one of the tags', $response->getData()['error']);
+	}
+
 	public function testIndexFiltersSharedRowsLikeOwnOnes(): void {
 		// Shared rows were merged in unfiltered: shared transfers showed on
 		// the Bills page, shared bills on Transfers, ended ones everywhere
@@ -1694,6 +1916,31 @@ class BillControllerTest extends TestCase {
 		$this->controller->statusForMonth();
 	}
 
+	/**
+	 * month=9 reached date('Y-m-t', strtotime('9-01')): strtotime gave false,
+	 * date() threw a TypeError the catch (\Exception) let through, and the
+	 * request answered 500.
+	 */
+	public function testStatusForAMalformedMonthIsABadRequest(): void {
+		$this->service->expects($this->never())->method('getBillStatusForMonth');
+
+		foreach (['9', '2026-9', '2026-13', '2026-00', 'abc', '2026-09-01'] as $month) {
+			$response = $this->controller->statusForMonth($month);
+
+			$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus(), $month);
+			$this->assertSame(['error' => 'Invalid month format. Use YYYY-MM'], $response->getData());
+		}
+	}
+
+	public function testStatusForAnEmptyMonthIsTheCurrentOne(): void {
+		$this->service->expects($this->once())
+			->method('getBillStatusForMonth')
+			->with('user1', $this->identicalTo(null))
+			->willReturn([]);
+
+		$this->assertSame(Http::STATUS_OK, $this->controller->statusForMonth('')->getStatus());
+	}
+
 	// ── detect ──────────────────────────────────────────────────────
 
 	public function testDetectReturnsDetectedBills(): void {
@@ -2157,6 +2404,9 @@ class BillControllerTest extends TestCase {
 	private function controllerOwnedBy(?string $owner, bool $canWrite = true, bool $canManage = false): BillController {
 		$granularShareService = $this->createMock(GranularShareService::class);
 		$granularShareService->method('canAccess')->willReturn($owner !== null);
+		$granularShareService->method('withCategoryNames')->willReturnCallback(
+			fn (array $items) => array_map(fn (array $item) => $item + ['categoryName' => 'Name of ' . ($item['categoryId'] ?? 'none')], $items)
+		);
 		$granularShareService->method('resolveOwner')->willReturn($owner);
 		$granularShareService->method('canWrite')->willReturn($canWrite);
 		$granularShareService->method('canManage')->willReturn($canManage);
@@ -2191,6 +2441,22 @@ class BillControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 		$this->assertTrue($response->getData()['_shared']);
 		$this->assertTrue($response->getData()['_canWrite']);
+	}
+
+	public function testShowNamesASharedBillsCategory(): void {
+		// The edit form reads the bill from here: a category the owner
+		// didn't share with the user is named, as in the bills list
+		$bill = new Bill();
+		$bill->setId(7);
+		$bill->setCategoryId(30);
+		$this->service->method('find')->with(7, 'owner1')->willReturn($bill);
+		$this->service->method('enrichBillsWithCurrency')->willReturnArgument(0);
+
+		$data = $this->controllerOwnedBy('owner1')->show(7)->getData();
+
+		$this->assertSame('Name of 30', $data['categoryName']);
+		$this->assertSame(30, $data['categoryId']);
+		$this->assertTrue($data['_shared']);
 	}
 
 	public function testShowDoesNotFlagAnOwnBillAsShared(): void {
@@ -2394,6 +2660,219 @@ class BillControllerTest extends TestCase {
 		$response = $this->controllerWritingTo([1, 2])->update(7);
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	/**
+	 * Rita has write on Owen's bill 7 and on his joint account 1; she can also
+	 * post to her own account 9, which Owen can't.
+	 */
+	private function controllerForRitaOnOwensBill(): BillController {
+		$writable = ['rita' => [1, 9], 'owen' => [1, 2]];
+		$shares = $this->createMock(GranularShareService::class);
+		$shares->method('canAccess')->willReturn(true);
+		$shares->method('resolveOwner')->willReturn('owen');
+		$shares->method('canWrite')->willReturnCallback(
+			fn (string $user, string $type, int $id) => $type !== 'account' || in_array($id, $writable[$user] ?? [], true)
+		);
+		$shares->method('requireWriteAccess')->willReturnCallback(function (string $user, string $type, int $id) use ($writable): void {
+			if ($type === 'account' && !in_array($id, $writable[$user] ?? [], true)) {
+				throw new \OCA\Budget\Exception\ReadOnlyShareException();
+			}
+		});
+		return new BillController(
+			$this->request, $this->service, $this->validationService, $shares,
+			$this->createMock(\OCA\Budget\Service\Bill\BillSuggestionService::class),
+			$this->createMock(\OCA\Budget\Service\UpcomingBillsService::class),
+			$this->l, 'rita', $this->logger
+		);
+	}
+
+	public function testARecipientCannotMoveTheOwnersBillOntoAnAccountOnlySheCanUse(): void {
+		// Owen could no longer pay his own bill
+		$this->mockInput(json_encode(['accountId' => 9]));
+		$stored = new Bill();
+		$stored->setUserId('owen');
+		$stored->setAccountId(1);
+		$this->service->method('find')->willReturn($stored);
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controllerForRitaOnOwensBill()->update(7);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame("The owner of this bill can't use that account. Choose another one.", $response->getData()['error']);
+	}
+
+	public function testARecipientCannotPointTheOwnersTransferIntoAnAccountOnlySheCanUse(): void {
+		$this->mockInput(json_encode(['destinationAccountId' => 9]));
+		$stored = new Bill();
+		$stored->setUserId('owen');
+		$stored->setAccountId(1);
+		$stored->setIsTransfer(true);
+		$stored->setDestinationAccountId(2);
+		$this->service->method('find')->willReturn($stored);
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controllerForRitaOnOwensBill()->update(7);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	public function testARecipientMayMoveTheOwnersBillToAnAccountTheyBothUse(): void {
+		$this->mockInput(json_encode(['accountId' => 1]));
+		$stored = new Bill();
+		$stored->setUserId('owen');
+		$stored->setAccountId(null);
+		$this->service->method('find')->willReturn($stored);
+		$this->service->expects($this->once())->method('update')->with(7, 'owen', ['accountId' => 1])->willReturn(new Bill());
+
+		$response = $this->controllerForRitaOnOwensBill()->update(7);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	/**
+	 * Owen's transfer bill 7 pays his card 2, which Rita (write on the bill)
+	 * can't see. A dynamic amount is read off the card, so switching to one
+	 * showed her the card's balance as the bill's amount.
+	 */
+	private function owensCardPayment(): Bill {
+		$stored = new Bill();
+		$stored->setUserId('owen');
+		$stored->setAccountId(1);
+		$stored->setIsTransfer(true);
+		$stored->setDestinationAccountId(2);
+		$stored->setAmountType('fixed');
+		return $stored;
+	}
+
+	private function controllerSeeing(string $user, array $visibleAccounts): BillController {
+		$shares = $this->createMock(GranularShareService::class);
+		$shares->method('resolveOwner')->willReturn('owen');
+		$shares->method('canWrite')->willReturn(true);
+		$shares->method('canAccess')->willReturnCallback(
+			fn (string $u, string $type, int $id) => $type !== 'account' || in_array($id, $visibleAccounts, true)
+		);
+		return new BillController(
+			$this->request, $this->service, $this->validationService, $shares,
+			$this->createMock(\OCA\Budget\Service\Bill\BillSuggestionService::class),
+			$this->createMock(\OCA\Budget\Service\UpcomingBillsService::class),
+			$this->l, $user, $this->logger
+		);
+	}
+
+	public function testARecipientCannotReadAnUnsharedCardThroughADynamicAmount(): void {
+		$this->mockInput(json_encode(['amountType' => 'current_balance']));
+		$this->service->method('find')->willReturn($this->owensCardPayment());
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controllerSeeing('rita', [1])->update(7);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame("This amount is read from an account that isn't shared with you. Choose a fixed amount.", $response->getData()['error']);
+	}
+
+	public function testADynamicAmountIsFineForSomeoneWhoSeesTheCard(): void {
+		$this->mockInput(json_encode(['amountType' => 'current_balance']));
+		$this->service->method('find')->willReturn($this->owensCardPayment());
+		$this->service->expects($this->once())->method('update')->willReturn(new Bill());
+
+		$this->assertSame(Http::STATUS_OK, $this->controllerSeeing('rita', [1, 2])->update(7)->getStatus());
+	}
+
+	public function testAnUnchangedDynamicAmountKeepsSaving(): void {
+		// Owen set it; Rita's form sends it back with her other edits
+		$stored = $this->owensCardPayment();
+		$stored->setAmountType('current_balance');
+		$this->mockInput(json_encode(['name' => 'Card', 'amountType' => 'current_balance']));
+		$this->service->method('find')->willReturn($stored);
+		$this->service->expects($this->once())->method('update')->willReturn(new Bill());
+
+		$this->assertSame(Http::STATUS_OK, $this->controllerSeeing('rita', [1])->update(7)->getStatus());
+	}
+
+	/**
+	 * Wendy has write on Owen's bills, not on his private account 2 (hidden
+	 * from her) or his savings 3 (read-only to her). His joint account 1 is
+	 * hers to write to.
+	 */
+	private function controllerForWendy(Bill $owensBill): BillController {
+		$writable = ['wendy' => [1], 'owen' => [1, 2, 3]];
+		$shares = $this->createMock(GranularShareService::class);
+		$shares->method('canAccess')->willReturn(true);
+		$shares->method('resolveOwner')->willReturn('owen');
+		$shares->method('canWrite')->willReturnCallback(
+			fn (string $user, string $type, int $id) => $type !== 'account' || in_array($id, $writable[$user] ?? [], true)
+		);
+		$shares->method('requireWriteAccess')->willReturnCallback(function (string $user, string $type, int $id) use ($writable): void {
+			if ($type === 'account' && !in_array($id, $writable[$user] ?? [], true)) {
+				throw new \OCA\Budget\Exception\ReadOnlyShareException();
+			}
+		});
+		$this->service->method('find')->willReturn($owensBill);
+		$this->request->method('getParams')->willReturn(['recordPayment' => true, 'previousNextDueDate' => '2026-09-15']);
+		return new BillController(
+			$this->request, $this->service, $this->validationService, $shares,
+			$this->createMock(\OCA\Budget\Service\Bill\BillSuggestionService::class),
+			$this->createMock(\OCA\Budget\Service\UpcomingBillsService::class),
+			$this->l, 'wendy', $this->logger
+		);
+	}
+
+	private function owensBillOnAccount(?int $accountId, ?int $destinationId = null): Bill {
+		$bill = new Bill();
+		$bill->setUserId('owen');
+		$bill->setAccountId($accountId);
+		$bill->setIsTransfer($destinationId !== null);
+		$bill->setDestinationAccountId($destinationId);
+		return $bill;
+	}
+
+	public static function paymentActions(): array {
+		return [
+			'mark paid' => ['markPaid', fn (BillController $c) => $c->markPaid(7)],
+			'undo paid' => ['markUnpaid', fn (BillController $c) => $c->undoPaid(7)],
+			'mark unpaid' => ['markUnpaid', fn (BillController $c) => $c->markUnpaid(7)],
+			'skip' => ['skipPayment', fn (BillController $c) => $c->skipPayment(7)],
+			'undo skip' => ['undoSkip', fn (BillController $c) => $c->undoSkip(7)],
+			'record missed payment' => ['recordMissedPayment', fn (BillController $c) => $c->recordMissedPayment(7)],
+		];
+	}
+
+	/**
+	 * Each of these books into, or deletes from, the bill's account. A write
+	 * share of the bill alone let a recipient pay it into an account hidden
+	 * from her, or read-only to her.
+	 */
+	#[\PHPUnit\Framework\Attributes\DataProvider('paymentActions')]
+	public function testPayingNeedsWriteOnTheBillsAccountNotJustTheBill(string $serviceMethod, \Closure $call): void {
+		$this->service->expects($this->never())->method($serviceMethod);
+
+		$hidden = $call($this->controllerForWendy($this->owensBillOnAccount(2)));
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $hidden->getStatus());
+		$this->assertSame('This shared item is read-only', $hidden->getData()['error']);
+	}
+
+	#[\PHPUnit\Framework\Attributes\DataProvider('paymentActions')]
+	public function testPayingNeedsWriteOnATransfersDestinationToo(string $serviceMethod, \Closure $call): void {
+		$this->service->expects($this->never())->method($serviceMethod);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $call($this->controllerForWendy($this->owensBillOnAccount(1, 3)))->getStatus());
+	}
+
+	#[\PHPUnit\Framework\Attributes\DataProvider('paymentActions')]
+	public function testPayingAnAccountTheRecipientCanWriteToStillWorks(string $serviceMethod, \Closure $call): void {
+		$this->service->expects($this->once())->method($serviceMethod)->willReturn(
+			in_array($serviceMethod, ['markUnpaid', 'undoSkip'], true) ? new Bill() : []
+		);
+
+		$this->assertSame(Http::STATUS_OK, $call($this->controllerForWendy($this->owensBillOnAccount(1)))->getStatus());
+	}
+
+	public function testABillWithNoAccountIsPaidOnTheBillsShareAlone(): void {
+		$this->service->expects($this->once())->method('markPaid')->willReturn([]);
+
+		$this->assertSame(Http::STATUS_OK, $this->controllerForWendy($this->owensBillOnAccount(null))->markPaid(7)->getStatus());
 	}
 
 	public function testCreateFromDetectedRefusesAnAccountTheUserCannotPostTo(): void {

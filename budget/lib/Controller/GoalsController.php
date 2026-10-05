@@ -182,6 +182,8 @@ class GoalsController extends Controller {
 				$color = $colorValidation['sanitized'];
 			}
 
+			$this->requireUsableLinks($this->userId, $tagId, $accountId);
+
 			$goal = $this->service->create(
 				$this->getEffectiveUserId(),
 				$name,
@@ -195,8 +197,36 @@ class GoalsController extends Controller {
 				$color
 			);
 			return new DataResponse($goal, Http::STATUS_CREATED);
+		} catch (\InvalidArgumentException $e) {
+			return $this->handleValidationError($e);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to create goal'));
+		}
+	}
+
+	/**
+	 * A goal's tag and account decide what it adds up: the tag's
+	 * transactions in its owner's ledger, held to the account when one is
+	 * set. Both were stored unchecked, so someone with write access to a
+	 * shared goal could point it at a tag or account of the owner's that
+	 * was never shared with them and read the total back (T4-5). Each must
+	 * be one the person setting it can see and the goal's owner can use.
+	 *
+	 * @throws \InvalidArgumentException
+	 */
+	private function requireUsableLinks(string $goalOwner, ?int $tagId, ?int $accountId): void {
+		if ($tagId !== null) {
+			$this->granularShareService->requireUsableTags($this->userId, [$tagId]);
+			if ($goalOwner !== $this->userId) {
+				$this->granularShareService->requireUsableTags($goalOwner, [$tagId]);
+			}
+		}
+		if ($accountId !== null) {
+			foreach (array_unique([$this->userId, $goalOwner]) as $user) {
+				if (!in_array($accountId, $this->granularShareService->getVisibleAccountIds($user), true)) {
+					throw new \InvalidArgumentException($this->l->t('Invalid account ID'));
+				}
+			}
 		}
 	}
 
@@ -289,6 +319,32 @@ class GoalsController extends Controller {
 			$owner = $this->granularShareService->resolveOwner($this->userId, 'savings_goal', $id)
 				?? $this->userId;
 
+			if ($updateTagId || $updateAccountId) {
+				$stored = $this->service->find($id, $owner);
+				// The edit form can't show a link its user can't see, so it
+				// sends it back empty, and someone else's save unlinked the
+				// owner's goal. A link the editor can't see stays as it is.
+				if ($owner !== $this->userId) {
+					$storedTagId = $stored->getTagId();
+					if ($storedTagId !== null
+						&& $this->granularShareService->getUsableTagIds($this->userId, [$storedTagId]) === []) {
+						$updateTagId = false;
+					}
+					$storedAccountId = $stored->getAccountId();
+					if ($storedAccountId !== null
+						&& !in_array($storedAccountId, $this->granularShareService->getVisibleAccountIds($this->userId), true)) {
+						$updateAccountId = false;
+					}
+				}
+				// Only a tag or account that changes is checked: the edit
+				// form sends back what is stored
+				$this->requireUsableLinks(
+					$owner,
+					$updateTagId && $tagId !== $stored->getTagId() ? $tagId : null,
+					$updateAccountId && $accountId !== $stored->getAccountId() ? $accountId : null
+				);
+			}
+
 			$goal = $this->service->update(
 				$id,
 				$owner,
@@ -305,6 +361,8 @@ class GoalsController extends Controller {
 				$color
 			);
 			return new DataResponse($goal);
+		} catch (\InvalidArgumentException $e) {
+			return $this->handleValidationError($e);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to update goal'), Http::STATUS_BAD_REQUEST, ['goalId' => $id]);
 		}

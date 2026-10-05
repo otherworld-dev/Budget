@@ -38,6 +38,8 @@ class RecurringIncomeLifecycleTest extends TestCase {
 	/** @var array<int, Transaction> */
 	private array $rows = [];
 	private bool $accountWritable = true;
+	/** @var string[]|null who can write to the income's account; null = $accountWritable for everyone */
+	private ?array $writers = null;
 
 	protected function setUp(): void {
 		$this->mapper = $this->createMock(RecurringIncomeMapper::class);
@@ -72,7 +74,9 @@ class RecurringIncomeLifecycleTest extends TestCase {
 		$clock = $this->createMock(UserClock::class);
 		$clock->method('today')->willReturn(self::TODAY);
 		$this->shares = $this->createMock(GranularShareService::class);
-		$this->shares->method('canWrite')->willReturnCallback(fn () => $this->accountWritable);
+		$this->shares->method('canWrite')->willReturnCallback(
+			fn (string $user) => $this->writers === null ? $this->accountWritable : in_array($user, $this->writers, true)
+		);
 
 		$l = $this->createMock(IL10N::class);
 		$l->method('t')->willReturnArgument(0);
@@ -227,6 +231,55 @@ class RecurringIncomeLifecycleTest extends TestCase {
 		$this->service->markReceived(1, 'user1', self::TODAY, true);
 	}
 
+	/**
+	 * Wendy has write on user1's income, not on the account it is paid into.
+	 * A share of the income alone let her book into that account, and delete
+	 * from it again by undoing.
+	 */
+	public function testARecipientCannotReceiveIntoAnAccountSheCannotWriteTo(): void {
+		$this->writers = ['user1'];
+		$this->income([]);
+
+		try {
+			$this->service->markReceived(1, 'user1', self::TODAY, true, null, 'wendy');
+			$this->fail('expected a refusal');
+		} catch (\OCA\Budget\Exception\ReadOnlyShareException $e) {
+			$this->assertSame([], $this->booked);
+			$this->assertSame('2026-10-03', $this->stored->getNextExpectedDate());
+		}
+	}
+
+	public function testARecipientMayMarkReceivedWithoutBookingAnything(): void {
+		$this->writers = ['user1'];
+		$this->income([]);
+
+		$income = $this->service->markReceived(1, 'user1', self::TODAY, false, null, 'wendy');
+
+		$this->assertSame([], $this->booked);
+		$this->assertSame('2026-11-03', $income->getNextExpectedDate());
+	}
+
+	public function testARecipientCannotUndoAReceiptThatBookedIntoAnAccountSheCannotWriteTo(): void {
+		$this->writers = ['user1'];
+		$this->income([]);
+		$this->service->markReceived(1, 'user1', self::TODAY, true, null, 'user1');
+		$this->transactions->expects($this->never())->method('deleteAsAccountOwner');
+
+		$this->expectException(\OCA\Budget\Exception\ReadOnlyShareException::class);
+		$this->service->markUnreceived(1, 'user1', 'wendy');
+	}
+
+	public function testARecipientWhoCanWriteToTheAccountReceivesAndUndoes(): void {
+		$this->writers = ['user1', 'wendy'];
+		$this->income([]);
+		$this->transactions->expects($this->once())->method('deleteAsAccountOwner');
+
+		$this->service->markReceived(1, 'user1', self::TODAY, true, null, 'wendy');
+		$this->service->markUnreceived(1, 'user1', 'wendy');
+
+		$this->assertCount(1, $this->booked);
+	}
+
 	// ── auto-create ─────────────────────────────────────────────────
 
 	public function testAutoCreateBooksAOneTimeIncomeOnce(): void {
@@ -250,6 +303,28 @@ class RecurringIncomeLifecycleTest extends TestCase {
 		$this->assertSame('2026-10-03', $this->stored->getNextExpectedDate());
 	}
 
+	public function testAutoCreateBooksAMonthSavedBefore30Once(): void {
+		// 2.54.0 saved an income with no expected day on the 1st. Auto-create
+		// booked 1 August and 20 August, then 20 September
+		$income = $this->income(['nextExpectedDate' => '2026-08-01', 'autoCreateEnabled' => true, 'startDate' => '2026-03-20']);
+		$income->setExpectedDay(null);
+
+		$this->service->processAutoCreate(1, 'user1');
+
+		$this->assertSame(['2026-08-01', '2026-09-20'], array_column($this->booked, 'date'));
+		$this->assertSame('2026-10-20', $this->stored->getNextExpectedDate());
+	}
+
+	public function testReceivingAYearSavedBefore30SettlesThatYear(): void {
+		// No day or month: 2.54.0 expected it on 1 January
+		$income = $this->income(['frequency' => 'yearly', 'nextExpectedDate' => '2027-01-01', 'startDate' => '2025-04-06']);
+		$income->setExpectedDay(null);
+
+		$this->service->markReceived(1, 'user1', self::TODAY);
+
+		$this->assertSame('2028-04-06', $this->stored->getNextExpectedDate());
+	}
+
 	public function testAutoCreateThatCannotBookSwitchesItselfOff(): void {
 		// A missing account failed and notified every six hours, forever
 		$this->income(['nextExpectedDate' => '2026-09-03', 'autoCreateEnabled' => true, 'accountId' => null]);
@@ -257,7 +332,20 @@ class RecurringIncomeLifecycleTest extends TestCase {
 		$result = $this->service->processAutoCreate(1, 'user1');
 
 		$this->assertFalse($result['success']);
+		$this->assertTrue($result['disabled']);
 		$this->assertFalse($this->stored->getAutoCreateEnabled());
+	}
+
+	public function testAutoCreateWithNothingDueIsNotAFailure(): void {
+		// Another run booked it first: the job reported "Nothing due" as a
+		// failed auto-create
+		$this->income(['nextExpectedDate' => '2026-10-03', 'autoCreateEnabled' => true]);
+
+		$result = $this->service->processAutoCreate(1, 'user1');
+
+		$this->assertFalse($result['success']);
+		$this->assertFalse($result['disabled']);
+		$this->assertTrue($this->stored->getAutoCreateEnabled());
 	}
 
 	// ── imported credits ────────────────────────────────────────────
@@ -271,6 +359,7 @@ class RecurringIncomeLifecycleTest extends TestCase {
 		$tx->setDate($fields['date'] ?? '2026-10-02');
 		$tx->setAmount($fields['amount'] ?? 14.90);
 		$tx->setDescription($fields['description'] ?? 'SWISSCOM REFUND 1234');
+		$this->rows[$tx->getId()] = $tx;
 		return $tx;
 	}
 
@@ -298,12 +387,48 @@ class RecurringIncomeLifecycleTest extends TestCase {
 		$generated = $this->bankCredit(['id' => 300, 'date' => '2026-09-03', 'description' => '']);
 		$generated->setNotes('Auto-generated from income: Salary');
 		$this->transactions->method('findGeneratedIncomeCredits')->willReturn([$generated]);
-		$this->transactions->expects($this->once())->method('deleteAsAccountOwner')->with(300);
+		$bank = $this->bankCredit(['date' => '2026-09-04']);
+		// What the user added to the app's credit goes to the bank's row
+		$this->transactions->expects($this->once())->method('replaceBookedRow')->with($generated, $bank, 'Auto-generated from income: Salary');
 
-		$matched = $this->service->autoMatchReceivedFromImport('user1', [$this->bankCredit(['date' => '2026-09-04'])]);
+		$matched = $this->service->autoMatchReceivedFromImport('user1', [$bank]);
 
 		$this->assertSame(1, $matched);
 		$this->assertSame('2026-10-03', $this->stored->getNextExpectedDate(), 'Not received a second time');
+	}
+
+	public function testANewestFirstStatementStillReplacesTheOlderCredit(): void {
+		// Last week's pay was marked received and its credit booked; the
+		// statement lists this week's first, which was taken for the next
+		// payment and moved the income past the one the older row is
+		$income = $this->income(['frequency' => 'weekly', 'nextExpectedDate' => '2026-10-02', 'lastReceivedDate' => '2026-09-25']);
+		$income->setAutoDetectPattern('SWISSCOM');
+		$this->mapper->method('findActive')->willReturnCallback(fn () => [$this->stored]);
+		$generated = $this->bankCredit(['id' => 300, 'date' => '2026-09-25', 'description' => '']);
+		$generated->setNotes('Auto-generated from income: Salary');
+		$this->transactions->method('findGeneratedIncomeCredits')->willReturnCallback(
+			fn (int $account, string $from, string $to) => $from <= '2026-09-25' && $to >= '2026-09-25' ? [$generated] : []
+		);
+		$older = $this->bankCredit(['id' => 901, 'date' => '2026-09-25']);
+		$newer = $this->bankCredit(['id' => 902, 'date' => '2026-10-02']);
+		$this->transactions->expects($this->once())->method('replaceBookedRow')->with($generated, $older);
+
+		$this->assertSame(2, $this->service->autoMatchReceivedFromImport('user1', [$newer, $older]));
+
+		$this->assertSame('2026-10-02', $this->stored->getLastReceivedDate());
+	}
+
+	public function testACreditAlreadyTakenAsATransfersArrivalIsNotIncome(): void {
+		$income = $this->income(['nextExpectedDate' => '2026-10-03']);
+		$income->setAutoDetectPattern('SWISSCOM');
+		$this->mapper->method('findActive')->willReturnCallback(fn () => [$this->stored]);
+		$imported = $this->bankCredit([]);
+		$taken = clone $imported;
+		$taken->setBillId(12);
+		$this->rows[900] = $taken;
+
+		$this->assertSame(0, $this->service->autoMatchReceivedFromImport('user1', [$imported]));
+		$this->assertSame('2026-10-03', $this->stored->getNextExpectedDate());
 	}
 
 	public function testAnImportedCreditThatDoesNotFitIsLeftAlone(): void {

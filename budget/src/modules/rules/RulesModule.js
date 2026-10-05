@@ -6,10 +6,18 @@ import * as dom from '../../utils/dom.js';
 import { CriteriaBuilder, patternText } from './components/CriteriaBuilder.js';
 import { ActionBuilder } from './components/ActionBuilder.js';
 import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
+import { once } from '../../utils/submitGuard.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import { showLoadError } from '../../utils/loading.js';
 import { apiFetch } from '../../utils/api.js';
+
+/**
+ * Priority a new rule starts at: above the 0 that the rules "Create default
+ * categories" adds get (ImportRuleService::DEFAULT_RULE_PRIORITY), so a rule
+ * the user makes outranks them. 0 is the lowest the form accepts.
+ */
+export const NEW_RULE_PRIORITY = 1;
 
 export default class RulesModule {
     constructor(app) {
@@ -782,6 +790,10 @@ export default class RulesModule {
         } else {
             // New rule - use v2 format with empty criteria
             title.textContent = t('budget', 'Add Rule');
+            // One above the rules "Create default categories" adds (0), so
+            // a rule the user makes wins when both match. An existing rule
+            // keeps its own priority, 0 included.
+            document.getElementById('rule-priority').value = String(NEW_RULE_PRIORITY);
             if (v1Section) v1Section.style.display = 'none';
             if (v2Section) v2Section.style.display = 'block';
             this.initializeCriteriaBuilder(null);
@@ -837,11 +849,13 @@ export default class RulesModule {
             tagSetsWithGlobal.unshift({ id: 'global', name: t('budget', 'Tags'), tags: globalTags });
         }
 
-        // Create new ActionBuilder instance with app data
+        // Create new ActionBuilder instance with app data. Set Account may
+        // only name the rule owner's own accounts (a new rule is yours).
         this.actionBuilder = new ActionBuilder(container, initialActions, {
             categories: this.categories,
             categoryTree: this.app.categoryTree,
             accounts: this.accounts,
+            accountOwner: this.currentRule?.userId || null,
             tagSets: tagSetsWithGlobal
         });
     }
@@ -1187,7 +1201,12 @@ export default class RulesModule {
         previewSection.style.display = 'block';
     }
 
-    async saveRule() {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveRule() {
+        return once('rule-save', document.querySelector('#rule-form [type="submit"]'), () => this._saveRule());
+    }
+
+    async _saveRule() {
         const ruleId = document.getElementById('rule-id').value;
         const isEdit = !!ruleId;
 

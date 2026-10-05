@@ -13,9 +13,10 @@ import { apiFetch } from '../../utils/api.js';
 import { isoWeekday } from '../../utils/helpers.js';
 import { showMatchingTransactionDialog } from '../../utils/matchingDialog.js';
 import { offerableTags, offerableTagSets } from '../../utils/tags.js';
-import { pickableAccounts, accountOptionLabel, selectAccountValue, accountCurrency } from '../../utils/accounts.js';
+import { pickableAccounts, accountOptionLabel, selectAccountValue, accountCurrency, linkableCandidates, billAccountsWritable } from '../../utils/accounts.js';
 import { showLoadError } from '../../utils/loading.js';
 import { requestMarkUnpaid } from '../../utils/billUnpaid.js';
+import { unavailableCategoryLabel } from '../../utils/formSelects.js';
 
 export default class BillsModule {
     constructor(app) {
@@ -98,23 +99,30 @@ export default class BillsModule {
             const countBadge = document.getElementById('unrecorded-payments-count');
             if (countBadge) countBadge.textContent = String(data.count);
 
-            list.innerHTML = items.map(item => `
+            list.innerHTML = items.map(item => {
+                // Recording or reverting writes into the bill's accounts
+                // (a transfer's destination too): only into ones you can
+                // still write. Dismiss only notes it on your side.
+                const writable = this.accounts === undefined || billAccountsWritable(item, this.accounts);
+                return `
                 <div class="unrecorded-payment-row">
                     <div class="bill-suggestion-info">
                         <strong>${dom.escapeHtml(item.name)}</strong>
                         <span class="bill-suggestion-meta">${t('budget', 'Marked paid on {date}', { date: formatters.formatDate(item.lastPaidDate, this.settings) })} &middot; ${formatters.formatCurrency(item.amount, item.currency, this.settings)}</span>
+                        ${item.accountId && !writable ? `<span class="bill-account-hint">${t('budget', 'This bill uses an account you can no longer change. Edit the bill and choose another account.')}</span>` : ''}
                     </div>
                     <div class="bill-suggestion-actions">
                         ${item.accountId
-                            ? `<button class="primary unrecorded-payment-record" data-bill-id="${item.billId}">${t('budget', 'Record transaction')}</button>`
+                            ? (writable ? `<button class="primary unrecorded-payment-record" data-bill-id="${item.billId}">${t('budget', 'Record transaction')}</button>` : '')
                             : `<button class="unrecorded-payment-assign" data-bill-id="${item.billId}" title="${t('budget', 'One-time bills leave the list after payment — open it here to assign an account')}">${t('budget', 'Assign an account')}</button>`}
-                        ${item.canMarkUnpaid
+                        ${item.canMarkUnpaid && writable
                             ? `<button class="unrecorded-payment-unpaid" data-bill-id="${item.billId}" title="${t('budget', 'Revert the last payment')}">${t('budget', 'Mark Unpaid')}</button>`
                             : ''}
                         <button class="secondary unrecorded-payment-dismiss" data-bill-id="${item.billId}" title="${t('budget', 'Keep the bill as paid and stop listing this payment')}">${t('budget', 'Dismiss')}</button>
                     </div>
                 </div>
-            `).join('');
+            `;
+            }).join('');
 
             list.querySelectorAll('.unrecorded-payment-record').forEach(btn => {
                 btn.addEventListener('click', (e) => this.recordMissedPayment(parseInt(e.currentTarget.dataset.billId)));
@@ -310,7 +318,7 @@ export default class BillsModule {
             // Status, date and actions follow the bill's next occurrence, not
             // the calendar month (#399); an inactive bill only stays in this
             // list to be reverted (#365) and offers nothing to pay
-            const row = billRowState(bill, today, this.settings);
+            const row = billRowState(bill, today, this.settings, this.accounts);
             const statusClass = row.status;
             const statusText = row.statusText;
 
@@ -357,6 +365,7 @@ export default class BillsModule {
                             ${endDate ? `<span class="status-badge badge-extra badge-neutral" title="${t('budget', 'Ends {date}', { date: formatters.formatDate(endDate, this.settings) })}">${t('budget', 'Ends {date}', { date: formatters.formatDate(endDate, this.settings) })}</span>` : ''}
                         </div>
                     </div>
+                    ${row.accountHint ? `<p class="bill-account-hint">${dom.escapeHtml(row.accountHint)}</p>` : ''}
                     <div class="bill-actions">
                         ${row.canPay ? `
                             <button class="bill-action-btn bill-paid-btn" data-bill-id="${bill.id}" title="${t('budget', 'Mark as paid')}">
@@ -370,15 +379,15 @@ export default class BillsModule {
                                 ${t('budget', 'Skip')}
                             </button>
                         ` : ''}
-                        ${bill.canMarkUnpaid ? `
+                        ${row.canUnpay ? `
                             <button class="bill-action-btn bill-unpaid-btn" data-bill-id="${bill.id}" title="${t('budget', 'Revert the last payment')}">
                                 <span class="icon-history" aria-hidden="true"></span>
                                 ${t('budget', 'Mark Unpaid')}
                             </button>
                         ` : ''}
-                        <button class="bill-action-btn bill-edit-btn" data-bill-id="${bill.id}" title="${t('budget', 'Edit bill')}" aria-label="${t('budget', 'Edit bill')}">
+                        ${row.canWrite ? `<button class="bill-action-btn bill-edit-btn" data-bill-id="${bill.id}" title="${t('budget', 'Edit bill')}" aria-label="${t('budget', 'Edit bill')}">
                             <span class="icon-rename" aria-hidden="true"></span>
-                        </button>
+                        </button>` : ''}
                         ${bill._shared && !bill._canManage ? '' : `<button class="bill-action-btn bill-delete-btn" data-bill-id="${bill.id}" title="${t('budget', 'Delete bill')}" aria-label="${t('budget', 'Delete bill')}">
                             <span class="icon-delete" aria-hidden="true"></span>
                         </button>`}
@@ -642,9 +651,11 @@ export default class BillsModule {
             // without its category or pay-from account used to fall back to ""
             // and saveBill sent null — stripping them off the owner's bill
             // (#370). Keep the real id selected instead.
+            // A category not shared with you is named, as the bill came
             this.selectPossiblyUnavailable(
                 document.getElementById('bill-category'),
-                bill.categoryId ?? bill.category_id ?? null
+                bill.categoryId ?? bill.category_id ?? null,
+                bill.categoryName ? unavailableCategoryLabel(bill.categoryName) : null
             );
             // A closed account is offered as "(closed)", not as unavailable (#372)
             const billAccountSelect = document.getElementById('bill-account');
@@ -777,8 +788,9 @@ export default class BillsModule {
      * bill whose category or account was not shared alongside it. Assigning a
      * missing value silently yields "", which saveBill would then submit as
      * null, so add a disabled placeholder carrying the real id (#370).
+     * `label` names it when more is known than "Unavailable".
      */
-    selectPossiblyUnavailable(select, value) {
+    selectPossiblyUnavailable(select, value, label = null) {
         if (!select) return;
         if (value === null || value === undefined || value === '') {
             select.value = '';
@@ -791,7 +803,7 @@ export default class BillsModule {
 
         const option = document.createElement('option');
         option.value = wanted;
-        option.textContent = t('budget', 'Unavailable (not shared with you)');
+        option.textContent = label || t('budget', 'Unavailable (not shared with you)');
         option.disabled = true;
         option.dataset.unavailable = '1';
         select.appendChild(option);
@@ -980,7 +992,12 @@ export default class BillsModule {
         categorySelect.style.cssText = 'flex: 1;';
         categorySelect.innerHTML = `<option value="">${t('budget', 'No category')}</option>`;
         dom.populateCategorySelect(categorySelect, this.categoryTree || this.categories, { typeFilter: 'expense' });
-        if (split?.categoryId) categorySelect.value = split.categoryId;
+        // A shared bill's part may be filed under a category not shared with
+        // you: keep it, named as the bill came, or the save would clear it (#370)
+        if (split?.categoryId) {
+            this.selectPossiblyUnavailable(categorySelect, split.categoryId,
+                split.categoryName ? unavailableCategoryLabel(split.categoryName) : null);
+        }
 
         // Description input
         const descInput = document.createElement('input');
@@ -1247,8 +1264,10 @@ export default class BillsModule {
 
             // Check for existing matching transactions before creating a new one
             if (bill.accountId || bill.account_id) {
-                const candidates = await apiFetch(`/apps/budget/api/bills/${billId}/matching-transactions`)
+                const found = await apiFetch(`/apps/budget/api/bills/${billId}/matching-transactions`)
                     .catch(() => null);
+                // Only rows the payment can be linked to
+                const candidates = found ? linkableCandidates(found, this.accounts) : null;
 
                 if (candidates) {
                     if (candidates.length > 0) {
@@ -1341,10 +1360,17 @@ export default class BillsModule {
                 ? t('budget', 'Bill marked as paid. Future transaction created.')
                 : t('budget', 'Bill marked as paid. Transaction created.');
         }
-        // A later action may have replaced the undo data; only drop our own
-        showUndoNotification(message, () => this.undoMarkBillPaid(), () => {
-            if (this._undoData === undoData) this._undoData = null;
-        });
+        // The toast undoes this payment, whatever was done since
+        showUndoNotification(message, () => this.undoMarkBillPaid(undoData), () => this._dropUndo(undoData));
+    }
+
+    /**
+     * An undo toast ran out: its action can't be undone any more. A later
+     * action may have replaced the latest undo data; only drop our own.
+     */
+    _dropUndo(undoData) {
+        undoData.spent = true;
+        if (this._undoData === undoData) this._undoData = null;
     }
 
     /**
@@ -1355,20 +1381,25 @@ export default class BillsModule {
         return showMatchingTransactionDialog(bill, candidates, this.settings);
     }
 
-    async undoMarkBillPaid() {
-        if (!this._undoData) {
+    /**
+     * @param {object} undoData - The payment to undo; each toast passes its
+     *   own, so an older toast never reverts a later action
+     */
+    async undoMarkBillPaid(undoData = this._undoData) {
+        if (!undoData || undoData.spent || undoData.action !== 'markPaid') {
             return;
         }
+        undoData.spent = true;
 
         try {
             // The server reverts from the snapshot it stored on the bill
-            const { billId } = this._undoData;
+            const { billId } = undoData;
 
             await apiFetch(`/apps/budget/api/bills/${billId}/undo-paid`, {
                 method: 'POST',
             });
 
-            this._undoData = null;
+            if (this._undoData === undoData) this._undoData = null;
             await this.loadBillsView();
 
             showSuccess(t('budget', 'Action undone'));
@@ -1428,18 +1459,19 @@ export default class BillsModule {
             const result = await apiFetch(`/apps/budget/api/bills/${billId}/skip`, { method: 'POST' });
             const previousNextDueDate = result.previousNextDueDate ?? null;
 
-            this._undoData = {
+            const undoData = {
                 billId: billId,
                 previousNextDueDate: previousNextDueDate,
                 action: 'skip'
             };
+            this._undoData = undoData;
 
             await this.loadBillsView();
 
             showUndoNotification(
                 t('budget', 'Payment skipped. Advanced to next due date.'),
-                () => this.undoSkipPayment(),
-                () => { this._undoData = null; }
+                () => this.undoSkipPayment(undoData),
+                () => this._dropUndo(undoData)
             );
 
         } catch (error) {
@@ -1448,20 +1480,22 @@ export default class BillsModule {
         }
     }
 
-    async undoSkipPayment() {
-        if (!this._undoData || this._undoData.action !== 'skip') {
+    /** @param {object} undoData - The skip to undo (see undoMarkBillPaid) */
+    async undoSkipPayment(undoData = this._undoData) {
+        if (!undoData || undoData.spent || undoData.action !== 'skip') {
             return;
         }
+        undoData.spent = true;
 
         try {
-            const { billId, previousNextDueDate } = this._undoData;
+            const { billId, previousNextDueDate } = undoData;
 
             await apiFetch(`/apps/budget/api/bills/${billId}/undo-skip`, {
                 method: 'POST',
                 body: { previousNextDueDate: previousNextDueDate },
             });
 
-            this._undoData = null;
+            if (this._undoData === undoData) this._undoData = null;
             await this.loadBillsView();
 
             showSuccess(t('budget', 'Action undone'));
@@ -1580,10 +1614,12 @@ export default class BillsModule {
         if (!container) return;
 
         try {
-            // Load global tags and category tag sets in parallel
+            // Load global tags and category tag sets in parallel; a category
+            // not shared with you has none you can read (the server says 400)
+            const listed = categoryId && (!this.categories?.length || this.categories.some(c => String(c.id) === String(categoryId)));
             const [globalTagsResponse, categoryTagSets] = await Promise.all([
                 apiFetch('/apps/budget/api/tags/global').catch(() => []),
-                categoryId ? apiFetch(`/apps/budget/api/tag-sets?categoryId=${categoryId}`).catch(() => []) : Promise.resolve([])
+                listed ? apiFetch(`/apps/budget/api/tag-sets?categoryId=${categoryId}`).catch(() => []) : Promise.resolve([])
             ]);
 
             // Get existing tag IDs if editing

@@ -24,6 +24,8 @@ class ForecastWarningServiceTest extends TestCase {
 	private TestableForecastWarningService $service;
 
 	private array $projections = [];
+	/** What the forecast says of its own data: enough months and transactions */
+	private bool $reliable = true;
 	private array $settings = [];
 	/** @var array[] subject parameters of each notification sent */
 	private array $sent = [];
@@ -33,7 +35,10 @@ class ForecastWarningServiceTest extends TestCase {
 	protected function setUp(): void {
 		$forecastService = $this->createMock(ForecastService::class);
 		$forecastService->method('getLiveForecast')
-			->willReturnCallback(fn () => ['monthlyProjections' => $this->projections]);
+			->willReturnCallback(fn () => [
+				'monthlyProjections' => $this->projections,
+				'dataQuality' => ['isReliable' => $this->reliable],
+			]);
 
 		$settingService = $this->createMock(SettingService::class);
 		$settingService->method('get')
@@ -79,6 +84,19 @@ class ForecastWarningServiceTest extends TestCase {
 		$this->assertTrue($this->service->checkAndNotify(self::USER_ID));
 		$this->assertCount(1, $this->sent);
 		$this->assertSame('Aug 2026', $this->sent[0]['month']);
+	}
+
+	/**
+	 * A projection from a month or two of history is a guess: a new user
+	 * was warned of a negative February on four days of October.
+	 */
+	public function testStaysQuietWhenTheForecastIsNotReliable(): void {
+		$this->reliable = false;
+		$this->seedProjections(['Jul 2026' => 500.0, 'Aug 2026' => -1515.0]);
+
+		$this->assertFalse($this->service->checkAndNotify(self::USER_ID));
+		$this->assertSame([], $this->sent);
+		$this->assertSame([], $this->settings, 'nothing is marked as sent, so a later reliable dip still warns');
 	}
 
 	public function testStaysQuietWhileEveryProjectedBalanceIsPositive(): void {

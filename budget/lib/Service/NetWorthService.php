@@ -58,8 +58,13 @@ class NetWorthService {
 
 		// Get future transaction adjustments for all accounts in one query.
 		// The user's today: a purchase dated it is in the stored balance.
+		// Every account in view, shared ones included: looked up by the
+		// viewer's own accounts, a shared account kept its future-dated rows.
 		$today = $this->userClock?->today($userId) ?? date('Y-m-d');
-		$futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
+		$futureChanges = $this->transactionMapper->getNetChangeAfterDateForAccounts(
+			array_map(static fn ($a) => (int)$a->getId(), $accounts),
+			$today
+		);
 
 		$baseCurrency = $this->conversionService->getBaseCurrency($userId);
 		$needsConversion = $this->conversionService->needsConversion($accounts);

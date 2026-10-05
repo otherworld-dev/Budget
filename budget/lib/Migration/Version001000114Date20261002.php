@@ -6,9 +6,8 @@ namespace OCA\Budget\Migration;
 
 use Closure;
 use OCA\Budget\Db\AccountMapper;
-use OCA\Budget\Db\BillPaymentRows;
+use OCA\Budget\Db\LegacyBillRows;
 use OCA\Budget\Service\AccountBalanceCalculator;
-use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
 use OCP\Migration\IOutput;
 use OCP\Migration\SimpleMigrationStep;
@@ -18,12 +17,11 @@ use OCP\Migration\SimpleMigrationStep;
  * scheduled.
  *
  * Repair's "future cleared" fix switched any cleared row dated after the
- * server's today to scheduled, bill payments included. A bill's scheduled
- * row is its placeholder to everything else: the scheduled job never clears
- * it, and the next Mark Paid, Skip or Mark Unpaid deleted it as one, taking
- * a real payment with it. Repair no longer touches bill rows. Only a row the
- * bill's own Mark Unpaid snapshot names as its payment is restored; one no
- * snapshot vouches for could be a placeholder, and is left as it is.
+ * server's today to scheduled, bill payments included, and the next Mark
+ * Paid, Skip or Mark Unpaid deleted it as a placeholder. Repair no longer
+ * touches bill rows. Which rows qualify is
+ * LegacyBillRows::rescheduledPayments(), which a restore of a backup made
+ * before 3.0 applies to the rows it brings back.
  */
 class Version001000114Date20261002 extends SimpleMigrationStep {
 	public function __construct(
@@ -39,35 +37,14 @@ class Version001000114Date20261002 extends SimpleMigrationStep {
 			return;
 		}
 
-		$ids = [];
-		$accounts = [];
-		foreach (array_chunk(BillPaymentRows::ids($this->db), 500) as $chunk) {
-			$qb = $this->db->getQueryBuilder();
-			$qb->select('id', 'account_id')
-				->from('budget_transactions')
-				->where($qb->expr()->in('id', $qb->createNamedParameter($chunk, IQueryBuilder::PARAM_INT_ARRAY)))
-				->andWhere($qb->expr()->eq('status', $qb->createNamedParameter('scheduled')));
-			$result = $qb->executeQuery();
-			while ($row = $result->fetch()) {
-				$ids[] = (int)$row['id'];
-				$accounts[(int)$row['account_id']] = true;
-			}
-			$result->closeCursor();
-		}
-
-		if ($ids === []) {
+		$rows = LegacyBillRows::rescheduledPayments($this->db);
+		if ($rows === []) {
 			return;
 		}
 
-		foreach (array_chunk($ids, 500) as $chunk) {
-			$update = $this->db->getQueryBuilder();
-			$update->update('budget_transactions')
-				->set('status', $update->createNamedParameter('cleared'))
-				->where($update->expr()->in('id', $update->createNamedParameter($chunk, IQueryBuilder::PARAM_INT_ARRAY)));
-			$update->executeStatement();
-		}
+		LegacyBillRows::setStatus($this->db, array_keys($rows), 'cleared');
 
-		foreach (array_keys($accounts) as $accountId) {
+		foreach (array_unique(array_values($rows)) as $accountId) {
 			try {
 				$this->balanceCalculator->recalculate($this->accountMapper->findById($accountId));
 			} catch (\Exception $e) {
@@ -75,6 +52,6 @@ class Version001000114Date20261002 extends SimpleMigrationStep {
 			}
 		}
 
-		$output->info('Put ' . count($ids) . ' bill payment(s) switched to scheduled back to cleared');
+		$output->info('Put ' . count($rows) . ' bill payment(s) switched to scheduled back to cleared');
 	}
 }

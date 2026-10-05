@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace OCA\Budget\Service;
 
 use OCA\Budget\Db\AccountMapper;
+use OCA\Budget\Db\BillMapper;
+use OCA\Budget\Db\RecurringIncomeMapper;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Enum\Frequency;
 use OCA\Budget\Service\Forecast\ForecastProjector;
 use OCA\Budget\Service\Forecast\PatternAnalyzer;
 use OCA\Budget\Service\Forecast\ScenarioBuilder;
@@ -20,6 +23,14 @@ use OCP\ICacheFactory;
 class ForecastService {
 	private const CACHE_PREFIX = 'budget_forecast_';
 	private const CACHE_TTL = 300; // 5 minutes
+
+	/**
+	 * Complete months of history a trend needs before the live forecast
+	 * extrapolates it, the same number the forecast calls reliable. A line
+	 * through two points is noise: one good month and one weak one took
+	 * projected income to zero.
+	 */
+	private const MIN_TREND_MONTHS = 3;
 
 	private AccountMapper $accountMapper;
 	private TransactionMapper $transactionMapper;
@@ -38,6 +49,9 @@ class ForecastService {
 		ForecastProjector $projector,
 		?ICacheFactory $cacheFactory = null,
 		private ?UserClock $userClock = null,
+		private ?CurrencyTotals $currencyTotals = null,
+		private ?RecurringIncomeMapper $incomeMapper = null,
+		private ?BillMapper $billMapper = null,
 	) {
 		$this->accountMapper = $accountMapper;
 		$this->transactionMapper = $transactionMapper;
@@ -59,6 +73,83 @@ class ForecastService {
 	 */
 	private function today(string $userId): string {
 		return $this->userClock?->today($userId) ?? date('Y-m-d');
+	}
+
+	/**
+	 * Net of each account's rows dated after $today, for the accounts being
+	 * forecast. By account rather than by the viewer's own accounts: a
+	 * shared account's future-dated rows were otherwise left in its balance
+	 * for the person it is shared with.
+	 *
+	 * @return array<int, float> account id => net change after today
+	 */
+	private function futureChanges(array $accounts, string $today): array {
+		return $this->transactionMapper->getNetChangeAfterDateForAccounts(
+			array_map(static fn ($a) => (int)$a->getId(), $accounts),
+			$today
+		);
+	}
+
+	/**
+	 * The user's active recurring income into the accounts forecast, as a
+	 * monthly amount in the forecast's currency. One-off income is not
+	 * recurring and a custom pattern has no monthly figure, so neither counts.
+	 *
+	 * @param array<int, string>|null $rates account id => multiplier, when converting
+	 */
+	private function recurringMonthlyIncome(string $userId, array $accounts, ?array $rates): float {
+		if ($this->incomeMapper === null) {
+			return 0.0;
+		}
+		return $this->monthlyTotal($this->incomeMapper->findActive($userId), $accounts, $rates);
+	}
+
+	/**
+	 * The user's active bills paid from the accounts forecast, as a monthly
+	 * amount in the forecast's currency. A transfer between accounts is not
+	 * spending, so transfer bills don't count; nor do one-off bills or a
+	 * custom pattern, as for income.
+	 *
+	 * @param array<int, string>|null $rates account id => multiplier, when converting
+	 */
+	private function billsMonthlySpending(string $userId, array $accounts, ?array $rates): float {
+		if ($this->billMapper === null) {
+			return 0.0;
+		}
+		$bills = array_filter(
+			$this->billMapper->findActive($userId),
+			static fn ($bill) => !($bill->getIsTransfer() ?? false)
+		);
+		return $this->monthlyTotal($bills, $accounts, $rates);
+	}
+
+	/**
+	 * Recurring income or bills (anything with an amount, a frequency and
+	 * an account) into or from the accounts forecast, as one monthly
+	 * amount in the forecast's currency.
+	 *
+	 * @param iterable<\OCA\Budget\Db\RecurringIncome|\OCA\Budget\Db\Bill> $items
+	 * @param array<int, string>|null $rates
+	 */
+	private function monthlyTotal(iterable $items, array $accounts, ?array $rates): float {
+		$inForecast = [];
+		foreach ($accounts as $account) {
+			if ($rates === null || isset($rates[$account->getId()])) {
+				$inForecast[(int)$account->getId()] = true;
+			}
+		}
+
+		$total = 0.0;
+		foreach ($items as $item) {
+			$accountId = (int)($item->getAccountId() ?? 0);
+			$frequency = Frequency::tryFrom((string)$item->getFrequency());
+			if (!isset($inForecast[$accountId]) || $frequency === null || $frequency === Frequency::ONE_TIME) {
+				continue;
+			}
+			$monthly = $frequency->toMonthlyAmount((float)$item->getAmount());
+			$total += $rates !== null ? (float)MoneyCalculator::multiply($monthly, $rates[$accountId], 10) : $monthly;
+		}
+		return $total;
 	}
 
 	/**
@@ -97,9 +188,10 @@ class ForecastService {
 			$accounts = array_values(array_filter($accounts, static fn ($a) => !$a->getExcludedFromReports()));
 		}
 
-		// Get future transaction adjustments to calculate balance as of today
+		// Get future transaction adjustments to calculate balance as of today,
+		// for every account forecast, shared ones included
 		$today = $this->today($userId);
-		$futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
+		$futureChanges = $this->futureChanges($accounts, $today);
 
 		$forecast = [
 			'summary' => [],
@@ -167,18 +259,33 @@ class ForecastService {
 		// The live (all-accounts) forecast skips accounts flagged out of reports (#286)
 		$accounts = array_values(array_filter($accounts, static fn ($a) => !$a->getExcludedFromReports()));
 
-		// Get future transaction adjustments to calculate balance as of today
+		// Get future transaction adjustments to calculate balance as of today,
+		// for every account forecast, shared ones included
 		$today = $this->today($userId);
-		$futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
+		$futureChanges = $this->futureChanges($accounts, $today);
+
+		// Accounts in more than one currency are added up in the base
+		// currency, as the dashboard summary adds them: the balances and the
+		// history were summed as stored, so euros counted as pounds and half a
+		// bitcoin as 50p. An account whose currency has no rate stays out.
+		$conversion = $this->currencyTotals?->accountRates($accounts, $userId);
+		$rates = ($conversion['currency'] ?? null) !== null ? $conversion['rates'] : null;
 
 		$currentBalance = 0.0;
 		$currencyCounts = [];
 
 		foreach ($accounts as $account) {
+			if ($rates !== null && !isset($rates[$account->getId()])) {
+				continue;
+			}
+
 			// Calculate balance as of today (stored balance minus future transactions)
 			$storedBalance = $account->getBalance();
 			$futureChange = $futureChanges[$account->getId()] ?? 0;
 			$accountBalance = $storedBalance - $futureChange;
+			if ($rates !== null) {
+				$accountBalance = (float)MoneyCalculator::multiply($accountBalance, $rates[$account->getId()], 10);
+			}
 
 			$currentBalance += $accountBalance;
 			$currency = $account->getCurrency() ?? 'USD';
@@ -187,15 +294,28 @@ class ForecastService {
 
 		// Determine primary currency
 		$primaryCurrency = 'USD';
-		if (!empty($currencyCounts)) {
+		if ($rates !== null) {
+			$primaryCurrency = (string)$conversion['currency'];
+		} elseif (!empty($currencyCounts)) {
 			arsort($currencyCounts);
 			$primaryCurrency = array_key_first($currencyCounts);
 		}
 
-		// Get historical transactions
-		$endDate = $today;
-		$startDate = (new \DateTimeImmutable($today))->modify('-12 months')->format('Y-m-d');
+		// History: the twelve complete months before this one. The month in
+		// progress is not a month of income and spending yet; counted as one,
+		// four days of October read as a month in which almost nothing came
+		// in, and the trend through it projected no income at all.
+		$thisMonth = new \DateTimeImmutable(substr($today, 0, 8) . '01');
+		$endDate = $thisMonth->modify('-1 day')->format('Y-m-d');
+		$startDate = $thisMonth->modify('-12 months')->format('Y-m-d');
 		$transactions = $this->transactionMapper->findAllByUserAndDateRange($userId, $startDate, $endDate, null, $visibleAccountIds);
+		if ($rates !== null) {
+			// The history of an account left out above stays out with it
+			$transactions = array_values(array_filter(
+				$transactions,
+				static fn ($t) => isset($rates[(int)$t->getAccountId()])
+			));
+		}
 
 		// Drop extraordinary/one-time transactions so they don't skew the
 		// projection averages. They still affect the real (current) balance
@@ -204,8 +324,8 @@ class ForecastService {
 		// Transfers between the accounts forecast are neither income nor spending
 		$transactions = PatternAnalyzer::withoutInternalTransfers($transactions);
 
-		// Analyze patterns
-		$monthlyData = $this->patternAnalyzer->aggregateMonthlyData($transactions);
+		// Analyze patterns, each amount in the forecast's currency
+		$monthlyData = $this->patternAnalyzer->aggregateMonthlyData($transactions, $rates ?? []);
 		$months = count($monthlyData);
 
 		// Calculate averages and trends
@@ -217,9 +337,32 @@ class ForecastService {
 		$avgExpenses = $months > 0 ? array_sum($expenseValues) / $months : 0;
 		$avgSavings = $avgIncome - $avgExpenses;
 
-		$incomeTrend = $this->trendCalculator->calculateTrend($incomeValues);
-		$expenseTrend = $this->trendCalculator->calculateTrend($expenseValues);
-		$savingsTrend = $this->trendCalculator->calculateTrend($savingsValues);
+		// Too few months for a trend: project the averages as they are
+		$withTrend = $months >= self::MIN_TREND_MONTHS;
+		$incomeTrend = $withTrend ? $this->trendCalculator->calculateTrend($incomeValues) : 0.0;
+		$expenseTrend = $withTrend ? $this->trendCalculator->calculateTrend($expenseValues) : 0.0;
+		$savingsTrend = $withTrend ? $this->trendCalculator->calculateTrend($savingsValues) : 0.0;
+
+		// Income the user has set up to recur is known to keep coming, so
+		// no trend takes projected income below it. Only with some history
+		// to set spending against: on its own it would project nothing but
+		// money coming in.
+		$recurringIncome = $months > 0 ? $this->recurringMonthlyIncome($userId, $accounts, $rates) : 0.0;
+
+		// Spending follows its trend only upwards. The forecast is there to
+		// warn before money runs out, so it errs on spending more: a falling
+		// line is projected as the average of the months it learns from
+		// instead. Followed down, a line through three uneven months (1,060,
+		// 11 and 131) projected next to no spending at all, and the forecast
+		// showed six months of income saved whole. The trend stays as it is
+		// for the direction shown beside the average.
+		$projectedExpenseTrend = max(0.0, $expenseTrend);
+
+		// And never below the bills paid from the accounts forecast, which
+		// are known to keep coming however little the history shows. (The
+		// least spent in a complete month needs no floor of its own: the
+		// average is never below it.)
+		$spendingFloor = $months > 0 ? $this->billsMonthlySpending($userId, $accounts, $rates) : 0.0;
 
 		// Generate monthly projections
 		$monthlyProjections = [];
@@ -229,13 +372,12 @@ class ForecastService {
 
 		// Months after the user's own, stepped from the 1st: from the 31st,
 		// "+1 month" skipped any shorter month
-		$thisMonth = new \DateTimeImmutable(substr($today, 0, 8) . '01');
 		for ($i = 1; $i <= $forecastMonths; $i++) {
 			$projectionDate = $thisMonth->modify("+{$i} months");
 			$monthLabel = $projectionDate->format('M Y');
 
-			$projectedIncome = max(0, $avgIncome + ($incomeTrend * $i));
-			$projectedExpenses = max(0, $avgExpenses + ($expenseTrend * $i));
+			$projectedIncome = max(0, $recurringIncome, $avgIncome + ($incomeTrend * $i));
+			$projectedExpenses = max(0, $spendingFloor, $avgExpenses + ($projectedExpenseTrend * $i));
 			$monthlySavings = $projectedIncome - $projectedExpenses;
 
 			$projectedBalance += $monthlySavings;
@@ -256,7 +398,7 @@ class ForecastService {
 		}
 
 		$savingsRate = $avgIncome > 0 ? ($avgSavings / $avgIncome) * 100 : 0;
-		$categoryBreakdown = $this->patternAnalyzer->getCategoryBreakdown($userId, $transactions);
+		$categoryBreakdown = $this->patternAnalyzer->getCategoryBreakdown($userId, $transactions, $rates ?? []);
 		$transactionCount = count($transactions);
 		$confidence = $this->projector->calculateDataConfidence($months, $transactionCount, $incomeValues, $expenseValues);
 

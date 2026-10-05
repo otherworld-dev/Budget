@@ -81,8 +81,8 @@ class ApiV1Controller extends OCSController {
 
 	/**
 	 * The capture app's first call, shaped exactly as its handoff contract
-	 * specifies. GET / (info) carries the same facts and more — this stays
-	 * the app's minimal, stable view of them.
+	 * specifies: its minimal, stable view of the server. GET / (info) also
+	 * describes the server and the user, with feature flags of its own.
 	 */
 	#[NoAdminRequired]
 	public function capabilities(): DataResponse {

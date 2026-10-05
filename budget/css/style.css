@@ -1409,6 +1409,12 @@
     font-variant-numeric: tabular-nums;
 }
 
+/* The shared .budget-progress-bar grows with `flex: 1` along the Budget
+   page's rows. Down this tile's flex column that made it 0px tall. */
+.budget-widget-item .budget-progress-bar {
+    flex: none;
+}
+
 /* Savings Goals Widget */
 .savings-goals-widget {
     display: flex;
@@ -1612,11 +1618,6 @@
     .dashboard-hero {
         grid-template-columns: repeat(2, 1fr);
     }
-
-    /* Accounts Page */
-    .accounts-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
 }
 
 @media (max-width: 768px) {
@@ -1652,21 +1653,13 @@
         margin: 0 auto;
     }
 
-    /* Accounts Page */
-    .accounts-summary-header {
-        grid-template-columns: 1fr;
-    }
-
+    /* Accounts Page (its columns are set after the base rules, below) */
     .summary-card {
         padding: 16px;
     }
 
     .summary-value {
         font-size: 20px;
-    }
-
-    .accounts-grid {
-        grid-template-columns: 1fr;
     }
 
     .account-card {
@@ -3310,8 +3303,23 @@ button.danger:hover {
     overflow: hidden;
 }
 
+/* Accounts page columns. These must come after the base rules above, which
+   have the same specificity: set with the dashboard's media queries near the
+   top of the file they never applied, and a phone showed three 114px cards
+   with the summary row running off the screen. */
+@media (max-width: 1200px) {
+    .accounts-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
 /* Enhanced Account List View for smaller screens */
 @media (max-width: 768px) {
+    .accounts-summary-header,
+    .accounts-grid {
+        grid-template-columns: 1fr;
+    }
+
     #accounts-list {
         gap: 1px;
         padding: 16px 0;
@@ -3391,6 +3399,11 @@ button.danger:hover {
 }
 
 /* Loading States */
+/* The account dialog's fields while the account it edits loads (inert then) */
+#account-form[aria-busy="true"] .modal-scroll {
+    opacity: 0.6;
+}
+
 .account-card.loading {
     opacity: 0.6;
     pointer-events: none;
@@ -6653,6 +6666,10 @@ button.danger:hover {
         gap: 8px;
     }
 
+    .categories-actions {
+        flex-wrap: wrap;
+    }
+
     .categories-tabs {
         align-self: center;
     }
@@ -8243,6 +8260,9 @@ button.danger:hover {
 .system-info-table {
     width: 100%;
     border-collapse: collapse;
+    /* The value column takes what the label leaves, and wraps, so a
+       long value can't push the box past a phone's edge */
+    table-layout: fixed;
 }
 .system-info-table td {
     padding: 4px 8px;
@@ -8256,6 +8276,7 @@ button.danger:hover {
 .system-info-value {
     color: var(--color-main-text);
     font-weight: 500;
+    overflow-wrap: anywhere;
 }
 .system-info-log {
     max-height: 200px;
@@ -9223,6 +9244,20 @@ button.danger:hover {
     display: flex;
     gap: 8px;
     align-items: center;
+}
+
+/* Why a bill, transfer or income offers no payment actions */
+.bill-account-hint {
+    margin: 0;
+    font-size: 0.82rem;
+    color: var(--color-warning-text, var(--color-warning));
+}
+
+/* On its own line along the bottom of the card */
+.bill-card > .bill-account-hint,
+.income-card > .bill-account-hint {
+    flex-basis: 100%;
+    order: 1;
 }
 
 .bill-action-btn {
@@ -10274,8 +10309,12 @@ button.danger:hover {
         align-self: flex-start;
     }
 
-    .bill-actions {
+    /* Wrap rather than push the last buttons off the card (longer labels,
+       German's "Bezahlt kennzeichnen") */
+    .bill-actions,
+    .income-actions {
         justify-content: flex-end;
+        flex-wrap: wrap;
     }
 
     .detected-bills-panel {
@@ -11354,6 +11393,20 @@ button.danger:hover {
     color: var(--color-text-maxcontrast);
     min-width: 40px;
     text-align: right;
+}
+
+/* A quarterly or yearly row's whole period so far, on a line of its own
+   under the month's bar */
+.budget-progress-wrapper {
+    flex-wrap: wrap;
+}
+
+.budget-period-to-date {
+    flex-basis: 100%;
+    font-size: 0.75rem;
+    color: var(--color-text-maxcontrast);
+    text-align: right;
+    cursor: help;
 }
 
 /* No Budget Indicator */

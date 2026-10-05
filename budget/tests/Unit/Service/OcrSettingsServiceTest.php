@@ -290,7 +290,7 @@ class OcrSettingsServiceTest extends TestCase {
 		$this->httpClient->expects($this->once())
 			->method('post')
 			->with(
-				'https://ocr.otherworld.dev/billing/portal',
+				'https://api.otherworld.dev/billing/portal',
 				$this->callback(fn ($options) => $options['headers']['Authorization'] === 'Bearer owr_live_abc')
 			)
 			->willReturn($this->relayResponse(200, ['url' => 'https://billing.stripe.com/session/xyz']));

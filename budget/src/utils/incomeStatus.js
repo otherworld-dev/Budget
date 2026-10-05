@@ -5,6 +5,7 @@
 import { translate as t } from '@nextcloud/l10n';
 import * as formatters from './formatters.js';
 import { scheduleState } from './scheduleStatus.js';
+import { isReadOnlyShare, incomeAccountWritable } from './accounts.js';
 
 /**
  * The row follows the next expected occurrence, not the calendar month
@@ -12,13 +13,22 @@ import { scheduleState } from './scheduleStatus.js';
  * payment arrived within the past cycle and the next isn't close yet; Mark
  * Received stays hidden then, so it can't be booked twice by accident. A
  * one-time income that arrived is completed; a paused schedule inactive.
+ * Income shared with you read-only can't be received, skipped or edited:
+ * the server refuses all three. Mark Received also books the payment into
+ * the income's account, so it needs that account to be yours or shared with
+ * you to write; Skip doesn't touch it. When the account is all that stands
+ * in the way on your own income, accountHint says how to fix it.
  *
  * @param {object} income recurring income row
  * @param {string} today Y-m-d, the user's local date
  * @param {object} settings user settings, for date formatting
- * @return {{status: string, statusText: string, dateText: string, canReceive: boolean, canSkip: boolean}}
+ * @param {Array} [accounts] your accounts; left out, the income's account
+ *   isn't checked
+ * @return {{status: string, statusText: string, dateText: string, canReceive: boolean, canSkip: boolean, canWrite: boolean, accountHint: string|null}}
  */
-export function incomeRowState(income, today, settings) {
+export function incomeRowState(income, today, settings, accounts = undefined) {
+    const canWrite = !isReadOnlyShare(income);
+    const accountWritable = accounts === undefined || incomeAccountWritable(income, accounts);
     const frequency = income.frequency || 'monthly';
     const isActive = income.isActive ?? income.is_active ?? true;
     const isOneTime = frequency === 'one-time';
@@ -44,6 +54,8 @@ export function incomeRowState(income, today, settings) {
             dateText,
             canReceive: false,
             canSkip: false,
+            canWrite,
+            accountHint: null,
         };
     }
 
@@ -62,12 +74,18 @@ export function incomeRowState(income, today, settings) {
         })
         : fmt(next);
 
-    const canReceive = key !== 'received';
+    const due = key !== 'received' && canWrite;
+    const canReceive = due && accountWritable;
     return {
         status: key,
         statusText,
         dateText,
         canReceive,
-        canSkip: canReceive && !isOneTime,
+        canSkip: due && !isOneTime,
+        canWrite,
+        // Same words as the server's refusal; only on your own income
+        accountHint: due && !accountWritable && !income._shared
+            ? t('budget', 'This income uses an account you can no longer change. Edit it and choose another account.')
+            : null,
     };
 }

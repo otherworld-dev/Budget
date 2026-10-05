@@ -3,7 +3,7 @@
   "info": {
     "title": "Nextcloud Budget REST API",
     "version": "1.0",
-    "description": "Public, versioned API for reading a Budget instance and recording, editing and deleting transactions from outside the web UI — a phone capture app, a script, or automation tooling.\n\nAuthenticate with a Nextcloud app password (personal settings > Security), or a token obtained through Nextcloud's Login flow v2. Every request must also send `OCS-APIRequest: true`; without it Nextcloud answers 412.\n\nEvery response is wrapped in an OCS envelope — the payload is at `ocs.data`, and `ocs.meta.statuscode` mirrors the HTTP status. Schemas below describe the contents of `ocs.data`.\n\nThe internal endpoints the web UI itself calls (under /apps/budget/api/..., without /ocs/) are not part of this contract and change without notice.",
+    "description": "Public, versioned API for reading a Budget instance and recording, editing and deleting transactions from outside the web UI — a phone capture app, a script, or automation tooling.\n\nAuthenticate with a Nextcloud app password (personal settings > Security), or a token obtained through Nextcloud's Login flow v2. Every request must also send `OCS-APIRequest: true`; without it Nextcloud answers 412.\n\nEvery answer from this API is wrapped in an OCS envelope: the payload is at `ocs.data`, and `ocs.meta.statuscode` mirrors the HTTP status. Schemas below describe the contents of `ocs.data`.\n\nSome errors come from Nextcloud itself, before the request reaches the API, and follow its conventions instead: 401 when not authenticated (`ocs.meta.statuscode` 997), 404 for an unknown route (998), 500 for a body that is not valid JSON (996), 412 with a plain `{\"message\": \"CSRF check failed\"}` and no envelope when the OCS-APIRequest header is missing, and 429 with an empty body when a rate limit is reached. Branch on the HTTP status, never on `statuscode`.\n\nThe internal endpoints the web UI itself calls (under /apps/budget/api/..., without /ocs/) are not part of this contract and change without notice.",
     "license": {
       "name": "AGPL-3.0",
       "url": "https://www.gnu.org/licenses/agpl-3.0.html"
@@ -63,7 +63,7 @@
         ],
         "operationId": "getInfo",
         "summary": "Server info and capabilities",
-        "description": "Call this first. Confirms the app is installed and the credentials work, and reports which optional features this instance has.",
+        "description": "Call this first. Confirms the app is installed and the credentials work, and reports which optional features this instance has. Answers at the server URL with or without a trailing slash (.../api/v1 and .../api/v1/).",
         "responses": {
           "200": {
             "description": "Server info",
@@ -258,7 +258,7 @@
               "minimum": 1,
               "maximum": 200
             },
-            "description": "Values above the maximum are clamped, not rejected."
+            "description": "Clamped to 1-200, never rejected; a value that is not a number gets the default."
           },
           {
             "name": "offset",
@@ -267,7 +267,8 @@
               "type": "integer",
               "default": 0,
               "minimum": 0
-            }
+            },
+            "description": "A negative value, or one that is not a number, reads as 0."
           }
         ],
         "responses": {
@@ -358,6 +359,11 @@
                                     "photo_error": {
                                       "type": "string",
                                       "description": "Present only when the transaction was recorded but the inline photo could not be attached. Never re-post in that case; retry with the same idempotency_key (which heals the photo) or attach via POST /transactions/{id}/receipts."
+                                    },
+                                    "category_error": {
+                                      "type": "string",
+                                      "description": "Present only when the category_id sent is not one the account owner can use or, on an account shared with you, not one you can see (one of the owner's categories that was never shared with you; the message is then \"Category not found\"). The transaction is recorded anyway, uncategorised (category_id null), so never re-post; set a category later with PATCH /transactions/{id}. A replay of the same idempotency_key returns the recorded transaction without this field.",
+                                      "example": "Category not found. It must be one of the account owner's categories"
                                     }
                                   }
                                 }
@@ -373,7 +379,7 @@
             }
           },
           "400": {
-            "description": "Invalid input; ocs.data.error says what. This includes a negative amount (error_code invalid_amount), and a `category_id` the account owner cannot use (see NewTransaction.category_id), answered with the error \"Category not found. It must be one of the account owner's categories\".",
+            "description": "Invalid input; ocs.data.error says what. This includes a list or an object sent for a field that takes one value (\"vendor must be a single value\"), and a negative amount (error_code invalid_amount). A `category_id` the account owner cannot use is not a 400: see category_error.",
             "content": {
               "application/json": {
                 "schema": {
@@ -406,6 +412,9 @@
                 }
               }
             }
+          },
+          "500": {
+            "$ref": "#/components/responses/MalformedBody"
           }
         }
       }
@@ -513,7 +522,7 @@
             }
           },
           "400": {
-            "description": "A malformed value, nothing editable in the body, an amount that is not more than zero (error_code invalid_amount), or account_id, status or reconciled sent with a different value (error_code field_not_editable). A category_id the account owner cannot use answers \"Category not found. It must be one of the account owner's categories\".",
+            "description": "A malformed value (a list or an object for a field that takes one value: \"vendor must be a single value\"), nothing editable in the body, an amount that is not more than zero (error_code invalid_amount), or account_id, status or reconciled sent with a different value (error_code field_not_editable). A category_id the account owner cannot use answers \"Category not found. It must be one of the account owner's categories\"; on an account shared with you, a new category_id you cannot see (one of the owner's never shared with you) answers \"Category not found\". The category the transaction already has may always be sent back.",
             "content": {
               "application/json": {
                 "schema": {
@@ -539,6 +548,9 @@
           },
           "429": {
             "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/MalformedBody"
           }
         }
       },
@@ -675,7 +687,7 @@
         ],
         "operationId": "uploadReceipt",
         "summary": "Attach a receipt photo",
-        "description": "Owner-only. The file is stored in the user's own Files under Budget/Receipts/<year>/ and referenced from the transaction. Rate limited to 10 per minute per user.",
+        "description": "Owner-only. The file is stored in the user's own Files, in their receipts folder (Budget/Receipts unless they changed it in Settings) under <year>/<month>/ of the transaction's date, and referenced from the transaction. Rate limited to 10 per minute per user.",
         "requestBody": {
           "required": true,
           "content": {
@@ -908,11 +920,24 @@
             "$ref": "#/components/responses/Unauthorised"
           },
           "412": {
-            "description": "error_code ocr_not_configured: no OCR provider is set up on this server (ocr_available is false). A 412 WITHOUT an error_code is Nextcloud reporting a missing OCS-APIRequest header.",
+            "description": "error_code ocr_not_configured: no OCR provider is set up on this server (ocr_available is false). A 412 WITHOUT an error_code is Nextcloud reporting a missing OCS-APIRequest header, with a bare {\"message\": \"CSRF check failed\"} and no OCS envelope.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ErrorEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "message": {
+                          "type": "string",
+                          "example": "CSRF check failed"
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
@@ -999,7 +1024,7 @@
       },
       "post": {
         "summary": "Split a transaction into per-category parts",
-        "description": "Replaces any existing splits. The parts must sum to the transaction amount and there must be at least two. Intended for capture apps that read a receipt and let the user categorise each item.\n\nOwner-scoped: on a shared account the splits are written to the account owner's ledger, like the transaction and its receipts. A read-only share gets 403.",
+        "description": "Replaces any existing splits. The parts must sum to the transaction amount and there must be at least two. Intended for capture apps that read a receipt and let the user categorise each item.\n\nOwner-scoped: on a shared account the splits are written to the account owner's ledger, like the transaction and its receipts. A read-only share gets 403. Rate limited to 60 per minute per user.",
         "operationId": "createSplits",
         "tags": [
           "transactions"
@@ -1079,7 +1104,7 @@
             }
           },
           "400": {
-            "description": "The parts do not sum to the transaction amount, there are fewer than two, `splits` is not a usable array, or a part's `category_id` is not a category the account owner can use (\"Category not found\"). ocs.data.error states which. The same text is also sent as ocs.data.message, which older clients read.",
+            "description": "The parts do not sum to the transaction amount, there are fewer than two, a part's amount is zero or not a number, `splits` is not a usable array, or a part's `category_id` is not a category the account owner can use, or on an account shared with you one you cannot see and the transaction does not already carry (\"Category not found\"). ocs.data.error states which. The same text is also sent as ocs.data.message, which older clients read. Nothing is changed: a split transaction keeps the parts it had.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1131,6 +1156,18 @@
                 }
               }
             }
+          },
+          "500": {
+            "$ref": "#/components/responses/MalformedBody"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorised"
+          },
+          "412": {
+            "$ref": "#/components/responses/MissingOcsHeader"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           }
         }
       },
@@ -1189,7 +1226,7 @@
             }
           },
           "400": {
-            "description": "category_id is not a number, or not a category the account owner can use (\"Category not found\").",
+            "description": "category_id is not a number, or not a category the account owner can use, or on an account shared with you one you cannot see and the transaction's parts don't already carry (\"Category not found\").",
             "content": {
               "application/json": {
                 "schema": {
@@ -1359,7 +1396,7 @@
     },
     "responses": {
       "Unauthorised": {
-        "description": "Not authenticated, or the app password has been revoked.",
+        "description": "Not authenticated, or the app password has been revoked. Nextcloud answers this itself: `ocs.meta.statuscode` is 997, not 401.",
         "content": {
           "application/json": {
             "schema": {
@@ -1399,17 +1436,23 @@
         }
       },
       "RateLimited": {
-        "description": "Too many requests; wait and retry.",
+        "description": "Too many requests; wait and retry. Nextcloud's rate limiter answers with an empty body. After repeated failed logins its brute-force protection answers 429 too, with an OCS envelope (`ocs.meta.message` \"Reached maximum delay\")."
+      },
+      "MissingOcsHeader": {
+        "description": "The OCS-APIRequest: true header is missing. Nextcloud answers this itself, without an OCS envelope.",
         "content": {
           "application/json": {
             "schema": {
-              "$ref": "#/components/schemas/OcsFailure"
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "CSRF check failed"
+                }
+              }
             }
           }
         }
-      },
-      "MissingOcsHeader": {
-        "description": "The OCS-APIRequest: true header is missing."
       },
       "Conflict": {
         "description": "The change was refused because of what the transaction is; ocs.data.error_code says which. transfer_leg: one side of a transfer, whose amount, type and date cannot change on their own. reconciled: a reconciled row, whose amount, type or date (or the row itself) only changes with confirm_reconciled set. split: a split transaction, whose categories are changed through /transactions/{id}/splits.",
@@ -1417,6 +1460,16 @@
           "application/json": {
             "schema": {
               "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      },
+      "MalformedBody": {
+        "description": "The body is not valid JSON. Nextcloud answers this itself, before the API sees the request: HTTP 500 with `ocs.meta.statuscode` 996. Nothing was changed.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/OcsFailure"
             }
           }
         }
@@ -1523,6 +1576,10 @@
           "error_code": {
             "type": "string",
             "description": "Stable machine-readable code, present on failures clients must distinguish programmatically: ocr_not_configured, ocr_quota_exhausted, ocr_extraction_failed, idempotency_key_conflict, request_in_flight, field_not_editable, invalid_amount, transfer_leg, reconciled, split. Switch on this, never on the error text."
+          },
+          "hint": {
+            "type": "string",
+            "description": "Present only next to detail, when the database is missing a table or column this version needs (an unfinished update): what an administrator can run to finish it."
           }
         }
       },
@@ -1680,7 +1737,7 @@
           "type": {
             "type": "string",
             "example": "checking",
-            "description": "checking, savings, credit_card, cash, investment, crypto, loan, other."
+            "description": "checking, savings, credit_card, investment, loan, cash, money_market, cryptocurrency, mortgage or line_of_credit. Treat a type you do not know as an asset account."
           },
           "currency": {
             "type": "string",
@@ -1688,16 +1745,16 @@
           },
           "balance": {
             "type": "string",
-            "pattern": "^-?\\d+\\.\\d{2}$",
+            "pattern": "^-?\\d+\\.\\d{2,8}$",
             "example": "-1246.50",
-            "description": "Decimal string, two places. As of today; future-dated transactions are excluded. Liability accounts (credit_card, loan, mortgage, line_of_credit) carry a NEGATIVE balance for the amount owed; a positive value means the account is in credit. Parse into an exact decimal type, never a float."
+            "description": "Decimal string in the currency's places: two for most currencies (a zero-place one like JPY too), three for JOD, up to eight for crypto. As of today; future-dated transactions are excluded. Liability accounts (credit_card, loan, mortgage, line_of_credit) carry a NEGATIVE balance for the amount owed; a positive value means the account is in credit. Parse into an exact decimal type, never a float."
           },
           "balance_in_base_currency": {
             "type": "string",
-            "pattern": "^-?\\d+\\.\\d{2}$",
+            "pattern": "^-?\\d+\\.\\d{2,8}$",
             "nullable": true,
             "example": "-1465.20",
-            "description": "Decimal string, two places. Set only when the account is not already in the user's base currency."
+            "description": "Decimal string in the base currency's places. Set only when the account is not already in the user's base currency."
           },
           "base_currency": {
             "type": "string",
@@ -1715,7 +1772,7 @@
           "owner": {
             "type": "string",
             "example": "alice",
-            "description": "The Nextcloud user id of the account's owner: yours for your own accounts, the sharer's for one shared with you. A transaction is recorded in the owner's ledger, so its category_id must be one of the owner's categories: offer the categories whose owner matches this."
+            "description": "The Nextcloud user id of the account's owner: yours for your own accounts, the sharer's for one shared with you. A transaction is recorded in the owner's ledger, so its category_id must be one of the owner's categories: offer the categories whose owner matches this (the categories list only holds the owner's categories that were shared with you, which are the ones you may use)."
           },
           "closed": {
             "type": "boolean",
@@ -1816,9 +1873,9 @@
           },
           "amount": {
             "type": "string",
-            "pattern": "^\\d+\\.\\d{2}$",
+            "pattern": "^\\d+\\.\\d{2,8}$",
             "example": "15.00",
-            "description": "Decimal string, two places. Always positive; type carries the direction. Parse into an exact decimal type, never a float."
+            "description": "Decimal string in the currency's places: two for most currencies (a zero-place one like JPY too), three for JOD, up to eight for crypto of the account's currency. Always positive; type carries the direction. Parse into an exact decimal type, never a float."
           },
           "type": {
             "type": "string",
@@ -1882,7 +1939,7 @@
           },
           "split_amount": {
             "type": "string",
-            "description": "Present only when categoryId was used and this split transaction matched through one of its parts: the sum of its parts in that category. Total this instead of amount when adding up a category, or every category the transaction touches gets the full amount.",
+            "description": "Present only when categoryId was used and this split transaction matched through one of its parts: the sum of its parts in that category. Total this instead of amount when adding up a category, or every category the transaction touches gets the full amount. In the account currency's places, like amount.",
             "example": "12.40"
           },
           "splits": {
@@ -1890,7 +1947,7 @@
             "items": {
               "$ref": "#/components/schemas/Split"
             },
-            "description": "Always present. The parts of a split transaction, [] when it isn't split. On a create that supplied splits: the parts just created when they were accepted, or [] when they were rejected, in which case splits_error is also present and is_split is false. Check splits_error, not the presence of this field, to tell whether the split happened."
+            "description": "Always present. The parts of a split transaction, [] when it isn't split. On a create that supplied splits: the parts just created when they were accepted, or [] when they were rejected, in which case splits_error is also present and is_split is false. Check splits_error, not the presence of this field, to tell whether the split happened. Before 3.0 a create response only had this field when the splits it sent were accepted, so a client that tested for its presence must check splits_error instead."
           },
           "splits_error": {
             "type": "string",
@@ -1937,7 +1994,7 @@
         "properties": {
           "account_id": {
             "type": "integer",
-            "description": "Must be an account the user can write to."
+            "description": "Must be an account the user can write to. An account they cannot see answers 404 \"Account not found\"; one shared with them read-only answers 403."
           },
           "date": {
             "type": "string",
@@ -1950,9 +2007,9 @@
           },
           "amount": {
             "type": "string",
-            "pattern": "^\\d+(\\.\\d{1,2})?$",
+            "pattern": "^\\d+(\\.\\d{1,8})?$",
             "example": "42.50",
-            "description": "Always positive; `type` carries the direction. A negative amount is refused with 400 (error_code invalid_amount). Accepted as a number or a decimal string; always returned as a two-place string."
+            "description": "Always positive; `type` carries the direction. A negative amount is refused with 400 (error_code invalid_amount). Accepted as a number or a decimal string; returned in the account currency's places (at least two), so 0.015 on a Bitcoin account reads back as \"0.01500000\"."
           },
           "type": {
             "type": "string",
@@ -1964,7 +2021,7 @@
           },
           "category_id": {
             "type": "integer",
-            "description": "Omit to file as uncategorised. Must be a category the account owner can use: one of their own categories, or one shared with them. On an account shared with you that means the owner's categories, not yours (match Category.owner against Account.owner); any other id is refused with 400 and the error \"Category not found. It must be one of the account owner's categories\", and nothing is recorded."
+            "description": "Omit to file as uncategorised. Must be a category the account owner can use: one of their own categories, or one shared with them. On an account shared with you that means the owner's categories that were shared with you, not yours (match Category.owner against Account.owner); any other id is left off: the transaction is recorded uncategorised and the response carries category_error."
           },
           "description": {
             "type": "string",
@@ -1992,7 +2049,7 @@
           },
           "splits": {
             "type": "string",
-            "description": "Optional per-item splits, as a JSON array of NewSplit objects. A string so it can ride in the same multipart body as `photo`. The parts must sum to `amount` and there must be at least two. If they are rejected the transaction is still created and the response carries `splits_error` — retrying would duplicate the transaction, which the idempotency key exists to prevent.",
+            "description": "Optional per-item splits, as a JSON array of NewSplit objects. A string so it can ride in the same multipart body as `photo`. The parts must sum to `amount` and there must be at least two. If they are rejected, or the field cannot be read as parts, the transaction is still created and the response carries `splits_error` — retrying would duplicate the transaction, which the idempotency key exists to prevent.",
             "example": "[{\"amount\":\"3.40\",\"category_id\":12},{\"amount\":\"20.37\",\"category_id\":13}]"
           }
         }
@@ -2136,7 +2193,7 @@
       },
       "Capabilities": {
         "type": "object",
-        "description": "Minimal discovery for capture clients: three keys, exactly. GET / (Info) carries the same facts and more.",
+        "description": "Minimal discovery for capture clients. ocr_available, currency and version are always present; the *_available flags are added as features land, so an older server leaves them out: read a missing one as false. GET / (Info) also describes the server and the user, with feature flags of its own, but does not repeat every flag here.",
         "required": [
           "ocr_available",
           "currency",
@@ -2203,8 +2260,9 @@
           },
           "amount": {
             "type": "string",
-            "pattern": "^\\d+\\.\\d{2}$",
-            "example": "15.00"
+            "pattern": "^\\d+\\.\\d{2,8}$",
+            "example": "15.00",
+            "description": "Decimal string in the currency's places: two for most currencies (a zero-place one like JPY too), three for JOD, up to eight for crypto of the account's currency."
           },
           "currency": {
             "type": "string",
@@ -2272,7 +2330,7 @@
           },
           "amount": {
             "type": "string",
-            "description": "Fixed-point decimal string, as everywhere else in v1.",
+            "description": "Fixed-point decimal string, as everywhere else in v1, in the account currency's places.",
             "example": "3.40"
           },
           "category_id": {
@@ -2306,7 +2364,7 @@
           "category_id": {
             "type": "integer",
             "nullable": true,
-            "description": "Omit or null to leave the part uncategorised (useful for a tax line). Otherwise a category the account owner can use: one of their own categories, or one shared with them. On an account shared with you that means the owner's categories, not yours; any other id rejects the split set with the message \"Category not found\".",
+            "description": "Omit or null to leave the part uncategorised (useful for a tax line). Otherwise a category the account owner can use: one of their own categories, or one shared with them. On an account shared with you that means the owner's categories that were shared with you (or one the transaction already carries), not yours; any other id rejects the split set with the message \"Category not found\".",
             "example": 12
           },
           "description": {
@@ -2360,35 +2418,66 @@
               "quarterly",
               "yearly"
             ],
-            "description": "The period the budget is set for. budgeted and spent are for this period: a weekly budget covers the week holding the month's 15th, a quarterly one the calendar quarter and a yearly one the calendar year."
+            "description": "The period the budget is set for. budgeted, spent and remaining are always for the budget month, whatever the period: see budgeted, and period_to_date for a quarterly or yearly budget's whole period."
           },
           "budgeted": {
             "type": "string",
-            "pattern": "^-?\\d+\\.\\d{2}$",
+            "pattern": "^-?\\d+\\.\\d{2,8}$",
             "example": "400.00",
-            "description": "The budget for the period, including any envelope carry-over."
+            "description": "The budget's share of the month, including any envelope carry-over. A budget set for another period is turned monthly by its share of a year: a weekly budget times 52 divided by 12, a quarterly one divided by 3 and a yearly one divided by 12. A parent adds its direct subcategories' budgets the same way."
           },
           "carried": {
             "type": "string",
-            "pattern": "^-?\\d+\\.\\d{2}$",
+            "pattern": "^-?\\d+\\.\\d{2,8}$",
             "example": "0.00",
             "description": "Envelope carry-over into this month, already included in budgeted."
           },
           "spent": {
             "type": "string",
-            "pattern": "^-?\\d+\\.\\d{2}$",
+            "pattern": "^-?\\d+\\.\\d{2,8}$",
             "example": "431.20",
-            "description": "Net of refunds, so it can be negative."
+            "description": "Spending in the budget month, net of refunds, so it can be negative."
           },
           "remaining": {
             "type": "string",
-            "pattern": "^-?\\d+\\.\\d{2}$",
+            "pattern": "^-?\\d+\\.\\d{2,8}$",
             "example": "-31.20",
             "description": "budgeted minus spent; negative when overspent."
           },
           "shared": {
             "type": "boolean",
             "description": "A category someone else shared with the user; its budget is theirs."
+          },
+          "period_to_date": {
+            "type": "object",
+            "nullable": true,
+            "description": "A quarterly or yearly budget's whole period so far, which the Budget page shows on the row as \"400.00 of 1,200.00 this year\". null for a weekly or monthly budget. Absent on older servers.",
+            "properties": {
+              "start_date": {
+                "type": "string",
+                "format": "date",
+                "example": "2026-01-01",
+                "description": "The first day of the quarter's or year's first budget month, which follows the user's budget start day."
+              },
+              "end_date": {
+                "type": "string",
+                "format": "date",
+                "example": "2026-10-31",
+                "description": "The last day of the budget month asked for."
+              },
+              "budgeted": {
+                "type": "string",
+                "pattern": "^-?\\d+\\.\\d{2,8}$",
+                "example": "1200.00",
+                "description": "The budget for the whole quarter or year. A parent adds its direct subcategories' budgets turned to its period."
+              },
+              "spent": {
+                "type": "string",
+                "pattern": "^-?\\d+\\.\\d{2,8}$",
+                "example": "400.00",
+                "description": "Spending from start_date to end_date, net of refunds; a parent's covers its branch."
+              }
+            }
           }
         }
       },
@@ -2414,25 +2503,25 @@
           "currency": {
             "type": "string",
             "example": "GBP",
-            "description": "The user's base currency. Amounts are added up as stored, with no conversion, as on the Budget page."
+            "description": "The user's base currency. When the user's accounts are in more than one currency, spending in each is converted to this one at the user's rate before it is added up, as on the Budget page. Every figure uses this currency's decimal places (at least two)."
           },
           "totals": {
             "type": "object",
-            "description": "The Budget page's summary cards, for expense categories only. budgeted is each budgeted category's budget turned into a monthly amount; spent is the spending of every expense category, budgeted or not, each over its own period.",
+            "description": "The Budget page's summary cards, for expense categories only. budgeted is each budgeted category's budget turned into a monthly amount; spent is the budget month's spending in every expense category, budgeted or not.",
             "properties": {
               "budgeted": {
                 "type": "string",
-                "pattern": "^-?\\d+\\.\\d{2}$",
+                "pattern": "^-?\\d+\\.\\d{2,8}$",
                 "example": "1450.00"
               },
               "spent": {
                 "type": "string",
-                "pattern": "^-?\\d+\\.\\d{2}$",
+                "pattern": "^-?\\d+\\.\\d{2,8}$",
                 "example": "912.40"
               },
               "remaining": {
                 "type": "string",
-                "pattern": "^-?\\d+\\.\\d{2}$",
+                "pattern": "^-?\\d+\\.\\d{2,8}$",
                 "example": "537.60",
                 "description": "budgeted minus spent; an overspent category reduces it."
               }
@@ -2461,9 +2550,9 @@
           },
           "amount": {
             "type": "string",
-            "pattern": "^-?\\d+\\.\\d{2}$",
+            "pattern": "^-?\\d+\\.\\d{2,8}$",
             "example": "12.99",
-            "description": "The stored amount. For an amount_type other than fixed, the real figure is only worked out from the card's statement when the bill is paid."
+            "description": "The stored amount. For an amount_type other than fixed, the real figure is only worked out from the card's statement when the bill is paid. In the bill currency's places (at least two)."
           },
           "amount_type": {
             "type": "string",

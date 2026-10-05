@@ -103,6 +103,13 @@ class BillService {
 	/** Most occurrences one auto-pay run pays for a bill that fell behind */
 	private const MAX_AUTO_PAY_CATCH_UP = 60;
 
+	/** replaceBookedPayment(): the bill booked no payment near the bank row */
+	private const BOOKED_NONE = 0;
+	/** replaceBookedPayment(): the bank row took the booked payment's place */
+	private const BOOKED_REPLACED = 1;
+	/** replaceBookedPayment(): the bank row is the copy of a booked payment that stays */
+	private const BOOKED_KEPT = 2;
+
 	/**
 	 * @throws DoesNotExistException
 	 */
@@ -143,8 +150,18 @@ class BillService {
 		}
 	}
 
-	/** Whether the bill's owner can still write to every account the bill posts into */
+	/**
+	 * Whether the bill's owner can still write to every account the bill
+	 * posts into. A transfer that has lost its destination can't: a share of
+	 * that account ended, its owner reset or was deleted, or it was closed,
+	 * and each lets go of it (CrossUserLinks, AccountClosureService). It
+	 * still said "transfer", so Mark Paid "paid" it with nothing recorded and
+	 * moved it on; now it is refused, saying why, until one is chosen.
+	 */
 	private function accountsWritable(Bill $bill): bool {
+		if (($bill->getIsTransfer() ?? false) && $bill->getDestinationAccountId() === null) {
+			return false;
+		}
 		if ($this->granularShareService === null) {
 			return true;
 		}
@@ -238,11 +255,12 @@ class BillService {
 			return [];
 		}
 
-		// The candidates are full rows from the bill's account. A user who
-		// can't see that account (a share since revoked, or a bill shared
-		// without its account) gets none of them.
+		// The candidates are full rows from the bill's account, offered for
+		// linking, which changes them. A user who can't write to that account
+		// (a share since revoked or cut to read, or a bill shared without its
+		// account) gets none of them: Mark Paid would refuse the link.
 		if ($this->granularShareService !== null
-			&& !$this->granularShareService->canAccess($actingUserId ?? $userId, ShareItem::TYPE_ACCOUNT, (int)$bill->getAccountId())) {
+			&& !$this->granularShareService->canWrite($actingUserId ?? $userId, ShareItem::TYPE_ACCOUNT, (int)$bill->getAccountId())) {
 			return [];
 		}
 
@@ -305,6 +323,10 @@ class BillService {
 				'amount' => (float)$bill->getAmount(),
 				'lastPaidDate' => $bill->getLastPaidDate(),
 				'accountId' => $bill->getAccountId(),
+				// A transfer posts into both: the card offers its actions
+				// only when the user can write each
+				'isTransfer' => (bool)($bill->getIsTransfer() ?? false),
+				'destinationAccountId' => $bill->getDestinationAccountId(),
 				'currency' => $bill->getAccountId() !== null
 					? ($currencyMap[$bill->getAccountId()] ?? null)
 					: null,
@@ -1009,9 +1031,10 @@ class BillService {
 	 *                            with no upcoming row - while the placeholder for the occurrence
 	 *                            just paid stayed behind, still scheduled, still looking due (#376).
 	 * @param int|null $existingTransactionId Link an existing transaction instead of creating a new one
+	 * @param string|null $actingUserId The user paying, when it is a person (the bill may be shared with them)
 	 * @return array Updated bill with undo data
 	 */
-	public function markPaid(int $id, string $userId, ?string $paidDate = null, bool $recordPayment = true, ?int $existingTransactionId = null, ?string $expectedDueDate = null): array {
+	public function markPaid(int $id, string $userId, ?string $paidDate = null, bool $recordPayment = true, ?int $existingTransactionId = null, ?string $expectedDueDate = null, ?string $actingUserId = null): array {
 		$bill = $this->find($id, $userId);
 
 		// A paid one-time bill, an ended or paused one: a second click
@@ -1050,6 +1073,8 @@ class BillService {
 		$hadScheduledTransaction = false;
 		$linkedExistingTransaction = false;
 		$paymentTransactionRecorded = false;
+		// A transfer's deposit this payment booked
+		$bookedDepositId = null;
 
 		// Reset auto-pay failed flag on successful manual payment
 		if ($bill->getAutoPayFailed()) {
@@ -1061,6 +1086,7 @@ class BillService {
 		// account, or for a bill with no account in one its owner can write
 		// to: the id comes from the browser and could name anyone's row.
 		$existingRow = null;
+		$linkCategory = true;
 		if ($existingTransactionId !== null) {
 			$existingRow = $this->transactionService->findTransaction($existingTransactionId);
 			$rowAccount = $existingRow?->getAccountId();
@@ -1068,9 +1094,20 @@ class BillService {
 				? $rowAccount === $bill->getAccountId()
 				: ($this->granularShareService === null
 					|| $this->granularShareService->canWrite($bill->getUserId(), ShareItem::TYPE_ACCOUNT, (int)$rowAccount)));
+			// ...and in one the user paying can write to, as the Mark Paid
+			// dialog lists them: linking gives the row a bill, a category and
+			// tags, and a share of the bill alone let them do that to a row of
+			// an account hidden from them or shared with them read-only
+			if ($allowed && $actingUserId !== null && $this->granularShareService !== null
+				&& !$this->granularShareService->canWrite($actingUserId, ShareItem::TYPE_ACCOUNT, (int)$rowAccount)) {
+				$allowed = false;
+			}
 			if (!$allowed) {
 				throw new \InvalidArgumentException($this->l->t('That transaction can\'t pay this bill'));
 			}
+			// A bill with no account pays from other people's accounts too:
+			// the row takes its category only when the row's ledger can use it
+			$linkCategory = $this->categoryUsableIn($bill->getCategoryId(), (int)$rowAccount);
 		}
 
 		// The payment's date: a linked row's own, else today so the payment
@@ -1101,13 +1138,21 @@ class BillService {
 
 		// Handle transaction: either link existing or create new
 		if ($existingRow !== null) {
+			// A transfer's arrival is priced before anything changes: with no
+			// rate between its two currencies it can't be booked, and the
+			// withdrawal linked first left the bill half paid
+			$arrivalAmount = null;
+			if (($bill->getIsTransfer() ?? false) && $bill->getDestinationAccountId() !== null
+				&& $existingRow->getLinkedTransactionId() === null) {
+				$arrivalAmount = $this->transactionService->transferArrivalAmount($existingRow, $bill);
+			}
 			// Link first, and only then drop the pre-booked row: a failed
 			// link used to be logged and ignored, with the row already gone
 			// and the bill moved on. The link runs as the account's owner, so
 			// a row in an account shared with the bill's owner can be linked,
 			// and gives the row the bill's category, tags and splits.
 			try {
-				$linked = $this->transactionService->linkBillAsAccountOwner($existingRow->getId(), $bill);
+				$linked = $this->transactionService->linkBillAsAccountOwner($existingRow->getId(), $bill, $linkCategory);
 			} catch (\InvalidArgumentException $e) {
 				throw new \InvalidArgumentException($this->l->t('That transaction already pays another bill'));
 			}
@@ -1119,9 +1164,11 @@ class BillService {
 			// in the destination, or a deposit booked for it (which a revert
 			// removes). Linking used to leave the destination uncredited.
 			if ($bill->getIsTransfer() ?? false) {
-				$deposit = $this->transactionService->completeTransferPayment($linked, $bill);
+				$deposit = $this->transactionService->completeTransferPayment($linked, $bill, $arrivalAmount);
 				if ($deposit !== null) {
 					$createdTransactionIds[] = $deposit;
+					// The destination's own credit may be in already (below)
+					$bookedDepositId = $deposit;
 				}
 			}
 			$linkedExistingTransaction = true;
@@ -1140,6 +1187,9 @@ class BillService {
 				// For transfers, also track the linked deposit transaction
 				if ($transaction->getLinkedTransactionId()) {
 					$createdTransactionIds[] = $transaction->getLinkedTransactionId();
+					if ($bill->getIsTransfer() ?? false) {
+						$bookedDepositId = $transaction->getLinkedTransactionId();
+					}
 				}
 
 				// Apply split template if defined
@@ -1242,6 +1292,21 @@ class BillService {
 			// working Mark Unpaid; the toast-based undo still has the ids below.
 			$bill->setPaidUndoState(null);
 			$this->logger->warning("Failed to persist the undo snapshot for bill {$id}: {$e->getMessage()}");
+		}
+
+		// The destination's statement may be in already: its own credit then
+		// takes the place of the deposit just booked, as it does when it
+		// comes in afterwards, rather than the money arriving twice. The
+		// same for a payment that booked the deposit and one that linked the
+		// bank's withdrawal.
+		if ($bookedDepositId !== null) {
+			try {
+				if ($this->adoptArrival($bill, $bookedDepositId) !== null) {
+					$bill = $this->find($id, $userId);
+				}
+			} catch (\Exception $e) {
+				$this->logger->warning("Failed to match bill {$id}'s deposit to the destination's own credit: {$e->getMessage()}");
+			}
 		}
 
 		return [
@@ -1670,6 +1735,23 @@ class BillService {
 	}
 
 	/**
+	 * Whether a row in this account may be filed under the category: the
+	 * account owner's ledger has to be able to use it, as for any row they
+	 * keep. The split template is held to the same rule by the split itself.
+	 */
+	private function categoryUsableIn(?int $categoryId, int $accountId): bool {
+		if ($categoryId === null || $this->granularShareService === null) {
+			return true;
+		}
+		try {
+			$this->granularShareService->requireUsableCategory($this->accountMapper->findById($accountId)->getUserId(), $categoryId);
+			return true;
+		} catch (\Exception $e) {
+			return false;
+		}
+	}
+
+	/**
 	 * Convert an amount to base currency if needed. Returns unchanged if already base.
 	 */
 	private function convertToBase(float $amount, ?string $fromCurrency, string $baseCurrency, string $userId): float {
@@ -1803,6 +1885,10 @@ class BillService {
 	 * same-period transaction in the batch falls outside the new window and
 	 * cannot double-advance the bill.
 	 *
+	 * A credit in a recurring transfer's destination is the bank's own row
+	 * of a deposit the app may already have booked for the transfer, and
+	 * takes that deposit's place (replaceBookedDeposit()).
+	 *
 	 * @param \OCA\Budget\Db\Transaction[] $transactions freshly created rows
 	 * @return int number of bills marked paid
 	 */
@@ -1814,21 +1900,42 @@ class BillService {
 		// Bills and recurring transfers alike: a transfer matches its
 		// withdrawal from the source account by its pattern (the transfer
 		// form's description pattern, which nothing used to read)
+		$active = $this->findActive($userId);
 		$bills = array_filter(
-			$this->findActive($userId),
+			$active,
 			fn (Bill $bill) => $this->matchPattern($bill) !== ''
 				&& $bill->getNextDueDate() !== null
 		);
-		if (empty($bills)) {
+		$transfersInto = [];
+		foreach ($active as $bill) {
+			if (($bill->getIsTransfer() ?? false) && $bill->getDestinationAccountId() !== null) {
+				$transfersInto[$bill->getDestinationAccountId()][] = $bill;
+			}
+		}
+		if (empty($bills) && $transfersInto === []) {
 			return 0;
 		}
 
+		// Oldest first, whatever order the statement lists them in: a bank
+		// row of a payment already booked takes its place before a later row
+		// pays the next occurrence. Newest-first files paid the next one
+		// first and left the bank's row beside the booked payment.
+		usort($transactions, fn ($a, $b) => [(string)$a->getDate(), (int)$a->getId()] <=> [(string)$b->getDate(), (int)$b->getId()]);
+
 		$marked = 0;
 		foreach ($transactions as $transaction) {
-			if ($transaction->getType() !== 'debit') {
+			if (($transaction->getStatus() ?? 'cleared') === 'scheduled') {
 				continue;
 			}
-			if (($transaction->getStatus() ?? 'cleared') === 'scheduled') {
+			if ($transaction->getType() === 'credit') {
+				foreach ($transfersInto[$transaction->getAccountId()] ?? [] as $transfer) {
+					if ($this->replaceBookedDeposit($transfer, $transaction)) {
+						break;
+					}
+				}
+				continue;
+			}
+			if ($transaction->getType() !== 'debit') {
 				continue;
 			}
 
@@ -1836,9 +1943,15 @@ class BillService {
 				// The bank's copy of a payment already booked by Mark Paid or
 				// auto-pay takes that payment's place rather than sitting
 				// beside it, which booked the money twice
-				if ($this->replaceBookedPayment($bill, $transaction)) {
+				$booked = $this->replaceBookedPayment($bill, $transaction);
+				if ($booked === self::BOOKED_REPLACED) {
 					$marked++;
 					$bills[$key] = $this->find($bill->getId(), $userId);
+					break;
+				}
+				// The copy of a payment that has to stay (reconciled by hand)
+				// is not the next one's either: paying that with it paid twice
+				if ($booked === self::BOOKED_KEPT) {
 					break;
 				}
 				if (!$this->importedTransactionMatchesBill($bill, $transaction)) {
@@ -1941,79 +2054,373 @@ class BillService {
 	}
 
 	/**
-	 * Put an imported bank row in place of the payment Mark Paid or auto-pay
-	 * already booked for the bill's last occurrence.
+	 * Put an imported bank row in place of a payment Mark Paid or auto-pay
+	 * already booked for the bill.
 	 *
-	 * Only that payment, the one the bill's undo snapshot names, and only a
-	 * row the app generated: not a bank row, not one linked to anything,
-	 * not reconciled. The generated row goes, the bank row is linked in its
-	 * place with the bill's category, splits and tags, and the snapshot
-	 * then names the bank row, so Mark Unpaid unlinks it rather than
-	 * deleting the bank's own record. The bill stays where it is.
+	 * The booked payment is the one nearest the bank row's own date within
+	 * the bill's due window (bookedPaymentNear()), whichever occurrence it
+	 * paid. Only the last one, the one the undo snapshot names, used to be
+	 * replaceable, so a statement bringing four weeks of a weekly bill left
+	 * three booked payments beside the bank's, and a newest-first statement
+	 * left the older one. Only a row the app generated is replaced: not a
+	 * bank row, not reconciled. The generated row goes, the bank row is
+	 * linked in its place with the bill's category, splits and tags, and
+	 * when it was the last payment the snapshot then names the bank row, so
+	 * Mark Unpaid unlinks it rather than deleting the bank's own record. The
+	 * bill stays where it is. What the user added to the generated row (a
+	 * split with a contact, a receipt, tags, notes) moves to the bank row;
+	 * it was deleted with it.
 	 *
 	 * A recurring transfer's booked pair goes as a whole, and the bank row
 	 * gets its arrival as Mark Paid's link does: the bank's own credit in the
 	 * destination, or a deposit booked for it. Transfers used to skip this,
 	 * so the bank's copy of a payment marked late fell inside the next
 	 * occurrence's window and paid that one too.
+	 *
+	 * A reconciled row was matched to a statement by hand and stays: a
+	 * reconciled payment keeps its place, and the bank row then pays nothing
+	 * else (BOOKED_KEPT); a reconciled deposit stays as the transfer's
+	 * arrival, paired with the bank row, where the swap used to delete it.
+	 *
+	 * @return int BOOKED_REPLACED, BOOKED_KEPT, or BOOKED_NONE when the bill
+	 *             booked no payment near the row
 	 */
-	private function replaceBookedPayment(Bill $bill, \OCA\Budget\Db\Transaction $imported): bool {
+	private function replaceBookedPayment(Bill $bill, \OCA\Budget\Db\Transaction $imported): int {
 		if (!$this->importedTransactionLooksLikeBill($bill, $imported)) {
-			return false;
+			return self::BOOKED_NONE;
 		}
 		$isTransfer = (bool)($bill->getIsTransfer() ?? false);
 		$generatedNote = $isTransfer ? 'Auto-generated transfer:' : 'Auto-generated from bill:';
-		$raw = $bill->getPaidUndoState();
-		$snapshot = ($raw !== null && $raw !== '') ? json_decode($raw, true) : null;
-		$ids = is_array($snapshot) && is_array($snapshot['createdTransactionIds'] ?? null) ? $snapshot['createdTransactionIds'] : [];
-		if ($ids === [] || ($snapshot['linkedTransactionId'] ?? null) !== null
-			|| !$this->withinDueWindow($bill, $imported->getDate(), (string)($snapshot['paidDate'] ?? ''))) {
-			return false;
+		$booked = $this->bookedPaymentNear($bill, $imported, $generatedNote);
+		if ($booked === null) {
+			return self::BOOKED_NONE;
+		}
+		if ($booked->getReconciled()) {
+			return self::BOOKED_KEPT;
 		}
 
-		$booked = null;
-		foreach ($ids as $id) {
-			$row = $this->transactionService->findTransaction((int)$id);
-			if ($row !== null && $row->getBillId() === $bill->getId() && $row->getType() === 'debit') {
-				$booked = $row;
-				break;
-			}
-		}
-		if ($booked === null || $booked->getReconciled() || ($booked->getImportId() ?? '') !== ''
-			|| !str_starts_with((string)$booked->getNotes(), $generatedNote)
-			|| abs((float)$booked->getAmount() - (float)$imported->getAmount()) > (float)$bill->getAmount() * 0.1) {
-			return false;
-		}
-
+		// The deposit the app booked with a transfer's payment goes with it,
+		// and the bank row gets its own arrival. Any other row on the other
+		// side (the destination's own credit, or a deposit reconciled by
+		// hand) stays, paired with the bank row.
+		$partner = $booked->getLinkedTransactionId() !== null ? $this->transactionService->findTransaction($booked->getLinkedTransactionId()) : null;
+		$bookedDeposit = ($isTransfer && $partner !== null && $partner->getBillId() === $bill->getId() && !$partner->getReconciled()
+			&& ($partner->getImportId() ?? '') === '' && str_starts_with((string)$partner->getNotes(), $generatedNote))
+			? $partner : null;
 		$removed = [$booked->getId()];
 		if ($isTransfer && $booked->getLinkedTransactionId() !== null) {
-			// deleteAsAccountOwner() takes the booked deposit with it
 			$removed[] = $booked->getLinkedTransactionId();
 		}
+		// The bank row's arrival is priced before the booked pair goes: with
+		// no rate between the two currencies it can't take the pair's place
+		$arrivalAmount = null;
+		$current = $this->transactionService->findTransaction($imported->getId()) ?? $imported;
+		if ($isTransfer && $bill->getDestinationAccountId() !== null && $current->getLinkedTransactionId() === null
+			&& ($partner === null || $bookedDeposit !== null)) {
+			try {
+				$arrivalAmount = $this->transactionService->transferArrivalAmount($current, $bill);
+			} catch (\Exception $e) {
+				$this->logger->warning("Imported transaction {$imported->getId()} can't take the place of bill {$bill->getId()}'s payment: {$e->getMessage()}");
+				return self::BOOKED_KEPT;
+			}
+		}
 		$deposit = null;
+		$generated = $generatedNote . ' ' . $bill->getName();
 		try {
 			$linked = $this->transactionService->linkBillAsAccountOwner($imported->getId(), $bill);
 			if (!$linked->getIsSplit()) {
 				$this->applySplitTemplate($bill, $linked, $bill->getUserId());
 			}
-			$this->transactionService->deleteAsAccountOwner($booked->getId(), false, $bill->getId());
+			// What the user added to the booked payment (shares, receipts,
+			// tags, notes) moves to the bank row rather than going with it
+			$this->transactionService->replaceBookedRow($booked, $linked, $generated, $bookedDeposit === null);
 			if ($isTransfer) {
-				$deposit = $this->transactionService->completeTransferPayment($linked, $bill);
+				$withdrawal = $this->transactionService->findTransaction($imported->getId()) ?? $linked;
+				$deposit = $this->transactionService->completeTransferPayment($withdrawal, $bill, $arrivalAmount);
+				if ($bookedDeposit !== null) {
+					// and what was added to the booked deposit, to the arrival
+					$arrivalId = $this->transactionService->findTransaction($imported->getId())?->getLinkedTransactionId();
+					$arrival = $arrivalId !== null ? $this->transactionService->findTransaction($arrivalId) : null;
+					if ($arrival !== null && $arrival->getId() !== $bookedDeposit->getId()) {
+						$this->transactionService->replaceBookedRow($bookedDeposit, $arrival, $generated);
+					} else {
+						$this->transactionService->deleteAsAccountOwner($bookedDeposit->getId(), false, $bill->getId());
+					}
+				}
+				// The destination's own credit, already in, is the arrival
+				if ($deposit !== null && $this->adoptArrival($bill, $deposit) !== null) {
+					$deposit = null;
+				}
 			}
 		} catch (\Exception $e) {
 			$this->logger->warning("Failed to put imported transaction {$imported->getId()} in place of bill {$bill->getId()}'s payment: {$e->getMessage()}");
+			return self::BOOKED_KEPT;
+		}
+
+		// The last payment's snapshot names the bank row from now on; an
+		// earlier payment has no snapshot left to change
+		$raw = $bill->getPaidUndoState();
+		$snapshot = ($raw !== null && $raw !== '') ? json_decode($raw, true) : null;
+		$ids = is_array($snapshot) && is_array($snapshot['createdTransactionIds'] ?? null) ? $snapshot['createdTransactionIds'] : [];
+		if (in_array($booked->getId(), array_map('intval', $ids), true)) {
+			$kept = [];
+			foreach ($ids as $id) {
+				if (!in_array((int)$id, $removed, true)) {
+					$kept[] = $id;
+				}
+			}
+			if ($deposit !== null) {
+				$kept[] = $deposit;
+			}
+			$snapshot['createdTransactionIds'] = $kept;
+			$snapshot['linkedTransactionId'] = $imported->getId();
+			$bill->setPaidUndoState(json_encode($snapshot));
+			$this->mapper->update($bill);
+		}
+		return self::BOOKED_REPLACED;
+	}
+
+	/**
+	 * The payment the app booked for the bill nearest a bank row's date:
+	 * within the bill's due window of it, in the row's account and within a
+	 * tenth of the bill's amount of it.
+	 */
+	private function bookedPaymentNear(Bill $bill, \OCA\Budget\Db\Transaction $imported, string $generatedNote): ?\OCA\Budget\Db\Transaction {
+		$days = $this->dueDateToleranceDays($bill->getFrequency());
+		$on = new \DateTimeImmutable($imported->getDate());
+		$nearest = null;
+		$rank = null;
+		$candidates = $this->transactionService->findBookedBillRows(
+			$bill->getId(),
+			'debit',
+			$generatedNote,
+			$on->modify("-{$days} days")->format('Y-m-d'),
+			$on->modify("+{$days} days")->format('Y-m-d')
+		);
+		foreach ($candidates as $row) {
+			$amountOff = abs((float)$row->getAmount() - (float)$imported->getAmount());
+			if ($row->getId() === $imported->getId() || $row->getAccountId() !== $imported->getAccountId()
+				|| $amountOff > (float)$bill->getAmount() * 0.1) {
+				continue;
+			}
+			$thisRank = [abs(strtotime($row->getDate()) - $on->getTimestamp()), $amountOff];
+			if ($rank === null || $thisRank < $rank) {
+				[$nearest, $rank] = [$row, $thisRank];
+			}
+		}
+		return $nearest;
+	}
+
+	/**
+	 * A credit just imported or synced into a transfer's destination: when it
+	 * is near a deposit the app booked for one of the transfer's payments,
+	 * that deposit's arrival is chosen (adoptArrival()), and the statement no
+	 * longer brings the same money in a second time.
+	 *
+	 * @return bool whether this credit became the arrival
+	 */
+	private function replaceBookedDeposit(Bill $bill, \OCA\Budget\Db\Transaction $credit): bool {
+		// Income patterns are checked once a deposit is near (bestArrivalFor())
+		if ($credit->getAccountId() !== $bill->getDestinationAccountId() || !$this->couldBeArrival($credit, [])) {
 			return false;
 		}
 
-		$kept = array_values(array_filter($ids, fn ($id) => !in_array((int)$id, $removed, true)));
-		if ($deposit !== null) {
-			$kept[] = $deposit;
+		$days = $this->dueDateToleranceDays($bill->getFrequency());
+		$on = new \DateTimeImmutable($credit->getDate());
+		$margin = $this->arrivalMargin($bill, (float)$credit->getAmount());
+		$deposit = null;
+		$rank = null;
+		$candidates = $this->transactionService->findBookedBillRows(
+			$bill->getId(),
+			'credit',
+			'Auto-generated transfer:',
+			$on->modify("-{$days} days")->format('Y-m-d'),
+			$on->modify("+{$days} days")->format('Y-m-d')
+		);
+		foreach ($candidates as $row) {
+			$amountOff = abs((float)$row->getAmount() - (float)$credit->getAmount());
+			if ($row->getAccountId() !== $credit->getAccountId() || $row->getLinkedTransactionId() === null || $amountOff > $margin) {
+				continue;
+			}
+			$thisRank = [abs(strtotime($row->getDate()) - $on->getTimestamp()), $amountOff];
+			if ($rank === null || $thisRank < $rank) {
+				[$deposit, $rank] = [$row, $thisRank];
+			}
 		}
-		$snapshot['createdTransactionIds'] = $kept;
-		$snapshot['linkedTransactionId'] = $imported->getId();
-		$bill->setPaidUndoState(json_encode($snapshot));
-		$this->mapper->update($bill);
+		// The deposit's arrival is whichever credit fits it best, which may
+		// be a later row of the same statement
+		return $deposit !== null && $this->adoptArrival($bill, $deposit->getId()) === $credit->getId();
+	}
+
+	/**
+	 * Let the destination's own credit of a transfer's payment take the
+	 * place of the deposit the app booked for it, so the money arrives once.
+	 *
+	 * Every payment path comes here with the deposit it booked: Mark Paid,
+	 * linking the bank's withdrawal (the dialog, an import, auto-pay), and an
+	 * import of the destination's statement. The credit has to be in the
+	 * bill's due window around the deposit's date and of its amount: exactly
+	 * within one currency, within a tenth between two (the deposit is only
+	 * the app's estimate of the bank's conversion). A credit that is a
+	 * recurring income's (its pattern is in the text), or one a bill, a
+	 * transfer or a pension already has, never is: a salary of the same
+	 * amount was taken, and auto-create then booked the salary again. Of the
+	 * rest, one naming the transfer wins, then the one nearest the deposit.
+	 * A reconciled deposit stays.
+	 *
+	 * @return int|null the credit that took the deposit's place
+	 */
+	private function adoptArrival(Bill $bill, int $depositId): ?int {
+		$deposit = $this->transactionService->findTransaction($depositId);
+		if ($deposit === null || $deposit->getType() !== 'credit' || $deposit->getReconciled()
+			|| $deposit->getBillId() !== $bill->getId() || ($deposit->getImportId() ?? '') !== '') {
+			return null;
+		}
+		$arrival = $this->bestArrivalFor($bill, $deposit);
+		if ($arrival === null) {
+			return null;
+		}
+
+		try {
+			$linked = $this->transactionService->linkBillAsAccountOwner($arrival->getId(), $bill);
+			$this->transactionService->replaceBookedRow($deposit, $linked, 'Auto-generated transfer: ' . $bill->getName());
+		} catch (\Exception $e) {
+			$this->logger->warning("Failed to put transaction {$arrival->getId()} in place of transfer {$bill->getId()}'s deposit: {$e->getMessage()}");
+			return null;
+		}
+
+		// Mark Unpaid deletes what the payment booked; the bank's credit
+		// isn't that, so the snapshot stops naming the deposit
+		$fresh = $this->find($bill->getId(), $bill->getUserId());
+		$raw = $fresh->getPaidUndoState();
+		$snapshot = ($raw !== null && $raw !== '') ? json_decode($raw, true) : null;
+		if (is_array($snapshot) && is_array($snapshot['createdTransactionIds'] ?? null)) {
+			$kept = array_values(array_filter($snapshot['createdTransactionIds'], fn ($id) => (int)$id !== $deposit->getId()));
+			if (count($kept) !== count($snapshot['createdTransactionIds'])) {
+				$snapshot['createdTransactionIds'] = $kept;
+				$fresh->setPaidUndoState(json_encode($snapshot));
+				$this->mapper->update($fresh);
+			}
+		}
+		return $arrival->getId();
+	}
+
+	/** The destination's credit that best fits a booked deposit, by adoptArrival()'s rules */
+	private function bestArrivalFor(Bill $bill, \OCA\Budget\Db\Transaction $deposit): ?\OCA\Budget\Db\Transaction {
+		$days = $this->dueDateToleranceDays($bill->getFrequency());
+		$on = new \DateTimeImmutable($deposit->getDate());
+		$amount = abs((float)$deposit->getAmount());
+		$credits = $this->transactionService->findTransferArrivals(
+			$deposit->getAccountId(),
+			$amount,
+			$on->modify("-{$days} days")->format('Y-m-d'),
+			$on->modify("+{$days} days")->format('Y-m-d'),
+			$this->arrivalMargin($bill, $amount)
+		);
+		$incomePatterns = $this->incomePatternsInto($deposit->getAccountId(), $bill->getUserId());
+		$names = $this->transferNames($bill);
+		$best = null;
+		$rank = null;
+		foreach ($credits as $credit) {
+			if ($credit->getId() === $deposit->getId() || !$this->couldBeArrival($credit, $incomePatterns)) {
+				continue;
+			}
+			$text = mb_strtolower($credit->getDescription() . ' ' . ($credit->getVendor() ?? ''));
+			$named = array_filter($names, fn (string $name) => str_contains($text, $name)) !== [];
+			$thisRank = [$named ? 0 : 1, abs(strtotime($credit->getDate()) - $on->getTimestamp()), abs((float)$credit->getAmount() - $amount)];
+			if ($rank === null || $thisRank < $rank) {
+				[$best, $rank] = [$credit, $thisRank];
+			}
+		}
+		if ($best === null) {
+			return null;
+		}
+		// Read again: a payment earlier in the same import may have taken it
+		$current = $this->transactionService->findTransaction($best->getId());
+		return ($current !== null && $this->couldBeArrival($current, $incomePatterns)) ? $current : null;
+	}
+
+	/**
+	 * How far the destination's credit may be from the deposit: none within
+	 * one currency, a tenth between two, where the bank converts at its own
+	 * rate and charges.
+	 */
+	private function arrivalMargin(Bill $bill, float $amount): float {
+		return $this->transactionService->transferBetweenCurrencies($bill) ? abs($amount) * 0.1 : 0.005;
+	}
+
+	/**
+	 * Whether a credit is free to be a transfer's arrival: settled (a bank
+	 * sync hold waits until it posts, as one dropped later would take the
+	 * arrival with it), not the app's own row, not already a bill's,
+	 * transfer's or pension's, and not a recurring income's.
+	 *
+	 * @param string[] $incomePatterns lower-case patterns of the incomes paid into its account
+	 */
+	private function couldBeArrival(\OCA\Budget\Db\Transaction $credit, array $incomePatterns): bool {
+		if ($credit->getType() !== 'credit' || in_array($credit->getStatus() ?? 'cleared', ['scheduled', 'pending'], true)
+			|| (int)($credit->getBillId() ?? 0) !== 0 || $credit->getLinkedTransactionId() !== null
+			|| $credit->getPensionContribId() !== null) {
+			return false;
+		}
+		foreach (\OCA\Budget\Db\TransactionMapper::GENERATED_NOTE_PREFIXES as $prefix) {
+			if (str_starts_with((string)$credit->getNotes(), $prefix)) {
+				return false;
+			}
+		}
+		$text = mb_strtolower($credit->getDescription() . ' ' . ($credit->getVendor() ?? ''));
+		foreach ($incomePatterns as $pattern) {
+			if (str_contains($text, $pattern)) {
+				return false;
+			}
+		}
 		return true;
+	}
+
+	/**
+	 * Lower-case auto-detect patterns of the active recurring income paid
+	 * into an account (whoever owns it), and of the user's own income with
+	 * no account set, as the income match reads them
+	 *
+	 * @return string[]
+	 */
+	private function incomePatternsInto(int $accountId, string $userId): array {
+		if ($this->incomeMapper === null) {
+			return [];
+		}
+		$incomes = $this->incomeMapper->findActiveByAccount($accountId);
+		foreach ($this->incomeMapper->findActive($userId) as $income) {
+			if ($income->getAccountId() === null) {
+				$incomes[] = $income;
+			}
+		}
+		$patterns = [];
+		foreach ($incomes as $income) {
+			$pattern = mb_strtolower(trim((string)$income->getAutoDetectPattern()));
+			if ($pattern !== '') {
+				$patterns[$pattern] = $pattern;
+			}
+		}
+		return array_values($patterns);
+	}
+
+	/**
+	 * Lower-case words the destination's credit of a transfer may carry: its
+	 * description pattern, its name and the source account's name
+	 *
+	 * @return string[]
+	 */
+	private function transferNames(Bill $bill): array {
+		$names = [$this->matchPattern($bill), (string)$bill->getName()];
+		if ($bill->getAccountId() !== null) {
+			try {
+				$names[] = (string)$this->accountMapper->findById($bill->getAccountId())->getName();
+			} catch (DoesNotExistException $e) {
+				// a source that is gone names nothing
+			}
+		}
+		$names = array_map(fn (string $name) => mb_strtolower(trim($name)), $names);
+		return array_values(array_unique(array_filter($names, fn (string $name) => mb_strlen($name) >= 3)));
 	}
 
 	/**
@@ -2035,12 +2442,15 @@ class BillService {
 	 * Attempt to auto-pay a bill and handle success/failure.
 	 *
 	 * Pays every occurrence due by the owner's today (at most
-	 * MAX_AUTO_PAY_CATCH_UP), each dated on its own due date. Payments made
+	 * MAX_AUTO_PAY_CATCH_UP), each dated on its own due date. An occurrence
+	 * whose bank row is already in the account (unclaimedPaymentFor()) is
+	 * paid by linking that row, as an import would have. Payments made
 	 * before a failure stay paid; auto-pay then switches itself off.
 	 *
 	 * @param int $id Bill ID
 	 * @param string $userId User ID
-	 * @return array ['success' => bool, 'message' => string, 'bill' => ?Bill, 'count' => int occurrences paid (on success)]
+	 * @return array ['success' => bool, 'message' => string, 'bill' => ?Bill, 'count' => int occurrences paid (on success),
+	 *               'disabled' => bool whether a failure switched auto-pay off; false when there was nothing to pay]
 	 */
 	public function processAutoPay(int $id, string $userId): array {
 		try {
@@ -2052,6 +2462,7 @@ class BillService {
 					'success' => false,
 					'message' => $this->l->t('Auto-pay is not enabled for this bill'),
 					'bill' => null,
+					'disabled' => false,
 				];
 			}
 
@@ -2065,6 +2476,7 @@ class BillService {
 					'success' => false,
 					'message' => $this->l->t('Bill has no account associated'),
 					'bill' => $this->find($id, $userId),
+					'disabled' => true,
 				];
 			}
 
@@ -2072,14 +2484,32 @@ class BillService {
 			// due date, as income auto-create and pension auto-post do. Paying
 			// one per run, dated the day of the run, left a weekly bill weeks
 			// behind and then caught it up in a burst of rows all dated today.
-			// The caller only asks for a bill already due, so the first
-			// occurrence is always paid (dated no later than today).
+			// The caller asks for a bill that was due when it looked. Another
+			// run, or the owner's own Mark Paid, may have paid it since: that
+			// is nothing to pay, not a failure. A second run at once used to
+			// pay the next occurrence early, or be refused as "already
+			// recorded" and switch auto-pay off.
 			$today = $this->today($userId);
 			$paid = 0;
 			$result = null;
-			do {
+			while ($paid < self::MAX_AUTO_PAY_CATCH_UP
+				&& $bill->getIsActive()
+				&& $bill->getNextDueDate() !== null
+				&& $bill->getNextDueDate() <= $today) {
 				$due = (string)$bill->getNextDueDate();
-				$result = $this->markPaid($id, $userId, min($due, $today), true, null, $due);
+				try {
+					// The bank's own row of the occurrence, already imported, is
+					// its payment: catching up booked another beside each one
+					$existing = $this->unclaimedPaymentFor($bill, $due);
+					$result = $existing !== null
+						? $this->markPaid($id, $userId, $existing->getDate(), false, $existing->getId(), $due)
+						: $this->markPaid($id, $userId, min($due, $today), true, null, $due);
+				} catch (\InvalidArgumentException $e) {
+					if ($this->find($id, $userId)->getNextDueDate() !== $due) {
+						break;
+					}
+					throw $e;
+				}
 
 				// Paid with nothing booked (the account is gone, the row failed):
 				// put the bill back and fail, rather than report success and move
@@ -2094,10 +2524,16 @@ class BillService {
 				}
 				$paid++;
 				$bill = $result['bill'];
-			} while ($paid < self::MAX_AUTO_PAY_CATCH_UP
-				&& $bill->getIsActive()
-				&& $bill->getNextDueDate() !== null
-				&& $bill->getNextDueDate() <= $today);
+			}
+
+			if ($result === null) {
+				return [
+					'success' => false,
+					'message' => 'Nothing due',
+					'bill' => $bill,
+					'disabled' => false,
+				];
+			}
 
 			return [
 				'success' => true,
@@ -2122,8 +2558,35 @@ class BillService {
 				'success' => false,
 				'message' => 'Auto-pay failed: ' . $e->getMessage(),
 				'bill' => $bill,
+				'disabled' => true,
 			];
 		}
+	}
+
+	/**
+	 * A row already in the bill's account that is the payment of the
+	 * occurrence due on $due, as an import would have matched it: it carries
+	 * the bill's pattern, is within a tenth of its amount and in its due
+	 * window, and no bill pays it. The nearest the due date wins.
+	 */
+	private function unclaimedPaymentFor(Bill $bill, string $due): ?\OCA\Budget\Db\Transaction {
+		if ($bill->getAccountId() === null || $this->matchPattern($bill) === '') {
+			return null;
+		}
+		$nearest = null;
+		$rank = null;
+		foreach ($this->transactionService->findUnclaimedDebits($bill->getAccountId(), $due, $this->dueDateToleranceDays($bill->getFrequency())) as $row) {
+			// A deleted bill's row is offered too, but linking it would fail
+			if ((int)($row->getBillId() ?? 0) !== 0 || $row->getPensionContribId() !== null
+				|| !$this->importedTransactionLooksLikeBill($bill, $row) || !$this->withinDueWindow($bill, $row->getDate(), $due)) {
+				continue;
+			}
+			$thisRank = [abs(strtotime($row->getDate()) - strtotime($due)), abs((float)$row->getAmount() - (float)$bill->getAmount())];
+			if ($rank === null || $thisRank < $rank) {
+				[$nearest, $rank] = [$row, $thisRank];
+			}
+		}
+		return $nearest;
 	}
 
 	private function checkIfPaidInPeriod(Bill $bill, string $startDate, string $endDate): bool {

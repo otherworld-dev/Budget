@@ -13,7 +13,7 @@ import { apiFetch } from '../../utils/api.js';
 import { pickableAccounts, accountOptionLabel, selectAccountValue, accountCurrency } from '../../utils/accounts.js';
 import { showLoadError } from '../../utils/loading.js';
 import { incomeRowState } from '../../utils/incomeStatus.js';
-import { selectPossiblyUnavailable, clearUnavailableOptions } from '../../utils/formSelects.js';
+import { selectPossiblyUnavailable, clearUnavailableOptions, unavailableCategoryLabel } from '../../utils/formSelects.js';
 
 export default class IncomeModule {
     constructor(app) {
@@ -89,7 +89,7 @@ export default class IncomeModule {
         incomeList.innerHTML = incomeItems.map(income => {
             // Status, date and actions follow the next expected occurrence,
             // not the calendar month (#399)
-            const row = incomeRowState(income, today, this.settings);
+            const row = incomeRowState(income, today, this.settings, this.accounts);
             const statusClass = row.status;
             const statusText = row.statusText;
 
@@ -128,6 +128,7 @@ export default class IncomeModule {
                             ${autoCreateEnabled ? `<span class="status-badge badge-extra auto-create" title="${t('budget', 'Auto-create enabled')}"><span class="icon-checkmark"></span> ${t('budget', 'Auto-create')}</span>` : ''}
                         </div>
                     </div>
+                    ${row.accountHint ? `<p class="bill-account-hint">${dom.escapeHtml(row.accountHint)}</p>` : ''}
                     <div class="income-actions">
                         ${row.canReceive ? `
                             <button class="income-action-btn income-received-btn" data-income-id="${income.id}" title="${t('budget', 'Mark as received')}">
@@ -141,9 +142,9 @@ export default class IncomeModule {
                                 ${t('budget', 'Skip')}
                             </button>
                         ` : ''}
-                        <button class="income-action-btn income-edit-btn" data-income-id="${income.id}" title="${t('budget', 'Edit income')}" aria-label="${t('budget', 'Edit income')}">
+                        ${row.canWrite ? `<button class="income-action-btn income-edit-btn" data-income-id="${income.id}" title="${t('budget', 'Edit income')}" aria-label="${t('budget', 'Edit income')}">
                             <span class="icon-rename" aria-hidden="true"></span>
-                        </button>
+                        </button>` : ''}
                         ${income._shared && !income._canManage ? '' : `<button class="income-action-btn income-delete-btn" data-income-id="${income.id}" title="${t('budget', 'Delete income')}" aria-label="${t('budget', 'Delete income')}">
                             <span class="icon-delete" aria-hidden="true"></span>
                         </button>`}
@@ -334,9 +335,11 @@ export default class IncomeModule {
             // without its category or account used to save them as null,
             // stripping them (and with the account, auto-create) off the
             // owner's income. Keep the real id selected instead (#370)
+            // A category not shared with you is named, as the income came
             selectPossiblyUnavailable(
                 document.getElementById('income-category'),
-                income.categoryId ?? income.category_id ?? null
+                income.categoryId ?? income.category_id ?? null,
+                income.categoryName ? unavailableCategoryLabel(income.categoryName) : null
             );
             const incomeAccountSelect = document.getElementById('income-account');
             const incomeAccountId = income.accountId ?? income.account_id ?? null;
@@ -593,11 +596,11 @@ export default class IncomeModule {
             const message = income.accountId
                 ? t('budget', 'Income marked as received. Transaction created.')
                 : t('budget', 'Income marked as received.');
+            // The toast undoes this receipt, whatever was done since
             showUndoNotification(
                 message,
-                () => this.undoMarkReceived(),
-                // A later action may have replaced it; only drop our own
-                () => { if (this._undoData === undoData) this._undoData = null; }
+                () => this.undoMarkReceived(undoData),
+                () => this._dropUndo(undoData)
             );
 
         } catch (error) {
@@ -606,13 +609,27 @@ export default class IncomeModule {
         }
     }
 
-    async undoMarkReceived() {
-        if (!this._undoData || this._undoData.action !== 'markReceived') {
+    /**
+     * An undo toast ran out: its action can't be undone any more. A later
+     * action may have replaced the latest undo data; only drop our own.
+     */
+    _dropUndo(undoData) {
+        undoData.spent = true;
+        if (this._undoData === undoData) this._undoData = null;
+    }
+
+    /**
+     * @param {object} undoData - The receipt to undo; each toast passes its
+     *   own, so an older toast never reverts a later action
+     */
+    async undoMarkReceived(undoData = this._undoData) {
+        if (!undoData || undoData.spent || undoData.action !== 'markReceived') {
             return;
         }
+        undoData.spent = true;
 
         try {
-            const { incomeId } = this._undoData;
+            const { incomeId } = undoData;
 
             // The server puts back the dates and removes the credit it booked
             await apiFetch(`/apps/budget/api/recurring-income/${incomeId}/unreceived`, {
@@ -620,7 +637,7 @@ export default class IncomeModule {
             });
 
             // Clear undo data
-            this._undoData = null;
+            if (this._undoData === undoData) this._undoData = null;
 
             // Reload the view
             await this.loadIncomeView();
@@ -665,9 +682,8 @@ export default class IncomeModule {
 
             showUndoNotification(
                 t('budget', 'Payment skipped. Advanced to next expected date.'),
-                () => this.undoSkipIncome(),
-                // A later action may have replaced it; only drop our own
-                () => { if (this._undoData === undoData) this._undoData = null; }
+                () => this.undoSkipIncome(undoData),
+                () => this._dropUndo(undoData)
             );
         } catch (error) {
             console.error('Failed to skip income:', error);
@@ -675,20 +691,22 @@ export default class IncomeModule {
         }
     }
 
-    async undoSkipIncome() {
-        if (!this._undoData || this._undoData.action !== 'skip') {
+    /** @param {object} undoData - The skip to undo (see undoMarkReceived) */
+    async undoSkipIncome(undoData = this._undoData) {
+        if (!undoData || undoData.spent || undoData.action !== 'skip') {
             return;
         }
+        undoData.spent = true;
 
         try {
-            const { incomeId, previousNextExpectedDate } = this._undoData;
+            const { incomeId, previousNextExpectedDate } = undoData;
 
             await apiFetch(`/apps/budget/api/recurring-income/${incomeId}/undo-skip`, {
                 method: 'POST',
                 body: { previousNextExpectedDate },
             });
 
-            this._undoData = null;
+            if (this._undoData === undoData) this._undoData = null;
             await this.loadIncomeView();
 
             showSuccess(t('budget', 'Action undone'));

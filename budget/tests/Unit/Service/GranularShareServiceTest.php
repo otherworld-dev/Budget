@@ -238,6 +238,126 @@ class GranularShareServiceTest extends TestCase {
 	}
 
 	// =============================================
+	// a writer into someone else's ledger (V4 / D1 decision 3)
+	// =============================================
+
+	public function testAWriterMayUseACategoryTheyCanSee(): void {
+		// alice sees her own 1 and 2 and bob's 10, shared with her
+		$this->aliceSeesCategories([1, 2], [10]);
+
+		$this->service->requireCategoryVisibleToWriter('bob', 'alice', 10);
+		$this->service->requireCategoryVisibleToWriter('bob', 'alice', null);
+		$this->addToAssertionCount(2);
+	}
+
+	public function testAWriterCannotUseTheOwnersUnsharedCategory(): void {
+		// bob's category 11 was never shared with alice
+		$this->aliceSeesCategories([1, 2], [10]);
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('Category not found');
+		$this->service->requireCategoryVisibleToWriter('bob', 'alice', 11);
+	}
+
+	public function testACategoryTheRowAlreadyCarriesMayStay(): void {
+		$this->aliceSeesCategories([1, 2], [10]);
+
+		$this->service->requireCategoryVisibleToWriter('bob', 'alice', 11, [11, null]);
+		$this->addToAssertionCount(1);
+	}
+
+	public function testTheOwnerIsNotAskedAboutTheirOwnLedger(): void {
+		$this->categoryMapper->expects($this->never())->method('findAll');
+
+		$this->service->requireCategoryVisibleToWriter('alice', 'alice', 11);
+		$this->addToAssertionCount(1);
+	}
+
+	// =============================================
+	// usable tags (R6-2 / T4-6)
+	// =============================================
+
+	/**
+	 * alice owns categories 1 and 2 and has category 10 shared with her.
+	 * Tags: 100 alice's global, 101 bob's global, 102 in a set (50) on her
+	 * category 1, 103 in a set (51) on bob's shared category 10, 104 in a
+	 * set (52) on bob's unshared category 20, 105 in a set (53) that no
+	 * longer exists.
+	 */
+	private function serviceWithTags(): GranularShareService {
+		$this->aliceSeesCategories([1, 2], [10]);
+
+		$tag = function (int $id, ?int $tagSetId, string $userId): \OCA\Budget\Db\Tag {
+			$t = new \OCA\Budget\Db\Tag();
+			$t->setId($id);
+			$t->setTagSetId($tagSetId);
+			$t->setUserId($userId);
+			return $t;
+		};
+		$tags = [
+			100 => $tag(100, null, 'alice'),
+			101 => $tag(101, null, 'bob'),
+			102 => $tag(102, 50, 'alice'),
+			103 => $tag(103, 51, 'bob'),
+			104 => $tag(104, 52, 'bob'),
+			105 => $tag(105, 53, 'bob'),
+		];
+		$tagMapper = $this->createMock(\OCA\Budget\Db\TagMapper::class);
+		$tagMapper->method('findByIds')->willReturnCallback(
+			fn (array $ids) => array_intersect_key($tags, array_flip($ids))
+		);
+		$tagSetMapper = $this->createMock(\OCA\Budget\Db\TagSetMapper::class);
+		$tagSetMapper->method('findById')->willReturnCallback(function (int $id) {
+			$categoryOf = [50 => 1, 51 => 10, 52 => 20];
+			if (!isset($categoryOf[$id])) {
+				throw new \OCP\AppFramework\Db\DoesNotExistException('');
+			}
+			$set = new \OCA\Budget\Db\TagSet();
+			$set->setCategoryId($categoryOf[$id]);
+			return $set;
+		});
+
+		return new GranularShareService(
+			$this->shareMapper, $this->shareItemMapper, $this->accountMapper, $this->billMapper,
+			$this->categoryMapper, $this->recurringIncomeMapper, $this->savingsGoalMapper,
+			$this->importRuleMapper, $this->l, null, $this->projectMapper, $tagMapper, $tagSetMapper
+		);
+	}
+
+	public function testUsableTagsAreOwnGlobalTagsAndTagsOfVisibleCategories(): void {
+		$usable = $this->serviceWithTags()->getUsableTagIds('alice', [100, 101, 102, 103, 104, 105, 999]);
+
+		$this->assertEqualsCanonicalizing([100, 102, 103], $usable);
+	}
+
+	public function testRequireUsableTagsAcceptsUsableTags(): void {
+		$this->serviceWithTags()->requireUsableTags('alice', [100, 102, 103, '103']);
+		$this->serviceWithTags()->requireUsableTags('alice', []);
+		$this->addToAssertionCount(2);
+	}
+
+	public function testRequireUsableTagsRejectsAnotherUsersGlobalTag(): void {
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('Invalid tag ID');
+		$this->serviceWithTags()->requireUsableTags('alice', [100, 101]);
+	}
+
+	public function testRequireUsableTagsRejectsATagOfACategoryNeverShared(): void {
+		$this->expectException(\InvalidArgumentException::class);
+		$this->serviceWithTags()->requireUsableTags('alice', [104]);
+	}
+
+	public function testRequireUsableTagsRejectsAnUnknownTag(): void {
+		$this->expectException(\InvalidArgumentException::class);
+		$this->serviceWithTags()->requireUsableTags('alice', [999]);
+	}
+
+	public function testNoTagIsUsableWithoutTheTagMappers(): void {
+		$this->aliceSeesCategories([1], []);
+		$this->assertSame([], $this->service->getUsableTagIds('alice', [100]));
+	}
+
+	// =============================================
 	// import rules
 	// =============================================
 
@@ -787,6 +907,83 @@ class GranularShareServiceTest extends TestCase {
 		$this->assertTrue($result[0]['_shared']);
 		$this->assertTrue($bill->jsonSerialize()['canMarkUnpaid'], 'the owner-side hint stays on');
 		$this->assertFalse($result[0]['canMarkUnpaid'], 'recipients must never be offered the action');
+	}
+
+	/**
+	 * bob shares bill 7 / income 8 with alice. bob's categories are 30
+	 * (Secret Stuff) and 31 (Groceries); 99 is someone else's.
+	 */
+	private function shareBobsScheduleWithAlice(): void {
+		$share = $this->makeShare(100, 'bob', 'alice', Share::STATUS_ACCEPTED);
+		$this->shareMapper->method('findByRecipient')->willReturnCallback(
+			fn (string $user) => $user === 'alice' ? [$share] : []
+		);
+		$this->shareItemMapper->method('findSharedEntityIds')->willReturnCallback(
+			fn (int $shareId, string $type) => match ($type) {
+				ShareItem::TYPE_BILL => [7],
+				ShareItem::TYPE_RECURRING_INCOME => [8],
+				default => [],
+			}
+		);
+		$categories = [];
+		foreach ([30 => 'Secret Stuff', 31 => 'Groceries'] as $id => $name) {
+			$category = new \OCA\Budget\Db\Category();
+			$category->setId($id);
+			$category->setUserId('bob');
+			$category->setName($name);
+			$categories[$id] = $category;
+		}
+		$this->categoryMapper->method('findAll')->willReturnCallback(
+			fn (string $user) => $user === 'bob' ? array_values($categories) : []
+		);
+		$this->categoryMapper->expects($this->once())->method('findByIdsUnscoped')
+			->willReturnCallback(function (array $ids) use ($categories) {
+				$this->lookedUpCategoryIds = $ids;
+				return array_intersect_key($categories, array_flip($ids));
+			});
+	}
+
+	/** @var int[] what findByIdsUnscoped() was asked for */
+	private array $lookedUpCategoryIds = [];
+
+	public function testSharedBillsNameTheCategoriesTheirOwnerCanSee(): void {
+		// A shared bill's category and its split parts' are named, even when
+		// they aren't shared with the recipient, as a shared transaction's
+		// are. A category id the owner can't see is never named.
+		$this->shareBobsScheduleWithAlice();
+		$bill = new Bill();
+		$bill->setId(7);
+		$bill->setUserId('bob');
+		$bill->setName('Council Tax');
+		$bill->setCategoryId(30);
+		$bill->setSplitTemplateArray([
+			['categoryId' => 31, 'amount' => 70, 'description' => 'food'],
+			['categoryId' => 99, 'amount' => 30, 'description' => 'stray'],
+		]);
+		$this->billMapper->method('findByIds')->willReturn([$bill]);
+
+		$result = $this->service->getSharedBills('alice');
+
+		$this->assertSame('Secret Stuff', $result[0]['categoryName']);
+		$this->assertSame(['Groceries', null], array_column($result[0]['splitTemplate'], 'categoryName'));
+		$this->assertSame([31, 99], array_column($result[0]['splitTemplate'], 'categoryId'));
+		// Only the owner's categories are looked up
+		$this->assertEqualsCanonicalizing([30, 31], $this->lookedUpCategoryIds);
+	}
+
+	public function testSharedRecurringIncomeNamesItsCategory(): void {
+		$this->shareBobsScheduleWithAlice();
+		$income = new \OCA\Budget\Db\RecurringIncome();
+		$income->setId(8);
+		$income->setUserId('bob');
+		$income->setName('Salary');
+		$income->setCategoryId(31);
+		$this->recurringIncomeMapper->method('findByIds')->willReturn([$income]);
+
+		$result = $this->service->getSharedRecurringIncome('alice');
+
+		$this->assertSame('Groceries', $result[0]['categoryName']);
+		$this->assertSame([31], $this->lookedUpCategoryIds);
 	}
 
 	public function testGetSharedBillEntitiesReturnsTheBillsThemselves(): void {

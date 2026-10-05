@@ -6,6 +6,8 @@ namespace OCA\Budget\Migration;
 
 use OCP\DB\ISchemaWrapper;
 use OCP\DB\Types;
+use OCP\IConfig;
+use OCP\IDBConnection;
 use OCP\Migration\IOutput;
 use OCP\Migration\SimpleMigrationStep;
 
@@ -14,12 +16,18 @@ use OCP\Migration\SimpleMigrationStep;
  */
 class Version001000012Date20260117 extends SimpleMigrationStep {
 
+	public function __construct(
+		private IDBConnection $db,
+		private IConfig $config,
+	) {
+	}
+
 	/**
 	 * Drop broken boolean columns with raw SQL
 	 */
 	public function preSchemaChange(IOutput $output, \Closure $schemaClosure, array $options): void {
-		$connection = \OC::$server->getDatabaseConnection();
-		$prefix = \OC::$server->getConfig()->getSystemValue('dbtableprefix', 'oc_');
+		$connection = $this->db;
+		$prefix = $this->config->getSystemValueString('dbtableprefix', 'oc_');
 
 		try {
 			$schema = $schemaClosure();

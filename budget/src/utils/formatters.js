@@ -161,6 +161,8 @@ export function currencyDecimals(currency, settings = {}) {
     if (config && config.decimals !== undefined) {
         return config.decimals;
     }
+    // Decimal Places = 0 is a display choice (formatCurrency honours it); an
+    // amount field still takes pence, or 12.99 could not be entered at all.
     return parseInt(settings.number_format_decimals) || 2;
 }
 
@@ -179,8 +181,10 @@ export function currencyStep(currency, settings = {}) {
 export function formatCurrency(amount, currency, settings) {
     const currencyCode = currency || getPrimaryCurrency([], settings);
     const config = CURRENCY_CONFIG[currencyCode] || { symbol: currencyCode, position: 'prefix' };
-    // Use currency-native decimals for crypto, user setting for fiat
-    const decimals = config.decimals !== undefined ? config.decimals : (parseInt(settings.number_format_decimals) || 2);
+    // Use currency-native decimals for crypto, user setting for fiat. A
+    // setting of 0 is a choice, not "unset": `parseInt(...) || 2` read it as 2.
+    const chosen = parseInt(settings?.number_format_decimals, 10);
+    const decimals = config.decimals !== undefined ? config.decimals : (Number.isNaN(chosen) ? 2 : chosen);
     const decimalSep = settings.number_format_decimal_sep || '.';
     const thousandsSep = settings.number_format_thousands_sep ?? ',';
 
@@ -461,8 +465,9 @@ export function getPeriodDateRange(period, startDay = 1, referenceDate = null) {
                 const nextMonth = now.getMonth() + 1;
                 const daysInNextMonth = new Date(now.getFullYear(), nextMonth + 1, 0).getDate();
                 const nextStartDay = Math.min(startDay, daysInNextMonth);
-                const nextPeriodStart = new Date(now.getFullYear(), nextMonth, nextStartDay);
-                periodEnd = new Date(nextPeriodStart.getTime() - 86400000);
+                // The calendar day before, not 24 hours before: a clocks-
+                // forward day is 23 hours long, and that lost a day
+                periodEnd = new Date(now.getFullYear(), nextMonth, nextStartDay - 1);
             } else {
                 // Period started last month
                 const prevMonth = now.getMonth() - 1;
@@ -470,9 +475,8 @@ export function getPeriodDateRange(period, startDay = 1, referenceDate = null) {
                 const prevStartDay = Math.min(startDay, daysInPrevMonth);
                 periodStart = new Date(now.getFullYear(), prevMonth, prevStartDay);
 
-                // End is day before start day this month
-                const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), effectiveStartDay);
-                periodEnd = new Date(thisMonthStart.getTime() - 86400000);
+                // End is the calendar day before this month's start day
+                periodEnd = new Date(now.getFullYear(), now.getMonth(), effectiveStartDay - 1);
             }
 
             const label = periodStart.toLocaleDateString(userLocale(), { month: 'short', day: 'numeric' })
@@ -559,6 +563,31 @@ export function currentBudgetMonth(startDay = 1, referenceDate = null) {
  */
 export function budgetMonthRange(month, startDay = 1) {
     return getPeriodDateRange('monthly', startDay, `${month}-15`);
+}
+
+/**
+ * The dates a quarterly or yearly budget has run by the end of a budget
+ * month: from the start of the first budget month of its calendar quarter
+ * or year to the end of the month, so with a budget start day it is made of
+ * whole budget months. The Budget page shows a quarterly or yearly row's
+ * spending over these dates beside the month's. As BudgetPeriod::toDateRange
+ * on the server.
+ *
+ * @param {string} period - weekly, monthly, quarterly or yearly
+ * @param {string} month - YYYY-MM
+ * @param {number} [startDay=1] - Day of month the budget cycle starts
+ * @returns {object|null} {start, end}, or null for a weekly or monthly budget
+ */
+export function periodToDateRange(period, month, startDay = 1) {
+    const monthNumber = parseInt(month.slice(5, 7), 10);
+    let first;
+    if (period === 'yearly') first = 1;
+    else if (period === 'quarterly') first = Math.floor((monthNumber - 1) / 3) * 3 + 1;
+    else return null;
+    return {
+        start: budgetMonthRange(`${month.slice(0, 4)}-${String(first).padStart(2, '0')}`, startDay).start,
+        end: budgetMonthRange(month, startDay).end,
+    };
 }
 
 /**

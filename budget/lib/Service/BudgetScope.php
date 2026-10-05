@@ -29,11 +29,45 @@ final class BudgetScope {
 	 * @return array<int, true> categoryId => true (membership test: isset())
 	 */
 	public static function excludedCategoryIds(array $categories): array {
+		return self::flaggedWithDescendants(
+			$categories,
+			static fn (Category $category): bool => (bool)($category->getExcludedFromBudget() ?? false)
+		);
+	}
+
+	/**
+	 * Ids of the categories kept out of reports, with everything under them.
+	 *
+	 * excluded_from_reports has no cascade of its own in the data, but the
+	 * Budget page and the API's budget status drop a flagged category's
+	 * whole branch, so a budget surface testing the category's own flag
+	 * alone kept a budgeted subcategory under such a parent: an alert, a
+	 * dashboard budget tile and the widget's totals counted what the page
+	 * hid. Every budget surface leaves out this set.
+	 *
+	 * @param Category[] $categories the user's full category list
+	 * @return array<int, true> categoryId => true (membership test: isset())
+	 */
+	public static function reportExcludedIds(array $categories): array {
+		return self::flaggedWithDescendants(
+			$categories,
+			static fn (Category $category): bool => (bool)($category->getExcludedFromReports() ?? false)
+		);
+	}
+
+	/**
+	 * The categories $isFlagged picks, plus every category under one.
+	 *
+	 * @param Category[] $categories
+	 * @param callable(Category): bool $isFlagged
+	 * @return array<int, true>
+	 */
+	private static function flaggedWithDescendants(array $categories, callable $isFlagged): array {
 		$flagged = [];
 		$parents = [];
 		foreach ($categories as $category) {
 			$id = $category->getId();
-			$flagged[$id] = (bool)($category->getExcludedFromBudget() ?? false);
+			$flagged[$id] = $isFlagged($category);
 			$parents[$id] = $category->getParentId();
 		}
 

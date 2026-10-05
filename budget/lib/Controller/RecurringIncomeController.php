@@ -100,11 +100,12 @@ class RecurringIncomeController extends Controller {
 			if ($owner === $this->userId) {
 				return new DataResponse($income);
 			}
-			return new DataResponse(array_merge($income->jsonSerialize(), [
+			// Named like the income list, even a category not shared with the user
+			return new DataResponse($this->granularShareService->withCategoryNames([array_merge($income->jsonSerialize(), [
 				'_shared' => true,
 				'_canWrite' => $this->granularShareService->canWrite($this->userId, 'recurring_income', $id),
 				'_canManage' => $this->granularShareService->canManage($this->userId, 'recurring_income', $id),
-			]));
+			])])[0]);
 		} catch (\Exception $e) {
 			return $this->handleNotFoundError($e, $this->l->t('Recurring income'), ['incomeId' => $id]);
 		}
@@ -145,6 +146,24 @@ class RecurringIncomeController extends Controller {
 			$this->granularShareService->requireUsableCategory($accountOwner, $categoryId);
 		} catch (\InvalidArgumentException $e) {
 			throw new \InvalidArgumentException($this->l->t('This account belongs to someone else, who cannot see this category. Choose a category shared with them, or no category.'));
+		}
+	}
+
+	/**
+	 * A new account for an income has to be one the acting user may post to,
+	 * as for a bill, and one the income's owner may post to, since it is
+	 * received as them. Nothing was checked: a share recipient could point
+	 * the owner's income at the owner's private account and book money into
+	 * it, or move it onto her own account, which the owner then couldn't use.
+	 *
+	 * @throws \OCA\Budget\Exception\ReadOnlyShareException
+	 * @throws \InvalidArgumentException
+	 */
+	private function requireUsableAccount(string $incomeOwner, int $accountId): void {
+		$this->requireWriteAccess('account', $accountId);
+		if ($incomeOwner !== $this->userId
+			&& !$this->granularShareService->canWrite($incomeOwner, 'account', $accountId)) {
+			throw new \InvalidArgumentException($this->l->t('The owner of this income can\'t use that account. Choose another one.'));
 		}
 	}
 
@@ -236,6 +255,10 @@ class RecurringIncomeController extends Controller {
 				}
 			} else {
 				$startDate = null;
+			}
+
+			if (self::idOrNull($accountId) !== null) {
+				$this->requireUsableAccount($this->getEffectiveUserId(), (int)$accountId);
 			}
 
 			// A category the owner cannot see is refused, not stored: its
@@ -374,7 +397,14 @@ class RecurringIncomeController extends Controller {
 			if (array_key_exists('categoryId', $data) || array_key_exists('accountId', $data)) {
 				$stored = $this->service->find($id, $ownerId);
 				$categoryId = array_key_exists('categoryId', $data) ? self::idOrNull($data['categoryId']) : $stored->getCategoryId();
+				// Someone it's shared with may only choose a category they can
+				// see (an unshared one of the owner's came back by name); the
+				// one the income already has may stay
+				$this->granularShareService->requireCategoryVisibleToWriter($ownerId, $this->userId, $categoryId, [$stored->getCategoryId()]);
 				$accountId = array_key_exists('accountId', $data) ? self::idOrNull($data['accountId']) : $stored->getAccountId();
+				if ($accountId !== null && $accountId !== $stored->getAccountId()) {
+					$this->requireUsableAccount($ownerId, $accountId);
+				}
 				if ($categoryId !== $stored->getCategoryId() || $accountId !== $stored->getAccountId()) {
 					$this->requireCategoryUsableByAccountOwner($ownerId, $categoryId, $accountId);
 				}
@@ -462,7 +492,7 @@ class RecurringIncomeController extends Controller {
 			// is refused instead of booking the money twice
 			$expectedDate = is_string($params['expectedDate'] ?? null) ? $params['expectedDate'] : null;
 
-			$income = $this->service->markReceived($id, $this->incomeOwner($id), $receivedDate, $createTransaction, $expectedDate);
+			$income = $this->service->markReceived($id, $this->incomeOwner($id), $receivedDate, $createTransaction, $expectedDate, $this->userId);
 			return new DataResponse($income);
 		} catch (\InvalidArgumentException $e) {
 			return $this->handleError($e, $e->getMessage(), Http::STATUS_BAD_REQUEST, ['incomeId' => $id]);
@@ -479,7 +509,7 @@ class RecurringIncomeController extends Controller {
 	public function markUnreceived(int $id): DataResponse {
 		try {
 			$this->requireWriteAccess('recurring_income', $id);
-			$income = $this->service->markUnreceived($id, $this->incomeOwner($id));
+			$income = $this->service->markUnreceived($id, $this->incomeOwner($id), $this->userId);
 			return new DataResponse($income);
 		} catch (\InvalidArgumentException $e) {
 			return $this->handleError($e, $e->getMessage(), Http::STATUS_BAD_REQUEST, ['incomeId' => $id]);
@@ -557,6 +587,10 @@ class RecurringIncomeController extends Controller {
 			foreach ((array)$data['incomes'] as $item) {
 				if (!is_array($item)) {
 					return new DataResponse(['error' => $this->l->t('Invalid request data')], Http::STATUS_BAD_REQUEST);
+				}
+				$detectedAccount = self::idOrNull($item['accountId'] ?? null);
+				if ($detectedAccount !== null) {
+					$this->requireUsableAccount($this->getEffectiveUserId(), $detectedAccount);
 				}
 				$raw = $item['categoryId'] ?? null;
 				$this->granularShareService->requireUsableCategory(

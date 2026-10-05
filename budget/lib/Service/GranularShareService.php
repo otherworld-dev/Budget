@@ -15,7 +15,10 @@ use OCA\Budget\Db\Share;
 use OCA\Budget\Db\ShareItem;
 use OCA\Budget\Db\ShareItemMapper;
 use OCA\Budget\Db\ShareMapper;
+use OCA\Budget\Db\TagMapper;
+use OCA\Budget\Db\TagSetMapper;
 use OCA\Budget\Exception\ReadOnlyShareException;
+use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\IL10N;
 use OCP\IUserManager;
 
@@ -53,6 +56,8 @@ class GranularShareService {
 		IL10N $l,
 		?IUserManager $userManager = null,
 		?ProjectMapper $projectMapper = null,
+		private ?TagMapper $tagMapper = null,
+		private ?TagSetMapper $tagSetMapper = null,
 	) {
 		$this->shareMapper = $shareMapper;
 		$this->shareItemMapper = $shareItemMapper;
@@ -144,6 +149,96 @@ class GranularShareService {
 		$visible = array_map('intval', $this->getVisibleCategoryIds($ownerId));
 		if (!in_array($categoryId, $visible, true)) {
 			throw new \InvalidArgumentException($this->l->t('Category not found'));
+		}
+	}
+
+	/**
+	 * The other half of the category rule when someone writes into a ledger
+	 * that isn't theirs (an account shared with them to write): the category
+	 * must be one they can see, as well as one the owner can use, which
+	 * requireUsableCategory() checks. With the owner's check alone, a write
+	 * recipient could file a row under one of the owner's categories that was
+	 * never shared with them, by its id, and read its name back.
+	 *
+	 * A category the row already carries ($kept) may stay, so a row the owner
+	 * filed under such a category keeps saving. The owner writing to their own
+	 * ledger is not affected.
+	 *
+	 * @param array<int|null> $kept
+	 * @throws \InvalidArgumentException
+	 */
+	public function requireCategoryVisibleToWriter(string $ownerId, string $writerId, ?int $categoryId, array $kept = []): void {
+		if ($categoryId === null || $writerId === $ownerId) {
+			return;
+		}
+		$allowed = array_flip(array_map('intval', array_merge(
+			array_values(array_filter($kept, static fn ($id) => $id !== null)),
+			$this->getVisibleCategoryIds($writerId)
+		)));
+		if (!isset($allowed[$categoryId])) {
+			throw new \InvalidArgumentException($this->l->t('Category not found'));
+		}
+	}
+
+	/**
+	 * The ids among $tagIds that belong to $userId's ledger or to one shared
+	 * with them: their own global tags, and the tags of categories they can
+	 * see (their own, and ones shared with them).
+	 *
+	 * A tag id arriving from a client used to be stored unchecked, on a bill
+	 * or a goal, and read back by id with its name and colour, so any user
+	 * could attach and then read every other user's tags by walking the ids.
+	 * Unknown ids are left out.
+	 *
+	 * @param array<int|string> $tagIds
+	 * @return int[]
+	 */
+	public function getUsableTagIds(string $userId, array $tagIds): array {
+		$tagIds = array_values(array_unique(array_map('intval', $tagIds)));
+		if ($tagIds === [] || $this->tagMapper === null) {
+			return [];
+		}
+
+		$visibleCategories = array_flip(array_map('intval', $this->getVisibleCategoryIds($userId)));
+		$categoryOfSet = [];
+		$usable = [];
+		foreach ($this->tagMapper->findByIds($tagIds) as $tag) {
+			$tagSetId = $tag->getTagSetId();
+			if ($tagSetId === null) {
+				if ($tag->getUserId() === $userId) {
+					$usable[] = (int)$tag->getId();
+				}
+				continue;
+			}
+			if (!array_key_exists($tagSetId, $categoryOfSet)) {
+				try {
+					$categoryOfSet[$tagSetId] = $this->tagSetMapper?->findById($tagSetId)->getCategoryId();
+				} catch (DoesNotExistException $e) {
+					$categoryOfSet[$tagSetId] = null;
+				}
+			}
+			$categoryId = $categoryOfSet[$tagSetId];
+			if ($categoryId !== null && isset($visibleCategories[(int)$categoryId])) {
+				$usable[] = (int)$tag->getId();
+			}
+		}
+
+		return $usable;
+	}
+
+	/**
+	 * Refuse any tag id that isn't in getUsableTagIds() for $userId.
+	 *
+	 * @param array<int|string> $tagIds
+	 * @throws \InvalidArgumentException
+	 */
+	public function requireUsableTags(string $userId, array $tagIds): void {
+		$tagIds = array_values(array_unique(array_map('intval', $tagIds)));
+		if ($tagIds === []) {
+			return;
+		}
+		if (count($this->getUsableTagIds($userId, $tagIds)) !== count($tagIds)) {
+			throw new \InvalidArgumentException($this->l->t('Invalid tag ID'));
 		}
 	}
 
@@ -461,7 +556,7 @@ class GranularShareService {
 	 * @return array[]
 	 */
 	public function getSharedBills(string $userId): array {
-		return array_map(function ($b) use ($userId) {
+		return $this->withCategoryNames(array_map(function ($b) use ($userId) {
 			$canWrite = $this->canWrite($userId, ShareItem::TYPE_BILL, $b->getId());
 			$serialized = $b->jsonSerialize();
 			return array_merge($serialized, [
@@ -475,7 +570,7 @@ class GranularShareService {
 				// may write. Read-only recipients still never see the action.
 				'canMarkUnpaid' => $canWrite && ($serialized['canMarkUnpaid'] ?? false),
 			]);
-		}, $this->getSharedBillEntities($userId));
+		}, $this->getSharedBillEntities($userId)));
 	}
 
 	/**
@@ -504,11 +599,75 @@ class GranularShareService {
 			return [];
 		}
 		$income = $this->recurringIncomeMapper->findByIds($ids);
-		return array_map(fn ($r) => array_merge($r->jsonSerialize(), [
+		return $this->withCategoryNames(array_map(fn ($r) => array_merge($r->jsonSerialize(), [
 			'_shared' => true,
 			'_canWrite' => $this->canWrite($userId, ShareItem::TYPE_RECURRING_INCOME, $r->getId()),
 			'_canManage' => $this->canManage($userId, ShareItem::TYPE_RECURRING_INCOME, $r->getId()),
-		]), $income);
+		]), $income));
+	}
+
+	/**
+	 * Name the categories shared bills, transfers or recurring income are
+	 * filed under: each item's own (`categoryName`) and each part of a bill's
+	 * split template. The item is shared, so its category is named for the
+	 * user even when the category itself isn't shared with them, as on a
+	 * transaction in an account shared with them; the pickers still don't
+	 * offer it. Only a category the item's owner can see is named, never
+	 * another user's category id left on the item, and only its name is
+	 * sent. Accounts stay unnamed: an account that wasn't shared is never
+	 * named (UpcomingBillsService, the transfer badge).
+	 *
+	 * @param array<int, array<string, mixed>> $items serialized, each with its owner's userId
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function withCategoryNames(array $items): array {
+		$categoryIdsOf = static function (array $item): array {
+			$parts = is_array($item['splitTemplate'] ?? null) ? $item['splitTemplate'] : [];
+			$ids = [];
+			foreach (array_merge([$item], $parts) as $holder) {
+				$id = is_array($holder) ? ($holder['categoryId'] ?? null) : null;
+				if (is_numeric($id) && (int)$id > 0) {
+					$ids[] = (int)$id;
+				}
+			}
+			return $ids;
+		};
+
+		// owner => category id => whether the owner can see it
+		$seen = [];
+		foreach ($items as $item) {
+			$owner = (string)($item['userId'] ?? '');
+			foreach ($categoryIdsOf($item) as $id) {
+				$seen[$owner][$id] ??= $owner !== '' && $this->canAccess($owner, ShareItem::TYPE_CATEGORY, $id);
+			}
+		}
+		$wanted = [];
+		foreach ($seen as $byId) {
+			foreach (array_keys(array_filter($byId)) as $id) {
+				$wanted[$id] = $id;
+			}
+		}
+		$names = [];
+		foreach ($this->categoryMapper->findByIdsUnscoped(array_values($wanted)) as $category) {
+			$names[(int)$category->getId()] = (string)$category->getName();
+		}
+
+		$nameOf = static function (string $owner, mixed $id) use ($seen, $names): ?string {
+			$id = is_numeric($id) ? (int)$id : 0;
+			return ($seen[$owner][$id] ?? false) ? ($names[$id] ?? null) : null;
+		};
+		foreach ($items as $i => $item) {
+			$owner = (string)($item['userId'] ?? '');
+			$items[$i]['categoryName'] = $nameOf($owner, $item['categoryId'] ?? null);
+			if (is_array($item['splitTemplate'] ?? null)) {
+				foreach ($item['splitTemplate'] as $p => $part) {
+					if (is_array($part)) {
+						$items[$i]['splitTemplate'][$p]['categoryName'] = $nameOf($owner, $part['categoryId'] ?? null);
+					}
+				}
+			}
+		}
+		return $items;
 	}
 
 	/**

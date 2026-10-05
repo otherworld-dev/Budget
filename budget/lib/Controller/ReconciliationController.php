@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
+use OCA\Budget\Exception\ReadOnlyShareException;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\ReconciliationConflictException;
 use OCA\Budget\Service\ReconciliationService;
@@ -13,6 +14,7 @@ use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCA\Budget\Traits\InputValidationTrait;
 use OCA\Budget\Traits\SharedAccessTrait;
 use OCP\AppFramework\Controller;
+use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
@@ -47,15 +49,54 @@ class ReconciliationController extends Controller {
 	}
 
 	/**
+	 * The user account $id belongs to, after checking this user may use it.
+	 *
+	 * The service scopes the account and its sessions to the user it is
+	 * given, and an account shared with this user belongs to its owner: as
+	 * themselves, someone with write access found nothing, and the toast
+	 * showed the failed query. Reconciling needs write access; the history
+	 * is readable by anyone the account is shared with. An account the user
+	 * can't see at all is not found, rather than read-only.
+	 *
+	 * @throws DoesNotExistException
+	 * @throws ReadOnlyShareException
+	 */
+	private function accountOwner(int $id, bool $write): string {
+		$owner = $this->granularShareService->resolveOwner($this->userId, 'account', $id);
+		if ($owner === null) {
+			throw new DoesNotExistException('Account ' . $id . ' is not accessible to ' . $this->userId);
+		}
+		if ($write && $owner !== $this->userId) {
+			$this->requireWriteAccess('account', $id);
+		}
+		return $owner;
+	}
+
+	/**
+	 * A failed action as the client should see it: a refusal from the
+	 * service keeps its reason, an account that isn't there is a 404, and
+	 * anything else gets $fallback, never the exception's own text (a
+	 * failed lookup's message is its SQL).
+	 */
+	private function failure(\Exception $e, string $fallback): DataResponse {
+		if ($e instanceof DoesNotExistException) {
+			return $this->handleNotFoundError($e, $this->l->t('Account'));
+		}
+		if ($e instanceof \InvalidArgumentException) {
+			return $this->handleValidationError($e);
+		}
+		return $this->handleError($e, $fallback);
+	}
+
+	/**
 	 * @NoAdminRequired
 	 */
 	public function getSession(int $id): DataResponse {
 		try {
-			$this->requireWriteAccess('account', $id);
-			$state = $this->service->getActiveSession($id, $this->getEffectiveUserId());
+			$state = $this->service->getActiveSession($id, $this->accountOwner($id, true));
 			return new DataResponse($state ?? ['session' => null]);
 		} catch (\Exception $e) {
-			return $this->handleError($e, $this->l->t('Failed to load reconciliation session'));
+			return $this->failure($e, $this->l->t('Failed to load reconciliation session'));
 		}
 	}
 
@@ -65,8 +106,7 @@ class ReconciliationController extends Controller {
 	#[UserRateLimit(limit: 20, period: 60)]
 	public function start(int $id, float $statementBalance, string $statementDate): DataResponse {
 		try {
-			$this->requireWriteAccess('account', $id);
-			$state = $this->service->startSession($id, $this->getEffectiveUserId(), $statementBalance, $statementDate);
+			$state = $this->service->startSession($id, $this->accountOwner($id, true), $statementBalance, $statementDate);
 			return new DataResponse($state, Http::STATUS_CREATED);
 		} catch (ReconciliationConflictException $e) {
 			return new DataResponse([
@@ -74,7 +114,7 @@ class ReconciliationController extends Controller {
 				'existing' => $e->existingState,
 			], Http::STATUS_CONFLICT);
 		} catch (\Exception $e) {
-			return $this->handleValidationError($e);
+			return $this->failure($e, $this->l->t('Failed to start reconciliation'));
 		}
 	}
 
@@ -83,11 +123,10 @@ class ReconciliationController extends Controller {
 	 */
 	public function update(int $id, ?float $statementBalance = null, ?string $statementDate = null): DataResponse {
 		try {
-			$this->requireWriteAccess('account', $id);
-			$state = $this->service->updateSession($id, $this->getEffectiveUserId(), $statementBalance, $statementDate);
+			$state = $this->service->updateSession($id, $this->accountOwner($id, true), $statementBalance, $statementDate);
 			return new DataResponse($state);
 		} catch (\Exception $e) {
-			return $this->handleValidationError($e);
+			return $this->failure($e, $this->l->t('Failed to update reconciliation'));
 		}
 	}
 
@@ -97,11 +136,10 @@ class ReconciliationController extends Controller {
 	 */
 	public function tick(int $id, array $transactionIds, bool $ticked = true): DataResponse {
 		try {
-			$this->requireWriteAccess('account', $id);
-			$state = $this->service->tick($id, $this->getEffectiveUserId(), $transactionIds, $ticked);
+			$state = $this->service->tick($id, $this->accountOwner($id, true), $transactionIds, $ticked);
 			return new DataResponse($state);
 		} catch (\Exception $e) {
-			return $this->handleValidationError($e);
+			return $this->failure($e, $this->l->t('Failed to update reconciliation'));
 		}
 	}
 
@@ -112,11 +150,10 @@ class ReconciliationController extends Controller {
 	#[UserRateLimit(limit: 20, period: 60)]
 	public function tickAll(int $id): DataResponse {
 		try {
-			$this->requireWriteAccess('account', $id);
-			$state = $this->service->tickAllUpToStatementDate($id, $this->getEffectiveUserId());
+			$state = $this->service->tickAllUpToStatementDate($id, $this->accountOwner($id, true));
 			return new DataResponse($state);
 		} catch (\Exception $e) {
-			return $this->handleValidationError($e);
+			return $this->failure($e, $this->l->t('Failed to update reconciliation'));
 		}
 	}
 
@@ -126,11 +163,10 @@ class ReconciliationController extends Controller {
 	#[UserRateLimit(limit: 20, period: 60)]
 	public function complete(int $id): DataResponse {
 		try {
-			$this->requireWriteAccess('account', $id);
-			$result = $this->service->complete($id, $this->getEffectiveUserId());
+			$result = $this->service->complete($id, $this->accountOwner($id, true));
 			return new DataResponse($result);
 		} catch (\Exception $e) {
-			return $this->handleValidationError($e);
+			return $this->failure($e, $this->l->t('Failed to complete reconciliation'));
 		}
 	}
 
@@ -139,11 +175,10 @@ class ReconciliationController extends Controller {
 	 */
 	public function cancel(int $id): DataResponse {
 		try {
-			$this->requireWriteAccess('account', $id);
-			$this->service->cancel($id, $this->getEffectiveUserId());
+			$this->service->cancel($id, $this->accountOwner($id, true));
 			return new DataResponse(['status' => 'success']);
 		} catch (\Exception $e) {
-			return $this->handleValidationError($e);
+			return $this->failure($e, $this->l->t('Failed to update reconciliation'));
 		}
 	}
 
@@ -152,11 +187,10 @@ class ReconciliationController extends Controller {
 	 */
 	public function history(int $id, int $limit = 20, int $offset = 0): DataResponse {
 		try {
-			$this->requireWriteAccess('account', $id);
-			$history = $this->service->getHistory($id, $this->getEffectiveUserId(), $limit, $offset);
+			$history = $this->service->getHistory($id, $this->accountOwner($id, false), $limit, $offset);
 			return new DataResponse($history);
 		} catch (\Exception $e) {
-			return $this->handleError($e, $this->l->t('Failed to load reconciliation history'));
+			return $this->failure($e, $this->l->t('Failed to load reconciliation history'));
 		}
 	}
 }

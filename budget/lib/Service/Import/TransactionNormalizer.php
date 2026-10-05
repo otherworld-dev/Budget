@@ -797,6 +797,15 @@ class TransactionNormalizer {
 			$amount = substr($amount, 1, -1);
 		}
 
+		// "45.00 DR": a debit marker after or before the amount, as a number
+		// of bank exports write it, was dropped with the currency symbols and
+		// read as income (R5-8). Only the sign is taken from it: the digits
+		// are read exactly as before, so no import id changes. CR (credit)
+		// already reads as positive, and IDR (a currency) is not a marker.
+		if (preg_match('/(?<![a-z])dr\.?$|^dr(?![a-z])/i', trim($amount)) === 1) {
+			$negative = true;
+		}
+
 		// Remove currency symbols and whitespace
 		$amount = preg_replace('/[^\d,.\-+]/', '', $amount);
 
@@ -814,6 +823,22 @@ class TransactionNormalizer {
 	 *
 	 * @param string $amount Digits and separators only, no sign
 	 */
+	/**
+	 * Whether the only separator in an amount, at $position, could be one
+	 * grouping thousands: exactly three digits after it, and one to three
+	 * before it with no leading zero ("1.234", "12,345").
+	 *
+	 * Only that shape is ambiguous, and it is still read as thousands, as it
+	 * always was. Any other lone separator is a decimal one. It used to be
+	 * read as thousands whenever it wasn't within the last three characters,
+	 * so an exchange's 8-decimal "117.50000000" came in as 11,750,000,000
+	 * and "0.00012345" as 12345 (V5-4).
+	 */
+	private static function groupsThousands(string $amount, int $position): bool {
+		return strlen($amount) - $position - 1 === 3
+			&& preg_match('/^[1-9]\d{0,2}$/', substr($amount, 0, $position)) === 1;
+	}
+
 	private function parseUnsignedAmount(string $amount): float {
 		// Count periods and commas to determine format
 		$periodCount = substr_count($amount, '.');
@@ -829,20 +854,20 @@ class TransactionNormalizer {
 			return (float)$amount;
 		} elseif ($periodCount > 0 && $commaCount === 0) {
 			// Only periods - could be thousands or decimal
-			if ($periodCount === 1 && $lastPeriod > strlen($amount) - 4) {
-				// Single period in last 3 positions = decimal separator
+			if ($periodCount === 1 && !self::groupsThousands($amount, (int)$lastPeriod)) {
+				// A single period that can't be grouping thousands = decimal separator
 				return (float)$amount;
 			} else {
-				// Multiple periods or not in decimal position = thousands separator
+				// Multiple periods, or a single one grouping thousands = thousands separator
 				return (float)str_replace('.', '', $amount);
 			}
 		} elseif ($commaCount > 0 && $periodCount === 0) {
 			// Only commas - could be thousands or decimal
-			if ($commaCount === 1 && $lastComma > strlen($amount) - 4) {
-				// Single comma in last 3 positions = decimal separator (European)
+			if ($commaCount === 1 && !self::groupsThousands($amount, (int)$lastComma)) {
+				// A single comma that can't be grouping thousands = decimal separator (European)
 				return (float)str_replace(',', '.', $amount);
 			} else {
-				// Multiple commas or not in decimal position = thousands separator
+				// Multiple commas, or a single one grouping thousands = thousands separator
 				return (float)str_replace(',', '', $amount);
 			}
 		} else {

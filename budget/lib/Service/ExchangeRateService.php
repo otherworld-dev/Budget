@@ -64,6 +64,23 @@ class ExchangeRateService {
 	private array $rateCache = [];
 	private ?string $rateCacheDate = null;
 
+	/**
+	 * What getRate() / getRateLocal() found for "CURRENCY|date", fallbacks
+	 * and "no rate" included, until this service next stores a rate. The
+	 * investment valuation converts every row at its own date: without
+	 * this, every date without a rate of its own (a weekend) re-ran the
+	 * fallbacks and the network fetch, 7,564 queries for one account page.
+	 *
+	 * @var array<string, string|null>
+	 */
+	private array $resolved = [];
+
+	/** @var array<string, string|null> as $resolved, for getRateLocal() */
+	private array $resolvedLocal = [];
+
+	/** The ECB 90-day feed was fetched: every date it has is stored */
+	private bool $ecbHistoryFetched = false;
+
 	public function __construct(
 		ExchangeRateMapper $mapper,
 		IClientService $clientService,
@@ -97,6 +114,20 @@ class ExchangeRateService {
 
 		$date = $date ?? date('Y-m-d');
 
+		$key = $currency . '|' . $date;
+		if (!array_key_exists($key, $this->resolved)) {
+			$rate = $this->resolveRate($currency, $date);
+			// After the resolution: a fetch it made emptied the memo
+			$this->resolved[$key] = $rate;
+		}
+
+		return $this->resolved[$key];
+	}
+
+	/**
+	 * getRate() for one currency and date, uncached.
+	 */
+	private function resolveRate(string $currency, string $date): ?string {
 		// Check in-memory cache
 		if ($this->rateCacheDate === $date && isset($this->rateCache[$currency])) {
 			return $this->rateCache[$currency];
@@ -160,6 +191,18 @@ class ExchangeRateService {
 
 		$date = $date ?? date('Y-m-d');
 
+		$key = $currency . '|' . $date;
+		if (!array_key_exists($key, $this->resolvedLocal)) {
+			$this->resolvedLocal[$key] = $this->resolveRateLocal($currency, $date);
+		}
+
+		return $this->resolvedLocal[$key];
+	}
+
+	/**
+	 * getRateLocal() for one currency and date, uncached.
+	 */
+	private function resolveRateLocal(string $currency, string $date): ?string {
 		// Check in-memory cache
 		if ($this->rateCacheDate === $date && isset($this->rateCache[$currency])) {
 			return $this->rateCache[$currency];
@@ -262,7 +305,7 @@ class ExchangeRateService {
 					continue;
 				}
 
-				$this->mapper->upsert($code, $rate, $today, ExchangeRate::SOURCE_FLOATRATES);
+				$this->storeRate($code, $rate, $today, ExchangeRate::SOURCE_FLOATRATES);
 				$count++;
 			}
 
@@ -338,7 +381,7 @@ class ExchangeRateService {
 				$ratePerEur = bcdiv('1', number_format($eurPrice, 10, '.', ''), 10);
 				$currencyCode = $idToCurrency[$coinId];
 
-				$this->mapper->upsert($currencyCode, $ratePerEur, $today, ExchangeRate::SOURCE_COINGECKO);
+				$this->storeRate($currencyCode, $ratePerEur, $today, ExchangeRate::SOURCE_COINGECKO);
 			}
 
 			$this->logger->info(
@@ -410,7 +453,7 @@ class ExchangeRateService {
 					$rate = (string)($rateAttrs['rate'] ?? '');
 
 					if (!empty($currency) && !empty($rate)) {
-						$this->mapper->upsert($currency, $rate, $date, ExchangeRate::SOURCE_ECB);
+						$this->storeRate($currency, $rate, $date, ExchangeRate::SOURCE_ECB);
 						$count++;
 					}
 				}
@@ -444,6 +487,14 @@ class ExchangeRateService {
 			return;
 		}
 
+		// The feed holds every date it has. Fetched again for each date it
+		// lacks (a weekend, a holiday), it stored the same ~2,000 rates over
+		// and over within one page load.
+		if ($this->ecbHistoryFetched) {
+			return;
+		}
+		$this->ecbHistoryFetched = true;
+
 		$this->fetchEcbRates(self::ECB_HIST_90D_URL);
 	}
 
@@ -474,7 +525,7 @@ class ExchangeRateService {
 
 			if ($eurPrice !== null && (float)$eurPrice > 0) {
 				$ratePerEur = bcdiv('1', number_format((float)$eurPrice, 10, '.', ''), 10);
-				$this->mapper->upsert($currency, $ratePerEur, $date, ExchangeRate::SOURCE_COINGECKO);
+				$this->storeRate($currency, $ratePerEur, $date, ExchangeRate::SOURCE_COINGECKO);
 
 				$this->logger->debug(
 					"CoinGecko historical rate stored for {$currency} on {$date}",
@@ -487,6 +538,16 @@ class ExchangeRateService {
 				['app' => 'budget']
 			);
 		}
+	}
+
+	/**
+	 * Store a fetched rate. What getRate() / getRateLocal() resolved before
+	 * may be superseded by it, so they look again.
+	 */
+	private function storeRate(string $currency, string $ratePerEur, string $date, string $source): void {
+		$this->mapper->upsert($currency, $ratePerEur, $date, $source);
+		$this->resolved = [];
+		$this->resolvedLocal = [];
 	}
 
 	/**

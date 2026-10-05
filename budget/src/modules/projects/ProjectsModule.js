@@ -6,6 +6,7 @@ import { translate as t } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
+import { once } from '../../utils/submitGuard.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue } from '../../utils/datepicker.js';
 import { groupProjects, progressFor, unallocated, subcategoriesOf, ownExpenseTree } from './projectMath.js';
@@ -314,7 +315,12 @@ export default class ProjectsModule {
             : t('budget', 'Unallocated: {amount}', { amount: this.money(Math.max(result.cents, 0) / 100) });
     }
 
-    async saveProject() {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveProject() {
+        return once('project-save', document.querySelector('#project-form [type="submit"]'), () => this._saveProject());
+    }
+
+    async _saveProject() {
         const project = this._editing;
         const categoryId = parseInt(document.getElementById('project-category').value, 10);
         const inputs = [...document.querySelectorAll('#project-allocations .project-alloc-input')];

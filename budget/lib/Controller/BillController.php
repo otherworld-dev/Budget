@@ -156,11 +156,13 @@ class BillController extends Controller {
 			if ($owner === $this->userId) {
 				return new DataResponse($bill);
 			}
-			return new DataResponse(array_merge($bill->jsonSerialize(), [
+			// Named like the bills list: its category, and its split parts',
+			// even one the owner didn't share with the user
+			return new DataResponse($this->granularShareService->withCategoryNames([array_merge($bill->jsonSerialize(), [
 				'_shared' => true,
 				'_canWrite' => $this->granularShareService->canWrite($this->userId, 'bill', $id),
 				'_canManage' => $this->granularShareService->canManage($this->userId, 'bill', $id),
-			]));
+			])])[0]);
 		} catch (\Exception $e) {
 			return $this->handleNotFoundError($e, $this->l->t('Bill'), ['billId' => $id]);
 		}
@@ -199,6 +201,47 @@ class BillController extends Controller {
 		foreach ($accountIds as $accountId) {
 			if ($accountId !== null) {
 				$this->requireWriteAccess('account', $accountId);
+			}
+		}
+	}
+
+	/**
+	 * Paying, unpaying, skipping and recording a missed payment book into,
+	 * or delete from, the bill's account (and a transfer's destination),
+	 * pre-booked rows included. Someone the bill alone is shared with at
+	 * write was let do that to an account hidden from them or shared with
+	 * them read-only. The bill's owner is checked by BillService, with a
+	 * message saying how to fix it; a bill with no account books nowhere.
+	 *
+	 * @throws \OCA\Budget\Exception\ReadOnlyShareException
+	 */
+	private function requireBillAccountsWritable(int $id): void {
+		$owner = $this->billOwner($id);
+		if ($owner === $this->userId) {
+			return;
+		}
+		$bill = $this->service->find($id, $owner);
+		$this->requireWritableAccounts(
+			$bill->getAccountId(),
+			($bill->getIsTransfer() ?? false) ? $bill->getDestinationAccountId() : null
+		);
+	}
+
+	/**
+	 * Refuse a new account for someone else's bill that its owner can't post
+	 * to. Its payments are recorded as the owner, so a share recipient could
+	 * move the owner's bill onto her own account and leave the owner unable
+	 * to pay his own bill.
+	 *
+	 * @throws \InvalidArgumentException
+	 */
+	private function requireAccountsUsableByOwner(string $billOwner, ?int ...$accountIds): void {
+		if ($billOwner === $this->userId) {
+			return;
+		}
+		foreach ($accountIds as $accountId) {
+			if ($accountId !== null && !$this->granularShareService->canWrite($billOwner, 'account', $accountId)) {
+				throw new \InvalidArgumentException($this->l->t('The owner of this bill can\'t use that account. Choose another one.'));
 			}
 		}
 	}
@@ -385,6 +428,12 @@ class BillController extends Controller {
 			$this->requireCategoryUsableByAccountOwners(
 				$this->getEffectiveUserId(),
 				$categoryId,
+				[$accountId, $isTransfer ? $destinationAccountId : null]
+			);
+			$this->requireUsableBillTags(
+				$this->getEffectiveUserId(),
+				$tagIds,
+				$tagIds,
 				[$accountId, $isTransfer ? $destinationAccountId : null]
 			);
 
@@ -752,12 +801,32 @@ class BillController extends Controller {
 			$destinationInUpdates = array_key_exists('destinationAccountId', $updates);
 			if ($accountInUpdates || $destinationInUpdates) {
 				$storedBill = $this->service->find($id, $ownerId);
-				$this->requireWritableAccounts(
+				$changedAccounts = [
 					$accountInUpdates && $updates['accountId'] !== $storedBill->getAccountId()
 						? $updates['accountId'] : null,
 					$destinationInUpdates && $updates['destinationAccountId'] !== $storedBill->getDestinationAccountId()
-						? $updates['destinationAccountId'] : null
-				);
+						? $updates['destinationAccountId'] : null,
+				];
+				$this->requireWritableAccounts(...$changedAccounts);
+				$this->requireAccountsUsableByOwner($ownerId, ...$changedAccounts);
+			}
+
+			// A dynamic amount is read off the destination card, and the bill
+			// then shows it as its amount: switching a shared bill to one let
+			// a recipient read the balance of a card never shared with them.
+			// Only a change needs it; a form that sends back the stored type
+			// keeps saving.
+			if (isset($updates['amountType']) && $updates['amountType'] !== 'fixed') {
+				$storedBill = $storedBill ?? $this->service->find($id, $ownerId);
+				$destinationId = array_key_exists('destinationAccountId', $updates)
+					? $updates['destinationAccountId'] : $storedBill->getDestinationAccountId();
+				if ($updates['amountType'] !== ($storedBill->getAmountType() ?? 'fixed')
+					&& $destinationId !== null && !$this->canAccessEntity('account', (int)$destinationId)) {
+					return new DataResponse(
+						['error' => $this->l->t('This amount is read from an account that isn\'t shared with you. Choose a fixed amount.')],
+						Http::STATUS_BAD_REQUEST
+					);
+				}
 			}
 
 			if (empty($updates)) {
@@ -769,6 +838,16 @@ class BillController extends Controller {
 				array_key_exists('categoryId', $updates) ? $updates['categoryId'] : null,
 				isset($data['splitTemplate']) && is_array($data['splitTemplate']) ? $data['splitTemplate'] : null
 			);
+			if ($ownerId !== $this->userId
+				&& (array_key_exists('categoryId', $updates) || (isset($data['splitTemplate']) && is_array($data['splitTemplate'])))) {
+				$storedBill = $storedBill ?? $this->service->find($id, $ownerId);
+				$this->requireCategoriesVisibleToEditor(
+					$ownerId,
+					$storedBill,
+					array_key_exists('categoryId', $updates) ? $updates['categoryId'] : null,
+					isset($data['splitTemplate']) && is_array($data['splitTemplate']) ? $data['splitTemplate'] : []
+				);
+			}
 			if (isset($data['splitTemplate']) || array_key_exists('accountId', $updates)) {
 				$storedBill = $storedBill ?? $this->service->find($id, $ownerId);
 				$this->requireSplitsUsableByAccountOwner(
@@ -781,6 +860,12 @@ class BillController extends Controller {
 				|| array_key_exists('isTransfer', $updates)) {
 				$storedBill = $storedBill ?? $this->service->find($id, $ownerId);
 				$this->requireChangedCategoryUsableByAccountOwners($ownerId, $storedBill, $updates);
+			}
+			if (array_key_exists('tagIds', $updates) || $accountInUpdates || $destinationInUpdates
+				|| array_key_exists('isTransfer', $updates)) {
+				$storedBill = $storedBill ?? $this->service->find($id, $ownerId);
+				$updates = $this->keepTagsTheEditorCannotSee($ownerId, $storedBill, $updates);
+				$this->requireChangedBillTagsUsable($ownerId, $storedBill, $updates);
 			}
 
 			$bill = $this->service->update($id, $ownerId, $updates);
@@ -846,6 +931,7 @@ class BillController extends Controller {
 	public function recordMissedPayment(int $id): DataResponse {
 		try {
 			$this->requireWriteAccess('bill', $id);
+			$this->requireBillAccountsWritable($id);
 			$result = $this->service->recordMissedPayment($id, $this->billOwner($id));
 			return new DataResponse($result);
 		} catch (\InvalidArgumentException $e) {
@@ -882,6 +968,7 @@ class BillController extends Controller {
 	public function markPaid(int $id, ?string $paidDate = null): DataResponse {
 		try {
 			$this->requireWriteAccess('bill', $id);
+			$this->requireBillAccountsWritable($id);
 			$params = $this->request->getParams();
 			// Whether to record the payment itself. It used to be called
 			// createNextTransaction, which is what it also did until #376
@@ -894,7 +981,7 @@ class BillController extends Controller {
 			// tab is refused instead of paying it twice
 			$expectedDueDate = is_string($params['dueDate'] ?? null) ? $params['dueDate'] : null;
 
-			$result = $this->service->markPaid($id, $this->billOwner($id), $paidDate, $recordPayment, $existingTransactionId, $expectedDueDate);
+			$result = $this->service->markPaid($id, $this->billOwner($id), $paidDate, $recordPayment, $existingTransactionId, $expectedDueDate, $this->userId);
 			return new DataResponse($result);
 		} catch (\InvalidArgumentException $e) {
 			// Service-only validation keeps its message (#362)
@@ -918,6 +1005,7 @@ class BillController extends Controller {
 	public function undoPaid(int $id, bool $confirmReconciled = false): DataResponse {
 		try {
 			$this->requireWriteAccess('bill', $id);
+			$this->requireBillAccountsWritable($id);
 			$bill = $this->service->markUnpaid($id, $this->billOwner($id), $confirmReconciled);
 			return new DataResponse($bill);
 		} catch (ReconciledPaymentException $e) {
@@ -939,6 +1027,7 @@ class BillController extends Controller {
 	public function markUnpaid(int $id, bool $confirmReconciled = false): DataResponse {
 		try {
 			$this->requireWriteAccess('bill', $id);
+			$this->requireBillAccountsWritable($id);
 			$bill = $this->service->markUnpaid($id, $this->billOwner($id), $confirmReconciled);
 			return new DataResponse($bill);
 		} catch (ReconciledPaymentException $e) {
@@ -970,6 +1059,7 @@ class BillController extends Controller {
 	public function skipPayment(int $id): DataResponse {
 		try {
 			$this->requireWriteAccess('bill', $id);
+			$this->requireBillAccountsWritable($id);
 			$result = $this->service->skipPayment($id, $this->billOwner($id));
 			return new DataResponse($result);
 		} catch (\InvalidArgumentException $e) {
@@ -987,6 +1077,7 @@ class BillController extends Controller {
 	public function undoSkip(int $id): DataResponse {
 		try {
 			$this->requireWriteAccess('bill', $id);
+			$this->requireBillAccountsWritable($id);
 			$params = $this->request->getParams();
 			$previousNextDueDate = $params['previousNextDueDate'] ?? null;
 
@@ -1069,6 +1160,17 @@ class BillController extends Controller {
 	 * @NoAdminRequired
 	 */
 	public function statusForMonth(?string $month = null): DataResponse {
+		// Checked here: anything but YYYY-MM made date() throw a TypeError in
+		// the service, which the catch below doesn't take, so a 500
+		if ($month === '') {
+			$month = null;
+		} elseif ($month !== null && !preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $month)) {
+			return new DataResponse(
+				['error' => $this->l->t('Invalid month format. Use YYYY-MM')],
+				Http::STATUS_BAD_REQUEST
+			);
+		}
+
 		try {
 			$status = $this->service->getBillStatusForMonth($this->getEffectiveUserId(), $month);
 			return new DataResponse($status);
@@ -1546,6 +1648,128 @@ class BillController extends Controller {
 			|| ($isTransfer && $destinationId !== $stored->getDestinationAccountId());
 		if ($changed) {
 			$this->requireCategoryUsableByAccountOwners($billOwner, $categoryId, [$accountId, $isTransfer ? $destinationId : null]);
+		}
+	}
+
+	/**
+	 * A bill's tags go onto every payment it books, in the ledger of the
+	 * account it pays from and, for a transfer, the one it pays into. Tag
+	 * ids were stored unchecked and read back off those payments with their
+	 * names, so anyone could read every user's tags by walking the ids.
+	 *
+	 * A tag new to the bill ($added) must be one the person setting it can
+	 * see and the bill's owner can use. Like the bill's category, every tag
+	 * it carries ($tagIds) must also be usable by the owner of an account it
+	 * books into when that is someone else.
+	 *
+	 * @param int[] $added
+	 * @param int[] $tagIds
+	 * @param array<int|null> $accountIds
+	 * @throws \InvalidArgumentException
+	 */
+	private function requireUsableBillTags(string $billOwner, array $added, array $tagIds, array $accountIds): void {
+		$this->granularShareService->requireUsableTags($this->userId, $added);
+		if ($billOwner !== $this->userId) {
+			$this->granularShareService->requireUsableTags($billOwner, $added);
+		}
+		if ($tagIds === []) {
+			return;
+		}
+		foreach (array_unique(array_filter($accountIds, static fn ($id) => $id !== null)) as $accountId) {
+			$accountOwner = $this->granularShareService->resolveOwner($billOwner, 'account', (int)$accountId);
+			if ($accountOwner === null || $accountOwner === $billOwner) {
+				continue;
+			}
+			try {
+				$this->granularShareService->requireUsableTags($accountOwner, $tagIds);
+			} catch (\InvalidArgumentException $e) {
+				throw new \InvalidArgumentException($this->l->t('This account belongs to someone else, who cannot see one of the tags. Choose tags from a category shared with them, or no tags.'));
+			}
+		}
+	}
+
+	/**
+	 * The tags of a shared bill as someone other than its owner saves it.
+	 *
+	 * The bill form only lists the tags its user can see and saves exactly
+	 * the ticked ones, so a recipient's save silently stripped the owner's
+	 * own tags off the bill. The tags the editor can't see stay as they are;
+	 * the ones they can see are replaced by what they sent. The owner's save
+	 * still replaces the whole list.
+	 *
+	 * @param array<string, mixed> $updates
+	 * @return array<string, mixed>
+	 */
+	private function keepTagsTheEditorCannotSee(string $billOwner, Bill $stored, array $updates): array {
+		if ($billOwner === $this->userId || !array_key_exists('tagIds', $updates)) {
+			return $updates;
+		}
+		$storedTags = $stored->getTagIdsArray();
+		$hidden = array_diff($storedTags, $this->granularShareService->getUsableTagIds($this->userId, $storedTags));
+		if ($hidden === []) {
+			return $updates;
+		}
+		$decoded = $updates['tagIds'] === null ? [] : json_decode((string)$updates['tagIds'], true);
+		$sent = array_map('intval', is_array($decoded) ? $decoded : []);
+		$updates['tagIds'] = json_encode(array_values(array_unique(array_merge($sent, $hidden))));
+		return $updates;
+	}
+
+	/**
+	 * requireUsableBillTags() for an edit: the tags a form sends back as
+	 * stored keep saving, and the account owners are asked again only when
+	 * the tags or an account change.
+	 *
+	 * @param array<string, mixed> $updates
+	 */
+	private function requireChangedBillTagsUsable(string $billOwner, Bill $stored, array $updates): void {
+		$storedTags = $stored->getTagIdsArray();
+		$tagIds = $storedTags;
+		if (array_key_exists('tagIds', $updates)) {
+			$decoded = $updates['tagIds'] === null ? [] : json_decode((string)$updates['tagIds'], true);
+			$tagIds = array_map('intval', is_array($decoded) ? $decoded : []);
+		}
+		$added = array_values(array_diff($tagIds, $storedTags));
+
+		$accountId = array_key_exists('accountId', $updates) ? $updates['accountId'] : $stored->getAccountId();
+		$isTransfer = array_key_exists('isTransfer', $updates) ? (bool)$updates['isTransfer'] : (bool)$stored->getIsTransfer();
+		$destinationId = array_key_exists('destinationAccountId', $updates) ? $updates['destinationAccountId'] : $stored->getDestinationAccountId();
+		$accountsChanged = $accountId !== $stored->getAccountId()
+			|| $isTransfer !== (bool)$stored->getIsTransfer()
+			|| ($isTransfer && $destinationId !== $stored->getDestinationAccountId());
+
+		$this->requireUsableBillTags(
+			$billOwner,
+			$added,
+			$added !== [] || $accountsChanged ? $tagIds : [],
+			[$accountId, $isTransfer ? $destinationId : null]
+		);
+	}
+
+	/**
+	 * Someone the bill is shared with may only give it, or its split, a
+	 * category they can see: with the owner's check alone they could put one
+	 * of the owner's categories that was never shared with them on it, by id,
+	 * and read its name off the payments it books. Categories the bill
+	 * already uses may stay, so an unchanged bill keeps saving.
+	 *
+	 * @param array<array-key, mixed> $splitTemplate
+	 * @throws \InvalidArgumentException
+	 */
+	private function requireCategoriesVisibleToEditor(string $billOwner, Bill $stored, mixed $categoryId, array $splitTemplate): void {
+		$normalise = static fn (mixed $raw): ?int
+			=> ($raw === null || $raw === '' || !is_numeric($raw) || (int)$raw <= 0) ? null : (int)$raw;
+		$kept = [$stored->getCategoryId()];
+		foreach ($stored->getSplitTemplateArray() as $split) {
+			$kept[] = is_array($split) ? $normalise($split['categoryId'] ?? null) : null;
+		}
+		$this->granularShareService->requireCategoryVisibleToWriter($billOwner, $this->userId, $normalise($categoryId), $kept);
+		foreach ($splitTemplate as $split) {
+			if (is_array($split)) {
+				$this->granularShareService->requireCategoryVisibleToWriter(
+					$billOwner, $this->userId, $normalise($split['categoryId'] ?? null), $kept
+				);
+			}
 		}
 	}
 

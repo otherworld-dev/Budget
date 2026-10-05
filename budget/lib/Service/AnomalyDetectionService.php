@@ -36,6 +36,7 @@ class AnomalyDetectionService {
 		private SettingService $settingService,
 		private AmountFormatter $amountFormatter,
 		private INotificationManager $notificationManager,
+		private ?UserClock $userClock = null,
 	) {
 	}
 
@@ -47,7 +48,7 @@ class AnomalyDetectionService {
 	 * @return array[] [{categoryId, categoryName, mtdSpend, baseline, percentAbove}]
 	 */
 	public function detect(string $userId): array {
-		$now = $this->getNow();
+		$now = $this->getNow($userId);
 		$dayOfMonth = (int)$now->format('j');
 		if ($dayOfMonth < self::MIN_DAY_OF_MONTH) {
 			return [];
@@ -186,7 +187,7 @@ class AnomalyDetectionService {
 			return [];
 		}
 
-		$month = $this->getNow()->format('Y-m');
+		$month = $this->getNow($userId)->format('Y-m');
 		$notified = $this->getNotifiedMap($userId);
 		$changed = false;
 
@@ -203,7 +204,7 @@ class AnomalyDetectionService {
 
 		if ($changed) {
 			// Prune stale entries while writing
-			$notified = array_filter($notified, fn ($m) => $m >= $this->getNow()->modify('-2 months')->format('Y-m'));
+			$notified = array_filter($notified, fn ($m) => $m >= $this->getNow($userId)->modify('-2 months')->format('Y-m'));
 			$this->settingService->set($userId, self::SUPPRESSION_KEY, json_encode($notified));
 		}
 
@@ -259,9 +260,12 @@ class AnomalyDetectionService {
 	}
 
 	/**
+	 * Now on the user's clock, not the server's: the month to date, the
+	 * day-10 guard and the once-a-month suppression are the user's month,
+	 * which on the server's UTC date started up to a day early or late.
 	 * Overridable in tests.
 	 */
-	protected function getNow(): \DateTimeImmutable {
-		return new \DateTimeImmutable();
+	protected function getNow(?string $userId = null): \DateTimeImmutable {
+		return $this->userClock?->now($userId) ?? new \DateTimeImmutable();
 	}
 }

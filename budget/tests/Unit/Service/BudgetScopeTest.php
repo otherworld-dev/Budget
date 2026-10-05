@@ -173,4 +173,29 @@ class BudgetScopeTest extends TestCase {
 
 		$this->assertSame([1, 2], $branches[1]);
 	}
+
+	// ── reportExcludedIds ───────────────────────────────────────────
+
+	public function testReportExclusionTakesTheWholeBranchAndNothingElse(): void {
+		// Business (1, out of reports) → Travel (2) → Hotels (3); Food (4)
+		$categories = [
+			$this->makeTyped(1, null, 'expense', true),
+			$this->makeTyped(2, 1),
+			$this->makeTyped(3, 2),
+			$this->makeTyped(4),
+		];
+
+		$excluded = BudgetScope::reportExcludedIds($categories);
+
+		$this->assertSame([1, 2, 3], array_keys($excluded));
+	}
+
+	public function testReportExclusionIgnoresTheBudgetFlagAndSurvivesACycle(): void {
+		$categories = [
+			$this->makeTyped(1, 2, 'expense', false, true),
+			$this->makeTyped(2, 1),
+		];
+
+		$this->assertSame([], BudgetScope::reportExcludedIds($categories));
+	}
 }

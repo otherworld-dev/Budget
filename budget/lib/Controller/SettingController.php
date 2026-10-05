@@ -49,7 +49,6 @@ class SettingController extends Controller {
 		'report_files_enabled' => 'false',
 		'report_email_enabled' => 'false',
 		'import_auto_apply_rules' => 'true',
-		'import_skip_duplicates' => 'true',
 		'receipt_folder' => AttachmentService::DEFAULT_RECEIPTS_FOLDER,
 		'export_default_format' => 'csv',
 		'budget_period' => 'monthly',
@@ -64,6 +63,35 @@ class SettingController extends Controller {
 		'dashboard_widgets_config' => '{"order":["trendChart","spendingChart","netWorthHistory","recentTransactions","accounts","budgetAlerts","upcomingBills","budgetProgress","savingsGoals","debtPayoff"],"visibility":{"trendChart":true,"spendingChart":true,"netWorthHistory":true,"recentTransactions":true,"accounts":true,"budgetAlerts":true,"upcomingBills":true,"budgetProgress":true,"savingsGoals":true,"debtPayoff":true}}',
 		'dashboard_locked' => 'true', // Dashboard starts locked
 	];
+
+	/**
+	 * Keys the web app saves beyond those with a default. Together with
+	 * DEFAULTS they are the only keys a client may write: the rest belong to
+	 * the app (the calendar feed token, the sample data flag, onboarding
+	 * state, what has been notified), and any key at all was accepted, so
+	 * a chosen feed token hijacked the public feed URL, or broke the feed of
+	 * whoever already had it.
+	 */
+	private const CLIENT_KEYS = [
+		'dashboard_grid_columns',
+		'transaction_columns_visible',
+		'whats_new_seen',
+		// The Settings page's "Skip Duplicate Transactions" switch did
+		// nothing and is gone; nothing reads the key. Still accepted, and
+		// ignored, so a page loaded before the update can save its settings.
+		'import_skip_duplicates',
+	];
+
+	private static function isClientKey(string $key): bool {
+		return array_key_exists($key, self::DEFAULTS) || in_array($key, self::CLIENT_KEYS, true);
+	}
+
+	private function refusedKey(string $key): DataResponse {
+		return new DataResponse(
+			['error' => $this->l->t('This setting can\'t be changed: %1$s', [$key])],
+			Http::STATUS_BAD_REQUEST
+		);
+	}
 
 	public function __construct(
 		IRequest $request,
@@ -145,11 +173,16 @@ class SettingController extends Controller {
 			$now = date('Y-m-d H:i:s');
 			$updated = [];
 
-			foreach ($data as $key => $value) {
-				// Skip internal parameters
-				if (in_array($key, ['_route', 'controller', 'action'])) {
-					continue;
+			// Skip internal parameters
+			$data = array_diff_key($data, array_flip(['_route', 'controller', 'action']));
+			// All or nothing, so a refusal saves none of the rest
+			foreach (array_keys($data) as $key) {
+				if (!self::isClientKey((string)$key)) {
+					return $this->refusedKey((string)$key);
 				}
+			}
+
+			foreach ($data as $key => $value) {
 
 				// Receipts folder: validated and normalised (#352); blank = default
 				if ($key === AttachmentService::RECEIPT_FOLDER_KEY) {
@@ -189,6 +222,9 @@ class SettingController extends Controller {
 					['error' => $this->l->t('Value parameter is required')],
 					Http::STATUS_BAD_REQUEST
 				);
+			}
+			if (!self::isClientKey($key)) {
+				return $this->refusedKey($key);
 			}
 
 			if ($key === AttachmentService::RECEIPT_FOLDER_KEY) {

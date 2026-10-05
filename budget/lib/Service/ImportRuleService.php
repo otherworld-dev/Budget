@@ -13,6 +13,7 @@ use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Service\Import\CriteriaEvaluator;
 use OCA\Budget\Service\Import\RuleActionApplicator;
+use OCA\Budget\Service\Import\SetupDefaultRules;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
@@ -136,10 +137,12 @@ class ImportRuleService extends AbstractCrudService {
 
 			// Validate actions if provided
 			if ($actions !== null) {
-				$actionValidation = $this->actionApplicator->validateActions($actions, $userId);
-				if (!$actionValidation['valid']) {
-					throw new \InvalidArgumentException('Invalid actions: ' . implode(', ', $actionValidation['errors']));
-				}
+				$this->assertValidActions($actions, $userId);
+			}
+			// The legacy column is still read (effectiveCategoryId(), Run
+			// rules), so it is held to the same rule as an action
+			if ($categoryId !== null) {
+				$this->assertValidActions(['categoryId' => $categoryId], $userId);
 			}
 		} else {
 			// v1 format: pattern, field, matchType required
@@ -154,6 +157,11 @@ class ImportRuleService extends AbstractCrudService {
 			}
 			if ($effectiveCategoryId !== null) {
 				$this->categoryMapper->find($effectiveCategoryId, $userId);
+			}
+			// A v1 rule may carry actions in the current format too, and the
+			// import applies them: they were stored unchecked (R6-4)
+			if ($actions !== null) {
+				$this->assertValidActions($actions, $userId);
 			}
 
 			// Validate match type
@@ -241,10 +249,14 @@ class ImportRuleService extends AbstractCrudService {
 
 			// Validate actions if being updated
 			if (isset($updates['actions'])) {
-				$actionValidation = $this->actionApplicator->validateActions($updates['actions'], $userId);
-				if (!$actionValidation['valid']) {
-					throw new \InvalidArgumentException('Invalid actions: ' . implode(', ', $actionValidation['errors']));
-				}
+				$this->assertValidActions($updates['actions'], $userId);
+			} elseif ($currentVersion !== 2) {
+				// Switching a v1 rule to v2 without resending its actions keeps
+				// the ones it was saved with, which a v1 save never checked
+				$this->assertValidActions($rule->getParsedActions(), $userId);
+			}
+			if (isset($updates['categoryId'])) {
+				$this->assertValidActions(['categoryId' => $updates['categoryId']], $userId);
 			}
 		} else {
 			// v1 validation (existing logic)
@@ -254,6 +266,9 @@ class ImportRuleService extends AbstractCrudService {
 			}
 			if (isset($updates['actions']) && isset($updates['actions']['categoryId'])) {
 				$this->categoryMapper->find($updates['actions']['categoryId'], $userId);
+			}
+			if (isset($updates['actions'])) {
+				$this->assertValidActions($updates['actions'], $userId);
 			}
 
 			// Validate match type if being updated
@@ -296,6 +311,19 @@ class ImportRuleService extends AbstractCrudService {
 		}
 
 		return $this->mapper->update($rule);
+	}
+
+	/**
+	 * Refuse actions that point at something the rule's owner can't use: a
+	 * category outside their ledger, an account that isn't theirs.
+	 *
+	 * @throws \InvalidArgumentException
+	 */
+	private function assertValidActions(array $actions, string $userId): void {
+		$validation = $this->actionApplicator->validateActions($actions, $userId);
+		if (!$validation['valid']) {
+			throw new \InvalidArgumentException('Invalid actions: ' . implode(', ', $validation['errors']));
+		}
 	}
 
 	public function testRules(string $userId, array $transactionData): array {
@@ -365,82 +393,102 @@ class ImportRuleService extends AbstractCrudService {
 		}
 	}
 
+	/**
+	 * The priority setup gives its rules: the lowest there is, below the 1 a
+	 * rule made in the rule editor starts at, so a rule the user makes wins
+	 * whenever both match. At 5-10 the defaults matched first and kept the
+	 * user's own rules from running (T3). The 0-100 range is the editor's.
+	 */
+	public const DEFAULT_RULE_PRIORITY = 0;
+
 	public function createDefaultRules(string $userId): array {
-		$defaultRules = [
-			[
-				'name' => 'Grocery Stores',
-				'pattern' => 'grocery|supermarket|safeway|kroger|trader joe|whole foods',
+		// SetupDefaultRules lists them in the order they used to rank (their
+		// old priorities 10, 10, 9, 8, 7, 5): at one priority the older rule
+		// runs first, so creating them in that order keeps their order among
+		// themselves. Their patterns match whole words (V3-4).
+		$defaultRules = [];
+		foreach (SetupDefaultRules::DEFINITIONS as $name => $definition) {
+			$defaultRules[] = [
+				'name' => $name,
+				'pattern' => $definition['pattern'],
 				'field' => 'description',
 				'matchType' => 'regex',
-				'categoryName' => 'Groceries',
-				'priority' => 10
-			],
-			[
-				'name' => 'Gas Stations',
-				'pattern' => 'gas|fuel|shell|chevron|exxon|bp|mobil',
-				'field' => 'description',
-				'matchType' => 'regex',
-				'categoryName' => 'Gas',
-				'priority' => 10
-			],
-			[
-				'name' => 'Restaurants',
-				'pattern' => 'restaurant|cafe|coffee|starbucks|mcdonald|burger',
-				'field' => 'description',
-				'matchType' => 'regex',
-				'categoryName' => 'Dining Out',
-				'priority' => 8
-			],
-			[
-				'name' => 'Online Shopping',
-				'pattern' => 'amazon|ebay|paypal|stripe',
-				'field' => 'description',
-				'matchType' => 'regex',
-				'categoryName' => 'Shopping',
-				'priority' => 5
-			],
-			[
-				'name' => 'Utilities',
-				'pattern' => 'electric|water|gas|utility|power|energy',
-				'field' => 'description',
-				'matchType' => 'regex',
-				'categoryName' => 'Utilities',
-				'priority' => 9
-			],
-			[
-				'name' => 'ATM Withdrawals',
-				'pattern' => 'ATM|withdrawal|cash',
-				'field' => 'description',
-				'matchType' => 'regex',
-				'categoryName' => 'Cash',
-				'priority' => 7
-			]
-		];
+				'categoryName' => $definition['category'],
+			];
+		}
+
+		// Each rule sets the category it is named for. They were created with
+		// none: a rule with no action still matches first and stops the rules
+		// after it, so "Create default categories" left every user with six
+		// rules that kept their own rules from ever running (T3). A rule whose
+		// category the user doesn't have is not created at all.
+		$categories = $this->categoryMapper->findAll($userId);
+		$existingRules = $this->findAll($userId);
 
 		$created = [];
 		foreach ($defaultRules as $ruleData) {
-			try {
-				// Find category by name (this is simplified - in practice you'd need better category matching)
-				$categoryId = null; // Would need to implement category lookup
+			// Pressing the button again must not stack a second copy, beside
+			// one made with this pattern or the one it had before
+			$patterns = [$ruleData['pattern'], SetupDefaultRules::RULES[$ruleData['name']] ?? null];
+			foreach ($existingRules as $existing) {
+				if ($existing->getName() === $ruleData['name'] && in_array($existing->getPattern(), $patterns, true)) {
+					continue 2;
+				}
+			}
 
-				$rule = $this->create(
+			$categoryId = self::defaultRuleCategoryId($categories, $ruleData['categoryName']);
+			if ($categoryId === null) {
+				continue;
+			}
+
+			try {
+				$created[] = $this->create(
 					userId: $userId,
 					name: $ruleData['name'],
 					pattern: $ruleData['pattern'],
 					field: $ruleData['field'],
 					matchType: $ruleData['matchType'],
-					categoryId: $categoryId,
-					priority: $ruleData['priority']
+					criteria: SetupDefaultRules::criteriaFor($ruleData['pattern']),
+					schemaVersion: 2,
+					priority: self::DEFAULT_RULE_PRIORITY,
+					actions: [
+						'version' => 2,
+						'stopProcessing' => true,
+						'actions' => [[
+							'type' => 'set_category',
+							'value' => $categoryId,
+							'behavior' => 'always',
+							'priority' => 100,
+						]],
+					],
 				);
-
-				$created[] = $rule;
 			} catch (\Exception $e) {
-				// Skip if category not found or other error
 				continue;
 			}
 		}
 
 		return $created;
+	}
+
+	/**
+	 * The user's expense category a default rule files into: a top-level one
+	 * of that name, else the only one of that name at any level (the default
+	 * tree has Groceries under Food). Null when there is none, or several
+	 * subcategories share the name and none of them is clearly meant.
+	 *
+	 * @param \OCA\Budget\Db\Category[] $categories
+	 */
+	private static function defaultRuleCategoryId(array $categories, string $name): ?int {
+		$matches = array_values(array_filter(
+			$categories,
+			static fn ($category) => $category->getName() === $name && $category->getType() === 'expense'
+		));
+		foreach ($matches as $category) {
+			if ($category->getParentId() === null) {
+				return $category->getId();
+			}
+		}
+		return count($matches) === 1 ? $matches[0]->getId() : null;
 	}
 
 	/**
@@ -460,6 +508,11 @@ class ImportRuleService extends AbstractCrudService {
 		// Filter by account
 		if (!empty($filters['accountId'])) {
 			$qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($filters['accountId'], IQueryBuilder::PARAM_INT)));
+		}
+
+		// Particular rows: a chunk of a rule run done again row by row
+		if (!empty($filters['ids'])) {
+			$qb->andWhere($qb->expr()->in('t.id', $qb->createNamedParameter(array_map('intval', $filters['ids']), IQueryBuilder::PARAM_INT_ARRAY)));
 		}
 
 		// Filter by date range
@@ -536,16 +589,19 @@ class ImportRuleService extends AbstractCrudService {
 
 			foreach ($rules as $rule) {
 				if ($this->testRule($rule, $transactionData)) {
-					// Show ALL matching transactions in preview
-					$preview[] = [
-						'transactionId' => $transaction->getId(),
-						'transactionDescription' => $transaction->getDescription(),
-						'transactionDate' => $transaction->getDate(),
-						'transactionAmount' => $transaction->getAmount(),
-						'transactionCategoryId' => $transaction->getCategoryId(),
-						'ruleId' => $rule->getId(),
-						'ruleName' => $rule->getName()
-					];
+					// Listed up to a limit: a whole ledger's matches came to
+					// 5 MB (T6-3). matchCount still counts every one.
+					if (count($preview) < self::RESULT_LIST_LIMIT) {
+						$preview[] = [
+							'transactionId' => $transaction->getId(),
+							'transactionDescription' => $transaction->getDescription(),
+							'transactionDate' => $transaction->getDate(),
+							'transactionAmount' => $transaction->getAmount(),
+							'transactionCategoryId' => $transaction->getCategoryId(),
+							'ruleId' => $rule->getId(),
+							'ruleName' => $rule->getName()
+						];
+					}
 					$matchCount++;
 					break; // First matching rule wins
 				}
@@ -555,7 +611,8 @@ class ImportRuleService extends AbstractCrudService {
 		return [
 			'totalTransactions' => count($transactions),
 			'matchCount' => $matchCount,
-			'preview' => $preview
+			'preview' => $preview,
+			'previewTruncated' => $matchCount > count($preview),
 		];
 	}
 
@@ -589,92 +646,19 @@ class ImportRuleService extends AbstractCrudService {
 			return $b->getPriority() - $a->getPriority();
 		});
 
-		$success = 0;
-		$failed = 0;
-		$skipped = 0;
-		$applied = [];
-		// Accounts whose ledger a rule changed, recomputed once each after the
-		// run rather than once per changed row
-		$touchedAccounts = [];
-
-		foreach ($transactions as $transaction) {
-			$transactionData = $this->extractTransactionData($transaction, $userId);
-
-			// Find all matching rules
-			$matchingRules = [];
-			foreach ($rules as $rule) {
-				if ($this->testRule($rule, $transactionData)) {
-					$matchingRules[] = $rule;
-
-					// Check stop_processing flag
-					if ($rule->getStopProcessing() ?? true) {
-						break; // Don't evaluate more rules
-					}
-				}
-			}
-
-			if (empty($matchingRules)) {
-				$skipped++;
-				continue;
-			}
-
-			try {
-				// Apply all matching rules
-				$changes = $this->actionApplicator->applyRules($transaction, $matchingRules, $userId);
-
-				if (!empty($changes)) {
-					$transaction->setUpdatedAt(date('Y-m-d H:i:s'));
-					$updatedTransaction = $this->transactionMapper->update($transaction);
-
-					// Rules can change type (set_type) or account (set_account) —
-					// both affect balances, so the ledger is recomputed once the
-					// run is over. Recomputing it here, per changed row, redid
-					// the whole account's sum for every row a rule touched.
-					if (isset($changes['type']) || isset($changes['account'])) {
-						$touchedAccounts[$updatedTransaction->getAccountId()] = true;
-						if (isset($changes['account']) && !empty($changes['account']['old'])) {
-							$touchedAccounts[(int)$changes['account']['old']] = true;
-						}
-					}
-
-					// Apply deferred tag actions after transaction is persisted
-					$this->actionApplicator->applyDeferredTagActions($updatedTransaction, $changes, $userId, $changes);
-
-					// Apply deferred transfer linking
-					if (!empty($changes['_deferred_link_transfer'])) {
-						try {
-							$matches = $this->transactionService->findPotentialMatches($updatedTransaction->getId(), $userId, 3);
-							if (!empty($matches)) {
-								$this->transactionService->linkTransactions($updatedTransaction->getId(), $matches[0]->getId(), $userId);
-								$changes['transferLinked'] = $matches[0]->getId();
-							}
-						} catch (\Exception $e) {
-							// Silently skip — no match found or already linked
-						}
-					}
-
-					$success++;
-					$applied[] = [
-						'transactionId' => $updatedTransaction->getId(),
-						'date' => $updatedTransaction->getDate(),
-						'description' => $updatedTransaction->getDescription(),
-						'amount' => $updatedTransaction->getAmount(),
-						'categoryId' => $updatedTransaction->getCategoryId(),
-						'isSplit' => (bool)$updatedTransaction->getIsSplit(),
-						'rules' => array_map(fn ($r) => ['id' => $r->getId(), 'name' => $r->getName()], $matchingRules),
-						'changes' => $changes
-					];
-				} else {
-					$skipped++;
-				}
-			} catch (\Exception $e) {
-				$failed++;
-			}
+		$outcome = self::emptyRunOutcome();
+		foreach (array_chunk($transactions, self::RUN_CHUNK) as $chunk) {
+			$this->applyRulesToChunk($chunk, $rules, $userId, $outcome);
 		}
 
-		foreach (array_keys($touchedAccounts) as $accountId) {
+		// Accounts whose ledger a rule changed, recomputed once each after the
+		// run rather than once per changed row
+		foreach (array_keys($outcome['touched']) as $accountId) {
 			try {
-				$this->transactionService->recalculateAccountBalance((int)$accountId, $userId);
+				// As the account's owner: recomputing a shared account as the
+				// user who ran the rules failed and left its balance stale
+				$owner = $this->transactionService->findAccountById((int)$accountId)->getUserId();
+				$this->transactionService->recalculateAccountBalance((int)$accountId, $owner);
 			} catch (\Exception $e) {
 				// The rows are already saved; one account's failure must not
 				// cost the others their recompute
@@ -688,11 +672,169 @@ class ImportRuleService extends AbstractCrudService {
 
 		return [
 			'totalTransactions' => count($transactions),
-			'success' => $success,
-			'failed' => $failed,
-			'skipped' => $skipped,
-			'applied' => $applied
+			'success' => $outcome['success'],
+			'failed' => $outcome['failed'],
+			'skipped' => $outcome['skipped'],
+			// Listed up to a limit: a run over a whole ledger sent every
+			// change back, 6 MB for 27,000 rows (T6-3). The counts are whole.
+			'applied' => $outcome['applied'],
+			'appliedTruncated' => $outcome['success'] > count($outcome['applied']),
 		];
+	}
+
+	/** Rows a rule run saves per database transaction (T6-3) */
+	private const RUN_CHUNK = 500;
+
+	/** Rows a rule run or preview lists back to the browser (T6-3) */
+	private const RESULT_LIST_LIMIT = 500;
+
+	/**
+	 * @return array{success: int, failed: int, skipped: int, applied: array, touched: array<int, true>}
+	 */
+	private static function emptyRunOutcome(): array {
+		return ['success' => 0, 'failed' => 0, 'skipped' => 0, 'applied' => [], 'touched' => []];
+	}
+
+	/**
+	 * Apply the rules to one chunk of rows, saved in one database transaction.
+	 *
+	 * Every changed row used to be its own autocommitted UPDATE, so a run
+	 * over a whole ledger synced to disk once per row: 27,000 changed rows
+	 * took 96 s (T6-3). A row that fails is counted and left as before. But
+	 * after a failed statement PostgreSQL refuses the rest of a transaction,
+	 * and committing it then drops every change in it, so when anything in
+	 * the chunk fails at the database the chunk is rolled back and done again
+	 * one row at a time, each saved on its own, from the rows as stored.
+	 *
+	 * @param Transaction[] $chunk
+	 * @param ImportRule[] $rules
+	 * @param array{success: int, failed: int, skipped: int, applied: array, touched: array<int, true>} $outcome
+	 */
+	private function applyRulesToChunk(array $chunk, array $rules, string $userId, array &$outcome): void {
+		$chunkOutcome = self::emptyRunOutcome();
+		$this->db->beginTransaction();
+		try {
+			foreach ($chunk as $transaction) {
+				$this->applyRulesToRow($transaction, $rules, $userId, $chunkOutcome, true);
+			}
+			// A failed statement whose error was handled further down (a tag,
+			// a transfer link) still leaves PostgreSQL refusing what follows
+			$probe = $this->db->getQueryBuilder();
+			$probe->select('id')->from('budget_import_rules')->setMaxResults(1);
+			$probe->executeQuery()->closeCursor();
+			$this->db->commit();
+		} catch (\Throwable $e) {
+			if ($this->db->inTransaction()) {
+				$this->db->rollBack();
+			}
+			$this->logger?->warning('A rule run saved one chunk row by row after a database error', [
+				'app' => 'budget',
+				'exception' => $e,
+			]);
+			$chunkOutcome = self::emptyRunOutcome();
+			$ids = array_map(static fn (Transaction $transaction) => $transaction->getId(), $chunk);
+			foreach ($this->findTransactionsForRules($userId, ['ids' => $ids]) as $transaction) {
+				$this->applyRulesToRow($transaction, $rules, $userId, $chunkOutcome, false);
+			}
+		}
+
+		$outcome['success'] += $chunkOutcome['success'];
+		$outcome['failed'] += $chunkOutcome['failed'];
+		$outcome['skipped'] += $chunkOutcome['skipped'];
+		$outcome['touched'] += $chunkOutcome['touched'];
+		foreach ($chunkOutcome['applied'] as $entry) {
+			if (count($outcome['applied']) >= self::RESULT_LIST_LIMIT) {
+				break;
+			}
+			$outcome['applied'][] = $entry;
+		}
+	}
+
+	/**
+	 * Apply the matching rules to one row and save it.
+	 *
+	 * @param ImportRule[] $rules
+	 * @param array{success: int, failed: int, skipped: int, applied: array, touched: array<int, true>} $outcome
+	 * @param bool $inChunkTransaction A database error is passed up, for the chunk to be done again row by row
+	 */
+	private function applyRulesToRow(Transaction $transaction, array $rules, string $userId, array &$outcome, bool $inChunkTransaction): void {
+		$transactionData = $this->extractTransactionData($transaction, $userId);
+
+		// Find all matching rules
+		$matchingRules = [];
+		foreach ($rules as $rule) {
+			if ($this->testRule($rule, $transactionData)) {
+				$matchingRules[] = $rule;
+
+				// Check stop_processing flag
+				if ($rule->getStopProcessing() ?? true) {
+					break; // Don't evaluate more rules
+				}
+			}
+		}
+
+		if (empty($matchingRules)) {
+			$outcome['skipped']++;
+			return;
+		}
+
+		try {
+			// Apply all matching rules
+			$changes = $this->actionApplicator->applyRules($transaction, $matchingRules, $userId);
+
+			if (!empty($changes)) {
+				$transaction->setUpdatedAt(date('Y-m-d H:i:s'));
+				$updatedTransaction = $this->transactionMapper->update($transaction);
+
+				// Rules can change type (set_type) or account (set_account) —
+				// both affect balances, so the ledger is recomputed once the
+				// run is over. Recomputing it here, per changed row, redid
+				// the whole account's sum for every row a rule touched.
+				if (isset($changes['type']) || isset($changes['account'])) {
+					$outcome['touched'][$updatedTransaction->getAccountId()] = true;
+					if (isset($changes['account']) && !empty($changes['account']['old'])) {
+						$outcome['touched'][(int)$changes['account']['old']] = true;
+					}
+				}
+
+				// Apply deferred tag actions after transaction is persisted
+				$this->actionApplicator->applyDeferredTagActions($updatedTransaction, $changes, $userId, $changes);
+
+				// Apply deferred transfer linking
+				if (!empty($changes['_deferred_link_transfer'])) {
+					try {
+						$matches = $this->transactionService->findPotentialMatches($updatedTransaction->getId(), $userId, 3);
+						if (!empty($matches)) {
+							$this->transactionService->linkTransactions($updatedTransaction->getId(), $matches[0]->getId(), $userId);
+							$changes['transferLinked'] = $matches[0]->getId();
+						}
+					} catch (\Exception $e) {
+						// Silently skip — no match found or already linked
+					}
+				}
+
+				$outcome['success']++;
+				$outcome['applied'][] = [
+					'transactionId' => $updatedTransaction->getId(),
+					'date' => $updatedTransaction->getDate(),
+					'description' => $updatedTransaction->getDescription(),
+					'amount' => $updatedTransaction->getAmount(),
+					'categoryId' => $updatedTransaction->getCategoryId(),
+					'isSplit' => (bool)$updatedTransaction->getIsSplit(),
+					'rules' => array_map(fn ($r) => ['id' => $r->getId(), 'name' => $r->getName()], $matchingRules),
+					'changes' => $changes
+				];
+			} else {
+				$outcome['skipped']++;
+			}
+		} catch (\OCP\DB\Exception $e) {
+			if ($inChunkTransaction) {
+				throw $e;
+			}
+			$outcome['failed']++;
+		} catch (\Exception $e) {
+			$outcome['failed']++;
+		}
 	}
 
 	/**

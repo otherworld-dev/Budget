@@ -72,6 +72,18 @@ class UserTableCleaner {
 		],
 	];
 
+	/**
+	 * The user's tags on transactions in other users' accounts: a write
+	 * recipient can tag the owner's rows. The registry clears transaction
+	 * tags through the user's own transactions only, so these outlived the
+	 * tags they name and were left pointing at nothing after a reset, a
+	 * restore or the user's deletion.
+	 */
+	public const TAGS_ON_OTHERS_ROWS = [
+		'table' => 'budget_transaction_tags',
+		'scope' => ['joins' => [['budget_tags', 'tag_id']]],
+	];
+
 	public function __construct(
 		private IDBConnection $db,
 	) {
@@ -80,12 +92,15 @@ class UserTableCleaner {
 	/**
 	 * Registry specs in clearing order: POST before PRE, because PRE holds
 	 * tag sets and tags, which POST rows (transaction tags, savings goals)
-	 * point at.
+	 * point at. The user's tags on other users' rows go in between, while
+	 * the tags that find them are still there.
 	 *
 	 * @return array<string, array> registry key => spec
 	 */
 	public static function clearOrder(): array {
-		return MigrationService::EXTRA_TABLES_POST + MigrationService::EXTRA_TABLES_PRE;
+		return MigrationService::EXTRA_TABLES_POST
+			+ ['tags_on_others_rows' => self::TAGS_ON_OTHERS_ROWS]
+			+ MigrationService::EXTRA_TABLES_PRE;
 	}
 
 	/**
@@ -113,6 +128,8 @@ class UserTableCleaner {
 	 * @return array<string, int>
 	 */
 	private function clearTables(string $userId, array $specs, bool $skipMissingTables): array {
+		// The manual rates are among these tables (reset and restore)
+		CurrencyConversionService::userDataChanged();
 		$counts = [];
 		foreach ($specs as $key => $spec) {
 			try {

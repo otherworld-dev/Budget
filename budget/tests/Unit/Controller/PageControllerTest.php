@@ -22,10 +22,11 @@ class PageControllerTest extends TestCase {
 	private IAppManager $appManager;
 	private CategoryMapper $categoryMapper;
 	private GranularShareService $granularShareService;
+	private AccountMapper $accountMapper;
 
 	protected function setUp(): void {
 		$request = $this->createMock(IRequest::class);
-		$accountMapper = $this->createMock(AccountMapper::class);
+		$accountMapper = $this->accountMapper = $this->createMock(AccountMapper::class);
 		$categoryMapper = $this->categoryMapper = $this->createMock(CategoryMapper::class);
 		$granularShareService = $this->granularShareService = $this->createMock(GranularShareService::class);
 		$schemaVersionService = $this->createMock(SchemaVersionService::class);
@@ -186,6 +187,48 @@ class PageControllerTest extends TestCase {
 			[2, 'Loop A', 0],
 			[3, 'Loop B', 1],
 		], $this->quickAddRows());
+	}
+
+	public function testQuickAddOffersOnlyAccountsTheUserCanWriteTo(): void {
+		// Saving into an account shared read-only was refused (R2-5)
+		$own = new \OCA\Budget\Db\Account();
+		$own->setId(1);
+		$own->setName('Current');
+		$this->accountMapper->method('findOpen')->with('user1')->willReturn([$own]);
+		$this->granularShareService->method('getSharedAccounts')->with('user1')->willReturn([
+			['id' => 4, 'name' => 'Joint', 'closed' => false],
+			['id' => 6, 'name' => 'Read only', 'closed' => false],
+			['id' => 7, 'name' => 'Closed joint', 'closed' => true],
+		]);
+		$this->granularShareService->method('canWrite')
+			->willReturnCallback(fn (string $user, string $type, int $id) => $type === 'account' && in_array($id, [4, 7], true));
+
+		$accounts = (new \ReflectionMethod(PageController::class, 'quickAddAccounts'))->invoke($this->controller);
+
+		$this->assertSame([['id' => 1, 'name' => 'Current', 'owner' => null], ['id' => 4, 'name' => 'Joint', 'owner' => null]], $accounts);
+	}
+
+	public function testQuickAddTellsTheOwnersOfSharedAccountsAndCategories(): void {
+		// A row in someone else's account takes only their categories; the
+		// page filters the category list by the account's owner (V4-4)
+		$own = new \OCA\Budget\Db\Account();
+		$own->setId(1);
+		$own->setName('Current');
+		$this->accountMapper->method('findOpen')->willReturn([$own]);
+		$this->granularShareService->method('getSharedAccounts')->willReturn([
+			['id' => 4, 'name' => 'Joint', 'closed' => false, 'userId' => 'owen'],
+		]);
+		$this->granularShareService->method('canWrite')->willReturn(true);
+		$this->categoryMapper->method('findAll')->willReturn([$this->category(1, 'Food', 'expense', null)]);
+		$this->granularShareService->method('getSharedCategories')->willReturn([
+			['id' => 10, 'name' => 'House', 'type' => 'expense', 'parentId' => null, '_sharedBy' => 'owen'],
+		]);
+
+		$accounts = (new \ReflectionMethod(PageController::class, 'quickAddAccounts'))->invoke($this->controller);
+		$categories = (new \ReflectionMethod(PageController::class, 'quickAddCategories'))->invoke($this->controller);
+
+		$this->assertSame([null, 'owen'], array_column($accounts, 'owner'));
+		$this->assertSame([1 => null, 10 => 'owen'], array_column($categories, 'owner', 'id'));
 	}
 
 	/** @return list<array{int, string, int}> */

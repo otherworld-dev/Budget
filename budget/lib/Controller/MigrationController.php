@@ -11,8 +11,8 @@ use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
-use OCP\AppFramework\Http\DataDownloadResponse;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\AppFramework\Http\StreamResponse;
 use OCP\IL10N;
 use OCP\IRequest;
 use Psr\Log\LoggerInterface;
@@ -45,9 +45,12 @@ class MigrationController extends Controller {
 	 * @NoCSRFRequired
 	 */
 	#[UserRateLimit(limit: 5, period: 300)]
-	public function export(): DataDownloadResponse|DataResponse {
+	public function export(): StreamResponse|DataResponse {
 		try {
-			$result = $this->migrationService->exportAll($this->userId);
+			// Streamed from a temporary file: a large ledger's archive is
+			// never held in memory whole
+			$result = $this->migrationService->exportToFile($this->userId);
+			$response = self::downloadResponse($result['path'], $result['filename'], $result['contentType']);
 
 			// Log the export
 			$this->auditService->log(
@@ -58,14 +61,27 @@ class MigrationController extends Controller {
 				['filename' => $result['filename']]
 			);
 
-			return new DataDownloadResponse(
-				$result['content'],
-				$result['filename'],
-				$result['contentType']
-			);
-		} catch (\Exception $e) {
+			return $response;
+		} catch (\Throwable $e) {
 			return $this->handleError($e, $this->l->t('Failed to export data'));
 		}
+	}
+
+	/**
+	 * A download of the file at $path, which is removed right away: the open
+	 * handle keeps its contents readable until the response has been sent.
+	 */
+	private static function downloadResponse(string $path, string $filename, string $contentType): StreamResponse {
+		$handle = fopen($path, 'rb');
+		@unlink($path);
+		if ($handle === false) {
+			throw new \RuntimeException('Failed to read the export archive');
+		}
+
+		$response = new StreamResponse($handle);
+		$response->addHeader('Content-Disposition', 'attachment; filename="' . strtr($filename, ['"' => '\\"', '\\' => '\\\\']) . '"');
+		$response->addHeader('Content-Type', $contentType);
+		return $response;
 	}
 
 	/**
@@ -98,7 +114,9 @@ class MigrationController extends Controller {
 			return new DataResponse($preview);
 		} catch (\InvalidArgumentException $e) {
 			return $this->handleValidationError($e);
-		} catch (\Exception $e) {
+		} catch (\Throwable $e) {
+			// A PHP error from a damaged archive too: a plain 400, never a
+			// stack trace
 			return $this->handleError($e, $this->l->t('Failed to preview import'));
 		}
 	}
@@ -168,7 +186,7 @@ class MigrationController extends Controller {
 				['error' => $e->getMessage()]
 			);
 			return $this->handleValidationError($e);
-		} catch (\Exception $e) {
+		} catch (\Throwable $e) {
 			$this->auditService->log(
 				$this->userId,
 				'data_import_failed',

@@ -77,7 +77,8 @@ import { initDatePickers } from './utils/datepicker.js';
 import { setupChartTheme } from './utils/chartTheme.js';
 import { setupHeaderMenus } from './utils/headerMenu.js';
 import { setupClickableCards } from './utils/clickableCards.js';
-import { transactionDisplayAmount } from './utils/helpers.js';
+import { transactionTotalsByCurrency } from './utils/helpers.js';
+import { categoryOptionsHtml } from './utils/formSelects.js';
 import { apiFetch, ApiError } from './utils/api.js';
 
 // Configuration
@@ -99,7 +100,7 @@ import CategoriesModule from './modules/categories/CategoriesModule.js';
 import SharingModule from './modules/sharing/SharingModule.js';
 import HelpModule, { HELP_TOPICS, helpDocUrl, SUPPORT_LINKS } from './modules/help/HelpModule.js';
 import OnboardingModule from './modules/onboarding/OnboardingModule.js';
-import { renderTransactionRow } from './modules/transactions/transactionRow.js';
+import { renderTransactionRow, transactionMenuActions } from './modules/transactions/transactionRow.js';
 import { refreshBankSyncNav } from './modules/bank-sync/bankSyncStatus.js';
 // The rule editor's styles ship in budget-app.css with the rest, rather than
 // as a stylesheet of their own fetched when the Rules view first opens
@@ -242,8 +243,7 @@ class BudgetApp {
         if (link) {
             initialView = link.view;
             if (initialView === 'transactions' && link.search) {
-                const searchInput = document.getElementById('filter-search');
-                if (searchInput) searchInput.value = link.search;
+                this.transactionsModule.applySearchLink(link.search);
             }
         }
         // Seed the initial history entry with state (preserving any deep-link
@@ -509,30 +509,31 @@ class BudgetApp {
 
             const transactionId = moreBtn.getAttribute('data-transaction-id');
             const transaction = this.transactions?.find(tx => tx.id === parseInt(transactionId));
-            const isLinked = transaction?.linkedTransactionId != null;
+            const account = this.accounts?.find(a => a.id === transaction?.accountId);
             const icon = (paths) => `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">${paths}</svg>`;
             const item = (cls, label, paths) => `
                 <button type="button" role="menuitem" class="action-menu-item ${cls}" data-transaction-id="${transactionId}">
                     ${icon(paths)}<span>${label}</span>
                 </button>`;
+            const items = {
+                duplicate: () => item('transaction-duplicate-btn', t('budget', 'Duplicate'),
+                    '<rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>'),
+                share: () => item('transaction-share-btn', t('budget', 'Share expense'),
+                    '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>'),
+                unlink: () => item('transaction-unlink-btn', t('budget', 'Unlink transfer'),
+                    '<path d="M18.84 12.25l1.72-1.71a4 4 0 0 0-5.66-5.66l-1.71 1.72"/><path d="M5.17 11.75l-1.71 1.71a4 4 0 0 0 5.66 5.66l1.71-1.71"/><line x1="2" y1="2" x2="22" y2="22"/>'),
+                match: () => item('transaction-match-btn', t('budget', 'Match transfer'),
+                    '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>'),
+                delete: () => '<div class="action-menu-separator" role="separator"></div>'
+                    + item('transaction-delete-btn action-menu-item--danger', t('budget', 'Delete'),
+                        '<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>'),
+            };
 
             const menu = document.createElement('div');
             menu.className = 'action-menu-fixed';
             menu.setAttribute('role', 'menu');
-            menu.innerHTML = [
-                item('transaction-duplicate-btn', t('budget', 'Duplicate'),
-                    '<rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>'),
-                item('transaction-share-btn', t('budget', 'Share expense'),
-                    '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>'),
-                isLinked
-                    ? item('transaction-unlink-btn', t('budget', 'Unlink transfer'),
-                        '<path d="M18.84 12.25l1.72-1.71a4 4 0 0 0-5.66-5.66l-1.71 1.72"/><path d="M5.17 11.75l-1.71 1.71a4 4 0 0 0 5.66 5.66l1.71-1.71"/><line x1="2" y1="2" x2="22" y2="22"/>')
-                    : item('transaction-match-btn', t('budget', 'Match transfer'),
-                        '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>'),
-                '<div class="action-menu-separator" role="separator"></div>',
-                item('transaction-delete-btn action-menu-item--danger', t('budget', 'Delete'),
-                    '<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>'),
-            ].join('');
+            // A row in an account shared read-only offers no changes
+            menu.innerHTML = transactionMenuActions(transaction, account).map(key => items[key]()).join('');
             menu._owner = moreBtn;
             document.body.appendChild(menu);
 
@@ -632,8 +633,10 @@ class BudgetApp {
             } else if (e.target.id === 'confirm-selected-btn') {
                 this.handleConfirmSelected();
             } else if (e.target.classList.contains('autocomplete-item')) {
+                // The institution suggestions: the picker lives on the accounts
+                // module, the app shell has no selectInstitution of its own
                 const bankName = e.target.getAttribute('data-bank-name');
-                this.selectInstitution(bankName);
+                this.accountsModule?.selectInstitution(bankName);
             } else if (e.target.id === 'empty-categories-add-btn' || e.target.closest('#empty-categories-add-btn')) {
                 this.showAddCategoryModal();
             } else if (e.target.id === 'create-default-categories-btn' || e.target.closest('#create-default-categories-btn')) {
@@ -1478,7 +1481,7 @@ class BudgetApp {
 
             // Load tags, shared status and attachment counts for all displayed transactions
             await Promise.all([
-                this.loadAllTransactionTags(),
+                this.loadAllTransactionTags(result.tags),
                 this.loadSharedTransactionIds(),
                 this.loadAttachmentCounts(),
             ]);
@@ -1555,28 +1558,13 @@ class BudgetApp {
         }
 
         if (totalElement && this.transactions) {
-            const total = this.transactions.reduce((sum, tx) => {
-                // Scheduled rows are future placeholders (e.g. a bill's next
-                // occurrence) — no money has moved yet, so keep them out of
-                // the displayed total (#311).
-                if (tx.status === 'scheduled') return sum;
-                // Under a category filter a split row counts for its share of
-                // the transaction, so this total matches the spending chart it
-                // was opened from instead of the whole receipt (#359).
-                const amount = transactionDisplayAmount(tx);
-                return sum + (tx.type === 'credit' ? amount : -amount);
-            }, 0);
-
-            // Determine most common currency from displayed transactions
-            const currencyCounts = {};
-            this.transactions.forEach(tx => {
-                const currency = tx.accountCurrency || this.getPrimaryCurrency();
-                currencyCounts[currency] = (currencyCounts[currency] || 0) + 1;
-            });
-            const mostCommonCurrency = Object.entries(currencyCounts)
-                .sort((a, b) => b[1] - a[1])[0]?.[0] || this.getPrimaryCurrency();
-
-            totalElement.textContent = t('budget', 'Total: {amount}', { amount: this.formatCurrency(total, mostCommonCurrency) });
+            // One figure per currency: euro and pound rows added together
+            // gave a total in neither (see transactionTotalsByCurrency)
+            const totals = transactionTotalsByCurrency(this.transactions, this.getPrimaryCurrency());
+            const amount = totals.length > 0
+                ? totals.map(({ currency, total }) => this.formatCurrency(total, currency)).join(' · ')
+                : this.formatCurrency(0, this.getPrimaryCurrency());
+            totalElement.textContent = t('budget', 'Total: {amount}', { amount });
         }
     }
 
@@ -2874,6 +2862,11 @@ class BudgetApp {
 
         container.innerHTML = plan.debts.map((debt, index) => {
             const balance = parseFloat(debt.originalBalance) || 0;
+            // The plan is in the base currency; a debt in another one also
+            // shows what it owes in its own
+            const ownBalance = debt.currency && plan.currency && debt.currency !== plan.currency
+                ? ` (${this.formatCurrency(parseFloat(debt.nativeBalance) || 0, debt.currency)})`
+                : '';
             const rate = parseFloat(debt.interestRate) || 0;
             const minPayment = parseFloat(debt.minimumPayment) || 0;
             const interest = parseFloat(debt.interestPaid) || 0;
@@ -2890,7 +2883,7 @@ class BudgetApp {
                 <div class="debt-card" data-debt-id="${debt.id || ''}" style="border-left-color: ${this._debtColor(index)};">
                     <div class="debt-card-header">
                         <span class="debt-card-name">${dom.escapeHtml(debt.name)}</span>
-                        <span class="debt-card-balance">${this.formatCurrency(balance, currency)}</span>
+                        <span class="debt-card-balance">${this.formatCurrency(balance, currency)}${dom.escapeHtml(ownBalance)}</span>
                     </div>
                     <div class="debt-card-meta">
                         ${rate > 0 ? `<div>${t('budget', 'Interest Rate')}: ${rate.toFixed(1)}%</div>` : ''}
@@ -3685,19 +3678,10 @@ class BudgetApp {
     }
 
     /**
-     * Get category options HTML
+     * Get category options HTML (selectedName: see categoryOptionsHtml)
      */
-    getCategoryOptions(selectedId = null, transactionType = null) {
-        if (!this.categories) return '';
-
-        // Determine category type based on transaction type
-        // credit = income categories, debit = expense categories
-        const categoryType = transactionType === 'credit' ? 'income' : 'expense';
-
-        return this.categories
-            .filter(c => c.type === categoryType)
-            .map(c => `<option value="${c.id}" ${c.id === selectedId ? 'selected' : ''}>${dom.escapeHtml(c.name)}</option>`)
-            .join('');
+    getCategoryOptions(selectedId = null, transactionType = null, account = null, selectedName = null) {
+        return categoryOptionsHtml(this.categories, selectedId, transactionType, account, selectedName);
     }
 
     /**
@@ -4049,8 +4033,8 @@ class BudgetApp {
         return this.tagSetsModule.renderCategoryTagSetsList(categoryId, readOnly);
     }
 
-    async loadAllTransactionTags() {
-        return this.tagSetsModule.loadAllTransactionTags();
+    async loadAllTransactionTags(tagsByTransaction) {
+        return this.tagSetsModule.loadAllTransactionTags(tagsByTransaction);
     }
 
     async loadSharedTransactionIds() {

@@ -57,8 +57,15 @@ trait ApiErrorHandlerTrait {
 			return new DataResponse(['error' => $message], Http::STATUS_FORBIDDEN);
 		}
 
-		// Log the full error details server-side
-		$this->logError($e, $context);
+		// Log the full error details server-side. An id that is missing or
+		// someone else's is the request's lookup failing, not the app: it
+		// went to nextcloud.log as a level-3 error on every such 404, normal
+		// shared-account screens included.
+		if ($e instanceof \OCP\AppFramework\Db\DoesNotExistException) {
+			$this->logger?->debug('Budget: not found: ' . $e->getMessage(), array_merge(['app' => 'budget'], $context));
+		} else {
+			$this->logError($e, $context);
+		}
 
 		$body = ['error' => $genericMessage];
 

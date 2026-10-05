@@ -6,6 +6,8 @@ namespace OCA\Budget\Service\Forecast;
 
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Service\CurrencyTotals;
+use OCA\Budget\Service\MoneyCalculator;
 use OCA\Budget\Service\UserClock;
 
 /**
@@ -19,9 +21,55 @@ class ScenarioBuilder {
 		AccountMapper $accountMapper,
 		TransactionMapper $transactionMapper,
 		private ?UserClock $userClock = null,
+		private ?CurrencyTotals $currencyTotals = null,
 	) {
 		$this->accountMapper = $accountMapper;
 		$this->transactionMapper = $transactionMapper;
+	}
+
+	/**
+	 * Multipliers into the base currency when the accounts hold more than
+	 * one currency (CurrencyTotals::accountRates()), null when they share one
+	 * and are added up as they are. Balances and history were summed as
+	 * stored, so euros counted as pounds.
+	 *
+	 * @return array<int, string>|null account id => multiplier
+	 */
+	private function baseRates(array $accounts, string $userId): ?array {
+		$conversion = $this->currencyTotals?->accountRates($accounts, $userId);
+		return ($conversion['currency'] ?? null) !== null ? $conversion['rates'] : null;
+	}
+
+	/**
+	 * The accounts' balances as of today, added up in the base currency when
+	 * they hold more than one. An account with no rate is left out.
+	 *
+	 * @param array<int, float> $futureChanges
+	 * @param array<int, string>|null $rates
+	 */
+	private function balanceToday(array $accounts, array $futureChanges, ?array $rates): float {
+		$total = 0.0;
+		foreach ($accounts as $account) {
+			if ($rates !== null && !isset($rates[$account->getId()])) {
+				continue;
+			}
+			$balance = $account->getBalance() - ($futureChanges[$account->getId()] ?? 0);
+			$total += $rates !== null ? (float)MoneyCalculator::multiply($balance, $rates[$account->getId()], 10) : $balance;
+		}
+		return $total;
+	}
+
+	/**
+	 * The history of the accounts counted: when converting, an account with
+	 * no rate is left out of the history as it is out of the balance.
+	 *
+	 * @param array<int, string>|null $rates
+	 */
+	private static function inScope(array $transactions, ?array $rates): array {
+		return $rates === null ? $transactions : array_values(array_filter(
+			$transactions,
+			static fn ($t) => isset($rates[(int)$t->getAccountId()])
+		));
 	}
 
 	/**
@@ -81,12 +129,8 @@ class ScenarioBuilder {
 		$today = $this->userClock?->today($userId) ?? date('Y-m-d');
 		$futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
 
-		$currentBalance = 0.0;
-		foreach ($accounts as $account) {
-			$storedBalance = $account->getBalance();
-			$futureChange = $futureChanges[$account->getId()] ?? 0;
-			$currentBalance += ($storedBalance - $futureChange);
-		}
+		$rates = $this->baseRates($accounts, $userId);
+		$currentBalance = $this->balanceToday($accounts, $futureChanges, $rates);
 
 		// Get historical averages (excluding extraordinary/one-time items so
 		// scenario projections stay consistent with the main forecast, #270).
@@ -95,7 +139,7 @@ class ScenarioBuilder {
 		// Transfers between the user's accounts are neither income nor
 		// spending, as in the main forecast
 		$transactions = PatternAnalyzer::withoutInternalTransfers(array_filter(
-			$this->transactionMapper->findAllByUserAndDateRange($userId, $startDate, $endDate),
+			self::inScope($this->transactionMapper->findAllByUserAndDateRange($userId, $startDate, $endDate), $rates),
 			fn ($t) => !($t->getExcludedFromForecast() ?? false)
 		));
 
@@ -107,10 +151,11 @@ class ScenarioBuilder {
 			$month = date('Y-m', strtotime($transaction->getDate()));
 			$monthCount[$month] = true;
 
+			$amount = PatternAnalyzer::inForecastCurrency((float)$transaction->getAmount(), $transaction, $rates ?? []);
 			if ($transaction->getType() === 'credit') {
-				$monthlyIncome += $transaction->getAmount();
+				$monthlyIncome += $amount;
 			} else {
-				$monthlyExpenses += $transaction->getAmount();
+				$monthlyExpenses += $amount;
 			}
 		}
 
@@ -211,18 +256,14 @@ class ScenarioBuilder {
 		$today = $this->userClock?->today($userId) ?? date('Y-m-d');
 		$futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
 
-		$currentBalance = 0.0;
-		foreach ($accounts as $account) {
-			$storedBalance = $account->getBalance();
-			$futureChange = $futureChanges[$account->getId()] ?? 0;
-			$currentBalance += ($storedBalance - $futureChange);
-		}
+		$rates = $this->baseRates($accounts, $userId);
+		$currentBalance = $this->balanceToday($accounts, $futureChanges, $rates);
 
 		// Work backwards from current balance using transactions
 		$balances = [];
 		$endDate = date('Y-m-d');
 		$startDate = date('Y-m-d', strtotime("-{$months} months"));
-		$transactions = $this->transactionMapper->findAllByUserAndDateRange($userId, $startDate, $endDate);
+		$transactions = self::inScope($this->transactionMapper->findAllByUserAndDateRange($userId, $startDate, $endDate), $rates);
 
 		// Group transactions by month
 		$monthlyChanges = [];
@@ -232,10 +273,11 @@ class ScenarioBuilder {
 				$monthlyChanges[$month] = 0;
 			}
 
+			$amount = PatternAnalyzer::inForecastCurrency((float)$transaction->getAmount(), $transaction, $rates ?? []);
 			if ($transaction->getType() === 'credit') {
-				$monthlyChanges[$month] += $transaction->getAmount();
+				$monthlyChanges[$month] += $amount;
 			} else {
-				$monthlyChanges[$month] -= $transaction->getAmount();
+				$monthlyChanges[$month] -= $amount;
 			}
 		}
 

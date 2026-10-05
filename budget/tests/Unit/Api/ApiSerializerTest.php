@@ -94,6 +94,67 @@ class ApiSerializerTest extends TestCase {
 		$this->assertSame('GBP', $result['base_currency']);
 	}
 
+	// ── money in the currency's own places ───────────────────────────
+
+	/**
+	 * Every figure went out at two places, so a Bitcoin balance of 0.022
+	 * read "0.02" and a 0.015 transaction "0.02". Worse, a client sending
+	 * the read shape back to PATCH a description changed the amount. Money
+	 * now keeps its currency's places, never fewer than two: every two- and
+	 * zero-place currency reads exactly as before.
+	 */
+	public function testAnAccountBalanceKeepsItsCurrencysPlaces(): void {
+		$btc = ApiSerializer::account(['id' => 1, 'currency' => 'BTC', 'balance' => 0.022, 'convertedBalance' => 1234.5, 'baseCurrency' => 'GBP']);
+
+		$this->assertSame('0.02200000', $btc['balance']);
+		// The converted figure is in the base currency
+		$this->assertSame('1234.50', $btc['balance_in_base_currency']);
+	}
+
+	public function testTwoAndZeroPlaceCurrenciesReadExactlyAsBefore(): void {
+		$this->assertSame('12.50', ApiSerializer::account(['id' => 1, 'currency' => 'GBP', 'balance' => 12.5])['balance']);
+		$this->assertSame('1000.00', ApiSerializer::account(['id' => 1, 'currency' => 'JPY', 'balance' => 1000])['balance']);
+		$this->assertSame('7.05', ApiSerializer::account(['id' => 1, 'currency' => 'XYZ', 'balance' => 7.05])['balance']);
+	}
+
+	public function testAThreePlaceCurrencyKeepsItsThirdPlace(): void {
+		$this->assertSame('1.235', ApiSerializer::account(['id' => 1, 'currency' => 'JOD', 'balance' => 1.235])['balance']);
+	}
+
+	public function testATransactionAndItsPartsUseTheAccountsCurrency(): void {
+		// A list row carries the account currency; a single row is given it
+		$row = [
+			'id' => 1, 'amount' => 0.015, 'matchedSplitAmount' => 0.005,
+			'splitCategories' => [['id' => 1, 'transactionId' => 1, 'amount' => 0.005], ['id' => 2, 'transactionId' => 1, 'amount' => 0.01]],
+		];
+
+		foreach ([ApiSerializer::transaction($row + ['accountCurrency' => 'BTC']), ApiSerializer::transaction($row, 'BTC')] as $result) {
+			$this->assertSame('0.01500000', $result['amount']);
+			$this->assertSame('0.00500000', $result['split_amount']);
+			$this->assertSame(['0.00500000', '0.01000000'], array_column($result['splits'], 'amount'));
+		}
+		$this->assertSame('0.02', ApiSerializer::transaction($row)['amount']);
+	}
+
+	public function testARecentRowUsesItsAccountsCurrency(): void {
+		$result = ApiSerializer::recentTransaction(['id' => 1, 'amount' => 0.015, 'accountCurrency' => 'BTC', 'splitCategories' => [['amount' => 0.015]]]);
+
+		$this->assertSame('0.01500000', $result['amount']);
+		$this->assertSame('0.01500000', $result['splits'][0]['amount']);
+	}
+
+	public function testBillsAndBudgetsUseTheirCurrency(): void {
+		$this->assertSame('0.00250000', ApiSerializer::bill(['id' => 1, 'amount' => 0.0025, 'currency' => 'ETH'])['amount']);
+
+		$status = ApiSerializer::budgetStatus([
+			'currency' => 'BTC',
+			'totals' => ['budgeted' => '0.012345', 'spent' => '0', 'remaining' => '0.012345'],
+			'categories' => [['categoryId' => 1, 'budgeted' => '0.01', 'spent' => '0.002', 'remaining' => '0.008', 'carried' => '0']],
+		]);
+		$this->assertSame('0.01234500', $status['totals']['budgeted']);
+		$this->assertSame('0.00800000', $status['categories'][0]['remaining']);
+	}
+
 	public function testAccountSharedFlagComesFromInternalMarker(): void {
 		$this->assertTrue(ApiSerializer::account(['id' => 1, '_shared' => true])['shared']);
 		$this->assertFalse(ApiSerializer::account(['id' => 1])['shared']);
@@ -379,8 +440,41 @@ class ApiSerializerTest extends TestCase {
 	public function testBudgetLineKeysAreFixed(): void {
 		$this->assertSame([
 			'category_id', 'name', 'parent_id', 'type', 'period',
-			'budgeted', 'carried', 'spent', 'remaining', 'shared',
+			'budgeted', 'carried', 'spent', 'remaining', 'shared', 'period_to_date',
 		], array_keys(ApiSerializer::budgetLine([])));
+	}
+
+	public function testABudgetLineHasNoPeriodSoFarUnlessQuarterlyOrYearly(): void {
+		$this->assertNull(ApiSerializer::budgetLine(['period' => 'weekly'])['period_to_date']);
+	}
+
+	public function testAYearlyBudgetLineCarriesTheYearSoFar(): void {
+		$line = ApiSerializer::budgetLine([
+			'categoryId' => 22, 'period' => 'yearly', 'budgeted' => '100.0000000000', 'spent' => '0', 'remaining' => '100',
+			'periodToDate' => ['startDate' => '2026-01-01', 'endDate' => '2026-10-31', 'budgeted' => '1200.0000000000', 'spent' => '400.5'],
+		], 'GBP');
+
+		$this->assertSame('100.00', $line['budgeted']);
+		$this->assertSame([
+			'start_date' => '2026-01-01',
+			'end_date' => '2026-10-31',
+			'budgeted' => '1200.00',
+			'spent' => '400.50',
+		], $line['period_to_date']);
+	}
+
+	public function testBudgetStatusRemainingIsBudgetedLessSpentAsShown(): void {
+		// Converted spending carries fractions: rounding the three totals on
+		// their own gave 1746.42 against the page's 3106.67 - 1360.24
+		$result = ApiSerializer::budgetStatus([
+			'month' => '2026-10',
+			'currency' => 'EUR',
+			'totals' => ['budgeted' => '3106.666667', 'spent' => '1360.244000', 'remaining' => '1746.422667'],
+		]);
+
+		$this->assertSame('3106.67', $result['totals']['budgeted']);
+		$this->assertSame('1360.24', $result['totals']['spent']);
+		$this->assertSame('1746.43', $result['totals']['remaining']);
 	}
 
 	public function testBudgetStatusAmountsAreMoneyStrings(): void {
