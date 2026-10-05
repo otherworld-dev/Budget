@@ -156,11 +156,13 @@ class BillController extends Controller {
 			if ($owner === $this->userId) {
 				return new DataResponse($bill);
 			}
-			return new DataResponse(array_merge($bill->jsonSerialize(), [
+			// Named like the bills list: its category, and its split parts',
+			// even one the owner didn't share with the user
+			return new DataResponse($this->granularShareService->withCategoryNames([array_merge($bill->jsonSerialize(), [
 				'_shared' => true,
 				'_canWrite' => $this->granularShareService->canWrite($this->userId, 'bill', $id),
 				'_canManage' => $this->granularShareService->canManage($this->userId, 'bill', $id),
-			]));
+			])])[0]);
 		} catch (\Exception $e) {
 			return $this->handleNotFoundError($e, $this->l->t('Bill'), ['billId' => $id]);
 		}

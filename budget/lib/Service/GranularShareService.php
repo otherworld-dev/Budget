@@ -556,7 +556,7 @@ class GranularShareService {
 	 * @return array[]
 	 */
 	public function getSharedBills(string $userId): array {
-		return array_map(function ($b) use ($userId) {
+		return $this->withCategoryNames(array_map(function ($b) use ($userId) {
 			$canWrite = $this->canWrite($userId, ShareItem::TYPE_BILL, $b->getId());
 			$serialized = $b->jsonSerialize();
 			return array_merge($serialized, [
@@ -570,7 +570,7 @@ class GranularShareService {
 				// may write. Read-only recipients still never see the action.
 				'canMarkUnpaid' => $canWrite && ($serialized['canMarkUnpaid'] ?? false),
 			]);
-		}, $this->getSharedBillEntities($userId));
+		}, $this->getSharedBillEntities($userId)));
 	}
 
 	/**
@@ -599,11 +599,75 @@ class GranularShareService {
 			return [];
 		}
 		$income = $this->recurringIncomeMapper->findByIds($ids);
-		return array_map(fn ($r) => array_merge($r->jsonSerialize(), [
+		return $this->withCategoryNames(array_map(fn ($r) => array_merge($r->jsonSerialize(), [
 			'_shared' => true,
 			'_canWrite' => $this->canWrite($userId, ShareItem::TYPE_RECURRING_INCOME, $r->getId()),
 			'_canManage' => $this->canManage($userId, ShareItem::TYPE_RECURRING_INCOME, $r->getId()),
-		]), $income);
+		]), $income));
+	}
+
+	/**
+	 * Name the categories shared bills, transfers or recurring income are
+	 * filed under: each item's own (`categoryName`) and each part of a bill's
+	 * split template. The item is shared, so its category is named for the
+	 * user even when the category itself isn't shared with them, as on a
+	 * transaction in an account shared with them; the pickers still don't
+	 * offer it. Only a category the item's owner can see is named, never
+	 * another user's category id left on the item, and only its name is
+	 * sent. Accounts stay unnamed: an account that wasn't shared is never
+	 * named (UpcomingBillsService, the transfer badge).
+	 *
+	 * @param array<int, array<string, mixed>> $items serialized, each with its owner's userId
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function withCategoryNames(array $items): array {
+		$categoryIdsOf = static function (array $item): array {
+			$parts = is_array($item['splitTemplate'] ?? null) ? $item['splitTemplate'] : [];
+			$ids = [];
+			foreach (array_merge([$item], $parts) as $holder) {
+				$id = is_array($holder) ? ($holder['categoryId'] ?? null) : null;
+				if (is_numeric($id) && (int)$id > 0) {
+					$ids[] = (int)$id;
+				}
+			}
+			return $ids;
+		};
+
+		// owner => category id => whether the owner can see it
+		$seen = [];
+		foreach ($items as $item) {
+			$owner = (string)($item['userId'] ?? '');
+			foreach ($categoryIdsOf($item) as $id) {
+				$seen[$owner][$id] ??= $owner !== '' && $this->canAccess($owner, ShareItem::TYPE_CATEGORY, $id);
+			}
+		}
+		$wanted = [];
+		foreach ($seen as $byId) {
+			foreach (array_keys(array_filter($byId)) as $id) {
+				$wanted[$id] = $id;
+			}
+		}
+		$names = [];
+		foreach ($this->categoryMapper->findByIdsUnscoped(array_values($wanted)) as $category) {
+			$names[(int)$category->getId()] = (string)$category->getName();
+		}
+
+		$nameOf = static function (string $owner, mixed $id) use ($seen, $names): ?string {
+			$id = is_numeric($id) ? (int)$id : 0;
+			return ($seen[$owner][$id] ?? false) ? ($names[$id] ?? null) : null;
+		};
+		foreach ($items as $i => $item) {
+			$owner = (string)($item['userId'] ?? '');
+			$items[$i]['categoryName'] = $nameOf($owner, $item['categoryId'] ?? null);
+			if (is_array($item['splitTemplate'] ?? null)) {
+				foreach ($item['splitTemplate'] as $p => $part) {
+					if (is_array($part)) {
+						$items[$i]['splitTemplate'][$p]['categoryName'] = $nameOf($owner, $part['categoryId'] ?? null);
+					}
+				}
+			}
+		}
+		return $items;
 	}
 
 	/**
