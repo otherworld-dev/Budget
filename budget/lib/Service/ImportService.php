@@ -2105,17 +2105,54 @@ class ImportService {
 			return $categoryCache[$oppositeCacheKey];
 		}
 
-		$category = $this->categoryService->findOrCreate($userId, $categoryName, $type);
+		$category = $this->findImportCategory($userId, $categoryName, $type);
+		if ($category === null) {
+			$path = CategoryTransferService::splitPath($categoryName);
+			if (count($path) > 1) {
+				$category = $this->resolveCategoryPath($userId, $path, $type, $categoryCache, $categoriesCreated);
+			} else {
+				$category = $this->categoryService->findOrCreate($userId, $categoryName, $type);
+				$this->countIfJustCreated($category, $categoryCache, $categoriesCreated);
+			}
+		}
 		$categoryCache[$cacheKey] = $category->getId();
 
-		// Only count as "created" if this category was created within the last few seconds
-		// (findOrCreate sets timestamps on new categories)
-		$createdAt = $category->getCreatedAt();
-		if ($createdAt && (time() - strtotime($createdAt)) < 10) {
-			$categoriesCreated++;
-		}
-
 		return $category->getId();
+	}
+
+	/**
+	 * The user's category of that name in the row's own type, or else in
+	 * the other one: a refund names the expense category the spending went
+	 * to, and looking only for an income one made an income twin of it
+	 * (#421).
+	 */
+	private function findImportCategory(string $userId, string $name, string $type): ?\OCA\Budget\Db\Category {
+		$oppositeType = ($type === 'income') ? 'expense' : 'income';
+		return $this->categoryService->findExisting($userId, $name, $type)
+			?? $this->categoryService->findExisting($userId, $name, $oppositeType);
+	}
+
+	/**
+	 * Resolve a "Food > Groceries" category cell through the user's tree,
+	 * creating the levels that are missing. Skrooge writes a subcategory as
+	 * its whole path, and the cell used to become one flat category of
+	 * that name (#421). The first level is found like any category name;
+	 * the levels under it take its type, as subcategories always do.
+	 *
+	 * @param string[] $path Levels, outermost first
+	 */
+	private function resolveCategoryPath(string $userId, array $path, string $type, array &$categoryCache, int &$categoriesCreated): \OCA\Budget\Db\Category {
+		$root = (string)array_shift($path);
+		$category = $this->findImportCategory($userId, $root, $type);
+		if ($category === null) {
+			$category = $this->categoryService->findOrCreate($userId, $root, $type);
+			$this->countIfJustCreated($category, $categoryCache, $categoriesCreated);
+		}
+		foreach ($path as $name) {
+			$category = $this->categoryService->findOrCreateSubcategory($userId, $name, $category->getType(), $category->getId());
+			$this->countIfJustCreated($category, $categoryCache, $categoriesCreated);
+		}
+		return $category;
 	}
 
 	/**
@@ -2152,13 +2189,13 @@ class ImportService {
 		}
 		if ($parentId === null) {
 			$parent = $this->categoryService->findOrCreate($userId, $parentName, $type);
-			$this->countIfJustCreated($parent, $categoriesCreated);
+			$this->countIfJustCreated($parent, $categoryCache, $categoriesCreated);
 			$parentId = $parent->getId();
 			$categoryCache['parent::' . $type . '::' . $parentName] = $parentId;
 		}
 
 		$category = $this->categoryService->findOrCreateSubcategory($userId, $categoryName, $type, $parentId);
-		$this->countIfJustCreated($category, $categoriesCreated);
+		$this->countIfJustCreated($category, $categoryCache, $categoriesCreated);
 		$categoryCache['sub::' . $type . '::' . $key] = $category->getId();
 
 		return $category->getId();
@@ -2166,11 +2203,14 @@ class ImportService {
 
 	/**
 	 * Count a category from findOrCreate*() as created by this import when
-	 * its timestamp is only seconds old (the same test the one-level path uses).
+	 * its timestamp is only seconds old, once: a path walk meets the same
+	 * new parent again on every later row under it.
 	 */
-	private function countIfJustCreated(\OCA\Budget\Db\Category $category, int &$categoriesCreated): void {
+	private function countIfJustCreated(\OCA\Budget\Db\Category $category, array &$categoryCache, int &$categoriesCreated): void {
 		$createdAt = $category->getCreatedAt();
-		if ($createdAt && (time() - strtotime($createdAt)) < 10) {
+		$key = 'created::' . $category->getId();
+		if ($createdAt && (time() - strtotime($createdAt)) < 10 && !isset($categoryCache[$key])) {
+			$categoryCache[$key] = true;
 			$categoriesCreated++;
 		}
 	}
