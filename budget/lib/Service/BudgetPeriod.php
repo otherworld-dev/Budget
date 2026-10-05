@@ -129,6 +129,60 @@ final class BudgetPeriod {
 		];
 	}
 
+	/**
+	 * How many budget months the dates [start, end] cover: one for each
+	 * whole budget month, and for a month the range only partly covers its
+	 * share of that month's days (1 to 15 September is 0.5).
+	 *
+	 * @return string at ten places, or a whole number when every month is whole
+	 */
+	public static function monthsIn(string $start, string $end, int $startDay): string {
+		if ($start > $end) {
+			return '0';
+		}
+		$whole = 0;
+		$part = null;
+		$month = \DateTime::createFromFormat('!Y-m', self::monthContaining($start, $startDay));
+		// Bounded: a thousand years of months is more than any range asks for
+		for ($guard = 0; $guard < 12000; $guard++) {
+			[$monthStart, $monthEnd] = self::range($month->format('Y-m'), $startDay);
+			if ($monthStart > $end) {
+				break;
+			}
+			$from = max($start, $monthStart);
+			$to = min($end, $monthEnd);
+			if ($from === $monthStart && $to === $monthEnd) {
+				$whole++;
+			} else {
+				$part = MoneyCalculator::add($part ?? '0', MoneyCalculator::divide(
+					(string)self::days($from, $to),
+					(string)self::days($monthStart, $monthEnd),
+					10
+				), 10);
+			}
+			$month->modify('first day of next month');
+		}
+		return $part === null ? (string)$whole : MoneyCalculator::add((string)$whole, $part, 10);
+	}
+
+	/**
+	 * A budget's share of a span of $months budget months (monthsIn()): its
+	 * monthly share, by the yearly ratios the Budget page uses, times the
+	 * months. A weekly 20 is 86.67 for one month and 260 for three, a
+	 * yearly 1,200 is 100 and 300, and a monthly 400 is 400 and 1,200.
+	 *
+	 * @return string at ten places
+	 */
+	public static function shareOf(string|float $amount, string $period, string $months): string {
+		$yearly = MoneyCalculator::multiply($amount, self::perYear($period), 10);
+		return MoneyCalculator::divide(MoneyCalculator::multiply($yearly, $months, 10), '12', 10);
+	}
+
+	/** The days from $from to $to, both included. */
+	private static function days(string $from, string $to): int {
+		return (int)\DateTime::createFromFormat('!Y-m-d', $from)->diff(\DateTime::createFromFormat('!Y-m-d', $to))->days + 1;
+	}
+
 	/** How many of a budget period make a year; an unknown one is monthly. */
 	private static function perYear(string $period): string {
 		return ['weekly' => '52', 'monthly' => '12', 'quarterly' => '4', 'yearly' => '1'][$period] ?? '12';

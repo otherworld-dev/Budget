@@ -3,6 +3,10 @@
  * of the month. It took the whole yearly 600 as left this month (and a
  * weekly 50 as a month's budget), so it read 950 where the Budget page's
  * Remaining card for the same month read 466.67.
+ *
+ * The budget report now sends each budget as its share of the range asked
+ * for, so the hero takes the figure as it comes: turning it monthly again
+ * made a yearly 600's 50 for the month 4.17.
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -39,10 +43,10 @@ afterEach(() => {
 });
 
 describe('budget remaining on the dashboard', () => {
-    it('counts a weekly or yearly budget for the month', () => {
+    it('takes a weekly or yearly budget as the share of the month the report sends', () => {
         makeDashboard().updateBudgetRemainingHero({ categories: [
-            { categoryName: 'Insurance', type: 'expense', period: 'yearly', budgeted: 600, spent: 50 },
-            { categoryName: 'Transport', type: 'expense', period: 'weekly', budgeted: 50, spent: 10 },
+            { categoryName: 'Insurance', type: 'expense', period: 'yearly', budgeted: 50, spent: 50 },
+            { categoryName: 'Transport', type: 'expense', period: 'weekly', budgeted: 216.67, spent: 10 },
             { categoryName: 'Bills', type: 'expense', period: 'monthly', budgeted: 150, spent: 40 },
             { categoryName: 'Food', type: 'expense', period: 'monthly', budgeted: 300, spent: 50 },
             { categoryName: 'Groceries', type: 'expense', period: 'monthly', budgeted: 200, spent: 260 },
