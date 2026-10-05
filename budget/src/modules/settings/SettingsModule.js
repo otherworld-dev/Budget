@@ -113,7 +113,7 @@ export default class SettingsModule {
         this.ocrState = {
             apiKeySet: !!ocr.apiKeySet,
             nextcloudAiAvailable: !!ocr.nextcloudAiAvailable,
-            relayBillingBase: ocr.relayBillingBase || 'https://ocr.otherworld.dev/billing',
+            relayBillingBase: ocr.relayBillingBase || 'https://api.otherworld.dev/billing',
         };
         this.renderOcrFields();
 
@@ -248,7 +248,7 @@ export default class SettingsModule {
                 nextcloudAiAvailable: !!body.ocr?.nextcloudAiAvailable,
                 relayBillingBase: body.ocr?.relayBillingBase
                     || this.ocrState?.relayBillingBase
-                    || 'https://ocr.otherworld.dev/billing',
+                    || 'https://api.otherworld.dev/billing',
             };
             document.getElementById('setting-ocr-api-key').value = '';
             this.renderOcrFields();

@@ -50,10 +50,10 @@ class OcrSettingsService {
 	private const KEY_MODEL = 'ocr_model';
 
 	/** Sent to the relay so the hosted side can pick a backend. */
-	public const RELAY_ENDPOINT = 'https://ocr.otherworld.dev/v1';
+	public const RELAY_ENDPOINT = 'https://api.otherworld.dev/v1';
 
 	/** The relay's billing surface: checkout links and the portal (#537). */
-	public const RELAY_BILLING_BASE = 'https://ocr.otherworld.dev/billing';
+	public const RELAY_BILLING_BASE = 'https://api.otherworld.dev/billing';
 
 	public function __construct(
 		private IConfig $config,
