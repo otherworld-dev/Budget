@@ -8359,7 +8359,8 @@ button.danger:hover {
         margin-top: 12px;
     }
 }
-.qa-form-group label {
+.qa-form-group label,
+.qa-form-group .qa-label {
     display: block;
     font-size: 13px;
     font-weight: 600;
@@ -8394,6 +8395,67 @@ button.danger:hover {
 .qa-form-group input[type="date"]::-webkit-datetime-edit {
     padding: 0;
     line-height: 1.2;
+}
+/* The receipt picker (#419). Its heading is a span rather than a label: a
+   label for the button would replace the button's own name for screen
+   readers. Its buttons are scoped a level deeper than a bare class, which
+   Nextcloud's own button:not(.button-vue, ...) rule outranks. */
+.qa-form-group .qa-receipt-btn {
+    width: 100%;
+    padding: 10px;
+    font-size: 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    background: var(--color-background-dark);
+    color: var(--color-main-text);
+    border: 1px dashed var(--color-border-dark, var(--color-border));
+}
+.qa-form-group .qa-receipt-btn:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+.qa-receipt-chosen:not([hidden]) {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    font-size: 13px;
+}
+.qa-receipt-thumb {
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+.qa-receipt-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.qa-receipt-chosen .qa-receipt-remove {
+    min-width: 36px;
+    min-height: 36px;
+    margin: 0;
+    padding: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--color-text-maxcontrast);
+}
+.qa-receipt-note {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+    white-space: pre-line;
+}
+.qa-receipt-note:not([hidden]) {
+    display: block;
+}
+.qa-receipt-note-error {
+    color: var(--color-error);
 }
 .qa-buttons {
     display: flex;
