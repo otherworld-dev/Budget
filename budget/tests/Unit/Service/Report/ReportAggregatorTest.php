@@ -736,7 +736,91 @@ class ReportAggregatorTest extends TestCase {
 		$result = $this->aggregator->getBudgetReport('user1', '2026-09-01', '2026-09-30');
 
 		$this->assertSame(['yearly', 'weekly'], array_column($result['categories'], 'period'));
-		$this->assertSame([600.0, 50.0], array_column($result['categories'], 'budgeted'));
+		// Each as its share of the month: 600 / 12 and 50 x 52 / 12
+		$this->assertSame([50.0, 216.67], array_column($result['categories'], 'budgeted'));
+	}
+
+	/**
+	 * @return \OCA\Budget\Db\Category[] Gym weekly 20, Car yearly 1,200,
+	 *                                   Holiday quarterly 900, Groceries monthly 400
+	 */
+	private function budgetsOfEveryPeriod(): array {
+		$categories = [];
+		foreach ([[1, 'Gym', 20.0, 'weekly'], [2, 'Car', 1200.0, 'yearly'], [3, 'Holiday', 900.0, 'quarterly'], [4, 'Groceries', 400.0, 'monthly']] as [$id, $name, $amount, $period]) {
+			$category = $this->makeCategory($id, $name, 'expense');
+			$category->setBudgetAmount($amount);
+			$category->setBudgetPeriod($period);
+			$categories[] = $category;
+		}
+		$this->categoryMapper->method('findAll')->willReturn($categories);
+		$this->budgetSnapshotMapper->method('findEffectiveBatch')->willReturn([]);
+		$this->transactionMapper->method('getCategorySpendingBatch')
+			->willReturnCallback(static fn (array $ids, $from, $to, string $type) => $type === 'debit'
+				? array_intersect_key([1 => 10.0, 2 => 0.0, 3 => 300.0, 4 => 170.0], array_flip($ids))
+				: []);
+		return $categories;
+	}
+
+	/**
+	 * R7: the dashboard's Budget Progress tile showed a yearly Car of 1,200
+	 * against one month's spending, where the Budget page's row counts 100.
+	 * For one budget month every budget is its share of the month, as on
+	 * the page.
+	 */
+	public function testBudgetReportCountsEachBudgetAsItsShareOfTheMonth(): void {
+		$this->budgetsOfEveryPeriod();
+
+		$result = $this->aggregator->getBudgetReport('user1', '2026-10-01', '2026-10-31');
+
+		$rows = array_column($result['categories'], null, 'categoryId');
+		$this->assertSame([86.67, 100.0, 300.0, 400.0], array_column($result['categories'], 'budgeted'));
+		$this->assertSame(76.67, $rows[1]['remaining']);
+		$this->assertSame(100.0, $rows[2]['remaining']);
+		$this->assertSame(0.0, $rows[3]['remaining']);
+		$this->assertSame(230.0, $rows[4]['remaining']);
+		$this->assertEqualsWithDelta(886.67, $result['totals']['budgeted'], 0.001);
+		$this->assertEqualsWithDelta(406.67, $result['totals']['remaining'], 0.001);
+	}
+
+	public function testBudgetReportCountsEachBudgetOverTheMonthsOfALongerRange(): void {
+		$this->budgetsOfEveryPeriod();
+
+		$result = $this->aggregator->getBudgetReport('user1', '2026-08-01', '2026-10-31');
+
+		// Thirteen weeks of 20, a quarter of 1,200, one quarter, three months of 400
+		$this->assertSame([260.0, 300.0, 900.0, 1200.0], array_column($result['categories'], 'budgeted'));
+		$this->assertEqualsWithDelta(2660.0, $result['totals']['budgeted'], 0.001);
+	}
+
+	public function testBudgetReportCountsAPartMonthByItsDays(): void {
+		$this->budgetsOfEveryPeriod();
+
+		$result = $this->aggregator->getBudgetReport('user1', '2026-09-01', '2026-09-15');
+
+		// Half of September's 30 days
+		$this->assertSame([43.33, 50.0, 150.0, 200.0], array_column($result['categories'], 'budgeted'));
+	}
+
+	public function testBudgetReportCountsTheBudgetPeriodAsOneMonthWithAStartDay(): void {
+		$this->carryoverService->method('budgetStartDay')->willReturn(25);
+		$this->carryoverService->method('budgetMonthRange')->willReturn(['2026-09-25', '2026-10-24']);
+		$this->budgetsOfEveryPeriod();
+
+		$result = $this->aggregator->getBudgetReport('user1', '2026-09-25', '2026-10-24', null, null, '2026-10');
+
+		$this->assertSame([86.67, 100.0, 300.0, 400.0], array_column($result['categories'], 'budgeted'));
+	}
+
+	public function testBudgetReportKeepsACalendarMonthAsOneMonthWithAStartDay(): void {
+		// The calendar month counts as a month for the carry-over, so it
+		// counts as one for the budgets too rather than 24/30 + 7/31
+		$this->carryoverService->method('budgetStartDay')->willReturn(25);
+		$this->carryoverService->method('budgetMonthRange')->willReturn(['2026-09-25', '2026-10-24']);
+		$this->budgetsOfEveryPeriod();
+
+		$result = $this->aggregator->getBudgetReport('user1', '2026-10-01', '2026-10-31');
+
+		$this->assertSame([86.67, 100.0, 300.0, 400.0], array_column($result['categories'], 'budgeted'));
 	}
 
 	public function testBudgetReportLeavesOutABudgetUnderAParentKeptOutOfReports(): void {

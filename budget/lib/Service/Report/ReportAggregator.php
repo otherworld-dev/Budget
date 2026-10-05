@@ -12,6 +12,7 @@ use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\TransactionReportQueries;
 use OCA\Budget\Enum\Currency;
 use OCA\Budget\Service\BudgetCarryoverService;
+use OCA\Budget\Service\BudgetPeriod;
 use OCA\Budget\Service\BudgetScope;
 use OCA\Budget\Service\CurrencyConversionService;
 use OCA\Budget\Service\CurrencyTotals;
@@ -470,6 +471,14 @@ class ReportAggregator {
 			? $this->carryoverService->getCarryovers($userId, $reportMonth, $categories, $visibleAccountIds)
 			: [];
 
+		// Each budget counts its share of the range, as the Budget page counts
+		// a weekly or yearly budget's share of the month: one month for a
+		// single month, else the budget months the range covers, a part month
+		// by its days. A yearly 1,200 is 100 this month and 300 over three.
+		$months = $isSingleMonth
+			? '1'
+			: BudgetPeriod::monthsIn($startDate, $endDate, $this->carryoverService->budgetStartDay($userId));
+
 		// Collect category IDs that have budgets (considering snapshots and
 		// envelope carryover, skipping categories excluded from reports and
 		// those the user doesn't budget against). A non-zero carryover keeps
@@ -506,6 +515,9 @@ class ReportAggregator {
 			}
 			$carried = (float)($carryovers[$catId] ?? 0);
 			if ($budgeted > 0 || abs($carried) >= 0.005) {
+				if ($budgeted > 0) {
+					$budgeted = round((float)BudgetPeriod::shareOf($budgeted, $period, $months), 2);
+				}
 				$categoryIds[] = $catId;
 				if ($category->getType() === 'income') {
 					$incomeCategoryIds[] = $catId;
@@ -572,9 +584,8 @@ class ReportAggregator {
 					'categoryName' => $category->getName(),
 					'type' => $isIncome ? 'income' : 'expense',
 					'budgeted' => $budgeted,
-					// What 'budgeted' is a budget for: a weekly or yearly
-					// amount is not one month's, so the dashboard's Budget
-					// remaining prorates it as the Budget page's summary does
+					// The period the budget is set for; 'budgeted' and
+					// 'baseBudget' are already its share of the range
 					'period' => $resolvedPeriods[$categoryId],
 					'baseBudget' => $resolvedBases[$categoryId],
 					'carried' => round($budgeted - $resolvedBases[$categoryId], 2),

@@ -948,9 +948,9 @@ export default class DashboardModule {
         // money left to spend
         const spending = budgetData.categories.filter(cat => cat.type !== 'income');
         // A weekly, quarterly or yearly budget counts its share of the
-        // month, as the Budget page's Remaining card counts it: spent is
-        // this month's, and a yearly 600 is not 600 left this month
-        const monthsBudget = (cat) => formatters.prorateBudget(cat.budgeted || cat.budget || 0, cat.period || 'monthly', 'monthly');
+        // month, as the Budget page counts it; the budget report already
+        // sends it so for the month asked for
+        const monthsBudget = (cat) => cat.budgeted || cat.budget || 0;
         const totalRemaining = spending.reduce((sum, cat) => {
             const remaining = monthsBudget(cat) - (cat.spent || 0);
             return sum + (remaining > 0 ? remaining : 0);
