@@ -8,6 +8,10 @@
  * pickers still don't offer it, and a save sends it back unchanged.
  * Accounts are different: one that wasn't shared with you is never named,
  * so its kept option still reads "Unavailable (not shared with you)".
+ *
+ * The transfer form had neither: it showed such a category as "No
+ * category" and saving cleared it off the owner's transfer, and a transfer
+ * into or out of an account not shared with you couldn't be saved at all.
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -33,7 +37,9 @@ vi.mock('../../src/utils/datepicker.js', () => ({
 }));
 
 import BillsModule from '../../src/modules/bills/BillsModule.js';
+import TransfersModule from '../../src/modules/transfers/TransfersModule.js';
 import IncomeModule from '../../src/modules/income/IncomeModule.js';
+import { showWarning } from '../../src/utils/notifications.js';
 
 // wendy sees owen's Joint (3) and Bills (4) accounts and his Groceries (31)
 // and Salary (32); his Private account (5), Secret Stuff (77) and Secret
@@ -154,6 +160,77 @@ describe('the bill form', () => {
         await mod.loadBillTagSets(31, { tagIds: [] });
 
         expect(calls.map(c => c.url).filter(u => u.includes('tag-sets'))).toEqual(['/apps/budget/api/tag-sets?categoryId=31']);
+    });
+});
+
+describe('the transfer form', () => {
+    function makeTransfers() {
+        const mod = Object.create(TransfersModule.prototype);
+        mod.app = app();
+        mod.loadTransferTagSets = vi.fn();
+        mod.getSelectedTagIds = () => [];
+        mod.loadTransfers = vi.fn(async () => true);
+        mod.renderTransfers = vi.fn();
+        mod.updateSummary = vi.fn();
+        return mod;
+    }
+    const transfer = (overrides) => ({
+        id: 4, name: 'Joint to Bills', amount: 40, amountType: 'fixed', frequency: 'monthly', dueDay: 22,
+        accountId: JOINT.id, destinationAccountId: BILLS.id, categoryId: 77, categoryName: 'Secret Stuff',
+        isTransfer: true, tagIds: [], _shared: true, _canWrite: true, ...overrides,
+    });
+
+    it('names a kept category and sends it back unchanged', async () => {
+        const mod = makeTransfers();
+        mod.showTransferModal(transfer());
+
+        expect(selected('transfer-category')).toEqual({ value: '77', text: 'Secret Stuff (not shared with you)', disabled: true });
+        expect(offered(document.getElementById('transfer-category'))).toEqual(['31']);
+
+        const calls = captureFetch();
+        await mod._saveTransfer(transfer());
+        const put = calls.find(c => c.method === 'PUT');
+        expect(put.body).toMatchObject({ categoryId: 77, accountId: JOINT.id, destinationAccountId: BILLS.id });
+    });
+
+    it('keeps an account that wasn\'t shared, unnamed, so the transfer still saves', async () => {
+        const mod = makeTransfers();
+        const privateTransfer = transfer({ name: 'Joint to Private', destinationAccountId: 5, categoryId: 31, categoryName: 'Groceries' });
+        mod.showTransferModal(privateTransfer);
+
+        expect(selected('recurring-transfer-to-account')).toEqual({ value: '5', text: 'Unavailable (not shared with you)', disabled: true });
+        expect(offered(document.getElementById('recurring-transfer-to-account'))).toEqual(['3', '4']);
+
+        const calls = captureFetch();
+        await mod._saveTransfer(privateTransfer);
+        expect(showWarning).not.toHaveBeenCalled();
+        expect(calls.find(c => c.method === 'PUT').body).toMatchObject({ accountId: JOINT.id, destinationAccountId: 5, categoryId: 31 });
+    });
+
+    it('keeps the amount type of a transfer into a card you can\'t see', async () => {
+        // A dynamic amount is read off the destination card. Its type isn't
+        // known here, so the stored amount type is kept rather than reset
+        // to fixed (the server refuses to switch it either way)
+        const mod = makeTransfers();
+        const cardTransfer = transfer({ destinationAccountId: 5, amountType: 'statement', amount: 0 });
+        mod.showTransferModal(cardTransfer);
+
+        expect(document.getElementById('transfer-amount-type').value).toBe('statement');
+
+        const calls = captureFetch();
+        await mod._saveTransfer(cardTransfer);
+        expect(calls.find(c => c.method === 'PUT').body).toMatchObject({ amountType: 'statement', destinationAccountId: 5 });
+    });
+
+    it('asks for tag sets only for a category you can see', async () => {
+        const calls = captureFetch();
+        document.body.innerHTML = '<div id="transfer-tags-container"></div>';
+        const mod = Object.create(TransfersModule.prototype);
+        mod.app = app();
+
+        await mod.loadTransferTagSets(77, { tagIds: [] });
+
+        expect(calls.map(c => c.url).filter(u => u.includes('tag-sets'))).toEqual([]);
     });
 });
 
