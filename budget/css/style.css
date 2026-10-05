@@ -5416,6 +5416,10 @@ button.danger:hover {
     text-align: center;
 }
 
+.recon-history-toggle {
+    margin-top: 12px;
+}
+
 /* Bank Sync Styles */
 .bank-connection-card {
     background: var(--color-main-background);
