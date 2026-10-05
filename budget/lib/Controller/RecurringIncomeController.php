@@ -100,11 +100,12 @@ class RecurringIncomeController extends Controller {
 			if ($owner === $this->userId) {
 				return new DataResponse($income);
 			}
-			return new DataResponse(array_merge($income->jsonSerialize(), [
+			// Named like the income list, even a category not shared with the user
+			return new DataResponse($this->granularShareService->withCategoryNames([array_merge($income->jsonSerialize(), [
 				'_shared' => true,
 				'_canWrite' => $this->granularShareService->canWrite($this->userId, 'recurring_income', $id),
 				'_canManage' => $this->granularShareService->canManage($this->userId, 'recurring_income', $id),
-			]));
+			])])[0]);
 		} catch (\Exception $e) {
 			return $this->handleNotFoundError($e, $this->l->t('Recurring income'), ['incomeId' => $id]);
 		}

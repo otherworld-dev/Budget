@@ -2404,6 +2404,9 @@ class BillControllerTest extends TestCase {
 	private function controllerOwnedBy(?string $owner, bool $canWrite = true, bool $canManage = false): BillController {
 		$granularShareService = $this->createMock(GranularShareService::class);
 		$granularShareService->method('canAccess')->willReturn($owner !== null);
+		$granularShareService->method('withCategoryNames')->willReturnCallback(
+			fn (array $items) => array_map(fn (array $item) => $item + ['categoryName' => 'Name of ' . ($item['categoryId'] ?? 'none')], $items)
+		);
 		$granularShareService->method('resolveOwner')->willReturn($owner);
 		$granularShareService->method('canWrite')->willReturn($canWrite);
 		$granularShareService->method('canManage')->willReturn($canManage);
@@ -2438,6 +2441,22 @@ class BillControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 		$this->assertTrue($response->getData()['_shared']);
 		$this->assertTrue($response->getData()['_canWrite']);
+	}
+
+	public function testShowNamesASharedBillsCategory(): void {
+		// The edit form reads the bill from here: a category the owner
+		// didn't share with the user is named, as in the bills list
+		$bill = new Bill();
+		$bill->setId(7);
+		$bill->setCategoryId(30);
+		$this->service->method('find')->with(7, 'owner1')->willReturn($bill);
+		$this->service->method('enrichBillsWithCurrency')->willReturnArgument(0);
+
+		$data = $this->controllerOwnedBy('owner1')->show(7)->getData();
+
+		$this->assertSame('Name of 30', $data['categoryName']);
+		$this->assertSame(30, $data['categoryId']);
+		$this->assertTrue($data['_shared']);
 	}
 
 	public function testShowDoesNotFlagAnOwnBillAsShared(): void {

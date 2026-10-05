@@ -16,6 +16,7 @@ import { offerableTags, offerableTagSets } from '../../utils/tags.js';
 import { showLoadError } from '../../utils/loading.js';
 import { openAccounts, pickableAccounts, accountOptionLabel, accountCurrency, linkableCandidates } from '../../utils/accounts.js';
 import { requestMarkUnpaid } from '../../utils/billUnpaid.js';
+import { selectPossiblyUnavailable, unavailableCategoryLabel } from '../../utils/formSelects.js';
 
 /**
  * The date to open the form on for a one-time transfer saved before the
@@ -610,6 +611,19 @@ export default class TransfersModule {
         // Add modal to body
         document.body.insertAdjacentHTML('beforeend', modalHtml);
 
+        // A transfer shared with you may use a category or account its owner
+        // didn't share with you, which the pickers can't list: the category
+        // read "No category" and saving cleared it off the owner's transfer,
+        // and a missing account stopped the form saving at all. They are kept
+        // selected and sent back unchanged (#370, as bills and income do).
+        // The category is named, as the transfer came; an account isn't.
+        if (isEdit) {
+            selectPossiblyUnavailable(document.getElementById('transfer-category'), transfer.categoryId ?? null,
+                transfer.categoryName ? unavailableCategoryLabel(transfer.categoryName) : null);
+            selectPossiblyUnavailable(document.getElementById('recurring-transfer-from-account'), transfer.accountId ?? null);
+            selectPossiblyUnavailable(document.getElementById('recurring-transfer-to-account'), transfer.destinationAccountId ?? null);
+        }
+
         // Initialize flatpickr on the transaction date input
         const transferDateInput = document.getElementById('transfer-transaction-date');
         if (transferDateInput) {
@@ -656,7 +670,13 @@ export default class TransfersModule {
         };
         const updateAmountTypeVisibility = () => {
             const destination = this.accounts.find(a => a.id === parseInt(toAccountSelect.value));
-            const cardLike = !!destination && ['credit_card', 'line_of_credit'].includes(destination.type);
+            // A destination not shared with you can't be looked at, so the
+            // transfer keeps the amount type it has rather than dropping to
+            // fixed (the server refuses switching it to a dynamic one)
+            const hiddenDestination = !destination && toAccountSelect.selectedOptions[0]?.dataset.unavailable === '1';
+            const cardLike = hiddenDestination
+                ? isEdit && (transfer.amountType || 'fixed') !== 'fixed'
+                : !!destination && ['credit_card', 'line_of_credit'].includes(destination.type);
             if (!cardLike && amountTypeSelect.value !== 'fixed') {
                 amountTypeSelect.value = 'fixed';
             }
@@ -1153,10 +1173,12 @@ export default class TransfersModule {
         if (!container) return;
 
         try {
-            // Load global tags and category tag sets in parallel
+            // Load global tags and category tag sets in parallel; a category
+            // not shared with you has none you can read (the server says 400)
+            const listed = categoryId && (!this.categories?.length || this.categories.some(c => String(c.id) === String(categoryId)));
             const [globalTagsResponse, categoryTagSets] = await Promise.all([
                 apiFetch('/apps/budget/api/tags/global').catch(() => []),
-                categoryId ? apiFetch(`/apps/budget/api/tag-sets?categoryId=${categoryId}`).catch(() => []) : Promise.resolve([])
+                listed ? apiFetch(`/apps/budget/api/tag-sets?categoryId=${categoryId}`).catch(() => []) : Promise.resolve([])
             ]);
 
             // Get existing tag IDs if editing

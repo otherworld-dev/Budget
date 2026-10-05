@@ -633,6 +633,9 @@ class RecurringIncomeControllerTest extends TestCase {
 	private function controllerOwnedBy(?string $owner, bool $canWrite = true, bool $canManage = false): RecurringIncomeController {
 		$granularShareService = $this->createMock(GranularShareService::class);
 		$granularShareService->method('canAccess')->willReturn($owner !== null);
+		$granularShareService->method('withCategoryNames')->willReturnCallback(
+			fn (array $items) => array_map(fn (array $item) => $item + ['categoryName' => 'Name of ' . ($item['categoryId'] ?? 'none')], $items)
+		);
 		$granularShareService->method('resolveOwner')->willReturn($owner);
 		$granularShareService->method('canWrite')->willReturn($canWrite);
 		$granularShareService->method('canManage')->willReturn($canManage);
@@ -663,6 +666,18 @@ class RecurringIncomeControllerTest extends TestCase {
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 		$this->assertTrue($response->getData()['_shared']);
+	}
+
+	public function testShowNamesSharedIncomesCategory(): void {
+		$income = new RecurringIncome();
+		$income->setId(7);
+		$income->setCategoryId(31);
+		$this->service->method('find')->with(7, 'owner1')->willReturn($income);
+
+		$data = $this->controllerOwnedBy('owner1')->show(7)->getData();
+
+		$this->assertSame('Name of 31', $data['categoryName']);
+		$this->assertTrue($data['_shared']);
 	}
 
 	public function testShowReturnsNotFoundWhenIncomeIsNotVisible(): void {

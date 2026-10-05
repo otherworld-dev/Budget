@@ -909,6 +909,83 @@ class GranularShareServiceTest extends TestCase {
 		$this->assertFalse($result[0]['canMarkUnpaid'], 'recipients must never be offered the action');
 	}
 
+	/**
+	 * bob shares bill 7 / income 8 with alice. bob's categories are 30
+	 * (Secret Stuff) and 31 (Groceries); 99 is someone else's.
+	 */
+	private function shareBobsScheduleWithAlice(): void {
+		$share = $this->makeShare(100, 'bob', 'alice', Share::STATUS_ACCEPTED);
+		$this->shareMapper->method('findByRecipient')->willReturnCallback(
+			fn (string $user) => $user === 'alice' ? [$share] : []
+		);
+		$this->shareItemMapper->method('findSharedEntityIds')->willReturnCallback(
+			fn (int $shareId, string $type) => match ($type) {
+				ShareItem::TYPE_BILL => [7],
+				ShareItem::TYPE_RECURRING_INCOME => [8],
+				default => [],
+			}
+		);
+		$categories = [];
+		foreach ([30 => 'Secret Stuff', 31 => 'Groceries'] as $id => $name) {
+			$category = new \OCA\Budget\Db\Category();
+			$category->setId($id);
+			$category->setUserId('bob');
+			$category->setName($name);
+			$categories[$id] = $category;
+		}
+		$this->categoryMapper->method('findAll')->willReturnCallback(
+			fn (string $user) => $user === 'bob' ? array_values($categories) : []
+		);
+		$this->categoryMapper->expects($this->once())->method('findByIdsUnscoped')
+			->willReturnCallback(function (array $ids) use ($categories) {
+				$this->lookedUpCategoryIds = $ids;
+				return array_intersect_key($categories, array_flip($ids));
+			});
+	}
+
+	/** @var int[] what findByIdsUnscoped() was asked for */
+	private array $lookedUpCategoryIds = [];
+
+	public function testSharedBillsNameTheCategoriesTheirOwnerCanSee(): void {
+		// A shared bill's category and its split parts' are named, even when
+		// they aren't shared with the recipient, as a shared transaction's
+		// are. A category id the owner can't see is never named.
+		$this->shareBobsScheduleWithAlice();
+		$bill = new Bill();
+		$bill->setId(7);
+		$bill->setUserId('bob');
+		$bill->setName('Council Tax');
+		$bill->setCategoryId(30);
+		$bill->setSplitTemplateArray([
+			['categoryId' => 31, 'amount' => 70, 'description' => 'food'],
+			['categoryId' => 99, 'amount' => 30, 'description' => 'stray'],
+		]);
+		$this->billMapper->method('findByIds')->willReturn([$bill]);
+
+		$result = $this->service->getSharedBills('alice');
+
+		$this->assertSame('Secret Stuff', $result[0]['categoryName']);
+		$this->assertSame(['Groceries', null], array_column($result[0]['splitTemplate'], 'categoryName'));
+		$this->assertSame([31, 99], array_column($result[0]['splitTemplate'], 'categoryId'));
+		// Only the owner's categories are looked up
+		$this->assertEqualsCanonicalizing([30, 31], $this->lookedUpCategoryIds);
+	}
+
+	public function testSharedRecurringIncomeNamesItsCategory(): void {
+		$this->shareBobsScheduleWithAlice();
+		$income = new \OCA\Budget\Db\RecurringIncome();
+		$income->setId(8);
+		$income->setUserId('bob');
+		$income->setName('Salary');
+		$income->setCategoryId(31);
+		$this->recurringIncomeMapper->method('findByIds')->willReturn([$income]);
+
+		$result = $this->service->getSharedRecurringIncome('alice');
+
+		$this->assertSame('Groceries', $result[0]['categoryName']);
+		$this->assertSame([31], $this->lookedUpCategoryIds);
+	}
+
 	public function testGetSharedBillEntitiesReturnsTheBillsThemselves(): void {
 		// The Bills page summary works on entities, so it needs the shared
 		// bills unserialised

@@ -13,7 +13,7 @@ import { apiFetch } from '../../utils/api.js';
 import { pickableAccounts, accountOptionLabel, selectAccountValue, accountCurrency } from '../../utils/accounts.js';
 import { showLoadError } from '../../utils/loading.js';
 import { incomeRowState } from '../../utils/incomeStatus.js';
-import { selectPossiblyUnavailable, clearUnavailableOptions } from '../../utils/formSelects.js';
+import { selectPossiblyUnavailable, clearUnavailableOptions, unavailableCategoryLabel } from '../../utils/formSelects.js';
 
 export default class IncomeModule {
     constructor(app) {
@@ -335,9 +335,11 @@ export default class IncomeModule {
             // without its category or account used to save them as null,
             // stripping them (and with the account, auto-create) off the
             // owner's income. Keep the real id selected instead (#370)
+            // A category not shared with you is named, as the income came
             selectPossiblyUnavailable(
                 document.getElementById('income-category'),
-                income.categoryId ?? income.category_id ?? null
+                income.categoryId ?? income.category_id ?? null,
+                income.categoryName ? unavailableCategoryLabel(income.categoryName) : null
             );
             const incomeAccountSelect = document.getElementById('income-account');
             const incomeAccountId = income.accountId ?? income.account_id ?? null;

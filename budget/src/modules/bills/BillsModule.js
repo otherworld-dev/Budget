@@ -16,6 +16,7 @@ import { offerableTags, offerableTagSets } from '../../utils/tags.js';
 import { pickableAccounts, accountOptionLabel, selectAccountValue, accountCurrency, linkableCandidates, billAccountsWritable } from '../../utils/accounts.js';
 import { showLoadError } from '../../utils/loading.js';
 import { requestMarkUnpaid } from '../../utils/billUnpaid.js';
+import { unavailableCategoryLabel } from '../../utils/formSelects.js';
 
 export default class BillsModule {
     constructor(app) {
@@ -650,9 +651,11 @@ export default class BillsModule {
             // without its category or pay-from account used to fall back to ""
             // and saveBill sent null — stripping them off the owner's bill
             // (#370). Keep the real id selected instead.
+            // A category not shared with you is named, as the bill came
             this.selectPossiblyUnavailable(
                 document.getElementById('bill-category'),
-                bill.categoryId ?? bill.category_id ?? null
+                bill.categoryId ?? bill.category_id ?? null,
+                bill.categoryName ? unavailableCategoryLabel(bill.categoryName) : null
             );
             // A closed account is offered as "(closed)", not as unavailable (#372)
             const billAccountSelect = document.getElementById('bill-account');
@@ -785,8 +788,9 @@ export default class BillsModule {
      * bill whose category or account was not shared alongside it. Assigning a
      * missing value silently yields "", which saveBill would then submit as
      * null, so add a disabled placeholder carrying the real id (#370).
+     * `label` names it when more is known than "Unavailable".
      */
-    selectPossiblyUnavailable(select, value) {
+    selectPossiblyUnavailable(select, value, label = null) {
         if (!select) return;
         if (value === null || value === undefined || value === '') {
             select.value = '';
@@ -799,7 +803,7 @@ export default class BillsModule {
 
         const option = document.createElement('option');
         option.value = wanted;
-        option.textContent = t('budget', 'Unavailable (not shared with you)');
+        option.textContent = label || t('budget', 'Unavailable (not shared with you)');
         option.disabled = true;
         option.dataset.unavailable = '1';
         select.appendChild(option);
@@ -989,8 +993,11 @@ export default class BillsModule {
         categorySelect.innerHTML = `<option value="">${t('budget', 'No category')}</option>`;
         dom.populateCategorySelect(categorySelect, this.categoryTree || this.categories, { typeFilter: 'expense' });
         // A shared bill's part may be filed under a category not shared with
-        // you: keep it, or the save would clear it (#370)
-        if (split?.categoryId) this.selectPossiblyUnavailable(categorySelect, split.categoryId);
+        // you: keep it, named as the bill came, or the save would clear it (#370)
+        if (split?.categoryId) {
+            this.selectPossiblyUnavailable(categorySelect, split.categoryId,
+                split.categoryName ? unavailableCategoryLabel(split.categoryName) : null);
+        }
 
         // Description input
         const descInput = document.createElement('input');
@@ -1607,10 +1614,12 @@ export default class BillsModule {
         if (!container) return;
 
         try {
-            // Load global tags and category tag sets in parallel
+            // Load global tags and category tag sets in parallel; a category
+            // not shared with you has none you can read (the server says 400)
+            const listed = categoryId && (!this.categories?.length || this.categories.some(c => String(c.id) === String(categoryId)));
             const [globalTagsResponse, categoryTagSets] = await Promise.all([
                 apiFetch('/apps/budget/api/tags/global').catch(() => []),
-                categoryId ? apiFetch(`/apps/budget/api/tag-sets?categoryId=${categoryId}`).catch(() => []) : Promise.resolve([])
+                listed ? apiFetch(`/apps/budget/api/tag-sets?categoryId=${categoryId}`).catch(() => []) : Promise.resolve([])
             ]);
 
             // Get existing tag IDs if editing
