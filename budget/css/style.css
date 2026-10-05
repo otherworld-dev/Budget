@@ -8374,6 +8374,12 @@ button.danger:hover {
     box-sizing: border-box;
     font-size: 16px;
     padding: 8px 10px;
+    /* Nextcloud fixes inputs and selects at 36px, which with this padding
+       leaves less than a line of 16px text: a select clipped the bottom of
+       its letters. Sized by the text instead, every field is 40px. */
+    height: auto;
+    min-height: 40px;
+    line-height: 1.2;
     -webkit-appearance: none;
     appearance: none;
 }
@@ -8382,7 +8388,7 @@ button.danger:hover {
    own intrinsic height, making the field look taller and misaligned vs the other
    inputs. Normalize it to match the rest of the form. */
 .qa-form-group input[type="date"] {
-    min-height: 38px;
+    min-height: 40px;
     line-height: 1.2;
     text-align: left;
     background: var(--color-main-background);
