@@ -49,6 +49,10 @@ const ACCOUNT_ORDER_DEFAULTS = [...ACCOUNT_COLUMN_KEYS];
 const ACCOUNT_SORT_FIELDS = ['name', 'balance', 'type', 'institution', 'lastReconciled', 'created'];
 const ACCOUNT_SORT_DEFAULTS = { field: 'name', direction: 'asc' };
 
+// The account page's reconciliation history opens on this many of its
+// newest rows; a toggle under the table shows the rest (#418).
+const RECON_HISTORY_COLLAPSED_ROWS = 2;
+
 export default class AccountsModule {
     constructor(app) {
         this.app = app;
@@ -1292,9 +1296,44 @@ export default class AccountsModule {
                     <td>${session.completedAt ? this.formatDate(session.completedAt) : '-'}</td>
                 </tr>
             `).join('');
+            this.setReconciliationHistoryExpanded(false);
             section.style.display = 'block';
         } catch (error) {
             section.style.display = 'none';
+        }
+    }
+
+    /**
+     * Show the whole reconciliation history, or only its newest rows. A
+     * history that short has no toggle and always shows in full.
+     */
+    setReconciliationHistoryExpanded(expanded) {
+        const body = document.getElementById('recon-history-body');
+        const toggle = document.getElementById('recon-history-toggle');
+        // Without the toggle there'd be no way back to the hidden rows
+        if (!body || !toggle) return;
+
+        const rows = Array.from(body.rows);
+        rows.forEach((row, i) => {
+            row.hidden = !expanded && i >= RECON_HISTORY_COLLAPSED_ROWS;
+        });
+
+        if (rows.length <= RECON_HISTORY_COLLAPSED_ROWS) {
+            toggle.style.display = 'none';
+            return;
+        }
+
+        toggle.textContent = expanded
+            ? t('budget', 'Show fewer')
+            : t('budget', 'Show all ({count})', { count: rows.length });
+        toggle.setAttribute('aria-expanded', String(expanded));
+        toggle.style.display = '';
+
+        if (!toggle._hasListener) {
+            toggle._hasListener = true;
+            toggle.addEventListener('click', () => {
+                this.setReconciliationHistoryExpanded(toggle.getAttribute('aria-expanded') !== 'true');
+            });
         }
     }
 

@@ -1426,6 +1426,8 @@ style('budget', 'budget-app');
                         <tbody id="recon-history-body">
                         </tbody>
                     </table>
+                    <button type="button" class="secondary recon-history-toggle" id="recon-history-toggle"
+                            aria-controls="recon-history-body" aria-expanded="false" style="display: none;"></button>
                 </div>
 
                 <!-- Transaction History -->
