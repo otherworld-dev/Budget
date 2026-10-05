@@ -1409,6 +1409,12 @@
     font-variant-numeric: tabular-nums;
 }
 
+/* The shared .budget-progress-bar grows with `flex: 1` along the Budget
+   page's rows. Down this tile's flex column that made it 0px tall. */
+.budget-widget-item .budget-progress-bar {
+    flex: none;
+}
+
 /* Savings Goals Widget */
 .savings-goals-widget {
     display: flex;
