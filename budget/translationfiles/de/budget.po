@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-10-05 20:54+0000\n"
-"PO-Revision-Date: 2026-10-05 01:42+0000\n"
+"PO-Revision-Date: 2026-10-07 03:52+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -498,10 +498,9 @@ msgstr ""
 "bestätigen`, um fortzufahren"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:1183
-#, fuzzy, php-format
-#| msgid "%1$s must be a number"
+#, php-format
 msgid "%s must be a single value"
-msgstr "%1$s muss eine Zahl sein"
+msgstr "%s muss ein einzelner Wert sein"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:1197
 msgid "category_id must be a category id or null"
@@ -771,6 +770,8 @@ msgstr "%1$s nicht gefunden"
 #: /app/lib/Controller/BillController.php:244
 msgid "The owner of this bill can't use that account. Choose another one."
 msgstr ""
+"Der Besitzer dieser Rechnung kann dieses Konto nicht verwenden. Wähle ein "
+"anderes Konto."
 
 #: /app/lib/Controller/BillController.php:261
 #: /app/lib/Controller/BillController.php:707
@@ -864,6 +865,8 @@ msgid ""
 "This amount is read from an account that isn't shared with you. Choose a "
 "fixed amount."
 msgstr ""
+"Dieser Betrag wird aus einem Konto übernommen, das nicht mit dir geteilt "
+"wird. Wähle einen festen Betrag."
 
 #: /app/lib/Controller/BillController.php:877
 msgid "Failed to update bill"
@@ -2044,10 +2047,8 @@ msgstr "Abgleich konnte nicht gestartet werden"
 #: /app/lib/Controller/ReconciliationController.php:156
 #: /app/lib/Controller/ReconciliationController.php:181
 #: /app/src/modules/transactions/TransactionsModule.js:1767
-#, fuzzy
-#| msgid "Failed to update reconcile status"
 msgid "Failed to update reconciliation"
-msgstr "Aktualisierung des Statusabgleich fehlgeschlagen"
+msgstr "Der Kontenabgleich konnte nicht aktualisiert werden"
 
 #: /app/lib/Controller/ReconciliationController.php:193
 msgid "Failed to load reconciliation history"
@@ -2483,10 +2484,8 @@ msgstr "Kontakt konnte nicht erstellt werden"
 #: /app/lib/Controller/SharedExpenseController.php:257
 #: /app/lib/Controller/SharedExpenseController.php:607
 #: /app/lib/Controller/SharedExpenseController.php:634
-#, fuzzy
-#| msgid "Connection not found"
 msgid "Contact not found"
-msgstr "Verbindung nicht gefunden"
+msgstr "Kontakt nicht gefunden"
 
 #: /app/lib/Controller/SharedExpenseController.php:216
 msgid "Failed to update contact"
@@ -2564,10 +2563,8 @@ msgstr "Fehler beim Abrufen der Anteile"
 #: /app/lib/Controller/SharedExpenseController.php:511
 #: /app/lib/Controller/SharedExpenseController.php:535
 #: /app/lib/Controller/SharedExpenseController.php:570
-#, fuzzy
-#| msgid "Share not found"
 msgid "Shared expense not found"
-msgstr "Aktie nicht gefunden"
+msgstr "Geteilte Ausgabe nicht gefunden"
 
 #: /app/lib/Controller/SharedExpenseController.php:494
 msgid "Failed to update share"
@@ -2605,10 +2602,8 @@ msgid "Failed to get settlements"
 msgstr "Abrechnungen konnten nicht abgerufen werden"
 
 #: /app/lib/Controller/SharedExpenseController.php:680
-#, fuzzy
-#| msgid "Setting not found"
 msgid "Settlement not found"
-msgstr "Einstellungen nicht gefunden"
+msgstr "Ausgleichszahlung nicht gefunden"
 
 #: /app/lib/Controller/SharedExpenseController.php:687
 msgid "Failed to delete settlement"
@@ -4037,13 +4032,11 @@ msgstr ""
 "entpackten Zustand insgesamt größer als %1$s MB"
 
 #: /app/lib/Service/MigrationService.php:1090
-#, fuzzy, php-format
-#| msgid ""
-#| "This backup cannot be imported: %1$s is larger than %2$s MB when unpacked"
+#, php-format
 msgid "This backup cannot be imported: %1$s is not in the expected format"
 msgstr ""
-"Dieses Backup kann nicht importiert werden: %1$s ist im entpackten Zustand "
-"größer als %2$s MB"
+"Dieses Backup kann nicht importiert werden: %1$s hat nicht das erwartete "
+"Format"
 
 #: /app/lib/Service/PensionRecurringService.php:239
 msgid "This scheduled contribution is paused"
@@ -4642,10 +4635,8 @@ msgstr "Diese Aktie ist nicht ausstehend"
 
 #: /app/lib/Service/SharedExpenseService.php:824
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:62
-#, fuzzy
-#| msgid "Share expense"
 msgid "Shared expense"
-msgstr "Kostenteilung"
+msgstr "Geteilte Ausgabe"
 
 #: /app/lib/Service/ValidationService.php:85
 #, php-format
@@ -5558,16 +5549,12 @@ msgid "Due: {date}"
 msgstr "Fällig: {date}"
 
 #: /app/src/main.js:1801 /app/src/main.js:1825
-#, fuzzy
-#| msgid "Ends {date}"
 msgid "Paid: {date}"
-msgstr "Endet am {date}"
+msgstr "Bezahlt: {date}"
 
 #: /app/src/main.js:1802 /app/src/main.js:1846
-#, fuzzy
-#| msgid "Don't change"
 msgid "Check: not changed"
-msgstr "Nicht ändern"
+msgstr "Prüfung: nicht geändert"
 
 #: /app/src/main.js:1806
 msgid ""
@@ -5602,16 +5589,12 @@ msgid "and {more} more"
 msgstr "und {more} weitere"
 
 #: /app/src/main.js:1875
-#, fuzzy
-#| msgid "{amount}/yr income"
 msgid "Now: {amount} in credit"
-msgstr "Einkommen: {amount} pro Jahr"
+msgstr "Jetzt: {amount} im Guthaben"
 
 #: /app/src/main.js:1876
-#, fuzzy
-#| msgid "Target: {amount}"
 msgid "After repair: {amount} owed"
-msgstr "Ziel: {amount}"
+msgstr "Nach der Reparatur: {amount} geschuldet"
 
 #: /app/src/main.js:1883
 msgid "Debts Recorded as Being in Credit"
@@ -5654,60 +5637,44 @@ msgstr ""
 "Teilbeträge bleiben unverändert."
 
 #: /app/src/main.js:1922
-#, fuzzy
-#| msgid "Target: {amount}"
 msgid "Stored: {amount}"
-msgstr "Ziel: {amount}"
+msgstr "Gespeichert: {amount}"
 
 #: /app/src/main.js:1923
 msgid "Expected: {amount}"
 msgstr "Erwarteter Betrag: {amount}"
 
 #: /app/src/main.js:1924
-#, fuzzy
-#| msgid "of {amount}"
 msgid "Diff: {amount}"
-msgstr "von {amount}"
+msgstr "Differenz: {amount}"
 
 #: /app/src/main.js:1931
-#, fuzzy
-#| msgid "All account balances are correct"
 msgid "Account Balance Inconsistencies"
-msgstr "Alle Kontostände sind korrekt"
+msgstr "Inkonsistenzen bei Kontoständen"
 
 #: /app/src/main.js:1942
-#, fuzzy
-#| msgid "Generate Report"
 msgid "Data Integrity Report"
-msgstr "Bericht erstellen"
+msgstr "Datenintegritätsbericht"
 
 #: /app/src/main.js:1951 /app/src/main.js:2054
-#, fuzzy
-#| msgid "Add Selected Income"
 msgid "Fix Selected Issues"
-msgstr "Ausgewählte Einnahme hinzufügen"
+msgstr "Ausgewählte Probleme beheben"
 
 #: /app/src/main.js:1988
-#, fuzzy
-#| msgid "No categories yet"
 msgid "No categories selected"
-msgstr "Noch keine Kategorien"
+msgstr "Keine Kategorien ausgewählt"
 
 #: /app/src/main.js:2007
-#, fuzzy
-#| msgid "Exporting..."
 msgid "Repairing..."
-msgstr "Wird exportiert..."
+msgstr "Wird repariert..."
 
 #: /app/src/main.js:2021
 msgid "{count} duplicate transactions removed"
 msgstr "{count} doppelte Transaktionen entfernt"
 
 #: /app/src/main.js:2024
-#, fuzzy
-#| msgid "{count} updated"
 msgid "{count} bill due dates fixed"
-msgstr "{count} aktualisiert"
+msgstr "{count} Fälligkeitsdaten von Rechnungen korrigiert"
 
 #: /app/src/main.js:2027
 msgid "{count} one-time bills deactivated"
@@ -5718,10 +5685,10 @@ msgid "{count} future transactions set to scheduled"
 msgstr "{count} zukünftige Transaktionen als geplant markiert"
 
 #: /app/src/main.js:2033
-#, fuzzy
-#| msgid "{count} duplicate transactions removed"
 msgid "{count} split transactions had a stray category removed"
-msgstr "{count} doppelte Transaktionen entfernt"
+msgstr ""
+"Bei {count} aufgeteilten Transaktionen wurde eine fälschlicherweise "
+"zugewiesene Kategorie entfernt"
 
 #: /app/src/main.js:2036
 msgid "{count} debts re-recorded as owed"
@@ -5740,10 +5707,8 @@ msgid "Repair complete: {details}"
 msgstr "Reparatur abgeschlossen: {details}"
 
 #: /app/src/main.js:2052
-#, fuzzy
-#| msgid "Failed to preview file: {error}"
 msgid "Repair failed: {error}"
-msgstr "Vorschau der Datei fehlgeschlagen: {error}"
+msgstr "Reparatur fehlgeschlagen: {error}"
 
 #: /app/src/main.js:2138 /app/src/modules/settings/SettingsModule.js:655
 #: /app/src/modules/transactions/TransactionsModule.js:5533
@@ -6355,10 +6320,8 @@ msgid "Show fewer"
 msgstr "Ohne Kategorie anzeigen"
 
 #: /app/src/modules/accounts/AccountsModule.js:1328
-#, fuzzy
-#| msgid "Total: {amount}"
 msgid "Show all ({count})"
-msgstr "Summe: {amount}"
+msgstr "Alle anzeigen ({count})"
 
 #: /app/src/modules/accounts/AccountsModule.js:1378
 #: /app/src/modules/transfers/TransfersModule.js:479
@@ -6703,10 +6666,8 @@ msgstr ""
 "Konto löschen? Dies kann nicht rückgängig gemacht werden."
 
 #: /app/src/modules/accounts/AccountsModule.js:3113
-#, fuzzy
-#| msgid "{count} duplicate transactions removed"
 msgid "Account and its {count} transaction(s) deleted"
-msgstr "{count} doppelte Transaktionen entfernt"
+msgstr "Konto und die zugehörigen {count} Transaktion(en) gelöscht"
 
 #: /app/src/modules/accounts/AccountsModule.js:3114
 msgid "Account deleted successfully"
@@ -7425,10 +7386,8 @@ msgstr "Rechnung hinzufügen"
 
 #: /app/src/modules/bills/BillsModule.js:806 /app/src/utils/formSelects.js:21
 #: /app/src/utils/formSelects.js:79
-#, fuzzy
-#| msgid "Unable to share with this user"
 msgid "Unavailable (not shared with you)"
-msgstr "Teilen mit diesem Benutzer nicht möglich"
+msgstr "Nicht verfügbar (nicht mit dir geteilt)"
 
 #: /app/src/modules/bills/BillsModule.js:879
 #: /app/src/modules/transfers/TransfersModule.js:774
@@ -8196,16 +8155,12 @@ msgid "{amount} a month"
 msgstr "{amount}/Monat"
 
 #: /app/src/modules/categories/CategoriesModule.js:2464
-#, fuzzy
-#| msgid "{spent} of {total}"
 msgid "{spent} of {budget} this year"
-msgstr "{spent} von {total}"
+msgstr "{spent} von {budget} in diesem Jahr"
 
 #: /app/src/modules/categories/CategoriesModule.js:2465
-#, fuzzy
-#| msgid "{spent} of {total}"
 msgid "{spent} of {budget} this quarter"
-msgstr "{spent} von {total}"
+msgstr "{spent} von {budget} in diesem Quartal"
 
 #: /app/src/modules/categories/CategoriesModule.js:2489
 msgid ""
@@ -10828,10 +10783,8 @@ msgid "Unallocated"
 msgstr "Sparziel erstellt"
 
 #: /app/src/modules/projects/ProjectsModule.js:180
-#, fuzzy
-#| msgid "No categories yet"
 msgid "No subcategories or amounts yet"
-msgstr "Noch keine Kategorien"
+msgstr "Noch keine Unterkategorien oder Beträge"
 
 #: /app/src/modules/projects/ProjectsModule.js:198
 msgid ""
@@ -12561,10 +12514,8 @@ msgstr ""
 "Budgets dieser zugreifen darf."
 
 #: /app/src/modules/sharing/SharingModule.js:95
-#, fuzzy
-#| msgid "Unable to share with this user"
 msgid "User to share with"
-msgstr "Teilen mit diesem Benutzer nicht möglich"
+msgstr "Benutzer, mit dem geteilt werden soll"
 
 #: /app/src/modules/sharing/SharingModule.js:96
 msgid "Invite"
@@ -14372,10 +14323,8 @@ msgid "Paid {paidDate}, next due {dueDate}"
 msgstr "Bezahlt am {paidDate}, nächste Fälligkeit am {dueDate}"
 
 #: /app/src/utils/billDates.js:121
-#, fuzzy
-#| msgid "Ends {date}"
 msgid "Paid {date}"
-msgstr "Endet am {date}"
+msgstr "Bezahlt am {date}"
 
 #: /app/src/utils/dialogs.js:235
 msgid "Please confirm"
@@ -14410,10 +14359,8 @@ msgid "Got it"
 msgstr ""
 
 #: /app/src/utils/formSelects.js:20
-#, fuzzy
-#| msgid "Unable to share with this user"
 msgid "{category} (not shared with you)"
-msgstr "Teilen mit diesem Benutzer nicht möglich"
+msgstr "{category} (nicht mit dir geteilt)"
 
 #: /app/src/utils/formatters.js:272 /app/templates/index.php:5976
 msgid "Mortgage"
@@ -19121,15 +19068,12 @@ msgid "Receipts can only be attached to transactions in your own accounts."
 msgstr ""
 
 #: /app/templates/quick-add.php:110
-#, fuzzy
-#| msgid ""
-#| "The transaction was saved, but {count} receipt(s) could not be attached"
 msgid ""
 "The transaction was saved, but the receipt could not be attached. Open it in "
 "Budget to add the receipt."
 msgstr ""
-"Die Transaktion wurde gespeichert, aber {count} Beleg(e) konnten nicht "
-"angehängt werden"
+"Die Transaktion wurde gespeichert, aber der Beleg konnte nicht angehängt "
+"werden. Öffne die Transaktion in Budget, um den Beleg hinzuzufügen."
 
 #~ msgid "Skip Duplicate Transactions"
 #~ msgstr "Doppelte Buchungen überspringen"
