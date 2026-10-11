@@ -1989,7 +1989,7 @@ style('budget', 'budget-app');
                                 </div>
                             </div>
                             <div class="category-total-spent" id="category-total-spent">
-                                <span class="total-spent-label"><?php p($l->t('Total Spent')); ?></span>
+                                <span class="total-spent-label" id="category-total-label"><?php p($l->t('Total Spent')); ?></span>
                                 <span class="total-spent-value" id="category-total-spent-value">--</span>
                             </div>
                         </div>
@@ -2028,7 +2028,7 @@ style('budget', 'budget-app');
                         <!-- Monthly Spending Chart -->
                         <div class="category-chart-section">
                             <div class="category-chart-header">
-                                <h5><?php p($l->t('Monthly Spending')); ?></h5>
+                                <h5 id="category-chart-title"><?php p($l->t('Monthly Spending')); ?></h5>
                                 <div class="category-chart-controls">
                                     <select id="category-chart-account" class="card-select" aria-label="<?php p($l->t('Account')); ?>">
                                         <option value=""><?php p($l->t('All Accounts')); ?></option>

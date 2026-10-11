@@ -1256,6 +1256,33 @@ class CategoryServiceTest extends TestCase {
 		$this->assertContains(2, $details['scope']['categoryIds']);
 	}
 
+	/**
+	 * The total, like the chart, counts in the category's own direction, so
+	 * an income category's earnings aren't shown as negative (#422).
+	 */
+	public function testDetailsSumAnIncomeCategoryInItsOwnDirection(): void {
+		$salary = $this->makeCategory(['id' => 1, 'name' => 'Salary', 'parentId' => null, 'type' => 'income']);
+		$this->categoryMapper->method('findAll')->willReturn([$salary]);
+		$this->categoryMapper->method('find')->willReturn($salary);
+		$summaryType = null;
+		$monthlyType = null;
+		$this->transactionMapper->method('getCategorySummary')
+			->willReturnCallback(function (...$args) use (&$summaryType) {
+				$summaryType = $args[4] ?? null;
+				return ['count' => 1, 'total' => 1000.0];
+			});
+		$this->transactionMapper->method('getCategoryMonthlySpending')
+			->willReturnCallback(function (...$args) use (&$monthlyType) {
+				$monthlyType = $args[7] ?? null;
+				return [];
+			});
+
+		$this->service->getCategoryDetails(1, 'user1');
+
+		$this->assertSame('income', $summaryType);
+		$this->assertSame('income', $monthlyType);
+	}
+
 	// ── details follow budget months (custom start day) ──────────────
 
 	/**
