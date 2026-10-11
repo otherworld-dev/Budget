@@ -23,6 +23,7 @@ final class OdsReader {
 		$reader = Xml::reader($zip->read('content.xml'));
 		$document = new \DOMDocument();
 		$sheets = [];
+		$budget = new SheetBudget();
 		$builder = null;
 		$row = 0;
 		$rowRepeat = 1;
@@ -38,7 +39,7 @@ final class OdsReader {
 				switch ($reader->localName) {
 					case 'table':
 						if ($start) {
-							$builder = new SheetBuilder($reader->getAttributeNs('name', self::TABLE) ?? '');
+							$builder = new SheetBuilder($reader->getAttributeNs('name', self::TABLE) ?? '', $budget);
 							$row = 0;
 						}
 						if ($end && $builder !== null) {

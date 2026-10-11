@@ -41,6 +41,15 @@ class SpreadsheetConverter {
 		$previous = libxml_use_internal_errors(true);
 		try {
 			$sheets = $this->readSheets($bytes);
+			if ($sheets === null) {
+				return $bytes;
+			}
+			foreach ($sheets as $sheet) {
+				$table = SpreadsheetTable::extract($sheet['rows']);
+				if (count($table) >= 2) {
+					return SpreadsheetTable::toCsv($table);
+				}
+			}
 		} catch (SpreadsheetTooLargeError) {
 			throw new ValidationException($this->l->t('This spreadsheet is too big to import in one go. Split it into smaller files and import them one at a time.'));
 		} catch (SpreadsheetReadError|\ValueError $e) {
@@ -48,16 +57,6 @@ class SpreadsheetConverter {
 		} finally {
 			libxml_clear_errors();
 			libxml_use_internal_errors($previous);
-		}
-
-		if ($sheets === null) {
-			return $bytes;
-		}
-		foreach ($sheets as $sheet) {
-			$table = SpreadsheetTable::extract($sheet['rows']);
-			if (count($table) >= 2) {
-				return SpreadsheetTable::toCsv($table);
-			}
 		}
 		throw new ValidationException($this->l->t('This spreadsheet has no table of transactions to import.'));
 	}

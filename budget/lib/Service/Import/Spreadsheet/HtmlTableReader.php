@@ -23,8 +23,9 @@ final class HtmlTableReader {
 		}
 
 		$sheets = [];
+		$budget = new SheetBudget();
 		foreach ($document->getElementsByTagName('table') as $index => $table) {
-			$builder = new SheetBuilder('Table ' . ($index + 1));
+			$builder = new SheetBuilder('Table ' . ($index + 1), $budget);
 			$row = 0;
 			foreach ($table->getElementsByTagName('tr') as $tr) {
 				$column = 0;

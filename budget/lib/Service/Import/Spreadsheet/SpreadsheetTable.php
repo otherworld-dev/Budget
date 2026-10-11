@@ -53,11 +53,20 @@ final class SpreadsheetTable {
 			return [];
 		}
 
-		$table = [];
+		$tableRows = [];
 		for ($i = $header, $count = count($rows); $i < $count; $i++) {
-			if ($widths[$i] === 0) {
-				continue;
+			if ($widths[$i] !== 0) {
+				$tableRows[] = $i;
 			}
+		}
+		// Padding every row to the widest one can multiply the cells a sheet
+		// held (one wide header over many narrow rows)
+		if (count($tableRows) * $tableWidth > SheetBuilder::MAX_CELLS) {
+			throw new SpreadsheetTooLargeError('Table has more than ' . SheetBuilder::MAX_CELLS . ' cells once padded');
+		}
+
+		$table = [];
+		foreach ($tableRows as $i) {
 			$table[] = array_pad(array_slice($rows[$i], 0, $tableWidth), $tableWidth, '');
 		}
 		return $table;

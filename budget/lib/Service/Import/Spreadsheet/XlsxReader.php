@@ -20,12 +20,13 @@ final class XlsxReader {
 		[$cellFormats, $formatCodes] = $zip->has('xl/styles.xml') ? $this->styles($zip->read('xl/styles.xml')) : [[], []];
 
 		$result = [];
+		$budget = new SheetBudget();
 		foreach ($sheets as [$name, $relationshipId]) {
 			$path = isset($targets[$relationshipId]) ? self::partPath($targets[$relationshipId]) : null;
 			if ($path === null || !$zip->has($path)) {
 				continue;
 			}
-			$result[] = $this->sheet($name, $zip->read($path), $strings, $cellFormats, $formatCodes, $date1904);
+			$result[] = $this->sheet($name, $zip->read($path), $strings, $cellFormats, $formatCodes, $date1904, $budget);
 		}
 		return $result;
 	}
@@ -159,8 +160,8 @@ final class XlsxReader {
 	 * @param array<int, string> $formatCodes
 	 * @return array{name: string, rows: list<list<string>>}
 	 */
-	private function sheet(string $name, string $xml, array $strings, array $cellFormats, array $formatCodes, bool $date1904): array {
-		$builder = new SheetBuilder($name);
+	private function sheet(string $name, string $xml, array $strings, array $cellFormats, array $formatCodes, bool $date1904, SheetBudget $budget): array {
+		$builder = new SheetBuilder($name, $budget);
 		$reader = Xml::reader($xml);
 		$document = new \DOMDocument();
 		$row = -1;

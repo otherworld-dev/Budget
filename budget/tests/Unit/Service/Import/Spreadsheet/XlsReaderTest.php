@@ -6,6 +6,7 @@ namespace OCA\Budget\Tests\Unit\Service\Import\Spreadsheet;
 
 use OCA\Budget\Service\Import\Spreadsheet\OleFile;
 use OCA\Budget\Service\Import\Spreadsheet\SpreadsheetReadError;
+use OCA\Budget\Service\Import\Spreadsheet\SpreadsheetTooLargeError;
 use OCA\Budget\Service\Import\Spreadsheet\XlsReader;
 use PHPUnit\Framework\TestCase;
 
@@ -125,6 +126,22 @@ class XlsReaderTest extends TestCase {
 			self::record(0x0204, pack('vvv', 0, 4, 0) . self::compressed(' Etichetta ')),
 		]);
 		$this->assertSame([['12.5', 'Saldo', 'TRUE', '', 'Etichetta']], $this->rows($stream));
+	}
+
+	public function testTheLimitsCoverEverySheetOfAWorkbook(): void {
+		// Two sheet entries pointing at one sheet of 600,000 cells: each is
+		// within the limit, the workbook is not
+		$cells = '';
+		for ($i = 0; $i < 600000; $i++) {
+			$cells .= self::record(0x027E, pack('vvvV', intdiv($i, 10), $i % 10, 0, (1 << 2) | 0x02));
+		}
+		$boundsheet = static fn (int $position, string $name): string => self::record(0x0085, pack('VCC', $position, 0, 0) . pack('CC', strlen($name), 0) . $name);
+		$head = self::bof(0x0005);
+		$position = strlen($head) + 2 * strlen($boundsheet(0, 'A')) + strlen(self::eof());
+		$stream = $head . $boundsheet($position, 'A') . $boundsheet($position, 'B') . self::eof()
+			. self::bof(0x0010) . $cells . self::eof();
+		$this->expectException(SpreadsheetTooLargeError::class);
+		(new XlsReader())->readWorkbook($stream);
 	}
 
 	public function testRefusesAPasswordProtectedWorkbook(): void {

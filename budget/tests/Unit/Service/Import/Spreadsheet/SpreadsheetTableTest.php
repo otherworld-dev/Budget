@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Tests\Unit\Service\Import\Spreadsheet;
 
 use OCA\Budget\Service\Import\Spreadsheet\SpreadsheetTable;
+use OCA\Budget\Service\Import\Spreadsheet\SpreadsheetTooLargeError;
 use PHPUnit\Framework\TestCase;
 
 class SpreadsheetTableTest extends TestCase {
@@ -39,6 +40,17 @@ class SpreadsheetTableTest extends TestCase {
 			['', '', 'Data', 'Importo'],
 			['', '', '2026-10-01', '-1.5'],
 		], SpreadsheetTable::extract($rows));
+	}
+
+	public function testATableTooBigOncePadded(): void {
+		// A wide header over many narrow rows: padding every row to the
+		// header's width would make 1,001 x 1,000 cells
+		$rows = [array_fill(0, 1000, 'h')];
+		for ($i = 0; $i < 1000; $i++) {
+			$rows[] = ['2026-10-01', '1'];
+		}
+		$this->expectException(SpreadsheetTooLargeError::class);
+		SpreadsheetTable::extract($rows);
 	}
 
 	public function testNoTable(): void {

@@ -23,26 +23,36 @@ final class SheetBuilder {
 	/** Columns past this are never transaction data and are ignored */
 	public const MAX_COLUMNS = 1000;
 
-	/** Ten filled columns on every one of MAX_ROWS rows */
+	/**
+	 * Cells across a workbook, counted once each row is padded out to its
+	 * last filled cell: ten columns on every one of MAX_ROWS rows
+	 */
 	public const MAX_CELLS = 1000000;
 
-	/** The text of every filled cell together, roughly the CSV's size */
+	/** The text of every filled cell in a workbook together, roughly the CSV's size */
 	public const MAX_TEXT_BYTES = 32 * 1024 * 1024;
 
 	/** @var array<int, array<int, string>> */
 	private array $cells = [];
 
-	private int $cellCount = 0;
-	private int $textBytes = 0;
+	/** @var array<int, int> Each row's width once padded */
+	private array $widths = [];
 
+	private SheetBudget $budget;
+
+	/**
+	 * @param SheetBudget|null $budget Shared by every sheet of one workbook
+	 */
 	public function __construct(
 		private string $name,
+		?SheetBudget $budget = null,
 	) {
+		$this->budget = $budget ?? new SheetBudget();
 	}
 
 	/**
 	 * @throws SpreadsheetTooLargeError When the sheet passes MAX_ROWS filled
-	 *                                   rows, MAX_CELLS cells or MAX_TEXT_BYTES of text
+	 *                                   rows, or the workbook MAX_CELLS cells or MAX_TEXT_BYTES of text
 	 */
 	public function add(int $row, int $column, string $text): void {
 		if ($text === '' || $row < 0 || $column < 0 || $column >= self::MAX_COLUMNS) {
@@ -51,13 +61,10 @@ final class SheetBuilder {
 		if (!isset($this->cells[$row]) && count($this->cells) >= self::MAX_ROWS) {
 			throw new SpreadsheetTooLargeError('Sheet has more than ' . self::MAX_ROWS . ' rows');
 		}
-		if (!isset($this->cells[$row][$column]) && ++$this->cellCount > self::MAX_CELLS) {
-			throw new SpreadsheetTooLargeError('Sheet has more than ' . self::MAX_CELLS . ' cells');
-		}
-		$this->textBytes += strlen($text);
-		if ($this->textBytes > self::MAX_TEXT_BYTES) {
-			throw new SpreadsheetTooLargeError('Sheet has more than ' . self::MAX_TEXT_BYTES . ' bytes of text');
-		}
+		$width = $this->widths[$row] ?? 0;
+		$replaced = isset($this->cells[$row][$column]) ? strlen($this->cells[$row][$column]) : 0;
+		$this->budget->spend(max(0, $column + 1 - $width), strlen($text) - $replaced);
+		$this->widths[$row] = max($width, $column + 1);
 		$this->cells[$row][$column] = $text;
 	}
 

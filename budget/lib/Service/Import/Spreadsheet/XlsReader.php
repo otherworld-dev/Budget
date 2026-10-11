@@ -101,8 +101,9 @@ final class XlsReader {
 		}
 
 		$result = [];
+		$budget = new SheetBudget();
 		foreach ($sheets as [$name, $offset]) {
-			$result[] = $this->sheet($stream, $name, $offset);
+			$result[] = $this->sheet($stream, $name, $offset, $budget);
 		}
 		return $result;
 	}
@@ -110,8 +111,8 @@ final class XlsReader {
 	/**
 	 * @return array{name: string, rows: list<list<string>>}
 	 */
-	private function sheet(string $stream, string $name, int $offset): array {
-		$builder = new SheetBuilder($name);
+	private function sheet(string $stream, string $name, int $offset, SheetBudget $budget): array {
+		$builder = new SheetBuilder($name, $budget);
 		$records = $this->records($stream, $offset);
 		if (!$records->valid() || $records->current()[0] !== self::BOF) {
 			throw new SpreadsheetReadError('Sheet does not start with BOF');

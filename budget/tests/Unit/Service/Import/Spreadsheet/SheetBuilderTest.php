@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Tests\Unit\Service\Import\Spreadsheet;
 
+use OCA\Budget\Service\Import\Spreadsheet\SheetBudget;
 use OCA\Budget\Service\Import\Spreadsheet\SheetBuilder;
 use OCA\Budget\Service\Import\Spreadsheet\SpreadsheetTooLargeError;
 use PHPUnit\Framework\TestCase;
@@ -46,6 +47,23 @@ class SheetBuilderTest extends TestCase {
 		}
 		$this->expectException(SpreadsheetTooLargeError::class);
 		$builder->add(0, $perRow, 'one too many');
+	}
+
+	public function testPaddingCountsTowardsTheCellLimit(): void {
+		// One cell far right on each row: few cells, but every row pads out to it
+		$builder = new SheetBuilder('S');
+		$this->expectException(SpreadsheetTooLargeError::class);
+		for ($row = 0; $row < SheetBuilder::MAX_ROWS; $row++) {
+			$builder->add($row, SheetBuilder::MAX_COLUMNS - 1, 'x');
+		}
+	}
+
+	public function testTheLimitsCoverEverySheetOfAWorkbook(): void {
+		$budget = new SheetBudget();
+		$half = str_repeat('x', intdiv(SheetBuilder::MAX_TEXT_BYTES, 2) + 1);
+		(new SheetBuilder('First', $budget))->add(0, 0, $half);
+		$this->expectException(SpreadsheetTooLargeError::class);
+		(new SheetBuilder('Second', $budget))->add(0, 0, $half);
 	}
 
 	public function testTooMuchText(): void {
