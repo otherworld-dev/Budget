@@ -14,6 +14,7 @@ use OCP\IL10N;
 use OCP\IRequest;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
+use OCA\Budget\Exception\ValidationException;
 
 class ImportControllerTest extends TestCase {
 	private ImportController $controller;
@@ -400,5 +401,21 @@ class ImportControllerTest extends TestCase {
 		$response = $this->controller->execute('import123', 1, [1]);
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	public function testUploadShowsASpreadsheetsOwnMessage(): void {
+		$this->request->method('getUploadedFile')->with('file')->willReturn([
+			'name' => 'estratto.xls',
+			'tmp_name' => '/tmp/estratto.xls',
+			'size' => 100,
+			'error' => UPLOAD_ERR_OK,
+		]);
+		$this->service->method('processUpload')->willThrowException(new ValidationException('This spreadsheet has no table of transactions to import.'));
+		$this->auditService->expects($this->once())->method('logImportFailed');
+
+		$response = $this->controller->upload();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('This spreadsheet has no table of transactions to import.', $response->getData()['error']);
 	}
 }

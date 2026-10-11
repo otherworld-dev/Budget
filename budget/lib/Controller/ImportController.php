@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
+use OCA\Budget\Exception\ValidationException;
 use OCA\Budget\Service\AuditService;
 use OCA\Budget\Service\Import\TransactionNormalizer;
 use OCA\Budget\Service\ImportService;
@@ -124,6 +125,15 @@ class ImportController extends Controller {
 
 			$result = $this->service->processUpload($this->userId, $uploadedFile);
 			return new DataResponse($result);
+		} catch (ValidationException $e) {
+			// A message written for the user (a spreadsheet that cannot be
+			// read, #424), unlike the generic one handleError() gives
+			$this->auditService->logImportFailed(
+				$this->userId,
+				$uploadedFile['name'] ?? 'unknown',
+				$e->getMessage()
+			);
+			return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
 		} catch (\Exception $e) {
 			// Log import failure
 			$this->auditService->logImportFailed(

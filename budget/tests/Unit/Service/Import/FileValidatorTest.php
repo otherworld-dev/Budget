@@ -208,7 +208,10 @@ class FileValidatorTest extends TestCase {
 		$this->assertContains('qif', $extensions);
 		$this->assertContains('txt', $extensions);
 		$this->assertContains('tsv', $extensions);
-		$this->assertCount(6, $extensions);
+		$this->assertContains('xls', $extensions);
+		$this->assertContains('xlsx', $extensions);
+		$this->assertContains('ods', $extensions);
+		$this->assertCount(9, $extensions);
 	}
 
 	public function testGetMaxFileSize(): void {
@@ -226,7 +229,7 @@ class FileValidatorTest extends TestCase {
 	public function testValidateRejectsBadExtension(): void {
 		$this->expectException(\Exception::class);
 		$this->expectExceptionMessage('Unsupported file format');
-		$this->validator->validate('data.xlsx', 1024);
+		$this->validator->validate('statement.pdf', 1024);
 	}
 
 	public function testValidatePassesWithoutTmpPath(): void {
@@ -445,5 +448,31 @@ class FileValidatorTest extends TestCase {
 		} finally {
 			unlink($tmp);
 		}
+	}
+
+	// ── spreadsheets (#424) ─────────────────────────────────────────
+
+	public function testSpreadsheetExtensionsAreAllowed(): void {
+		$this->assertSame('xls', $this->validator->validateExtension('estratto.xls'));
+		$this->assertSame('xlsx', $this->validator->validateExtension('estratto.XLSX'));
+		$this->assertSame('ods', $this->validator->validateExtension('estratto.ods'));
+	}
+
+	public function testABinarySpreadsheetPassesTheUploadChecks(): void {
+		$path = tempnam(sys_get_temp_dir(), 'xls');
+		file_put_contents($path, "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1" . str_repeat("\0", 600));
+		try {
+			$this->validator->validate('estratto.xls', 608, $path);
+			$this->assertTrue(true);
+		} finally {
+			unlink($path);
+		}
+	}
+
+	public function testValidateTextChecksCsvContent(): void {
+		$this->validator->validateText("a,b\n1,2\n", 'csv');
+		$this->expectException(\Exception::class);
+		$this->expectExceptionMessage('appears to be binary');
+		$this->validator->validateText("a,b\n1,\x002\n", 'csv');
 	}
 }
