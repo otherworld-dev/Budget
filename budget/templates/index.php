@@ -2287,7 +2287,7 @@ style('budget', 'budget-app');
                     <div class="import-step active" id="import-step-1">
                         <div class="step-header">
                             <h3><?php p($l->t('Step 1: Select File')); ?></h3>
-                            <p><?php p($l->t('Choose your bank statement file (CSV, OFX, QIF, or camt.053 XML format)')); ?></p>
+                            <p><?php p($l->t('Choose your bank statement file (CSV, Excel, OFX, QIF, or camt.053 XML format)')); ?></p>
                         </div>
 
                         <div class="import-dropzone" id="import-dropzone">
@@ -2295,7 +2295,7 @@ style('budget', 'budget-app');
                             <p><?php p($l->t('Drag and drop your bank statement here')); ?></p>
                             <p><?php p($l->t('or')); ?></p>
                             <button id="import-browse-btn" class="secondary" aria-label="<?php p($l->t('Browse for file to import')); ?>"><?php p($l->t('Browse Files')); ?></button>
-                            <input type="file" id="import-file-input" accept=".csv,.tsv,.txt,.ofx,.qif,.xml" style="display: none;">
+                            <input type="file" id="import-file-input" accept=".csv,.tsv,.txt,.xls,.xlsx,.ods,.ofx,.qif,.xml" style="display: none;">
                         </div>
 
                         <details class="import-switch-from" id="import-switch-from">
@@ -2346,6 +2346,7 @@ style('budget', 'budget-app');
                             <h4><?php p($l->t('Supported Formats:')); ?></h4>
                             <ul>
                                 <li><strong>CSV:</strong> <?php p($l->t('Comma-separated values from any bank')); ?></li>
+                                <li><strong>XLS / XLSX / ODS:</strong> <?php p($l->t('Excel and LibreOffice spreadsheets, read like a CSV file')); ?></li>
                                 <li><strong>OFX:</strong> <?php p($l->t('Open Financial Exchange format')); ?></li>
                                 <li><strong>XML:</strong> <?php p($l->t('ISO 20022 camt.053 / camt.052 bank statements')); ?></li>
                                 <li><strong>QIF:</strong> <?php p($l->t('Quicken Interchange Format')); ?></li>
