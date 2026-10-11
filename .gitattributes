@@ -6,3 +6,9 @@ budget/.l10nignore text eol=lf
 # php-cs-fixer (nextcloud/coding-standard) requires LF; a CRLF checkout on
 # Windows would make cs:check report every PHP file.
 *.php text eol=lf
+
+# Spreadsheet fixtures are byte-exact test inputs, some of them text
+# (HTML or tab-separated files named .xls): never convert their line ends.
+budget/tests/fixtures/spreadsheets/*.xls binary
+budget/tests/fixtures/spreadsheets/*.xlsx binary
+budget/tests/fixtures/spreadsheets/*.ods binary
