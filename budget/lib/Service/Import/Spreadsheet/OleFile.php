@@ -81,10 +81,16 @@ final class OleFile {
 	 * @return list<int>
 	 */
 	private function readFat(int $fatSectors, int $difatStart, int $difatSectors): array {
+		// Each FAT sector is copied into the FAT, so a header listing more of
+		// them than the file holds, or one sector many times, could make a
+		// small file build a FAT of gigabytes
+		if ($fatSectors > intdiv(strlen($this->data), $this->sectorSize)) {
+			throw new SpreadsheetReadError('More FAT sectors than the file holds');
+		}
 		$sectors = array_filter(Bytes::u32s($this->data, 76, 109), static fn (int $s): bool => $s <= self::MAX_REGULAR_SECTOR);
 		$perSector = intdiv($this->sectorSize, 4) - 1;
 		$seen = [];
-		for ($next = $difatStart; $next <= self::MAX_REGULAR_SECTOR && count($seen) < $difatSectors;) {
+		for ($next = $difatStart; $next <= self::MAX_REGULAR_SECTOR && count($seen) < $difatSectors && count($sectors) < $fatSectors;) {
 			if (isset($seen[$next])) {
 				throw new SpreadsheetReadError('DIFAT loops');
 			}
@@ -98,8 +104,12 @@ final class OleFile {
 			}
 		}
 
+		$sectors = array_slice(array_values($sectors), 0, $fatSectors);
+		if (count(array_unique($sectors)) !== count($sectors)) {
+			throw new SpreadsheetReadError('A FAT sector is listed twice');
+		}
 		$fat = '';
-		foreach (array_slice(array_values($sectors), 0, $fatSectors) as $sector) {
+		foreach ($sectors as $sector) {
 			$fat .= $this->sector($sector);
 		}
 		return Bytes::u32s($fat, 0, intdiv(strlen($fat), 4));

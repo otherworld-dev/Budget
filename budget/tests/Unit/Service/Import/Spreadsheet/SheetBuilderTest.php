@@ -35,4 +35,26 @@ class SheetBuilderTest extends TestCase {
 		$this->expectException(SpreadsheetTooLargeError::class);
 		$builder->add(SheetBuilder::MAX_ROWS, 0, 'one too many');
 	}
+
+	public function testTooManyCells(): void {
+		$builder = new SheetBuilder('S');
+		$perRow = intdiv(SheetBuilder::MAX_CELLS, SheetBuilder::MAX_ROWS);
+		for ($row = 0; $row < SheetBuilder::MAX_ROWS; $row++) {
+			for ($column = 0; $column < $perRow; $column++) {
+				$builder->add($row, $column, 'x');
+			}
+		}
+		$this->expectException(SpreadsheetTooLargeError::class);
+		$builder->add(0, $perRow, 'one too many');
+	}
+
+	public function testTooMuchText(): void {
+		// One string in many cells: shared in memory, but the CSV would hold every copy
+		$builder = new SheetBuilder('S');
+		$megabyte = str_repeat('x', 1024 * 1024);
+		$this->expectException(SpreadsheetTooLargeError::class);
+		for ($row = 0; $row <= intdiv(SheetBuilder::MAX_TEXT_BYTES, strlen($megabyte)); $row++) {
+			$builder->add($row, 0, $megabyte);
+		}
+	}
 }

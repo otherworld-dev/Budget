@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Tests\Unit\Service\Import\Spreadsheet;
 
 use OCA\Budget\Service\Import\Spreadsheet\OdsReader;
+use OCA\Budget\Service\Import\Spreadsheet\SpreadsheetTooLargeError;
 use OCA\Budget\Service\Import\Spreadsheet\ZipPackage;
 use PHPUnit\Framework\TestCase;
 
@@ -73,6 +74,21 @@ class OdsReaderTest extends TestCase {
 			['x'],
 			['x'],
 		], $this->readFile($path)[0]['rows']);
+	}
+
+	public function testARepeatedFilledRowCannotBlowUp(): void {
+		$path = $this->odsWith(
+			'<table:table-row table:number-rows-repeated="1000000">'
+			. '<table:table-cell table:number-columns-repeated="1000" office:value-type="string"><text:p>x</text:p></table:table-cell>'
+			. '</table:table-row>'
+		);
+		$start = microtime(true);
+		try {
+			$this->readFile($path);
+			$this->fail('A million filled rows were read');
+		} catch (SpreadsheetTooLargeError) {
+			$this->assertLessThan(5.0, microtime(true) - $start);
+		}
 	}
 
 	public function testTheMillionRowPaddingIsSkippedQuickly(): void {

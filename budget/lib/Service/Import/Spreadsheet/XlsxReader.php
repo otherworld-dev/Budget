@@ -96,7 +96,9 @@ final class XlsxReader {
 		while ($ok) {
 			if ($reader->nodeType === \XMLReader::ELEMENT && $reader->localName === 'si') {
 				$node = $reader->expand($document);
-				$strings[] = $node instanceof \DOMElement ? self::text($node) : '';
+				// Trimmed here, once: a cell then shares the string rather
+				// than copying it, however many cells use it
+				$strings[] = $node instanceof \DOMElement ? trim(self::text($node)) : '';
 				$ok = $reader->next();
 				continue;
 			}
@@ -205,7 +207,7 @@ final class XlsxReader {
 		}
 		switch ($type) {
 			case 's':
-				return $value === null ? '' : trim($strings[(int)$value] ?? '');
+				return $value === null ? '' : ($strings[(int)$value] ?? '');
 			case 'inlineStr':
 				return trim(self::text($cell));
 			case 'str':

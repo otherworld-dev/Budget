@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Tests\Unit\Service\Import\Spreadsheet;
 
 use OCA\Budget\Service\Import\Spreadsheet\SpreadsheetReadError;
+use OCA\Budget\Service\Import\Spreadsheet\SpreadsheetTooLargeError;
 use OCA\Budget\Service\Import\Spreadsheet\XlsxReader;
 use OCA\Budget\Service\Import\Spreadsheet\ZipPackage;
 use PHPUnit\Framework\TestCase;
@@ -133,7 +134,17 @@ class XlsxReaderTest extends TestCase {
 		$this->assertSame([['shown']], $sheets[0]['rows']);
 	}
 
-	public function testExternalEntitiesAreNotLoaded(): void {
+	public function testOneHugeSharedStringInManyCellsIsTooLarge(): void {
+		$cells = '';
+		for ($row = 1; $row <= 40; $row++) {
+			$cells .= '<row r="' . $row . '"><c r="A' . $row . '" t="s"><v>0</v></c></row>';
+		}
+		$path = $this->workbookWith($cells, '<si><t>' . str_repeat('x', 1024 * 1024) . '</t></si>');
+		$this->expectException(SpreadsheetTooLargeError::class);
+		$this->readFile($path);
+	}
+
+	public function testADoctypeIsRefused(): void {
 		$secret = tempnam(sys_get_temp_dir(), 'secret');
 		$this->tempFiles[] = $secret;
 		file_put_contents($secret, 'SECRET-TOKEN');
@@ -148,8 +159,10 @@ class XlsxReaderTest extends TestCase {
 		$zip->addFromString('xl/sharedStrings.xml', '<?xml version="1.0"?><!DOCTYPE sst [<!ENTITY xxe SYSTEM "file://' . str_replace('\\', '/', $secret) . '">]>' . $xml);
 		$zip->close();
 
-		$rows = $this->readFile($path)[0]['rows'] ?? [];
-		$this->assertStringNotContainsString('SECRET-TOKEN', json_encode($rows));
+		// Spreadsheet XML never has one, and refusing it rules out external
+		// entities and entity expansion ("billion laughs") alike
+		$this->expectException(SpreadsheetReadError::class);
+		$this->readFile($path);
 	}
 
 	public function testAZipThatIsNotAZip(): void {

@@ -39,6 +39,23 @@ class OleFileTest extends TestCase {
 		(new OleFile(substr(file_get_contents(self::FIXTURES . 'statement-large.xls'), 0, 1600)))->stream('Workbook');
 	}
 
+	public function testTheSameFatSectorListedOverAndOver(): void {
+		// A valid one-sector directory holding just the root entry, but a
+		// header that lists FAT sector 0 109 times: each listing would add
+		// another copy of the sector to the FAT, which is how a 10 MB file
+		// could build a FAT of gigabytes
+		$header = OleFile::SIGNATURE . str_repeat("\0", 16)
+			. pack('vvvvv', 0x3E, 3, 0xFFFE, 9, 6) . str_repeat("\0", 6)
+			. pack('VVVVVVVVV', 0, 109, 1, 0, 4096, 0xFFFFFFFE, 0, 0xFFFFFFFE, 0)
+			. str_repeat(pack('V', 0), 109);
+		$fat = pack('VV', 0xFFFFFFFD, 0xFFFFFFFE) . str_repeat("\xFF", 504);
+		$name = mb_convert_encoding('Root Entry', 'UTF-16LE', 'UTF-8');
+		$root = str_pad($name, 64, "\0") . pack('vCC', strlen($name) + 2, 5, 1)
+			. str_repeat("\xFF", 12) . str_repeat("\0", 36) . pack('VVV', 0xFFFFFFFE, 0, 0);
+		$this->expectException(SpreadsheetReadError::class);
+		new OleFile($header . $fat . str_pad($root, 512, "\0"));
+	}
+
 	public function testASectorChainThatLoops(): void {
 		// Header: v3, 512-byte sectors, one FAT sector (0), directory starting at sector 1
 		$header = OleFile::SIGNATURE . str_repeat("\0", 16)

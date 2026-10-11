@@ -6,11 +6,18 @@ namespace OCA\Budget\Service\Import\Spreadsheet;
 
 /**
  * Streaming XML reading for the spreadsheet readers. Never loads anything
- * from the network, and external entities are left unexpanded (PHP 8's
- * default; asserted in XlsxReaderTest).
+ * from the network.
+ *
+ * XML with a DOCTYPE is refused outright. Spreadsheet XML (OOXML, ODF)
+ * never declares one, and without it there are no entities to expand, so
+ * neither external entities nor nested entity expansion ("billion laughs")
+ * can reach libxml.
  */
 final class Xml {
 	public static function reader(string $xml): \XMLReader {
+		if (stripos($xml, '<!DOCTYPE') !== false) {
+			throw new SpreadsheetReadError('XML with a DOCTYPE');
+		}
 		$reader = new \XMLReader();
 		if (!$reader->XML($xml, null, LIBXML_NONET | LIBXML_COMPACT)) {
 			throw new SpreadsheetReadError('Unreadable XML');
