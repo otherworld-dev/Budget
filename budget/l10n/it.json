@@ -1,0 +1,15 @@
+{ "translations": {
+    "Failed to retrieve accounts" : "Impossibile recuperare conti bancari",
+    "Account not found" : "Conto bancario non trovato",
+    "Account" : "Conto bancario",
+    "Invalid JSON data or empty request" : "Contenuto del file JSON non valido o vuoto",
+    "Account type is required and cannot be empty" : "Tipo di conto bancario richiesto e non può essere lasciato vuoto",
+    "Invalid account type: %1$s" : "Tipo di conto bancario non valido: %1$s",
+    "Invalid currency: %1$s" : "Valuta non valida: %1$s",
+    "Institution" : "Istituto bancario",
+    "Account holder name" : "Nome del titolare",
+    "Statement day must be between 1 and 31" : "Il giorno della lettura deve essere compreso tra il 1° e il 31",
+    "Invalid IBAN: %1$s" : "IBAN non valido: %1$s",
+    "Invalid SWIFT/BIC: %1$s" : "Codice SWIFT/BIC non valido: %1$s"
+},"pluralForm" :"nplurals=2; plural=n != 1;"
+}
