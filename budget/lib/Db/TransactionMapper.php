@@ -519,10 +519,16 @@ class TransactionMapper extends QBMapper {
 	 * can see, whoever owns them, instead of $userId's own accounts: see
 	 * scopeCategoryDetail().
 	 *
+	 * The total is positive in the category's natural direction, as
+	 * getCategoryMonthlySpending() reports it: debits for an expense
+	 * category, credits for an income one. Counting debits for both showed an
+	 * income category's earnings as a negative total beside a positive chart
+	 * (#422).
+	 *
 	 * @param int[]|null $visibleAccountIds
 	 * @return array{count: int, total: float}
 	 */
-	public function getCategorySummary(string $userId, int $categoryId, ?array $categoryIds = null, ?array $visibleAccountIds = null): array {
+	public function getCategorySummary(string $userId, int $categoryId, ?array $categoryIds = null, ?array $visibleAccountIds = null, string $categoryType = 'expense'): array {
 		// Use array of IDs (parent + children) if provided, otherwise single ID
 		$ids = $categoryIds ?? [$categoryId];
 
@@ -530,8 +536,10 @@ class TransactionMapper extends QBMapper {
 			return ['count' => 0, 'total' => 0.0];
 		}
 
-		$direct = $this->getCategoryDirectSummary($userId, $ids, $visibleAccountIds);
-		$split = $this->getCategorySplitSummary($userId, $ids, $visibleAccountIds);
+		// ($primaryType is strictly 'credit' or 'debit' — safe to interpolate.)
+		$primaryType = $categoryType === 'income' ? 'credit' : 'debit';
+		$direct = $this->getCategoryDirectSummary($userId, $ids, $primaryType, $visibleAccountIds);
+		$split = $this->getCategorySplitSummary($userId, $ids, $primaryType, $visibleAccountIds);
 
 		return [
 			'count' => $direct['count'] + $split['count'],
@@ -561,14 +569,15 @@ class TransactionMapper extends QBMapper {
 
 	/**
 	 * @param int[] $ids
+	 * @param 'credit'|'debit' $primaryType the direction counted as positive
 	 * @param int[]|null $visibleAccountIds
 	 * @return array{count: int, total: float}
 	 */
-	private function getCategoryDirectSummary(string $userId, array $ids, ?array $visibleAccountIds = null): array {
+	private function getCategoryDirectSummary(string $userId, array $ids, string $primaryType, ?array $visibleAccountIds = null): array {
 		$qb = $this->db->getQueryBuilder();
 		$qb->selectAlias($qb->func()->count('t.id'), 'count')
 			->selectAlias($qb->createFunction(
-				"SUM(CASE WHEN t.type = 'debit' THEN t.amount ELSE -t.amount END)"
+				"SUM(CASE WHEN t.type = '{$primaryType}' THEN t.amount ELSE -t.amount END)"
 			), 'total')
 			->from($this->getTableName(), 't')
 			->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
@@ -598,14 +607,15 @@ class TransactionMapper extends QBMapper {
 	 * getCategoryDirectSummary — see getCategorySummary (#359).
 	 *
 	 * @param int[] $ids
+	 * @param 'credit'|'debit' $primaryType the direction counted as positive
 	 * @param int[]|null $visibleAccountIds
 	 * @return array{count: int, total: float}
 	 */
-	private function getCategorySplitSummary(string $userId, array $ids, ?array $visibleAccountIds = null): array {
+	private function getCategorySplitSummary(string $userId, array $ids, string $primaryType, ?array $visibleAccountIds = null): array {
 		$qb = $this->db->getQueryBuilder();
 		$qb->selectAlias($qb->createFunction('COUNT(DISTINCT t.id)'), 'count')
 			->selectAlias($qb->createFunction(
-				"SUM(CASE WHEN t.type = 'debit' THEN s.amount ELSE -s.amount END)"
+				"SUM(CASE WHEN t.type = '{$primaryType}' THEN s.amount ELSE -s.amount END)"
 			), 'total')
 			->from('budget_tx_splits', 's')
 			->innerJoin('s', $this->getTableName(), 't', $qb->expr()->eq('s.transaction_id', 't.id'))

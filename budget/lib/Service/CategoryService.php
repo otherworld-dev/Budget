@@ -577,7 +577,7 @@ class CategoryService extends AbstractCrudService {
 		$viewerId ??= $userId;
 		$startDay = $this->carryoverService->budgetStartDay($viewerId);
 
-		$summary = $this->transactionMapper->getCategorySummary($userId, $categoryId, $categoryIds, $visibleAccountIds);
+		$summary = $this->transactionMapper->getCategorySummary($userId, $categoryId, $categoryIds, $visibleAccountIds, $category->getType() ?? 'expense');
 		$monthlySpending = $this->transactionMapper->getCategoryMonthlySpending(
 			$userId, $categoryId, 12, $categoryIds, $startDate, $endDate, $accountId, $category->getType(), $startDay > 1, $visibleAccountIds
 		);

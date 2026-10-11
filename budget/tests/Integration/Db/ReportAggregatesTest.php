@@ -60,6 +60,21 @@ class ReportAggregatesTest extends IntegrationTestCase {
 		$this->assertEqualsWithDelta(25.5, $summary['total'], 0.001);
 	}
 
+	public function testCategorySummaryReportsIncomeCategoriesAsPositive(): void {
+		// An income category's money arrives as credits: €1,000 of salary read
+		// as -€1,000 in Category Details while the chart showed +€1,000 (#422)
+		$salary = $this->makeCategory(['name' => 'Salary', 'type' => 'income']);
+		$this->makeTransaction($this->accountId, ['category_id' => $salary, 'amount' => '1000.00', 'type' => 'credit']);
+		$this->makeSplitTransaction($this->accountId, [[$salary, '50.00']], ['type' => 'credit']);
+		// A clawback nets against it, like a refund against spending
+		$this->makeTransaction($this->accountId, ['category_id' => $salary, 'amount' => '25.00']);
+
+		$summary = $this->mapper->getCategorySummary($this->userId, $salary, null, null, 'income');
+
+		$this->assertSame(3, $summary['count']);
+		$this->assertEqualsWithDelta(1025.0, $summary['total'], 0.001);
+	}
+
 	public function testCategorySummaryTreatsNullSplitFlagWithPartsAsASplit(): void {
 		// is_split post-dates its default: old parents hold NULL
 		$this->makeSplitTransaction($this->accountId, [[$this->food, '4.00']], ['is_split' => null]);

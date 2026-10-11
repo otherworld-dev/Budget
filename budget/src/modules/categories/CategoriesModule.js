@@ -791,6 +791,14 @@ export default class CategoriesModule {
             typeEl.className = `category-type-badge ${category.type}`;
         }
 
+        // An income category earns rather than spends, so its total and chart
+        // say so (#422).
+        const isIncome = category.type === 'income';
+        const totalLabelEl = document.getElementById('category-total-label');
+        if (totalLabelEl) totalLabelEl.textContent = isIncome ? t('budget', 'Total Income') : t('budget', 'Total Spent');
+        const chartTitleEl = document.getElementById('category-chart-title');
+        if (chartTitleEl) chartTitleEl.textContent = isIncome ? t('budget', 'Monthly Income') : t('budget', 'Monthly Spending');
+
         // Build category path
         const path = this.getCategoryPath(category);
         const pathEl = document.getElementById('category-display-path');
