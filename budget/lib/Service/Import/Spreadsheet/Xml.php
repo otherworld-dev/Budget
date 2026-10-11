@@ -8,16 +8,44 @@ namespace OCA\Budget\Service\Import\Spreadsheet;
  * Streaming XML reading for the spreadsheet readers. Never loads anything
  * from the network.
  *
- * XML with a DOCTYPE is refused outright. Spreadsheet XML (OOXML, ODF)
- * never declares one, and without it there are no entities to expand, so
- * neither external entities nor nested entity expansion ("billion laughs")
- * can reach libxml.
+ * XML with a DOCTYPE is refused outright, in whatever encoding it is
+ * written. Spreadsheet XML (OOXML, ODF) never declares one, and without it
+ * there are no entities to expand, so neither external entities nor nested
+ * entity expansion ("billion laughs") can reach libxml.
  */
 final class Xml {
 	public static function reader(string $xml): \XMLReader {
+		self::refuseDoctype($xml);
+		return self::open($xml);
+	}
+
+	/**
+	 * The plain search catches the usual case cheaply. It cannot see a
+	 * DOCTYPE written in another encoding (UTF-16, say), which libxml decodes
+	 * all the same, so the parser is asked too: everything before the root
+	 * element is read, and a DTD node refused. Entities are only expanded in
+	 * content, after the root element starts, so none ever is.
+	 */
+	private static function refuseDoctype(string $xml): void {
 		if (stripos($xml, '<!DOCTYPE') !== false) {
 			throw new SpreadsheetReadError('XML with a DOCTYPE');
 		}
+		$probe = self::open($xml);
+		try {
+			while ($probe->read()) {
+				if ($probe->nodeType === \XMLReader::DOC_TYPE) {
+					throw new SpreadsheetReadError('XML with a DOCTYPE');
+				}
+				if ($probe->nodeType === \XMLReader::ELEMENT) {
+					return;
+				}
+			}
+		} finally {
+			$probe->close();
+		}
+	}
+
+	private static function open(string $xml): \XMLReader {
 		$reader = new \XMLReader();
 		if (!$reader->XML($xml, null, LIBXML_NONET | LIBXML_COMPACT)) {
 			throw new SpreadsheetReadError('Unreadable XML');

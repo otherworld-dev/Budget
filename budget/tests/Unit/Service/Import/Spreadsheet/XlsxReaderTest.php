@@ -165,6 +165,21 @@ class XlsxReaderTest extends TestCase {
 		$this->readFile($path);
 	}
 
+	public function testADoctypeInAnotherEncodingIsRefusedToo(): void {
+		// In UTF-16 the bytes of "<!DOCTYPE" are not the ASCII text a plain
+		// search looks for, but libxml decodes them all the same
+		$path = $this->workbookWith('<row r="1"><c r="A1" t="s"><v>0</v></c></row>');
+		$xml = '<?xml version="1.0" encoding="UTF-16"?><!DOCTYPE sst [<!ENTITY a "expanded">]>'
+			. '<sst ' . self::NS . '><si><t>&a;</t></si></sst>';
+		$zip = new \ZipArchive();
+		$zip->open($path);
+		$zip->addFromString('xl/sharedStrings.xml', "\xFF\xFE" . mb_convert_encoding($xml, 'UTF-16LE', 'UTF-8'));
+		$zip->close();
+
+		$this->expectException(SpreadsheetReadError::class);
+		$this->readFile($path);
+	}
+
 	public function testAZipThatIsNotAZip(): void {
 		$path = tempnam(sys_get_temp_dir(), 'bad');
 		$this->tempFiles[] = $path;
