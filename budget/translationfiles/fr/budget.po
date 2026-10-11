@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-10-05 20:54+0000\n"
+"POT-Creation-Date: 2026-10-11 14:47+0000\n"
 "PO-Revision-Date: 2026-10-04 00:04+0000\n"
 "Last-Translator: Christophe <tophe.perso@gmail.com>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/nextcloud-budget/"
@@ -1014,7 +1014,7 @@ msgstr "Total annuel"
 #: /app/lib/Service/Report/ReportExporter.php:517
 #: /app/lib/Service/Report/ReportExporter.php:588
 #: /app/lib/Service/Report/ReportExporter.php:663
-#: /app/src/modules/categories/CategoriesModule.js:2452
+#: /app/src/modules/categories/CategoriesModule.js:2460
 #: /app/src/modules/reports/ReportsModule.js:1860 /app/templates/index.php:7314
 msgid "Total"
 msgstr "Total"
@@ -1201,7 +1201,7 @@ msgstr ""
 "“annuelle” ou “trimestrielle”"
 
 #: /app/lib/Controller/CategoryController.php:360
-#: /app/src/modules/categories/CategoriesModule.js:1429
+#: /app/src/modules/categories/CategoriesModule.js:1437
 msgid "Failed to update category"
 msgstr "Échec de la mise à jour de la catégorie"
 
@@ -1228,7 +1228,7 @@ msgid "Invalid budget period"
 msgstr "Période budgétaire non valide"
 
 #: /app/lib/Controller/CategoryController.php:433
-#: /app/src/modules/categories/CategoriesModule.js:2478
+#: /app/src/modules/categories/CategoriesModule.js:2486
 msgid "Only the owner can change the budget of a shared category"
 msgstr "Seul le propriétaire peut modifier le budget d'une catégorie partagée"
 
@@ -1303,20 +1303,20 @@ msgid "Failed to retrieve recurring budgets"
 msgstr "Échec de la récupération des budgets récurrents"
 
 #: /app/lib/Controller/CategoryTransferController.php:64
-#: /app/src/modules/categories/CategoriesModule.js:1650
-#: /app/src/modules/categories/CategoriesModule.js:1662
+#: /app/src/modules/categories/CategoriesModule.js:1658
+#: /app/src/modules/categories/CategoriesModule.js:1670
 msgid "Failed to export categories"
 msgstr "Échec de l'export des catégories"
 
 #: /app/lib/Controller/CategoryTransferController.php:89
-#: /app/src/modules/categories/CategoriesModule.js:1686
-#: /app/src/modules/categories/CategoriesModule.js:1692
+#: /app/src/modules/categories/CategoriesModule.js:1694
+#: /app/src/modules/categories/CategoriesModule.js:1700
 msgid "Failed to read the category file"
 msgstr "Échec de lecture du fichier de catégorie"
 
 #: /app/lib/Controller/CategoryTransferController.php:109
-#: /app/src/modules/categories/CategoriesModule.js:1760
 #: /app/src/modules/categories/CategoriesModule.js:1768
+#: /app/src/modules/categories/CategoriesModule.js:1776
 msgid "Failed to import categories"
 msgstr "Échec de l'importation des catégories"
 
@@ -2280,7 +2280,7 @@ msgstr "Lundi"
 
 #: /app/lib/Controller/SettingController.php:360
 #: /app/src/modules/bills/BillsModule.js:327
-#: /app/src/modules/categories/CategoriesModule.js:2514
+#: /app/src/modules/categories/CategoriesModule.js:2522
 #: /app/src/modules/income/IncomeModule.js:98
 #: /app/src/modules/transfers/TransfersModule.js:317
 #: /app/src/modules/transfers/TransfersModule.js:480
@@ -2293,7 +2293,7 @@ msgstr "Hebdomadaire"
 #: /app/lib/Controller/SettingController.php:361
 #: /app/src/modules/accounts/AccountsModule.js:1379
 #: /app/src/modules/bills/BillsModule.js:330
-#: /app/src/modules/categories/CategoriesModule.js:2513
+#: /app/src/modules/categories/CategoriesModule.js:2521
 #: /app/src/modules/income/IncomeModule.js:101
 #: /app/src/modules/pensions/PensionsModule.js:1098
 #: /app/src/modules/transfers/TransfersModule.js:320
@@ -2307,7 +2307,7 @@ msgstr "Mensuel"
 
 #: /app/lib/Controller/SettingController.php:362
 #: /app/src/modules/bills/BillsModule.js:331
-#: /app/src/modules/categories/CategoriesModule.js:2515
+#: /app/src/modules/categories/CategoriesModule.js:2523
 #: /app/src/modules/income/IncomeModule.js:102
 #: /app/src/modules/pensions/PensionsModule.js:1099
 #: /app/src/modules/transfers/TransfersModule.js:321
@@ -2321,7 +2321,7 @@ msgstr "Trimestriel"
 #: /app/lib/Controller/SettingController.php:363
 #: /app/src/modules/accounts/AccountsModule.js:1380
 #: /app/src/modules/bills/BillsModule.js:333
-#: /app/src/modules/categories/CategoriesModule.js:2516
+#: /app/src/modules/categories/CategoriesModule.js:2524
 #: /app/src/modules/income/IncomeModule.js:104
 #: /app/src/modules/pensions/PensionsModule.js:1100
 #: /app/src/modules/transfers/TransfersModule.js:323
@@ -2898,8 +2898,8 @@ msgstr "Année"
 #: /app/lib/Service/Report/ReportExporter.php:598
 #: /app/src/core/KeyboardShortcuts.js:354
 #: /app/src/modules/categories/CategoriesModule.js:789
-#: /app/src/modules/categories/CategoriesModule.js:931
-#: /app/src/modules/categories/CategoriesModule.js:1738
+#: /app/src/modules/categories/CategoriesModule.js:939
+#: /app/src/modules/categories/CategoriesModule.js:1746
 #: /app/src/modules/dashboard/DashboardModule.js:2509
 #: /app/src/modules/dashboard/DashboardModule.js:3071
 #: /app/src/modules/dashboard/DashboardModule.js:3396
@@ -3094,8 +3094,8 @@ msgstr[1] "à régler dans %n jours"
 #: /app/lib/Notification/Notifier.php:31 /app/lib/Service/DigestService.php:195
 #: /app/specialAppInfoFakeDummyForL10nScript.php:2
 #: /app/src/core/KeyboardShortcuts.js:353
-#: /app/src/modules/categories/CategoriesModule.js:952
-#: /app/src/modules/categories/CategoriesModule.js:2494
+#: /app/src/modules/categories/CategoriesModule.js:960
+#: /app/src/modules/categories/CategoriesModule.js:2502
 #: /app/src/modules/dashboard/DashboardModule.js:2345
 #: /app/src/modules/help/HelpModule.js:32
 #: /app/src/modules/projects/ProjectsModule.js:147 /app/templates/index.php:93
@@ -3799,7 +3799,7 @@ msgstr "Ventilation de"
 
 #: /app/lib/Service/Export/TransactionCsvExporter.php:144
 #: /app/src/modules/categories/CategoriesModule.js:789
-#: /app/src/modules/categories/CategoriesModule.js:1738
+#: /app/src/modules/categories/CategoriesModule.js:1746
 #: /app/src/modules/rules/components/ActionBuilder.js:414
 #: /app/src/modules/rules/components/CriteriaBuilder.js:217
 #: /app/templates/index.php:1046 /app/templates/index.php:1475
@@ -4384,7 +4384,7 @@ msgstr "Dépassement du budget"
 #: /app/lib/Service/Report/ReportExporter.php:753
 #: /app/src/config/dashboardWidgets.js:26 /app/src/main.js:1900
 #: /app/src/main.js:3644 /app/src/modules/accounts/AccountsModule.js:1881
-#: /app/src/modules/categories/CategoriesModule.js:849
+#: /app/src/modules/categories/CategoriesModule.js:857
 #: /app/src/modules/dashboard/DashboardModule.js:1318
 #: /app/src/modules/import/ImportModule.js:190
 #: /app/src/modules/import/ImportModule.js:2085
@@ -4420,6 +4420,7 @@ msgstr "Valeur"
 #: /app/lib/Service/Report/ReportExporter.php:440
 #: /app/lib/Service/Report/ReportExporter.php:598
 #: /app/lib/Service/Report/ReportExporter.php:605
+#: /app/src/modules/categories/CategoriesModule.js:798
 #: /app/src/modules/reports/ReportsModule.js:978 /app/templates/index.php:3264
 msgid "Total Income"
 msgstr "Revenu total"
@@ -4510,7 +4511,7 @@ msgid "Source"
 msgstr "Source"
 
 #: /app/lib/Service/Report/ReportExporter.php:361
-#: /app/src/modules/categories/CategoriesModule.js:2511
+#: /app/src/modules/categories/CategoriesModule.js:2519
 #: /app/templates/index.php:597 /app/templates/index.php:2036
 #: /app/templates/index.php:2235 /app/templates/index.php:3197
 msgid "Period"
@@ -4527,7 +4528,7 @@ msgstr "Budgété"
 
 #: /app/lib/Service/Report/ReportExporter.php:406
 #: /app/lib/Service/Report/ReportExporter.php:645
-#: /app/src/modules/categories/CategoriesModule.js:2519
+#: /app/src/modules/categories/CategoriesModule.js:2527
 #: /app/src/modules/dashboard/DashboardModule.js:2346
 #: /app/src/modules/projects/ProjectsModule.js:148
 #: /app/templates/index.php:2236 /app/templates/index.php:5129
@@ -4536,7 +4537,7 @@ msgstr "Dépensé"
 
 #: /app/lib/Service/Report/ReportExporter.php:407
 #: /app/lib/Service/Report/ReportExporter.php:646
-#: /app/src/modules/categories/CategoriesModule.js:2522
+#: /app/src/modules/categories/CategoriesModule.js:2530
 #: /app/src/modules/dashboard/DashboardModule.js:2347
 #: /app/src/modules/projects/ProjectsModule.js:149
 #: /app/templates/index.php:2204 /app/templates/index.php:2237
@@ -6240,7 +6241,7 @@ msgid "Select account"
 msgstr "Sélectionner un compte"
 
 #: /app/src/modules/accounts/AccountsModule.js:683
-#: /app/src/modules/categories/CategoriesModule.js:1355
+#: /app/src/modules/categories/CategoriesModule.js:1363
 msgid "%n selected"
 msgid_plural "%n selected"
 msgstr[0] "%n sélectionnée"
@@ -6295,7 +6296,7 @@ msgstr[0] "%n compte supprimé"
 msgstr[1] "%n comptes supprimés"
 
 #: /app/src/modules/accounts/AccountsModule.js:763
-#: /app/src/modules/categories/CategoriesModule.js:1395
+#: /app/src/modules/categories/CategoriesModule.js:1403
 msgid "Failed to delete: {errors}"
 msgstr "Échec de la suppression : {errors}"
 
@@ -7734,24 +7735,40 @@ msgstr "Catégorie réorganisée avec succès"
 msgid "All Accounts"
 msgstr "Tous les comptes"
 
-#: /app/src/modules/categories/CategoriesModule.js:810
+#: /app/src/modules/categories/CategoriesModule.js:798
+#: /app/templates/index.php:1992 /app/templates/index.php:2195
+msgid "Total Spent"
+msgstr "Total dépensé"
+
+#: /app/src/modules/categories/CategoriesModule.js:800
+#, fuzzy
+#| msgid "Monthly income"
+msgid "Monthly Income"
+msgstr "Revenus mensuels"
+
+#: /app/src/modules/categories/CategoriesModule.js:800
+#: /app/templates/index.php:2031
+msgid "Monthly Spending"
+msgstr "Dépenses mensuelles"
+
+#: /app/src/modules/categories/CategoriesModule.js:818
 msgid "Increasing"
 msgstr "En augmentation"
 
-#: /app/src/modules/categories/CategoriesModule.js:811
+#: /app/src/modules/categories/CategoriesModule.js:819
 msgid "Decreasing"
 msgstr "En baisse"
 
-#: /app/src/modules/categories/CategoriesModule.js:812
+#: /app/src/modules/categories/CategoriesModule.js:820
 msgid "Stable"
 msgstr "Stable"
 
-#: /app/src/modules/categories/CategoriesModule.js:829
+#: /app/src/modules/categories/CategoriesModule.js:837
 #: /app/templates/index.php:2054
 msgid "No transactions in this category yet."
 msgstr "Aucune opération dans cette catégorie pour le moment."
 
-#: /app/src/modules/categories/CategoriesModule.js:858
+#: /app/src/modules/categories/CategoriesModule.js:866
 #: /app/src/modules/transactions/transactionRow.js:85
 msgid ""
 "Part of a split transaction. The amount shown is the part in this category."
@@ -7759,37 +7776,37 @@ msgstr ""
 "Fait partie d'une opération ventilée. Le montant indiqué correspond à la "
 "partie relevant de cette catégorie."
 
-#: /app/src/modules/categories/CategoriesModule.js:858
+#: /app/src/modules/categories/CategoriesModule.js:866
 #: /app/src/modules/transactions/transactionRow.js:86
 msgid "Split part"
 msgstr "Partie ventilée"
 
-#: /app/src/modules/categories/CategoriesModule.js:859
+#: /app/src/modules/categories/CategoriesModule.js:867
 msgid "Split part of {total}"
 msgstr "Partie ventilée de {total}"
 
-#: /app/src/modules/categories/CategoriesModule.js:932
+#: /app/src/modules/categories/CategoriesModule.js:940
 msgid "Spending"
 msgstr "Dépenses"
 
-#: /app/src/modules/categories/CategoriesModule.js:1077
+#: /app/src/modules/categories/CategoriesModule.js:1085
 msgid "Root"
 msgstr "Racine"
 
-#: /app/src/modules/categories/CategoriesModule.js:1101
+#: /app/src/modules/categories/CategoriesModule.js:1109
 #: /app/templates/index.php:1886 /app/templates/index.php:1950
 msgid "Add Category"
 msgstr "Ajouter une catégorie"
 
-#: /app/src/modules/categories/CategoriesModule.js:1156
+#: /app/src/modules/categories/CategoriesModule.js:1164
 msgid "Edit Shared Category"
 msgstr "Modifier la catégorie partagée"
 
-#: /app/src/modules/categories/CategoriesModule.js:1157
+#: /app/src/modules/categories/CategoriesModule.js:1165
 msgid "Edit Category"
 msgstr "Modifier la catégorie"
 
-#: /app/src/modules/categories/CategoriesModule.js:1203
+#: /app/src/modules/categories/CategoriesModule.js:1211
 msgid ""
 "Are you sure you want to delete the category \"{name}\"? This action cannot "
 "be undone."
@@ -7797,34 +7814,34 @@ msgstr ""
 "Êtes-vous sûr de vouloir supprimer la catégorie « {name} » ? Cette action "
 "est irréversible."
 
-#: /app/src/modules/categories/CategoriesModule.js:1216
-#: /app/src/modules/categories/CategoriesModule.js:1245
+#: /app/src/modules/categories/CategoriesModule.js:1224
+#: /app/src/modules/categories/CategoriesModule.js:1253
 msgid "Category deleted; its transactions are now Uncategorized"
 msgstr "Catégorie supprimée ; ses opérations sont désormais non catégorisées"
 
-#: /app/src/modules/categories/CategoriesModule.js:1217
-#: /app/src/modules/categories/CategoriesModule.js:1246
+#: /app/src/modules/categories/CategoriesModule.js:1225
+#: /app/src/modules/categories/CategoriesModule.js:1254
 msgid "Category deleted successfully"
 msgstr "Catégorie supprimée avec succès"
 
-#: /app/src/modules/categories/CategoriesModule.js:1223
-#: /app/src/modules/categories/CategoriesModule.js:1255
-#: /app/src/modules/categories/CategoriesModule.js:1267
+#: /app/src/modules/categories/CategoriesModule.js:1231
+#: /app/src/modules/categories/CategoriesModule.js:1263
+#: /app/src/modules/categories/CategoriesModule.js:1275
 msgid "Failed to delete category"
 msgstr "Impossible de supprimer la catégorie"
 
-#: /app/src/modules/categories/CategoriesModule.js:1234
+#: /app/src/modules/categories/CategoriesModule.js:1242
 msgid "this category"
 msgstr "cette catégorie"
 
-#: /app/src/modules/categories/CategoriesModule.js:1236
+#: /app/src/modules/categories/CategoriesModule.js:1244
 msgid ""
 "Are you sure you want to delete \"{name}\"? This action cannot be undone."
 msgstr ""
 "Êtes-vous sûr de vouloir supprimer « {name} » ? Cette action est "
 "irréversible."
 
-#: /app/src/modules/categories/CategoriesModule.js:1283
+#: /app/src/modules/categories/CategoriesModule.js:1291
 msgid ""
 "This category still has transactions assigned to it. Move them to "
 "Uncategorized and delete \"{name}\"?"
@@ -7832,7 +7849,7 @@ msgstr ""
 "Cette catégorie contient encore des opérations qui lui sont affectées. "
 "Souhaitez-vous les déplacer vers « Non classé » et supprimer « {name} » ?"
 
-#: /app/src/modules/categories/CategoriesModule.js:1363
+#: /app/src/modules/categories/CategoriesModule.js:1371
 msgid ""
 "Are you sure you want to delete %n category? This action cannot be undone."
 msgid_plural ""
@@ -7844,19 +7861,19 @@ msgstr[1] ""
 "Êtes-vous sûr de vouloir supprimer %n catégories ? Cette action est "
 "irréversible."
 
-#: /app/src/modules/categories/CategoriesModule.js:1375
+#: /app/src/modules/categories/CategoriesModule.js:1383
 #: /app/src/modules/pensions/PensionsModule.js:884
 #: /app/src/modules/pensions/PensionsModule.js:1184
 msgid "Failed to delete"
 msgstr "Échec de la suppression"
 
-#: /app/src/modules/categories/CategoriesModule.js:1387
+#: /app/src/modules/categories/CategoriesModule.js:1395
 msgid "%n category deleted successfully"
 msgid_plural "%n categories deleted successfully"
 msgstr[0] "%n catégorie supprimée avec succès"
 msgstr[1] "%n catégories supprimées avec succès"
 
-#: /app/src/modules/categories/CategoriesModule.js:1410
+#: /app/src/modules/categories/CategoriesModule.js:1418
 msgid "Give %n category a new color? Its current color will be replaced."
 msgid_plural ""
 "Give %n categories new colors? Their current colors will be replaced."
@@ -7867,53 +7884,53 @@ msgstr[1] ""
 "Attribuer de nouvelles couleurs à %n catégories ? Leurs couleurs actuelles "
 "seront remplacées."
 
-#: /app/src/modules/categories/CategoriesModule.js:1439
+#: /app/src/modules/categories/CategoriesModule.js:1447
 msgid "%n category recolored"
 msgid_plural "%n categories recolored"
 msgstr[0] "%n catégorie recolorée"
 msgstr[1] "%n catégories recolorées"
 
-#: /app/src/modules/categories/CategoriesModule.js:1445
+#: /app/src/modules/categories/CategoriesModule.js:1453
 msgid "Failed to recolor: {errors}"
 msgstr "Échec de la recoloration : {errors}"
 
-#: /app/src/modules/categories/CategoriesModule.js:1525
+#: /app/src/modules/categories/CategoriesModule.js:1533
 #: /app/templates/index.php:6813
 msgid "None (Top Level)"
 msgstr "Aucune (niveau supérieur)"
 
-#: /app/src/modules/categories/CategoriesModule.js:1559
+#: /app/src/modules/categories/CategoriesModule.js:1567
 msgid "Category name is required"
 msgstr "Le nom de la catégorie est requis"
 
-#: /app/src/modules/categories/CategoriesModule.js:1597
-#: /app/src/modules/categories/CategoriesModule.js:1612
+#: /app/src/modules/categories/CategoriesModule.js:1605
+#: /app/src/modules/categories/CategoriesModule.js:1620
 msgid "Failed to save category"
 msgstr "Échec de l'enregistrement de la catégorie"
 
-#: /app/src/modules/categories/CategoriesModule.js:1600
+#: /app/src/modules/categories/CategoriesModule.js:1608
 msgid "Category updated successfully"
 msgstr "Catégorie mise à jour avec succès"
 
-#: /app/src/modules/categories/CategoriesModule.js:1600
+#: /app/src/modules/categories/CategoriesModule.js:1608
 msgid "Category created successfully"
 msgstr "Catégorie créée avec succès"
 
-#: /app/src/modules/categories/CategoriesModule.js:1627
 #: /app/src/modules/categories/CategoriesModule.js:1635
+#: /app/src/modules/categories/CategoriesModule.js:1643
 msgid "Failed to create default categories"
 msgstr "Échec de la création des catégories par défaut"
 
-#: /app/src/modules/categories/CategoriesModule.js:1630
+#: /app/src/modules/categories/CategoriesModule.js:1638
 msgid "Default categories created successfully"
 msgstr "Catégories par défaut créées avec succès"
 
-#: /app/src/modules/categories/CategoriesModule.js:1678
+#: /app/src/modules/categories/CategoriesModule.js:1686
 #: /app/src/modules/rules/RulesModule.js:1397
 msgid "Could not read that file: {error}"
 msgstr "Impossible de lire ce fichier : {error}"
 
-#: /app/src/modules/categories/CategoriesModule.js:1704
+#: /app/src/modules/categories/CategoriesModule.js:1712
 msgid ""
 "{create} new categories will be created. {exists} already exist and will be "
 "left unchanged."
@@ -7921,50 +7938,50 @@ msgstr ""
 "{create} nouvelles catégories seront créées. {exists} existent déjà et "
 "resteront inchangées."
 
-#: /app/src/modules/categories/CategoriesModule.js:1705
+#: /app/src/modules/categories/CategoriesModule.js:1713
 msgid "%n new category will be created."
 msgid_plural "%n new categories will be created."
 msgstr[0] "%n nouvelle catégorie sera créée."
 msgstr[1] "%n nouvelles catégories seront créées."
 
-#: /app/src/modules/categories/CategoriesModule.js:1724
+#: /app/src/modules/categories/CategoriesModule.js:1732
 msgid "Import %n category"
 msgid_plural "Import %n categories"
 msgstr[0] "Import %n catégorie"
 msgstr[1] "Import %n catégories"
 
-#: /app/src/modules/categories/CategoriesModule.js:1725
+#: /app/src/modules/categories/CategoriesModule.js:1733
 msgid "Nothing to import"
 msgstr "Rien à importer"
 
-#: /app/src/modules/categories/CategoriesModule.js:1735
+#: /app/src/modules/categories/CategoriesModule.js:1743
 msgid "Exists"
 msgstr "Existe"
 
-#: /app/src/modules/categories/CategoriesModule.js:1736
+#: /app/src/modules/categories/CategoriesModule.js:1744
 #: /app/src/modules/import/ImportModule.js:2045
 msgid "New"
 msgstr "Nouveau"
 
-#: /app/src/modules/categories/CategoriesModule.js:1763
+#: /app/src/modules/categories/CategoriesModule.js:1771
 msgid "Imported %n category"
 msgid_plural "Imported %n categories"
 msgstr[0] "Importé %n catégorie"
 msgstr[1] "Importé %n catégories"
 
-#: /app/src/modules/categories/CategoriesModule.js:1987
+#: /app/src/modules/categories/CategoriesModule.js:1995
 msgid "Budgets adjusted from {month}"
 msgstr "Budgets ajustés à partir de {month}"
 
-#: /app/src/modules/categories/CategoriesModule.js:1988
+#: /app/src/modules/categories/CategoriesModule.js:1996
 msgid "Remove adjustment"
 msgstr "Supprimer l'ajustement"
 
-#: /app/src/modules/categories/CategoriesModule.js:2001
+#: /app/src/modules/categories/CategoriesModule.js:2009
 msgid "Adjust budgets from this month"
 msgstr "Ajuster les budgets à partir de ce mois-ci"
 
-#: /app/src/modules/categories/CategoriesModule.js:2017
+#: /app/src/modules/categories/CategoriesModule.js:2025
 msgid ""
 "This will save the current budget values as a new baseline from {month} "
 "onwards. Previous months will keep their existing values. You can edit the "
@@ -7974,16 +7991,16 @@ msgstr ""
 "à partir du mois de {month}. Les mois précédents conserveront leurs valeurs "
 "actuelles. Vous pourrez modifier les nouvelles valeurs après confirmation."
 
-#: /app/src/modules/categories/CategoriesModule.js:2019
+#: /app/src/modules/categories/CategoriesModule.js:2027
 msgid "Adjust budgets from {month}?"
 msgstr "Ajuster les budgets à partir de {month} ?"
 
-#: /app/src/modules/categories/CategoriesModule.js:2020
+#: /app/src/modules/categories/CategoriesModule.js:2028
 #: /app/src/utils/dialogs.js:236 /app/src/utils/matchingDialog.js:98
 msgid "Confirm"
 msgstr "Confirmer"
 
-#: /app/src/modules/categories/CategoriesModule.js:2021
+#: /app/src/modules/categories/CategoriesModule.js:2029
 #: /app/src/modules/transfers/TransfersModule.js:177
 #: /app/src/modules/transfers/TransfersModule.js:598
 #: /app/src/utils/dialogs.js:237 /app/src/utils/dialogs.js:262
@@ -8011,56 +8028,56 @@ msgstr "Confirmer"
 msgid "Cancel"
 msgstr "Annuler"
 
-#: /app/src/modules/categories/CategoriesModule.js:2032
-#: /app/src/modules/categories/CategoriesModule.js:2052
+#: /app/src/modules/categories/CategoriesModule.js:2040
+#: /app/src/modules/categories/CategoriesModule.js:2060
 msgid "Failed to create budget adjustment"
 msgstr "Échec de la création de l'ajustement budgétaire"
 
-#: /app/src/modules/categories/CategoriesModule.js:2046
+#: /app/src/modules/categories/CategoriesModule.js:2054
 msgid ""
 "Budget adjusted from {month}. You can now edit values for this month onwards."
 msgstr ""
 "Budget ajusté à partir de {month}. Vous pouvez désormais modifier les "
 "valeurs pour ce mois-ci et les mois suivants."
 
-#: /app/src/modules/categories/CategoriesModule.js:2061
+#: /app/src/modules/categories/CategoriesModule.js:2069
 msgid "Budget adjustment created."
 msgstr "Ajustement budgétaire créé."
 
-#: /app/src/modules/categories/CategoriesModule.js:2062
+#: /app/src/modules/categories/CategoriesModule.js:2070
 #: /app/src/modules/transactions/TransactionsModule.js:4378
 #: /app/src/modules/transactions/TransactionsModule.js:4533
 #: /app/src/utils/notifications.js:73
 msgid "Undo"
 msgstr "Annuler"
 
-#: /app/src/modules/categories/CategoriesModule.js:2095
+#: /app/src/modules/categories/CategoriesModule.js:2103
 msgid "Budget adjustment removed"
 msgstr "Ajustement budgétaire supprimé"
 
-#: /app/src/modules/categories/CategoriesModule.js:2098
+#: /app/src/modules/categories/CategoriesModule.js:2106
 msgid "Failed to remove budget adjustment"
 msgstr "Échec de la suppression de l'ajustement budgétaire"
 
-#: /app/src/modules/categories/CategoriesModule.js:2449
+#: /app/src/modules/categories/CategoriesModule.js:2457
 #, fuzzy
 #| msgid "{amount}/month"
 msgid "{amount} a month"
 msgstr "{amount}/mois"
 
-#: /app/src/modules/categories/CategoriesModule.js:2464
+#: /app/src/modules/categories/CategoriesModule.js:2472
 #, fuzzy
 #| msgid "{spent} of {total}"
 msgid "{spent} of {budget} this year"
 msgstr "{spent} de {total}"
 
-#: /app/src/modules/categories/CategoriesModule.js:2465
+#: /app/src/modules/categories/CategoriesModule.js:2473
 #, fuzzy
 #| msgid "{spent} of {total}"
 msgid "{spent} of {budget} this quarter"
 msgstr "{spent} de {total}"
 
-#: /app/src/modules/categories/CategoriesModule.js:2489
+#: /app/src/modules/categories/CategoriesModule.js:2497
 msgid ""
 "Envelope budgeting on: unspent budget carries to next month. Click to turn "
 "off."
@@ -8068,83 +8085,83 @@ msgstr ""
 "Budgétisation par enveloppes activée : le budget non dépensé est reporté au "
 "mois suivant. Cliquez pour désactiver."
 
-#: /app/src/modules/categories/CategoriesModule.js:2489
+#: /app/src/modules/categories/CategoriesModule.js:2497
 msgid "Turn on envelope budgeting: unspent budget carries to next month"
 msgstr ""
 "Activez la budgétisation par enveloppes : le budget non dépensé est reporté "
 "au mois suivant"
 
-#: /app/src/modules/categories/CategoriesModule.js:2490
+#: /app/src/modules/categories/CategoriesModule.js:2498
 msgid "Envelope budgeting"
 msgstr "Budgétisation par enveloppes"
 
-#: /app/src/modules/categories/CategoriesModule.js:2497
+#: /app/src/modules/categories/CategoriesModule.js:2505
 msgid "Budget for {category}"
 msgstr "Budget pour {category}"
 
-#: /app/src/modules/categories/CategoriesModule.js:2504
+#: /app/src/modules/categories/CategoriesModule.js:2512
 msgid "Auto-calculated from recurring bills/income. Enter a value to override."
 msgstr ""
 "Calculé automatiquement à partir des factures ou revenus récurrents. "
 "Saisissez une valeur pour remplacer ce montant."
 
-#: /app/src/modules/categories/CategoriesModule.js:2504
+#: /app/src/modules/categories/CategoriesModule.js:2512
 #: /app/src/modules/pensions/PensionsModule.js:1108
 msgid "auto"
 msgstr "auto"
 
-#: /app/src/modules/categories/CategoriesModule.js:2506
+#: /app/src/modules/categories/CategoriesModule.js:2514
 msgid "{base} − {over} overspent = {available} available"
 msgstr "{base} − {over} de dépassement = {available} de disponible"
 
-#: /app/src/modules/categories/CategoriesModule.js:2507
+#: /app/src/modules/categories/CategoriesModule.js:2515
 msgid "{base} + {carried} carried = {available} available"
 msgstr "{base} + {carried} de reporté = {available} de disponible"
 
-#: /app/src/modules/categories/CategoriesModule.js:2508
+#: /app/src/modules/categories/CategoriesModule.js:2516
 msgid "(projected)"
 msgstr "(prévu)"
 
-#: /app/src/modules/categories/CategoriesModule.js:2512
+#: /app/src/modules/categories/CategoriesModule.js:2520
 msgid "Budget period for {category}"
 msgstr "Période budgétaire pour {category}"
 
-#: /app/src/modules/categories/CategoriesModule.js:2525
+#: /app/src/modules/categories/CategoriesModule.js:2533
 #: /app/templates/index.php:2238 /app/templates/index.php:5131
 msgid "Progress"
 msgstr "Avancement"
 
-#: /app/src/modules/categories/CategoriesModule.js:2533
+#: /app/src/modules/categories/CategoriesModule.js:2541
 msgid "No budget set"
 msgstr "Aucun budget défini"
 
-#: /app/src/modules/categories/CategoriesModule.js:2606
+#: /app/src/modules/categories/CategoriesModule.js:2614
 msgid "Envelope budgeting enabled — unspent budget now carries to next month"
 msgstr ""
 "Budgétisation par enveloppes activée : le budget non dépensé est désormais "
 "reporté au mois suivant"
 
-#: /app/src/modules/categories/CategoriesModule.js:2607
+#: /app/src/modules/categories/CategoriesModule.js:2615
 msgid "Envelope budgeting disabled"
 msgstr "Budgétisation par enveloppes désactivée"
 
-#: /app/src/modules/categories/CategoriesModule.js:2610
+#: /app/src/modules/categories/CategoriesModule.js:2618
 msgid "Failed to update envelope setting"
 msgstr "Échec de la mise à jour du paramètre de l'enveloppe"
 
-#: /app/src/modules/categories/CategoriesModule.js:2685
+#: /app/src/modules/categories/CategoriesModule.js:2693
 msgid "Budget updated"
 msgstr "Budget mis à jour"
 
-#: /app/src/modules/categories/CategoriesModule.js:2688
+#: /app/src/modules/categories/CategoriesModule.js:2696
 msgid "Failed to update budget: {message}"
 msgstr "Échec de la mise à jour du budget : {message}"
 
-#: /app/src/modules/categories/CategoriesModule.js:2784
+#: /app/src/modules/categories/CategoriesModule.js:2792
 msgid "Over-assigned: {income} in, {budgeted} budgeted"
 msgstr "Dépassement : {income} perçus, {budgeted} prévu"
 
-#: /app/src/modules/categories/CategoriesModule.js:2786
+#: /app/src/modules/categories/CategoriesModule.js:2794
 msgid "{income} in, {budgeted} budgeted"
 msgstr "{income} encaissé, {budgeted} budgété"
 
@@ -14684,10 +14701,6 @@ msgstr "Supprimer la catégorie"
 msgid "Select a category"
 msgstr "Sélectionnez une catégorie"
 
-#: /app/templates/index.php:1992 /app/templates/index.php:2195
-msgid "Total Spent"
-msgstr "Total dépensé"
-
 #: /app/templates/index.php:1999
 msgid "Analytics"
 msgstr "Analyses"
@@ -14703,10 +14716,6 @@ msgstr "Tendance"
 #: /app/templates/index.php:2022 /app/templates/index.php:3199
 msgid "This Month"
 msgstr "Ce mois-ci"
-
-#: /app/templates/index.php:2031
-msgid "Monthly Spending"
-msgstr "Dépenses mensuelles"
 
 #: /app/templates/index.php:2040
 msgid "Last 2 Years"
