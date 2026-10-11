@@ -21,11 +21,14 @@ final class XlsxReader {
 
 		$result = [];
 		$budget = new SheetBudget();
+		$read = [];
 		foreach ($sheets as [$name, $relationshipId]) {
 			$path = isset($targets[$relationshipId]) ? self::partPath($targets[$relationshipId]) : null;
-			if ($path === null || !$zip->has($path)) {
+			// Each sheet part is read once, however many entries point at it
+			if ($path === null || isset($read[$path]) || !$zip->has($path)) {
 				continue;
 			}
+			$read[$path] = true;
 			$result[] = $this->sheet($name, $zip->read($path), $strings, $cellFormats, $formatCodes, $date1904, $budget);
 		}
 		return $result;
@@ -51,9 +54,13 @@ final class XlsxReader {
 				if ($state === 'hidden' || $state === 'veryHidden') {
 					continue;
 				}
+				if (count($sheets) >= SheetBuilder::MAX_SHEETS) {
+					throw new SpreadsheetTooLargeError('More than ' . SheetBuilder::MAX_SHEETS . ' sheets');
+				}
 				$sheets[] = [Xml::attr($reader, 'name') ?? '', Xml::attr($reader, 'id') ?? ''];
 			}
 		}
+		Xml::complete($reader);
 		return [$sheets, $date1904];
 	}
 
@@ -69,6 +76,7 @@ final class XlsxReader {
 				$targets[Xml::attr($reader, 'Id') ?? ''] = Xml::attr($reader, 'Target') ?? '';
 			}
 		}
+		Xml::complete($reader);
 		return $targets;
 	}
 
@@ -96,6 +104,9 @@ final class XlsxReader {
 		$ok = $reader->read();
 		while ($ok) {
 			if ($reader->nodeType === \XMLReader::ELEMENT && $reader->localName === 'si') {
+				if (count($strings) >= SheetBuilder::MAX_CELLS) {
+					throw new SpreadsheetTooLargeError('More than ' . SheetBuilder::MAX_CELLS . ' shared strings');
+				}
 				$node = $reader->expand($document);
 				// Trimmed here, once: a cell then shares the string rather
 				// than copying it, however many cells use it
@@ -105,10 +116,16 @@ final class XlsxReader {
 			}
 			$ok = $reader->read();
 		}
+		Xml::complete($reader);
 		return $strings;
 	}
 
-	/** The text of a string item: its <t> elements, leaving out phonetic runs (<rPh>) */
+	/**
+	 * The text of a string item: its <t> elements, leaving out phonetic runs
+	 * (<rPh>), with Excel's _xHHHH_ escapes decoded. Excel writes a line
+	 * break in a cell as _x000D_, and a literal "_x" as _x005F_x; replacing
+	 * left to right without going back over a replacement handles both.
+	 */
 	private static function text(\DOMElement $element): string {
 		$text = '';
 		foreach ($element->getElementsByTagNameNS('*', 't') as $t) {
@@ -116,7 +133,11 @@ final class XlsxReader {
 				$text .= $t->textContent;
 			}
 		}
-		return $text;
+		return preg_replace_callback(
+			'/_x([0-9A-Fa-f]{4})_/',
+			static fn (array $match): string => mb_chr((int)hexdec($match[1]), 'UTF-8') ?: '',
+			$text
+		) ?? $text;
 	}
 
 	/**
@@ -139,6 +160,9 @@ final class XlsxReader {
 			}
 			switch ($reader->localName) {
 				case 'numFmt':
+					if (count($codes) >= SheetBuilder::MAX_STYLES) {
+						throw new SpreadsheetTooLargeError('More than ' . SheetBuilder::MAX_STYLES . ' number formats');
+					}
 					$codes[(int)Xml::attr($reader, 'numFmtId')] = Xml::attr($reader, 'formatCode') ?? '';
 					break;
 				case 'cellXfs':
@@ -146,11 +170,15 @@ final class XlsxReader {
 					break;
 				case 'xf':
 					if ($inCellXfs) {
+						if (count($cellFormats) >= SheetBuilder::MAX_STYLES) {
+							throw new SpreadsheetTooLargeError('More than ' . SheetBuilder::MAX_STYLES . ' cell styles');
+						}
 						$cellFormats[] = (int)(Xml::attr($reader, 'numFmtId') ?? 0);
 					}
 					break;
 			}
 		}
+		Xml::complete($reader);
 		return [$cellFormats, $codes];
 	}
 
@@ -190,6 +218,7 @@ final class XlsxReader {
 			}
 			$ok = $reader->read();
 		}
+		Xml::complete($reader);
 		return $builder->build();
 	}
 

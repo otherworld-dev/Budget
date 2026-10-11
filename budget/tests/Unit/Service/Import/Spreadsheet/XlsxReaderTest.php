@@ -180,6 +180,54 @@ class XlsxReaderTest extends TestCase {
 		$this->readFile($path);
 	}
 
+	public function testASheetListedTwiceIsReadOnce(): void {
+		$path = $this->zipOf([
+			'xl/workbook.xml' => '<workbook ' . self::NS . '><sheets><sheet name="A" sheetId="1" r:id="rId1"/><sheet name="B" sheetId="2" r:id="rId2"/></sheets></workbook>',
+			'xl/_rels/workbook.xml.rels' => '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Target="/xl/worksheets/sheet1.xml"/></Relationships>',
+			'xl/worksheets/sheet1.xml' => '<worksheet ' . self::NS . '><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>x</t></is></c></row></sheetData></worksheet>',
+		]);
+		$this->assertSame(['A'], array_column($this->readFile($path), 'name'));
+	}
+
+	public function testTooManySharedStrings(): void {
+		$path = $this->workbookWith('', str_repeat('<si/>', 1000001));
+		$this->expectException(SpreadsheetTooLargeError::class);
+		$this->readFile($path);
+	}
+
+	public function testTooManyCellStyles(): void {
+		$path = $this->workbookWith('', '', '<cellXfs>' . str_repeat('<xf numFmtId="0"/>', 65537) . '</cellXfs>');
+		$this->expectException(SpreadsheetTooLargeError::class);
+		$this->readFile($path);
+	}
+
+	public function testABrokenSharedStringsPartIsRefused(): void {
+		// A raw control character is a fatal XML error: reading used to stop
+		// there quietly, leaving every string empty
+		$path = $this->workbookWith('<row r="1"><c r="A1" t="s"><v>0</v></c></row>', "<si><t>a\x0Bb</t></si>");
+		$this->expectException(SpreadsheetReadError::class);
+		$this->readFile($path);
+	}
+
+	public function testABrokenSheetIsRefused(): void {
+		$path = $this->workbookWith(
+			'<row r="1"><c r="A1" t="inlineStr"><is><t>kept</t></is></c></row>'
+			. '<row r="2"><c r="A2" t="inlineStr"><is><t>&undefined;</t></is></c></row>'
+			. '<row r="3"><c r="A3" t="inlineStr"><is><t>lost</t></is></c></row>'
+		);
+		$this->expectException(SpreadsheetReadError::class);
+		$this->readFile($path);
+	}
+
+	public function testExcelEscapesAreDecoded(): void {
+		// Excel writes a line break in a cell as _x000D_, and a literal "_x" as _x005F_x
+		$path = $this->workbookWith(
+			'<row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="inlineStr"><is><t>Codice_x005F_x0041_</t></is></c></row>',
+			'<si><t>Riga_x000D__x000A_due</t></si>'
+		);
+		$this->assertSame([["Riga\r\ndue", 'Codice_x0041_']], $this->readFile($path)[0]['rows']);
+	}
+
 	public function testAZipThatIsNotAZip(): void {
 		$path = tempnam(sys_get_temp_dir(), 'bad');
 		$this->tempFiles[] = $path;

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Tests\Unit\Service\Import\Spreadsheet;
 
 use OCA\Budget\Service\Import\Spreadsheet\OdsReader;
+use OCA\Budget\Service\Import\Spreadsheet\SpreadsheetReadError;
 use OCA\Budget\Service\Import\Spreadsheet\SpreadsheetTooLargeError;
 use OCA\Budget\Service\Import\Spreadsheet\ZipPackage;
 use PHPUnit\Framework\TestCase;
@@ -89,6 +90,16 @@ class OdsReaderTest extends TestCase {
 		} catch (SpreadsheetTooLargeError) {
 			$this->assertLessThan(5.0, microtime(true) - $start);
 		}
+	}
+
+	public function testABrokenContentPartIsRefused(): void {
+		$path = $this->odsWith(
+			'<table:table-row><table:table-cell office:value-type="string"><text:p>kept</text:p></table:table-cell></table:table-row>'
+			. '<table:table-row><table:table-cell office:value-type="string"><text:p>&undefined;</text:p></table:table-cell></table:table-row>'
+			. '<table:table-row><table:table-cell office:value-type="string"><text:p>lost</text:p></table:table-cell></table:table-row>'
+		);
+		$this->expectException(SpreadsheetReadError::class);
+		$this->readFile($path);
 	}
 
 	public function testTheMillionRowPaddingIsSkippedQuickly(): void {

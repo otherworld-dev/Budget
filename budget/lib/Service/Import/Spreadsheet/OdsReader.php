@@ -39,6 +39,9 @@ final class OdsReader {
 				switch ($reader->localName) {
 					case 'table':
 						if ($start) {
+							if (count($sheets) >= SheetBuilder::MAX_SHEETS) {
+								throw new SpreadsheetTooLargeError('More than ' . SheetBuilder::MAX_SHEETS . ' sheets');
+							}
 							$builder = new SheetBuilder($reader->getAttributeNs('name', self::TABLE) ?? '', $budget);
 							$row = 0;
 						}
@@ -84,6 +87,7 @@ final class OdsReader {
 			}
 			$ok = $reader->read();
 		}
+		Xml::complete($reader);
 		return $sheets;
 	}
 

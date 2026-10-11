@@ -34,6 +34,9 @@ final class BiffStringTable {
 		$table = new self($segments);
 		$table->skip(4); // total use count
 		$unique = $table->u32();
+		if ($unique > SheetBuilder::MAX_CELLS) {
+			throw new SpreadsheetTooLargeError('More than ' . SheetBuilder::MAX_CELLS . ' shared strings');
+		}
 		$strings = [];
 		for ($i = 0; $i < $unique && !$table->atEnd(); $i++) {
 			$length = $table->u16();

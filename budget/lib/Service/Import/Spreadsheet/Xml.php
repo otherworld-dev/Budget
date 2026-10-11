@@ -46,11 +46,29 @@ final class Xml {
 	}
 
 	private static function open(string $xml): \XMLReader {
+		// Errors are collected rather than raised as warnings, and complete()
+		// looks at them once the part has been read
+		libxml_use_internal_errors(true);
+		libxml_clear_errors();
 		$reader = new \XMLReader();
 		if (!$reader->XML($xml, null, LIBXML_NONET | LIBXML_COMPACT)) {
 			throw new SpreadsheetReadError('Unreadable XML');
 		}
 		return $reader;
+	}
+
+	/**
+	 * Refuse a part whose reading stopped on an error. XMLReader::read()
+	 * returns false for a broken document just as it does at the end of a
+	 * good one, and a part cut short there is a statement silently missing
+	 * its strings or its later rows.
+	 */
+	public static function complete(\XMLReader $reader): void {
+		$error = libxml_get_last_error();
+		$reader->close();
+		if ($error !== false && $error->level >= LIBXML_ERR_ERROR) {
+			throw new SpreadsheetReadError('Broken XML: ' . trim($error->message));
+		}
 	}
 
 	/**

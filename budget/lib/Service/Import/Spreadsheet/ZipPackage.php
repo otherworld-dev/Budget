@@ -11,8 +11,12 @@ namespace OCA\Budget\Service\Import\Spreadsheet;
 final class ZipPackage {
 	public const MAX_PART_BYTES = 50 * 1024 * 1024;
 
+	/** Everything read from one file together: a small upload can hold many highly compressed parts */
+	public const MAX_TOTAL_BYTES = 100 * 1024 * 1024;
+
 	private \ZipArchive $zip;
 	private bool $open;
+	private int $bytesRead = 0;
 
 	public function __construct(string $path) {
 		$zip = new \ZipArchive();
@@ -47,6 +51,10 @@ final class ZipPackage {
 		}
 		if ($data === false || strlen($data) > self::MAX_PART_BYTES) {
 			throw new SpreadsheetReadError('Zip part too large: ' . $name);
+		}
+		$this->bytesRead += strlen($data);
+		if ($this->bytesRead > self::MAX_TOTAL_BYTES) {
+			throw new SpreadsheetReadError('More than ' . self::MAX_TOTAL_BYTES . ' bytes read from one zip file');
 		}
 		return $data;
 	}

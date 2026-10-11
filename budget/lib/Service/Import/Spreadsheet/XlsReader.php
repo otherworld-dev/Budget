@@ -51,6 +51,7 @@ final class XlsReader {
 	 */
 	public function readWorkbook(string $stream): array {
 		$sheets = [];
+		$sheetOffsets = [];
 		$sst = null;
 		$first = true;
 		foreach ($this->records($stream, 0) as [$id, $data]) {
@@ -79,12 +80,24 @@ final class XlsReader {
 					$this->formats[Bytes::u16($data, 0)] = $this->unicodeString($data, 2, 2);
 					break;
 				case self::XF:
+					if (count($this->xfFormats) >= SheetBuilder::MAX_STYLES) {
+						throw new SpreadsheetTooLargeError('More than ' . SheetBuilder::MAX_STYLES . ' cell styles');
+					}
 					$this->xfFormats[] = Bytes::u16($data, 2);
 					break;
 				case self::BOUNDSHEET:
 					// Worksheets only (not charts or macros), and only visible ones
 					if (Bytes::u8($data, 5) === 0 && (Bytes::u8($data, 4) & 0x03) === 0) {
-						$sheets[] = [$this->unicodeString($data, 6, 1), Bytes::u32($data, 0)];
+						// Each sheet is read once, however many entries point at it
+						$offset = Bytes::u32($data, 0);
+						if (isset($sheetOffsets[$offset])) {
+							break;
+						}
+						if (count($sheets) >= SheetBuilder::MAX_SHEETS) {
+							throw new SpreadsheetTooLargeError('More than ' . SheetBuilder::MAX_SHEETS . ' sheets');
+						}
+						$sheetOffsets[$offset] = true;
+						$sheets[] = [$this->unicodeString($data, 6, 1), $offset];
 					}
 					break;
 				case self::SST:
@@ -139,9 +152,9 @@ final class XlsReader {
 					break;
 				case self::MULRK:
 					$row = Bytes::u16($data, 0);
-					$first = Bytes::u16($data, 2);
+					$firstColumn = Bytes::u16($data, 2);
 					for ($i = 0, $count = intdiv(strlen($data) - 6, 6); $i < $count; $i++) {
-						$builder->add($row, $first + $i, $this->numberCell(self::rk(Bytes::u32($data, 6 + 6 * $i)), Bytes::u16($data, 4 + 6 * $i)));
+						$builder->add($row, $firstColumn + $i, $this->numberCell(self::rk(Bytes::u32($data, 6 + 6 * $i)), Bytes::u16($data, 4 + 6 * $i)));
 					}
 					break;
 				case self::BOOLERR:

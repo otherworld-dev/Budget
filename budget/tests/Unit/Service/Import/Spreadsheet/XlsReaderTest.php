@@ -128,18 +128,58 @@ class XlsReaderTest extends TestCase {
 		$this->assertSame([['12.5', 'Saldo', 'TRUE', '', 'Etichetta']], $this->rows($stream));
 	}
 
-	public function testTheLimitsCoverEverySheetOfAWorkbook(): void {
-		// Two sheet entries pointing at one sheet of 600,000 cells: each is
-		// within the limit, the workbook is not
-		$cells = '';
-		for ($i = 0; $i < 600000; $i++) {
-			$cells .= self::record(0x027E, pack('vvvV', intdiv($i, 10), $i % 10, 0, (1 << 2) | 0x02));
-		}
+	public function testMulrkAfterTheFirstColumn(): void {
+		// Excel writes MULRK for numbers side by side, such as debit, credit and balance
+		$rk = static fn (int $value): string => pack('V', ($value << 2) | 0x02);
+		$stream = self::workbook([], [
+			self::record(0x0204, pack('vvv', 0, 0, 0) . self::compressed('Saldo')),
+			self::record(0x00BD, pack('vv', 0, 2) . pack('v', 0) . $rk(7) . pack('v', 0) . $rk(8) . pack('v', 3)),
+		]);
+		$this->assertSame([['Saldo', '', '7', '8']], $this->rows($stream));
+	}
+
+	public function testASheetListedTwiceIsReadOnce(): void {
 		$boundsheet = static fn (int $position, string $name): string => self::record(0x0085, pack('VCC', $position, 0, 0) . pack('CC', strlen($name), 0) . $name);
 		$head = self::bof(0x0005);
 		$position = strlen($head) + 2 * strlen($boundsheet(0, 'A')) + strlen(self::eof());
 		$stream = $head . $boundsheet($position, 'A') . $boundsheet($position, 'B') . self::eof()
-			. self::bof(0x0010) . $cells . self::eof();
+			. self::bof(0x0010) . self::record(0x0204, pack('vvv', 0, 0, 0) . self::compressed('x')) . self::eof();
+		$this->assertSame(['A'], array_column((new XlsReader())->readWorkbook($stream), 'name'));
+	}
+
+	public function testTooManySheets(): void {
+		$sheets = '';
+		for ($i = 0; $i <= 256; $i++) {
+			$sheets .= self::record(0x0085, pack('VCC', 1000 + $i, 0, 0) . pack('CC', 1, 0) . 'S');
+		}
+		$this->expectException(SpreadsheetTooLargeError::class);
+		(new XlsReader())->readWorkbook(self::bof(0x0005) . $sheets . self::eof());
+	}
+
+	public function testTooManyCellStyles(): void {
+		$styles = str_repeat(self::xf(0), 65537);
+		$this->expectException(SpreadsheetTooLargeError::class);
+		(new XlsReader())->readWorkbook(self::workbook([$styles], []));
+	}
+
+	public function testASharedStringTableClaimingTooManyStrings(): void {
+		$sst = self::record(0x00FC, pack('VV', 1000001, 1000001) . self::compressed('a'));
+		$this->expectException(SpreadsheetTooLargeError::class);
+		(new XlsReader())->readWorkbook(self::workbook([$sst], []));
+	}
+
+	public function testTheLimitsCoverEverySheetOfAWorkbook(): void {
+		// Two sheets of 600,000 cells: each is within the limit, the workbook is not
+		$cells = '';
+		for ($i = 0; $i < 600000; $i++) {
+			$cells .= self::record(0x027E, pack('vvvV', intdiv($i, 10), $i % 10, 0, (1 << 2) | 0x02));
+		}
+		$sheet = self::bof(0x0010) . $cells . self::eof();
+		$boundsheet = static fn (int $position, string $name): string => self::record(0x0085, pack('VCC', $position, 0, 0) . pack('CC', strlen($name), 0) . $name);
+		$head = self::bof(0x0005);
+		$position = strlen($head) + 2 * strlen($boundsheet(0, 'A')) + strlen(self::eof());
+		$stream = $head . $boundsheet($position, 'A') . $boundsheet($position + strlen($sheet), 'B') . self::eof()
+			. $sheet . $sheet;
 		$this->expectException(SpreadsheetTooLargeError::class);
 		(new XlsReader())->readWorkbook($stream);
 	}

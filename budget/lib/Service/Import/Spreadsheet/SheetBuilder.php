@@ -23,6 +23,12 @@ final class SheetBuilder {
 	/** Columns past this are never transaction data and are ignored */
 	public const MAX_COLUMNS = 1000;
 
+	/** Sheets read from one workbook, each once however many entries point at it */
+	public const MAX_SHEETS = 256;
+
+	/** Cell styles (and shared format codes) a workbook may declare; Excel's own limit is lower */
+	public const MAX_STYLES = 65536;
+
 	/**
 	 * Cells across a workbook, counted once each row is padded out to its
 	 * last filled cell: ten columns on every one of MAX_ROWS rows
