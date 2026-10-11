@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-10-11 16:36+0000\n"
-"PO-Revision-Date: 2026-10-08 04:51+0000\n"
+"PO-Revision-Date: 2026-10-11 21:11+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -7758,8 +7758,6 @@ msgid "Total Spent"
 msgstr "Insgesamt ausgegeben"
 
 #: /app/src/modules/categories/CategoriesModule.js:800
-#, fuzzy
-#| msgid "Monthly income"
 msgid "Monthly Income"
 msgstr "Monatliche Einnahmen"
 
@@ -9861,10 +9859,15 @@ msgid ""
 "This spreadsheet could not be read. If it is password-protected, remove the "
 "password, or save it as CSV and import that."
 msgstr ""
+"Diese Tabellenkalkulationsdatei konnte nicht gelesen werden. Falls sie "
+"passwortgeschützt ist, entferne das Passwort oder speichere sie als CSV-"
+"Datei und importiere diese."
 
 #: /app/src/modules/import/spreadsheet.js:225
 msgid "This spreadsheet has no table of transactions to import."
 msgstr ""
+"Diese Tabellenkalkulationsdatei enthält keine Tabelle mit Transaktionen, die "
+"importiert werden können."
 
 #: /app/src/modules/income/IncomeModule.js:54
 #: /app/src/modules/income/IncomeModule.js:57
@@ -14853,14 +14856,12 @@ msgid "Step 1: Select File"
 msgstr "Schritt 1: Datei auswählen"
 
 #: /app/templates/index.php:2290
-#, fuzzy
-#| msgid ""
-#| "Choose your bank statement file (CSV, OFX, QIF, or camt.053 XML format)"
 msgid ""
 "Choose your bank statement file (CSV, Excel, OFX, QIF, or camt.053 XML "
 "format)"
 msgstr ""
-"Wähle deine Kontoauszugsdatei aus (CSV, OFX, QIF oder camt.053 XML-Format)"
+"Wähle deine Kontoauszugsdatei aus (CSV, Excel, OFX, QIF oder XML im camt.053-"
+"Format)"
 
 #: /app/templates/index.php:2295
 msgid "Drag and drop your bank statement here"
@@ -14935,6 +14936,8 @@ msgstr "Komma-separierte Werte von jeder beliebigen Bank"
 #: /app/templates/index.php:2349
 msgid "Excel and LibreOffice spreadsheets, read like a CSV file"
 msgstr ""
+"Excel- und LibreOffice-Tabellenkalkulationsdateien, die wie CSV-Dateien "
+"eingelesen werden"
 
 #: /app/templates/index.php:2350
 msgid "Open Financial Exchange format"
