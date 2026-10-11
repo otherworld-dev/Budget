@@ -5179,15 +5179,19 @@ button.danger:hover {
     padding: 16px 24px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 16px;
 }
 
+/* The name keeps room for itself: an investment account's five figures (or
+   their longer translations) used to squeeze it to nothing and draw over it.
+   When both don't fit, the figures move onto their own row instead (#423). */
 .account-header {
     display: flex;
     align-items: center;
     gap: 16px;
-    flex: 1;
+    flex: 1 1 240px;
     min-width: 0;
 }
 
@@ -5245,10 +5249,12 @@ button.danger:hover {
 
 .account-balance-section {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 24px;
+    justify-content: flex-end;
+    gap: 12px 24px;
     margin-left: auto;
-    flex-shrink: 0;
+    min-width: 0;
 }
 
 .balance-primary {
@@ -5289,8 +5295,10 @@ button.danger:hover {
 
 .balance-secondary {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 24px;
+    justify-content: flex-end;
+    gap: 12px 24px;
     text-align: right;
 }
 
