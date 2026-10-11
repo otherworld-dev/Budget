@@ -52,7 +52,7 @@ final class SheetBuilder {
 
 	/**
 	 * @throws SpreadsheetTooLargeError When the sheet passes MAX_ROWS filled
-	 *                                   rows, or the workbook MAX_CELLS cells or MAX_TEXT_BYTES of text
+	 *                                  rows, or the workbook MAX_CELLS cells or MAX_TEXT_BYTES of text
 	 */
 	public function add(int $row, int $column, string $text): void {
 		if ($text === '' || $row < 0 || $column < 0 || $column >= self::MAX_COLUMNS) {

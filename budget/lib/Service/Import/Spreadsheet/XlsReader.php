@@ -50,19 +50,17 @@ final class XlsReader {
 	 * @return list<array{name: string, rows: list<list<string>>}>
 	 */
 	public function readWorkbook(string $stream): array {
-		$records = $this->records($stream, 0);
-		if (!$records->valid()) {
-			throw new SpreadsheetReadError('Empty workbook stream');
-		}
-		[$id, $data] = $records->current();
-		if ($id !== self::BOF || Bytes::u16($data, 0) !== 0x0600) {
-			throw new SpreadsheetReadError('Not a BIFF8 workbook');
-		}
-
 		$sheets = [];
 		$sst = null;
-		for ($records->next(); $records->valid(); $records->next()) {
-			[$id, $data] = $records->current();
+		$first = true;
+		foreach ($this->records($stream, 0) as [$id, $data]) {
+			if ($first) {
+				if ($id !== self::BOF || Bytes::u16($data, 0) !== 0x0600) {
+					throw new SpreadsheetReadError('Not a BIFF8 workbook');
+				}
+				$first = false;
+				continue;
+			}
 			if ($sst !== null) {
 				if ($id === self::CONTINUE) {
 					$sst[] = $data;
@@ -96,6 +94,9 @@ final class XlsReader {
 					break 2;
 			}
 		}
+		if ($first) {
+			throw new SpreadsheetReadError('Empty workbook stream');
+		}
 		if ($sst !== null) {
 			$this->strings = array_map(trim(...), BiffStringTable::parse($sst));
 		}
@@ -113,13 +114,16 @@ final class XlsReader {
 	 */
 	private function sheet(string $stream, string $name, int $offset, SheetBudget $budget): array {
 		$builder = new SheetBuilder($name, $budget);
-		$records = $this->records($stream, $offset);
-		if (!$records->valid() || $records->current()[0] !== self::BOF) {
-			throw new SpreadsheetReadError('Sheet does not start with BOF');
-		}
 		$formulaCell = null;
-		for ($records->next(); $records->valid(); $records->next()) {
-			[$id, $data] = $records->current();
+		$first = true;
+		foreach ($this->records($stream, $offset) as [$id, $data]) {
+			if ($first) {
+				if ($id !== self::BOF) {
+					throw new SpreadsheetReadError('Sheet does not start with BOF');
+				}
+				$first = false;
+				continue;
+			}
 			switch ($id) {
 				case self::LABELSST:
 					$builder->add(Bytes::u16($data, 0), Bytes::u16($data, 2), $this->strings[Bytes::u32($data, 6)] ?? '');
@@ -169,6 +173,9 @@ final class XlsReader {
 				case self::EOF:
 					break 2;
 			}
+		}
+		if ($first) {
+			throw new SpreadsheetReadError('Sheet does not start with BOF');
 		}
 		return $builder->build();
 	}

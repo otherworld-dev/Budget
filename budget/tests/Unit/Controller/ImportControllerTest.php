@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Tests\Unit\Controller;
 
 use OCA\Budget\Controller\ImportController;
+use OCA\Budget\Exception\ValidationException;
 use OCA\Budget\Service\AuditService;
 use OCA\Budget\Service\ImportService;
 use OCA\Budget\Service\ImportTemplateService;
@@ -14,7 +15,6 @@ use OCP\IL10N;
 use OCP\IRequest;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
-use OCA\Budget\Exception\ValidationException;
 
 class ImportControllerTest extends TestCase {
 	private ImportController $controller;
