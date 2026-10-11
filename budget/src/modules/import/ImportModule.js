@@ -1,6 +1,5 @@
 /**
- * Import Module - Bank statement import with CSV/OFX/QIF support (spreadsheets
- * are converted to CSV first, see spreadsheet.js)
+ * Import Module - Bank statement import with CSV/OFX/QIF support
  */
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
@@ -12,7 +11,6 @@ import { groupImportErrors } from '../../utils/helpers.js';
 import { apiFetch, ApiError } from '../../utils/api.js';
 import { importTargetAccounts, accountCurrency } from '../../utils/accounts.js';
 import MultiSelect from '../../utils/multiselect.js';
-import { isSpreadsheet, spreadsheetToCsvFile, SpreadsheetError } from './spreadsheet.js';
 
 /**
  * The free-text targets. Each can be fed from several source columns at once
@@ -197,17 +195,6 @@ export default class ImportModule {
     // ============================================
 
     async handleImportFile(file) {
-        // Uploaded as the CSV it converts to, so the server reads it as one (#424)
-        if (isSpreadsheet(file.name)) {
-            try {
-                file = await spreadsheetToCsvFile(file);
-            } catch (error) {
-                console.error('Failed to convert spreadsheet:', error);
-                showError(error instanceof SpreadsheetError ? error.message : t('budget', 'Failed to upload file'));
-                return;
-            }
-        }
-
         const formData = new FormData();
         formData.append('file', file);
 
@@ -221,7 +208,8 @@ export default class ImportModule {
             this.showImportMapping(result);
         } catch (error) {
             console.error('Failed to upload file:', error);
-            showError(t('budget', 'Failed to upload file'));
+            // The server's own message, such as why a spreadsheet could not be read (#424)
+            showError(error instanceof ApiError ? error.message : t('budget', 'Failed to upload file'));
         }
     }
 

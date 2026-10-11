@@ -45,7 +45,6 @@
     "chart.js": "^4.4.0",
     "chartjs-chart-sankey": "^0.15.0",
     "flatpickr": "^4.6.13",
-    "gridstack": "^12.6.0",
-    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+    "gridstack": "^12.6.0"
   }
 }

@@ -14,6 +14,7 @@ use OCA\Budget\Service\Import\ParserFactory;
 use OCA\Budget\Service\Import\Preset\HeaderMappedPresetInterface;
 use OCA\Budget\Service\Import\Preset\ImportPresetInterface;
 use OCA\Budget\Service\Import\Preset\PresetRegistry;
+use OCA\Budget\Service\Import\Spreadsheet\SpreadsheetConverter;
 use OCA\Budget\Service\Import\TransactionNormalizer;
 use OCP\Files\IAppData;
 use OCP\Files\NotFoundException;
@@ -68,6 +69,7 @@ class ImportService {
 		LoggerInterface $logger,
 		private ?PensionService $pensionService = null,
 		private ?RecurringIncomeService $incomeService = null,
+		private ?SpreadsheetConverter $spreadsheetConverter = null,
 	) {
 		$this->appData = $appData;
 		$this->transactionService = $transactionService;
@@ -121,6 +123,18 @@ class ImportService {
 
 		// Generate unique file ID with extension
 		$extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION)) ?: 'dat';
+		$raw = file_get_contents($tmpPath);
+
+		// A spreadsheet is stored as the CSV it converts to, so everything
+		// after this reads it as one (#424). Outside the try below so its
+		// message reaches the user as it is.
+		if ($this->spreadsheetConverter !== null && SpreadsheetConverter::handles($fileName)) {
+			$raw = $this->spreadsheetConverter->toCsv((string)$raw);
+			$this->fileValidator->validateText($raw, 'csv');
+			$format = 'csv';
+			$extension = 'csv';
+		}
+
 		$fileId = 'import_' . $userId . '_' . bin2hex(random_bytes(16)) . '.' . $extension;
 
 		try {
@@ -131,7 +145,6 @@ class ImportService {
 			// when the preview is there to show whether it is right (#371).
 			$importsFolder = $this->getOrCreateImportsFolder();
 			$file = $importsFolder->newFile($fileId);
-			$raw = file_get_contents($tmpPath);
 			$file->putContent($raw);
 
 			return $this->buildEncodedUploadResponse($userId, $fileId, $fileName, $format, $raw, $fileSize, null);

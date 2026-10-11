@@ -15,6 +15,7 @@ use OCA\Budget\Service\Import\FileValidator;
 use OCA\Budget\Service\Import\ImportRuleApplicator;
 use OCA\Budget\Service\Import\ParserFactory;
 use OCA\Budget\Service\Import\Preset\PresetRegistry;
+use OCA\Budget\Service\Import\Spreadsheet\SpreadsheetConverter;
 use OCA\Budget\Service\Import\TransactionNormalizer;
 use OCA\Budget\Service\ImportAccountLinkService;
 use OCA\Budget\Service\ImportService;
@@ -25,6 +26,7 @@ use OCP\Files\IAppData;
 use OCP\Files\SimpleFS\ISimpleFile;
 use OCP\Files\SimpleFS\ISimpleFolder;
 use OCP\IL10N;
+use OCP\ITempManager;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
@@ -1552,5 +1554,45 @@ class ImportServiceTest extends TestCase {
 		$this->assertEquals('Date', $result['preview'][0][0]);
 		$this->assertEquals('', $result['preview'][0][1]);
 		$this->assertEquals('', $result['preview'][0][3]);
+	}
+
+	public function testProcessUploadStoresASpreadsheetAsTheCsvItConvertsTo(): void {
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnArgument(0);
+		$temp = $this->createMock(ITempManager::class);
+		$temp->method('getTemporaryFile')->willReturnCallback(static fn (): string => tempnam(sys_get_temp_dir(), 'conv'));
+		$service = new ImportService(
+			$this->appData, $this->transactionService, $this->createMock(TransactionMapper::class), $this->accountMapper,
+			$this->accountService, $this->fileValidator, $this->parserFactory, $this->normalizer, $this->duplicateDetector,
+			$this->ruleApplicator, new PresetRegistry(), $this->createMock(CategoryService::class),
+			$this->createMock(TagSetService::class), $this->createMock(TransactionTagService::class),
+			$this->createMock(ImportAccountLinkService::class), $this->createMock(\OCA\Budget\Service\BillService::class),
+			$this->settingService, $l, $this->createMock(LoggerInterface::class),
+			spreadsheetConverter: new SpreadsheetConverter($l, $temp),
+		);
+
+		$stored = null;
+		$file = $this->createMock(ISimpleFile::class);
+		$file->method('putContent')->willReturnCallback(function (string $content) use (&$stored): void {
+			$stored = $content;
+		});
+		$folder = $this->createMock(ISimpleFolder::class);
+		$folder->expects($this->once())->method('newFile')
+			->with($this->matchesRegularExpression('/^import_admin_[0-9a-f]{32}\.csv$/'))
+			->willReturn($file);
+		$this->appData->method('getFolder')->with('imports')->willReturn($folder);
+		$this->fileValidator->expects($this->once())->method('validateText')->with($this->anything(), 'csv');
+
+		$tmp = tempnam(sys_get_temp_dir(), 'up');
+		copy(__DIR__ . '/../../fixtures/spreadsheets/statement.xlsx', $tmp);
+		try {
+			$result = $service->processUpload('admin', ['name' => 'estratto.xlsx', 'tmp_name' => $tmp, 'size' => filesize($tmp)]);
+		} finally {
+			unlink($tmp);
+		}
+
+		$this->assertSame(Import\Spreadsheet\SpreadsheetConverterTest::STATEMENT_CSV, $stored);
+		$this->assertMatchesRegularExpression('/\.csv$/', $result['fileId']);
+		$this->assertSame('csv', $result['format']);
 	}
 }

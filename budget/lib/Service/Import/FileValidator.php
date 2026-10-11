@@ -34,8 +34,12 @@ class FileValidator {
 	}
 
 	private const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-	// tsv: YNAB exports a plan that uses a comma decimal tab-separated
-	private const ALLOWED_EXTENSIONS = ['csv', 'ofx', 'qif', 'xml', 'txt', 'tsv'];
+	// tsv: YNAB exports a plan that uses a comma decimal tab-separated.
+	// xls/xlsx/ods are converted to CSV before they are stored (#424).
+	private const ALLOWED_EXTENSIONS = ['csv', 'ofx', 'qif', 'xml', 'txt', 'tsv', 'xls', 'xlsx', 'ods'];
+
+	/** Checked by SpreadsheetConverter, by their signature, instead of by MIME type and content */
+	private const SPREADSHEET_EXTENSIONS = ['xls', 'xlsx', 'ods'];
 
 	private const MIME_TYPES = [
 		'csv' => ['text/csv', 'text/plain', 'application/csv', 'application/vnd.ms-excel'],
@@ -58,7 +62,7 @@ class FileValidator {
 		$this->validateSize($fileSize);
 		$extension = $this->validateExtension($fileName);
 
-		if ($tmpPath !== null && file_exists($tmpPath)) {
+		if ($tmpPath !== null && file_exists($tmpPath) && !in_array($extension, self::SPREADSHEET_EXTENSIONS, true)) {
 			$this->validateMimeType($tmpPath, $extension);
 			$this->validateContent($tmpPath, $extension);
 		}
@@ -116,12 +120,20 @@ class FileValidator {
 			throw new \Exception($this->t('File is empty or unreadable.'));
 		}
 
-		if ($this->containsBinaryData($content)) {
+		$this->validateText($content, $extension);
+	}
+
+	/**
+	 * Validate text content (the start of a file, or a converted
+	 * spreadsheet) for the given format.
+	 */
+	public function validateText(string $content, string $extension): void {
+		if ($this->containsBinaryData(substr($content, 0, 4096))) {
 			throw new \Exception($this->t('File appears to be binary. Only text-based financial files are supported.'));
 		}
 
 		match ($extension) {
-			'csv', 'txt', 'tsv' => $this->validateCsvContent($content),
+			'csv', 'txt', 'tsv' => $this->validateCsvContent(substr($content, 0, 4096)),
 			'ofx' => $this->validateOfxContent($content),
 			'qif' => $this->validateQifContent($content),
 			'xml' => $this->validateCamtContent($content),
