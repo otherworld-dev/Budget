@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-10-11 19:05+0000\n"
-"PO-Revision-Date: 2026-10-11 21:11+0000\n"
+"PO-Revision-Date: 2026-10-12 21:54+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 2026.10.1.dev0\n"
+"X-Generator: Weblate 2026.11.dev0\n"
 
 #: /app/lib/Controller/AccountController.php:80
 #: /app/lib/Controller/ApiV1AccountController.php:57
@@ -3907,6 +3907,9 @@ msgid ""
 "This spreadsheet is too big to import in one go. Split it into smaller files "
 "and import them one at a time."
 msgstr ""
+"Diese Tabellenkalkulationsdatei ist zu groß, um sie auf einmal zu "
+"importieren. Teile sie in kleinere Dateien auf und importiere diese "
+"nacheinander."
 
 #: /app/lib/Service/Import/Spreadsheet/SpreadsheetConverter.php:56
 msgid ""
