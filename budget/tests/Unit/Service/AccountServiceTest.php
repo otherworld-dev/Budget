@@ -312,6 +312,25 @@ class AccountServiceTest extends TestCase {
 		}
 	}
 
+	public function testDeletingAnAccountRemovesTheImportFoldersThatPostIntoIt(): void {
+		$folders = $this->createMock(\OCA\Budget\Db\ImportFolderMapper::class);
+		$folders->expects($this->once())->method('deleteByAccount')->with(1);
+		$service = new AccountService(
+			$this->accountMapper,
+			$this->transactionMapper,
+			$this->createMock(InterestRateMapper::class),
+			$this->conversionService,
+			$this->granularShareService,
+			$this->transactionService,
+			$this->createMock(IL10N::class),
+			importFolderMapper: $folders,
+		);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount());
+		$this->transactionMapper->method('findByAccount')->willReturn([]);
+
+		$service->delete(1, 'user1');
+	}
+
 	public function testDeleteSucceedsWhenNoTransactions(): void {
 		$account = $this->makeAccount();
 		$this->accountMapper->method('find')->willReturn($account);

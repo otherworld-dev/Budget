@@ -446,4 +446,17 @@ class ImportTemplateServiceTest extends TestCase {
 		$e->setAccountMappingFromArray(['old' => 2]);
 		return $e;
 	}
+
+	public function testDeletingATemplateRemovesTheImportFoldersThatUseIt(): void {
+		$template = new \OCA\Budget\Db\ImportTemplate();
+		$template->setId(5);
+		$template->setUserId('alice');
+		$mapper = $this->createMock(\OCA\Budget\Db\ImportTemplateMapper::class);
+		$mapper->method('find')->with(5, 'alice')->willReturn($template);
+		$mapper->expects($this->once())->method('delete')->with($template);
+		$folders = $this->createMock(\OCA\Budget\Db\ImportFolderMapper::class);
+		$folders->expects($this->once())->method('deleteByTemplate')->with(5);
+
+		(new \OCA\Budget\Service\ImportTemplateService($mapper, $folders))->delete(5, 'alice');
+	}
 }

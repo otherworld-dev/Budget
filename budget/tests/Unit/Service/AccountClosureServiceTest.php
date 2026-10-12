@@ -55,6 +55,8 @@ class AccountClosureServiceTest extends TestCase {
 	private array $mappings = [];
 	/** @var ImportRule[] */
 	private array $rules = [];
+	/** @var \OCA\Budget\Db\ImportFolder[] */
+	private array $importFolders = [];
 	/** @var string[]|null who can write to the account; null = everyone */
 	private ?array $writers = null;
 	/** @var BillMapper&\PHPUnit\Framework\MockObject\MockObject */
@@ -125,6 +127,14 @@ class AccountClosureServiceTest extends TestCase {
 			fn (string $userId, string $type, int $id) => $this->writers === null || in_array($userId, $this->writers, true)
 		);
 
+		$importFolderMapper = $this->createMock(\OCA\Budget\Db\ImportFolderMapper::class);
+		$importFolderMapper->method('findEnabledByAccount')->willReturnCallback(
+			fn (int $accountId) => array_values(array_filter(
+				$this->importFolders,
+				fn (\OCA\Budget\Db\ImportFolder $f) => (int)$f->getAccountId() === $accountId && $f->isEnabled()
+			))
+		);
+
 		$this->service = new AccountClosureService(
 			$transactionMapper,
 			$billMapper,
@@ -137,6 +147,7 @@ class AccountClosureServiceTest extends TestCase {
 			$l,
 			$this->transactionService,
 			granularShareService: $shares,
+			importFolderMapper: $importFolderMapper,
 		);
 	}
 
@@ -507,6 +518,31 @@ class AccountClosureServiceTest extends TestCase {
 		$this->expectExceptionMessageMatches('/Main Current/');
 
 		$this->service->assertClosable($this->account());
+	}
+
+	private function importFolder(string $name, bool $enabled): \OCA\Budget\Db\ImportFolder {
+		$folder = new \OCA\Budget\Db\ImportFolder();
+		$folder->setUserId('alice');
+		$folder->setName($name);
+		$folder->setAccountId(7);
+		$folder->setEnabled($enabled);
+		return $folder;
+	}
+
+	public function testRefusesWhenAnImportFolderPostsIntoIt(): void {
+		$this->importFolders[] = $this->importFolder('Conto Mario', true);
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessageMatches('/Import folders: Conto Mario/');
+
+		$this->service->assertClosable($this->account());
+	}
+
+	public function testASwitchedOffImportFolderDoesNotKeepItOpen(): void {
+		$this->importFolders[] = $this->importFolder('Conto Mario', false);
+
+		$this->service->assertClosable($this->account());
+		$this->assertTrue(true);
 	}
 
 	public function testRefusesWhenARuleRoutesTransactionsIntoIt(): void {

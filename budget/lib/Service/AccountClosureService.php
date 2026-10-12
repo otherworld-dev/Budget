@@ -8,6 +8,7 @@ use OCA\Budget\Db\Account;
 use OCA\Budget\Db\BankAccountMappingMapper;
 use OCA\Budget\Db\BankConnectionMapper;
 use OCA\Budget\Db\BillMapper;
+use OCA\Budget\Db\ImportFolderMapper;
 use OCA\Budget\Db\ImportRuleMapper;
 use OCA\Budget\Db\PensionAccountMapper;
 use OCA\Budget\Db\PensionRecurringContributionMapper;
@@ -44,6 +45,7 @@ class AccountClosureService {
 		private ?TransactionService $transactionService = null,
 		private ?UserClock $userClock = null,
 		private ?GranularShareService $granularShareService = null,
+		private ?ImportFolderMapper $importFolderMapper = null,
 	) {
 	}
 
@@ -94,6 +96,7 @@ class AccountClosureService {
 			'pensions' => $this->l->t('Pension contributions'),
 			'bankSync' => $this->l->t('Bank sync'),
 			'rules' => $this->l->t('Import rules'),
+			'importFolders' => $this->l->t('Import folders'),
 		];
 		$parts = [];
 		foreach ($references as $kind => $names) {
@@ -138,6 +141,7 @@ class AccountClosureService {
 			'pensions' => [],
 			'bankSync' => [],
 			'rules' => [],
+			'importFolders' => [],
 			'others' => [],
 		];
 		$add = static function (string $kind, string $owner, string $name) use (&$refs, $viewer): void {
@@ -188,6 +192,11 @@ class AccountClosureService {
 			if ($this->ruleRoutesInto($rule->getParsedActions(), $id)) {
 				$add('rules', $userId, (string)$rule->getName());
 			}
+		}
+
+		// An import folder still switched on would go on importing into the account (#425)
+		foreach ($this->importFolderMapper?->findEnabledByAccount($id) ?? [] as $folder) {
+			$add('importFolders', (string)$folder->getUserId(), (string)$folder->getName());
 		}
 
 		return array_filter($refs, static fn (array $names) => $names !== []);

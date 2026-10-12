@@ -7,6 +7,7 @@ namespace OCA\Budget\Service;
 use OCA\Budget\Db\Account;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\BillMapper;
+use OCA\Budget\Db\ImportFolderMapper;
 use OCA\Budget\Db\InterestRateMapper;
 use OCA\Budget\Db\PensionRecurringContributionMapper;
 use OCA\Budget\Db\ShareItem;
@@ -47,6 +48,7 @@ class AccountService extends AbstractCrudService {
 		private ?BillMapper $billMapper = null,
 		private ?PensionRecurringContributionMapper $pensionRecurringMapper = null,
 		private ?UserClock $userClock = null,
+		private ?ImportFolderMapper $importFolderMapper = null,
 	) {
 		$this->mapper = $mapper;
 		$this->transactionMapper = $transactionMapper;
@@ -140,6 +142,8 @@ class AccountService extends AbstractCrudService {
 		// Pension schedules funded from it would fail every run trying to
 		// post into an account that no longer exists
 		$this->pensionRecurringMapper?->detachSourceAccount($entity->getId());
+		// Import folders pointing at it would fail every file dropped in them (#425)
+		$this->importFolderMapper?->deleteByAccount($entity->getId());
 
 		// Bills, transfers and recurring income on the account (anyone's)
 		// would otherwise go on running against a deleted id
