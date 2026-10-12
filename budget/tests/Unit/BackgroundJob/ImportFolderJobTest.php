@@ -78,7 +78,7 @@ class ImportFolderJobTest extends TestCase {
 		$checked = [];
 		$this->service->method('check')->willReturnCallback(function (string $userId) use (&$checked) {
 			$checked[] = $userId;
-			return ['imported' => 0, 'failed' => 0, 'waiting' => 0];
+			return ['imported' => 0, 'failed' => 0, 'waiting' => 0, 'review' => 0];
 		});
 
 		$this->invokeRun();
@@ -95,7 +95,7 @@ class ImportFolderJobTest extends TestCase {
 				throw new \RuntimeException('storage not available');
 			}
 			$checked[] = $userId;
-			return ['imported' => 1, 'failed' => 0, 'waiting' => 0];
+			return ['imported' => 1, 'failed' => 0, 'waiting' => 0, 'review' => 0];
 		});
 		$this->logger->expects($this->once())->method('warning');
 
@@ -107,5 +107,13 @@ class ImportFolderJobTest extends TestCase {
 	public function testRunsEveryFifteenMinutes(): void {
 		$interval = new \ReflectionProperty(\OCP\BackgroundJob\TimedJob::class, 'interval');
 		$this->assertSame(900, $interval->getValue($this->job));
+	}
+
+	public function testFilesHeldForReviewAreLogged(): void {
+		$this->givenUsersWithFolders(['alice']);
+		$this->service->method('check')->willReturn(['imported' => 0, 'failed' => 0, 'waiting' => 0, 'review' => 2]);
+		$this->logger->expects($this->once())->method('info')->with($this->stringContains('2 held for review'));
+
+		$this->invokeRun();
 	}
 }

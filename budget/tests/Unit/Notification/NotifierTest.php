@@ -310,4 +310,12 @@ class NotifierTest extends TestCase {
 		$this->assertStringContainsString('switched off', $imported);
 		$this->assertStringContainsString('switched off', $notImported);
 	}
+
+	public function testImportFolderReviewSaysWhereToGo(): void {
+		$this->prepare('import_folder_review', ['fileId' => '100', 'fileName' => 'ottobre.csv', 'accountId' => '3', 'accountName' => 'Conto {Mario}']);
+
+		$this->assertSame('{file} is ready to review', $this->richSubject);
+		$this->assertSame('ottobre.csv', $this->richSubjectParams['file']['name']);
+		$this->assertSame('Open the Import page to check it and import it into Conto {Mario}.', $this->parsedMessage);
+	}
 }

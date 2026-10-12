@@ -38,18 +38,20 @@ class ImportFolderJob extends TimedJob {
 
 		$imported = 0;
 		$failed = 0;
+		$review = 0;
 		foreach ($userIds as $userId) {
 			try {
 				$summary = $service->check($userId);
 				$imported += $summary['imported'];
 				$failed += $summary['failed'];
+				$review += $summary['review'];
 			} catch (\Throwable $e) {
 				$logger->warning("Import folder check failed for {$userId}: " . $e->getMessage(), ['app' => 'budget', 'exception' => $e]);
 			}
 		}
 
-		if ($imported > 0 || $failed > 0) {
-			$logger->info("Import folder job: {$imported} files imported, {$failed} failed", ['app' => 'budget']);
+		if ($imported > 0 || $failed > 0 || $review > 0) {
+			$logger->info("Import folder job: {$imported} files imported, {$failed} failed, {$review} held for review", ['app' => 'budget']);
 		}
 	}
 }

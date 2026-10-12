@@ -643,6 +643,26 @@ class Notifier implements INotifier {
 
 				break;
 
+			case 'import_folder_review':
+				// TRANSLATORS: {file} is replaced with the file name. Do NOT translate {file} — keep it exactly as-is.
+				$notification->setRichSubject(
+					$l->t('{file} is ready to review'),
+					['file' => $this->fileParameter($parameters)]
+				);
+
+				// Plain, not rich: an account's name may hold braces
+				$notification->setParsedMessage($l->t('Open the Import page to check it and import it into %1$s.', [(string)$parameters['accountName']]));
+
+				$notification->setIcon($this->urlGenerator->getAbsoluteURL(
+					$this->urlGenerator->imagePath(Application::APP_ID, 'app.svg')
+				));
+
+				$notification->setLink($this->urlGenerator->linkToRouteAbsolute(
+					Application::APP_ID . '.page.index'
+				) . '#import');
+
+				break;
+
 			case 'import_folder_failed':
 				// TRANSLATORS: {file} is replaced with the file name. Do NOT translate {file} — keep it exactly as-is.
 				$notification->setRichSubject(
