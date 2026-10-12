@@ -17,7 +17,13 @@ vi.mock('../../src/utils/notifications.js', () => ({
     showInfo: vi.fn(),
 }));
 
+vi.mock('../../src/utils/api.js', async (importOriginal) => {
+    const actual = await importOriginal();
+    return { ...actual, apiFetch: vi.fn() };
+});
+
 import ImportModule from '../../src/modules/import/ImportModule.js';
+import { apiFetch } from '../../src/utils/api.js';
 
 function module() {
     const mod = Object.create(ImportModule.prototype);
@@ -83,6 +89,40 @@ describe('the account for a reviewed file', () => {
         mod.populateImportAccountSelect([{ id: 4, name: 'Carta', type: 'checking' }], false);
 
         expect(document.getElementById('import-account').value).toBe('');
+    });
+});
+
+describe('arriving at the review step', () => {
+    const ACCOUNTS = [{ id: 3, name: 'Conto Mario', type: 'checking' }, { id: 4, name: 'Carta', type: 'checking' }];
+
+    function atReviewStep(importData) {
+        document.body.innerHTML += '<div id="single-account-selection"></div><div id="multi-account-mapping"></div>';
+        apiFetch.mockResolvedValue(ACCOUNTS);
+        const mod = module();
+        mod.currentImportData = importData;
+        mod.sourceAccounts = [];
+        mod.presets = [];
+        mod.selectedPreset = null;
+        mod.getCurrentMapping = () => ({});
+        mod.processImportData = vi.fn();
+        return mod;
+    }
+
+    it('previews a reviewed file straight away, as its account is already chosen', async () => {
+        // The preview otherwise runs when the account is picked, and nobody picks one here
+        const mod = atReviewStep(upload());
+        await mod.loadAccountsForImport();
+
+        expect(document.getElementById('import-account').value).toBe('3');
+        expect(mod.processImportData).toHaveBeenCalledTimes(1);
+    });
+
+    it('waits for an account to be picked for an ordinary upload', async () => {
+        const mod = atReviewStep({ fileId: 'import_alice_abc.csv', format: 'csv' });
+        await mod.loadAccountsForImport();
+
+        expect(document.getElementById('import-account').value).toBe('');
+        expect(mod.processImportData).not.toHaveBeenCalled();
     });
 });
 

@@ -2211,6 +2211,12 @@ export default class ImportModule {
                 if (singleAccountSection) singleAccountSection.style.display = 'flex';
                 if (multiAccountSection) multiAccountSection.style.display = 'none';
                 this.populateImportAccountSelect(accounts, false);
+                // A file opened from an import folder arrives with its
+                // account chosen. The preview runs when an account is picked,
+                // and nobody picks one here, so it is run now (#425)
+                if (this.currentImportData?.review && document.getElementById('import-account')?.value) {
+                    this.processImportData();
+                }
             }
         } catch (error) {
             console.error('Failed to load accounts:', error);
