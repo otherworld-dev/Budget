@@ -612,10 +612,89 @@ class Notifier implements INotifier {
 
 				break;
 
+			case 'import_folder_done':
+				// TRANSLATORS: {file} and {account} are placeholders — do NOT translate them. Keep all {placeholder} names exactly as-is.
+				$notification->setRichSubject(
+					$l->t('{file} imported into {account}'),
+					[
+						'file' => $this->fileParameter($parameters),
+						'account' => ['type' => 'highlight', 'id' => (string)$parameters['accountId'], 'name' => $parameters['accountName']],
+					]
+				);
+
+				$parts = [$l->n('%n transaction imported', '%n transactions imported', (int)$parameters['imported'])];
+				if ((int)($parameters['skipped'] ?? 0) > 0) {
+					$parts[] = $l->n('%n already there or skipped', '%n already there or skipped', (int)$parameters['skipped']);
+				}
+				if ((int)($parameters['errors'] ?? 0) > 0) {
+					$parts[] = $l->n('%n row could not be read', '%n rows could not be read', (int)$parameters['errors']);
+				}
+				// Plain, not rich: there is nothing to link, and rich text would
+				// read any braces as placeholders
+				$notification->setParsedMessage(implode(', ', $parts));
+
+				$notification->setIcon($this->urlGenerator->getAbsoluteURL(
+					$this->urlGenerator->imagePath(Application::APP_ID, 'app.svg')
+				));
+
+				$notification->setLink($this->urlGenerator->linkToRouteAbsolute(
+					Application::APP_ID . '.page.index'
+				) . '#transactions');
+
+				break;
+
+			case 'import_folder_failed':
+				// TRANSLATORS: {file} is replaced with the file name. Do NOT translate {file} — keep it exactly as-is.
+				$notification->setRichSubject(
+					$l->t('{file} could not be imported'),
+					['file' => $this->fileParameter($parameters)]
+				);
+
+				$reason = match ($parameters['reason'] ?? 'error') {
+					'unsupported_type' => $l->t('This type of file cannot be imported.'),
+					'too_large' => $l->t('The file is larger than 10 MB.'),
+					'account_unavailable' => $l->t('The account this folder imports into has been closed or deleted.'),
+					'no_template' => $l->t('CSV and spreadsheet files need an import template, and this folder has none for them. Choose one in Budget\'s settings.'),
+					'columns_missing' => $l->t('These columns from the folder\'s template are not in the file: %1$s.', [(string)($parameters['columns'] ?? '')]),
+					'nothing_read' => $l->t('No transaction could be read from it. The folder\'s template may not fit this file.'),
+					'wrong_direction' => $l->t('Nearly every row would go in the wrong way round (income as spending, or the reverse), which usually means the wrong template. Import it from the Import page, where you can check it first.'),
+					'not_moved' => $l->t('It was imported, but could not be moved out of the import folder, so the folder has been switched off. Move the file yourself, then switch the folder back on in Budget\'s settings.'),
+					'message' => (string)($parameters['message'] ?? ''),
+					default => $l->t('Something went wrong while importing it. The server log has the details.'),
+				};
+				if (($parameters['moved'] ?? '0') === '1') {
+					$reason .= ' ' . $l->t('It is in the Failed folder.');
+				}
+				$notification->setParsedMessage($reason);
+
+				$notification->setIcon($this->urlGenerator->getAbsoluteURL(
+					$this->urlGenerator->imagePath(Application::APP_ID, 'app.svg')
+				));
+
+				$notification->setLink($this->urlGenerator->linkToRouteAbsolute('files.viewcontroller.showFile', ['fileid' => $parameters['fileId']]));
+
+				break;
+
 			default:
 				throw new UnknownNotificationException('Unknown subject');
 		}
 
 		return $notification;
+	}
+
+	/**
+	 * A file in the user's Files as a rich-text parameter.
+	 *
+	 * @param array<string, mixed> $parameters With fileId and fileName
+	 * @return array<string, string>
+	 */
+	private function fileParameter(array $parameters): array {
+		return [
+			'type' => 'file',
+			'id' => (string)$parameters['fileId'],
+			'name' => (string)$parameters['fileName'],
+			'path' => (string)$parameters['fileName'],
+			'link' => $this->urlGenerator->linkToRouteAbsolute('files.viewcontroller.showFile', ['fileid' => $parameters['fileId']]),
+		];
 	}
 }
