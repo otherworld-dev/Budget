@@ -22,6 +22,9 @@ final class TemplateColumnResolver {
 
 	private const AMOUNT_FIELDS = ['amount', 'incomeColumn', 'expenseColumn'];
 
+	/** Columns of a file a template can refer to */
+	private const MAX_COLUMNS = 1000;
+
 	/**
 	 * @param array<string, mixed> $templateMapping The template's stored mapping
 	 * @param list<string> $headers The file's header row (blank cells for a file without one)
@@ -32,6 +35,9 @@ final class TemplateColumnResolver {
 	 *         missing: what the template calls each required column the file lacks
 	 */
 	public function resolve(array $templateMapping, array $headers, array $columnLabelFormats = ['Column: {number}']): array {
+		// A statement has a handful of columns; one line of separators can
+		// claim hundreds of thousands. Nothing past the limit is ever mapped
+		$headers = array_slice(array_values($headers), 0, self::MAX_COLUMNS);
 		$labelSets = array_map(
 			fn (string $format): array => $this->labels($headers, $format),
 			$columnLabelFormats
@@ -97,15 +103,17 @@ final class TemplateColumnResolver {
 	 */
 	private function labels(array $headers, string $format): array {
 		$labels = [];
+		$seen = [];
 		foreach (array_values($headers) as $i => $header) {
 			$candidate = trim((string)$header);
-			if ($candidate === '' || in_array($candidate, $labels, true)) {
+			if ($candidate === '' || isset($seen[$candidate])) {
 				$base = str_replace('{number}', (string)($i + 1), $format);
 				$candidate = $base;
-				for ($n = 2; in_array($candidate, $labels, true); $n++) {
+				for ($n = 2; isset($seen[$candidate]); $n++) {
 					$candidate = $base . ' (' . $n . ')';
 				}
 			}
+			$seen[$candidate] = true;
 			$labels[] = $candidate;
 		}
 		return $labels;

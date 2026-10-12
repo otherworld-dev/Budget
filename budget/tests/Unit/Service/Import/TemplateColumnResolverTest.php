@@ -79,6 +79,25 @@ class TemplateColumnResolverTest extends TestCase {
 		$this->assertSame(['Column: 10'], $result['missing']);
 	}
 
+	public function testAHeaderRowOfTensOfThousandsOfColumnsIsCheap(): void {
+		// One line of separators makes a header row this wide; labelling it
+		// must not compare every column with every other
+		$headers = array_fill(0, 20000, '');
+		$start = microtime(true);
+		$result = $this->resolve(['date' => 0, 'amount' => 1, 'description' => 'Column: 3'], $headers);
+
+		$this->assertLessThan(0.5, microtime(true) - $start);
+		$this->assertSame(['date' => '0', 'amount' => '1', 'description' => '2'], $result['mapping']);
+	}
+
+	public function testColumnsPastTheThousandthAreNotConsidered(): void {
+		$headers = array_fill(0, 1500, 'x');
+		$headers[1200] = 'Importo';
+		$result = $this->resolve(['date' => 0, 'amount' => 'Importo', 'description' => 1200], $headers);
+
+		$this->assertSame(['Importo', 'Column: 1201'], $result['missing']);
+	}
+
 	public function testOptionsAreNotColumns(): void {
 		$result = $this->resolve(['date' => 0, 'amount' => 3, 'description' => 2, 'skipFirstRow' => true, 'applyRules' => false, 'bogus' => 'x']);
 		$this->assertSame(['date' => '0', 'amount' => '3', 'description' => '2'], $result['mapping']);
