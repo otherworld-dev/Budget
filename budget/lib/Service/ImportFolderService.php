@@ -129,7 +129,7 @@ class ImportFolderService {
 		$this->assertOwnTemplate($userId, $templateId);
 
 		// In Files first: a row whose folder could not be made would never import anything
-		$this->childFolder($this->mainFolder($userId), $name);
+		$this->ownSubfolder($this->mainFolder($userId), $name, $userId);
 
 		$folder = new ImportFolder();
 		$folder->setUserId($userId);
@@ -190,12 +190,23 @@ class ImportFolderService {
 			return $summary;
 		}
 
-		$main = $this->mainFolder($userId);
+		try {
+			$main = $this->mainFolder($userId);
+		} catch (\InvalidArgumentException $e) {
+			$this->logger->warning("Budget import folder: nothing read for {$userId}: " . $e->getMessage(), ['app' => Application::APP_ID]);
+			return $summary;
+		}
 		$taken = 0;
 		foreach ($rows as $row) {
-			// Recreated if it was deleted or renamed in Files, so one missing
-			// folder does not stop the others
-			$folder = $this->childFolder($main, (string)$row->getName());
+			try {
+				// Recreated if it was deleted or renamed in Files
+				$folder = $this->ownSubfolder($main, (string)$row->getName(), $userId);
+			} catch (\InvalidArgumentException $e) {
+				// Not the user's own, or a file has its name: skipped, so one
+				// folder that cannot be read does not stop the others
+				$this->logger->warning("Budget import folder: {$row->getName()} skipped for {$userId}: " . $e->getMessage(), ['app' => Application::APP_ID]);
+				continue;
+			}
 			foreach ($this->statements($folder) as $file) {
 				if ($taken >= $limit || $this->time->getTime() - $file->getMTime() < self::SETTLE_SECONDS) {
 					$summary['waiting']++;
@@ -515,13 +526,49 @@ class ImportFolderService {
 		}
 	}
 
-	/** The user's main import folder in Files, created if it is not there */
+	/**
+	 * The user's main import folder in Files, created if it is not there.
+	 *
+	 * @throws \InvalidArgumentException If it is not the user's own
+	 */
 	private function mainFolder(string $userId): Folder {
 		$folder = $this->rootFolder->getUserFolder($userId);
 		foreach (explode('/', $this->mainFolderFor($userId)) as $segment) {
 			$folder = $this->childFolder($folder, $segment);
 		}
+		$this->assertOwn($folder, $userId);
 		return $folder;
+	}
+
+	/**
+	 * A subfolder of the main folder, created if it is not there.
+	 *
+	 * @throws \InvalidArgumentException If it is not the user's own, or the name is a file's
+	 */
+	private function ownSubfolder(Folder $main, string $name, string $userId): Folder {
+		$folder = $this->childFolder($main, $name);
+		$this->assertOwn($folder, $userId);
+		return $folder;
+	}
+
+	/**
+	 * What is read from an import folder ends up in the user's accounts, so
+	 * the folder has to be theirs. A folder someone shared with them is the
+	 * sharer's to fill: left unchecked, sharing one at the path an import
+	 * folder resolves to would let the sharer plant statements. Sharing your
+	 * own import folder with other people is fine: it stays yours.
+	 *
+	 * @throws \InvalidArgumentException
+	 */
+	private function assertOwn(Folder $folder, string $userId): void {
+		try {
+			$owner = $folder->getOwner()?->getUID();
+		} catch (\Throwable) {
+			$owner = null;
+		}
+		if ($owner !== $userId) {
+			throw new \InvalidArgumentException($this->l->t('The import folder has to be in your own Files, not in a folder someone shared with you.'));
+		}
 	}
 
 	private function childFolder(Folder $parent, string $name): Folder {

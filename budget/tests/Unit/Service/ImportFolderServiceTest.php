@@ -62,6 +62,8 @@ class ImportFolderServiceTest extends TestCase {
 	private \WeakMap $children;
 	/** @var \WeakMap<File, string> where each file was moved to */
 	private \WeakMap $movedTo;
+	/** @var string[] paths of folders that are someone else's, shared with Alice */
+	private array $sharedWithAlice = [];
 
 	protected function setUp(): void {
 		$this->children = new \WeakMap();
@@ -180,6 +182,11 @@ class ImportFolderServiceTest extends TestCase {
 		$this->children[$folder] = $children;
 		$folder->method('getPath')->willReturn($path);
 		$folder->method('getName')->willReturn(basename($path));
+		// Alice's own, unless the test says someone shared it with her
+		$folder->method('getOwner')->willReturnCallback(fn () => $this->createConfiguredMock(
+			\OCP\IUser::class,
+			['getUID' => in_array($path, $this->sharedWithAlice, true) ? 'mallory' : 'alice']
+		));
 		$folder->method('nodeExists')->willReturnCallback(static fn (string $name): bool => isset($children[$name]));
 		$folder->method('get')->willReturnCallback(static fn (string $name) => $children[$name]);
 		$folder->method('newFolder')->willReturnCallback(function (string $name) use ($children, $path) {
@@ -292,6 +299,17 @@ class ImportFolderServiceTest extends TestCase {
 		$this->assertTrue($this->at('Budget/Import')->nodeExists('Conto'));
 	}
 
+	public function testCreateRefusesAnImportFolderThatIsNotInTheUsersOwnFiles(): void {
+		// Someone shared a folder with Alice at the path her import folder
+		// resolves to: whoever owns it could feed statements into her accounts
+		$this->at('Budget/Import');
+		$this->sharedWithAlice = ['/alice/files/Budget/Import'];
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('your own Files');
+		$this->service->create('alice', 'Conto', 3, null);
+	}
+
 	public function testListGivesTheMainFolderAndTheRows(): void {
 		$this->rows = [$this->row(1, 'Conto')];
 		$this->assertSame(['folder' => 'Budget/Import', 'folders' => $this->rows], $this->service->list('alice'));
@@ -395,6 +413,39 @@ class ImportFolderServiceTest extends TestCase {
 		$this->importService->expects($this->never())->method('processUpload');
 
 		$this->assertSame(['imported' => 0, 'failed' => 0, 'waiting' => 0], $this->service->check('alice'));
+	}
+
+	public function testASubfolderSomeoneElseOwnsIsNeverRead(): void {
+		$this->csvTemplate(5);
+		$this->rows = [$this->row(1, 'Theirs', 3, 5), $this->row(2, 'Conto', 3, 5)];
+		$theirs = $this->fileIn($this->at('Budget/Import/Theirs'), 'planted.csv', 1);
+		$this->fileIn($this->at('Budget/Import/Conto'), 'ottobre.csv', 2);
+		$this->sharedWithAlice = ['/alice/files/Budget/Import/Theirs'];
+		$this->givenACsvUpload();
+		$this->importService->expects($this->once())->method('processImport');
+
+		$this->assertSame(['imported' => 1, 'failed' => 0, 'waiting' => 0], $this->service->check('alice'));
+		$this->assertNull($this->whereItWent($theirs));
+	}
+
+	public function testAnImportFolderSomeoneElseOwnsIsNeverRead(): void {
+		$this->csvTemplate(5);
+		$this->rows = [$this->row(1, 'Conto', 3, 5)];
+		$this->fileIn($this->at('Budget/Import/Conto'), 'planted.csv');
+		$this->sharedWithAlice = ['/alice/files/Budget/Import'];
+		$this->importService->expects($this->never())->method('processUpload');
+
+		$this->assertSame(['imported' => 0, 'failed' => 0, 'waiting' => 0], $this->service->check('alice'));
+	}
+
+	public function testASubfolderNameTakenByAFileDoesNotStopTheOtherFolders(): void {
+		$this->csvTemplate(5);
+		$this->rows = [$this->row(1, 'Broken', 3, 5), $this->row(2, 'Conto', 3, 5)];
+		$this->fileIn($this->at('Budget/Import'), 'Broken', 1);
+		$this->fileIn($this->at('Budget/Import/Conto'), 'ottobre.csv', 2);
+		$this->givenACsvUpload();
+
+		$this->assertSame(1, $this->service->check('alice')['imported']);
 	}
 
 	public function testASwitchedOffFolderIsNotRead(): void {
