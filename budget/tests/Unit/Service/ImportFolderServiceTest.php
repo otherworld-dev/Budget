@@ -166,14 +166,14 @@ class ImportFolderServiceTest extends TestCase {
 		return $account;
 	}
 
-	private function row(int $id, string $name, int $accountId = 3, ?int $templateId = null, bool $enabled = true): ImportFolder {
+	private function row(int $id, string $name, int $accountId = 3, ?int $templateId = null, bool $enabled = true, string $mode = 'auto'): ImportFolder {
 		$row = new ImportFolder();
 		$row->setId($id);
 		$row->setUserId('alice');
 		$row->setName($name);
 		$row->setAccountId($accountId);
 		$row->setTemplateId($templateId);
-		$row->setMode('auto');
+		$row->setMode($mode);
 		$row->setEnabled($enabled);
 		return $row;
 	}
@@ -425,7 +425,7 @@ class ImportFolderServiceTest extends TestCase {
 
 		$summary = $this->service->check('alice');
 
-		$this->assertSame(['imported' => 1, 'failed' => 0, 'waiting' => 0], $summary);
+		$this->assertSame(['imported' => 1, 'failed' => 0, 'waiting' => 0, 'review' => 0], $summary);
 		$this->assertSame('/alice/files/Budget/Import/Conto/Imported/ottobre.csv', $this->whereItWent($file));
 		$this->assertSame([['import_folder_done', [
 			'fileId' => '100', 'fileName' => 'ottobre.csv', 'accountId' => '3', 'accountName' => 'Conto Mario',
@@ -439,7 +439,7 @@ class ImportFolderServiceTest extends TestCase {
 		$file = $this->fileIn($this->at('Budget/Import/Conto'), 'ottobre.csv', age: 30);
 		$this->importService->expects($this->never())->method('processUpload');
 
-		$this->assertSame(['imported' => 0, 'failed' => 0, 'waiting' => 1], $this->service->check('alice'));
+		$this->assertSame(['imported' => 0, 'failed' => 0, 'waiting' => 1, 'review' => 0], $this->service->check('alice'));
 		$this->assertNull($this->whereItWent($file));
 	}
 
@@ -452,7 +452,7 @@ class ImportFolderServiceTest extends TestCase {
 		$folder->newFolder('Imported');
 		$this->importService->expects($this->never())->method('processUpload');
 
-		$this->assertSame(['imported' => 0, 'failed' => 0, 'waiting' => 0], $this->service->check('alice'));
+		$this->assertSame(['imported' => 0, 'failed' => 0, 'waiting' => 0, 'review' => 0], $this->service->check('alice'));
 	}
 
 	public function testASubfolderSomeoneElseOwnsIsNeverRead(): void {
@@ -464,7 +464,7 @@ class ImportFolderServiceTest extends TestCase {
 		$this->givenACsvUpload();
 		$this->importService->expects($this->once())->method('processImport');
 
-		$this->assertSame(['imported' => 1, 'failed' => 0, 'waiting' => 0], $this->service->check('alice'));
+		$this->assertSame(['imported' => 1, 'failed' => 0, 'waiting' => 0, 'review' => 0], $this->service->check('alice'));
 		$this->assertNull($this->whereItWent($theirs));
 	}
 
@@ -475,7 +475,7 @@ class ImportFolderServiceTest extends TestCase {
 		$this->sharedWithAlice = ['/alice/files/Budget/Import'];
 		$this->importService->expects($this->never())->method('processUpload');
 
-		$this->assertSame(['imported' => 0, 'failed' => 0, 'waiting' => 0], $this->service->check('alice'));
+		$this->assertSame(['imported' => 0, 'failed' => 0, 'waiting' => 0, 'review' => 0], $this->service->check('alice'));
 	}
 
 	public function testASubfolderNameTakenByAFileDoesNotStopTheOtherFolders(): void {
@@ -493,7 +493,7 @@ class ImportFolderServiceTest extends TestCase {
 		$this->fileIn($this->at('Budget/Import/Conto'), 'ottobre.csv');
 		$this->importService->expects($this->never())->method('processUpload');
 
-		$this->assertSame(['imported' => 0, 'failed' => 0, 'waiting' => 0], $this->service->check('alice'));
+		$this->assertSame(['imported' => 0, 'failed' => 0, 'waiting' => 0, 'review' => 0], $this->service->check('alice'));
 	}
 
 	public function testAFolderDeletedInFilesIsRecreatedAndTheOthersStillRun(): void {
@@ -511,7 +511,7 @@ class ImportFolderServiceTest extends TestCase {
 		$file = $this->fileIn($this->at('Budget/Import/Conto'), 'ricevuta.pdf');
 		$this->importService->expects($this->never())->method('processUpload');
 
-		$this->assertSame(['imported' => 0, 'failed' => 1, 'waiting' => 0], $this->service->check('alice'));
+		$this->assertSame(['imported' => 0, 'failed' => 1, 'waiting' => 0, 'review' => 0], $this->service->check('alice'));
 		$this->assertSame('/alice/files/Budget/Import/Conto/Failed/ricevuta.pdf', $this->whereItWent($file));
 		$this->assertSame('unsupported_type', $this->sent[0][1]['reason']);
 		$this->assertSame('1', $this->sent[0][1]['moved']);
@@ -688,7 +688,7 @@ class ImportFolderServiceTest extends TestCase {
 		$this->fileIn($folder, 'c.csv', 3, 700);
 		$this->givenACsvUpload();
 
-		$this->assertSame(['imported' => 2, 'failed' => 0, 'waiting' => 1], $this->service->check('alice', 2));
+		$this->assertSame(['imported' => 2, 'failed' => 0, 'waiting' => 1, 'review' => 0], $this->service->check('alice', 2));
 	}
 
 	public function testAFileSomeoneElseIsAlreadyImportingIsSkipped(): void {
@@ -698,7 +698,7 @@ class ImportFolderServiceTest extends TestCase {
 		$this->locking->method('acquireLock')->willThrowException(new LockedException('budget/import-folder/100'));
 		$this->importService->expects($this->never())->method('processUpload');
 
-		$this->assertSame(['imported' => 0, 'failed' => 0, 'waiting' => 0], $this->service->check('alice'));
+		$this->assertSame(['imported' => 0, 'failed' => 0, 'waiting' => 0, 'review' => 0], $this->service->check('alice'));
 		$this->assertNull($this->whereItWent($file));
 		$this->assertSame([], $this->sent);
 	}
@@ -747,7 +747,7 @@ class ImportFolderServiceTest extends TestCase {
 		$file = $this->fileIn($this->at('Budget/Import/Conto'), 'planted.csv', owner: 'mallory');
 		$this->importService->expects($this->never())->method('processUpload');
 
-		$this->assertSame(['imported' => 0, 'failed' => 0, 'waiting' => 0], $this->service->check('alice'));
+		$this->assertSame(['imported' => 0, 'failed' => 0, 'waiting' => 0, 'review' => 0], $this->service->check('alice'));
 		$this->assertNull($this->whereItWent($file));
 	}
 
@@ -795,7 +795,7 @@ class ImportFolderServiceTest extends TestCase {
 		$this->importService->expects($this->never())->method('processUpload');
 		$this->mapper->expects($this->never())->method('update');
 
-		$this->assertSame(['imported' => 0, 'failed' => 0, 'waiting' => 0], $this->service->check('alice'));
+		$this->assertSame(['imported' => 0, 'failed' => 0, 'waiting' => 0, 'review' => 0], $this->service->check('alice'));
 		$this->assertSame([], $this->sent);
 	}
 
@@ -923,5 +923,77 @@ class ImportFolderServiceTest extends TestCase {
 
 		$this->assertNotNull($temporary);
 		$this->assertFileDoesNotExist($temporary);
+	}
+
+	// ── review mode (#425) ──────────────────────────────────────────
+
+	public function testAReviewFolderHoldsAFileAndSaysItIsReady(): void {
+		$this->csvTemplate(5);
+		$this->rows = [$this->row(1, 'Conto', 3, 5, mode: 'review')];
+		$file = $this->fileIn($this->at('Budget/Import/Conto'), 'ottobre.csv');
+		$this->importService->expects($this->never())->method('processUpload');
+		$this->importService->expects($this->never())->method('processImport');
+
+		$summary = $this->service->check('alice');
+
+		$this->assertSame(['imported' => 0, 'failed' => 0, 'waiting' => 0, 'review' => 1], $summary);
+		$this->assertSame('/alice/files/Budget/Import/Conto/Review/ottobre.csv', $this->whereItWent($file));
+		$this->assertSame([['import_folder_review', [
+			'fileId' => '100', 'fileName' => 'ottobre.csv', 'accountId' => '3', 'accountName' => 'Conto Mario',
+		]]], $this->sent);
+	}
+
+	public function testAReviewFolderStillRefusesWhatIsNotAStatement(): void {
+		$this->rows = [$this->row(1, 'Conto', mode: 'review')];
+		$folder = $this->at('Budget/Import/Conto');
+		$pdf = $this->fileIn($folder, 'ricevuta.pdf', 1);
+		$empty = $this->fileIn($folder, 'vuoto.csv', 2, content: '');
+
+		$this->assertSame(['imported' => 0, 'failed' => 2, 'waiting' => 0, 'review' => 0], $this->service->check('alice'));
+		$this->assertStringEndsWith('/Failed/ricevuta.pdf', $this->whereItWent($pdf));
+		$this->assertStringEndsWith('/Failed/vuoto.csv', $this->whereItWent($empty));
+		$this->assertEqualsCanonicalizing(['unsupported_type', 'empty'], array_column(array_column($this->sent, 1), 'reason'));
+	}
+
+	public function testAFileAlreadyWaitingIsNotPickedUpAgain(): void {
+		// Also what makes switching a folder from review to automatic leave
+		// its waiting files alone: only the folder's own files are read
+		$this->csvTemplate(5);
+		$this->rows = [$this->row(1, 'Conto', 3, 5)];
+		$waiting = $this->fileIn($this->at('Budget/Import/Conto/Review'), 'settembre.csv', 1);
+		$this->importService->expects($this->never())->method('processUpload');
+
+		$this->assertSame(['imported' => 0, 'failed' => 0, 'waiting' => 0, 'review' => 0], $this->service->check('alice'));
+		$this->assertNull($this->whereItWent($waiting));
+	}
+
+	public function testAReviewFileThatCannotBeMovedSwitchesTheFolderOff(): void {
+		$this->rows = [$this->row(1, 'Conto', mode: 'review')];
+		$this->fileIn($this->at('Budget/Import/Conto'), 'ottobre.csv', movable: false);
+		$this->mapper->expects($this->once())->method('update')->with($this->callback(fn (ImportFolder $row) => !$row->isEnabled()));
+
+		$this->service->check('alice');
+
+		$this->assertSame('not_moved', $this->sent[1][1]['reason']);
+		$this->assertSame('0', $this->sent[1][1]['imported']);
+	}
+
+	public function testCreateAndUpdateTakeAMode(): void {
+		$row = $this->service->create('alice', 'Conto', 3, null, 'review');
+		$this->assertSame('review', $row->getMode());
+
+		$this->assertSame('auto', $this->service->update('alice', $row->getId(), ['mode' => 'auto'])->getMode());
+	}
+
+	public function testAnUnknownModeIsRefused(): void {
+		try {
+			$this->service->create('alice', 'Conto', 3, null, 'later');
+			$this->fail('Accepted an unknown mode');
+		} catch (\InvalidArgumentException $e) {
+			$this->assertStringContainsString('automatically or held for review', $e->getMessage());
+		}
+		$this->rows = [$this->row(1, 'Conto')];
+		$this->expectException(\InvalidArgumentException::class);
+		$this->service->update('alice', 1, ['mode' => '']);
 	}
 }

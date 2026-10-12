@@ -51,8 +51,14 @@ class ImportFolderService {
 	public const MAIN_FOLDER_KEY = 'import_folder';
 	public const DEFAULT_MAIN_FOLDER = 'Budget/Import';
 	public const MODE_AUTO = 'auto';
+	public const MODE_REVIEW = 'review';
+	public const MODES = [self::MODE_AUTO, self::MODE_REVIEW];
 	public const IMPORTED_FOLDER = 'Imported';
 	public const FAILED_FOLDER = 'Failed';
+
+	/** Where a review folder's files wait, and where skipped ones go */
+	public const REVIEW_FOLDER = 'Review';
+	public const SKIPPED_FOLDER = 'Skipped';
 
 	/** Files taken per user in one run; the rest wait for the next */
 	public const FILES_PER_RUN = 20;
@@ -124,8 +130,9 @@ class ImportFolderService {
 	/**
 	 * @throws \InvalidArgumentException With a message for the user
 	 */
-	public function create(string $userId, string $name, int $accountId, ?int $templateId): ImportFolder {
+	public function create(string $userId, string $name, int $accountId, ?int $templateId, string $mode = self::MODE_AUTO): ImportFolder {
 		$name = $this->validName($name);
+		$this->assertMode($mode);
 		foreach ($this->mapper->findAll($userId) as $existing) {
 			if (mb_strtolower((string)$existing->getName()) === mb_strtolower($name)) {
 				throw new \InvalidArgumentException($this->l->t('You already have an import folder called %1$s.', [$name]));
@@ -148,7 +155,7 @@ class ImportFolderService {
 		$folder->setName($name);
 		$folder->setAccountId($accountId);
 		$folder->setTemplateId($templateId);
-		$folder->setMode(self::MODE_AUTO);
+		$folder->setMode($mode);
 		$folder->setEnabled(true);
 		$folder->setCreatedAt($this->now());
 		return $this->mapper->insert($folder);
@@ -173,6 +180,11 @@ class ImportFolderService {
 			$this->assertOwnTemplate($userId, $templateId);
 			$folder->setTemplateId($templateId);
 		}
+		if (array_key_exists('mode', $changes)) {
+			$mode = (string)$changes['mode'];
+			$this->assertMode($mode);
+			$folder->setMode($mode);
+		}
 		if (array_key_exists('enabled', $changes)) {
 			$folder->setEnabled((bool)$changes['enabled']);
 		}
@@ -192,11 +204,12 @@ class ImportFolderService {
 	/**
 	 * Import what is waiting in the user's switched-on folders.
 	 *
-	 * @return array{imported: int, failed: int, waiting: int} Files, not transactions:
-	 *                                                         waiting ones are still uploading or over this run's limit
+	 * @return array{imported: int, failed: int, waiting: int, review: int} Files, not
+	 *         transactions: waiting ones are still uploading or over this run's
+	 *         limit, review ones were held for a look first
 	 */
 	public function check(string $userId, int $limit = self::FILES_PER_RUN): array {
-		$summary = ['imported' => 0, 'failed' => 0, 'waiting' => 0];
+		$summary = ['imported' => 0, 'failed' => 0, 'waiting' => 0, 'review' => 0];
 		$rows = $this->mapper->findEnabled($userId);
 		if ($rows === []) {
 			return $summary;
@@ -268,7 +281,7 @@ class ImportFolderService {
 	/**
 	 * Import one file, move it out of the way and tell the user.
 	 *
-	 * @return 'imported'|'failed'|null Null when another run already has the file
+	 * @return 'imported'|'failed'|'review'|null Null when another run already has the file
 	 */
 	private function handle(string $userId, ImportFolder $row, Folder $folder, File $file): ?string {
 		// The job and "Check now" can overlap; whoever holds this imports the file
@@ -287,10 +300,14 @@ class ImportFolderService {
 				return null;
 			}
 
+			$review = ($row->getMode() ?? self::MODE_AUTO) === self::MODE_REVIEW;
+
 			$failure = null;
 			$result = null;
 			try {
-				$result = $this->import($userId, $row, $file);
+				// A review folder's files are not read as statements here:
+				// that happens in the wizard, in front of the user
+				$result = $review ? $this->admit($userId, $row, $file) : $this->import($userId, $row, $file);
 			} catch (ImportFolderFailure $e) {
 				$failure = ['reason' => $e->reason] + $e->details;
 			} catch (ValidationException $e) {
@@ -305,16 +322,21 @@ class ImportFolderService {
 				$this->audit->logImportFailed($userId, $file->getName(), $failure['message'] ?? $failure['reason']);
 			}
 
-			$moved = $this->moveInto($userId, $folder, $file, $failure === null ? self::IMPORTED_FOLDER : self::FAILED_FOLDER);
+			$target = match (true) {
+				$failure !== null => self::FAILED_FOLDER,
+				$review => self::REVIEW_FOLDER,
+				default => self::IMPORTED_FOLDER,
+			};
+			$moved = $this->moveInto($userId, $folder, $file, $target);
 
 			if ($result !== null) {
-				$this->notify($userId, 'import_folder_done', $file, $result);
+				$this->notify($userId, $review ? 'import_folder_review' : 'import_folder_done', $file, $result);
 			} else {
-				$this->notify($userId, 'import_folder_failed', $file, $failure + ['moved' => $moved ? '1' : '0']);
+				$this->notify($userId, 'import_folder_failed', $file, ($failure ?? []) + ['moved' => $moved ? '1' : '0']);
 			}
 
 			if (!$moved) {
-				// Left where it is, it would be imported again on every run:
+				// Left where it is, it would be handled again on every run:
 				// duplicate detection would stop double entries, not the notifications
 				$row->setEnabled(false);
 				$row->setUpdatedAt($this->now());
@@ -323,13 +345,84 @@ class ImportFolderService {
 				$this->notify($userId, 'import_folder_failed', $file, [
 					'reason' => 'not_moved',
 					'moved' => '0',
-					'imported' => $result !== null ? '1' : '0',
+					'imported' => $result !== null && !$review ? '1' : '0',
 				]);
 			}
 
-			return $failure === null ? 'imported' : 'failed';
+			return match (true) {
+				$failure !== null => 'failed',
+				$review => 'review',
+				default => 'imported',
+			};
 		} finally {
 			$this->locking->releaseLock($lock, ILockingProvider::LOCK_EXCLUSIVE);
+		}
+	}
+
+	/**
+	 * What a review folder checks before holding a file: that it could be a
+	 * statement at all, and that there is still an account for it.
+	 *
+	 * @return array<string, string> The parameters of the "ready to review" notification
+	 * @throws ImportFolderFailure
+	 */
+	private function admit(string $userId, ImportFolder $row, File $file): array {
+		$this->statementBytes($file);
+		$accountId = (int)$row->getAccountId();
+		$account = $this->openAccount($userId, $accountId) ?? throw new ImportFolderFailure('account_unavailable');
+
+		return ['accountId' => (string)$accountId, 'accountName' => (string)$account->getName()];
+	}
+
+	/**
+	 * A file's contents, once it has passed what every dropped file must:
+	 * a statement's type, within the size limit, not empty.
+	 *
+	 * @return array{content: string, extension: string}
+	 * @throws ImportFolderFailure
+	 */
+	private function statementBytes(File $file): array {
+		$extension = strtolower(pathinfo($file->getName(), PATHINFO_EXTENSION));
+		if (!in_array($extension, $this->fileValidator->getAllowedExtensions(), true)) {
+			throw new ImportFolderFailure('unsupported_type');
+		}
+		if ($file->getSize() > $this->fileValidator->getMaxFileSize()) {
+			throw new ImportFolderFailure('too_large');
+		}
+		$content = $this->read($file);
+		if ($content === '') {
+			throw new ImportFolderFailure('empty');
+		}
+		return ['content' => $content, 'extension' => $extension];
+	}
+
+	/**
+	 * Hand a statement's bytes to the importer as an upload, after the
+	 * checks an upload gets, and return its upload response.
+	 *
+	 * @return array<string, mixed>
+	 * @throws ImportFolderFailure
+	 * @throws ValidationException
+	 */
+	private function upload(string $userId, string $name, string $extension, string $content): array {
+		$temporary = $this->tempManager->getTemporaryFile('.' . $extension);
+		if ($temporary === false || file_put_contents($temporary, $content) === false) {
+			throw new \RuntimeException('No temporary file for ' . $name);
+		}
+		try {
+			try {
+				// Run here so the validator's reasons (a file that is not what
+				// its name says) reach the user instead of "something went wrong"
+				$this->fileValidator->validate($name, strlen($content), $temporary);
+			} catch (\Exception $e) {
+				throw new ImportFolderFailure('message', ['message' => $e->getMessage()]);
+			}
+			return $this->importService->processUpload($userId, ['name' => $name, 'tmp_name' => $temporary, 'size' => strlen($content)]);
+		} finally {
+			// One run can take many files of up to 10 MB: not left for the end of the process
+			if (is_file($temporary)) {
+				unlink($temporary);
+			}
 		}
 	}
 
@@ -340,40 +433,10 @@ class ImportFolderService {
 	 */
 	private function import(string $userId, ImportFolder $row, File $file): array {
 		$name = $file->getName();
-		$extension = strtolower(pathinfo($name, PATHINFO_EXTENSION));
-		if (!in_array($extension, $this->fileValidator->getAllowedExtensions(), true)) {
-			throw new ImportFolderFailure('unsupported_type');
-		}
-		if ($file->getSize() > $this->fileValidator->getMaxFileSize()) {
-			throw new ImportFolderFailure('too_large');
-		}
+		['content' => $content, 'extension' => $extension] = $this->statementBytes($file);
 		$accountId = (int)$row->getAccountId();
 		$account = $this->openAccount($userId, $accountId) ?? throw new ImportFolderFailure('account_unavailable');
-
-		$content = $this->read($file);
-		if ($content === '') {
-			throw new ImportFolderFailure('empty');
-		}
-		$temporary = $this->tempManager->getTemporaryFile('.' . $extension);
-		if ($temporary === false || file_put_contents($temporary, $content) === false) {
-			throw new \RuntimeException('No temporary file for ' . $name);
-		}
-		try {
-			try {
-				// The same checks an upload gets, run here so their reasons
-				// (an empty file, a file that is not what its name says) reach
-				// the user instead of "something went wrong"
-				$this->fileValidator->validate($name, strlen($content), $temporary);
-			} catch (\Exception $e) {
-				throw new ImportFolderFailure('message', ['message' => $e->getMessage()]);
-			}
-			$upload = $this->importService->processUpload($userId, ['name' => $name, 'tmp_name' => $temporary, 'size' => strlen($content)]);
-		} finally {
-			// One run can take many files of up to 10 MB: not left for the end of the process
-			if (is_file($temporary)) {
-				unlink($temporary);
-			}
-		}
+		$upload = $this->upload($userId, $name, $extension, $content);
 		$fileId = (string)$upload['fileId'];
 		$format = (string)$upload['format'];
 
@@ -543,6 +606,12 @@ class ImportFolderService {
 			->setObject('import_folder', (string)$file->getId())
 			->setSubject($subject, ['fileId' => (string)$file->getId(), 'fileName' => $file->getName()] + $parameters);
 		$this->notifications->notify($notification);
+	}
+
+	private function assertMode(string $mode): void {
+		if (!in_array($mode, self::MODES, true)) {
+			throw new \InvalidArgumentException($this->l->t('A folder\'s files are either imported automatically or held for review.'));
+		}
 	}
 
 	private function validName(string $raw): string {
