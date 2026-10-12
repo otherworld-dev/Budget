@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
+use OCA\Budget\Exception\ValidationException;
 use OCA\Budget\Service\ImportFolderService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCP\AppFramework\Controller;
@@ -49,9 +50,9 @@ class ImportFolderController extends Controller {
 	 * @NoAdminRequired
 	 */
 	#[UserRateLimit(limit: 30, period: 60)]
-	public function create(string $name, int $accountId, ?int $templateId = null): DataResponse {
+	public function create(string $name, int $accountId, ?int $templateId = null, string $mode = 'auto'): DataResponse {
 		try {
-			return new DataResponse($this->service->create($this->userId, $name, $accountId, $templateId), Http::STATUS_CREATED);
+			return new DataResponse($this->service->create($this->userId, $name, $accountId, $templateId, $mode), Http::STATUS_CREATED);
 		} catch (\InvalidArgumentException $e) {
 			return $this->handleValidationError($e);
 		} catch (\Exception $e) {
@@ -67,7 +68,7 @@ class ImportFolderController extends Controller {
 		try {
 			// Only what the request carries: a templateId of null means "no
 			// template", one left out means "leave it as it is"
-			$changes = array_intersect_key($this->request->getParams(), array_flip(['accountId', 'templateId', 'enabled']));
+			$changes = array_intersect_key($this->request->getParams(), array_flip(['accountId', 'templateId', 'enabled', 'mode']));
 			return new DataResponse($this->service->update($this->userId, $id, $changes));
 		} catch (DoesNotExistException $e) {
 			return $this->handleNotFoundError($e, $this->l->t('Import folder'), ['importFolderId' => $id]);
@@ -102,6 +103,56 @@ class ImportFolderController extends Controller {
 			return new DataResponse($this->service->check($this->userId));
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to check the import folder'));
+		}
+	}
+
+	/**
+	 * The files waiting in the user's Review folders.
+	 *
+	 * @NoAdminRequired
+	 */
+	public function review(): DataResponse {
+		try {
+			return new DataResponse($this->service->listReview($this->userId));
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to load the files waiting for review'));
+		}
+	}
+
+	/**
+	 * Read a waiting file in as an upload, for the import wizard.
+	 *
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 5, period: 60)]
+	public function openReview(int $fileId): DataResponse {
+		try {
+			return new DataResponse($this->service->openReview($this->userId, $fileId));
+		} catch (DoesNotExistException $e) {
+			return $this->handleNotFoundError($e, $this->l->t('Waiting file'), ['fileId' => $fileId]);
+		} catch (ValidationException|\InvalidArgumentException $e) {
+			return $this->handleValidationError($e);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to open the file'));
+		}
+	}
+
+	/**
+	 * Move a waiting file to Imported (the wizard imported it) or Skipped.
+	 *
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function finishReview(int $fileId, string $outcome = ''): DataResponse {
+		try {
+			$this->service->finishReview($this->userId, $fileId, $outcome);
+			return new DataResponse(['status' => 'success']);
+		} catch (DoesNotExistException $e) {
+			return $this->handleNotFoundError($e, $this->l->t('Waiting file'), ['fileId' => $fileId]);
+		} catch (\InvalidArgumentException $e) {
+			return $this->handleValidationError($e);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to move the file'));
 		}
 	}
 }

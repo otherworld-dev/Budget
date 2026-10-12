@@ -167,6 +167,9 @@ return [
 		['name' => 'importFolder#index', 'url' => '/api/import-folders', 'verb' => 'GET'],
 		['name' => 'importFolder#create', 'url' => '/api/import-folders', 'verb' => 'POST'],
 		['name' => 'importFolder#check', 'url' => '/api/import-folders/check', 'verb' => 'POST'],
+		['name' => 'importFolder#review', 'url' => '/api/import-folders/review', 'verb' => 'GET'],
+		['name' => 'importFolder#openReview', 'url' => '/api/import-folders/review/{fileId}/open', 'verb' => 'POST'],
+		['name' => 'importFolder#finishReview', 'url' => '/api/import-folders/review/{fileId}/finish', 'verb' => 'POST'],
 		['name' => 'importFolder#update', 'url' => '/api/import-folders/{id}', 'verb' => 'PUT'],
 		['name' => 'importFolder#destroy', 'url' => '/api/import-folders/{id}', 'verb' => 'DELETE'],
 

@@ -13,6 +13,7 @@ use OCP\IL10N;
 use OCP\IRequest;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
+use OCA\Budget\Exception\ValidationException;
 
 class ImportFolderControllerTest extends TestCase {
 	private ImportFolderController $controller;
@@ -48,9 +49,9 @@ class ImportFolderControllerTest extends TestCase {
 	}
 
 	public function testCreate(): void {
-		$this->service->expects($this->once())->method('create')->with('alice', 'Conto', 3, 5)->willReturn($this->folder());
+		$this->service->expects($this->once())->method('create')->with('alice', 'Conto', 3, 5, 'review')->willReturn($this->folder());
 
-		$response = $this->controller->create('Conto', 3, 5);
+		$response = $this->controller->create('Conto', 3, 5, 'review');
 
 		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
 	}
@@ -65,9 +66,9 @@ class ImportFolderControllerTest extends TestCase {
 	}
 
 	public function testUpdatePassesOnlyTheFieldsTheRequestCarries(): void {
-		$this->request->method('getParams')->willReturn(['id' => '1', 'templateId' => null, 'enabled' => false, '_route' => 'x', 'name' => 'ignored']);
+		$this->request->method('getParams')->willReturn(['id' => '1', 'templateId' => null, 'enabled' => false, 'mode' => 'review', '_route' => 'x', 'name' => 'ignored']);
 		$this->service->expects($this->once())->method('update')
-			->with('alice', 1, ['templateId' => null, 'enabled' => false])
+			->with('alice', 1, ['templateId' => null, 'enabled' => false, 'mode' => 'review'])
 			->willReturn($this->folder());
 
 		$this->assertSame(Http::STATUS_OK, $this->controller->update(1)->getStatus());
@@ -90,5 +91,47 @@ class ImportFolderControllerTest extends TestCase {
 		$this->service->method('check')->with('alice')->willReturn(['imported' => 2, 'failed' => 1, 'waiting' => 0]);
 
 		$this->assertSame(['imported' => 2, 'failed' => 1, 'waiting' => 0], $this->controller->check()->getData());
+	}
+
+	public function testCreateDefaultsToAutomatic(): void {
+		$this->service->expects($this->once())->method('create')->with('alice', 'Conto', 3, null, 'auto')->willReturn($this->folder());
+
+		$this->controller->create('Conto', 3);
+	}
+
+	public function testReviewListsWhatIsWaiting(): void {
+		$this->service->method('listReview')->with('alice')->willReturn([['fileId' => 11, 'name' => 'ottobre.csv']]);
+
+		$this->assertSame([['fileId' => 11, 'name' => 'ottobre.csv']], $this->controller->review()->getData());
+	}
+
+	public function testOpenReviewReturnsTheUploadResponse(): void {
+		$this->service->method('openReview')->with('alice', 11)->willReturn(['fileId' => 'import_alice_abc.csv', 'review' => ['fileId' => 11]]);
+
+		$response = $this->controller->openReview(11);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame(11, $response->getData()['review']['fileId']);
+	}
+
+	public function testOpenReviewShowsWhyAFileCannotBeOpened(): void {
+		$this->service->method('openReview')->willThrowException(new ValidationException('This spreadsheet could not be read.'));
+		$this->assertSame('This spreadsheet could not be read.', $this->controller->openReview(11)->getData()['error']);
+	}
+
+	public function testOpenReviewOfAFileThatIsNotWaitingIsNotFound(): void {
+		$this->service->method('openReview')->willThrowException(new DoesNotExistException('no'));
+		$this->assertSame(Http::STATUS_NOT_FOUND, $this->controller->openReview(99)->getStatus());
+	}
+
+	public function testFinishReview(): void {
+		$this->service->expects($this->once())->method('finishReview')->with('alice', 11, 'skipped');
+
+		$this->assertSame(['status' => 'success'], $this->controller->finishReview(11, 'skipped')->getData());
+	}
+
+	public function testFinishReviewOfAFileNoLongerWaitingIsNotFound(): void {
+		$this->service->method('finishReview')->willThrowException(new DoesNotExistException('no'));
+		$this->assertSame(Http::STATUS_NOT_FOUND, $this->controller->finishReview(11, 'imported')->getStatus());
 	}
 }
