@@ -9252,6 +9252,22 @@ button.danger:hover {
     min-width: 0;
 }
 
+/* Import folder section (#425) */
+.import-folders-table { width: 100%; margin: 12px 0; border-collapse: collapse; }
+.import-folders-table th, .import-folders-table td { padding: 6px 8px; text-align: start; vertical-align: middle; }
+.import-folders-table thead th { color: var(--color-text-maxcontrast); font-weight: normal; border-bottom: 1px solid var(--color-border); }
+.import-folders-table tbody th { font-weight: bold; }
+.import-folders-table select { max-width: 100%; }
+.import-folder-add { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0; }
+.import-folder-add input[type="text"] { flex: 1 1 180px; min-width: 0; }
+.import-folders-check { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+@media (max-width: 768px) {
+    .import-folders-table thead { display: none; }
+    .import-folders-table tr { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 0; border-bottom: 1px solid var(--color-border); }
+    .import-folders-table tbody th { flex: 1 1 100%; padding: 0; }
+    .import-folders-table td { padding: 0; }
+}
+
 /* Support-the-project buttons on the Help & Docs view */
 .help-support-buttons {
     display: flex;

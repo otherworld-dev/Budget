@@ -8,10 +8,12 @@ import { initDatePickers } from '../../utils/datepicker.js';
 import { apiFetch } from '../../utils/api.js';
 import { refreshBankSyncNav } from '../bank-sync/bankSyncStatus.js';
 import { helpDocUrl } from '../help/HelpModule.js';
+import ImportFolders from './ImportFolders.js';
 
 export default class SettingsModule {
     constructor(app) {
         this.app = app;
+        this.importFolders = new ImportFolders({ getAccounts: () => this.app.accounts });
     }
 
     // Getters for app state
@@ -24,8 +26,12 @@ export default class SettingsModule {
             await this.populateSettings(settings);
             this.updateNumberFormatPreview();
             this.setupReceiptFolderPicker();
+            this.setupImportFolderPicker();
             this.setupAutoSave();
             this.setupJumpList();
+            const importFolderHelp = document.getElementById('import-folder-help');
+            if (importFolderHelp) importFolderHelp.href = helpDocUrl('import');
+            await this.importFolders.load();
             await this.loadAdminSettings();
         } catch (error) {
             console.error('Error loading settings:', error);
@@ -280,21 +286,21 @@ export default class SettingsModule {
     }
 
     /**
-     * "Browse…" next to the receipts folder opens Nextcloud's own folder
+     * "Browse…" next to a folder setting opens Nextcloud's own folder
      * picker, so the path never has to be typed (#352). The picker returns
      * an absolute Files path; the setting is stored relative to the root.
      * Bound once — this view's DOM is permanent.
      */
-    setupReceiptFolderPicker() {
-        const btn = document.getElementById('setting-receipt-folder-browse');
-        const input = document.getElementById('setting-receipt-folder');
+    setupFolderPicker(buttonId, inputId, title, fallback) {
+        const btn = document.getElementById(buttonId);
+        const input = document.getElementById(inputId);
         if (!btn || !input || btn.dataset.bound) return;
         btn.dataset.bound = '1';
 
         btn.addEventListener('click', () => {
-            const current = input.value.trim() || 'Budget/Receipts';
+            const current = input.value.trim() || fallback;
             OC.dialogs.filepicker(
-                t('budget', 'Select receipts folder'),
+                title,
                 (path) => {
                     input.value = String(path || '').replace(/^\/+|\/+$/g, '');
                     // Setting the value from script fires no change event, and
@@ -308,6 +314,14 @@ export default class SettingsModule {
                 '/' + current
             );
         });
+    }
+
+    setupReceiptFolderPicker() {
+        this.setupFolderPicker('setting-receipt-folder-browse', 'setting-receipt-folder', t('budget', 'Select receipts folder'), 'Budget/Receipts');
+    }
+
+    setupImportFolderPicker() {
+        this.setupFolderPicker('setting-import-folder-browse', 'setting-import-folder', t('budget', 'Select import folder'), 'Budget/Import');
     }
 
     /**
