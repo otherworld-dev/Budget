@@ -65,6 +65,9 @@ class ImportFolderService {
 
 	private const MAX_NAME_LENGTH = 100;
 
+	/** Waiting files listed at once; more than this is a backlog to work through */
+	public const REVIEW_LIST_LIMIT = 100;
+
 	/** A file changed this recently may still be uploading */
 	private const SETTLE_SECONDS = 120;
 
@@ -247,6 +250,145 @@ class ImportFolderService {
 			}
 		}
 		return $summary;
+	}
+
+	/**
+	 * The files waiting in the user's Review folders, oldest first.
+	 *
+	 * @return list<array{fileId: int, name: string, size: int, modified: int, folderId: int, folderName: string, accountId: int, templateId: ?int}>
+	 */
+	public function listReview(string $userId): array {
+		$waiting = $this->waiting($userId);
+		usort($waiting, static fn (array $a, array $b): int => $a['file']->getMTime() <=> $b['file']->getMTime());
+
+		$list = [];
+		foreach (array_slice($waiting, 0, self::REVIEW_LIST_LIMIT) as ['file' => $file, 'row' => $row]) {
+			$list[] = [
+				'fileId' => (int)$file->getId(),
+				'name' => $file->getName(),
+				'size' => (int)$file->getSize(),
+				'modified' => (int)$file->getMTime(),
+				'folderId' => (int)$row->getId(),
+				'folderName' => (string)$row->getName(),
+				'accountId' => (int)$row->getAccountId(),
+				'templateId' => $row->getTemplateId(),
+			];
+		}
+		return $list;
+	}
+
+	/**
+	 * Read a waiting file in as an upload, for the import wizard. The file
+	 * stays where it is until finishReview().
+	 *
+	 * @return array<string, mixed> The upload response, plus 'review': the
+	 *         file and the folder it belongs to
+	 * @throws DoesNotExistException If the file is not one of the user's waiting files
+	 * @throws \InvalidArgumentException|ValidationException With a message for the user
+	 */
+	public function openReview(string $userId, int $fileId): array {
+		['file' => $file, 'row' => $row] = $this->waitingFile($userId, $fileId);
+		try {
+			['content' => $content, 'extension' => $extension] = $this->statementBytes($file);
+			$upload = $this->upload($userId, $file->getName(), $extension, $content);
+		} catch (ImportFolderFailure $e) {
+			throw new \InvalidArgumentException(match ($e->reason) {
+				'unsupported_type' => $this->l->t('This type of file cannot be imported.'),
+				'too_large' => $this->l->t('The file is larger than 10 MB.'),
+				'empty' => $this->l->t('The file is empty.'),
+				default => (string)($e->details['message'] ?? $this->l->t('The file could not be read.')),
+			}, 0, $e);
+		}
+
+		return $upload + ['review' => [
+			'fileId' => $fileId,
+			'folderId' => (int)$row->getId(),
+			'accountId' => (int)$row->getAccountId(),
+			'templateId' => $row->getTemplateId(),
+		]];
+	}
+
+	/**
+	 * Move a waiting file out of Review: to Imported once the wizard has
+	 * imported it, or to Skipped. The caller is trusted that the import
+	 * happened: a wrong call only files one of the user's own statements
+	 * under Imported, which they could do by dragging it there.
+	 *
+	 * @param 'imported'|'skipped' $outcome
+	 * @throws DoesNotExistException If the file is not one of the user's waiting files
+	 * @throws \InvalidArgumentException With a message for the user
+	 */
+	public function finishReview(string $userId, int $fileId, string $outcome): void {
+		$target = match ($outcome) {
+			'imported' => self::IMPORTED_FOLDER,
+			'skipped' => self::SKIPPED_FOLDER,
+			default => throw new \InvalidArgumentException($this->l->t('A waiting file is either imported or skipped.')),
+		};
+		['file' => $file, 'folder' => $folder] = $this->waitingFile($userId, $fileId);
+
+		if (!$this->moveInto($userId, $folder, $file, $target)) {
+			throw new \InvalidArgumentException($this->l->t('The file could not be moved. Move it out of the Review folder yourself.'));
+		}
+	}
+
+	/**
+	 * @return array{file: File, row: ImportFolder, folder: Folder}
+	 * @throws DoesNotExistException
+	 */
+	private function waitingFile(string $userId, int $fileId): array {
+		foreach ($this->waiting($userId) as $entry) {
+			if ((int)$entry['file']->getId() === $fileId) {
+				return $entry;
+			}
+		}
+		throw new DoesNotExistException('Not a waiting file');
+	}
+
+	/**
+	 * Every file in the Review folder of one of the user's subfolders, with
+	 * the row and subfolder it belongs to. Whatever the row's mode or state:
+	 * a folder switched to automatic, or switched off, still has what it
+	 * held. Nothing is created on the way, and only what is the user's own
+	 * is looked at.
+	 *
+	 * @return list<array{file: File, row: ImportFolder, folder: Folder}>
+	 */
+	private function waiting(string $userId): array {
+		$main = $this->rootFolder->getUserFolder($userId);
+		foreach (explode('/', $this->mainFolderFor($userId)) as $segment) {
+			$main = $this->existingFolder($main, $segment, $userId);
+			if ($main === null) {
+				return [];
+			}
+		}
+
+		$waiting = [];
+		foreach ($this->mapper->findAll($userId) as $row) {
+			try {
+				$folder = $this->existingFolder($main, (string)$row->getName(), $userId);
+				$review = $folder === null ? null : $this->existingFolder($folder, self::REVIEW_FOLDER, $userId);
+				if ($folder === null || $review === null) {
+					continue;
+				}
+				foreach ($review->getDirectoryListing() as $node) {
+					if ($node instanceof File && $this->isOwn($node, $userId)) {
+						$waiting[] = ['file' => $node, 'row' => $row, 'folder' => $folder];
+					}
+				}
+			} catch (\Throwable $e) {
+				$this->logger->warning("Budget import folder: {$row->getName()}'s waiting files could not be listed for {$userId}: " . $e->getMessage(), ['app' => Application::APP_ID]);
+			}
+		}
+		return $waiting;
+	}
+
+	/** A folder that is already there and the user's own, or null. Never creates one. */
+	private function existingFolder(Folder $parent, string $name, string $userId): ?Folder {
+		if (!$parent->nodeExists($name)) {
+			return null;
+		}
+		$node = $parent->get($name);
+		return $node instanceof Folder && $this->isOwn($node, $userId) ? $node : null;
 	}
 
 	/**

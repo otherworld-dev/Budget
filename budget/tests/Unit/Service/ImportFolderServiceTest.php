@@ -996,4 +996,117 @@ class ImportFolderServiceTest extends TestCase {
 		$this->expectException(\InvalidArgumentException::class);
 		$this->service->update('alice', 1, ['mode' => '']);
 	}
+
+	// ── waiting files ───────────────────────────────────────────────
+
+	public function testListsWhatIsWaitingOldestFirst(): void {
+		$this->rows = [$this->row(1, 'Conto', 3, 5, mode: 'review'), $this->row(2, 'Carta', 3, null, false)];
+		$this->fileIn($this->at('Budget/Import/Conto/Review'), 'ottobre.csv', 11, 300, 230);
+		$this->fileIn($this->at('Budget/Import/Conto/Review'), 'settembre.csv', 12, 900, 150);
+		// A switched-off folder's waiting files are still the user's to deal with
+		$this->fileIn($this->at('Budget/Import/Carta/Review'), 'carta.ofx', 13, 600, 80);
+		// Not waiting: still in the folder itself, or already dealt with
+		$this->fileIn($this->at('Budget/Import/Conto'), 'nuovo.csv', 14);
+		$this->fileIn($this->at('Budget/Import/Conto/Imported'), 'agosto.csv', 15);
+
+		$this->assertSame([
+			['fileId' => 12, 'name' => 'settembre.csv', 'size' => 150, 'modified' => self::NOW - 900, 'folderId' => 1, 'folderName' => 'Conto', 'accountId' => 3, 'templateId' => 5],
+			['fileId' => 13, 'name' => 'carta.ofx', 'size' => 80, 'modified' => self::NOW - 600, 'folderId' => 2, 'folderName' => 'Carta', 'accountId' => 3, 'templateId' => null],
+			['fileId' => 11, 'name' => 'ottobre.csv', 'size' => 230, 'modified' => self::NOW - 300, 'folderId' => 1, 'folderName' => 'Conto', 'accountId' => 3, 'templateId' => 5],
+		], $this->service->listReview('alice'));
+	}
+
+	public function testListingCreatesNothingAndSkipsWhatIsNotTheUsersOwn(): void {
+		$this->rows = [$this->row(1, 'Never made'), $this->row(2, 'Conto'), $this->row(3, 'Theirs')];
+		$this->fileIn($this->at('Budget/Import/Conto/Review'), 'planted.csv', 1, owner: 'mallory');
+		$this->fileIn($this->at('Budget/Import/Theirs/Review'), 'x.csv', 2);
+		$this->sharedWithAlice = ['/alice/files/Budget/Import/Theirs'];
+
+		$this->assertSame([], $this->service->listReview('alice'));
+		$this->assertFalse($this->at('Budget/Import')->nodeExists('Never made'));
+	}
+
+	public function testAWaitingFileWhoseFolderRowIsGoneIsNotListed(): void {
+		$this->fileIn($this->at('Budget/Import/Conto/Review'), 'ottobre.csv', 11);
+		$this->rows = [];
+
+		$this->assertSame([], $this->service->listReview('alice'));
+	}
+
+	public function testOpeningAWaitingFileGivesTheUploadResponseAndWhereItBelongs(): void {
+		$this->rows = [$this->row(1, 'Conto', 3, 5, mode: 'review')];
+		$file = $this->fileIn($this->at('Budget/Import/Conto/Review'), 'ottobre.csv', 11);
+		$this->importService->expects($this->once())->method('processUpload')
+			->with('alice', $this->callback(fn (array $upload) => $upload['name'] === 'ottobre.csv' && $upload['size'] === strlen(self::CSV)))
+			->willReturn(['fileId' => 'import_alice_abc.csv', 'format' => 'csv', 'columns' => ['Data', 'Descrizione', 'Importo']]);
+
+		$this->assertSame([
+			'fileId' => 'import_alice_abc.csv',
+			'format' => 'csv',
+			'columns' => ['Data', 'Descrizione', 'Importo'],
+			'review' => ['fileId' => 11, 'folderId' => 1, 'accountId' => 3, 'templateId' => 5],
+		], $this->service->openReview('alice', 11));
+		$this->assertNull($this->whereItWent($file));
+	}
+
+	public function testOnlyAWaitingFileCanBeOpened(): void {
+		$this->rows = [$this->row(1, 'Conto', 3, 5)];
+		// In the folder itself, not in Review: the background's to handle
+		$this->fileIn($this->at('Budget/Import/Conto'), 'nuovo.csv', 14);
+		$this->importService->expects($this->never())->method('processUpload');
+
+		$this->expectException(DoesNotExistException::class);
+		$this->service->openReview('alice', 14);
+	}
+
+	public function testAWaitingFileThatCannotBeReadSaysWhy(): void {
+		$this->rows = [$this->row(1, 'Conto')];
+		$this->fileIn($this->at('Budget/Import/Conto/Review'), 'vuoto.csv', 11, content: '');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('The file is empty.');
+		$this->service->openReview('alice', 11);
+	}
+
+	public function testFinishingMovesTheFileToImportedOrSkipped(): void {
+		$this->rows = [$this->row(1, 'Conto')];
+		$imported = $this->fileIn($this->at('Budget/Import/Conto/Review'), 'ottobre.csv', 11);
+		$skipped = $this->fileIn($this->at('Budget/Import/Conto/Review'), 'doppio.csv', 12);
+
+		$this->service->finishReview('alice', 11, 'imported');
+		$this->service->finishReview('alice', 12, 'skipped');
+
+		$this->assertSame('/alice/files/Budget/Import/Conto/Imported/ottobre.csv', $this->whereItWent($imported));
+		$this->assertSame('/alice/files/Budget/Import/Conto/Skipped/doppio.csv', $this->whereItWent($skipped));
+	}
+
+	public function testFinishingAFileThatIsNoLongerWaitingSaysSo(): void {
+		// The second of two tabs that both had it open
+		$this->rows = [$this->row(1, 'Conto')];
+		$this->at('Budget/Import/Conto/Review');
+
+		$this->expectException(DoesNotExistException::class);
+		$this->service->finishReview('alice', 11, 'imported');
+	}
+
+	public function testFinishingTakesOnlyTheTwoOutcomes(): void {
+		$this->rows = [$this->row(1, 'Conto')];
+		$file = $this->fileIn($this->at('Budget/Import/Conto/Review'), 'ottobre.csv', 11);
+
+		try {
+			$this->service->finishReview('alice', 11, 'deleted');
+			$this->fail('Accepted an unknown outcome');
+		} catch (\InvalidArgumentException) {
+			$this->assertNull($this->whereItWent($file));
+		}
+	}
+
+	public function testAFileThatCannotBeMovedOutOfReviewSaysSo(): void {
+		$this->rows = [$this->row(1, 'Conto')];
+		$this->fileIn($this->at('Budget/Import/Conto/Review'), 'ottobre.csv', 11, movable: false);
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('could not be moved');
+		$this->service->finishReview('alice', 11, 'imported');
+	}
 }
