@@ -11,6 +11,7 @@ import { groupImportErrors } from '../../utils/helpers.js';
 import { apiFetch, ApiError } from '../../utils/api.js';
 import { importTargetAccounts, accountCurrency } from '../../utils/accounts.js';
 import MultiSelect from '../../utils/multiselect.js';
+import ReviewQueue from './ReviewQueue.js';
 
 /**
  * The free-text targets. Each can be fed from several source columns at once
@@ -139,6 +140,12 @@ export default class ImportModule {
 
         // Multiselect component instances
         this.multiSelects = {};
+
+        // Statements an import folder is holding for review (#425)
+        this.reviewQueue = new ReviewQueue({
+            getAccounts: () => this.accounts,
+            openInWizard: (upload) => this.openReviewedFile(upload),
+        });
     }
 
     // ============================================
@@ -193,6 +200,32 @@ export default class ImportModule {
     // ============================================
     // Import Module Methods
     // ============================================
+
+    /**
+     * Open a file an import folder was holding for review (#425): the wizard
+     * starts as for an upload, with the folder's template chosen. The
+     * `review` block stays on currentImportData so the account can be
+     * preselected and the file moved once it is imported.
+     */
+    async openReviewedFile(upload) {
+        await this.showImportMapping(upload);
+
+        const templateId = upload?.review?.templateId;
+        const select = document.getElementById('import-preset');
+        const value = `template:${templateId}`;
+        // Only when the template is still there; otherwise the wizard is
+        // left unmapped, as for any upload
+        if (upload?.format === 'csv' && templateId && select && [...select.options].some(o => o.value === value)) {
+            select.value = value;
+            await this.onImportFormatChange(value);
+        }
+    }
+
+    /** Move a reviewed file out of its Review folder once it has been imported. */
+    async finishReviewedFile(review) {
+        if (!review?.fileId) return;
+        await this.reviewQueue.finish(review.fileId, 'imported');
+    }
 
     async handleImportFile(file) {
         const formData = new FormData();
@@ -2129,8 +2162,11 @@ export default class ImportModule {
             option.textContent = `${account.name} (${account.type}${accountNum})`;
             select.appendChild(option);
         });
-        if ([...select.options].some(o => o.value === current)) {
-            select.value = current;
+        // A file opened from an import folder goes to that folder's account
+        // unless something else was picked (#425)
+        const preferred = current || String(this.currentImportData?.review?.accountId ?? '');
+        if ([...select.options].some(o => o.value === preferred)) {
+            select.value = preferred;
         }
         const label = document.querySelector('label[for="import-account"]');
         if (label) {
@@ -2540,7 +2576,9 @@ export default class ImportModule {
             if (result.categoriesCreated && result.categoriesCreated > 0) {
                 showInfo(n('budget', 'Import complete. %n category created — it may take a moment to appear.', 'Import complete. %n categories created — they may take a moment to appear.', result.categoriesCreated));
             }
+            const review = this.currentImportData?.review;
             this.resetImportWizard();
+            await this.finishReviewedFile(review);
             this.loadTransactions();
             this.app.loadAccounts();
 

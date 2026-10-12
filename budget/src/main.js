@@ -1618,6 +1618,8 @@ class BudgetApp {
             this._importListenersBound = true;
             importModule.setupImportEventListeners();
         }
+        // What import folders are holding for review, each time the page is opened (#425)
+        importModule.reviewQueue.load();
     }
 
     async handleImportFile(file) {

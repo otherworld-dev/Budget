@@ -2290,6 +2290,12 @@ style('budget', 'budget-app');
                             <p><?php p($l->t('Choose your bank statement file (CSV, Excel, OFX, QIF, or camt.053 XML format)')); ?></p>
                         </div>
 
+                        <div class="import-review-queue" id="import-review-queue" hidden>
+                            <h4><?php p($l->t('Waiting for review')); ?></h4>
+                            <p class="settings-description"><?php p($l->t('Statements dropped into an import folder that holds its files for review. Review one to check it and import it, or skip it.')); ?></p>
+                            <ul id="import-review-list"></ul>
+                        </div>
+
                         <div class="import-dropzone" id="import-dropzone">
                             <span class="icon-upload"></span>
                             <p><?php p($l->t('Drag and drop your bank statement here')); ?></p>

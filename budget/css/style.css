@@ -9268,6 +9268,15 @@ button.danger:hover {
     .import-folders-table td { padding: 0; }
 }
 
+/* Files waiting for review on the Import page (#425) */
+.import-review-queue { margin: 0 0 20px; padding: 12px 16px; border: 1px solid var(--color-border); border-radius: var(--border-radius-large); }
+.import-review-queue h4 { margin: 0 0 4px; }
+.import-review-queue ul { margin: 8px 0 0; padding: 0; list-style: none; }
+.import-review-queue li { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 0; border-top: 1px solid var(--color-border); }
+.import-review-queue .import-review-file { flex: 1 1 220px; min-width: 0; }
+.import-review-queue .import-review-file strong { display: block; overflow-wrap: anywhere; }
+.import-review-queue .import-review-file span { color: var(--color-text-maxcontrast); }
+
 /* Support-the-project buttons on the Help & Docs view */
 .help-support-buttons {
     display: flex;
