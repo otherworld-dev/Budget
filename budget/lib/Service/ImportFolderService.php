@@ -182,7 +182,7 @@ class ImportFolderService {
 	 * Import what is waiting in the user's switched-on folders.
 	 *
 	 * @return array{imported: int, failed: int, waiting: int} Files, not transactions:
-	 *         waiting ones are still uploading or over this run's limit
+	 *                                                         waiting ones are still uploading or over this run's limit
 	 */
 	public function check(string $userId, int $limit = self::FILES_PER_RUN): array {
 		$summary = ['imported' => 0, 'failed' => 0, 'waiting' => 0];
@@ -390,7 +390,7 @@ class ImportFolderService {
 			throw new ImportFolderFailure('no_template');
 		}
 		$stored = $template->getParsedMapping();
-		$delimiter = (string)($template->getDelimiter() ?: ',');
+		$delimiter = $template->getDelimiter() ?: ',';
 		if ($delimiter === '\\t') {
 			$delimiter = "\t";
 		}

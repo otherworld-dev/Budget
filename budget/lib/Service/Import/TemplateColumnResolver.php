@@ -27,12 +27,12 @@ final class TemplateColumnResolver {
 
 	/**
 	 * @param array<string, mixed> $templateMapping The template's stored mapping
-	 * @param list<string> $headers The file's header row (blank cells for a file without one)
+	 * @param array<array-key, string> $headers The file's header row (blank cells for a file without one)
 	 * @param list<string> $columnLabelFormats "Column: {number}" in each language a
 	 *                                         template may have been saved in
 	 * @return array{mapping: array<string, mixed>, missing: list<string>}
-	 *         mapping: field => column index (as a string) or a list of them;
-	 *         missing: what the template calls each required column the file lacks
+	 *                                                                     mapping: field => column index (as a string) or a list of them;
+	 *                                                                     missing: what the template calls each required column the file lacks
 	 */
 	public function resolve(array $templateMapping, array $headers, array $columnLabelFormats = ['Column: {number}']): array {
 		// A statement has a handful of columns; one line of separators can
@@ -104,7 +104,7 @@ final class TemplateColumnResolver {
 	private function labels(array $headers, string $format): array {
 		$labels = [];
 		$seen = [];
-		foreach (array_values($headers) as $i => $header) {
+		foreach ($headers as $i => $header) {
 			$candidate = trim((string)$header);
 			if ($candidate === '' || isset($seen[$candidate])) {
 				$base = str_replace('{number}', (string)($i + 1), $format);
