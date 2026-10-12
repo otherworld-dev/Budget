@@ -40,6 +40,7 @@ final class DataModel {
 		'budget_forecasts' => 'user_id',
 		'budget_idem_keys' => 'user_id',
 		'budget_imp_links' => 'user_id',
+		'budget_import_folders' => 'user_id',
 		'budget_import_rules' => 'user_id',
 		'budget_import_templates' => 'user_id',
 		'budget_interest_rates' => 'user_id',
@@ -108,5 +109,6 @@ final class DataModel {
 		'budget_imp_links' => ['budget_account_id' => 'budget_accounts'],
 		'budget_bam' => ['budget_account_id' => 'budget_accounts'],
 		'budget_import_templates' => ['account_id' => 'budget_accounts'],
+		'budget_import_folders' => ['account_id' => 'budget_accounts', 'template_id' => 'budget_import_templates'],
 	];
 }
