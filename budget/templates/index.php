@@ -4634,7 +4634,7 @@ style('budget', 'budget-app');
                 <!-- Import folder Section (#425) -->
                 <div class="settings-section" id="settings-import-folder">
                     <h3><?php p($l->t('Import folder')); ?></h3>
-                    <p class="settings-description"><?php p($l->t('A statement dropped into one of the subfolders below is imported in the background, into the account and with the import template you choose for it. The file is then moved into an Imported or Failed folder beside it, and you get a notification. If you share a subfolder, the people you share it with can add statements to it, and so transactions to that account.')); ?> <a id="import-folder-help" target="_blank" rel="noopener noreferrer"><?php p($l->t('How it works')); ?></a></p>
+                    <p class="settings-description"><?php p($l->t('A statement dropped into one of the subfolders below is imported in the background, into the account and with the import template you choose for it. The file is then moved into an Imported or Failed folder beside it, and you get a notification. A subfolder set to hold its files for review keeps each one until you have looked at it on the Import page. If you share a subfolder, the people you share it with can add statements to it, and so transactions to that account.')); ?> <a id="import-folder-help" target="_blank" rel="noopener noreferrer"><?php p($l->t('How it works')); ?></a></p>
                     <div class="settings-group">
                         <div class="setting-item">
                             <label for="setting-import-folder"><?php p($l->t('Import folder')); ?></label>
@@ -4654,6 +4654,7 @@ style('budget', 'budget-app');
                                 <th scope="col"><?php p($l->t('Subfolder')); ?></th>
                                 <th scope="col"><?php p($l->t('Account')); ?></th>
                                 <th scope="col"><?php p($l->t('Import template')); ?></th>
+                                <th scope="col"><?php p($l->t('When a file arrives')); ?></th>
                                 <th scope="col"><?php p($l->t('On')); ?></th>
                                 <th scope="col"><span class="hidden-visually"><?php p($l->t('Actions')); ?></span></th>
                             </tr>
@@ -4665,6 +4666,10 @@ style('budget', 'budget-app');
                         <input type="text" id="import-folder-name" maxlength="100" required placeholder="<?php p($l->t('Subfolder name')); ?>" aria-label="<?php p($l->t('Subfolder name')); ?>">
                         <select id="import-folder-account" required aria-label="<?php p($l->t('Account')); ?>"></select>
                         <select id="import-folder-template" aria-label="<?php p($l->t('Import template')); ?>"></select>
+                        <select id="import-folder-mode" aria-label="<?php p($l->t('When a file arrives')); ?>">
+                            <option value="auto"><?php p($l->t('Import automatically')); ?></option>
+                            <option value="review"><?php p($l->t('Hold for review')); ?></option>
+                        </select>
                         <button type="submit" class="primary"><?php p($l->t('Add subfolder')); ?></button>
                     </form>
                     <div class="import-folders-check">

@@ -64,6 +64,15 @@ export default class ImportFolders {
         if (selected !== undefined && selected !== null) select.value = String(selected);
     }
 
+    /** Import a new file straight away, or hold it until it has been looked at. */
+    modeOptions(select, selected) {
+        select.replaceChildren(
+            new Option(t('budget', 'Import automatically'), 'auto'),
+            new Option(t('budget', 'Hold for review'), 'review')
+        );
+        select.value = selected === 'review' ? 'review' : 'auto';
+    }
+
     templateOptions(select, selected) {
         select.replaceChildren(
             new Option(t('budget', 'None (OFX, QIF and camt files only)'), ''),
@@ -108,6 +117,11 @@ export default class ImportFolders {
         template.setAttribute('aria-label', t('budget', 'Import template for {folder}', { folder: folder.name }, undefined, { escape: false }));
         this.templateOptions(template, folder.templateId);
 
+        const mode = document.createElement('select');
+        mode.dataset.field = 'mode';
+        mode.setAttribute('aria-label', t('budget', 'When a file arrives in {folder}', { folder: folder.name }, undefined, { escape: false }));
+        this.modeOptions(mode, folder.mode);
+
         const enabled = document.createElement('input');
         enabled.type = 'checkbox';
         enabled.dataset.field = 'enabled';
@@ -120,7 +134,7 @@ export default class ImportFolders {
         remove.setAttribute('aria-label', t('budget', 'Remove {folder}', { folder: folder.name }, undefined, { escape: false }));
         remove.title = t('budget', 'Remove');
 
-        for (const control of [name, account, template, enabled, remove]) {
+        for (const control of [name, account, template, mode, enabled, remove]) {
             if (control === name) {
                 tr.append(control);
             } else {
@@ -165,6 +179,7 @@ export default class ImportFolders {
         const name = document.getElementById('import-folder-name');
         const account = document.getElementById('import-folder-account');
         const template = document.getElementById('import-folder-template');
+        const mode = document.getElementById('import-folder-mode');
         try {
             const folder = await apiFetch(API, {
                 method: 'POST',
@@ -172,6 +187,7 @@ export default class ImportFolders {
                     name: name.value.trim(),
                     accountId: Number(account.value),
                     templateId: template.value === '' ? null : Number(template.value),
+                    mode: mode?.value === 'review' ? 'review' : 'auto',
                 },
                 errorMessage: t('budget', 'Failed to add the import folder'),
             });
@@ -186,9 +202,14 @@ export default class ImportFolders {
 
     async save(id, control) {
         const field = control.dataset.field;
-        const value = field === 'enabled'
-            ? control.checked
-            : (control.value === '' ? null : Number(control.value));
+        let value;
+        if (field === 'enabled') {
+            value = control.checked;
+        } else if (field === 'mode') {
+            value = control.value;
+        } else {
+            value = control.value === '' ? null : Number(control.value);
+        }
         try {
             const saved = await apiFetch(`${API}/${id}`, {
                 method: 'PUT',
@@ -238,9 +259,10 @@ export default class ImportFolders {
         }
     }
 
-    summary({ imported = 0, failed = 0, waiting = 0 }) {
+    summary({ imported = 0, failed = 0, waiting = 0, review = 0 }) {
         const parts = [];
         if (imported > 0) parts.push(n('budget', '%n file imported', '%n files imported', imported));
+        if (review > 0) parts.push(n('budget', '%n file ready to review', '%n files ready to review', review));
         if (failed > 0) parts.push(n('budget', '%n file could not be imported', '%n files could not be imported', failed));
         if (waiting > 0) parts.push(n('budget', '%n file still uploading or waiting its turn', '%n files still uploading or waiting their turn', waiting));
         return parts.length ? parts.join(', ') : t('budget', 'Nothing to import');

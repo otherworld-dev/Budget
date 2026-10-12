@@ -74,6 +74,7 @@ beforeEach(() => {
             <input id="import-folder-name">
             <select id="import-folder-account"></select>
             <select id="import-folder-template"></select>
+            <select id="import-folder-mode"><option value="auto">Import automatically</option><option value="review">Hold for review</option></select>
             <button type="submit">Add</button>
         </form>
         <button id="import-folders-check"></button><span id="import-folders-status"></span>`;
@@ -122,7 +123,7 @@ describe('ImportFolders', () => {
         document.getElementById('import-folder-add').dispatchEvent(new Event('submit', { cancelable: true }));
         await tick();
 
-        expect(calls('POST')[0][1].body).toEqual({ name: 'Carta', accountId: 4, templateId: null });
+        expect(calls('POST')[0][1].body).toEqual({ name: 'Carta', accountId: 4, templateId: null, mode: 'auto' });
         expect(document.querySelectorAll('#import-folders-list tr')).toHaveLength(2);
         expect(document.getElementById('import-folder-name').value).toBe('');
     });
@@ -232,5 +233,45 @@ describe('ImportFolders', () => {
         await tick();
 
         expect(document.getElementById('import-folders-status').textContent).toBe('Nothing to import');
+    });
+
+    it('shows and saves how each subfolder treats a new file', async () => {
+        givenApi({
+            'GET /apps/budget/api/import-folders': { folder: 'Budget/Import', folders: [{ ...FOLDER, mode: 'review' }] },
+            'PUT /apps/budget/api/import-folders/1': { ...FOLDER, mode: 'auto' },
+        });
+        await section().load();
+        const select = document.querySelector('#import-folders-list select[data-field="mode"]');
+        expect(select.value).toBe('review');
+        expect([...select.options].map(o => o.textContent)).toEqual(['Import automatically', 'Hold for review']);
+
+        select.value = 'auto';
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        await tick();
+
+        expect(calls('PUT')[0][1].body).toEqual({ mode: 'auto' });
+    });
+
+    it('adds a subfolder that holds its files for review', async () => {
+        givenApi({ 'POST /apps/budget/api/import-folders': { ...FOLDER, id: 2, name: 'Carta', mode: 'review' } });
+        await section().load();
+        document.getElementById('import-folder-name').value = 'Carta';
+        document.getElementById('import-folder-mode').value = 'review';
+
+        document.getElementById('import-folder-add').dispatchEvent(new Event('submit', { cancelable: true }));
+        await tick();
+
+        expect(calls('POST')[0][1].body.mode).toBe('review');
+    });
+
+    it('says how many files were held for review', async () => {
+        givenApi({ 'POST /apps/budget/api/import-folders/check': { imported: 1, failed: 0, waiting: 0, review: 2 } });
+        await section().load();
+
+        document.getElementById('import-folders-check').click();
+        await tick();
+        await tick();
+
+        expect(document.getElementById('import-folders-status').textContent).toBe('1 file imported, 2 files ready to review');
     });
 });
