@@ -855,13 +855,16 @@ class ImportFolderServiceTest extends TestCase {
 	public function testAFileThatIsNotWhatItsNameSaysGetsTheValidatorsOwnReason(): void {
 		// The checks an upload gets: their message, not "something went wrong"
 		$this->rows = [$this->row(1, 'Conto')];
-		$this->fileIn($this->at('Budget/Import/Conto'), 'estratto.ofx');
+		$this->fileIn($this->at('Budget/Import/Conto'), 'estratto.ofx', content: "Just a note, not a statement.\n");
 		$this->importService->expects($this->never())->method('processUpload');
 
 		$this->service->check('alice');
 
+		// Which check refuses it first (the file's type, or its content)
+		// depends on the PHP version's file-type detection; either way the
+		// user is given the validator's reason, naming the format
 		$this->assertSame('message', $this->sent[0][1]['reason']);
-		$this->assertStringContainsString('valid OFX file', $this->sent[0][1]['message']);
+		$this->assertMatchesRegularExpression('/ofx/i', $this->sent[0][1]['message']);
 	}
 
 	public function testOneFolderThatCannotBeListedDoesNotStopTheOthers(): void {
