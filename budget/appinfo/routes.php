@@ -163,6 +163,13 @@ return [
 		['name' => 'importTemplate#update', 'url' => '/api/import-templates/{id}', 'verb' => 'PUT'],
 		['name' => 'importTemplate#destroy', 'url' => '/api/import-templates/{id}', 'verb' => 'DELETE'],
 
+		// Import folders (#425): subfolders of the user's Files whose statements are imported in the background
+		['name' => 'importFolder#index', 'url' => '/api/import-folders', 'verb' => 'GET'],
+		['name' => 'importFolder#create', 'url' => '/api/import-folders', 'verb' => 'POST'],
+		['name' => 'importFolder#check', 'url' => '/api/import-folders/check', 'verb' => 'POST'],
+		['name' => 'importFolder#update', 'url' => '/api/import-folders/{id}', 'verb' => 'PUT'],
+		['name' => 'importFolder#destroy', 'url' => '/api/import-folders/{id}', 'verb' => 'DELETE'],
+
 		// Import rules routes (also used as general categorization rules)
 		['name' => 'importRule#index', 'url' => '/api/import-rules', 'verb' => 'GET'],
 		['name' => 'importRule#show', 'url' => '/api/import-rules/{id}', 'verb' => 'GET'],
