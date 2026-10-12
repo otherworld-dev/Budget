@@ -208,8 +208,8 @@ class ImportFolderService {
 	 * Import what is waiting in the user's switched-on folders.
 	 *
 	 * @return array{imported: int, failed: int, waiting: int, review: int} Files, not
-	 *         transactions: waiting ones are still uploading or over this run's
-	 *         limit, review ones were held for a look first
+	 *                                                                      transactions: waiting ones are still uploading or over this run's
+	 *                                                                      limit, review ones were held for a look first
 	 */
 	public function check(string $userId, int $limit = self::FILES_PER_RUN): array {
 		$summary = ['imported' => 0, 'failed' => 0, 'waiting' => 0, 'review' => 0];
@@ -282,7 +282,7 @@ class ImportFolderService {
 	 * stays where it is until finishReview().
 	 *
 	 * @return array<string, mixed> The upload response, plus 'review': the
-	 *         file and the folder it belongs to
+	 *                              file and the folder it belongs to
 	 * @throws DoesNotExistException If the file is not one of the user's waiting files
 	 * @throws \InvalidArgumentException|ValidationException With a message for the user
 	 */

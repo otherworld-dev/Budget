@@ -6,6 +6,7 @@ namespace OCA\Budget\Tests\Unit\Controller;
 
 use OCA\Budget\Controller\ImportFolderController;
 use OCA\Budget\Db\ImportFolder;
+use OCA\Budget\Exception\ValidationException;
 use OCA\Budget\Service\ImportFolderService;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
@@ -13,7 +14,6 @@ use OCP\IL10N;
 use OCP\IRequest;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
-use OCA\Budget\Exception\ValidationException;
 
 class ImportFolderControllerTest extends TestCase {
 	private ImportFolderController $controller;
