@@ -61,6 +61,13 @@ export default class ReviewQueue {
             ? t('budget', '{folder}, into {account}', { folder: file.folderName, account: account.name }, undefined, { escape: false })
             : file.folderName;
         text.append(name, where);
+        if (file.modified > 0) {
+            const date = new Date(file.modified * 1000);
+            const arrived = document.createElement('time');
+            arrived.dateTime = date.toISOString();
+            arrived.textContent = date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+            text.append(arrived);
+        }
 
         const review = document.createElement('button');
         review.type = 'button';

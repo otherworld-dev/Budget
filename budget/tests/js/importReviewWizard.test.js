@@ -43,7 +43,8 @@ const upload = (overrides = {}) => ({
 beforeEach(() => {
     document.body.innerHTML = `
         <select id="import-preset"><option value="">Custom</option><option value="template:5">Banca</option></select>
-        <label for="import-account"></label><select id="import-account"></select>`;
+        <label for="import-account"></label><select id="import-account"></select>
+        <input type="file" id="import-file-input">`;
 });
 
 describe('openReviewedFile', () => {
@@ -126,6 +127,123 @@ describe('arriving at the review step', () => {
     });
 });
 
+describe('one reviewed file after another', () => {
+    const ACCOUNTS = [{ id: 3, name: 'Conto Mario', type: 'checking' }, { id: 4, name: 'Carta', type: 'checking' }];
+
+    /** The wizard as the page has it: the account select outlives every reset. */
+    function wizard() {
+        document.body.innerHTML += `
+            <div id="single-account-selection"></div><div id="multi-account-mapping"></div>
+            <div id="account-mapping-list"></div>`;
+        apiFetch.mockResolvedValue(ACCOUNTS);
+        const mod = module();
+        mod.sourceAccounts = [];
+        mod.presets = [];
+        mod.getCurrentMapping = () => ({});
+        mod.processImportData = vi.fn();
+        mod.showImportMapping = vi.fn(async function (upload) {
+            this.currentImportData = { ...upload };
+            this.sourceAccounts = upload.sourceAccounts || [];
+        });
+        return mod;
+    }
+    const carta = () => upload({ review: { fileId: 12, folderId: 2, accountId: 4, templateId: 5 } });
+
+    it('goes to its own folder\'s account, not the account of the file reviewed before it', async () => {
+        const mod = wizard();
+        await mod.openReviewedFile(upload());
+        await mod.loadAccountsForImport();
+        expect(document.getElementById('import-account').value).toBe('3');
+
+        await mod.openReviewedFile(carta());
+        await mod.loadAccountsForImport();
+
+        expect(document.getElementById('import-account').value).toBe('4');
+    });
+
+    it('is not sent to an account left chosen by an earlier upload', async () => {
+        const mod = wizard();
+        mod.currentImportData = { fileId: 'import_alice_old.csv', format: 'csv' };
+        await mod.loadAccountsForImport();
+        document.getElementById('import-account').value = '3';
+
+        await mod.openReviewedFile(carta());
+        await mod.loadAccountsForImport();
+
+        expect(document.getElementById('import-account').value).toBe('4');
+    });
+
+    it('starts clean of the last file\'s template', async () => {
+        const mod = wizard();
+        mod.selectedTemplate = 5;
+        mod.pendingPreset = 'template:5';
+        await mod.openReviewedFile(upload({ review: { fileId: 12, folderId: 2, accountId: 4, templateId: null } }));
+
+        expect(mod.selectedTemplate).toBeNull();
+        expect(mod.pendingPreset).toBeNull();
+        expect(document.getElementById('import-preset').value).toBe('');
+        expect(mod.currentImportData.review.fileId).toBe(12);
+    });
+
+    it('keeps an account picked while reviewing when the step is opened again', async () => {
+        const mod = wizard();
+        await mod.openReviewedFile(carta());
+        await mod.loadAccountsForImport();
+        document.getElementById('import-account').value = '3';
+
+        await mod.loadAccountsForImport();
+
+        expect(document.getElementById('import-account').value).toBe('3');
+    });
+});
+
+describe('a reviewed file that names its own accounts (OFX, QIF, camt)', () => {
+    const ACCOUNTS = [{ id: 3, name: 'Conto Mario', type: 'checking' }, { id: 4, name: 'Carta', type: 'checking' }];
+    const SOURCES = [
+        { accountId: 'IT60X0542811101000000123456', suggestedMatch: null },
+        { accountId: 'IT60X0542811101000000654321', suggestedMatch: 3 },
+    ];
+
+    function atReviewStep(importData) {
+        document.body.innerHTML += `
+            <div id="single-account-selection"></div><div id="multi-account-mapping"></div>
+            <div id="account-mapping-list"></div>`;
+        apiFetch.mockResolvedValue(ACCOUNTS);
+        const mod = module();
+        mod.currentImportData = importData;
+        mod.sourceAccounts = SOURCES;
+        mod.presets = [];
+        mod.selectedPreset = null;
+        mod.getCurrentMapping = () => ({});
+        mod.renderRoutingTemplateBar = vi.fn();
+        mod.processImportData = vi.fn();
+        return mod;
+    }
+    const destinations = () => [...document.querySelectorAll('.destination-account-select')].map(s => s.value);
+
+    it('goes to the folder\'s account, whatever account the file names', async () => {
+        const mod = atReviewStep(upload({ format: 'ofx', review: { fileId: 12, folderId: 2, accountId: 4, templateId: null } }));
+        await mod.loadAccountsForImport();
+
+        expect(destinations()).toEqual(['4', '4']);
+        expect(mod.processImportData).toHaveBeenCalledTimes(1);
+    });
+
+    it('falls back to the suggested match when the folder\'s account cannot take an import', async () => {
+        const mod = atReviewStep(upload({ format: 'ofx', review: { fileId: 12, folderId: 2, accountId: 99, templateId: null } }));
+        await mod.loadAccountsForImport();
+
+        expect(destinations()).toEqual(['', '3']);
+    });
+
+    it('leaves an ordinary upload to the suggested match', async () => {
+        const mod = atReviewStep({ fileId: 'import_alice_abc.ofx', format: 'ofx' });
+        await mod.loadAccountsForImport();
+
+        expect(destinations()).toEqual(['', '3']);
+    });
+});
+
 describe('finishReviewedFile', () => {
     it('tells the queue the file was imported', async () => {
         const mod = module();
@@ -139,5 +257,58 @@ describe('finishReviewedFile', () => {
         await mod.finishReviewedFile(undefined);
 
         expect(mod.reviewQueue.finish).not.toHaveBeenCalled();
+    });
+});
+
+describe('importing a reviewed file', () => {
+    function readyToImport() {
+        document.body.innerHTML += '<button id="import-btn">Import</button>';
+        const select = document.getElementById('import-account');
+        select.innerHTML = '<option value=""></option><option value="3">Conto Mario</option>';
+        select.value = '3';
+        const mod = module();
+        mod.currentImportData = upload();
+        mod.sourceAccounts = [];
+        mod.presets = [];
+        mod.getCurrentMapping = () => ({ date: 0, amount: 1 });
+        mod.applyRulesChosen = () => true;
+        mod.showImportErrors = vi.fn();
+        mod.loadTransactions = vi.fn();
+        mod.autoMatchTransfers = vi.fn();
+        mod.app = { loadAccounts: vi.fn() };
+        mod.reviewQueue = { finish: vi.fn(() => Promise.resolve()), load: vi.fn(() => Promise.resolve()) };
+        return mod;
+    }
+    const serverSays = (result) => apiFetch.mockResolvedValue({ status: 200, text: () => Promise.resolve(JSON.stringify(result)) });
+
+    beforeEach(() => {
+        vi.spyOn(console, 'warn').mockImplementation(() => {});
+    });
+
+    it('files it under Imported once its rows are in', async () => {
+        serverSays({ imported: 2, skipped: 0, errors: [], transactionIds: [1, 2] });
+        const mod = readyToImport();
+        await mod.executeImport();
+
+        expect(mod.reviewQueue.finish).toHaveBeenCalledWith(11, 'imported');
+    });
+
+    it('files it under Imported when every row was there already', async () => {
+        serverSays({ imported: 0, skipped: 4, errors: [], transactionIds: [] });
+        const mod = readyToImport();
+        await mod.executeImport();
+
+        expect(mod.reviewQueue.finish).toHaveBeenCalledWith(11, 'imported');
+    });
+
+    it('leaves it waiting when no row could be imported', async () => {
+        // Filed under Imported it would look dealt with, and it is not
+        serverSays({ imported: 0, skipped: 0, errors: [{ row: 1, error: 'Invalid date' }], transactionIds: [] });
+        const mod = readyToImport();
+        await mod.executeImport();
+
+        expect(mod.reviewQueue.finish).not.toHaveBeenCalled();
+        expect(mod.reviewQueue.load).toHaveBeenCalled();
+        expect(mod.showImportErrors).toHaveBeenCalled();
     });
 });

@@ -9275,7 +9275,9 @@ button.danger:hover {
 .import-review-queue li { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 0; border-top: 1px solid var(--color-border); }
 .import-review-queue .import-review-file { flex: 1 1 220px; min-width: 0; }
 .import-review-queue .import-review-file strong { display: block; overflow-wrap: anywhere; }
-.import-review-queue .import-review-file span { color: var(--color-text-maxcontrast); }
+.import-review-queue .import-review-file span,
+.import-review-queue .import-review-file time { color: var(--color-text-maxcontrast); }
+.import-review-queue .import-review-file time { margin-inline-start: 8px; white-space: nowrap; }
 
 /* Support-the-project buttons on the Help & Docs view */
 .help-support-buttons {

@@ -208,6 +208,13 @@ export default class ImportModule {
      * preselected and the file moved once it is imported.
      */
     async openReviewedFile(upload) {
+        // Nothing of the file before it may reach this one. The account
+        // select is cleared as well: no reset touches it, and whatever was
+        // left chosen there would win over the folder's own account
+        this.resetImportWizard();
+        const account = document.getElementById('import-account');
+        if (account) account.value = '';
+
         await this.showImportMapping(upload);
 
         const templateId = upload?.review?.templateId;
@@ -221,9 +228,17 @@ export default class ImportModule {
         }
     }
 
-    /** Move a reviewed file out of its Review folder once it has been imported. */
-    async finishReviewedFile(review) {
+    /**
+     * Move a reviewed file out of its Review folder once it has been
+     * imported. When not one row went in and the server said why, it stays
+     * waiting: filed under Imported it would look dealt with.
+     */
+    async finishReviewedFile(review, result) {
         if (!review?.fileId) return;
+        if (!(result?.imported > 0) && result?.errors?.length > 0) {
+            await this.reviewQueue.load();
+            return;
+        }
         await this.reviewQueue.finish(review.fileId, 'imported');
     }
 
@@ -2232,6 +2247,12 @@ export default class ImportModule {
 
         container.innerHTML = '';
 
+        // A file opened from an import folder goes to that folder's account,
+        // whatever account the file itself names, as it would have done
+        // unreviewed (#425)
+        const targets = importTargetAccounts(accounts);
+        const folderAccount = targets.find(a => String(a.id) === String(this.currentImportData?.review?.accountId))?.id ?? null;
+
         this.sourceAccounts.forEach(sourceAccount => {
             const row = document.createElement('div');
             row.className = 'account-mapping-row';
@@ -2247,9 +2268,9 @@ export default class ImportModule {
             }
 
             // Build account options HTML with auto-match selection
-            const suggestedMatch = sourceAccount.suggestedMatch;
+            const suggestedMatch = folderAccount ?? sourceAccount.suggestedMatch;
             let optionsHtml = `<option value="">${t('budget', 'Skip this account')}</option>`;
-            importTargetAccounts(accounts).forEach(account => {
+            targets.forEach(account => {
                 const accountNum = account.accountNumber ? ` - ${account.accountNumber}` : '';
                 const selected = suggestedMatch === account.id ? ' selected' : '';
                 optionsHtml += `<option value="${account.id}"${selected}>${dom.escapeHtml(account.name)} (${account.type}${dom.escapeHtml(accountNum)})</option>`;
@@ -2584,7 +2605,7 @@ export default class ImportModule {
             }
             const review = this.currentImportData?.review;
             this.resetImportWizard();
-            await this.finishReviewedFile(review);
+            await this.finishReviewedFile(review, result);
             this.loadTransactions();
             this.app.loadAccounts();
 

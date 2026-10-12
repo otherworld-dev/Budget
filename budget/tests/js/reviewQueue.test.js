@@ -87,6 +87,18 @@ describe('ReviewQueue', () => {
         expect([...items[0].querySelectorAll('button')].map(b => b.textContent)).toEqual(['Review', 'Skip']);
     });
 
+    it('says when each file arrived', async () => {
+        givenApi({ 'GET /apps/budget/api/import-folders/review': [WAITING[0], { ...WAITING[1], modified: 0 }] });
+        await queue().load();
+
+        const items = [...document.querySelectorAll('#import-review-list li')];
+        const arrived = items[0].querySelector('time');
+        expect(arrived.getAttribute('datetime')).toBe(new Date(1791799700 * 1000).toISOString());
+        expect(arrived.textContent).toBe(new Date(1791799700 * 1000).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }));
+        // No time on record: nothing is made up
+        expect(items[1].querySelector('time')).toBeNull();
+    });
+
     it('opens a file in the wizard', async () => {
         const upload = { fileId: 'import_alice_abc.csv', format: 'csv', review: { fileId: 11, folderId: 1, accountId: 3, templateId: 5 } };
         givenApi({ 'POST /apps/budget/api/import-folders/review/11/open': upload });
