@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Service;
 
+use OCA\Budget\Db\ImportFolderMapper;
 use OCA\Budget\Db\ImportTemplate;
 use OCA\Budget\Db\ImportTemplateMapper;
 use OCA\Budget\Service\Import\EncodingNormalizer;
@@ -46,8 +47,20 @@ class ImportTemplateService extends AbstractCrudService {
 	 */
 	private const BOOLEAN_FIELDS = ['skipFirstRow', 'applyRules'];
 
-	public function __construct(ImportTemplateMapper $mapper) {
+	public function __construct(
+		ImportTemplateMapper $mapper,
+		private ?ImportFolderMapper $importFolderMapper = null,
+	) {
 		$this->mapper = $mapper;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	protected function beforeDelete(Entity $entity, string $userId): void {
+		// An import folder reads its CSV files with this template (#425); the
+		// folder in Files is left alone
+		$this->importFolderMapper?->deleteByTemplate($entity->getId());
 	}
 
 	/**

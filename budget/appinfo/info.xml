@@ -85,6 +85,7 @@ Full user documentation: https://budget.otherworld.dev/docs/
         <job>OCA\Budget\BackgroundJob\BankSyncJob</job>
         <job>OCA\Budget\BackgroundJob\DigestJob</job>
         <job>OCA\Budget\BackgroundJob\ScheduledReportJob</job>
+        <job>OCA\Budget\BackgroundJob\ImportFolderJob</job>
     </background-jobs>
     <repair-steps>
         <post-migration>

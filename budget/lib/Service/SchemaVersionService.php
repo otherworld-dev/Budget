@@ -89,6 +89,7 @@ class SchemaVersionService {
 		'budget_expense_shares' => \OCA\Budget\Db\ExpenseShare::class,
 		'budget_idem_keys' => \OCA\Budget\Db\IdempotencyKey::class,
 		'budget_imp_links' => \OCA\Budget\Db\ImportAccountLink::class,
+		'budget_import_folders' => \OCA\Budget\Db\ImportFolder::class,
 		'budget_import_rules' => \OCA\Budget\Db\ImportRule::class,
 		'budget_import_templates' => \OCA\Budget\Db\ImportTemplate::class,
 		'budget_interest_rates' => \OCA\Budget\Db\InterestRate::class,

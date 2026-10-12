@@ -24,6 +24,7 @@ class NotifierTest extends TestCase {
 	private array $richSubjectParams = [];
 	private string $richMessage = '';
 	private array $richMessageParams = [];
+	private string $parsedMessage = '';
 
 	protected function setUp(): void {
 		$l = $this->createMock(IL10N::class);
@@ -63,6 +64,11 @@ class NotifierTest extends TestCase {
 			->willReturnCallback(function (string $text, array $params = []) use ($notification) {
 				$this->richMessage = $text;
 				$this->richMessageParams = $params;
+				return $notification;
+			});
+		$notification->method('setParsedMessage')
+			->willReturnCallback(function (string $text) use ($notification) {
+				$this->parsedMessage = $text;
 				return $notification;
 			});
 		$notification->method($this->anything())->willReturnSelf();
@@ -243,5 +249,65 @@ class NotifierTest extends TestCase {
 		$this->expectException(\OCP\Notification\UnknownNotificationException::class);
 
 		$this->prepare('not_a_budget_subject', []);
+	}
+
+	// ── import folder (#425) ────────────────────────────────────────
+
+	private function importDone(array $overrides = []): array {
+		return $overrides + [
+			'fileId' => '100', 'fileName' => 'ottobre.csv', 'accountId' => '3', 'accountName' => 'Conto Mario',
+			'imported' => '12', 'skipped' => '0', 'errors' => '0',
+		];
+	}
+
+	public function testImportFolderDoneNamesTheFileAndTheAccount(): void {
+		$this->prepare('import_folder_done', $this->importDone());
+
+		$this->assertSame('{file} imported into {account}', $this->richSubject);
+		$this->assertSame('file', $this->richSubjectParams['file']['type']);
+		$this->assertSame('ottobre.csv', $this->richSubjectParams['file']['name']);
+		$this->assertSame('Conto Mario', $this->richSubjectParams['account']['name']);
+		$this->assertSame('12 transactions imported', $this->parsedMessage);
+	}
+
+	public function testImportFolderDoneCountsWhatWasSkippedAndWhatCouldNotBeRead(): void {
+		$this->prepare('import_folder_done', $this->importDone(['imported' => '1', 'skipped' => '3', 'errors' => '1']));
+
+		$this->assertSame('1 transaction imported, 3 already there or skipped, 1 row could not be read', $this->parsedMessage);
+	}
+
+	public function testImportFolderFailedGivesTheReasonAndWhereTheFileWent(): void {
+		$this->prepare('import_folder_failed', ['fileId' => '100', 'fileName' => 'ottobre.csv', 'reason' => 'columns_missing', 'columns' => 'Booking date, Amount', 'moved' => '1']);
+
+		$this->assertSame('{file} could not be imported', $this->richSubject);
+		$this->assertSame('These columns from the folder\'s template are not in the file: Booking date, Amount. It is in the Failed folder.', $this->parsedMessage);
+	}
+
+	public function testImportFolderFailedPassesOnAMessageWrittenForTheUserEvenWithBracesInIt(): void {
+		$this->prepare('import_folder_failed', ['fileId' => '100', 'fileName' => 'a.xlsx', 'reason' => 'message', 'message' => 'This {odd} spreadsheet could not be read.', 'moved' => '0']);
+
+		$this->assertSame('This {odd} spreadsheet could not be read.', $this->parsedMessage);
+	}
+
+	public function testEveryImportFolderFailureReasonHasItsOwnText(): void {
+		$texts = [];
+		foreach (['unsupported_type', 'too_large', 'empty', 'account_unavailable', 'no_template', 'nothing_read', 'wrong_direction', 'not_moved', 'error'] as $reason) {
+			$this->prepare('import_folder_failed', ['fileId' => '1', 'fileName' => 'a.csv', 'reason' => $reason, 'moved' => '0']);
+			$this->assertNotSame('', $this->parsedMessage, $reason);
+			$texts[$reason] = $this->parsedMessage;
+		}
+		$this->assertCount(9, array_unique($texts));
+	}
+
+	public function testAFileThatCouldNotBeMovedSaysWhetherItWasImported(): void {
+		$this->prepare('import_folder_failed', ['fileId' => '1', 'fileName' => 'a.csv', 'reason' => 'not_moved', 'moved' => '0', 'imported' => '1']);
+		$imported = $this->parsedMessage;
+		$this->prepare('import_folder_failed', ['fileId' => '1', 'fileName' => 'a.pdf', 'reason' => 'not_moved', 'moved' => '0', 'imported' => '0']);
+		$notImported = $this->parsedMessage;
+
+		$this->assertStringStartsWith('It was imported, but', $imported);
+		$this->assertStringStartsWith('It could not be moved', $notImported);
+		$this->assertStringContainsString('switched off', $imported);
+		$this->assertStringContainsString('switched off', $notImported);
 	}
 }

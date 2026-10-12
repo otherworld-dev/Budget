@@ -225,7 +225,7 @@ class SettingControllerTest extends TestCase {
 			// The Settings page
 			'anomaly_alerts_enabled', 'budget_alert_threshold', 'budget_period', 'budget_start_day', 'date_format',
 			'default_currency', 'digest_email_enabled', 'digest_enabled', 'digest_frequency', 'export_default_format',
-			'first_day_of_week', 'import_auto_apply_rules', 'notification_budget_alert',
+			'first_day_of_week', 'import_auto_apply_rules', 'import_folder', 'notification_budget_alert',
 			'notification_forecast_warning', 'number_format_decimal_sep', 'number_format_decimals',
 			'number_format_thousands_sep', 'receipt_folder', 'report_email_enabled', 'report_files_enabled',
 			// The dashboard
@@ -494,5 +494,33 @@ class SettingControllerTest extends TestCase {
 		$response = $this->controller->update();
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	// ── import_folder validation (#425) ─────────────────────────────
+
+	public function testTheImportFolderIsNormalisedLikeTheReceiptsFolder(): void {
+		$this->request->method('getParams')->willReturn(['import_folder' => chr(92) . 'Bank' . chr(92) . 'Statements' . chr(92)]);
+		$this->mapper->method('findByKey')->willThrowException(new DoesNotExistException('none'));
+		$stored = null;
+		$this->mapper->method('insert')->willReturnCallback(function (Setting $s) use (&$stored) {
+			$stored = $s->getValue();
+			return $s;
+		});
+
+		$response = $this->controller->update();
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame('Bank/Statements', $stored);
+	}
+
+	public function testAnImportFolderOutsideFilesIsRefused(): void {
+		$this->request->method('getParams')->willReturn(['import_folder' => '../elsewhere']);
+		$this->mapper->expects($this->never())->method('insert');
+		$this->mapper->expects($this->never())->method('update');
+
+		$response = $this->controller->update();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertStringContainsString('Invalid import folder', $response->getData()['error']);
 	}
 }

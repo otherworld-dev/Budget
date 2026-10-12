@@ -10,6 +10,7 @@ use OCA\Budget\Db\SettingMapper;
 use OCA\Budget\Enum\Currency;
 use OCA\Budget\Service\AttachmentService;
 use OCA\Budget\Service\GranularShareService;
+use OCA\Budget\Service\ImportFolderService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCA\Budget\Traits\SharedAccessTrait;
 use OCP\AppFramework\Controller;
@@ -50,6 +51,7 @@ class SettingController extends Controller {
 		'report_email_enabled' => 'false',
 		'import_auto_apply_rules' => 'true',
 		'receipt_folder' => AttachmentService::DEFAULT_RECEIPTS_FOLDER,
+		'import_folder' => ImportFolderService::DEFAULT_MAIN_FOLDER,
 		'export_default_format' => 'csv',
 		'budget_period' => 'monthly',
 		'budget_start_day' => '1',
@@ -190,6 +192,15 @@ class SettingController extends Controller {
 						$value = trim((string)$value) === '' ? '' : AttachmentService::normalizeReceiptsFolder((string)$value);
 					} catch (\InvalidArgumentException $e) {
 						return new DataResponse(['error' => $this->l->t('Invalid receipts folder: %1$s', [$e->getMessage()])], Http::STATUS_BAD_REQUEST);
+					}
+				}
+
+				// Import folder (#425): the same rules; blank = default
+				if ($key === ImportFolderService::MAIN_FOLDER_KEY) {
+					try {
+						$value = trim((string)$value) === '' ? '' : ImportFolderService::normalizeMainFolder((string)$value);
+					} catch (\InvalidArgumentException $e) {
+						return new DataResponse(['error' => $this->l->t('Invalid import folder: %1$s', [$e->getMessage()])], Http::STATUS_BAD_REQUEST);
 					}
 				}
 

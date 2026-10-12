@@ -4405,6 +4405,7 @@ style('budget', 'budget-app');
                 <button type="button" data-target="settings-number-format"><?php p($l->t('Number Format')); ?></button>
                 <button type="button" data-target="settings-notifications"><?php p($l->t('Notifications')); ?></button>
                 <button type="button" data-target="settings-receipts"><?php p($l->t('Receipts')); ?></button>
+                <button type="button" data-target="settings-import-folder"><?php p($l->t('Import folder')); ?></button>
                 <button type="button" data-target="settings-reports"><?php p($l->t('Scheduled Reports')); ?></button>
                 <button type="button" data-target="settings-import-export"><?php p($l->t('Import & Export')); ?></button>
                 <button type="button" data-target="settings-migration"><?php p($l->t('Data Migration')); ?></button>
@@ -4627,6 +4628,48 @@ style('budget', 'budget-app');
                             </div>
                             <small id="setting-receipt-folder-help" class="form-text"><?php p($l->t('A path inside your Files, for example Applications/Budget. Leave empty for the default, Budget/Receipts.')); ?></small>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Import folder Section (#425) -->
+                <div class="settings-section" id="settings-import-folder">
+                    <h3><?php p($l->t('Import folder')); ?></h3>
+                    <p class="settings-description"><?php p($l->t('A statement dropped into one of the subfolders below is imported in the background, into the account and with the import template you choose for it. The file is then moved into an Imported or Failed folder beside it, and you get a notification. If you share a subfolder, the people you share it with can add statements to it, and so transactions to that account.')); ?> <a id="import-folder-help" target="_blank" rel="noopener noreferrer"><?php p($l->t('How it works')); ?></a></p>
+                    <div class="settings-group">
+                        <div class="setting-item">
+                            <label for="setting-import-folder"><?php p($l->t('Import folder')); ?></label>
+                            <div class="setting-input-with-action">
+                                <input type="text" id="setting-import-folder" class="setting-input" placeholder="Budget/Import" aria-describedby="setting-import-folder-help">
+                                <button type="button" class="secondary" id="setting-import-folder-browse">
+                                    <span class="icon-folder" aria-hidden="true"></span>
+                                    <?php p($l->t('Browse…')); ?>
+                                </button>
+                            </div>
+                            <small id="setting-import-folder-help" class="form-text"><?php p($l->t('A path inside your Files. Leave empty for the default, Budget/Import. Changing it does not move subfolders you already have.')); ?></small>
+                        </div>
+                    </div>
+                    <table class="import-folders-table" id="import-folders-table" hidden>
+                        <thead>
+                            <tr>
+                                <th scope="col"><?php p($l->t('Subfolder')); ?></th>
+                                <th scope="col"><?php p($l->t('Account')); ?></th>
+                                <th scope="col"><?php p($l->t('Import template')); ?></th>
+                                <th scope="col"><?php p($l->t('On')); ?></th>
+                                <th scope="col"><span class="hidden-visually"><?php p($l->t('Actions')); ?></span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="import-folders-list"></tbody>
+                    </table>
+                    <p class="settings-description" id="import-folders-empty"><?php p($l->t('No subfolders yet. Add the first one below.')); ?></p>
+                    <form class="import-folder-add" id="import-folder-add">
+                        <input type="text" id="import-folder-name" maxlength="100" required placeholder="<?php p($l->t('Subfolder name')); ?>" aria-label="<?php p($l->t('Subfolder name')); ?>">
+                        <select id="import-folder-account" required aria-label="<?php p($l->t('Account')); ?>"></select>
+                        <select id="import-folder-template" aria-label="<?php p($l->t('Import template')); ?>"></select>
+                        <button type="submit" class="primary"><?php p($l->t('Add subfolder')); ?></button>
+                    </form>
+                    <div class="import-folders-check">
+                        <button type="button" class="secondary" id="import-folders-check"><?php p($l->t('Check now')); ?></button>
+                        <span id="import-folders-status" role="status"></span>
                     </div>
                 </div>
 
