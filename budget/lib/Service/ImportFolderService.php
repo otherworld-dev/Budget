@@ -22,6 +22,7 @@ use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\Files\File;
 use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
+use OCP\Files\Node;
 use OCP\IL10N;
 use OCP\ITempManager;
 use OCP\L10N\IFactory;
@@ -129,7 +130,7 @@ class ImportFolderService {
 		$this->assertOwnTemplate($userId, $templateId);
 
 		// In Files first: a row whose folder could not be made would never import anything
-		$this->ownSubfolder($this->mainFolder($userId), $name, $userId);
+		$this->childFolder($this->mainFolder($userId), $name, $userId);
 
 		$folder = new ImportFolder();
 		$folder->setUserId($userId);
@@ -200,14 +201,14 @@ class ImportFolderService {
 		foreach ($rows as $row) {
 			try {
 				// Recreated if it was deleted or renamed in Files
-				$folder = $this->ownSubfolder($main, (string)$row->getName(), $userId);
+				$folder = $this->childFolder($main, (string)$row->getName(), $userId);
 			} catch (\InvalidArgumentException $e) {
 				// Not the user's own, or a file has its name: skipped, so one
 				// folder that cannot be read does not stop the others
 				$this->logger->warning("Budget import folder: {$row->getName()} skipped for {$userId}: " . $e->getMessage(), ['app' => Application::APP_ID]);
 				continue;
 			}
-			foreach ($this->statements($folder) as $file) {
+			foreach ($this->statements($folder, $userId) as $file) {
 				if ($taken >= $limit || $this->time->getTime() - $file->getMTime() < self::SETTLE_SECONDS) {
 					$summary['waiting']++;
 					continue;
@@ -229,7 +230,7 @@ class ImportFolderService {
 	 *
 	 * @return File[]
 	 */
-	private function statements(Folder $folder): array {
+	private function statements(Folder $folder, string $userId): array {
 		$files = [];
 		foreach ($folder->getDirectoryListing() as $node) {
 			if (!$node instanceof File) {
@@ -238,6 +239,11 @@ class ImportFolderService {
 			$name = $node->getName();
 			if (str_starts_with($name, '.') || str_starts_with($name, '~$')
 				|| str_ends_with($name, '.part') || str_ends_with($name, '.tmp')) {
+				continue;
+			}
+			// A file someone shared with the user, sitting in their folder,
+			// is still the sharer's: not the user's statement to import
+			if (!$this->isOwn($node, $userId)) {
 				continue;
 			}
 			$files[] = $node;
@@ -279,7 +285,7 @@ class ImportFolderService {
 				$this->audit->logImportFailed($userId, $file->getName(), $failure['message'] ?? $failure['reason']);
 			}
 
-			$moved = $this->moveInto($folder, $file, $failure === null ? self::IMPORTED_FOLDER : self::FAILED_FOLDER);
+			$moved = $this->moveInto($userId, $folder, $file, $failure === null ? self::IMPORTED_FOLDER : self::FAILED_FOLDER);
 
 			if ($result !== null) {
 				$this->notify($userId, 'import_folder_done', $file, $result);
@@ -321,11 +327,12 @@ class ImportFolderService {
 		$accountId = (int)$row->getAccountId();
 		$account = $this->openAccount($userId, $accountId) ?? throw new ImportFolderFailure('account_unavailable');
 
+		$content = $this->read($file);
 		$temporary = $this->tempManager->getTemporaryFile('.' . $extension);
-		if ($temporary === false || file_put_contents($temporary, $file->getContent()) === false) {
+		if ($temporary === false || file_put_contents($temporary, $content) === false) {
 			throw new \RuntimeException('No temporary file for ' . $name);
 		}
-		$upload = $this->importService->processUpload($userId, ['name' => $name, 'tmp_name' => $temporary, 'size' => (int)$file->getSize()]);
+		$upload = $this->importService->processUpload($userId, ['name' => $name, 'tmp_name' => $temporary, 'size' => strlen($content)]);
 		$fileId = (string)$upload['fileId'];
 		$format = (string)$upload['format'];
 
@@ -446,9 +453,9 @@ class ImportFolderService {
 	 * Move a handled file into the folder's Imported or Failed subfolder,
 	 * under a new name if that one is taken.
 	 */
-	private function moveInto(Folder $folder, File $file, string $subfolder): bool {
+	private function moveInto(string $userId, Folder $folder, File $file, string $subfolder): bool {
 		try {
-			$target = $this->childFolder($folder, $subfolder);
+			$target = $this->childFolder($folder, $subfolder, $userId);
 			$file->move($target->getPath() . '/' . $this->freeName($target, $file->getName()));
 			return true;
 		} catch (\Throwable $e) {
@@ -532,22 +539,13 @@ class ImportFolderService {
 	 * @throws \InvalidArgumentException If it is not the user's own
 	 */
 	private function mainFolder(string $userId): Folder {
+		// The user's Files root is theirs; every step down from it is checked
+		// before the next one is taken, so nothing is ever created inside a
+		// folder that is someone else's
 		$folder = $this->rootFolder->getUserFolder($userId);
 		foreach (explode('/', $this->mainFolderFor($userId)) as $segment) {
-			$folder = $this->childFolder($folder, $segment);
+			$folder = $this->childFolder($folder, $segment, $userId);
 		}
-		$this->assertOwn($folder, $userId);
-		return $folder;
-	}
-
-	/**
-	 * A subfolder of the main folder, created if it is not there.
-	 *
-	 * @throws \InvalidArgumentException If it is not the user's own, or the name is a file's
-	 */
-	private function ownSubfolder(Folder $main, string $name, string $userId): Folder {
-		$folder = $this->childFolder($main, $name);
-		$this->assertOwn($folder, $userId);
 		return $folder;
 	}
 
@@ -560,23 +558,61 @@ class ImportFolderService {
 	 *
 	 * @throws \InvalidArgumentException
 	 */
-	private function assertOwn(Folder $folder, string $userId): void {
-		try {
-			$owner = $folder->getOwner()?->getUID();
-		} catch (\Throwable) {
-			$owner = null;
-		}
-		if ($owner !== $userId) {
+	private function assertOwn(Node $node, string $userId): void {
+		if (!$this->isOwn($node, $userId)) {
 			throw new \InvalidArgumentException($this->l->t('The import folder has to be in your own Files, not in a folder someone shared with you.'));
 		}
 	}
 
-	private function childFolder(Folder $parent, string $name): Folder {
+	private function isOwn(Node $node, string $userId): bool {
+		try {
+			return $node->getOwner()?->getUID() === $userId;
+		} catch (\Throwable) {
+			return false;
+		}
+	}
+
+	/**
+	 * A folder inside one that is already known to be the user's own:
+	 * created there if it is missing, and checked to be theirs if it is not
+	 * (it may be someone else's share mounted under that name).
+	 *
+	 * @throws \InvalidArgumentException If it is not the user's own, or the name is a file's
+	 */
+	private function childFolder(Folder $parent, string $name, string $userId): Folder {
 		$node = $parent->nodeExists($name) ? $parent->get($name) : $parent->newFolder($name);
 		if (!$node instanceof Folder) {
 			throw new \InvalidArgumentException($this->l->t('%1$s is a file, so it cannot be used as a folder.', [$name]));
 		}
+		$this->assertOwn($node, $userId);
 		return $node;
+	}
+
+	/**
+	 * A file's contents, read through a stream that stops just past the size
+	 * limit: the size Files has recorded can be stale or wrong, and a
+	 * statement is never worth reading a whole large file into memory for.
+	 *
+	 * @throws ImportFolderFailure
+	 */
+	private function read(File $file): string {
+		$limit = $this->fileValidator->getMaxFileSize();
+		$handle = $file->fopen('r');
+		if (!is_resource($handle)) {
+			throw new \RuntimeException('Cannot open ' . $file->getName());
+		}
+		try {
+			$content = stream_get_contents($handle, $limit + 1);
+		} finally {
+			fclose($handle);
+		}
+		if ($content === false) {
+			throw new \RuntimeException('Cannot read ' . $file->getName());
+		}
+		if (strlen($content) > $limit) {
+			throw new ImportFolderFailure('too_large');
+		}
+		return $content;
 	}
 
 	private function now(): string {

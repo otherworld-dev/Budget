@@ -36,6 +36,7 @@ use OCP\Lock\LockedException;
 
 class ImportFolderServiceTest extends TestCase {
 	private const NOW = 1791800000;
+	private const CSV = "Data,Descrizione,Importo\n2026-10-01,Bar,-3.5\n";
 
 	private ImportFolderService $service;
 	/** @var ImportFolderMapper&MockObject */
@@ -322,14 +323,25 @@ class ImportFolderServiceTest extends TestCase {
 	 *
 	 * @return File&MockObject
 	 */
-	private function fileIn($folder, string $name, int $id = 100, int $age = 600, int $size = 230) {
+	private function fileIn($folder, string $name, int $id = 100, int $age = 600, int $size = 230, ?string $content = null, string $owner = 'alice', bool $movable = true) {
+		$content ??= self::CSV;
 		$file = $this->createMock(File::class);
 		$file->method('getName')->willReturn($name);
 		$file->method('getId')->willReturn($id);
+		// What Files has recorded, which is not always what is there
 		$file->method('getSize')->willReturn($size);
 		$file->method('getMTime')->willReturn(self::NOW - $age);
-		$file->method('getContent')->willReturn("Data,Descrizione,Importo\n2026-10-01,Bar,-3.5\n");
-		$file->method('move')->willReturnCallback(function (string $path) use ($file) {
+		$file->method('getOwner')->willReturn($this->createConfiguredMock(\OCP\IUser::class, ['getUID' => $owner]));
+		$file->method('fopen')->willReturnCallback(static function () use ($content) {
+			$stream = fopen('php://memory', 'r+');
+			fwrite($stream, $content);
+			rewind($stream);
+			return $stream;
+		});
+		$file->method('move')->willReturnCallback(function (string $path) use ($file, $movable) {
+			if (!$movable) {
+				throw new \OCP\Files\NotPermittedException('read-only');
+			}
 			$this->movedTo[$file] = $path;
 			return $file;
 		});
@@ -374,7 +386,10 @@ class ImportFolderServiceTest extends TestCase {
 		$this->givenACsvUpload();
 
 		$this->importService->expects($this->once())->method('processUpload')
-			->with('alice', $this->callback(fn (array $upload) => $upload['name'] === 'ottobre.csv' && $upload['size'] === 230 && is_file($upload['tmp_name'])));
+			->with('alice', $this->callback(fn (array $upload) => $upload['name'] === 'ottobre.csv'
+				// The bytes actually read, not the size Files had recorded
+				&& $upload['size'] === strlen(self::CSV)
+				&& file_get_contents($upload['tmp_name']) === self::CSV));
 		$this->importService->expects($this->once())->method('processImport')->with(
 			'alice', 'import_alice_abc.csv',
 			['date' => '0', 'description' => '1', 'amount' => '2', 'skipFirstRow' => true, 'applyRules' => true],
@@ -677,14 +692,7 @@ class ImportFolderServiceTest extends TestCase {
 	public function testAFileThatCannotBeMovedSwitchesTheFolderOff(): void {
 		$this->csvTemplate(5);
 		$this->rows = [$this->row(1, 'Conto', 3, 5)];
-		$file = $this->createMock(File::class);
-		$file->method('getName')->willReturn('ottobre.csv');
-		$file->method('getId')->willReturn(100);
-		$file->method('getSize')->willReturn(230);
-		$file->method('getMTime')->willReturn(self::NOW - 600);
-		$file->method('getContent')->willReturn('x');
-		$file->method('move')->willThrowException(new \OCP\Files\NotPermittedException('read-only'));
-		$this->children[$this->at('Budget/Import/Conto')]->offsetSet('ottobre.csv', $file);
+		$this->fileIn($this->at('Budget/Import/Conto'), 'ottobre.csv', movable: false);
 		$this->givenACsvUpload();
 		$this->mapper->expects($this->once())->method('update')->with($this->callback(fn (ImportFolder $row) => !$row->isEnabled()));
 
@@ -693,5 +701,57 @@ class ImportFolderServiceTest extends TestCase {
 		$this->assertSame(['import_folder_done', 'import_folder_failed'], $this->subjects());
 		$this->assertSame('not_moved', $this->sent[1][1]['reason']);
 		$this->assertSame('0', $this->sent[1][1]['moved']);
+	}
+
+	// ── what is read has to be the user's own, and no more than the limit ──
+
+	public function testAFileBiggerThanFilesSaysItIsStillStopsAtTheLimit(): void {
+		// The recorded size can be stale or wrong; the read itself is bounded
+		$this->rows = [$this->row(1, 'Conto')];
+		$this->fileIn($this->at('Budget/Import/Conto'), 'enorme.csv', size: 100, content: str_repeat('x', 10 * 1024 * 1024 + 1));
+		$this->importService->expects($this->never())->method('processUpload');
+
+		$this->service->check('alice');
+		$this->assertSame('too_large', $this->sent[0][1]['reason']);
+	}
+
+	public function testAFileSomeoneElseOwnsIsLeftAlone(): void {
+		// A file shared with the user that ended up in their folder is not theirs to import
+		$this->csvTemplate(5);
+		$this->rows = [$this->row(1, 'Conto', 3, 5)];
+		$file = $this->fileIn($this->at('Budget/Import/Conto'), 'planted.csv', owner: 'mallory');
+		$this->importService->expects($this->never())->method('processUpload');
+
+		$this->assertSame(['imported' => 0, 'failed' => 0, 'waiting' => 0], $this->service->check('alice'));
+		$this->assertNull($this->whereItWent($file));
+	}
+
+	public function testNothingIsCreatedInsideAFolderSomeoneElseOwns(): void {
+		// "Budget" was shared with Alice and holds no "Import" yet: it must
+		// be refused before anything is made inside it
+		$budget = $this->root->newFolder('Budget');
+		$this->sharedWithAlice = ['/alice/files/Budget'];
+
+		try {
+			$this->service->create('alice', 'Conto', 3, null);
+			$this->fail('Created an import folder inside a folder shared with the user');
+		} catch (\InvalidArgumentException $e) {
+			$this->assertStringContainsString('your own Files', $e->getMessage());
+		}
+		$this->assertFalse($budget->nodeExists('Import'));
+	}
+
+	public function testAFileIsNotMovedIntoAnImportedFolderSomeoneElseOwns(): void {
+		$this->csvTemplate(5);
+		$this->rows = [$this->row(1, 'Conto', 3, 5)];
+		$file = $this->fileIn($this->at('Budget/Import/Conto'), 'ottobre.csv');
+		$this->at('Budget/Import/Conto/Imported');
+		$this->sharedWithAlice = ['/alice/files/Budget/Import/Conto/Imported'];
+		$this->givenACsvUpload();
+
+		$this->service->check('alice');
+
+		$this->assertNull($this->whereItWent($file));
+		$this->assertSame('not_moved', $this->sent[1][1]['reason']);
 	}
 }
