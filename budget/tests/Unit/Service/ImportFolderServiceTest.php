@@ -65,6 +65,12 @@ class ImportFolderServiceTest extends TestCase {
 	private \WeakMap $movedTo;
 	/** @var string[] paths of folders that are someone else's, shared with Alice */
 	private array $sharedWithAlice = [];
+	/** @var string[] paths of folders on an external storage mount */
+	private array $external = [];
+	/** @var string[] paths of folders whose contents cannot be listed right now */
+	private array $unlistable = [];
+	/** @var string[] folder names Files will not create */
+	private array $namesFilesRefuses = [];
 
 	protected function setUp(): void {
 		$this->children = new \WeakMap();
@@ -188,13 +194,31 @@ class ImportFolderServiceTest extends TestCase {
 			\OCP\IUser::class,
 			['getUID' => in_array($path, $this->sharedWithAlice, true) ? 'mallory' : 'alice']
 		));
+		// In her home storage, unless the test puts it on an external mount
+		$folder->method('getStorage')->willReturnCallback(fn () => $this->storage(!in_array($path, $this->external, true)));
 		$folder->method('nodeExists')->willReturnCallback(static fn (string $name): bool => isset($children[$name]));
 		$folder->method('get')->willReturnCallback(static fn (string $name) => $children[$name]);
 		$folder->method('newFolder')->willReturnCallback(function (string $name) use ($children, $path) {
+			if (in_array($name, $this->namesFilesRefuses, true)) {
+				throw new \OCP\Files\InvalidPathException('refused');
+			}
 			return $children[$name] = $this->folder($path . '/' . $name);
 		});
-		$folder->method('getDirectoryListing')->willReturnCallback(static fn (): array => array_values($children->getArrayCopy()));
+		$folder->method('getDirectoryListing')->willReturnCallback(function () use ($children, $path): array {
+			if (in_array($path, $this->unlistable, true)) {
+				throw new \OCP\Files\NotPermittedException('storage not available');
+			}
+			return array_values($children->getArrayCopy());
+		});
 		return $folder;
+	}
+
+	private function storage(bool $home) {
+		$storage = $this->createMock(\OCP\Files\Storage\IStorage::class);
+		$storage->method('instanceOfStorage')->willReturnCallback(
+			static fn (string $class): bool => $home && $class === \OCP\Files\IHomeStorage::class
+		);
+		return $storage;
 	}
 
 	/** The folder at a path under the user's Files root, created on the way */
@@ -332,6 +356,7 @@ class ImportFolderServiceTest extends TestCase {
 		$file->method('getSize')->willReturn($size);
 		$file->method('getMTime')->willReturn(self::NOW - $age);
 		$file->method('getOwner')->willReturn($this->createConfiguredMock(\OCP\IUser::class, ['getUID' => $owner]));
+		$file->method('getStorage')->willReturn($this->storage(true));
 		$file->method('fopen')->willReturnCallback(static function () use ($content) {
 			$stream = fopen('php://memory', 'r+');
 			fwrite($stream, $content);
@@ -596,7 +621,7 @@ class ImportFolderServiceTest extends TestCase {
 
 	public function testAnOfxNeedsNoTemplateAndRoutesEverySourceAccountToTheFoldersAccount(): void {
 		$this->rows = [$this->row(1, 'Conto')];
-		$this->fileIn($this->at('Budget/Import/Conto'), 'estratto.ofx');
+		$this->fileIn($this->at('Budget/Import/Conto'), 'estratto.ofx', content: "OFXHEADER:100\n<OFX></OFX>\n");
 		$this->importService->method('processUpload')->willReturn([
 			'fileId' => 'f.ofx', 'format' => 'ofx',
 			'sourceAccounts' => [['accountId' => 'IT60X', 'transactionCount' => 4], ['accountId' => 'IT61Y', 'transactionCount' => 1]],
@@ -753,5 +778,147 @@ class ImportFolderServiceTest extends TestCase {
 
 		$this->assertNull($this->whereItWent($file));
 		$this->assertSame('not_moved', $this->sent[1][1]['reason']);
+	}
+
+	// ── found in the final review ───────────────────────────────────
+
+	public function testAFileAnotherRunHandledMeanwhileIsLeftAlone(): void {
+		// Listed by this run, then imported and moved by "Check now" before
+		// this run got to it: not a failure, and no reason to switch the folder off
+		$this->csvTemplate(5);
+		$this->rows = [$this->row(1, 'Conto', 3, 5)];
+		$folder = $this->at('Budget/Import/Conto');
+		$this->fileIn($folder, 'ottobre.csv');
+		$this->locking->method('acquireLock')->willReturnCallback(function () use ($folder): void {
+			$this->children[$folder]->offsetUnset('ottobre.csv');
+		});
+		$this->importService->expects($this->never())->method('processUpload');
+		$this->mapper->expects($this->never())->method('update');
+
+		$this->assertSame(['imported' => 0, 'failed' => 0, 'waiting' => 0], $this->service->check('alice'));
+		$this->assertSame([], $this->sent);
+	}
+
+	public function testATemplatesAccountAndCurrencyColumnsAreNotUsed(): void {
+		// They would send rows to whichever account a cell names, creating
+		// it if need be: a folder imports into its own account only
+		$this->csvTemplate(5, ['date' => 'Data', 'description' => 'Descrizione', 'amount' => 'Importo', 'account' => 'Conto', 'currency' => 'Valuta', 'skipFirstRow' => true]);
+		$this->rows = [$this->row(1, 'Conto', 3, 5)];
+		$this->fileIn($this->at('Budget/Import/Conto'), 'ottobre.csv');
+		$this->importService->method('processUpload')->willReturn(['fileId' => 'f.csv', 'format' => 'csv', 'sourceAccounts' => []]);
+		$this->importService->method('dataPreview')->willReturn(['columns' => ['Data', 'Descrizione', 'Importo', 'Conto', 'Valuta']]);
+		$this->importService->method('previewImport')->willReturn(['validTransactions' => 1, 'duplicates' => 0]);
+		$this->importService->expects($this->once())->method('processImport')
+			->with($this->anything(), $this->anything(), $this->callback(
+				fn (array $mapping) => !array_key_exists('account', $mapping) && !array_key_exists('currency', $mapping) && $mapping['amount'] === '2'
+			))
+			->willReturn(['imported' => 1, 'skipped' => 0, 'errors' => []]);
+
+		$this->assertSame(1, $this->service->check('alice')['imported']);
+	}
+
+	public function testAFolderOnExternalStorageIsNotAnImportFolder(): void {
+		// An external mount reports whoever is logged in as its owner (and
+		// nobody at all in a background job), so ownership alone says nothing there
+		$this->at('Budget/Import');
+		$this->external = ['/alice/files/Budget/Import'];
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('your own Files');
+		$this->service->create('alice', 'Conto', 3, null);
+	}
+
+	public function testAFailedFileThatCannotBeMovedSaysTheFolderWasSwitchedOff(): void {
+		$this->rows = [$this->row(1, 'Conto')];
+		$this->fileIn($this->at('Budget/Import/Conto'), 'ricevuta.pdf', movable: false);
+		$this->mapper->expects($this->once())->method('update')->with($this->callback(fn (ImportFolder $row) => !$row->isEnabled()));
+
+		$this->service->check('alice');
+
+		$this->assertSame(['import_folder_failed', 'import_folder_failed'], $this->subjects());
+		$this->assertSame('unsupported_type', $this->sent[0][1]['reason']);
+		$this->assertSame('not_moved', $this->sent[1][1]['reason']);
+		$this->assertSame('0', $this->sent[1][1]['imported']);
+	}
+
+	public function testAnEmptyFileIsCalledEmpty(): void {
+		$this->csvTemplate(5);
+		$this->rows = [$this->row(1, 'Conto', 3, 5)];
+		$this->fileIn($this->at('Budget/Import/Conto'), 'vuoto.csv', content: '');
+		$this->importService->expects($this->never())->method('processUpload');
+
+		$this->service->check('alice');
+
+		$this->assertSame('empty', $this->sent[0][1]['reason']);
+	}
+
+	public function testAFileThatIsNotWhatItsNameSaysGetsTheValidatorsOwnReason(): void {
+		// The checks an upload gets: their message, not "something went wrong"
+		$this->rows = [$this->row(1, 'Conto')];
+		$this->fileIn($this->at('Budget/Import/Conto'), 'estratto.ofx');
+		$this->importService->expects($this->never())->method('processUpload');
+
+		$this->service->check('alice');
+
+		$this->assertSame('message', $this->sent[0][1]['reason']);
+		$this->assertStringContainsString('valid OFX file', $this->sent[0][1]['message']);
+	}
+
+	public function testOneFolderThatCannotBeListedDoesNotStopTheOthers(): void {
+		$this->csvTemplate(5);
+		$this->rows = [$this->row(1, 'Broken', 3, 5), $this->row(2, 'Conto', 3, 5)];
+		$this->at('Budget/Import/Broken');
+		$this->unlistable = ['/alice/files/Budget/Import/Broken'];
+		$this->fileIn($this->at('Budget/Import/Conto'), 'ottobre.csv');
+		$this->givenACsvUpload();
+
+		$this->assertSame(1, $this->service->check('alice')['imported']);
+	}
+
+	public function testANameFilesWillNotCreateIsRefusedWithAReason(): void {
+		$this->namesFilesRefuses = ['Conto.'];
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('could not be created');
+		$this->service->create('alice', 'Conto.', 3, null);
+	}
+
+	public function testASpreadsheetIsReadAsItWasConvertedWhateverTheTemplateSays(): void {
+		// A template saved from the bank's semicolon CSV, used for its .xlsx:
+		// the converted file is comma-separated UTF-8
+		$template = $this->csvTemplate(5);
+		$template->setDelimiter(';');
+		$template->setEncoding('Windows-1252');
+		$this->rows = [$this->row(1, 'Conto', 3, 5)];
+		$this->fileIn($this->at('Budget/Import/Conto'), 'estratto.xlsx', content: "PK\x03\x04binary");
+		$this->importService->method('processUpload')->willReturn(['fileId' => 'f.csv', 'format' => 'csv', 'sourceAccounts' => [], 'delimiter' => ',']);
+		$this->importService->expects($this->once())->method('dataPreview')
+			->with('alice', 'f.csv', 'estratto.xlsx', ',', true, null)
+			->willReturn(['columns' => ['Data', 'Descrizione', 'Importo']]);
+		$this->importService->method('previewImport')->willReturn(['validTransactions' => 1, 'duplicates' => 0]);
+		$this->importService->expects($this->once())->method('processImport')
+			->with('alice', 'f.csv', $this->anything(), 3, null, true, true, ',', null, null)
+			->willReturn(['imported' => 1, 'skipped' => 0, 'errors' => []]);
+
+		$this->assertSame(1, $this->service->check('alice')['imported']);
+	}
+
+	public function testTheTemporaryCopyIsRemovedAfterEachFile(): void {
+		$this->csvTemplate(5);
+		$this->rows = [$this->row(1, 'Conto', 3, 5)];
+		$this->fileIn($this->at('Budget/Import/Conto'), 'ottobre.csv');
+		$temporary = null;
+		$this->importService->method('processUpload')->willReturnCallback(function (string $userId, array $upload) use (&$temporary) {
+			$temporary = $upload['tmp_name'];
+			return ['fileId' => 'f.csv', 'format' => 'csv', 'sourceAccounts' => []];
+		});
+		$this->importService->method('dataPreview')->willReturn(['columns' => ['Data', 'Descrizione', 'Importo']]);
+		$this->importService->method('previewImport')->willReturn(['validTransactions' => 1, 'duplicates' => 0]);
+		$this->importService->method('processImport')->willReturn(['imported' => 1, 'skipped' => 0, 'errors' => []]);
+
+		$this->service->check('alice');
+
+		$this->assertNotNull($temporary);
+		$this->assertFileDoesNotExist($temporary);
 	}
 }

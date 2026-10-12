@@ -43,6 +43,17 @@ export default class ImportFolders {
         this.bind();
     }
 
+    /** The rows again, as the server has them now. */
+    async refresh() {
+        try {
+            const data = await apiFetch(API);
+            this.folders = data?.folders || [];
+            this.render();
+        } catch (error) {
+            console.error('Failed to reload import folders:', error);
+        }
+    }
+
     /** Own, open accounts only: an import cannot post into a shared account. */
     accounts(keepId) {
         return importTargetAccounts(this.getAccounts() || [], keepId ? [keepId] : []);
@@ -89,24 +100,24 @@ export default class ImportFolders {
 
         const account = document.createElement('select');
         account.dataset.field = 'accountId';
-        account.setAttribute('aria-label', t('budget', 'Account for {folder}', { folder: folder.name }));
+        account.setAttribute('aria-label', t('budget', 'Account for {folder}', { folder: folder.name }, undefined, { escape: false }));
         this.accountOptions(account, folder.accountId);
 
         const template = document.createElement('select');
         template.dataset.field = 'templateId';
-        template.setAttribute('aria-label', t('budget', 'Import template for {folder}', { folder: folder.name }));
+        template.setAttribute('aria-label', t('budget', 'Import template for {folder}', { folder: folder.name }, undefined, { escape: false }));
         this.templateOptions(template, folder.templateId);
 
         const enabled = document.createElement('input');
         enabled.type = 'checkbox';
         enabled.dataset.field = 'enabled';
         enabled.checked = !!folder.enabled;
-        enabled.setAttribute('aria-label', t('budget', 'Import files dropped into {folder}', { folder: folder.name }));
+        enabled.setAttribute('aria-label', t('budget', 'Import files dropped into {folder}', { folder: folder.name }, undefined, { escape: false }));
 
         const remove = document.createElement('button');
         remove.type = 'button';
         remove.className = 'icon-delete';
-        remove.setAttribute('aria-label', t('budget', 'Remove {folder}', { folder: folder.name }));
+        remove.setAttribute('aria-label', t('budget', 'Remove {folder}', { folder: folder.name }, undefined, { escape: false }));
         remove.title = t('budget', 'Remove');
 
         for (const control of [name, account, template, enabled, remove]) {
@@ -195,7 +206,7 @@ export default class ImportFolders {
         const folder = this.folders.find(f => f.id === id);
         if (!folder) return;
         const confirmed = await confirmDialog(
-            t('budget', 'Stop importing from {folder}? The folder stays in your Files, with everything in it.', { folder: folder.name }),
+            t('budget', 'Stop importing from {folder}? The folder stays in your Files, with everything in it.', { folder: folder.name }, undefined, { escape: false }),
             { destructive: true }
         );
         if (!confirmed) return;
@@ -216,6 +227,9 @@ export default class ImportFolders {
         try {
             const result = await apiFetch(`${API}/check`, { method: 'POST', errorMessage: t('budget', 'Failed to check the import folder') });
             if (status) status.textContent = this.summary(result || {});
+            // A folder whose file could not be moved is switched off by the
+            // server; the table should say so
+            await this.refresh();
         } catch (error) {
             if (status) status.textContent = '';
             this.showFailure(error, t('budget', 'Failed to check the import folder'));

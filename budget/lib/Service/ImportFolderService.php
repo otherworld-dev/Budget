@@ -14,6 +14,7 @@ use OCA\Budget\Db\ImportTemplateMapper;
 use OCA\Budget\Exception\ValidationException;
 use OCA\Budget\Service\Import\FileValidator;
 use OCA\Budget\Service\Import\ImportFolderFailure;
+use OCA\Budget\Service\Import\Spreadsheet\SpreadsheetConverter;
 use OCA\Budget\Service\Import\TemplateColumnResolver;
 use OCA\Budget\Service\Import\TransactionNormalizer;
 use OCA\Budget\Service\Mail\BudgetMailService;
@@ -21,8 +22,12 @@ use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\Files\File;
 use OCP\Files\Folder;
+use OCP\Files\IHomeStorage;
+use OCP\Files\InvalidPathException;
 use OCP\Files\IRootFolder;
 use OCP\Files\Node;
+use OCP\Files\NotFoundException;
+use OCP\Files\NotPermittedException;
 use OCP\IL10N;
 use OCP\ITempManager;
 use OCP\L10N\IFactory;
@@ -130,7 +135,13 @@ class ImportFolderService {
 		$this->assertOwnTemplate($userId, $templateId);
 
 		// In Files first: a row whose folder could not be made would never import anything
-		$this->childFolder($this->mainFolder($userId), $name, $userId);
+		try {
+			$this->childFolder($this->mainFolder($userId), $name, $userId);
+		} catch (InvalidPathException|NotFoundException|NotPermittedException $e) {
+			// A name the storage will not take (Files has rules of its own on
+			// top of ours), or a folder that cannot be written to
+			throw new \InvalidArgumentException($this->l->t('The folder could not be created in your Files. Try another name.'), 0, $e);
+		}
 
 		$folder = new ImportFolder();
 		$folder->setUserId($userId);
@@ -202,13 +213,15 @@ class ImportFolderService {
 			try {
 				// Recreated if it was deleted or renamed in Files
 				$folder = $this->childFolder($main, (string)$row->getName(), $userId);
-			} catch (\InvalidArgumentException $e) {
-				// Not the user's own, or a file has its name: skipped, so one
-				// folder that cannot be read does not stop the others
+				$files = $this->statements($folder, $userId);
+			} catch (\Throwable $e) {
+				// Not the user's own, a file has its name, or the storage will
+				// not list it right now: skipped, so one folder that cannot be
+				// read does not stop the others
 				$this->logger->warning("Budget import folder: {$row->getName()} skipped for {$userId}: " . $e->getMessage(), ['app' => Application::APP_ID]);
 				continue;
 			}
-			foreach ($this->statements($folder, $userId) as $file) {
+			foreach ($files as $file) {
 				if ($taken >= $limit || $this->time->getTime() - $file->getMTime() < self::SETTLE_SECONDS) {
 					$summary['waiting']++;
 					continue;
@@ -267,6 +280,13 @@ class ImportFolderService {
 		}
 
 		try {
+			// The folder was listed before this file's turn came. Another run
+			// may have imported and moved it since, or the user taken it away:
+			// that is not a failure, and nothing to switch the folder off for
+			if (!$this->stillThere($folder, $file)) {
+				return null;
+			}
+
 			$failure = null;
 			$result = null;
 			try {
@@ -299,9 +319,12 @@ class ImportFolderService {
 				$row->setEnabled(false);
 				$row->setUpdatedAt($this->now());
 				$this->mapper->update($row);
-				if ($result !== null) {
-					$this->notify($userId, 'import_folder_failed', $file, ['reason' => 'not_moved', 'moved' => '0']);
-				}
+				// Said every time: a folder switched off without a word just stops working
+				$this->notify($userId, 'import_folder_failed', $file, [
+					'reason' => 'not_moved',
+					'moved' => '0',
+					'imported' => $result !== null ? '1' : '0',
+				]);
 			}
 
 			return $failure === null ? 'imported' : 'failed';
@@ -328,17 +351,35 @@ class ImportFolderService {
 		$account = $this->openAccount($userId, $accountId) ?? throw new ImportFolderFailure('account_unavailable');
 
 		$content = $this->read($file);
+		if ($content === '') {
+			throw new ImportFolderFailure('empty');
+		}
 		$temporary = $this->tempManager->getTemporaryFile('.' . $extension);
 		if ($temporary === false || file_put_contents($temporary, $content) === false) {
 			throw new \RuntimeException('No temporary file for ' . $name);
 		}
-		$upload = $this->importService->processUpload($userId, ['name' => $name, 'tmp_name' => $temporary, 'size' => strlen($content)]);
+		try {
+			try {
+				// The same checks an upload gets, run here so their reasons
+				// (an empty file, a file that is not what its name says) reach
+				// the user instead of "something went wrong"
+				$this->fileValidator->validate($name, strlen($content), $temporary);
+			} catch (\Exception $e) {
+				throw new ImportFolderFailure('message', ['message' => $e->getMessage()]);
+			}
+			$upload = $this->importService->processUpload($userId, ['name' => $name, 'tmp_name' => $temporary, 'size' => strlen($content)]);
+		} finally {
+			// One run can take many files of up to 10 MB: not left for the end of the process
+			if (is_file($temporary)) {
+				unlink($temporary);
+			}
+		}
 		$fileId = (string)$upload['fileId'];
 		$format = (string)$upload['format'];
 
 		$template = $this->template($userId, $row->getTemplateId());
 		$arguments = $format === 'csv'
-			? $this->csvArguments($userId, $fileId, $name, $template)
+			? $this->csvArguments($userId, $fileId, $name, $template, $upload)
 			: $this->statementArguments($upload, $format, $template, $accountId);
 
 		$preview = $this->importService->previewImport(
@@ -385,16 +426,28 @@ class ImportFolderService {
 	 * @return array{mapping: array<string, mixed>, accountMapping: null, skipDuplicates: bool, applyRules: bool, delimiter: string, encoding: ?string}
 	 * @throws ImportFolderFailure
 	 */
-	private function csvArguments(string $userId, string $fileId, string $name, ?ImportTemplate $template): array {
+	private function csvArguments(string $userId, string $fileId, string $name, ?ImportTemplate $template, array $upload): array {
 		if ($template === null || ($template->getFormat() ?? 'csv') !== 'csv') {
 			throw new ImportFolderFailure('no_template');
 		}
 		$stored = $template->getParsedMapping();
+		// An account or currency column would send each row to whichever
+		// account its cell names, creating it if need be. A folder imports
+		// into its own account, whatever the file (which may come from
+		// someone the folder is shared with) says
+		unset($stored['account'], $stored['currency']);
 		$delimiter = $template->getDelimiter() ?: ',';
 		if ($delimiter === '\\t') {
 			$delimiter = "\t";
 		}
 		$encoding = $template->getEncoding() ?: null;
+		if (SpreadsheetConverter::handles($name)) {
+			// What was stored is the converter's CSV (comma-separated UTF-8),
+			// or the text file a mis-named "spreadsheet" really was: read as
+			// the upload found it, not as the template's own files are
+			$delimiter = (string)($upload['delimiter'] ?? ',') ?: ',';
+			$encoding = null;
+		}
 		$hasHeaderRow = (bool)($stored['skipFirstRow'] ?? $template->getSkipFirstRow() ?? true);
 		$applyRules = (bool)($stored['applyRules'] ?? $template->getApplyRules() ?? true);
 
@@ -564,9 +617,28 @@ class ImportFolderService {
 		}
 	}
 
+	/**
+	 * In the user's home storage and owned by them. Both: an external mount
+	 * has no owner of its own and reports whoever is logged in (nobody, in a
+	 * background job), so the owner alone would let everyone who can see an
+	 * admin's mount through, and fail for the same folder at night. A folder
+	 * shared with the user sits on the sharer's home storage, which is where
+	 * the owner check tells them apart.
+	 */
 	private function isOwn(Node $node, string $userId): bool {
 		try {
-			return $node->getOwner()?->getUID() === $userId;
+			return $node->getOwner()?->getUID() === $userId
+				&& $node->getStorage()->instanceOfStorage(IHomeStorage::class);
+		} catch (\Throwable) {
+			return false;
+		}
+	}
+
+	/** Whether a file listed earlier is still in its folder, the same file */
+	private function stillThere(Folder $folder, File $file): bool {
+		try {
+			$name = $file->getName();
+			return $folder->nodeExists($name) && $folder->get($name)->getId() === $file->getId();
 		} catch (\Throwable) {
 			return false;
 		}

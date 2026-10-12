@@ -658,7 +658,10 @@ class Notifier implements INotifier {
 					'columns_missing' => $l->t('These columns from the folder\'s template are not in the file: %1$s.', [(string)($parameters['columns'] ?? '')]),
 					'nothing_read' => $l->t('No transaction could be read from it. The folder\'s template may not fit this file.'),
 					'wrong_direction' => $l->t('Nearly every row would go in the wrong way round (income as spending, or the reverse), which usually means the wrong template. Import it from the Import page, where you can check it first.'),
-					'not_moved' => $l->t('It was imported, but could not be moved out of the import folder, so the folder has been switched off. Move the file yourself, then switch the folder back on in Budget\'s settings.'),
+					'empty' => $l->t('The file is empty.'),
+					'not_moved' => ($parameters['imported'] ?? '0') === '1'
+						? $l->t('It was imported, but could not be moved out of the import folder, so the folder has been switched off. Move the file yourself, then switch the folder back on in Budget\'s settings.')
+						: $l->t('It could not be moved out of the import folder either, so the folder has been switched off. Move the file yourself, then switch the folder back on in Budget\'s settings.'),
 					'message' => (string)($parameters['message'] ?? ''),
 					default => $l->t('Something went wrong while importing it. The server log has the details.'),
 				};

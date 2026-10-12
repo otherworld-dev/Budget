@@ -6,8 +6,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 vi.mock('@nextcloud/l10n', () => ({
-    translate: (_app, text, params = {}) =>
-        String(text).replace(/\{(\w+)\}/g, (m, k) => (k in params ? params[k] : m)),
+    // Like the real one, placeholder values are HTML-escaped unless told not to
+    translate: (_app, text, params = {}, _number, options = {}) =>
+        String(text).replace(/\{(\w+)\}/g, (m, k) => {
+            if (!(k in params)) return m;
+            return options.escape === false ? String(params[k]) : String(params[k]).replace(/&/g, '&amp;');
+        }),
     translatePlural: (_app, singular, plural, count) =>
         String(count === 1 ? singular : plural).replace(/%n/g, count),
 }));
@@ -184,6 +188,40 @@ describe('ImportFolders', () => {
         await tick();
 
         expect(document.getElementById('import-folders-status').textContent).toBe('2 files imported, 1 file could not be imported');
+    });
+
+    it('shows a name with an ampersand as it is, in labels and in the confirmation', async () => {
+        // These go into attributes and a dialog's text, not into HTML
+        givenApi({ 'GET /apps/budget/api/import-folders': { folder: 'Budget/Import', folders: [{ ...FOLDER, name: 'Joint & Savings' }] } });
+        await section().load();
+
+        expect(document.querySelector('#import-folders-list input[type="checkbox"]').getAttribute('aria-label')).toBe('Import files dropped into Joint & Savings');
+        document.querySelector('#import-folders-list button').click();
+        await tick();
+        expect(confirmDialog.mock.calls[0][0]).toContain('Stop importing from Joint & Savings?');
+    });
+
+    it('reloads the rows after a check, as the server may have switched one off', async () => {
+        let loads = 0;
+        apiFetch.mockImplementation((url, options = {}) => {
+            const key = `${options.method || 'GET'} ${url}`;
+            if (key === 'GET /apps/budget/api/import-folders') {
+                loads++;
+                return Promise.resolve({ folder: 'Budget/Import', folders: [{ ...FOLDER, enabled: loads === 1 }] });
+            }
+            if (key === 'GET /apps/budget/api/import-templates') return Promise.resolve(TEMPLATES);
+            if (key === 'POST /apps/budget/api/import-folders/check') return Promise.resolve({ imported: 0, failed: 1, waiting: 0 });
+            return Promise.resolve({});
+        });
+        await section().load();
+        expect(document.querySelector('#import-folders-list input[type="checkbox"]').checked).toBe(true);
+
+        document.getElementById('import-folders-check').click();
+        await tick();
+        await tick();
+
+        expect(document.querySelector('#import-folders-list input[type="checkbox"]').checked).toBe(false);
+        expect(document.getElementById('import-folders-status').textContent).toBe('1 file could not be imported');
     });
 
     it('says so when there was nothing to import', async () => {

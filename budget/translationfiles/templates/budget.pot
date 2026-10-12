@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-10-12 21:15+0000\n"
+"POT-Creation-Date: 2026-10-12 21:42+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1537,8 +1537,8 @@ msgid "Failed to load the import folders"
 msgstr ""
 
 #: /app/lib/Controller/ImportFolderController.php:58
-#: /app/src/modules/settings/ImportFolders.js:165
-#: /app/src/modules/settings/ImportFolders.js:172
+#: /app/src/modules/settings/ImportFolders.js:176
+#: /app/src/modules/settings/ImportFolders.js:183
 msgid "Failed to add the import folder"
 msgstr ""
 
@@ -1550,14 +1550,14 @@ msgid "Import folder"
 msgstr ""
 
 #: /app/lib/Controller/ImportFolderController.php:77
-#: /app/src/modules/settings/ImportFolders.js:185
-#: /app/src/modules/settings/ImportFolders.js:189
+#: /app/src/modules/settings/ImportFolders.js:196
+#: /app/src/modules/settings/ImportFolders.js:200
 msgid "Failed to update the import folder"
 msgstr ""
 
 #: /app/lib/Controller/ImportFolderController.php:104
-#: /app/src/modules/settings/ImportFolders.js:217
-#: /app/src/modules/settings/ImportFolders.js:221
+#: /app/src/modules/settings/ImportFolders.js:228
+#: /app/src/modules/settings/ImportFolders.js:235
 msgid "Failed to check the import folder"
 msgstr ""
 
@@ -3290,18 +3290,29 @@ msgid ""
 msgstr ""
 
 #: /app/lib/Notification/Notifier.php:661
+msgid "The file is empty."
+msgstr ""
+
+#: /app/lib/Notification/Notifier.php:663
 msgid ""
 "It was imported, but could not be moved out of the import folder, so the "
 "folder has been switched off. Move the file yourself, then switch the folder "
 "back on in Budget's settings."
 msgstr ""
 
-#: /app/lib/Notification/Notifier.php:663
+#: /app/lib/Notification/Notifier.php:664
+msgid ""
+"It could not be moved out of the import folder either, so the folder has "
+"been switched off. Move the file yourself, then switch the folder back on in "
+"Budget's settings."
+msgstr ""
+
+#: /app/lib/Notification/Notifier.php:666
 msgid ""
 "Something went wrong while importing it. The server log has the details."
 msgstr ""
 
-#: /app/lib/Notification/Notifier.php:666
+#: /app/lib/Notification/Notifier.php:669
 msgid "It is in the Failed folder."
 msgstr ""
 
@@ -3864,35 +3875,39 @@ msgstr ""
 msgid "This spreadsheet has no table of transactions to import."
 msgstr ""
 
-#: /app/lib/Service/ImportFolderService.php:126
+#: /app/lib/Service/ImportFolderService.php:131
 #, php-format
 msgid "You already have an import folder called %1$s."
 msgstr ""
 
-#: /app/lib/Service/ImportFolderService.php:408
+#: /app/lib/Service/ImportFolderService.php:143
+msgid "The folder could not be created in your Files. Try another name."
+msgstr ""
+
+#: /app/lib/Service/ImportFolderService.php:461
 #: /app/src/modules/import/ImportModule.js:49
 msgid "Column: {number}"
 msgstr ""
 
-#: /app/lib/Service/ImportFolderService.php:499
+#: /app/lib/Service/ImportFolderService.php:552
 msgid "The folder name must be 1 to 100 characters, with no slashes."
 msgstr ""
 
-#: /app/lib/Service/ImportFolderService.php:506
+#: /app/lib/Service/ImportFolderService.php:559
 msgid "An import folder needs one of your own open accounts."
 msgstr ""
 
-#: /app/lib/Service/ImportFolderService.php:521
+#: /app/lib/Service/ImportFolderService.php:574
 msgid "That import template no longer exists."
 msgstr ""
 
-#: /app/lib/Service/ImportFolderService.php:563
+#: /app/lib/Service/ImportFolderService.php:616
 msgid ""
 "The import folder has to be in your own Files, not in a folder someone "
 "shared with you."
 msgstr ""
 
-#: /app/lib/Service/ImportFolderService.php:585
+#: /app/lib/Service/ImportFolderService.php:657
 #, php-format
 msgid "%1$s is a file, so it cannot be used as a folder."
 msgstr ""
@@ -7624,7 +7639,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: /app/src/modules/categories/CategoriesModule.js:1733
-#: /app/src/modules/settings/ImportFolders.js:232
+#: /app/src/modules/settings/ImportFolders.js:246
 msgid "Nothing to import"
 msgstr ""
 
@@ -11214,59 +11229,59 @@ msgstr ""
 msgid "Failed to add money to goal"
 msgstr ""
 
-#: /app/src/modules/settings/ImportFolders.js:58
+#: /app/src/modules/settings/ImportFolders.js:69
 msgid "None (OFX, QIF and camt files only)"
 msgstr ""
 
-#: /app/src/modules/settings/ImportFolders.js:92
+#: /app/src/modules/settings/ImportFolders.js:103
 msgid "Account for {folder}"
 msgstr ""
 
-#: /app/src/modules/settings/ImportFolders.js:97
+#: /app/src/modules/settings/ImportFolders.js:108
 msgid "Import template for {folder}"
 msgstr ""
 
-#: /app/src/modules/settings/ImportFolders.js:104
+#: /app/src/modules/settings/ImportFolders.js:115
 msgid "Import files dropped into {folder}"
 msgstr ""
 
-#: /app/src/modules/settings/ImportFolders.js:109
+#: /app/src/modules/settings/ImportFolders.js:120
 msgid "Remove {folder}"
 msgstr ""
 
-#: /app/src/modules/settings/ImportFolders.js:110
+#: /app/src/modules/settings/ImportFolders.js:121
 #: /app/src/modules/transactions/TransactionsModule.js:3353
 msgid "Remove"
 msgstr ""
 
-#: /app/src/modules/settings/ImportFolders.js:198
+#: /app/src/modules/settings/ImportFolders.js:209
 msgid ""
 "Stop importing from {folder}? The folder stays in your Files, with "
 "everything in it."
 msgstr ""
 
-#: /app/src/modules/settings/ImportFolders.js:203
-#: /app/src/modules/settings/ImportFolders.js:207
+#: /app/src/modules/settings/ImportFolders.js:214
+#: /app/src/modules/settings/ImportFolders.js:218
 msgid "Failed to remove the import folder"
 msgstr ""
 
-#: /app/src/modules/settings/ImportFolders.js:215
+#: /app/src/modules/settings/ImportFolders.js:226
 msgid "Checking…"
 msgstr ""
 
-#: /app/src/modules/settings/ImportFolders.js:229
+#: /app/src/modules/settings/ImportFolders.js:243
 msgid "%n file imported"
 msgid_plural "%n files imported"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/settings/ImportFolders.js:230
+#: /app/src/modules/settings/ImportFolders.js:244
 msgid "%n file could not be imported"
 msgid_plural "%n files could not be imported"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/settings/ImportFolders.js:231
+#: /app/src/modules/settings/ImportFolders.js:245
 msgid "%n file still uploading or waiting its turn"
 msgid_plural "%n files still uploading or waiting their turn"
 msgstr[0] ""

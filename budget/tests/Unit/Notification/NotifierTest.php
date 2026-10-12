@@ -291,11 +291,23 @@ class NotifierTest extends TestCase {
 
 	public function testEveryImportFolderFailureReasonHasItsOwnText(): void {
 		$texts = [];
-		foreach (['unsupported_type', 'too_large', 'account_unavailable', 'no_template', 'nothing_read', 'wrong_direction', 'not_moved', 'error'] as $reason) {
+		foreach (['unsupported_type', 'too_large', 'empty', 'account_unavailable', 'no_template', 'nothing_read', 'wrong_direction', 'not_moved', 'error'] as $reason) {
 			$this->prepare('import_folder_failed', ['fileId' => '1', 'fileName' => 'a.csv', 'reason' => $reason, 'moved' => '0']);
 			$this->assertNotSame('', $this->parsedMessage, $reason);
 			$texts[$reason] = $this->parsedMessage;
 		}
-		$this->assertCount(8, array_unique($texts));
+		$this->assertCount(9, array_unique($texts));
+	}
+
+	public function testAFileThatCouldNotBeMovedSaysWhetherItWasImported(): void {
+		$this->prepare('import_folder_failed', ['fileId' => '1', 'fileName' => 'a.csv', 'reason' => 'not_moved', 'moved' => '0', 'imported' => '1']);
+		$imported = $this->parsedMessage;
+		$this->prepare('import_folder_failed', ['fileId' => '1', 'fileName' => 'a.pdf', 'reason' => 'not_moved', 'moved' => '0', 'imported' => '0']);
+		$notImported = $this->parsedMessage;
+
+		$this->assertStringStartsWith('It was imported, but', $imported);
+		$this->assertStringStartsWith('It could not be moved', $notImported);
+		$this->assertStringContainsString('switched off', $imported);
+		$this->assertStringContainsString('switched off', $notImported);
 	}
 }
