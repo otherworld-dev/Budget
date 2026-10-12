@@ -124,10 +124,14 @@ trait FullDataset {
 		$this->insertRow('budget_manual_rates', [
 			'user_id' => $userId, 'currency' => 'XAU', 'rate_per_eur' => '0.0004', 'updated_at' => $now,
 		]);
-		$this->insertRow('budget_import_templates', [
+		$ids['import_template'] = $this->insertRow('budget_import_templates', [
 			'user_id' => $userId, 'name' => 'Bank CSV', 'mapping' => '{"date":0}', 'delimiter' => ',',
 			'created_at' => $now, 'format' => 'csv', 'account_id' => $ids['current'],
 			'account_mapping' => json_encode(['1234' => $ids['current']]),
+		]);
+		$this->insertRow('budget_import_folders', [
+			'user_id' => $userId, 'name' => 'Current account', 'account_id' => $ids['current'],
+			'template_id' => $ids['import_template'], 'mode' => 'auto', 'enabled' => true, 'created_at' => $now,
 		]);
 		$this->insertRow('budget_imp_links', [
 			'user_id' => $userId, 'format' => 'ofx', 'source_key' => 'acct-1234', 'budget_account_id' => $ids['current'], 'updated_at' => $now,

@@ -219,8 +219,18 @@ class MigrationService {
 		'import_templates' => [
 			'table' => 'budget_import_templates',
 			'scope' => 'user',
+			'idMap' => 'import_templates',
 			'fk' => ['account_id' => ['map' => 'accounts', 'onMissing' => 'null']],
 			'jsonFk' => ['account_mapping' => ['map' => 'accounts', 'shape' => 'idValuedObject']],
+		],
+		// After import_templates: a folder names the template its CSV files use
+		'import_folders' => [
+			'table' => 'budget_import_folders',
+			'scope' => 'user',
+			'fk' => [
+				'account_id' => ['map' => 'accounts', 'onMissing' => 'drop'],
+				'template_id' => ['map' => 'import_templates', 'onMissing' => 'null'],
+			],
 		],
 		'imp_links' => [
 			'table' => 'budget_imp_links',
