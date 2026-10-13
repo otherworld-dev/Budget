@@ -444,14 +444,24 @@ class TransactionTagService {
 	 * @param int[] $tagIds
 	 */
 	public function replaceTransactionTags(int $transactionId, array $tagIds): void {
-		$this->transactionTagMapper->deleteByTransaction($transactionId);
-		$now = date('Y-m-d H:i:s');
-		foreach (array_values(array_unique(array_map('intval', $tagIds))) as $tagId) {
-			$link = new TransactionTag();
-			$link->setTransactionId($transactionId);
-			$link->setTagId($tagId);
-			$link->setCreatedAt($now);
-			$this->transactionTagMapper->insert($link);
+		// All or nothing: half done, the row lost tags nobody asked to remove,
+		// and on a shared account the owner's ones the caller cannot use could
+		// not be put back by them
+		$this->db->beginTransaction();
+		try {
+			$this->transactionTagMapper->deleteByTransaction($transactionId);
+			$now = date('Y-m-d H:i:s');
+			foreach (array_values(array_unique(array_map('intval', $tagIds))) as $tagId) {
+				$link = new TransactionTag();
+				$link->setTransactionId($transactionId);
+				$link->setTagId($tagId);
+				$link->setCreatedAt($now);
+				$this->transactionTagMapper->insert($link);
+			}
+			$this->db->commit();
+		} catch (\Throwable $e) {
+			$this->db->rollBack();
+			throw $e;
 		}
 	}
 

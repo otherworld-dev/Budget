@@ -2874,4 +2874,23 @@ class ApiV1TransactionControllerTest extends TestCase {
 
 		$this->assertSame(Http::STATUS_OK, $this->editor()->update(10)->getStatus());
 	}
+
+	/**
+	 * By the time tags are applied the transaction is recorded and its key
+	 * spent: a failure here must be reported, never a 500 that invites the
+	 * client to record the purchase again.
+	 */
+	public function testAFailureWhileTaggingStillAnswersWithTheRecordedTransaction(): void {
+		$this->params = $this->captureParams(['tag_ids' => '[12]']);
+		$this->service->method('create')->willReturn($this->transaction());
+		$this->tagService->method('resolveTagsAs')->willReturn([12]);
+		$this->tagService->method('replaceTransactionTags')->willThrowException(new \RuntimeException('deadlock'));
+
+		$response = $this->controller->create();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+		$this->assertSame(10, $response->getData()['id']);
+		$this->assertSame('The transaction was recorded, but its tags could not be set', $response->getData()['tags_error']);
+		$this->assertSame([], $response->getData()['tags']);
+	}
 }

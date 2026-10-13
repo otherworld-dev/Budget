@@ -417,4 +417,29 @@ class TransactionTagServiceTest extends TestCase {
 
 		$this->assertSame(2, $options['unaffectedCount']);
 	}
+
+	/**
+	 * Replacing the tags is a delete and then inserts. Half done, a row lost
+	 * tags nobody asked to remove, and on a shared account the owner's ones
+	 * the caller cannot use could not even be put back by them.
+	 */
+	public function testReplacingTagsIsAllOrNothing(): void {
+		$this->db->expects($this->once())->method('beginTransaction');
+		$this->db->expects($this->once())->method('rollBack');
+		$this->db->expects($this->never())->method('commit');
+		$this->transactionTagMapper->expects($this->once())->method('deleteByTransaction')->with(5);
+		$this->transactionTagMapper->method('insert')->willThrowException(new \RuntimeException('unique violation'));
+
+		$this->expectException(\RuntimeException::class);
+		$this->service->replaceTransactionTags(5, [1, 2]);
+	}
+
+	public function testReplacingTagsCommitsWhenEveryInsertLands(): void {
+		$this->db->expects($this->once())->method('beginTransaction');
+		$this->db->expects($this->once())->method('commit');
+		$this->db->expects($this->never())->method('rollBack');
+		$this->transactionTagMapper->expects($this->exactly(2))->method('insert')->willReturnArgument(0);
+
+		$this->service->replaceTransactionTags(5, [1, 2]);
+	}
 }

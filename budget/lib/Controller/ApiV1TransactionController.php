@@ -746,8 +746,12 @@ class ApiV1TransactionController extends OCSController {
 						$this->tagService->tagDetailsForTransactions([$transaction->getId()])[$transaction->getId()] ?? [],
 						[ApiSerializer::class, 'tag']
 					);
-				} catch (\InvalidArgumentException $e) {
-					$out['tags_error'] = $e->getMessage();
+				} catch (\Throwable $e) {
+					// The transaction is recorded and its key spent: say what
+					// went wrong rather than answer 500 and invite a second one
+					$out['tags_error'] = $e instanceof \InvalidArgumentException
+						? $e->getMessage()
+						: $this->l->t('The transaction was recorded, but its tags could not be set');
 					$out['tags'] = [];
 				}
 			}

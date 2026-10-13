@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-10-13 21:06+0000\n"
+"POT-Creation-Date: 2026-10-13 21:20+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -25,8 +25,8 @@ msgstr ""
 
 #: /app/lib/Controller/AccountController.php:90
 #: /app/lib/Controller/AccountController.php:681
-#: /app/lib/Controller/ApiV1TransactionController.php:757
-#: /app/lib/Controller/ApiV1TransactionController.php:793
+#: /app/lib/Controller/ApiV1TransactionController.php:761
+#: /app/lib/Controller/ApiV1TransactionController.php:797
 #: /app/lib/Controller/CategoryController.php:678
 #: /app/lib/Controller/TransactionController.php:533
 msgid "Account not found"
@@ -141,7 +141,7 @@ msgid "Invalid request data"
 msgstr ""
 
 #: /app/lib/Controller/AccountController.php:481
-#: /app/lib/Controller/ApiV1TransactionController.php:1166
+#: /app/lib/Controller/ApiV1TransactionController.php:1170
 #: /app/lib/Controller/BillController.php:833
 #: /app/lib/Controller/CategoryController.php:353
 #: /app/lib/Controller/CategoryController.php:451
@@ -289,7 +289,7 @@ msgid "Failed to retrieve categories"
 msgstr ""
 
 #: /app/lib/Controller/ApiV1ReceiptController.php:73
-#: /app/lib/Controller/ApiV1TransactionController.php:1115
+#: /app/lib/Controller/ApiV1TransactionController.php:1119
 #: /app/lib/Controller/AttachmentController.php:91
 #: /app/lib/Controller/ImportController.php:112
 #: /app/lib/Controller/MigrationController.php:99
@@ -336,7 +336,7 @@ msgstr ""
 
 #: /app/lib/Controller/ApiV1TransactionController.php:200
 #: /app/lib/Controller/ApiV1TransactionController.php:574
-#: /app/lib/Controller/ApiV1TransactionController.php:1430
+#: /app/lib/Controller/ApiV1TransactionController.php:1434
 #: /app/lib/Controller/TransactionController.php:331
 #: /app/lib/Controller/TransactionController.php:443
 msgid "Invalid transaction type. Must be credit or debit"
@@ -377,7 +377,7 @@ msgid "Failed to retrieve transaction"
 msgstr ""
 
 #: /app/lib/Controller/ApiV1TransactionController.php:539
-#: /app/lib/Controller/ApiV1TransactionController.php:1415
+#: /app/lib/Controller/ApiV1TransactionController.php:1419
 msgid "Amount must be a number"
 msgstr ""
 
@@ -390,7 +390,7 @@ msgid "An account is required"
 msgstr ""
 
 #: /app/lib/Controller/ApiV1TransactionController.php:554
-#: /app/lib/Controller/ApiV1TransactionController.php:1405
+#: /app/lib/Controller/ApiV1TransactionController.php:1409
 #: /app/lib/Controller/AssetController.php:326
 #: /app/lib/Controller/PensionController.php:358
 #: /app/lib/Controller/PensionController.php:430
@@ -418,7 +418,7 @@ msgid "Idempotency key too long (64 characters maximum)"
 msgstr ""
 
 #: /app/lib/Controller/ApiV1TransactionController.php:700
-#: /app/lib/Controller/ApiV1TransactionController.php:937
+#: /app/lib/Controller/ApiV1TransactionController.php:941
 msgid "The transaction was recorded, but the photo could not be attached"
 msgstr ""
 
@@ -426,118 +426,122 @@ msgstr ""
 msgid "The transaction was recorded, but it could not be split"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:761
-#: /app/lib/Controller/ApiV1TransactionController.php:810
+#: /app/lib/Controller/ApiV1TransactionController.php:754
+msgid "The transaction was recorded, but its tags could not be set"
+msgstr ""
+
+#: /app/lib/Controller/ApiV1TransactionController.php:765
+#: /app/lib/Controller/ApiV1TransactionController.php:814
 #: /app/lib/Controller/TransactionController.php:394
 msgid "Failed to create transaction"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:774
+#: /app/lib/Controller/ApiV1TransactionController.php:778
 msgid "A transfer needs two different accounts"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:784
+#: /app/lib/Controller/ApiV1TransactionController.php:788
 msgid "A transfer cannot be split"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:805
+#: /app/lib/Controller/ApiV1TransactionController.php:809
 msgid ""
 "The two accounts are in different currencies. Record this transfer in the "
 "web UI, where each side has its own amount"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:900
+#: /app/lib/Controller/ApiV1TransactionController.php:904
 msgid "This idempotency key was already used for a different transaction"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:909
+#: /app/lib/Controller/ApiV1TransactionController.php:913
 msgid "This request is still being processed. Try again shortly"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1014
+#: /app/lib/Controller/ApiV1TransactionController.php:1018
 msgid "Failed to split the transaction"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1082
+#: /app/lib/Controller/ApiV1TransactionController.php:1086
 msgid ""
 "splits must be an array of {\"amount\", \"category_id\", \"description\"} "
 "objects"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1101
+#: /app/lib/Controller/ApiV1TransactionController.php:1105
 #: /app/lib/Controller/AttachmentController.php:46
 #: /app/lib/Controller/AttachmentController.php:59
 #: /app/src/modules/transactions/TransactionsModule.js:2896
 msgid "Failed to load attachments"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1127
+#: /app/lib/Controller/ApiV1TransactionController.php:1131
 #: /app/lib/Controller/AttachmentController.php:101
 #: /app/src/modules/transactions/TransactionsModule.js:2907
 #: /app/src/modules/transactions/TransactionsModule.js:2912
 msgid "Failed to upload receipt"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1204
-#: /app/lib/Controller/ApiV1TransactionController.php:1268
-#: /app/lib/Controller/ApiV1TransactionController.php:1315
+#: /app/lib/Controller/ApiV1TransactionController.php:1208
+#: /app/lib/Controller/ApiV1TransactionController.php:1272
+#: /app/lib/Controller/ApiV1TransactionController.php:1319
 #: /app/lib/Controller/TransactionController.php:543
 #: /app/src/modules/transactions/TransactionsModule.js:5319
 msgid "Failed to update transaction"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1234
+#: /app/lib/Controller/ApiV1TransactionController.php:1238
 #: /app/src/modules/transactions/TransactionsModule.js:3600
 #: /app/src/modules/transactions/TransactionsModule.js:3623
 msgid "Failed to delete transaction"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1302
+#: /app/lib/Controller/ApiV1TransactionController.php:1306
 msgid ""
 "A scheduled transaction cannot be reconciled, as it has not happened yet"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1371
+#: /app/lib/Controller/ApiV1TransactionController.php:1375
 #: /app/lib/Controller/TransactionController.php:962
 msgid "Category not found. It must be one of the account owner's categories"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1395
+#: /app/lib/Controller/ApiV1TransactionController.php:1399
 #, php-format
 msgid "%s cannot be changed through the API"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1422
+#: /app/lib/Controller/ApiV1TransactionController.php:1426
 msgid "Amount must be more than zero. Use type to say which way the money went"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1484
+#: /app/lib/Controller/ApiV1TransactionController.php:1488
 msgid ""
 "This transaction is one side of a transfer, so its amount, type and date "
 "cannot be changed on their own"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1501
+#: /app/lib/Controller/ApiV1TransactionController.php:1505
 msgid ""
 "This transaction is split, so its categories are changed through its splits"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1516
+#: /app/lib/Controller/ApiV1TransactionController.php:1520
 msgid ""
 "This transaction has been reconciled against a statement. Send "
 "confirm_reconciled to go ahead"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1555
+#: /app/lib/Controller/ApiV1TransactionController.php:1559
 #, php-format
 msgid "%s must be a single value"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1569
+#: /app/lib/Controller/ApiV1TransactionController.php:1573
 msgid "category_id must be a category id or null"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1576
+#: /app/lib/Controller/ApiV1TransactionController.php:1580
 #: /app/lib/Controller/AttachmentController.php:57
 #: /app/lib/Controller/AttachmentController.php:72
 #: /app/lib/Controller/AttachmentController.php:97 /app/src/main.js:3309
