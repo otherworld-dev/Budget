@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-10-13 01:36+0000\n"
-"PO-Revision-Date: 2026-10-13 12:09+0000\n"
+"PO-Revision-Date: 2026-10-14 13:51+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -360,27 +360,24 @@ msgstr ""
 "Ungültiger Status. Muss „Abgeschlossen“, „Geplant“ oder „Ausstehend“ sein"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:218
-#, fuzzy, php-format
-#| msgid "%s must be a single value"
+#, php-format
 msgid "%s must be true or false"
-msgstr "%s muss ein einzelner Wert sein"
+msgstr "%s muss entweder wahr oder falsch sein"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:224
 msgid "Use either categoryId or uncategorized, not both"
-msgstr ""
+msgstr "Verwende entweder „categoryId“ oder „ Unkategorisiert“, nicht beides"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:233
 #: /app/lib/Controller/ApiV1TransactionController.php:482
-#, fuzzy, php-format
-#| msgid "%1$s must be a number"
+#, php-format
 msgid "%s must be a whole number above zero"
-msgstr "%1$s muss eine Zahl sein"
+msgstr "%s muss eine ganze Zahl größer als null sein"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:247
-#, fuzzy, php-format
-#| msgid "%1$s must be a number"
+#, php-format
 msgid "%s must be a number, zero or more"
-msgstr "%1$s muss eine Zahl sein"
+msgstr "%s muss eine Zahl größer oder gleich null sein"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:332
 #: /app/lib/Controller/ApiV1TransactionController.php:352
@@ -447,22 +444,21 @@ msgid "Failed to create transaction"
 msgstr "Erstellen der Buchung fehlgeschlagen"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:714
-#, fuzzy
-#| msgid "Transfer requires a destination account"
 msgid "A transfer needs two different accounts"
-msgstr "Umbuchung erfordert ein Zielkonto"
+msgstr "Eine Umbuchung erfordert zwei unterschiedliche Konten"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:724
-#, fuzzy
-#| msgid "Transfer value cannot be negative"
 msgid "A transfer cannot be split"
-msgstr "Umbuchungwert kann nicht negativ sein"
+msgstr "Eine Umbuchung kann nicht aufgeteilt werden"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:745
 msgid ""
 "The two accounts are in different currencies. Record this transfer in the "
 "web UI, where each side has its own amount"
 msgstr ""
+"Die beiden Konten lauten auf unterschiedliche Währungen. Erfassen Sie diese "
+"Überweisung in der Web-Benutzeroberfläche, wobei jede Seite ihren eigenen "
+"Betrag hat"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:840
 msgid "This idempotency key was already used for a different transaction"
@@ -518,6 +514,8 @@ msgstr "Fehler beim Löschen der Buchung"
 msgid ""
 "A scheduled transaction cannot be reconciled, as it has not happened yet"
 msgstr ""
+"Eine geplante Transaktion kann nicht abgeglichen werden, da sie noch nicht "
+"stattgefunden hat"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:1291
 #: /app/lib/Controller/TransactionController.php:962
@@ -3419,8 +3417,8 @@ msgstr[1] "%n Transaktionen importiert"
 #: /app/lib/Notification/Notifier.php:627
 msgid "%n already there or skipped"
 msgid_plural "%n already there or skipped"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "%n bereits vorhanden oder übersprungen"
+msgstr[1] "%n bereits vorhanden oder übersprungen"
 
 #: /app/lib/Notification/Notifier.php:630
 msgid "%n row could not be read"
@@ -3436,6 +3434,8 @@ msgstr "{file} ist zur Überprüfung bereit"
 #, php-format
 msgid "Open the Import page to check it and import it into %1$s."
 msgstr ""
+"Öffnen Sie die Seite „Importieren“, um die Daten zu überprüfen und in %1$s "
+"zu importieren."
 
 #: /app/lib/Notification/Notifier.php:669
 msgid "{file} could not be imported"
@@ -3454,23 +3454,32 @@ msgstr "Die Datei ist größer als 10 MB."
 #: /app/lib/Notification/Notifier.php:676
 msgid "The account this folder imports into has been closed or deleted."
 msgstr ""
+"Das Konto, in das dieser Ordner importiert wird, wurde geschlossen oder "
+"gelöscht."
 
 #: /app/lib/Notification/Notifier.php:677
 msgid ""
 "CSV and spreadsheet files need an import template, and this folder has none "
 "for them. Choose one in Budget's settings."
 msgstr ""
+"Für CSV- und Tabellenkalkulationsdateien ist eine Importvorlage "
+"erforderlich, die in diesem Ordner jedoch nicht vorhanden ist. Wählen Sie "
+"eine Vorlage in den Einstellungen von Budget aus."
 
 #: /app/lib/Notification/Notifier.php:678
 #, php-format
 msgid "These columns from the folder's template are not in the file: %1$s."
 msgstr ""
+"Diese Spalten aus der Vorlage des Ordners sind in der Datei %1$s nicht "
+"enthalten."
 
 #: /app/lib/Notification/Notifier.php:679
 msgid ""
 "No transaction could be read from it. The folder's template may not fit this "
 "file."
 msgstr ""
+"Es konnte keine Transaktion daraus gelesen werden. Möglicherweise passt die "
+"Vorlage des Ordners nicht zu dieser Datei."
 
 #: /app/lib/Notification/Notifier.php:680
 msgid ""
@@ -3478,6 +3487,10 @@ msgid ""
 "reverse), which usually means the wrong template. Import it from the Import "
 "page, where you can check it first."
 msgstr ""
+"Fast jede Zeile wäre verkehrt herum eingegeben (Einnahmen als Ausgaben oder "
+"umgekehrt), was in der Regel auf die Verwendung einer falschen Vorlage "
+"hindeutet. Importieren Sie die Daten über die Importseite, wo Sie sie "
+"zunächst überprüfen können."
 
 #: /app/lib/Notification/Notifier.php:681
 #: /app/lib/Service/ImportFolderService.php:298
@@ -3490,6 +3503,10 @@ msgid ""
 "folder has been switched off. Move the file yourself, then switch the folder "
 "back on in Budget's settings."
 msgstr ""
+"Die Datei wurde importiert, konnte jedoch nicht aus dem Importordner "
+"verschoben werden, weshalb der Ordner deaktiviert wurde. Verschieben Sie die "
+"Datei bitte selbst und aktivieren Sie den Ordner anschließend in den "
+"Einstellungen von Budget wieder."
 
 #: /app/lib/Notification/Notifier.php:684
 msgid ""
@@ -3497,15 +3514,20 @@ msgid ""
 "been switched off. Move the file yourself, then switch the folder back on in "
 "Budget's settings."
 msgstr ""
+"Da die Datei auch nicht aus dem Importordner verschoben werden konnte, wurde "
+"der Ordner deaktiviert. Verschieben Sie die Datei selbst und aktivieren Sie "
+"den Ordner anschließend in den Einstellungen von Budget wieder."
 
 #: /app/lib/Notification/Notifier.php:686
 msgid ""
 "Something went wrong while importing it. The server log has the details."
 msgstr ""
+"Beim Importieren ist ein Fehler aufgetreten. Die Details finden Sie im "
+"Serverprotokoll."
 
 #: /app/lib/Notification/Notifier.php:689
 msgid "It is in the Failed folder."
-msgstr ""
+msgstr "Sie befindet sich im Ordner „Fehlgeschlagen“."
 
 #: /app/lib/Search/TransactionSearchProvider.php:39
 msgid "Budget transactions"
@@ -3558,10 +3580,8 @@ msgid "Import rules"
 msgstr "Importregeln"
 
 #: /app/lib/Service/AccountClosureService.php:99
-#, fuzzy
-#| msgid "Import rules"
 msgid "Import folders"
-msgstr "Importregeln"
+msgstr "Importordner"
 
 #: /app/lib/Service/AccountClosureService.php:109
 #, php-format
@@ -4146,11 +4166,13 @@ msgstr ""
 #: /app/lib/Service/ImportFolderService.php:141
 #, php-format
 msgid "You already have an import folder called %1$s."
-msgstr ""
+msgstr "Sie haben bereits einen Importordner mit dem Namen %1$s."
 
 #: /app/lib/Service/ImportFolderService.php:153
 msgid "The folder could not be created in your Files. Try another name."
 msgstr ""
+"Der Ordner konnte in Ihren Dateien nicht erstellt werden. Versuchen Sie es "
+"mit einem anderen Namen."
 
 #: /app/lib/Service/ImportFolderService.php:299
 msgid "The file could not be read."
@@ -4159,10 +4181,13 @@ msgstr "Die Datei konnte nicht gelesen werden."
 #: /app/lib/Service/ImportFolderService.php:325
 msgid "A waiting file is either imported or skipped."
 msgstr ""
+"Eine Datei in der Warteschlange wird entweder importiert oder übersprungen."
 
 #: /app/lib/Service/ImportFolderService.php:330
 msgid "The file could not be moved. Move it out of the Review folder yourself."
 msgstr ""
+"Die Datei konnte nicht verschoben werden. Verschiebe sie selbst aus dem "
+"Ordner „Überprüfung“."
 
 #: /app/lib/Service/ImportFolderService.php:666
 #: /app/src/modules/import/ImportModule.js:50
@@ -4172,35 +4197,36 @@ msgstr "spalte: {number}"
 #: /app/lib/Service/ImportFolderService.php:755
 msgid "A folder's files are either imported automatically or held for review."
 msgstr ""
+"Die Dateien eines Ordners werden entweder automatisch importiert oder zur "
+"Überprüfung zurückgestellt."
 
 #: /app/lib/Service/ImportFolderService.php:763
 msgid "The folder name must be 1 to 100 characters, with no slashes."
 msgstr ""
+"Der Ordnername muss zwischen 1 und 100 Zeichen lang sein und darf keine "
+"Schrägstriche enthalten."
 
 #: /app/lib/Service/ImportFolderService.php:770
 msgid "An import folder needs one of your own open accounts."
 msgstr ""
+"Für einen Importordner ist eines Ihrer eigenen offenen Konten erforderlich."
 
 #: /app/lib/Service/ImportFolderService.php:785
 msgid "That import template no longer exists."
-msgstr ""
+msgstr "Diese Importvorlage existiert nicht mehr."
 
 #: /app/lib/Service/ImportFolderService.php:827
-#, fuzzy
-#| msgid ""
-#| "The projected balance is only shown for your own accounts, not ones "
-#| "shared with you."
 msgid ""
 "The import folder has to be in your own Files, not in a folder someone "
 "shared with you."
 msgstr ""
-"Der prognostizierte Saldo wird nur für deine eigenen Konten angezeigt, nicht "
-"für mit dir geteilte Konten."
+"Der Importordner muss sich in deinen eigenen Dateien befinden, nicht in "
+"einem Ordner, den jemand mit dir geteilt hat."
 
 #: /app/lib/Service/ImportFolderService.php:868
 #, php-format
 msgid "%1$s is a file, so it cannot be used as a folder."
-msgstr ""
+msgstr "%1$s ist eine Datei und kann daher nicht als Ordner verwendet werden."
 
 #: /app/lib/Service/ImportService.php:152
 #, php-format
@@ -10161,15 +10187,17 @@ msgstr "Rückblick"
 
 #: /app/src/modules/import/ReviewQueue.js:77
 msgid "Review {file}"
-msgstr ""
+msgstr "{file} überprüfen"
 
 #: /app/src/modules/import/ReviewQueue.js:84
 msgid "Skip {file}"
-msgstr ""
+msgstr "{file} überspringen"
 
 #: /app/src/modules/import/ReviewQueue.js:126
 msgid "Skip {file}? It is moved to the Skipped folder and not imported."
 msgstr ""
+"{file} überspringen? Die Datei wird in den Ordner „Übersprungen“ verschoben "
+"und nicht importiert."
 
 #: /app/src/modules/income/IncomeModule.js:54
 #: /app/src/modules/income/IncomeModule.js:57
@@ -12126,20 +12154,16 @@ msgid "Failed to add money to goal"
 msgstr "Geld konnte nicht zum Ziel hinzugefügt werden"
 
 #: /app/src/modules/settings/ImportFolders.js:70 /app/templates/index.php:4676
-#, fuzzy
-#| msgid "Detect automatically"
 msgid "Import automatically"
-msgstr "Automatisch erkennen"
+msgstr "Automatisch importieren"
 
 #: /app/src/modules/settings/ImportFolders.js:71 /app/templates/index.php:4677
-#, fuzzy
-#| msgid "Import Preview"
 msgid "Hold for review"
-msgstr "Importvorschau"
+msgstr "Zur Überprüfung zurückhalten"
 
 #: /app/src/modules/settings/ImportFolders.js:78
 msgid "None (OFX, QIF and camt files only)"
-msgstr ""
+msgstr "Keine (nur OFX-, QIF- und camt-Dateien)"
 
 #: /app/src/modules/settings/ImportFolders.js:112
 msgid "Account for {folder}"
@@ -12171,6 +12195,8 @@ msgid ""
 "Stop importing from {folder}? The folder stays in your Files, with "
 "everything in it."
 msgstr ""
+"Import aus {folder} beenden? Der Ordner bleibt mit seinem gesamten Inhalt in "
+"deinen Dateien erhalten."
 
 #: /app/src/modules/settings/ImportFolders.js:235
 #: /app/src/modules/settings/ImportFolders.js:239
@@ -12182,13 +12208,10 @@ msgid "Checking…"
 msgstr "Wird überprüft…"
 
 #: /app/src/modules/settings/ImportFolders.js:264
-#, fuzzy
-#| msgid "%n row will not be imported"
-#| msgid_plural "%n rows will not be imported"
 msgid "%n file imported"
 msgid_plural "%n files imported"
-msgstr[0] "%n Zeile wird nicht importiert"
-msgstr[1] "%n Zeilen werden nicht importiert"
+msgstr[0] "%n Datei importiert"
+msgstr[1] "%n Dateien importiert"
 
 #: /app/src/modules/settings/ImportFolders.js:265
 msgid "%n file ready to review"
@@ -12197,19 +12220,18 @@ msgstr[0] "%n Datei zur Überprüfung bereit"
 msgstr[1] "%n Dateien zur Überprüfung bereit"
 
 #: /app/src/modules/settings/ImportFolders.js:266
-#, fuzzy
-#| msgid "%n row will not be imported"
-#| msgid_plural "%n rows will not be imported"
 msgid "%n file could not be imported"
 msgid_plural "%n files could not be imported"
-msgstr[0] "%n Zeile wird nicht importiert"
-msgstr[1] "%n Zeilen werden nicht importiert"
+msgstr[0] "%n Datei konnte nicht importiert werden"
+msgstr[1] "%n Dateien konnte nicht importiert werden"
 
 #: /app/src/modules/settings/ImportFolders.js:267
 msgid "%n file still uploading or waiting its turn"
 msgid_plural "%n files still uploading or waiting their turn"
 msgstr[0] ""
+"%n Datei wird noch hochgeladen oder wartet darauf, verarbeitet zu werden"
 msgstr[1] ""
+"%n Dateien werden noch hochgeladen oder warten darauf, verarbeitet zu werden"
 
 #: /app/src/modules/settings/SettingsModule.js:38
 msgid "Failed to load settings"
@@ -12302,10 +12324,8 @@ msgid "Select receipts folder"
 msgstr "Belegordner auswählen"
 
 #: /app/src/modules/settings/SettingsModule.js:324
-#, fuzzy
-#| msgid "Select receipts folder"
 msgid "Select import folder"
-msgstr "Belegordner auswählen"
+msgstr "Importordner auswählen"
 
 #: /app/src/modules/settings/SettingsModule.js:428
 #: /app/src/modules/settings/SettingsModule.js:440
@@ -12345,7 +12365,7 @@ msgstr "Erledigt"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:68
 msgid "Outstanding"
-msgstr "Offen"
+msgstr "ausstehend"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:73
 msgid "from {owner}"
@@ -13825,7 +13845,7 @@ msgstr "geplant"
 
 #: /app/src/modules/transactions/TransactionsModule.js:5463
 msgid "pending"
-msgstr "ausstehend"
+msgstr "anstehend"
 
 #: /app/src/modules/transactions/TransactionsModule.js:5524
 msgid "Delete %n suspected duplicate transaction? This cannot be undone."
@@ -15255,16 +15275,17 @@ msgstr ""
 "Format)"
 
 #: /app/templates/index.php:2294
-#, fuzzy
-#| msgid "Data Preview"
 msgid "Waiting for review"
-msgstr "Datenvorschau"
+msgstr "Wartet auf Überprüfung"
 
 #: /app/templates/index.php:2295
 msgid ""
 "Statements dropped into an import folder that holds its files for review. "
 "Review one to check it and import it, or skip it."
 msgstr ""
+"Die Abrechnungen werden in einen Importordner abgelegt, in dem die Dateien "
+"zur Überprüfung gespeichert werden. Überprüfen Sie eine Abrechnung, um sie "
+"zu kontrollieren und zu importieren, oder überspringen Sie sie."
 
 #: /app/templates/index.php:2301
 msgid "Drag and drop your bank statement here"
@@ -16687,48 +16708,52 @@ msgid ""
 "subfolder, the people you share it with can add statements to it, and so "
 "transactions to that account."
 msgstr ""
+"Ein Beleg, der in einen der unten aufgeführten Unterordner abgelegt wird, "
+"wird im Hintergrund in das Konto importiert – und zwar mit der von Ihnen "
+"dafür ausgewählten Importvorlage. Die Datei wird anschließend in einen "
+"daneben liegenden Ordner „Importiert“ oder „Fehlgeschlagen“ verschoben, und "
+"Sie erhalten eine Benachrichtigung. Ein Unterordner, der dazu dient, Dateien "
+"zur Überprüfung aufzubewahren, speichert jede einzelne Datei so lange, bis "
+"Sie sie auf der Importseite angesehen haben. Wenn Sie einen Unterordner "
+"freigeben, können die Personen, für die Sie ihn freigegeben haben, "
+"Kontoauszüge hinzufügen und damit Transaktionen zu diesem Konto erfassen."
 
 #: /app/templates/index.php:4643
 msgid "How it works"
-msgstr ""
+msgstr "So funktioniert es"
 
 #: /app/templates/index.php:4654
 msgid ""
 "A path inside your Files. Leave empty for the default, Budget/Import. "
 "Changing it does not move subfolders you already have."
 msgstr ""
+"Ein Pfad innerhalb Ihrer Dateien. Lassen Sie das Feld leer, um die "
+"Standardeinstellung „Budget/Import“ beizubehalten. Durch eine Änderung "
+"werden bereits vorhandene Unterordner nicht verschoben."
 
 #: /app/templates/index.php:4660
-#, fuzzy
-#| msgid "Builder"
 msgid "Subfolder"
-msgstr "Visueller Editor"
+msgstr "Unterordner"
 
 #: /app/templates/index.php:4663 /app/templates/index.php:4675
 msgid "When a file arrives"
-msgstr ""
+msgstr "Wenn eine Datei eintrifft"
 
 #: /app/templates/index.php:4664
-#, fuzzy
-#| msgid "Open"
 msgid "On"
-msgstr "Offen"
+msgstr "Ein"
 
 #: /app/templates/index.php:4670
 msgid "No subfolders yet. Add the first one below."
-msgstr ""
+msgstr "Es gibt noch keine Unterordner. Fügen Sie unten den ersten hinzu."
 
 #: /app/templates/index.php:4672
-#, fuzzy
-#| msgid "Account holder name"
 msgid "Subfolder name"
-msgstr "Kontoinhaber"
+msgstr "Name des Unterordners"
 
 #: /app/templates/index.php:4679
-#, fuzzy
-#| msgid "Add Rule"
 msgid "Add subfolder"
-msgstr "Regel hinzufügen"
+msgstr "Unterordner hinzufügen"
 
 #: /app/templates/index.php:4682
 msgid "Check now"
