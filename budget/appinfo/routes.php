@@ -481,6 +481,7 @@ return [
 		['name' => 'apiV1Account#index', 'url' => '/api/v1/accounts', 'verb' => 'GET'],
 
 		['name' => 'apiV1Category#index', 'url' => '/api/v1/categories', 'verb' => 'GET'],
+		['name' => 'apiV1Tag#index', 'url' => '/api/v1/tags', 'verb' => 'GET'],
 
 		// "Capture and check" (#767): read-only figures for the phone.
 		['name' => 'apiV1Budget#status', 'url' => '/api/v1/budget/status', 'verb' => 'GET'],

@@ -104,6 +104,9 @@ final class ApiSerializer {
 			'linked_account_name' => $t['linkedAccountName'] ?? null,
 			// A split transaction's parts (#408); [] when it isn't split.
 			'splits' => self::splits($t['splitCategories'] ?? [], $currency),
+			// Its tags (discussion 420); [] when it has none, never absent,
+			// so a client renders and filters them without a special case.
+			'tags' => self::map($t['tags'] ?? [], [self::class, 'tag']),
 		];
 
 		// List queries join these in; single-record lookups do not. Present
@@ -125,6 +128,30 @@ final class ApiSerializer {
 		}
 
 		return $out;
+	}
+
+	/**
+	 * A tag (discussion 420), the same shape on a transaction and in GET /tags.
+	 *
+	 * A global tag has no tag set and no category and can sit on any
+	 * transaction. A category tag belongs to a tag set of one category and can
+	 * only sit on a transaction in that category, which is what category_id is
+	 * for. A hidden tag is kept off the pickers for new entries (#373).
+	 */
+	public static function tag(Entity|array $tag): array {
+		$t = self::toArray($tag);
+
+		return [
+			'id' => (int)($t['id'] ?? 0),
+			'name' => (string)($t['name'] ?? ''),
+			'color' => $t['color'] ?? null,
+			'tag_set_id' => isset($t['tagSetId']) ? (int)$t['tagSetId'] : null,
+			'tag_set_name' => $t['tagSetName'] ?? null,
+			'category_id' => isset($t['categoryId']) ? (int)$t['categoryId'] : null,
+			'hidden' => (bool)($t['hidden'] ?? false),
+			// Whose tag it is; see account()'s owner
+			'owner' => (string)($t['userId'] ?? ''),
+		];
 	}
 
 	public static function attachment(Entity|array $attachment): array {

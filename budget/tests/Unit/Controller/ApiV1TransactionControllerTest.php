@@ -25,6 +25,7 @@ use OCP\IRequest;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
+use OCA\Budget\Service\TransactionTagService;
 
 class ApiV1TransactionControllerTest extends TestCase {
 	private ApiV1TransactionController $controller;
@@ -34,6 +35,7 @@ class ApiV1TransactionControllerTest extends TestCase {
 	private ValidationService $validationService;
 	private GranularShareService $granularShareService;
 	private IdempotencyKeyMapper $idempotencyKeys;
+	private TransactionTagService $tagService;
 	private IRequest $request;
 
 	/** What the mocked request reports. */
@@ -56,6 +58,7 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->validationService = $this->createMock(ValidationService::class);
 		$this->granularShareService = $this->createMock(GranularShareService::class);
 		$this->idempotencyKeys = $this->createMock(IdempotencyKeyMapper::class);
+		$this->tagService = $this->createMock(TransactionTagService::class);
 		$this->idempotencyKeys->method('findByKey')->willThrowException(new DoesNotExistException('fresh'));
 		// The reservation flow uses insert's return value as the claim.
 		$this->idempotencyKeys->method('insert')->willReturnArgument(0);
@@ -97,7 +100,8 @@ class ApiV1TransactionControllerTest extends TestCase {
 			$l,
 			'user1',
 			$this->createMock(LoggerInterface::class),
-			$this->clock()
+			$this->clock(),
+			$this->tagService
 		);
 	}
 
@@ -2109,5 +2113,173 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->splitService->expects($this->never())->method('splitTransaction');
 
 		$this->assertSame(Http::STATUS_FORBIDDEN, $this->controller->createSplits(10)->getStatus());
+	}
+
+	// ── tags (discussion 420) ───────────────────────────────────────
+
+	public function testIndexGivesEachRowItsTagsAndAnEmptyListToTheRest(): void {
+		$this->service->method('findWithFilters')->willReturn([
+			'transactions' => [['id' => 1, 'accountId' => 1], ['id' => 2, 'accountId' => 1]],
+			'total' => 2,
+		]);
+		$this->tagService->expects($this->once())->method('tagDetailsForTransactions')
+			->with([1, 2])
+			->willReturn([2 => [['id' => 12, 'name' => 'Haushalt', 'userId' => 'user1']]]);
+
+		$rows = $this->controller->index()->getData()['transactions'];
+
+		$this->assertSame([], $rows[0]['tags']);
+		$this->assertSame([12], array_column($rows[1]['tags'], 'id'));
+		$this->assertSame('Haushalt', $rows[1]['tags'][0]['name']);
+	}
+
+	public function testIndexDoesNotLookForTagsOnAnEmptyPage(): void {
+		$this->service->method('findWithFilters')->willReturn(['transactions' => [], 'total' => 0]);
+		$this->tagService->expects($this->never())->method('tagDetailsForTransactions');
+
+		$this->assertSame([], $this->controller->index()->getData()['transactions']);
+	}
+
+	public function testShowCarriesItsTags(): void {
+		$this->service->method('findForAccounts')->with(10, [1, 2, 9])->willReturn($this->transaction());
+		$this->tagService->method('tagDetailsForTransactions')->with([10])->willReturn([10 => [
+			['id' => 27, 'name' => 'Tesco', 'tagSetId' => 4, 'tagSetName' => 'Shop', 'categoryId' => 415, 'userId' => 'user1'],
+		]]);
+
+		$data = $this->controller->show(10)->getData();
+
+		$this->assertSame([27], array_column($data['tags'], 'id'));
+		$this->assertSame('Shop', $data['tags'][0]['tag_set_name']);
+	}
+
+	public function testATransactionWithoutTagsShowsAnEmptyList(): void {
+		$this->service->method('findForAccounts')->willReturn($this->transaction());
+
+		$this->assertSame([], $this->controller->show(10)->getData()['tags']);
+	}
+
+	public function testANewTransactionAnswersWithAnEmptyTagList(): void {
+		$this->params = $this->captureParams();
+		$this->service->method('create')->willReturn($this->transaction());
+
+		$this->assertSame([], $this->controller->create()->getData()['tags']);
+	}
+
+	// ── more filters on the list ────────────────────────────────────
+
+	/** What index() hands the service as filters, for the request in $this->params. */
+	private function filtersSent(): array {
+		$seen = null;
+		$this->service->method('findWithFilters')->willReturnCallback(
+			function (string $userId, array $filters) use (&$seen): array {
+				$seen = $filters;
+				return ['transactions' => [], 'total' => 0];
+			}
+		);
+
+		$response = $this->controller->index();
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+
+		return $seen;
+	}
+
+	public function testIndexPassesEveryNewFilterOnInTheFilterBuildersWords(): void {
+		$this->params = [
+			'type' => 'credit', 'status' => 'scheduled', 'reconciled' => 'true',
+			'tagId' => '12', 'amountMin' => '5', 'amountMax' => '20.50',
+		];
+
+		$filters = $this->filtersSent();
+
+		$this->assertSame('credit', $filters['type']);
+		$this->assertSame('scheduled', $filters['status']);
+		$this->assertTrue($filters['reconciled']);
+		$this->assertSame([12], $filters['tagIds']);
+		$this->assertSame('5', $filters['amountMin']);
+		$this->assertSame('20.50', $filters['amountMax']);
+	}
+
+	public function testIndexSendsNoFilterThatWasNotAskedFor(): void {
+		$this->params = [];
+
+		$filters = $this->filtersSent();
+
+		foreach (['type', 'status', 'reconciled', 'tagIds', 'amountMin', 'amountMax'] as $key) {
+			$this->assertArrayNotHasKey($key, $filters, $key);
+		}
+		$this->assertNull($filters['category']);
+	}
+
+	/** false is a filter of its own, not "no filter". */
+	public function testIndexFiltersForRowsThatAreNotReconciled(): void {
+		$this->params = ['reconciled' => 'false'];
+
+		$this->assertFalse($this->filtersSent()['reconciled']);
+	}
+
+	public function testIndexFiltersForUncategorisedRows(): void {
+		$this->params = ['uncategorized' => 'true'];
+
+		$this->assertSame('uncategorized', $this->filtersSent()['category']);
+	}
+
+	public function testUncategorizedFalseIsNoFilter(): void {
+		$this->params = ['uncategorized' => 'false'];
+
+		$this->assertNull($this->filtersSent()['category']);
+	}
+
+	public function testIndexRefusesUncategorizedTogetherWithACategory(): void {
+		$this->params = ['uncategorized' => 'true'];
+		$this->service->expects($this->never())->method('findWithFilters');
+
+		$response = $this->controller->index(null, 7);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertStringContainsString('uncategorized', $response->getData()['error']);
+	}
+
+	public static function unreadableFilters(): array {
+		return [
+			'a type that is not one' => ['type', 'transfer'],
+			'the web list\'s split type' => ['type', 'split'],
+			'a status that is not one' => ['status', 'done'],
+			'reconciled that is not yes or no' => ['reconciled', 'maybe'],
+			'uncategorized that is not yes or no' => ['uncategorized', 'maybe'],
+			'a tag id that is not a number' => ['tagId', 'abc'],
+			'a tag id of zero' => ['tagId', '0'],
+			'a negative tag id' => ['tagId', '-3'],
+			'a tag id with a fraction' => ['tagId', '1.5'],
+			'an amount that is not a number' => ['amountMin', 'abc'],
+			'a negative amount' => ['amountMax', '-1'],
+			'a list for one value' => ['status', ['cleared', 'pending']],
+			'a list of tags' => ['tagId', [1, 2]],
+			'a list of amounts' => ['amountMin', ['1']],
+		];
+	}
+
+	/**
+	 * An older server ignores a filter it does not know; this one never
+	 * guesses at one it cannot read, or the client gets rows it did not ask for.
+	 */
+	#[DataProvider('unreadableFilters')]
+	public function testIndexRefusesAFilterItCannotRead(string $filter, mixed $value): void {
+		$this->params = [$filter => $value];
+		$this->service->expects($this->never())->method('findWithFilters');
+
+		$response = $this->controller->index();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertArrayHasKey('error', $response->getData());
+	}
+
+	public function testAnEmptyFilterValueIsNoFilter(): void {
+		$this->params = ['type' => '', 'status' => '', 'reconciled' => '', 'tagId' => '', 'amountMin' => '', 'uncategorized' => ''];
+
+		$filters = $this->filtersSent();
+
+		foreach (['type', 'status', 'reconciled', 'tagIds', 'amountMin'] as $key) {
+			$this->assertArrayNotHasKey($key, $filters, $key);
+		}
 	}
 }

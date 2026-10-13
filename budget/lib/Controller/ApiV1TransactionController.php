@@ -16,6 +16,7 @@ use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\MoneyCalculator;
 use OCA\Budget\Service\TransactionService;
 use OCA\Budget\Service\TransactionSplitService;
+use OCA\Budget\Service\TransactionTagService;
 use OCA\Budget\Service\UserClock;
 use OCA\Budget\Service\ValidationService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
@@ -70,6 +71,7 @@ class ApiV1TransactionController extends OCSController {
 		?string $userId,
 		LoggerInterface $logger,
 		private ?UserClock $userClock = null,
+		private ?TransactionTagService $tagService = null,
 	) {
 		parent::__construct(Application::APP_ID, $request);
 		$this->setLogger($logger);
@@ -113,8 +115,13 @@ class ApiV1TransactionController extends OCSController {
 			}
 		}
 
+		$more = $this->readListFilters($categoryId !== null);
+		if ($more instanceof DataResponse) {
+			return $more;
+		}
+
 		try {
-			$filters = [
+			$filters = $more + [
 				'accountId' => $accountId,
 				'category' => $categoryId !== null ? (string)$categoryId : null,
 				'dateFrom' => $dateFrom,
@@ -135,7 +142,7 @@ class ApiV1TransactionController extends OCSController {
 
 			return new DataResponse([
 				'transactions' => ApiSerializer::map(
-					TransactionService::hideUnseenLinkedAccounts($result['transactions'], $visible),
+					$this->withTags(TransactionService::hideUnseenLinkedAccounts($result['transactions'], $visible)),
 					[ApiSerializer::class, 'transaction']
 				),
 				'total' => (int)$result['total'],
@@ -145,6 +152,102 @@ class ApiV1TransactionController extends OCSController {
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to retrieve transactions'));
 		}
+	}
+
+	/** What `status` may be asked for; NULL in the database reads as cleared. */
+	private const STATUSES = ['cleared', 'scheduled', 'pending'];
+
+	/**
+	 * The list's other filters: type, status, reconciled, uncategorized, tagId,
+	 * amountMin and amountMax, in the filter builder's own words. Only what was
+	 * sent is returned.
+	 *
+	 * Read by hand and refused when unreadable. An older server ignores a
+	 * filter it has never heard of, which a client can find out beforehand
+	 * (filters_available); this one must never guess, or the answer is rows
+	 * nobody asked for.
+	 *
+	 * @return array<string, mixed>|DataResponse the filters, or the 400
+	 */
+	private function readListFilters(bool $hasCategory): array|DataResponse {
+		$raw = [];
+		foreach (['type', 'status', 'reconciled', 'uncategorized', 'tagId', 'amountMin', 'amountMax'] as $name) {
+			$value = $this->request->getParam($name);
+			if ($value === null || $value === '') {
+				continue;
+			}
+			if (!is_scalar($value)) {
+				return $this->notASingleValue($name);
+			}
+			$raw[$name] = is_string($value) ? trim($value) : $value;
+		}
+
+		$filters = [];
+
+		if (isset($raw['type'])) {
+			if (!in_array($raw['type'], ['credit', 'debit'], true)) {
+				return $this->badRequest($this->l->t('Invalid transaction type. Must be credit or debit'));
+			}
+			$filters['type'] = $raw['type'];
+		}
+
+		if (isset($raw['status'])) {
+			if (!in_array($raw['status'], self::STATUSES, true)) {
+				return $this->badRequest($this->l->t('Invalid status. Must be cleared, scheduled or pending'));
+			}
+			$filters['status'] = $raw['status'];
+		}
+
+		foreach (['reconciled', 'uncategorized'] as $name) {
+			if (!isset($raw[$name])) {
+				continue;
+			}
+			$flag = self::readBool($raw[$name]);
+			if ($flag === null) {
+				return $this->badRequest($this->l->t('%s must be true or false', [$name]));
+			}
+			if ($name === 'reconciled') {
+				$filters['reconciled'] = $flag;
+			} elseif ($flag) {
+				if ($hasCategory) {
+					return $this->badRequest($this->l->t('Use either categoryId or uncategorized, not both'));
+				}
+				$filters['category'] = 'uncategorized';
+			}
+		}
+
+		if (isset($raw['tagId'])) {
+			$tagId = filter_var($raw['tagId'], FILTER_VALIDATE_INT);
+			if ($tagId === false || $tagId <= 0) {
+				return $this->badRequest($this->l->t('%s must be a whole number above zero', ['tagId']));
+			}
+			$filters['tagIds'] = [$tagId];
+		}
+
+		foreach (['amountMin', 'amountMax'] as $name) {
+			if (!isset($raw[$name])) {
+				continue;
+			}
+			if (!is_numeric($raw[$name]) || (float)$raw[$name] < 0) {
+				return $this->badRequest($this->l->t('%s must be a number, zero or more', [$name]));
+			}
+			$filters[$name] = (string)$raw[$name];
+		}
+
+		return $filters;
+	}
+
+	/** true, false, or null for anything that is neither. */
+	private static function readBool(mixed $value): ?bool {
+		if (is_bool($value)) {
+			return $value;
+		}
+
+		return is_scalar($value) ? filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) : null;
+	}
+
+	private function badRequest(string $message): DataResponse {
+		return new DataResponse(['error' => $message], Http::STATUS_BAD_REQUEST);
 	}
 
 	/**
@@ -238,7 +341,28 @@ class ApiV1TransactionController extends OCSController {
 		$row['isSplit'] = $parts !== [];
 		$row['linkedAccountName'] = $this->linkedAccountName($transaction, $visibleAccountIds);
 
-		return ApiSerializer::transaction($row, $this->currencyOf($transaction->getAccountId()));
+		return ApiSerializer::transaction($this->withTags([$row])[0], $this->currencyOf($transaction->getAccountId()));
+	}
+
+	/**
+	 * Rows with their tags (discussion 420), read for the whole page at once.
+	 * Not scoped to the caller: a row in a shared account carries its owner's
+	 * tags, and the rows are already ones the caller may see.
+	 *
+	 * @param array<int, array<string, mixed>> $rows
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function withTags(array $rows): array {
+		if ($rows === [] || $this->tagService === null) {
+			return $rows;
+		}
+
+		$tags = $this->tagService->tagDetailsForTransactions(array_map(static fn (array $row): int => (int)($row['id'] ?? 0), $rows));
+		foreach ($rows as $i => $row) {
+			$rows[$i]['tags'] = $tags[(int)($row['id'] ?? 0)] ?? [];
+		}
+
+		return $rows;
 	}
 
 	/**
