@@ -1778,6 +1778,12 @@
             "type": "boolean",
             "description": "True once the user has closed the account. It keeps its history and its balance is zero; leave it out of any picker for new transactions."
           },
+          "last_reconciled_at": {
+            "type": "string",
+            "nullable": true,
+            "example": "2026-10-11 17:55:21",
+            "description": "When a reconciliation of the account was last completed, in the same format as updated_at. Null for an account that has never been reconciled. It is the time the user finished reconciling, not the date of the statement they reconciled against."
+          },
           "updated_at": {
             "type": "string",
             "nullable": true,

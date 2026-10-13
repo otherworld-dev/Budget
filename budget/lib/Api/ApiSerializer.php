@@ -51,6 +51,9 @@ final class ApiSerializer {
 			// Closed accounts keep their history but take no new activity (#372);
 			// a capture client should leave them out of its own picker.
 			'closed' => (bool)($a['closed'] ?? false),
+			// When a reconciliation was last completed, null until there has
+			// been one (#427). When the user finished, not the statement date.
+			'last_reconciled_at' => ($a['lastReconciled'] ?? '') !== '' ? (string)$a['lastReconciled'] : null,
 			'updated_at' => $a['updatedAt'] ?? null,
 		];
 	}
