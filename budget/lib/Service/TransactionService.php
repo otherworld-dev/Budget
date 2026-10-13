@@ -1235,8 +1235,16 @@ class TransactionService {
 		}
 	}
 
-	public function update(int $id, string $userId, array $updates): Transaction {
+	/**
+	 * @param string $userId The owner of the transaction's account: every
+	 *                       write runs as the owner, also on a shared account
+	 * @param string|null $actingUserId Who is making the change, when known.
+	 *                                  The audit entries below land in the owner's log, and on a shared
+	 *                                  account the owner is not who did it
+	 */
+	public function update(int $id, string $userId, array $updates, ?string $actingUserId = null): Transaction {
 		$transaction = $this->find($id, $userId);
+		$actedBy = $actingUserId !== null && $actingUserId !== $userId ? ['actedBy' => $actingUserId] : [];
 		$oldAmount = $transaction->getAmount();
 		$oldType = $transaction->getType();
 		$oldAccountId = $transaction->getAccountId();
@@ -1285,7 +1293,7 @@ class TransactionService {
 				$this->auditService->log($userId, 'reconciled_tx_modified', 'transaction', $id, [
 					'changedFields' => $changedKeys,
 					'reconSessionId' => $transaction->getReconSessionId(),
-				]);
+				] + $actedBy);
 			}
 		}
 
@@ -1297,7 +1305,7 @@ class TransactionService {
 		if ($transaction->getReconciled() && array_key_exists('reconciled', $updates) && !$updates['reconciled']) {
 			$this->auditService->log($userId, 'reconciled_tx_unreconciled', 'transaction', $id, [
 				'reconSessionId' => $transaction->getReconSessionId(),
-			]);
+			] + $actedBy);
 			$transaction->setReconSessionId(null);
 		}
 
@@ -1821,12 +1829,12 @@ class TransactionService {
 	/**
 	 * Bulk update reconciled status
 	 */
-	public function bulkReconcile(string $userId, array $ids, bool $reconciled): array {
+	public function bulkReconcile(string $userId, array $ids, bool $reconciled, ?string $actingUserId = null): array {
 		$results = ['success' => 0, 'failed' => 0];
 
 		foreach ($ids as $id) {
 			try {
-				$this->update($id, $userId, ['reconciled' => $reconciled]);
+				$this->update($id, $userId, ['reconciled' => $reconciled], $actingUserId);
 				$results['success']++;
 			} catch (\Exception $e) {
 				$results['failed']++;

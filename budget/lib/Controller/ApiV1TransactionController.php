@@ -1113,7 +1113,7 @@ class ApiV1TransactionController extends OCSController {
 				);
 			}
 
-			$updated = $this->service->update($id, $ownerId, $updates);
+			$updated = $this->service->update($id, $ownerId, $updates, $this->userId);
 
 			return new DataResponse($this->serializeOne($updated, $this->getEffectiveAccountIds()));
 		} catch (DoesNotExistException $e) {
@@ -1225,7 +1225,7 @@ class ApiV1TransactionController extends OCSController {
 			}
 
 			if ((bool)$transaction->getReconciled() !== $reconciled) {
-				$transaction = $this->service->update($id, $ownerId, ['reconciled' => $reconciled]);
+				$transaction = $this->service->update($id, $ownerId, ['reconciled' => $reconciled], $this->userId);
 			}
 
 			return new DataResponse($this->serializeOne($transaction, $this->getEffectiveAccountIds()));

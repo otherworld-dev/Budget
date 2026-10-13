@@ -108,6 +108,43 @@ class ApiListFiltersTest extends IntegrationTestCase {
 		$this->assertSame(['reconciled_tx_unreconciled'], $actions);
 	}
 
+	/**
+	 * On a shared account the write runs as the account's owner, so the entry
+	 * is in the owner's log. It must still say who did it.
+	 */
+	public function testTheTraceNamesWhoeverDidItWhenThatIsNotTheOwner(): void {
+		$id = $this->makeTransaction($this->accountId, ['reconciled' => true]);
+
+		$this->service(TransactionService::class)->update($id, $this->userId, ['reconciled' => false], 'someone-sharing');
+
+		$qb = $this->db()->getQueryBuilder();
+		$qb->select('user_id', 'details')->from('budget_audit_log')
+			->where($qb->expr()->eq('entity_id', $qb->createNamedParameter($id, \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->eq('action', $qb->createNamedParameter('reconciled_tx_unreconciled')));
+		$result = $qb->executeQuery();
+		$row = $result->fetch();
+		$result->closeCursor();
+
+		$this->assertSame($this->userId, $row['user_id']);
+		$this->assertSame('someone-sharing', json_decode((string)$row['details'], true)['actedBy']);
+	}
+
+	public function testTheOwnersOwnChangeNamesNobodyElse(): void {
+		$id = $this->makeTransaction($this->accountId, ['reconciled' => true, 'recon_session_id' => 4242]);
+
+		$this->service(TransactionService::class)->update($id, $this->userId, ['reconciled' => false], $this->userId);
+
+		$qb = $this->db()->getQueryBuilder();
+		$qb->select('details')->from('budget_audit_log')
+			->where($qb->expr()->eq('entity_id', $qb->createNamedParameter($id, \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_INT)));
+		$result = $qb->executeQuery();
+		$details = json_decode((string)$result->fetchOne(), true);
+		$result->closeCursor();
+
+		$this->assertArrayNotHasKey('actedBy', $details);
+		$this->assertSame(4242, $details['reconSessionId']);
+	}
+
 	public function testReconcilingOrLeavingTheFlagAloneWritesNoSuchTrace(): void {
 		$id = $this->makeTransaction($this->accountId, ['reconciled' => false]);
 

@@ -2397,8 +2397,9 @@ class ApiV1TransactionControllerTest extends TestCase {
 
 	public function testReconcilingOnASharedAccountRunsAsItsOwner(): void {
 		$this->existing(['accountId' => 9], 'owner9');
+		// As the owner, whose ledger it is, and naming the caller for the audit log
 		$this->service->expects($this->once())->method('update')
-			->with(10, 'owner9', ['reconciled' => true])
+			->with(10, 'owner9', ['reconciled' => true], 'user1')
 			->willReturn($this->transaction());
 
 		$this->assertSame(Http::STATUS_OK, $this->controller->reconcile(10)->getStatus());

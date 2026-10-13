@@ -535,7 +535,7 @@ class TransactionController extends Controller {
 				$this->requireWriteAccess('account', $updates['accountId']);
 			}
 
-			$transaction = $this->service->update($id, $effectiveUserId, $updates);
+			$transaction = $this->service->update($id, $effectiveUserId, $updates, $this->userId);
 			return new DataResponse($transaction);
 		} catch (\InvalidArgumentException $e) {
 			return $this->handleValidationError($e);
@@ -1001,7 +1001,7 @@ class TransactionController extends Controller {
 
 			[$byOwner, $refused] = $this->writableIdsByOwner($ids);
 			$results = $this->runAsOwners($byOwner, $refused,
-				fn (string $owner, array $ownerIds) => $this->service->bulkReconcile($owner, $ownerIds, $reconciled),
+				fn (string $owner, array $ownerIds) => $this->service->bulkReconcile($owner, $ownerIds, $reconciled, $this->userId),
 				false);
 			return new DataResponse($results);
 		} catch (\Exception $e) {
