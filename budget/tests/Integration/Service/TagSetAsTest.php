@@ -191,4 +191,54 @@ class TagSetAsTest extends IntegrationTestCase {
 		$this->assertSame($this->userId, $rows[1]['userId']);
 		$this->assertSame($food, $rows[1]['categoryId']);
 	}
+
+	/** Only the categories the owner shared with bob: their other tags are not his to use. */
+	public function testOnASharedAccountACategoryTagOfAnUnsharedCategoryIsRefused(): void {
+		$joint = $this->makeAccount(['name' => 'Joint'])->getId();
+		$private = $this->makeCategory(['name' => 'Private']);
+		$tag = $this->tag($this->makeTagSet($private), 'Secret shop');
+		$this->shareWithBob([$joint], []);
+		$id = $this->makeTransaction($joint, ['category_id' => $private]);
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->tags->resolveTagsAs($this->bob, $this->userId, $id, $private, [$tag]);
+	}
+
+	public function testOnASharedAccountAStaleTagSentBackStays(): void {
+		$joint = $this->makeAccount(['name' => 'Joint'])->getId();
+		$food = $this->makeCategory(['name' => 'Food']);
+		$fuel = $this->makeCategory(['name' => 'Fuel']);
+		$shop = $this->tag($this->makeTagSet($food), 'Tesco');
+		$this->shareWithBob([$joint], [$food, $fuel]);
+		$id = $this->makeTransaction($joint, ['category_id' => $fuel]);
+		$this->tagTransaction($id, $shop);
+
+		$this->tags->replaceTransactionTags($id, $this->tags->resolveTagsAs($this->bob, $this->userId, $id, $fuel, [$shop]));
+
+		$this->assertSame([$shop], $this->tagsOn($id));
+	}
+
+	/** A link to a tag neither of them can use (or that is gone) is not kept for anyone. */
+	public function testATagNobodyCanUseIsNotKeptWhenBobSaves(): void {
+		$joint = $this->makeAccount(['name' => 'Joint'])->getId();
+		$this->shareWithBob([$joint], []);
+		$id = $this->makeTransaction($joint);
+		$this->tagTransaction($id, 999999999);
+
+		$this->tags->replaceTransactionTags($id, $this->tags->resolveTagsAs($this->bob, $this->userId, $id, null, []));
+
+		$this->assertSame([], $this->tagsOn($id));
+	}
+
+	/** A change of tags is a change: a client syncing by updated_at must see it. */
+	public function testReplacingTheTagsMovesUpdatedAt(): void {
+		$account = $this->makeAccount()->getId();
+		$holiday = $this->tag(null, 'Holiday');
+		$id = $this->makeTransaction($account, ['updated_at' => '2020-01-01 00:00:00']);
+
+		$this->tags->replaceTransactionTags($id, [$holiday]);
+
+		$updatedAt = (string)$this->service(\OCA\Budget\Db\TransactionMapper::class)->find($id, $this->userId)->getUpdatedAt();
+		$this->assertGreaterThan('2025-01-01', $updatedAt);
+	}
 }

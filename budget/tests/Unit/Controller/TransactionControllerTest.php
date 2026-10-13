@@ -28,7 +28,6 @@ class TransactionControllerTest extends TestCase {
 	private LoggerInterface $logger;
 	private IL10N $l;
 	/** @var list<array{0: string, 1: int[]}> requireUsableTags() calls in controllerForSharedRows() */
-	private array $tagChecks = [];
 
 	protected function setUp(): void {
 		$this->request = $this->createMock(IRequest::class);
@@ -890,9 +889,7 @@ class TransactionControllerTest extends TestCase {
 			array_map('intval', $ids),
 			fn (int $id) => $id < 10 || ($user === 'owner1' && $id >= 50 && $id < 60)
 		)));
-		$this->tagChecks = [];
 		$shares->method('requireUsableTags')->willReturnCallback(function (string $user, array $ids): void {
-			$this->tagChecks[] = [$user, array_values($ids)];
 			foreach ($ids as $id) {
 				if ($id >= 10) {
 					throw new \InvalidArgumentException('Invalid tag ID');

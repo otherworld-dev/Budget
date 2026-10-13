@@ -2893,4 +2893,75 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->assertSame('The transaction was recorded, but its tags could not be set', $response->getData()['tags_error']);
 		$this->assertSame([], $response->getData()['tags']);
 	}
+
+	public static function editTagIdsThatAreNotAList(): array {
+		return [
+			'null' => [null],
+			'an empty string' => [''],
+			'blank' => ['  '],
+			'a JSON object in a string' => ['{}'],
+			'more than 200 ids' => [range(1, 201)],
+		];
+	}
+
+	/**
+	 * null would read as "leave the tags", unlike category_id where null
+	 * clears; an empty string read as "remove them all". Neither is a list.
+	 */
+	#[DataProvider('editTagIdsThatAreNotAList')]
+	public function testUpdateRefusesTagIdsThatAreNotAList(mixed $value): void {
+		$this->existing();
+		$this->params = ['tag_ids' => $value];
+		$this->service->expects($this->never())->method('update');
+		$this->tagService->expects($this->never())->method('replaceTransactionTags');
+
+		$response = $this->editor()->update(10);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('invalid_tags', $response->getData()['error_code']);
+	}
+
+	public function testUpdateTakesTagIdsAsAJsonStringToo(): void {
+		$this->existing();
+		$this->params = ['tag_ids' => '[12, 27]'];
+		$this->tagService->expects($this->once())->method('resolveTagsAs')
+			->with('user1', 'user1', 10, null, [12, 27])->willReturn([12, 27]);
+
+		$this->assertSame(Http::STATUS_OK, $this->editor()->update(10)->getStatus());
+	}
+
+	public function testUpdateTakesExactly200Tags(): void {
+		$this->existing();
+		$this->params = ['tag_ids' => range(1, 200)];
+		$this->tagService->expects($this->once())->method('resolveTagsAs')->willReturn([]);
+
+		$this->assertSame(Http::STATUS_OK, $this->editor()->update(10)->getStatus());
+	}
+
+	public function testCreateReportsMoreThan200TagIds(): void {
+		$this->params = $this->captureParams(['tag_ids' => json_encode(range(1, 201))]);
+		$this->service->method('create')->willReturn($this->transaction());
+		$this->tagService->expects($this->never())->method('resolveTagsAs');
+
+		$response = $this->controller->create();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+		$this->assertArrayHasKey('tags_error', $response->getData());
+	}
+
+	public function testCreateReportsAJsonObjectForTagIds(): void {
+		$this->params = $this->captureParams(['tag_ids' => '{}']);
+		$this->service->method('create')->willReturn($this->transaction());
+
+		$this->assertArrayHasKey('tags_error', $this->controller->create()->getData());
+	}
+
+	/** A multipart form with an empty field: no tags, nothing to report. */
+	public function testAnEmptyTagFieldOnCreateIsNoTags(): void {
+		$this->params = $this->captureParams(['tag_ids' => '']);
+		$this->service->method('create')->willReturn($this->transaction());
+		$this->tagService->expects($this->never())->method('resolveTagsAs');
+
+		$this->assertArrayNotHasKey('tags_error', $this->controller->create()->getData());
+	}
 }

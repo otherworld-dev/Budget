@@ -2367,7 +2367,7 @@
           "tag_ids": {
             "type": "string",
             "example": "[12,27]",
-            "description": "Optional tags, as a JSON array of tag ids (a string, so it can ride in the same multipart body as photo; a JSON body may send the array itself). On your own account: your global tags, and the tags of the transaction's category. On an account shared with you: only the owner's category tags, for the transaction's category, from categories shared with you (GET /tags lists them). No global tag works on a shared account. They are checked against the transaction as it is created: after a split it has no category, so only global tags fit; on a transfer they go on the side in account_id. If any is refused, the transaction is still created, untagged, and the response carries tags_error. Needs tag_ids_available on GET /capabilities: an older server ignores the field."
+            "description": "Optional tags, as a JSON array of tag ids (a string, so it can ride in the same multipart body as photo; a JSON body may send the array itself). On your own account: your global tags, and the tags of the transaction's category. On an account shared with you: only the owner's category tags, for the transaction's category, from categories shared with you (GET /tags lists them). No global tag works on a shared account. They are checked against the transaction as it is created: after a split it has no category, so only global tags fit; on a transfer they go on the side in account_id. If any is refused, the transaction is still created, untagged, and the response carries tags_error. Needs tag_ids_available on GET /capabilities: an older server ignores the field. Up to 200 ids; an empty field means no tags."
           },
           "description": {
             "type": "string",
@@ -3065,15 +3065,23 @@
             "description": "null for uncategorised. Refused (409 split) on a split transaction. Must be a category the account owner can use, as on create."
           },
           "tag_ids": {
-            "type": "array",
-            "items": {
-              "type": "integer"
-            },
+            "oneOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "integer"
+                }
+              },
+              {
+                "type": "string",
+                "example": "[12,27]"
+              }
+            ],
             "example": [
               12,
               27
             ],
-            "description": "The whole set of tags; [] removes them all. A tag already on the transaction may always be sent back, even one that no longer fits its category; only newly added ones are checked, against the category this edit leaves. On your own account: your global tags, and the tags of the transaction's category. On an account shared with you: only the owner's category tags, for the transaction's category, from categories shared with you (GET /tags lists them). No global tag works on a shared account. Tags of the owner's that you cannot see stay on. A refused tag refuses the whole edit (400, error_code invalid_tags). The tags list of the read shape is ignored; only tag_ids sets tags. Needs tag_ids_available."
+            "description": "The whole set of tags; [] removes them all. A tag already on the transaction may always be sent back, even one that no longer fits its category; only newly added ones are checked, against the category this edit leaves. On your own account: your global tags, and the tags of the transaction's category. On an account shared with you: only the owner's category tags, for the transaction's category, from categories shared with you (GET /tags lists them). No global tag works on a shared account. Tags of the owner's that you cannot use (ones not in your GET /tags) stay on. A refused tag refuses the whole edit (400, error_code invalid_tags). The tags list of the read shape is ignored; only tag_ids sets tags. Needs tag_ids_available. Up to 200 ids. A JSON array inside a string is accepted too. null and an empty string are refused (invalid_tags): send [] to remove all tags, or leave tag_ids out to keep them."
           },
           "confirm_reconciled": {
             "type": "boolean",

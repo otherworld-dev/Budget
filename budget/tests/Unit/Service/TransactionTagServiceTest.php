@@ -38,8 +38,16 @@ class TransactionTagServiceTest extends TestCase {
 			$this->tagMapper,
 			$this->tagSetMapper,
 			$this->transactionMapper,
-			$this->db
+			$this->db,
+			$this->createMock(\OCA\Budget\Service\GranularShareService::class),
+			$this->l10n()
 		);
+	}
+
+	private function l10n(): \OCP\IL10N {
+		$l = $this->createMock(\OCP\IL10N::class);
+		$l->method('t')->willReturnCallback(static fn (string $text, array $parameters = []): string => '[t] ' . vsprintf($text, $parameters));
+		return $l;
 	}
 
 	private function makeTransaction(int $id, ?int $categoryId = 5): Transaction {
@@ -439,7 +447,42 @@ class TransactionTagServiceTest extends TestCase {
 		$this->db->expects($this->once())->method('commit');
 		$this->db->expects($this->never())->method('rollBack');
 		$this->transactionTagMapper->expects($this->exactly(2))->method('insert')->willReturnArgument(0);
+		// updated_at moves with the tags, in the same transaction
+		$qb = $this->createMock(IQueryBuilder::class);
+		$qb->method('expr')->willReturn($this->createMock(IExpressionBuilder::class));
+		$qb->method('createNamedParameter')->willReturn(':param');
+		foreach (['update', 'set', 'where'] as $m) {
+			$qb->method($m)->willReturnSelf();
+		}
+		$qb->expects($this->once())->method('executeStatement')->willReturn(1);
+		$this->db->method('getQueryBuilder')->willReturn($qb);
 
 		$this->service->replaceTransactionTags(5, [1, 2]);
+	}
+
+	public function testAnUnknownTagIsRefusedAsTheCallersMistakeInTheirLanguage(): void {
+		$this->transactionTagMapper->method('findByTransaction')->willReturn([]);
+		$this->tagMapper->method('findByIds')->willReturn([]);
+
+		try {
+			$this->service->resolveTagsAs('alice', 'alice', 5, null, [12]);
+			$this->fail('An unknown tag was accepted');
+		} catch (\InvalidArgumentException $e) {
+			$this->assertSame('[t] One or more tags do not exist', $e->getMessage());
+		}
+	}
+
+	/** A database failure is the server's, not a bad tag: it is not dressed up as one. */
+	public function testADatabaseFailureIsNotReportedAsABadTag(): void {
+		$this->transactionTagMapper->method('findByTransaction')->willReturn([]);
+		$tag = new \OCA\Budget\Db\Tag();
+		$tag->setId(12);
+		$tag->setTagSetId(4);
+		$this->tagMapper->method('findByIds')->willReturn([12 => $tag]);
+		$this->db->method('getQueryBuilder')->willThrowException(new \RuntimeException('connection lost'));
+
+		$this->expectException(\RuntimeException::class);
+		$this->expectExceptionMessage('connection lost');
+		$this->service->resolveTagsAs('alice', 'alice', 5, 3, [12]);
 	}
 }

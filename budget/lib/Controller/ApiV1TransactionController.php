@@ -165,6 +165,9 @@ class ApiV1TransactionController extends OCSController {
 		'type', 'status', 'reconciled', 'uncategorized', 'tagId', 'amountMin', 'amountMax',
 	];
 
+	/** Most tags one request may set; far more than anyone puts on a row. */
+	public const MAX_TAG_IDS = 200;
+
 	/** What `status` may be asked for; NULL in the database reads as cleared. */
 	private const STATUSES = ['cleared', 'scheduled', 'pending'];
 
@@ -259,15 +262,22 @@ class ApiV1TransactionController extends OCSController {
 	 *
 	 * @return int[]|null|false
 	 */
-	private function readTagIds(): array|null|false {
-		$raw = $this->request->getParam('tag_ids');
-		if ($raw === null) {
+	private function readTagIds(bool $forEdit = false): array|null|false {
+		if (!array_key_exists('tag_ids', $this->request->getParams())) {
 			return null;
 		}
-		if (is_string($raw)) {
-			$raw = trim($raw) === '' ? [] : json_decode($raw, true);
+		$raw = $this->request->getParam('tag_ids');
+		// On an edit, null and '' would read as "leave the tags" and "remove
+		// them all", when category_id null clears: neither is a list. On a
+		// create an empty multipart field simply means no tags.
+		if ($raw === null || (is_string($raw) && trim($raw) === '')) {
+			return $forEdit ? false : null;
 		}
-		if (!is_array($raw) || !array_is_list($raw)) {
+		if (is_string($raw)) {
+			// Not decoded to arrays: a JSON object is not a list of ids
+			$raw = json_decode($raw);
+		}
+		if (!is_array($raw) || !array_is_list($raw) || count($raw) > self::MAX_TAG_IDS) {
 			return false;
 		}
 		$ids = [];
@@ -283,7 +293,7 @@ class ApiV1TransactionController extends OCSController {
 	}
 
 	private function badTagIds(): string {
-		return $this->l->t('tag_ids must be a list of tag ids');
+		return $this->l->t('tag_ids must be a list of at most %d tag ids', [self::MAX_TAG_IDS]);
 	}
 
 	private function invalidTags(string $reason): DataResponse {
@@ -1162,7 +1172,7 @@ class ApiV1TransactionController extends OCSController {
 			if ($updates instanceof DataResponse) {
 				return $updates;
 			}
-			$tagIds = $this->readTagIds();
+			$tagIds = $this->readTagIds(true);
 			if ($tagIds === false) {
 				return $this->invalidTags($this->badTagIds());
 			}

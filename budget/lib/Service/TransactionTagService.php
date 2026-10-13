@@ -10,6 +10,7 @@ use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\TransactionTag;
 use OCA\Budget\Db\TransactionTagMapper;
 use OCP\IDBConnection;
+use OCP\IL10N;
 
 class TransactionTagService {
 	private TransactionTagMapper $transactionTagMapper;
@@ -24,7 +25,8 @@ class TransactionTagService {
 		TagSetMapper $tagSetMapper,
 		TransactionMapper $transactionMapper,
 		IDBConnection $db,
-		private ?GranularShareService $granularShareService = null,
+		private GranularShareService $granularShareService,
+		private IL10N $l,
 	) {
 		$this->transactionTagMapper = $transactionTagMapper;
 		$this->tagMapper = $tagMapper;
@@ -247,7 +249,7 @@ class TransactionTagService {
 
 		$tags = $this->tagMapper->findByIds($tagIds);
 		if (count($tags) !== count($tagIds)) {
-			throw new \Exception('One or more tags do not exist');
+			throw new \InvalidArgumentException($this->l->t('One or more tags do not exist'));
 		}
 
 		$tagSetIds = [];
@@ -389,7 +391,7 @@ class TransactionTagService {
 	 */
 	public function tagDetailsForUser(string $userId): array {
 		$own = $this->tagMapper->findDetailedForUser($userId);
-		$shared = $this->granularShareService?->getSharedCategoryIds($userId) ?? [];
+		$shared = $this->granularShareService->getSharedCategoryIds($userId);
 		if ($shared === []) {
 			return $own;
 		}
@@ -424,14 +426,8 @@ class TransactionTagService {
 		$added = array_values(array_diff($tagIds, $current));
 
 		if ($added !== []) {
-			$this->granularShareService?->requireUsableTags($actingUserId, $added);
-			try {
-				$this->validateTagsForTransaction($categoryId, $added, $ownerId);
-			} catch (\InvalidArgumentException $e) {
-				throw $e;
-			} catch (\Exception $e) {
-				throw new \InvalidArgumentException($e->getMessage(), 0, $e);
-			}
+			$this->granularShareService->requireUsableTags($actingUserId, $added);
+			$this->validateTagsForTransaction($categoryId, $added, $ownerId);
 		}
 
 		return array_values(array_unique(array_merge($tagIds, $this->ownersTagsHiddenFrom($actingUserId, $ownerId, $current))));
@@ -458,6 +454,13 @@ class TransactionTagService {
 				$link->setCreatedAt($now);
 				$this->transactionTagMapper->insert($link);
 			}
+			// A change of tags is a change of the transaction: a client that
+			// syncs by updated_at would otherwise never see it
+			$touch = $this->db->getQueryBuilder();
+			$touch->update('budget_transactions')
+				->set('updated_at', $touch->createNamedParameter($now))
+				->where($touch->expr()->eq('id', $touch->createNamedParameter($transactionId, \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_INT)));
+			$touch->executeStatement();
 			$this->db->commit();
 		} catch (\Throwable $e) {
 			$this->db->rollBack();
@@ -473,7 +476,7 @@ class TransactionTagService {
 	 * @return int[]
 	 */
 	public function ownersTagsHiddenFrom(string $actingUserId, string $ownerId, array $current): array {
-		if ($ownerId === $actingUserId || $current === [] || $this->granularShareService === null) {
+		if ($ownerId === $actingUserId || $current === []) {
 			return [];
 		}
 		$hidden = array_diff($current, $this->granularShareService->getUsableTagIds($actingUserId, $current));
@@ -525,19 +528,19 @@ class TransactionTagService {
 		$tags = $this->tagMapper->findByIds($tagIds);
 
 		if (count($tags) !== count($tagIds)) {
-			throw new \Exception('One or more tags do not exist');
+			throw new \InvalidArgumentException($this->l->t('One or more tags do not exist'));
 		}
 
 		foreach ($tags as $tag) {
 			if ($tag->getTagSetId() === null) {
 				// Global tag: verify user ownership
 				if ($tag->getUserId() !== $userId) {
-					throw new \Exception('One or more tags are not available for this transaction');
+					throw new \InvalidArgumentException($this->l->t('One or more tags are not available for this transaction'));
 				}
 			} else {
 				// Category tag: verify tag set belongs to the transaction's category
 				if ($categoryId === null) {
-					throw new \Exception('Category tags cannot be applied to uncategorized transactions');
+					throw new \InvalidArgumentException($this->l->t('Category tags cannot be applied to uncategorized transactions'));
 				}
 
 				$qb = $this->db->getQueryBuilder();
@@ -553,7 +556,7 @@ class TransactionTagService {
 				$result->closeCursor();
 
 				if (!$found) {
-					throw new \Exception('One or more tags are not available for this transaction');
+					throw new \InvalidArgumentException($this->l->t('One or more tags are not available for this transaction'));
 				}
 			}
 		}
