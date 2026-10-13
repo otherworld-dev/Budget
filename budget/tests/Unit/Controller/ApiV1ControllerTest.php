@@ -104,6 +104,10 @@ class ApiV1ControllerTest extends TestCase {
 			'splits_available' => true,
 			'check_available' => true,
 			'edit_available' => true,
+			'tags_available' => true,
+			'filters_available' => true,
+			'reconcile_available' => true,
+			'transfers_available' => true,
 			'currency' => 'GBP',
 			'version' => '2.41.0',
 		], $data);
@@ -144,6 +148,20 @@ class ApiV1ControllerTest extends TestCase {
 
 		$this->assertTrue($features['edit_transaction']);
 		$this->assertTrue($features['delete_transaction']);
+	}
+
+	/**
+	 * Tags, the extra list filters, the reconciled flag on an edit and
+	 * transfers on create: one flag each, so a client gates each on its own.
+	 * filters_available matters most, as an older server ignores a filter it
+	 * does not know and answers with everything.
+	 */
+	public function testInfoListsTagsFiltersReconcilingAndTransfers(): void {
+		$features = $this->controller->info()->getData()['features'];
+
+		foreach (['tags', 'transaction_filters', 'reconcile_transaction', 'create_transfer'] as $feature) {
+			$this->assertTrue($features[$feature], $feature);
+		}
 	}
 
 	public function testInfoListsTheCheckFeatures(): void {
