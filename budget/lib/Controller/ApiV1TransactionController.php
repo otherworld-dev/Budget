@@ -40,7 +40,8 @@ use Psr\Log\LoggerInterface;
  * the web UI, with one difference: where the web UI warns before a change,
  * these refuse it with a 409 and an error_code, because a client has no
  * dialog to show. Moving a transaction to another account and its status
- * stay web-only.
+ * stay web-only. The reconciled flag is not part of an edit: it has two calls
+ * of its own, so a transaction sent back whole can never carry a stale one.
  */
 class ApiV1TransactionController extends OCSController {
 	use ApiErrorHandlerTrait;
@@ -154,6 +155,16 @@ class ApiV1TransactionController extends OCSController {
 		}
 	}
 
+	/**
+	 * Every filter GET /transactions takes, as GET /capabilities lists them.
+	 * A server ignores a query parameter it has never heard of, so a client
+	 * looks a filter up here before relying on it. Add a new one here too.
+	 */
+	public const FILTERS = [
+		'accountId', 'categoryId', 'dateFrom', 'dateTo', 'search',
+		'type', 'status', 'reconciled', 'uncategorized', 'tagId', 'amountMin', 'amountMax',
+	];
+
 	/** What `status` may be asked for; NULL in the database reads as cleared. */
 	private const STATUSES = ['cleared', 'scheduled', 'pending'];
 
@@ -217,8 +228,8 @@ class ApiV1TransactionController extends OCSController {
 		}
 
 		if (isset($raw['tagId'])) {
-			$tagId = filter_var($raw['tagId'], FILTER_VALIDATE_INT);
-			if ($tagId === false || $tagId <= 0) {
+			$tagId = self::readId($raw['tagId']);
+			if ($tagId === null) {
 				return $this->badRequest($this->l->t('%s must be a whole number above zero', ['tagId']));
 			}
 			$filters['tagIds'] = [$tagId];
@@ -228,13 +239,30 @@ class ApiV1TransactionController extends OCSController {
 			if (!isset($raw[$name])) {
 				continue;
 			}
-			if (!is_numeric($raw[$name]) || (float)$raw[$name] < 0) {
+			// Plain digits only: is_numeric() also takes 1e3 and +5. And
+			// always with decimals, as the filter builder reads a bare '0'
+			// as no bound at all and answered with the whole list.
+			$bound = is_bool($raw[$name]) ? '' : (string)$raw[$name];
+			if (preg_match('/^\d+(\.\d+)?$/', $bound) !== 1) {
 				return $this->badRequest($this->l->t('%s must be a number, zero or more', [$name]));
 			}
-			$filters[$name] = (string)$raw[$name];
+			$filters[$name] = str_contains($bound, '.') ? $bound : $bound . '.00';
 		}
 
 		return $filters;
+	}
+
+	/**
+	 * An id from the wire: a whole number above zero, or null for anything
+	 * else. A JSON true is not the id 1.
+	 */
+	private static function readId(mixed $value): ?int {
+		if (is_bool($value) || !is_scalar($value)) {
+			return null;
+		}
+		$id = filter_var($value, FILTER_VALIDATE_INT);
+
+		return $id !== false && $id > 0 ? $id : null;
 	}
 
 	/** true, false, or null for anything that is neither. */
@@ -449,8 +477,8 @@ class ApiV1TransactionController extends OCSController {
 		// The other account of a transfer; none (or '') for anything else
 		$transferAccountId = null;
 		if (($p['transfer_account_id'] ?? '') !== '') {
-			$transferAccountId = filter_var($p['transfer_account_id'], FILTER_VALIDATE_INT);
-			if ($transferAccountId === false || $transferAccountId <= 0) {
+			$transferAccountId = self::readId($p['transfer_account_id']);
+			if ($transferAccountId === null) {
 				return $this->badRequest($this->l->t('%s must be a whole number above zero', ['transfer_account_id']));
 			}
 		}
@@ -535,7 +563,7 @@ class ApiV1TransactionController extends OCSController {
 			// exactly one request can ever reach the create below.
 			$reservation = null;
 			if ($idemKey !== '') {
-				$acquired = $this->acquireIdempotencyKey($idemKey, $accountId, $amount);
+				$acquired = $this->acquireIdempotencyKey($idemKey, $accountId, $amount, $transferAccountId);
 				if ($acquired instanceof DataResponse) {
 					return $acquired;
 				}
@@ -575,9 +603,7 @@ class ApiV1TransactionController extends OCSController {
 					$categoryId = null;
 				}
 
-				$transaction = $this->service->create(
-					$effectiveUserId,
-					$accountId,
+				$details = [
 					$date,
 					$fields['description']['sanitized'],
 					$amount,
@@ -586,11 +612,12 @@ class ApiV1TransactionController extends OCSController {
 					isset($fields['vendor']) ? $fields['vendor']['sanitized'] : null,
 					isset($fields['reference']) ? $fields['reference']['sanitized'] : null,
 					isset($fields['notes']) ? $fields['notes']['sanitized'] : null,
-				);
-
-				if ($transferAccountId !== null) {
-					$transaction = $this->addOtherSide($transaction, $transferAccountId, $effectiveUserId);
-				}
+				];
+				// A transfer is both sides or neither, which only the service
+				// can promise: it records the two in one database transaction
+				$transaction = $transferAccountId !== null
+					? $this->service->createTransfer($effectiveUserId, $this->userId, $accountId, $transferAccountId, $this->getEffectiveAccountIds(), ...$details)
+					: $this->service->create($effectiveUserId, $accountId, ...$details);
 			} catch (\Throwable $e) {
 				// The reservation must not outlive a failed create, or every
 				// honest retry of this key would wait on a ghost.
@@ -718,7 +745,8 @@ class ApiV1TransactionController extends OCSController {
 					$this->l->t('The two accounts are in different currencies. Record this transfer in the web UI, where each side has its own amount')
 				);
 			}
-		} catch (ReadOnlyShareException $e) {
+		} catch (\Exception $e) {
+			// A read-only share is a 403 here; anything else the usual answer
 			return $this->handleError($e, $this->l->t('Failed to create transaction'));
 		}
 
@@ -727,36 +755,6 @@ class ApiV1TransactionController extends OCSController {
 
 	private function transferRefused(string $errorCode, string $message): DataResponse {
 		return new DataResponse(['error' => $message, 'error_code' => $errorCode], Http::STATUS_BAD_REQUEST);
-	}
-
-	/**
-	 * Make a just-recorded transaction one side of a transfer: its other side
-	 * is created in the other account and the two are linked, as the web
-	 * UI's Convert to transfer does.
-	 *
-	 * A transfer is never left half recorded. If the other side cannot be
-	 * created, the first side goes again before the failure is passed on.
-	 */
-	private function addOtherSide(Transaction $transaction, int $transferAccountId, string $ownerId): Transaction {
-		try {
-			$pair = $this->service->convertToTransfer(
-				$transaction->getId(),
-				$transferAccountId,
-				$this->userId,
-				$this->getEffectiveAccountIds()
-			);
-
-			return $pair['transaction'];
-		} catch (\Throwable $e) {
-			try {
-				$this->service->delete($transaction->getId(), $ownerId);
-			} catch (\Throwable $leftBehind) {
-				$this->logger?->error('Half a transfer was left behind: transaction ' . $transaction->getId() . ' has no other side: ' . $leftBehind->getMessage(), [
-					'app' => Application::APP_ID,
-				]);
-			}
-			throw $e;
-		}
 	}
 
 	/** How long and how often a loser waits for an in-flight winner. */
@@ -771,7 +769,7 @@ class ApiV1TransactionController extends OCSController {
 	 * being reused for a DIFFERENT purchase, or a 409 when the winning
 	 * request is still in flight and did not finish within the wait.
 	 */
-	private function acquireIdempotencyKey(string $idemKey, int $accountId, float $amount): IdempotencyKey|DataResponse {
+	private function acquireIdempotencyKey(string $idemKey, int $accountId, float $amount, ?int $transferAccountId = null): IdempotencyKey|DataResponse {
 		// Retention housekeeping, deliberately outside the reservation try:
 		// a purge hiccup must not disable idempotency for this request.
 		try {
@@ -830,9 +828,14 @@ class ApiV1TransactionController extends OCSController {
 			}
 
 			// Same key, different purchase = a client bug worth surfacing,
-			// not silently answering with someone else's numbers.
+			// not silently answering with someone else's numbers. A transfer
+			// asked for is part of that: a 201 for a key that recorded a
+			// plain transaction, or a transfer into another account, would
+			// say a transfer exists that was never made. A plain retry is
+			// answered whatever became of the transaction since.
 			if ($transaction->getAccountId() !== $accountId
-				|| !MoneyCalculator::equals($transaction->getAmount(), $amount)) {
+				|| !MoneyCalculator::equals($transaction->getAmount(), $amount)
+				|| ($transferAccountId !== null && $this->otherSideAccountOf($transaction) !== $transferAccountId)) {
 				return new DataResponse([
 					'error' => $this->l->t('This idempotency key was already used for a different transaction'),
 					'error_code' => 'idempotency_key_conflict',
@@ -876,6 +879,13 @@ class ApiV1TransactionController extends OCSController {
 		}
 
 		return $out;
+	}
+
+	/** The account the other side of a transfer sits in, null when there is none. */
+	private function otherSideAccountOf(Transaction $transaction): ?int {
+		$linkedId = $transaction->getLinkedTransactionId();
+
+		return $linkedId === null ? null : $this->service->findTransaction($linkedId)?->getAccountId();
 	}
 
 	/** Overridable so tests do not sleep. */
@@ -1068,12 +1078,12 @@ class ApiV1TransactionController extends OCSController {
 	 *   either sent explicitly wins over it
 	 * - confirm_reconciled: true to change the money on a reconciled row
 	 *
-	 * - reconciled: true or false, the web UI's Mark reconciled and Mark
-	 *   unreconciled. The flag alone needs no confirmation.
-	 *
-	 * The read shape can be sent back whole with a field edited. account_id
-	 * and status are refused only when they differ from what is stored, and
-	 * the 409s below only fire on a real change.
+	 * The read shape can be sent back whole with a field edited. account_id,
+	 * status and reconciled are refused only when they differ from what is
+	 * stored, and the 409s below only fire on a real change. The reconciled
+	 * flag is set through reconcile() and unreconcile(): taken from an edit,
+	 * a stale value in a transaction sent back whole would quietly undo a
+	 * reconciliation made in the web UI since it was read.
 	 */
 	#[NoAdminRequired]
 	#[UserRateLimit(limit: 60, period: 60)]
@@ -1180,6 +1190,53 @@ class ApiV1TransactionController extends OCSController {
 	}
 
 	/**
+	 * Mark a transaction reconciled, as Mark reconciled does in the web UI.
+	 * One that already is comes back as it stands, so a retry is harmless.
+	 */
+	#[NoAdminRequired]
+	#[UserRateLimit(limit: 60, period: 60)]
+	public function reconcile(int $id): DataResponse {
+		return $this->setReconciled($id, true);
+	}
+
+	/**
+	 * Mark a transaction unreconciled. It leaves the statement it was
+	 * reconciled against, and the change is written to the audit log.
+	 */
+	#[NoAdminRequired]
+	#[UserRateLimit(limit: 60, period: 60)]
+	public function unreconcile(int $id): DataResponse {
+		return $this->setReconciled($id, false);
+	}
+
+	private function setReconciled(int $id, bool $reconciled): DataResponse {
+		try {
+			[$transaction, $ownerId] = $this->findWritable($id);
+
+			// It has not happened yet, so no statement can have it, and the
+			// reconciliation screen never lets one be ticked. Reconciled
+			// while scheduled it could not be ticked on the statement it
+			// does appear on.
+			if ($reconciled && ($transaction->getStatus() ?? 'cleared') === 'scheduled') {
+				return new DataResponse([
+					'error' => $this->l->t('A scheduled transaction cannot be reconciled, as it has not happened yet'),
+					'error_code' => 'scheduled',
+				], Http::STATUS_CONFLICT);
+			}
+
+			if ((bool)$transaction->getReconciled() !== $reconciled) {
+				$transaction = $this->service->update($id, $ownerId, ['reconciled' => $reconciled]);
+			}
+
+			return new DataResponse($this->serializeOne($transaction, $this->getEffectiveAccountIds()));
+		} catch (DoesNotExistException $e) {
+			return $this->notFound();
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to update transaction'));
+		}
+	}
+
+	/**
 	 * A transaction the caller may change, and the user its rows belong to.
 	 *
 	 * Found among every account the caller can see, and held to write access
@@ -1250,6 +1307,7 @@ class ApiV1TransactionController extends OCSController {
 		$unchanged = [
 			'account_id' => static fn ($v): bool => (int)$v === $current->getAccountId(),
 			'status' => static fn ($v): bool => (string)$v === ($current->getStatus() ?? 'cleared'),
+			'reconciled' => static fn ($v): bool => filter_var($v, FILTER_VALIDATE_BOOLEAN) === (bool)$current->getReconciled(),
 		];
 		foreach ($unchanged as $field => $isUnchanged) {
 			if (array_key_exists($field, $p) && !$isUnchanged($p[$field])) {
@@ -1261,17 +1319,6 @@ class ApiV1TransactionController extends OCSController {
 		}
 
 		$updates = [];
-
-		// The web UI's Mark reconciled and Mark unreconciled. Set even when it
-		// already has that value, like every other field, so a repeated
-		// request gives the same result.
-		if (array_key_exists('reconciled', $p) && $p['reconciled'] !== null && $p['reconciled'] !== '') {
-			$reconciled = self::readBool($p['reconciled']);
-			if ($reconciled === null) {
-				return $this->badRequest($this->l->t('%s must be true or false', ['reconciled']));
-			}
-			$updates['reconciled'] = $reconciled;
-		}
 
 		if (array_key_exists('date', $p)) {
 			$date = (string)$p['date'];

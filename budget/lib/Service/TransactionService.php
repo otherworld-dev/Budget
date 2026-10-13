@@ -1289,6 +1289,18 @@ class TransactionService {
 			}
 		}
 
+		// Marked unreconciled, a transaction is no longer part of the statement
+		// it was reconciled against. Left tied to that statement it could
+		// never be ticked on a later one (ticking takes rows without a
+		// statement only), and nothing warned of it. The change is logged, as
+		// it also lifts the confirmation a reconciled row's money asks for.
+		if ($transaction->getReconciled() && array_key_exists('reconciled', $updates) && !$updates['reconciled']) {
+			$this->auditService->log($userId, 'reconciled_tx_unreconciled', 'transaction', $id, [
+				'reconSessionId' => $transaction->getReconSessionId(),
+			]);
+			$transaction->setReconSessionId(null);
+		}
+
 		// A split parent's category is deliberately null — the categories live
 		// on its split rows. The blind setter loop below has no idea about
 		// that, so bulk edit ("filter by Uncategorized, select all, set a
@@ -2093,6 +2105,59 @@ class TransactionService {
 		);
 
 		return $this->linkTransactions($transactionId, $counterpart->getId(), $userId, $visibleAccountIds);
+	}
+
+	/**
+	 * Record a transfer in one go: a transaction in one account and its other
+	 * side in another, linked. Both or neither.
+	 *
+	 * create() followed by convertToTransfer() is two writes with a balance
+	 * recalculation between them. Anything failing in between (a deadlock, a
+	 * dropped connection) left one side on its own, in an account that may be
+	 * somebody else's, and the caller's retry recorded the pair on top of it.
+	 * Inside one database transaction the first side is undone with the rest.
+	 *
+	 * @param string $ownerId The owner of $accountId, whose ledger the first side joins
+	 * @param string $actingUserId Who is asking, for the scoping convertToTransfer() does
+	 * @param int[] $visibleAccountIds The accounts $actingUserId may use; both must be among them
+	 * @return Transaction The side in $accountId, linked to the other
+	 * @throws \Exception if the two accounts cannot hold a transfer between them
+	 */
+	public function createTransfer(
+		string $ownerId,
+		string $actingUserId,
+		int $accountId,
+		int $targetAccountId,
+		array $visibleAccountIds,
+		string $date,
+		string $description,
+		float $amount,
+		string $type,
+		?int $categoryId = null,
+		?string $vendor = null,
+		?string $reference = null,
+		?string $notes = null,
+	): Transaction {
+		$record = function () use ($ownerId, $actingUserId, $accountId, $targetAccountId, $visibleAccountIds, $date, $description, $amount, $type, $categoryId, $vendor, $reference, $notes): Transaction {
+			$first = $this->create($ownerId, $accountId, $date, $description, $amount, $type, $categoryId, $vendor, $reference, $notes);
+
+			return $this->convertToTransfer($first->getId(), $targetAccountId, $actingUserId, $visibleAccountIds)['transaction'];
+		};
+
+		if ($this->db === null) {
+			return $record();
+		}
+
+		$this->db->beginTransaction();
+		try {
+			$transaction = $record();
+			$this->db->commit();
+
+			return $transaction;
+		} catch (\Throwable $e) {
+			$this->db->rollBack();
+			throw $e;
+		}
 	}
 
 	/**
