@@ -253,6 +253,44 @@ class ApiV1TransactionController extends OCSController {
 	}
 
 	/**
+	 * tag_ids from the wire: a JSON list of ids, or one in a string (so it
+	 * can ride a multipart body with a photo, like splits). null when it was
+	 * not sent; false when it cannot be read as a list of ids.
+	 *
+	 * @return int[]|null|false
+	 */
+	private function readTagIds(): array|null|false {
+		$raw = $this->request->getParam('tag_ids');
+		if ($raw === null) {
+			return null;
+		}
+		if (is_string($raw)) {
+			$raw = trim($raw) === '' ? [] : json_decode($raw, true);
+		}
+		if (!is_array($raw) || !array_is_list($raw)) {
+			return false;
+		}
+		$ids = [];
+		foreach ($raw as $value) {
+			$id = self::readId($value);
+			if ($id === null) {
+				return false;
+			}
+			$ids[] = $id;
+		}
+
+		return array_values(array_unique($ids));
+	}
+
+	private function badTagIds(): string {
+		return $this->l->t('tag_ids must be a list of tag ids');
+	}
+
+	private function invalidTags(string $reason): DataResponse {
+		return new DataResponse(['error' => $reason, 'error_code' => 'invalid_tags'], Http::STATUS_BAD_REQUEST);
+	}
+
+	/**
 	 * An id from the wire: a whole number above zero, or null for anything
 	 * else. A JSON true is not the id 1.
 	 */
@@ -457,6 +495,8 @@ class ApiV1TransactionController extends OCSController {
 	 *   client records)
 	 * - photo (multipart file, optional) — attached as a receipt after the
 	 *   transaction is recorded. OMITTED entirely when there is none.
+	 * - tag_ids (optional): a JSON list of tag ids, or one in a string. A
+	 *   refused tag leaves the transaction recorded, untagged, with tags_error.
 	 * - idempotency_key (or an Idempotency-Key header): a repeat of a key
 	 *   seen in the last week answers with the transaction the first
 	 *   attempt recorded instead of inserting twice. A mobile client that
@@ -690,6 +730,26 @@ class ApiV1TransactionController extends OCSController {
 				$out['splits_error'] = $e instanceof \InvalidArgumentException
 					? $e->getMessage()
 					: $this->l->t('The transaction was recorded, but it could not be split');
+			}
+
+			// Tags last, on the transaction as it now is (after a split it has
+			// no category, so only global tags fit). Like the photo and the
+			// splits, a refusal is reported and never fails the capture.
+			$tagIds = $this->readTagIds();
+			if ($tagIds === false) {
+				$out['tags_error'] = $this->badTagIds();
+			} elseif ($tagIds !== null && $tagIds !== [] && $this->tagService !== null) {
+				try {
+					$final = $this->tagService->resolveTagsAs($this->userId, $effectiveUserId, $transaction->getId(), $out['category_id'], $tagIds);
+					$this->tagService->replaceTransactionTags($transaction->getId(), $final);
+					$out['tags'] = ApiSerializer::map(
+						$this->tagService->tagDetailsForTransactions([$transaction->getId()])[$transaction->getId()] ?? [],
+						[ApiSerializer::class, 'tag']
+					);
+				} catch (\InvalidArgumentException $e) {
+					$out['tags_error'] = $e->getMessage();
+					$out['tags'] = [];
+				}
 			}
 
 			return new DataResponse($out, Http::STATUS_CREATED);
@@ -1077,6 +1137,9 @@ class ApiV1TransactionController extends OCSController {
 	 * - merchant: create()'s shorthand for description and vendor together;
 	 *   either sent explicitly wins over it
 	 * - confirm_reconciled: true to change the money on a reconciled row
+	 * - tag_ids: the whole set of tags, [] for none. A tag already on it may
+	 *   stay; a new one is checked against the category this edit leaves, and
+	 *   a refused one refuses the edit (400, error_code invalid_tags)
 	 *
 	 * The read shape can be sent back whole with a field edited. account_id,
 	 * status and reconciled are refused only when they differ from what is
@@ -1095,7 +1158,11 @@ class ApiV1TransactionController extends OCSController {
 			if ($updates instanceof DataResponse) {
 				return $updates;
 			}
-			if ($updates === []) {
+			$tagIds = $this->readTagIds();
+			if ($tagIds === false) {
+				return $this->invalidTags($this->badTagIds());
+			}
+			if ($updates === [] && $tagIds === null) {
 				return new DataResponse(['error' => $this->l->t('No valid fields to update')], Http::STATUS_BAD_REQUEST);
 			}
 
@@ -1106,14 +1173,27 @@ class ApiV1TransactionController extends OCSController {
 
 			if (array_key_exists('categoryId', $updates)) {
 				$this->requireOwnersCategory($ownerId, $updates['categoryId']);
-				// The category it already has may stay; a new one must be one
-				// the caller can see
 				$this->granularShareService->requireCategoryVisibleToWriter(
 					$ownerId, $this->userId, $updates['categoryId'], [$transaction->getCategoryId()]
 				);
 			}
 
-			$updated = $this->service->update($id, $ownerId, $updates, $this->userId);
+			// Checked before anything is written, against the category this
+			// edit leaves the transaction in, so a refused tag writes nothing
+			$finalTags = null;
+			if ($tagIds !== null && $this->tagService !== null) {
+				$category = array_key_exists('categoryId', $updates) ? $updates['categoryId'] : $transaction->getCategoryId();
+				try {
+					$finalTags = $this->tagService->resolveTagsAs($this->userId, $ownerId, $id, $category, $tagIds);
+				} catch (\InvalidArgumentException $e) {
+					return $this->invalidTags($e->getMessage());
+				}
+			}
+
+			$updated = $updates === [] ? $transaction : $this->service->update($id, $ownerId, $updates, $this->userId);
+			if ($finalTags !== null) {
+				$this->tagService->replaceTransactionTags($id, $finalTags);
+			}
 
 			return new DataResponse($this->serializeOne($updated, $this->getEffectiveAccountIds()));
 		} catch (DoesNotExistException $e) {

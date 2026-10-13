@@ -2689,4 +2689,189 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
 		$this->assertSame(10, $response->getData()['id']);
 	}
+
+	// ── setting tags ────────────────────────────────────────────────
+
+	public function testCreateAppliesTheTagsAsTheAccountsOwner(): void {
+		$this->params = $this->captureParams(['tag_ids' => '[12,27]']);
+		$this->service->method('create')->willReturn($this->transaction());
+		$this->tagService->expects($this->once())->method('resolveTagsAs')
+			->with('user1', 'user1', 10, null, [12, 27])->willReturn([12, 27]);
+		$this->tagService->expects($this->once())->method('replaceTransactionTags')->with(10, [12, 27]);
+		$this->tagService->method('tagDetailsForTransactions')->willReturn([10 => [
+			['id' => 12, 'name' => 'Haushalt', 'userId' => 'user1'],
+			['id' => 27, 'name' => 'Tesco', 'userId' => 'user1'],
+		]]);
+
+		$response = $this->controller->create();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+		$this->assertSame([12, 27], array_column($response->getData()['tags'], 'id'));
+		$this->assertArrayNotHasKey('tags_error', $response->getData());
+	}
+
+	public function testCreateTakesTagIdsAsAJsonList(): void {
+		$this->params = $this->captureParams(['tag_ids' => [12]]);
+		$this->service->method('create')->willReturn($this->transaction());
+		$this->tagService->expects($this->once())->method('resolveTagsAs')
+			->with('user1', 'user1', 10, null, [12])->willReturn([12]);
+
+		$this->assertSame(Http::STATUS_CREATED, $this->controller->create()->getStatus());
+	}
+
+	/** The capture is kept: a retry would record it twice. */
+	public function testARefusedTagKeepsTheTransactionAndSaysWhy(): void {
+		$this->params = $this->captureParams(['tag_ids' => '[99]']);
+		$this->service->method('create')->willReturn($this->transaction());
+		$this->tagService->method('resolveTagsAs')->willThrowException(new \InvalidArgumentException('Invalid tag ID'));
+		$this->tagService->expects($this->never())->method('replaceTransactionTags');
+
+		$response = $this->controller->create();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+		$this->assertSame('Invalid tag ID', $response->getData()['tags_error']);
+		$this->assertSame([], $response->getData()['tags']);
+	}
+
+	public static function unreadableTagIds(): array {
+		return [
+			'not JSON' => ['12,27'],
+			'an object' => ['{"a":1}'],
+			'a word in the list' => ['["x"]'],
+			'zero' => ['[0]'],
+			'a boolean' => ['[true]'],
+			'a nested list' => ['[[1]]'],
+		];
+	}
+
+	#[DataProvider('unreadableTagIds')]
+	public function testTagIdsThatCannotBeReadAreReportedNotDropped(string $value): void {
+		$this->params = $this->captureParams(['tag_ids' => $value]);
+		$this->service->method('create')->willReturn($this->transaction());
+		$this->tagService->expects($this->never())->method('replaceTransactionTags');
+
+		$response = $this->controller->create();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+		$this->assertArrayHasKey('tags_error', $response->getData());
+	}
+
+	public function testAnEmptyTagListOnCreateTouchesNothing(): void {
+		$this->params = $this->captureParams(['tag_ids' => '[]']);
+		$this->service->method('create')->willReturn($this->transaction());
+		$this->tagService->expects($this->never())->method('resolveTagsAs');
+
+		$this->assertSame(Http::STATUS_CREATED, $this->controller->create()->getStatus());
+	}
+
+	public function testTagsOnASplitCaptureAreCheckedAgainstNoCategory(): void {
+		$this->params = $this->captureParams([
+			'category_id' => '3', 'tag_ids' => '[12]',
+			'splits' => '[{"amount":"20.00","category_id":3},{"amount":"22.50"}]',
+		]);
+		$this->service->method('create')->willReturn($this->transaction());
+		$this->splitService->method('splitTransaction')->willReturn([]);
+		$this->tagService->expects($this->once())->method('resolveTagsAs')
+			->with('user1', 'user1', 10, null, [12])->willReturn([12]);
+
+		$this->assertSame(Http::STATUS_CREATED, $this->controller->create()->getStatus());
+	}
+
+	public function testTagsOnATransferGoOnTheFirstSide(): void {
+		$this->accountsIn();
+		$this->params = $this->captureParams(['transfer_account_id' => '2', 'tag_ids' => '[12]']);
+		$this->service->method('createTransfer')->willReturn($this->linkedTo(56));
+		$this->service->method('findForAccounts')->willReturn($this->otherSideIn(2));
+		$this->tagService->expects($this->once())->method('resolveTagsAs')
+			->with('user1', 'user1', 10, null, [12])->willReturn([12]);
+		$this->tagService->expects($this->once())->method('replaceTransactionTags')->with(10, [12]);
+
+		$this->assertSame(Http::STATUS_CREATED, $this->controller->create()->getStatus());
+	}
+
+	public function testAReplayedKeyDoesNotTouchTheTags(): void {
+		$this->params = $this->captureParams(['idempotency_key' => 'uuid-1', 'tag_ids' => '[12]']);
+		$controller = $this->buildController($this->heldKeyMapper(10), $this->validationService);
+		$this->service->method('findForAccounts')->willReturn($this->transaction());
+		$this->tagService->expects($this->never())->method('resolveTagsAs');
+		$this->tagService->expects($this->never())->method('replaceTransactionTags');
+
+		$this->assertSame(Http::STATUS_CREATED, $controller->create()->getStatus());
+	}
+
+	public function testUpdateReplacesTheTagsAsTheOwner(): void {
+		$this->existing(['categoryId' => 7]);
+		$this->params = ['tag_ids' => [12, 27]];
+		$this->service->expects($this->never())->method('update');
+		$this->tagService->expects($this->once())->method('resolveTagsAs')
+			->with('user1', 'user1', 10, 7, [12, 27])->willReturn([12, 27]);
+		$this->tagService->expects($this->once())->method('replaceTransactionTags')->with(10, [12, 27]);
+
+		$this->assertSame(Http::STATUS_OK, $this->editor()->update(10)->getStatus());
+	}
+
+	public function testUpdateChecksNewTagsAgainstTheNewCategory(): void {
+		$this->existing(['categoryId' => 7]);
+		$this->params = ['category_id' => 15, 'tag_ids' => [27]];
+		$this->tagService->expects($this->once())->method('resolveTagsAs')
+			->with('user1', 'user1', 10, 15, [27])->willReturn([27]);
+		$this->service->expects($this->once())->method('update')
+			->with(10, 'user1', ['categoryId' => 15], 'user1')->willReturn($this->transaction());
+
+		$this->assertSame(Http::STATUS_OK, $this->editor()->update(10)->getStatus());
+	}
+
+	/** Nothing is written, the category included. */
+	public function testARefusedTagRefusesTheWholeEdit(): void {
+		$this->existing(['categoryId' => 7]);
+		$this->params = ['category_id' => 15, 'tag_ids' => [27]];
+		$this->tagService->method('resolveTagsAs')->willThrowException(new \InvalidArgumentException('One or more tags are not available for this transaction'));
+		$this->service->expects($this->never())->method('update');
+		$this->tagService->expects($this->never())->method('replaceTransactionTags');
+
+		$response = $this->editor()->update(10);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('invalid_tags', $response->getData()['error_code']);
+	}
+
+	public function testUpdateRefusesTagIdsThatCannotBeRead(): void {
+		$this->existing();
+		$this->params = ['tag_ids' => 'abc'];
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->editor()->update(10);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('invalid_tags', $response->getData()['error_code']);
+	}
+
+	public function testUpdateClearsTheTagsWithAnEmptyList(): void {
+		$this->existing();
+		$this->params = ['tag_ids' => []];
+		$this->tagService->expects($this->once())->method('resolveTagsAs')->willReturn([]);
+		$this->tagService->expects($this->once())->method('replaceTransactionTags')->with(10, []);
+
+		$this->assertSame(Http::STATUS_OK, $this->editor()->update(10)->getStatus());
+	}
+
+	/** The tags of the read shape are read-only; only tag_ids sets them. */
+	public function testUpdateIgnoresTheTagsOfTheReadShape(): void {
+		$this->existing();
+		$this->params = ['notes' => 'x', 'tags' => [['id' => 12, 'name' => 'Haushalt']]];
+		$this->tagService->expects($this->never())->method('resolveTagsAs');
+		$this->service->method('update')->willReturn($this->transaction());
+
+		$this->assertSame(Http::STATUS_OK, $this->editor()->update(10)->getStatus());
+	}
+
+	public function testTagsOnASharedAccountAreSetAsItsOwner(): void {
+		$this->existing(['accountId' => 9], 'owner9');
+		$this->params = ['tag_ids' => [27]];
+		$this->tagService->expects($this->once())->method('resolveTagsAs')
+			->with('user1', 'owner9', 10, null, [27])->willReturn([27, 40]);
+		$this->tagService->expects($this->once())->method('replaceTransactionTags')->with(10, [27, 40]);
+
+		$this->assertSame(Http::STATUS_OK, $this->editor()->update(10)->getStatus());
+	}
 }
