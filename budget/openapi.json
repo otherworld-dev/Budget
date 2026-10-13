@@ -209,7 +209,7 @@
         ],
         "operationId": "listTags",
         "summary": "List tags",
-        "description": "The user's own tags: the global ones first, then each tag set in the order set in the web UI. Hidden tags are listed too, flagged. Tags of people who share with the user are not listed; they still come with the transactions they sit on. Check tags_available on GET /capabilities first: an older server answers 404.",
+        "description": "The user's own tags: the global ones first, then each tag set in the order set in the web UI. Hidden tags are listed too, flagged. Tags of people who share with the user are not listed; they still come with the transactions they are on. Check tags_available on GET /capabilities first: an older server answers 404.",
         "responses": {
           "200": {
             "description": "Tags",
@@ -257,7 +257,7 @@
         ],
         "operationId": "listTransactions",
         "summary": "List transactions",
-        "description": "Most recent first, across every account the user can see. The filters type, status, reconciled, uncategorized, tagId, amountMin and amountMax need filters_available on GET /capabilities: an older server ignores a filter it does not know and answers with the unfiltered list. A filter value this server cannot read is a 400, never a guess.",
+        "description": "Most recent first, across every account the user can see. Before using type, status, reconciled, uncategorized, tagId, amountMin or amountMax, look the filter up in transaction_filters on GET /capabilities: a server that does not have a filter ignores it and answers with the unfiltered list. A filter value this server cannot read is a 400, never a guess.",
         "parameters": [
           {
             "name": "accountId",
@@ -332,7 +332,7 @@
             "schema": {
               "type": "boolean"
             },
-            "description": "true for reconciled transactions only, false for the rest."
+            "description": "true for reconciled transactions only, false for all the rest."
           },
           {
             "name": "uncategorized",
@@ -354,17 +354,19 @@
             "name": "amountMin",
             "in": "query",
             "schema": {
-              "type": "number",
-              "minimum": 0
+              "type": "string",
+              "pattern": "^\\d+(\\.\\d+)?$",
+              "example": "20.50"
             },
-            "description": "Lowest amount, inclusive. amount is always positive; type carries the direction."
+            "description": "Lowest amount, inclusive: plain digits with an optional decimal part. amount is the stored figure, which is positive (type carries the direction)."
           },
           {
             "name": "amountMax",
             "in": "query",
             "schema": {
-              "type": "number",
-              "minimum": 0
+              "type": "string",
+              "pattern": "^\\d+(\\.\\d+)?$",
+              "example": "20.50"
             },
             "description": "Highest amount, inclusive."
           },
@@ -435,7 +437,7 @@
         ],
         "operationId": "createTransaction",
         "summary": "Record a transaction",
-        "description": "Record a transaction. Rate limited to 60 per minute per user. The account balance is recalculated automatically. Writing into an account shared by another user records the transaction against that owner ledger. An idempotency_key (or Idempotency-Key header) makes retries safe: a repeat within 7 days answers 201 with the transaction the first attempt recorded. An optional multipart photo is attached after recording; if attaching fails the response still succeeds and carries photo_error. With transfer_account_id the transaction becomes one side of a transfer and its other side is created in that account; if the other side cannot be created the first is removed again, so a transfer is never left half recorded, and the idempotency key covers the pair.",
+        "description": "Record a transaction. Rate limited to 60 per minute per user. The account balance is recalculated automatically. Writing into an account shared by another user records the transaction against that owner ledger. An idempotency_key (or Idempotency-Key header) makes retries safe: a repeat within 7 days answers 201 with the transaction the first attempt recorded. An optional multipart photo is attached after recording; if attaching fails the response still succeeds and carries photo_error. With transfer_account_id the transaction is one side of a transfer and its other side is created in that account. The two are recorded together or not at all, so a transfer is never left half recorded, and the idempotency key covers the pair.",
         "requestBody": {
           "required": true,
           "content": {
@@ -523,7 +525,7 @@
             "$ref": "#/components/responses/RateLimited"
           },
           "409": {
-            "description": "error_code idempotency_key_conflict: the key was already used for a DIFFERENT transaction (another account or amount) - a client bug, not a retry. error_code request_in_flight: the original request carrying this key is still executing and did not finish within the wait - retry shortly, nothing was duplicated.",
+            "description": "error_code idempotency_key_conflict: the key was already used for a DIFFERENT transaction (another account or amount, or a transfer_account_id that is not where the transaction the key recorded went) - a client bug, not a retry. error_code request_in_flight: the original request carrying this key is still executing and did not finish within the wait - retry shortly, nothing was duplicated.",
             "content": {
               "application/json": {
                 "schema": {
@@ -601,7 +603,7 @@
         ],
         "operationId": "updateTransaction",
         "summary": "Edit a transaction",
-        "description": "Changes only the fields sent, through the same service as the web UI: balances are recalculated from the ledger, and a split transaction's parts are rescaled when its amount changes.\n\nWhere the web UI would warn first, this refuses with a 409 instead: the amount, type or date of one side of a transfer (transfer_leg), the same on a reconciled transaction without confirm_reconciled (reconciled), and a category on a split transaction (split). A value sent back unchanged never triggers these.\n\nMoving a transaction to another account and changing its status are web-only.\n\nSafe to retry: the values sent are absolute, so sending the same request twice gives the same result.\n\nOn a shared account the change is written to the owner's ledger; a read-only share gets 403.",
+        "description": "Changes only the fields sent, through the same service as the web UI: balances are recalculated from the ledger, and a split transaction's parts are rescaled when its amount changes.\n\nWhere the web UI would warn first, this refuses with a 409 instead: the amount, type or date of one side of a transfer (transfer_leg), the same on a reconciled transaction without confirm_reconciled (reconciled), and a category on a split transaction (split). A value sent back unchanged never triggers these.\n\nMoving a transaction to another account, and changing its status or reconciled flag, are web-only.\n\nSafe to retry: the values sent are absolute, so sending the same request twice gives the same result.\n\nOn a shared account the change is written to the owner's ledger; a read-only share gets 403.",
         "requestBody": {
           "required": true,
           "content": {
@@ -641,7 +643,7 @@
             }
           },
           "400": {
-            "description": "A malformed value (a list or an object for a field that takes one value: \"vendor must be a single value\"), nothing editable in the body, an amount that is not more than zero (error_code invalid_amount), a reconciled value that is not true or false, or account_id or status sent with a different value (error_code field_not_editable). A category_id the account owner cannot use answers \"Category not found. It must be one of the account owner's categories\"; on an account shared with you, a new category_id you cannot see (one of the owner's never shared with you) answers \"Category not found\". The category the transaction already has may always be sent back.",
+            "description": "A malformed value (a list or an object for a field that takes one value: \"vendor must be a single value\"), nothing editable in the body, an amount that is not more than zero (error_code invalid_amount), or account_id, status or reconciled sent with a different value (error_code field_not_editable). A category_id the account owner cannot use answers \"Category not found. It must be one of the account owner's categories\"; on an account shared with you, a new category_id you cannot see (one of the owner's never shared with you) answers \"Category not found\". The category the transaction already has may always be sent back.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1372,6 +1374,132 @@
         }
       }
     },
+    "/transactions/{id}/reconcile": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "transactions"
+        ],
+        "operationId": "reconcileTransaction",
+        "summary": "Mark a transaction reconciled",
+        "description": "Sets the reconciled flag, as Mark reconciled does in the web UI. A transaction that is already reconciled is returned as it stands, so retrying is safe. It does not move the account's last_reconciled_at, which belongs to a statement reconciliation in the web UI. Rate limited to 60 per minute per user. On a shared account the change is written to the owner's ledger; a read-only share gets 403. The flag is not part of PATCH /transactions/{id} on purpose: a transaction sent back whole could carry a stale value. Check reconcile_available on GET /capabilities first.",
+        "responses": {
+          "200": {
+            "description": "The transaction, reconciled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/OcsEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "ocs": {
+                          "type": "object",
+                          "properties": {
+                            "data": {
+                              "$ref": "#/components/schemas/Transaction"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorised"
+          },
+          "403": {
+            "$ref": "#/components/responses/ReadOnly"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict",
+            "description": "error_code scheduled: the transaction is dated in the future and has not happened yet, so it cannot be reconciled."
+          },
+          "412": {
+            "$ref": "#/components/responses/MissingOcsHeader"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/MalformedBody"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "transactions"
+        ],
+        "operationId": "unreconcileTransaction",
+        "summary": "Mark a transaction unreconciled",
+        "description": "Clears the reconciled flag, as Mark unreconciled does in the web UI. The transaction leaves the statement it was reconciled against, so it can be reconciled against a later one, and the change is written to the audit log. Its amount, type and date can then be changed without confirm_reconciled, so ask the user first, as the web UI does. A transaction that is not reconciled is returned as it stands. Rate limited to 60 per minute per user.",
+        "responses": {
+          "200": {
+            "description": "The transaction, no longer reconciled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/OcsEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "ocs": {
+                          "type": "object",
+                          "properties": {
+                            "data": {
+                              "$ref": "#/components/schemas/Transaction"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorised"
+          },
+          "403": {
+            "$ref": "#/components/responses/ReadOnly"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "412": {
+            "$ref": "#/components/responses/MissingOcsHeader"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/MalformedBody"
+          }
+        }
+      }
+    },
     "/budget/status": {
       "get": {
         "tags": [
@@ -1694,7 +1822,7 @@
           },
           "error_code": {
             "type": "string",
-            "description": "Stable machine-readable code, present on failures clients must distinguish programmatically: ocr_not_configured, ocr_quota_exhausted, ocr_extraction_failed, idempotency_key_conflict, request_in_flight, field_not_editable, invalid_amount, transfer_leg, reconciled, split, transfer_same_account, transfer_currency_mismatch, transfer_split. Switch on this, never on the error text."
+            "description": "Stable machine-readable code, present on failures clients must distinguish programmatically: ocr_not_configured, ocr_quota_exhausted, ocr_extraction_failed, idempotency_key_conflict, request_in_flight, field_not_editable, invalid_amount, transfer_leg, reconciled, split, scheduled, transfer_same_account, transfer_currency_mismatch, transfer_split. Switch on this, never on the error text."
           },
           "hint": {
             "type": "string",
@@ -1790,13 +1918,9 @@
                 "type": "boolean",
                 "description": "Tags on transactions and GET /tags."
               },
-              "transaction_filters": {
-                "type": "boolean",
-                "description": "The type, status, reconciled, uncategorized, tagId, amountMin and amountMax filters on GET /transactions."
-              },
               "reconcile_transaction": {
                 "type": "boolean",
-                "description": "reconciled on PATCH /transactions/{id}."
+                "description": "POST and DELETE /transactions/{id}/reconcile."
               },
               "create_transfer": {
                 "type": "boolean",
@@ -1977,10 +2101,14 @@
       },
       "Tag": {
         "type": "object",
-        "description": "A tag, the same shape on a transaction and in GET /tags. A global tag has tag_set_id, tag_set_name and category_id all null and can sit on any transaction. A category tag belongs to a tag set of one category and can only sit on a transaction in that category.",
+        "description": "A tag, the same shape on a transaction and in GET /tags. A global tag has tag_set_id, tag_set_name and category_id all null and can be put on any transaction. A category tag belongs to a tag set of one category and can only be put on a transaction in that category.",
         "required": [
           "id",
           "name",
+          "color",
+          "tag_set_id",
+          "tag_set_name",
+          "category_id",
           "hidden",
           "owner"
         ],
@@ -2014,7 +2142,7 @@
             "type": "integer",
             "nullable": true,
             "example": 415,
-            "description": "The category whose transactions this tag can sit on. Null for a global tag, which can sit on any."
+            "description": "The category whose transactions this tag can be put on. Null for a global tag, which can go on any. A transaction keeps a category tag when it is moved to another category, so this is not always the transaction's own category_id, and on an account shared with you it can be a category of the owner's that is not in your GET /categories."
           },
           "hidden": {
             "type": "boolean",
@@ -2147,7 +2275,7 @@
             "items": {
               "$ref": "#/components/schemas/Tag"
             },
-            "description": "Always present. The transaction's tags, global ones first, [] when it has none. Tags sit on the whole transaction, never on the parts of a split. Absent on servers without tags_available."
+            "description": "The transaction's tags, global ones first, [] when it has none. Always present on a server with tags_available. Tags are on the whole transaction, never on the parts of a split."
           },
           "splits_error": {
             "type": "string",
@@ -2427,22 +2555,38 @@
           "tags_available": {
             "type": "boolean",
             "example": true,
-            "description": "Whether transactions carry tags, GET /tags exists and the tagId filter works. Absent on older servers; treat absence as false."
-          },
-          "filters_available": {
-            "type": "boolean",
-            "example": true,
-            "description": "Whether GET /transactions takes type, status, reconciled, uncategorized, tagId, amountMin and amountMax. Absent on older servers, which ignore those parameters and answer with the unfiltered list: never send them without this flag."
+            "description": "Whether transactions carry tags and GET /tags exists. Absent on older servers; treat absence as false."
           },
           "reconcile_available": {
             "type": "boolean",
             "example": true,
-            "description": "Whether PATCH /transactions/{id} takes reconciled. Absent on older servers; treat absence as false."
+            "description": "Whether this server has POST and DELETE /transactions/{id}/reconcile. Absent on older servers; treat absence as false."
           },
           "transfers_available": {
             "type": "boolean",
             "example": true,
             "description": "Whether POST /transactions takes transfer_account_id. Absent on older servers, which ignore the field and record a plain transaction: never send it without this flag."
+          },
+          "transaction_filters": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "accountId",
+              "categoryId",
+              "dateFrom",
+              "dateTo",
+              "search",
+              "type",
+              "status",
+              "reconciled",
+              "uncategorized",
+              "tagId",
+              "amountMin",
+              "amountMax"
+            ],
+            "description": "The names of the filters GET /transactions takes on this server. A server ignores a query parameter it does not know and answers with the unfiltered list, so look a filter up here before relying on it. Absent on older servers, which have accountId, categoryId, dateFrom, dateTo and search."
           },
           "currency": {
             "type": "string",
@@ -2850,7 +2994,7 @@
       },
       "TransactionEdit": {
         "type": "object",
-        "description": "Only the fields sent change. vendor, reference, notes and category_id sent as null (or an empty string) are cleared. The Transaction read shape can be sent back whole with a field edited: its read-only fields are ignored, and account_id and status are refused (field_not_editable) only when they differ from what is stored.",
+        "description": "Only the fields sent change. vendor, reference, notes and category_id sent as null (or an empty string) are cleared. The Transaction read shape can be sent back whole with a field edited: its read-only fields are ignored, and account_id, status and reconciled are refused (field_not_editable) only when they differ from what is stored.",
         "properties": {
           "date": {
             "type": "string",
@@ -2901,10 +3045,6 @@
             "type": "integer",
             "nullable": true,
             "description": "null for uncategorised. Refused (409 split) on a split transaction. Must be a category the account owner can use, as on create."
-          },
-          "reconciled": {
-            "type": "boolean",
-            "description": "Sets the reconciled flag, as Mark reconciled and Mark unreconciled do in the web UI. No confirmation is needed for the flag itself. It does not move the account's last_reconciled_at, which belongs to a statement reconciliation. Needs reconcile_available on GET /capabilities: an older server refuses a changed value with field_not_editable."
           },
           "confirm_reconciled": {
             "type": "boolean",

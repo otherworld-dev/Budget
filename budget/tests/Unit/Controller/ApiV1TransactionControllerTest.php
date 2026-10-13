@@ -2182,7 +2182,7 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->assertSame('scheduled', $filters['status']);
 		$this->assertTrue($filters['reconciled']);
 		$this->assertSame([12], $filters['tagIds']);
-		$this->assertSame('5', $filters['amountMin']);
+		$this->assertSame('5.00', $filters['amountMin']);
 		$this->assertSame('20.50', $filters['amountMax']);
 	}
 
@@ -2270,80 +2270,154 @@ class ApiV1TransactionControllerTest extends TestCase {
 		}
 	}
 
-	// ── the reconciled flag on an edit ──────────────────────────────
+	// ── amount bounds, as the filter builder needs them ─────────────
 
-	public static function waysToSayReconciled(): array {
+	public static function amountBounds(): array {
 		return [
-			'a JSON true' => [true, true],
-			'a JSON false' => [false, false],
-			'the word true' => ['true', true],
-			'the word false' => ['false', false],
-			'a form 1' => ['1', true],
-			'a form 0' => ['0', false],
+			'a whole number' => ['5', '5.00'],
+			'with pennies' => ['20.50', '20.50'],
+			// Bare, the filter builder reads '0' as no bound at all
+			'zero' => ['0', '0.00'],
+			'zero with places' => ['0.00', '0.00'],
+			'spaces around it' => [' 7 ', '7.00'],
+			'eight places' => ['0.00000001', '0.00000001'],
 		];
 	}
 
-	#[DataProvider('waysToSayReconciled')]
-	public function testUpdateSetsTheReconciledFlag(mixed $sent, bool $stored): void {
-		$this->existing(['reconciled' => !$stored]);
-		$this->params = ['reconciled' => $sent];
+	#[DataProvider('amountBounds')]
+	public function testAnAmountBoundIsPassedOnAsAFixedDecimal(string $sent, string $passed): void {
+		$this->params = ['amountMin' => $sent, 'amountMax' => $sent];
 
-		$this->service->expects($this->once())->method('update')
-			->with(10, 'user1', ['reconciled' => $stored])
-			->willReturn($this->transaction());
+		$filters = $this->filtersSent();
 
-		$this->assertSame(Http::STATUS_OK, $this->editor()->update(10)->getStatus());
+		$this->assertSame($passed, $filters['amountMin']);
+		$this->assertSame($passed, $filters['amountMax']);
 	}
 
-	/** The same request twice gives the same result, as for every other field. */
-	public function testUpdateSetsTheFlagAgainWhenItAlreadyHasThatValue(): void {
-		$this->existing(['reconciled' => true]);
-		$this->params = ['reconciled' => true];
-
-		$this->service->expects($this->once())->method('update')
-			->with(10, 'user1', ['reconciled' => true])
-			->willReturn($this->transaction());
-
-		$this->assertSame(Http::STATUS_OK, $this->editor()->update(10)->getStatus());
+	public static function notPlainDecimals(): array {
+		return [
+			'an exponent' => ['amountMin', '1e3'],
+			'a sign' => ['amountMax', '+5'],
+			'hex' => ['amountMin', '0x1A'],
+			'a bare point' => ['amountMax', '.5'],
+			'a boolean for a tag id' => ['tagId', true],
+			'a boolean for an amount' => ['amountMin', true],
+		];
 	}
 
-	public function testUpdateRefusesAReconciledValueItCannotRead(): void {
-		$this->existing();
-		$this->params = ['reconciled' => 'maybe'];
-		$this->service->expects($this->never())->method('update');
+	#[DataProvider('notPlainDecimals')]
+	public function testIndexRefusesNumbersItWouldHaveToGuessAt(string $filter, mixed $value): void {
+		$this->params = [$filter => $value];
+		$this->service->expects($this->never())->method('findWithFilters');
 
-		$response = $this->editor()->update(10);
-
-		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
-		$this->assertStringContainsString('reconciled', $response->getData()['error']);
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $this->controller->index()->getStatus());
 	}
+
+	// ── reconciling ─────────────────────────────────────────────────
 
 	/**
-	 * The check is on the row as stored: taking the flag off in the same
-	 * request must not wave a change of the money through.
+	 * Not through an edit: a client may send back the whole transaction it
+	 * read, and a stale flag in it would silently undo a reconciliation made
+	 * in the meantime. An edit refuses a different value, as it always has.
 	 */
-	public function testClearingTheFlagDoesNotExcuseAMoneyChangeOnAReconciledRow(): void {
-		$this->existing(['reconciled' => true]);
-		$this->params = ['amount' => '50.00', 'reconciled' => false];
-		$this->service->expects($this->never())->method('update');
-
-		$response = $this->editor()->update(10);
-
-		$this->assertSame(Http::STATUS_CONFLICT, $response->getStatus());
-		$this->assertSame('reconciled', $response->getData()['error_code']);
-	}
-
-	public function testUpdateStillRefusesToChangeTheAccountOrTheStatus(): void {
+	public function testUpdateRefusesToChangeTheAccountStatusOrReconciledFlag(): void {
 		$this->existing();
 		$this->service->expects($this->never())->method('update');
 
-		foreach ([['account_id' => 2], ['status' => 'scheduled']] as $params) {
+		foreach ([['account_id' => 2], ['status' => 'scheduled'], ['reconciled' => true]] as $params) {
 			$this->params = $params + ['notes' => 'x'];
 			$response = $this->editor()->update(10);
 
 			$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus(), json_encode($params));
 			$this->assertSame('field_not_editable', $response->getData()['error_code']);
 		}
+	}
+
+	public function testReconcileMarksTheTransactionReconciled(): void {
+		$this->existing(['reconciled' => false]);
+		$reconciled = $this->transaction();
+		$reconciled->setReconciled(true);
+		$this->service->expects($this->once())->method('update')
+			->with(10, 'user1', ['reconciled' => true])
+			->willReturn($reconciled);
+
+		$response = $this->controller->reconcile(10);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertTrue($response->getData()['reconciled']);
+		$this->assertSame(10, $response->getData()['id']);
+	}
+
+	public function testUnreconcileClearsTheFlag(): void {
+		$this->existing(['reconciled' => true]);
+		$this->service->expects($this->once())->method('update')
+			->with(10, 'user1', ['reconciled' => false])
+			->willReturn($this->transaction());
+
+		$response = $this->controller->unreconcile(10);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertFalse($response->getData()['reconciled']);
+	}
+
+	/** The same call twice ends in the same result, and writes once. */
+	public function testReconcilingWhatIsAlreadyReconciledWritesNothing(): void {
+		$this->existing(['reconciled' => true]);
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controller->reconcile(10);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertTrue($response->getData()['reconciled']);
+	}
+
+	public function testUnreconcilingWhatIsNotReconciledWritesNothing(): void {
+		$this->existing(['reconciled' => false]);
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controller->unreconcile(10);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertFalse($response->getData()['reconciled']);
+	}
+
+	/**
+	 * It has not happened yet, so no statement can have it. Reconciled while
+	 * scheduled, it could never be ticked on the statement it does appear on.
+	 */
+	public function testAScheduledTransactionCannotBeReconciled(): void {
+		$this->existing(['status' => 'scheduled']);
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controller->reconcile(10);
+
+		$this->assertSame(Http::STATUS_CONFLICT, $response->getStatus());
+		$this->assertSame('scheduled', $response->getData()['error_code']);
+	}
+
+	public function testReconcilingOnASharedAccountRunsAsItsOwner(): void {
+		$this->existing(['accountId' => 9], 'owner9');
+		$this->service->expects($this->once())->method('update')
+			->with(10, 'owner9', ['reconciled' => true])
+			->willReturn($this->transaction());
+
+		$this->assertSame(Http::STATUS_OK, $this->controller->reconcile(10)->getStatus());
+	}
+
+	public function testReconcilingOnAReadOnlyShareIsForbidden(): void {
+		$this->existing(['accountId' => 9], 'owner9');
+		$this->readOnlyShare();
+		$this->service->expects($this->never())->method('update');
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $this->controller->reconcile(10)->getStatus());
+		$this->assertSame(Http::STATUS_FORBIDDEN, $this->controller->unreconcile(10)->getStatus());
+	}
+
+	public function testReconcilingATransactionTheCallerCannotSeeIsNotFound(): void {
+		$this->service->method('findForAccounts')->willThrowException(new DoesNotExistException('unseen'));
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $this->controller->reconcile(77)->getStatus());
+		$this->assertSame(Http::STATUS_NOT_FOUND, $this->controller->unreconcile(77)->getStatus());
 	}
 
 	// ── transfers on create ─────────────────────────────────────────
@@ -2370,22 +2444,31 @@ class ApiV1TransactionControllerTest extends TestCase {
 		);
 	}
 
-	private function linkedTo(int $partnerId): Transaction {
+	private function linkedTo(int $partnerId, int $accountId = 1): Transaction {
 		$transaction = $this->transaction();
+		$transaction->setAccountId($accountId);
 		$transaction->setLinkedTransactionId($partnerId);
 		return $transaction;
 	}
 
-	public function testCreateWithATransferAccountRecordsBothSidesLinked(): void {
+	/** The other side of a transfer, in the given account. */
+	private function otherSideIn(int $accountId, int $id = 56): Transaction {
+		$partner = $this->transaction($id);
+		$partner->setAccountId($accountId);
+		$partner->setType('credit');
+		return $partner;
+	}
+
+	public function testCreateWithATransferAccountRecordsBothSidesInOneGo(): void {
 		$this->accountsIn();
 		$this->params = $this->captureParams(['transfer_account_id' => '2']);
-		$this->service->expects($this->once())->method('create')->willReturn($this->transaction());
-		$this->service->expects($this->once())->method('convertToTransfer')
-			->with(10, 2, 'user1', [1, 2, 9])
-			->willReturn(['transaction' => $this->linkedTo(56), 'linkedTransaction' => $this->transaction(56)]);
-		$partner = $this->transaction(56);
-		$partner->setAccountId(2);
-		$this->service->method('findForAccounts')->with(56, [1, 2, 9])->willReturn($partner);
+		// Both or neither is the service's job: one call, never create() and
+		// a second write after it
+		$this->service->expects($this->never())->method('create');
+		$this->service->expects($this->once())->method('createTransfer')
+			->with('user1', 'user1', 1, 2, [1, 2, 9], '2026-08-01', 'Weekly shop', 42.5, 'debit', null, 'Tesco', null, null)
+			->willReturn($this->linkedTo(56));
+		$this->service->method('findForAccounts')->with(56, [1, 2, 9])->willReturn($this->otherSideIn(2));
 
 		$response = $this->controller->create();
 		$data = $response->getData();
@@ -2398,8 +2481,8 @@ class ApiV1TransactionControllerTest extends TestCase {
 
 	public function testAnEmptyTransferAccountIsAnOrdinaryTransaction(): void {
 		$this->params = $this->captureParams(['transfer_account_id' => '']);
-		$this->service->method('create')->willReturn($this->transaction());
-		$this->service->expects($this->never())->method('convertToTransfer');
+		$this->service->expects($this->once())->method('create')->willReturn($this->transaction());
+		$this->service->expects($this->never())->method('createTransfer');
 
 		$response = $this->controller->create();
 
@@ -2410,7 +2493,7 @@ class ApiV1TransactionControllerTest extends TestCase {
 	/** Refused with nothing recorded and no idempotency key spent. */
 	private function assertTransferRefused(int $status, ?string $errorCode): void {
 		$this->service->expects($this->never())->method('create');
-		$this->service->expects($this->never())->method('convertToTransfer');
+		$this->service->expects($this->never())->method('createTransfer');
 		$this->idempotencyKeys->expects($this->never())->method('insert');
 		$this->params += ['idempotency_key' => 'key-1'];
 
@@ -2448,9 +2531,7 @@ class ApiV1TransactionControllerTest extends TestCase {
 	public function testATransferWithAnEmptySplitsListIsStillATransfer(): void {
 		$this->accountsIn();
 		$this->params = $this->captureParams(['transfer_account_id' => '2', 'splits' => '[]']);
-		$this->service->method('create')->willReturn($this->transaction());
-		$this->service->expects($this->once())->method('convertToTransfer')
-			->willReturn(['transaction' => $this->linkedTo(56)]);
+		$this->service->expects($this->once())->method('createTransfer')->willReturn($this->linkedTo(56));
 		$this->service->method('findForAccounts')->willThrowException(new DoesNotExistException('unseen'));
 
 		$this->assertSame(Http::STATUS_CREATED, $this->controller->create()->getStatus());
@@ -2477,6 +2558,16 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->assertTransferRefused(Http::STATUS_FORBIDDEN, null);
 	}
 
+	public function testATransferOutOfAReadOnlyShareIsForbidden(): void {
+		$this->accountsIn();
+		$this->params = $this->captureParams(['account_id' => '9', 'transfer_account_id' => '1']);
+		$this->readOnlyShare();
+		$this->service->expects($this->never())->method('create');
+		$this->service->expects($this->never())->method('createTransfer');
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $this->controller->create()->getStatus());
+	}
+
 	public static function unreadableTransferAccounts(): array {
 		return [
 			'not a number' => ['abc'],
@@ -2484,6 +2575,7 @@ class ApiV1TransactionControllerTest extends TestCase {
 			'negative' => ['-2'],
 			'a fraction' => ['1.5'],
 			'a list' => [[2, 3]],
+			'a boolean' => [true],
 		];
 	}
 
@@ -2495,37 +2587,105 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->assertTransferRefused(Http::STATUS_BAD_REQUEST, null);
 	}
 
-	/** A transfer is never left half recorded. */
-	public function testWhenTheOtherSideCannotBeCreatedTheFirstSideIsRemovedAgain(): void {
+	/**
+	 * Both or neither is the service's promise, so there is nothing for the
+	 * controller to clean up: it passes the failure on and frees the key.
+	 */
+	public function testAFailedTransferRecordsNothingAndFreesTheKey(): void {
 		$this->accountsIn();
 		$this->params = $this->captureParams(['transfer_account_id' => '2', 'idempotency_key' => 'key-1']);
-		$this->service->method('create')->willReturn($this->transaction());
-		$this->service->method('convertToTransfer')->willThrowException(new \Exception('Counterpart could not be created'));
-
-		$this->service->expects($this->once())->method('delete')->with(10, 'user1');
-		// And the key is free again, so the retry can record the transfer
+		$this->service->method('createTransfer')->willThrowException(new \Exception('deadlock'));
+		$this->service->expects($this->never())->method('delete');
 		$this->idempotencyKeys->expects($this->once())->method('delete');
 
 		$response = $this->controller->create();
 
-		$this->assertNotSame(Http::STATUS_CREATED, $response->getStatus());
-		$this->assertArrayHasKey('error', $response->getData());
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Failed to create transaction', $response->getData()['error']);
 	}
 
 	public function testATransferOutOfASharedAccountIsRecordedUnderItsOwner(): void {
 		$this->accountsIn();
 		$this->params = $this->captureParams(['account_id' => '9', 'transfer_account_id' => '1']);
-		$first = $this->transaction();
-		$first->setAccountId(9);
-		$this->service->expects($this->once())->method('create')
-			->with('owner9', 9, $this->anything(), $this->anything(), $this->anything(), $this->anything())
-			->willReturn($first);
-		// The service scopes both sides to what the caller can see and creates
-		// the other side under its own account's owner
-		$this->service->expects($this->once())->method('convertToTransfer')
-			->with(10, 1, 'user1', [1, 2, 9])
-			->willReturn(['transaction' => $first]);
+		$this->service->expects($this->once())->method('createTransfer')
+			->with('owner9', 'user1', 9, 1, [1, 2, 9], $this->anything(), $this->anything(), $this->anything(), 'debit')
+			->willReturn($this->linkedTo(56, 9));
+		$this->service->method('findForAccounts')->with(56, [1, 2, 9])->willReturn($this->otherSideIn(1));
 
-		$this->assertSame(Http::STATUS_CREATED, $this->controller->create()->getStatus());
+		$response = $this->controller->create();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+		$this->assertSame('Account 1', $response->getData()['linked_account_name']);
+	}
+
+	// ── a replayed key and transfers ────────────────────────────────
+
+	/** A controller whose key uuid-1 already recorded transaction 10. */
+	private function replaying(Transaction $recorded, ?Transaction $otherSide = null): ApiV1TransactionController {
+		$this->accountsIn();
+		$this->service->method('findForAccounts')->willReturnCallback(
+			static function (int $id) use ($recorded, $otherSide): Transaction {
+				if ($id === 10) {
+					return $recorded;
+				}
+				if ($otherSide !== null && $id === $otherSide->getId()) {
+					return $otherSide;
+				}
+				throw new DoesNotExistException('unseen');
+			}
+		);
+		$this->service->method('findTransaction')->willReturnCallback(
+			static fn (int $id): ?Transaction => $otherSide !== null && $id === $otherSide->getId() ? $otherSide : null
+		);
+		$this->service->expects($this->never())->method('create');
+		$this->service->expects($this->never())->method('createTransfer');
+
+		return $this->buildController($this->heldKeyMapper(10), $this->validationService);
+	}
+
+	public function testAReplayedTransferAnswersWithThePairItRecorded(): void {
+		$this->params = $this->captureParams(['transfer_account_id' => '2', 'idempotency_key' => 'uuid-1']);
+
+		$response = $this->replaying($this->linkedTo(56), $this->otherSideIn(2))->create();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+		$this->assertSame(56, $response->getData()['linked_transaction_id']);
+	}
+
+	/**
+	 * The key answers for what it recorded. Asked for something else, that is
+	 * a client bug to surface: a 201 here would say a transfer exists that
+	 * was never made, or went somewhere else.
+	 */
+	public function testAKeyThatRecordedAnOrdinaryTransactionDoesNotAnswerForATransfer(): void {
+		$this->params = $this->captureParams(['transfer_account_id' => '2', 'idempotency_key' => 'uuid-1']);
+
+		$response = $this->replaying($this->transaction())->create();
+
+		$this->assertSame(Http::STATUS_CONFLICT, $response->getStatus());
+		$this->assertSame('idempotency_key_conflict', $response->getData()['error_code']);
+	}
+
+	public function testAKeyThatRecordedATransferDoesNotAnswerForAnotherAccount(): void {
+		$this->params = $this->captureParams(['transfer_account_id' => '9', 'idempotency_key' => 'uuid-1']);
+
+		$response = $this->replaying($this->linkedTo(56), $this->otherSideIn(2))->create();
+
+		$this->assertSame(Http::STATUS_CONFLICT, $response->getStatus());
+		$this->assertSame('idempotency_key_conflict', $response->getData()['error_code']);
+	}
+
+	/**
+	 * A plain retry is answered as it always was, whatever became of the
+	 * transaction since: the user may have made it a transfer in the web UI,
+	 * and the capture it stands for was still recorded once.
+	 */
+	public function testAPlainRetryIsStillAnsweredAfterTheTransactionBecameATransfer(): void {
+		$this->params = $this->captureParams(['idempotency_key' => 'uuid-1']);
+
+		$response = $this->replaying($this->linkedTo(56), $this->otherSideIn(2))->create();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+		$this->assertSame(10, $response->getData()['id']);
 	}
 }

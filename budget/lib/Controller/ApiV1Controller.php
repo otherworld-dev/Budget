@@ -66,7 +66,6 @@ class ApiV1Controller extends OCSController {
 				'budget_status' => true,
 				'upcoming_bills' => true,
 				'tags' => true,
-				'transaction_filters' => true,
 				'reconcile_transaction' => true,
 				'create_transfer' => true,
 				// Server-side receipt extraction (#533): true only when this
@@ -108,16 +107,18 @@ class ApiV1Controller extends OCSController {
 			// Whether this server can edit and delete transactions, and undo
 			// a split (discussion 412). Hard-coded like the two above.
 			'edit_available' => true,
-			// Tags on transactions and GET /tags (discussion 420), the list's
-			// extra filters, `reconciled` on an edit, and transfer_account_id
-			// on create. One flag each, hard-coded like the three above.
-			// filters_available is the one a client must not skip: an older
-			// server ignores a filter it does not know and answers with the
-			// unfiltered list.
+			// Tags on transactions and GET /tags (discussion 420), the two
+			// reconcile calls, and transfer_account_id on create. One flag
+			// each, hard-coded like the three above.
 			'tags_available' => true,
-			'filters_available' => true,
 			'reconcile_available' => true,
 			'transfers_available' => true,
+			// The filters GET /transactions takes, by name. Not a flag: a
+			// server ignores a filter it does not know and answers with the
+			// unfiltered list, and a flag saying "the new filters are here"
+			// would say true for the next one added too. An older server
+			// leaves this out, and has the first five.
+			'transaction_filters' => ApiV1TransactionController::FILTERS,
 			'currency' => $this->conversionService->getBaseCurrency($this->userId),
 			'version' => $this->appVersion(),
 		]);
