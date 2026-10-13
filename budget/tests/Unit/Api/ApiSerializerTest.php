@@ -8,9 +8,9 @@ use OCA\Budget\Api\ApiSerializer;
 use OCA\Budget\Db\Account;
 use OCA\Budget\Db\Attachment;
 use OCA\Budget\Db\Category;
+use OCA\Budget\Db\Tag;
 use OCA\Budget\Db\Transaction;
 use PHPUnit\Framework\TestCase;
-use OCA\Budget\Db\Tag;
 
 /**
  * These are contract tests, not behaviour tests. The v1 API promises a fixed

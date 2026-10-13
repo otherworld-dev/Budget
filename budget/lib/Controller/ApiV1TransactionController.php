@@ -39,8 +39,8 @@ use Psr\Log\LoggerInterface;
  * users may never open the web UI. They run through the same services as
  * the web UI, with one difference: where the web UI warns before a change,
  * these refuse it with a 409 and an error_code, because a client has no
- * dialog to show. Moving a transaction to another account, its status and
- * its reconciled flag stay web-only.
+ * dialog to show. Moving a transaction to another account and its status
+ * stay web-only.
  */
 class ApiV1TransactionController extends OCSController {
 	use ApiErrorHandlerTrait;
@@ -440,12 +440,20 @@ class ApiV1TransactionController extends OCSController {
 	public function create(): DataResponse {
 		$p = $this->request->getParams();
 
-		$listed = self::fieldWithAList($p, ['account_id', 'accountId', 'date', 'merchant', 'description', 'vendor', 'type', 'reference', 'notes', 'idempotency_key']);
+		$listed = self::fieldWithAList($p, ['account_id', 'accountId', 'date', 'merchant', 'description', 'vendor', 'type', 'reference', 'notes', 'idempotency_key', 'transfer_account_id']);
 		if ($listed !== null) {
 			return $this->notASingleValue($listed);
 		}
 
 		$accountId = (int)($p['account_id'] ?? $p['accountId'] ?? 0);
+		// The other account of a transfer; none (or '') for anything else
+		$transferAccountId = null;
+		if (($p['transfer_account_id'] ?? '') !== '') {
+			$transferAccountId = filter_var($p['transfer_account_id'], FILTER_VALIDATE_INT);
+			if ($transferAccountId === false || $transferAccountId <= 0) {
+				return $this->badRequest($this->l->t('%s must be a whole number above zero', ['transfer_account_id']));
+			}
+		}
 		// An empty category field means "uncategorised" (stored as NULL) —
 		// (int)'' would silently mean "category 0", which nothing can filter.
 		$categoryRaw = $p['category_id'] ?? $p['categoryId'] ?? null;
@@ -510,6 +518,15 @@ class ApiV1TransactionController extends OCSController {
 			return new DataResponse(['error' => $this->l->t('Idempotency key too long (64 characters maximum)')], Http::STATUS_BAD_REQUEST);
 		}
 
+		// Everything that can stop a transfer is settled before anything is
+		// recorded or the key is spent
+		if ($transferAccountId !== null) {
+			$refusal = $this->refuseTransfer($accountId, $transferAccountId);
+			if ($refusal !== null) {
+				return $refusal;
+			}
+		}
+
 		try {
 			// Reserve the key BEFORE creating anything. Check-then-insert
 			// raced: two overlapping retries both missed the lookup, both
@@ -570,6 +587,10 @@ class ApiV1TransactionController extends OCSController {
 					isset($fields['reference']) ? $fields['reference']['sanitized'] : null,
 					isset($fields['notes']) ? $fields['notes']['sanitized'] : null,
 				);
+
+				if ($transferAccountId !== null) {
+					$transaction = $this->addOtherSide($transaction, $transferAccountId, $effectiveUserId);
+				}
 			} catch (\Throwable $e) {
 				// The reservation must not outlive a failed create, or every
 				// honest retry of this key would wait on a ghost.
@@ -594,7 +615,10 @@ class ApiV1TransactionController extends OCSController {
 			// succeed). A failed attach must not fail the request: the
 			// transaction is recorded, and a retry would duplicate the very
 			// thing the key protects.
-			$out = ApiSerializer::transaction($transaction, $this->currencyOf($accountId));
+			// A transfer answers with its link and the other account's name
+			$out = $transferAccountId !== null
+				? $this->serializeOne($transaction, $this->getEffectiveAccountIds())
+				: ApiSerializer::transaction($transaction, $this->currencyOf($accountId));
 			if ($categoryError !== null) {
 				$out['category_error'] = $categoryError;
 			}
@@ -648,6 +672,90 @@ class ApiV1TransactionController extends OCSController {
 			return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to create transaction'));
+		}
+	}
+
+	/**
+	 * Why a transfer between these two accounts cannot be recorded, or null
+	 * when it can. Asked before anything is written, so a refusal leaves no
+	 * transaction behind and spends no idempotency key.
+	 */
+	private function refuseTransfer(int $accountId, int $transferAccountId): ?DataResponse {
+		if ($transferAccountId === $accountId) {
+			return $this->transferRefused(
+				'transfer_same_account',
+				$this->l->t('A transfer needs two different accounts')
+			);
+		}
+
+		// A list or an object is refused by the split reader; here it only
+		// matters that parts were sent at all
+		$splits = $this->request->getParam('splits');
+		if ($splits !== null && $splits !== '' && $splits !== [] && $splits !== '[]') {
+			return $this->transferRefused(
+				'transfer_split',
+				$this->l->t('A transfer cannot be split')
+			);
+		}
+
+		try {
+			$own = $this->granularShareService->getOwnAccountIds($this->userId);
+			foreach ([$accountId, $transferAccountId] as $id) {
+				// One the caller can't see is not found, as everywhere else
+				if (!in_array($id, $own, true) && !$this->canAccessEntity('account', $id)) {
+					return $this->notFound($this->l->t('Account not found'));
+				}
+			}
+			// The other side is written into this account, so a read-only
+			// share is refused like any other write to it
+			if (!in_array($transferAccountId, $own, true)) {
+				$this->requireWriteAccess('account', $transferAccountId);
+			}
+
+			if ($this->currencyOf($accountId) !== $this->currencyOf($transferAccountId)) {
+				return $this->transferRefused(
+					'transfer_currency_mismatch',
+					$this->l->t('The two accounts are in different currencies. Record this transfer in the web UI, where each side has its own amount')
+				);
+			}
+		} catch (ReadOnlyShareException $e) {
+			return $this->handleError($e, $this->l->t('Failed to create transaction'));
+		}
+
+		return null;
+	}
+
+	private function transferRefused(string $errorCode, string $message): DataResponse {
+		return new DataResponse(['error' => $message, 'error_code' => $errorCode], Http::STATUS_BAD_REQUEST);
+	}
+
+	/**
+	 * Make a just-recorded transaction one side of a transfer: its other side
+	 * is created in the other account and the two are linked, as the web
+	 * UI's Convert to transfer does.
+	 *
+	 * A transfer is never left half recorded. If the other side cannot be
+	 * created, the first side goes again before the failure is passed on.
+	 */
+	private function addOtherSide(Transaction $transaction, int $transferAccountId, string $ownerId): Transaction {
+		try {
+			$pair = $this->service->convertToTransfer(
+				$transaction->getId(),
+				$transferAccountId,
+				$this->userId,
+				$this->getEffectiveAccountIds()
+			);
+
+			return $pair['transaction'];
+		} catch (\Throwable $e) {
+			try {
+				$this->service->delete($transaction->getId(), $ownerId);
+			} catch (\Throwable $leftBehind) {
+				$this->logger?->error('Half a transfer was left behind: transaction ' . $transaction->getId() . ' has no other side: ' . $leftBehind->getMessage(), [
+					'app' => Application::APP_ID,
+				]);
+			}
+			throw $e;
 		}
 	}
 
@@ -960,9 +1068,12 @@ class ApiV1TransactionController extends OCSController {
 	 *   either sent explicitly wins over it
 	 * - confirm_reconciled: true to change the money on a reconciled row
 	 *
-	 * The read shape can be sent back whole with a field edited. account_id,
-	 * status and reconciled are refused only when they differ from what is
-	 * stored, and the 409s below only fire on a real change.
+	 * - reconciled: true or false, the web UI's Mark reconciled and Mark
+	 *   unreconciled. The flag alone needs no confirmation.
+	 *
+	 * The read shape can be sent back whole with a field edited. account_id
+	 * and status are refused only when they differ from what is stored, and
+	 * the 409s below only fire on a real change.
 	 */
 	#[NoAdminRequired]
 	#[UserRateLimit(limit: 60, period: 60)]
@@ -1139,7 +1250,6 @@ class ApiV1TransactionController extends OCSController {
 		$unchanged = [
 			'account_id' => static fn ($v): bool => (int)$v === $current->getAccountId(),
 			'status' => static fn ($v): bool => (string)$v === ($current->getStatus() ?? 'cleared'),
-			'reconciled' => static fn ($v): bool => filter_var($v, FILTER_VALIDATE_BOOLEAN) === (bool)$current->getReconciled(),
 		];
 		foreach ($unchanged as $field => $isUnchanged) {
 			if (array_key_exists($field, $p) && !$isUnchanged($p[$field])) {
@@ -1151,6 +1261,17 @@ class ApiV1TransactionController extends OCSController {
 		}
 
 		$updates = [];
+
+		// The web UI's Mark reconciled and Mark unreconciled. Set even when it
+		// already has that value, like every other field, so a repeated
+		// request gives the same result.
+		if (array_key_exists('reconciled', $p) && $p['reconciled'] !== null && $p['reconciled'] !== '') {
+			$reconciled = self::readBool($p['reconciled']);
+			if ($reconciled === null) {
+				return $this->badRequest($this->l->t('%s must be true or false', ['reconciled']));
+			}
+			$updates['reconciled'] = $reconciled;
+		}
 
 		if (array_key_exists('date', $p)) {
 			$date = (string)$p['date'];
