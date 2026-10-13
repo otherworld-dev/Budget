@@ -27,7 +27,8 @@ class ApiSerializerTest extends TestCase {
 
 		$this->assertSame([
 			'id', 'name', 'type', 'currency', 'balance', 'balance_in_base_currency',
-			'base_currency', 'institution', 'shared', 'owner', 'closed', 'updated_at',
+			'base_currency', 'institution', 'shared', 'owner', 'closed', 'last_reconciled_at',
+			'updated_at',
 		], array_keys($result));
 	}
 
@@ -646,5 +647,26 @@ class ApiSerializerTest extends TestCase {
 		$account->setClosed(true);
 
 		$this->assertTrue(ApiSerializer::account($account)['closed']);
+	}
+
+	/**
+	 * Additive v1 field (#427): when a reconciliation of the account was last
+	 * completed, in the same format as updated_at. Null until there has been one.
+	 */
+	public function testAccountLastReconciledAtIsNullUntilThereHasBeenOne(): void {
+		$this->assertNull(ApiSerializer::account(['id' => 1])['last_reconciled_at']);
+		$this->assertNull(ApiSerializer::account(['id' => 1, 'lastReconciled' => null])['last_reconciled_at']);
+		$this->assertNull(ApiSerializer::account(['id' => 1, 'lastReconciled' => ''])['last_reconciled_at']);
+	}
+
+	public function testAccountLastReconciledAtComesFromTheEntity(): void {
+		$account = new Account();
+		$account->setId(3);
+		$account->setName('Current');
+		$account->setType('checking');
+		$account->setCurrency('GBP');
+		$account->setLastReconciled('2026-10-11 17:55:21');
+
+		$this->assertSame('2026-10-11 17:55:21', ApiSerializer::account($account)['last_reconciled_at']);
 	}
 }
