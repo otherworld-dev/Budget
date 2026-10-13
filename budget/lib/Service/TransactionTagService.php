@@ -24,6 +24,7 @@ class TransactionTagService {
 		TagSetMapper $tagSetMapper,
 		TransactionMapper $transactionMapper,
 		IDBConnection $db,
+		private ?GranularShareService $granularShareService = null,
 	) {
 		$this->transactionTagMapper = $transactionTagMapper;
 		$this->tagMapper = $tagMapper;
@@ -379,12 +380,95 @@ class TransactionTagService {
 	}
 
 	/**
-	 * Every tag the user owns, as the public API describes them.
+	 * Every tag the user owns, as the public API describes them, then the
+	 * tags of categories someone has shared with them (the ones they may put
+	 * on a transaction in that person's shared account). Another user's global
+	 * tags are never shared.
 	 *
 	 * @return array<int, array<string, mixed>>
 	 */
 	public function tagDetailsForUser(string $userId): array {
-		return $this->tagMapper->findDetailedForUser($userId);
+		$own = $this->tagMapper->findDetailedForUser($userId);
+		$shared = $this->granularShareService?->getSharedCategoryIds($userId) ?? [];
+		if ($shared === []) {
+			return $own;
+		}
+		$seen = array_flip(array_column($own, 'id'));
+
+		return array_merge($own, array_values(array_filter(
+			$this->tagMapper->findDetailedForCategories($shared),
+			static fn (array $row): bool => !isset($seen[$row['id']])
+		)));
+	}
+
+	/**
+	 * The tags a write leaves on a transaction, worked out as the web UI does
+	 * (discussion 420): $tagIds is the whole set the caller asks for.
+	 *
+	 * - A tag already on the transaction may stay, even one that no longer
+	 *   fits because the transaction moved to another category.
+	 * - A new tag must be one the caller can see, and one the account's owner
+	 *   can put on a transaction of $categoryId: a global tag of the owner's,
+	 *   or a tag of that category's tag sets. On a shared account that leaves
+	 *   the owner's category tags of categories shared with the caller.
+	 * - The owner's tags on the row that the caller cannot see stay on, so a
+	 *   caller never strips tags they were never shown.
+	 *
+	 * @param int[] $tagIds
+	 * @return int[] the set to store
+	 * @throws \InvalidArgumentException naming why a tag was refused
+	 */
+	public function resolveTagsAs(string $actingUserId, string $ownerId, int $transactionId, ?int $categoryId, array $tagIds): array {
+		$tagIds = array_values(array_unique(array_map('intval', $tagIds)));
+		$current = array_map(static fn ($tt): int => (int)$tt->getTagId(), $this->transactionTagMapper->findByTransaction($transactionId));
+		$added = array_values(array_diff($tagIds, $current));
+
+		if ($added !== []) {
+			$this->granularShareService?->requireUsableTags($actingUserId, $added);
+			try {
+				$this->validateTagsForTransaction($categoryId, $added, $ownerId);
+			} catch (\InvalidArgumentException $e) {
+				throw $e;
+			} catch (\Exception $e) {
+				throw new \InvalidArgumentException($e->getMessage(), 0, $e);
+			}
+		}
+
+		return array_values(array_unique(array_merge($tagIds, $this->ownersTagsHiddenFrom($actingUserId, $ownerId, $current))));
+	}
+
+	/**
+	 * Store exactly these tags on a transaction, replacing its others. No
+	 * check: resolveTagsAs() is what decides the set.
+	 *
+	 * @param int[] $tagIds
+	 */
+	public function replaceTransactionTags(int $transactionId, array $tagIds): void {
+		$this->transactionTagMapper->deleteByTransaction($transactionId);
+		$now = date('Y-m-d H:i:s');
+		foreach (array_values(array_unique(array_map('intval', $tagIds))) as $tagId) {
+			$link = new TransactionTag();
+			$link->setTransactionId($transactionId);
+			$link->setTagId($tagId);
+			$link->setCreatedAt($now);
+			$this->transactionTagMapper->insert($link);
+		}
+	}
+
+	/**
+	 * The owner's tags on a row that $actingUserId cannot see, which stay on
+	 * when they save its tags. An id the owner cannot use either is dropped.
+	 *
+	 * @param int[] $current the tags on the row now
+	 * @return int[]
+	 */
+	public function ownersTagsHiddenFrom(string $actingUserId, string $ownerId, array $current): array {
+		if ($ownerId === $actingUserId || $current === [] || $this->granularShareService === null) {
+			return [];
+		}
+		$hidden = array_diff($current, $this->granularShareService->getUsableTagIds($actingUserId, $current));
+
+		return array_values(array_intersect($hidden, $this->granularShareService->getUsableTagIds($ownerId, $hidden)));
 	}
 
 	/**

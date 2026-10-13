@@ -231,6 +231,26 @@ class TagMapper extends QBMapper {
 	}
 
 	/**
+	 * The tags in the tag sets of these categories, as findDetailedForUser()
+	 * describes them, for the categories someone has shared with a user.
+	 *
+	 * @param int[] $categoryIds
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function findDetailedForCategories(array $categoryIds): array {
+		$categoryIds = array_values(array_unique(array_map('intval', $categoryIds)));
+		$rows = [];
+		foreach (array_chunk($categoryIds, 500) as $chunk) {
+			$qb = $this->detailQuery();
+			$qb->where($qb->expr()->in('ts.category_id', $qb->createNamedParameter($chunk, IQueryBuilder::PARAM_INT_ARRAY)));
+			array_push($rows, ...$this->detailRows($qb));
+		}
+		usort($rows, static fn (array $a, array $b): int => [(string)$a['userId']] <=> [(string)$b['userId']] ?: self::compareDetails($a, $b));
+
+		return $rows;
+	}
+
+	/**
 	 * The order tags are listed in: global tags first, then each tag set in
 	 * its own order, and within either the order set in the web UI, then by
 	 * name.
