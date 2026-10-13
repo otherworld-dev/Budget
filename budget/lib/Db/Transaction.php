@@ -46,6 +46,8 @@ use OCP\AppFramework\Db\Entity;
  * @method void setStatus(?string $status)
  * @method bool getExcludedFromForecast()
  * @method void setExcludedFromForecast(bool $excludedFromForecast)
+ * @method int|null getReconSessionId()
+ * @method void setReconSessionId(?int $reconSessionId)
  * @method int|null getPensionContribId()
  * @method void setPensionContribId(?int $pensionContribId)
  */

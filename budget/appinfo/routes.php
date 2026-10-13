@@ -481,6 +481,7 @@ return [
 		['name' => 'apiV1Account#index', 'url' => '/api/v1/accounts', 'verb' => 'GET'],
 
 		['name' => 'apiV1Category#index', 'url' => '/api/v1/categories', 'verb' => 'GET'],
+		['name' => 'apiV1Tag#index', 'url' => '/api/v1/tags', 'verb' => 'GET'],
 
 		// "Capture and check" (#767): read-only figures for the phone.
 		['name' => 'apiV1Budget#status', 'url' => '/api/v1/budget/status', 'verb' => 'GET'],
@@ -499,6 +500,8 @@ return [
 		['name' => 'apiV1Transaction#splits', 'url' => '/api/v1/transactions/{id}/splits', 'verb' => 'GET'],
 		['name' => 'apiV1Transaction#createSplits', 'url' => '/api/v1/transactions/{id}/splits', 'verb' => 'POST'],
 		['name' => 'apiV1Transaction#unsplit', 'url' => '/api/v1/transactions/{id}/splits', 'verb' => 'DELETE'],
+		['name' => 'apiV1Transaction#reconcile', 'url' => '/api/v1/transactions/{id}/reconcile', 'verb' => 'POST'],
+		['name' => 'apiV1Transaction#unreconcile', 'url' => '/api/v1/transactions/{id}/reconcile', 'verb' => 'DELETE'],
 		['name' => 'apiV1Transaction#receipts', 'url' => '/api/v1/transactions/{id}/receipts', 'verb' => 'GET'],
 		['name' => 'apiV1Transaction#uploadReceipt', 'url' => '/api/v1/transactions/{id}/receipts', 'verb' => 'POST'],
 

@@ -8,6 +8,7 @@ use OCA\Budget\Api\ApiSerializer;
 use OCA\Budget\Db\Account;
 use OCA\Budget\Db\Attachment;
 use OCA\Budget\Db\Category;
+use OCA\Budget\Db\Tag;
 use OCA\Budget\Db\Transaction;
 use PHPUnit\Framework\TestCase;
 
@@ -225,7 +226,7 @@ class ApiSerializerTest extends TestCase {
 			'id', 'account_id', 'category_id', 'date', 'description', 'vendor',
 			'amount', 'type', 'reference', 'notes', 'status', 'reconciled',
 			'is_split', 'created_at', 'updated_at',
-			'linked_transaction_id', 'linked_account_name', 'splits',
+			'linked_transaction_id', 'linked_account_name', 'splits', 'tags',
 		], array_keys($result));
 	}
 
@@ -668,5 +669,72 @@ class ApiSerializerTest extends TestCase {
 		$account->setLastReconciled('2026-10-11 17:55:21');
 
 		$this->assertSame('2026-10-11 17:55:21', ApiSerializer::account($account)['last_reconciled_at']);
+	}
+
+	// ── tags (discussion 420) ───────────────────────────────────────
+
+	public function testTagKeysAreFixed(): void {
+		$result = ApiSerializer::tag(['id' => 12, 'name' => 'Haushalt']);
+
+		$this->assertSame([
+			'id', 'name', 'color', 'tag_set_id', 'tag_set_name', 'category_id', 'hidden', 'owner',
+		], array_keys($result));
+	}
+
+	public function testAGlobalTagHasNoTagSetAndNoCategory(): void {
+		$result = ApiSerializer::tag(['id' => 12, 'name' => 'Haushalt', 'color' => '#3b82f6', 'userId' => 'alice']);
+
+		$this->assertSame(12, $result['id']);
+		$this->assertSame('Haushalt', $result['name']);
+		$this->assertSame('#3b82f6', $result['color']);
+		$this->assertNull($result['tag_set_id']);
+		$this->assertNull($result['tag_set_name']);
+		$this->assertNull($result['category_id']);
+		$this->assertFalse($result['hidden']);
+		$this->assertSame('alice', $result['owner']);
+	}
+
+	public function testACategoryTagSaysWhichTagSetAndCategoryItBelongsTo(): void {
+		$result = ApiSerializer::tag([
+			'id' => '27', 'name' => 'Tesco', 'color' => null, 'hidden' => 1,
+			'tagSetId' => '4', 'tagSetName' => 'Shop', 'categoryId' => '415', 'userId' => 'alice',
+		]);
+
+		$this->assertSame(27, $result['id']);
+		$this->assertNull($result['color']);
+		$this->assertSame(4, $result['tag_set_id']);
+		$this->assertSame('Shop', $result['tag_set_name']);
+		$this->assertSame(415, $result['category_id']);
+		$this->assertTrue($result['hidden']);
+	}
+
+	public function testTagAcceptsAnEntity(): void {
+		$tag = new Tag();
+		$tag->setId(5);
+		$tag->setName('Urlaub');
+		$tag->setUserId('bob');
+
+		$result = ApiSerializer::tag($tag);
+
+		$this->assertSame(5, $result['id']);
+		$this->assertSame('Urlaub', $result['name']);
+		$this->assertSame('bob', $result['owner']);
+		$this->assertNull($result['tag_set_id']);
+	}
+
+	/** Always a list: a client renders and filters tags without a special case. */
+	public function testATransactionWithoutTagsCarriesAnEmptyList(): void {
+		$this->assertSame([], ApiSerializer::transaction(['id' => 1])['tags']);
+		$this->assertSame([], ApiSerializer::transaction(['id' => 1, 'tags' => null])['tags']);
+	}
+
+	public function testATransactionCarriesItsTagsInTheTagShape(): void {
+		$result = ApiSerializer::transaction(['id' => 1, 'tags' => [
+			['id' => 12, 'name' => 'Haushalt', 'userId' => 'alice'],
+			['id' => 27, 'name' => 'Tesco', 'tagSetId' => 4, 'tagSetName' => 'Shop', 'categoryId' => 415, 'userId' => 'alice'],
+		]]);
+
+		$this->assertSame([12, 27], array_column($result['tags'], 'id'));
+		$this->assertSame(ApiSerializer::tag(['id' => 27, 'name' => 'Tesco', 'tagSetId' => 4, 'tagSetName' => 'Shop', 'categoryId' => 415, 'userId' => 'alice']), $result['tags'][1]);
 	}
 }

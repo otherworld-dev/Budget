@@ -237,12 +237,18 @@ class QueryFilterBuilder {
 			);
 		}
 
-		// Reconciled filter
+		// Reconciled filter. The column is nullable, and a row that holds NULL
+		// has never been reconciled, so it belongs with the unreconciled
+		// ones, as every reconciliation query treats it. Comparing with 0
+		// alone left such a row out of both halves of the list.
 		if (isset($filters['reconciled']) && $filters['reconciled'] !== null) {
-			$qb->andWhere($qb->expr()->eq(
+			$matches = $qb->expr()->eq(
 				"{$alias}.reconciled",
 				$qb->createNamedParameter($filters['reconciled'] ? 1 : 0, IQueryBuilder::PARAM_INT)
-			));
+			);
+			$qb->andWhere($filters['reconciled']
+				? $matches
+				: $qb->expr()->orX($matches, $qb->expr()->isNull("{$alias}.reconciled")));
 		}
 
 		// Status filter (cleared/scheduled/pending)

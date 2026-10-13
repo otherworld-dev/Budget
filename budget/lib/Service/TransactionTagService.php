@@ -349,6 +349,45 @@ class TransactionTagService {
 	}
 
 	/**
+	 * The tags on each of the given transactions as the public API describes
+	 * them (discussion 420): with their tag set, category and owner, global
+	 * tags first. Two queries for the whole set. Like getTagsForTransactions(),
+	 * the caller must already know the user may see these transactions.
+	 *
+	 * @param int[] $transactionIds
+	 * @return array<int, array<int, array<string, mixed>>> transactionId => its tags, for the transactions that have any
+	 */
+	public function tagDetailsForTransactions(array $transactionIds): array {
+		$tagIdsByTransaction = $this->transactionTagMapper->findTagIdsByTransactions($transactionIds);
+		if ($tagIdsByTransaction === []) {
+			return [];
+		}
+
+		$details = $this->tagMapper->findDetailedByIds(array_merge(...array_values($tagIdsByTransaction)));
+
+		$result = [];
+		foreach ($tagIdsByTransaction as $transactionId => $tagIds) {
+			// A link can outlive its tag (nothing stops it), so only what was found
+			$found = array_values(array_intersect_key($details, array_flip($tagIds)));
+			if ($found !== []) {
+				usort($found, [TagMapper::class, 'compareDetails']);
+				$result[$transactionId] = $found;
+			}
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Every tag the user owns, as the public API describes them.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function tagDetailsForUser(string $userId): array {
+		return $this->tagMapper->findDetailedForUser($userId);
+	}
+
+	/**
 	 * Get tags for a transaction without user ownership check.
 	 * Caller must verify access separately (e.g. via visible account IDs).
 	 */

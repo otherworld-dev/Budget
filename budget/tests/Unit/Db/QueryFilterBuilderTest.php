@@ -566,4 +566,18 @@ class QueryFilterBuilderTest extends TestCase {
 
 		$this->builder->applyPagination($this->qb, 10, 0);
 	}
+
+	/** A row holding NULL has never been reconciled: it is not reconciled. */
+	public function testReconciledFalseAlsoMatchesRowsThatHoldNull(): void {
+		$this->expr->expects($this->once())->method('isNull')->with('t.reconciled');
+		$this->expr->expects($this->once())->method('orX');
+
+		$this->builder->applyTransactionFilters($this->qb, ['reconciled' => false], 't');
+	}
+
+	public function testReconciledTrueMatchesOnlyTheFlag(): void {
+		$this->expr->expects($this->never())->method('isNull');
+
+		$this->builder->applyTransactionFilters($this->qb, ['reconciled' => true], 't');
+	}
 }

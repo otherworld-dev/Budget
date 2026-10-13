@@ -184,6 +184,116 @@ class TagMapper extends QBMapper {
 	}
 
 	/**
+	 * Tags with what the public API says about each (discussion 420): its tag
+	 * set's name, the category that tag set belongs to, and its owner.
+	 *
+	 * Not scoped to a user: the caller already knows the tags may be seen,
+	 * because they sit on transactions it may see. A tag on a transaction in
+	 * a shared account is its owner's, and no user-scoped lookup finds it.
+	 *
+	 * @param int[] $ids
+	 * @return array<int, array<string, mixed>> tag id => detail row
+	 */
+	public function findDetailedByIds(array $ids): array {
+		$ids = array_values(array_unique(array_map('intval', $ids)));
+		$rows = [];
+		foreach (array_chunk($ids, 500) as $chunk) {
+			$qb = $this->detailQuery();
+			$qb->where($qb->expr()->in('t.id', $qb->createNamedParameter($chunk, IQueryBuilder::PARAM_INT_ARRAY)));
+			foreach ($this->detailRows($qb) as $row) {
+				$rows[$row['id']] = $row;
+			}
+		}
+
+		return $rows;
+	}
+
+	/**
+	 * Every tag a user owns, global and on their categories, in the order
+	 * compareDetails() gives.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function findDetailedForUser(string $userId): array {
+		$qb = $this->detailQuery();
+		$qb->where($qb->expr()->orX(
+			$qb->expr()->eq('c.user_id', $qb->createNamedParameter($userId)),
+			$qb->expr()->andX(
+				$qb->expr()->isNull('t.tag_set_id'),
+				$qb->expr()->eq('t.user_id', $qb->createNamedParameter($userId))
+			)
+		));
+
+		$rows = $this->detailRows($qb);
+		usort($rows, [self::class, 'compareDetails']);
+
+		return $rows;
+	}
+
+	/**
+	 * The order tags are listed in: global tags first, then each tag set in
+	 * its own order, and within either the order set in the web UI, then by
+	 * name.
+	 *
+	 * @param array<string, mixed> $a
+	 * @param array<string, mixed> $b
+	 */
+	public static function compareDetails(array $a, array $b): int {
+		$key = static fn (array $row): array => [
+			$row['tagSetId'] !== null,
+			(int)$row['tagSetSortOrder'],
+			mb_strtolower((string)$row['tagSetName']),
+			(int)$row['tagSetId'],
+			(int)$row['sortOrder'],
+			mb_strtolower((string)$row['name']),
+			(int)$row['id'],
+		];
+
+		return $key($a) <=> $key($b);
+	}
+
+	private function detailQuery(): IQueryBuilder {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('t.id', 't.name', 't.color', 't.hidden', 't.sort_order', 't.tag_set_id', 't.user_id', 'ts.category_id')
+			->selectAlias('ts.name', 'tag_set_name')
+			->selectAlias('ts.sort_order', 'tag_set_sort_order')
+			->selectAlias('c.user_id', 'category_user_id')
+			->from($this->getTableName(), 't')
+			->leftJoin('t', 'budget_tag_sets', 'ts', $qb->expr()->eq('t.tag_set_id', 'ts.id'))
+			->leftJoin('ts', 'budget_categories', 'c', $qb->expr()->eq('ts.category_id', 'c.id'));
+
+		return $qb;
+	}
+
+	/**
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function detailRows(IQueryBuilder $qb): array {
+		$result = $qb->executeQuery();
+		$rows = [];
+		while ($row = $result->fetch()) {
+			$tagSetId = $row['tag_set_id'] !== null ? (int)$row['tag_set_id'] : null;
+			$rows[] = [
+				'id' => (int)$row['id'],
+				'name' => (string)$row['name'],
+				'color' => ($row['color'] ?? '') !== '' ? (string)$row['color'] : null,
+				'hidden' => (bool)$row['hidden'],
+				'sortOrder' => (int)$row['sort_order'],
+				'tagSetId' => $tagSetId,
+				'tagSetName' => $tagSetId !== null ? $row['tag_set_name'] : null,
+				'tagSetSortOrder' => (int)($row['tag_set_sort_order'] ?? 0),
+				'categoryId' => $tagSetId !== null && $row['category_id'] !== null ? (int)$row['category_id'] : null,
+				// A category tag has no user of its own: it is its category's
+				// owner's. A global tag carries its user.
+				'userId' => $tagSetId !== null ? ($row['category_user_id'] ?? $row['user_id']) : $row['user_id'],
+			];
+		}
+		$result->closeCursor();
+
+		return $rows;
+	}
+
+	/**
 	 * Delete all tags for a user (via tag sets and global tags)
 	 *
 	 * @param string $userId

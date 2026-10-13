@@ -104,6 +104,13 @@ class ApiV1ControllerTest extends TestCase {
 			'splits_available' => true,
 			'check_available' => true,
 			'edit_available' => true,
+			'tags_available' => true,
+			'reconcile_available' => true,
+			'transfers_available' => true,
+			'transaction_filters' => [
+				'accountId', 'categoryId', 'dateFrom', 'dateTo', 'search',
+				'type', 'status', 'reconciled', 'uncategorized', 'tagId', 'amountMin', 'amountMax',
+			],
 			'currency' => 'GBP',
 			'version' => '2.41.0',
 		], $data);
@@ -144,6 +151,29 @@ class ApiV1ControllerTest extends TestCase {
 
 		$this->assertTrue($features['edit_transaction']);
 		$this->assertTrue($features['delete_transaction']);
+	}
+
+	public function testInfoListsTagsReconcilingAndTransfers(): void {
+		$features = $this->controller->info()->getData()['features'];
+
+		foreach (['tags', 'reconcile_transaction', 'create_transfer'] as $feature) {
+			$this->assertTrue($features[$feature], $feature);
+		}
+	}
+
+	/**
+	 * The filters are named, not flagged: a server ignores one it does not
+	 * know and answers with everything, and a single "new filters" flag would
+	 * already say true when the next filter is added.
+	 */
+	public function testCapabilitiesNameEveryFilterTheListTakes(): void {
+		$this->appManager->method('getAppVersion')->willReturn('2.41.0');
+
+		$filters = $this->controller->capabilities()->getData()['transaction_filters'];
+
+		$this->assertSame(\OCA\Budget\Controller\ApiV1TransactionController::FILTERS, $filters);
+		$this->assertContains('tagId', $filters);
+		$this->assertContains('accountId', $filters);
 	}
 
 	public function testInfoListsTheCheckFeatures(): void {
