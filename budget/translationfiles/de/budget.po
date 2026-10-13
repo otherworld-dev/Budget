@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-10-12 22:51+0000\n"
-"PO-Revision-Date: 2026-10-12 21:54+0000\n"
+"PO-Revision-Date: 2026-10-13 12:09+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -1598,72 +1598,55 @@ msgid "Failed to execute import"
 msgstr "Fehler beim Ausführen des Imports"
 
 #: /app/lib/Controller/ImportFolderController.php:45
-#, fuzzy
-#| msgid "Failed to download import file"
 msgid "Failed to load the import folders"
-msgstr "Importdatei konnte nicht heruntergeladen werden"
+msgstr "Die Importordner konnten nicht geladen werden"
 
 #: /app/lib/Controller/ImportFolderController.php:59
 #: /app/src/modules/settings/ImportFolders.js:192
 #: /app/src/modules/settings/ImportFolders.js:199
-#, fuzzy
-#| msgid "Failed to create import rule"
 msgid "Failed to add the import folder"
-msgstr "Fehler beim Erstellen der Importregel"
+msgstr "Der Importordner konnte nicht hinzugefügt werden"
 
 #: /app/lib/Controller/ImportFolderController.php:74
 #: /app/lib/Controller/ImportFolderController.php:91
 #: /app/templates/index.php:4414 /app/templates/index.php:4642
 #: /app/templates/index.php:4646
-#, fuzzy
-#| msgid "Import failed"
 msgid "Import folder"
-msgstr "Import fehlgeschlagen"
+msgstr "Importordner"
 
 #: /app/lib/Controller/ImportFolderController.php:78
 #: /app/src/modules/settings/ImportFolders.js:217
 #: /app/src/modules/settings/ImportFolders.js:221
-#, fuzzy
-#| msgid "Failed to update import rule"
 msgid "Failed to update the import folder"
-msgstr "Fehler beim Aktualisieren der Importregel"
+msgstr "Der Importordner konnte nicht aktualisiert werden"
 
 #: /app/lib/Controller/ImportFolderController.php:105
 #: /app/src/modules/settings/ImportFolders.js:249
 #: /app/src/modules/settings/ImportFolders.js:256
-#, fuzzy
-#| msgid "Failed to create import rule"
 msgid "Failed to check the import folder"
-msgstr "Fehler beim Erstellen der Importregel"
+msgstr "Der Importordner konnte nicht überprüft werden"
 
 #: /app/lib/Controller/ImportFolderController.php:118
-#, fuzzy
-#| msgid "Failed to load the getting started checklist"
 msgid "Failed to load the files waiting for review"
-msgstr "Die Checkliste für den Einstieg konnte nicht geladen werden"
+msgstr ""
+"Die Dateien, die auf eine Überprüfung warten, konnten nicht geladen werden"
 
 #: /app/lib/Controller/ImportFolderController.php:132
 #: /app/lib/Controller/ImportFolderController.php:151
-#, fuzzy
-#| msgid "Validating file..."
 msgid "Waiting file"
-msgstr "Datei wird validiert..."
+msgstr "Wartende Datei"
 
 #: /app/lib/Controller/ImportFolderController.php:136
 #: /app/src/modules/import/ReviewQueue.js:105
 #: /app/src/modules/import/ReviewQueue.js:109
-#, fuzzy
-#| msgid "Failed to attach file"
 msgid "Failed to open the file"
-msgstr "Datei konnte nicht angehängt werden"
+msgstr "Die Datei konnte nicht geöffnet werden"
 
 #: /app/lib/Controller/ImportFolderController.php:155
 #: /app/src/modules/import/ReviewQueue.js:134
 #: /app/src/modules/import/ReviewQueue.js:137
-#, fuzzy
-#| msgid "Failed to validate file"
 msgid "Failed to move the file"
-msgstr "Fehler bei der Dateiprüfung"
+msgstr "Die Datei konnte nicht verschoben werden"
 
 #: /app/lib/Controller/ImportRuleController.php:71
 msgid "Failed to retrieve import rules"
@@ -2304,10 +2287,9 @@ msgid "Invalid receipts folder: %1$s"
 msgstr "Ungültiger Belegordner: %1$s"
 
 #: /app/lib/Controller/SettingController.php:203
-#, fuzzy, php-format
-#| msgid "Invalid receipts folder: %1$s"
+#, php-format
 msgid "Invalid import folder: %1$s"
-msgstr "Ungültiger Belegordner: %1$s"
+msgstr "Ungültiger Importordner: %1$s"
 
 #: /app/lib/Controller/SettingController.php:213
 msgid "Settings updated successfully"
@@ -3373,18 +3355,14 @@ msgid "Your projected balance falls to {balance} in {month}."
 msgstr "Dein prognostizierter Kontostand fällt im {month} auf {balance}."
 
 #: /app/lib/Notification/Notifier.php:618
-#, fuzzy
-#| msgid "Paid into account"
 msgid "{file} imported into {account}"
-msgstr "Eingezahlt auf Konto"
+msgstr "{file} wurde in importiert {account}"
 
 #: /app/lib/Notification/Notifier.php:625
-#, fuzzy
-#| msgid "No transactions to import"
 msgid "%n transaction imported"
 msgid_plural "%n transactions imported"
-msgstr[0] "Keine Buchungen zum Importieren vorhanden"
-msgstr[1] "Keine Buchungen zum Importieren vorhanden"
+msgstr[0] "%n Transaktion importiert"
+msgstr[1] "%n Transaktionen importiert"
 
 #: /app/lib/Notification/Notifier.php:627
 msgid "%n already there or skipped"
@@ -3393,18 +3371,14 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: /app/lib/Notification/Notifier.php:630
-#, fuzzy
-#| msgid "The receipt could not be read"
 msgid "%n row could not be read"
 msgid_plural "%n rows could not be read"
-msgstr[0] "Der Beleg konnte nicht gelesen werden"
-msgstr[1] "Der Beleg konnte nicht gelesen werden"
+msgstr[0] "%n Zeile konnte nicht gelesen werden"
+msgstr[1] "%n Zeilen konnten nicht gelesen werden"
 
 #: /app/lib/Notification/Notifier.php:649
-#, fuzzy
-#| msgid "{file} was saved to your Files."
 msgid "{file} is ready to review"
-msgstr "{file} wurde in deinen Dateien gespeichert."
+msgstr "{file} ist zur Überprüfung bereit"
 
 #: /app/lib/Notification/Notifier.php:654
 #, php-format
@@ -3412,26 +3386,18 @@ msgid "Open the Import page to check it and import it into %1$s."
 msgstr ""
 
 #: /app/lib/Notification/Notifier.php:669
-#, fuzzy
-#| msgid "%n row will not be imported"
-#| msgid_plural "%n rows will not be imported"
 msgid "{file} could not be imported"
-msgstr "%n Zeile wird nicht importiert"
+msgstr "{file} konnte nicht importiert werden"
 
 #: /app/lib/Notification/Notifier.php:674
 #: /app/lib/Service/ImportFolderService.php:296
-#, fuzzy
-#| msgid "%n row will not be imported"
-#| msgid_plural "%n rows will not be imported"
 msgid "This type of file cannot be imported."
-msgstr "%n Zeile wird nicht importiert"
+msgstr "Dieser Dateityp kann nicht importiert werden."
 
 #: /app/lib/Notification/Notifier.php:675
 #: /app/lib/Service/ImportFolderService.php:297
-#, fuzzy
-#| msgid "The file holds more than %1$d categories"
 msgid "The file is larger than 10 MB."
-msgstr "Die Datei enthält mehr als %1$d Kategorien"
+msgstr "Die Datei ist größer als 10 MB."
 
 #: /app/lib/Notification/Notifier.php:676
 msgid "The account this folder imports into has been closed or deleted."
@@ -3463,10 +3429,8 @@ msgstr ""
 
 #: /app/lib/Notification/Notifier.php:681
 #: /app/lib/Service/ImportFolderService.php:298
-#, fuzzy
-#| msgid "The file is empty"
 msgid "The file is empty."
-msgstr "Die Datei ist leer"
+msgstr "Die Datei ist leer."
 
 #: /app/lib/Notification/Notifier.php:683
 msgid ""
@@ -4137,10 +4101,8 @@ msgid "The folder could not be created in your Files. Try another name."
 msgstr ""
 
 #: /app/lib/Service/ImportFolderService.php:299
-#, fuzzy
-#| msgid "The receipt could not be read"
 msgid "The file could not be read."
-msgstr "Der Beleg konnte nicht gelesen werden"
+msgstr "Die Datei konnte nicht gelesen werden."
 
 #: /app/lib/Service/ImportFolderService.php:325
 msgid "A waiting file is either imported or skipped."
@@ -10138,16 +10100,12 @@ msgid "GB"
 msgstr "GB"
 
 #: /app/src/modules/import/ReviewQueue.js:61
-#, fuzzy
-#| msgid "Paid into account"
 msgid "{folder}, into {account}"
-msgstr "Eingezahlt auf Konto"
+msgstr "{folder}, in {account}"
 
 #: /app/src/modules/import/ReviewQueue.js:69
-#, fuzzy
-#| msgid "Preview:"
 msgid "Review"
-msgstr "Vorschau:"
+msgstr "Rückblick"
 
 #: /app/src/modules/import/ReviewQueue.js:70
 msgid "Review {file}"
@@ -12132,34 +12090,24 @@ msgid "None (OFX, QIF and camt files only)"
 msgstr ""
 
 #: /app/src/modules/settings/ImportFolders.js:112
-#, fuzzy
-#| msgid "Amount for {name}"
 msgid "Account for {folder}"
-msgstr "Betrag für {name}"
+msgstr "Konto für {folder}"
 
 #: /app/src/modules/settings/ImportFolders.js:117
-#, fuzzy
-#| msgid "Import template renamed"
 msgid "Import template for {folder}"
-msgstr "Importvorlage umbenannt"
+msgstr "Importvorlage für {folder}"
 
 #: /app/src/modules/settings/ImportFolders.js:122
-#, fuzzy
-#| msgid "Import file not found"
 msgid "When a file arrives in {folder}"
-msgstr "Importdatei nicht gefunden"
+msgstr "Wenn eine Datei in {folder} eingeht"
 
 #: /app/src/modules/settings/ImportFolders.js:129
-#, fuzzy
-#| msgid "Import file not found"
 msgid "Import files dropped into {folder}"
-msgstr "Importdatei nicht gefunden"
+msgstr "Dateien importieren, die in {folder} abgelegt werden"
 
 #: /app/src/modules/settings/ImportFolders.js:134
-#, fuzzy
-#| msgid "Remove tile"
 msgid "Remove {folder}"
-msgstr "Kachel entfernen"
+msgstr "{folder} entfernen"
 
 #: /app/src/modules/settings/ImportFolders.js:135
 #: /app/src/modules/transactions/TransactionsModule.js:3353
@@ -12174,16 +12122,12 @@ msgstr ""
 
 #: /app/src/modules/settings/ImportFolders.js:235
 #: /app/src/modules/settings/ImportFolders.js:239
-#, fuzzy
-#| msgid "Failed to create import rule"
 msgid "Failed to remove the import folder"
-msgstr "Fehler beim Erstellen der Importregel"
+msgstr "Der Importordner konnte nicht entfernt werden"
 
 #: /app/src/modules/settings/ImportFolders.js:247
-#, fuzzy
-#| msgid "Checking"
 msgid "Checking…"
-msgstr "Prüfe"
+msgstr "Wird überprüft…"
 
 #: /app/src/modules/settings/ImportFolders.js:264
 #, fuzzy
@@ -12195,12 +12139,10 @@ msgstr[0] "%n Zeile wird nicht importiert"
 msgstr[1] "%n Zeilen werden nicht importiert"
 
 #: /app/src/modules/settings/ImportFolders.js:265
-#, fuzzy
-#| msgid "Rule editor view"
 msgid "%n file ready to review"
 msgid_plural "%n files ready to review"
-msgstr[0] "Ansicht des Regeleditors"
-msgstr[1] "Ansicht des Regeleditors"
+msgstr[0] "%n Datei zur Überprüfung bereit"
+msgstr[1] "%n Dateien zur Überprüfung bereit"
 
 #: /app/src/modules/settings/ImportFolders.js:266
 #, fuzzy
@@ -16737,10 +16679,8 @@ msgid "Add subfolder"
 msgstr "Regel hinzufügen"
 
 #: /app/templates/index.php:4682
-#, fuzzy
-#| msgid "Checking"
 msgid "Check now"
-msgstr "Prüfe"
+msgstr "Jetzt überprüfen"
 
 #: /app/templates/index.php:4696
 msgid "Monthly Report to Files"
