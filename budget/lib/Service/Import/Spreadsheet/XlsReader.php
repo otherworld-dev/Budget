@@ -67,7 +67,7 @@ final class XlsReader {
 					$sst[] = $data;
 					continue;
 				}
-				$this->strings = array_map(trim(...), BiffStringTable::parse($sst));
+				$this->strings = BiffStringTable::parse($sst);
 				$sst = null;
 			}
 			switch ($id) {
@@ -111,7 +111,7 @@ final class XlsReader {
 			throw new SpreadsheetReadError('Empty workbook stream');
 		}
 		if ($sst !== null) {
-			$this->strings = array_map(trim(...), BiffStringTable::parse($sst));
+			$this->strings = BiffStringTable::parse($sst);
 		}
 
 		// A sheet's records end where the next sheet's begin, whether or not

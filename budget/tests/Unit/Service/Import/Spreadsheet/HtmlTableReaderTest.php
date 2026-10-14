@@ -113,6 +113,19 @@ class HtmlTableReaderTest extends TestCase {
 		}
 	}
 
+	public function testTablesNestedInCellsCannotMultiplyTheirText(): void {
+		// Every level's cell holds the megabyte at the core
+		$html = str_repeat('<table><tr><td>', 80) . str_repeat('w', 1024 * 1024)
+			. str_repeat('</td><td>k</td></tr><tr><td>x</td><td>y</td></tr></table>', 80);
+		$begin = microtime(true);
+		try {
+			(new HtmlTableReader())->read($html);
+			$this->fail('A megabyte was copied into 80 nested cells');
+		} catch (SpreadsheetTooLargeError) {
+			$this->assertLessThan(1.0, microtime(true) - $begin);
+		}
+	}
+
 	public function testACellSpanningPastTheLastRowAddsNoRows(): void {
 		$html = '<table><tr><td>Date</td><td rowspan="65534">Description</td></tr><tr><td>02/01/2024</td></tr></table>';
 		$this->assertSame([['Date', 'Description'], ['02/01/2024', 'Description']], (new HtmlTableReader())->read($html)[0]['rows']);
