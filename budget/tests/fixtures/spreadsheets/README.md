@@ -26,7 +26,8 @@ independent BIFF writer); the generator scripts are not kept, the files are.
   15- and 16-digit numbers. Written by hand (a minimal ODS, not by an
   office suite).
 - `html-preamble-rowspan.xls`: "label | value" rows over a three-column
-  HTML table, and a date cell spanning two rows. Written by hand.
+  HTML table, and a date cell spanning two rows (copied into both).
+  Written by hand.
 - `accounts-per-sheet.ods`: one sheet per account, the same columns, the
   second account with more rows. The first sheet is the statement.
 - `statement-then-summary.ods`: a short statement under an "Account |

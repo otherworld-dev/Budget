@@ -53,24 +53,49 @@ class HtmlTableReaderTest extends TestCase {
 		$this->assertLessThan(5.0, microtime(true) - $begin);
 	}
 
-	public function testACellSpanningRowsKeepsTheRowsBelowInTheirColumns(): void {
-		// The spanned positions are left empty, as colspan leaves them and
-		// as a spreadsheet saves a merged cell
+	public function testACellSpanningRowsIsCopiedIntoEachRowItSpans(): void {
+		// A date cell spanning two transactions dates both; the columns a
+		// colspan covers are left empty, in the rows below as in its own
 		$html = '<table><tr><th>Date</th><th>Description</th><th>Amount</th></tr>'
 			. '<tr><td rowspan="2">02/01/2024</td><td>Coffee</td><td>-3.50</td></tr>'
 			. '<tr><td>Tea</td><td>-2.00</td></tr>'
 			. '<tr><td>03/01/2024</td><td rowspan="3" colspan="2">Spans two columns, three rows</td></tr>'
 			. '<tr><td>04/01/2024</td></tr>'
 			. '<tr></tr>'
-			. '<tr><td>05/01/2024</td><td>Salary</td><td>2000</td></tr></table>';
+			. '<tr><td>05/01/2024</td><td>Salary</td><td>2000</td></tr>'
+			. '<tr><td>06/01/2024</td><td>Rent</td><td rowspan="9">-500</td></tr>'
+			. '<tr><td>07/01/2024</td><td>Gas</td></tr></table>';
 		$this->assertSame([
 			['Date', 'Description', 'Amount'],
 			['02/01/2024', 'Coffee', '-3.50'],
-			['', 'Tea', '-2.00'],
+			['02/01/2024', 'Tea', '-2.00'],
 			['03/01/2024', 'Spans two columns, three rows'],
-			['04/01/2024'],
+			['04/01/2024', 'Spans two columns, three rows'],
+			['', 'Spans two columns, three rows'],
 			['05/01/2024', 'Salary', '2000'],
+			['06/01/2024', 'Rent', '-500'],
+			['07/01/2024', 'Gas', '-500'],
 		], (new HtmlTableReader())->read($html)[0]['rows']);
+	}
+
+	public function testAnEmptyCellSpanningRowsCoversThemEmpty(): void {
+		$html = '<table><tr><td rowspan="3"></td><td>a</td></tr><tr><td>b</td></tr><tr></tr><tr><td>c</td></tr></table>';
+		$this->assertSame([['', 'a'], ['', 'b'], ['c']], (new HtmlTableReader())->read($html)[0]['rows']);
+	}
+
+	public function testManyEmptyRowsUnderSpanningCellsCannotMultiplyWork(): void {
+		// Every empty row under a thousand spanning cells covers a thousand
+		// positions: filled, they are too many cells; empty, they cost nothing
+		$rows = str_repeat('<tr></tr>', 5000);
+		$begin = microtime(true);
+		$this->assertSame(
+			[],
+			(new HtmlTableReader())->read('<table><tr>' . str_repeat('<td rowspan="65534"></td>', 1000) . '</tr>' . $rows . '</table>')[0]['rows']
+		);
+		$this->assertLessThan(2.0, microtime(true) - $begin);
+
+		$this->expectException(SpreadsheetTooLargeError::class);
+		(new HtmlTableReader())->read('<table><tr>' . str_repeat('<td rowspan="65534">x</td>', 1000) . '</tr>' . $rows . '</table>');
 	}
 
 	public function testAHugeRowspanCannotMultiplyWork(): void {
