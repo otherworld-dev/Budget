@@ -209,7 +209,7 @@
         ],
         "operationId": "listTags",
         "summary": "List tags",
-        "description": "The user's own tags: the global ones first, then each tag set in the order set in the web UI. Hidden tags are listed too, flagged. Tags of people who share with the user are not listed; they still come with the transactions they are on. Check tags_available on GET /capabilities first: an older server answers 404.",
+        "description": "The user's own tags: the global ones first, then each tag set in the order set in the web UI. Hidden tags are listed too, flagged. Then the category tags of categories other people have shared with the user, which are the tags that can be put on transactions in their shared accounts; owner says whose each is. Their global tags are never listed, as they cannot be used. Check tags_available on GET /capabilities first: an older server answers 404.",
         "responses": {
           "200": {
             "description": "Tags",
@@ -643,7 +643,7 @@
             }
           },
           "400": {
-            "description": "A malformed value (a list or an object for a field that takes one value: \"vendor must be a single value\"), nothing editable in the body, an amount that is not more than zero (error_code invalid_amount), or account_id, status or reconciled sent with a different value (error_code field_not_editable). A category_id the account owner cannot use answers \"Category not found. It must be one of the account owner's categories\"; on an account shared with you, a new category_id you cannot see (one of the owner's never shared with you) answers \"Category not found\". The category the transaction already has may always be sent back.",
+            "description": "A malformed value (a list or an object for a field that takes one value: \"vendor must be a single value\"), nothing editable in the body, an amount that is not more than zero (error_code invalid_amount), or account_id, status or reconciled sent with a different value (error_code field_not_editable). A category_id the account owner cannot use answers \"Category not found. It must be one of the account owner's categories\"; on an account shared with you, a new category_id you cannot see (one of the owner's never shared with you) answers \"Category not found\". The category the transaction already has may always be sent back. A tag_ids value that is not a list of ids, or a newly added tag that cannot be put on this transaction, answers error_code invalid_tags and writes nothing.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1822,7 +1822,7 @@
           },
           "error_code": {
             "type": "string",
-            "description": "Stable machine-readable code, present on failures clients must distinguish programmatically: ocr_not_configured, ocr_quota_exhausted, ocr_extraction_failed, idempotency_key_conflict, request_in_flight, field_not_editable, invalid_amount, transfer_leg, reconciled, split, scheduled, transfer_same_account, transfer_currency_mismatch, transfer_split. Switch on this, never on the error text."
+            "description": "Stable machine-readable code, present on failures clients must distinguish programmatically: ocr_not_configured, ocr_quota_exhausted, ocr_extraction_failed, idempotency_key_conflict, request_in_flight, field_not_editable, invalid_amount, transfer_leg, reconciled, split, scheduled, transfer_same_account, transfer_currency_mismatch, transfer_split, invalid_tags. Switch on this, never on the error text."
           },
           "hint": {
             "type": "string",
@@ -1925,6 +1925,10 @@
               "create_transfer": {
                 "type": "boolean",
                 "description": "transfer_account_id on POST /transactions."
+              },
+              "set_tags": {
+                "type": "boolean",
+                "description": "tag_ids on POST and PATCH /transactions."
               },
               "receipt_ocr": {
                 "type": "boolean",
@@ -2277,6 +2281,10 @@
             },
             "description": "The transaction's tags, global ones first, [] when it has none. Always present on a server with tags_available. Tags are on the whole transaction, never on the parts of a split."
           },
+          "tags_error": {
+            "type": "string",
+            "description": "Only on a create that sent tag_ids it could not apply: why. The transaction was recorded without tags; do not retry the create."
+          },
           "splits_error": {
             "type": "string",
             "description": "Create responses only. Present when the transaction was created but the splits sent with it were rejected: the parts do not add up, there are fewer than two, or a part names a category the account owner cannot use (\"Category not found\"). splits is then [] and is_split false: the transaction is recorded, correct and unsplit. Do not retry the create; split it with POST /transactions/{id}/splits instead.",
@@ -2355,6 +2363,11 @@
             "type": "integer",
             "description": "Makes this a transfer: the other account. The transaction is recorded in account_id as usual, its other side is created in this account with the opposite type and the same date, amount, description and vendor, and the two are linked. The response carries linked_transaction_id and linked_account_name. Both accounts must be ones you can write to and in the same currency, and a transfer cannot be sent together with splits. Needs transfers_available on GET /capabilities: an older server ignores the field and records a plain transaction.",
             "example": 37
+          },
+          "tag_ids": {
+            "type": "string",
+            "example": "[12,27]",
+            "description": "Optional tags, as a JSON array of tag ids (a string, so it can ride in the same multipart body as photo; a JSON body may send the array itself). On your own account: your global tags, and the tags of the transaction's category. On an account shared with you: only the owner's category tags, for the transaction's category, from categories shared with you (GET /tags lists them). No global tag works on a shared account. They are checked against the transaction as it is created: after a split it has no category, so only global tags fit; on a transfer they go on the side in account_id. If any is refused, the transaction is still created, untagged, and the response carries tags_error. Needs tag_ids_available on GET /capabilities: an older server ignores the field. Up to 200 ids; an empty field means no tags."
           },
           "description": {
             "type": "string",
@@ -2566,6 +2579,11 @@
             "type": "boolean",
             "example": true,
             "description": "Whether POST /transactions takes transfer_account_id. Absent on older servers, which ignore the field and record a plain transaction: never send it without this flag."
+          },
+          "tag_ids_available": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether POST and PATCH /transactions take tag_ids. Absent on older servers, which ignore the field and answer success: never send it without this flag."
           },
           "transaction_filters": {
             "type": "array",
@@ -3045,6 +3063,25 @@
             "type": "integer",
             "nullable": true,
             "description": "null for uncategorised. Refused (409 split) on a split transaction. Must be a category the account owner can use, as on create."
+          },
+          "tag_ids": {
+            "oneOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "integer"
+                }
+              },
+              {
+                "type": "string",
+                "example": "[12,27]"
+              }
+            ],
+            "example": [
+              12,
+              27
+            ],
+            "description": "The whole set of tags; [] removes them all. A tag already on the transaction may always be sent back, even one that no longer fits its category; only newly added ones are checked, against the category this edit leaves. On your own account: your global tags, and the tags of the transaction's category. On an account shared with you: only the owner's category tags, for the transaction's category, from categories shared with you (GET /tags lists them). No global tag works on a shared account. Tags of the owner's that you cannot use (ones not in your GET /tags) stay on. A refused tag refuses the whole edit (400, error_code invalid_tags). The tags list of the read shape is ignored; only tag_ids sets tags. Needs tag_ids_available. Up to 200 ids. A JSON array inside a string is accepted too. null and an empty string are refused (invalid_tags): send [] to remove all tags, or leave tag_ids out to keep them."
           },
           "confirm_reconciled": {
             "type": "boolean",

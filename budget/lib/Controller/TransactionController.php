@@ -1305,48 +1305,19 @@ class TransactionController extends Controller {
 	public function setTags(int $id): DataResponse {
 		try {
 			$data = $this->request->getParams();
-
 			if (!isset($data['tagIds']) || !is_array($data['tagIds'])) {
 				return new DataResponse(['error' => 'tagIds array is required'], Http::STATUS_BAD_REQUEST);
 			}
+			// As the row's owner, after the write check; the rules are the
+			// API's too (TransactionTagService::resolveTagsAs())
+			[$transaction, $owner] = $this->findWithOwner($id, true);
+			$final = $this->tagService->resolveTagsAs($this->userId, $owner, $id, $transaction->getCategoryId(), array_map('intval', $data['tagIds']));
+			$this->tagService->replaceTransactionTags($id, $final);
 
-			$tagIds = array_map('intval', $data['tagIds']);
-			// A row in an account shared with this user is tagged as its
-			// owner, after the write check, like every other write to it
-			[, $owner] = $this->findWithOwner($id, true);
-			// A tag the row doesn't carry yet has to be one this user can see:
-			// as the owner, any of the owner's tags passed, and its name then
-			// came back on the row. Tags already on it may stay.
-			$current = array_map(static fn ($tag) => (int)$tag->getId(), $this->tagService->getTransactionTags($id, $owner));
-			$this->granularShareService->requireUsableTags($this->userId, array_values(array_diff($tagIds, $current)));
-			$tagIds = array_values(array_unique(array_merge($tagIds, $this->ownersTagsHiddenFrom($owner, $current))));
-			$transactionTags = $this->tagService->setTransactionTags($id, $owner, $tagIds);
-
-			return new DataResponse([
-				'status' => 'success',
-				'transactionTags' => $transactionTags
-			]);
+			return new DataResponse(['status' => 'success', 'transactionTags' => $this->tagService->getTransactionTags($id, $owner)]);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to set transaction tags'), Http::STATUS_BAD_REQUEST, ['transactionId' => $id]);
 		}
-	}
-
-	/**
-	 * The tags on a row of $owner's that stay when someone else saves its
-	 * tags: the owner's own ones this user can't see. Saving a row's tags
-	 * replaces them all, so a recipient's save would otherwise strip the
-	 * owner's tags they were never shown; only the tags they can see are
-	 * theirs to change. An id the owner can't use either is not kept.
-	 *
-	 * @param int[] $current the tags on the row now
-	 * @return int[]
-	 */
-	private function ownersTagsHiddenFrom(string $owner, array $current): array {
-		if ($owner === $this->userId || $current === []) {
-			return [];
-		}
-		$hidden = array_diff($current, $this->granularShareService->getUsableTagIds($this->userId, $current));
-		return array_values(array_intersect($hidden, $this->granularShareService->getUsableTagIds($owner, $hidden)));
 	}
 
 	/**
@@ -1357,16 +1328,8 @@ class TransactionController extends Controller {
 	#[UserRateLimit(limit: 60, period: 60)]
 	public function clearTags(int $id): DataResponse {
 		try {
-			[, $owner] = $this->findWithOwner($id, true);
-			$current = $owner === $this->userId
-				? []
-				: array_map(static fn ($tag) => (int)$tag->getId(), $this->tagService->getTransactionTags($id, $owner));
-			$kept = $this->ownersTagsHiddenFrom($owner, $current);
-			if ($kept === []) {
-				$this->tagService->clearTransactionTags($id, $owner);
-			} else {
-				$this->tagService->setTransactionTags($id, $owner, $kept);
-			}
+			[$transaction, $owner] = $this->findWithOwner($id, true);
+			$this->tagService->replaceTransactionTags($id, $this->tagService->resolveTagsAs($this->userId, $owner, $id, $transaction->getCategoryId(), []));
 			return new DataResponse(['status' => 'success']);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to clear transaction tags'), Http::STATUS_BAD_REQUEST, ['transactionId' => $id]);

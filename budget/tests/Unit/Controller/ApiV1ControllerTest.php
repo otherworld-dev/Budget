@@ -107,6 +107,7 @@ class ApiV1ControllerTest extends TestCase {
 			'tags_available' => true,
 			'reconcile_available' => true,
 			'transfers_available' => true,
+			'tag_ids_available' => true,
 			'transaction_filters' => [
 				'accountId', 'categoryId', 'dateFrom', 'dateTo', 'search',
 				'type', 'status', 'reconciled', 'uncategorized', 'tagId', 'amountMin', 'amountMax',
@@ -156,7 +157,7 @@ class ApiV1ControllerTest extends TestCase {
 	public function testInfoListsTagsReconcilingAndTransfers(): void {
 		$features = $this->controller->info()->getData()['features'];
 
-		foreach (['tags', 'reconcile_transaction', 'create_transfer'] as $feature) {
+		foreach (['tags', 'reconcile_transaction', 'create_transfer', 'set_tags'] as $feature) {
 			$this->assertTrue($features[$feature], $feature);
 		}
 	}

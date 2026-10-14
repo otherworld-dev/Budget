@@ -10,6 +10,7 @@ use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\TransactionTag;
 use OCA\Budget\Db\TransactionTagMapper;
 use OCP\IDBConnection;
+use OCP\IL10N;
 
 class TransactionTagService {
 	private TransactionTagMapper $transactionTagMapper;
@@ -24,6 +25,8 @@ class TransactionTagService {
 		TagSetMapper $tagSetMapper,
 		TransactionMapper $transactionMapper,
 		IDBConnection $db,
+		private GranularShareService $granularShareService,
+		private IL10N $l,
 	) {
 		$this->transactionTagMapper = $transactionTagMapper;
 		$this->tagMapper = $tagMapper;
@@ -246,7 +249,7 @@ class TransactionTagService {
 
 		$tags = $this->tagMapper->findByIds($tagIds);
 		if (count($tags) !== count($tagIds)) {
-			throw new \Exception('One or more tags do not exist');
+			throw new \InvalidArgumentException($this->l->t('One or more tags do not exist'));
 		}
 
 		$tagSetIds = [];
@@ -379,12 +382,106 @@ class TransactionTagService {
 	}
 
 	/**
-	 * Every tag the user owns, as the public API describes them.
+	 * Every tag the user owns, as the public API describes them, then the
+	 * tags of categories someone has shared with them (the ones they may put
+	 * on a transaction in that person's shared account). Another user's global
+	 * tags are never shared.
 	 *
 	 * @return array<int, array<string, mixed>>
 	 */
 	public function tagDetailsForUser(string $userId): array {
-		return $this->tagMapper->findDetailedForUser($userId);
+		$own = $this->tagMapper->findDetailedForUser($userId);
+		$shared = $this->granularShareService->getSharedCategoryIds($userId);
+		if ($shared === []) {
+			return $own;
+		}
+		$seen = array_flip(array_column($own, 'id'));
+
+		return array_merge($own, array_values(array_filter(
+			$this->tagMapper->findDetailedForCategories($shared),
+			static fn (array $row): bool => !isset($seen[$row['id']])
+		)));
+	}
+
+	/**
+	 * The tags a write leaves on a transaction, worked out as the web UI does
+	 * (discussion 420): $tagIds is the whole set the caller asks for.
+	 *
+	 * - A tag already on the transaction may stay, even one that no longer
+	 *   fits because the transaction moved to another category.
+	 * - A new tag must be one the caller can see, and one the account's owner
+	 *   can put on a transaction of $categoryId: a global tag of the owner's,
+	 *   or a tag of that category's tag sets. On a shared account that leaves
+	 *   the owner's category tags of categories shared with the caller.
+	 * - The owner's tags on the row that the caller cannot see stay on, so a
+	 *   caller never strips tags they were never shown.
+	 *
+	 * @param int[] $tagIds
+	 * @return int[] the set to store
+	 * @throws \InvalidArgumentException naming why a tag was refused
+	 */
+	public function resolveTagsAs(string $actingUserId, string $ownerId, int $transactionId, ?int $categoryId, array $tagIds): array {
+		$tagIds = array_values(array_unique(array_map('intval', $tagIds)));
+		$current = array_map(static fn ($tt): int => (int)$tt->getTagId(), $this->transactionTagMapper->findByTransaction($transactionId));
+		$added = array_values(array_diff($tagIds, $current));
+
+		if ($added !== []) {
+			$this->granularShareService->requireUsableTags($actingUserId, $added);
+			$this->validateTagsForTransaction($categoryId, $added, $ownerId);
+		}
+
+		return array_values(array_unique(array_merge($tagIds, $this->ownersTagsHiddenFrom($actingUserId, $ownerId, $current))));
+	}
+
+	/**
+	 * Store exactly these tags on a transaction, replacing its others. No
+	 * check: resolveTagsAs() is what decides the set.
+	 *
+	 * @param int[] $tagIds
+	 */
+	public function replaceTransactionTags(int $transactionId, array $tagIds): void {
+		// All or nothing: half done, the row lost tags nobody asked to remove,
+		// and on a shared account the owner's ones the caller cannot use could
+		// not be put back by them
+		$this->db->beginTransaction();
+		try {
+			$this->transactionTagMapper->deleteByTransaction($transactionId);
+			$now = date('Y-m-d H:i:s');
+			foreach (array_values(array_unique(array_map('intval', $tagIds))) as $tagId) {
+				$link = new TransactionTag();
+				$link->setTransactionId($transactionId);
+				$link->setTagId($tagId);
+				$link->setCreatedAt($now);
+				$this->transactionTagMapper->insert($link);
+			}
+			// A change of tags is a change of the transaction: a client that
+			// syncs by updated_at would otherwise never see it
+			$touch = $this->db->getQueryBuilder();
+			$touch->update('budget_transactions')
+				->set('updated_at', $touch->createNamedParameter($now))
+				->where($touch->expr()->eq('id', $touch->createNamedParameter($transactionId, \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_INT)));
+			$touch->executeStatement();
+			$this->db->commit();
+		} catch (\Throwable $e) {
+			$this->db->rollBack();
+			throw $e;
+		}
+	}
+
+	/**
+	 * The owner's tags on a row that $actingUserId cannot see, which stay on
+	 * when they save its tags. An id the owner cannot use either is dropped.
+	 *
+	 * @param int[] $current the tags on the row now
+	 * @return int[]
+	 */
+	public function ownersTagsHiddenFrom(string $actingUserId, string $ownerId, array $current): array {
+		if ($ownerId === $actingUserId || $current === []) {
+			return [];
+		}
+		$hidden = array_diff($current, $this->granularShareService->getUsableTagIds($actingUserId, $current));
+
+		return array_values(array_intersect($hidden, $this->granularShareService->getUsableTagIds($ownerId, $hidden)));
 	}
 
 	/**
@@ -431,19 +528,19 @@ class TransactionTagService {
 		$tags = $this->tagMapper->findByIds($tagIds);
 
 		if (count($tags) !== count($tagIds)) {
-			throw new \Exception('One or more tags do not exist');
+			throw new \InvalidArgumentException($this->l->t('One or more tags do not exist'));
 		}
 
 		foreach ($tags as $tag) {
 			if ($tag->getTagSetId() === null) {
 				// Global tag: verify user ownership
 				if ($tag->getUserId() !== $userId) {
-					throw new \Exception('One or more tags are not available for this transaction');
+					throw new \InvalidArgumentException($this->l->t('One or more tags are not available for this transaction'));
 				}
 			} else {
 				// Category tag: verify tag set belongs to the transaction's category
 				if ($categoryId === null) {
-					throw new \Exception('Category tags cannot be applied to uncategorized transactions');
+					throw new \InvalidArgumentException($this->l->t('Category tags cannot be applied to uncategorized transactions'));
 				}
 
 				$qb = $this->db->getQueryBuilder();
@@ -459,7 +556,7 @@ class TransactionTagService {
 				$result->closeCursor();
 
 				if (!$found) {
-					throw new \Exception('One or more tags are not available for this transaction');
+					throw new \InvalidArgumentException($this->l->t('One or more tags are not available for this transaction'));
 				}
 			}
 		}

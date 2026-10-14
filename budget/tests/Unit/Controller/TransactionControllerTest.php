@@ -28,7 +28,6 @@ class TransactionControllerTest extends TestCase {
 	private LoggerInterface $logger;
 	private IL10N $l;
 	/** @var list<array{0: string, 1: int[]}> requireUsableTags() calls in controllerForSharedRows() */
-	private array $tagChecks = [];
 
 	protected function setUp(): void {
 		$this->request = $this->createMock(IRequest::class);
@@ -832,8 +831,11 @@ class TransactionControllerTest extends TestCase {
 	// ── clearTags ───────────────────────────────────────────────────
 
 	public function testClearTagsReturnsSuccess(): void {
-		$this->service->method('findForAccounts')->willReturn($this->transactionInAccount(1));
-		$this->tagService->expects($this->once())->method('clearTransactionTags')->with(1, 'user1');
+		$row = $this->transactionInAccount(1);
+		$row->setId(1);
+		$this->service->method('findForAccounts')->willReturn($row);
+		$this->tagService->method('resolveTagsAs')->with('user1', 'user1', 1, null, [])->willReturn([]);
+		$this->tagService->expects($this->once())->method('replaceTransactionTags')->with(1, []);
 
 		$response = $this->controller->clearTags(1);
 
@@ -887,9 +889,7 @@ class TransactionControllerTest extends TestCase {
 			array_map('intval', $ids),
 			fn (int $id) => $id < 10 || ($user === 'owner1' && $id >= 50 && $id < 60)
 		)));
-		$this->tagChecks = [];
 		$shares->method('requireUsableTags')->willReturnCallback(function (string $user, array $ids): void {
-			$this->tagChecks[] = [$user, array_values($ids)];
 			foreach ($ids as $id) {
 				if ($id >= 10) {
 					throw new \InvalidArgumentException('Invalid tag ID');
@@ -1181,39 +1181,48 @@ class TransactionControllerTest extends TestCase {
 		return $tag;
 	}
 
+	/**
+	 * Which tags a save leaves is TransactionTagService::resolveTagsAs()'s
+	 * call, shared with the API and proven on a real database in
+	 * TagSetAsTest. The controller's part: as the row's owner, after the write
+	 * check, against the row's category, writing what the rules leave.
+	 */
 	public function testAWriteRecipientTagsASharedRowAsItsOwner(): void {
 		$this->requestParams(['tagIds' => [3, 50]]);
-		// 50 is already on the row (the owner's own tag); only 3 is new
-		$this->tagService->method('getTransactionTags')->with(8, 'owner1')->willReturn([$this->tag(50)]);
-		$this->tagService->expects($this->once())->method('setTransactionTags')
-			->with(8, 'owner1', [3, 50])->willReturn([]);
+		$this->tagService->expects($this->once())->method('resolveTagsAs')
+			->with('user1', 'owner1', 8, null, [3, 50])->willReturn([3, 50]);
+		$this->tagService->expects($this->once())->method('replaceTransactionTags')->with(8, [3, 50]);
 
 		$response = $this->controllerForSharedRows(4)->setTags(8);
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
-		$this->assertSame([['user1', [3]]], $this->tagChecks);
 	}
 
-	public function testARecipientsTagSaveKeepsTheOwnersTagsSheCannotSee(): void {
-		// 50 is owner1's own tag on the row; user1 sends only what she
-		// picked. 99 is an old id neither of them can use: it goes.
+	public function testARecipientsTagSaveWritesWhatTheRulesLeave(): void {
+		// The rules keep owner1's tag 50 that user1 cannot see
 		$this->requestParams(['tagIds' => [4]]);
-		$this->tagService->method('getTransactionTags')->with(8, 'owner1')
-			->willReturn([$this->tag(50), $this->tag(3), $this->tag(99)]);
-		$this->tagService->expects($this->once())->method('setTransactionTags')
-			->with(8, 'owner1', [4, 50])->willReturn([]);
+		$this->tagService->method('resolveTagsAs')->willReturn([4, 50]);
+		$this->tagService->expects($this->once())->method('replaceTransactionTags')->with(8, [4, 50]);
 
 		$response = $this->controllerForSharedRows(4)->setTags(8);
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
 
-	public function testARecipientClearingTagsKeepsTheOwnersTagsSheCannotSee(): void {
-		$this->tagService->method('getTransactionTags')->with(8, 'owner1')
-			->willReturn([$this->tag(50), $this->tag(3)]);
-		$this->tagService->expects($this->never())->method('clearTransactionTags');
-		$this->tagService->expects($this->once())->method('setTransactionTags')
-			->with(8, 'owner1', [50])->willReturn([]);
+	public function testTheTagsAreCheckedAgainstTheRowsCategory(): void {
+		$this->requestParams(['tagIds' => [3]]);
+		$this->tagService->expects($this->once())->method('resolveTagsAs')
+			->with('user1', 'owner1', 8, 3, [3])->willReturn([3]);
+
+		$response = $this->controllerForSharedRows(4, 3)->setTags(8);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testARecipientClearingTagsKeepsWhatTheRulesKeep(): void {
+		$this->tagService->expects($this->once())->method('resolveTagsAs')
+			->with('user1', 'owner1', 8, null, [])->willReturn([50]);
+		$this->tagService->expects($this->once())->method('replaceTransactionTags')->with(8, [50]);
 
 		$response = $this->controllerForSharedRows(4)->clearTags(8);
 
@@ -1222,21 +1231,19 @@ class TransactionControllerTest extends TestCase {
 
 	public function testTheOwnerReplacesAllOfARowsTags(): void {
 		$this->requestParams(['tagIds' => [4]]);
-		$this->tagService->method('getTransactionTags')->with(8, 'user1')
-			->willReturn([$this->tag(50), $this->tag(3)]);
-		$this->tagService->expects($this->once())->method('setTransactionTags')
-			->with(8, 'user1', [4])->willReturn([]);
+		$this->tagService->expects($this->once())->method('resolveTagsAs')
+			->with('user1', 'user1', 8, null, [4])->willReturn([4]);
+		$this->tagService->expects($this->once())->method('replaceTransactionTags')->with(8, [4]);
 
 		$response = $this->controllerForSharedRows(1)->setTags(8);
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
 
-	public function testATagTheUserCannotSeeIsRefused(): void {
-		// Any id used to be stored, and its name read back off the row
+	public function testATagTheRulesRefuseIsABadRequest(): void {
 		$this->requestParams(['tagIds' => [42]]);
-		$this->tagService->method('getTransactionTags')->willReturn([]);
-		$this->tagService->expects($this->never())->method('setTransactionTags');
+		$this->tagService->method('resolveTagsAs')->willThrowException(new \InvalidArgumentException('Invalid tag ID'));
+		$this->tagService->expects($this->never())->method('replaceTransactionTags');
 
 		$response = $this->controllerForSharedRows(4)->setTags(8);
 
@@ -1245,23 +1252,16 @@ class TransactionControllerTest extends TestCase {
 
 	public function testAReadOnlyRecipientCannotTag(): void {
 		$this->requestParams(['tagIds' => [3]]);
-		$this->tagService->expects($this->never())->method('setTransactionTags');
+		$this->tagService->expects($this->never())->method('resolveTagsAs');
+		$this->tagService->expects($this->never())->method('replaceTransactionTags');
 
 		$response = $this->controllerForSharedRows(6)->setTags(8);
 
 		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
 	}
 
-	public function testAWriteRecipientClearsTagsAsTheOwner(): void {
-		$this->tagService->expects($this->once())->method('clearTransactionTags')->with(8, 'owner1');
-
-		$response = $this->controllerForSharedRows(4)->clearTags(8);
-
-		$this->assertSame(Http::STATUS_OK, $response->getStatus());
-	}
-
 	public function testAReadOnlyRecipientCannotClearTags(): void {
-		$this->tagService->expects($this->never())->method('clearTransactionTags');
+		$this->tagService->expects($this->never())->method('replaceTransactionTags');
 
 		$response = $this->controllerForSharedRows(6)->clearTags(8);
 

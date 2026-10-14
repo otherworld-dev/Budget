@@ -68,6 +68,7 @@ class ApiV1Controller extends OCSController {
 				'tags' => true,
 				'reconcile_transaction' => true,
 				'create_transfer' => true,
+				'set_tags' => true,
 				// Server-side receipt extraction (#533): true only when this
 				// instance has an OCR provider configured AND usable, so the
 				// capture flow never appears on a server that cannot serve it.
@@ -113,6 +114,9 @@ class ApiV1Controller extends OCSController {
 			'tags_available' => true,
 			'reconcile_available' => true,
 			'transfers_available' => true,
+			// tag_ids on create and edit. An older server ignores the field and
+			// answers success, so a client checks this before sending it.
+			'tag_ids_available' => true,
 			// The filters GET /transactions takes, by name. Not a flag: a
 			// server ignores a filter it does not know and answers with the
 			// unfiltered list, and a flag saying "the new filters are here"
