@@ -500,7 +500,7 @@
             }
           },
           "400": {
-            "description": "Invalid input; ocs.data.error says what. This includes a list or an object sent for a field that takes one value (\"vendor must be a single value\"), and a negative amount (error_code invalid_amount). A `category_id` the account owner cannot use is not a 400: see category_error. For a transfer: transfer_account_id equal to account_id (error_code transfer_same_account), two accounts in different currencies (error_code transfer_currency_mismatch; the web UI can link those, each side with its own amount), or splits sent as well (error_code transfer_split). A closed account_id or transfer_account_id answers error_code account_closed: a closed account takes no new transactions until it is reopened in the web UI. None of these records anything or spends the idempotency key.",
+            "description": "Invalid input; ocs.data.error says what. This includes a list or an object sent for a field that takes one value (\"vendor must be a single value\"), and a negative amount (error_code invalid_amount). A `category_id` the account owner cannot use is not a 400: see category_error. For a transfer: transfer_account_id equal to account_id (error_code transfer_same_account), two accounts in different currencies (error_code transfer_currency_mismatch; the web UI can link those, each side with its own amount), or splits sent as well (error_code transfer_split). A closed account_id or transfer_account_id answers error_code account_closed: a closed account takes no new transactions until it is reopened in the web UI. None of these records anything or spends the idempotency key. A retry of an idempotency_key that already recorded this transaction answers 201 with it rather than account_closed or a transfer refusal, whatever changed since.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2391,7 +2391,7 @@
           "idempotency_key": {
             "type": "string",
             "maxLength": 64,
-            "description": "A UUID per draft (not per attempt). A repeat within 7 days answers 201 with the transaction the first attempt recorded, inserting nothing. Also accepted as an Idempotency-Key header."
+            "description": "A UUID per draft (not per attempt). A repeat within 7 days answers 201 with the transaction the first attempt recorded, inserting nothing, even when the account has been closed since, or a transfer's other account closed, unshared or made read-only. A repeat after you lost access to the account itself answers 404. Also accepted as an Idempotency-Key header."
           },
           "splits": {
             "type": "string",

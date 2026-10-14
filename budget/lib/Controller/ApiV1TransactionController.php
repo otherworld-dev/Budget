@@ -600,6 +600,19 @@ class ApiV1TransactionController extends OCSController {
 			return new DataResponse(['error' => $this->l->t('Idempotency key too long (64 characters maximum)')], Http::STATUS_BAD_REQUEST);
 		}
 
+		// A retry of a key that already recorded this transaction is answered
+		// with it first. The account may have been closed since, or a
+		// transfer's other account unshared or made read-only, and a 4xx for
+		// that would tell the client nothing was recorded when it was. A key
+		// in flight, reused for another purchase or new goes the usual way.
+		if ($idemKey !== '') {
+			$this->purgeExpiredKeys();
+			$replay = $this->replayRecorded($idemKey, $accountId, $amount, $transferAccountId);
+			if ($replay !== null) {
+				return $replay;
+			}
+		}
+
 		// Everything that can stop a transfer is settled before anything is
 		// recorded or the key is spent, and so is a closed account
 		$refusal = $transferAccountId !== null
@@ -909,18 +922,6 @@ class ApiV1TransactionController extends OCSController {
 	 * request is still in flight and did not finish within the wait.
 	 */
 	private function acquireIdempotencyKey(string $idemKey, int $accountId, float $amount, ?int $transferAccountId = null): IdempotencyKey|DataResponse {
-		// Retention housekeeping, deliberately outside the reservation try:
-		// a purge hiccup must not disable idempotency for this request.
-		try {
-			$this->idempotencyKeys->purgeOlderThan(
-				new \DateTimeImmutable('-' . self::IDEM_RETENTION_DAYS . ' days')
-			);
-		} catch (\Throwable $e) {
-			$this->logger?->debug('Idempotency purge skipped: ' . $e->getMessage(), [
-				'app' => Application::APP_ID,
-			]);
-		}
-
 		for ($attempt = 0; $attempt <= self::IDEM_POLL_ATTEMPTS; $attempt++) {
 			try {
 				$row = new IdempotencyKey();
@@ -966,15 +967,7 @@ class ApiV1TransactionController extends OCSController {
 				continue;
 			}
 
-			// Same key, different purchase = a client bug worth surfacing,
-			// not silently answering with someone else's numbers. A transfer
-			// asked for is part of that: a 201 for a key that recorded a
-			// plain transaction, or a transfer into another account, would
-			// say a transfer exists that was never made. A plain retry is
-			// answered whatever became of the transaction since.
-			if ($transaction->getAccountId() !== $accountId
-				|| !MoneyCalculator::equals($transaction->getAmount(), $amount)
-				|| ($transferAccountId !== null && $this->otherSideAccountOf($transaction) !== $transferAccountId)) {
+			if (!$this->isWhatTheKeyRecorded($transaction, $accountId, $amount, $transferAccountId)) {
 				return new DataResponse([
 					'error' => $this->l->t('This idempotency key was already used for a different transaction'),
 					'error_code' => 'idempotency_key_conflict',
@@ -988,6 +981,69 @@ class ApiV1TransactionController extends OCSController {
 			'error' => $this->l->t('This request is still being processed. Try again shortly'),
 			'error_code' => 'request_in_flight',
 		], Http::STATUS_CONFLICT);
+	}
+
+	/**
+	 * Retention housekeeping, before the key is looked up so a key past
+	 * retention is never replayed. A purge hiccup must not disable
+	 * idempotency for this request.
+	 */
+	private function purgeExpiredKeys(): void {
+		try {
+			$this->idempotencyKeys->purgeOlderThan(
+				new \DateTimeImmutable('-' . self::IDEM_RETENTION_DAYS . ' days')
+			);
+		} catch (\Throwable $e) {
+			$this->logger?->debug('Idempotency purge skipped: ' . $e->getMessage(), [
+				'app' => Application::APP_ID,
+			]);
+		}
+	}
+
+	/**
+	 * The 201 replay when this key already recorded the transaction asked
+	 * for and the caller can still see it, or null to go the usual way.
+	 *
+	 * Only ever a replay: a key with nothing recorded yet, one whose
+	 * transaction is gone or out of the caller's sight, and one reused for
+	 * another purchase are all left to the refusals and the reservation, as
+	 * before. So losing sight of the account the transaction lives in still
+	 * answers 404 and gives nothing about it away.
+	 */
+	private function replayRecorded(string $idemKey, int $accountId, float $amount, ?int $transferAccountId): ?DataResponse {
+		try {
+			$existing = $this->idempotencyKeys->findByKey($this->userId, $idemKey);
+			if ($existing->getTransactionId() === 0) {
+				return null;
+			}
+			$transaction = $this->service->findForAccounts($existing->getTransactionId(), $this->getEffectiveAccountIds());
+			if (!$this->isWhatTheKeyRecorded($transaction, $accountId, $amount, $transferAccountId)) {
+				return null;
+			}
+
+			return new DataResponse($this->replayResponse($transaction), Http::STATUS_CREATED);
+		} catch (\Throwable $e) {
+			// Nothing recorded, or nothing the caller can see: the
+			// reservation further on answers for it (and for a failure
+			// here, which it meets again inside its error handling)
+			return null;
+		}
+	}
+
+	/**
+	 * Whether the transaction a key recorded is the one asked for again.
+	 *
+	 * Same key, different purchase = a client bug worth surfacing, not
+	 * silently answering with someone else's numbers. A transfer asked for is
+	 * part of that: a 201 for a key that recorded a plain transaction, or a
+	 * transfer into another account, would say a transfer exists that was
+	 * never made. A plain retry is answered whatever became of the
+	 * transaction since.
+	 */
+	private function isWhatTheKeyRecorded(Transaction $transaction, int $accountId, float $amount, ?int $transferAccountId): bool {
+		return $transaction->getAccountId() === $accountId
+			&& MoneyCalculator::equals($transaction->getAmount(), $amount)
+			&& ($transferAccountId === null || $this->otherSideAccountOf($transaction) === $transferAccountId);
 	}
 
 	/**
