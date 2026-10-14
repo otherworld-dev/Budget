@@ -184,6 +184,35 @@ class XlsReaderTest extends TestCase {
 		(new XlsReader())->readWorkbook($stream);
 	}
 
+	public function testASheetEndsWhereTheNextOneStarts(): void {
+		// Sheet A has no EOF record: its scan stops at B's BOF rather than taking B's cells as its own
+		$boundsheet = static fn (int $position, string $name): string => self::record(0x0085, pack('VCC', $position, 0, 0) . pack('CC', strlen($name), 0) . $name);
+		$label = static fn (string $text): string => self::record(0x0204, pack('vvv', 0, 0, 0) . self::compressed($text));
+		$head = self::bof(0x0005);
+		$a = self::bof(0x0010) . $label('a');
+		$position = strlen($head) + 2 * strlen($boundsheet(0, 'A')) + strlen(self::eof());
+		$stream = $head . $boundsheet($position, 'A') . $boundsheet($position + strlen($a), 'B') . self::eof()
+			. $a . self::bof(0x0010) . $label('b') . self::eof();
+		$sheets = (new XlsReader())->readWorkbook($stream);
+		$this->assertSame([[['a']], [['b']]], array_column($sheets, 'rows'));
+	}
+
+	public function testManySheetsOverALongTailAreReadInOnePass(): void {
+		// 256 sheets with no EOF used to each scan the whole rest of the stream
+		$boundsheet = static fn (int $position): string => self::record(0x0085, pack('VCC', $position, 0, 0) . pack('CC', 1, 0) . 'S');
+		$head = self::bof(0x0005);
+		$start = strlen($head) + 256 * strlen($boundsheet(0)) + strlen(self::eof());
+		$sheetBof = self::bof(0x0010);
+		$stream = $head;
+		for ($i = 0; $i < 256; $i++) {
+			$stream .= $boundsheet($start + $i * strlen($sheetBof));
+		}
+		$stream .= self::eof() . str_repeat($sheetBof, 256) . str_repeat(self::record(0x0001, ''), 100000);
+		$begin = microtime(true);
+		$this->assertCount(256, (new XlsReader())->readWorkbook($stream));
+		$this->assertLessThan(2.0, microtime(true) - $begin);
+	}
+
 	public function testRefusesAPasswordProtectedWorkbook(): void {
 		$this->expectException(SpreadsheetReadError::class);
 		(new XlsReader())->read(new OleFile(file_get_contents(self::FIXTURES . 'filepass.xls')));
