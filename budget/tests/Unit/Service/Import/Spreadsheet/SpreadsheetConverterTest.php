@@ -68,15 +68,25 @@ class SpreadsheetConverterTest extends TestCase {
 		);
 	}
 
-	public function testTheLongestTableWinsAndTheFirstOnATie(): void {
+	public function testTheFirstTableThreeColumnsWideWinsHoweverLongTheOthers(): void {
 		$table = static fn (string $header, int $rows): string => '<table><tr><th>Date</th><th>' . $header . '</th><th>Amount</th></tr>'
 			. str_repeat('<tr><td>02/01/2024</td><td>x</td><td>1</td></tr>', $rows) . '</table>';
-		$this->assertStringStartsWith('Date,Statement,', $this->converter->toCsv($table('Summary', 2) . $table('Statement', 3)));
+		// One sheet per account: the first is imported, never whichever
+		// account had more rows that month
+		$this->assertStringStartsWith('Date,First,', $this->converter->toCsv($table('First', 2) . $table('Second', 3)));
 		$this->assertStringStartsWith('Date,First,', $this->converter->toCsv($table('First', 3) . $table('Second', 3)));
 		// Two columns only, however long, loses to a table of three
 		$this->assertStringStartsWith(
 			'Date,Statement,',
 			$this->converter->toCsv('<table>' . str_repeat('<tr><td>Label</td><td>Value</td></tr>', 10) . '</table>' . $table('Statement', 1))
+		);
+		// With no table of three columns, the first table of two
+		$this->assertSame(
+			"Date,Amount
+02/01/2024,1
+",
+			$this->converter->toCsv('<table><tr><td>Date</td><td>Amount</td></tr><tr><td>02/01/2024</td><td>1</td></tr></table>'
+				. '<table><tr><td>Label</td><td>Value</td></tr><tr><td>a</td><td>b</td></tr><tr><td>c</td><td>d</td></tr></table>')
 		);
 	}
 

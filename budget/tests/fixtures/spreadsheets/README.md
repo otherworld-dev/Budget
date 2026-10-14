@@ -27,6 +27,11 @@ independent BIFF writer); the generator scripts are not kept, the files are.
   office suite).
 - `html-preamble-rowspan.xls`: "label | value" rows over a three-column
   HTML table, and a date cell spanning two rows. Written by hand.
+- `accounts-per-sheet.ods`: one sheet per account, the same columns, the
+  second account with more rows. The first sheet is the statement.
+- `statement-then-summary.ods`: a short statement under an "Account |
+  number" line, then a longer three-column summary sheet. The statement
+  is imported, not the summary.
 - `ods-spaces.ods`: under 800 bytes, one cell of 2,000 paragraphs each
   holding a run of 1,048,000 spaces (`<text:s text:c="1048000"/>`): each
   paragraph under the cell limit, the cell two gigabytes. It took the PHP

@@ -36,9 +36,12 @@ class SpreadsheetConverter {
 	 * when the file is really plain text.
 	 *
 	 * Of the sheets holding a table (a header and a row at least), the
-	 * statement is taken to be the one with three columns or more and the
-	 * most rows, and of equals the first. A cover sheet of a few "label |
-	 * value" lines is a table too, but a narrow and short one.
+	 * statement is taken to be the first whose table is three columns wide
+	 * or more, or failing that the first. A cover sheet of a few "label |
+	 * value" lines is a table too, but a narrow one. How many rows a table
+	 * has never counts: in a workbook of one sheet per account that would
+	 * import whichever account was busiest that month, and a summary sheet
+	 * after the statement could outnumber it.
 	 *
 	 * @throws ValidationException With a message for the user
 	 */
@@ -50,18 +53,16 @@ class SpreadsheetConverter {
 				return $bytes;
 			}
 			$best = null;
-			$bestScore = null;
 			foreach ($sheets as $sheet) {
 				$table = SpreadsheetTable::extract($sheet['rows']);
 				if (count($table) < 2) {
 					continue;
 				}
-				$width = count($table[0]);
-				$score = [$width >= 3 ? 1 : 0, count($table), $width];
-				if ($bestScore === null || $score > $bestScore) {
+				if (count($table[0]) >= 3) {
 					$best = $table;
-					$bestScore = $score;
+					break;
 				}
+				$best ??= $table;
 			}
 			if ($best !== null) {
 				return SpreadsheetTable::toCsv($best);
