@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Service\Import\Spreadsheet;
 
 /**
- * Reads an OpenDocument spreadsheet (.ods): every table, cells as text.
+ * Reads an OpenDocument spreadsheet (.ods): every visible table, cells as text.
  *
  * ODS pads a sheet with repeated empty cells and rows (a million rows is
  * normal), so an empty repeat only moves the position on and is never
@@ -15,6 +15,7 @@ final class OdsReader {
 	private const TABLE = 'urn:oasis:names:tc:opendocument:xmlns:table:1.0';
 	private const OFFICE = 'urn:oasis:names:tc:opendocument:xmlns:office:1.0';
 	private const TEXT = 'urn:oasis:names:tc:opendocument:xmlns:text:1.0';
+	private const STYLE = 'urn:oasis:names:tc:opendocument:xmlns:style:1.0';
 
 	/** The most spaces one <text:s/> may stand for, far beyond any statement */
 	public const MAX_SPACE_RUN = 1000;
@@ -32,8 +33,25 @@ final class OdsReader {
 		$column = 0;
 		/** @var array<int, string> $cells */
 		$cells = [];
+		// A hidden sheet is a table whose style says table:display="false";
+		// the automatic styles come before the tables in content.xml
+		/** @var array<string, true> $hiddenStyles */
+		$hiddenStyles = [];
+		$tableStyle = null;
 
 		while ($reader->read()) {
+			if ($reader->namespaceURI === self::STYLE && $reader->nodeType === \XMLReader::ELEMENT) {
+				if ($reader->localName === 'style') {
+					$tableStyle = $reader->getAttributeNs('family', self::STYLE) === 'table' ? $reader->getAttributeNs('name', self::STYLE) : null;
+				} elseif ($reader->localName === 'table-properties' && $tableStyle !== null
+					&& $reader->getAttributeNs('display', self::TABLE) === 'false') {
+					if (count($hiddenStyles) >= SheetBuilder::MAX_STYLES) {
+						throw new SpreadsheetTooLargeError('More than ' . SheetBuilder::MAX_STYLES . ' table styles');
+					}
+					$hiddenStyles[$tableStyle] = true;
+				}
+				continue;
+			}
 			if ($reader->namespaceURI !== self::TABLE) {
 				continue;
 			}
@@ -45,7 +63,8 @@ final class OdsReader {
 						if (count($sheets) >= SheetBuilder::MAX_SHEETS) {
 							throw new SpreadsheetTooLargeError('More than ' . SheetBuilder::MAX_SHEETS . ' sheets');
 						}
-						$builder = new SheetBuilder($reader->getAttributeNs('name', self::TABLE) ?? '', $budget);
+						$hidden = isset($hiddenStyles[$reader->getAttributeNs('style-name', self::TABLE) ?? '']);
+						$builder = $hidden ? null : new SheetBuilder($reader->getAttributeNs('name', self::TABLE) ?? '', $budget);
 						$row = 0;
 					}
 					if ($end && $builder !== null) {

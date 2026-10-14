@@ -36,6 +36,11 @@ class OdsReaderTest extends TestCase {
 	}
 
 	private function odsWith(string $tableContent): string {
+		return $this->odsOf('<table:table table:name="Foglio1">' . $tableContent . '</table:table>');
+	}
+
+	/** An ODS of these tables, and these automatic styles */
+	private function odsOf(string $tables, string $styles = ''): string {
 		$path = tempnam(sys_get_temp_dir(), 'ods');
 		$this->tempFiles[] = $path;
 		$zip = new \ZipArchive();
@@ -43,12 +48,14 @@ class OdsReaderTest extends TestCase {
 		$zip->addFromString('mimetype', 'application/vnd.oasis.opendocument.spreadsheet');
 		$zip->addFromString('content.xml', '<office:document-content'
 			. ' xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"'
+			. ' xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"'
 			. ' xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"'
 			. ' xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"'
 			. ' xmlns:xlink="http://www.w3.org/1999/xlink"'
 			. ' xmlns:calcext="urn:org:documentfoundation:names:experimental:calc:xmlns:calcext:1.0">'
-			. '<office:body><office:spreadsheet><table:table table:name="Foglio1">' . $tableContent
-			. '</table:table></office:spreadsheet></office:body></office:document-content>');
+			. '<office:automatic-styles>' . $styles . '</office:automatic-styles>'
+			. '<office:body><office:spreadsheet>' . $tables
+			. '</office:spreadsheet></office:body></office:document-content>');
 		$zip->close();
 		return $path;
 	}
@@ -57,6 +64,19 @@ class OdsReaderTest extends TestCase {
 		$sheets = $this->readFile(self::FIXTURES . 'statement.ods');
 		$this->assertSame('Movimenti', $sheets[0]['name']);
 		$this->assertSame(XlsxReaderTest::STATEMENT_ROWS, $sheets[0]['rows']);
+	}
+
+	public function testHiddenSheetsAreSkipped(): void {
+		$cell = static fn (string $text): string => '<table:table-row><table:table-cell office:value-type="string"><text:p>' . $text . '</text:p></table:table-cell></table:table-row>';
+		$path = $this->odsOf(
+			'<table:table table:name="Lookup" table:style-name="ta2">' . $cell('hidden') . '</table:table>'
+			. '<table:table table:name="Movimenti" table:style-name="ta1">' . $cell('shown') . '</table:table>'
+			. '<table:table table:name="Note">' . $cell('unstyled') . '</table:table>',
+			'<style:style style:name="ta1" style:family="table"><style:table-properties table:display="true"/></style:style>'
+			. '<style:style style:name="ta2" style:family="table"><style:table-properties table:display="false"/></style:style>'
+			. '<style:style style:name="co1" style:family="table-column"><style:table-column-properties style:column-width="1in"/></style:style>'
+		);
+		$this->assertSame(['Movimenti', 'Note'], array_column($this->readFile($path), 'name'));
 	}
 
 	public function testCellTypesAndRepeats(): void {
