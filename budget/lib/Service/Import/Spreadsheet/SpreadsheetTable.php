@@ -18,8 +18,19 @@ final class SpreadsheetTable {
 	 * table and skips lines of any other width as preamble. Written as they
 	 * are, a data row with an empty last cell would come out narrower than
 	 * the table and be dropped. So the table is as wide as the widest row,
-	 * and starts at the first row nearly that wide with two or more cells
-	 * filled, which allows for a header whose last column has no title.
+	 * and starts at the first row with two or more cells filled that is
+	 * either
+	 *
+	 * - that wide, or
+	 * - one narrower (a header whose last column has no title), at least
+	 *   three wide, made of words only, with the row after it at least as
+	 *   wide and holding a number (data, not another header).
+	 *
+	 * The second case is narrow on purpose. A "label | value" line above a
+	 * narrow table (Account | 12345678 over Date | Description | Amount) is
+	 * one narrower than the table too, and taking it for the header would
+	 * name the columns after it; such a line has a number in it, or is
+	 * followed by the real header, which has none.
 	 *
 	 * The preamble is dropped rather than written narrow because the server
 	 * picks the delimiter from the first line, and a preamble cell holding a
@@ -41,10 +52,15 @@ final class SpreadsheetTable {
 			return [];
 		}
 
+		$hasDigit = static fn (array $row): bool => preg_match('/\d/', implode('', $row)) === 1;
 		$header = null;
 		foreach ($rows as $i => $row) {
-			$filled = count(array_filter($row, static fn (string $cell): bool => $cell !== ''));
-			if ($widths[$i] >= $tableWidth - 1 && $filled >= 2) {
+			if (count(array_filter($row, static fn (string $cell): bool => $cell !== '')) < 2) {
+				continue;
+			}
+			if ($widths[$i] === $tableWidth
+				|| ($widths[$i] === $tableWidth - 1 && $widths[$i] >= 3 && !$hasDigit($row)
+					&& isset($rows[$i + 1]) && $widths[$i + 1] >= $widths[$i] && $hasDigit($rows[$i + 1]))) {
 				$header = $i;
 				break;
 			}
