@@ -16,6 +16,9 @@ final class OdsReader {
 	private const OFFICE = 'urn:oasis:names:tc:opendocument:xmlns:office:1.0';
 	private const TEXT = 'urn:oasis:names:tc:opendocument:xmlns:text:1.0';
 
+	/** The most spaces one <text:s/> may stand for, far beyond any statement */
+	public const MAX_SPACE_RUN = 1000;
+
 	/**
 	 * @return list<array{name: string, rows: list<list<string>>}>
 	 */
@@ -106,12 +109,18 @@ final class OdsReader {
 	 * space in the CSV (SpreadsheetTable::toCsv), and a tab is kept out of
 	 * it so it can never sway how the CSV's delimiter is detected.
 	 *
-	 * The cell is read node by node (Xml::inside), never expanded.
+	 * The cell is read node by node (Xml::inside), never expanded, and
+	 * MAX_CELL_BYTES holds for the whole cell, not each paragraph: a cell
+	 * of thousands of paragraphs each just under it (a few hundred bytes of
+	 * file) once took gigabytes. A run of more than MAX_SPACE_RUN spaces is
+	 * refused, so a few bytes of file can never stand for a megabyte of work.
 	 */
 	private function cellText(\XMLReader $reader): string {
 		$typed = $this->typedText($reader);
 		$parts = [];
 		$paragraph = '';
+		// Bytes of the cell's finished paragraphs, and the space after them
+		$used = 0;
 		// Inside one of the cell's own paragraphs while non-zero, and inside
 		// a comment (office:annotation, which has paragraphs of its own)
 		$paragraphDepth = 0;
@@ -135,9 +144,10 @@ final class OdsReader {
 				$paragraph = trim($paragraph);
 				if ($paragraph !== '') {
 					$parts[] = $paragraph;
+					$used += strlen($paragraph) + 1;
 				}
 			} elseif (Xml::isText($reader)) {
-				Xml::append($paragraph, $reader->value);
+				Xml::append($paragraph, $reader->value, $used);
 			} elseif ($type === \XMLReader::ELEMENT) {
 				if ($reader->namespaceURI === self::OFFICE && $reader->localName === 'annotation') {
 					$annotationDepth = $reader->isEmptyElement ? 0 : $depth;
@@ -145,14 +155,14 @@ final class OdsReader {
 					switch ($reader->localName) {
 						case 's':
 							$count = max(1, (int)($reader->getAttributeNs('c', self::TEXT) ?? 1));
-							if ($count > SheetBuilder::MAX_CELL_BYTES - strlen($paragraph)) {
-								throw new SpreadsheetTooLargeError('A cell of more than ' . SheetBuilder::MAX_CELL_BYTES . ' bytes of text');
+							if ($count > self::MAX_SPACE_RUN) {
+								throw new SpreadsheetTooLargeError('A run of more than ' . self::MAX_SPACE_RUN . ' spaces');
 							}
-							$paragraph .= str_repeat(' ', $count);
+							Xml::append($paragraph, str_repeat(' ', $count), $used);
 							break;
 						case 'tab':
 						case 'line-break':
-							Xml::append($paragraph, ' ');
+							Xml::append($paragraph, ' ', $used);
 							break;
 					}
 				}

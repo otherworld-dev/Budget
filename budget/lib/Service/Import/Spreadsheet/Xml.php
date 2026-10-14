@@ -108,10 +108,12 @@ final class Xml {
 	/**
 	 * Add to a cell's text, refusing a cell past MAX_CELL_BYTES.
 	 *
+	 * @param int $used Bytes the cell already holds outside $text (its
+	 *                  earlier paragraphs, when $text is one of several)
 	 * @throws SpreadsheetTooLargeError
 	 */
-	public static function append(string &$text, string $more): void {
-		if (strlen($text) + strlen($more) > SheetBuilder::MAX_CELL_BYTES) {
+	public static function append(string &$text, string $more, int $used = 0): void {
+		if ($used + strlen($text) + strlen($more) > SheetBuilder::MAX_CELL_BYTES) {
 			throw new SpreadsheetTooLargeError('A cell of more than ' . SheetBuilder::MAX_CELL_BYTES . ' bytes of text');
 		}
 		$text .= $more;

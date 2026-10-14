@@ -27,6 +27,10 @@ independent BIFF writer); the generator scripts are not kept, the files are.
   office suite).
 - `html-preamble-rowspan.xls`: "label | value" rows over a three-column
   HTML table, and a date cell spanning two rows. Written by hand.
+- `ods-spaces.ods`: under 800 bytes, one cell of 2,000 paragraphs each
+  holding a run of 1,048,000 spaces (`<text:s text:c="1048000"/>`): each
+  paragraph under the cell limit, the cell two gigabytes. It took the PHP
+  process down on memory_limit; it must be refused, quickly.
 
 `golden/<fixture>.csv` is the exact CSV each fixture converts to, checked by
 `SpreadsheetFixturesTest`. Cell text is part of a row's import id when the
