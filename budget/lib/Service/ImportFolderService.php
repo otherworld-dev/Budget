@@ -77,7 +77,8 @@ class ImportFolderService {
 	 * subfolder when Budget started reading it, which it leaves alone: by
 	 * subfolder, each file's id and a marker of its etag. In the server's
 	 * preferences, not Budget's settings: file ids belong to this server, so
-	 * they are not for a backup, and a reset of Budget's settings must not let Budget
+	 * they are not for a backup (a restore records the restored folders'
+	 * files afresh), and a reset of Budget's settings must not let Budget
 	 * loose on them. Not a lazy preference, which NC 30 does not have; kept
 	 * small instead, as check() forgets what has left its folder.
 	 */
@@ -214,6 +215,39 @@ class ImportFolderService {
 			}
 		}
 		return $leftAlone;
+	}
+
+	/**
+	 * After a backup is restored. Its import folders come back switched on,
+	 * but not the record of what they held, which belongs to the server it
+	 * was made on: the files in their subfolders now are left alone, as for
+	 * a folder added now. A subfolder not in Files yet has nothing to leave
+	 * alone; whatever arrives in it later is new. Never throws: the restore
+	 * is done by now. If the subfolders cannot be read, the restored folders
+	 * are switched off instead, so nothing that was there is imported.
+	 *
+	 * @return bool False when they had to be switched off
+	 */
+	public function leaveRestoredAlone(string $userId): bool {
+		try {
+			if ($this->mapper->findAll($userId) === []) {
+				return true;
+			}
+			$this->leaveExistingAlone($userId, $this->mainFolderFor($userId));
+			return true;
+		} catch (\Throwable $e) {
+			$this->logger->warning("Budget import folder: what the restored folders hold could not be listed for {$userId}, so they are switched off: " . $e->getMessage(), ['app' => Application::APP_ID]);
+		}
+		try {
+			foreach ($this->mapper->findEnabled($userId) as $row) {
+				$row->setEnabled(false);
+				$row->setUpdatedAt($this->now());
+				$this->mapper->update($row);
+			}
+		} catch (\Throwable $e) {
+			$this->logger->error("Budget import folder: the restored folders could not be switched off for {$userId}: " . $e->getMessage(), ['app' => Application::APP_ID]);
+		}
+		return false;
 	}
 
 	/**

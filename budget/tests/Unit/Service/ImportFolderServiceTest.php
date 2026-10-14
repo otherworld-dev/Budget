@@ -1452,6 +1452,39 @@ class ImportFolderServiceTest extends TestCase {
 		$this->assertSame($before, $this->leftAloneRecord());
 	}
 
+	// ── after a backup is restored ──────────────────────────────────
+
+	public function testARestoredFolderLeavesWhatFilesAlreadyHoldsAlone(): void {
+		// The rows come back switched on; what they held on the old server
+		// is in Files already, and is not new
+		$this->rows = [$this->row(1, 'Conto')];
+		$old = $this->fileIn($this->at('Budget/Import/Conto'), 'vecchio.ofx', 2, content: "OFXHEADER:100\n<OFX></OFX>\n");
+		$this->importService->expects($this->never())->method('processUpload');
+
+		$this->assertTrue($this->service->leaveRestoredAlone('alice'));
+		$this->service->check('alice');
+
+		$this->assertNull($this->whereItWent($old));
+	}
+
+	public function testARestoredFolderNotInFilesYetHasNothingToLeaveAlone(): void {
+		$this->rows = [$this->row(1, 'Conto')];
+
+		$this->assertTrue($this->service->leaveRestoredAlone('alice'));
+		$this->assertArrayNotHasKey('budget.import_folder_left_alone', $this->prefs);
+		$this->assertFalse($this->root->nodeExists('Budget'));
+	}
+
+	public function testRestoredFoldersAreSwitchedOffWhenFilesCannotBeRead(): void {
+		$this->rows = [$this->row(1, 'Conto'), $this->row(2, 'Carta')];
+		$this->fileIn($this->at('Budget/Import/Conto'), 'vecchio.csv', 2);
+		$this->unlistable = ['/alice/files/Budget/Import/Conto'];
+
+		$this->assertFalse($this->service->leaveRestoredAlone('alice'));
+		$this->assertFalse($this->rows[0]->isEnabled());
+		$this->assertFalse($this->rows[1]->isEnabled());
+	}
+
 	// ── when a file is settled ──────────────────────────────────────
 
 	public function testAFileDatedInTheFutureIsNotHeldBackOnceUploaded(): void {
