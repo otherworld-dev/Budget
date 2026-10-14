@@ -240,15 +240,15 @@ class ImportFolderService {
 	 * is done by now. If the subfolders cannot be read, the restored folders
 	 * are switched off instead, so nothing that was there is imported.
 	 *
-	 * @return bool False when they had to be switched off
+	 * @return ?int How many files are left alone, or null when the folders
+	 *              had to be switched off
 	 */
-	public function leaveRestoredAlone(string $userId): bool {
+	public function leaveRestoredAlone(string $userId): ?int {
 		try {
 			if ($this->mapper->findAll($userId) === []) {
-				return true;
+				return 0;
 			}
-			$this->leaveExistingAlone($userId, $this->mainFolderFor($userId));
-			return true;
+			return array_sum($this->leaveExistingAlone($userId, $this->mainFolderFor($userId)));
 		} catch (\Throwable $e) {
 			$this->logger->warning("Budget import folder: what the restored folders hold could not be listed for {$userId}, so they are switched off: " . $e->getMessage(), ['app' => Application::APP_ID]);
 		}
@@ -261,7 +261,7 @@ class ImportFolderService {
 		} catch (\Throwable $e) {
 			$this->logger->error("Budget import folder: the restored folders could not be switched off for {$userId}: " . $e->getMessage(), ['app' => Application::APP_ID]);
 		}
-		return false;
+		return null;
 	}
 
 	/**

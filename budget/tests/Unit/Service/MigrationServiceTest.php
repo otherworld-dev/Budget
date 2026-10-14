@@ -316,9 +316,9 @@ class MigrationServiceTest extends TestCase {
 	public function testARestoreLeavesWhatTheImportFoldersHoldAlone(): void {
 		$importFolders = $this->createMock(ImportFolderService::class);
 		$importFolders->expects($this->once())->method('leaveRestoredAlone')->with('user1')
-			->willReturnCallback(function (): bool {
+			->willReturnCallback(function (): int {
 				$this->assertTrue($this->committed, 'Only once the restore is in');
-				return true;
+				return 0;
 			});
 
 		$result = $this->restoreWithImportFolders($importFolders);
@@ -326,9 +326,19 @@ class MigrationServiceTest extends TestCase {
 		$this->assertSame([], $result['warnings']);
 	}
 
+	public function testARestoreSaysHowManyFilesItLeftAlone(): void {
+		// One of them may be a statement dropped in just before the restore
+		$importFolders = $this->createMock(ImportFolderService::class);
+		$importFolders->method('leaveRestoredAlone')->willReturn(3);
+
+		$result = $this->restoreWithImportFolders($importFolders);
+
+		$this->assertSame(['3 files already in your import folders were left as they are. Only files added from now on are imported.'], $result['warnings']);
+	}
+
 	public function testARestoreSaysSoWhenItHadToSwitchTheImportFoldersOff(): void {
 		$importFolders = $this->createMock(ImportFolderService::class);
-		$importFolders->method('leaveRestoredAlone')->willReturn(false);
+		$importFolders->method('leaveRestoredAlone')->willReturn(null);
 
 		$result = $this->restoreWithImportFolders($importFolders);
 

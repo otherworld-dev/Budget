@@ -1473,7 +1473,7 @@ class ImportFolderServiceTest extends TestCase {
 		$old = $this->fileIn($this->at('Budget/Import/Conto'), 'vecchio.ofx', 2, content: "OFXHEADER:100\n<OFX></OFX>\n");
 		$this->importService->expects($this->never())->method('processUpload');
 
-		$this->assertTrue($this->service->leaveRestoredAlone('alice'));
+		$this->assertSame(1, $this->service->leaveRestoredAlone('alice'));
 		$this->service->check('alice');
 
 		$this->assertNull($this->whereItWent($old));
@@ -1482,7 +1482,7 @@ class ImportFolderServiceTest extends TestCase {
 	public function testARestoredFolderNotInFilesYetHasNothingToLeaveAlone(): void {
 		$this->rows = [$this->row(1, 'Conto')];
 
-		$this->assertTrue($this->service->leaveRestoredAlone('alice'));
+		$this->assertSame(0, $this->service->leaveRestoredAlone('alice'));
 		$this->assertArrayNotHasKey('budget.import_folder_left_alone', $this->prefs);
 		$this->assertFalse($this->root->nodeExists('Budget'));
 	}
@@ -1492,7 +1492,7 @@ class ImportFolderServiceTest extends TestCase {
 		$this->fileIn($this->at('Budget/Import/Conto'), 'vecchio.csv', 2);
 		$this->unlistable = ['/alice/files/Budget/Import/Conto'];
 
-		$this->assertFalse($this->service->leaveRestoredAlone('alice'));
+		$this->assertNull($this->service->leaveRestoredAlone('alice'));
 		$this->assertFalse($this->rows[0]->isEnabled());
 		$this->assertFalse($this->rows[1]->isEnabled());
 	}
@@ -1566,6 +1566,15 @@ class ImportFolderServiceTest extends TestCase {
 		$this->service->delete('alice', 1);
 
 		$this->assertSame([['import_folder_review', 'import_folder', '11']], $this->dismissed);
+	}
+
+	public function testARestoreCountsTheFilesItLeftAloneInEveryFolder(): void {
+		$this->rows = [$this->row(1, 'Conto'), $this->row(2, 'Carta')];
+		$this->fileIn($this->at('Budget/Import/Conto'), 'vecchio.csv', 2);
+		$this->fileIn($this->at('Budget/Import/Conto'), 'nuovo.csv', 3);
+		$this->fileIn($this->at('Budget/Import/Carta'), 'carta.ofx', 4);
+
+		$this->assertSame(3, $this->service->leaveRestoredAlone('alice'));
 	}
 
 	// ── a file that stops the run reading it ────────────────────────

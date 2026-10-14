@@ -582,11 +582,18 @@ class MigrationService {
 			// what their subfolders held is the old server's: what is there
 			// now is left alone, as for a folder added now. Once the rows are
 			// in, and never throwing, as there is no rolling back from here
-			$importFoldersOff = $this->importFolders !== null && !$this->importFolders->leaveRestoredAlone($userId);
+			$leftAlone = $this->importFolders !== null ? $this->importFolders->leaveRestoredAlone($userId) : 0;
 
 			$warnings = $this->restoreWarnings($links['sharesDropped'], $this->billsDetached, $links['othersDetached'], $this->userLinksRemoved, $bankLinksRemoved);
-			if ($importFoldersOff) {
+			if ($leftAlone === null) {
 				$warnings[] = $this->t('Your import folders could not be read after the restore, so they were switched off. When you switch one back on, the files already in it will be imported.');
+			} elseif ($leftAlone > 0) {
+				// Anything dropped in just before the restore included: said, so it is not waited on
+				$warnings[] = $this->n(
+					'%n file already in your import folders was left as it is. Only files added from now on are imported.',
+					'%n files already in your import folders were left as they are. Only files added from now on are imported.',
+					$leftAlone
+				);
 			}
 			return [
 				'success' => true,
