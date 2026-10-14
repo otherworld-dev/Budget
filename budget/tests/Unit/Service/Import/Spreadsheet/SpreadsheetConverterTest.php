@@ -6,6 +6,7 @@ namespace OCA\Budget\Tests\Unit\Service\Import\Spreadsheet;
 
 use OCA\Budget\Exception\ValidationException;
 use OCA\Budget\Service\Import\Spreadsheet\SpreadsheetConverter;
+use OCA\Budget\Service\Import\Spreadsheet\ZipPackage;
 use OCP\IL10N;
 use OCP\ITempManager;
 use PHPUnit\Framework\TestCase;
@@ -116,6 +117,22 @@ class SpreadsheetConverterTest extends TestCase {
 		$this->expectException(ValidationException::class);
 		$this->expectExceptionMessage('This spreadsheet has no table of transactions to import.');
 		$this->converter->toCsv('<table><tr><td>Nessun movimento</td></tr></table>');
+	}
+
+	public function testAZipPartPastItsCapIsTooBig(): void {
+		// A content.xml that unpacks past the part cap, from a small upload
+		$zip = tempnam(sys_get_temp_dir(), 'zip');
+		$archive = new \ZipArchive();
+		$archive->open($zip, \ZipArchive::OVERWRITE);
+		$archive->addFromString('mimetype', 'application/vnd.oasis.opendocument.spreadsheet');
+		$archive->addFromString('content.xml', str_repeat(' ', ZipPackage::MAX_PART_BYTES + 1));
+		$archive->close();
+		$bytes = file_get_contents($zip);
+		unlink($zip);
+
+		$this->expectException(ValidationException::class);
+		$this->expectExceptionMessage('This spreadsheet is too big to import in one go.');
+		$this->converter->toCsv($bytes);
 	}
 
 	public function testTooManyRows(): void {
