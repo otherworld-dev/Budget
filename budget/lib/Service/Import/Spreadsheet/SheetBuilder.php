@@ -38,6 +38,21 @@ final class SheetBuilder {
 	/** The text of every filled cell in a workbook together, roughly the CSV's size */
 	public const MAX_TEXT_BYTES = 32 * 1024 * 1024;
 
+	/**
+	 * The last row index any spreadsheet has (LibreOffice's largest sheets
+	 * have 16,777,216 rows, Excel's 1,048,576); a row past it is a broken
+	 * file, and keeps every row position an int
+	 */
+	public const MAX_ROW_INDEX = 16777215;
+
+	/**
+	 * The XML nodes inside one cell (or shared string), and the text it may
+	 * hold. Excel caps a cell at 32,767 characters, so either is far beyond
+	 * a real cell however richly formatted.
+	 */
+	public const MAX_CELL_NODES = 100000;
+	public const MAX_CELL_BYTES = 1024 * 1024;
+
 	/** @var array<int, array<int, string>> */
 	private array $cells = [];
 
@@ -59,10 +74,14 @@ final class SheetBuilder {
 	/**
 	 * @throws SpreadsheetTooLargeError When the sheet passes MAX_ROWS filled
 	 *                                  rows, or the workbook MAX_CELLS cells or MAX_TEXT_BYTES of text
+	 * @throws SpreadsheetReadError When the row is past MAX_ROW_INDEX
 	 */
 	public function add(int $row, int $column, string $text): void {
 		if ($text === '' || $row < 0 || $column < 0 || $column >= self::MAX_COLUMNS) {
 			return;
+		}
+		if ($row > self::MAX_ROW_INDEX) {
+			throw new SpreadsheetReadError('Row ' . $row . ' is past the end of any sheet');
 		}
 		if (!isset($this->cells[$row]) && count($this->cells) >= self::MAX_ROWS) {
 			throw new SpreadsheetTooLargeError('Sheet has more than ' . self::MAX_ROWS . ' rows');

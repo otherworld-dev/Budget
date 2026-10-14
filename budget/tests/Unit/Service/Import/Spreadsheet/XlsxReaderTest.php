@@ -228,6 +228,44 @@ class XlsxReaderTest extends TestCase {
 		$this->assertSame([["Riga\r\ndue", 'Codice_x0041_']], $this->readFile($path)[0]['rows']);
 	}
 
+	public function testASharedStringOfManyElementsIsTooLarge(): void {
+		// Expanding this one <si> into a DOM took gigabytes outside memory_limit
+		$path = $this->workbookWith('<row r="1"><c r="A1" t="s"><v>0</v></c></row>', '<si>' . str_repeat('<r/>', 200000) . '</si>');
+		$this->expectException(SpreadsheetTooLargeError::class);
+		$this->readFile($path);
+	}
+
+	public function testACellOfManyElementsIsTooLarge(): void {
+		$path = $this->workbookWith('<row r="1"><c r="A1" t="inlineStr"><is>' . str_repeat('<r/>', 200000) . '</is></c></row>');
+		$this->expectException(SpreadsheetTooLargeError::class);
+		$this->readFile($path);
+	}
+
+	public function testANumberCellOfManyElementsIsTooLarge(): void {
+		$path = $this->workbookWith('<row r="1"><c r="A1"><v>1</v>' . str_repeat('<x/>', 200000) . '</c></row>');
+		$this->expectException(SpreadsheetTooLargeError::class);
+		$this->readFile($path);
+	}
+
+	public function testRichTextRunsAndPhoneticRuns(): void {
+		$path = $this->workbookWith(
+			'<row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="inlineStr"><is><r><rPr><b/></rPr><t>CARD</t></r><r><t xml:space="preserve"> TESCO</t></r><rPh sb="0" eb="1"><t>x</t></rPh></is></c>'
+			. '<c r="C1" t="str"><f>"a"</f><v>text</v></c><c r="D1"><f>1+1</f><v>2</v></c></row>',
+			'<si><r><t xml:space="preserve">Caff</t></r><r><rPr><i/></rPr><t><![CDATA[è & co]]></t></r><rPh><t>kana</t></rPh><phoneticPr fontId="1"/></si>'
+		);
+		$this->assertSame([['Caffè & co', 'CARD TESCO', 'text', '2']], $this->readFile($path)[0]['rows']);
+	}
+
+	public function testARowNumberPastAnySheetIsRefused(): void {
+		// Used to overflow into a float and end in a TypeError (a 500)
+		$path = $this->workbookWith(
+			'<row r="99999999999999999999"><c t="inlineStr"><is><t>x</t></is></c></row>'
+			. '<row><c t="inlineStr"><is><t>a</t></is></c><c t="inlineStr"><is><t>b</t></is></c></row>'
+		);
+		$this->expectException(SpreadsheetReadError::class);
+		$this->readFile($path);
+	}
+
 	public function testAZipThatIsNotAZip(): void {
 		$path = tempnam(sys_get_temp_dir(), 'bad');
 		$this->tempFiles[] = $path;
