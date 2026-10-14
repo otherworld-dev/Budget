@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Tests\Unit\Service\Import\Spreadsheet;
 
 use OCA\Budget\Service\Import\Spreadsheet\OdsReader;
+use OCA\Budget\Service\Import\Spreadsheet\SheetBuilder;
 use OCA\Budget\Service\Import\Spreadsheet\SpreadsheetReadError;
 use OCA\Budget\Service\Import\Spreadsheet\SpreadsheetTooLargeError;
 use OCA\Budget\Service\Import\Spreadsheet\ZipPackage;
@@ -35,6 +36,11 @@ class OdsReaderTest extends TestCase {
 	}
 
 	private function odsWith(string $tableContent): string {
+		return $this->odsOf('<table:table table:name="Foglio1">' . $tableContent . '</table:table>');
+	}
+
+	/** An ODS of these tables, and these automatic styles */
+	private function odsOf(string $tables, string $styles = ''): string {
 		$path = tempnam(sys_get_temp_dir(), 'ods');
 		$this->tempFiles[] = $path;
 		$zip = new \ZipArchive();
@@ -42,12 +48,14 @@ class OdsReaderTest extends TestCase {
 		$zip->addFromString('mimetype', 'application/vnd.oasis.opendocument.spreadsheet');
 		$zip->addFromString('content.xml', '<office:document-content'
 			. ' xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"'
+			. ' xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"'
 			. ' xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"'
 			. ' xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"'
 			. ' xmlns:xlink="http://www.w3.org/1999/xlink"'
 			. ' xmlns:calcext="urn:org:documentfoundation:names:experimental:calc:xmlns:calcext:1.0">'
-			. '<office:body><office:spreadsheet><table:table table:name="Foglio1">' . $tableContent
-			. '</table:table></office:spreadsheet></office:body></office:document-content>');
+			. '<office:automatic-styles>' . $styles . '</office:automatic-styles>'
+			. '<office:body><office:spreadsheet>' . $tables
+			. '</office:spreadsheet></office:body></office:document-content>');
 		$zip->close();
 		return $path;
 	}
@@ -56,6 +64,19 @@ class OdsReaderTest extends TestCase {
 		$sheets = $this->readFile(self::FIXTURES . 'statement.ods');
 		$this->assertSame('Movimenti', $sheets[0]['name']);
 		$this->assertSame(XlsxReaderTest::STATEMENT_ROWS, $sheets[0]['rows']);
+	}
+
+	public function testHiddenSheetsAreSkipped(): void {
+		$cell = static fn (string $text): string => '<table:table-row><table:table-cell office:value-type="string"><text:p>' . $text . '</text:p></table:table-cell></table:table-row>';
+		$path = $this->odsOf(
+			'<table:table table:name="Lookup" table:style-name="ta2">' . $cell('hidden') . '</table:table>'
+			. '<table:table table:name="Movimenti" table:style-name="ta1">' . $cell('shown') . '</table:table>'
+			. '<table:table table:name="Note">' . $cell('unstyled') . '</table:table>',
+			'<style:style style:name="ta1" style:family="table"><style:table-properties table:display="true"/></style:style>'
+			. '<style:style style:name="ta2" style:family="table"><style:table-properties table:display="false"/></style:style>'
+			. '<style:style style:name="co1" style:family="table-column"><style:table-column-properties style:column-width="1in"/></style:style>'
+		);
+		$this->assertSame(['Movimenti', 'Note'], array_column($this->readFile($path), 'name'));
 	}
 
 	public function testCellTypesAndRepeats(): void {
@@ -107,6 +128,44 @@ class OdsReaderTest extends TestCase {
 
 	public function testAHugeRunOfSpacesIsTooLarge(): void {
 		$path = $this->odsWith('<table:table-row><table:table-cell office:value-type="string"><text:p>a<text:s text:c="2000000000"/>b</text:p></table:table-cell></table:table-row>');
+		$this->expectException(SpreadsheetTooLargeError::class);
+		$this->readFile($path);
+	}
+
+	public function testTheCellLimitCountsEveryParagraph(): void {
+		// Three paragraphs each under the limit, a cell over it. Writing two
+		// thousand of them (a 791-byte file, ods-spaces.ods) took gigabytes.
+		$paragraph = '<text:p>x<text:s text:c="1000"/>x</text:p>';
+		$path = $this->odsWith('<table:table-row><table:table-cell office:value-type="string">'
+			. str_repeat($paragraph, intdiv(SheetBuilder::MAX_CELL_BYTES, 1002) + 1)
+			. '</table:table-cell></table:table-row>');
+		$this->expectException(SpreadsheetTooLargeError::class);
+		$this->readFile($path);
+	}
+
+	public function testTheCellLimitCountsTheTextOfEveryParagraph(): void {
+		$half = '<text:p>' . str_repeat('a', intdiv(SheetBuilder::MAX_CELL_BYTES, 2)) . '</text:p>';
+		$path = $this->odsWith('<table:table-row><table:table-cell office:value-type="string">'
+			. $half . $half . $half . '</table:table-cell></table:table-row>');
+		$this->expectException(SpreadsheetTooLargeError::class);
+		$this->readFile($path);
+	}
+
+	public function testACellOfExactlyTheLimitIsRead(): void {
+		// Two paragraphs and the space joining them come to the limit exactly
+		$first = str_repeat('a', SheetBuilder::MAX_CELL_BYTES - 2);
+		$path = $this->odsWith('<table:table-row><table:table-cell office:value-type="string">'
+			. '<text:p>' . $first . '</text:p><text:p>b</text:p></table:table-cell></table:table-row>');
+		$this->assertSame([[$first . ' b']], $this->readFile($path)[0]['rows']);
+	}
+
+	public function testARunOfSpacesIsCapped(): void {
+		// Each <text:s/> is a few bytes in the file; unbounded, a run of a
+		// million spaces in every cell is a lot of work for nothing
+		$path = $this->odsWith('<table:table-row><table:table-cell office:value-type="string"><text:p>a<text:s text:c="1000"/>b</text:p></table:table-cell></table:table-row>');
+		$this->assertSame([['a' . str_repeat(' ', 1000) . 'b']], $this->readFile($path)[0]['rows']);
+
+		$path = $this->odsWith('<table:table-row><table:table-cell office:value-type="string"><text:p>a<text:s text:c="1001"/>b</text:p></table:table-cell></table:table-row>');
 		$this->expectException(SpreadsheetTooLargeError::class);
 		$this->readFile($path);
 	}

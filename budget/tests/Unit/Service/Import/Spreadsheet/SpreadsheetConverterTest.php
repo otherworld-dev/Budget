@@ -6,6 +6,7 @@ namespace OCA\Budget\Tests\Unit\Service\Import\Spreadsheet;
 
 use OCA\Budget\Exception\ValidationException;
 use OCA\Budget\Service\Import\Spreadsheet\SpreadsheetConverter;
+use OCA\Budget\Service\Import\Spreadsheet\ZipPackage;
 use OCP\IL10N;
 use OCP\ITempManager;
 use PHPUnit\Framework\TestCase;
@@ -67,15 +68,23 @@ class SpreadsheetConverterTest extends TestCase {
 		);
 	}
 
-	public function testTheLongestTableWinsAndTheFirstOnATie(): void {
+	public function testTheFirstTableThreeColumnsWideWinsHoweverLongTheOthers(): void {
 		$table = static fn (string $header, int $rows): string => '<table><tr><th>Date</th><th>' . $header . '</th><th>Amount</th></tr>'
 			. str_repeat('<tr><td>02/01/2024</td><td>x</td><td>1</td></tr>', $rows) . '</table>';
-		$this->assertStringStartsWith('Date,Statement,', $this->converter->toCsv($table('Summary', 2) . $table('Statement', 3)));
+		// One sheet per account: the first is imported, never whichever
+		// account had more rows that month
+		$this->assertStringStartsWith('Date,First,', $this->converter->toCsv($table('First', 2) . $table('Second', 3)));
 		$this->assertStringStartsWith('Date,First,', $this->converter->toCsv($table('First', 3) . $table('Second', 3)));
 		// Two columns only, however long, loses to a table of three
 		$this->assertStringStartsWith(
 			'Date,Statement,',
 			$this->converter->toCsv('<table>' . str_repeat('<tr><td>Label</td><td>Value</td></tr>', 10) . '</table>' . $table('Statement', 1))
+		);
+		// With no table of three columns, the first table of two
+		$this->assertSame(
+			"Date,Amount\n02/01/2024,1\n",
+			$this->converter->toCsv('<table><tr><td>Date</td><td>Amount</td></tr><tr><td>02/01/2024</td><td>1</td></tr></table>'
+				. '<table><tr><td>Label</td><td>Value</td></tr><tr><td>a</td><td>b</td></tr><tr><td>c</td><td>d</td></tr></table>')
 		);
 	}
 
@@ -116,6 +125,22 @@ class SpreadsheetConverterTest extends TestCase {
 		$this->expectException(ValidationException::class);
 		$this->expectExceptionMessage('This spreadsheet has no table of transactions to import.');
 		$this->converter->toCsv('<table><tr><td>Nessun movimento</td></tr></table>');
+	}
+
+	public function testAZipPartPastItsCapIsTooBig(): void {
+		// A content.xml that unpacks past the part cap, from a small upload
+		$zip = tempnam(sys_get_temp_dir(), 'zip');
+		$archive = new \ZipArchive();
+		$archive->open($zip, \ZipArchive::OVERWRITE);
+		$archive->addFromString('mimetype', 'application/vnd.oasis.opendocument.spreadsheet');
+		$archive->addFromString('content.xml', str_repeat(' ', ZipPackage::MAX_PART_BYTES + 1));
+		$archive->close();
+		$bytes = file_get_contents($zip);
+		unlink($zip);
+
+		$this->expectException(ValidationException::class);
+		$this->expectExceptionMessage('This spreadsheet is too big to import in one go.');
+		$this->converter->toCsv($bytes);
 	}
 
 	public function testTooManyRows(): void {

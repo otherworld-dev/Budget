@@ -31,10 +31,13 @@ class SpreadsheetFixturesTest extends TestCase {
 
 	private const UNREADABLE = 'This spreadsheet could not be read. If it is password-protected, remove the password, or save it as CSV and import that.';
 
+	private const TOO_BIG = 'This spreadsheet is too big to import in one go. Split it into smaller files and import them one at a time.';
+
 	private const REFUSED = [
 		'biff5.xls' => self::UNREADABLE,
 		'encrypted.xlsx' => self::UNREADABLE,
 		'filepass.xls' => self::UNREADABLE,
+		'ods-spaces.ods' => self::TOO_BIG,
 	];
 
 	/** @return array<string, array{string}> */

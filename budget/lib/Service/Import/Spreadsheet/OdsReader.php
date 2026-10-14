@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Service\Import\Spreadsheet;
 
 /**
- * Reads an OpenDocument spreadsheet (.ods): every table, cells as text.
+ * Reads an OpenDocument spreadsheet (.ods): every visible table, cells as text.
  *
  * ODS pads a sheet with repeated empty cells and rows (a million rows is
  * normal), so an empty repeat only moves the position on and is never
@@ -15,6 +15,10 @@ final class OdsReader {
 	private const TABLE = 'urn:oasis:names:tc:opendocument:xmlns:table:1.0';
 	private const OFFICE = 'urn:oasis:names:tc:opendocument:xmlns:office:1.0';
 	private const TEXT = 'urn:oasis:names:tc:opendocument:xmlns:text:1.0';
+	private const STYLE = 'urn:oasis:names:tc:opendocument:xmlns:style:1.0';
+
+	/** The most spaces one <text:s/> may stand for, far beyond any statement */
+	public const MAX_SPACE_RUN = 1000;
 
 	/**
 	 * @return list<array{name: string, rows: list<list<string>>}>
@@ -29,8 +33,25 @@ final class OdsReader {
 		$column = 0;
 		/** @var array<int, string> $cells */
 		$cells = [];
+		// A hidden sheet is a table whose style says table:display="false";
+		// the automatic styles come before the tables in content.xml
+		/** @var array<string, true> $hiddenStyles */
+		$hiddenStyles = [];
+		$tableStyle = null;
 
 		while ($reader->read()) {
+			if ($reader->namespaceURI === self::STYLE && $reader->nodeType === \XMLReader::ELEMENT) {
+				if ($reader->localName === 'style') {
+					$tableStyle = $reader->getAttributeNs('family', self::STYLE) === 'table' ? $reader->getAttributeNs('name', self::STYLE) : null;
+				} elseif ($reader->localName === 'table-properties' && $tableStyle !== null
+					&& $reader->getAttributeNs('display', self::TABLE) === 'false') {
+					if (count($hiddenStyles) >= SheetBuilder::MAX_STYLES) {
+						throw new SpreadsheetTooLargeError('More than ' . SheetBuilder::MAX_STYLES . ' table styles');
+					}
+					$hiddenStyles[$tableStyle] = true;
+				}
+				continue;
+			}
 			if ($reader->namespaceURI !== self::TABLE) {
 				continue;
 			}
@@ -42,7 +63,8 @@ final class OdsReader {
 						if (count($sheets) >= SheetBuilder::MAX_SHEETS) {
 							throw new SpreadsheetTooLargeError('More than ' . SheetBuilder::MAX_SHEETS . ' sheets');
 						}
-						$builder = new SheetBuilder($reader->getAttributeNs('name', self::TABLE) ?? '', $budget);
+						$hidden = isset($hiddenStyles[$reader->getAttributeNs('style-name', self::TABLE) ?? '']);
+						$builder = $hidden ? null : new SheetBuilder($reader->getAttributeNs('name', self::TABLE) ?? '', $budget);
 						$row = 0;
 					}
 					if ($end && $builder !== null) {
@@ -106,12 +128,18 @@ final class OdsReader {
 	 * space in the CSV (SpreadsheetTable::toCsv), and a tab is kept out of
 	 * it so it can never sway how the CSV's delimiter is detected.
 	 *
-	 * The cell is read node by node (Xml::inside), never expanded.
+	 * The cell is read node by node (Xml::inside), never expanded, and
+	 * MAX_CELL_BYTES holds for the whole cell, not each paragraph: a cell
+	 * of thousands of paragraphs each just under it (a few hundred bytes of
+	 * file) once took gigabytes. A run of more than MAX_SPACE_RUN spaces is
+	 * refused, so a few bytes of file can never stand for a megabyte of work.
 	 */
 	private function cellText(\XMLReader $reader): string {
 		$typed = $this->typedText($reader);
 		$parts = [];
 		$paragraph = '';
+		// Bytes of the cell's finished paragraphs, and the space after them
+		$used = 0;
 		// Inside one of the cell's own paragraphs while non-zero, and inside
 		// a comment (office:annotation, which has paragraphs of its own)
 		$paragraphDepth = 0;
@@ -135,9 +163,10 @@ final class OdsReader {
 				$paragraph = trim($paragraph);
 				if ($paragraph !== '') {
 					$parts[] = $paragraph;
+					$used += strlen($paragraph) + 1;
 				}
 			} elseif (Xml::isText($reader)) {
-				Xml::append($paragraph, $reader->value);
+				Xml::append($paragraph, $reader->value, $used);
 			} elseif ($type === \XMLReader::ELEMENT) {
 				if ($reader->namespaceURI === self::OFFICE && $reader->localName === 'annotation') {
 					$annotationDepth = $reader->isEmptyElement ? 0 : $depth;
@@ -145,14 +174,14 @@ final class OdsReader {
 					switch ($reader->localName) {
 						case 's':
 							$count = max(1, (int)($reader->getAttributeNs('c', self::TEXT) ?? 1));
-							if ($count > SheetBuilder::MAX_CELL_BYTES - strlen($paragraph)) {
-								throw new SpreadsheetTooLargeError('A cell of more than ' . SheetBuilder::MAX_CELL_BYTES . ' bytes of text');
+							if ($count > self::MAX_SPACE_RUN) {
+								throw new SpreadsheetTooLargeError('A run of more than ' . self::MAX_SPACE_RUN . ' spaces');
 							}
-							$paragraph .= str_repeat(' ', $count);
+							Xml::append($paragraph, str_repeat(' ', $count), $used);
 							break;
 						case 'tab':
 						case 'line-break':
-							Xml::append($paragraph, ' ');
+							Xml::append($paragraph, ' ', $used);
 							break;
 					}
 				}

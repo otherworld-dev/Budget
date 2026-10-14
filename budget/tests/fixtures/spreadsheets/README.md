@@ -26,7 +26,17 @@ independent BIFF writer); the generator scripts are not kept, the files are.
   15- and 16-digit numbers. Written by hand (a minimal ODS, not by an
   office suite).
 - `html-preamble-rowspan.xls`: "label | value" rows over a three-column
-  HTML table, and a date cell spanning two rows. Written by hand.
+  HTML table, and a date cell spanning two rows (copied into both).
+  Written by hand.
+- `accounts-per-sheet.ods`: one sheet per account, the same columns, the
+  second account with more rows. The first sheet is the statement.
+- `statement-then-summary.ods`: a short statement under an "Account |
+  number" line, then a longer three-column summary sheet. The statement
+  is imported, not the summary.
+- `ods-spaces.ods`: under 800 bytes, one cell of 2,000 paragraphs each
+  holding a run of 1,048,000 spaces (`<text:s text:c="1048000"/>`): each
+  paragraph under the cell limit, the cell two gigabytes. It took the PHP
+  process down on memory_limit; it must be refused, quickly.
 
 `golden/<fixture>.csv` is the exact CSV each fixture converts to, checked by
 `SpreadsheetFixturesTest`. Cell text is part of a row's import id when the
