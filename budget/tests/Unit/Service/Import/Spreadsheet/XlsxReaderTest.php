@@ -256,6 +256,14 @@ class XlsxReaderTest extends TestCase {
 		$this->assertSame([['Caffè & co', 'CARD TESCO', 'text', '2']], $this->readFile($path)[0]['rows']);
 	}
 
+	public function testTextInsideAnExtensionListIsNotTheCells(): void {
+		$path = $this->workbookWith(
+			'<row r="1"><c r="A1" t="inlineStr"><is><t>kept</t></is><extLst><ext uri="x"><t>not this</t></ext></extLst></c>'
+			. '<c r="B1"><v>1</v><extLst><ext uri="x"><t>nor this</t></ext></extLst></c></row>'
+		);
+		$this->assertSame([['kept', '1']], $this->readFile($path)[0]['rows']);
+	}
+
 	public function testARowNumberPastAnySheetIsRefused(): void {
 		// Used to overflow into a float and end in a TypeError (a 500)
 		$path = $this->workbookWith(

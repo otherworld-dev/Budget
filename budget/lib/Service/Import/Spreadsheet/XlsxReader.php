@@ -118,7 +118,8 @@ final class XlsxReader {
 	 * What a string item (<si>) or a cell (<c>) holds, read node by node:
 	 * the text of its first <v> child, if it has one, and the text of its
 	 * <t> elements (a rich-text string has one per run) leaving out
-	 * phonetic runs (<rPh>), with Excel's _xHHHH_ escapes decoded. Excel
+	 * phonetic runs (<rPh>) and extensions (<extLst>), with Excel's _xHHHH_
+	 * escapes decoded. Excel
 	 * writes a line break in a cell as _x000D_, and a literal "_x" as
 	 * _x005F_x; replacing left to right without going back over a
 	 * replacement handles both.
@@ -135,13 +136,14 @@ final class XlsxReader {
 		// The element being collected ('v' or 't') and the depth it ends at
 		$collecting = null;
 		$collectingDepth = 0;
-		// Inside a phonetic run while non-zero: the depth it ends at
-		$phoneticDepth = 0;
+		// Inside a phonetic run or an extension list while non-zero: the
+		// depth it ends at
+		$skipDepth = 0;
 		foreach (Xml::inside($reader) as $depth) {
 			$end = $reader->nodeType === \XMLReader::END_ELEMENT;
-			if ($phoneticDepth !== 0) {
-				if ($end && $depth === $phoneticDepth) {
-					$phoneticDepth = 0;
+			if ($skipDepth !== 0) {
+				if ($end && $depth === $skipDepth) {
+					$skipDepth = 0;
 				}
 			} elseif ($collecting !== null) {
 				if ($end && $depth === $collectingDepth) {
@@ -157,7 +159,8 @@ final class XlsxReader {
 				$empty = $reader->isEmptyElement;
 				switch ($reader->localName) {
 					case 'rPh':
-						$phoneticDepth = $empty ? 0 : $depth;
+					case 'extLst':
+						$skipDepth = $empty ? 0 : $depth;
 						break;
 					case 't':
 						if (!$empty) {
