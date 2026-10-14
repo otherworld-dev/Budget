@@ -829,7 +829,10 @@ class ImportService {
 			}
 
 			$destAccount = $this->accountMapper->find((int)$destAccountId, $userId);
-			$accountSummaries[$sourceId] = [
+			// Once per account, however many statements name it: a camt file
+			// has one for each day, and a day with nothing in it must not
+			// wipe out the days before
+			$accountSummaries[$sourceId] ??= [
 				'sourceAccountId' => $sourceId,
 				'destinationAccountId' => $destAccountId,
 				'destinationAccountName' => $destAccount->getName(),
@@ -1369,7 +1372,9 @@ class ImportService {
 					$errors[] = ['sourceAccountId' => $sourceId, 'error' => $this->l->t('Destination account %1$s not found', [(string)$destAccountId])];
 					continue;
 				}
-				$accountResults[$sourceId] = [
+				// Once per account, as in the preview: a camt file has a
+				// statement for each day
+				$accountResults[$sourceId] ??= [
 					'sourceAccountId' => $sourceId,
 					'destinationAccountId' => $destAccountId,
 					'destinationAccountName' => $destAccount->getName(),

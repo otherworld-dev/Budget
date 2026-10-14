@@ -1108,6 +1108,75 @@ class ImportServiceTest extends TestCase {
 		$this->assertSame(1, $result['duplicates']);
 	}
 
+	// ===== one account named by several statements =====
+
+	/**
+	 * A camt.053 has a <Stmt> for each day, each naming the same IBAN.
+	 *
+	 * @param int[] $perDay How many entries each day's statement holds
+	 */
+	private function mockCamtFileOfDays(array $perDay): void {
+		$this->mockImportFile('import_user1_0123456789abcdef0123456789abcdef.xml', 'camt data');
+		$this->parserFactory->method('detectFormat')->willReturn('camt');
+		$accounts = [];
+		foreach ($perDay as $day => $count) {
+			$transactions = [];
+			for ($i = 0; $i < $count; $i++) {
+				$transactions[] = ['date' => '2026-10-0' . ($day + 1), 'rawAmount' => -1 - $i, 'description' => 'Day ' . ($day + 1) . ' entry ' . $i, 'id' => 'D' . $day . 'E' . $i];
+			}
+			$accounts[] = ['accountId' => 'IT60X', 'transactions' => $transactions];
+		}
+		$this->parserFactory->method('parseFull')->willReturn(['accounts' => $accounts]);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount(7, 'Conto'));
+		$this->normalizer->method('mapOfxTransaction')->willReturnCallback(static fn (array $txn): array => [
+			'date' => $txn['date'], 'amount' => abs($txn['rawAmount']), 'type' => 'debit', 'description' => $txn['description'],
+		]);
+		$this->normalizer->method('ofxImportIdentity')->willReturnArgument(0);
+		$this->normalizer->method('generateImportId')->willReturnCallback(static fn ($fileId, $key, array $txn): string => 'camt_' . $txn['id']);
+		$this->duplicateDetector->method('isDuplicate')->willReturn(false);
+		$this->duplicateDetector->method('isDuplicateByImportId')->willReturn(false);
+		$this->ruleApplicator->method('applyRules')->willReturnArgument(1);
+	}
+
+	public static function camtDays(): array {
+		return [
+			'a day with nothing after one with two' => [[2, 0], 2],
+			'a day with one after one with two' => [[2, 1], 3],
+		];
+	}
+
+	/**
+	 * @dataProvider camtDays
+	 */
+	public function testThePreviewCountsEveryStatementOfTheSameAccount(array $perDay, int $total): void {
+		$this->mockCamtFileOfDays($perDay);
+
+		$result = $this->service->previewImport('user1', 'import_user1_0123456789abcdef0123456789abcdef.xml', [], null, ['IT60X' => 7]);
+
+		$this->assertSame($total, $result['validTransactions']);
+		$this->assertCount(1, $result['accountSummaries']);
+		$this->assertSame($total, $result['accountSummaries'][0]['transactionCount']);
+		$this->assertSame(0, $result['accountSummaries'][0]['duplicates']);
+	}
+
+	/**
+	 * @dataProvider camtDays
+	 */
+	public function testTheImportCountsEveryStatementOfTheSameAccount(array $perDay, int $total): void {
+		$this->mockCamtFileOfDays($perDay);
+		$this->transactionService->method('create')->willReturnCallback(static function (): Transaction {
+			$tx = new Transaction();
+			$tx->setId(1);
+			return $tx;
+		});
+
+		$result = $this->service->processImport('user1', 'import_user1_0123456789abcdef0123456789abcdef.xml', [], null, ['IT60X' => 7]);
+
+		$this->assertSame($total, $result['imported']);
+		$this->assertCount(1, $result['accountResults']);
+		$this->assertSame($total, $result['accountResults'][0]['imported']);
+	}
+
 	// ===== OFX/QIF column mapping (#338) =====
 
 	/**
