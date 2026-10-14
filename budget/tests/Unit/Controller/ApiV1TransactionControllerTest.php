@@ -924,6 +924,51 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_CREATED, $controller->create()->getStatus());
 	}
 
+	public function testAReplayDoesNotAttachAPhotoInAnAccountClosedSince(): void {
+		$this->params = $this->captureParams(['idempotency_key' => 'uuid-1']);
+		$this->uploads['photo'] = ['name' => 'r.jpg', 'error' => UPLOAD_ERR_OK];
+
+		$account = new Account();
+		$account->setId(1);
+		$account->setUserId('user1');
+		$account->setClosed(true);
+
+		$controller = $this->buildController($this->heldKeyMapper(10), $this->validationService);
+		$this->service->method('findForAccounts')->willReturn($this->transaction());
+		$this->service->method('findAccountById')->willReturn($account);
+		$this->attachmentService->method('listForTransaction')->willReturn([]);
+		$this->attachmentService->expects($this->never())->method('upload');
+		$this->service->expects($this->never())->method('create');
+
+		$response = $controller->create();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+		$this->assertSame(10, $response->getData()['id']);
+		$this->assertArrayHasKey('photo_error', $response->getData());
+	}
+
+	public function testAReplayDoesNotAttachAPhotoThroughAShareMadeReadOnlySince(): void {
+		$this->params = $this->captureParams(['idempotency_key' => 'uuid-1']);
+		$this->uploads['photo'] = ['name' => 'r.jpg', 'error' => UPLOAD_ERR_OK];
+
+		$account = new Account();
+		$account->setId(1);
+		$account->setUserId('owner2');
+
+		$controller = $this->buildController($this->heldKeyMapper(10), $this->validationService);
+		$this->service->method('findForAccounts')->willReturn($this->transaction());
+		$this->service->method('findAccountById')->willReturn($account);
+		$this->granularShareService->method('requireWriteAccess')->willThrowException(new ReadOnlyShareException());
+		$this->attachmentService->method('listForTransaction')->willReturn([]);
+		$this->attachmentService->expects($this->never())->method('upload');
+		$this->service->expects($this->never())->method('create');
+
+		$response = $controller->create();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+		$this->assertArrayHasKey('photo_error', $response->getData());
+	}
+
 	public function testAnOverlongKeyIsRejected(): void {
 		$this->params = $this->captureParams(['idempotency_key' => str_repeat('k', 65)]);
 		$this->service->expects($this->never())->method('create');

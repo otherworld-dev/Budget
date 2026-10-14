@@ -1061,7 +1061,15 @@ class ApiV1TransactionController extends OCSController {
 		$photo = $this->request->getUploadedFile('photo');
 		if ($photo) {
 			try {
-				$ownerId = $this->service->findAccountById($transaction->getAccountId())->getUserId();
+				$account = $this->service->findAccountById($transaction->getAccountId());
+				// A replay answers whatever changed since, but adding a receipt
+				// is a write: not into a closed account, nor through a share
+				// that has become read-only
+				if ($account->getClosed()) {
+					throw new \RuntimeException('Account closed since the transaction was recorded');
+				}
+				$this->requireWriteAccess('account', $transaction->getAccountId());
+				$ownerId = $account->getUserId();
 				if ($this->attachmentService->listForTransaction($transaction->getId(), $ownerId) === []) {
 					$this->attachmentService->upload($transaction->getId(), $ownerId, $photo, $this->userId);
 				}
