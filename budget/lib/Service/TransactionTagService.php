@@ -435,11 +435,29 @@ class TransactionTagService {
 
 	/**
 	 * Store exactly these tags on a transaction, replacing its others. No
-	 * check: resolveTagsAs() is what decides the set.
+	 * check: resolveTagsAs() is what decides the set. The set it already
+	 * has writes nothing, so updated_at only moves on a real change.
 	 *
 	 * @param int[] $tagIds
 	 */
 	public function replaceTransactionTags(int $transactionId, array $tagIds): void {
+		$wanted = array_values(array_unique(array_map('intval', $tagIds)));
+
+		// The set it already has, in any order, is no change: rewritten, it
+		// moved updated_at and a client syncing by that read the row again
+		// for nothing. A client sending back the tags it read does just that.
+		$current = array_map(
+			static fn ($link): int => (int)$link->getTagId(),
+			$this->transactionTagMapper->findByTransaction($transactionId)
+		);
+		$sortedWanted = $wanted;
+		sort($sortedWanted);
+		$current = array_values(array_unique($current));
+		sort($current);
+		if ($current === $sortedWanted) {
+			return;
+		}
+
 		// All or nothing: half done, the row lost tags nobody asked to remove,
 		// and on a shared account the owner's ones the caller cannot use could
 		// not be put back by them
@@ -447,7 +465,7 @@ class TransactionTagService {
 		try {
 			$this->transactionTagMapper->deleteByTransaction($transactionId);
 			$now = date('Y-m-d H:i:s');
-			foreach (array_values(array_unique(array_map('intval', $tagIds))) as $tagId) {
+			foreach ($wanted as $tagId) {
 				$link = new TransactionTag();
 				$link->setTransactionId($transactionId);
 				$link->setTagId($tagId);

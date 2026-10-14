@@ -227,6 +227,10 @@ class ApiV1TransactionController extends OCSController {
 					return $this->badRequest($this->l->t('Use either categoryId or uncategorized, not both'));
 				}
 				$filters['category'] = 'uncategorized';
+			} else {
+				// The rest of the list, as reconciled=false is: a category of
+				// its own, or split. Taken and ignored, it was the whole list.
+				$filters['categorized'] = true;
 			}
 		}
 
@@ -597,12 +601,12 @@ class ApiV1TransactionController extends OCSController {
 		}
 
 		// Everything that can stop a transfer is settled before anything is
-		// recorded or the key is spent
-		if ($transferAccountId !== null) {
-			$refusal = $this->refuseTransfer($accountId, $transferAccountId);
-			if ($refusal !== null) {
-				return $refusal;
-			}
+		// recorded or the key is spent, and so is a closed account
+		$refusal = $transferAccountId !== null
+			? $this->refuseTransfer($accountId, $transferAccountId)
+			: $this->refuseClosed([$accountId]);
+		if ($refusal !== null) {
+			return $refusal;
 		}
 
 		try {
@@ -720,6 +724,8 @@ class ApiV1TransactionController extends OCSController {
 			// correct unsplit transaction the user can split later. A splits
 			// field that can't be read as parts is a rejected set too, not
 			// one to drop without a word.
+			// Whether a split or tags below moved updated_at past $out's
+			$touched = false;
 			try {
 				$splits = $this->readSplitsParam();
 				if ($splits !== null) {
@@ -732,6 +738,7 @@ class ApiV1TransactionController extends OCSController {
 					// would otherwise believe the split never happened.
 					$out['is_split'] = true;
 					$out['category_id'] = null;
+					$touched = true;
 				}
 			} catch (\Throwable $e) {
 				// Stated rather than left to the snapshot: a client that
@@ -752,6 +759,7 @@ class ApiV1TransactionController extends OCSController {
 				try {
 					$final = $this->tagService->resolveTagsAs($this->userId, $effectiveUserId, $transaction->getId(), $out['category_id'], $tagIds);
 					$this->tagService->replaceTransactionTags($transaction->getId(), $final);
+					$touched = true;
 					$out['tags'] = ApiSerializer::map(
 						$this->tagService->tagDetailsForTransactions([$transaction->getId()])[$transaction->getId()] ?? [],
 						[ApiSerializer::class, 'tag']
@@ -766,6 +774,10 @@ class ApiV1TransactionController extends OCSController {
 				}
 			}
 
+			if ($touched) {
+				$out['updated_at'] = $this->updatedAtNow($transaction->getId()) ?? $out['updated_at'];
+			}
+
 			return new DataResponse($out, Http::STATUS_CREATED);
 		} catch (DoesNotExistException $e) {
 			return $this->notFound($this->l->t('Account not found'));
@@ -774,6 +786,22 @@ class ApiV1TransactionController extends OCSController {
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to create transaction'));
 		}
+	}
+
+	/**
+	 * The row's updated_at as stored now, or null when it can't be read. A
+	 * split or a change of tags moves it after the row was serialised, and a
+	 * client syncing by it would otherwise keep a time already gone. Never
+	 * fails the request: the transaction is recorded and its key spent.
+	 */
+	private function updatedAtNow(int $id): ?string {
+		try {
+			$fresh = $this->service->findTransaction($id);
+		} catch (\Throwable $e) {
+			return null;
+		}
+
+		return $fresh === null ? null : ApiSerializer::transaction($fresh)['updated_at'];
 	}
 
 	/**
@@ -813,6 +841,11 @@ class ApiV1TransactionController extends OCSController {
 				$this->requireWriteAccess('account', $transferAccountId);
 			}
 
+			$closed = $this->refuseClosed([$accountId, $transferAccountId]);
+			if ($closed !== null) {
+				return $closed;
+			}
+
 			if ($this->currencyOf($accountId) !== $this->currencyOf($transferAccountId)) {
 				return $this->transferRefused(
 					'transfer_currency_mismatch',
@@ -822,6 +855,38 @@ class ApiV1TransactionController extends OCSController {
 		} catch (\Exception $e) {
 			// A read-only share is a 403 here; anything else the usual answer
 			return $this->handleError($e, $this->l->t('Failed to create transaction'));
+		}
+
+		return null;
+	}
+
+	/**
+	 * The 400 for new activity in a closed account, or null when none of
+	 * these is closed. A closed account stays at zero and nothing posts into
+	 * it again (#372); reopening it is one click in the web UI.
+	 *
+	 * Only accounts the caller can see are looked at: one they can't is left
+	 * to the 404 further on, so whether it is closed is never given away.
+	 *
+	 * @param int[] $accountIds
+	 */
+	private function refuseClosed(array $accountIds): ?DataResponse {
+		$own = $this->granularShareService->getOwnAccountIds($this->userId);
+		foreach ($accountIds as $id) {
+			if (!in_array($id, $own, true) && !$this->canAccessEntity('account', $id)) {
+				continue;
+			}
+			try {
+				$closed = (bool)$this->service->findAccountById($id)->getClosed();
+			} catch (DoesNotExistException $e) {
+				continue;
+			}
+			if ($closed) {
+				return new DataResponse([
+					'error' => $this->l->t('This account is closed. Reopen it to record anything in it'),
+					'error_code' => 'account_closed',
+				], Http::STATUS_BAD_REQUEST);
+			}
 		}
 
 		return null;
@@ -1207,6 +1272,9 @@ class ApiV1TransactionController extends OCSController {
 			$updated = $updates === [] ? $transaction : $this->service->update($id, $ownerId, $updates, $this->userId);
 			if ($finalTags !== null) {
 				$this->tagService->replaceTransactionTags($id, $finalTags);
+				// Setting the tags moves updated_at, so the row read before
+				// it would answer with a time already gone
+				$updated = $this->service->findTransaction($id) ?? $updated;
 			}
 
 			return new DataResponse($this->serializeOne($updated, $this->getEffectiveAccountIds()));
