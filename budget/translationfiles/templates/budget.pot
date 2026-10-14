@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-10-14 19:57+0000\n"
+"POT-Creation-Date: 2026-10-14 20:48+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -141,7 +141,7 @@ msgid "Invalid request data"
 msgstr ""
 
 #: /app/lib/Controller/AccountController.php:481
-#: /app/lib/Controller/ApiV1TransactionController.php:1301
+#: /app/lib/Controller/ApiV1TransactionController.php:1309
 #: /app/lib/Controller/BillController.php:833
 #: /app/lib/Controller/CategoryController.php:353
 #: /app/lib/Controller/CategoryController.php:451
@@ -289,7 +289,7 @@ msgid "Failed to retrieve categories"
 msgstr ""
 
 #: /app/lib/Controller/ApiV1ReceiptController.php:73
-#: /app/lib/Controller/ApiV1TransactionController.php:1250
+#: /app/lib/Controller/ApiV1TransactionController.php:1258
 #: /app/lib/Controller/AttachmentController.php:91
 #: /app/lib/Controller/ImportController.php:112
 #: /app/lib/Controller/MigrationController.php:99
@@ -336,7 +336,7 @@ msgstr ""
 
 #: /app/lib/Controller/ApiV1TransactionController.php:203
 #: /app/lib/Controller/ApiV1TransactionController.php:588
-#: /app/lib/Controller/ApiV1TransactionController.php:1568
+#: /app/lib/Controller/ApiV1TransactionController.php:1576
 #: /app/lib/Controller/TransactionController.php:331
 #: /app/lib/Controller/TransactionController.php:443
 msgid "Invalid transaction type. Must be credit or debit"
@@ -378,7 +378,7 @@ msgid "Failed to retrieve transaction"
 msgstr ""
 
 #: /app/lib/Controller/ApiV1TransactionController.php:553
-#: /app/lib/Controller/ApiV1TransactionController.php:1553
+#: /app/lib/Controller/ApiV1TransactionController.php:1561
 msgid "Amount must be a number"
 msgstr ""
 
@@ -391,7 +391,7 @@ msgid "An account is required"
 msgstr ""
 
 #: /app/lib/Controller/ApiV1TransactionController.php:568
-#: /app/lib/Controller/ApiV1TransactionController.php:1543
+#: /app/lib/Controller/ApiV1TransactionController.php:1551
 #: /app/lib/Controller/AssetController.php:326
 #: /app/lib/Controller/PensionController.php:358
 #: /app/lib/Controller/PensionController.php:430
@@ -419,7 +419,7 @@ msgid "Idempotency key too long (64 characters maximum)"
 msgstr ""
 
 #: /app/lib/Controller/ApiV1TransactionController.php:727
-#: /app/lib/Controller/ApiV1TransactionController.php:1072
+#: /app/lib/Controller/ApiV1TransactionController.php:1080
 msgid "The transaction was recorded, but the photo could not be attached"
 msgstr ""
 
@@ -463,96 +463,96 @@ msgstr ""
 msgid "This request is still being processed. Try again shortly"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1149
+#: /app/lib/Controller/ApiV1TransactionController.php:1157
 msgid "Failed to split the transaction"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1217
+#: /app/lib/Controller/ApiV1TransactionController.php:1225
 msgid ""
 "splits must be an array of {\"amount\", \"category_id\", \"description\"} "
 "objects"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1236
+#: /app/lib/Controller/ApiV1TransactionController.php:1244
 #: /app/lib/Controller/AttachmentController.php:46
 #: /app/lib/Controller/AttachmentController.php:59
 #: /app/src/modules/transactions/TransactionsModule.js:2896
 msgid "Failed to load attachments"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1262
+#: /app/lib/Controller/ApiV1TransactionController.php:1270
 #: /app/lib/Controller/AttachmentController.php:101
 #: /app/src/modules/transactions/TransactionsModule.js:2907
 #: /app/src/modules/transactions/TransactionsModule.js:2912
 msgid "Failed to upload receipt"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1342
-#: /app/lib/Controller/ApiV1TransactionController.php:1406
-#: /app/lib/Controller/ApiV1TransactionController.php:1453
+#: /app/lib/Controller/ApiV1TransactionController.php:1350
+#: /app/lib/Controller/ApiV1TransactionController.php:1414
+#: /app/lib/Controller/ApiV1TransactionController.php:1461
 #: /app/lib/Controller/TransactionController.php:543
-#: /app/src/modules/transactions/TransactionsModule.js:5319
+#: /app/src/modules/transactions/TransactionsModule.js:5320
 msgid "Failed to update transaction"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1372
+#: /app/lib/Controller/ApiV1TransactionController.php:1380
 #: /app/src/modules/transactions/TransactionsModule.js:3600
 #: /app/src/modules/transactions/TransactionsModule.js:3623
 msgid "Failed to delete transaction"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1440
+#: /app/lib/Controller/ApiV1TransactionController.php:1448
 msgid ""
 "A scheduled transaction cannot be reconciled, as it has not happened yet"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1509
+#: /app/lib/Controller/ApiV1TransactionController.php:1517
 #: /app/lib/Controller/TransactionController.php:962
 msgid "Category not found. It must be one of the account owner's categories"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1533
+#: /app/lib/Controller/ApiV1TransactionController.php:1541
 #, php-format
 msgid "%s cannot be changed through the API"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1560
+#: /app/lib/Controller/ApiV1TransactionController.php:1568
 msgid "Amount must be more than zero. Use type to say which way the money went"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1622
+#: /app/lib/Controller/ApiV1TransactionController.php:1630
 msgid ""
 "This transaction is one side of a transfer, so its amount, type and date "
 "cannot be changed on their own"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1639
+#: /app/lib/Controller/ApiV1TransactionController.php:1647
 msgid ""
 "This transaction is split, so its categories are changed through its splits"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1654
+#: /app/lib/Controller/ApiV1TransactionController.php:1662
 msgid ""
 "This transaction has been reconciled against a statement. Send "
 "confirm_reconciled to go ahead"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1693
+#: /app/lib/Controller/ApiV1TransactionController.php:1701
 #, php-format
 msgid "%s must be a single value"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1707
+#: /app/lib/Controller/ApiV1TransactionController.php:1715
 msgid "category_id must be a category id or null"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1714
+#: /app/lib/Controller/ApiV1TransactionController.php:1722
 #: /app/lib/Controller/AttachmentController.php:57
 #: /app/lib/Controller/AttachmentController.php:72
 #: /app/lib/Controller/AttachmentController.php:97 /app/src/main.js:3310
 #: /app/src/main.js:3549
 #: /app/src/modules/transactions/TransactionsModule.js:3792
-#: /app/src/modules/transactions/TransactionsModule.js:3899
+#: /app/src/modules/transactions/TransactionsModule.js:3900
 msgid "Transaction not found"
 msgstr ""
 
@@ -1022,8 +1022,8 @@ msgstr ""
 #: /app/src/modules/transactions/TransactionsModule.js:3336
 #: /app/src/modules/transactions/TransactionsModule.js:3420
 #: /app/src/modules/transactions/TransactionsModule.js:3748
-#: /app/src/modules/transactions/TransactionsModule.js:3988
 #: /app/src/modules/transactions/TransactionsModule.js:3989
+#: /app/src/modules/transactions/TransactionsModule.js:3990
 #: /app/src/modules/transfers/TransfersModule.js:458
 #: /app/templates/index.php:1051 /app/templates/index.php:1543
 #: /app/templates/index.php:1795 /app/templates/index.php:1848
@@ -1197,8 +1197,8 @@ msgstr ""
 #: /app/src/modules/reports/ReportsModule.js:1569
 #: /app/src/modules/transactions/TransactionsModule.js:3340
 #: /app/src/modules/transactions/TransactionsModule.js:3341
-#: /app/src/modules/transactions/TransactionsModule.js:3993
 #: /app/src/modules/transactions/TransactionsModule.js:3994
+#: /app/src/modules/transactions/TransactionsModule.js:3995
 #: /app/src/modules/transfers/TransfersModule.js:551
 #: /app/templates/index.php:1059 /app/templates/index.php:1463
 #: /app/templates/index.php:1541 /app/templates/index.php:1627
@@ -2764,7 +2764,7 @@ msgid "Failed to categorize transactions"
 msgstr ""
 
 #: /app/lib/Controller/TransactionController.php:759 /app/src/main.js:3537
-#: /app/src/modules/transactions/TransactionsModule.js:3891
+#: /app/src/modules/transactions/TransactionsModule.js:3892
 msgid "Failed to unlink transaction"
 msgstr ""
 
@@ -2851,7 +2851,7 @@ msgstr ""
 #: /app/src/modules/bills/BillsModule.js:361
 #: /app/src/modules/dashboard/DashboardModule.js:1349
 #: /app/src/modules/rules/RulesModule.js:1015
-#: /app/src/modules/transactions/TransactionsModule.js:5472
+#: /app/src/modules/transactions/TransactionsModule.js:5473
 #: /app/src/modules/transactions/transactionRow.js:86
 #: /app/src/modules/transactions/transactionRow.js:231
 #: /app/src/modules/transactions/transactionRow.js:273
@@ -3024,7 +3024,7 @@ msgstr ""
 #: /app/src/modules/dashboard/DashboardModule.js:2926
 #: /app/src/modules/exchange-rates/ExchangeRatesModule.js:175
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:795
-#: /app/src/modules/transactions/TransactionsModule.js:3853
+#: /app/src/modules/transactions/TransactionsModule.js:3854
 #: /app/src/modules/transfers/TransfersModule.js:1317
 msgid "Unknown"
 msgstr ""
@@ -3343,12 +3343,12 @@ msgid "{file} could not be imported"
 msgstr ""
 
 #: /app/lib/Notification/Notifier.php:674
-#: /app/lib/Service/ImportFolderService.php:640
+#: /app/lib/Service/ImportFolderService.php:770
 msgid "This type of file cannot be imported."
 msgstr ""
 
 #: /app/lib/Notification/Notifier.php:675
-#: /app/lib/Service/ImportFolderService.php:641
+#: /app/lib/Service/ImportFolderService.php:771
 msgid "The file is larger than 10 MB."
 msgstr ""
 
@@ -3381,7 +3381,7 @@ msgid ""
 msgstr ""
 
 #: /app/lib/Notification/Notifier.php:681
-#: /app/lib/Service/ImportFolderService.php:642
+#: /app/lib/Service/ImportFolderService.php:772
 msgid "The file is empty."
 msgstr ""
 
@@ -3412,12 +3412,19 @@ msgid ""
 "Budget's settings."
 msgstr ""
 
-#: /app/lib/Notification/Notifier.php:688
+#: /app/lib/Notification/Notifier.php:687
+msgid ""
+"Budget stopped while reading this file, so it was set aside and will not be "
+"read again. Try it on the Import page, or download the statement from your "
+"bank again."
+msgstr ""
+
+#: /app/lib/Notification/Notifier.php:689
 msgid ""
 "Something went wrong while importing it. The server log has the details."
 msgstr ""
 
-#: /app/lib/Notification/Notifier.php:691
+#: /app/lib/Notification/Notifier.php:692
 msgid "It is in the Failed folder."
 msgstr ""
 
@@ -3488,13 +3495,13 @@ msgstr ""
 msgid "Pension #%1$s"
 msgstr ""
 
-#: /app/lib/Service/AccountService.php:136
+#: /app/lib/Service/AccountService.php:138
 msgid ""
 "Cannot delete account with existing transactions. Please delete all "
 "transactions first."
 msgstr ""
 
-#: /app/lib/Service/AccountService.php:302
+#: /app/lib/Service/AccountService.php:307
 msgid "This page is out of date. Please reload it before editing this account."
 msgstr ""
 
@@ -3797,8 +3804,8 @@ msgstr[1] ""
 #: /app/src/modules/rules/components/CriteriaBuilder.js:188
 #: /app/src/modules/transactions/TransactionsModule.js:3347
 #: /app/src/modules/transactions/TransactionsModule.js:3348
-#: /app/src/modules/transactions/TransactionsModule.js:4000
 #: /app/src/modules/transactions/TransactionsModule.js:4001
+#: /app/src/modules/transactions/TransactionsModule.js:4002
 #: /app/templates/index.php:1055 /app/templates/index.php:1056
 #: /app/templates/index.php:1538 /app/templates/index.php:1779
 #: /app/templates/index.php:1833 /app/templates/index.php:2431
@@ -3964,116 +3971,128 @@ msgid ""
 "camt.053/camt.052 XML is supported."
 msgstr ""
 
-#: /app/lib/Service/Import/Spreadsheet/SpreadsheetConverter.php:71
+#: /app/lib/Service/Import/Spreadsheet/SpreadsheetConverter.php:83
 msgid ""
 "This spreadsheet is too big to import in one go. Split it into smaller files "
 "and import them one at a time."
 msgstr ""
 
-#: /app/lib/Service/Import/Spreadsheet/SpreadsheetConverter.php:76
+#: /app/lib/Service/Import/Spreadsheet/SpreadsheetConverter.php:88
 msgid ""
 "This spreadsheet could not be read. If it is password-protected, remove the "
 "password, or save it as CSV and import that."
 msgstr ""
 
-#: /app/lib/Service/Import/Spreadsheet/SpreadsheetConverter.php:81
+#: /app/lib/Service/Import/Spreadsheet/SpreadsheetConverter.php:93
 msgid "This spreadsheet has no table of transactions to import."
 msgstr ""
 
-#: /app/lib/Service/ImportFolderService.php:163
+#: /app/lib/Service/ImportFolderService.php:177
 #, php-format
 msgid "You already have an import folder called %1$s."
 msgstr ""
 
-#: /app/lib/Service/ImportFolderService.php:179
+#: /app/lib/Service/ImportFolderService.php:193
 msgid "The folder could not be created in your Files. Try another name."
 msgstr ""
 
-#: /app/lib/Service/ImportFolderService.php:643
+#: /app/lib/Service/ImportFolderService.php:760
+msgid ""
+"Budget stopped while reading this file last time, so it has been moved to "
+"the Failed folder. Try downloading the statement from your bank again."
+msgstr ""
+
+#: /app/lib/Service/ImportFolderService.php:761
+msgid ""
+"Budget stopped while reading this file last time. Move it out of the Review "
+"folder, and try downloading the statement from your bank again."
+msgstr ""
+
+#: /app/lib/Service/ImportFolderService.php:773
 msgid "The file could not be read."
 msgstr ""
 
-#: /app/lib/Service/ImportFolderService.php:669
+#: /app/lib/Service/ImportFolderService.php:803
 msgid "A waiting file is either imported or skipped."
 msgstr ""
 
-#: /app/lib/Service/ImportFolderService.php:674
+#: /app/lib/Service/ImportFolderService.php:808
 msgid "The file could not be moved. Move it out of the Review folder yourself."
 msgstr ""
 
-#: /app/lib/Service/ImportFolderService.php:1037
+#: /app/lib/Service/ImportFolderService.php:1227
 #: /app/src/modules/import/ImportModule.js:50
 msgid "Column: {number}"
 msgstr ""
 
-#: /app/lib/Service/ImportFolderService.php:1152
+#: /app/lib/Service/ImportFolderService.php:1342
 msgid "A folder's files are either imported automatically or held for review."
 msgstr ""
 
-#: /app/lib/Service/ImportFolderService.php:1160
+#: /app/lib/Service/ImportFolderService.php:1350
 msgid "The folder name must be 1 to 100 characters, with no slashes."
 msgstr ""
 
-#: /app/lib/Service/ImportFolderService.php:1167
+#: /app/lib/Service/ImportFolderService.php:1357
 msgid "An import folder needs one of your own open accounts."
 msgstr ""
 
-#: /app/lib/Service/ImportFolderService.php:1182
+#: /app/lib/Service/ImportFolderService.php:1372
 msgid "That import template no longer exists."
 msgstr ""
 
-#: /app/lib/Service/ImportFolderService.php:1224
+#: /app/lib/Service/ImportFolderService.php:1414
 msgid ""
 "The import folder has to be in your own Files, not in a folder someone "
 "shared with you."
 msgstr ""
 
-#: /app/lib/Service/ImportFolderService.php:1265
+#: /app/lib/Service/ImportFolderService.php:1455
 #, php-format
 msgid "%1$s is a file, so it cannot be used as a folder."
 msgstr ""
 
-#: /app/lib/Service/ImportService.php:152
+#: /app/lib/Service/ImportService.php:154
 #, php-format
 msgid "Failed to process upload: %1$s"
 msgstr ""
 
-#: /app/lib/Service/ImportService.php:409
-#: /app/lib/Service/ImportService.php:418
+#: /app/lib/Service/ImportService.php:424
+#: /app/lib/Service/ImportService.php:433
 msgid "Import file not found"
 msgstr ""
 
-#: /app/lib/Service/ImportService.php:917
-#: /app/lib/Service/ImportService.php:1545
+#: /app/lib/Service/ImportService.php:935
+#: /app/lib/Service/ImportService.php:1565
 msgid "Account ID is required for single-account imports"
 msgstr ""
 
-#: /app/lib/Service/ImportService.php:1021
-#: /app/lib/Service/ImportService.php:1645
+#: /app/lib/Service/ImportService.php:1039
+#: /app/lib/Service/ImportService.php:1665
 msgid "This row has no account, and no account was chosen for the import"
 msgstr ""
 
-#: /app/lib/Service/ImportService.php:1369
+#: /app/lib/Service/ImportService.php:1387
 #, php-format
 msgid "Destination account %1$s not found"
 msgstr ""
 
-#: /app/lib/Service/ImportService.php:1470
+#: /app/lib/Service/ImportService.php:1490
 #, php-format
 msgid "Failed to recalculate balance for account %1$s"
 msgstr ""
 
-#: /app/lib/Service/ImportService.php:1646
+#: /app/lib/Service/ImportService.php:1666
 #, php-format
 msgid "Could not resolve account: %1$s"
 msgstr ""
 
-#: /app/lib/Service/ImportService.php:2552
+#: /app/lib/Service/ImportService.php:2572
 #, php-format
 msgid "The %1$s format reads CSV files only"
 msgstr ""
 
-#: /app/lib/Service/ImportService.php:2576
+#: /app/lib/Service/ImportService.php:2596
 #, php-format
 msgid "This file does not look like a %1$s export. Columns missing: %2$s"
 msgstr ""
@@ -4108,7 +4127,17 @@ msgid ""
 "imported."
 msgstr ""
 
-#: /app/lib/Service/MigrationService.php:740
+#: /app/lib/Service/MigrationService.php:593
+msgid ""
+"%n file already in your import folders was left as it is. Only files added "
+"from now on are imported."
+msgid_plural ""
+"%n files already in your import folders were left as they are. Only files "
+"added from now on are imported."
+msgstr[0] ""
+msgstr[1] ""
+
+#: /app/lib/Service/MigrationService.php:747
 msgid ""
 "%n item you shared could not be matched to the restored data, so it is no "
 "longer shared. Share it again in Settings if you still want to."
@@ -4118,7 +4147,7 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/lib/Service/MigrationService.php:747
+#: /app/lib/Service/MigrationService.php:754
 msgid ""
 "%n bill or transfer lost its account in the restore: the account is not in "
 "this backup, or not shared with you any more. Its auto-pay is off; edit it "
@@ -4130,7 +4159,7 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/lib/Service/MigrationService.php:754
+#: /app/lib/Service/MigrationService.php:761
 msgid ""
 "%n item of someone you share with used an account, category or bill that did "
 "not come back in this restore, and has been unlinked from it."
@@ -4140,7 +4169,7 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/lib/Service/MigrationService.php:761
+#: /app/lib/Service/MigrationService.php:768
 msgid ""
 "%n contact was linked to a Nextcloud user you can't share with on this "
 "server, so the link was removed."
@@ -4150,7 +4179,7 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/lib/Service/MigrationService.php:769
+#: /app/lib/Service/MigrationService.php:776
 msgid ""
 "%n bank account link could not be matched to an account in this backup, so "
 "Bank Sync no longer imports into it. Choose the account again in Bank Sync."
@@ -4161,7 +4190,7 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/lib/Service/MigrationService.php:791
+#: /app/lib/Service/MigrationService.php:798
 #, php-format
 msgid ""
 "This backup was made by a newer version of Budget (backup format %1$s, this "
@@ -4169,20 +4198,20 @@ msgid ""
 "Budget first if you can."
 msgstr ""
 
-#: /app/lib/Service/MigrationService.php:1023
+#: /app/lib/Service/MigrationService.php:1030
 #, php-format
 msgid ""
 "This backup cannot be imported: %1$s is larger than %2$s MB when unpacked"
 msgstr ""
 
-#: /app/lib/Service/MigrationService.php:1024
+#: /app/lib/Service/MigrationService.php:1031
 #, php-format
 msgid ""
 "This backup cannot be imported: its files add up to more than %1$s MB when "
 "unpacked"
 msgstr ""
 
-#: /app/lib/Service/MigrationService.php:1113
+#: /app/lib/Service/MigrationService.php:1120
 #, php-format
 msgid "This backup cannot be imported: %1$s is not in the expected format"
 msgstr ""
@@ -4484,8 +4513,8 @@ msgstr ""
 #: /app/src/modules/transactions/TransactionsModule.js:1232
 #: /app/src/modules/transactions/TransactionsModule.js:2232
 #: /app/src/modules/transactions/TransactionsModule.js:3342
-#: /app/src/modules/transactions/TransactionsModule.js:3995
-#: /app/src/modules/transactions/TransactionsModule.js:4855
+#: /app/src/modules/transactions/TransactionsModule.js:3996
+#: /app/src/modules/transactions/TransactionsModule.js:4856
 #: /app/src/modules/transactions/transactionRow.js:140
 #: /app/src/modules/transactions/transactionRow.js:232
 #: /app/src/modules/transactions/transactionRow.js:274
@@ -5238,7 +5267,7 @@ msgstr ""
 #: /app/src/modules/tagsets/TagSetsModule.js:613
 #: /app/src/modules/transactions/TransactionsModule.js:572
 #: /app/src/modules/transactions/TransactionsModule.js:1398
-#: /app/src/modules/transactions/TransactionsModule.js:5031
+#: /app/src/modules/transactions/TransactionsModule.js:5032
 #: /app/src/modules/transfers/TransfersModule.js:1204
 #: /app/templates/index.php:83 /app/templates/index.php:1516
 #: /app/templates/index.php:1699 /app/templates/index.php:1791
@@ -5357,7 +5386,7 @@ msgstr ""
 #: /app/src/modules/import/ImportModule.js:2477
 #: /app/src/modules/import/ImportModule.js:2490
 #: /app/src/modules/sharing/SharingModule.js:126
-#: /app/src/modules/transactions/TransactionsModule.js:5370
+#: /app/src/modules/transactions/TransactionsModule.js:5371
 #: /app/src/modules/transfers/TransfersModule.js:171
 #: /app/src/modules/transfers/TransfersModule.js:442
 #: /app/src/utils/matchingDialog.js:74 /app/src/utils/modals.js:81
@@ -5733,7 +5762,7 @@ msgid "Repair failed: {error}"
 msgstr ""
 
 #: /app/src/main.js:2141 /app/src/modules/settings/SettingsModule.js:673
-#: /app/src/modules/transactions/TransactionsModule.js:5533
+#: /app/src/modules/transactions/TransactionsModule.js:5534
 msgid "Deleting..."
 msgstr ""
 
@@ -5969,24 +5998,24 @@ msgid "Unknown Account"
 msgstr ""
 
 #: /app/src/main.js:3374
-#: /app/src/modules/transactions/TransactionsModule.js:3855
+#: /app/src/modules/transactions/TransactionsModule.js:3856
 msgid "Link as Transfer"
 msgstr ""
 
 #: /app/src/main.js:3383
-#: /app/src/modules/transactions/TransactionsModule.js:3864
+#: /app/src/modules/transactions/TransactionsModule.js:3865
 msgid "Failed to search for matches. Please try again."
 msgstr ""
 
 #: /app/src/main.js:3393
-#: /app/src/modules/transactions/TransactionsModule.js:3871
+#: /app/src/modules/transactions/TransactionsModule.js:3872
 msgid "Transactions linked as transfer"
 msgstr ""
 
 #: /app/src/main.js:3399
-#: /app/src/modules/transactions/TransactionsModule.js:3877
-#: /app/src/modules/transactions/TransactionsModule.js:4549
-#: /app/src/modules/transactions/TransactionsModule.js:4621
+#: /app/src/modules/transactions/TransactionsModule.js:3878
+#: /app/src/modules/transactions/TransactionsModule.js:4550
+#: /app/src/modules/transactions/TransactionsModule.js:4622
 msgid "Failed to link transactions"
 msgstr ""
 
@@ -6008,23 +6037,23 @@ msgid "Could not navigate to linked transaction"
 msgstr ""
 
 #: /app/src/main.js:3528
-#: /app/src/modules/transactions/TransactionsModule.js:3882
+#: /app/src/modules/transactions/TransactionsModule.js:3883
 msgid ""
 "Are you sure you want to unlink this transaction from its transfer pair?"
 msgstr ""
 
 #: /app/src/main.js:3534
-#: /app/src/modules/transactions/TransactionsModule.js:3888
+#: /app/src/modules/transactions/TransactionsModule.js:3889
 msgid "Transaction unlinked"
 msgstr ""
 
 #: /app/src/main.js:3565
-#: /app/src/modules/transactions/TransactionsModule.js:3915
+#: /app/src/modules/transactions/TransactionsModule.js:3916
 msgid "Edit Transaction Splits"
 msgstr ""
 
 #: /app/src/main.js:3565
-#: /app/src/modules/transactions/TransactionsModule.js:3915
+#: /app/src/modules/transactions/TransactionsModule.js:3916
 #: /app/templates/index.php:7146
 msgid "Split Transaction"
 msgstr ""
@@ -6035,51 +6064,51 @@ msgstr ""
 
 #: /app/src/main.js:3655
 #: /app/src/modules/transactions/TransactionsModule.js:3348
-#: /app/src/modules/transactions/TransactionsModule.js:4002
+#: /app/src/modules/transactions/TransactionsModule.js:4003
 #: /app/templates/index.php:5597
 msgid "Optional note"
 msgstr ""
 
 #: /app/src/main.js:3659 /app/src/modules/bills/BillsModule.js:1015
-#: /app/src/modules/transactions/TransactionsModule.js:4006
+#: /app/src/modules/transactions/TransactionsModule.js:4007
 msgid "Remove split"
 msgstr ""
 
 #: /app/src/main.js:3770
-#: /app/src/modules/transactions/TransactionsModule.js:4074
+#: /app/src/modules/transactions/TransactionsModule.js:4075
 msgid "A split transaction must have at least 2 parts"
 msgstr ""
 
 #: /app/src/main.js:3776
-#: /app/src/modules/transactions/TransactionsModule.js:4080
+#: /app/src/modules/transactions/TransactionsModule.js:4081
 msgid ""
 "Split amounts ({splitTotal}) must equal transaction amount ({totalAmount})"
 msgstr ""
 
 #: /app/src/main.js:3787
-#: /app/src/modules/transactions/TransactionsModule.js:4091
+#: /app/src/modules/transactions/TransactionsModule.js:4092
 msgid "Transaction split successfully"
 msgstr ""
 
 #: /app/src/main.js:3791
-#: /app/src/modules/transactions/TransactionsModule.js:4095
+#: /app/src/modules/transactions/TransactionsModule.js:4096
 msgid "Failed to save splits"
 msgstr ""
 
 #: /app/src/main.js:3802
-#: /app/src/modules/transactions/TransactionsModule.js:4103
+#: /app/src/modules/transactions/TransactionsModule.js:4104
 msgid ""
 "Are you sure you want to remove the split and revert to a single transaction?"
 msgstr ""
 
 #: /app/src/main.js:3810
-#: /app/src/modules/transactions/TransactionsModule.js:4111
+#: /app/src/modules/transactions/TransactionsModule.js:4112
 msgid "Transaction unsplit successfully"
 msgstr ""
 
 #: /app/src/main.js:3814
 #: /app/src/modules/transactions/TransactionsModule.js:3107
-#: /app/src/modules/transactions/TransactionsModule.js:4115
+#: /app/src/modules/transactions/TransactionsModule.js:4116
 msgid "Failed to unsplit transaction"
 msgstr ""
 
@@ -6369,14 +6398,14 @@ msgstr ""
 #: /app/src/modules/accounts/AccountsModule.js:1946
 #: /app/src/modules/reports/ReportsModule.js:475
 #: /app/src/modules/transactions/TransactionsModule.js:600
-#: /app/src/modules/transactions/TransactionsModule.js:5013
+#: /app/src/modules/transactions/TransactionsModule.js:5014
 msgid "Type to filter tags..."
 msgstr ""
 
 #: /app/src/modules/accounts/AccountsModule.js:2029
 #: /app/src/modules/reports/ReportsModule.js:541
 #: /app/src/modules/transactions/TransactionsModule.js:684
-#: /app/src/modules/transactions/TransactionsModule.js:5088
+#: /app/src/modules/transactions/TransactionsModule.js:5089
 msgid "No tags found"
 msgstr ""
 
@@ -7876,8 +7905,8 @@ msgid "Budget adjustment created."
 msgstr ""
 
 #: /app/src/modules/categories/CategoriesModule.js:2070
-#: /app/src/modules/transactions/TransactionsModule.js:4378
-#: /app/src/modules/transactions/TransactionsModule.js:4533
+#: /app/src/modules/transactions/TransactionsModule.js:4379
+#: /app/src/modules/transactions/TransactionsModule.js:4534
 #: /app/src/utils/notifications.js:73
 msgid "Undo"
 msgstr ""
@@ -10552,7 +10581,7 @@ msgstr ""
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:514
 #: /app/src/modules/sharing/SharingModule.js:32
 #: /app/src/modules/transactions/TransactionsModule.js:1342
-#: /app/src/modules/transactions/TransactionsModule.js:4981
+#: /app/src/modules/transactions/TransactionsModule.js:4982
 #: /app/src/utils/loading.js:33 /app/templates/index.php:902
 #: /app/templates/index.php:912 /app/templates/index.php:921
 #: /app/templates/index.php:930 /app/templates/index.php:939
@@ -10993,7 +11022,7 @@ msgstr ""
 
 #: /app/src/modules/rules/components/ActionBuilder.js:314
 #: /app/src/modules/rules/components/ActionBuilder.js:315
-#: /app/src/modules/transactions/TransactionsModule.js:3927
+#: /app/src/modules/transactions/TransactionsModule.js:3928
 #: /app/templates/index.php:7151
 msgid "Description:"
 msgstr ""
@@ -11921,7 +11950,7 @@ msgid "Save Configuration"
 msgstr ""
 
 #: /app/src/modules/sharing/SharingModule.js:345
-#: /app/src/modules/transactions/TransactionsModule.js:5435
+#: /app/src/modules/transactions/TransactionsModule.js:5436
 msgid "Deselect All"
 msgstr ""
 
@@ -12039,8 +12068,8 @@ msgstr ""
 #: /app/src/modules/tagsets/TagSetsModule.js:326
 #: /app/src/modules/transactions/TransactionsModule.js:1464
 #: /app/src/modules/transactions/TransactionsModule.js:1488
-#: /app/src/modules/transactions/TransactionsModule.js:5167
-#: /app/src/modules/transactions/TransactionsModule.js:5180
+#: /app/src/modules/transactions/TransactionsModule.js:5168
+#: /app/src/modules/transactions/TransactionsModule.js:5181
 msgid "Failed to update tags"
 msgstr ""
 
@@ -12221,7 +12250,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: /app/src/modules/transactions/TransactionsModule.js:1135
-#: /app/src/modules/transactions/TransactionsModule.js:5570
+#: /app/src/modules/transactions/TransactionsModule.js:5571
 msgid "Failed to delete %n transaction"
 msgid_plural "Failed to delete %n transactions"
 msgstr[0] ""
@@ -12645,7 +12674,7 @@ msgid "No receipts attached"
 msgstr ""
 
 #: /app/src/modules/transactions/TransactionsModule.js:2970
-#: /app/src/modules/transactions/TransactionsModule.js:5261
+#: /app/src/modules/transactions/TransactionsModule.js:5262
 msgid ""
 "This transaction was reconciled against a bank statement. Changing its "
 "amount, type, account or date will make past reconciliations no longer "
@@ -12669,7 +12698,7 @@ msgid "The transaction was saved, but {count} receipt(s) could not be attached"
 msgstr ""
 
 #: /app/src/modules/transactions/TransactionsModule.js:3157
-#: /app/src/modules/transactions/TransactionsModule.js:5316
+#: /app/src/modules/transactions/TransactionsModule.js:5317
 msgid "Transaction updated"
 msgstr ""
 
@@ -12769,213 +12798,213 @@ msgstr ""
 msgid "Destination Amount ({currency})"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:3923
+#: /app/src/modules/transactions/TransactionsModule.js:3924
 #: /app/templates/index.php:7159
 msgid "Date:"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:3931
+#: /app/src/modules/transactions/TransactionsModule.js:3932
 msgid "Total Amount:"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4161
+#: /app/src/modules/transactions/TransactionsModule.js:4162
 msgid "Date window (days):"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4166
+#: /app/src/modules/transactions/TransactionsModule.js:4167
 msgid ""
 "Matches must be within this many days of each other. Use 0 for exact date "
 "match."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4169
+#: /app/src/modules/transactions/TransactionsModule.js:4170
 msgid "Matching mode:"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4174
+#: /app/src/modules/transactions/TransactionsModule.js:4175
 msgid "Auto-link exact matches"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4175
+#: /app/src/modules/transactions/TransactionsModule.js:4176
 msgid "Single-match pairs linked automatically. Multi-match shown for review."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4181
+#: /app/src/modules/transactions/TransactionsModule.js:4182
 msgid "Review all matches"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4182
+#: /app/src/modules/transactions/TransactionsModule.js:4183
 msgid "All candidates shown for your confirmation before linking."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4214
+#: /app/src/modules/transactions/TransactionsModule.js:4215
 #: /app/templates/index.php:7097
 msgid "Scanning for matching transactions..."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4225
+#: /app/src/modules/transactions/TransactionsModule.js:4226
 #: /app/templates/index.php:7130
 msgid "No matching transactions found."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4240
+#: /app/src/modules/transactions/TransactionsModule.js:4241
 msgid "Failed to scan for matches. Please try again."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4260
+#: /app/src/modules/transactions/TransactionsModule.js:4261
 msgid "Linking %n exact match pair..."
 msgid_plural "Linking %n exact match pairs..."
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4328
+#: /app/src/modules/transactions/TransactionsModule.js:4329
 msgid "Exact Matches"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4329
+#: /app/src/modules/transactions/TransactionsModule.js:4330
 msgid ""
 "These transactions have exactly one match. Uncheck any you don't want to "
 "link."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4455
+#: /app/src/modules/transactions/TransactionsModule.js:4456
 msgid "Select a match (%n option):"
 msgid_plural "Select a match (%n options):"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4459
+#: /app/src/modules/transactions/TransactionsModule.js:4460
 msgid "Link Selected"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4487
+#: /app/src/modules/transactions/TransactionsModule.js:4488
 msgid "No matches selected"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4494
+#: /app/src/modules/transactions/TransactionsModule.js:4495
 msgid "Linking..."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4501
+#: /app/src/modules/transactions/TransactionsModule.js:4502
 msgid "Linked %n pair"
 msgid_plural "Linked %n pairs"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4503
+#: /app/src/modules/transactions/TransactionsModule.js:4504
 msgid "%n failed"
 msgid_plural "%n failed"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4515
+#: /app/src/modules/transactions/TransactionsModule.js:4516
 msgid "Linked Pairs"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4516
+#: /app/src/modules/transactions/TransactionsModule.js:4517
 msgid "These transactions have been linked. Click Undo to unlink a pair."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4553
+#: /app/src/modules/transactions/TransactionsModule.js:4554
 #: /app/templates/index.php:7137
 msgid "Confirm Selected"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4580
+#: /app/src/modules/transactions/TransactionsModule.js:4581
 msgid "Match undone"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4582
+#: /app/src/modules/transactions/TransactionsModule.js:4583
 msgid "Failed to undo match"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4591
+#: /app/src/modules/transactions/TransactionsModule.js:4592
 msgid "Please select a match first"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4619
+#: /app/src/modules/transactions/TransactionsModule.js:4620
 msgid "Transactions linked"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4763
+#: /app/src/modules/transactions/TransactionsModule.js:4764
 msgid "Enter description..."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4795
+#: /app/src/modules/transactions/TransactionsModule.js:4796
 #: /app/src/utils/userPicker.js:66 /app/templates/index.php:7279
 msgid "Type to search..."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4839
+#: /app/src/modules/transactions/TransactionsModule.js:4840
 msgid "No categories found"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4999
+#: /app/src/modules/transactions/TransactionsModule.js:5000
 msgid "No tags"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:5155
+#: /app/src/modules/transactions/TransactionsModule.js:5156
 msgid "Error loading tags"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:5369
+#: /app/src/modules/transactions/TransactionsModule.js:5370
 msgid "Find Duplicate Transactions"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:5375
+#: /app/src/modules/transactions/TransactionsModule.js:5376
 msgid "Scanning for duplicates..."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:5411
+#: /app/src/modules/transactions/TransactionsModule.js:5412
 msgid "No duplicate transactions found."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:5421
+#: /app/src/modules/transactions/TransactionsModule.js:5422
 msgid "Failed to scan for duplicates. Please try again."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:5430
+#: /app/src/modules/transactions/TransactionsModule.js:5431
 msgid ""
 "Found {groupCount} group(s) with {duplicateCount} suspected duplicate(s). "
 "The oldest transaction in each group is kept by default. Review and adjust "
 "the selection, then delete the checked items."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:5433
-#: /app/src/modules/transactions/TransactionsModule.js:5578
+#: /app/src/modules/transactions/TransactionsModule.js:5434
+#: /app/src/modules/transactions/TransactionsModule.js:5579
 #: /app/templates/index.php:1934
 msgid "Delete Selected"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:5448
+#: /app/src/modules/transactions/TransactionsModule.js:5449
 #: /app/src/utils/matchingDialog.js:48
 msgid "(no description)"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:5459
+#: /app/src/modules/transactions/TransactionsModule.js:5460
 msgid "keep"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:5460
+#: /app/src/modules/transactions/TransactionsModule.js:5461
 msgid "bill"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:5462
+#: /app/src/modules/transactions/TransactionsModule.js:5463
 msgid "scheduled"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:5463
+#: /app/src/modules/transactions/TransactionsModule.js:5464
 msgid "pending"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:5524
+#: /app/src/modules/transactions/TransactionsModule.js:5525
 msgid "Delete %n suspected duplicate transaction? This cannot be undone."
 msgid_plural ""
 "Delete %n suspected duplicate transactions? This cannot be undone."
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:5526
+#: /app/src/modules/transactions/TransactionsModule.js:5527
 msgid ""
 "%n of these was generated from bill payments. Make sure they are truly "
 "duplicates before deleting."
@@ -12985,17 +13014,17 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:5542
+#: /app/src/modules/transactions/TransactionsModule.js:5543
 msgid "Deleted %n duplicate transaction"
 msgid_plural "Deleted %n duplicate transactions"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:5565
+#: /app/src/modules/transactions/TransactionsModule.js:5566
 msgid "All duplicates have been resolved."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:5574
+#: /app/src/modules/transactions/TransactionsModule.js:5575
 msgid "Failed to delete duplicates"
 msgstr ""
 
