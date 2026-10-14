@@ -50,11 +50,20 @@ final class CellFormat {
 	 * arithmetic noise (0.30000000000000004) is written as the bank's
 	 * spreadsheet displays it.
 	 *
+	 * Always written out in full, never with an exponent: the importer would
+	 * read "1.234E-5" as -1.2345, taking the exponent's minus for the sign.
+	 * sprintf rounds to the 15 digits once, so the precision ini setting
+	 * plays no part. Trailing zeros after the point are dropped.
+	 *
 	 * The importer reads a lone separator followed by exactly three digits,
 	 * with one to three digits before it, as grouping thousands ("1.234" is
 	 * 1234; see TransactionNormalizer::groupsThousands). A value written here
 	 * never groups thousands, so a trailing zero keeps 1.234 from being read
 	 * as 1234.
+	 *
+	 * This text is part of a row's import id when the row has no id of its
+	 * own, so it must never change for a value once released: see
+	 * SpreadsheetFixturesTest.
 	 */
 	public static function numberText(float $value): string {
 		if (!is_finite($value)) {
@@ -63,8 +72,23 @@ final class CellFormat {
 		if ($value == 0.0) {
 			return '0';
 		}
-		$magnitude = (int)floor(log10(abs($value)));
-		$text = (string)round($value, 14 - $magnitude);
+		// "-1.23400000000000e-5": a sign, 15 significant digits, an exponent
+		if (preg_match('/^(-?)(\d)[.,](\d{14})e([+-]\d+)$/', sprintf('%.14e', $value), $match) !== 1) {
+			return '';
+		}
+		$digits = $match[2] . $match[3];
+		$exponent = (int)$match[4];
+		if ($exponent < 0) {
+			$text = '0.' . str_repeat('0', -$exponent - 1) . $digits;
+		} elseif ($exponent >= 14) {
+			$text = $digits . str_repeat('0', $exponent - 14);
+		} else {
+			$text = substr($digits, 0, $exponent + 1) . '.' . substr($digits, $exponent + 1);
+		}
+		if (str_contains($text, '.')) {
+			$text = rtrim(rtrim($text, '0'), '.');
+		}
+		$text = $match[1] . $text;
 		return preg_match('/^-?[1-9]\d{0,2}\.\d{3}$/', $text) === 1 ? $text . '0' : $text;
 	}
 
