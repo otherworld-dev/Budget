@@ -2251,13 +2251,17 @@ export default class ImportModule {
         // whatever the account it names is called, as it would have done
         // unreviewed (#425). Not a file of several accounts (a current
         // account and a card, say), nor one in another currency: those are
-        // mapped account by account, as any upload is
+        // mapped account by account, as any upload is. An account the file
+        // has nothing for does not count (an OFX of every account at the
+        // bank), nor one named again (a camt file's statement for each day)
         const targets = importTargetAccounts(accounts);
         const reviewed = targets.find(a => String(a.id) === String(this.currentImportData?.review?.accountId));
-        const sourceCurrency = String(this.sourceAccounts[0]?.currency || '').toUpperCase();
-        const fitsFolder = reviewed && this.sourceAccounts.length === 1
-            && (!sourceCurrency || !reviewed.currency || sourceCurrency === String(reviewed.currency).toUpperCase());
-        const folderAccount = fitsFolder ? reviewed.id : null;
+        const active = this.sourceAccounts.filter(source => source.transactionCount !== 0);
+        const activeIds = new Set(active.map(source => String(source.accountId)));
+        const fitsFolder = reviewed && activeIds.size === 1 && active.every(source => {
+            const currency = String(source.currency || '').toUpperCase();
+            return !currency || !reviewed.currency || currency === String(reviewed.currency).toUpperCase();
+        });
 
         this.sourceAccounts.forEach(sourceAccount => {
             const row = document.createElement('div');
@@ -2274,7 +2278,9 @@ export default class ImportModule {
             }
 
             // Build account options HTML with auto-match selection
-            const suggestedMatch = folderAccount ?? sourceAccount.suggestedMatch;
+            const suggestedMatch = fitsFolder && activeIds.has(String(sourceAccount.accountId))
+                ? reviewed.id
+                : sourceAccount.suggestedMatch;
             let optionsHtml = `<option value="">${t('budget', 'Skip this account')}</option>`;
             targets.forEach(account => {
                 const accountNum = account.accountNumber ? ` - ${account.accountNumber}` : '';

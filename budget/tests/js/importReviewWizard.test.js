@@ -238,6 +238,26 @@ describe('a reviewed file that names its own accounts (OFX, QIF, camt)', () => {
         expect(destinations()).toEqual(['', '3']);
     });
 
+    it('goes to the folder\'s account when it names one account several times', async () => {
+        // A camt file has a statement for each day, each naming the same IBAN
+        const daily = { accountId: 'IT60X0542811101000000123456', currency: 'EUR', suggestedMatch: null };
+        const mod = atReviewStep(intoCarta(), [{ ...daily, transactionCount: 3 }, { ...daily, transactionCount: 2 }]);
+        await mod.loadAccountsForImport();
+
+        expect(destinations()).toEqual(['4', '4']);
+    });
+
+    it('goes to the folder\'s account when the other accounts it names have nothing in it', async () => {
+        // An OFX of every account at the bank, only one of them used this month
+        const mod = atReviewStep(intoCarta(), [
+            { accountId: 'IT60X0542811101000000123456', currency: 'EUR', transactionCount: 3, suggestedMatch: null },
+            { accountId: '4111', currency: 'USD', transactionCount: 0, suggestedMatch: null },
+        ]);
+        await mod.loadAccountsForImport();
+
+        expect(destinations()).toEqual(['4', '']);
+    });
+
     it('is not sent to the folder\'s account when it is in another currency', async () => {
         const mod = atReviewStep(intoCarta(), [{ accountId: '4111', currency: 'USD', suggestedMatch: null }]);
         await mod.loadAccountsForImport();
