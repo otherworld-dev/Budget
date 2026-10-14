@@ -460,6 +460,46 @@ class TransactionTagServiceTest extends TestCase {
 		$this->service->replaceTransactionTags(5, [1, 2]);
 	}
 
+	/**
+	 * The tags it already has, in any order: nothing changes, so nothing is
+	 * written and updated_at stays put. Moved, a client syncing by it
+	 * fetched the row again for no change at all.
+	 */
+	public function testReplacingTagsWithTheSameSetWritesNothing(): void {
+		$this->transactionTagMapper->method('findByTransaction')->with(5)
+			->willReturn([$this->makeTransactionTag(5, 2), $this->makeTransactionTag(5, 1)]);
+		$this->db->expects($this->never())->method('beginTransaction');
+		$this->db->expects($this->never())->method('getQueryBuilder');
+		$this->transactionTagMapper->expects($this->never())->method('deleteByTransaction');
+		$this->transactionTagMapper->expects($this->never())->method('insert');
+
+		$this->service->replaceTransactionTags(5, [1, 2, 1]);
+	}
+
+	public function testReplacingNoTagsWithNoneWritesNothing(): void {
+		$this->transactionTagMapper->method('findByTransaction')->willReturn([]);
+		$this->db->expects($this->never())->method('beginTransaction');
+
+		$this->service->replaceTransactionTags(5, []);
+	}
+
+	public function testReplacingTagsWithAnOverlappingSetStillWrites(): void {
+		$this->transactionTagMapper->method('findByTransaction')
+			->willReturn([$this->makeTransactionTag(5, 1), $this->makeTransactionTag(5, 2)]);
+		$this->db->expects($this->once())->method('beginTransaction');
+		$this->db->expects($this->once())->method('commit');
+		$this->transactionTagMapper->expects($this->once())->method('deleteByTransaction')->with(5);
+		$qb = $this->createMock(IQueryBuilder::class);
+		$qb->method('expr')->willReturn($this->createMock(IExpressionBuilder::class));
+		$qb->method('createNamedParameter')->willReturn(':param');
+		foreach (['update', 'set', 'where'] as $m) {
+			$qb->method($m)->willReturnSelf();
+		}
+		$this->db->method('getQueryBuilder')->willReturn($qb);
+
+		$this->service->replaceTransactionTags(5, [1]);
+	}
+
 	public function testAnUnknownTagIsRefusedAsTheCallersMistakeInTheirLanguage(): void {
 		$this->transactionTagMapper->method('findByTransaction')->willReturn([]);
 		$this->tagMapper->method('findByIds')->willReturn([]);
