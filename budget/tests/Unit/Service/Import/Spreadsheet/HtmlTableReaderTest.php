@@ -98,6 +98,26 @@ class HtmlTableReaderTest extends TestCase {
 		(new HtmlTableReader())->read('<table><tr>' . str_repeat('<td rowspan="65534">x</td>', 1000) . '</tr>' . $rows . '</table>');
 	}
 
+	public function testOneLargeCellSpanningRowsCannotMultiplyItsText(): void {
+		// Each copy is written like any cell, and its text spent from the
+		// page's budget: a megabyte copied into 65,534 rows (and spanning a
+		// thousand columns) is refused once the copies pass MAX_TEXT_BYTES
+		$html = '<table><tr><td rowspan="65534" colspan="1000">' . str_repeat('a', 1024 * 1024) . '</td></tr>'
+			. str_repeat('<tr></tr>', 65533) . '</table>';
+		$begin = microtime(true);
+		try {
+			(new HtmlTableReader())->read($html);
+			$this->fail('A megabyte was copied into 65,534 rows');
+		} catch (SpreadsheetTooLargeError) {
+			$this->assertLessThan(1.0, microtime(true) - $begin);
+		}
+	}
+
+	public function testACellSpanningPastTheLastRowAddsNoRows(): void {
+		$html = '<table><tr><td>Date</td><td rowspan="65534">Description</td></tr><tr><td>02/01/2024</td></tr></table>';
+		$this->assertSame([['Date', 'Description'], ['02/01/2024', 'Description']], (new HtmlTableReader())->read($html)[0]['rows']);
+	}
+
 	public function testAHugeRowspanCannotMultiplyWork(): void {
 		// Each row below steps over a thousand spanned positions
 		$html = '<table><tr>' . str_repeat('<td rowspan="65534">x</td>', 1000) . '</tr>'
