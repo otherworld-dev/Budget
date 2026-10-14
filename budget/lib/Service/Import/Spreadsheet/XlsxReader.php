@@ -95,11 +95,17 @@ final class XlsxReader {
 	}
 
 	/**
+	 * The shared strings, held for the cells to use. However many cells use
+	 * one it is held once, but they are held whether or not any cell does, so
+	 * together they may hold no more text than a workbook's cells may
+	 * (MAX_TEXT_BYTES); each cell then spends its string again as it is read.
+	 *
 	 * @return list<string>
 	 */
 	private function sharedStrings(string $xml): array {
 		$reader = Xml::reader($xml);
 		$strings = [];
+		$budget = new SheetBudget();
 		while ($reader->read()) {
 			if ($reader->nodeType === \XMLReader::ELEMENT && $reader->localName === 'si') {
 				if (count($strings) >= SheetBuilder::MAX_CELLS) {
@@ -107,7 +113,9 @@ final class XlsxReader {
 				}
 				// Trimmed here, once: a cell then shares the string rather
 				// than copying it, however many cells use it
-				$strings[] = trim(self::content($reader)[1]);
+				$string = trim(self::content($reader, $budget->textLeft())[1]);
+				$budget->spend(0, strlen($string));
+				$strings[] = $string;
 			}
 		}
 		Xml::complete($reader);
@@ -123,12 +131,13 @@ final class XlsxReader {
 	 * a literal "_x" as _x005F_x; replacing left to right without going
 	 * back over a replacement handles both.
 	 *
-	 * The reader is left on the element's end tag.
+	 * The reader is left on the element's end tag. Each of the two may grow
+	 * no further than $limit, the workbook's text left.
 	 *
 	 * @return array{?string, string}
 	 * @throws SpreadsheetTooLargeError
 	 */
-	private static function content(\XMLReader $reader): array {
+	private static function content(\XMLReader $reader, int $limit): array {
 		$value = '';
 		$hasValue = false;
 		$text = '';
@@ -149,9 +158,9 @@ final class XlsxReader {
 					$collecting = null;
 				} elseif (Xml::isText($reader)) {
 					if ($collecting === 'v') {
-						Xml::append($value, $reader->value);
+						Xml::append($value, $reader->value, 0, $limit);
 					} else {
-						Xml::append($text, $reader->value);
+						Xml::append($text, $reader->value, 0, $limit);
 					}
 				}
 			} elseif ($reader->nodeType === \XMLReader::ELEMENT) {
@@ -260,7 +269,9 @@ final class XlsxReader {
 					: $column + 1;
 				$type = Xml::attr($reader, 't') ?? 'n';
 				$style = (int)(Xml::attr($reader, 's') ?? 0);
-				[$value, $text] = self::content($reader);
+				// No longer than the workbook's text left, and spent from it
+				// (by the builder) before the next cell is read
+				[$value, $text] = self::content($reader, $budget->textLeft());
 				$builder->add($row, $column, $this->cellText($type, $style, $value, $text, $strings, $cellFormats, $formatCodes, $date1904));
 			}
 		}

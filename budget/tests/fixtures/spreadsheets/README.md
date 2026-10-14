@@ -37,6 +37,17 @@ independent BIFF writer); the generator scripts are not kept, the files are.
   holding a run of 1,048,000 spaces (`<text:s text:c="1048000"/>`): each
   paragraph under the cell limit, the cell two gigabytes. It took the PHP
   process down on memory_limit; it must be refused, quickly.
+- `ods-big-cells.ods`: about 24 KB, one row of 400 cells, each one
+  paragraph of `a`, 1,047 runs of 1,000 spaces (`<text:s text:c="1000"/>`)
+  and `b`: every cell just under the cell limit, the row 400 MB. The row's
+  cells were kept until its end tag before any was counted, which took
+  the process down on a 512 MB memory_limit; it must be refused, quickly.
+- `ods-big-cells-hidden.ods`: the same 400 cells in a hidden first sheet,
+  then a short statement. The hidden sheet is stepped over unread and the
+  statement imported.
+- `overview-then-statement.ods`: an `Account | IBAN | Balance` overview
+  of one row, then a five-row statement with date cells. The statement
+  is imported, not the overview, though both are three columns wide.
 
 `golden/<fixture>.csv` is the exact CSV each fixture converts to, checked by
 `SpreadsheetFixturesTest`. Cell text is part of a row's import id when the

@@ -88,6 +88,43 @@ class SpreadsheetConverterTest extends TestCase {
 		);
 	}
 
+	public function testAStatementOfDatesWinsOverAnOverviewAsWide(): void {
+		$overview = '<table><tr><th>Account</th><th>IBAN</th><th>Balance</th></tr>'
+			. '<tr><td>Current account</td><td>GB29 NWBK 6016 1331 9268 19</td><td>1234.56</td></tr></table>';
+		$this->assertSame(
+			"Date,Description,Amount\n02/01/2024,Coffee,-3.50\n03/01/2024,Salary,2000.00\n",
+			$this->converter->toCsv($overview . '<table><tr><th>Date</th><th>Description</th><th>Amount</th></tr>'
+				. '<tr><td>02/01/2024</td><td>Coffee</td><td>-3.50</td></tr>'
+				. '<tr><td>03/01/2024</td><td>Salary</td><td>2000.00</td></tr></table>')
+		);
+		// Half the rows dated is enough: a description on two lines
+		$this->assertStringStartsWith(
+			"Date,Description,Amount\n2024-01-02,Card payment,-3.50\n,COFFEE SHOP LONDON,\n",
+			$this->converter->toCsv($overview . '<table><tr><th>Date</th><th>Description</th><th>Amount</th></tr>'
+				. '<tr><td>2024-01-02</td><td>Card payment</td><td>-3.50</td></tr><tr><td></td><td>COFFEE SHOP LONDON</td><td></td></tr>'
+				. '<tr><td>2024-01-03</td><td>Transfer</td><td>2000.00</td></tr><tr><td></td><td>SALARY</td><td></td></tr></table>')
+		);
+		// With dates in neither, the first table three columns wide
+		$this->assertStringStartsWith(
+			'Account,IBAN,Balance',
+			$this->converter->toCsv($overview . '<table><tr><th>Ref</th><th>Description</th><th>Amount</th></tr>'
+				. '<tr><td>A1</td><td>Coffee</td><td>-3.50</td></tr><tr><td>A2</td><td>Salary</td><td>2000.00</td></tr></table>')
+		);
+		// A column of words is not a column of dates, however a fallback might read them
+		$this->assertStringStartsWith(
+			'Account,IBAN,Balance',
+			$this->converter->toCsv($overview . '<table><tr><th>Month</th><th>Description</th><th>Amount</th></tr>'
+				. '<tr><td>May</td><td>Coffee</td><td>-3.50</td></tr><tr><td>June</td><td>Salary</td><td>2000.00</td></tr></table>')
+		);
+	}
+
+	public function testOfTwoStatementsTheFirstWins(): void {
+		$table = static fn (string $name, string $date): string => '<table><tr><th>Date</th><th>' . $name . '</th><th>Amount</th></tr>'
+			. '<tr><td>' . $date . '</td><td>x</td><td>1</td></tr><tr><td>' . $date . '</td><td>y</td><td>2</td></tr></table>';
+		$this->assertStringStartsWith('Date,First,', $this->converter->toCsv($table('First', '2024-01-02') . $table('Second', '02.01.2024')));
+		$this->assertStringStartsWith('Date,First,', $this->converter->toCsv($table('First', '02.01.2024') . $table('Second', '2024-01-02')));
+	}
+
 	public function testPlainTextIsLeftAsItIs(): void {
 		$bytes = file_get_contents(self::FIXTURES . 'tab-separated.xls');
 		$this->assertSame($bytes, $this->converter->toCsv($bytes));

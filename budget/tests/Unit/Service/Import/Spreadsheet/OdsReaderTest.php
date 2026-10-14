@@ -213,6 +213,76 @@ class OdsReaderTest extends TestCase {
 		$this->readFile($path);
 	}
 
+	/**
+	 * Read $path, which must be refused as too large, in under a second and
+	 * without holding more than a few megabytes along the way
+	 */
+	private function assertRefusedQuicklyAndSmall(string $path): void {
+		$reset = function_exists('memory_reset_peak_usage');
+		if ($reset) {
+			memory_reset_peak_usage();
+		}
+		$before = memory_get_usage();
+		$start = microtime(true);
+		try {
+			$this->readFile($path);
+			$this->fail(basename($path) . ' was read');
+		} catch (SpreadsheetTooLargeError) {
+			$this->assertLessThan(1.0, microtime(true) - $start);
+			if ($reset) {
+				// The workbook's text budget is 32 MB; nothing past it may be held
+				$this->assertLessThan(48 * 1024 * 1024, memory_get_peak_usage() - $before);
+			}
+		}
+	}
+
+	public function testARowOfLargeCellsIsRefusedBeforeItIsHeld(): void {
+		// 400 cells of a megabyte each from 24 KB of file: each cell was kept
+		// for its row and only counted at the row's end, by which time the
+		// row held 400 MB and memory_limit had taken the process down
+		$this->assertRefusedQuicklyAndSmall(self::FIXTURES . 'ods-big-cells.ods');
+	}
+
+	public function testLargeCellsInRowsOutsideAnyTableAreNeverRead(): void {
+		$big = '<table:table-cell office:value-type="string"><text:p>a' . str_repeat('<text:s text:c="1000"/>', 1047) . 'b</text:p></table:table-cell>';
+		$path = $this->odsOf(
+			'<table:table table:name="Movimenti"><table:table-row><table:table-cell office:value-type="string"><text:p>kept</text:p></table:table-cell></table:table-row></table:table>'
+			. '<table:table-row>' . str_repeat($big, 400) . '</table:table-row>'
+			. str_repeat($big, 400)
+		);
+		$start = microtime(true);
+		$this->assertSame([['kept']], $this->readFile($path)[0]['rows']);
+		$this->assertLessThan(1.0, microtime(true) - $start);
+	}
+
+	public function testAHiddenSheetsCellsAreNeverRead(): void {
+		// The hidden sheet's 400 cells of a megabyte each are stepped over
+		// unread, and the statement after it is read
+		$reset = function_exists('memory_reset_peak_usage');
+		if ($reset) {
+			memory_reset_peak_usage();
+		}
+		$before = memory_get_usage();
+		$start = microtime(true);
+		$sheets = $this->readFile(self::FIXTURES . 'ods-big-cells-hidden.ods');
+		$this->assertLessThan(1.0, microtime(true) - $start);
+		if ($reset) {
+			// content.xml itself is 10 MB; its cells would be 400 MB
+			$this->assertLessThan(16 * 1024 * 1024, memory_get_peak_usage() - $before);
+		}
+		$this->assertSame(['Statement'], array_column($sheets, 'name'));
+		$this->assertSame([['Date', 'Description', 'Amount'], ['01/10/2026', 'Coffee', '-3.50'], ['02/10/2026', 'Salary', '2000.00']], $sheets[0]['rows']);
+	}
+
+	public function testALargeCellRepeatedAcrossColumnsAndRowsIsRefusedQuickly(): void {
+		$path = $this->odsWith(
+			'<table:table-row table:number-rows-repeated="1000000">'
+			. '<table:table-cell table:number-columns-repeated="1000" office:value-type="string"><text:p>a'
+			. str_repeat('<text:s text:c="1000"/>', 1047) . 'b</text:p></table:table-cell></table:table-row>'
+		);
+		$this->assertRefusedQuicklyAndSmall($path);
+	}
+
 	public function testTheMillionRowPaddingIsSkippedQuickly(): void {
 		$path = $this->odsWith(
 			'<table:table-row><table:table-cell office:value-type="string"><text:p>a</text:p></table:table-cell>'

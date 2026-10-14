@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Service\Import\Spreadsheet;
 
 use OCA\Budget\Exception\ValidationException;
+use OCA\Budget\Service\Import\TransactionNormalizer;
 use OCP\IL10N;
 use OCP\ITempManager;
 
@@ -37,11 +38,14 @@ class SpreadsheetConverter {
 	 *
 	 * Of the sheets holding a table (a header and a row at least), the
 	 * statement is taken to be the first whose table is three columns wide
-	 * or more, or failing that the first. A cover sheet of a few "label |
-	 * value" lines is a table too, but a narrow one. How many rows a table
-	 * has never counts: in a workbook of one sheet per account that would
-	 * import whichever account was busiest that month, and a summary sheet
-	 * after the statement could outnumber it.
+	 * or more and has a column of dates; failing that, the first three
+	 * columns wide or more; failing that, the first. A cover sheet of a few
+	 * "label | value" lines is a table too, but a narrow one, and an
+	 * overview of accounts (Account | IBAN | Balance) can be as wide as the
+	 * statement but has no dates. How many rows a table has never counts:
+	 * in a workbook of one sheet per account that would import whichever
+	 * account was busiest that month, and a summary sheet after the
+	 * statement could outnumber it.
 	 *
 	 * @throws ValidationException With a message for the user
 	 */
@@ -53,17 +57,25 @@ class SpreadsheetConverter {
 				return $bytes;
 			}
 			$best = null;
+			$wide = null;
+			$first = null;
+			$normalizer = new TransactionNormalizer();
 			foreach ($sheets as $sheet) {
 				$table = SpreadsheetTable::extract($sheet['rows']);
 				if (count($table) < 2) {
 					continue;
 				}
-				if (count($table[0]) >= 3) {
+				$first ??= $table;
+				if (count($table[0]) < 3) {
+					continue;
+				}
+				if (self::hasDateColumn($table, $normalizer)) {
 					$best = $table;
 					break;
 				}
-				$best ??= $table;
+				$wide ??= $table;
 			}
+			$best ??= $wide ?? $first;
 			if ($best !== null) {
 				return SpreadsheetTable::toCsv($best);
 			}
@@ -79,6 +91,34 @@ class SpreadsheetConverter {
 			libxml_use_internal_errors($previous);
 		}
 		throw new ValidationException($this->l->t('This spreadsheet has no table of transactions to import.'));
+	}
+
+	/**
+	 * Whether a column holds a date in at least half the table's rows below
+	 * its header, by the importer's own date formats. A date cell of a
+	 * spreadsheet is written as Y-m-d (CellFormat), which they read; a date
+	 * written as text (or in an HTML table) is read as the import will read
+	 * it. Half rather than most: a statement can have a line of its own for
+	 * an opening and a closing balance, or a second line to a description.
+	 *
+	 * @param list<list<string>> $table
+	 */
+	private static function hasDateColumn(array $table, TransactionNormalizer $normalizer): bool {
+		$rows = count($table) - 1;
+		foreach (array_keys($table[0]) as $column) {
+			$dates = 0;
+			for ($i = 1; $i <= $rows; $i++) {
+				if ($normalizer->isDate($table[$i][$column])) {
+					if (2 * ++$dates >= $rows) {
+						return true;
+					}
+				} elseif (2 * ($i - $dates) > $rows) {
+					// Too few rows left for half to be dates
+					break;
+				}
+			}
+		}
+		return false;
 	}
 
 	/**

@@ -195,6 +195,17 @@ class XlsxReaderTest extends TestCase {
 		$this->readFile($path);
 	}
 
+	public function testSharedStringsPastTheWorkbooksTextAreTooLarge(): void {
+		// Held whether or not a cell uses them, so they may hold no more
+		// text than the workbook's cells could
+		$path = $this->workbookWith(
+			'<row r="1"><c r="A1" t="inlineStr"><is><t>x</t></is></c></row>',
+			str_repeat('<si><t>' . str_repeat('x', 1024 * 1024) . '</t></si>', 33)
+		);
+		$this->expectException(SpreadsheetTooLargeError::class);
+		$this->readFile($path);
+	}
+
 	public function testTooManyCellStyles(): void {
 		$path = $this->workbookWith('', '', '<cellXfs>' . str_repeat('<xf numFmtId="0"/>', 65537) . '</cellXfs>');
 		$this->expectException(SpreadsheetTooLargeError::class);

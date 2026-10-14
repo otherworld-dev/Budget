@@ -58,7 +58,7 @@ final class HtmlTableReader {
 					if ($column >= SheetBuilder::MAX_COLUMNS) {
 						break;
 					}
-					$text = trim(preg_replace('/[\s\x{00A0}]+/u', ' ', $cell->textContent) ?? '');
+					$text = self::cellText($cell, $budget->textLeft());
 					$builder->add($row, $column, $text);
 					$columns = max(1, min((int)$cell->getAttribute('colspan'), SheetBuilder::MAX_COLUMNS - $column));
 					$rowspan = min((int)$cell->getAttribute('rowspan'), 65534);
@@ -88,6 +88,27 @@ final class HtmlTableReader {
 			$sheets[] = $builder->build();
 		}
 		return $sheets;
+	}
+
+	/**
+	 * A cell's text, each run of whitespace one space, refused past $limit
+	 * (what is left of the page's text) before it is copied again.
+	 *
+	 * A cell holds the text of every table nested inside it, so each level
+	 * of tables nested in each other's cells copies the text inside it once
+	 * more. The one copy taken here is never more than the page's own text,
+	 * which the page's bytes and its DOM already hold; measuring the text
+	 * nodes first instead, without copying them, took ten times as long on
+	 * a page of nested tables.
+	 *
+	 * @throws SpreadsheetTooLargeError
+	 */
+	private static function cellText(\DOMElement $cell, int $limit): string {
+		$text = $cell->textContent;
+		if (strlen($text) > $limit) {
+			throw new SpreadsheetTooLargeError('Page has more than ' . SheetBuilder::MAX_TEXT_BYTES . ' bytes of text');
+		}
+		return trim(preg_replace('/[\s\x{00A0}]+/u', ' ', $text) ?? '');
 	}
 
 	/**

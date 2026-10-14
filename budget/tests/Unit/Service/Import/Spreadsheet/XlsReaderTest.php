@@ -168,6 +168,15 @@ class XlsReaderTest extends TestCase {
 		(new XlsReader())->readWorkbook(self::workbook([$sst], []));
 	}
 
+	public function testSharedStringsPastTheWorkbooksTextAreTooLarge(): void {
+		// 2,100 strings of 8,000 characters, each two bytes once in UTF-8:
+		// more text than a workbook's cells may hold, though no cell uses it
+		$string = pack('vC', 8000, 0) . str_repeat("\xE9", 8000);
+		$sst = self::record(0x00FC, pack('VV', 2100, 2100) . $string) . str_repeat(self::record(0x003C, $string), 2099);
+		$this->expectException(SpreadsheetTooLargeError::class);
+		(new XlsReader())->readWorkbook(self::workbook([$sst], []));
+	}
+
 	public function testTheLimitsCoverEverySheetOfAWorkbook(): void {
 		// Two sheets of 600,000 cells: each is within the limit, the workbook is not
 		$cells = '';
