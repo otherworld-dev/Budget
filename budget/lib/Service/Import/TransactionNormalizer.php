@@ -631,6 +631,29 @@ class TransactionNormalizer {
 	}
 
 	/**
+	 * Whether a value reads as a date by one of the formats normalizeDate()
+	 * tries: Y-m-d, or any of DATE_FORMATS. Its last resorts are left out,
+	 * the OFX form (which takes any number of eight digits or more) and
+	 * strtotime() (which takes "May", or a lone letter as a time zone).
+	 */
+	public function isDate(string $value): bool {
+		$value = trim($value);
+		// Every format is three runs of digits split by -, / or .
+		if (preg_match('#^\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4}$#', $value) !== 1) {
+			return false;
+		}
+		if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) === 1) {
+			return true;
+		}
+		foreach (self::DATE_FORMATS as $format) {
+			if ($this->isValidDateParse($format, $value)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
 	 * Check if a date string validly parses with the given format.
 	 *
 	 * Rejects parses that produce no errors but are implausible, e.g.

@@ -45,6 +45,9 @@ independent BIFF writer); the generator scripts are not kept, the files are.
 - `ods-big-cells-hidden.ods`: the same 400 cells in a hidden first sheet,
   then a short statement. The hidden sheet is stepped over unread and the
   statement imported.
+- `overview-then-statement.ods`: an `Account | IBAN | Balance` overview
+  of one row, then a five-row statement with date cells. The statement
+  is imported, not the overview, though both are three columns wide.
 
 `golden/<fixture>.csv` is the exact CSV each fixture converts to, checked by
 `SpreadsheetFixturesTest`. Cell text is part of a row's import id when the
