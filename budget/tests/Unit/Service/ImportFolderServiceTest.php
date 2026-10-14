@@ -1555,4 +1555,44 @@ class ImportFolderServiceTest extends TestCase {
 
 		$this->assertSame([['import_folder_review', 'import_folder', '11']], $this->dismissed);
 	}
+
+	// ── the stored upload of a file that is not imported ────────────
+
+	public function testAFileGivenUpOnAfterItsUploadHasTheUploadDeleted(): void {
+		$this->csvTemplate(5);
+		$this->rows = [$this->row(1, 'Conto', 3, 5)];
+		$this->fileIn($this->at('Budget/Import/Conto'), 'ottobre.csv');
+		$this->givenACsvUpload(['validTransactions' => 0, 'duplicates' => 0]);
+		$this->importService->expects($this->once())->method('discardUpload')->with('alice', 'import_alice_abc.csv');
+
+		$this->assertSame(1, $this->service->check('alice')['failed']);
+	}
+
+	public function testAnImportThatThrowsHasTheUploadDeleted(): void {
+		$this->rows = [$this->row(1, 'Conto')];
+		$this->fileIn($this->at('Budget/Import/Conto'), 'estratto.ofx', content: "OFXHEADER:100\n<OFX></OFX>\n");
+		$this->givenAnOfxUpload([['accountId' => 'IT60X', 'currency' => 'EUR', 'transactionCount' => 4]]);
+		$this->importService->method('processImport')->willThrowException(new \RuntimeException('SQLSTATE'));
+		$this->importService->expects($this->once())->method('discardUpload')->with('alice', 'f.ofx');
+
+		$this->assertSame(1, $this->service->check('alice')['failed']);
+	}
+
+	public function testAnImportedFileLeavesTheUploadToTheImport(): void {
+		$this->csvTemplate(5);
+		$this->rows = [$this->row(1, 'Conto', 3, 5)];
+		$this->fileIn($this->at('Budget/Import/Conto'), 'ottobre.csv');
+		$this->givenACsvUpload();
+		$this->importService->expects($this->never())->method('discardUpload');
+
+		$this->assertSame(1, $this->service->check('alice')['imported']);
+	}
+
+	public function testAFileThatFailsBeforeItsUploadHasNoUploadToDelete(): void {
+		$this->rows = [$this->row(1, 'Conto')];
+		$this->fileIn($this->at('Budget/Import/Conto'), 'ricevuta.pdf');
+		$this->importService->expects($this->never())->method('discardUpload');
+
+		$this->assertSame(1, $this->service->check('alice')['failed']);
+	}
 }

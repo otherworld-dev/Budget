@@ -951,6 +951,26 @@ class ImportFolderService {
 		$account = $this->openAccount($userId, $accountId) ?? throw new ImportFolderFailure('account_unavailable');
 		$upload = $this->upload($userId, $name, $extension, $content);
 		$fileId = (string)$upload['fileId'];
+		try {
+			return $this->importUpload($userId, $row, $account, $name, $fileId, $upload);
+		} catch (\Throwable $e) {
+			// processImport() deletes it once imported. Given up on here,
+			// nothing else would until the cleanup job, a day later
+			$this->importService->discardUpload($userId, $fileId);
+			throw $e;
+		}
+	}
+
+	/**
+	 * The rest of import(), once the file is stored as an upload.
+	 *
+	 * @param array<string, mixed> $upload
+	 * @return array<string, string>
+	 * @throws ImportFolderFailure
+	 * @throws ValidationException
+	 */
+	private function importUpload(string $userId, ImportFolder $row, Account $account, string $name, string $fileId, array $upload): array {
+		$accountId = (int)$account->getId();
 		$format = (string)$upload['format'];
 
 		$template = $this->template($userId, $row->getTemplateId());

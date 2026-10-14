@@ -149,7 +149,22 @@ class ImportService {
 
 			return $this->buildEncodedUploadResponse($userId, $fileId, $fileName, $format, $raw, $fileSize, null);
 		} catch (\Exception $e) {
+			// Its id never reaches the caller, so nothing would delete it
+			$this->discardUpload($userId, $fileId);
 			throw new \Exception($this->l->t('Failed to process upload: %1$s', [$e->getMessage()]));
+		}
+	}
+
+	/**
+	 * Delete a stored upload that will not be imported. processImport()
+	 * deletes it once imported; one given up on would otherwise wait for
+	 * CleanupImportFilesJob. Best effort: one already gone is fine.
+	 */
+	public function discardUpload(string $userId, string $fileId): void {
+		try {
+			$this->getImportFile($userId, $fileId)->delete();
+		} catch (\Throwable) {
+			// Not there, or not this user's: nothing to do
 		}
 	}
 

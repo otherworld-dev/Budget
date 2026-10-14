@@ -1664,4 +1664,59 @@ class ImportServiceTest extends TestCase {
 		$this->assertMatchesRegularExpression('/\.csv$/', $result['fileId']);
 		$this->assertSame('csv', $result['format']);
 	}
+
+	public function testAnUploadGivenUpOnIsDeleted(): void {
+		$file = $this->createMock(ISimpleFile::class);
+		$file->expects($this->once())->method('delete');
+		$folder = $this->createMock(ISimpleFolder::class);
+		$folder->method('getFile')->with('import_user1_0123456789abcdef0123456789abcdef.csv')->willReturn($file);
+		$this->appData->method('getFolder')->with('imports')->willReturn($folder);
+
+		$this->service->discardUpload('user1', 'import_user1_0123456789abcdef0123456789abcdef.csv');
+	}
+
+	public function testOnlyTheUsersOwnUploadCanBeDiscarded(): void {
+		$this->appData->expects($this->never())->method('getFolder');
+
+		$this->service->discardUpload('user1', 'import_user2_0123456789abcdef0123456789abcdef.csv');
+	}
+
+	public function testDiscardingAnUploadAlreadyGoneIsFine(): void {
+		$folder = $this->createMock(ISimpleFolder::class);
+		$folder->method('getFile')->willThrowException(new \OCP\Files\NotFoundException());
+		$this->appData->method('getFolder')->willReturn($folder);
+
+		$this->service->discardUpload('user1', 'import_user1_0123456789abcdef0123456789abcdef.csv');
+		$this->addToAssertionCount(1);
+	}
+
+	public function testAnUploadThatCannotBeReadIsNotKept(): void {
+		// Its id never reaches the caller, so nothing would delete it
+		$tmp = tempnam(sys_get_temp_dir(), 'up');
+		file_put_contents($tmp, 'OFXHEADER:100');
+		$stored = null;
+		$file = $this->createMock(ISimpleFile::class);
+		$folder = $this->createMock(ISimpleFolder::class);
+		$folder->method('newFile')->willReturnCallback(function (string $name) use (&$stored, $file) {
+			$stored = $name;
+			return $file;
+		});
+		$folder->method('getFile')->willReturnCallback(function (string $name) use (&$stored, $file) {
+			$this->assertSame($stored, $name);
+			return $file;
+		});
+		$this->appData->method('getFolder')->with('imports')->willReturn($folder);
+		$this->parserFactory->method('detectFormat')->willReturn('ofx');
+		$this->parserFactory->method('parseFull')->willThrowException(new \RuntimeException('Not an OFX file'));
+		$file->expects($this->once())->method('delete');
+
+		try {
+			$this->service->processUpload('user1', ['name' => 'a.ofx', 'tmp_name' => $tmp, 'size' => 13]);
+			$this->fail('Read a broken file');
+		} catch (\Exception $e) {
+			$this->assertStringContainsString('Not an OFX file', $e->getMessage());
+		} finally {
+			unlink($tmp);
+		}
+	}
 }
