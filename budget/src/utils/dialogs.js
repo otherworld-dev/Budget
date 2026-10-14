@@ -291,7 +291,7 @@ export function alertDialog(message, options = {}) {
  * Show release notes after an update (src/whatsnew.json, see utils/whatsNew.js).
  * Built with textContent only, like every dialog here.
  *
- * @param {Array<{version: string, title: string, items: string[], link?: string}>} entries
+ * @param {Array<{version: string, title: string, items: string[], link?: string, links?: Array<{url: string, text: string}>}>} entries
  *        Newest first.
  * @return {Promise<void>} resolves once dismissed, however it was dismissed.
  */
@@ -323,14 +323,31 @@ export function whatsNewDialog(entries) {
                 }
                 section.appendChild(list);
 
+                // Read more, then any links that name themselves (a store
+                // page, say). https only, as the file is edited by hand.
+                const links = [];
                 if (typeof entry.link === 'string' && entry.link.startsWith('https://')) {
-                    const link = document.createElement('a');
-                    link.className = 'whats-new-link';
-                    link.href = entry.link;
-                    link.target = '_blank';
-                    link.rel = 'noopener noreferrer';
-                    link.textContent = t('budget', 'Read more');
-                    section.appendChild(link);
+                    links.push({ url: entry.link, text: t('budget', 'Read more') });
+                }
+                for (const extra of Array.isArray(entry.links) ? entry.links : []) {
+                    if (extra && typeof extra.url === 'string' && extra.url.startsWith('https://')
+                        && typeof extra.text === 'string' && extra.text.trim() !== '') {
+                        links.push(extra);
+                    }
+                }
+                if (links.length > 0) {
+                    const row = document.createElement('div');
+                    row.className = 'whats-new-links';
+                    for (const { url, text } of links) {
+                        const link = document.createElement('a');
+                        link.className = 'whats-new-link';
+                        link.href = url;
+                        link.target = '_blank';
+                        link.rel = 'noopener noreferrer';
+                        link.textContent = text;
+                        row.appendChild(link);
+                    }
+                    section.appendChild(row);
                 }
 
                 body.appendChild(section);

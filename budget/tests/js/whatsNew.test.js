@@ -139,6 +139,14 @@ describe('src/whatsnew.json', () => {
             if (e.link !== undefined) {
                 expect(e.link).toMatch(/^https:\/\//);
             }
+            if (e.links !== undefined) {
+                expect(Array.isArray(e.links)).toBe(true);
+                for (const link of e.links) {
+                    expect(link.url).toMatch(/^https:\/\//);
+                    expect(typeof link.text).toBe('string');
+                    expect(link.text.trim()).not.toBe('');
+                }
+            }
         }
     });
 
@@ -185,6 +193,47 @@ describe('whatsNewDialog', () => {
         const done = whatsNewDialog([{ version: '2.55.0', title: 'T', items: ['x'], link: 'javascript:alert(1)' }]);
         await tick();
         expect(document.querySelector('.whats-new-link')).toBeNull();
+        document.querySelector('.budget-dialog-confirm').click();
+        await done;
+    });
+
+    it('adds links with their own text after Read more', async () => {
+        const done = whatsNewDialog([{
+            version: '3.0.0',
+            title: 'T',
+            items: ['x'],
+            link: 'https://budget.otherworld.dev/',
+            links: [{ url: 'https://play.google.com/store/apps/details?id=dev.otherworld.budget', text: 'Get it on <b>Google Play</b>' }],
+        }]);
+        await tick();
+
+        const links = [...document.querySelectorAll('.whats-new-link')];
+        expect(links.map(a => a.textContent)).toEqual(['Read more', 'Get it on <b>Google Play</b>']);
+        expect(links[1].getAttribute('href')).toBe('https://play.google.com/store/apps/details?id=dev.otherworld.budget');
+        expect(links[1].getAttribute('target')).toBe('_blank');
+        expect(links[1].getAttribute('rel')).toContain('noopener');
+        expect(document.querySelector('.whats-new-link b')).toBeNull();
+
+        document.querySelector('.budget-dialog-confirm').click();
+        await done;
+    });
+
+    it('drops an extra link that is not https or has no text', async () => {
+        const done = whatsNewDialog([{
+            version: '3.0.0',
+            title: 'T',
+            items: ['x'],
+            links: [
+                { url: 'javascript:alert(1)', text: 'Bad' },
+                { url: 'https://budget.otherworld.dev/', text: ' ' },
+                { url: 'https://budget.otherworld.dev/docs/', text: 'Docs' },
+                'https://budget.otherworld.dev/not-an-object',
+            ],
+        }]);
+        await tick();
+
+        expect([...document.querySelectorAll('.whats-new-link')].map(a => a.textContent)).toEqual(['Docs']);
+
         document.querySelector('.budget-dialog-confirm').click();
         await done;
     });

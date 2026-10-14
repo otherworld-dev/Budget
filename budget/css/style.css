@@ -20174,6 +20174,12 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
     overflow-wrap: anywhere;
 }
 
+.whats-new-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 20px;
+}
+
 .whats-new-link {
     color: var(--color-primary-element, #0082c9);
     text-decoration: underline;
