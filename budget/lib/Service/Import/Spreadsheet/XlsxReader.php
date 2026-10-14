@@ -119,10 +119,9 @@ final class XlsxReader {
 	 * the text of its first <v> child, if it has one, and the text of its
 	 * <t> elements (a rich-text string has one per run) leaving out
 	 * phonetic runs (<rPh>) and extensions (<extLst>), with Excel's _xHHHH_
-	 * escapes decoded. Excel
-	 * writes a line break in a cell as _x000D_, and a literal "_x" as
-	 * _x005F_x; replacing left to right without going back over a
-	 * replacement handles both.
+	 * escapes decoded. Excel writes a line break in a cell as _x000D_, and
+	 * a literal "_x" as _x005F_x; replacing left to right without going
+	 * back over a replacement handles both.
 	 *
 	 * The reader is left on the element's end tag.
 	 *
