@@ -1108,6 +1108,75 @@ class ImportServiceTest extends TestCase {
 		$this->assertSame(1, $result['duplicates']);
 	}
 
+	// ===== one account named by several statements =====
+
+	/**
+	 * A camt.053 has a <Stmt> for each day, each naming the same IBAN.
+	 *
+	 * @param int[] $perDay How many entries each day's statement holds
+	 */
+	private function mockCamtFileOfDays(array $perDay): void {
+		$this->mockImportFile('import_user1_0123456789abcdef0123456789abcdef.xml', 'camt data');
+		$this->parserFactory->method('detectFormat')->willReturn('camt');
+		$accounts = [];
+		foreach ($perDay as $day => $count) {
+			$transactions = [];
+			for ($i = 0; $i < $count; $i++) {
+				$transactions[] = ['date' => '2026-10-0' . ($day + 1), 'rawAmount' => -1 - $i, 'description' => 'Day ' . ($day + 1) . ' entry ' . $i, 'id' => 'D' . $day . 'E' . $i];
+			}
+			$accounts[] = ['accountId' => 'IT60X', 'transactions' => $transactions];
+		}
+		$this->parserFactory->method('parseFull')->willReturn(['accounts' => $accounts]);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount(7, 'Conto'));
+		$this->normalizer->method('mapOfxTransaction')->willReturnCallback(static fn (array $txn): array => [
+			'date' => $txn['date'], 'amount' => abs($txn['rawAmount']), 'type' => 'debit', 'description' => $txn['description'],
+		]);
+		$this->normalizer->method('ofxImportIdentity')->willReturnArgument(0);
+		$this->normalizer->method('generateImportId')->willReturnCallback(static fn ($fileId, $key, array $txn): string => 'camt_' . $txn['id']);
+		$this->duplicateDetector->method('isDuplicate')->willReturn(false);
+		$this->duplicateDetector->method('isDuplicateByImportId')->willReturn(false);
+		$this->ruleApplicator->method('applyRules')->willReturnArgument(1);
+	}
+
+	public static function camtDays(): array {
+		return [
+			'a day with nothing after one with two' => [[2, 0], 2],
+			'a day with one after one with two' => [[2, 1], 3],
+		];
+	}
+
+	/**
+	 * @dataProvider camtDays
+	 */
+	public function testThePreviewCountsEveryStatementOfTheSameAccount(array $perDay, int $total): void {
+		$this->mockCamtFileOfDays($perDay);
+
+		$result = $this->service->previewImport('user1', 'import_user1_0123456789abcdef0123456789abcdef.xml', [], null, ['IT60X' => 7]);
+
+		$this->assertSame($total, $result['validTransactions']);
+		$this->assertCount(1, $result['accountSummaries']);
+		$this->assertSame($total, $result['accountSummaries'][0]['transactionCount']);
+		$this->assertSame(0, $result['accountSummaries'][0]['duplicates']);
+	}
+
+	/**
+	 * @dataProvider camtDays
+	 */
+	public function testTheImportCountsEveryStatementOfTheSameAccount(array $perDay, int $total): void {
+		$this->mockCamtFileOfDays($perDay);
+		$this->transactionService->method('create')->willReturnCallback(static function (): Transaction {
+			$tx = new Transaction();
+			$tx->setId(1);
+			return $tx;
+		});
+
+		$result = $this->service->processImport('user1', 'import_user1_0123456789abcdef0123456789abcdef.xml', [], null, ['IT60X' => 7]);
+
+		$this->assertSame($total, $result['imported']);
+		$this->assertCount(1, $result['accountResults']);
+		$this->assertSame($total, $result['accountResults'][0]['imported']);
+	}
+
 	// ===== OFX/QIF column mapping (#338) =====
 
 	/**
@@ -1594,5 +1663,60 @@ class ImportServiceTest extends TestCase {
 		$this->assertSame(Import\Spreadsheet\SpreadsheetConverterTest::STATEMENT_CSV, $stored);
 		$this->assertMatchesRegularExpression('/\.csv$/', $result['fileId']);
 		$this->assertSame('csv', $result['format']);
+	}
+
+	public function testAnUploadGivenUpOnIsDeleted(): void {
+		$file = $this->createMock(ISimpleFile::class);
+		$file->expects($this->once())->method('delete');
+		$folder = $this->createMock(ISimpleFolder::class);
+		$folder->method('getFile')->with('import_user1_0123456789abcdef0123456789abcdef.csv')->willReturn($file);
+		$this->appData->method('getFolder')->with('imports')->willReturn($folder);
+
+		$this->service->discardUpload('user1', 'import_user1_0123456789abcdef0123456789abcdef.csv');
+	}
+
+	public function testOnlyTheUsersOwnUploadCanBeDiscarded(): void {
+		$this->appData->expects($this->never())->method('getFolder');
+
+		$this->service->discardUpload('user1', 'import_user2_0123456789abcdef0123456789abcdef.csv');
+	}
+
+	public function testDiscardingAnUploadAlreadyGoneIsFine(): void {
+		$folder = $this->createMock(ISimpleFolder::class);
+		$folder->method('getFile')->willThrowException(new \OCP\Files\NotFoundException());
+		$this->appData->method('getFolder')->willReturn($folder);
+
+		$this->service->discardUpload('user1', 'import_user1_0123456789abcdef0123456789abcdef.csv');
+		$this->addToAssertionCount(1);
+	}
+
+	public function testAnUploadThatCannotBeReadIsNotKept(): void {
+		// Its id never reaches the caller, so nothing would delete it
+		$tmp = tempnam(sys_get_temp_dir(), 'up');
+		file_put_contents($tmp, 'OFXHEADER:100');
+		$stored = null;
+		$file = $this->createMock(ISimpleFile::class);
+		$folder = $this->createMock(ISimpleFolder::class);
+		$folder->method('newFile')->willReturnCallback(function (string $name) use (&$stored, $file) {
+			$stored = $name;
+			return $file;
+		});
+		$folder->method('getFile')->willReturnCallback(function (string $name) use (&$stored, $file) {
+			$this->assertSame($stored, $name);
+			return $file;
+		});
+		$this->appData->method('getFolder')->with('imports')->willReturn($folder);
+		$this->parserFactory->method('detectFormat')->willReturn('ofx');
+		$this->parserFactory->method('parseFull')->willThrowException(new \RuntimeException('Not an OFX file'));
+		$file->expects($this->once())->method('delete');
+
+		try {
+			$this->service->processUpload('user1', ['name' => 'a.ofx', 'tmp_name' => $tmp, 'size' => 13]);
+			$this->fail('Read a broken file');
+		} catch (\Exception $e) {
+			$this->assertStringContainsString('Not an OFX file', $e->getMessage());
+		} finally {
+			unlink($tmp);
+		}
 	}
 }

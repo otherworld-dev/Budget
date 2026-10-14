@@ -291,12 +291,19 @@ class NotifierTest extends TestCase {
 
 	public function testEveryImportFolderFailureReasonHasItsOwnText(): void {
 		$texts = [];
-		foreach (['unsupported_type', 'too_large', 'empty', 'account_unavailable', 'no_template', 'nothing_read', 'wrong_direction', 'several_accounts', 'other_currency', 'not_moved', 'error'] as $reason) {
+		foreach (['unsupported_type', 'too_large', 'empty', 'account_unavailable', 'no_template', 'nothing_read', 'wrong_direction', 'several_accounts', 'other_currency', 'not_moved', 'stopped', 'error'] as $reason) {
 			$this->prepare('import_folder_failed', ['fileId' => '1', 'fileName' => 'a.csv', 'reason' => $reason, 'moved' => '0']);
 			$this->assertNotSame('', $this->parsedMessage, $reason);
 			$texts[$reason] = $this->parsedMessage;
 		}
-		$this->assertCount(11, array_unique($texts));
+		$this->assertCount(12, array_unique($texts));
+	}
+
+	public function testAFileThatStoppedTheRunSaysItWasSetAside(): void {
+		$this->prepare('import_folder_failed', ['fileId' => '1', 'fileName' => 'veleno.ods', 'reason' => 'stopped', 'moved' => '1']);
+
+		$this->assertStringStartsWith('Budget stopped while reading this file, so it was set aside', $this->parsedMessage);
+		$this->assertStringEndsWith('It is in the Failed folder.', $this->parsedMessage);
 	}
 
 	public function testAStatementInAnotherCurrencyNamesBothCurrencies(): void {

@@ -87,6 +87,20 @@ class ImportFolderService {
 	/** Tries at the lock on that record, 50 ms apart */
 	private const LEFT_ALONE_LOCK_ATTEMPTS = 10;
 
+	/**
+	 * The user preference recording the files being read right now: each
+	 * file's id, a marker of its etag and when. Set before a file is handed
+	 * to the importer and cleared once it is dealt with, so one still there
+	 * is a file whose reading stopped the process that read it: PHP running
+	 * out of memory or time is a fatal error, which nothing can catch. That
+	 * file is set aside, not read again, or it would stop every later run,
+	 * for every user after its owner. Written over since, it is read again.
+	 */
+	private const ATTEMPTS_KEY = 'import_folder_attempts';
+
+	/** Entries kept no longer than this, in case one was never cleared */
+	private const ATTEMPT_KEEP_SECONDS = 7 * 86400;
+
 	public function __construct(
 		private ImportFolderMapper $mapper,
 		private AccountMapper $accountMapper,
@@ -226,15 +240,15 @@ class ImportFolderService {
 	 * is done by now. If the subfolders cannot be read, the restored folders
 	 * are switched off instead, so nothing that was there is imported.
 	 *
-	 * @return bool False when they had to be switched off
+	 * @return ?int How many files are left alone, or null when the folders
+	 *              had to be switched off
 	 */
-	public function leaveRestoredAlone(string $userId): bool {
+	public function leaveRestoredAlone(string $userId): ?int {
 		try {
 			if ($this->mapper->findAll($userId) === []) {
-				return true;
+				return 0;
 			}
-			$this->leaveExistingAlone($userId, $this->mainFolderFor($userId));
-			return true;
+			return array_sum($this->leaveExistingAlone($userId, $this->mainFolderFor($userId)));
 		} catch (\Throwable $e) {
 			$this->logger->warning("Budget import folder: what the restored folders hold could not be listed for {$userId}, so they are switched off: " . $e->getMessage(), ['app' => Application::APP_ID]);
 		}
@@ -247,7 +261,7 @@ class ImportFolderService {
 		} catch (\Throwable $e) {
 			$this->logger->error("Budget import folder: the restored folders could not be switched off for {$userId}: " . $e->getMessage(), ['app' => Application::APP_ID]);
 		}
-		return false;
+		return null;
 	}
 
 	/**
@@ -326,7 +340,23 @@ class ImportFolderService {
 	 * @throws LockedException If another change holds the record for too long
 	 */
 	private function changeLeftAlone(string $userId, callable $change): void {
-		$lock = 'budget/import-folder-left-alone/' . $userId;
+		$this->underLock('budget/import-folder-left-alone/' . $userId, function () use ($userId, $change): void {
+			$record = array_filter($change($this->leftAlone($userId, true)));
+			if ($record === []) {
+				$this->config->deleteUserValue($userId, Application::APP_ID, self::LEFT_ALONE_KEY);
+			} else {
+				// An object throughout, so a record of one folder is not read back as old ids
+				$this->config->setUserValue($userId, Application::APP_ID, self::LEFT_ALONE_KEY, json_encode($record, JSON_FORCE_OBJECT | JSON_THROW_ON_ERROR));
+			}
+		});
+	}
+
+	/**
+	 * Run $work holding an exclusive lock, tried for a little while.
+	 *
+	 * @throws LockedException If something else holds it for too long
+	 */
+	private function underLock(string $lock, callable $work): void {
 		for ($attempt = 1; ; $attempt++) {
 			try {
 				$this->locking->acquireLock($lock, ILockingProvider::LOCK_EXCLUSIVE);
@@ -339,16 +369,107 @@ class ImportFolderService {
 			}
 		}
 		try {
-			$record = array_filter($change($this->leftAlone($userId, true)));
-			if ($record === []) {
-				$this->config->deleteUserValue($userId, Application::APP_ID, self::LEFT_ALONE_KEY);
-			} else {
-				// An object throughout, so a record of one folder is not read back as old ids
-				$this->config->setUserValue($userId, Application::APP_ID, self::LEFT_ALONE_KEY, json_encode($record, JSON_FORCE_OBJECT | JSON_THROW_ON_ERROR));
-			}
+			$work();
 		} finally {
 			$this->locking->releaseLock($lock, ILockingProvider::LOCK_EXCLUSIVE);
 		}
+	}
+
+	/**
+	 * The files being read, as stored now (past this request's cache: the
+	 * process that wrote an entry may be another one, and gone).
+	 *
+	 * @return array<int, array{0: string, 1: int}> file id => [etag marker, when]
+	 */
+	private function attempts(string $userId): array {
+		$stored = $this->config->getUserValueForUsers(Application::APP_ID, self::ATTEMPTS_KEY, [$userId])[$userId] ?? '';
+		$decoded = json_decode((string)$stored, true);
+		if (!is_array($decoded)) {
+			return [];
+		}
+		$attempts = [];
+		foreach ($decoded as $fileId => $entry) {
+			if (is_array($entry) && is_string($entry[0] ?? null)) {
+				$attempts[(int)$fileId] = [$entry[0], (int)($entry[1] ?? 0)];
+			}
+		}
+		return $attempts;
+	}
+
+	/**
+	 * @param callable(array<int, array{0: string, 1: int}>): array<int, array{0: string, 1: int}> $change
+	 * @throws LockedException
+	 */
+	private function changeAttempts(string $userId, callable $change): void {
+		$this->underLock('budget/import-folder-attempts/' . $userId, function () use ($userId, $change): void {
+			$attempts = $change($this->attempts($userId));
+			if ($attempts === []) {
+				$this->config->deleteUserValue($userId, Application::APP_ID, self::ATTEMPTS_KEY);
+			} else {
+				// An object of file ids, each entry a pair
+				$this->config->setUserValue($userId, Application::APP_ID, self::ATTEMPTS_KEY, json_encode((object)$attempts, JSON_THROW_ON_ERROR));
+			}
+		});
+	}
+
+	/** Whether reading this file, as it is now, stopped the process that last read it */
+	private function stoppedOn(string $userId, File $file): bool {
+		return ($this->attempts($userId)[(int)$file->getId()][0] ?? null) === self::marker($file);
+	}
+
+	/**
+	 * Record that this file is about to be read. Stored before a byte of it
+	 * is parsed, so it outlives a process the file brings down.
+	 *
+	 * @return bool False when it could not be recorded: then it is not read
+	 */
+	private function recordAttempt(string $userId, File $file): bool {
+		$fileId = (int)$file->getId();
+		$entry = [self::marker($file), $this->time->getTime()];
+		$oldest = $entry[1] - self::ATTEMPT_KEEP_SECONDS;
+		try {
+			$this->changeAttempts($userId, static function (array $attempts) use ($fileId, $entry, $oldest): array {
+				$attempts = array_filter($attempts, static fn (array $attempt): bool => $attempt[1] >= $oldest);
+				$attempts[$fileId] = $entry;
+				return $attempts;
+			});
+			return true;
+		} catch (\Throwable $e) {
+			$this->logger->warning('Budget import folder: ' . $file->getName() . " is left for the next run, as reading it could not be recorded for {$userId}: " . $e->getMessage(), ['app' => Application::APP_ID]);
+			return false;
+		}
+	}
+
+	/** The file is dealt with: it no longer counts as being read. Best effort. */
+	private function clearAttempt(string $userId, int $fileId): void {
+		try {
+			if (!isset($this->attempts($userId)[$fileId])) {
+				return;
+			}
+			$this->changeAttempts($userId, static function (array $attempts) use ($fileId): array {
+				unset($attempts[$fileId]);
+				return $attempts;
+			});
+		} catch (\Throwable $e) {
+			// Left, it sets the file aside if it is ever read again unchanged
+			$this->logger->warning("Budget import folder: a file read could not be cleared for {$userId}: " . $e->getMessage(), ['app' => Application::APP_ID]);
+		}
+	}
+
+	/**
+	 * Which of these users have a file still recorded as being read: most
+	 * likely, one that stopped the last run. ImportFolderJob takes them
+	 * last, so whatever else such a file does, the others go first.
+	 *
+	 * @param string[] $userIds
+	 * @return string[]
+	 */
+	public function interrupted(array $userIds): array {
+		if ($userIds === []) {
+			return [];
+		}
+		$stored = $this->config->getUserValueForUsers(Application::APP_ID, self::ATTEMPTS_KEY, $userIds);
+		return array_values(array_filter($userIds, static fn (string $userId): bool => ($stored[$userId] ?? '') !== ''));
 	}
 
 	/**
@@ -631,7 +752,16 @@ class ImportFolderService {
 	 * @throws \InvalidArgumentException|ValidationException With a message for the user
 	 */
 	public function openReview(string $userId, int $fileId): array {
-		['file' => $file, 'row' => $row] = $this->waitingFile($userId, $fileId);
+		['file' => $file, 'row' => $row, 'folder' => $folder] = $this->waitingFile($userId, $fileId);
+		if ($this->stoppedOn($userId, $file)) {
+			// Opening it last time stopped the server: not read again
+			$moved = $this->setAside($userId, $folder, $file);
+			throw new \InvalidArgumentException($moved
+				? $this->l->t('Budget stopped while reading this file last time, so it has been moved to the Failed folder. Try downloading the statement from your bank again.')
+				: $this->l->t('Budget stopped while reading this file last time. Move it out of the Review folder, and try downloading the statement from your bank again.'));
+		}
+		// Read here, on the server, as the job reads one: recorded the same way
+		$recorded = $this->recordAttempt($userId, $file);
 		try {
 			['content' => $content, 'extension' => $extension] = $this->statementBytes($file);
 			$upload = $this->upload($userId, $file->getName(), $extension, $content);
@@ -642,6 +772,10 @@ class ImportFolderService {
 				'empty' => $this->l->t('The file is empty.'),
 				default => (string)($e->details['message'] ?? $this->l->t('The file could not be read.')),
 			}, 0, $e);
+		} finally {
+			if ($recorded) {
+				$this->clearAttempt($userId, $fileId);
+			}
 		}
 
 		return $upload + ['review' => [
@@ -674,6 +808,24 @@ class ImportFolderService {
 			throw new \InvalidArgumentException($this->l->t('The file could not be moved. Move it out of the Review folder yourself.'));
 		}
 		$this->dismissReview($userId, $fileId);
+	}
+
+	/**
+	 * A waiting file whose reading stopped the server: into Failed, unread,
+	 * and the user told why.
+	 *
+	 * @return bool Whether it could be moved
+	 */
+	private function setAside(string $userId, Folder $folder, File $file): bool {
+		$name = $file->getName();
+		$fileId = (int)$file->getId();
+		$this->logger->warning('Budget import folder: ' . $name . " stopped the server while it was read, so it is set aside for {$userId}", ['app' => Application::APP_ID]);
+		$this->audit->logImportFailed($userId, $name, 'stopped');
+		$moved = $this->moveInto($userId, $folder, $file, self::FAILED_FOLDER);
+		$this->dismissReview($userId, $fileId);
+		$this->notify($userId, 'import_folder_failed', $file, $name, ['reason' => 'stopped', 'moved' => $moved ? '1' : '0']);
+		$this->clearAttempt($userId, $fileId);
+		return $moved;
 	}
 
 	/** The "ready to review" notification of a file that is no longer waiting */
@@ -805,6 +957,9 @@ class ImportFolderService {
 		// The name it was dropped under, for the notification: it may be
 		// renamed on its way into Imported or Failed
 		$name = $file->getName();
+		$fileId = (int)$file->getId();
+		// Whether this file is recorded as being read, by this run or by one it stopped
+		$recorded = false;
 		try {
 			// The folder was listed before this file's turn came. Another run
 			// may have imported and moved it since, or the user taken it away:
@@ -817,18 +972,29 @@ class ImportFolderService {
 
 			$failure = null;
 			$result = null;
-			try {
-				// A review folder's files are not read as statements here:
-				// that happens in the wizard, in front of the user
-				$result = $review ? $this->admit($userId, $row, $file) : $this->import($userId, $row, $file);
-			} catch (ImportFolderFailure $e) {
-				$failure = ['reason' => $e->reason] + $e->details;
-			} catch (ValidationException $e) {
-				// Written for the user (a spreadsheet that cannot be read, say)
-				$failure = ['reason' => 'message', 'message' => $e->getMessage()];
-			} catch (\Throwable $e) {
-				$this->logger->error('Budget import folder: ' . $name . ' could not be imported: ' . $e->getMessage(), ['app' => Application::APP_ID, 'exception' => $e]);
-				$failure = ['reason' => 'error'];
+			if ($this->stoppedOn($userId, $file)) {
+				// Reading it stopped the run that last tried, and would stop
+				// this one: set aside unread. Whatever the folder's mode now
+				$recorded = true;
+				$this->logger->warning('Budget import folder: ' . $name . " stopped the run that read it, so it is set aside for {$userId}", ['app' => Application::APP_ID]);
+				$failure = ['reason' => 'stopped'];
+			} elseif (!$review && !$this->recordAttempt($userId, $file)) {
+				return null;
+			} else {
+				$recorded = !$review;
+				try {
+					// A review folder's files are not read as statements here:
+					// that happens in the wizard, in front of the user
+					$result = $review ? $this->admit($userId, $row, $file) : $this->import($userId, $row, $file);
+				} catch (ImportFolderFailure $e) {
+					$failure = ['reason' => $e->reason] + $e->details;
+				} catch (ValidationException $e) {
+					// Written for the user (a spreadsheet that cannot be read, say)
+					$failure = ['reason' => 'message', 'message' => $e->getMessage()];
+				} catch (\Throwable $e) {
+					$this->logger->error('Budget import folder: ' . $name . ' could not be imported: ' . $e->getMessage(), ['app' => Application::APP_ID, 'exception' => $e]);
+					$failure = ['reason' => 'error'];
+				}
 			}
 
 			if ($failure !== null) {
@@ -868,6 +1034,10 @@ class ImportFolderService {
 				default => 'imported',
 			};
 		} finally {
+			// Read to the end, whatever came of it: only a run that died keeps it
+			if ($recorded) {
+				$this->clearAttempt($userId, $fileId);
+			}
 			$this->locking->releaseLock($lock, ILockingProvider::LOCK_EXCLUSIVE);
 		}
 	}
@@ -951,6 +1121,26 @@ class ImportFolderService {
 		$account = $this->openAccount($userId, $accountId) ?? throw new ImportFolderFailure('account_unavailable');
 		$upload = $this->upload($userId, $name, $extension, $content);
 		$fileId = (string)$upload['fileId'];
+		try {
+			return $this->importUpload($userId, $row, $account, $name, $fileId, $upload);
+		} catch (\Throwable $e) {
+			// processImport() deletes it once imported. Given up on here,
+			// nothing else would until the cleanup job, a day later
+			$this->importService->discardUpload($userId, $fileId);
+			throw $e;
+		}
+	}
+
+	/**
+	 * The rest of import(), once the file is stored as an upload.
+	 *
+	 * @param array<string, mixed> $upload
+	 * @return array<string, string>
+	 * @throws ImportFolderFailure
+	 * @throws ValidationException
+	 */
+	private function importUpload(string $userId, ImportFolder $row, Account $account, string $name, string $fileId, array $upload): array {
+		$accountId = (int)$account->getId();
 		$format = (string)$upload['format'];
 
 		$template = $this->template($userId, $row->getTemplateId());

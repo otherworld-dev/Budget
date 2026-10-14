@@ -684,6 +684,7 @@ class Notifier implements INotifier {
 					'not_moved' => ($parameters['imported'] ?? '0') === '1'
 						? $l->t('It was imported, but could not be moved out of the import folder, so the folder has been switched off. Move the file yourself, then switch the folder back on in Budget\'s settings.')
 						: $l->t('It could not be moved out of the import folder either, so the folder has been switched off. Move the file yourself, then switch the folder back on in Budget\'s settings.'),
+					'stopped' => $l->t('Budget stopped while reading this file, so it was set aside and will not be read again. Try it on the Import page, or download the statement from your bank again.'),
 					'message' => (string)($parameters['message'] ?? ''),
 					default => $l->t('Something went wrong while importing it. The server log has the details.'),
 				};
