@@ -2894,6 +2894,83 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_OK, $this->editor()->update(10)->getStatus());
 	}
 
+	/** The row as it is once the tags moved its updated_at. */
+	private function afterTheTags(string $updatedAt): Transaction {
+		$fresh = $this->transaction();
+		$fresh->setUpdatedAt($updatedAt);
+		$this->service->method('findTransaction')->with(10)->willReturn($fresh);
+
+		return $fresh;
+	}
+
+	/**
+	 * Setting the tags moves updated_at. Answered with the row as read before
+	 * that, a client syncing by updated_at stored a time already gone.
+	 */
+	public function testATagOnlyEditAnswersWithTheTimeTheTagsWereSet(): void {
+		$this->existing(['updatedAt' => '2026-10-01 08:00:00']);
+		$this->params = ['tag_ids' => [12]];
+		$this->tagService->method('resolveTagsAs')->willReturn([12]);
+		$this->afterTheTags('2026-10-14 09:30:00');
+
+		$response = $this->editor()->update(10);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame('2026-10-14 09:30:00', $response->getData()['updated_at']);
+	}
+
+	public function testAnEditWithTagsAnswersWithTheTimeTheTagsWereSet(): void {
+		$this->existing(['updatedAt' => '2026-10-01 08:00:00']);
+		$this->params = ['notes' => 'x', 'tag_ids' => [12]];
+		$this->tagService->method('resolveTagsAs')->willReturn([12]);
+		$edited = $this->transaction();
+		$edited->setNotes('x');
+		$edited->setUpdatedAt('2026-10-14 09:29:59');
+		$this->service->method('update')->willReturn($edited);
+		$this->afterTheTags('2026-10-14 09:30:00')->setNotes('x');
+
+		$data = $this->editor()->update(10)->getData();
+
+		$this->assertSame('2026-10-14 09:30:00', $data['updated_at']);
+		$this->assertSame('x', $data['notes']);
+	}
+
+	public function testACaptureWithTagsAnswersWithTheTimeTheTagsWereSet(): void {
+		$this->params = $this->captureParams(['tag_ids' => '[12]']);
+		$recorded = $this->transaction();
+		$recorded->setUpdatedAt('2026-10-14 09:29:59');
+		$this->service->method('create')->willReturn($recorded);
+		$this->tagService->method('resolveTagsAs')->willReturn([12]);
+		$this->afterTheTags('2026-10-14 09:30:00');
+
+		$response = $this->controller->create();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+		$this->assertSame('2026-10-14 09:30:00', $response->getData()['updated_at']);
+	}
+
+	public function testASplitCaptureAnswersWithTheTimeItWasSplit(): void {
+		$this->params = $this->captureParams(['splits' => '[{"amount":"20.00","category_id":3},{"amount":"22.50"}]']);
+		$recorded = $this->transaction();
+		$recorded->setUpdatedAt('2026-10-14 09:29:59');
+		$this->service->method('create')->willReturn($recorded);
+		$this->splitService->method('splitTransaction')->willReturn([]);
+		$this->afterTheTags('2026-10-14 09:30:00');
+
+		$this->assertSame('2026-10-14 09:30:00', $this->controller->create()->getData()['updated_at']);
+	}
+
+	/** Nothing after the insert moved it: no second read. */
+	public function testAPlainCaptureIsNotReadTwice(): void {
+		$this->params = $this->captureParams();
+		$recorded = $this->transaction();
+		$recorded->setUpdatedAt('2026-10-14 09:29:59');
+		$this->service->method('create')->willReturn($recorded);
+		$this->service->expects($this->never())->method('findTransaction');
+
+		$this->assertSame('2026-10-14 09:29:59', $this->controller->create()->getData()['updated_at']);
+	}
+
 	public function testUpdateChecksNewTagsAgainstTheNewCategory(): void {
 		$this->existing(['categoryId' => 7]);
 		$this->params = ['category_id' => 15, 'tag_ids' => [27]];

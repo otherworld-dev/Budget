@@ -724,6 +724,8 @@ class ApiV1TransactionController extends OCSController {
 			// correct unsplit transaction the user can split later. A splits
 			// field that can't be read as parts is a rejected set too, not
 			// one to drop without a word.
+			// Whether a split or tags below moved updated_at past $out's
+			$touched = false;
 			try {
 				$splits = $this->readSplitsParam();
 				if ($splits !== null) {
@@ -736,6 +738,7 @@ class ApiV1TransactionController extends OCSController {
 					// would otherwise believe the split never happened.
 					$out['is_split'] = true;
 					$out['category_id'] = null;
+					$touched = true;
 				}
 			} catch (\Throwable $e) {
 				// Stated rather than left to the snapshot: a client that
@@ -756,6 +759,7 @@ class ApiV1TransactionController extends OCSController {
 				try {
 					$final = $this->tagService->resolveTagsAs($this->userId, $effectiveUserId, $transaction->getId(), $out['category_id'], $tagIds);
 					$this->tagService->replaceTransactionTags($transaction->getId(), $final);
+					$touched = true;
 					$out['tags'] = ApiSerializer::map(
 						$this->tagService->tagDetailsForTransactions([$transaction->getId()])[$transaction->getId()] ?? [],
 						[ApiSerializer::class, 'tag']
@@ -770,6 +774,10 @@ class ApiV1TransactionController extends OCSController {
 				}
 			}
 
+			if ($touched) {
+				$out['updated_at'] = $this->updatedAtNow($transaction->getId()) ?? $out['updated_at'];
+			}
+
 			return new DataResponse($out, Http::STATUS_CREATED);
 		} catch (DoesNotExistException $e) {
 			return $this->notFound($this->l->t('Account not found'));
@@ -778,6 +786,22 @@ class ApiV1TransactionController extends OCSController {
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to create transaction'));
 		}
+	}
+
+	/**
+	 * The row's updated_at as stored now, or null when it can't be read. A
+	 * split or a change of tags moves it after the row was serialised, and a
+	 * client syncing by it would otherwise keep a time already gone. Never
+	 * fails the request: the transaction is recorded and its key spent.
+	 */
+	private function updatedAtNow(int $id): ?string {
+		try {
+			$fresh = $this->service->findTransaction($id);
+		} catch (\Throwable $e) {
+			return null;
+		}
+
+		return $fresh === null ? null : ApiSerializer::transaction($fresh)['updated_at'];
 	}
 
 	/**
@@ -1248,6 +1272,9 @@ class ApiV1TransactionController extends OCSController {
 			$updated = $updates === [] ? $transaction : $this->service->update($id, $ownerId, $updates, $this->userId);
 			if ($finalTags !== null) {
 				$this->tagService->replaceTransactionTags($id, $finalTags);
+				// Setting the tags moves updated_at, so the row read before
+				// it would answer with a time already gone
+				$updated = $this->service->findTransaction($id) ?? $updated;
 			}
 
 			return new DataResponse($this->serializeOne($updated, $this->getEffectiveAccountIds()));
