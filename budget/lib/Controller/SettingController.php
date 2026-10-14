@@ -102,6 +102,7 @@ class SettingController extends Controller {
 		IL10N $l,
 		?string $userId,
 		LoggerInterface $logger,
+		private ImportFolderService $importFolders,
 	) {
 		parent::__construct(Application::APP_ID, $request);
 		$this->userId = $userId;
@@ -174,6 +175,7 @@ class SettingController extends Controller {
 			$data = $this->request->getParams();
 			$now = date('Y-m-d H:i:s');
 			$updated = [];
+			$importFolderLeftAlone = null;
 
 			// Skip internal parameters
 			$data = array_diff_key($data, array_flip(['_route', 'controller', 'action']));
@@ -202,6 +204,7 @@ class SettingController extends Controller {
 					} catch (\InvalidArgumentException $e) {
 						return new DataResponse(['error' => $this->l->t('Invalid import folder: %1$s', [$e->getMessage()])], Http::STATUS_BAD_REQUEST);
 					}
+					$importFolderLeftAlone = $this->leaveImportFilesAlone($value);
 				}
 
 				$this->storeSetting($this->getEffectiveUserId(), (string)$key, (string)$value, $now);
@@ -209,10 +212,16 @@ class SettingController extends Controller {
 				$updated[$key] = $value;
 			}
 
-			return new DataResponse([
+			$response = [
 				'message' => $this->l->t('Settings updated successfully'),
 				'settings' => $updated
-			]);
+			];
+			if ($importFolderLeftAlone !== null) {
+				// The files already in the new folder's subfolders, left where
+				// they are, which the page tells the user
+				$response['importFolderLeftAlone'] = $importFolderLeftAlone;
+			}
+			return new DataResponse($response);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to update settings'), Http::STATUS_INTERNAL_SERVER_ERROR);
 		}
@@ -245,6 +254,14 @@ class SettingController extends Controller {
 					return new DataResponse(['error' => $this->l->t('Invalid receipts folder: %1$s', [$e->getMessage()])], Http::STATUS_BAD_REQUEST);
 				}
 			}
+			if ($key === ImportFolderService::MAIN_FOLDER_KEY) {
+				try {
+					$value = trim((string)$value) === '' ? '' : ImportFolderService::normalizeMainFolder((string)$value);
+				} catch (\InvalidArgumentException $e) {
+					return new DataResponse(['error' => $this->l->t('Invalid import folder: %1$s', [$e->getMessage()])], Http::STATUS_BAD_REQUEST);
+				}
+				$this->leaveImportFilesAlone($value);
+			}
 
 			$now = date('Y-m-d H:i:s');
 
@@ -258,6 +275,25 @@ class SettingController extends Controller {
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to update setting'), Http::STATUS_INTERNAL_SERVER_ERROR, ['key' => $key]);
 		}
+	}
+
+	/**
+	 * Before the import folder moves: the files already in its subfolders at
+	 * the new place are left where they are, so a folder the user already
+	 * keeps things in is not emptied into Failed, nor an old statement in it
+	 * imported (#425). Done before the setting is stored, so the background
+	 * job cannot get to them first.
+	 *
+	 * @param string $value The normalised new value; blank is the default
+	 * @return array<string, int> How many files are left alone, by subfolder
+	 */
+	private function leaveImportFilesAlone(string $value): array {
+		$userId = $this->getEffectiveUserId();
+		$target = $value === '' ? ImportFolderService::DEFAULT_MAIN_FOLDER : $value;
+		if ($target === $this->importFolders->mainFolderFor($userId)) {
+			return [];
+		}
+		return $this->importFolders->leaveExistingAlone($userId, $target);
 	}
 
 	/**
@@ -300,6 +336,9 @@ class SettingController extends Controller {
 	#[UserRateLimit(limit: 20, period: 60)]
 	public function destroy(string $key): DataResponse {
 		try {
+			if ($key === ImportFolderService::MAIN_FOLDER_KEY) {
+				$this->leaveImportFilesAlone('');
+			}
 			$deleted = $this->mapper->deleteByKey($this->getEffectiveUserId(), $key);
 
 			if ($deleted === 0) {
@@ -327,6 +366,7 @@ class SettingController extends Controller {
 	#[UserRateLimit(limit: 5, period: 60)]
 	public function reset(): DataResponse {
 		try {
+			$this->leaveImportFilesAlone('');
 			$deleted = $this->mapper->deleteAll($this->getEffectiveUserId());
 
 			return new DataResponse([

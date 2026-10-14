@@ -924,6 +924,51 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_CREATED, $controller->create()->getStatus());
 	}
 
+	public function testAReplayDoesNotAttachAPhotoInAnAccountClosedSince(): void {
+		$this->params = $this->captureParams(['idempotency_key' => 'uuid-1']);
+		$this->uploads['photo'] = ['name' => 'r.jpg', 'error' => UPLOAD_ERR_OK];
+
+		$account = new Account();
+		$account->setId(1);
+		$account->setUserId('user1');
+		$account->setClosed(true);
+
+		$controller = $this->buildController($this->heldKeyMapper(10), $this->validationService);
+		$this->service->method('findForAccounts')->willReturn($this->transaction());
+		$this->service->method('findAccountById')->willReturn($account);
+		$this->attachmentService->method('listForTransaction')->willReturn([]);
+		$this->attachmentService->expects($this->never())->method('upload');
+		$this->service->expects($this->never())->method('create');
+
+		$response = $controller->create();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+		$this->assertSame(10, $response->getData()['id']);
+		$this->assertArrayHasKey('photo_error', $response->getData());
+	}
+
+	public function testAReplayDoesNotAttachAPhotoThroughAShareMadeReadOnlySince(): void {
+		$this->params = $this->captureParams(['idempotency_key' => 'uuid-1']);
+		$this->uploads['photo'] = ['name' => 'r.jpg', 'error' => UPLOAD_ERR_OK];
+
+		$account = new Account();
+		$account->setId(1);
+		$account->setUserId('owner2');
+
+		$controller = $this->buildController($this->heldKeyMapper(10), $this->validationService);
+		$this->service->method('findForAccounts')->willReturn($this->transaction());
+		$this->service->method('findAccountById')->willReturn($account);
+		$this->granularShareService->method('requireWriteAccess')->willThrowException(new ReadOnlyShareException());
+		$this->attachmentService->method('listForTransaction')->willReturn([]);
+		$this->attachmentService->expects($this->never())->method('upload');
+		$this->service->expects($this->never())->method('create');
+
+		$response = $controller->create();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+		$this->assertArrayHasKey('photo_error', $response->getData());
+	}
+
 	public function testAnOverlongKeyIsRejected(): void {
 		$this->params = $this->captureParams(['idempotency_key' => str_repeat('k', 65)]);
 		$this->service->expects($this->never())->method('create');
@@ -2191,7 +2236,7 @@ class ApiV1TransactionControllerTest extends TestCase {
 
 		$filters = $this->filtersSent();
 
-		foreach (['type', 'status', 'reconciled', 'tagIds', 'amountMin', 'amountMax'] as $key) {
+		foreach (['type', 'status', 'reconciled', 'categorized', 'tagIds', 'amountMin', 'amountMax'] as $key) {
 			$this->assertArrayNotHasKey($key, $filters, $key);
 		}
 		$this->assertNull($filters['category']);
@@ -2210,10 +2255,34 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->assertSame('uncategorized', $this->filtersSent()['category']);
 	}
 
-	public function testUncategorizedFalseIsNoFilter(): void {
+	/**
+	 * false is the rest of the list, as reconciled=false is: rows with a
+	 * category, and split parents, whose categories are on their parts.
+	 * Accepted and ignored, it answered with the whole list.
+	 */
+	public function testUncategorizedFalseAsksForTheRest(): void {
 		$this->params = ['uncategorized' => 'false'];
 
-		$this->assertNull($this->filtersSent()['category']);
+		$filters = $this->filtersSent();
+
+		$this->assertTrue($filters['categorized']);
+		$this->assertNull($filters['category']);
+	}
+
+	/** Every row a category matches has one, so asking for both is fine. */
+	public function testUncategorizedFalseGoesWithACategory(): void {
+		$this->params = ['uncategorized' => 'false'];
+		$seen = null;
+		$this->service->method('findWithFilters')->willReturnCallback(
+			function (string $userId, array $filters) use (&$seen): array {
+				$seen = $filters;
+				return ['transactions' => [], 'total' => 0];
+			}
+		);
+
+		$this->assertSame(Http::STATUS_OK, $this->controller->index(null, 7)->getStatus());
+		$this->assertSame('7', $seen['category']);
+		$this->assertTrue($seen['categorized']);
 	}
 
 	public function testIndexRefusesUncategorizedTogetherWithACategory(): void {
@@ -2428,10 +2497,11 @@ class ApiV1TransactionControllerTest extends TestCase {
 	 * caller's own, 9 is shared with them.
 	 *
 	 * @param array<int, string> $currencies account id => currency
+	 * @param int[] $closed the ones that are closed (#372)
 	 */
-	private function accountsIn(array $currencies = [1 => 'GBP', 2 => 'GBP', 9 => 'GBP']): void {
+	private function accountsIn(array $currencies = [1 => 'GBP', 2 => 'GBP', 9 => 'GBP'], array $closed = []): void {
 		$this->service->method('findAccountById')->willReturnCallback(
-			static function (int $id) use ($currencies): Account {
+			static function (int $id) use ($currencies, $closed): Account {
 				if (!isset($currencies[$id])) {
 					throw new DoesNotExistException('no account ' . $id);
 				}
@@ -2440,6 +2510,7 @@ class ApiV1TransactionControllerTest extends TestCase {
 				$account->setName('Account ' . $id);
 				$account->setCurrency($currencies[$id]);
 				$account->setUserId($id === 9 ? 'owner9' : 'user1');
+				$account->setClosed(in_array($id, $closed, true));
 				return $account;
 			}
 		);
@@ -2569,6 +2640,64 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_FORBIDDEN, $this->controller->create()->getStatus());
 	}
 
+	/**
+	 * A closed account stays at zero and takes no new activity (#372). The
+	 * other side of a transfer into one gave it a balance, with a 201.
+	 */
+	public function testATransferIntoAClosedAccountIsRefused(): void {
+		$this->accountsIn([1 => 'GBP', 2 => 'GBP', 9 => 'GBP'], [2]);
+		$this->params = $this->captureParams(['transfer_account_id' => '2']);
+
+		$this->assertTransferRefused(Http::STATUS_BAD_REQUEST, 'account_closed');
+	}
+
+	public function testATransferOutOfAClosedAccountIsRefused(): void {
+		$this->accountsIn([1 => 'GBP', 2 => 'GBP', 9 => 'GBP'], [1]);
+		$this->params = $this->captureParams(['transfer_account_id' => '2']);
+
+		$this->assertTransferRefused(Http::STATUS_BAD_REQUEST, 'account_closed');
+	}
+
+	public function testATransferIntoAClosedSharedAccountIsRefused(): void {
+		$this->accountsIn([1 => 'GBP', 2 => 'GBP', 9 => 'GBP'], [9]);
+		$this->params = $this->captureParams(['transfer_account_id' => '9']);
+
+		$this->assertTransferRefused(Http::STATUS_BAD_REQUEST, 'account_closed');
+	}
+
+	public function testRecordingIntoAClosedAccountIsRefused(): void {
+		$this->accountsIn([1 => 'GBP', 2 => 'GBP', 9 => 'GBP'], [1]);
+		$this->params = $this->captureParams();
+
+		$this->assertTransferRefused(Http::STATUS_BAD_REQUEST, 'account_closed');
+	}
+
+	public function testRecordingIntoAClosedSharedAccountIsRefused(): void {
+		$this->accountsIn([1 => 'GBP', 2 => 'GBP', 9 => 'GBP'], [9]);
+		$this->params = $this->captureParams(['account_id' => '9']);
+
+		$this->assertTransferRefused(Http::STATUS_BAD_REQUEST, 'account_closed');
+	}
+
+	/** Whether an account the caller cannot see is closed is none of their business. */
+	public function testAClosedAccountTheCallerCannotSeeIsStillNotFound(): void {
+		$this->accountsIn([1 => 'GBP', 77 => 'GBP'], [77]);
+		$this->params = $this->captureParams(['account_id' => '77']);
+		$this->service->expects($this->never())->method('create');
+
+		$response = $this->controller->create();
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
+		$this->assertArrayNotHasKey('error_code', $response->getData());
+	}
+
+	public function testATransferWithAClosedAccountTheCallerCannotSeeIsStillNotFound(): void {
+		$this->accountsIn([1 => 'GBP', 77 => 'GBP'], [77]);
+		$this->params = $this->captureParams(['transfer_account_id' => '77']);
+
+		$this->assertTransferRefused(Http::STATUS_NOT_FOUND, null);
+	}
+
 	public static function unreadableTransferAccounts(): array {
 		return [
 			'not a number' => ['abc'],
@@ -2621,9 +2750,13 @@ class ApiV1TransactionControllerTest extends TestCase {
 
 	// ── a replayed key and transfers ────────────────────────────────
 
-	/** A controller whose key uuid-1 already recorded transaction 10. */
-	private function replaying(Transaction $recorded, ?Transaction $otherSide = null): ApiV1TransactionController {
-		$this->accountsIn();
+	/**
+	 * A controller whose key uuid-1 already recorded transaction 10.
+	 *
+	 * @param int[] $closed accounts closed since (#372)
+	 */
+	private function replaying(Transaction $recorded, ?Transaction $otherSide = null, array $closed = []): ApiV1TransactionController {
+		$this->accountsIn([1 => 'GBP', 2 => 'GBP', 9 => 'GBP'], $closed);
 		$this->service->method('findForAccounts')->willReturnCallback(
 			static function (int $id) use ($recorded, $otherSide): Transaction {
 				if ($id === 10) {
@@ -2688,6 +2821,168 @@ class ApiV1TransactionControllerTest extends TestCase {
 
 		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
 		$this->assertSame(10, $response->getData()['id']);
+	}
+
+	// ── a replayed key and what changed since ───────────────────────
+
+	/**
+	 * The first attempt recorded the transaction and its response was lost;
+	 * the account was closed before the retry. A 400 account_closed would tell
+	 * the client nothing was recorded, and it was.
+	 */
+	public function testARetryIsAnsweredWithWhatItRecordedAfterTheAccountWasClosed(): void {
+		$this->params = $this->captureParams(['idempotency_key' => 'uuid-1']);
+
+		$response = $this->replaying($this->transaction(), null, [1])->create();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+		$this->assertSame(10, $response->getData()['id']);
+	}
+
+	public function testARetriedTransferIsAnsweredWithItsPairAfterTheOtherAccountWasClosed(): void {
+		$this->params = $this->captureParams(['transfer_account_id' => '2', 'idempotency_key' => 'uuid-1']);
+
+		$response = $this->replaying($this->linkedTo(56), $this->otherSideIn(2), [2])->create();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+		$this->assertSame(56, $response->getData()['linked_transaction_id']);
+	}
+
+	public function testARetriedTransferIsAnsweredWithItsPairAfterItsOwnAccountWasClosed(): void {
+		$this->params = $this->captureParams(['transfer_account_id' => '2', 'idempotency_key' => 'uuid-1']);
+
+		$response = $this->replaying($this->linkedTo(56), $this->otherSideIn(2), [1])->create();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+		$this->assertSame(10, $response->getData()['id']);
+	}
+
+	public function testARetriedTransferIsAnsweredAfterTheOtherAccountWasMadeReadOnly(): void {
+		$this->params = $this->captureParams(['transfer_account_id' => '9', 'idempotency_key' => 'uuid-1']);
+		$this->readOnlyShare();
+
+		$response = $this->replaying($this->linkedTo(56), $this->otherSideIn(9))->create();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+		$this->assertSame(56, $response->getData()['linked_transaction_id']);
+	}
+
+	/**
+	 * The side the caller recorded in their own account is theirs to see; the
+	 * other side, in an account no longer shared with them, is not named.
+	 */
+	public function testARetriedTransferIsAnsweredAfterTheOtherAccountWasUnshared(): void {
+		$this->params = $this->captureParams(['transfer_account_id' => '77', 'idempotency_key' => 'uuid-1']);
+
+		// Only the caller's own side is visible now; the other side lives in 77
+		$this->accountsIn([1 => 'GBP', 77 => 'GBP']);
+		$recorded = $this->linkedTo(56);
+		$otherSide = $this->otherSideIn(77);
+		$this->service->method('findForAccounts')->willReturnCallback(
+			static function (int $id) use ($recorded): Transaction {
+				if ($id === 10) {
+					return $recorded;
+				}
+				throw new DoesNotExistException('unseen');
+			}
+		);
+		$this->service->method('findTransaction')->willReturnCallback(
+			static fn (int $id): ?Transaction => $id === 56 ? $otherSide : null
+		);
+		$this->service->expects($this->never())->method('createTransfer');
+
+		$response = $this->buildController($this->heldKeyMapper(10), $this->validationService)->create();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+		$this->assertSame(10, $response->getData()['id']);
+		$this->assertNull($response->getData()['linked_account_name']);
+	}
+
+	/**
+	 * Losing sight of the account the transaction lives in is not a replay:
+	 * the retry is answered as an account the caller cannot see, 404, with
+	 * nothing about the transaction given away.
+	 */
+	public function testARetryIntoAnAccountNoLongerSharedIsNotFound(): void {
+		$this->params = $this->captureParams(['account_id' => '77', 'idempotency_key' => 'uuid-4']);
+		$this->accountsIn([1 => 'GBP', 77 => 'GBP'], [77]);
+
+		$held = new IdempotencyKey();
+		$held->setUserId('user1');
+		$held->setIdemKey('uuid-4');
+		$held->setTransactionId(10);
+		$attempt = 0;
+		$keys = $this->createMock(IdempotencyKeyMapper::class);
+		$keys->method('insert')->willReturnCallback(function (IdempotencyKey $k) use (&$attempt) {
+			if (++$attempt === 1) {
+				throw new \RuntimeException('unique violation');
+			}
+
+			return $k;
+		});
+		$keys->method('findByKey')->willReturn($held);
+		$this->service->method('findForAccounts')->willThrowException(new DoesNotExistException('unseen'));
+		$this->service->expects($this->never())->method('create');
+
+		$response = $this->buildController($keys, $this->validationService)->create();
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
+		$this->assertArrayNotHasKey('id', $response->getData());
+	}
+
+	/** A key that recorded nothing yet is still refused before it is spent. */
+	public function testANewKeyIntoAClosedAccountIsRefusedAndNotSpent(): void {
+		$this->params = $this->captureParams(['idempotency_key' => 'uuid-new']);
+		$this->accountsIn([1 => 'GBP', 2 => 'GBP', 9 => 'GBP'], [1]);
+
+		$keys = $this->createMock(IdempotencyKeyMapper::class);
+		$keys->method('findByKey')->willThrowException(new DoesNotExistException('fresh'));
+		$keys->expects($this->never())->method('insert');
+		$keys->expects($this->never())->method('update');
+		$keys->expects($this->never())->method('delete');
+		$this->service->expects($this->never())->method('create');
+
+		$response = $this->buildController($keys, $this->validationService)->create();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('account_closed', $response->getData()['error_code']);
+	}
+
+	public function testANewKeyForATransferIntoAClosedAccountIsRefusedAndNotSpent(): void {
+		$this->params = $this->captureParams(['transfer_account_id' => '2', 'idempotency_key' => 'uuid-new']);
+		$this->accountsIn([1 => 'GBP', 2 => 'GBP', 9 => 'GBP'], [2]);
+
+		$keys = $this->createMock(IdempotencyKeyMapper::class);
+		$keys->method('findByKey')->willThrowException(new DoesNotExistException('fresh'));
+		$keys->expects($this->never())->method('insert');
+		$this->service->expects($this->never())->method('createTransfer');
+
+		$response = $this->buildController($keys, $this->validationService)->create();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('account_closed', $response->getData()['error_code']);
+	}
+
+	/** A key still in flight is no replay yet: the closed account answers. */
+	public function testAKeyStillInFlightIntoAClosedAccountIsRefused(): void {
+		$this->params = $this->captureParams(['idempotency_key' => 'uuid-1']);
+		$this->accountsIn([1 => 'GBP', 2 => 'GBP', 9 => 'GBP'], [1]);
+		$this->service->expects($this->never())->method('create');
+
+		$response = $this->buildController($this->heldKeyMapper(0), $this->validationService)->create();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('account_closed', $response->getData()['error_code']);
+	}
+
+	/** A key reused for another purchase is no replay either. */
+	public function testAKeyReusedForAnotherPurchaseIntoAClosedAccountIsRefused(): void {
+		$this->params = $this->captureParams(['idempotency_key' => 'uuid-1', 'amount' => '99.99']);
+
+		$response = $this->replaying($this->transaction(), null, [1])->create();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('account_closed', $response->getData()['error_code']);
 	}
 
 	// ── setting tags ────────────────────────────────────────────────
@@ -2808,6 +3103,83 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->tagService->expects($this->once())->method('replaceTransactionTags')->with(10, [12, 27]);
 
 		$this->assertSame(Http::STATUS_OK, $this->editor()->update(10)->getStatus());
+	}
+
+	/** The row as it is once the tags moved its updated_at. */
+	private function afterTheTags(string $updatedAt): Transaction {
+		$fresh = $this->transaction();
+		$fresh->setUpdatedAt($updatedAt);
+		$this->service->method('findTransaction')->with(10)->willReturn($fresh);
+
+		return $fresh;
+	}
+
+	/**
+	 * Setting the tags moves updated_at. Answered with the row as read before
+	 * that, a client syncing by updated_at stored a time already gone.
+	 */
+	public function testATagOnlyEditAnswersWithTheTimeTheTagsWereSet(): void {
+		$this->existing(['updatedAt' => '2026-10-01 08:00:00']);
+		$this->params = ['tag_ids' => [12]];
+		$this->tagService->method('resolveTagsAs')->willReturn([12]);
+		$this->afterTheTags('2026-10-14 09:30:00');
+
+		$response = $this->editor()->update(10);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame('2026-10-14 09:30:00', $response->getData()['updated_at']);
+	}
+
+	public function testAnEditWithTagsAnswersWithTheTimeTheTagsWereSet(): void {
+		$this->existing(['updatedAt' => '2026-10-01 08:00:00']);
+		$this->params = ['notes' => 'x', 'tag_ids' => [12]];
+		$this->tagService->method('resolveTagsAs')->willReturn([12]);
+		$edited = $this->transaction();
+		$edited->setNotes('x');
+		$edited->setUpdatedAt('2026-10-14 09:29:59');
+		$this->service->method('update')->willReturn($edited);
+		$this->afterTheTags('2026-10-14 09:30:00')->setNotes('x');
+
+		$data = $this->editor()->update(10)->getData();
+
+		$this->assertSame('2026-10-14 09:30:00', $data['updated_at']);
+		$this->assertSame('x', $data['notes']);
+	}
+
+	public function testACaptureWithTagsAnswersWithTheTimeTheTagsWereSet(): void {
+		$this->params = $this->captureParams(['tag_ids' => '[12]']);
+		$recorded = $this->transaction();
+		$recorded->setUpdatedAt('2026-10-14 09:29:59');
+		$this->service->method('create')->willReturn($recorded);
+		$this->tagService->method('resolveTagsAs')->willReturn([12]);
+		$this->afterTheTags('2026-10-14 09:30:00');
+
+		$response = $this->controller->create();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+		$this->assertSame('2026-10-14 09:30:00', $response->getData()['updated_at']);
+	}
+
+	public function testASplitCaptureAnswersWithTheTimeItWasSplit(): void {
+		$this->params = $this->captureParams(['splits' => '[{"amount":"20.00","category_id":3},{"amount":"22.50"}]']);
+		$recorded = $this->transaction();
+		$recorded->setUpdatedAt('2026-10-14 09:29:59');
+		$this->service->method('create')->willReturn($recorded);
+		$this->splitService->method('splitTransaction')->willReturn([]);
+		$this->afterTheTags('2026-10-14 09:30:00');
+
+		$this->assertSame('2026-10-14 09:30:00', $this->controller->create()->getData()['updated_at']);
+	}
+
+	/** Nothing after the insert moved it: no second read. */
+	public function testAPlainCaptureIsNotReadTwice(): void {
+		$this->params = $this->captureParams();
+		$recorded = $this->transaction();
+		$recorded->setUpdatedAt('2026-10-14 09:29:59');
+		$this->service->method('create')->willReturn($recorded);
+		$this->service->expects($this->never())->method('findTransaction');
+
+		$this->assertSame('2026-10-14 09:29:59', $this->controller->create()->getData()['updated_at']);
 	}
 
 	public function testUpdateChecksNewTagsAgainstTheNewCategory(): void {

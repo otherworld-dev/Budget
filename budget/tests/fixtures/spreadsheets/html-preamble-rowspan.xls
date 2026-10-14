@@ -1,0 +1,10 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"></head><body>
+<table>
+<tr><td>Intestatario</td><td>Mario Rossi</td></tr>
+<tr><td>Conto</td><td>IT60X0542811101000000123456</td></tr>
+<tr><th>Data</th><th>Descrizione</th><th>Importo</th></tr>
+<tr><td rowspan="2">03/10/2026</td><td>Caffè</td><td>-1,50</td></tr>
+<tr><td>Cornetto</td><td>-1,20</td></tr>
+<tr><td>04/10/2026</td><td>Stipendio</td><td>2.000,00</td></tr>
+</table>
+</body></html>

@@ -679,9 +679,12 @@ class Notifier implements INotifier {
 					'nothing_read' => $l->t('No transaction could be read from it. The folder\'s template may not fit this file.'),
 					'wrong_direction' => $l->t('Nearly every row would go in the wrong way round (income as spending, or the reverse), which usually means the wrong template. Import it from the Import page, where you can check it first.'),
 					'empty' => $l->t('The file is empty.'),
+					'several_accounts' => $l->t('This file holds several accounts. Import it from the Import page, where you can choose an account for each.'),
+					'other_currency' => $l->t('The file is in %1$s and the account this folder imports into is in %2$s. Import it from the Import page, where you can choose the account.', [(string)($parameters['currency'] ?? ''), (string)($parameters['accountCurrency'] ?? '')]),
 					'not_moved' => ($parameters['imported'] ?? '0') === '1'
 						? $l->t('It was imported, but could not be moved out of the import folder, so the folder has been switched off. Move the file yourself, then switch the folder back on in Budget\'s settings.')
 						: $l->t('It could not be moved out of the import folder either, so the folder has been switched off. Move the file yourself, then switch the folder back on in Budget\'s settings.'),
+					'stopped' => $l->t('Budget stopped while reading this file, so it was set aside and will not be read again. Try it on the Import page, or download the statement from your bank again.'),
 					'message' => (string)($parameters['message'] ?? ''),
 					default => $l->t('Something went wrong while importing it. The server log has the details.'),
 				};

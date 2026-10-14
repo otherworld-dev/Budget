@@ -5950,7 +5950,7 @@ style('budget', 'budget-app');
                             </div>
                             <input type="file" id="transaction-scan-input" accept="image/jpeg,image/png,image/webp" style="display: none;">
                             <div id="transaction-scan-result" class="receipt-scan-result" hidden></div>
-                            <small id="transaction-scan-help" class="form-text"><?php p($l->t('The photo is read on your server and fills in the form for you to check. It is attached to the transaction when you save.')); ?></small>
+                            <small id="transaction-scan-help" class="form-text"><?php p($l->t('The photo is read by the receipt scanning set up in Budget\'s Admin Settings and fills in the form for you to check. It is attached to the transaction when you save.')); ?></small>
                         </div>
 
                         <div id="transaction-attachments-group" class="form-group" style="display: none;">
@@ -5958,7 +5958,7 @@ style('budget', 'budget-app');
                             <div id="transaction-attachments-list" class="attachments-list"></div>
                             <div class="attachment-actions">
                                 <button type="button" id="attachment-upload-btn" class="secondary"><?php p($l->t('Upload receipt')); ?></button>
-                                <input type="file" id="attachment-file-input" accept="image/*,application/pdf" multiple style="display: none;">
+                                <input type="file" id="attachment-file-input" accept="image/jpeg,image/png,image/webp,application/pdf" multiple style="display: none;">
                                 <button type="button" id="attachment-pick-btn" class="secondary"><?php p($l->t('Choose from Files')); ?></button>
                             </div>
                             <small class="form-text"><?php p($l->t('Receipts are stored in your Files (Budget/Receipts) and linked to this transaction.')); ?></small>

@@ -6,6 +6,7 @@ namespace OCA\Budget\Tests\Unit\Service\Import\Spreadsheet;
 
 use OCA\Budget\Exception\ValidationException;
 use OCA\Budget\Service\Import\Spreadsheet\SpreadsheetConverter;
+use OCA\Budget\Service\Import\Spreadsheet\ZipPackage;
 use OCP\IL10N;
 use OCP\ITempManager;
 use PHPUnit\Framework\TestCase;
@@ -55,6 +56,75 @@ class SpreadsheetConverterTest extends TestCase {
 		);
 	}
 
+	public function testTheStatementWinsOverACoverSheetOfLabelsAndValues(): void {
+		$this->assertSame(
+			"Date,Description,Amount,Balance\n02/01/2024,Coffee,-3.50,100.00\n03/01/2024,Salary,2000.00,2100.00\n",
+			$this->converter->toCsv(
+				'<table><tr><td>Account holder</td><td>J Smith</td></tr><tr><td>Account</td><td>12345678</td></tr></table>'
+				. '<table><tr><th>Date</th><th>Description</th><th>Amount</th><th>Balance</th></tr>'
+				. '<tr><td>02/01/2024</td><td>Coffee</td><td>-3.50</td><td>100.00</td></tr>'
+				. '<tr><td>03/01/2024</td><td>Salary</td><td>2000.00</td><td>2100.00</td></tr></table>'
+			)
+		);
+	}
+
+	public function testTheFirstTableThreeColumnsWideWinsHoweverLongTheOthers(): void {
+		$table = static fn (string $header, int $rows): string => '<table><tr><th>Date</th><th>' . $header . '</th><th>Amount</th></tr>'
+			. str_repeat('<tr><td>02/01/2024</td><td>x</td><td>1</td></tr>', $rows) . '</table>';
+		// One sheet per account: the first is imported, never whichever
+		// account had more rows that month
+		$this->assertStringStartsWith('Date,First,', $this->converter->toCsv($table('First', 2) . $table('Second', 3)));
+		$this->assertStringStartsWith('Date,First,', $this->converter->toCsv($table('First', 3) . $table('Second', 3)));
+		// Two columns only, however long, loses to a table of three
+		$this->assertStringStartsWith(
+			'Date,Statement,',
+			$this->converter->toCsv('<table>' . str_repeat('<tr><td>Label</td><td>Value</td></tr>', 10) . '</table>' . $table('Statement', 1))
+		);
+		// With no table of three columns, the first table of two
+		$this->assertSame(
+			"Date,Amount\n02/01/2024,1\n",
+			$this->converter->toCsv('<table><tr><td>Date</td><td>Amount</td></tr><tr><td>02/01/2024</td><td>1</td></tr></table>'
+				. '<table><tr><td>Label</td><td>Value</td></tr><tr><td>a</td><td>b</td></tr><tr><td>c</td><td>d</td></tr></table>')
+		);
+	}
+
+	public function testAStatementOfDatesWinsOverAnOverviewAsWide(): void {
+		$overview = '<table><tr><th>Account</th><th>IBAN</th><th>Balance</th></tr>'
+			. '<tr><td>Current account</td><td>GB29 NWBK 6016 1331 9268 19</td><td>1234.56</td></tr></table>';
+		$this->assertSame(
+			"Date,Description,Amount\n02/01/2024,Coffee,-3.50\n03/01/2024,Salary,2000.00\n",
+			$this->converter->toCsv($overview . '<table><tr><th>Date</th><th>Description</th><th>Amount</th></tr>'
+				. '<tr><td>02/01/2024</td><td>Coffee</td><td>-3.50</td></tr>'
+				. '<tr><td>03/01/2024</td><td>Salary</td><td>2000.00</td></tr></table>')
+		);
+		// Half the rows dated is enough: a description on two lines
+		$this->assertStringStartsWith(
+			"Date,Description,Amount\n2024-01-02,Card payment,-3.50\n,COFFEE SHOP LONDON,\n",
+			$this->converter->toCsv($overview . '<table><tr><th>Date</th><th>Description</th><th>Amount</th></tr>'
+				. '<tr><td>2024-01-02</td><td>Card payment</td><td>-3.50</td></tr><tr><td></td><td>COFFEE SHOP LONDON</td><td></td></tr>'
+				. '<tr><td>2024-01-03</td><td>Transfer</td><td>2000.00</td></tr><tr><td></td><td>SALARY</td><td></td></tr></table>')
+		);
+		// With dates in neither, the first table three columns wide
+		$this->assertStringStartsWith(
+			'Account,IBAN,Balance',
+			$this->converter->toCsv($overview . '<table><tr><th>Ref</th><th>Description</th><th>Amount</th></tr>'
+				. '<tr><td>A1</td><td>Coffee</td><td>-3.50</td></tr><tr><td>A2</td><td>Salary</td><td>2000.00</td></tr></table>')
+		);
+		// A column of words is not a column of dates, however a fallback might read them
+		$this->assertStringStartsWith(
+			'Account,IBAN,Balance',
+			$this->converter->toCsv($overview . '<table><tr><th>Month</th><th>Description</th><th>Amount</th></tr>'
+				. '<tr><td>May</td><td>Coffee</td><td>-3.50</td></tr><tr><td>June</td><td>Salary</td><td>2000.00</td></tr></table>')
+		);
+	}
+
+	public function testOfTwoStatementsTheFirstWins(): void {
+		$table = static fn (string $name, string $date): string => '<table><tr><th>Date</th><th>' . $name . '</th><th>Amount</th></tr>'
+			. '<tr><td>' . $date . '</td><td>x</td><td>1</td></tr><tr><td>' . $date . '</td><td>y</td><td>2</td></tr></table>';
+		$this->assertStringStartsWith('Date,First,', $this->converter->toCsv($table('First', '2024-01-02') . $table('Second', '02.01.2024')));
+		$this->assertStringStartsWith('Date,First,', $this->converter->toCsv($table('First', '02.01.2024') . $table('Second', '2024-01-02')));
+	}
+
 	public function testPlainTextIsLeftAsItIs(): void {
 		$bytes = file_get_contents(self::FIXTURES . 'tab-separated.xls');
 		$this->assertSame($bytes, $this->converter->toCsv($bytes));
@@ -92,6 +162,22 @@ class SpreadsheetConverterTest extends TestCase {
 		$this->expectException(ValidationException::class);
 		$this->expectExceptionMessage('This spreadsheet has no table of transactions to import.');
 		$this->converter->toCsv('<table><tr><td>Nessun movimento</td></tr></table>');
+	}
+
+	public function testAZipPartPastItsCapIsTooBig(): void {
+		// A content.xml that unpacks past the part cap, from a small upload
+		$zip = tempnam(sys_get_temp_dir(), 'zip');
+		$archive = new \ZipArchive();
+		$archive->open($zip, \ZipArchive::OVERWRITE);
+		$archive->addFromString('mimetype', 'application/vnd.oasis.opendocument.spreadsheet');
+		$archive->addFromString('content.xml', str_repeat(' ', ZipPackage::MAX_PART_BYTES + 1));
+		$archive->close();
+		$bytes = file_get_contents($zip);
+		unlink($zip);
+
+		$this->expectException(ValidationException::class);
+		$this->expectExceptionMessage('This spreadsheet is too big to import in one go.');
+		$this->converter->toCsv($bytes);
 	}
 
 	public function testTooManyRows(): void {

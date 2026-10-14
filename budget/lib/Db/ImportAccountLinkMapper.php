@@ -6,6 +6,7 @@ namespace OCA\Budget\Db;
 
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Db\QBMapper;
+use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
 
 /**
@@ -41,5 +42,15 @@ class ImportAccountLinkMapper extends QBMapper {
 			->andWhere($qb->expr()->eq('format', $qb->createNamedParameter($format)));
 
 		return $this->findEntities($qb);
+	}
+
+	/**
+	 * Forget every routing into an account that is being deleted.
+	 */
+	public function deleteByAccount(int $accountId): void {
+		$qb = $this->db->getQueryBuilder();
+		$qb->delete($this->getTableName())
+			->where($qb->expr()->eq('budget_account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
+		$qb->executeStatement();
 	}
 }

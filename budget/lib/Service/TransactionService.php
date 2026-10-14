@@ -19,6 +19,7 @@ use OCA\Budget\Db\TransactionTagMapper;
 use OCA\Budget\Enum\Currency;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\IDBConnection;
+use OCP\IL10N;
 
 class TransactionService {
 	/** Rows bulkDelete() removes per database transaction */
@@ -45,6 +46,7 @@ class TransactionService {
 		private UserClock $userClock,
 		private ?CurrencyConversionService $currencyConversion = null,
 		private ?IDBConnection $db = null,
+		private ?IL10N $l = null,
 	) {
 		$this->mapper = $mapper;
 		$this->accountMapper = $accountMapper;
@@ -1534,6 +1536,7 @@ class TransactionService {
 
 		$hasContiguityBreakingFilters
 			= !empty($filters['category'])
+			|| !empty($filters['categorized'])
 			|| !empty($filters['type'])
 			|| !empty($filters['search'])
 			|| !empty($filters['amountMin'])
@@ -2092,6 +2095,17 @@ class TransactionService {
 		$targetAccount = $this->accountFor($targetAccountId, $userId, $visibleAccountIds);
 		if ($sourceAccount->getCurrency() !== $targetAccount->getCurrency()) {
 			throw new \Exception('Counterpart account must use the same currency');
+		}
+		// The other side would be new activity in a closed account, which
+		// stays at zero (#372). The pickers hide closed accounts, but a stale
+		// page or an API client could still name one. The source may be
+		// closed: its row is already there, and the closed account gains
+		// nothing from becoming one side of a transfer.
+		if ($targetAccount->getClosed()) {
+			// Spelled out twice so the translation template picks it up
+			throw new \InvalidArgumentException($this->l !== null
+				? $this->l->t('The account this would transfer to is closed. Reopen it first')
+				: 'The account this would transfer to is closed. Reopen it first');
 		}
 
 		$counterpart = $this->create(

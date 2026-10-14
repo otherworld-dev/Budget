@@ -6,7 +6,9 @@ namespace OCA\Budget\Service\Import\Spreadsheet;
 
 /**
  * Reads parts out of a zip-based spreadsheet (xlsx, ods), each capped in
- * size so a small upload cannot unpack into gigabytes.
+ * size so a small upload cannot unpack into gigabytes. Passing a cap is
+ * SpreadsheetTooLargeError, so the user is told the file is too big rather
+ * than unreadable.
  */
 final class ZipPackage {
 	public const MAX_PART_BYTES = 50 * 1024 * 1024;
@@ -37,7 +39,7 @@ final class ZipPackage {
 			throw new SpreadsheetReadError('Missing zip part ' . $name);
 		}
 		if ($stat['size'] > self::MAX_PART_BYTES) {
-			throw new SpreadsheetReadError('Zip part too large: ' . $name);
+			throw new SpreadsheetTooLargeError('Zip part too large: ' . $name);
 		}
 		$stream = $this->zip->getStream($name);
 		if ($stream === false) {
@@ -49,12 +51,15 @@ final class ZipPackage {
 		} finally {
 			fclose($stream);
 		}
-		if ($data === false || strlen($data) > self::MAX_PART_BYTES) {
-			throw new SpreadsheetReadError('Zip part too large: ' . $name);
+		if ($data === false) {
+			throw new SpreadsheetReadError('Unreadable zip part ' . $name);
+		}
+		if (strlen($data) > self::MAX_PART_BYTES) {
+			throw new SpreadsheetTooLargeError('Zip part too large: ' . $name);
 		}
 		$this->bytesRead += strlen($data);
 		if ($this->bytesRead > self::MAX_TOTAL_BYTES) {
-			throw new SpreadsheetReadError('More than ' . self::MAX_TOTAL_BYTES . ' bytes read from one zip file');
+			throw new SpreadsheetTooLargeError('More than ' . self::MAX_TOTAL_BYTES . ' bytes read from one zip file');
 		}
 		return $data;
 	}

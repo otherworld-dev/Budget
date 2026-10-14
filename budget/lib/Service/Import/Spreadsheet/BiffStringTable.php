@@ -27,8 +27,14 @@ final class BiffStringTable {
 	}
 
 	/**
+	 * The strings, each trimmed as a cell holds it. They are held whether or
+	 * not any cell uses them, so together they may hold no more text than a
+	 * workbook's cells may (MAX_TEXT_BYTES); each cell then spends its string
+	 * again as it is read.
+	 *
 	 * @param list<string> $segments The SST record's data, then each following CONTINUE's
 	 * @return list<string>
+	 * @throws SpreadsheetTooLargeError
 	 */
 	public static function parse(array $segments): array {
 		$table = new self($segments);
@@ -37,13 +43,17 @@ final class BiffStringTable {
 		if ($unique > SheetBuilder::MAX_CELLS) {
 			throw new SpreadsheetTooLargeError('More than ' . SheetBuilder::MAX_CELLS . ' shared strings');
 		}
+		$budget = new SheetBudget();
 		$strings = [];
 		for ($i = 0; $i < $unique && !$table->atEnd(); $i++) {
 			$length = $table->u16();
 			$flags = $table->u8();
 			$runs = ($flags & 0x08) !== 0 ? $table->u16() : 0;
 			$phonetic = ($flags & 0x04) !== 0 ? $table->u32() : 0;
-			$strings[] = $table->characters($length, ($flags & 0x01) !== 0);
+			// At most 65,535 characters, so one string is never large itself
+			$string = trim($table->characters($length, ($flags & 0x01) !== 0));
+			$budget->spend(0, strlen($string));
+			$strings[] = $string;
 			$table->skip(4 * $runs + $phonetic);
 		}
 		return $strings;

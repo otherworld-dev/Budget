@@ -3,9 +3,11 @@
  *
  * The page could only record a transaction, so a receipt meant saving it and
  * then opening it again in the main app to attach the photo. It now takes the
- * receipt up front: when the server can read receipts the photo fills in the
- * form, the way the main app's scan does, and either way the file is attached
- * once the transaction is saved, as the upload needs its id.
+ * receipt up front, and attaches it once the transaction is saved, as the
+ * upload needs its id. When the server can read receipts, a Read receipt
+ * button fills in the form from the photo, the way the main app's scan does.
+ * Picking a photo never reads it by itself: the reader can be an outside
+ * service, and a paid one, so the photo only goes to it when asked.
  *
  * The page is a PHP template with its script inline, so this renders it the
  * way the server would, with the PHP swapped for what it prints, and runs the
@@ -17,6 +19,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const TEMPLATE = fs.readFileSync(path.resolve(__dirname, '../../templates/quick-add.php'), 'utf8');
+const MAIN_TEMPLATE = fs.readFileSync(path.resolve(__dirname, '../../templates/index.php'), 'utf8');
 
 /** The contents of a single-quoted PHP string literal. */
 const phpString = (literal) => literal.replace(/\\(['\\])/g, '$1');
@@ -107,6 +110,12 @@ function fill({ account = '1', amount = '12.50', description = 'Lunch' } = {}) {
 
 const save = () => $('quick-add-form').dispatchEvent(new Event('submit', { cancelable: true }));
 
+/** Waits for the Read receipt button to show, then presses it. */
+async function read() {
+    await vi.waitFor(() => expect($('qa-receipt-read').hidden).toBe(false));
+    $('qa-receipt-read').click();
+}
+
 describe('Quick Add receipts (#419)', () => {
     beforeEach(() => {
         vi.useRealTimers();
@@ -151,14 +160,50 @@ describe('Quick Add receipts (#419)', () => {
         expect(fetchMock.mock.calls.some(([url]) => url.includes('/attachments/'))).toBe(false);
     });
 
-    it('fills in the form from the receipt when the server can read it', async () => {
+    it('only attaches a picked photo, and reads it only when asked', async () => {
+        // The reader can be the paid relay or any outside endpoint, so
+        // picking a photo to attach must not send it there.
+        const fetchMock = server(SCANNABLE);
+        mount(fetchMock);
+
+        choose(photo());
+        await vi.waitFor(() => expect($('qa-receipt-read').hidden).toBe(false));
+        await settle();
+
+        expect(calls(fetchMock, 'POST /apps/budget/api/receipts/extract')).toHaveLength(0);
+        expect($('qa-amount').value).toBe('');
+        expect($('qa-receipt-note').textContent).toContain('The photo will be attached when you save.');
+        expect($('qa-receipt-read').textContent).toBe('Read receipt');
+        expect(document.querySelector('.qa-submit-btn').disabled).toBe(false);
+
+        fill();
+        save();
+        await vi.waitFor(() => expect(calls(fetchMock, 'POST /apps/budget/api/transactions/42/attachments/upload')).toHaveLength(1));
+        expect(calls(fetchMock, 'POST /apps/budget/api/receipts/extract')).toHaveLength(0);
+    });
+
+    it('offers no Read receipt button when the server cannot read receipts', async () => {
+        const fetchMock = server();
+        mount(fetchMock);
+
+        choose(photo());
+        await settle();
+        await settle();
+
+        expect($('qa-receipt-read').hidden).toBe(true);
+        expect($('qa-receipt-note').textContent).toBe('The photo will be attached when you save.');
+    });
+
+    it('fills in the form from the receipt when asked to read it', async () => {
         const fetchMock = server(SCANNABLE);
         mount(fetchMock);
         const file = photo();
 
         choose(file);
+        await read();
 
         await vi.waitFor(() => expect($('qa-amount').value).toBe('23.77'));
+        expect(calls(fetchMock, 'POST /apps/budget/api/receipts/extract')).toHaveLength(1);
         const [, extract] = calls(fetchMock, 'POST /apps/budget/api/receipts/extract')[0];
         expect(extract.body.get('image')).toBe(file);
         expect($('qa-date').value).toBe('2026-09-30');
@@ -167,6 +212,8 @@ describe('Quick Add receipts (#419)', () => {
         expect($('qa-category').value).toBe('10');
         expect($('qa-receipt-note').textContent).toContain('Filled in: date, amount, description, vendor, category.');
         expect($('qa-receipt-note').textContent).toContain('The photo will be attached when you save.');
+        // Read once: a second press would be a second scan of the same photo.
+        await vi.waitFor(() => expect($('qa-receipt-read').hidden).toBe(true));
     });
 
     it('leaves the category alone when the form does not offer the one suggested', async () => {
@@ -178,18 +225,21 @@ describe('Quick Add receipts (#419)', () => {
         mount(fetchMock);
 
         choose(photo());
+        await read();
 
         await vi.waitFor(() => expect($('qa-amount').value).toBe('23.77'));
         expect($('qa-category').value).toBe('');
         expect($('qa-receipt-note').textContent).not.toContain('category');
     });
 
-    it('attaches a file the scanner cannot read without trying to read it', async () => {
+    it('attaches a file the scanner cannot read without offering to read it', async () => {
         const fetchMock = server(SCANNABLE);
         mount(fetchMock);
 
         choose(photo('application/pdf', 'invoice.pdf'));
         await settle();
+        await settle();
+        expect($('qa-receipt-read').hidden).toBe(true);
         fill();
         save();
 
@@ -205,6 +255,7 @@ describe('Quick Add receipts (#419)', () => {
         mount(fetchMock);
 
         choose(photo());
+        await read();
 
         await vi.waitFor(() => expect($('qa-receipt-note').textContent).toContain('No total could be read'));
         expect($('qa-receipt-note').textContent).toContain('The photo will be attached when you save.');
@@ -224,6 +275,7 @@ describe('Quick Add receipts (#419)', () => {
         mount(fetchMock);
 
         choose(photo());
+        await read();
         await vi.waitFor(() => expect(finishReading).toBeTypeOf('function'));
         expect($('qa-receipt-note').textContent).toContain('Reading the receipt');
         expect(document.querySelector('.qa-submit-btn').disabled).toBe(true);
@@ -246,6 +298,7 @@ describe('Quick Add receipts (#419)', () => {
         mount(fetchMock);
 
         choose(photo());
+        await read();
         await vi.waitFor(() => expect(finishReading).toBeTypeOf('function'));
         $('quick-add-form').reset();
         expect(document.querySelector('.qa-submit-btn').disabled).toBe(false);
@@ -304,10 +357,32 @@ describe('Quick Add receipts (#419)', () => {
         expect(fetchMock.mock.calls.some(([url]) => url.includes('/attachments/'))).toBe(false);
     });
 
-    it('explains what a photo does when the server can read receipts', async () => {
+    it('explains what Read receipt does without promising the photo stays on the server', async () => {
         mount(server(SCANNABLE));
-        await vi.waitFor(() => expect($('qa-receipt-note').hidden).toBe(false));
-        expect($('qa-receipt-note').textContent).toContain('fills in the form');
+        choose(photo());
+        await vi.waitFor(() => expect($('qa-receipt-read').hidden).toBe(false));
+
+        const note = $('qa-receipt-note').textContent;
+        expect(note).toContain('fills in the form');
+        expect(note).toContain('Admin Settings');
+        // The reader may be the hosted relay or any outside endpoint.
+        expect(note).not.toMatch(/your server/);
+        expect(TEMPLATE).not.toMatch(/read on your server/);
+        // Nor the main app's scan, which says the same.
+        expect(MAIN_TEMPLATE).not.toMatch(/read on your server/);
+        expect(MAIN_TEMPLATE).toContain('The photo is read by the receipt scanning set up in Budget\\\'s Admin Settings');
+    });
+
+    it('takes only the files the attachment upload accepts', () => {
+        mount(server());
+        // AttachmentService::ALLOWED_MIMES; image/* let a GIF or TIFF be
+        // picked only for the upload to refuse it after the save. The main
+        // app's Upload receipt picker had the same mismatch. HEIC is left out
+        // although the upload takes it: listing it stops iOS converting a
+        // camera photo to JPEG, the format receipt scanning can read.
+        const allowed = 'image/jpeg,image/png,image/webp,application/pdf';
+        expect($('qa-receipt').getAttribute('accept')).toBe(allowed);
+        expect(MAIN_TEMPLATE).toContain(`id="attachment-file-input" accept="${allowed}"`);
     });
 
     it('waits for Nextcloud to define OC before asking whether receipts can be read', async () => {
@@ -325,14 +400,21 @@ describe('Quick Add receipts (#419)', () => {
         readyState.mockRestore();
         document.dispatchEvent(new Event('DOMContentLoaded'));
 
-        await vi.waitFor(() => expect($('qa-receipt-note').hidden).toBe(false));
+        await vi.waitFor(() => expect(calls(fetchMock, 'GET /apps/budget/api/receipts/ocr-status')).toHaveLength(1));
+        choose(photo());
+        await vi.waitFor(() => expect($('qa-receipt-read').hidden).toBe(false));
         expect(calls(fetchMock, 'GET /apps/budget/api/receipts/ocr-status')).toHaveLength(1);
     });
 
-    it('says nothing under the button when the server cannot read receipts', async () => {
-        mount(server());
+    it.each([
+        ['cannot', server],
+        ['can', () => server(SCANNABLE)],
+    ])('says nothing under the button before a photo is picked when the server %s read receipts', async (_, makeServer) => {
+        mount(makeServer());
+        await settle();
         await settle();
         expect($('qa-receipt-note').hidden).toBe(true);
+        expect($('qa-receipt-read').hidden).toBe(true);
     });
 
     it('puts translations into the script as JavaScript strings, so an apostrophe in one survives', () => {

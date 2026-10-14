@@ -15,6 +15,7 @@ use OCA\Budget\Db\Setting;
 use OCA\Budget\Db\SettingMapper;
 use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Service\ImportFolderService;
 use OCA\Budget\Service\MigrationService;
 use OCP\IDBConnection;
 use PHPUnit\Framework\TestCase;
@@ -303,6 +304,68 @@ class MigrationServiceTest extends TestCase {
 
 		$this->expectException(\TypeError::class);
 		$this->service->importAll('user1', $zipContent);
+	}
+
+	/**
+	 * The restored import folders come back switched on, but the record of
+	 * what their subfolders held does not: it is this server's. Once the
+	 * restore is in, what Files holds there now is left alone, or the next
+	 * run would import the old statements and file everything else under
+	 * Failed.
+	 */
+	public function testARestoreLeavesWhatTheImportFoldersHoldAlone(): void {
+		$importFolders = $this->createMock(ImportFolderService::class);
+		$importFolders->expects($this->once())->method('leaveRestoredAlone')->with('user1')
+			->willReturnCallback(function (): int {
+				$this->assertTrue($this->committed, 'Only once the restore is in');
+				return 0;
+			});
+
+		$result = $this->restoreWithImportFolders($importFolders);
+
+		$this->assertSame([], $result['warnings']);
+	}
+
+	public function testARestoreSaysHowManyFilesItLeftAlone(): void {
+		// One of them may be a statement dropped in just before the restore
+		$importFolders = $this->createMock(ImportFolderService::class);
+		$importFolders->method('leaveRestoredAlone')->willReturn(3);
+
+		$result = $this->restoreWithImportFolders($importFolders);
+
+		$this->assertSame(['3 files already in your import folders were left as they are. Only files added from now on are imported.'], $result['warnings']);
+	}
+
+	public function testARestoreSaysSoWhenItHadToSwitchTheImportFoldersOff(): void {
+		$importFolders = $this->createMock(ImportFolderService::class);
+		$importFolders->method('leaveRestoredAlone')->willReturn(null);
+
+		$result = $this->restoreWithImportFolders($importFolders);
+
+		$this->assertCount(1, $result['warnings']);
+		$this->assertStringContainsString('import folders', $result['warnings'][0]);
+	}
+
+	private bool $committed = false;
+
+	private function restoreWithImportFolders(ImportFolderService $importFolders): array {
+		foreach ([$this->transactionMapper, $this->billMapper, $this->importRuleMapper, $this->accountMapper, $this->categoryMapper] as $mapper) {
+			$mapper->method('findAll')->willReturn([]);
+		}
+		$this->db->method('commit')->willReturnCallback(function (): void {
+			$this->committed = true;
+		});
+		$service = new MigrationService(
+			$this->accountMapper, $this->transactionMapper, $this->categoryMapper,
+			$this->billMapper, $this->importRuleMapper, $this->settingMapper, $this->db,
+			null, null, null, null, $importFolders
+		);
+		return $service->importAll('user1', $this->createTestZip([
+			'manifest.json' => json_encode(['version' => '1.3.0', 'appId' => 'budget']),
+			'categories.json' => json_encode([]),
+			'accounts.json' => json_encode([]),
+			'transactions.json' => json_encode([]),
+		]));
 	}
 
 	public function testImportAllRejectsInvalidJson(): void {

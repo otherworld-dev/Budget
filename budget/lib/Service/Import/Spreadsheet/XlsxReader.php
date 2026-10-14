@@ -95,49 +95,103 @@ final class XlsxReader {
 	}
 
 	/**
+	 * The shared strings, held for the cells to use. However many cells use
+	 * one it is held once, but they are held whether or not any cell does, so
+	 * together they may hold no more text than a workbook's cells may
+	 * (MAX_TEXT_BYTES); each cell then spends its string again as it is read.
+	 *
 	 * @return list<string>
 	 */
 	private function sharedStrings(string $xml): array {
 		$reader = Xml::reader($xml);
-		$document = new \DOMDocument();
 		$strings = [];
-		$ok = $reader->read();
-		while ($ok) {
+		$budget = new SheetBudget();
+		while ($reader->read()) {
 			if ($reader->nodeType === \XMLReader::ELEMENT && $reader->localName === 'si') {
 				if (count($strings) >= SheetBuilder::MAX_CELLS) {
 					throw new SpreadsheetTooLargeError('More than ' . SheetBuilder::MAX_CELLS . ' shared strings');
 				}
-				$node = $reader->expand($document);
 				// Trimmed here, once: a cell then shares the string rather
 				// than copying it, however many cells use it
-				$strings[] = $node instanceof \DOMElement ? trim(self::text($node)) : '';
-				$ok = $reader->next();
-				continue;
+				$string = trim(self::content($reader, $budget->textLeft())[1]);
+				$budget->spend(0, strlen($string));
+				$strings[] = $string;
 			}
-			$ok = $reader->read();
 		}
 		Xml::complete($reader);
 		return $strings;
 	}
 
 	/**
-	 * The text of a string item: its <t> elements, leaving out phonetic runs
-	 * (<rPh>), with Excel's _xHHHH_ escapes decoded. Excel writes a line
-	 * break in a cell as _x000D_, and a literal "_x" as _x005F_x; replacing
-	 * left to right without going back over a replacement handles both.
+	 * What a string item (<si>) or a cell (<c>) holds, read node by node:
+	 * the text of its first <v> child, if it has one, and the text of its
+	 * <t> elements (a rich-text string has one per run) leaving out
+	 * phonetic runs (<rPh>) and extensions (<extLst>), with Excel's _xHHHH_
+	 * escapes decoded. Excel writes a line break in a cell as _x000D_, and
+	 * a literal "_x" as _x005F_x; replacing left to right without going
+	 * back over a replacement handles both.
+	 *
+	 * The reader is left on the element's end tag. Each of the two may grow
+	 * no further than $limit, the workbook's text left.
+	 *
+	 * @return array{?string, string}
+	 * @throws SpreadsheetTooLargeError
 	 */
-	private static function text(\DOMElement $element): string {
+	private static function content(\XMLReader $reader, int $limit): array {
+		$value = '';
+		$hasValue = false;
 		$text = '';
-		foreach ($element->getElementsByTagNameNS('*', 't') as $t) {
-			if ($t->parentNode?->localName !== 'rPh') {
-				$text .= $t->textContent;
+		// The element being collected ('v' or 't') and the depth it ends at
+		$collecting = null;
+		$collectingDepth = 0;
+		// Inside a phonetic run or an extension list while non-zero: the
+		// depth it ends at
+		$skipDepth = 0;
+		foreach (Xml::inside($reader) as $depth) {
+			$end = $reader->nodeType === \XMLReader::END_ELEMENT;
+			if ($skipDepth !== 0) {
+				if ($end && $depth === $skipDepth) {
+					$skipDepth = 0;
+				}
+			} elseif ($collecting !== null) {
+				if ($end && $depth === $collectingDepth) {
+					$collecting = null;
+				} elseif (Xml::isText($reader)) {
+					if ($collecting === 'v') {
+						Xml::append($value, $reader->value, 0, $limit);
+					} else {
+						Xml::append($text, $reader->value, 0, $limit);
+					}
+				}
+			} elseif ($reader->nodeType === \XMLReader::ELEMENT) {
+				$empty = $reader->isEmptyElement;
+				switch ($reader->localName) {
+					case 'rPh':
+					case 'extLst':
+						$skipDepth = $empty ? 0 : $depth;
+						break;
+					case 't':
+						if (!$empty) {
+							[$collecting, $collectingDepth] = ['t', $depth];
+						}
+						break;
+					case 'v':
+						if ($depth === 1 && !$hasValue) {
+							$hasValue = true;
+							if (!$empty) {
+								[$collecting, $collectingDepth] = ['v', $depth];
+							}
+						}
+						break;
+				}
 			}
 		}
-		return preg_replace_callback(
+		$text = preg_replace_callback(
 			'/_x([0-9A-Fa-f]{4})_/',
 			static fn (array $match): string => mb_chr((int)hexdec($match[1]), 'UTF-8') ?: '',
 			$text
 		) ?? $text;
+		return [$hasValue ? $value : null, $text];
 	}
 
 	/**
@@ -191,55 +245,53 @@ final class XlsxReader {
 	private function sheet(string $name, string $xml, array $strings, array $cellFormats, array $formatCodes, bool $date1904, SheetBudget $budget): array {
 		$builder = new SheetBuilder($name, $budget);
 		$reader = Xml::reader($xml);
-		$document = new \DOMDocument();
 		$row = -1;
 		$column = -1;
-		$ok = $reader->read();
-		while ($ok) {
-			if ($reader->nodeType === \XMLReader::ELEMENT) {
-				if ($reader->localName === 'row') {
-					$number = Xml::attr($reader, 'r');
-					$row = $number !== null && ctype_digit($number) ? (int)$number - 1 : $row + 1;
-					$column = -1;
-				} elseif ($reader->localName === 'c') {
-					$reference = Xml::attr($reader, 'r');
-					$column = $reference !== null && preg_match('/^([A-Z]{1,3})\d+$/i', $reference, $match) === 1
-						? self::columnIndex($match[1])
-						: $column + 1;
-					$type = Xml::attr($reader, 't') ?? 'n';
-					$style = (int)(Xml::attr($reader, 's') ?? 0);
-					$node = $reader->isEmptyElement ? null : $reader->expand($document);
-					if ($node instanceof \DOMElement) {
-						$builder->add($row, $column, $this->cellText($node, $type, $style, $strings, $cellFormats, $formatCodes, $date1904));
-					}
-					$ok = $reader->next();
-					continue;
-				}
+		while ($reader->read()) {
+			if ($reader->nodeType !== \XMLReader::ELEMENT) {
+				continue;
 			}
-			$ok = $reader->read();
+			if ($reader->localName === 'row') {
+				$number = Xml::attr($reader, 'r');
+				if ($number === null || !ctype_digit($number)) {
+					$row++;
+				} elseif (strlen($number) > 9) {
+					// Too long to be a row of any sheet, and past an int
+					throw new SpreadsheetReadError('Row number ' . substr($number, 0, 20) . ' is past the end of any sheet');
+				} else {
+					$row = (int)$number - 1;
+				}
+				$column = -1;
+			} elseif ($reader->localName === 'c') {
+				$reference = Xml::attr($reader, 'r');
+				$column = $reference !== null && preg_match('/^([A-Z]{1,3})\d+$/i', $reference, $match) === 1
+					? self::columnIndex($match[1])
+					: $column + 1;
+				$type = Xml::attr($reader, 't') ?? 'n';
+				$style = (int)(Xml::attr($reader, 's') ?? 0);
+				// No longer than the workbook's text left, and spent from it
+				// (by the builder) before the next cell is read
+				[$value, $text] = self::content($reader, $budget->textLeft());
+				$builder->add($row, $column, $this->cellText($type, $style, $value, $text, $strings, $cellFormats, $formatCodes, $date1904));
+			}
 		}
 		Xml::complete($reader);
 		return $builder->build();
 	}
 
 	/**
+	 * @param ?string $value The cell's <v>
+	 * @param string $text The text of its <t> elements (an inline string)
 	 * @param list<string> $strings
 	 * @param list<int> $cellFormats
 	 * @param array<int, string> $formatCodes
 	 */
-	private function cellText(\DOMElement $cell, string $type, int $style, array $strings, array $cellFormats, array $formatCodes, bool $date1904): string {
-		$value = null;
-		foreach ($cell->childNodes as $child) {
-			if ($child instanceof \DOMElement && $child->localName === 'v') {
-				$value = $child->textContent;
-				break;
-			}
-		}
+	private function cellText(string $type, int $style, ?string $value, string $text, array $strings, array $cellFormats, array $formatCodes, bool $date1904): string {
 		switch ($type) {
 			case 's':
 				return $value === null ? '' : ($strings[(int)$value] ?? '');
 			case 'inlineStr':
-				return trim(self::text($cell));
+				return trim($text);
 			case 'str':
 				return trim($value ?? '');
 			case 'b':

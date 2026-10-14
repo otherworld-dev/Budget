@@ -156,6 +156,21 @@ class QueryFilterBuilder {
 			}
 		}
 
+		// Everything the uncategorised filter above leaves out, and nothing it
+		// keeps: a category of its own, or a split parent that has parts (its
+		// categories are on them). The exact negation of that branch, spelled
+		// out because NOT over a NULL is_split is NULL, never true: the flag
+		// half is splitParentPredicate(), true or NULL (#356).
+		if (!empty($filters['categorized'])) {
+			$qb->andWhere($qb->expr()->orX(
+				$qb->expr()->isNotNull("{$alias}.category_id"),
+				$qb->expr()->andX(
+					ReportScope::splitParentPredicate($qb, $alias),
+					self::hasSplitPartsExpr($qb, $alias)
+				)
+			));
+		}
+
 		// Type filter (debit/credit/split)
 		if (!empty($filters['type'])) {
 			if ($filters['type'] === 'split') {

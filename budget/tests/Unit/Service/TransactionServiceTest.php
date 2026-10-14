@@ -1723,6 +1723,57 @@ class TransactionServiceTest extends TestCase {
 		$this->service->convertToTransfer(1, 20, 'user1');
 	}
 
+	/**
+	 * The other side would be new activity in a closed account, which must
+	 * stay at zero (#372). The web UI's Convert to transfer and the API's
+	 * transfers both come through here.
+	 */
+	public function testConvertToTransferRefusesAClosedTargetAccount(): void {
+		$source = $this->makeTransaction(['id' => 1, 'accountId' => 10]);
+		$this->mapper->method('find')->willReturn($source);
+		$this->accountMapper->method('find')->willReturnCallback(function (int $id) {
+			$account = $this->makeAccount(['id' => $id]);
+			$account->setClosed($id === 20);
+			return $account;
+		});
+		$this->mapper->expects($this->never())->method('insert');
+		$this->mapper->expects($this->never())->method('linkTransactions');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('closed');
+
+		$this->service->convertToTransfer(1, 20, 'user1');
+	}
+
+	/**
+	 * A row already in a closed account, such as its closing withdrawal, may
+	 * still be made the transfer it was: the closed account gains nothing.
+	 */
+	public function testConvertToTransferStillTakesARowOutOfAClosedAccount(): void {
+		$source = $this->makeTransaction(['id' => 1, 'accountId' => 10]);
+		$counterpart = null;
+		$this->mapper->method('find')->willReturnCallback(
+			function (int $id) use ($source, &$counterpart) {
+				return $id === 1 ? $source : $counterpart;
+			}
+		);
+		$this->mapper->method('insert')->willReturnCallback(function (Transaction $tx) use (&$counterpart) {
+			$tx->setId(2);
+			$counterpart = $tx;
+			return $tx;
+		});
+		$this->accountMapper->method('find')->willReturnCallback(function (int $id) {
+			$account = $this->makeAccount(['id' => $id]);
+			$account->setClosed($id === 10);
+			return $account;
+		});
+		$this->mapper->expects($this->once())->method('linkTransactions')->with(1, 2);
+
+		$this->service->convertToTransfer(1, 20, 'user1');
+
+		$this->assertSame(20, $counterpart->getAccountId());
+	}
+
 	public function testConvertToTransferRejectsCurrencyMismatch(): void {
 		$source = $this->makeTransaction(['id' => 1, 'accountId' => 10]);
 		$this->mapper->method('find')->willReturn($source);

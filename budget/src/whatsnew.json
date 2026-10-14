@@ -1,5 +1,25 @@
 [
     {
+        "version": "3.0.0",
+        "title": "Budget 3.0, the first release out of beta",
+        "items": [
+            "Budget is out of beta. 3.0 is the first release considered stable, every part of the app was reviewed and tested ahead of it, upgrading from 2.x included, so the beta warning has gone. Making a backup from Settings every now and then is still a good idea.",
+            "There is now an Android app, Budget Companion, on Google Play. Photograph a receipt and your own server reads it (when receipt scanning is set up), add a transaction by hand when there is no receipt, and check your balances, what is left of this month's budget and the bills due. Anything you enter without a signal is sent once you are back online.",
+            "An import folder: drop a bank statement into a folder in your Files and it is imported in the background, or held for you to check first. It is set up under Settings.",
+            "Statements can be imported straight from Excel and LibreOffice (.xls, .xlsx and .ods), and exports from Firefly III, YNAB, Actual Budget, Mint and Monarch Money can be brought across.",
+            "Sharing has a Full control level as well as Read only and Read & Write, and the Budget page has a Ready to Assign card, with weekly, quarterly and yearly budgets measured over the month.",
+            "The Transactions page works on a phone, the sidebar matches the rest of Nextcloud and the app opens faster.",
+            "Someone new to Budget gets a getting started checklist, and can try it out with sample data first."
+        ],
+        "link": "https://github.com/otherworld-dev/Budget/blob/main/budget/CHANGELOG.md",
+        "links": [
+            {
+                "url": "https://play.google.com/store/apps/details?id=dev.otherworld.budget",
+                "text": "Get Budget Companion on Google Play"
+            }
+        ]
+    },
+    {
         "version": "2.54.0",
         "title": "Skipping transfers and a projected balance",
         "items": [

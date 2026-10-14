@@ -10,7 +10,8 @@
 }
 
 #app-navigation,
-#app-content {
+#app-content,
+#budget-toast-container {
     --color-success: #2e7d32;
     --color-error: #b71c1c;
     --color-warning: #e65100;
@@ -8472,8 +8473,26 @@ button.danger:hover {
 .qa-receipt-note:not([hidden]) {
     display: block;
 }
+/* Reading a picked photo is its own step (it can go to an outside, paid
+   reader). Kept on the photo's row; the file name gives way to it. */
+.qa-receipt-chosen .qa-receipt-read {
+    flex-shrink: 0;
+    margin: 0;
+    padding: 6px 12px;
+    min-height: 36px;
+    font-size: 13px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.qa-receipt-chosen .qa-receipt-read[hidden] {
+    display: none;
+}
+/* The page sits outside #app-content, so the app's own --color-error /
+   --color-success shades (top of the file) don't reach it, and on Nextcloud
+   32+ the core ones are pale fills (#FFE7E7, #D8F3DA). Text takes the
+   theme's matching -text colour instead. */
 .qa-receipt-note-error {
-    color: var(--color-error);
+    color: var(--color-error-text, var(--budget-color-negative));
 }
 .qa-buttons {
     display: flex;
@@ -8511,11 +8530,11 @@ button.danger:hover {
 }
 .qa-success {
     background: rgba(70, 186, 97, 0.15);
-    color: var(--color-success);
+    color: var(--color-success-text, var(--budget-color-positive));
 }
 .qa-error {
     background: rgba(233, 50, 45, 0.15);
-    color: var(--color-error);
+    color: var(--color-error-text, var(--budget-color-negative));
 }
 
 .settings-section h3 {
@@ -18851,10 +18870,14 @@ button.secondary.compact {
     pointer-events: none;
 }
 
+/* The container is appended to <body>, outside #app-content, so it is added
+   to the status colour overrides at the top of the file (and the dark ones at
+   the end): on Nextcloud 32+ the core --color-error and --color-warning are
+   pale fills (#FFE7E7, #FFEEC5), which left the white text unreadable. */
 .budget-toast {
     padding: 10px 20px;
     border-radius: var(--border-radius-large, 6px);
-    color: #fff;
+    color: var(--budget-color-on-status, #fff);
     font-size: 14px;
     max-width: 400px;
     word-break: break-word;
@@ -18885,6 +18908,7 @@ button.secondary.compact {
 
 .budget-toast-info {
     background-color: var(--color-primary, #0082c9);
+    color: var(--color-primary-text, #fff);
 }
 
 /* ===== Flatpickr Nextcloud Theme Overrides ===== */
@@ -20150,6 +20174,12 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
     overflow-wrap: anywhere;
 }
 
+.whats-new-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 20px;
+}
+
 .whats-new-link {
     color: var(--color-primary-element, #0082c9);
     text-decoration: underline;
@@ -20648,8 +20678,10 @@ body[data-theme-dark-highcontrast] {
    Being light, they take dark text when used as a fill. */
 body[data-theme-dark] #app-navigation,
 body[data-theme-dark] #app-content,
+body[data-theme-dark] #budget-toast-container,
 body[data-theme-dark-highcontrast] #app-navigation,
-body[data-theme-dark-highcontrast] #app-content {
+body[data-theme-dark-highcontrast] #app-content,
+body[data-theme-dark-highcontrast] #budget-toast-container {
     --color-success: #81c995;
     --color-error: #f28b82;
     --color-warning: #ffb74d;
@@ -20658,7 +20690,8 @@ body[data-theme-dark-highcontrast] #app-content {
 
 @media (prefers-color-scheme: dark) {
     body[data-theme-default] #app-navigation,
-    body[data-theme-default] #app-content {
+    body[data-theme-default] #app-content,
+    body[data-theme-default] #budget-toast-container {
         --color-success: #81c995;
         --color-error: #f28b82;
         --color-warning: #ffb74d;

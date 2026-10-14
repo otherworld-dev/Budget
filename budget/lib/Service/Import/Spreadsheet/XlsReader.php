@@ -54,7 +54,7 @@ final class XlsReader {
 		$sheetOffsets = [];
 		$sst = null;
 		$first = true;
-		foreach ($this->records($stream, 0) as [$id, $data]) {
+		foreach ($this->records($stream, 0, strlen($stream)) as [$id, $data]) {
 			if ($first) {
 				if ($id !== self::BOF || Bytes::u16($data, 0) !== 0x0600) {
 					throw new SpreadsheetReadError('Not a BIFF8 workbook');
@@ -67,7 +67,7 @@ final class XlsReader {
 					$sst[] = $data;
 					continue;
 				}
-				$this->strings = array_map(trim(...), BiffStringTable::parse($sst));
+				$this->strings = BiffStringTable::parse($sst);
 				$sst = null;
 			}
 			switch ($id) {
@@ -111,13 +111,24 @@ final class XlsReader {
 			throw new SpreadsheetReadError('Empty workbook stream');
 		}
 		if ($sst !== null) {
-			$this->strings = array_map(trim(...), BiffStringTable::parse($sst));
+			$this->strings = BiffStringTable::parse($sst);
+		}
+
+		// A sheet's records end where the next sheet's begin, whether or not
+		// its EOF record is there: a scan to the end of the stream for every
+		// sheet made a small file of many sheets over a long tail of records
+		// take minutes. So the sheets are read in one pass between them.
+		$starts = array_keys($sheetOffsets);
+		sort($starts);
+		$ends = [];
+		foreach ($starts as $i => $start) {
+			$ends[$start] = $starts[$i + 1] ?? strlen($stream);
 		}
 
 		$result = [];
 		$budget = new SheetBudget();
 		foreach ($sheets as [$name, $offset]) {
-			$result[] = $this->sheet($stream, $name, $offset, $budget);
+			$result[] = $this->sheet($stream, $name, $offset, $ends[$offset], $budget);
 		}
 		return $result;
 	}
@@ -125,11 +136,11 @@ final class XlsReader {
 	/**
 	 * @return array{name: string, rows: list<list<string>>}
 	 */
-	private function sheet(string $stream, string $name, int $offset, SheetBudget $budget): array {
+	private function sheet(string $stream, string $name, int $offset, int $end, SheetBudget $budget): array {
 		$builder = new SheetBuilder($name, $budget);
 		$formulaCell = null;
 		$first = true;
-		foreach ($this->records($stream, $offset) as [$id, $data]) {
+		foreach ($this->records($stream, $offset, $end) as [$id, $data]) {
 			if ($first) {
 				if ($id !== self::BOF) {
 					throw new SpreadsheetReadError('Sheet does not start with BOF');
@@ -194,13 +205,13 @@ final class XlsReader {
 	}
 
 	/**
-	 * Records from $offset on, as [id, data].
+	 * The records starting from $offset up to $end, as [id, data].
 	 *
 	 * @return \Generator<int, array{int, string}>
 	 */
-	private function records(string $stream, int $offset): \Generator {
+	private function records(string $stream, int $offset, int $end): \Generator {
 		$length = strlen($stream);
-		while ($offset + 4 <= $length) {
+		while ($offset < $end && $offset + 4 <= $length) {
 			$id = Bytes::u16($stream, $offset);
 			$size = Bytes::u16($stream, $offset + 2);
 			if ($offset + 4 + $size > $length) {

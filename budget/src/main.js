@@ -80,6 +80,7 @@ import { setupClickableCards } from './utils/clickableCards.js';
 import { transactionTotalsByCurrency } from './utils/helpers.js';
 import { categoryOptionsHtml } from './utils/formSelects.js';
 import { apiFetch, ApiError } from './utils/api.js';
+import { openAccounts } from './utils/accounts.js';
 
 // Configuration
 // Core
@@ -3334,7 +3335,8 @@ class BudgetApp {
         const convertSelect = document.getElementById('matching-convert-account');
         const convertSection = document.getElementById('matching-convert');
         if (convertSelect && convertSection) {
-            const candidates = (this.accounts || []).filter(a =>
+            // Only an open account you can write to can take the new leg (#372)
+            const candidates = openAccounts(this.accounts).filter(a =>
                 a.id !== transaction.accountId && (a.currency || this.getPrimaryCurrency()) === currency);
             convertSelect.innerHTML = candidates.map(a =>
                 `<option value="${a.id}">${dom.escapeHtml(a.name)}</option>`).join('');

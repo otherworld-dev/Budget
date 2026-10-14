@@ -331,6 +331,25 @@ class AccountServiceTest extends TestCase {
 		$service->delete(1, 'user1');
 	}
 
+	public function testDeletingAnAccountForgetsTheImportRoutingsIntoIt(): void {
+		$links = $this->createMock(\OCA\Budget\Db\ImportAccountLinkMapper::class);
+		$links->expects($this->once())->method('deleteByAccount')->with(1);
+		$service = new AccountService(
+			$this->accountMapper,
+			$this->transactionMapper,
+			$this->createMock(InterestRateMapper::class),
+			$this->conversionService,
+			$this->granularShareService,
+			$this->transactionService,
+			$this->createMock(IL10N::class),
+			importLinkMapper: $links,
+		);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount());
+		$this->transactionMapper->method('findByAccount')->willReturn([]);
+
+		$service->delete(1, 'user1');
+	}
+
 	public function testDeleteSucceedsWhenNoTransactions(): void {
 		$account = $this->makeAccount();
 		$this->accountMapper->method('find')->willReturn($account);

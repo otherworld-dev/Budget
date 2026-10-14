@@ -1159,6 +1159,22 @@ class TransactionNormalizerTest extends TestCase {
 		$this->assertNull($result['category']);
 	}
 
+	// ── isDate ──────────────────────────────────────────────────────
+
+	public function testIsDateTakesTheImportersOwnFormats(): void {
+		foreach (['2026-10-01', '01/10/2026', '10/31/2026', '31.12.2026', '31/12/26', '2026/10/01', ' 01-10-2026 '] as $date) {
+			$this->assertTrue($this->normalizer->isDate($date), $date);
+		}
+	}
+
+	public function testIsDateLeavesOutWhatOnlyTheFallbacksTake(): void {
+		// strtotime() takes a month name or a lone letter (a time zone), and
+		// the OFX form any long number; none of them is a column of dates
+		foreach (['', 'May', 'A', 'Coffee', '20261001', '12345678901', '-3.50', '2000.00', '1.234,56', '99/99/9999', '14:30:00', '2026-10-01 extra'] as $value) {
+			$this->assertFalse($this->normalizer->isDate($value), $value);
+		}
+	}
+
 	// ── detectDateFormat ────────────────────────────────────────────
 
 	public function testDetectDateFormatDDMMWhenDayAbove12(): void {

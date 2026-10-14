@@ -28,6 +28,7 @@ use OCP\Files\IRootFolder;
 use OCP\Files\Node;
 use OCP\Files\NotFoundException;
 use OCP\Files\NotPermittedException;
+use OCP\IConfig;
 use OCP\IL10N;
 use OCP\ITempManager;
 use OCP\L10N\IFactory;
@@ -71,6 +72,35 @@ class ImportFolderService {
 	/** A file changed this recently may still be uploading */
 	private const SETTLE_SECONDS = 120;
 
+	/**
+	 * The user preference recording the files that were already in a
+	 * subfolder when Budget started reading it, which it leaves alone: by
+	 * subfolder, each file's id and a marker of its etag. In the server's
+	 * preferences, not Budget's settings: file ids belong to this server, so
+	 * they are not for a backup (a restore records the restored folders'
+	 * files afresh), and a reset of Budget's settings must not let Budget
+	 * loose on them. Not a lazy preference, which NC 30 does not have; kept
+	 * small instead, as check() forgets what has left its folder.
+	 */
+	private const LEFT_ALONE_KEY = 'import_folder_left_alone';
+
+	/** Tries at the lock on that record, 50 ms apart */
+	private const LEFT_ALONE_LOCK_ATTEMPTS = 10;
+
+	/**
+	 * The user preference recording the files being read right now: each
+	 * file's id, a marker of its etag and when. Set before a file is handed
+	 * to the importer and cleared once it is dealt with, so one still there
+	 * is a file whose reading stopped the process that read it: PHP running
+	 * out of memory or time is a fatal error, which nothing can catch. That
+	 * file is set aside, not read again, or it would stop every later run,
+	 * for every user after its owner. Written over since, it is read again.
+	 */
+	private const ATTEMPTS_KEY = 'import_folder_attempts';
+
+	/** Entries kept no longer than this, in case one was never cleared */
+	private const ATTEMPT_KEEP_SECONDS = 7 * 86400;
+
 	public function __construct(
 		private ImportFolderMapper $mapper,
 		private AccountMapper $accountMapper,
@@ -87,6 +117,7 @@ class ImportFolderService {
 		private BudgetMailService $mail,
 		private IFactory $l10nFactory,
 		private ITimeFactory $time,
+		private IConfig $config,
 		private IL10N $l,
 		private LoggerInterface $logger,
 	) {
@@ -131,9 +162,14 @@ class ImportFolderService {
 	}
 
 	/**
+	 * A folder that is already there is taken as it is, and whatever it
+	 * holds stays where it is: only files added from now on are read.
+	 *
+	 * @return array{folder: ImportFolder, leftAlone: int} The new row, and how
+	 *                                                     many files already in the folder are left alone
 	 * @throws \InvalidArgumentException With a message for the user
 	 */
-	public function create(string $userId, string $name, int $accountId, ?int $templateId, string $mode = self::MODE_AUTO): ImportFolder {
+	public function create(string $userId, string $name, int $accountId, ?int $templateId, string $mode = self::MODE_AUTO): array {
 		$name = $this->validName($name);
 		$this->assertMode($mode);
 		foreach ($this->mapper->findAll($userId) as $existing) {
@@ -146,7 +182,11 @@ class ImportFolderService {
 
 		// In Files first: a row whose folder could not be made would never import anything
 		try {
-			$this->childFolder($this->mainFolder($userId), $name, $userId);
+			$main = $this->mainFolder($userId);
+			$existing = $this->existingFolder($main, $name, $userId);
+			// Before the row exists, so no run can get to them first
+			$leftAlone = $existing === null ? 0 : $this->leaveAlone($userId, $existing);
+			$this->childFolder($main, $name, $userId);
 		} catch (InvalidPathException|NotFoundException|NotPermittedException $e) {
 			// A name the storage will not take (Files has rules of its own on
 			// top of ours), or a folder that cannot be written to
@@ -161,7 +201,363 @@ class ImportFolderService {
 		$folder->setMode($mode);
 		$folder->setEnabled(true);
 		$folder->setCreatedAt($this->now());
-		return $this->mapper->insert($folder);
+		return ['folder' => $this->mapper->insert($folder), 'leftAlone' => $leftAlone];
+	}
+
+	/**
+	 * Before the main folder setting moves to $mainFolder: the files already
+	 * in the subfolders there are left alone, as they are for a new row.
+	 * Nothing is created on the way. A subfolder that cannot be listed is
+	 * an error, not skipped: its files would be read once it could be.
+	 *
+	 * @return array<string, int> How many files are left alone, by the name
+	 *                            of each subfolder that holds any
+	 */
+	public function leaveExistingAlone(string $userId, string $mainFolder): array {
+		$main = $this->existingPath($userId, $mainFolder);
+		if ($main === null) {
+			return [];
+		}
+
+		$leftAlone = [];
+		foreach ($this->mapper->findAll($userId) as $row) {
+			$name = (string)$row->getName();
+			$folder = $this->existingFolder($main, $name, $userId);
+			$count = $folder === null ? 0 : $this->leaveAlone($userId, $folder);
+			if ($count > 0) {
+				$leftAlone[$name] = $count;
+			}
+		}
+		return $leftAlone;
+	}
+
+	/**
+	 * After a backup is restored. Its import folders come back switched on,
+	 * but not the record of what they held, which belongs to the server it
+	 * was made on: the files in their subfolders now are left alone, as for
+	 * a folder added now. A subfolder not in Files yet has nothing to leave
+	 * alone; whatever arrives in it later is new. Never throws: the restore
+	 * is done by now. If the subfolders cannot be read, the restored folders
+	 * are switched off instead, so nothing that was there is imported.
+	 *
+	 * @return ?int How many files are left alone, or null when the folders
+	 *              had to be switched off
+	 */
+	public function leaveRestoredAlone(string $userId): ?int {
+		try {
+			if ($this->mapper->findAll($userId) === []) {
+				return 0;
+			}
+			return array_sum($this->leaveExistingAlone($userId, $this->mainFolderFor($userId)));
+		} catch (\Throwable $e) {
+			$this->logger->warning("Budget import folder: what the restored folders hold could not be listed for {$userId}, so they are switched off: " . $e->getMessage(), ['app' => Application::APP_ID]);
+		}
+		try {
+			foreach ($this->mapper->findEnabled($userId) as $row) {
+				$row->setEnabled(false);
+				$row->setUpdatedAt($this->now());
+				$this->mapper->update($row);
+			}
+		} catch (\Throwable $e) {
+			$this->logger->error("Budget import folder: the restored folders could not be switched off for {$userId}: " . $e->getMessage(), ['app' => Application::APP_ID]);
+		}
+		return null;
+	}
+
+	/**
+	 * Mark the files in a folder as there before Budget, so check() leaves
+	 * them where they are. By id, not by date: a file moved or copied in
+	 * Files keeps its dates, so a statement moved in later would look as old
+	 * as these. With its etag: writing over a file (Files' "Replace", the
+	 * desktop client) keeps its id, and a bank export always saved under the
+	 * same name is a new statement each time.
+	 *
+	 * @return int How many files that is
+	 */
+	private function leaveAlone(string $userId, Folder $folder): int {
+		$files = [];
+		foreach ($this->statements($folder, $userId) as $file) {
+			$files[(int)$file->getId()] = self::marker($file);
+		}
+		if ($files !== []) {
+			// What the folder holds now is the whole of it: anything recorded
+			// for it before that is not there any more is gone
+			$folderId = (int)$folder->getId();
+			$this->changeLeftAlone($userId, static function (array $record) use ($folderId, $files): array {
+				$record[$folderId] = $files;
+				return $record;
+			});
+		}
+		return count($files);
+	}
+
+	/**
+	 * What tells a file left alone from the same file written over: its
+	 * etag, which Files changes whenever the file is written, and not when
+	 * it is read, shared or tagged. Hashed short, as it is kept for every
+	 * file left alone.
+	 */
+	private static function marker(File $file): string {
+		return hash('crc32b', (string)$file->getEtag());
+	}
+
+	/**
+	 * The files check() leaves alone, by the folder they are in. Under folder
+	 * 0, with no marker, the ids an earlier build recorded on their own: one
+	 * of those is taken to be unchanged, and given its folder and marker the
+	 * first time check() finds it.
+	 *
+	 * @param bool $fresh Read past this request's cache, as a change must
+	 * @return array<int, array<int, ?string>> folder id => [file id => marker]
+	 */
+	private function leftAlone(string $userId, bool $fresh = false): array {
+		$stored = $fresh
+			? ($this->config->getUserValueForUsers(Application::APP_ID, self::LEFT_ALONE_KEY, [$userId])[$userId] ?? '')
+			: $this->config->getUserValue($userId, Application::APP_ID, self::LEFT_ALONE_KEY, '');
+		$decoded = json_decode((string)$stored, true);
+		if (!is_array($decoded)) {
+			return [];
+		}
+		$record = [];
+		foreach ($decoded as $key => $value) {
+			if (is_int($value)) {
+				$record[0][$value] = null;
+			} elseif (is_array($value)) {
+				foreach ($value as $fileId => $marker) {
+					$record[(int)$key][(int)$fileId] = is_string($marker) ? $marker : null;
+				}
+			}
+		}
+		return $record;
+	}
+
+	/**
+	 * Change the record of what is left alone. Under a lock, from what is
+	 * stored now rather than what this request read earlier: two changes at
+	 * once (a folder added while check() tidies up) each keep the other's.
+	 *
+	 * @param callable(array<int, array<int, ?string>>): array<int, array<int, ?string>> $change
+	 * @throws LockedException If another change holds the record for too long
+	 */
+	private function changeLeftAlone(string $userId, callable $change): void {
+		$this->underLock('budget/import-folder-left-alone/' . $userId, function () use ($userId, $change): void {
+			$record = array_filter($change($this->leftAlone($userId, true)));
+			if ($record === []) {
+				$this->config->deleteUserValue($userId, Application::APP_ID, self::LEFT_ALONE_KEY);
+			} else {
+				// An object throughout, so a record of one folder is not read back as old ids
+				$this->config->setUserValue($userId, Application::APP_ID, self::LEFT_ALONE_KEY, json_encode($record, JSON_FORCE_OBJECT | JSON_THROW_ON_ERROR));
+			}
+		});
+	}
+
+	/**
+	 * Run $work holding an exclusive lock, tried for a little while.
+	 *
+	 * @throws LockedException If something else holds it for too long
+	 */
+	private function underLock(string $lock, callable $work): void {
+		for ($attempt = 1; ; $attempt++) {
+			try {
+				$this->locking->acquireLock($lock, ILockingProvider::LOCK_EXCLUSIVE);
+				break;
+			} catch (LockedException $e) {
+				if ($attempt >= self::LEFT_ALONE_LOCK_ATTEMPTS) {
+					throw $e;
+				}
+				usleep(50000);
+			}
+		}
+		try {
+			$work();
+		} finally {
+			$this->locking->releaseLock($lock, ILockingProvider::LOCK_EXCLUSIVE);
+		}
+	}
+
+	/**
+	 * The files being read, as stored now (past this request's cache: the
+	 * process that wrote an entry may be another one, and gone).
+	 *
+	 * @return array<int, array{0: string, 1: int}> file id => [etag marker, when]
+	 */
+	private function attempts(string $userId): array {
+		$stored = $this->config->getUserValueForUsers(Application::APP_ID, self::ATTEMPTS_KEY, [$userId])[$userId] ?? '';
+		$decoded = json_decode((string)$stored, true);
+		if (!is_array($decoded)) {
+			return [];
+		}
+		$attempts = [];
+		foreach ($decoded as $fileId => $entry) {
+			if (is_array($entry) && is_string($entry[0] ?? null)) {
+				$attempts[(int)$fileId] = [$entry[0], (int)($entry[1] ?? 0)];
+			}
+		}
+		return $attempts;
+	}
+
+	/**
+	 * @param callable(array<int, array{0: string, 1: int}>): array<int, array{0: string, 1: int}> $change
+	 * @throws LockedException
+	 */
+	private function changeAttempts(string $userId, callable $change): void {
+		$this->underLock('budget/import-folder-attempts/' . $userId, function () use ($userId, $change): void {
+			$attempts = $change($this->attempts($userId));
+			if ($attempts === []) {
+				$this->config->deleteUserValue($userId, Application::APP_ID, self::ATTEMPTS_KEY);
+			} else {
+				// An object of file ids, each entry a pair
+				$this->config->setUserValue($userId, Application::APP_ID, self::ATTEMPTS_KEY, json_encode((object)$attempts, JSON_THROW_ON_ERROR));
+			}
+		});
+	}
+
+	/** Whether reading this file, as it is now, stopped the process that last read it */
+	private function stoppedOn(string $userId, File $file): bool {
+		return ($this->attempts($userId)[(int)$file->getId()][0] ?? null) === self::marker($file);
+	}
+
+	/**
+	 * Record that this file is about to be read. Stored before a byte of it
+	 * is parsed, so it outlives a process the file brings down.
+	 *
+	 * @return bool False when it could not be recorded: then it is not read
+	 */
+	private function recordAttempt(string $userId, File $file): bool {
+		$fileId = (int)$file->getId();
+		$entry = [self::marker($file), $this->time->getTime()];
+		$oldest = $entry[1] - self::ATTEMPT_KEEP_SECONDS;
+		try {
+			$this->changeAttempts($userId, static function (array $attempts) use ($fileId, $entry, $oldest): array {
+				$attempts = array_filter($attempts, static fn (array $attempt): bool => $attempt[1] >= $oldest);
+				$attempts[$fileId] = $entry;
+				return $attempts;
+			});
+			return true;
+		} catch (\Throwable $e) {
+			$this->logger->warning('Budget import folder: ' . $file->getName() . " is left for the next run, as reading it could not be recorded for {$userId}: " . $e->getMessage(), ['app' => Application::APP_ID]);
+			return false;
+		}
+	}
+
+	/** The file is dealt with: it no longer counts as being read. Best effort. */
+	private function clearAttempt(string $userId, int $fileId): void {
+		try {
+			if (!isset($this->attempts($userId)[$fileId])) {
+				return;
+			}
+			$this->changeAttempts($userId, static function (array $attempts) use ($fileId): array {
+				unset($attempts[$fileId]);
+				return $attempts;
+			});
+		} catch (\Throwable $e) {
+			// Left, it sets the file aside if it is ever read again unchanged
+			$this->logger->warning("Budget import folder: a file read could not be cleared for {$userId}: " . $e->getMessage(), ['app' => Application::APP_ID]);
+		}
+	}
+
+	/**
+	 * Which of these users have a file still recorded as being read: most
+	 * likely, one that stopped the last run. ImportFolderJob takes them
+	 * last, so whatever else such a file does, the others go first.
+	 *
+	 * @param string[] $userIds
+	 * @return string[]
+	 */
+	public function interrupted(array $userIds): array {
+		if ($userIds === []) {
+			return [];
+		}
+		$stored = $this->config->getUserValueForUsers(Application::APP_ID, self::ATTEMPTS_KEY, $userIds);
+		return array_values(array_filter($userIds, static fn (string $userId): bool => ($stored[$userId] ?? '') !== ''));
+	}
+
+	/**
+	 * After check() has read the folders: forget the files left alone that
+	 * are no longer in their folder, or were written over (check() has just
+	 * taken those as new), give old id-only entries their folder and marker,
+	 * and drop the record of a folder that is gone from Files. Only what
+	 * check() itself saw is changed, so what is recorded meanwhile stays.
+	 * A folder that was not read (switched off, or not listable) keeps its
+	 * record: nothing can be told about it. Best effort: tried again on the
+	 * next run.
+	 *
+	 * @param array<int, array<int, ?string>> $before The record check() went by
+	 * @param array<int, array<int, string>> $seen Folder id => the files left alone found in it, for each folder read
+	 * @param bool $readAll Whether every one of the user's folders was read
+	 */
+	private function tidyLeftAlone(string $userId, array $before, array $seen, bool $readAll): void {
+		$gone = [];
+		$adopted = [];
+		foreach ($seen as $folderId => $present) {
+			foreach ($before[$folderId] ?? [] as $fileId => $marker) {
+				if (!array_key_exists($fileId, $present)) {
+					$gone[$folderId][$fileId] = $marker;
+				}
+			}
+			foreach ($present as $fileId => $marker) {
+				if (!array_key_exists($fileId, $before[$folderId] ?? [])) {
+					$adopted[$folderId][$fileId] = $marker;
+				}
+			}
+		}
+		$foldersGone = [];
+		foreach ($before as $folderId => $files) {
+			if ($folderId !== 0 && !isset($seen[$folderId]) && !$this->folderExists($userId, $folderId)) {
+				$foldersGone[$folderId] = $files;
+			}
+		}
+		// Old ids that none of the user's folders holds
+		$placed = [];
+		foreach ($adopted as $files) {
+			$placed += $files;
+		}
+		$unplaced = $readAll ? array_diff_key($before[0] ?? [], $placed) : [];
+		if ($gone === [] && $adopted === [] && $foldersGone === [] && $unplaced === []) {
+			return;
+		}
+
+		try {
+			$this->changeLeftAlone($userId, static function (array $record) use ($gone, $adopted, $foldersGone, $unplaced): array {
+				foreach ($gone as $folderId => $files) {
+					foreach ($files as $fileId => $marker) {
+						// Unless it was recorded again since
+						if (array_key_exists($fileId, $record[$folderId] ?? []) && $record[$folderId][$fileId] === $marker) {
+							unset($record[$folderId][$fileId]);
+						}
+					}
+				}
+				foreach ($adopted as $folderId => $files) {
+					foreach ($files as $fileId => $marker) {
+						if (array_key_exists($fileId, $record[0] ?? [])) {
+							unset($record[0][$fileId]);
+							$record[$folderId][$fileId] ??= $marker;
+						}
+					}
+				}
+				foreach ($foldersGone as $folderId => $files) {
+					if (($record[$folderId] ?? null) === $files) {
+						unset($record[$folderId]);
+					}
+				}
+				foreach (array_keys($unplaced) as $fileId) {
+					unset($record[0][$fileId]);
+				}
+				return $record;
+			});
+		} catch (\Throwable $e) {
+			$this->logger->warning("Budget import folder: the files left alone could not be tidied up for {$userId}: " . $e->getMessage(), ['app' => Application::APP_ID]);
+		}
+	}
+
+	/** Whether a folder is still somewhere in the user's Files */
+	private function folderExists(string $userId, int $folderId): bool {
+		try {
+			return $this->rootFolder->getUserFolder($userId)->getFirstNodeById($folderId) instanceof Folder;
+		} catch (\Throwable) {
+			// Not known to be gone
+			return true;
+		}
 	}
 
 	/**
@@ -197,11 +593,45 @@ class ImportFolderService {
 
 	/**
 	 * Removes the row. The folder in Files, and anything in it, is left alone.
+	 * Its waiting files drop off the Import page, so the notifications that
+	 * point there go, and so does the record of the files it left alone: a
+	 * folder added again under that name records them afresh.
 	 *
 	 * @throws DoesNotExistException
 	 */
 	public function delete(string $userId, int $id): void {
-		$this->mapper->delete($this->mapper->find($id, $userId));
+		$row = $this->mapper->find($id, $userId);
+		try {
+			$waiting = array_filter($this->waiting($userId), static fn (array $entry): bool => (int)$entry['row']->getId() === $id);
+		} catch (\Throwable $e) {
+			// Files cannot be read: the row goes all the same
+			$this->logger->warning("Budget import folder: the waiting files of {$row->getName()} could not be listed for {$userId}: " . $e->getMessage(), ['app' => Application::APP_ID]);
+			$waiting = [];
+		}
+		$this->mapper->delete($row);
+		foreach ($waiting as ['file' => $file]) {
+			$this->dismissReview($userId, (int)$file->getId());
+		}
+		$this->forgetLeftAlone($userId, (string)$row->getName());
+	}
+
+	/** Drop the record of the files a subfolder left alone, once it is no import folder */
+	private function forgetLeftAlone(string $userId, string $name): void {
+		try {
+			$main = $this->existingPath($userId, $this->mainFolderFor($userId));
+			$folder = $main === null ? null : $this->existingFolder($main, $name, $userId);
+			$folderId = $folder === null ? null : (int)$folder->getId();
+			if ($folderId === null || !isset($this->leftAlone($userId)[$folderId])) {
+				return;
+			}
+			$this->changeLeftAlone($userId, static function (array $record) use ($folderId): array {
+				unset($record[$folderId]);
+				return $record;
+			});
+		} catch (\Throwable $e) {
+			// Kept, which only costs a little room
+			$this->logger->warning("Budget import folder: the files {$name} left alone could not be forgotten for {$userId}: " . $e->getMessage(), ['app' => Application::APP_ID]);
+		}
 	}
 
 	/**
@@ -225,6 +655,9 @@ class ImportFolderService {
 			return $summary;
 		}
 		$taken = 0;
+		$leftAlone = $this->leftAlone($userId);
+		// The files left alone found where they were left, unchanged, by folder
+		$seen = [];
 		foreach ($rows as $row) {
 			try {
 				// Recreated if it was deleted or renamed in Files
@@ -237,8 +670,17 @@ class ImportFolderService {
 				$this->logger->warning("Budget import folder: {$row->getName()} skipped for {$userId}: " . $e->getMessage(), ['app' => Application::APP_ID]);
 				continue;
 			}
+			$folderId = (int)$folder->getId();
+			$seen[$folderId] ??= [];
 			foreach ($files as $file) {
-				if ($taken >= $limit || $this->time->getTime() - $file->getMTime() < self::SETTLE_SECONDS) {
+				$fileId = (int)$file->getId();
+				$marker = self::marker($file);
+				// Written over since, it is a new statement
+				if (($leftAlone[$folderId][$fileId] ?? null) === $marker || array_key_exists($fileId, $leftAlone[0] ?? [])) {
+					$seen[$folderId][$fileId] = $marker;
+					continue;
+				}
+				if ($taken >= $limit || !$this->settled($file)) {
 					$summary['waiting']++;
 					continue;
 				}
@@ -249,7 +691,30 @@ class ImportFolderService {
 				}
 			}
 		}
+		if ($leftAlone !== []) {
+			// Ids recorded on their own are only known to be gone once every folder was read
+			$readAll = ($leftAlone[0] ?? []) !== [] && count($seen) === count($this->mapper->findAll($userId));
+			$this->tidyLeftAlone($userId, $leftAlone, $seen, $readAll);
+		}
 		return $summary;
+	}
+
+	/**
+	 * Whether a file is done uploading: nothing has changed it for a while.
+	 * Its upload time where Files has one, and its modified time, the later
+	 * of the two. A modified time still to come (a client's clock, or a date
+	 * carried over from elsewhere) would hold the file back until that day,
+	 * so it is not counted; with nothing else to go on, the file is settled
+	 * once that time is far enough from now either way.
+	 */
+	private function settled(File $file): bool {
+		$now = $this->time->getTime();
+		$modified = (int)$file->getMTime();
+		$times = array_filter([$modified, $file->getUploadTime()], static fn (int $time): bool => $time > 0 && $time <= $now);
+		if ($times === []) {
+			return abs($now - $modified) >= self::SETTLE_SECONDS;
+		}
+		return $now - max($times) >= self::SETTLE_SECONDS;
 	}
 
 	/**
@@ -287,7 +752,16 @@ class ImportFolderService {
 	 * @throws \InvalidArgumentException|ValidationException With a message for the user
 	 */
 	public function openReview(string $userId, int $fileId): array {
-		['file' => $file, 'row' => $row] = $this->waitingFile($userId, $fileId);
+		['file' => $file, 'row' => $row, 'folder' => $folder] = $this->waitingFile($userId, $fileId);
+		if ($this->stoppedOn($userId, $file)) {
+			// Opening it last time stopped the server: not read again
+			$moved = $this->setAside($userId, $folder, $file);
+			throw new \InvalidArgumentException($moved
+				? $this->l->t('Budget stopped while reading this file last time, so it has been moved to the Failed folder. Try downloading the statement from your bank again.')
+				: $this->l->t('Budget stopped while reading this file last time. Move it out of the Review folder, and try downloading the statement from your bank again.'));
+		}
+		// Read here, on the server, as the job reads one: recorded the same way
+		$recorded = $this->recordAttempt($userId, $file);
 		try {
 			['content' => $content, 'extension' => $extension] = $this->statementBytes($file);
 			$upload = $this->upload($userId, $file->getName(), $extension, $content);
@@ -298,6 +772,10 @@ class ImportFolderService {
 				'empty' => $this->l->t('The file is empty.'),
 				default => (string)($e->details['message'] ?? $this->l->t('The file could not be read.')),
 			}, 0, $e);
+		} finally {
+			if ($recorded) {
+				$this->clearAttempt($userId, $fileId);
+			}
 		}
 
 		return $upload + ['review' => [
@@ -329,6 +807,39 @@ class ImportFolderService {
 		if (!$this->moveInto($userId, $folder, $file, $target)) {
 			throw new \InvalidArgumentException($this->l->t('The file could not be moved. Move it out of the Review folder yourself.'));
 		}
+		$this->dismissReview($userId, $fileId);
+	}
+
+	/**
+	 * A waiting file whose reading stopped the server: into Failed, unread,
+	 * and the user told why.
+	 *
+	 * @return bool Whether it could be moved
+	 */
+	private function setAside(string $userId, Folder $folder, File $file): bool {
+		$name = $file->getName();
+		$fileId = (int)$file->getId();
+		$this->logger->warning('Budget import folder: ' . $name . " stopped the server while it was read, so it is set aside for {$userId}", ['app' => Application::APP_ID]);
+		$this->audit->logImportFailed($userId, $name, 'stopped');
+		$moved = $this->moveInto($userId, $folder, $file, self::FAILED_FOLDER);
+		$this->dismissReview($userId, $fileId);
+		$this->notify($userId, 'import_folder_failed', $file, $name, ['reason' => 'stopped', 'moved' => $moved ? '1' : '0']);
+		$this->clearAttempt($userId, $fileId);
+		return $moved;
+	}
+
+	/** The "ready to review" notification of a file that is no longer waiting */
+	private function dismissReview(string $userId, int $fileId): void {
+		try {
+			$notification = $this->notifications->createNotification();
+			$notification->setApp(Application::APP_ID)
+				->setUser($userId)
+				->setObject('import_folder', (string)$fileId)
+				->setSubject('import_folder_review');
+			$this->notifications->markProcessed($notification);
+		} catch (\Throwable $e) {
+			$this->logger->warning("Budget import folder: a notification could not be dismissed for {$userId}: " . $e->getMessage(), ['app' => Application::APP_ID]);
+		}
 	}
 
 	/**
@@ -354,12 +865,9 @@ class ImportFolderService {
 	 * @return list<array{file: File, row: ImportFolder, folder: Folder}>
 	 */
 	private function waiting(string $userId): array {
-		$main = $this->rootFolder->getUserFolder($userId);
-		foreach (explode('/', $this->mainFolderFor($userId)) as $segment) {
-			$main = $this->existingFolder($main, $segment, $userId);
-			if ($main === null) {
-				return [];
-			}
+		$main = $this->existingPath($userId, $this->mainFolderFor($userId));
+		if ($main === null) {
+			return [];
 		}
 
 		$waiting = [];
@@ -380,6 +888,18 @@ class ImportFolderService {
 			}
 		}
 		return $waiting;
+	}
+
+	/** The folder at a path in the user's Files, if it is there and every step is theirs. Never creates one. */
+	private function existingPath(string $userId, string $path): ?Folder {
+		$folder = $this->rootFolder->getUserFolder($userId);
+		foreach (explode('/', $path) as $segment) {
+			$folder = $this->existingFolder($folder, $segment, $userId);
+			if ($folder === null) {
+				return null;
+			}
+		}
+		return $folder;
 	}
 
 	/** A folder that is already there and the user's own, or null. Never creates one. */
@@ -434,6 +954,12 @@ class ImportFolderService {
 			return null;
 		}
 
+		// The name it was dropped under, for the notification: it may be
+		// renamed on its way into Imported or Failed
+		$name = $file->getName();
+		$fileId = (int)$file->getId();
+		// Whether this file is recorded as being read, by this run or by one it stopped
+		$recorded = false;
 		try {
 			// The folder was listed before this file's turn came. Another run
 			// may have imported and moved it since, or the user taken it away:
@@ -446,22 +972,33 @@ class ImportFolderService {
 
 			$failure = null;
 			$result = null;
-			try {
-				// A review folder's files are not read as statements here:
-				// that happens in the wizard, in front of the user
-				$result = $review ? $this->admit($userId, $row, $file) : $this->import($userId, $row, $file);
-			} catch (ImportFolderFailure $e) {
-				$failure = ['reason' => $e->reason] + $e->details;
-			} catch (ValidationException $e) {
-				// Written for the user (a spreadsheet that cannot be read, say)
-				$failure = ['reason' => 'message', 'message' => $e->getMessage()];
-			} catch (\Throwable $e) {
-				$this->logger->error('Budget import folder: ' . $file->getName() . ' could not be imported: ' . $e->getMessage(), ['app' => Application::APP_ID, 'exception' => $e]);
-				$failure = ['reason' => 'error'];
+			if ($this->stoppedOn($userId, $file)) {
+				// Reading it stopped the run that last tried, and would stop
+				// this one: set aside unread. Whatever the folder's mode now
+				$recorded = true;
+				$this->logger->warning('Budget import folder: ' . $name . " stopped the run that read it, so it is set aside for {$userId}", ['app' => Application::APP_ID]);
+				$failure = ['reason' => 'stopped'];
+			} elseif (!$review && !$this->recordAttempt($userId, $file)) {
+				return null;
+			} else {
+				$recorded = !$review;
+				try {
+					// A review folder's files are not read as statements here:
+					// that happens in the wizard, in front of the user
+					$result = $review ? $this->admit($userId, $row, $file) : $this->import($userId, $row, $file);
+				} catch (ImportFolderFailure $e) {
+					$failure = ['reason' => $e->reason] + $e->details;
+				} catch (ValidationException $e) {
+					// Written for the user (a spreadsheet that cannot be read, say)
+					$failure = ['reason' => 'message', 'message' => $e->getMessage()];
+				} catch (\Throwable $e) {
+					$this->logger->error('Budget import folder: ' . $name . ' could not be imported: ' . $e->getMessage(), ['app' => Application::APP_ID, 'exception' => $e]);
+					$failure = ['reason' => 'error'];
+				}
 			}
 
 			if ($failure !== null) {
-				$this->audit->logImportFailed($userId, $file->getName(), $failure['message'] ?? $failure['reason']);
+				$this->audit->logImportFailed($userId, $name, $failure['message'] ?? $failure['reason']);
 			}
 
 			$target = match (true) {
@@ -472,9 +1009,9 @@ class ImportFolderService {
 			$moved = $this->moveInto($userId, $folder, $file, $target);
 
 			if ($result !== null) {
-				$this->notify($userId, $review ? 'import_folder_review' : 'import_folder_done', $file, $result);
+				$this->notify($userId, $review ? 'import_folder_review' : 'import_folder_done', $file, $name, $result);
 			} else {
-				$this->notify($userId, 'import_folder_failed', $file, ($failure ?? []) + ['moved' => $moved ? '1' : '0']);
+				$this->notify($userId, 'import_folder_failed', $file, $name, ($failure ?? []) + ['moved' => $moved ? '1' : '0']);
 			}
 
 			if (!$moved) {
@@ -484,7 +1021,7 @@ class ImportFolderService {
 				$row->setUpdatedAt($this->now());
 				$this->mapper->update($row);
 				// Said every time: a folder switched off without a word just stops working
-				$this->notify($userId, 'import_folder_failed', $file, [
+				$this->notify($userId, 'import_folder_failed', $file, $name, [
 					'reason' => 'not_moved',
 					'moved' => '0',
 					'imported' => $result !== null && !$review ? '1' : '0',
@@ -497,6 +1034,10 @@ class ImportFolderService {
 				default => 'imported',
 			};
 		} finally {
+			// Read to the end, whatever came of it: only a run that died keeps it
+			if ($recorded) {
+				$this->clearAttempt($userId, $fileId);
+			}
 			$this->locking->releaseLock($lock, ILockingProvider::LOCK_EXCLUSIVE);
 		}
 	}
@@ -580,12 +1121,32 @@ class ImportFolderService {
 		$account = $this->openAccount($userId, $accountId) ?? throw new ImportFolderFailure('account_unavailable');
 		$upload = $this->upload($userId, $name, $extension, $content);
 		$fileId = (string)$upload['fileId'];
+		try {
+			return $this->importUpload($userId, $row, $account, $name, $fileId, $upload);
+		} catch (\Throwable $e) {
+			// processImport() deletes it once imported. Given up on here,
+			// nothing else would until the cleanup job, a day later
+			$this->importService->discardUpload($userId, $fileId);
+			throw $e;
+		}
+	}
+
+	/**
+	 * The rest of import(), once the file is stored as an upload.
+	 *
+	 * @param array<string, mixed> $upload
+	 * @return array<string, string>
+	 * @throws ImportFolderFailure
+	 * @throws ValidationException
+	 */
+	private function importUpload(string $userId, ImportFolder $row, Account $account, string $name, string $fileId, array $upload): array {
+		$accountId = (int)$account->getId();
 		$format = (string)$upload['format'];
 
 		$template = $this->template($userId, $row->getTemplateId());
 		$arguments = $format === 'csv'
 			? $this->csvArguments($userId, $fileId, $name, $template, $upload)
-			: $this->statementArguments($upload, $format, $template, $accountId);
+			: $this->statementArguments($upload, $format, $template, $account);
 
 		$preview = $this->importService->previewImport(
 			$userId, $fileId, $arguments['mapping'], $accountId, $arguments['accountMapping'],
@@ -681,17 +1242,43 @@ class ImportFolderService {
 
 	/**
 	 * How an OFX, QIF or camt statement is read. Those name their own
-	 * accounts, and every one goes to the folder's account. A template of the
-	 * same format supplies which text goes where; without one, the defaults.
+	 * accounts: one goes to the folder's account. A statement of several
+	 * (a current account and a card, say) is not for one account, nor is one
+	 * in another currency: those are imported from the Import page, where
+	 * each can be given its own. A template of the same format supplies
+	 * which text goes where; without one, the defaults.
 	 *
 	 * @param array<string, mixed> $upload
 	 * @return array{mapping: array<string, mixed>, accountMapping: ?array<string, int>, skipDuplicates: bool, applyRules: bool, delimiter: string, encoding: ?string}
+	 * @throws ImportFolderFailure
 	 */
-	private function statementArguments(array $upload, string $format, ?ImportTemplate $template, int $accountId): array {
+	private function statementArguments(array $upload, string $format, ?ImportTemplate $template, Account $account): array {
 		$usable = $template !== null && $template->getFormat() === $format ? $template : null;
+		$accountId = (int)$account->getId();
+		/** @var list<array<string, mixed>> $sources */
+		$sources = $upload['sourceAccounts'] ?? [];
+		// What holds no transactions does not count: an OFX of every account
+		// at the bank names the ones with nothing new too. Nor does the same
+		// account named again: a camt file has a statement for each day
+		$active = array_filter($sources, static fn (array $source): bool => (int)($source['transactionCount'] ?? 1) > 0);
+		$named = array_unique(array_map(static fn (array $source): string => (string)($source['accountId'] ?? ''), $active));
+		if (count($named) > 1) {
+			throw new ImportFolderFailure('several_accounts');
+		}
+		$accountCurrency = strtoupper(trim((string)$account->getCurrency()));
+		foreach ($active as $source) {
+			// Unknown (QIF never says) is taken to be the account's own
+			$currency = strtoupper(trim((string)($source['currency'] ?? '')));
+			if ($currency !== '' && $accountCurrency !== '' && $currency !== $accountCurrency) {
+				throw new ImportFolderFailure('other_currency', ['currency' => $currency, 'accountCurrency' => $accountCurrency]);
+			}
+		}
 
+		// Only those: an import remembers where each account went, and the
+		// empty ones did not go to this account. With nothing in any of them,
+		// all are taken, and nothing is read
 		$accountMapping = [];
-		foreach ($upload['sourceAccounts'] ?? [] as $source) {
+		foreach ($active ?: $sources as $source) {
 			if (isset($source['accountId'])) {
 				$accountMapping[(string)$source['accountId']] = $accountId;
 			}
@@ -740,13 +1327,13 @@ class ImportFolderService {
 	/**
 	 * @param array<string, string> $parameters
 	 */
-	private function notify(string $userId, string $subject, File $file, array $parameters): void {
+	private function notify(string $userId, string $subject, File $file, string $name, array $parameters): void {
 		$notification = $this->notifications->createNotification();
 		$notification->setApp(Application::APP_ID)
 			->setUser($userId)
 			->setDateTime($this->time->getDateTime())
 			->setObject('import_folder', (string)$file->getId())
-			->setSubject($subject, ['fileId' => (string)$file->getId(), 'fileName' => $file->getName()] + $parameters);
+			->setSubject($subject, ['fileId' => (string)$file->getId(), 'fileName' => $name] + $parameters);
 		$this->notifications->notify($notification);
 	}
 

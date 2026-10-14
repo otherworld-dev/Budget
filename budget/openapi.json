@@ -340,7 +340,7 @@
             "schema": {
               "type": "boolean"
             },
-            "description": "true for transactions with no category that are not split. Cannot be combined with categoryId."
+            "description": "true for transactions with no category that are not split; cannot be combined with categoryId. false for all the rest: transactions with a category, and split transactions (their categories are on their parts). The two never overlap and together are the whole list. false may be combined with categoryId."
           },
           {
             "name": "tagId",
@@ -500,7 +500,7 @@
             }
           },
           "400": {
-            "description": "Invalid input; ocs.data.error says what. This includes a list or an object sent for a field that takes one value (\"vendor must be a single value\"), and a negative amount (error_code invalid_amount). A `category_id` the account owner cannot use is not a 400: see category_error. For a transfer: transfer_account_id equal to account_id (error_code transfer_same_account), two accounts in different currencies (error_code transfer_currency_mismatch; the web UI can link those, each side with its own amount), or splits sent as well (error_code transfer_split). None of these records anything or spends the idempotency key.",
+            "description": "Invalid input; ocs.data.error says what. This includes a list or an object sent for a field that takes one value (\"vendor must be a single value\"), and a negative amount (error_code invalid_amount). A `category_id` the account owner cannot use is not a 400: see category_error. For a transfer: transfer_account_id equal to account_id (error_code transfer_same_account), two accounts in different currencies (error_code transfer_currency_mismatch; the web UI can link those, each side with its own amount), or splits sent as well (error_code transfer_split). A closed account_id or transfer_account_id answers error_code account_closed: a closed account takes no new transactions until it is reopened in the web UI. None of these records anything or spends the idempotency key. A retry of an idempotency_key that already recorded this transaction answers 201 with it rather than account_closed or a transfer refusal, whatever changed since.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1822,7 +1822,7 @@
           },
           "error_code": {
             "type": "string",
-            "description": "Stable machine-readable code, present on failures clients must distinguish programmatically: ocr_not_configured, ocr_quota_exhausted, ocr_extraction_failed, idempotency_key_conflict, request_in_flight, field_not_editable, invalid_amount, transfer_leg, reconciled, split, scheduled, transfer_same_account, transfer_currency_mismatch, transfer_split, invalid_tags. Switch on this, never on the error text."
+            "description": "Stable machine-readable code, present on failures clients must distinguish programmatically: ocr_not_configured, ocr_quota_exhausted, ocr_extraction_failed, idempotency_key_conflict, request_in_flight, field_not_editable, invalid_amount, transfer_leg, reconciled, split, scheduled, transfer_same_account, transfer_currency_mismatch, transfer_split, invalid_tags, account_closed. Switch on this, never on the error text."
           },
           "hint": {
             "type": "string",
@@ -2330,7 +2330,7 @@
         "properties": {
           "account_id": {
             "type": "integer",
-            "description": "Must be an account the user can write to. An account they cannot see answers 404 \"Account not found\"; one shared with them read-only answers 403."
+            "description": "Must be an account the user can write to. An account they cannot see answers 404 \"Account not found\"; one shared with them read-only answers 403; a closed one answers 400 with error_code account_closed."
           },
           "date": {
             "type": "string",
@@ -2361,7 +2361,7 @@
           },
           "transfer_account_id": {
             "type": "integer",
-            "description": "Makes this a transfer: the other account. The transaction is recorded in account_id as usual, its other side is created in this account with the opposite type and the same date, amount, description and vendor, and the two are linked. The response carries linked_transaction_id and linked_account_name. Both accounts must be ones you can write to and in the same currency, and a transfer cannot be sent together with splits. Needs transfers_available on GET /capabilities: an older server ignores the field and records a plain transaction.",
+            "description": "Makes this a transfer: the other account. The transaction is recorded in account_id as usual, its other side is created in this account with the opposite type and the same date, amount, description and vendor, and the two are linked. The response carries linked_transaction_id and linked_account_name. Both accounts must be ones you can write to, open (not closed) and in the same currency, and a transfer cannot be sent together with splits. Needs transfers_available on GET /capabilities: an older server ignores the field and records a plain transaction.",
             "example": 37
           },
           "tag_ids": {
@@ -2391,7 +2391,7 @@
           "idempotency_key": {
             "type": "string",
             "maxLength": 64,
-            "description": "A UUID per draft (not per attempt). A repeat within 7 days answers 201 with the transaction the first attempt recorded, inserting nothing. Also accepted as an Idempotency-Key header."
+            "description": "A UUID per draft (not per attempt). A repeat within 7 days answers 201 with the transaction the first attempt recorded, inserting nothing, even when the account has been closed since, or a transfer's other account closed, unshared or made read-only. A repeat after you lost access to the account itself answers 404. Also accepted as an Idempotency-Key header."
           },
           "splits": {
             "type": "string",
@@ -3081,7 +3081,7 @@
               12,
               27
             ],
-            "description": "The whole set of tags; [] removes them all. A tag already on the transaction may always be sent back, even one that no longer fits its category; only newly added ones are checked, against the category this edit leaves. On your own account: your global tags, and the tags of the transaction's category. On an account shared with you: only the owner's category tags, for the transaction's category, from categories shared with you (GET /tags lists them). No global tag works on a shared account. Tags of the owner's that you cannot use (ones not in your GET /tags) stay on. A refused tag refuses the whole edit (400, error_code invalid_tags). The tags list of the read shape is ignored; only tag_ids sets tags. Needs tag_ids_available. Up to 200 ids. A JSON array inside a string is accepted too. null and an empty string are refused (invalid_tags): send [] to remove all tags, or leave tag_ids out to keep them."
+            "description": "The whole set of tags; [] removes them all. A tag already on the transaction may always be sent back, even one that no longer fits its category; only newly added ones are checked, against the category this edit leaves. On your own account: your global tags, and the tags of the transaction's category. On an account shared with you: only the owner's category tags, for the transaction's category, from categories shared with you (GET /tags lists them). No global tag works on a shared account. Tags of the owner's that you cannot use (ones not in your GET /tags) stay on. A refused tag refuses the whole edit (400, error_code invalid_tags). The tags list of the read shape is ignored; only tag_ids sets tags. Needs tag_ids_available. Up to 200 ids. A JSON array inside a string is accepted too. null and an empty string are refused (invalid_tags): send [] to remove all tags, or leave tag_ids out to keep them. The set the transaction already has, in any order, changes nothing and leaves updated_at as it was; any other set moves updated_at, and the response carries the new value."
           },
           "confirm_reconciled": {
             "type": "boolean",

@@ -59,6 +59,62 @@ class ApiListFiltersTest extends IntegrationTestCase {
 		$this->assertSame([$old, $scheduled, $pending], $this->matching(['category' => 'uncategorized']));
 	}
 
+	/**
+	 * uncategorized=false is the rest of the list, as a client reading the
+	 * whole list would pick it out: a category of its own, or split (the
+	 * categories are on the parts). The two halves cover every row once,
+	 * including the grey states #356/#360 left behind.
+	 */
+	public function testUncategorizedAndTheRestSplitTheListInTwo(): void {
+		$food = $this->makeCategory();
+		$this->makeTransaction($this->accountId, ['category_id' => $food]);
+		$this->makeTransaction($this->accountId);
+		$this->makeSplitTransaction($this->accountId, [[$food, '1.00'], [null, '2.00']]);
+		// Older than the is_split flag, with parts: a split
+		$legacySplit = $this->makeTransaction($this->accountId, ['is_split' => null]);
+		$this->makeSplit($legacySplit, $food, '4.00');
+		$this->makeSplit($legacySplit, null, '6.00');
+		// Older than the flag, no parts: uncategorised
+		$this->makeTransaction($this->accountId, ['is_split' => null]);
+		// Unsplit, with parts left behind (#356): uncategorised
+		$leftover = $this->makeTransaction($this->accountId, ['is_split' => false]);
+		$this->makeSplit($leftover, $food, '10.00');
+		// Flagged split with no parts left: nothing to show, uncategorised
+		$this->makeTransaction($this->accountId, ['is_split' => true]);
+		// A category stamped onto a split parent (#360): has a category
+		$stamped = $this->makeTransaction($this->accountId, ['is_split' => null, 'category_id' => $food]);
+		$this->makeSplit($stamped, $food, '10.00');
+
+		$service = $this->service(TransactionService::class);
+		$read = function (array $filters) use ($service): array {
+			$page = $service->findWithFilters($this->userId, $filters, 100, 0);
+			$this->assertSame(count($page['transactions']), (int)$page['total'], 'The total must match the rows');
+			return $page['transactions'];
+		};
+		$ids = static function (array $rows): array {
+			$ids = array_map(static fn (array $row): int => (int)$row['id'], $rows);
+			sort($ids);
+			return $ids;
+		};
+
+		$all = $read([]);
+		$this->assertCount(8, $all);
+		$hasCategory = static fn (array $row): bool => $row['categoryId'] !== null || $row['isSplit'] === true;
+
+		$rest = $ids($read(['categorized' => true]));
+		$uncategorised = $ids($read(['category' => 'uncategorized']));
+
+		$this->assertSame($ids(array_filter($all, $hasCategory)), $rest);
+		$this->assertSame($ids(array_filter($all, static fn (array $row): bool => !$hasCategory($row))), $uncategorised);
+		$this->assertCount(4, $rest);
+		$this->assertSame([], array_intersect($rest, $uncategorised));
+		$both = array_merge($rest, $uncategorised);
+		sort($both);
+		$this->assertSame($ids($all), $both);
+		// With a category as well: that category's rows, split ones included
+		$this->assertSame($ids($read(['category' => (string)$food])), $ids($read(['category' => (string)$food, 'categorized' => true])));
+	}
+
 	/** As the API sends them: fixed decimals, so a bound of zero is not lost. */
 	public function testAmountBoundsIncludingZero(): void {
 		$free = $this->makeTransaction($this->accountId, ['amount' => '0.00']);

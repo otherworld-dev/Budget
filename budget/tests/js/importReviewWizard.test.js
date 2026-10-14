@@ -198,20 +198,20 @@ describe('one reviewed file after another', () => {
 });
 
 describe('a reviewed file that names its own accounts (OFX, QIF, camt)', () => {
-    const ACCOUNTS = [{ id: 3, name: 'Conto Mario', type: 'checking' }, { id: 4, name: 'Carta', type: 'checking' }];
+    const ACCOUNTS = [{ id: 3, name: 'Conto Mario', type: 'checking', currency: 'EUR' }, { id: 4, name: 'Carta', type: 'credit_card', currency: 'EUR' }];
     const SOURCES = [
-        { accountId: 'IT60X0542811101000000123456', suggestedMatch: null },
-        { accountId: 'IT60X0542811101000000654321', suggestedMatch: 3 },
+        { accountId: 'IT60X0542811101000000123456', currency: 'EUR', suggestedMatch: null },
+        { accountId: 'IT60X0542811101000000654321', currency: 'EUR', suggestedMatch: 3 },
     ];
 
-    function atReviewStep(importData) {
+    function atReviewStep(importData, sources = SOURCES) {
         document.body.innerHTML += `
             <div id="single-account-selection"></div><div id="multi-account-mapping"></div>
             <div id="account-mapping-list"></div>`;
         apiFetch.mockResolvedValue(ACCOUNTS);
         const mod = module();
         mod.currentImportData = importData;
-        mod.sourceAccounts = SOURCES;
+        mod.sourceAccounts = sources;
         mod.presets = [];
         mod.selectedPreset = null;
         mod.getCurrentMapping = () => ({});
@@ -220,20 +220,63 @@ describe('a reviewed file that names its own accounts (OFX, QIF, camt)', () => {
         return mod;
     }
     const destinations = () => [...document.querySelectorAll('.destination-account-select')].map(s => s.value);
+    const intoCarta = () => upload({ format: 'ofx', review: { fileId: 12, folderId: 2, accountId: 4, templateId: null } });
 
-    it('goes to the folder\'s account, whatever account the file names', async () => {
-        const mod = atReviewStep(upload({ format: 'ofx', review: { fileId: 12, folderId: 2, accountId: 4, templateId: null } }));
+    it('goes to the folder\'s account when it names one account, whatever that is called', async () => {
+        const mod = atReviewStep(intoCarta(), [SOURCES[1]]);
         await mod.loadAccountsForImport();
 
-        expect(destinations()).toEqual(['4', '4']);
+        expect(destinations()).toEqual(['4']);
         expect(mod.processImportData).toHaveBeenCalledTimes(1);
     });
 
-    it('falls back to the suggested match when the folder\'s account cannot take an import', async () => {
-        const mod = atReviewStep(upload({ format: 'ofx', review: { fileId: 12, folderId: 2, accountId: 99, templateId: null } }));
+    it('is mapped account by account when it names several, as any upload is', async () => {
+        // A current account and a card in one file are not for one account
+        const mod = atReviewStep(intoCarta());
         await mod.loadAccountsForImport();
 
         expect(destinations()).toEqual(['', '3']);
+    });
+
+    it('goes to the folder\'s account when it names one account several times', async () => {
+        // A camt file has a statement for each day, each naming the same IBAN
+        const daily = { accountId: 'IT60X0542811101000000123456', currency: 'EUR', suggestedMatch: null };
+        const mod = atReviewStep(intoCarta(), [{ ...daily, transactionCount: 3 }, { ...daily, transactionCount: 2 }]);
+        await mod.loadAccountsForImport();
+
+        expect(destinations()).toEqual(['4', '4']);
+    });
+
+    it('goes to the folder\'s account when the other accounts it names have nothing in it', async () => {
+        // An OFX of every account at the bank, only one of them used this month
+        const mod = atReviewStep(intoCarta(), [
+            { accountId: 'IT60X0542811101000000123456', currency: 'EUR', transactionCount: 3, suggestedMatch: null },
+            { accountId: '4111', currency: 'USD', transactionCount: 0, suggestedMatch: null },
+        ]);
+        await mod.loadAccountsForImport();
+
+        expect(destinations()).toEqual(['4', '']);
+    });
+
+    it('is not sent to the folder\'s account when it is in another currency', async () => {
+        const mod = atReviewStep(intoCarta(), [{ accountId: '4111', currency: 'USD', suggestedMatch: null }]);
+        await mod.loadAccountsForImport();
+
+        expect(destinations()).toEqual(['']);
+    });
+
+    it('goes to the folder\'s account when it does not say its currency', async () => {
+        const mod = atReviewStep(intoCarta(), [{ accountId: 'Conto', suggestedMatch: null }]);
+        await mod.loadAccountsForImport();
+
+        expect(destinations()).toEqual(['4']);
+    });
+
+    it('falls back to the suggested match when the folder\'s account cannot take an import', async () => {
+        const mod = atReviewStep(upload({ format: 'ofx', review: { fileId: 12, folderId: 2, accountId: 99, templateId: null } }), [SOURCES[1]]);
+        await mod.loadAccountsForImport();
+
+        expect(destinations()).toEqual(['3']);
     });
 
     it('leaves an ordinary upload to the suggested match', async () => {

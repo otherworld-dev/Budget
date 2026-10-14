@@ -7,6 +7,7 @@ namespace OCA\Budget\Service;
 use OCA\Budget\Db\Account;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\BillMapper;
+use OCA\Budget\Db\ImportAccountLinkMapper;
 use OCA\Budget\Db\ImportFolderMapper;
 use OCA\Budget\Db\InterestRateMapper;
 use OCA\Budget\Db\PensionRecurringContributionMapper;
@@ -49,6 +50,7 @@ class AccountService extends AbstractCrudService {
 		private ?PensionRecurringContributionMapper $pensionRecurringMapper = null,
 		private ?UserClock $userClock = null,
 		private ?ImportFolderMapper $importFolderMapper = null,
+		private ?ImportAccountLinkMapper $importLinkMapper = null,
 	) {
 		$this->mapper = $mapper;
 		$this->transactionMapper = $transactionMapper;
@@ -144,6 +146,9 @@ class AccountService extends AbstractCrudService {
 		$this->pensionRecurringMapper?->detachSourceAccount($entity->getId());
 		// Import folders pointing at it would fail every file dropped in them (#425)
 		$this->importFolderMapper?->deleteByAccount($entity->getId());
+		// So would an OFX/QIF statement routed by a remembered link, and a
+		// backup would carry the link out pointing at nothing
+		$this->importLinkMapper?->deleteByAccount($entity->getId());
 
 		// Bills, transfers and recurring income on the account (anyone's)
 		// would otherwise go on running against a deleted id

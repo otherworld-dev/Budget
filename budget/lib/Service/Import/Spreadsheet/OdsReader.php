@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Service\Import\Spreadsheet;
 
 /**
- * Reads an OpenDocument spreadsheet (.ods): every table, cells as text.
+ * Reads an OpenDocument spreadsheet (.ods): every visible table, cells as text.
  *
  * ODS pads a sheet with repeated empty cells and rows (a million rows is
  * normal), so an empty repeat only moves the position on and is never
@@ -15,83 +15,213 @@ final class OdsReader {
 	private const TABLE = 'urn:oasis:names:tc:opendocument:xmlns:table:1.0';
 	private const OFFICE = 'urn:oasis:names:tc:opendocument:xmlns:office:1.0';
 	private const TEXT = 'urn:oasis:names:tc:opendocument:xmlns:text:1.0';
+	private const STYLE = 'urn:oasis:names:tc:opendocument:xmlns:style:1.0';
+
+	/** The most spaces one <text:s/> may stand for, far beyond any statement */
+	public const MAX_SPACE_RUN = 1000;
 
 	/**
 	 * @return list<array{name: string, rows: list<list<string>>}>
 	 */
 	public function read(ZipPackage $zip): array {
 		$reader = Xml::reader($zip->read('content.xml'));
-		$document = new \DOMDocument();
 		$sheets = [];
 		$budget = new SheetBudget();
 		$builder = null;
 		$row = 0;
 		$rowRepeat = 1;
 		$column = 0;
+		// The current row's filled cells, for writing out its repeats. Each
+		// is in the sheet (and spent from the budget) before it is kept here.
 		/** @var array<int, string> $cells */
 		$cells = [];
+		// A hidden sheet is a table whose style says table:display="false";
+		// the automatic styles come before the tables in content.xml
+		/** @var array<string, true> $hiddenStyles */
+		$hiddenStyles = [];
+		$tableStyle = null;
+		// Whether the reader already stands on the next node, having stepped
+		// over an element whose contents are never read (a hidden sheet, or
+		// a row or cell outside any sheet)
+		$skipped = false;
 
-		$ok = $reader->read();
-		while ($ok) {
-			if ($reader->namespaceURI === self::TABLE) {
-				$start = $reader->nodeType === \XMLReader::ELEMENT;
-				$end = $reader->nodeType === \XMLReader::END_ELEMENT || ($start && $reader->isEmptyElement);
-				switch ($reader->localName) {
-					case 'table':
-						if ($start) {
-							if (count($sheets) >= SheetBuilder::MAX_SHEETS) {
-								throw new SpreadsheetTooLargeError('More than ' . SheetBuilder::MAX_SHEETS . ' sheets');
-							}
-							$builder = new SheetBuilder($reader->getAttributeNs('name', self::TABLE) ?? '', $budget);
-							$row = 0;
-						}
-						if ($end && $builder !== null) {
-							$sheets[] = $builder->build();
-							$builder = null;
-						}
-						break;
-					case 'table-row':
-						if ($start) {
-							$rowRepeat = max(1, (int)($reader->getAttributeNs('number-rows-repeated', self::TABLE) ?? 1));
-							$column = 0;
-							$cells = [];
-						}
-						if ($end) {
-							if ($builder !== null && $cells !== []) {
-								// Identical filled rows repeated: written out, up to the limit
-								for ($i = 0, $times = min($rowRepeat, SheetBuilder::MAX_ROWS + 1); $i < $times; $i++) {
-									foreach ($cells as $index => $text) {
-										$builder->add($row + $i, $index, $text);
-									}
-								}
-							}
-							$row += $rowRepeat;
-						}
-						break;
-					case 'table-cell':
-					case 'covered-table-cell':
-						if ($start) {
-							$repeat = max(1, (int)($reader->getAttributeNs('number-columns-repeated', self::TABLE) ?? 1));
-							$text = $this->cellText($reader, $document);
-							if ($text !== '') {
-								for ($i = 0; $i < $repeat && $column + $i < SheetBuilder::MAX_COLUMNS; $i++) {
-									$cells[$column + $i] = $text;
-								}
-							}
-							$column += $repeat;
-							$ok = $reader->next();
-							continue 2;
-						}
-						break;
+		while ($skipped || $reader->read()) {
+			$skipped = false;
+			if ($reader->namespaceURI === self::STYLE && $reader->nodeType === \XMLReader::ELEMENT) {
+				if ($reader->localName === 'style') {
+					$tableStyle = $reader->getAttributeNs('family', self::STYLE) === 'table' ? $reader->getAttributeNs('name', self::STYLE) : null;
+				} elseif ($reader->localName === 'table-properties' && $tableStyle !== null
+					&& $reader->getAttributeNs('display', self::TABLE) === 'false') {
+					if (count($hiddenStyles) >= SheetBuilder::MAX_STYLES) {
+						throw new SpreadsheetTooLargeError('More than ' . SheetBuilder::MAX_STYLES . ' table styles');
+					}
+					$hiddenStyles[$tableStyle] = true;
 				}
+				continue;
 			}
-			$ok = $reader->read();
+			if ($reader->namespaceURI !== self::TABLE) {
+				continue;
+			}
+			$start = $reader->nodeType === \XMLReader::ELEMENT;
+			$end = $reader->nodeType === \XMLReader::END_ELEMENT || ($start && $reader->isEmptyElement);
+			switch ($reader->localName) {
+				case 'table':
+					if ($start) {
+						if (count($sheets) >= SheetBuilder::MAX_SHEETS) {
+							throw new SpreadsheetTooLargeError('More than ' . SheetBuilder::MAX_SHEETS . ' sheets');
+						}
+						if (isset($hiddenStyles[$reader->getAttributeNs('style-name', self::TABLE) ?? ''])) {
+							// Stepped over whole, its cells never read: a
+							// hidden sheet is never imported, so nothing in it
+							// may cost anything either
+							$builder = null;
+							$skipped = $reader->next();
+							break;
+						}
+						$builder = new SheetBuilder($reader->getAttributeNs('name', self::TABLE) ?? '', $budget);
+						$row = 0;
+					}
+					if ($end && $builder !== null) {
+						$sheets[] = $builder->build();
+						$builder = null;
+					}
+					break;
+				case 'table-row':
+					if ($start && $builder === null) {
+						// A row outside any sheet
+						$skipped = $reader->next();
+						break;
+					}
+					if ($start) {
+						$rowRepeat = self::repeat($reader, 'number-rows-repeated', SheetBuilder::MAX_ROW_INDEX + 1);
+						$column = 0;
+						$cells = [];
+					}
+					if ($end) {
+						if ($builder !== null) {
+							// Identical filled rows repeated: written out, up to
+							// the limit; the first was written as it was read
+							for ($i = 1, $times = $cells === [] ? 0 : min($rowRepeat, SheetBuilder::MAX_ROWS + 1); $i < $times; $i++) {
+								foreach ($cells as $index => $text) {
+									$builder->add($row + $i, $index, $text);
+								}
+							}
+						}
+						$cells = [];
+						// Past the last row of any sheet the position stops,
+						// and a filled row there is refused by the builder
+						$row = min($row + $rowRepeat, SheetBuilder::MAX_ROW_INDEX + 1);
+					}
+					break;
+				case 'table-cell':
+				case 'covered-table-cell':
+					if ($start && $builder === null) {
+						// A cell outside any sheet
+						$skipped = $reader->next();
+						break;
+					}
+					if ($start) {
+						$repeat = self::repeat($reader, 'number-columns-repeated', SheetBuilder::MAX_COLUMNS);
+						$text = $this->cellText($reader, $budget->textLeft());
+						if ($text !== '') {
+							// Into the sheet as it is read, each repeat spent
+							// from the budget before the next is written
+							for ($i = 0; $i < $repeat && $column + $i < SheetBuilder::MAX_COLUMNS; $i++) {
+								$builder->add($row, $column + $i, $text);
+								$cells[$column + $i] = $text;
+							}
+						}
+						// Columns from MAX_COLUMNS on are never read
+						$column = min($column + $repeat, SheetBuilder::MAX_COLUMNS);
+					}
+					break;
+			}
 		}
 		Xml::complete($reader);
 		return $sheets;
 	}
 
-	private function cellText(\XMLReader $reader, \DOMDocument $document): string {
+	/** A repeat count, from one up to $max: past it, nothing more is read */
+	private static function repeat(\XMLReader $reader, string $attribute, int $max): int {
+		return max(1, min((int)($reader->getAttributeNs($attribute, self::TABLE) ?? 1), $max));
+	}
+
+	/**
+	 * A cell's value as text, the reader left on its end tag. A typed cell
+	 * (a number, a date) is written from its value; any other from its own
+	 * paragraphs, each trimmed and joined with a space. Inside a paragraph
+	 * a run of spaces (<text:s text:c="N"/>, as LibreOffice writes one) is
+	 * N spaces, as the cell holds and as LibreOffice's CSV export writes it.
+	 * A tab or a line break is a single space: LibreOffice would write the
+	 * tab or the line break itself, but a line break in any cell becomes a
+	 * space in the CSV (SpreadsheetTable::toCsv), and a tab is kept out of
+	 * it so it can never sway how the CSV's delimiter is detected.
+	 *
+	 * The cell is read node by node (Xml::inside), never expanded, and
+	 * MAX_CELL_BYTES holds for the whole cell, not each paragraph: a cell
+	 * of thousands of paragraphs each just under it (a few hundred bytes of
+	 * file) once took gigabytes. A run of more than MAX_SPACE_RUN spaces is
+	 * refused, so a few bytes of file can never stand for a megabyte of work.
+	 * A cell may grow no further than the workbook's text left ($limit).
+	 */
+	private function cellText(\XMLReader $reader, int $limit): string {
+		$typed = $this->typedText($reader);
+		$parts = [];
+		$paragraph = '';
+		// Bytes of the cell's finished paragraphs, and the space after them
+		$used = 0;
+		// Inside one of the cell's own paragraphs while non-zero, and inside
+		// a comment (office:annotation, which has paragraphs of its own)
+		$paragraphDepth = 0;
+		$annotationDepth = 0;
+		foreach (Xml::inside($reader) as $depth) {
+			if ($typed !== null) {
+				continue;
+			}
+			$type = $reader->nodeType;
+			if ($annotationDepth !== 0) {
+				if ($type === \XMLReader::END_ELEMENT && $depth === $annotationDepth) {
+					$annotationDepth = 0;
+				}
+			} elseif ($paragraphDepth === 0) {
+				if ($type === \XMLReader::ELEMENT && $depth === 1 && $reader->namespaceURI === self::TEXT && $reader->localName === 'p' && !$reader->isEmptyElement) {
+					$paragraphDepth = 1;
+					$paragraph = '';
+				}
+			} elseif ($type === \XMLReader::END_ELEMENT && $depth === $paragraphDepth) {
+				$paragraphDepth = 0;
+				$paragraph = trim($paragraph);
+				if ($paragraph !== '') {
+					$parts[] = $paragraph;
+					$used += strlen($paragraph) + 1;
+				}
+			} elseif (Xml::isText($reader)) {
+				Xml::append($paragraph, $reader->value, $used, $limit);
+			} elseif ($type === \XMLReader::ELEMENT) {
+				if ($reader->namespaceURI === self::OFFICE && $reader->localName === 'annotation') {
+					$annotationDepth = $reader->isEmptyElement ? 0 : $depth;
+				} elseif ($reader->namespaceURI === self::TEXT) {
+					switch ($reader->localName) {
+						case 's':
+							$count = max(1, (int)($reader->getAttributeNs('c', self::TEXT) ?? 1));
+							if ($count > self::MAX_SPACE_RUN) {
+								throw new SpreadsheetTooLargeError('A run of more than ' . self::MAX_SPACE_RUN . ' spaces');
+							}
+							Xml::append($paragraph, str_repeat(' ', $count), $used, $limit);
+							break;
+						case 'tab':
+						case 'line-break':
+							Xml::append($paragraph, ' ', $used, $limit);
+							break;
+					}
+				}
+			}
+		}
+		return $typed ?? implode(' ', $parts);
+	}
+
+	/** The text of a typed cell, from its value; null for a cell of text */
+	private function typedText(\XMLReader $reader): ?string {
 		switch ($reader->getAttributeNs('value-type', self::OFFICE)) {
 			case 'float':
 			case 'currency':
@@ -108,23 +238,6 @@ final class OdsReader {
 			case 'boolean':
 				return $reader->getAttributeNs('boolean-value', self::OFFICE) === 'true' ? 'TRUE' : 'FALSE';
 		}
-		if ($reader->isEmptyElement) {
-			return '';
-		}
-		$node = $reader->expand($document);
-		if (!$node instanceof \DOMElement) {
-			return '';
-		}
-		// The cell's own paragraphs; a comment (office:annotation) has its own
-		$parts = [];
-		foreach ($node->childNodes as $child) {
-			if ($child instanceof \DOMElement && $child->namespaceURI === self::TEXT && $child->localName === 'p') {
-				$text = trim($child->textContent);
-				if ($text !== '') {
-					$parts[] = $text;
-				}
-			}
-		}
-		return implode(' ', $parts);
+		return null;
 	}
 }
