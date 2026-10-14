@@ -31,6 +31,8 @@ final class OdsReader {
 		$row = 0;
 		$rowRepeat = 1;
 		$column = 0;
+		// The current row's filled cells, for writing out its repeats. Each
+		// is in the sheet (and spent from the budget) before it is kept here.
 		/** @var array<int, string> $cells */
 		$cells = [];
 		// A hidden sheet is a table whose style says table:display="false";
@@ -38,8 +40,13 @@ final class OdsReader {
 		/** @var array<string, true> $hiddenStyles */
 		$hiddenStyles = [];
 		$tableStyle = null;
+		// Whether the reader already stands on the next node, having stepped
+		// over an element whose contents are never read (a hidden sheet, or
+		// a row or cell outside any sheet)
+		$skipped = false;
 
-		while ($reader->read()) {
+		while ($skipped || $reader->read()) {
+			$skipped = false;
 			if ($reader->namespaceURI === self::STYLE && $reader->nodeType === \XMLReader::ELEMENT) {
 				if ($reader->localName === 'style') {
 					$tableStyle = $reader->getAttributeNs('family', self::STYLE) === 'table' ? $reader->getAttributeNs('name', self::STYLE) : null;
@@ -63,8 +70,15 @@ final class OdsReader {
 						if (count($sheets) >= SheetBuilder::MAX_SHEETS) {
 							throw new SpreadsheetTooLargeError('More than ' . SheetBuilder::MAX_SHEETS . ' sheets');
 						}
-						$hidden = isset($hiddenStyles[$reader->getAttributeNs('style-name', self::TABLE) ?? '']);
-						$builder = $hidden ? null : new SheetBuilder($reader->getAttributeNs('name', self::TABLE) ?? '', $budget);
+						if (isset($hiddenStyles[$reader->getAttributeNs('style-name', self::TABLE) ?? ''])) {
+							// Stepped over whole, its cells never read: a
+							// hidden sheet is never imported, so nothing in it
+							// may cost anything either
+							$builder = null;
+							$skipped = $reader->next();
+							break;
+						}
+						$builder = new SheetBuilder($reader->getAttributeNs('name', self::TABLE) ?? '', $budget);
 						$row = 0;
 					}
 					if ($end && $builder !== null) {
@@ -73,20 +87,27 @@ final class OdsReader {
 					}
 					break;
 				case 'table-row':
+					if ($start && $builder === null) {
+						// A row outside any sheet
+						$skipped = $reader->next();
+						break;
+					}
 					if ($start) {
 						$rowRepeat = self::repeat($reader, 'number-rows-repeated', SheetBuilder::MAX_ROW_INDEX + 1);
 						$column = 0;
 						$cells = [];
 					}
 					if ($end) {
-						if ($builder !== null && $cells !== []) {
-							// Identical filled rows repeated: written out, up to the limit
-							for ($i = 0, $times = min($rowRepeat, SheetBuilder::MAX_ROWS + 1); $i < $times; $i++) {
+						if ($builder !== null) {
+							// Identical filled rows repeated: written out, up to
+							// the limit; the first was written as it was read
+							for ($i = 1, $times = $cells === [] ? 0 : min($rowRepeat, SheetBuilder::MAX_ROWS + 1); $i < $times; $i++) {
 								foreach ($cells as $index => $text) {
 									$builder->add($row + $i, $index, $text);
 								}
 							}
 						}
+						$cells = [];
 						// Past the last row of any sheet the position stops,
 						// and a filled row there is refused by the builder
 						$row = min($row + $rowRepeat, SheetBuilder::MAX_ROW_INDEX + 1);
@@ -94,11 +115,19 @@ final class OdsReader {
 					break;
 				case 'table-cell':
 				case 'covered-table-cell':
+					if ($start && $builder === null) {
+						// A cell outside any sheet
+						$skipped = $reader->next();
+						break;
+					}
 					if ($start) {
 						$repeat = self::repeat($reader, 'number-columns-repeated', SheetBuilder::MAX_COLUMNS);
-						$text = $this->cellText($reader);
+						$text = $this->cellText($reader, $budget->textLeft());
 						if ($text !== '') {
+							// Into the sheet as it is read, each repeat spent
+							// from the budget before the next is written
 							for ($i = 0; $i < $repeat && $column + $i < SheetBuilder::MAX_COLUMNS; $i++) {
+								$builder->add($row, $column + $i, $text);
 								$cells[$column + $i] = $text;
 							}
 						}
@@ -133,8 +162,9 @@ final class OdsReader {
 	 * of thousands of paragraphs each just under it (a few hundred bytes of
 	 * file) once took gigabytes. A run of more than MAX_SPACE_RUN spaces is
 	 * refused, so a few bytes of file can never stand for a megabyte of work.
+	 * A cell may grow no further than the workbook's text left ($limit).
 	 */
-	private function cellText(\XMLReader $reader): string {
+	private function cellText(\XMLReader $reader, int $limit): string {
 		$typed = $this->typedText($reader);
 		$parts = [];
 		$paragraph = '';
@@ -166,7 +196,7 @@ final class OdsReader {
 					$used += strlen($paragraph) + 1;
 				}
 			} elseif (Xml::isText($reader)) {
-				Xml::append($paragraph, $reader->value, $used);
+				Xml::append($paragraph, $reader->value, $used, $limit);
 			} elseif ($type === \XMLReader::ELEMENT) {
 				if ($reader->namespaceURI === self::OFFICE && $reader->localName === 'annotation') {
 					$annotationDepth = $reader->isEmptyElement ? 0 : $depth;
@@ -177,11 +207,11 @@ final class OdsReader {
 							if ($count > self::MAX_SPACE_RUN) {
 								throw new SpreadsheetTooLargeError('A run of more than ' . self::MAX_SPACE_RUN . ' spaces');
 							}
-							Xml::append($paragraph, str_repeat(' ', $count), $used);
+							Xml::append($paragraph, str_repeat(' ', $count), $used, $limit);
 							break;
 						case 'tab':
 						case 'line-break':
-							Xml::append($paragraph, ' ', $used);
+							Xml::append($paragraph, ' ', $used, $limit);
 							break;
 					}
 				}

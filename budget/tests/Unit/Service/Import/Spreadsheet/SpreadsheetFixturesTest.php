@@ -38,6 +38,7 @@ class SpreadsheetFixturesTest extends TestCase {
 		'encrypted.xlsx' => self::UNREADABLE,
 		'filepass.xls' => self::UNREADABLE,
 		'ods-spaces.ods' => self::TOO_BIG,
+		'ods-big-cells.ods' => self::TOO_BIG,
 	];
 
 	/** @return array<string, array{string}> */
