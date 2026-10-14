@@ -2428,10 +2428,11 @@ class ApiV1TransactionControllerTest extends TestCase {
 	 * caller's own, 9 is shared with them.
 	 *
 	 * @param array<int, string> $currencies account id => currency
+	 * @param int[] $closed the ones that are closed (#372)
 	 */
-	private function accountsIn(array $currencies = [1 => 'GBP', 2 => 'GBP', 9 => 'GBP']): void {
+	private function accountsIn(array $currencies = [1 => 'GBP', 2 => 'GBP', 9 => 'GBP'], array $closed = []): void {
 		$this->service->method('findAccountById')->willReturnCallback(
-			static function (int $id) use ($currencies): Account {
+			static function (int $id) use ($currencies, $closed): Account {
 				if (!isset($currencies[$id])) {
 					throw new DoesNotExistException('no account ' . $id);
 				}
@@ -2440,6 +2441,7 @@ class ApiV1TransactionControllerTest extends TestCase {
 				$account->setName('Account ' . $id);
 				$account->setCurrency($currencies[$id]);
 				$account->setUserId($id === 9 ? 'owner9' : 'user1');
+				$account->setClosed(in_array($id, $closed, true));
 				return $account;
 			}
 		);
@@ -2567,6 +2569,64 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->service->expects($this->never())->method('createTransfer');
 
 		$this->assertSame(Http::STATUS_FORBIDDEN, $this->controller->create()->getStatus());
+	}
+
+	/**
+	 * A closed account stays at zero and takes no new activity (#372). The
+	 * other side of a transfer into one gave it a balance, with a 201.
+	 */
+	public function testATransferIntoAClosedAccountIsRefused(): void {
+		$this->accountsIn([1 => 'GBP', 2 => 'GBP', 9 => 'GBP'], [2]);
+		$this->params = $this->captureParams(['transfer_account_id' => '2']);
+
+		$this->assertTransferRefused(Http::STATUS_BAD_REQUEST, 'account_closed');
+	}
+
+	public function testATransferOutOfAClosedAccountIsRefused(): void {
+		$this->accountsIn([1 => 'GBP', 2 => 'GBP', 9 => 'GBP'], [1]);
+		$this->params = $this->captureParams(['transfer_account_id' => '2']);
+
+		$this->assertTransferRefused(Http::STATUS_BAD_REQUEST, 'account_closed');
+	}
+
+	public function testATransferIntoAClosedSharedAccountIsRefused(): void {
+		$this->accountsIn([1 => 'GBP', 2 => 'GBP', 9 => 'GBP'], [9]);
+		$this->params = $this->captureParams(['transfer_account_id' => '9']);
+
+		$this->assertTransferRefused(Http::STATUS_BAD_REQUEST, 'account_closed');
+	}
+
+	public function testRecordingIntoAClosedAccountIsRefused(): void {
+		$this->accountsIn([1 => 'GBP', 2 => 'GBP', 9 => 'GBP'], [1]);
+		$this->params = $this->captureParams();
+
+		$this->assertTransferRefused(Http::STATUS_BAD_REQUEST, 'account_closed');
+	}
+
+	public function testRecordingIntoAClosedSharedAccountIsRefused(): void {
+		$this->accountsIn([1 => 'GBP', 2 => 'GBP', 9 => 'GBP'], [9]);
+		$this->params = $this->captureParams(['account_id' => '9']);
+
+		$this->assertTransferRefused(Http::STATUS_BAD_REQUEST, 'account_closed');
+	}
+
+	/** Whether an account the caller cannot see is closed is none of their business. */
+	public function testAClosedAccountTheCallerCannotSeeIsStillNotFound(): void {
+		$this->accountsIn([1 => 'GBP', 77 => 'GBP'], [77]);
+		$this->params = $this->captureParams(['account_id' => '77']);
+		$this->service->expects($this->never())->method('create');
+
+		$response = $this->controller->create();
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
+		$this->assertArrayNotHasKey('error_code', $response->getData());
+	}
+
+	public function testATransferWithAClosedAccountTheCallerCannotSeeIsStillNotFound(): void {
+		$this->accountsIn([1 => 'GBP', 77 => 'GBP'], [77]);
+		$this->params = $this->captureParams(['transfer_account_id' => '77']);
+
+		$this->assertTransferRefused(Http::STATUS_NOT_FOUND, null);
 	}
 
 	public static function unreadableTransferAccounts(): array {
