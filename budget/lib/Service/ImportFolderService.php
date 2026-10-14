@@ -73,13 +73,18 @@ class ImportFolderService {
 	private const SETTLE_SECONDS = 120;
 
 	/**
-	 * The user preference holding the ids of the files that were already in
-	 * a subfolder when Budget started reading it, which it leaves alone. In
-	 * the server's preferences, not Budget's settings: file ids belong to
-	 * this server, so they are not for a backup, and a reset of Budget's
-	 * settings must not let Budget loose on them.
+	 * The user preference recording the files that were already in a
+	 * subfolder when Budget started reading it, which it leaves alone: by
+	 * subfolder, each file's id and a marker of its etag. In the server's
+	 * preferences, not Budget's settings: file ids belong to this server, so
+	 * they are not for a backup, and a reset of Budget's settings must not let Budget
+	 * loose on them. Not a lazy preference, which NC 30 does not have; kept
+	 * small instead, as check() forgets what has left its folder.
 	 */
 	private const LEFT_ALONE_KEY = 'import_folder_left_alone';
+
+	/** Tries at the lock on that record, 50 ms apart */
+	private const LEFT_ALONE_LOCK_ATTEMPTS = 10;
 
 	public function __construct(
 		private ImportFolderMapper $mapper,
@@ -194,12 +199,9 @@ class ImportFolderService {
 	 *                            of each subfolder that holds any
 	 */
 	public function leaveExistingAlone(string $userId, string $mainFolder): array {
-		$main = $this->rootFolder->getUserFolder($userId);
-		foreach (explode('/', $mainFolder) as $segment) {
-			$main = $this->existingFolder($main, $segment, $userId);
-			if ($main === null) {
-				return [];
-			}
+		$main = $this->existingPath($userId, $mainFolder);
+		if ($main === null) {
+			return [];
 		}
 
 		$leftAlone = [];
@@ -215,30 +217,192 @@ class ImportFolderService {
 	}
 
 	/**
-	 * Mark the files in a folder as there before Budget, so check() never
-	 * touches them. By id, not by date: a file moved or copied in Files keeps
-	 * its dates, so a statement moved in later would look as old as these.
+	 * Mark the files in a folder as there before Budget, so check() leaves
+	 * them where they are. By id, not by date: a file moved or copied in
+	 * Files keeps its dates, so a statement moved in later would look as old
+	 * as these. With its etag: writing over a file (Files' "Replace", the
+	 * desktop client) keeps its id, and a bank export always saved under the
+	 * same name is a new statement each time.
 	 *
 	 * @return int How many files that is
 	 */
 	private function leaveAlone(string $userId, Folder $folder): int {
-		$ids = array_map(static fn (File $file): int => (int)$file->getId(), $this->statements($folder, $userId));
-		if ($ids !== []) {
-			$all = array_keys($this->leftAlone($userId) + array_fill_keys($ids, true));
-			$this->config->setUserValue($userId, Application::APP_ID, self::LEFT_ALONE_KEY, json_encode($all, JSON_THROW_ON_ERROR));
+		$files = [];
+		foreach ($this->statements($folder, $userId) as $file) {
+			$files[(int)$file->getId()] = self::marker($file);
 		}
-		return count($ids);
+		if ($files !== []) {
+			// What the folder holds now is the whole of it: anything recorded
+			// for it before that is not there any more is gone
+			$folderId = (int)$folder->getId();
+			$this->changeLeftAlone($userId, static function (array $record) use ($folderId, $files): array {
+				$record[$folderId] = $files;
+				return $record;
+			});
+		}
+		return count($files);
 	}
 
 	/**
-	 * @return array<int, true> The ids of the files check() leaves alone
+	 * What tells a file left alone from the same file written over: its
+	 * etag, which Files changes whenever the file is written, and not when
+	 * it is read, shared or tagged. Hashed short, as it is kept for every
+	 * file left alone.
 	 */
-	private function leftAlone(string $userId): array {
-		$ids = json_decode($this->config->getUserValue($userId, Application::APP_ID, self::LEFT_ALONE_KEY, ''), true);
-		if (!is_array($ids)) {
+	private static function marker(File $file): string {
+		return hash('crc32b', (string)$file->getEtag());
+	}
+
+	/**
+	 * The files check() leaves alone, by the folder they are in. Under folder
+	 * 0, with no marker, the ids an earlier build recorded on their own: one
+	 * of those is taken to be unchanged, and given its folder and marker the
+	 * first time check() finds it.
+	 *
+	 * @param bool $fresh Read past this request's cache, as a change must
+	 * @return array<int, array<int, ?string>> folder id => [file id => marker]
+	 */
+	private function leftAlone(string $userId, bool $fresh = false): array {
+		$stored = $fresh
+			? ($this->config->getUserValueForUsers(Application::APP_ID, self::LEFT_ALONE_KEY, [$userId])[$userId] ?? '')
+			: $this->config->getUserValue($userId, Application::APP_ID, self::LEFT_ALONE_KEY, '');
+		$decoded = json_decode((string)$stored, true);
+		if (!is_array($decoded)) {
 			return [];
 		}
-		return array_fill_keys(array_filter($ids, 'is_int'), true);
+		$record = [];
+		foreach ($decoded as $key => $value) {
+			if (is_int($value)) {
+				$record[0][$value] = null;
+			} elseif (is_array($value)) {
+				foreach ($value as $fileId => $marker) {
+					$record[(int)$key][(int)$fileId] = is_string($marker) ? $marker : null;
+				}
+			}
+		}
+		return $record;
+	}
+
+	/**
+	 * Change the record of what is left alone. Under a lock, from what is
+	 * stored now rather than what this request read earlier: two changes at
+	 * once (a folder added while check() tidies up) each keep the other's.
+	 *
+	 * @param callable(array<int, array<int, ?string>>): array<int, array<int, ?string>> $change
+	 * @throws LockedException If another change holds the record for too long
+	 */
+	private function changeLeftAlone(string $userId, callable $change): void {
+		$lock = 'budget/import-folder-left-alone/' . $userId;
+		for ($attempt = 1; ; $attempt++) {
+			try {
+				$this->locking->acquireLock($lock, ILockingProvider::LOCK_EXCLUSIVE);
+				break;
+			} catch (LockedException $e) {
+				if ($attempt >= self::LEFT_ALONE_LOCK_ATTEMPTS) {
+					throw $e;
+				}
+				usleep(50000);
+			}
+		}
+		try {
+			$record = array_filter($change($this->leftAlone($userId, true)));
+			if ($record === []) {
+				$this->config->deleteUserValue($userId, Application::APP_ID, self::LEFT_ALONE_KEY);
+			} else {
+				// An object throughout, so a record of one folder is not read back as old ids
+				$this->config->setUserValue($userId, Application::APP_ID, self::LEFT_ALONE_KEY, json_encode($record, JSON_FORCE_OBJECT | JSON_THROW_ON_ERROR));
+			}
+		} finally {
+			$this->locking->releaseLock($lock, ILockingProvider::LOCK_EXCLUSIVE);
+		}
+	}
+
+	/**
+	 * After check() has read the folders: forget the files left alone that
+	 * are no longer in their folder, or were written over (check() has just
+	 * taken those as new), give old id-only entries their folder and marker,
+	 * and drop the record of a folder that is gone from Files. Only what
+	 * check() itself saw is changed, so what is recorded meanwhile stays.
+	 * A folder that was not read (switched off, or not listable) keeps its
+	 * record: nothing can be told about it. Best effort: tried again on the
+	 * next run.
+	 *
+	 * @param array<int, array<int, ?string>> $before The record check() went by
+	 * @param array<int, array<int, string>> $seen Folder id => the files left alone found in it, for each folder read
+	 * @param bool $readAll Whether every one of the user's folders was read
+	 */
+	private function tidyLeftAlone(string $userId, array $before, array $seen, bool $readAll): void {
+		$gone = [];
+		$adopted = [];
+		foreach ($seen as $folderId => $present) {
+			foreach ($before[$folderId] ?? [] as $fileId => $marker) {
+				if (!array_key_exists($fileId, $present)) {
+					$gone[$folderId][$fileId] = $marker;
+				}
+			}
+			foreach ($present as $fileId => $marker) {
+				if (!array_key_exists($fileId, $before[$folderId] ?? [])) {
+					$adopted[$folderId][$fileId] = $marker;
+				}
+			}
+		}
+		$foldersGone = [];
+		foreach ($before as $folderId => $files) {
+			if ($folderId !== 0 && !isset($seen[$folderId]) && !$this->folderExists($userId, $folderId)) {
+				$foldersGone[$folderId] = $files;
+			}
+		}
+		// Old ids that none of the user's folders holds
+		$placed = [];
+		foreach ($adopted as $files) {
+			$placed += $files;
+		}
+		$unplaced = $readAll ? array_diff_key($before[0] ?? [], $placed) : [];
+		if ($gone === [] && $adopted === [] && $foldersGone === [] && $unplaced === []) {
+			return;
+		}
+
+		try {
+			$this->changeLeftAlone($userId, static function (array $record) use ($gone, $adopted, $foldersGone, $unplaced): array {
+				foreach ($gone as $folderId => $files) {
+					foreach ($files as $fileId => $marker) {
+						// Unless it was recorded again since
+						if (array_key_exists($fileId, $record[$folderId] ?? []) && $record[$folderId][$fileId] === $marker) {
+							unset($record[$folderId][$fileId]);
+						}
+					}
+				}
+				foreach ($adopted as $folderId => $files) {
+					foreach ($files as $fileId => $marker) {
+						if (array_key_exists($fileId, $record[0] ?? [])) {
+							unset($record[0][$fileId]);
+							$record[$folderId][$fileId] ??= $marker;
+						}
+					}
+				}
+				foreach ($foldersGone as $folderId => $files) {
+					if (($record[$folderId] ?? null) === $files) {
+						unset($record[$folderId]);
+					}
+				}
+				foreach (array_keys($unplaced) as $fileId) {
+					unset($record[0][$fileId]);
+				}
+				return $record;
+			});
+		} catch (\Throwable $e) {
+			$this->logger->warning("Budget import folder: the files left alone could not be tidied up for {$userId}: " . $e->getMessage(), ['app' => Application::APP_ID]);
+		}
+	}
+
+	/** Whether a folder is still somewhere in the user's Files */
+	private function folderExists(string $userId, int $folderId): bool {
+		try {
+			return $this->rootFolder->getUserFolder($userId)->getFirstNodeById($folderId) instanceof Folder;
+		} catch (\Throwable) {
+			// Not known to be gone
+			return true;
+		}
 	}
 
 	/**
@@ -275,7 +439,8 @@ class ImportFolderService {
 	/**
 	 * Removes the row. The folder in Files, and anything in it, is left alone.
 	 * Its waiting files drop off the Import page, so the notifications that
-	 * point there go.
+	 * point there go, and so does the record of the files it left alone: a
+	 * folder added again under that name records them afresh.
 	 *
 	 * @throws DoesNotExistException
 	 */
@@ -291,6 +456,26 @@ class ImportFolderService {
 		$this->mapper->delete($row);
 		foreach ($waiting as ['file' => $file]) {
 			$this->dismissReview($userId, (int)$file->getId());
+		}
+		$this->forgetLeftAlone($userId, (string)$row->getName());
+	}
+
+	/** Drop the record of the files a subfolder left alone, once it is no import folder */
+	private function forgetLeftAlone(string $userId, string $name): void {
+		try {
+			$main = $this->existingPath($userId, $this->mainFolderFor($userId));
+			$folder = $main === null ? null : $this->existingFolder($main, $name, $userId);
+			$folderId = $folder === null ? null : (int)$folder->getId();
+			if ($folderId === null || !isset($this->leftAlone($userId)[$folderId])) {
+				return;
+			}
+			$this->changeLeftAlone($userId, static function (array $record) use ($folderId): array {
+				unset($record[$folderId]);
+				return $record;
+			});
+		} catch (\Throwable $e) {
+			// Kept, which only costs a little room
+			$this->logger->warning("Budget import folder: the files {$name} left alone could not be forgotten for {$userId}: " . $e->getMessage(), ['app' => Application::APP_ID]);
 		}
 	}
 
@@ -316,6 +501,8 @@ class ImportFolderService {
 		}
 		$taken = 0;
 		$leftAlone = $this->leftAlone($userId);
+		// The files left alone found where they were left, unchanged, by folder
+		$seen = [];
 		foreach ($rows as $row) {
 			try {
 				// Recreated if it was deleted or renamed in Files
@@ -328,8 +515,14 @@ class ImportFolderService {
 				$this->logger->warning("Budget import folder: {$row->getName()} skipped for {$userId}: " . $e->getMessage(), ['app' => Application::APP_ID]);
 				continue;
 			}
+			$folderId = (int)$folder->getId();
+			$seen[$folderId] ??= [];
 			foreach ($files as $file) {
-				if (isset($leftAlone[(int)$file->getId()])) {
+				$fileId = (int)$file->getId();
+				$marker = self::marker($file);
+				// Written over since, it is a new statement
+				if (($leftAlone[$folderId][$fileId] ?? null) === $marker || array_key_exists($fileId, $leftAlone[0] ?? [])) {
+					$seen[$folderId][$fileId] = $marker;
 					continue;
 				}
 				if ($taken >= $limit || !$this->settled($file)) {
@@ -342,6 +535,11 @@ class ImportFolderService {
 					$taken++;
 				}
 			}
+		}
+		if ($leftAlone !== []) {
+			// Ids recorded on their own are only known to be gone once every folder was read
+			$readAll = ($leftAlone[0] ?? []) !== [] && count($seen) === count($this->mapper->findAll($userId));
+			$this->tidyLeftAlone($userId, $leftAlone, $seen, $readAll);
 		}
 		return $summary;
 	}
@@ -481,12 +679,9 @@ class ImportFolderService {
 	 * @return list<array{file: File, row: ImportFolder, folder: Folder}>
 	 */
 	private function waiting(string $userId): array {
-		$main = $this->rootFolder->getUserFolder($userId);
-		foreach (explode('/', $this->mainFolderFor($userId)) as $segment) {
-			$main = $this->existingFolder($main, $segment, $userId);
-			if ($main === null) {
-				return [];
-			}
+		$main = $this->existingPath($userId, $this->mainFolderFor($userId));
+		if ($main === null) {
+			return [];
 		}
 
 		$waiting = [];
@@ -507,6 +702,18 @@ class ImportFolderService {
 			}
 		}
 		return $waiting;
+	}
+
+	/** The folder at a path in the user's Files, if it is there and every step is theirs. Never creates one. */
+	private function existingPath(string $userId, string $path): ?Folder {
+		$folder = $this->rootFolder->getUserFolder($userId);
+		foreach (explode('/', $path) as $segment) {
+			$folder = $this->existingFolder($folder, $segment, $userId);
+			if ($folder === null) {
+				return null;
+			}
+		}
+		return $folder;
 	}
 
 	/** A folder that is already there and the user's own, or null. Never creates one. */

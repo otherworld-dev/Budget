@@ -76,6 +76,11 @@ class ImportFolderServiceTest extends TestCase {
 	private array $unlistable = [];
 	/** @var string[] folder names Files will not create */
 	private array $namesFilesRefuses = [];
+	/** @var array<int, Folder> every in-memory folder still in Files, by id */
+	private array $foldersById = [];
+	private int $nextFolderId = 1000;
+	/** @var array<int, string> each file's etag, by id, where a test sets one */
+	private array $etags = [];
 
 	protected function setUp(): void {
 		$this->children = new \WeakMap();
@@ -158,6 +163,12 @@ class ImportFolderServiceTest extends TestCase {
 		$config->method('setUserValue')->willReturnCallback(function (string $userId, string $app, string $key, $value): void {
 			$this->prefs[$app . '.' . $key] = (string)$value;
 		});
+		$config->method('getUserValueForUsers')->willReturnCallback(
+			fn (string $app, string $key, array $userIds) => isset($this->prefs[$app . '.' . $key]) ? [$userIds[0] => $this->prefs[$app . '.' . $key]] : []
+		);
+		$config->method('deleteUserValue')->willReturnCallback(function (string $userId, string $app, string $key): void {
+			unset($this->prefs[$app . '.' . $key]);
+		});
 
 		$mail = $this->createMock(BudgetMailService::class);
 		$mail->method('getUserLanguage')->willReturn('it');
@@ -216,6 +227,10 @@ class ImportFolderServiceTest extends TestCase {
 		$children = new \ArrayObject();
 		$folder = $this->createMock(Folder::class);
 		$this->children[$folder] = $children;
+		$id = $this->nextFolderId++;
+		$this->foldersById[$id] = $folder;
+		$folder->method('getId')->willReturn($id);
+		$folder->method('getFirstNodeById')->willReturnCallback(fn (int $id) => $this->foldersById[$id] ?? null);
 		$folder->method('getPath')->willReturn($path);
 		$folder->method('getName')->willReturn(basename($path));
 		// Alice's own, unless the test says someone shared it with her
@@ -388,6 +403,7 @@ class ImportFolderServiceTest extends TestCase {
 		// What Files has recorded, which is not always what is there
 		$file->method('getSize')->willReturn($size);
 		$file->method('getMTime')->willReturn(self::NOW - $age);
+		$file->method('getEtag')->willReturnCallback(fn (): string => $this->etags[$id] ?? 'etag' . $id);
 		$file->method('getOwner')->willReturn($this->createConfiguredMock(\OCP\IUser::class, ['getUID' => $owner]));
 		$file->method('getStorage')->willReturn($this->storage(true));
 		$file->method('fopen')->willReturnCallback(static function () use ($content) {
@@ -1290,6 +1306,150 @@ class ImportFolderServiceTest extends TestCase {
 
 		$this->assertSame([], $this->service->leaveExistingAlone('alice', 'Nowhere/Yet'));
 		$this->assertFalse($this->root->nodeExists('Nowhere'));
+	}
+
+	// ── what is left alone, kept up to date ─────────────────────────
+
+	/** @return array<int, array<int, string>> the stored record: folder id => [file id => marker] */
+	private function leftAloneRecord(): array {
+		$stored = $this->prefs['budget.import_folder_left_alone'] ?? null;
+		return $stored === null ? [] : json_decode($stored, true);
+	}
+
+	public function testAFileLeftAloneIsImportedOnceItIsReplaced(): void {
+		// A bank export always saved as statement.csv: Files "Replace" and
+		// the desktop client write over it and keep its id
+		$this->csvTemplate(5);
+		$folder = $this->at('Budget/Import/Conto');
+		$file = $this->fileIn($folder, 'statement.csv', 2);
+		$this->service->create('alice', 'Conto', 3, 5);
+		$this->givenACsvUpload();
+
+		$this->assertSame(0, $this->service->check('alice')['imported']);
+		$this->assertNull($this->whereItWent($file));
+
+		$this->etags[2] = 'written-over';
+
+		$this->assertSame(1, $this->service->check('alice')['imported']);
+		$this->assertStringEndsWith('/Imported/statement.csv', $this->whereItWent($file));
+		$this->assertSame([], $this->leftAloneRecord());
+	}
+
+	public function testARecordOfIdsAloneIsTakenAsUnchangedUntilTheFileChanges(): void {
+		// What the first 3.0 builds stored: the ids, with nothing to tell a
+		// changed file by. Read as unchanged, and given the file's marker
+		$this->csvTemplate(5);
+		$this->rows = [$this->row(1, 'Conto', 3, 5)];
+		$folder = $this->at('Budget/Import/Conto');
+		$file = $this->fileIn($folder, 'statement.csv', 2);
+		$this->prefs['budget.import_folder_left_alone'] = '[2,9]';
+		$this->givenACsvUpload();
+
+		$this->assertSame(0, $this->service->check('alice')['imported']);
+		$this->assertNull($this->whereItWent($file));
+		// Every folder was read, so an id in none of them is gone
+		$this->assertSame([$folder->getId() => [2 => hash('crc32b', 'etag2')]], $this->leftAloneRecord());
+
+		$this->etags[2] = 'written-over';
+
+		$this->assertSame(1, $this->service->check('alice')['imported']);
+	}
+
+	public function testWhatIsNoLongerInTheFolderIsForgotten(): void {
+		$folder = $this->at('Budget/Import/Conto');
+		$this->fileIn($folder, 'appunti.pdf', 1);
+		$this->fileIn($folder, 'vecchio.csv', 2);
+		$this->service->create('alice', 'Conto', 3, null);
+		$this->assertSame([$folder->getId() => [1 => hash('crc32b', 'etag1'), 2 => hash('crc32b', 'etag2')]], $this->leftAloneRecord());
+
+		// Moved elsewhere in Files
+		$this->children[$folder]->offsetUnset('appunti.pdf');
+		$this->service->check('alice');
+		$this->assertSame([$folder->getId() => [2 => hash('crc32b', 'etag2')]], $this->leftAloneRecord());
+
+		$this->children[$folder]->offsetUnset('vecchio.csv');
+		$this->service->check('alice');
+		$this->assertArrayNotHasKey('budget.import_folder_left_alone', $this->prefs);
+	}
+
+	public function testASwitchedOffFolderKeepsItsFilesLeftAlone(): void {
+		// Not read, so nothing can be told about it: when it is switched
+		// back on, what was there is still left where it is
+		$folder = $this->at('Budget/Import/Conto');
+		$old = $this->fileIn($folder, 'vecchio.csv', 2);
+		$this->service->create('alice', 'Conto', 3, null);
+		$this->service->update('alice', 1, ['enabled' => false]);
+		$this->importService->expects($this->never())->method('processUpload');
+
+		$this->service->check('alice');
+		$this->assertSame([$folder->getId() => [2 => hash('crc32b', 'etag2')]], $this->leftAloneRecord());
+
+		$this->service->update('alice', 1, ['enabled' => true]);
+		$this->service->check('alice');
+		$this->assertNull($this->whereItWent($old));
+	}
+
+	public function testTheRecordOfAFolderDeletedInFilesIsDropped(): void {
+		$main = $this->at('Budget/Import');
+		$folder = $this->at('Budget/Import/Conto');
+		$this->fileIn($folder, 'vecchio.csv', 2);
+		$this->service->create('alice', 'Conto', 3, null);
+
+		$this->children[$main]->offsetUnset('Conto');
+		unset($this->foldersById[$folder->getId()]);
+		// Recreated empty, under a new id
+		$this->service->check('alice');
+
+		$this->assertSame([], $this->leftAloneRecord());
+	}
+
+	public function testRemovingAFolderForgetsWhatItLeftAlone(): void {
+		$conto = $this->at('Budget/Import/Conto');
+		$carta = $this->at('Budget/Import/Carta');
+		$this->fileIn($conto, 'vecchio.csv', 2);
+		$this->fileIn($carta, 'appunti.pdf', 3);
+		$this->service->create('alice', 'Conto', 3, null);
+		$this->service->create('alice', 'Carta', 3, null);
+
+		$this->service->delete('alice', 1);
+
+		$this->assertSame([$carta->getId() => [3 => hash('crc32b', 'etag3')]], $this->leftAloneRecord());
+	}
+
+	public function testWhatIsLeftAloneWhileACheckRunsIsKept(): void {
+		$conto = $this->at('Budget/Import/Conto');
+		$carta = $this->at('Budget/Import/Carta');
+		$this->fileIn($conto, 'vecchio.csv', 2);
+		$this->fileIn($carta, 'appunti.pdf', 3);
+		$this->service->create('alice', 'Conto', 3, null);
+		$this->children[$conto]->offsetUnset('vecchio.csv');
+
+		$taken = [];
+		$this->locking->method('acquireLock')->willReturnCallback(function (string $path) use (&$taken, $carta): void {
+			$taken[] = $path;
+			if ($path === 'budget/import-folder-left-alone/alice' && count($taken) === 1) {
+				// Carta is added, by another request, after this check read
+				// the record and before it writes it back
+				$this->service->create('alice', 'Carta', 3, null);
+			}
+		});
+		$this->locking->expects($this->atLeastOnce())->method('releaseLock');
+
+		$this->service->check('alice');
+
+		$this->assertSame([$carta->getId() => [3 => hash('crc32b', 'etag3')]], $this->leftAloneRecord());
+	}
+
+	public function testACheckThatCannotGetTheRecordLeavesItAsItIs(): void {
+		$folder = $this->at('Budget/Import/Conto');
+		$this->fileIn($folder, 'vecchio.csv', 2);
+		$this->service->create('alice', 'Conto', 3, null);
+		$this->children[$folder]->offsetUnset('vecchio.csv');
+		$before = $this->leftAloneRecord();
+		$this->locking->method('acquireLock')->willThrowException(new LockedException('budget/import-folder-left-alone/alice'));
+
+		$this->assertSame(['imported' => 0, 'failed' => 0, 'waiting' => 0, 'review' => 0], $this->service->check('alice'));
+		$this->assertSame($before, $this->leftAloneRecord());
 	}
 
 	// ── when a file is settled ──────────────────────────────────────
