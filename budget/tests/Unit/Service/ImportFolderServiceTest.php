@@ -653,8 +653,8 @@ class ImportFolderServiceTest extends TestCase {
 	}
 
 	/** The import service reading an OFX that names these accounts */
-	private function givenAnOfxUpload(array $sourceAccounts): void {
-		$this->importService->method('processUpload')->willReturn(['fileId' => 'f.ofx', 'format' => 'ofx', 'sourceAccounts' => $sourceAccounts]);
+	private function givenAnOfxUpload(array $sourceAccounts, string $format = 'ofx'): void {
+		$this->importService->method('processUpload')->willReturn(['fileId' => 'f.ofx', 'format' => $format, 'sourceAccounts' => $sourceAccounts]);
 		$this->importService->method('previewImport')->willReturn(['accountSummaries' => array_map(
 			static fn (array $source) => ['transactionCount' => $source['transactionCount'] ?? 1, 'duplicates' => 0],
 			$sourceAccounts
@@ -696,6 +696,53 @@ class ImportFolderServiceTest extends TestCase {
 		$this->assertSame(['imported' => 0, 'failed' => 1, 'waiting' => 0, 'review' => 0], $this->service->check('alice'));
 		$this->assertStringEndsWith('/Failed/estratto.ofx', $this->whereItWent($file));
 		$this->assertSame('several_accounts', $this->sent[0][1]['reason']);
+	}
+
+	public function testACamtOfSeveralDailyStatementsForOneAccountIsImported(): void {
+		// A camt.053 has a <Stmt> per day, each naming the same IBAN
+		$this->rows = [$this->row(1, 'Conto')];
+		$this->fileIn($this->at('Budget/Import/Conto'), 'estratto.xml', content: '<Document><BkToCstmrStmt/></Document>');
+		$this->givenAnOfxUpload([
+			['accountId' => 'IT60X', 'currency' => 'EUR', 'transactionCount' => 3],
+			['accountId' => 'IT60X', 'currency' => 'EUR', 'transactionCount' => 2],
+			['accountId' => 'IT60X', 'currency' => 'EUR', 'transactionCount' => 0],
+		], 'camt');
+		$this->importService->expects($this->once())->method('processImport')
+			->with('alice', 'f.ofx', [], 3, ['IT60X' => 3], true, true, ',', null, null)
+			->willReturn(['imported' => 5, 'skipped' => 0, 'errors' => []]);
+
+		$this->assertSame(1, $this->service->check('alice')['imported']);
+	}
+
+	public function testAnAccountWithNothingInTheStatementDoesNotCount(): void {
+		// An OFX of every account at the bank: only the current account had
+		// anything this month, and the empty card is in dollars
+		$this->rows = [$this->row(1, 'Conto')];
+		$this->fileIn($this->at('Budget/Import/Conto'), 'estratto.ofx', content: "OFXHEADER:100\n<OFX></OFX>\n");
+		$this->givenAnOfxUpload([
+			['accountId' => 'IT60X', 'currency' => 'EUR', 'transactionCount' => 4],
+			['accountId' => '4111', 'currency' => 'USD', 'transactionCount' => 0],
+		]);
+		// The empty one is not routed anywhere, so it is not remembered as this account's
+		$this->importService->expects($this->once())->method('processImport')
+			->with('alice', 'f.ofx', [], 3, ['IT60X' => 3], true, true, ',', null, null)
+			->willReturn(['imported' => 4, 'skipped' => 0, 'errors' => []]);
+
+		$this->assertSame(1, $this->service->check('alice')['imported']);
+	}
+
+	public function testAStatementWithNothingInItSaysSoRatherThanSeveralAccounts(): void {
+		$this->rows = [$this->row(1, 'Conto')];
+		$file = $this->fileIn($this->at('Budget/Import/Conto'), 'estratto.ofx', content: "OFXHEADER:100\n<OFX></OFX>\n");
+		$this->givenAnOfxUpload([
+			['accountId' => 'IT60X', 'currency' => 'EUR', 'transactionCount' => 0],
+			['accountId' => '4111', 'currency' => 'USD', 'transactionCount' => 0],
+		]);
+		$this->importService->expects($this->never())->method('processImport');
+
+		$this->assertSame(1, $this->service->check('alice')['failed']);
+		$this->assertStringEndsWith('/Failed/estratto.ofx', $this->whereItWent($file));
+		$this->assertSame('nothing_read', $this->sent[0][1]['reason']);
 	}
 
 	public function testAStatementInAnotherCurrencyIsNotImported(): void {

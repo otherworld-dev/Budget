@@ -825,11 +825,16 @@ class ImportFolderService {
 		$usable = $template !== null && $template->getFormat() === $format ? $template : null;
 		$accountId = (int)$account->getId();
 		$sources = $upload['sourceAccounts'] ?? [];
-		if (count($sources) > 1) {
+		// What holds no transactions does not count: an OFX of every account
+		// at the bank names the ones with nothing new too. Nor does the same
+		// account named again: a camt file has a statement for each day
+		$active = array_filter($sources, static fn (array $source): bool => (int)($source['transactionCount'] ?? 1) > 0);
+		$named = array_unique(array_map(static fn (array $source): string => (string)($source['accountId'] ?? ''), $active));
+		if (count($named) > 1) {
 			throw new ImportFolderFailure('several_accounts');
 		}
 		$accountCurrency = strtoupper(trim((string)$account->getCurrency()));
-		foreach ($sources as $source) {
+		foreach ($active as $source) {
 			// Unknown (QIF never says) is taken to be the account's own
 			$currency = strtoupper(trim((string)($source['currency'] ?? '')));
 			if ($currency !== '' && $accountCurrency !== '' && $currency !== $accountCurrency) {
@@ -837,8 +842,11 @@ class ImportFolderService {
 			}
 		}
 
+		// Only those: an import remembers where each account went, and the
+		// empty ones did not go to this account. With nothing in any of them,
+		// all are taken, and nothing is read
 		$accountMapping = [];
-		foreach ($sources as $source) {
+		foreach ($active ?: $sources as $source) {
 			if (isset($source['accountId'])) {
 				$accountMapping[(string)$source['accountId']] = $accountId;
 			}
