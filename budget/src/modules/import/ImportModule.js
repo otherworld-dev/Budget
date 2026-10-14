@@ -2248,10 +2248,16 @@ export default class ImportModule {
         container.innerHTML = '';
 
         // A file opened from an import folder goes to that folder's account,
-        // whatever account the file itself names, as it would have done
-        // unreviewed (#425)
+        // whatever the account it names is called, as it would have done
+        // unreviewed (#425). Not a file of several accounts (a current
+        // account and a card, say), nor one in another currency: those are
+        // mapped account by account, as any upload is
         const targets = importTargetAccounts(accounts);
-        const folderAccount = targets.find(a => String(a.id) === String(this.currentImportData?.review?.accountId))?.id ?? null;
+        const reviewed = targets.find(a => String(a.id) === String(this.currentImportData?.review?.accountId));
+        const sourceCurrency = String(this.sourceAccounts[0]?.currency || '').toUpperCase();
+        const fitsFolder = reviewed && this.sourceAccounts.length === 1
+            && (!sourceCurrency || !reviewed.currency || sourceCurrency === String(reviewed.currency).toUpperCase());
+        const folderAccount = fitsFolder ? reviewed.id : null;
 
         this.sourceAccounts.forEach(sourceAccount => {
             const row = document.createElement('div');
