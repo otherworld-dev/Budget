@@ -82,9 +82,7 @@ class SpreadsheetConverterTest extends TestCase {
 		);
 		// With no table of three columns, the first table of two
 		$this->assertSame(
-			"Date,Amount
-02/01/2024,1
-",
+			"Date,Amount\n02/01/2024,1\n",
 			$this->converter->toCsv('<table><tr><td>Date</td><td>Amount</td></tr><tr><td>02/01/2024</td><td>1</td></tr></table>'
 				. '<table><tr><td>Label</td><td>Value</td></tr><tr><td>a</td><td>b</td></tr><tr><td>c</td><td>d</td></tr></table>')
 		);
