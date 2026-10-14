@@ -20,7 +20,7 @@ $js = static fn (string $text): string => json_encode($text, JSON_HEX_TAG | JSON
         <div class="qa-form-group">
             <span class="qa-label"><?php p($l->t('Receipt')); ?></span>
             <button type="button" id="qa-receipt-btn" class="qa-receipt-btn"><?php p($l->t('Upload receipt')); ?></button>
-            <input type="file" id="qa-receipt" accept="image/jpeg,image/png,image/webp,image/heic,.heic,application/pdf" hidden>
+            <input type="file" id="qa-receipt" accept="image/jpeg,image/png,image/webp,application/pdf" hidden>
             <div id="qa-receipt-chosen" class="qa-receipt-chosen" hidden>
                 <img id="qa-receipt-thumb" class="qa-receipt-thumb" alt="" hidden>
                 <span id="qa-receipt-name" class="qa-receipt-name"></span>

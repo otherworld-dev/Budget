@@ -377,8 +377,10 @@ describe('Quick Add receipts (#419)', () => {
         mount(server());
         // AttachmentService::ALLOWED_MIMES; image/* let a GIF or TIFF be
         // picked only for the upload to refuse it after the save. The main
-        // app's Upload receipt picker had the same mismatch.
-        const allowed = 'image/jpeg,image/png,image/webp,image/heic,.heic,application/pdf';
+        // app's Upload receipt picker had the same mismatch. HEIC is left out
+        // although the upload takes it: listing it stops iOS converting a
+        // camera photo to JPEG, the format receipt scanning can read.
+        const allowed = 'image/jpeg,image/png,image/webp,application/pdf';
         expect($('qa-receipt').getAttribute('accept')).toBe(allowed);
         expect(MAIN_TEMPLATE).toContain(`id="attachment-file-input" accept="${allowed}"`);
     });
