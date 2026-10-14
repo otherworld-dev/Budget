@@ -7,12 +7,37 @@
  * change to a row the moment it is made, as the rest of the page does.
  */
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
-import { showError } from '../../utils/notifications.js';
+import { showError, showInfo } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { apiFetch, ApiError } from '../../utils/api.js';
 import { importTargetAccounts } from '../../utils/accounts.js';
 
 const API = '/apps/budget/api/import-folders';
+
+/**
+ * What to tell the user when an import folder was given a folder that
+ * already held files: they are left where they are, and only files added
+ * from then on are imported.
+ *
+ * @param {Object<string, number>|Array} counts How many files, by subfolder name
+ * @return {string} Empty when there were none
+ */
+export function leftAloneNotice(counts) {
+    const entries = Object.entries(counts && typeof counts === 'object' ? counts : {}).filter(([, count]) => count > 0);
+    if (entries.length === 0) return '';
+    if (entries.length === 1) {
+        const [folder, count] = entries[0];
+        return n(
+            'budget',
+            '{folder} already holds a file. It stays where it is: only files added from now on are imported.',
+            '{folder} already holds %n files. They stay where they are: only files added from now on are imported.',
+            count,
+            { folder },
+            { escape: false }
+        );
+    }
+    return t('budget', 'Files already in {folders} stay where they are: only files added from now on are imported.', { folders: entries.map(([folder]) => folder).join(', ') }, undefined, { escape: false });
+}
 
 export default class ImportFolders {
     /**
@@ -191,10 +216,13 @@ export default class ImportFolders {
                 },
                 errorMessage: t('budget', 'Failed to add the import folder'),
             });
-            this.folders.push(folder);
+            const { leftAlone = 0, ...row } = folder || {};
+            this.folders.push(row);
             this.folders.sort((a, b) => String(a.name).localeCompare(String(b.name)));
             name.value = '';
             this.render();
+            const notice = leftAloneNotice({ [row.name]: leftAlone });
+            if (notice) showInfo(notice);
         } catch (error) {
             this.showFailure(error, t('budget', 'Failed to add the import folder'));
         }

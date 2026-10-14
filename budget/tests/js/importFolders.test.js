@@ -12,8 +12,8 @@ vi.mock('@nextcloud/l10n', () => ({
             if (!(k in params)) return m;
             return options.escape === false ? String(params[k]) : String(params[k]).replace(/&/g, '&amp;');
         }),
-    translatePlural: (_app, singular, plural, count) =>
-        String(count === 1 ? singular : plural).replace(/%n/g, count),
+    translatePlural: (_app, singular, plural, count, params = {}) =>
+        String(count === 1 ? singular : plural).replace(/%n/g, count).replace(/\{(\w+)\}/g, (m, k) => (k in params ? String(params[k]) : m)),
 }));
 
 vi.mock('../../src/utils/notifications.js', () => ({
@@ -32,9 +32,9 @@ vi.mock('../../src/utils/api.js', async (importOriginal) => {
     return { ...actual, apiFetch: vi.fn() };
 });
 
-import ImportFolders from '../../src/modules/settings/ImportFolders.js';
+import ImportFolders, { leftAloneNotice } from '../../src/modules/settings/ImportFolders.js';
 import { apiFetch, ApiError } from '../../src/utils/api.js';
-import { showError } from '../../src/utils/notifications.js';
+import { showError, showInfo } from '../../src/utils/notifications.js';
 import { confirmDialog } from '../../src/utils/dialogs.js';
 
 const tick = () => new Promise(resolve => setTimeout(resolve, 0));
@@ -273,5 +273,43 @@ describe('ImportFolders', () => {
         await tick();
 
         expect(document.getElementById('import-folders-status').textContent).toBe('1 file imported, 2 files ready to review');
+    });
+
+    it('says the files already in a folder it was given stay where they are', async () => {
+        givenApi({ 'POST /apps/budget/api/import-folders': { ...FOLDER, id: 2, name: 'Carta', leftAlone: 3 } });
+        await section().load();
+        document.getElementById('import-folder-name').value = 'Carta';
+
+        document.getElementById('import-folder-add').dispatchEvent(new Event('submit', { cancelable: true }));
+        await tick();
+
+        expect(showInfo).toHaveBeenCalledWith('Carta already holds 3 files. They stay where they are: only files added from now on are imported.');
+    });
+
+    it('says nothing of the kind for a folder made new', async () => {
+        givenApi({ 'POST /apps/budget/api/import-folders': { ...FOLDER, id: 2, name: 'Carta', leftAlone: 0 } });
+        await section().load();
+        document.getElementById('import-folder-name').value = 'Carta';
+
+        document.getElementById('import-folder-add').dispatchEvent(new Event('submit', { cancelable: true }));
+        await tick();
+
+        expect(showInfo).not.toHaveBeenCalled();
+    });
+});
+
+describe('leftAloneNotice', () => {
+    it('names one folder and counts its files', () => {
+        expect(leftAloneNotice({ Conto: 1 })).toBe('Conto already holds a file. It stays where it is: only files added from now on are imported.');
+    });
+
+    it('names every folder when there are several', () => {
+        expect(leftAloneNotice({ Conto: 1, Carta: 4 })).toBe('Files already in Conto, Carta stay where they are: only files added from now on are imported.');
+    });
+
+    it('is empty when nothing was there', () => {
+        expect(leftAloneNotice({})).toBe('');
+        expect(leftAloneNotice(undefined)).toBe('');
+        expect(leftAloneNotice([])).toBe('');
     });
 });
