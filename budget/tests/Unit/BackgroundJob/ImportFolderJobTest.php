@@ -104,6 +104,36 @@ class ImportFolderJobTest extends TestCase {
 		$this->assertSame(['bob'], $checked);
 	}
 
+	public function testAUserWhoseFileStoppedTheLastRunGoesLast(): void {
+		// Alice's file killed the last run before Bob and Carol were
+		// checked: this time they go first, whatever her next file does
+		$this->givenUsersWithFolders(['alice', 'bob', 'carol']);
+		$this->service->method('interrupted')->with(['alice', 'bob', 'carol'])->willReturn(['alice']);
+		$checked = [];
+		$this->service->method('check')->willReturnCallback(function (string $userId) use (&$checked) {
+			$checked[] = $userId;
+			return ['imported' => 0, 'failed' => 0, 'waiting' => 0, 'review' => 0];
+		});
+
+		$this->invokeRun();
+
+		$this->assertSame(['bob', 'carol', 'alice'], $checked);
+	}
+
+	public function testEveryoneIsCheckedEvenIfTheOrderCannotBeWorkedOut(): void {
+		$this->givenUsersWithFolders(['alice', 'bob']);
+		$this->service->method('interrupted')->willThrowException(new \RuntimeException('database gone'));
+		$checked = [];
+		$this->service->method('check')->willReturnCallback(function (string $userId) use (&$checked) {
+			$checked[] = $userId;
+			return ['imported' => 0, 'failed' => 0, 'waiting' => 0, 'review' => 0];
+		});
+
+		$this->invokeRun();
+
+		$this->assertSame(['alice', 'bob'], $checked);
+	}
+
 	public function testRunsEveryFifteenMinutes(): void {
 		$interval = new \ReflectionProperty(\OCP\BackgroundJob\TimedJob::class, 'interval');
 		$this->assertSame(900, $interval->getValue($this->job));
