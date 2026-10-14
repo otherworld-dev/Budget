@@ -44,6 +44,7 @@ class OdsReaderTest extends TestCase {
 			. ' xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"'
 			. ' xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"'
 			. ' xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"'
+			. ' xmlns:xlink="http://www.w3.org/1999/xlink"'
 			. ' xmlns:calcext="urn:org:documentfoundation:names:experimental:calc:xmlns:calcext:1.0">'
 			. '<office:body><office:spreadsheet><table:table table:name="Foglio1">' . $tableContent
 			. '</table:table></office:spreadsheet></office:body></office:document-content>');
@@ -75,6 +76,57 @@ class OdsReaderTest extends TestCase {
 			['x'],
 			['x'],
 		], $this->readFile($path)[0]['rows']);
+	}
+
+	public function testSpacesTabsAndLineBreaksInsideACell(): void {
+		// LibreOffice writes a run of spaces as <text:s text:c="N"/>, and N
+		// spaces are what the cell holds; a tab or a line break is a space
+		// here, as every line break in a cell is in the CSV
+		$path = $this->odsWith(
+			'<table:table-row><table:table-cell office:value-type="string">'
+			. '<text:p>CARD<text:line-break/>TESCO<text:tab/>LONDON<text:s text:c="3"/>GB<text:s/>1</text:p>'
+			. '<text:p><text:span text:style-name="T1">second</text:span> <text:a xlink:href="x">para</text:a></text:p>'
+			. '</table:table-cell></table:table-row>'
+		);
+		$this->assertSame([['CARD TESCO LONDON   GB 1 second para']], $this->readFile($path)[0]['rows']);
+	}
+
+	public function testACellOfManyElementsIsTooLarge(): void {
+		// Expanding this one cell into a DOM took gigabytes outside memory_limit
+		$path = $this->odsWith('<table:table-row><table:table-cell>' . str_repeat('<a/>', 200000) . '</table:table-cell></table:table-row>');
+		$this->expectException(SpreadsheetTooLargeError::class);
+		$this->readFile($path);
+	}
+
+	public function testANumberCellOfManyElementsIsTooLarge(): void {
+		$path = $this->odsWith('<table:table-row><table:table-cell office:value-type="float" office:value="1">'
+			. str_repeat('<text:p/>', 200000) . '</table:table-cell></table:table-row>');
+		$this->expectException(SpreadsheetTooLargeError::class);
+		$this->readFile($path);
+	}
+
+	public function testAHugeRunOfSpacesIsTooLarge(): void {
+		$path = $this->odsWith('<table:table-row><table:table-cell office:value-type="string"><text:p>a<text:s text:c="2000000000"/>b</text:p></table:table-cell></table:table-row>');
+		$this->expectException(SpreadsheetTooLargeError::class);
+		$this->readFile($path);
+	}
+
+	public function testRowAndColumnRepeatsPastAnySheet(): void {
+		// Used to overflow into a float and end in a TypeError (a 500)
+		$path = $this->odsWith(
+			'<table:table-row><table:table-cell table:number-columns-repeated="9223372036854775807"/>'
+			. '<table:table-cell office:value-type="string"><text:p>past the last column</text:p></table:table-cell></table:table-row>'
+			. '<table:table-row table:number-rows-repeated="9223372036854775807"><table:table-cell/></table:table-row>'
+			. '<table:table-row table:number-rows-repeated="5"><table:table-cell/></table:table-row>'
+		);
+		$this->assertSame([], $this->readFile($path)[0]['rows']);
+
+		$path = $this->odsWith(
+			'<table:table-row table:number-rows-repeated="9223372036854775807"><table:table-cell/></table:table-row>'
+			. '<table:table-row><table:table-cell office:value-type="string"><text:p>a</text:p></table:table-cell></table:table-row>'
+		);
+		$this->expectException(SpreadsheetReadError::class);
+		$this->readFile($path);
 	}
 
 	public function testARepeatedFilledRowCannotBlowUp(): void {

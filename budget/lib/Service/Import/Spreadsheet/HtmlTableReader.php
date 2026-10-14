@@ -24,17 +24,48 @@ final class HtmlTableReader {
 
 		$sheets = [];
 		$budget = new SheetBudget();
+		$spanned = 0;
 		foreach ($document->getElementsByTagName('table') as $index => $table) {
+			// A table of one row can never be a header over transactions
+			$rows = $table->getElementsByTagName('tr');
+			if ($rows->length < 2) {
+				continue;
+			}
+			if (count($sheets) >= SheetBuilder::MAX_SHEETS) {
+				throw new SpreadsheetTooLargeError('More than ' . SheetBuilder::MAX_SHEETS . ' tables');
+			}
 			$builder = new SheetBuilder('Table ' . ($index + 1), $budget);
+			// Column => the last row a cell above, spanning rows, covers it
+			$coveredTo = [];
 			$row = 0;
-			foreach ($table->getElementsByTagName('tr') as $tr) {
+			foreach ($rows as $tr) {
 				$column = 0;
 				foreach ($tr->childNodes as $cell) {
 					if (!$cell instanceof \DOMElement || !in_array(strtolower($cell->tagName), ['td', 'th'], true)) {
 						continue;
 					}
+					// Positions a rowspan above covers are left empty, as a
+					// colspan leaves its own and a spreadsheet saves a merged cell
+					while ($column < SheetBuilder::MAX_COLUMNS && ($coveredTo[$column] ?? -1) >= $row) {
+						$column++;
+						// Each one stepped over is a cell of the table, and a
+						// table has at most MAX_CELLS of them
+						if (++$spanned > SheetBuilder::MAX_CELLS) {
+							throw new SpreadsheetTooLargeError('Table has more than ' . SheetBuilder::MAX_CELLS . ' cells');
+						}
+					}
+					if ($column >= SheetBuilder::MAX_COLUMNS) {
+						break;
+					}
 					$builder->add($row, $column, trim(preg_replace('/[\s\x{00A0}]+/u', ' ', $cell->textContent) ?? ''));
-					$column += max(1, min((int)$cell->getAttribute('colspan'), SheetBuilder::MAX_COLUMNS));
+					$columns = max(1, min((int)$cell->getAttribute('colspan'), SheetBuilder::MAX_COLUMNS - $column));
+					$rowspan = min((int)$cell->getAttribute('rowspan'), 65534);
+					if ($rowspan > 1) {
+						for ($i = 0; $i < $columns; $i++) {
+							$coveredTo[$column + $i] = $row + $rowspan - 1;
+						}
+					}
+					$column += $columns;
 				}
 				$row++;
 			}

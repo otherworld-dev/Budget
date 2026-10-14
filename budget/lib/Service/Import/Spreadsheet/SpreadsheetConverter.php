@@ -32,8 +32,13 @@ class SpreadsheetConverter {
 	}
 
 	/**
-	 * The first sheet holding a table, as CSV; or the bytes as they are when
-	 * the file is really plain text.
+	 * The sheet holding the statement, as CSV; or the bytes as they are
+	 * when the file is really plain text.
+	 *
+	 * Of the sheets holding a table (a header and a row at least), the
+	 * statement is taken to be the one with three columns or more and the
+	 * most rows, and of equals the first. A cover sheet of a few "label |
+	 * value" lines is a table too, but a narrow and short one.
 	 *
 	 * @throws ValidationException With a message for the user
 	 */
@@ -44,15 +49,29 @@ class SpreadsheetConverter {
 			if ($sheets === null) {
 				return $bytes;
 			}
+			$best = null;
+			$bestScore = null;
 			foreach ($sheets as $sheet) {
 				$table = SpreadsheetTable::extract($sheet['rows']);
-				if (count($table) >= 2) {
-					return SpreadsheetTable::toCsv($table);
+				if (count($table) < 2) {
+					continue;
 				}
+				$width = count($table[0]);
+				$score = [$width >= 3 ? 1 : 0, count($table), $width];
+				if ($bestScore === null || $score > $bestScore) {
+					$best = $table;
+					$bestScore = $score;
+				}
+			}
+			if ($best !== null) {
+				return SpreadsheetTable::toCsv($best);
 			}
 		} catch (SpreadsheetTooLargeError) {
 			throw new ValidationException($this->l->t('This spreadsheet is too big to import in one go. Split it into smaller files and import them one at a time.'));
-		} catch (SpreadsheetReadError|\ValueError $e) {
+		} catch (SpreadsheetReadError|\Error $e) {
+			// \Error too (a TypeError, a ValueError from mbstring): whatever a
+			// malformed file trips in a reader, the user is told it could not
+			// be read rather than shown a server error
 			throw new ValidationException($this->l->t('This spreadsheet could not be read. If it is password-protected, remove the password, or save it as CSV and import that.'), 0, $e);
 		} finally {
 			libxml_clear_errors();

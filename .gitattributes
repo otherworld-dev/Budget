@@ -12,3 +12,5 @@ budget/.l10nignore text eol=lf
 budget/tests/fixtures/spreadsheets/*.xls binary
 budget/tests/fixtures/spreadsheets/*.xlsx binary
 budget/tests/fixtures/spreadsheets/*.ods binary
+# Their golden CSV outputs are compared byte for byte too.
+budget/tests/fixtures/spreadsheets/golden/*.csv binary

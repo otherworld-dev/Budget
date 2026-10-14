@@ -48,6 +48,43 @@ class CellFormatTest extends TestCase {
 		$this->assertSame('-12.3450', CellFormat::numberText(-12.345));
 	}
 
+	public function testNumberTextNeverUsesAnExponent(): void {
+		// "1.234E-5" would import as -1.2345: the sign reader takes the exponent's minus
+		$this->assertSame('0.00001234', CellFormat::numberText(0.00001234));
+		$this->assertSame('-0.00005', CellFormat::numberText(-0.00005));
+		$this->assertSame('0.0001', CellFormat::numberText(0.0001));
+		$this->assertSame('123456789012345', CellFormat::numberText(123456789012345.0));
+		$this->assertSame('-123456789012345', CellFormat::numberText(-123456789012345.0));
+		$this->assertSame('1000000000000000', CellFormat::numberText(1e15));
+		$this->assertSame('-25000000', CellFormat::numberText(-2.5e7));
+	}
+
+	public function testNumberTextKeepsFifteenSignificantDigits(): void {
+		$this->assertSame('1234567890123460', CellFormat::numberText(1234567890123456.0));
+		$this->assertSame('1234.56789012346', CellFormat::numberText(1234.567890123456));
+		$this->assertSame('0.000123456789012346', CellFormat::numberText(0.0001234567890123456));
+		$this->assertSame('1000000000000000', CellFormat::numberText(999999999999999.9));
+	}
+
+	public function testNumberTextIgnoresThePrecisionSetting(): void {
+		$previous = ini_get('precision');
+		try {
+			foreach (['17', '5', '-1'] as $precision) {
+				ini_set('precision', $precision);
+				$this->assertSame('0.3', CellFormat::numberText(0.1 + 0.2), "precision $precision");
+				$this->assertSame('-1234.5', CellFormat::numberText(-1234.5), "precision $precision");
+				$this->assertSame('123456789012345', CellFormat::numberText(123456789012345.0), "precision $precision");
+			}
+		} finally {
+			ini_set('precision', (string)$previous);
+		}
+	}
+
+	public function testNumberTextOfNothingReal(): void {
+		$this->assertSame('', CellFormat::numberText(NAN));
+		$this->assertSame('', CellFormat::numberText(INF));
+	}
+
 	public function testSerialDates(): void {
 		$this->assertSame('2026-10-01', CellFormat::serialDateText(46296.0, false));
 		$this->assertSame('1900-01-01', CellFormat::serialDateText(1.0, false));

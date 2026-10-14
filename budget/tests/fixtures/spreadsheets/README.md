@@ -20,3 +20,17 @@ independent BIFF writer); the generator scripts are not kept, the files are.
 - `filepass.xls`: a BIFF8 workbook with a FILEPASS record.
 - `biff5.xls`: an Excel 95 workbook (a `Book` stream).
 - `xlwt.xls`: 600 rows by xlwt, shared strings split across CONTINUE records.
+- `cover-labels.ods`: a first sheet of two "label | value" rows, the
+  statement second, with a line break, a tab and runs of spaces inside
+  cells, a comment, a two-paragraph cell, an amount below 0.0001 and
+  15- and 16-digit numbers. Written by hand (a minimal ODS, not by an
+  office suite).
+- `html-preamble-rowspan.xls`: "label | value" rows over a three-column
+  HTML table, and a date cell spanning two rows. Written by hand.
+
+`golden/<fixture>.csv` is the exact CSV each fixture converts to, checked by
+`SpreadsheetFixturesTest`. Cell text is part of a row's import id when the
+row has none of its own, so a golden file must never be regenerated to make
+a change pass once spreadsheets have shipped: a changed output re-keys
+every row of a statement imported before, and importing it again
+duplicates it.

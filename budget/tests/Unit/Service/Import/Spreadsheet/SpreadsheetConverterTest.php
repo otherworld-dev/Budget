@@ -55,6 +55,30 @@ class SpreadsheetConverterTest extends TestCase {
 		);
 	}
 
+	public function testTheStatementWinsOverACoverSheetOfLabelsAndValues(): void {
+		$this->assertSame(
+			"Date,Description,Amount,Balance\n02/01/2024,Coffee,-3.50,100.00\n03/01/2024,Salary,2000.00,2100.00\n",
+			$this->converter->toCsv(
+				'<table><tr><td>Account holder</td><td>J Smith</td></tr><tr><td>Account</td><td>12345678</td></tr></table>'
+				. '<table><tr><th>Date</th><th>Description</th><th>Amount</th><th>Balance</th></tr>'
+				. '<tr><td>02/01/2024</td><td>Coffee</td><td>-3.50</td><td>100.00</td></tr>'
+				. '<tr><td>03/01/2024</td><td>Salary</td><td>2000.00</td><td>2100.00</td></tr></table>'
+			)
+		);
+	}
+
+	public function testTheLongestTableWinsAndTheFirstOnATie(): void {
+		$table = static fn (string $header, int $rows): string => '<table><tr><th>Date</th><th>' . $header . '</th><th>Amount</th></tr>'
+			. str_repeat('<tr><td>02/01/2024</td><td>x</td><td>1</td></tr>', $rows) . '</table>';
+		$this->assertStringStartsWith('Date,Statement,', $this->converter->toCsv($table('Summary', 2) . $table('Statement', 3)));
+		$this->assertStringStartsWith('Date,First,', $this->converter->toCsv($table('First', 3) . $table('Second', 3)));
+		// Two columns only, however long, loses to a table of three
+		$this->assertStringStartsWith(
+			'Date,Statement,',
+			$this->converter->toCsv('<table>' . str_repeat('<tr><td>Label</td><td>Value</td></tr>', 10) . '</table>' . $table('Statement', 1))
+		);
+	}
+
 	public function testPlainTextIsLeftAsItIs(): void {
 		$bytes = file_get_contents(self::FIXTURES . 'tab-separated.xls');
 		$this->assertSame($bytes, $this->converter->toCsv($bytes));
