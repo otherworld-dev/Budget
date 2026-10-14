@@ -824,6 +824,7 @@ class ImportFolderService {
 	private function statementArguments(array $upload, string $format, ?ImportTemplate $template, Account $account): array {
 		$usable = $template !== null && $template->getFormat() === $format ? $template : null;
 		$accountId = (int)$account->getId();
+		/** @var list<array<string, mixed>> $sources */
 		$sources = $upload['sourceAccounts'] ?? [];
 		// What holds no transactions does not count: an OFX of every account
 		// at the bank names the ones with nothing new too. Nor does the same
