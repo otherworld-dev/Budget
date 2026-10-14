@@ -20,10 +20,11 @@ $js = static fn (string $text): string => json_encode($text, JSON_HEX_TAG | JSON
         <div class="qa-form-group">
             <span class="qa-label"><?php p($l->t('Receipt')); ?></span>
             <button type="button" id="qa-receipt-btn" class="qa-receipt-btn"><?php p($l->t('Upload receipt')); ?></button>
-            <input type="file" id="qa-receipt" accept="image/*,application/pdf" hidden>
+            <input type="file" id="qa-receipt" accept="image/jpeg,image/png,image/webp,image/heic,.heic,application/pdf" hidden>
             <div id="qa-receipt-chosen" class="qa-receipt-chosen" hidden>
                 <img id="qa-receipt-thumb" class="qa-receipt-thumb" alt="" hidden>
                 <span id="qa-receipt-name" class="qa-receipt-name"></span>
+                <button type="button" id="qa-receipt-read" class="qa-receipt-read" hidden><?php p($l->t('Read receipt')); ?></button>
                 <button type="button" id="qa-receipt-remove" class="qa-receipt-remove" title="<?php p($l->t('Remove attachment')); ?>" aria-label="<?php p($l->t('Remove attachment')); ?>">✕</button>
             </div>
             <small id="qa-receipt-note" class="qa-receipt-note" aria-live="polite" hidden></small>
@@ -101,7 +102,7 @@ $js = static fn (string $text): string => json_encode($text, JSON_HEX_TAG | JSON
         save: <?php echo $js($l->t('Save Transaction')); ?>,
         saved: <?php echo $js($l->t('Transaction saved!')); ?>,
         saveFailed: <?php echo $js($l->t('Failed to save transaction')); ?>,
-        scanHint: <?php echo $js($l->t('The photo is read on your server and fills in the form for you to check. It is attached to the transaction when you save.')); ?>,
+        readHint: <?php echo $js($l->t('Read receipt fills in the form from it for you to check, using the receipt scanning set up in Budget\'s Admin Settings.')); ?>,
         reading: <?php echo $js($l->t('Reading the receipt…')); ?>,
         readFailed: <?php echo $js($l->t('The receipt could not be read')); ?>,
         filledIn: <?php echo $js($l->t('Filled in: {fields}. Check them before saving.')); ?>,
@@ -184,10 +185,12 @@ $js = static fn (string $text): string => json_encode($text, JSON_HEX_TAG | JSON
         }
     }
 
-    // Receipts (#419). One button for a photo or a file. When the server can
-    // read receipts, a photo fills in the form the way the main app's scan
-    // does; either way the file is attached once the transaction is saved,
-    // as the upload needs its id.
+    // Receipts (#419). One button for a photo or a file, attached once the
+    // transaction is saved, as the upload needs its id. When the server can
+    // read receipts, Read receipt fills in the form the way the main app's
+    // scan does. Picking a photo never reads it by itself: the reader an
+    // admin set up can be an outside service, and a paid one, so the photo
+    // only goes to it when the user asks.
     var submitBtn = form.querySelector('.qa-submit-btn');
     var receiptButton = document.getElementById('qa-receipt-btn');
     var receiptInput = document.getElementById('qa-receipt');
@@ -195,12 +198,16 @@ $js = static fn (string $text): string => json_encode($text, JSON_HEX_TAG | JSON
     var receiptThumb = document.getElementById('qa-receipt-thumb');
     var receiptName = document.getElementById('qa-receipt-name');
     var receiptNote = document.getElementById('qa-receipt-note');
+    var readButton = document.getElementById('qa-receipt-read');
 
     var receipt = null;
     var receiptMessage = '';
     var receiptMessageIsError = false;
     var thumbUrl = null;
     var reading = false;
+    // Set once this photo was sent to be read, so a second press can't
+    // spend a second scan on it. Picking the photo again resets it.
+    var readSent = false;
     var saving = false;
     // Bumped whenever the receipt changes, so a reading that comes back after
     // the photo was removed or the form cleared fills nothing in.
@@ -239,8 +246,11 @@ $js = static fn (string $text): string => json_encode($text, JSON_HEX_TAG | JSON
     }
 
     function renderReceipt() {
+        var canRead = !!receipt && !readSent && readableTypes.indexOf(receipt.type) !== -1;
         submitBtn.disabled = saving || reading;
         receiptButton.disabled = saving;
+        readButton.hidden = !canRead;
+        readButton.disabled = saving;
         receiptChosen.hidden = !receipt;
         receiptName.textContent = receipt ? receipt.name : '';
 
@@ -252,10 +262,8 @@ $js = static fn (string $text): string => json_encode($text, JSON_HEX_TAG | JSON
         } else if (reading) {
             note = strings.reading;
         } else if (receipt) {
-            note = receiptMessage;
+            note = receiptMessage + (canRead ? '\n' + strings.readHint : '');
             isError = receiptMessageIsError;
-        } else if (readableTypes.length) {
-            note = strings.scanHint;
         }
         receiptNote.textContent = note;
         receiptNote.classList.toggle('qa-receipt-note-error', isError);
@@ -265,6 +273,7 @@ $js = static fn (string $text): string => json_encode($text, JSON_HEX_TAG | JSON
     function clearReceipt() {
         readingRun++;
         reading = false;
+        readSent = false;
         receipt = null;
         receiptMessage = '';
         receiptMessageIsError = false;
@@ -287,18 +296,16 @@ $js = static fn (string $text): string => json_encode($text, JSON_HEX_TAG | JSON
             receiptThumb.hidden = false;
         }
         renderReceipt();
-
-        var run = readingRun;
-        loadReadableTypes().then(function() {
-            if (run !== readingRun || readableTypes.indexOf(file.type) === -1) {
-                return;
-            }
-            readReceipt(file, run);
-        });
     }
 
-    function readReceipt(file, run) {
+    function readReceipt() {
+        if (!receipt || reading || readSent || saving) {
+            return;
+        }
+        var file = receipt;
+        var run = readingRun;
         reading = true;
+        readSent = true;
         renderReceipt();
 
         var body = new FormData();
@@ -393,6 +400,7 @@ $js = static fn (string $text): string => json_encode($text, JSON_HEX_TAG | JSON
             chooseReceipt(file);
         }
     });
+    readButton.addEventListener('click', readReceipt);
     receiptThumb.addEventListener('error', function() { receiptThumb.hidden = true; });
     document.getElementById('qa-receipt-remove').addEventListener('click', clearReceipt);
     accountSelect.addEventListener('change', renderReceipt);
