@@ -16,6 +16,8 @@ final class ZipPackage {
 	/** Everything read from one file together: a small upload can hold many highly compressed parts */
 	public const MAX_TOTAL_BYTES = 100 * 1024 * 1024;
 
+	private const READ_CHUNK_BYTES = 1024 * 1024;
+
 	private \ZipArchive $zip;
 	private bool $open;
 	private int $bytesRead = 0;
@@ -46,13 +48,22 @@ final class ZipPackage {
 			throw new SpreadsheetReadError('Unreadable zip part ' . $name);
 		}
 		try {
-			// The stated size can lie, so the read is capped as well
-			$data = stream_get_contents($stream, self::MAX_PART_BYTES + 1);
+			// The stated size can lie, so the read is capped as well. Read a
+			// chunk at a time: before PHP 8.3, stream_get_contents() with a
+			// length allocated all of it up front, 50 MB for every part.
+			$data = '';
+			while (!feof($stream) && strlen($data) <= self::MAX_PART_BYTES) {
+				$chunk = fread($stream, self::READ_CHUNK_BYTES);
+				if ($chunk === false) {
+					throw new SpreadsheetReadError('Unreadable zip part ' . $name);
+				}
+				if ($chunk === '') {
+					break;
+				}
+				$data .= $chunk;
+			}
 		} finally {
 			fclose($stream);
-		}
-		if ($data === false) {
-			throw new SpreadsheetReadError('Unreadable zip part ' . $name);
 		}
 		if (strlen($data) > self::MAX_PART_BYTES) {
 			throw new SpreadsheetTooLargeError('Zip part too large: ' . $name);

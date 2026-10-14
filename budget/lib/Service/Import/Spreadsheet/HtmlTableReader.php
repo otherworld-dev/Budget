@@ -25,10 +25,14 @@ final class HtmlTableReader {
 		$sheets = [];
 		$budget = new SheetBudget();
 		$spanned = 0;
-		foreach ($document->getElementsByTagName('table') as $index => $table) {
+		// XPath lists, not getElementsByTagName(): before PHP 8.3 a live list
+		// walks the document again for each item, so a page of 100,000 empty
+		// tables took 40 seconds to step through
+		$xpath = new \DOMXPath($document);
+		foreach ($xpath->query('//table') ?: [] as $index => $table) {
 			// A table of one row can never be a header over transactions
-			$rows = $table->getElementsByTagName('tr');
-			if ($rows->length < 2) {
+			$rows = $xpath->query('.//tr', $table);
+			if ($rows === false || $rows->length < 2) {
 				continue;
 			}
 			if (count($sheets) >= SheetBuilder::MAX_SHEETS) {
