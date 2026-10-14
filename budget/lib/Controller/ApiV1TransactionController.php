@@ -227,6 +227,10 @@ class ApiV1TransactionController extends OCSController {
 					return $this->badRequest($this->l->t('Use either categoryId or uncategorized, not both'));
 				}
 				$filters['category'] = 'uncategorized';
+			} else {
+				// The rest of the list, as reconciled=false is: a category of
+				// its own, or split. Taken and ignored, it was the whole list.
+				$filters['categorized'] = true;
 			}
 		}
 

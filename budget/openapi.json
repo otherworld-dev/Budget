@@ -340,7 +340,7 @@
             "schema": {
               "type": "boolean"
             },
-            "description": "true for transactions with no category that are not split. Cannot be combined with categoryId."
+            "description": "true for transactions with no category that are not split; cannot be combined with categoryId. false for all the rest: transactions with a category, and split transactions (their categories are on their parts). The two never overlap and together are the whole list. false may be combined with categoryId."
           },
           {
             "name": "tagId",

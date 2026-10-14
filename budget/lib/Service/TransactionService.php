@@ -1536,6 +1536,7 @@ class TransactionService {
 
 		$hasContiguityBreakingFilters
 			= !empty($filters['category'])
+			|| !empty($filters['categorized'])
 			|| !empty($filters['type'])
 			|| !empty($filters['search'])
 			|| !empty($filters['amountMin'])

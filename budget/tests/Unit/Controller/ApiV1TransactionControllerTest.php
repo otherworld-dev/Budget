@@ -2191,7 +2191,7 @@ class ApiV1TransactionControllerTest extends TestCase {
 
 		$filters = $this->filtersSent();
 
-		foreach (['type', 'status', 'reconciled', 'tagIds', 'amountMin', 'amountMax'] as $key) {
+		foreach (['type', 'status', 'reconciled', 'categorized', 'tagIds', 'amountMin', 'amountMax'] as $key) {
 			$this->assertArrayNotHasKey($key, $filters, $key);
 		}
 		$this->assertNull($filters['category']);
@@ -2210,10 +2210,34 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->assertSame('uncategorized', $this->filtersSent()['category']);
 	}
 
-	public function testUncategorizedFalseIsNoFilter(): void {
+	/**
+	 * false is the rest of the list, as reconciled=false is: rows with a
+	 * category, and split parents, whose categories are on their parts.
+	 * Accepted and ignored, it answered with the whole list.
+	 */
+	public function testUncategorizedFalseAsksForTheRest(): void {
 		$this->params = ['uncategorized' => 'false'];
 
-		$this->assertNull($this->filtersSent()['category']);
+		$filters = $this->filtersSent();
+
+		$this->assertTrue($filters['categorized']);
+		$this->assertNull($filters['category']);
+	}
+
+	/** Every row a category matches has one, so asking for both is fine. */
+	public function testUncategorizedFalseGoesWithACategory(): void {
+		$this->params = ['uncategorized' => 'false'];
+		$seen = null;
+		$this->service->method('findWithFilters')->willReturnCallback(
+			function (string $userId, array $filters) use (&$seen): array {
+				$seen = $filters;
+				return ['transactions' => [], 'total' => 0];
+			}
+		);
+
+		$this->assertSame(Http::STATUS_OK, $this->controller->index(null, 7)->getStatus());
+		$this->assertSame('7', $seen['category']);
+		$this->assertTrue($seen['categorized']);
 	}
 
 	public function testIndexRefusesUncategorizedTogetherWithACategory(): void {
