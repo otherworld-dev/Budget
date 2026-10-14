@@ -49,11 +49,19 @@ class ImportFolderControllerTest extends TestCase {
 	}
 
 	public function testCreate(): void {
-		$this->service->expects($this->once())->method('create')->with('alice', 'Conto', 3, 5, 'review')->willReturn($this->folder());
+		$this->service->expects($this->once())->method('create')->with('alice', 'Conto', 3, 5, 'review')->willReturn(['folder' => $this->folder(), 'leftAlone' => 0]);
 
 		$response = $this->controller->create('Conto', 3, 5, 'review');
 
 		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+		$this->assertSame('Conto', $response->getData()['name']);
+		$this->assertSame(0, $response->getData()['leftAlone']);
+	}
+
+	public function testCreateSaysHowManyFilesAlreadyInTheFolderAreLeftAlone(): void {
+		$this->service->method('create')->willReturn(['folder' => $this->folder(), 'leftAlone' => 4]);
+
+		$this->assertSame(4, $this->controller->create('Conto', 3)->getData()['leftAlone']);
 	}
 
 	public function testCreateShowsWhyANameWasRefused(): void {
@@ -94,7 +102,7 @@ class ImportFolderControllerTest extends TestCase {
 	}
 
 	public function testCreateDefaultsToAutomatic(): void {
-		$this->service->expects($this->once())->method('create')->with('alice', 'Conto', 3, null, 'auto')->willReturn($this->folder());
+		$this->service->expects($this->once())->method('create')->with('alice', 'Conto', 3, null, 'auto')->willReturn(['folder' => $this->folder(), 'leftAlone' => 0]);
 
 		$this->controller->create('Conto', 3);
 	}

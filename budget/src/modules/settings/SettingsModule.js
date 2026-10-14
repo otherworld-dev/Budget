@@ -2,13 +2,13 @@
  * Settings Module - User preferences and configuration
  */
 import { translate as t } from '@nextcloud/l10n';
-import { showSuccess, showError } from '../../utils/notifications.js';
+import { showSuccess, showError, showInfo } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { initDatePickers } from '../../utils/datepicker.js';
 import { apiFetch } from '../../utils/api.js';
 import { refreshBankSyncNav } from '../bank-sync/bankSyncStatus.js';
 import { helpDocUrl } from '../help/HelpModule.js';
-import ImportFolders from './ImportFolders.js';
+import ImportFolders, { leftAloneNotice } from './ImportFolders.js';
 
 export default class SettingsModule {
     constructor(app) {
@@ -435,6 +435,10 @@ export default class SettingsModule {
             this.settings[key] = saved;
             this.applySettingSideEffects({ [key]: saved });
             this.flashSaved(item);
+            // A moved import folder leaves the files already in its
+            // subfolders where they are (#425)
+            const notice = key === 'import_folder' ? leftAloneNotice(result?.importFolderLeftAlone) : '';
+            if (notice) showInfo(notice);
         } catch (error) {
             console.error('Error saving setting:', key, error);
             showError(error.message || t('budget', 'Failed to save settings'));

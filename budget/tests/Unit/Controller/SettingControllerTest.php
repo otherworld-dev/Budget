@@ -8,6 +8,7 @@ use OCA\Budget\Controller\SettingController;
 use OCA\Budget\Db\Setting;
 use OCA\Budget\Db\SettingMapper;
 use OCA\Budget\Service\GranularShareService;
+use OCA\Budget\Service\ImportFolderService;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
 use OCP\IL10N;
@@ -20,6 +21,8 @@ class SettingControllerTest extends TestCase {
 	private SettingMapper $mapper;
 	private IRequest $request;
 	private LoggerInterface $logger;
+	/** @var ImportFolderService&\PHPUnit\Framework\MockObject\MockObject */
+	private $importFolders;
 
 	protected function setUp(): void {
 		$this->request = $this->createMock(IRequest::class);
@@ -33,13 +36,17 @@ class SettingControllerTest extends TestCase {
 		$granularShareService = $this->createMock(GranularShareService::class);
 		$granularShareService->method('canAccess')->willReturn(true);
 
+		$this->importFolders = $this->createMock(ImportFolderService::class);
+		$this->importFolders->method('mainFolderFor')->willReturn('Budget/Import');
+
 		$this->controller = new SettingController(
 			$this->request,
 			$this->mapper,
 			$granularShareService,
 			$l,
 			'user1',
-			$this->logger
+			$this->logger,
+			$this->importFolders
 		);
 	}
 
@@ -522,5 +529,69 @@ class SettingControllerTest extends TestCase {
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 		$this->assertStringContainsString('Invalid import folder', $response->getData()['error']);
+	}
+
+	// ── moving the import folder leaves what is there alone ─────────
+
+	public function testMovingTheImportFolderLeavesTheFilesAlreadyThereAlone(): void {
+		$this->request->method('getParams')->willReturn(['import_folder' => '/Bank/']);
+		$this->mapper->method('findByKey')->willThrowException(new DoesNotExistException('none'));
+		$this->mapper->method('insert')->willReturnArgument(0);
+		$this->importFolders->expects($this->once())->method('leaveExistingAlone')->with('user1', 'Bank')->willReturn(['Conto' => 2]);
+
+		$response = $this->controller->update();
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame(['Conto' => 2], $response->getData()['importFolderLeftAlone']);
+	}
+
+	public function testSavingTheSameImportFolderAgainLooksAtNothing(): void {
+		$this->request->method('getParams')->willReturn(['import_folder' => '']);
+		$this->mapper->method('findByKey')->willThrowException(new DoesNotExistException('none'));
+		$this->mapper->method('insert')->willReturnArgument(0);
+		$this->importFolders->expects($this->never())->method('leaveExistingAlone');
+
+		$response = $this->controller->update();
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame([], $response->getData()['importFolderLeftAlone']);
+	}
+
+	public function testUpdateKeyNormalisesTheImportFolderAndLeavesWhatIsThereAlone(): void {
+		$this->request->method('getParam')->with('value')->willReturn('Bank//Statements/');
+		$this->mapper->method('findByKey')->willThrowException(new DoesNotExistException('none'));
+		$stored = null;
+		$this->mapper->method('insert')->willReturnCallback(function (Setting $s) use (&$stored) {
+			$stored = $s->getValue();
+			return $s;
+		});
+		$this->importFolders->expects($this->once())->method('leaveExistingAlone')->with('user1', 'Bank/Statements')->willReturn([]);
+
+		$response = $this->controller->updateKey('import_folder');
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame('Bank/Statements', $stored);
+	}
+
+	public function testUpdateKeyRefusesAnImportFolderOutsideFiles(): void {
+		$this->request->method('getParam')->with('value')->willReturn('../elsewhere');
+		$this->mapper->expects($this->never())->method('insert');
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $this->controller->updateKey('import_folder')->getStatus());
+	}
+
+	public function testResettingTheImportFolderLeavesWhatTheDefaultOneHoldsAlone(): void {
+		$importFolders = $this->createMock(ImportFolderService::class);
+		$importFolders->method('mainFolderFor')->willReturn('Bank');
+		$importFolders->expects($this->exactly(2))->method('leaveExistingAlone')->with('user1', 'Budget/Import')->willReturn([]);
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnArgument(0);
+		$granular = $this->createMock(GranularShareService::class);
+		$controller = new SettingController($this->request, $this->mapper, $granular, $l, 'user1', $this->logger, $importFolders);
+		$this->mapper->method('deleteByKey')->willReturn(1);
+		$this->mapper->method('deleteAll')->willReturn(3);
+
+		$controller->destroy('import_folder');
+		$controller->reset();
 	}
 }

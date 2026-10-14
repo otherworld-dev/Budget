@@ -52,7 +52,10 @@ class ImportFolderController extends Controller {
 	#[UserRateLimit(limit: 30, period: 60)]
 	public function create(string $name, int $accountId, ?int $templateId = null, string $mode = 'auto'): DataResponse {
 		try {
-			return new DataResponse($this->service->create($this->userId, $name, $accountId, $templateId, $mode), Http::STATUS_CREATED);
+			['folder' => $folder, 'leftAlone' => $leftAlone] = $this->service->create($this->userId, $name, $accountId, $templateId, $mode);
+			// How many files were in the folder already: left where they are,
+			// which the page tells the user
+			return new DataResponse($folder->jsonSerialize() + ['leftAlone' => $leftAlone], Http::STATUS_CREATED);
 		} catch (\InvalidArgumentException $e) {
 			return $this->handleValidationError($e);
 		} catch (\Exception $e) {

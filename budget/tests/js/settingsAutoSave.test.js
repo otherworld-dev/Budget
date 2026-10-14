@@ -16,11 +16,12 @@ vi.mock('@nextcloud/l10n', () => ({
 vi.mock('../../src/utils/notifications.js', () => ({
     showSuccess: vi.fn(),
     showError: vi.fn(),
+    showInfo: vi.fn(),
 }));
 vi.mock('../../src/utils/datepicker.js', () => ({ initDatePickers: vi.fn() }));
 
 import SettingsModule from '../../src/modules/settings/SettingsModule.js';
-import { showError } from '../../src/utils/notifications.js';
+import { showError, showInfo } from '../../src/utils/notifications.js';
 import { initDatePickers } from '../../src/utils/datepicker.js';
 
 const tick = () => new Promise(resolve => setTimeout(resolve, 0));
@@ -282,5 +283,39 @@ describe('admin settings', () => {
 
         expect(document.getElementById('setting-ocr-docs-link').getAttribute('href'))
             .toBe('https://budget.otherworld.dev/docs/receipt-scanning.html');
+    });
+
+    it('says the files already in a moved import folder stay where they are', async () => {
+        document.getElementById('settings-view').insertAdjacentHTML('beforeend',
+            '<div class="setting-item"><input id="setting-import-folder" class="setting-input"></div>');
+        globalThis.fetch = vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({ settings: { import_folder: 'Bank' }, importFolderLeftAlone: { Conto: 2 } }),
+        });
+        makeModule();
+        const input = document.getElementById('setting-import-folder');
+
+        input.value = 'Bank';
+        change(input);
+        await tick();
+
+        expect(showInfo).toHaveBeenCalledWith('{folder} already holds %n files. They stay where they are: only files added from now on are imported.');
+    });
+
+    it('says nothing when the moved import folder held nothing', async () => {
+        document.getElementById('settings-view').insertAdjacentHTML('beforeend',
+            '<div class="setting-item"><input id="setting-import-folder" class="setting-input"></div>');
+        globalThis.fetch = vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({ settings: { import_folder: 'Bank' }, importFolderLeftAlone: [] }),
+        });
+        makeModule();
+        const input = document.getElementById('setting-import-folder');
+
+        input.value = 'Bank';
+        change(input);
+        await tick();
+
+        expect(showInfo).not.toHaveBeenCalled();
     });
 });

@@ -23,6 +23,7 @@ use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\Files\File;
 use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
+use OCP\IConfig;
 use OCP\IL10N;
 use OCP\ITempManager;
 use OCP\L10N\IFactory;
@@ -59,6 +60,10 @@ class ImportFolderServiceTest extends TestCase {
 	private $root;
 	/** @var list<array{string, array<string, mixed>}> [subject, parameters] of each notification sent */
 	private array $sent = [];
+	/** @var list<array{string, string, string}> [subject, object type, object id] of each notification dismissed */
+	private array $dismissed = [];
+	/** @var array<string, string> the user's preferences, app.key => value */
+	private array $prefs = [];
 	/** @var \WeakMap<Folder, \ArrayObject> what each in-memory folder holds, by name */
 	private \WeakMap $children;
 	/** @var \WeakMap<File, string> where each file was moved to */
@@ -121,14 +126,37 @@ class ImportFolderServiceTest extends TestCase {
 		$temp->method('getTemporaryFile')->willReturnCallback(static fn (): string => tempnam(sys_get_temp_dir(), 'ifs'));
 
 		$notifications = $this->createMock(INotificationManager::class);
-		$notifications->method('createNotification')->willReturnCallback(function () {
+		$built = new \WeakMap();
+		$notifications->method('createNotification')->willReturnCallback(function () use ($built) {
 			$notification = $this->createMock(INotification::class);
-			$notification->method('setSubject')->willReturnCallback(function (string $subject, array $parameters = []) use ($notification) {
-				$this->sent[] = [$subject, $parameters];
+			$state = new \ArrayObject(['subject' => '', 'parameters' => [], 'objectType' => '', 'objectId' => '']);
+			$built[$notification] = $state;
+			$notification->method('setSubject')->willReturnCallback(function (string $subject, array $parameters = []) use ($notification, $state) {
+				$state['subject'] = $subject;
+				$state['parameters'] = $parameters;
+				return $notification;
+			});
+			$notification->method('setObject')->willReturnCallback(function (string $type, string $id) use ($notification, $state) {
+				$state['objectType'] = $type;
+				$state['objectId'] = $id;
 				return $notification;
 			});
 			$notification->method($this->anything())->willReturnSelf();
 			return $notification;
+		});
+		$notifications->method('notify')->willReturnCallback(function (INotification $notification) use ($built): void {
+			$this->sent[] = [$built[$notification]['subject'], $built[$notification]['parameters']];
+		});
+		$notifications->method('markProcessed')->willReturnCallback(function (INotification $notification) use ($built): void {
+			$this->dismissed[] = [$built[$notification]['subject'], $built[$notification]['objectType'], $built[$notification]['objectId']];
+		});
+
+		$config = $this->createMock(IConfig::class);
+		$config->method('getUserValue')->willReturnCallback(
+			fn (string $userId, string $app, string $key, $default = '') => $this->prefs[$app . '.' . $key] ?? $default
+		);
+		$config->method('setUserValue')->willReturnCallback(function (string $userId, string $app, string $key, $value): void {
+			$this->prefs[$app . '.' . $key] = (string)$value;
 		});
 
 		$mail = $this->createMock(BudgetMailService::class);
@@ -150,7 +178,7 @@ class ImportFolderServiceTest extends TestCase {
 		$this->service = new ImportFolderService(
 			$this->mapper, $accountMapper, $templateMapper, $settings, $rootFolder, $this->importService,
 			new TemplateColumnResolver(), new FileValidator(), $temp, $this->locking, $notifications, $this->audit,
-			$mail, $factory, $time, $l, $this->createMock(LoggerInterface::class),
+			$mail, $factory, $time, $config, $l, $this->createMock(LoggerInterface::class),
 		);
 
 		$this->accounts = [$this->account(3, 'Conto Mario')];
@@ -158,10 +186,11 @@ class ImportFolderServiceTest extends TestCase {
 
 	// ── helpers ─────────────────────────────────────────────────────
 
-	private function account(int $id, string $name): Account {
+	private function account(int $id, string $name, string $currency = 'EUR'): Account {
 		$account = new Account();
 		$account->setId($id);
 		$account->setName($name);
+		$account->setCurrency($currency);
 		$account->setUserId('alice');
 		return $account;
 	}
@@ -251,7 +280,7 @@ class ImportFolderServiceTest extends TestCase {
 	public function testCreateMakesTheRowAndTheFolderInFiles(): void {
 		$this->templates[5] = new ImportTemplate();
 
-		$row = $this->service->create('alice', '  Conto Mario ', 3, 5);
+		$row = $this->service->create('alice', '  Conto Mario ', 3, 5)['folder'];
 
 		$this->assertSame('Conto Mario', $row->getName());
 		$this->assertSame(3, $row->getAccountId());
@@ -343,14 +372,18 @@ class ImportFolderServiceTest extends TestCase {
 	// ── check(): helpers ────────────────────────────────────────────
 
 	/**
-	 * A file in a folder. $age is seconds since it was last modified.
+	 * A file in a folder. $age is seconds since it was last modified (less
+	 * than nothing: a date still to come), $uploadAge since it was uploaded
+	 * (null: Files never recorded it, as for a file written by an app).
 	 *
 	 * @return File&MockObject
 	 */
-	private function fileIn($folder, string $name, int $id = 100, int $age = 600, int $size = 230, ?string $content = null, string $owner = 'alice', bool $movable = true) {
+	private function fileIn($folder, string $name, int $id = 100, int $age = 600, int $size = 230, ?string $content = null, string $owner = 'alice', bool $movable = true, ?int $uploadAge = null) {
 		$content ??= self::CSV;
 		$file = $this->createMock(File::class);
-		$file->method('getName')->willReturn($name);
+		// Once moved, it answers to its new name, as a real node does
+		$file->method('getName')->willReturnCallback(fn (): string => isset($this->movedTo[$file]) ? basename($this->movedTo[$file]) : $name);
+		$file->method('getUploadTime')->willReturn($uploadAge === null ? 0 : self::NOW - $uploadAge);
 		$file->method('getId')->willReturn($id);
 		// What Files has recorded, which is not always what is there
 		$file->method('getSize')->willReturn($size);
@@ -619,20 +652,63 @@ class ImportFolderServiceTest extends TestCase {
 		$this->assertSame('2', $this->sent[0][1]['errors']);
 	}
 
-	public function testAnOfxNeedsNoTemplateAndRoutesEverySourceAccountToTheFoldersAccount(): void {
+	/** The import service reading an OFX that names these accounts */
+	private function givenAnOfxUpload(array $sourceAccounts): void {
+		$this->importService->method('processUpload')->willReturn(['fileId' => 'f.ofx', 'format' => 'ofx', 'sourceAccounts' => $sourceAccounts]);
+		$this->importService->method('previewImport')->willReturn(['accountSummaries' => array_map(
+			static fn (array $source) => ['transactionCount' => $source['transactionCount'] ?? 1, 'duplicates' => 0],
+			$sourceAccounts
+		)]);
+	}
+
+	public function testAnOfxNeedsNoTemplateAndGoesToTheFoldersAccount(): void {
 		$this->rows = [$this->row(1, 'Conto')];
 		$this->fileIn($this->at('Budget/Import/Conto'), 'estratto.ofx', content: "OFXHEADER:100\n<OFX></OFX>\n");
-		$this->importService->method('processUpload')->willReturn([
-			'fileId' => 'f.ofx', 'format' => 'ofx',
-			'sourceAccounts' => [['accountId' => 'IT60X', 'transactionCount' => 4], ['accountId' => 'IT61Y', 'transactionCount' => 1]],
-		]);
+		$this->givenAnOfxUpload([['accountId' => 'IT60X', 'currency' => 'eur', 'transactionCount' => 4]]);
 		$this->importService->expects($this->never())->method('dataPreview');
-		$this->importService->method('previewImport')->willReturn(['accountSummaries' => [['transactionCount' => 4, 'duplicates' => 0], ['transactionCount' => 1, 'duplicates' => 0]]]);
 		$this->importService->expects($this->once())->method('processImport')
-			->with('alice', 'f.ofx', [], 3, ['IT60X' => 3, 'IT61Y' => 3], true, true, ',', null, null)
-			->willReturn(['imported' => 5, 'skipped' => 0, 'errors' => []]);
+			->with('alice', 'f.ofx', [], 3, ['IT60X' => 3], true, true, ',', null, null)
+			->willReturn(['imported' => 4, 'skipped' => 0, 'errors' => []]);
 
 		$this->assertSame(1, $this->service->check('alice')['imported']);
+	}
+
+	public function testAnOfxThatDoesNotSayItsCurrencyGoesToTheFoldersAccount(): void {
+		$this->rows = [$this->row(1, 'Conto')];
+		$this->fileIn($this->at('Budget/Import/Conto'), 'estratto.qif', content: "!Type:Bank\nD01/10/2026\nT-3.50\n^\n");
+		$this->givenAnOfxUpload([['accountId' => 'Conto', 'transactionCount' => 1]]);
+		$this->importService->expects($this->once())->method('processImport')->willReturn(['imported' => 1, 'skipped' => 0, 'errors' => []]);
+
+		$this->assertSame(1, $this->service->check('alice')['imported']);
+	}
+
+	public function testAStatementOfSeveralAccountsIsNotPutIntoOne(): void {
+		// A checking account and a credit card in one OFX: both would have
+		// landed in the folder's one account, the card's payment included
+		$this->rows = [$this->row(1, 'Conto')];
+		$file = $this->fileIn($this->at('Budget/Import/Conto'), 'estratto.ofx', content: "OFXHEADER:100\n<OFX></OFX>\n");
+		$this->givenAnOfxUpload([
+			['accountId' => 'IT60X', 'currency' => 'EUR', 'transactionCount' => 4],
+			['accountId' => '4111', 'currency' => 'EUR', 'transactionCount' => 5],
+		]);
+		$this->importService->expects($this->never())->method('processImport');
+
+		$this->assertSame(['imported' => 0, 'failed' => 1, 'waiting' => 0, 'review' => 0], $this->service->check('alice'));
+		$this->assertStringEndsWith('/Failed/estratto.ofx', $this->whereItWent($file));
+		$this->assertSame('several_accounts', $this->sent[0][1]['reason']);
+	}
+
+	public function testAStatementInAnotherCurrencyIsNotImported(): void {
+		$this->rows = [$this->row(1, 'Conto')];
+		$file = $this->fileIn($this->at('Budget/Import/Conto'), 'carta.ofx', content: "OFXHEADER:100\n<OFX></OFX>\n");
+		$this->givenAnOfxUpload([['accountId' => '4111', 'currency' => 'USD', 'transactionCount' => 5]]);
+		$this->importService->expects($this->never())->method('processImport');
+
+		$this->assertSame(1, $this->service->check('alice')['failed']);
+		$this->assertStringEndsWith('/Failed/carta.ofx', $this->whereItWent($file));
+		$this->assertSame('other_currency', $this->sent[0][1]['reason']);
+		$this->assertSame('USD', $this->sent[0][1]['currency']);
+		$this->assertSame('EUR', $this->sent[0][1]['accountCurrency']);
 	}
 
 	public function testAReasonWrittenForTheUserIsPassedOn(): void {
@@ -979,7 +1055,7 @@ class ImportFolderServiceTest extends TestCase {
 	}
 
 	public function testCreateAndUpdateTakeAMode(): void {
-		$row = $this->service->create('alice', 'Conto', 3, null, 'review');
+		$row = $this->service->create('alice', 'Conto', 3, null, 'review')['folder'];
 		$this->assertSame('review', $row->getMode());
 
 		$this->assertSame('auto', $this->service->update('alice', $row->getId(), ['mode' => 'auto'])->getMode());
@@ -1108,5 +1184,135 @@ class ImportFolderServiceTest extends TestCase {
 		$this->expectException(\InvalidArgumentException::class);
 		$this->expectExceptionMessage('could not be moved');
 		$this->service->finishReview('alice', 11, 'imported');
+	}
+
+	// ── a folder that was already there ─────────────────────────────
+
+	public function testCreatingAFolderThatAlreadyHoldsFilesLeavesThemAlone(): void {
+		// Naming a folder the user already keeps things in must not file
+		// their notes under Failed, nor import an old statement in it
+		$folder = $this->at('Budget/Import/Conto');
+		$notes = $this->fileIn($folder, 'appunti.pdf', 1);
+		$old = $this->fileIn($folder, 'vecchio.csv', 2);
+		$this->fileIn($folder, '.nascosto', 3);
+
+		$this->assertSame(2, $this->service->create('alice', 'Conto', 3, null)['leftAlone']);
+
+		$new = $this->fileIn($folder, 'ricevuta.pdf', 4);
+		$this->importService->expects($this->never())->method('processUpload');
+
+		$this->assertSame(['imported' => 0, 'failed' => 1, 'waiting' => 0, 'review' => 0], $this->service->check('alice'));
+		$this->assertNull($this->whereItWent($notes));
+		$this->assertNull($this->whereItWent($old));
+		$this->assertStringEndsWith('/Failed/ricevuta.pdf', $this->whereItWent($new));
+		$this->assertSame(['4'], array_column(array_column($this->sent, 1), 'fileId'));
+	}
+
+	public function testAFolderMadeNewHasNothingToLeaveAlone(): void {
+		$this->assertSame(0, $this->service->create('alice', 'Conto', 3, null)['leftAlone']);
+	}
+
+	public function testAnOldFileMovedInAfterwardsIsStillImported(): void {
+		// Moving or copying a file in Files keeps its dates, so they cannot
+		// tell a file that was there from one moved in since
+		$this->csvTemplate(5);
+		$folder = $this->at('Budget/Import/Conto');
+		$this->service->create('alice', 'Conto', 3, 5);
+		$file = $this->fileIn($folder, 'ottobre.csv', 7, age: 90 * 86400, uploadAge: 90 * 86400);
+		$this->givenACsvUpload();
+
+		$this->assertSame(1, $this->service->check('alice')['imported']);
+		$this->assertStringEndsWith('/Imported/ottobre.csv', $this->whereItWent($file));
+	}
+
+	public function testMovingTheMainFolderLeavesWhatItsSubfoldersHoldAlone(): void {
+		$this->rows = [$this->row(1, 'Conto'), $this->row(2, 'Carta')];
+		$notes = $this->fileIn($this->at('Banca/Conto'), 'appunti.pdf', 1);
+
+		$this->assertSame(['Conto' => 1], $this->service->leaveExistingAlone('alice', 'Banca'));
+		// Looking creates nothing
+		$this->assertFalse($this->at('Banca')->nodeExists('Carta'));
+
+		$this->mainFolderSetting = 'Banca';
+		$this->assertSame(['imported' => 0, 'failed' => 0, 'waiting' => 0, 'review' => 0], $this->service->check('alice'));
+		$this->assertNull($this->whereItWent($notes));
+	}
+
+	public function testAMainFolderThatIsNotThereYetHasNothingToLeaveAlone(): void {
+		$this->rows = [$this->row(1, 'Conto')];
+
+		$this->assertSame([], $this->service->leaveExistingAlone('alice', 'Nowhere/Yet'));
+		$this->assertFalse($this->root->nodeExists('Nowhere'));
+	}
+
+	// ── when a file is settled ──────────────────────────────────────
+
+	public function testAFileDatedInTheFutureIsNotHeldBackOnceUploaded(): void {
+		$this->csvTemplate(5);
+		$this->rows = [$this->row(1, 'Conto', 3, 5)];
+		$this->fileIn($this->at('Budget/Import/Conto'), 'ottobre.csv', age: -86400, uploadAge: 600);
+		$this->givenACsvUpload();
+
+		$this->assertSame(1, $this->service->check('alice')['imported']);
+	}
+
+	public function testAFileDatedInTheFutureWithNoUploadTimeIsNotHeldBack(): void {
+		$this->csvTemplate(5);
+		$this->rows = [$this->row(1, 'Conto', 3, 5)];
+		$this->fileIn($this->at('Budget/Import/Conto'), 'ottobre.csv', age: -86400);
+		$this->givenACsvUpload();
+
+		$this->assertSame(1, $this->service->check('alice')['imported']);
+	}
+
+	public function testAFileJustUploadedWaitsWhateverDateItCarries(): void {
+		// A sync client keeps a file's own date: an old one says nothing
+		// about whether the upload has finished
+		$this->csvTemplate(5);
+		$this->rows = [$this->row(1, 'Conto', 3, 5)];
+		$this->fileIn($this->at('Budget/Import/Conto'), 'ottobre.csv', age: 30 * 86400, uploadAge: 30);
+		$this->importService->expects($this->never())->method('processUpload');
+
+		$this->assertSame(1, $this->service->check('alice')['waiting']);
+	}
+
+	// ── notifications ───────────────────────────────────────────────
+
+	public function testTheNotificationNamesTheFileAsItWasDropped(): void {
+		$this->csvTemplate(5);
+		$this->rows = [$this->row(1, 'Conto', 3, 5)];
+		$this->fileIn($this->at('Budget/Import/Conto/Imported'), 'ottobre.csv', 50);
+		$file = $this->fileIn($this->at('Budget/Import/Conto'), 'ottobre.csv');
+		$this->givenACsvUpload();
+
+		$this->service->check('alice');
+
+		$this->assertStringEndsWith('/Imported/ottobre-1.csv', $this->whereItWent($file));
+		$this->assertSame('ottobre.csv', $this->sent[0][1]['fileName']);
+	}
+
+	public function testFinishingAReviewDismissesItsReadyNotification(): void {
+		$this->rows = [$this->row(1, 'Conto', mode: 'review')];
+		$this->fileIn($this->at('Budget/Import/Conto/Review'), 'ottobre.csv', 11);
+		$this->fileIn($this->at('Budget/Import/Conto/Review'), 'doppio.csv', 12);
+
+		$this->service->finishReview('alice', 11, 'imported');
+		$this->service->finishReview('alice', 12, 'skipped');
+
+		$this->assertSame([
+			['import_folder_review', 'import_folder', '11'],
+			['import_folder_review', 'import_folder', '12'],
+		], $this->dismissed);
+	}
+
+	public function testRemovingAFolderDismissesTheReadyNotificationsOfItsWaitingFiles(): void {
+		// Its waiting files drop off the Import page with it
+		$this->rows = [$this->row(1, 'Conto', mode: 'review'), $this->row(2, 'Carta', mode: 'review')];
+		$this->fileIn($this->at('Budget/Import/Conto/Review'), 'ottobre.csv', 11);
+		$this->fileIn($this->at('Budget/Import/Carta/Review'), 'carta.ofx', 13);
+
+		$this->service->delete('alice', 1);
+
+		$this->assertSame([['import_folder_review', 'import_folder', '11']], $this->dismissed);
 	}
 }
