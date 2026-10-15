@@ -122,7 +122,9 @@ class HtmlTableReaderTest extends TestCase {
 			(new HtmlTableReader())->read($html);
 			$this->fail('A megabyte was copied into 80 nested cells');
 		} catch (SpreadsheetTooLargeError) {
-			$this->assertLessThan(1.0, microtime(true) - $begin);
+			// The cap trips about 32 levels in, around a second on CI's PHP
+			// 8.1 and 8.2 runners; copying all 80 would take several
+			$this->assertLessThan(5.0, microtime(true) - $begin);
 		}
 	}
 
