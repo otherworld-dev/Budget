@@ -12,284 +12,354 @@ use OCP\IDBConnection;
  * @template-extends QBMapper<TransactionTag>
  */
 class TransactionTagMapper extends QBMapper {
-    public function __construct(IDBConnection $db) {
-        parent::__construct($db, 'budget_transaction_tags', TransactionTag::class);
-    }
+	public function __construct(IDBConnection $db) {
+		parent::__construct($db, 'budget_transaction_tags', TransactionTag::class);
+	}
 
-    /**
-     * Find all transaction tags for a specific transaction
-     *
-     * @return TransactionTag[]
-     */
-    public function findByTransaction(int $transactionId): array {
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('transaction_id', $qb->createNamedParameter($transactionId, IQueryBuilder::PARAM_INT)));
+	/**
+	 * Find all transaction tags for a specific transaction
+	 *
+	 * @return TransactionTag[]
+	 */
+	public function findByTransaction(int $transactionId): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('transaction_id', $qb->createNamedParameter($transactionId, IQueryBuilder::PARAM_INT)));
 
-        return $this->findEntities($qb);
-    }
+		return $this->findEntities($qb);
+	}
 
-    /**
-     * Find all transaction IDs that have any of the specified tags
-     * Used for filtering transactions by tags
-     *
-     * @param int[] $tagIds
-     * @param string $userId
-     * @return int[] Transaction IDs
-     */
-    public function findTransactionIdsByTags(array $tagIds, string $userId): array {
-        if (empty($tagIds)) {
-            return [];
-        }
+	/**
+	 * The tag ids on each of the given transactions: one query per 500
+	 * transactions (old SQLite builds cap bound variables at 999) rather than
+	 * one per transaction.
+	 *
+	 * @param int[] $transactionIds
+	 * @return array<int, int[]> transactionId => tagIds, for the transactions that have any
+	 */
+	public function findTagIdsByTransactions(array $transactionIds): array {
+		$ids = array_values(array_unique(array_map('intval', $transactionIds)));
+		$byTransaction = [];
+		foreach (array_chunk($ids, 500) as $chunk) {
+			$qb = $this->db->getQueryBuilder();
+			$qb->select('transaction_id', 'tag_id')
+				->from($this->getTableName())
+				->where($qb->expr()->in('transaction_id', $qb->createNamedParameter($chunk, IQueryBuilder::PARAM_INT_ARRAY)))
+				->orderBy('transaction_id')
+				->addOrderBy('tag_id');
 
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('DISTINCT tt.transaction_id')
-            ->from($this->getTableName(), 'tt')
-            ->innerJoin('tt', 'budget_transactions', 't', $qb->expr()->eq('tt.transaction_id', 't.id'))
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->where($qb->expr()->in('tt.tag_id', $qb->createNamedParameter($tagIds, IQueryBuilder::PARAM_INT_ARRAY)))
-            ->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)));
+			$result = $qb->executeQuery();
+			while ($row = $result->fetch()) {
+				$byTransaction[(int)$row['transaction_id']][] = (int)$row['tag_id'];
+			}
+			$result->closeCursor();
+		}
 
-        $result = $qb->executeQuery();
-        $transactionIds = $result->fetchAll(\PDO::FETCH_COLUMN);
-        $result->closeCursor();
+		return $byTransaction;
+	}
 
-        return array_map('intval', $transactionIds);
-    }
+	/**
+	 * Find all transaction IDs that have any of the specified tags
+	 * Used for filtering transactions by tags
+	 *
+	 * @param int[] $tagIds
+	 * @param string $userId
+	 * @return int[] Transaction IDs
+	 */
+	public function findTransactionIdsByTags(array $tagIds, string $userId): array {
+		if (empty($tagIds)) {
+			return [];
+		}
 
-    /**
-     * Delete all tags for a specific transaction
-     *
-     * @param int $transactionId
-     * @return int Number of deleted rows
-     */
-    public function deleteByTransaction(int $transactionId): int {
-        $qb = $this->db->getQueryBuilder();
-        $qb->delete($this->getTableName())
-            ->where($qb->expr()->eq('transaction_id', $qb->createNamedParameter($transactionId, IQueryBuilder::PARAM_INT)));
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('DISTINCT tt.transaction_id')
+			->from($this->getTableName(), 'tt')
+			->innerJoin('tt', 'budget_transactions', 't', $qb->expr()->eq('tt.transaction_id', 't.id'))
+			->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+			->where($qb->expr()->in('tt.tag_id', $qb->createNamedParameter($tagIds, IQueryBuilder::PARAM_INT_ARRAY)))
+			->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)));
 
-        return $qb->executeStatement();
-    }
+		$result = $qb->executeQuery();
+		$transactionIds = $result->fetchAll(\PDO::FETCH_COLUMN);
+		$result->closeCursor();
 
-    /**
-     * Which of $tagIds each transaction already carries.
-     *
-     * Lets a bulk add skip the rows that are already tagged instead of
-     * inserting a duplicate join row. Chunked at 500 for the same reason as
-     * every other bulk query here -- a "select all matching" selection can
-     * hand us thousands of transaction ids and old SQLite builds cap bound
-     * variables at 999.
-     *
-     * @param int[] $transactionIds
-     * @param int[] $tagIds
-     * @return array<int, int[]> transactionId => tagIds already attached
-     */
-    public function findExistingTagIdsByTransaction(array $transactionIds, array $tagIds): array {
-        if (empty($transactionIds) || empty($tagIds)) {
-            return [];
-        }
+		return array_map('intval', $transactionIds);
+	}
 
-        $existing = [];
-        foreach (array_chunk($transactionIds, 500) as $chunk) {
-            $qb = $this->db->getQueryBuilder();
-            $qb->select('transaction_id', 'tag_id')
-                ->from($this->getTableName())
-                ->where($qb->expr()->in('transaction_id', $qb->createNamedParameter($chunk, IQueryBuilder::PARAM_INT_ARRAY)))
-                ->andWhere($qb->expr()->in('tag_id', $qb->createNamedParameter($tagIds, IQueryBuilder::PARAM_INT_ARRAY)));
+	/**
+	 * Delete all tags for a specific transaction
+	 *
+	 * @param int $transactionId
+	 * @return int Number of deleted rows
+	 */
+	public function deleteByTransaction(int $transactionId): int {
+		$qb = $this->db->getQueryBuilder();
+		$qb->delete($this->getTableName())
+			->where($qb->expr()->eq('transaction_id', $qb->createNamedParameter($transactionId, IQueryBuilder::PARAM_INT)));
 
-            $result = $qb->executeQuery();
-            while ($row = $result->fetch()) {
-                $existing[(int)$row['transaction_id']][] = (int)$row['tag_id'];
-            }
-            $result->closeCursor();
-        }
+		return $qb->executeStatement();
+	}
 
-        return $existing;
-    }
+	/**
+	 * Which of $tagIds each transaction already carries.
+	 *
+	 * Lets a bulk add skip the rows that are already tagged instead of
+	 * inserting a duplicate join row. Chunked at 500 for the same reason as
+	 * every other bulk query here -- a "select all matching" selection can
+	 * hand us thousands of transaction ids and old SQLite builds cap bound
+	 * variables at 999.
+	 *
+	 * @param int[] $transactionIds
+	 * @param int[] $tagIds
+	 * @return array<int, int[]> transactionId => tagIds already attached
+	 */
+	public function findExistingTagIdsByTransaction(array $transactionIds, array $tagIds): array {
+		if (empty($transactionIds) || empty($tagIds)) {
+			return [];
+		}
 
-    /**
-     * Detach a set of tags from a set of transactions in one statement.
-     *
-     * @param int[] $transactionIds
-     * @param int[] $tagIds
-     * @return int Number of deleted rows
-     */
-    public function deleteByTransactionsAndTags(array $transactionIds, array $tagIds): int {
-        if (empty($transactionIds) || empty($tagIds)) {
-            return 0;
-        }
+		$existing = [];
+		foreach (array_chunk($transactionIds, 500) as $chunk) {
+			$qb = $this->db->getQueryBuilder();
+			$qb->select('transaction_id', 'tag_id')
+				->from($this->getTableName())
+				->where($qb->expr()->in('transaction_id', $qb->createNamedParameter($chunk, IQueryBuilder::PARAM_INT_ARRAY)))
+				->andWhere($qb->expr()->in('tag_id', $qb->createNamedParameter($tagIds, IQueryBuilder::PARAM_INT_ARRAY)));
 
-        $deleted = 0;
-        foreach (array_chunk($transactionIds, 500) as $chunk) {
-            $qb = $this->db->getQueryBuilder();
-            $qb->delete($this->getTableName())
-                ->where($qb->expr()->in('transaction_id', $qb->createNamedParameter($chunk, IQueryBuilder::PARAM_INT_ARRAY)))
-                ->andWhere($qb->expr()->in('tag_id', $qb->createNamedParameter($tagIds, IQueryBuilder::PARAM_INT_ARRAY)));
+			$result = $qb->executeQuery();
+			while ($row = $result->fetch()) {
+				$existing[(int)$row['transaction_id']][] = (int)$row['tag_id'];
+			}
+			$result->closeCursor();
+		}
 
-            $deleted += $qb->executeStatement();
-        }
+		return $existing;
+	}
 
-        return $deleted;
-    }
+	/**
+	 * Detach a set of tags from a set of transactions in one statement.
+	 *
+	 * @param int[] $transactionIds
+	 * @param int[] $tagIds
+	 * @return int Number of deleted rows
+	 */
+	public function deleteByTransactionsAndTags(array $transactionIds, array $tagIds): int {
+		if (empty($transactionIds) || empty($tagIds)) {
+			return 0;
+		}
 
-    /**
-     * Delete all transaction tags for a specific tag
-     *
-     * @param int $tagId
-     * @return int Number of deleted rows
-     */
-    public function deleteByTag(int $tagId): int {
-        $qb = $this->db->getQueryBuilder();
-        $qb->delete($this->getTableName())
-            ->where($qb->expr()->eq('tag_id', $qb->createNamedParameter($tagId, IQueryBuilder::PARAM_INT)));
+		$deleted = 0;
+		foreach (array_chunk($transactionIds, 500) as $chunk) {
+			$qb = $this->db->getQueryBuilder();
+			$qb->delete($this->getTableName())
+				->where($qb->expr()->in('transaction_id', $qb->createNamedParameter($chunk, IQueryBuilder::PARAM_INT_ARRAY)))
+				->andWhere($qb->expr()->in('tag_id', $qb->createNamedParameter($tagIds, IQueryBuilder::PARAM_INT_ARRAY)));
 
-        return $qb->executeStatement();
-    }
+			$deleted += $qb->executeStatement();
+		}
 
-    /**
-     * Batch insert transaction tags
-     *
-     * @param TransactionTag[] $transactionTags
-     * @return void
-     */
-    public function insertBatch(array $transactionTags): void {
-        if (empty($transactionTags)) {
-            return;
-        }
+		return $deleted;
+	}
 
-        foreach ($transactionTags as $transactionTag) {
-            $this->insert($transactionTag);
-        }
-    }
+	/**
+	 * Delete all transaction tags for a specific tag
+	 *
+	 * @param int $tagId
+	 * @return int Number of deleted rows
+	 */
+	public function deleteByTag(int $tagId): int {
+		$qb = $this->db->getQueryBuilder();
+		$qb->delete($this->getTableName())
+			->where($qb->expr()->eq('tag_id', $qb->createNamedParameter($tagId, IQueryBuilder::PARAM_INT)));
 
-    /**
-     * Get tag usage statistics (how many transactions use each tag)
-     *
-     * @param string $userId
-     * @return array<int, int> tagId => count
-     */
-    public function getTagUsageStats(string $userId): array {
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('tt.tag_id', $qb->func()->count('tt.id', 'usage_count'))
-            ->from($this->getTableName(), 'tt')
-            ->innerJoin('tt', 'budget_transactions', 't', $qb->expr()->eq('tt.transaction_id', 't.id'))
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
-            ->groupBy('tt.tag_id');
+		return $qb->executeStatement();
+	}
 
-        $result = $qb->executeQuery();
-        $rows = $result->fetchAll();
-        $result->closeCursor();
+	/**
+	 * Batch insert transaction tags
+	 *
+	 * @param TransactionTag[] $transactionTags
+	 * @return void
+	 */
+	public function insertBatch(array $transactionTags): void {
+		if (empty($transactionTags)) {
+			return;
+		}
 
-        $stats = [];
-        foreach ($rows as $row) {
-            $stats[(int)$row['tag_id']] = (int)$row['usage_count'];
-        }
+		foreach ($transactionTags as $transactionTag) {
+			$this->insert($transactionTag);
+		}
+	}
 
-        return $stats;
-    }
+	/**
+	 * Get tag usage statistics (how many transactions use each tag)
+	 *
+	 * @param string $userId
+	 * @return array<int, int> tagId => count
+	 */
+	public function getTagUsageStats(string $userId): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('tt.tag_id', $qb->func()->count('tt.id', 'usage_count'))
+			->from($this->getTableName(), 'tt')
+			->innerJoin('tt', 'budget_transactions', 't', $qb->expr()->eq('tt.transaction_id', 't.id'))
+			->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+			->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+			->groupBy('tt.tag_id');
 
-    /**
-     * Delete all transaction tags for a user
-     *
-     * @param string $userId
-     * @return int Number of deleted rows
-     */
-    public function deleteAll(string $userId): int {
-        $qb = $this->db->getQueryBuilder();
+		$result = $qb->executeQuery();
+		$rows = $result->fetchAll();
+		$result->closeCursor();
 
-        // Get all transaction tag IDs for this user first
-        $qb->select('tt.id')
-            ->from($this->getTableName(), 'tt')
-            ->innerJoin('tt', 'budget_transactions', 't', $qb->expr()->eq('tt.transaction_id', 't.id'))
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)));
+		$stats = [];
+		foreach ($rows as $row) {
+			$stats[(int)$row['tag_id']] = (int)$row['usage_count'];
+		}
 
-        $result = $qb->executeQuery();
-        $ids = $result->fetchAll(\PDO::FETCH_COLUMN);
-        $result->closeCursor();
+		return $stats;
+	}
 
-        if (empty($ids)) {
-            return 0;
-        }
+	/**
+	 * Delete all transaction tags for a user
+	 *
+	 * @param string $userId
+	 * @return int Number of deleted rows
+	 */
+	public function deleteAll(string $userId): int {
+		$qb = $this->db->getQueryBuilder();
 
-        // Delete transaction tags
-        $qb = $this->db->getQueryBuilder();
-        $qb->delete($this->getTableName())
-            ->where($qb->expr()->in('id', $qb->createNamedParameter($ids, IQueryBuilder::PARAM_INT_ARRAY)));
+		// Get all transaction tag IDs for this user first
+		$qb->select('tt.id')
+			->from($this->getTableName(), 'tt')
+			->innerJoin('tt', 'budget_transactions', 't', $qb->expr()->eq('tt.transaction_id', 't.id'))
+			->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+			->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)));
 
-        return $qb->executeStatement();
-    }
+		$result = $qb->executeQuery();
+		$ids = $result->fetchAll(\PDO::FETCH_COLUMN);
+		$result->closeCursor();
 
-    /**
-     * Calculate the sum of transaction amounts for a specific tag.
-     *
-     * @param int $tagId
-     * @param string $userId
-     * @return float
-     */
-    public function sumTransactionAmountsByTag(int $tagId, string $userId): float {
-        $qb = $this->db->getQueryBuilder();
-        // Net contribution: credits add, debits subtract. Amounts are stored as
-        // absolute values + a type, so summing raw amounts counts deposits and
-        // withdrawals both as positive and over-states the total (#264).
-        $qb->select($qb->createFunction("COALESCE(SUM(CASE WHEN t.type = 'credit' THEN t.amount ELSE -t.amount END), 0)"))
-            ->from($this->getTableName(), 'tt')
-            ->innerJoin('tt', 'budget_transactions', 't', $qb->expr()->eq('tt.transaction_id', 't.id'))
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->where($qb->expr()->eq('tt.tag_id', $qb->createNamedParameter($tagId, IQueryBuilder::PARAM_INT)))
-            ->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
-            // Only count realized money — exclude not-yet-happened scheduled items.
-            ->andWhere($qb->expr()->orX(
-                $qb->expr()->neq('t.status', $qb->createNamedParameter('scheduled')),
-                $qb->expr()->isNull('t.status')
-            ));
+		if (empty($ids)) {
+			return 0;
+		}
 
-        $result = $qb->executeQuery();
-        $sum = $result->fetchOne();
-        $result->closeCursor();
+		// Delete transaction tags
+		$qb = $this->db->getQueryBuilder();
+		$qb->delete($this->getTableName())
+			->where($qb->expr()->in('id', $qb->createNamedParameter($ids, IQueryBuilder::PARAM_INT_ARRAY)));
 
-        return (float)($sum ?? 0.0);
-    }
+		return $qb->executeStatement();
+	}
 
-    /**
-     * Calculate the sum of transaction amounts for multiple tags at once.
-     *
-     * @param int[] $tagIds
-     * @param string $userId
-     * @return array<int, float> tagId => sum
-     */
-    public function sumTransactionAmountsByTags(array $tagIds, string $userId): array {
-        if (empty($tagIds)) {
-            return [];
-        }
+	/** Account types a goal's money sits in, as against the ones it is paid from. */
+	private const SAVINGS_TYPES = "('savings', 'money_market', 'investment', 'cryptocurrency')";
 
-        $qb = $this->db->getQueryBuilder();
-        // Net contribution per tag (credits add, debits subtract) — see
-        // sumTransactionAmountsByTag for rationale (#264).
-        $qb->select('tt.tag_id')
-            ->selectAlias($qb->createFunction("COALESCE(SUM(CASE WHEN t.type = 'credit' THEN t.amount ELSE -t.amount END), 0)"), 'amount_sum')
-            ->from($this->getTableName(), 'tt')
-            ->innerJoin('tt', 'budget_transactions', 't', $qb->expr()->eq('tt.transaction_id', 't.id'))
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->where($qb->expr()->in('tt.tag_id', $qb->createNamedParameter($tagIds, IQueryBuilder::PARAM_INT_ARRAY)))
-            ->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->orX(
-                $qb->expr()->neq('t.status', $qb->createNamedParameter('scheduled')),
-                $qb->expr()->isNull('t.status')
-            ))
-            ->groupBy('tt.tag_id');
+	/**
+	 * Hold a savings goal's tag sum to what the goal is owed.
+	 *
+	 * With the goal's account linked, it is the tagged money that went in
+	 * and out of that account. Without one, a linked transfer whose two legs
+	 * both carry the tag counts once: a recurring transfer puts its tags on
+	 * both legs, and the net of the two came to nothing, so a goal fed by
+	 * monthly transfers stayed at 0.
+	 *
+	 * The leg that counts is the one on the savings side, as a linked
+	 * account would hold it: money arriving in savings adds, money leaving
+	 * savings comes off. Keeping the credit leg whatever the direction made
+	 * a withdrawal from savings, arriving in the current account, raise the
+	 * goal. When both accounts or neither are savings-type there is no
+	 * savings side, and the money arriving counts, as before.
+	 */
+	private function scopeGoalContribution(IQueryBuilder $qb, ?int $accountId): void {
+		if ($accountId !== null) {
+			$qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
+			return;
+		}
+		$sav = self::SAVINGS_TYPES;
+		$goalSide = "((a.type IN {$sav} AND la.type NOT IN {$sav})"
+			. " OR (a.type IN {$sav} AND la.type IN {$sav} AND t.type = 'credit')"
+			. " OR (a.type NOT IN {$sav} AND la.type NOT IN {$sav} AND t.type = 'credit'))";
+		// Drop this row when it is the other half of a transfer whose linked
+		// leg carries the same tag
+		$qb->andWhere(
+			'NOT EXISTS (SELECT 1 FROM ' . $qb->getTableName('budget_transaction_tags') . ' ttl'
+			. ' INNER JOIN ' . $qb->getTableName('budget_transactions') . ' lt ON lt.id = ttl.transaction_id'
+			. ' INNER JOIN ' . $qb->getTableName('budget_accounts') . ' la ON la.id = lt.account_id'
+			. " WHERE ttl.transaction_id = t.linked_transaction_id AND ttl.tag_id = tt.tag_id AND NOT {$goalSide})"
+		);
+	}
 
-        $result = $qb->executeQuery();
-        $rows = $result->fetchAll();
-        $result->closeCursor();
+	/**
+	 * Calculate the sum of transaction amounts for a specific tag.
+	 *
+	 * @param int $tagId
+	 * @param string $userId
+	 * @param int|null $accountId the goal's linked account, see scopeGoalContribution()
+	 * @return float
+	 */
+	public function sumTransactionAmountsByTag(int $tagId, string $userId, ?int $accountId = null): float {
+		$qb = $this->db->getQueryBuilder();
+		// Net contribution: credits add, debits subtract. Amounts are stored as
+		// absolute values + a type, so summing raw amounts counts deposits and
+		// withdrawals both as positive and over-states the total (#264).
+		$qb->select($qb->createFunction("COALESCE(SUM(CASE WHEN t.type = 'credit' THEN t.amount ELSE -t.amount END), 0)"))
+			->from($this->getTableName(), 'tt')
+			->innerJoin('tt', 'budget_transactions', 't', $qb->expr()->eq('tt.transaction_id', 't.id'))
+			->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+			->where($qb->expr()->eq('tt.tag_id', $qb->createNamedParameter($tagId, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+			// Only count realized money — exclude not-yet-happened scheduled items.
+			->andWhere($qb->expr()->orX(
+				$qb->expr()->neq('t.status', $qb->createNamedParameter('scheduled')),
+				$qb->expr()->isNull('t.status')
+			));
+		$this->scopeGoalContribution($qb, $accountId);
 
-        $sums = [];
-        foreach ($rows as $row) {
-            $sums[(int)$row['tag_id']] = (float)$row['amount_sum'];
-        }
+		$result = $qb->executeQuery();
+		$sum = $result->fetchOne();
+		$result->closeCursor();
 
-        return $sums;
-    }
+		return (float)($sum ?? 0.0);
+	}
+
+	/**
+	 * Calculate the sum of transaction amounts for multiple tags at once.
+	 *
+	 * @param int[] $tagIds
+	 * @param string $userId
+	 * @return array<int, float> tagId => sum
+	 */
+	public function sumTransactionAmountsByTags(array $tagIds, string $userId): array {
+		if (empty($tagIds)) {
+			return [];
+		}
+
+		$qb = $this->db->getQueryBuilder();
+		// Net contribution per tag (credits add, debits subtract) — see
+		// sumTransactionAmountsByTag for rationale (#264).
+		$qb->select('tt.tag_id')
+			->selectAlias($qb->createFunction("COALESCE(SUM(CASE WHEN t.type = 'credit' THEN t.amount ELSE -t.amount END), 0)"), 'amount_sum')
+			->from($this->getTableName(), 'tt')
+			->innerJoin('tt', 'budget_transactions', 't', $qb->expr()->eq('tt.transaction_id', 't.id'))
+			->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+			->where($qb->expr()->in('tt.tag_id', $qb->createNamedParameter($tagIds, IQueryBuilder::PARAM_INT_ARRAY)))
+			->andWhere($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)))
+			->andWhere($qb->expr()->orX(
+				$qb->expr()->neq('t.status', $qb->createNamedParameter('scheduled')),
+				$qb->expr()->isNull('t.status')
+			));
+		$this->scopeGoalContribution($qb, null);
+		$qb->groupBy('tt.tag_id');
+
+		$result = $qb->executeQuery();
+		$rows = $result->fetchAll();
+		$result->closeCursor();
+
+		$sums = [];
+		foreach ($rows as $row) {
+			$sums[(int)$row['tag_id']] = (float)$row['amount_sum'];
+		}
+
+		return $sums;
+	}
 }

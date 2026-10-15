@@ -69,7 +69,7 @@ class ExchangeRateUpdateJobTest extends TestCase {
 			->method('error')
 			->with(
 				$this->stringContains('Network error'),
-				$this->callback(fn($ctx) => $ctx['app'] === 'budget')
+				$this->callback(fn ($ctx) => $ctx['app'] === 'budget')
 			);
 
 		$this->invokeRun();

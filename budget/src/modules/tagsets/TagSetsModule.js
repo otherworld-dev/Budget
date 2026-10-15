@@ -4,8 +4,11 @@
 import { translate as t } from '@nextcloud/l10n';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showInfo } from '../../utils/notifications.js';
+import { once } from '../../utils/submitGuard.js';
 import { confirmDialog, promptDialog } from '../../utils/dialogs.js';
 import { offerableTags, offerableTagSets } from '../../utils/tags.js';
+import { showLoading } from '../../utils/loading.js';
+import { apiFetch } from '../../utils/api.js';
 
 export default class TagSetsModule {
     constructor(app) {
@@ -32,6 +35,7 @@ export default class TagSetsModule {
     // ============================================
 
     async loadTagsView() {
+        showLoading('global-tags-container');
         await this.loadGlobalTags();
         this.renderGlobalTagsUI();
         this.updateTagsSummary();
@@ -40,13 +44,7 @@ export default class TagSetsModule {
 
     async loadGlobalTags() {
         try {
-            const response = await fetch(
-                OC.generateUrl('/apps/budget/api/tags/global'),
-                { headers: { 'requesttoken': OC.requestToken } }
-            );
-            if (response.ok) {
-                this.globalTags = await response.json();
-            }
+            this.globalTags = await apiFetch('/apps/budget/api/tags/global');
         } catch (error) {
             console.error('Failed to load global tags:', error);
         }
@@ -83,8 +81,8 @@ export default class TagSetsModule {
                     <span class="global-tag-chip-color" style="background-color: ${tag.color || '#666'};"></span>
                     <span class="global-tag-chip-name">${dom.escapeHtml(tag.name)}</span>
                     ${tag.hidden ? `<span class="tag-hidden-label">${t('budget', 'Hidden')}</span>` : ''}
-                    <button class="global-tag-chip-action edit-global-tag-btn" data-tag-id="${tag.id}" title="${t('budget', 'Edit')}">✎</button>
-                    <button class="global-tag-chip-action delete-global-tag-btn" data-tag-id="${tag.id}" title="${t('budget', 'Delete')}">&times;</button>
+                    <button class="global-tag-chip-action edit-global-tag-btn" data-tag-id="${tag.id}" title="${t('budget', 'Edit')}" aria-label="${t('budget', 'Edit')}">✎</button>
+                    <button class="global-tag-chip-action delete-global-tag-btn" data-tag-id="${tag.id}" title="${t('budget', 'Delete')}" aria-label="${t('budget', 'Delete')}">&times;</button>
                 </div>`;
         });
         html += '</div>';
@@ -222,7 +220,12 @@ export default class TagSetsModule {
         return `#${f(0)}${f(8)}${f(4)}`;
     }
 
-    async saveGlobalTag() {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveGlobalTag() {
+        return once('global-tag-save', document.querySelector('#global-tag-form [type="submit"]'), () => this._saveGlobalTag());
+    }
+
+    async _saveGlobalTag() {
         const tagId = document.getElementById('global-tag-id').value;
         const name = document.getElementById('global-tag-name').value.trim();
         const color = document.getElementById('global-tag-color').value;
@@ -234,22 +237,17 @@ export default class TagSetsModule {
         }
 
         try {
-            const url = tagId
-                ? OC.generateUrl(`/apps/budget/api/tags/global/${tagId}`)
-                : OC.generateUrl('/apps/budget/api/tags/global');
+            const path = tagId
+                ? `/apps/budget/api/tags/global/${tagId}`
+                : '/apps/budget/api/tags/global';
 
             // Hidden is an edit-time choice (#373): a tag is created visible.
             const payload = tagId ? { name, color, hidden } : { name, color };
-            const response = await fetch(url, {
+            await apiFetch(path, {
                 method: tagId ? 'PUT' : 'POST',
-                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                body: JSON.stringify(payload)
+                body: payload,
+                errorMessage: t('budget', 'Failed to save tag'),
             });
-
-            if (!response.ok) {
-                const err = await response.json();
-                throw new Error(err.error || t('budget', 'Failed to save tag'));
-            }
 
             this.closeGlobalTagModal();
             await this.loadGlobalTags();
@@ -266,14 +264,10 @@ export default class TagSetsModule {
         if (!await confirmDialog(t('budget', 'Delete this tag? It will be removed from all transactions.'), { destructive: true })) return;
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/tags/global/${tagId}`), {
+            await apiFetch(`/apps/budget/api/tags/global/${tagId}`, {
                 method: 'DELETE',
-                headers: { 'requesttoken': OC.requestToken }
+                errorMessage: t('budget', 'Failed to delete tag'),
             });
-            if (!response.ok) {
-                const err = await response.json();
-                throw new Error(err.error || t('budget', 'Failed to delete tag'));
-            }
             await this.loadGlobalTags();
             this.renderGlobalTagsUI();
             this.updateTagsSummary();
@@ -289,17 +283,8 @@ export default class TagSetsModule {
      */
     async loadTagSetsForCategory(categoryId) {
         try {
-            const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/tag-sets?categoryId=${categoryId}`),
-                {
-                    headers: { 'requesttoken': OC.requestToken }
-                }
-            );
-
-            if (response.ok) {
-                this.selectedCategoryTagSets = await response.json();
-                return this.selectedCategoryTagSets;
-            }
+            this.selectedCategoryTagSets = await apiFetch(`/apps/budget/api/tag-sets?categoryId=${categoryId}`);
+            return this.selectedCategoryTagSets;
         } catch (error) {
             console.error('Failed to load tag sets:', error);
         }
@@ -312,18 +297,9 @@ export default class TagSetsModule {
     async loadTransactionTags(transactionId) {
         if (!transactionId) return [];
         try {
-            const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/tags`),
-                {
-                    headers: { 'requesttoken': OC.requestToken }
-                }
-            );
-
-            if (response.ok) {
-                const tags = await response.json();
-                this.transactionTags[transactionId] = tags;
-                return tags;
-            }
+            const tags = await apiFetch(`/apps/budget/api/transactions/${transactionId}/tags`);
+            this.transactionTags[transactionId] = tags;
+            return tags;
         } catch (error) {
             console.error('Failed to load transaction tags:', error);
         }
@@ -335,25 +311,19 @@ export default class TagSetsModule {
      */
     async saveTransactionTags(transactionId, tagIds) {
         try {
-            const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/tags`),
-                {
-                    method: 'PUT',
-                    headers: {
-                        'requesttoken': OC.requestToken,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ tagIds })
-                }
-            );
+            await apiFetch(`/apps/budget/api/transactions/${transactionId}/tags`, {
+                method: 'PUT',
+                body: { tagIds },
+                errorMessage: t('budget', 'Failed to update tags'),
+            });
 
-            if (response.ok) {
-                // Update cache
-                await this.loadTransactionTags(transactionId);
-                return true;
-            }
+            // Update cache
+            await this.loadTransactionTags(transactionId);
+            return true;
         } catch (error) {
             console.error('Failed to save transaction tags:', error);
+            // The server says why, e.g. a tag the account's owner can't see
+            showError(error.message || t('budget', 'Failed to update tags'));
         }
         return false;
     }
@@ -368,7 +338,7 @@ export default class TagSetsModule {
 
         return tags.map(tag => `
             <span class="tag-chip" style="background-color: ${tag.color || '#666'}; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-right: 4px;">
-                ${this.escapeHtml(tag.name)}
+                ${dom.escapeHtml(tag.name)}
             </span>
         `).join('');
     }
@@ -409,10 +379,10 @@ export default class TagSetsModule {
                         <div class="tag-set-header">
                             <h5>${dom.escapeHtml(tagSet.name)}</h5>
                             <div class="tag-set-actions">
-                                <button type="button" class="add-tag-btn" data-tag-set-id="${tagSet.id}" title="${t('budget', 'Add tag')}">
+                                <button type="button" class="add-tag-btn" data-tag-set-id="${tagSet.id}" title="${t('budget', 'Add tag')}" aria-label="${t('budget', 'Add tag')}">
                                     <span class="icon-add" aria-hidden="true"></span>
                                 </button>
-                                <button type="button" class="delete-tag-set-btn" data-tag-set-id="${tagSet.id}" title="${t('budget', 'Delete tag set')}">
+                                <button type="button" class="delete-tag-set-btn" data-tag-set-id="${tagSet.id}" title="${t('budget', 'Delete tag set')}" aria-label="${t('budget', 'Delete tag set')}">
                                     <span class="icon-delete" aria-hidden="true"></span>
                                 </button>
                             </div>
@@ -423,8 +393,8 @@ export default class TagSetsModule {
                                 <span class="tag-badge${tag.hidden ? ' is-hidden' : ''}" style="background-color: ${tag.color || '#666'}"${tag.hidden ? ` title="${t('budget', 'Hidden: not offered when tagging new transactions')}"` : ''}>
                                     ${dom.escapeHtml(tag.name)}
                                     ${tag.hidden ? `<span class="tag-hidden-label">${t('budget', 'Hidden')}</span>` : ''}
-                                    <button type="button" class="edit-tag-btn" data-tag-id="${tag.id}" data-tag-set-id="${tagSet.id}" data-tag-name="${dom.escapeHtml(tag.name)}" data-tag-color="${tag.color || '#666666'}" data-tag-hidden="${tag.hidden ? '1' : '0'}" title="${t('budget', 'Edit tag')}">✎</button>
-                                    <button type="button" class="delete-tag-btn" data-tag-id="${tag.id}" data-tag-set-id="${tagSet.id}">×</button>
+                                    <button type="button" class="edit-tag-btn" data-tag-id="${tag.id}" data-tag-set-id="${tagSet.id}" data-tag-name="${dom.escapeHtml(tag.name)}" data-tag-color="${tag.color || '#666666'}" data-tag-hidden="${tag.hidden ? '1' : '0'}" title="${t('budget', 'Edit tag')}" aria-label="${t('budget', 'Edit tag')}">✎</button>
+                                    <button type="button" class="delete-tag-btn" data-tag-id="${tag.id}" data-tag-set-id="${tagSet.id}" title="${t('budget', 'Delete tag')}" aria-label="${t('budget', 'Delete tag')}">×</button>
                                 </span>
                             `).join('') : `<span style="color: #999; font-size: 12px;">${t('budget', 'No tags yet')}</span>`}
                         </div>
@@ -553,40 +523,25 @@ export default class TagSetsModule {
      * Create a new tag set
      */
     async createTagSet(categoryId, name, description) {
-        const response = await fetch(OC.generateUrl('/apps/budget/api/tag-sets'), {
+        return await apiFetch('/apps/budget/api/tag-sets', {
             method: 'POST',
-            headers: {
-                'requesttoken': OC.requestToken,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
+            body: {
                 categoryId: categoryId,
                 name: name,
                 description: description || null
-            })
+            },
+            errorMessage: t('budget', 'Failed to create tag set'),
         });
-
-        if (!response.ok) {
-            throw new Error(t('budget', 'Failed to create tag set'));
-        }
-
-        return await response.json();
     }
 
     /**
      * Delete a tag set
      */
     async deleteTagSet(tagSetId) {
-        const response = await fetch(OC.generateUrl(`/apps/budget/api/tag-sets/${tagSetId}`), {
+        await apiFetch(`/apps/budget/api/tag-sets/${tagSetId}`, {
             method: 'DELETE',
-            headers: {
-                'requesttoken': OC.requestToken
-            }
+            errorMessage: t('budget', 'Failed to delete tag set'),
         });
-
-        if (!response.ok) {
-            throw new Error(t('budget', 'Failed to delete tag set'));
-        }
 
         return true;
     }
@@ -595,39 +550,24 @@ export default class TagSetsModule {
      * Create a new tag
      */
     async createTag(tagSetId, name, color) {
-        const response = await fetch(OC.generateUrl(`/apps/budget/api/tag-sets/${tagSetId}/tags`), {
+        return await apiFetch(`/apps/budget/api/tag-sets/${tagSetId}/tags`, {
             method: 'POST',
-            headers: {
-                'requesttoken': OC.requestToken,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
+            body: {
                 name: name,
                 color: color || '#666666'
-            })
+            },
+            errorMessage: t('budget', 'Failed to create tag'),
         });
-
-        if (!response.ok) {
-            throw new Error(t('budget', 'Failed to create tag'));
-        }
-
-        return await response.json();
     }
 
     /**
      * Delete a tag
      */
     async deleteTag(tagId, tagSetId) {
-        const response = await fetch(OC.generateUrl(`/apps/budget/api/tag-sets/${tagSetId}/tags/${tagId}`), {
+        await apiFetch(`/apps/budget/api/tag-sets/${tagSetId}/tags/${tagId}`, {
             method: 'DELETE',
-            headers: {
-                'requesttoken': OC.requestToken
-            }
+            errorMessage: t('budget', 'Failed to delete tag'),
         });
-
-        if (!response.ok) {
-            throw new Error(t('budget', 'Failed to delete tag'));
-        }
 
         return true;
     }
@@ -639,9 +579,12 @@ export default class TagSetsModule {
         const container = document.getElementById('transaction-tags-container');
         if (!container) return;
 
-        // Load global tags and category tag sets in parallel
+        // Load global tags and category tag sets in parallel. Not for a
+        // category you can't see (a shared row's category its owner didn't
+        // share with you): that request is refused.
         await this.loadGlobalTags();
-        const tagSets = categoryId ? await this.loadTagSetsForCategory(categoryId) : [];
+        const visible = !this.categories?.length || this.categories.some(c => String(c.id) === String(categoryId));
+        const tagSets = categoryId && visible ? await this.loadTagSetsForCategory(categoryId) : [];
 
         // Load current tags for this transaction
         const currentTags = await this.loadTransactionTags(transactionId);
@@ -784,21 +727,21 @@ export default class TagSetsModule {
                                     <span class="tag-badge${tag.hidden ? ' is-hidden' : ''}" style="background-color: ${tag.color || '#666'}; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;"${tag.hidden ? ` title="${t('budget', 'Hidden: not offered when tagging new transactions')}"` : ''}>
                                         ${dom.escapeHtml(tag.name)}
                                         ${tag.hidden ? `<span class="tag-hidden-label">${t('budget', 'Hidden')}</span>` : ''}
-                                        ${readOnly ? '' : `<button class="edit-tag-btn" data-tag-id="${tag.id}" data-tag-set-id="${tagSet.id}" data-tag-name="${dom.escapeHtml(tag.name)}" data-tag-color="${tag.color || '#666666'}" data-tag-hidden="${tag.hidden ? '1' : '0'}" title="${t('budget', 'Edit tag')}" style="background: none; border: none; color: white; cursor: pointer; padding: 0; font-size: 12px; line-height: 1; opacity: 0.7;">✎</button>
-                                        <button class="delete-tag-btn" data-tag-id="${tag.id}" data-tag-set-id="${tagSet.id}" title="${t('budget', 'Delete tag')}" style="background: none; border: none; color: white; cursor: pointer; padding: 0; margin-left: 2px; font-size: 16px; line-height: 1; opacity: 0.7;">×</button>`}
+                                        ${readOnly ? '' : `<button class="edit-tag-btn" data-tag-id="${tag.id}" data-tag-set-id="${tagSet.id}" data-tag-name="${dom.escapeHtml(tag.name)}" data-tag-color="${tag.color || '#666666'}" data-tag-hidden="${tag.hidden ? '1' : '0'}" title="${t('budget', 'Edit tag')}" aria-label="${t('budget', 'Edit tag')}" style="background: none; border: none; color: white; cursor: pointer; padding: 0; font-size: 12px; line-height: 1; opacity: 0.7;">✎</button>
+                                        <button class="delete-tag-btn" data-tag-id="${tag.id}" data-tag-set-id="${tagSet.id}" title="${t('budget', 'Delete tag')}" aria-label="${t('budget', 'Delete tag')}" style="background: none; border: none; color: white; cursor: pointer; padding: 0; margin-left: 2px; font-size: 16px; line-height: 1; opacity: 0.7;">×</button>`}
                                     </span>
                                 `).join('') : `<span class="no-tags-text" style="color: var(--color-text-maxcontrast); font-size: 12px; font-style: italic;">${t('budget', 'No tags yet')}</span>`}
                             </div>
                         </td>
                         <td class="tag-set-actions-cell" style="padding: 12px 8px; vertical-align: top; width: 120px; text-align: right;">
                             ${readOnly ? '' : `<div class="tag-set-actions" style="display: flex; gap: 4px; justify-content: flex-end;">
-                                <button class="action-btn add-tag-btn" data-tag-set-id="${tagSet.id}" title="${t('budget', 'Add Tag')}" style="padding: 6px 8px;">
+                                <button class="action-btn add-tag-btn" data-tag-set-id="${tagSet.id}" title="${t('budget', 'Add Tag')}" aria-label="${t('budget', 'Add Tag')}" style="padding: 6px 8px;">
                                     <span class="icon-add" aria-hidden="true"></span>
                                 </button>
-                                <button class="action-btn edit-tag-set-btn" data-tag-set-id="${tagSet.id}" title="${t('budget', 'Edit Tag Set')}" style="padding: 6px 8px;">
+                                <button class="action-btn edit-tag-set-btn" data-tag-set-id="${tagSet.id}" title="${t('budget', 'Edit Tag Set')}" aria-label="${t('budget', 'Edit Tag Set')}" style="padding: 6px 8px;">
                                     <span class="icon-rename" aria-hidden="true"></span>
                                 </button>
-                                <button class="action-btn delete-tag-set-btn" data-tag-set-id="${tagSet.id}" title="${t('budget', 'Delete Tag Set')}" style="padding: 6px 8px;">
+                                <button class="action-btn delete-tag-set-btn" data-tag-set-id="${tagSet.id}" title="${t('budget', 'Delete Tag Set')}" aria-label="${t('budget', 'Delete Tag Set')}" style="padding: 6px 8px;">
                                     <span class="icon-delete" aria-hidden="true"></span>
                                 </button>
                             </div>`}
@@ -916,7 +859,13 @@ export default class TagSetsModule {
     /**
      * Save a tag set from the modal form
      */
-    async saveTagSet(e) {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveTagSet(e) {
+        e.preventDefault();
+        return once('tag-set-save', e.target?.querySelector?.('[type="submit"]') ?? null, () => this._saveTagSet(e));
+    }
+
+    async _saveTagSet(e) {
         e.preventDefault();
 
         const categoryId = document.getElementById('tag-set-category-id').value;
@@ -947,20 +896,11 @@ export default class TagSetsModule {
      * Update an existing tag set
      */
     async updateTagSet(tagSetId, name, description) {
-        const response = await fetch(OC.generateUrl(`/apps/budget/api/tag-sets/${tagSetId}`), {
+        return await apiFetch(`/apps/budget/api/tag-sets/${tagSetId}`, {
             method: 'PUT',
-            headers: {
-                'requesttoken': OC.requestToken,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ name, description: description || null })
+            body: { name, description: description || null },
+            errorMessage: t('budget', 'Failed to update tag set'),
         });
-
-        if (!response.ok) {
-            throw new Error(t('budget', 'Failed to update tag set'));
-        }
-
-        return await response.json();
     }
 
     /**
@@ -992,7 +932,13 @@ export default class TagSetsModule {
     /**
      * Save edited tag set from the modal form
      */
-    async saveEditTagSet(e) {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveEditTagSet(e) {
+        e.preventDefault();
+        return once('tag-set-edit-save', e.target?.querySelector?.('[type="submit"]') ?? null, () => this._saveEditTagSet(e));
+    }
+
+    async _saveEditTagSet(e) {
         e.preventDefault();
 
         const tagSetId = parseInt(document.getElementById('edit-tag-set-id').value);
@@ -1057,41 +1003,19 @@ export default class TagSetsModule {
     }
 
     /**
-     * Load all transaction tags for filtering
+     * Take the tags of the listed transactions from the list's own answer:
+     * a map of transaction id to its tags, for the rows that have any. They
+     * used to be fetched with one request per row, a few hundred for a long
+     * page.
+     *
+     * @param {object|undefined} tagsByTransaction - The list response's `tags`
      */
-    async loadAllTransactionTags() {
-        if (!this.transactions || this.transactions.length === 0) {
-            this.transactionTags = {};
-            return;
-        }
-
-        try {
-            // Load tags for each transaction
-            const tagPromises = this.transactions.map(async (transaction) => {
-                const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transaction.id}/tags`), {
-                    headers: {
-                        'requesttoken': OC.requestToken
-                    }
-                });
-
-                if (response.ok) {
-                    const tags = await response.json();
-                    return { transactionId: transaction.id, tags: Array.isArray(tags) ? tags : [] };
-                }
-                return { transactionId: transaction.id, tags: [] };
-            });
-
-            const results = await Promise.all(tagPromises);
-
-            // Store tags by transaction ID
-            this.transactionTags = {};
-            results.forEach(result => {
-                this.transactionTags[result.transactionId] = result.tags;
-            });
-        } catch (error) {
-            console.error('Failed to load transaction tags:', error);
-            this.transactionTags = {};
-        }
+    async loadAllTransactionTags(tagsByTransaction) {
+        this.transactionTags = {};
+        (this.transactions || []).forEach(transaction => {
+            const tags = tagsByTransaction?.[transaction.id];
+            this.transactionTags[transaction.id] = Array.isArray(tags) ? tags : [];
+        });
     }
 
     /**
@@ -1133,7 +1057,13 @@ export default class TagSetsModule {
     /**
      * Save a tag from the modal form
      */
-    async saveTag(e) {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveTag(e) {
+        e.preventDefault();
+        return once('tag-save', e.target?.querySelector?.('[type="submit"]') ?? null, () => this._saveTag(e));
+    }
+
+    async _saveTag(e) {
         e.preventDefault();
 
         const tagSetId = parseInt(document.getElementById('tag-set-id').value);
@@ -1168,20 +1098,11 @@ export default class TagSetsModule {
      * Update an existing tag
      */
     async updateTag(tagSetId, tagId, updates) {
-        const response = await fetch(OC.generateUrl(`/apps/budget/api/tag-sets/${tagSetId}/tags/${tagId}`), {
+        return await apiFetch(`/apps/budget/api/tag-sets/${tagSetId}/tags/${tagId}`, {
             method: 'PUT',
-            headers: {
-                'requesttoken': OC.requestToken,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(updates)
+            body: updates,
+            errorMessage: t('budget', 'Failed to update tag'),
         });
-
-        if (!response.ok) {
-            throw new Error(t('budget', 'Failed to update tag'));
-        }
-
-        return await response.json();
     }
 
     /**
@@ -1216,7 +1137,13 @@ export default class TagSetsModule {
     /**
      * Save edited tag from the modal form
      */
-    async saveEditTag(e) {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveEditTag(e) {
+        e.preventDefault();
+        return once('tag-edit-save', e.target?.querySelector?.('[type="submit"]') ?? null, () => this._saveEditTag(e));
+    }
+
+    async _saveEditTag(e) {
         e.preventDefault();
 
         const tagId = parseInt(document.getElementById('edit-tag-id').value);
@@ -1272,9 +1199,6 @@ export default class TagSetsModule {
     }
 
     // Delegate helper methods to app
-    escapeHtml(text) {
-        return dom.escapeHtml(text);
-    }
 
     hideModals() {
         // Hide all modals

@@ -20,19 +20,19 @@ use OCP\AppFramework\Db\Entity;
  * @method void setCreatedAt(string $createdAt)
  */
 class CategoryMute extends Entity implements JsonSerializable {
-    protected $userId;
-    protected $categoryId;
-    protected $createdAt;
+	protected $userId;
+	protected $categoryId;
+	protected $createdAt;
 
-    public function __construct() {
-        $this->addType('id', 'integer');
-        $this->addType('categoryId', 'integer');
-    }
+	public function __construct() {
+		$this->addType('id', 'integer');
+		$this->addType('categoryId', 'integer');
+	}
 
-    public function jsonSerialize(): array {
-        return [
-            'id' => $this->getId(),
-            'categoryId' => $this->getCategoryId(),
-        ];
-    }
+	public function jsonSerialize(): array {
+		return [
+			'id' => $this->getId(),
+			'categoryId' => $this->getCategoryId(),
+		];
+	}
 }

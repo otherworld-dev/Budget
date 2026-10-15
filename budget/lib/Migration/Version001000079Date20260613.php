@@ -17,34 +17,34 @@ use OCP\Migration\SimpleMigrationStep;
  */
 class Version001000079Date20260613 extends SimpleMigrationStep {
 
-    public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
-        /** @var ISchemaWrapper $schema */
-        $schema = $schemaClosure();
+	public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
+		/** @var ISchemaWrapper $schema */
+		$schema = $schemaClosure();
 
-        if (!$schema->hasTable('budget_categories')) {
-            return null;
-        }
+		if (!$schema->hasTable('budget_categories')) {
+			return null;
+		}
 
-        $table = $schema->getTable('budget_categories');
-        $changed = false;
+		$table = $schema->getTable('budget_categories');
+		$changed = false;
 
-        if (!$table->hasColumn('budget_rollover')) {
-            $table->addColumn('budget_rollover', Types::BOOLEAN, [
-                'notnull' => false,
-                'default' => false,
-            ]);
-            $changed = true;
-        }
+		if (!$table->hasColumn('budget_rollover')) {
+			$table->addColumn('budget_rollover', Types::BOOLEAN, [
+				'notnull' => false,
+				'default' => false,
+			]);
+			$changed = true;
+		}
 
-        if (!$table->hasColumn('rollover_start')) {
-            // YYYY-MM anchor; carryover into months <= anchor is always 0
-            $table->addColumn('rollover_start', Types::STRING, [
-                'notnull' => false,
-                'length' => 7,
-            ]);
-            $changed = true;
-        }
+		if (!$table->hasColumn('rollover_start')) {
+			// YYYY-MM anchor; carryover into months <= anchor is always 0
+			$table->addColumn('rollover_start', Types::STRING, [
+				'notnull' => false,
+				'length' => 7,
+			]);
+			$changed = true;
+		}
 
-        return $changed ? $schema : null;
-    }
+		return $changed ? $schema : null;
+	}
 }

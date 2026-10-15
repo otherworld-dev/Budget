@@ -24,50 +24,50 @@ use OCP\Migration\SimpleMigrationStep;
  */
 class Version001000085Date20260624 extends SimpleMigrationStep {
 
-    public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
-        /** @var ISchemaWrapper $schema */
-        $schema = $schemaClosure();
-        $changed = false;
+	public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
+		/** @var ISchemaWrapper $schema */
+		$schema = $schemaClosure();
+		$changed = false;
 
-        // budget_categories: excluded_from_reports (059) + rollover columns (079)
-        if ($schema->hasTable('budget_categories')) {
-            $table = $schema->getTable('budget_categories');
+		// budget_categories: excluded_from_reports (059) + rollover columns (079)
+		if ($schema->hasTable('budget_categories')) {
+			$table = $schema->getTable('budget_categories');
 
-            if (!$table->hasColumn('excluded_from_reports')) {
-                $table->addColumn('excluded_from_reports', Types::BOOLEAN, [
-                    'notnull' => false,
-                    'default' => false,
-                ]);
-                $changed = true;
-            }
-            if (!$table->hasColumn('budget_rollover')) {
-                $table->addColumn('budget_rollover', Types::BOOLEAN, [
-                    'notnull' => false,
-                    'default' => false,
-                ]);
-                $changed = true;
-            }
-            if (!$table->hasColumn('rollover_start')) {
-                $table->addColumn('rollover_start', Types::STRING, [
-                    'notnull' => false,
-                    'length' => 7,
-                ]);
-                $changed = true;
-            }
-        }
+			if (!$table->hasColumn('excluded_from_reports')) {
+				$table->addColumn('excluded_from_reports', Types::BOOLEAN, [
+					'notnull' => false,
+					'default' => false,
+				]);
+				$changed = true;
+			}
+			if (!$table->hasColumn('budget_rollover')) {
+				$table->addColumn('budget_rollover', Types::BOOLEAN, [
+					'notnull' => false,
+					'default' => false,
+				]);
+				$changed = true;
+			}
+			if (!$table->hasColumn('rollover_start')) {
+				$table->addColumn('rollover_start', Types::STRING, [
+					'notnull' => false,
+					'length' => 7,
+				]);
+				$changed = true;
+			}
+		}
 
-        // budget_accounts: excluded_from_reports (082)
-        if ($schema->hasTable('budget_accounts')) {
-            $table = $schema->getTable('budget_accounts');
-            if (!$table->hasColumn('excluded_from_reports')) {
-                $table->addColumn('excluded_from_reports', Types::BOOLEAN, [
-                    'notnull' => false,
-                    'default' => false,
-                ]);
-                $changed = true;
-            }
-        }
+		// budget_accounts: excluded_from_reports (082)
+		if ($schema->hasTable('budget_accounts')) {
+			$table = $schema->getTable('budget_accounts');
+			if (!$table->hasColumn('excluded_from_reports')) {
+				$table->addColumn('excluded_from_reports', Types::BOOLEAN, [
+					'notnull' => false,
+					'default' => false,
+				]);
+				$changed = true;
+			}
+		}
 
-        return $changed ? $schema : null;
-    }
+		return $changed ? $schema : null;
+	}
 }

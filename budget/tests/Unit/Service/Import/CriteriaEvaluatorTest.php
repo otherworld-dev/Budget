@@ -136,6 +136,40 @@ class CriteriaEvaluatorTest extends TestCase {
 		$this->assertFalse($this->evaluator->evaluate($criteria, $transaction, 2));
 	}
 
+	public function testRegexMatchWithFullLiteralAndFlags(): void {
+		$criteria = [
+			'version' => 2,
+			'root' => [
+				'type' => 'condition',
+				'field' => 'description',
+				'matchType' => 'regex',
+				'pattern' => '/^order-\d{5}$/i',
+				'negate' => false
+			]
+		];
+
+		$transaction = ['description' => 'ORDER-12345'];
+		$this->assertTrue($this->evaluator->evaluate($criteria, $transaction, 2));
+	}
+
+	public function testBareRegexKeepsItsSpaces(): void {
+		// Saved patterns aren't trimmed, so a trailing space is part of the
+		// rule: "^TFR " is a transfer reference, "TFRX" is not.
+		$criteria = [
+			'version' => 2,
+			'root' => [
+				'type' => 'condition',
+				'field' => 'description',
+				'matchType' => 'regex',
+				'pattern' => '^TFR ',
+				'negate' => false
+			]
+		];
+
+		$this->assertTrue($this->evaluator->evaluate($criteria, ['description' => 'TFR 12345'], 2));
+		$this->assertFalse($this->evaluator->evaluate($criteria, ['description' => 'TFRX 12345'], 2));
+	}
+
 	public function testInvalidRegexReturnsFalse(): void {
 		$criteria = [
 			'version' => 2,
@@ -715,6 +749,23 @@ class CriteriaEvaluatorTest extends TestCase {
 
 		$result = $this->evaluator->validate($criteria);
 		$this->assertTrue($result['valid']);
+	}
+
+	public function testValidateAcceptsFullRegexLiteralWithFlags(): void {
+		$criteria = [
+			'version' => 2,
+			'root' => [
+				'type' => 'condition',
+				'field' => 'description',
+				'matchType' => 'regex',
+				'pattern' => '/amazon|ebay/i',
+				'negate' => false
+			]
+		];
+
+		$result = $this->evaluator->validate($criteria);
+		$this->assertTrue($result['valid']);
+		$this->assertTrue($this->evaluator->evaluate($criteria, ['description' => 'EBAY order']));
 	}
 
 	// ===== Account Field Tests =====

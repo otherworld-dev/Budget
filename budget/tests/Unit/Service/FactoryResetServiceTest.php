@@ -5,215 +5,503 @@ declare(strict_types=1);
 namespace OCA\Budget\Tests\Unit\Service;
 
 use OCA\Budget\Db\AccountMapper;
-use OCA\Budget\Db\AssetMapper;
-use OCA\Budget\Db\AssetSnapshotMapper;
+use OCA\Budget\Db\AttachmentMapper;
+use OCA\Budget\Db\Bill;
 use OCA\Budget\Db\BillMapper;
-use OCA\Budget\Db\BudgetSnapshotMapper;
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\ContactMapper;
-use OCA\Budget\Db\ExpenseShareMapper;
 use OCA\Budget\Db\ImportRuleMapper;
-use OCA\Budget\Db\NetWorthSnapshotMapper;
-use OCA\Budget\Db\PensionAccountMapper;
-use OCA\Budget\Db\PensionContributionMapper;
-use OCA\Budget\Db\PensionSnapshotMapper;
-use OCA\Budget\Db\ProjectAllocationMapper;
-use OCA\Budget\Db\ProjectMapper;
-use OCA\Budget\Db\RecurringIncomeMapper;
-use OCA\Budget\Db\SavingsGoalMapper;
 use OCA\Budget\Db\SettingMapper;
-use OCA\Budget\Db\SettlementMapper;
-use OCA\Budget\Db\TagMapper;
+use OCA\Budget\Db\ShareMapper;
 use OCA\Budget\Db\TransactionMapper;
-use OCA\Budget\Db\TransactionSplitMapper;
+use OCA\Budget\Service\CrossUserLinks;
 use OCA\Budget\Service\FactoryResetService;
+use OCA\Budget\Service\MigrationService;
+use OCA\Budget\Service\TransactionService;
+use OCP\DB\QueryBuilder\IExpressionBuilder;
+use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 
 class FactoryResetServiceTest extends TestCase {
-    private FactoryResetService $service;
-    private IDBConnection $db;
+	private FactoryResetService $service;
+	private IDBConnection $db;
+	private AccountMapper $accountMapper;
+	private TransactionMapper $transactionMapper;
+	private BillMapper $billMapper;
+	private CategoryMapper $categoryMapper;
+	private ImportRuleMapper $importRuleMapper;
+	private SettingMapper $settingMapper;
+	private AttachmentMapper $attachmentMapper;
 
-    // Mapper mocks
-    private AccountMapper $accountMapper;
-    private TransactionMapper $transactionMapper;
-    private TransactionSplitMapper $transactionSplitMapper;
-    private BillMapper $billMapper;
-    private CategoryMapper $categoryMapper;
-    private RecurringIncomeMapper $recurringIncomeMapper;
-    private ImportRuleMapper $importRuleMapper;
-    private SettingMapper $settingMapper;
-    private ContactMapper $contactMapper;
-    private ExpenseShareMapper $expenseShareMapper;
-    private $settlementMapper;
-    private SavingsGoalMapper $savingsGoalMapper;
-    private PensionAccountMapper $pensionAccountMapper;
-    private PensionContributionMapper $pensionContributionMapper;
-    private $pensionSnapshotMapper;
-    private NetWorthSnapshotMapper $netWorthSnapshotMapper;
-    private $assetMapper;
-    private $assetSnapshotMapper;
-    private TagMapper $tagMapper;
-    private \OCA\Budget\Db\AttachmentMapper $attachmentMapper;
-    private $reconciliationSessionMapper;
-    private $dismissedSuggestionMapper;
-    private $projectMapper;
-    private $projectAllocationMapper;
+	/** @var list<array{table: string, sql: ?string, params: array}> every DELETE, in order */
+	private array $deletes = [];
+	/** Tables whose DELETE should throw, with the message */
+	private array $failingTables = [];
 
-    protected function setUp(): void {
-        $this->db = $this->createMock(IDBConnection::class);
-        $this->accountMapper = $this->createMock(AccountMapper::class);
-        $this->transactionMapper = $this->createMock(TransactionMapper::class);
-        $this->transactionSplitMapper = $this->createMock(TransactionSplitMapper::class);
-        $this->billMapper = $this->createMock(BillMapper::class);
-        $this->categoryMapper = $this->createMock(CategoryMapper::class);
-        $this->recurringIncomeMapper = $this->createMock(RecurringIncomeMapper::class);
-        $this->importRuleMapper = $this->createMock(ImportRuleMapper::class);
-        $this->settingMapper = $this->createMock(SettingMapper::class);
-        $this->contactMapper = $this->createMock(ContactMapper::class);
-        $this->expenseShareMapper = $this->createMock(ExpenseShareMapper::class);
-        $this->settlementMapper = $this->createMock(SettlementMapper::class);
-        $this->savingsGoalMapper = $this->createMock(SavingsGoalMapper::class);
-        $this->pensionAccountMapper = $this->createMock(PensionAccountMapper::class);
-        $this->pensionContributionMapper = $this->createMock(PensionContributionMapper::class);
-        $this->pensionSnapshotMapper = $this->createMock(PensionSnapshotMapper::class);
-        $this->netWorthSnapshotMapper = $this->createMock(NetWorthSnapshotMapper::class);
-        $this->assetMapper = $this->createMock(AssetMapper::class);
-        $this->assetSnapshotMapper = $this->createMock(AssetSnapshotMapper::class);
-        $this->tagMapper = $this->createMock(TagMapper::class);
+	protected function setUp(): void {
+		$this->db = $this->createMock(IDBConnection::class);
+		$this->accountMapper = $this->createMock(AccountMapper::class);
+		$this->transactionMapper = $this->createMock(TransactionMapper::class);
+		$this->billMapper = $this->createMock(BillMapper::class);
+		$this->categoryMapper = $this->createMock(CategoryMapper::class);
+		$this->importRuleMapper = $this->createMock(ImportRuleMapper::class);
+		$this->settingMapper = $this->createMock(SettingMapper::class);
+		$this->attachmentMapper = $this->createMock(AttachmentMapper::class);
 
-        $budgetSnapshotMapper = $this->createMock(BudgetSnapshotMapper::class);
-        $this->attachmentMapper = $this->createMock(\OCA\Budget\Db\AttachmentMapper::class);
-        $reconciliationSessionMapper = $this->createMock(\OCA\Budget\Db\ReconciliationSessionMapper::class);
-        $this->reconciliationSessionMapper = $reconciliationSessionMapper;
-        $this->dismissedSuggestionMapper = $this->createMock(\OCA\Budget\Db\DismissedSuggestionMapper::class);
-        $this->projectMapper = $this->createMock(ProjectMapper::class);
-        $this->projectAllocationMapper = $this->createMock(ProjectAllocationMapper::class);
+		// Query-builder deletes (user-scoped registry tables)
+		$this->db->method('getQueryBuilder')->willReturnCallback(function () {
+			$table = null;
+			$params = [];
+			$expr = $this->createMock(IExpressionBuilder::class);
+			$expr->method('eq')->willReturnCallback(fn ($col, $val) => "$col = $val");
+			$qb = $this->createMock(IQueryBuilder::class);
+			$qb->method('expr')->willReturn($expr);
+			$qb->method('delete')->willReturnCallback(function (string $t) use (&$table, $qb) {
+				$table = $t;
+				return $qb;
+			});
+			$qb->method('where')->willReturnSelf();
+			$qb->method('createNamedParameter')->willReturnCallback(function ($v) use (&$params) {
+				$params[] = $v;
+				return ':p' . count($params);
+			});
+			$qb->method('executeStatement')->willReturnCallback(function () use (&$table, &$params) {
+				return $this->recordDelete($table, null, $params);
+			});
+			return $qb;
+		});
+		// Raw deletes (join-scoped registry tables)
+		$this->db->method('executeStatement')->willReturnCallback(function (string $sql, array $params = []) {
+			preg_match('/^DELETE FROM \*PREFIX\*([a-z_]+)/', $sql, $m);
+			return $this->recordDelete($m[1] ?? '?', $sql, $params);
+		});
 
-        $this->service = new FactoryResetService(
-            $this->accountMapper,
-            $this->transactionMapper,
-            $this->transactionSplitMapper,
-            $this->billMapper,
-            $this->categoryMapper,
-            $this->recurringIncomeMapper,
-            $this->importRuleMapper,
-            $this->settingMapper,
-            $this->contactMapper,
-            $this->expenseShareMapper,
-            $this->settlementMapper,
-            $this->savingsGoalMapper,
-            $this->pensionAccountMapper,
-            $this->pensionContributionMapper,
-            $this->pensionSnapshotMapper,
-            $this->netWorthSnapshotMapper,
-            $this->assetMapper,
-            $this->assetSnapshotMapper,
-            $budgetSnapshotMapper,
-            $this->tagMapper,
-            $this->attachmentMapper,
-            $this->reconciliationSessionMapper,
-            $this->dismissedSuggestionMapper,
-            $this->db,
-            $this->projectAllocationMapper,
-            $this->projectMapper
-        );
-    }
+		// Bespoke entities go through their mappers; log them in the same sequence
+		foreach ([
+			'budget_transactions' => $this->transactionMapper,
+			'budget_bills' => $this->billMapper,
+			'budget_import_rules' => $this->importRuleMapper,
+			'budget_accounts' => $this->accountMapper,
+			'budget_categories' => $this->categoryMapper,
+			'budget_settings' => $this->settingMapper,
+			'budget_attachments' => $this->attachmentMapper,
+		] as $table => $mapper) {
+			$mapper->method('deleteAll')->willReturnCallback(
+				fn (string $userId) => $this->recordDelete($table, null, [$userId])
+			);
+		}
 
-    public function testExecuteFactoryResetDeletesAllAndCommits(): void {
-        $this->db->expects($this->once())->method('beginTransaction');
-        $this->db->expects($this->once())->method('commit');
-        $this->db->expects($this->never())->method('rollBack');
+		$this->service = new FactoryResetService(
+			$this->accountMapper,
+			$this->transactionMapper,
+			$this->billMapper,
+			$this->categoryMapper,
+			$this->importRuleMapper,
+			$this->settingMapper,
+			$this->attachmentMapper,
+			$this->db,
+		);
+	}
 
-        // Set up all mappers to return counts
-        $this->expenseShareMapper->method('deleteAll')->willReturn(2);
-        $this->transactionSplitMapper->method('deleteAll')->willReturn(5);
-        $this->settlementMapper->method('deleteAll')->willReturn(1);
-        $this->transactionMapper->method('deleteAll')->willReturn(20);
-        $this->billMapper->method('deleteAll')->willReturn(3);
-        $this->recurringIncomeMapper->method('deleteAll')->willReturn(2);
-        $this->pensionContributionMapper->method('deleteAll')->willReturn(4);
-        $this->pensionSnapshotMapper->method('deleteAll')->willReturn(6);
-        $this->assetSnapshotMapper->method('deleteAll')->willReturn(3);
-        $this->accountMapper->method('deleteAll')->willReturn(4);
-        $this->pensionAccountMapper->method('deleteAll')->willReturn(2);
-        $this->assetMapper->method('deleteAll')->willReturn(1);
-        $this->contactMapper->method('deleteAll')->willReturn(3);
-        $this->savingsGoalMapper->method('deleteAll')->willReturn(1);
-        $this->categoryMapper->method('deleteAll')->willReturn(10);
-        $this->importRuleMapper->method('deleteAll')->willReturn(5);
-        $this->settingMapper->method('deleteAll')->willReturn(8);
-        $this->netWorthSnapshotMapper->method('deleteAll')->willReturn(12);
-        $this->attachmentMapper->method('deleteAll')->willReturn(7);
+	private function recordDelete(string $table, ?string $sql, array $params): int {
+		if (isset($this->failingTables[$table])) {
+			throw new \Exception($this->failingTables[$table]);
+		}
+		$this->deletes[] = ['table' => $table, 'sql' => $sql, 'params' => $params];
+		return 1;
+	}
 
-        $counts = $this->service->executeFactoryReset('user1');
+	/** @return string[] */
+	private function deletedTables(): array {
+		return array_column($this->deletes, 'table');
+	}
 
-        $this->assertEquals(20, $counts['transactions']);
-        $this->assertEquals(4, $counts['accounts']);
-        $this->assertEquals(10, $counts['categories']);
-        $this->assertEquals(8, $counts['settings']);
-        $this->assertEquals(7, $counts['attachments']);
-    }
+	private function registryTables(): array {
+		return array_column(MigrationService::EXTRA_TABLES_PRE + MigrationService::EXTRA_TABLES_POST, 'table');
+	}
 
-    public function testExecuteFactoryResetRollsBackOnError(): void {
-        $this->db->expects($this->once())->method('beginTransaction');
-        $this->db->expects($this->never())->method('commit');
-        $this->db->expects($this->once())->method('rollBack');
+	/**
+	 * Every table registered for backup must be wiped by a reset, scoped to
+	 * the user. The old hand-written list missed ten of them.
+	 */
+	public function testResetClearsEveryRegisteredTableForTheUser(): void {
+		$this->service->executeFactoryReset('user1');
 
-        $this->expenseShareMapper->method('deleteAll')
-            ->willThrowException(new \RuntimeException('DB error'));
+		foreach ($this->registryTables() as $table) {
+			$this->assertContains($table, $this->deletedTables(), "factory reset must clear $table");
+		}
+		foreach ($this->deletes as $delete) {
+			$this->assertContains('user1', $delete['params'], "{$delete['table']} delete must be scoped to the user");
+		}
+	}
 
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('DB error');
+	private function serviceWith(TransactionService $transactions, ?ShareMapper $shares = null): FactoryResetService {
+		return new FactoryResetService(
+			$this->accountMapper,
+			$this->transactionMapper,
+			$this->billMapper,
+			$this->categoryMapper,
+			$this->importRuleMapper,
+			$this->settingMapper,
+			$this->attachmentMapper,
+			$this->db,
+			null,
+			$transactions,
+			$shares,
+		);
+	}
 
-        $this->service->executeFactoryReset('user1');
-    }
+	public function testResetRemovesTheUsersPendingBillRowsFromOtherUsersAccounts(): void {
+		// A share recipient's bill pre-books into the owner's account. The
+		// transactions delete only reaches the user's own accounts, so those
+		// rows outlived the bill and the scheduled job booked them later.
+		$transactions = $this->createMock(TransactionService::class);
+		$rent = new Bill();
+		$rent->setId(4);
+		$gym = new Bill();
+		$gym->setId(5);
+		$this->billMapper->method('findAll')->with('user1')->willReturn([$rent, $gym]);
+		$deleted = [];
+		$transactions->method('deleteScheduledBillTransactions')
+			->willReturnCallback(function (int $billId) use (&$deleted) {
+				$deleted[] = $billId;
+			});
 
-    public function testExecuteFactoryResetHandlesMissingTables(): void {
-        $this->db->method('beginTransaction');
-        $this->db->method('commit');
+		$this->serviceWith($transactions)->executeFactoryReset('user1');
 
-        // Most mappers succeed
-        $this->transactionSplitMapper->method('deleteAll')->willReturn(0);
-        $this->transactionMapper->method('deleteAll')->willReturn(0);
-        $this->billMapper->method('deleteAll')->willReturn(0);
-        $this->recurringIncomeMapper->method('deleteAll')->willReturn(0);
-        $this->pensionContributionMapper->method('deleteAll')->willReturn(0);
-        $this->accountMapper->method('deleteAll')->willReturn(0);
-        $this->pensionAccountMapper->method('deleteAll')->willReturn(0);
-        $this->contactMapper->method('deleteAll')->willReturn(0);
-        $this->savingsGoalMapper->method('deleteAll')->willReturn(0);
-        $this->categoryMapper->method('deleteAll')->willReturn(0);
-        $this->importRuleMapper->method('deleteAll')->willReturn(0);
-        $this->settingMapper->method('deleteAll')->willReturn(0);
-        $this->netWorthSnapshotMapper->method('deleteAll')->willReturn(0);
+		$this->assertSame([4, 5], $deleted);
+	}
 
-        // Some tables don't exist yet
-        $this->expenseShareMapper->method('deleteAll')
-            ->willThrowException(new \Exception('no such table: budget_expense_shares'));
-        $this->settlementMapper->method('deleteAll')
-            ->willThrowException(new \Exception('no such table: budget_settlements'));
-        $this->pensionSnapshotMapper->method('deleteAll')
-            ->willThrowException(new \Exception("Table 'budget_pen_snaps' doesn't exist"));
-        $this->assetSnapshotMapper->method('deleteAll')
-            ->willThrowException(new \Exception('no such table: budget_asset_snapshots'));
-        $this->assetMapper->method('deleteAll')
-            ->willThrowException(new \Exception('no such table: budget_assets'));
+	public function testPurgingADeletedUserAlsoRemovesSharesGrantedToThem(): void {
+		// A reset keeps shares other users granted to this user; a deleted
+		// user's must go, or a re-created uid inherits write access to them
+		$shares = $this->createMock(ShareMapper::class);
+		$shares->expects($this->once())->method('deleteAllForUser')->with('gone');
+		$this->billMapper->method('findAll')->willReturn([]);
 
-        $counts = $this->service->executeFactoryReset('user1');
+		$this->serviceWith($this->createMock(TransactionService::class), $shares)->purgeDeletedUser('gone');
 
-        // Missing tables should return 0
-        $this->assertEquals(0, $counts['expenseShares']);
-        $this->assertEquals(0, $counts['settlements']);
-    }
+		$this->assertContains('budget_accounts', $this->deletedTables());
+	}
 
-    public function testExecuteFactoryResetClearsProjects(): void {
-        $this->projectAllocationMapper->expects($this->once())->method('deleteAll')->with('user1')->willReturn(3);
-        $this->projectMapper->expects($this->once())->method('deleteAll')->with('user1')->willReturn(1);
+	private function purgingService(ShareMapper $shares, ContactMapper $contacts, ?CrossUserLinks $links = null): FactoryResetService {
+		return new FactoryResetService(
+			$this->accountMapper,
+			$this->transactionMapper,
+			$this->billMapper,
+			$this->categoryMapper,
+			$this->importRuleMapper,
+			$this->settingMapper,
+			$this->attachmentMapper,
+			$this->db,
+			null,
+			$this->createMock(TransactionService::class),
+			$shares,
+			$contacts,
+			$links,
+		);
+	}
 
-        $counts = $this->service->executeFactoryReset('user1');
+	/**
+	 * Shared expenses reach their recipient through a contact linked to
+	 * their uid, so a new account given a deleted user's uid saw everything
+	 * shared with the old one: the purge revokes that access. It does so in
+	 * the same transaction as the data, after it, so it is gone exactly when
+	 * the data is gone.
+	 */
+	public function testPurgingADeletedUserRevokesAccessWithTheDataInsideTheTransaction(): void {
+		$this->billMapper->method('findAll')->willReturn([]);
+		$this->db->method('beginTransaction')->willReturnCallback(function () {
+			$this->deletes[] = ['table' => 'BEGIN', 'sql' => null, 'params' => []];
+		});
+		$this->db->method('commit')->willReturnCallback(function () {
+			$this->deletes[] = ['table' => 'COMMIT', 'sql' => null, 'params' => []];
+		});
+		$shares = $this->createMock(ShareMapper::class);
+		$shares->expects($this->once())->method('deleteAllForUser')->with('gone')
+			->willReturnCallback(function () {
+				$this->deletes[] = ['table' => 'shares', 'sql' => null, 'params' => []];
+			});
+		$contacts = $this->createMock(ContactMapper::class);
+		$contacts->expects($this->once())->method('unlinkNextcloudUser')->with('gone')
+			->willReturnCallback(function () {
+				$this->deletes[] = ['table' => 'contacts', 'sql' => null, 'params' => []];
+				return 2;
+			});
 
-        $this->assertSame(3, $counts['projectAllocations']);
-        $this->assertSame(1, $counts['projects']);
-    }
+		$this->purgingService($shares, $contacts)->purgeDeletedUser('gone');
+
+		$order = array_flip($this->deletedTables());
+		$this->assertSame(0, $order['BEGIN']);
+		$this->assertGreaterThan($order['budget_accounts'], $order['shares']);
+		$this->assertGreaterThan($order['budget_transactions'], $order['shares']);
+		$this->assertSame(['shares', 'contacts', 'COMMIT'], array_slice($this->deletedTables(), -3));
+	}
+
+	/**
+	 * A purge that fails part way must leave the data as it was, so it can
+	 * be run again (`occ budget:purge-deleted-users`). Deleting the shares
+	 * first, outside the transaction, left the data behind and took away
+	 * the shared links a second run needs to cut. (The access others gave
+	 * the uid is still cut: see the next test.)
+	 */
+	public function testAFailedPurgeLeavesTheDataSoItCanBeRunAgain(): void {
+		$rent = new Bill();
+		$rent->setId(4);
+		$this->billMapper->method('findAll')->willReturn([$rent]);
+		$transactions = $this->createMock(TransactionService::class);
+		$transactions->expects($this->once())->method('deleteScheduledBillTransactions')->with(4)
+			->willReturnCallback(function () {
+				$this->deletes[] = ['table' => 'pending bill rows', 'sql' => null, 'params' => []];
+			});
+		$this->db->method('beginTransaction')->willReturnCallback(function () {
+			$this->deletes[] = ['table' => 'BEGIN', 'sql' => null, 'params' => []];
+		});
+		$this->db->expects($this->never())->method('commit');
+		$this->db->expects($this->once())->method('rollBack');
+		$this->failingTables['budget_expense_shares'] = 'DB error';
+		$shares = $this->createMock(ShareMapper::class);
+		// Shares the uid granted are its data: they stay for the second run
+		$shares->expects($this->never())->method('deleteAllForUser');
+		$contacts = $this->createMock(ContactMapper::class);
+		$service = new FactoryResetService(
+			$this->accountMapper, $this->transactionMapper, $this->billMapper, $this->categoryMapper,
+			$this->importRuleMapper, $this->settingMapper, $this->attachmentMapper, $this->db,
+			null, $transactions, $shares, $contacts,
+		);
+
+		try {
+			$service->purgeDeletedUser('gone');
+			$this->fail('the failure must reach the caller');
+		} catch (\Exception $e) {
+			$this->assertSame('DB error', $e->getMessage());
+		}
+
+		// The pending bill rows went inside the transaction that rolled back
+		$this->assertSame(['BEGIN', 'pending bill rows'], array_slice($this->deletedTables(), 0, 2));
+	}
+
+	/**
+	 * The data of a failed purge stays for a second run, but the access
+	 * other users gave the deleted uid must not wait for it: a re-created
+	 * account with the same uid would inherit it. After the rollback the
+	 * shares granted to them and the contacts linked to them go on their
+	 * own; the shares they granted are their data and stay with it.
+	 */
+	public function testAFailedPurgeStillCutsTheAccessOtherUsersGaveTheUid(): void {
+		$this->billMapper->method('findAll')->willReturn([]);
+		$this->failingTables['budget_expense_shares'] = 'DB error';
+		$steps = [];
+		$this->db->method('rollBack')->willReturnCallback(function () use (&$steps) {
+			$steps[] = 'rollback';
+		});
+		$this->db->expects($this->never())->method('commit');
+		$shares = $this->createMock(ShareMapper::class);
+		$shares->expects($this->never())->method('deleteAllForUser');
+		$shares->expects($this->once())->method('deleteSharedWithUser')->with('gone')
+			->willReturnCallback(function () use (&$steps) {
+				$steps[] = 'shares to the uid';
+				return 1;
+			});
+		$contacts = $this->createMock(ContactMapper::class);
+		$contacts->expects($this->once())->method('unlinkNextcloudUser')->with('gone')
+			->willReturnCallback(function () use (&$steps) {
+				$steps[] = 'contact links';
+				return 2;
+			});
+
+		try {
+			$this->purgingService($shares, $contacts)->purgeDeletedUser('gone');
+			$this->fail('the failure must reach the caller');
+		} catch (\Exception $e) {
+			$this->assertSame('DB error', $e->getMessage());
+		}
+
+		$this->assertSame(['rollback', 'shares to the uid', 'contact links'], $steps);
+	}
+
+	public function testAPurgeFailingBeforeItsTransactionStillCutsTheAccess(): void {
+		// Reading what to delete can fail before the transaction starts:
+		// the access other users gave the uid must go all the same
+		$this->billMapper->method('findAll')->willThrowException(new \RuntimeException('bills table locked'));
+		$this->db->expects($this->never())->method('beginTransaction');
+		$shares = $this->createMock(ShareMapper::class);
+		$shares->expects($this->once())->method('deleteSharedWithUser')->with('gone');
+		$contacts = $this->createMock(ContactMapper::class);
+		$contacts->expects($this->once())->method('unlinkNextcloudUser')->with('gone');
+
+		$this->expectExceptionMessage('bills table locked');
+		$this->purgingService($shares, $contacts)->purgeDeletedUser('gone');
+	}
+
+	public function testAFailingRevocationIsLoggedAndTheOtherStillRuns(): void {
+		$this->billMapper->method('findAll')->willReturn([]);
+		$this->failingTables['budget_expense_shares'] = 'DB error';
+		$shares = $this->createMock(ShareMapper::class);
+		$shares->method('deleteSharedWithUser')->willThrowException(new \RuntimeException('shares table locked'));
+		$contacts = $this->createMock(ContactMapper::class);
+		$contacts->expects($this->once())->method('unlinkNextcloudUser')->with('gone');
+		$logger = $this->createMock(LoggerInterface::class);
+		$logger->expects($this->once())->method('error')
+			->with($this->stringContains('shares'), $this->callback(
+				fn (array $context) => ($context['app'] ?? null) === 'budget' && ($context['user'] ?? null) === 'gone'
+			));
+		$service = new FactoryResetService(
+			$this->accountMapper, $this->transactionMapper, $this->billMapper, $this->categoryMapper,
+			$this->importRuleMapper, $this->settingMapper, $this->attachmentMapper, $this->db,
+			null, $this->createMock(TransactionService::class), $shares, $contacts, null, $logger,
+		);
+
+		$this->expectExceptionMessage('DB error');
+		$service->purgeDeletedUser('gone');
+	}
+
+	public function testAFailedFactoryResetRevokesNothing(): void {
+		// The user still exists: their access is theirs to keep
+		$this->billMapper->method('findAll')->willReturn([]);
+		$this->failingTables['budget_expense_shares'] = 'DB error';
+		$shares = $this->createMock(ShareMapper::class);
+		$shares->expects($this->never())->method('deleteSharedWithUser');
+		$contacts = $this->createMock(ContactMapper::class);
+		$contacts->expects($this->never())->method('unlinkNextcloudUser');
+
+		$this->expectExceptionMessage('DB error');
+		$this->purgingService($shares, $contacts)->executeFactoryReset('user1');
+	}
+
+	public function testAResetLeavesContactLinksToTheUserAlone(): void {
+		// The user still exists after a reset: other people's contacts for
+		// them are still right
+		$contacts = $this->createMock(ContactMapper::class);
+		$contacts->expects($this->never())->method('unlinkNextcloudUser');
+		$shares = $this->createMock(ShareMapper::class);
+		$shares->expects($this->never())->method('deleteAllForUser');
+		$this->billMapper->method('findAll')->willReturn([]);
+
+		$this->purgingService($shares, $contacts)->executeFactoryReset('user1');
+	}
+
+	/**
+	 * Other users' rows that used the user's shared accounts and categories
+	 * are read before anything goes and cut loose inside the reset, so a
+	 * failure rolls the cut back with the rest.
+	 */
+	public function testOtherUsersLinksAreReadFirstAndCutBeforeTheCommit(): void {
+		$this->billMapper->method('findAll')->willReturn([]);
+		$links = $this->createMock(CrossUserLinks::class);
+		$links->expects($this->once())->method('capture')->with('user1')
+			->willReturnCallback(function () {
+				$this->assertSame([], $this->deletes, 'links are read before anything is deleted');
+			});
+		$links->expects($this->once())->method('apply')->with([])
+			->willReturnCallback(function () {
+				$this->assertContains('budget_categories', $this->deletedTables());
+				$this->deletes[] = ['table' => 'links cut', 'sql' => null, 'params' => []];
+				return ['sharesDropped' => 0, 'othersDetached' => 0];
+			});
+		$this->db->expects($this->once())->method('commit')->willReturnCallback(function () {
+			$this->assertContains('links cut', $this->deletedTables());
+		});
+
+		$this->purgingService($this->createMock(ShareMapper::class), $this->createMock(ContactMapper::class), $links)
+			->executeFactoryReset('user1');
+	}
+
+	public function testResetClearsTheBespokeEntitiesAndAttachmentRows(): void {
+		$this->service->executeFactoryReset('user1');
+
+		foreach (['budget_transactions', 'budget_bills', 'budget_import_rules', 'budget_accounts',
+			'budget_categories', 'budget_settings', 'budget_attachments'] as $table) {
+			$this->assertContains($table, $this->deletedTables());
+		}
+	}
+
+	/**
+	 * Transaction tags and splits are only reachable by joining through
+	 * transactions -> accounts; tag sets through categories. Deleting a
+	 * parent first orphans them for good (#359).
+	 */
+	public function testJoinScopedTablesAreClearedBeforeTheirParents(): void {
+		$this->service->executeFactoryReset('user1');
+		$order = array_flip($this->deletedTables());
+
+		foreach (MigrationService::EXTRA_TABLES_PRE + MigrationService::EXTRA_TABLES_POST as $spec) {
+			if (($spec['scope'] ?? 'user') === 'user') {
+				continue;
+			}
+			foreach ($spec['scope']['joins'] as [$parent]) {
+				$this->assertLessThan($order[$parent], $order[$spec['table']],
+					"{$spec['table']} must be cleared before $parent");
+			}
+		}
+		$this->assertLessThan($order['budget_accounts'], $order['budget_transactions'],
+			'transactions are found through their account');
+	}
+
+	public function testTransactionTagsAreClearedThroughTheUsersTransactions(): void {
+		$this->service->executeFactoryReset('user1');
+
+		$tagDelete = array_values(array_filter($this->deletes, fn ($d) => $d['table'] === 'budget_transaction_tags'))[0];
+		$this->assertStringContainsString('transaction_id IN (SELECT id FROM *PREFIX*budget_transactions', $tagDelete['sql']);
+		$this->assertStringContainsString('budget_accounts WHERE user_id = ?', $tagDelete['sql']);
+	}
+
+	/**
+	 * A write recipient's tags on the owner's rows are found through the
+	 * tags, not the user's transactions, so they go while the tags are still
+	 * there (T4-11).
+	 */
+	public function testTheUsersTagsOnOtherUsersRowsAreClearedBeforeTheTags(): void {
+		$this->service->executeFactoryReset('user1');
+
+		$byTag = array_keys(array_filter($this->deletes, fn ($d) => $d['table'] === 'budget_transaction_tags'
+			&& str_contains((string)$d['sql'], 'tag_id IN (SELECT id FROM *PREFIX*budget_tags WHERE user_id = ?)')));
+		$tags = array_keys(array_filter($this->deletes, fn ($d) => $d['table'] === 'budget_tags'));
+		$this->assertCount(1, $byTag);
+		$this->assertLessThan($tags[0], $byTag[0]);
+	}
+
+	public function testExecuteFactoryResetCommitsAndReportsCounts(): void {
+		$this->db->expects($this->once())->method('beginTransaction');
+		$this->db->expects($this->once())->method('commit');
+		$this->db->expects($this->never())->method('rollBack');
+
+		$counts = $this->service->executeFactoryReset('user1');
+
+		$this->assertSame(1, $counts['transactions']);
+		$this->assertSame(1, $counts['accounts']);
+		$this->assertSame(1, $counts['categories']);
+		$this->assertSame(1, $counts['settings']);
+		$this->assertSame(1, $counts['attachments']);
+		$this->assertSame(1, $counts['transaction_tags']);
+		$this->assertSame(1, $counts['tag_sets']);
+	}
+
+	public function testExecuteFactoryResetRollsBackOnError(): void {
+		$this->db->expects($this->once())->method('beginTransaction');
+		$this->db->expects($this->never())->method('commit');
+		$this->db->expects($this->once())->method('rollBack');
+
+		$this->failingTables['budget_expense_shares'] = 'DB error';
+
+		$this->expectException(\Exception::class);
+		$this->expectExceptionMessage('DB error');
+
+		$this->service->executeFactoryReset('user1');
+	}
+
+	public function testExecuteFactoryResetHandlesMissingTables(): void {
+		$this->failingTables['budget_expense_shares'] = 'no such table: oc_budget_expense_shares';
+		$this->failingTables['budget_pen_snaps'] = "Table 'nc.oc_budget_pen_snaps' doesn't exist";
+		$this->failingTables['budget_attachments'] = 'no such table: oc_budget_attachments';
+
+		$counts = $this->service->executeFactoryReset('user1');
+
+		$this->assertSame(0, $counts['expense_shares']);
+		$this->assertSame(0, $counts['pen_snaps']);
+		$this->assertSame(0, $counts['attachments']);
+		$this->assertSame(1, $counts['transactions']);
+	}
 }

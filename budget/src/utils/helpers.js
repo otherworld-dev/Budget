@@ -2,6 +2,8 @@
  * General utility helper functions
  */
 
+import { apiFetch } from './api.js';
+
 /**
  * Debounce function calls to limit execution rate
  * @param {Function} func - Function to debounce
@@ -36,14 +38,9 @@ export async function downloadTransactionsCsv(params, filename) {
         query.set('filename', filename);
     }
 
-    const response = await fetch(
-        OC.generateUrl('/apps/budget/api/transactions/export?' + query.toString()),
-        { headers: { 'requesttoken': OC.requestToken } }
-    );
-
-    if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
+    const response = await apiFetch('/apps/budget/api/transactions/export?' + query.toString(), {
+        responseType: 'response',
+    });
 
     const blob = await response.blob();
     const disposition = response.headers.get('Content-Disposition') || '';
@@ -106,6 +103,34 @@ export function hasSplitPortion(tx) {
  */
 export function transactionDisplayAmount(tx) {
     return hasSplitPortion(tx) ? tx.matchedSplitAmount : (tx?.amount ?? 0);
+}
+
+/**
+ * The transactions list's total, one figure per currency: adding a euro
+ * row to a pound row as if they were the same money gave a total in
+ * neither. Scheduled rows (no money has moved yet, #311) are left out, and
+ * a split part counts for its share under a category filter (#359). The
+ * most common currency comes first.
+ *
+ * @param {Array<object>} transactions - Rows as the list API returns them
+ * @param {string} fallbackCurrency - For a row with no account currency
+ * @returns {Array<{currency: string, total: number}>}
+ */
+export function transactionTotalsByCurrency(transactions, fallbackCurrency) {
+    const totals = new Map();
+    (transactions || []).forEach(tx => {
+        const currency = tx.accountCurrency || fallbackCurrency;
+        const entry = totals.get(currency) || { currency, total: 0, rows: 0 };
+        entry.rows++;
+        if (tx.status !== 'scheduled') {
+            const amount = Number(transactionDisplayAmount(tx)) || 0;
+            entry.total += tx.type === 'credit' ? amount : -amount;
+        }
+        totals.set(currency, entry);
+    });
+    return [...totals.values()]
+        .sort((a, b) => b.rows - a.rows)
+        .map(({ currency, total }) => ({ currency, total }));
 }
 
 /**

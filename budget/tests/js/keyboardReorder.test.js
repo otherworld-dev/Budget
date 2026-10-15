@@ -1,0 +1,164 @@
+/**
+ * Reordering without a pointer.
+ *
+ * The category tree, the dashboard's hero tiles and grid tiles, and the
+ * accounts tile's account list could only be reordered by dragging, which a
+ * keyboard (and, for HTML5 drag, a touch screen) cannot do. The category tree
+ * takes Alt+Arrow keys, like the accounts column list already did; the
+ * dashboard gets Move earlier / Move later buttons in its unlocked tile
+ * toolbar. Each saves through the same path a drop does.
+ */
+
+import { describe, it, expect, afterEach, vi } from 'vitest';
+
+vi.mock('@nextcloud/l10n', () => ({
+    translate: (_app, text, params = {}) =>
+        String(text).replace(/\{(\w+)\}/g, (m, k) => (k in params ? params[k] : m)),
+    translatePlural: (_app, singular, plural, count) => (count === 1 ? singular : plural),
+    getLanguage: () => 'en',
+    getLocale: () => 'en',
+}));
+
+import CategoriesModule from '../../src/modules/categories/CategoriesModule.js';
+import DashboardModule from '../../src/modules/dashboard/DashboardModule.js';
+
+afterEach(() => {
+    document.body.innerHTML = '';
+});
+
+const node = (id, children = '') => `
+    <div class="category-node">
+        <div class="category-item" data-category-id="${id}" tabindex="0"></div>
+        ${children ? `<div class="category-children">${children}</div>` : ''}
+    </div>`;
+
+describe('category tree: Alt+Arrow targets', () => {
+    function tree() {
+        document.body.innerHTML = `<div id="categories-tree">${node(1)}${node(2, node(21) + node(22))}${node(3)}</div>`;
+        const mod = Object.create(CategoriesModule.prototype);
+        const item = (id) => document.querySelector(`.category-item[data-category-id="${id}"]`);
+        return { mod, item };
+    }
+
+    it('moves up and down among siblings', () => {
+        const { mod, item } = tree();
+        expect(mod.keyboardReorderTarget(item(2), 'ArrowUp')).toEqual({ targetId: 1, position: 'above' });
+        expect(mod.keyboardReorderTarget(item(2), 'ArrowDown')).toEqual({ targetId: 3, position: 'below' });
+        expect(mod.keyboardReorderTarget(item(22), 'ArrowUp')).toEqual({ targetId: 21, position: 'above' });
+    });
+
+    it('stops at the ends of a sibling group', () => {
+        const { mod, item } = tree();
+        expect(mod.keyboardReorderTarget(item(1), 'ArrowUp')).toBeNull();
+        expect(mod.keyboardReorderTarget(item(3), 'ArrowDown')).toBeNull();
+        expect(mod.keyboardReorderTarget(item(21), 'ArrowUp')).toBeNull();
+    });
+
+    it('nests under the category above, and moves out to the parent level', () => {
+        const { mod, item } = tree();
+        expect(mod.keyboardReorderTarget(item(3), 'ArrowRight')).toEqual({ targetId: 2, position: 'child' });
+        expect(mod.keyboardReorderTarget(item(21), 'ArrowLeft')).toEqual({ targetId: 2, position: 'below' });
+        expect(mod.keyboardReorderTarget(item(1), 'ArrowLeft')).toBeNull();
+    });
+
+    it('ignores keys that are not a move', () => {
+        const { mod, item } = tree();
+        expect(mod.keyboardReorderTarget(item(2), 'Enter')).toBeUndefined();
+    });
+
+    it('Alt+ArrowUp on a focused item calls the same reorder a drop does', () => {
+        const { mod, item } = tree();
+        mod.reorderCategory = vi.fn().mockResolvedValue();
+        mod.setupDragAndDrop();
+
+        item(2).dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', altKey: true, bubbles: true }));
+
+        expect(mod.reorderCategory).toHaveBeenCalledWith(2, 1, 'above');
+    });
+});
+
+describe('category tree: drops inside the dragged branch', () => {
+    function tree() {
+        document.body.innerHTML = `<div id="categories-tree">${node(1)}${node(2, node(21, node(211)) + node(22))}${node(3)}</div>`;
+        const mod = Object.create(CategoriesModule.prototype);
+        mod.reorderCategory = vi.fn().mockResolvedValue();
+        mod.getDropPosition = vi.fn().mockReturnValue('above');
+        mod.showDropIndicator = vi.fn();
+        mod.setupDragAndDrop();
+        const item = (id) => document.querySelector(`.category-item[data-category-id="${id}"]`);
+        const drop = (draggedId, targetId) => {
+            const event = new Event('drop', { bubbles: true, cancelable: true });
+            event.dataTransfer = { getData: () => String(draggedId) };
+            item(targetId).dispatchEvent(event);
+        };
+        return { mod, item, drop };
+    }
+
+    it("knows which items sit inside a category's own branch", () => {
+        const { mod, item } = tree();
+        expect(mod.isDropInOwnBranch(2, item(21))).toBe(true);
+        expect(mod.isDropInOwnBranch(2, item(211))).toBe(true);
+        expect(mod.isDropInOwnBranch(2, item(3))).toBe(false);
+        expect(mod.isDropInOwnBranch(21, item(2))).toBe(false);
+    });
+
+    it("ignores a drop on one of the dragged category's own subcategories", () => {
+        const { mod, drop } = tree();
+        drop(2, 21);
+        drop(2, 211);
+        expect(mod.reorderCategory).not.toHaveBeenCalled();
+    });
+
+    it('still reorders onto a category outside the branch', () => {
+        const { mod, drop } = tree();
+        drop(21, 3);
+        expect(mod.reorderCategory).toHaveBeenCalledWith(21, 3, 'above');
+    });
+});
+
+describe('dashboard hero tiles: Move earlier / later', () => {
+    function hero() {
+        document.body.innerHTML = `<div class="dashboard-hero">
+            <div class="hero-card" data-widget-category="hero" data-widget-id="a"></div>
+            <div class="hero-card" data-widget-category="hero" data-widget-id="b" style="display: none"></div>
+            <div class="hero-card" data-widget-category="hero" data-widget-id="c"></div>
+        </div>`;
+        const mod = Object.create(DashboardModule.prototype);
+        mod.app = { dashboardConfig: {} };
+        mod.saveDashboardVisibility = vi.fn();
+        return mod;
+    }
+    const order = () => Array.from(document.querySelectorAll('.hero-card')).map(c => c.dataset.widgetId);
+
+    it('swaps with the next visible tile and saves the order', () => {
+        const mod = hero();
+        const a = document.querySelector('[data-widget-id="a"]');
+
+        expect(mod.moveHeroTile(a, 1)).toBe(true);
+
+        expect(order()).toEqual(['b', 'c', 'a']);
+        expect(mod.dashboardConfig.hero.order).toEqual(['b', 'c', 'a']);
+        expect(mod.saveDashboardVisibility).toHaveBeenCalledWith('hero');
+    });
+
+    it('shows the move at once below 1200px, where the tiles carry a CSS order', () => {
+        // applyDashboardLayout pins each hero tile's place with style.order
+        // at narrow widths, so moving the element alone changed nothing on
+        // screen until a reload.
+        const mod = hero();
+        document.querySelectorAll('.hero-card').forEach((c, i) => { c.style.order = String(i); });
+        const a = document.querySelector('[data-widget-id="a"]');
+
+        mod.moveHeroTile(a, 1);
+
+        document.querySelectorAll('.hero-card').forEach(c => expect(c.style.order).toBe(''));
+    });
+
+    it('does nothing at the start of the row', () => {
+        const mod = hero();
+        const a = document.querySelector('[data-widget-id="a"]');
+
+        expect(mod.moveHeroTile(a, -1)).toBe(false);
+        expect(mod.saveDashboardVisibility).not.toHaveBeenCalled();
+    });
+});

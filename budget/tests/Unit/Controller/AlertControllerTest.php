@@ -90,7 +90,8 @@ class AlertControllerTest extends TestCase {
 
 	public function testSummaryReturnsData(): void {
 		$summary = ['totalBudgeted' => 2000, 'totalSpent' => 1500, 'alertCount' => 3];
-		$this->service->method('getSummary')->with('user1')->willReturn($summary);
+		// Measured over the same accounts as the alerts and status routes
+		$this->service->method('getSummary')->with('user1', [7, 9])->willReturn($summary);
 
 		$response = $this->controller->summary();
 

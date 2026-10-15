@@ -25,24 +25,24 @@ use OCP\AppFramework\Db\Entity;
  * @method void setAmount(float $amount)
  */
 class ProjectAllocation extends Entity implements JsonSerializable {
-    protected $userId;
-    protected $projectId;
-    protected $categoryId;
-    protected $amount;
+	protected $userId;
+	protected $projectId;
+	protected $categoryId;
+	protected $amount;
 
-    public function __construct() {
-        $this->addType('id', 'integer');
-        $this->addType('projectId', 'integer');
-        $this->addType('categoryId', 'integer');
-        $this->addType('amount', 'float');
-    }
+	public function __construct() {
+		$this->addType('id', 'integer');
+		$this->addType('projectId', 'integer');
+		$this->addType('categoryId', 'integer');
+		$this->addType('amount', 'float');
+	}
 
-    public function jsonSerialize(): array {
-        return [
-            'id' => $this->getId(),
-            'projectId' => $this->getProjectId(),
-            'categoryId' => $this->getCategoryId(),
-            'amount' => $this->getAmount(),
-        ];
-    }
+	public function jsonSerialize(): array {
+		return [
+			'id' => $this->getId(),
+			'projectId' => $this->getProjectId(),
+			'categoryId' => $this->getCategoryId(),
+			'amount' => $this->getAmount(),
+		];
+	}
 }

@@ -3,7 +3,7 @@
   "info": {
     "title": "Nextcloud Budget REST API",
     "version": "1.0",
-    "description": "Public, versioned API for reading a Budget instance and recording transactions from outside the web UI — a phone capture app, a script, or automation tooling.\n\nAuthenticate with a Nextcloud app password (personal settings > Security), or a token obtained through Nextcloud's Login flow v2. Every request must also send `OCS-APIRequest: true`; without it Nextcloud answers 412.\n\nEvery response is wrapped in an OCS envelope — the payload is at `ocs.data`, and `ocs.meta.statuscode` mirrors the HTTP status. Schemas below describe the contents of `ocs.data`.\n\nThe internal endpoints the web UI itself calls (under /apps/budget/api/..., without /ocs/) are not part of this contract and change without notice.",
+    "description": "Public, versioned API for reading a Budget instance and recording, editing and deleting transactions from outside the web UI — a phone capture app, a script, or automation tooling.\n\nAuthenticate with a Nextcloud app password (personal settings > Security), or a token obtained through Nextcloud's Login flow v2. Every request must also send `OCS-APIRequest: true`; without it Nextcloud answers 412.\n\nEvery answer from this API is wrapped in an OCS envelope: the payload is at `ocs.data`, and `ocs.meta.statuscode` mirrors the HTTP status. Schemas below describe the contents of `ocs.data`.\n\nSome errors come from Nextcloud itself, before the request reaches the API, and follow its conventions instead: 401 when not authenticated (`ocs.meta.statuscode` 997), 404 for an unknown route (998), 500 for a body that is not valid JSON (996), 412 with a plain `{\"message\": \"CSRF check failed\"}` and no envelope when the OCS-APIRequest header is missing, and 429 with an empty body when a rate limit is reached. Branch on the HTTP status, never on `statuscode`.\n\nThe internal endpoints the web UI itself calls (under /apps/budget/api/..., without /ocs/) are not part of this contract and change without notice.",
     "license": {
       "name": "AGPL-3.0",
       "url": "https://www.gnu.org/licenses/agpl-3.0.html"
@@ -45,6 +45,18 @@
     {
       "name": "receipts",
       "description": "Receipt extraction (capture-before-save)"
+    },
+    {
+      "name": "budgets",
+      "description": "Read-only budget figures"
+    },
+    {
+      "name": "bills",
+      "description": "Read-only bills"
+    },
+    {
+      "name": "tags",
+      "description": "Tags on transactions (read only)"
     }
   ],
   "paths": {
@@ -55,7 +67,7 @@
         ],
         "operationId": "getInfo",
         "summary": "Server info and capabilities",
-        "description": "Call this first. Confirms the app is installed and the credentials work, and reports which optional features this instance has.",
+        "description": "Call this first. Confirms the app is installed and the credentials work, and reports which optional features this instance has. Answers at the server URL with or without a trailing slash (.../api/v1 and .../api/v1/).",
         "responses": {
           "200": {
             "description": "Server info",
@@ -190,6 +202,54 @@
         }
       }
     },
+    "/tags": {
+      "get": {
+        "tags": [
+          "tags"
+        ],
+        "operationId": "listTags",
+        "summary": "List tags",
+        "description": "The user's own tags: the global ones first, then each tag set in the order set in the web UI. Hidden tags are listed too, flagged. Then the category tags of categories other people have shared with the user, which are the tags that can be put on transactions in their shared accounts; owner says whose each is. Their global tags are never listed, as they cannot be used. Check tags_available on GET /capabilities first: an older server answers 404.",
+        "responses": {
+          "200": {
+            "description": "Tags",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/OcsEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "ocs": {
+                          "type": "object",
+                          "properties": {
+                            "data": {
+                              "type": "array",
+                              "items": {
+                                "$ref": "#/components/schemas/Tag"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorised"
+          },
+          "412": {
+            "$ref": "#/components/responses/MissingOcsHeader"
+          }
+        }
+      }
+    },
     "/transactions": {
       "get": {
         "tags": [
@@ -197,7 +257,7 @@
         ],
         "operationId": "listTransactions",
         "summary": "List transactions",
-        "description": "Most recent first, across every account the user can see.",
+        "description": "Most recent first, across every account the user can see. Before using type, status, reconciled, uncategorized, tagId, amountMin or amountMax, look the filter up in transaction_filters on GET /capabilities: a server that does not have a filter ignores it and answers with the unfiltered list. A filter value this server cannot read is a 400, never a guess.",
         "parameters": [
           {
             "name": "accountId",
@@ -242,6 +302,75 @@
             "description": "Free-text match on description and vendor."
           },
           {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "debit",
+                "credit"
+              ]
+            },
+            "description": "Money out (debit) or money in (credit)."
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "cleared",
+                "scheduled",
+                "pending"
+              ]
+            },
+            "description": "cleared: recorded. scheduled: dated in the future. pending: reported by the bank and not yet posted."
+          },
+          {
+            "name": "reconciled",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "true for reconciled transactions only, false for all the rest."
+          },
+          {
+            "name": "uncategorized",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "true for transactions with no category that are not split; cannot be combined with categoryId. false for all the rest: transactions with a category, and split transactions (their categories are on their parts). The two never overlap and together are the whole list. false may be combined with categoryId."
+          },
+          {
+            "name": "tagId",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Transactions carrying this tag. An id that does not exist gives an empty list."
+          },
+          {
+            "name": "amountMin",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d+(\\.\\d+)?$",
+              "example": "20.50"
+            },
+            "description": "Lowest amount, inclusive: plain digits with an optional decimal part. amount is the stored figure, which is positive (type carries the direction)."
+          },
+          {
+            "name": "amountMax",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d+(\\.\\d+)?$",
+              "example": "20.50"
+            },
+            "description": "Highest amount, inclusive."
+          },
+          {
             "name": "limit",
             "in": "query",
             "schema": {
@@ -250,7 +379,7 @@
               "minimum": 1,
               "maximum": 200
             },
-            "description": "Values above the maximum are clamped, not rejected."
+            "description": "Clamped to 1-200, never rejected; a value that is not a number gets the default."
           },
           {
             "name": "offset",
@@ -259,7 +388,8 @@
               "type": "integer",
               "default": 0,
               "minimum": 0
-            }
+            },
+            "description": "A negative value, or one that is not a number, reads as 0."
           }
         ],
         "responses": {
@@ -307,7 +437,7 @@
         ],
         "operationId": "createTransaction",
         "summary": "Record a transaction",
-        "description": "Record a transaction. Rate limited to 60 per minute per user. The account balance is recalculated automatically. Writing into an account shared by another user records the transaction against that owner ledger. An idempotency_key (or Idempotency-Key header) makes retries safe: a repeat within 7 days answers 201 with the transaction the first attempt recorded. An optional multipart photo is attached after recording; if attaching fails the response still succeeds and carries photo_error.",
+        "description": "Record a transaction. Rate limited to 60 per minute per user. The account balance is recalculated automatically. Writing into an account shared by another user records the transaction against that owner ledger. An idempotency_key (or Idempotency-Key header) makes retries safe: a repeat within 7 days answers 201 with the transaction the first attempt recorded. An optional multipart photo is attached after recording; if attaching fails the response still succeeds and carries photo_error. With transfer_account_id the transaction is one side of a transfer and its other side is created in that account. The two are recorded together or not at all, so a transfer is never left half recorded, and the idempotency key covers the pair.",
         "requestBody": {
           "required": true,
           "content": {
@@ -350,6 +480,11 @@
                                     "photo_error": {
                                       "type": "string",
                                       "description": "Present only when the transaction was recorded but the inline photo could not be attached. Never re-post in that case; retry with the same idempotency_key (which heals the photo) or attach via POST /transactions/{id}/receipts."
+                                    },
+                                    "category_error": {
+                                      "type": "string",
+                                      "description": "Present only when the category_id sent is not one the account owner can use or, on an account shared with you, not one you can see (one of the owner's categories that was never shared with you; the message is then \"Category not found\"). The transaction is recorded anyway, uncategorised (category_id null), so never re-post; set a category later with PATCH /transactions/{id}. A replay of the same idempotency_key returns the recorded transaction without this field.",
+                                      "example": "Category not found. It must be one of the account owner's categories"
                                     }
                                   }
                                 }
@@ -365,7 +500,14 @@
             }
           },
           "400": {
-            "$ref": "#/components/responses/BadRequest"
+            "description": "Invalid input; ocs.data.error says what. This includes a list or an object sent for a field that takes one value (\"vendor must be a single value\"), and a negative amount (error_code invalid_amount). A `category_id` the account owner cannot use is not a 400: see category_error. For a transfer: transfer_account_id equal to account_id (error_code transfer_same_account), two accounts in different currencies (error_code transfer_currency_mismatch; the web UI can link those, each side with its own amount), or splits sent as well (error_code transfer_split). A closed account_id or transfer_account_id answers error_code account_closed: a closed account takes no new transactions until it is reopened in the web UI. None of these records anything or spends the idempotency key. A retry of an idempotency_key that already recorded this transaction answers 201 with it rather than account_closed or a transfer refusal, whatever changed since.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
           },
           "401": {
             "$ref": "#/components/responses/Unauthorised"
@@ -383,7 +525,7 @@
             "$ref": "#/components/responses/RateLimited"
           },
           "409": {
-            "description": "error_code idempotency_key_conflict: the key was already used for a DIFFERENT transaction (another account or amount) - a client bug, not a retry. error_code request_in_flight: the original request carrying this key is still executing and did not finish within the wait - retry shortly, nothing was duplicated.",
+            "description": "error_code idempotency_key_conflict: the key was already used for a DIFFERENT transaction (another account or amount, or a transfer_account_id that is not where the transaction the key recorded went) - a client bug, not a retry. error_code request_in_flight: the original request carrying this key is still executing and did not finish within the wait - retry shortly, nothing was duplicated.",
             "content": {
               "application/json": {
                 "schema": {
@@ -391,6 +533,9 @@
                 }
               }
             }
+          },
+          "500": {
+            "$ref": "#/components/responses/MalformedBody"
           }
         }
       }
@@ -412,7 +557,7 @@
         ],
         "operationId": "getTransaction",
         "summary": "Get one transaction",
-        "description": "From any account the user can see. The joined accountName / accountCurrency / categoryName fields are not included here.",
+        "description": "From any account the user can see. The joined account_name / account_currency / category_name fields are not included here; splits and the transfer link (linked_transaction_id, linked_account_name) are.",
         "responses": {
           "200": {
             "description": "The transaction",
@@ -449,6 +594,150 @@
           },
           "412": {
             "$ref": "#/components/responses/MissingOcsHeader"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "transactions"
+        ],
+        "operationId": "updateTransaction",
+        "summary": "Edit a transaction",
+        "description": "Changes only the fields sent, through the same service as the web UI: balances are recalculated from the ledger, and a split transaction's parts are rescaled when its amount changes.\n\nWhere the web UI would warn first, this refuses with a 409 instead: the amount, type or date of one side of a transfer (transfer_leg), the same on a reconciled transaction without confirm_reconciled (reconciled), and a category on a split transaction (split). A value sent back unchanged never triggers these.\n\nMoving a transaction to another account, and changing its status or reconciled flag, are web-only.\n\nSafe to retry: the values sent are absolute, so sending the same request twice gives the same result.\n\nOn a shared account the change is written to the owner's ledger; a read-only share gets 403.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransactionEdit"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated transaction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/OcsEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "ocs": {
+                          "type": "object",
+                          "properties": {
+                            "data": {
+                              "$ref": "#/components/schemas/Transaction"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A malformed value (a list or an object for a field that takes one value: \"vendor must be a single value\"), nothing editable in the body, an amount that is not more than zero (error_code invalid_amount), or account_id, status or reconciled sent with a different value (error_code field_not_editable). A category_id the account owner cannot use answers \"Category not found. It must be one of the account owner's categories\"; on an account shared with you, a new category_id you cannot see (one of the owner's never shared with you) answers \"Category not found\". The category the transaction already has may always be sent back. A tag_ids value that is not a list of ids, or a newly added tag that cannot be put on this transaction, answers error_code invalid_tags and writes nothing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorised"
+          },
+          "403": {
+            "$ref": "#/components/responses/ReadOnly"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/MissingOcsHeader"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/MalformedBody"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "transactions"
+        ],
+        "operationId": "deleteTransaction",
+        "summary": "Delete a transaction",
+        "description": "Deletes the transaction with its splits, tags and receipt links (the receipt files stay in the user's Files), and recalculates the balance.\n\nOne side of a transfer is deleted on its own, as in the web UI: the other side stays as a plain transaction and its id comes back as unlinked_transaction_id.\n\nA reconciled transaction needs confirm_reconciled=true (as a query parameter), or the answer is 409 reconciled.\n\nA retry after a lost response gets 404: treat that as already deleted.",
+        "parameters": [
+          {
+            "name": "confirm_reconciled",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Required to delete a reconciled transaction."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/OcsEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "ocs": {
+                          "type": "object",
+                          "properties": {
+                            "data": {
+                              "$ref": "#/components/schemas/Deletion"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorised"
+          },
+          "403": {
+            "$ref": "#/components/responses/ReadOnly"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "412": {
+            "$ref": "#/components/responses/MissingOcsHeader"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           }
         }
       }
@@ -519,7 +808,7 @@
         ],
         "operationId": "uploadReceipt",
         "summary": "Attach a receipt photo",
-        "description": "Owner-only. The file is stored in the user's own Files under Budget/Receipts/<year>/ and referenced from the transaction. Rate limited to 10 per minute per user.",
+        "description": "Owner-only. The file is stored in the user's own Files, in their receipts folder (Budget/Receipts unless they changed it in Settings) under <year>/<month>/ of the transaction's date, and referenced from the transaction. Rate limited to 10 per minute per user.",
         "requestBody": {
           "required": true,
           "content": {
@@ -752,11 +1041,24 @@
             "$ref": "#/components/responses/Unauthorised"
           },
           "412": {
-            "description": "error_code ocr_not_configured: no OCR provider is set up on this server (ocr_available is false). A 412 WITHOUT an error_code is Nextcloud reporting a missing OCS-APIRequest header.",
+            "description": "error_code ocr_not_configured: no OCR provider is set up on this server (ocr_available is false). A 412 WITHOUT an error_code is Nextcloud reporting a missing OCS-APIRequest header, with a bare {\"message\": \"CSRF check failed\"} and no OCS envelope.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ErrorEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "message": {
+                          "type": "string",
+                          "example": "CSRF check failed"
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
@@ -785,9 +1087,65 @@
       }
     },
     "/transactions/{id}/splits": {
+      "get": {
+        "tags": [
+          "transactions"
+        ],
+        "operationId": "getSplits",
+        "summary": "A transaction's split parts",
+        "description": "The same parts list rows carry inline as `splits`; [] when the transaction isn't split (is_split false), even if parts from an earlier split are still stored. On a shared account the parts are read as the account's owner.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The parts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/OcsEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "ocs": {
+                          "type": "object",
+                          "properties": {
+                            "data": {
+                              "$ref": "#/components/schemas/SplitsEnvelope"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorised"
+          },
+          "412": {
+            "$ref": "#/components/responses/MissingOcsHeader"
+          }
+        }
+      },
       "post": {
         "summary": "Split a transaction into per-category parts",
-        "description": "Replaces any existing splits. The parts must sum to the transaction amount and there must be at least two. Intended for capture apps that read a receipt and let the user categorise each item.\n\nOwner-scoped: on a shared account the splits are written to the account owner's ledger, like the transaction and its receipts.",
+        "description": "Replaces any existing splits. The parts must sum to the transaction amount and there must be at least two. Intended for capture apps that read a receipt and let the user categorise each item.\n\nOwner-scoped: on a shared account the splits are written to the account owner's ledger, like the transaction and its receipts. A read-only share gets 403. Rate limited to 60 per minute per user.",
         "operationId": "createSplits",
         "tags": [
           "transactions"
@@ -867,14 +1225,48 @@
             }
           },
           "400": {
-            "description": "The parts do not sum to the transaction amount, there are fewer than two, or `splits` is not a usable array. The message states which.",
+            "description": "The parts do not sum to the transaction amount, there are fewer than two, a part's amount is zero or not a number, `splits` is not a usable array, or a part's `category_id` is not a category the account owner can use, or on an account shared with you one you cannot see and the transaction does not already carry (\"Category not found\"). ocs.data.error states which. The same text is also sent as ocs.data.message, which older clients read. Nothing is changed: a split transaction keeps the parts it had.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/OcsEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "ocs": {
+                          "type": "object",
+                          "properties": {
+                            "data": {
+                              "allOf": [
+                                {
+                                  "$ref": "#/components/schemas/Error"
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "message": {
+                                      "type": "string",
+                                      "description": "The same text as error. Kept for clients written before error was sent; read error.",
+                                      "deprecated": true
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
+          },
+          "403": {
+            "$ref": "#/components/responses/ReadOnly"
           },
           "404": {
             "description": "No such transaction for this user",
@@ -885,6 +1277,343 @@
                 }
               }
             }
+          },
+          "500": {
+            "$ref": "#/components/responses/MalformedBody"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorised"
+          },
+          "412": {
+            "$ref": "#/components/responses/MissingOcsHeader"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "transactions"
+        ],
+        "operationId": "unsplitTransaction",
+        "summary": "Undo a split",
+        "description": "Removes the parts and gives the whole transaction category_id, or no category when it is left out. The amount is unchanged.\n\nA transaction that is not split comes back as it stands, so a retry after a lost response is harmless.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "category_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Category for the whole transaction once the parts are gone."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The transaction, no longer split",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/OcsEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "ocs": {
+                          "type": "object",
+                          "properties": {
+                            "data": {
+                              "$ref": "#/components/schemas/Transaction"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "category_id is not a number, or not a category the account owner can use, or on an account shared with you one you cannot see and the transaction's parts don't already carry (\"Category not found\").",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorised"
+          },
+          "403": {
+            "$ref": "#/components/responses/ReadOnly"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "412": {
+            "$ref": "#/components/responses/MissingOcsHeader"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/transactions/{id}/reconcile": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "transactions"
+        ],
+        "operationId": "reconcileTransaction",
+        "summary": "Mark a transaction reconciled",
+        "description": "Sets the reconciled flag, as Mark reconciled does in the web UI. A transaction that is already reconciled is returned as it stands, so retrying is safe. It does not move the account's last_reconciled_at, which belongs to a statement reconciliation in the web UI. Rate limited to 60 per minute per user. On a shared account the change is written to the owner's ledger; a read-only share gets 403. The flag is not part of PATCH /transactions/{id} on purpose: a transaction sent back whole could carry a stale value. Check reconcile_available on GET /capabilities first.",
+        "responses": {
+          "200": {
+            "description": "The transaction, reconciled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/OcsEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "ocs": {
+                          "type": "object",
+                          "properties": {
+                            "data": {
+                              "$ref": "#/components/schemas/Transaction"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorised"
+          },
+          "403": {
+            "$ref": "#/components/responses/ReadOnly"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict",
+            "description": "error_code scheduled: the transaction is dated in the future and has not happened yet, so it cannot be reconciled."
+          },
+          "412": {
+            "$ref": "#/components/responses/MissingOcsHeader"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/MalformedBody"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "transactions"
+        ],
+        "operationId": "unreconcileTransaction",
+        "summary": "Mark a transaction unreconciled",
+        "description": "Clears the reconciled flag, as Mark unreconciled does in the web UI. The transaction leaves the statement it was reconciled against, so it can be reconciled against a later one, and the change is written to the audit log. Its amount, type and date can then be changed without confirm_reconciled, so ask the user first, as the web UI does. A transaction that is not reconciled is returned as it stands. Rate limited to 60 per minute per user.",
+        "responses": {
+          "200": {
+            "description": "The transaction, no longer reconciled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/OcsEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "ocs": {
+                          "type": "object",
+                          "properties": {
+                            "data": {
+                              "$ref": "#/components/schemas/Transaction"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorised"
+          },
+          "403": {
+            "$ref": "#/components/responses/ReadOnly"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "412": {
+            "$ref": "#/components/responses/MissingOcsHeader"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/MalformedBody"
+          }
+        }
+      }
+    },
+    "/budget/status": {
+      "get": {
+        "tags": [
+          "budgets"
+        ],
+        "operationId": "getBudgetStatus",
+        "summary": "How much of a month's budget is left",
+        "description": "Each budgeted category and the expense totals for a budget month, the same figures the web Budget page shows for that user and month, including categories shared with them.",
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+              "example": "2026-09"
+            },
+            "description": "YYYY-MM. Omitted or empty, the budget month running today, which follows the user's budget start day."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The month's budget",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/OcsEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "ocs": {
+                          "type": "object",
+                          "properties": {
+                            "data": {
+                              "$ref": "#/components/schemas/BudgetStatus"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorised"
+          },
+          "412": {
+            "$ref": "#/components/responses/MissingOcsHeader"
+          }
+        }
+      }
+    },
+    "/bills/upcoming": {
+      "get": {
+        "tags": [
+          "bills"
+        ],
+        "operationId": "listUpcomingBills",
+        "summary": "Bills overdue or due soon",
+        "description": "Active bills that are overdue or due within `days`, the user's own and those shared with them.",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 14,
+              "minimum": 1,
+              "maximum": 90
+            },
+            "description": "Clamped to 1-90; a non-numeric value gets the default."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Upcoming bills",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/OcsEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "ocs": {
+                          "type": "object",
+                          "properties": {
+                            "data": {
+                              "$ref": "#/components/schemas/UpcomingBills"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorised"
+          },
+          "412": {
+            "$ref": "#/components/responses/MissingOcsHeader"
           }
         }
       }
@@ -914,7 +1643,7 @@
     },
     "responses": {
       "Unauthorised": {
-        "description": "Not authenticated, or the app password has been revoked.",
+        "description": "Not authenticated, or the app password has been revoked. Nextcloud answers this itself: `ocs.meta.statuscode` is 997, not 401.",
         "content": {
           "application/json": {
             "schema": {
@@ -954,7 +1683,36 @@
         }
       },
       "RateLimited": {
-        "description": "Too many requests; wait and retry.",
+        "description": "Too many requests; wait and retry. Nextcloud's rate limiter answers with an empty body. After repeated failed logins its brute-force protection answers 429 too, with an OCS envelope (`ocs.meta.message` \"Reached maximum delay\")."
+      },
+      "MissingOcsHeader": {
+        "description": "The OCS-APIRequest: true header is missing. Nextcloud answers this itself, without an OCS envelope.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "CSRF check failed"
+                }
+              }
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "The change was refused because of what the transaction is; ocs.data.error_code says which. transfer_leg: one side of a transfer, whose amount, type and date cannot change on their own. reconciled: a reconciled row, whose amount, type or date (or the row itself) only changes with confirm_reconciled set. split: a split transaction, whose categories are changed through /transactions/{id}/splits.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      },
+      "MalformedBody": {
+        "description": "The body is not valid JSON. Nextcloud answers this itself, before the API sees the request: HTTP 500 with `ocs.meta.statuscode` 996. Nothing was changed.",
         "content": {
           "application/json": {
             "schema": {
@@ -962,9 +1720,6 @@
             }
           }
         }
-      },
-      "MissingOcsHeader": {
-        "description": "The OCS-APIRequest: true header is missing."
       }
     },
     "schemas": {
@@ -1067,7 +1822,11 @@
           },
           "error_code": {
             "type": "string",
-            "description": "Stable machine-readable code, present on failures clients must distinguish programmatically: ocr_not_configured, ocr_quota_exhausted, ocr_extraction_failed, idempotency_key_conflict, request_in_flight. Switch on this, never on the error text."
+            "description": "Stable machine-readable code, present on failures clients must distinguish programmatically: ocr_not_configured, ocr_quota_exhausted, ocr_extraction_failed, idempotency_key_conflict, request_in_flight, field_not_editable, invalid_amount, transfer_leg, reconciled, split, scheduled, transfer_same_account, transfer_currency_mismatch, transfer_split, invalid_tags, account_closed. Switch on this, never on the error text."
+          },
+          "hint": {
+            "type": "string",
+            "description": "Present only next to detail, when the database is missing a table or column this version needs (an unfinished update): what an administrator can run to finish it."
           }
         }
       },
@@ -1136,8 +1895,40 @@
               "create_transaction": {
                 "type": "boolean"
               },
+              "edit_transaction": {
+                "type": "boolean",
+                "description": "PATCH /transactions/{id}."
+              },
+              "delete_transaction": {
+                "type": "boolean",
+                "description": "DELETE /transactions/{id}."
+              },
               "receipt_upload": {
                 "type": "boolean"
+              },
+              "budget_status": {
+                "type": "boolean",
+                "description": "GET /budget/status."
+              },
+              "upcoming_bills": {
+                "type": "boolean",
+                "description": "GET /bills/upcoming."
+              },
+              "tags": {
+                "type": "boolean",
+                "description": "Tags on transactions and GET /tags."
+              },
+              "reconcile_transaction": {
+                "type": "boolean",
+                "description": "POST and DELETE /transactions/{id}/reconcile."
+              },
+              "create_transfer": {
+                "type": "boolean",
+                "description": "transfer_account_id on POST /transactions."
+              },
+              "set_tags": {
+                "type": "boolean",
+                "description": "tag_ids on POST and PATCH /transactions."
               },
               "receipt_ocr": {
                 "type": "boolean",
@@ -1194,6 +1985,7 @@
           "currency",
           "balance",
           "shared",
+          "owner",
           "closed"
         ],
         "properties": {
@@ -1208,7 +2000,7 @@
           "type": {
             "type": "string",
             "example": "checking",
-            "description": "checking, savings, credit_card, cash, investment, crypto, loan, other."
+            "description": "checking, savings, credit_card, investment, loan, cash, money_market, cryptocurrency, mortgage or line_of_credit. Treat a type you do not know as an asset account."
           },
           "currency": {
             "type": "string",
@@ -1216,16 +2008,16 @@
           },
           "balance": {
             "type": "string",
-            "pattern": "^-?\\d+\\.\\d{2}$",
+            "pattern": "^-?\\d+\\.\\d{2,8}$",
             "example": "-1246.50",
-            "description": "Decimal string, two places. As of today; future-dated transactions are excluded. Liability accounts (credit_card, loan, mortgage, line_of_credit) carry a NEGATIVE balance for the amount owed; a positive value means the account is in credit. Parse into an exact decimal type, never a float."
+            "description": "Decimal string in the currency's places: two for most currencies (a zero-place one like JPY too), three for JOD, up to eight for crypto. As of today; future-dated transactions are excluded. Liability accounts (credit_card, loan, mortgage, line_of_credit) carry a NEGATIVE balance for the amount owed; a positive value means the account is in credit. Parse into an exact decimal type, never a float."
           },
           "balance_in_base_currency": {
             "type": "string",
-            "pattern": "^-?\\d+\\.\\d{2}$",
+            "pattern": "^-?\\d+\\.\\d{2,8}$",
             "nullable": true,
             "example": "-1465.20",
-            "description": "Decimal string, two places. Set only when the account is not already in the user's base currency."
+            "description": "Decimal string in the base currency's places. Set only when the account is not already in the user's base currency."
           },
           "base_currency": {
             "type": "string",
@@ -1240,9 +2032,20 @@
             "type": "boolean",
             "description": "True for an account another user shared. It may be read-only — handle 403 on create."
           },
+          "owner": {
+            "type": "string",
+            "example": "alice",
+            "description": "The Nextcloud user id of the account's owner: yours for your own accounts, the sharer's for one shared with you. A transaction is recorded in the owner's ledger, so its category_id must be one of the owner's categories: offer the categories whose owner matches this (the categories list only holds the owner's categories that were shared with you, which are the ones you may use)."
+          },
           "closed": {
             "type": "boolean",
             "description": "True once the user has closed the account. It keeps its history and its balance is zero; leave it out of any picker for new transactions."
+          },
+          "last_reconciled_at": {
+            "type": "string",
+            "nullable": true,
+            "example": "2026-10-11 17:55:21",
+            "description": "When a reconciliation of the account was last completed, in the same format as updated_at. Null for an account that has never been reconciled. It is the time the user finished reconciling, not the date of the statement they reconciled against."
           },
           "updated_at": {
             "type": "string",
@@ -1257,7 +2060,8 @@
           "id",
           "name",
           "type",
-          "shared"
+          "shared",
+          "owner"
         ],
         "properties": {
           "id": {
@@ -1291,6 +2095,67 @@
           },
           "shared": {
             "type": "boolean"
+          },
+          "owner": {
+            "type": "string",
+            "example": "alice",
+            "description": "The Nextcloud user id of the category's owner. On an account shared with you, only categories whose owner matches the account's owner can be used."
+          }
+        }
+      },
+      "Tag": {
+        "type": "object",
+        "description": "A tag, the same shape on a transaction and in GET /tags. A global tag has tag_set_id, tag_set_name and category_id all null and can be put on any transaction. A category tag belongs to a tag set of one category and can only be put on a transaction in that category.",
+        "required": [
+          "id",
+          "name",
+          "color",
+          "tag_set_id",
+          "tag_set_name",
+          "category_id",
+          "hidden",
+          "owner"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 27
+          },
+          "name": {
+            "type": "string",
+            "example": "Tesco"
+          },
+          "color": {
+            "type": "string",
+            "nullable": true,
+            "example": "#3b82f6"
+          },
+          "tag_set_id": {
+            "type": "integer",
+            "nullable": true,
+            "example": 4,
+            "description": "The tag set it belongs to, null for a global tag."
+          },
+          "tag_set_name": {
+            "type": "string",
+            "nullable": true,
+            "example": "Shop",
+            "description": "The tag set's name, for grouping. Null for a global tag."
+          },
+          "category_id": {
+            "type": "integer",
+            "nullable": true,
+            "example": 415,
+            "description": "The category whose transactions this tag can be put on. Null for a global tag, which can go on any. A transaction keeps a category tag when it is moved to another category, so this is not always the transaction's own category_id, and on an account shared with you it can be a category of the owner's that is not in your GET /categories."
+          },
+          "hidden": {
+            "type": "boolean",
+            "description": "True for a tag the user has hidden: it stays on the transactions that carry it, and the web UI leaves it out of its pickers for new entries. Do the same."
+          },
+          "owner": {
+            "type": "string",
+            "example": "alice",
+            "description": "The Nextcloud user id the tag belongs to. On a transaction in an account shared with you, the tags are the account owner's."
           }
         }
       },
@@ -1333,9 +2198,9 @@
           },
           "amount": {
             "type": "string",
-            "pattern": "^\\d+\\.\\d{2}$",
+            "pattern": "^\\d+\\.\\d{2,8}$",
             "example": "15.00",
-            "description": "Decimal string, two places. Always positive; type carries the direction. Parse into an exact decimal type, never a float."
+            "description": "Decimal string in the currency's places: two for most currencies (a zero-place one like JPY too), three for JOD, up to eight for crypto of the account's currency. Always positive; type carries the direction. Parse into an exact decimal type, never a float."
           },
           "type": {
             "type": "string",
@@ -1373,6 +2238,18 @@
             "type": "string",
             "nullable": true
           },
+          "linked_transaction_id": {
+            "type": "integer",
+            "nullable": true,
+            "example": 20071,
+            "description": "The other half of a transfer: the matching transaction in the other account. Null when this isn't a linked transfer."
+          },
+          "linked_account_name": {
+            "type": "string",
+            "nullable": true,
+            "example": "Savings",
+            "description": "The name of the account the other half sits in, only when the caller can see that account (their own, or shared with them). Null otherwise, even when linked_transaction_id is set."
+          },
           "account_name": {
             "type": "string",
             "description": "List responses only."
@@ -1387,19 +2264,30 @@
           },
           "split_amount": {
             "type": "string",
-            "description": "Present only when categoryId was used and this split transaction matched through one of its parts: the sum of its parts in that category. Total this instead of amount when adding up a category, or every category the transaction touches gets the full amount.",
+            "description": "Present only when categoryId was used and this split transaction matched through one of its parts: the sum of its parts in that category. Total this instead of amount when adding up a category, or every category the transaction touches gets the full amount. In the account currency's places, like amount.",
             "example": "12.40"
           },
           "splits": {
             "type": "array",
-            "description": "Present on a create that supplied splits and they were accepted.",
             "items": {
               "$ref": "#/components/schemas/Split"
-            }
+            },
+            "description": "Always present. The parts of a split transaction, [] when it isn't split. On a create that supplied splits: the parts just created when they were accepted, or [] when they were rejected, in which case splits_error is also present and is_split is false. Check splits_error, not the presence of this field, to tell whether the split happened. Before 3.0 a create response only had this field when the splits it sent were accepted, so a client that tested for its presence must check splits_error instead."
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Tag"
+            },
+            "description": "The transaction's tags, global ones first, [] when it has none. Always present on a server with tags_available. Tags are on the whole transaction, never on the parts of a split."
+          },
+          "tags_error": {
+            "type": "string",
+            "description": "Only on a create that sent tag_ids it could not apply: why. The transaction was recorded without tags; do not retry the create."
           },
           "splits_error": {
             "type": "string",
-            "description": "Present when the transaction was created but its splits were rejected. The transaction is correct and unsplit; do not retry the create.",
+            "description": "Create responses only. Present when the transaction was created but the splits sent with it were rejected: the parts do not add up, there are fewer than two, or a part names a category the account owner cannot use (\"Category not found\"). splits is then [] and is_split false: the transaction is recorded, correct and unsplit. Do not retry the create; split it with POST /transactions/{id}/splits instead.",
             "example": "Split amounts (3.00) must equal transaction amount (23.77)"
           }
         }
@@ -1442,7 +2330,7 @@
         "properties": {
           "account_id": {
             "type": "integer",
-            "description": "Must be an account the user can write to."
+            "description": "Must be an account the user can write to. An account they cannot see answers 404 \"Account not found\"; one shared with them read-only answers 403; a closed one answers 400 with error_code account_closed."
           },
           "date": {
             "type": "string",
@@ -1455,9 +2343,9 @@
           },
           "amount": {
             "type": "string",
-            "pattern": "^\\d+(\\.\\d{1,2})?$",
+            "pattern": "^\\d+(\\.\\d{1,8})?$",
             "example": "42.50",
-            "description": "Always positive. Accepted as a number or a decimal string; always returned as a two-place string."
+            "description": "Always positive; `type` carries the direction. A negative amount is refused with 400 (error_code invalid_amount). Accepted as a number or a decimal string; returned in the account currency's places (at least two), so 0.015 on a Bitcoin account reads back as \"0.01500000\"."
           },
           "type": {
             "type": "string",
@@ -1469,7 +2357,17 @@
           },
           "category_id": {
             "type": "integer",
-            "description": "Omit to file as uncategorised."
+            "description": "Omit to file as uncategorised. Must be a category the account owner can use: one of their own categories, or one shared with them. On an account shared with you that means the owner's categories that were shared with you, not yours (match Category.owner against Account.owner); any other id is left off: the transaction is recorded uncategorised and the response carries category_error."
+          },
+          "transfer_account_id": {
+            "type": "integer",
+            "description": "Makes this a transfer: the other account. The transaction is recorded in account_id as usual, its other side is created in this account with the opposite type and the same date, amount, description and vendor, and the two are linked. The response carries linked_transaction_id and linked_account_name. Both accounts must be ones you can write to, open (not closed) and in the same currency, and a transfer cannot be sent together with splits. Needs transfers_available on GET /capabilities: an older server ignores the field and records a plain transaction.",
+            "example": 37
+          },
+          "tag_ids": {
+            "type": "string",
+            "example": "[12,27]",
+            "description": "Optional tags, as a JSON array of tag ids (a string, so it can ride in the same multipart body as photo; a JSON body may send the array itself). On your own account: your global tags, and the tags of the transaction's category. On an account shared with you: only the owner's category tags, for the transaction's category, from categories shared with you (GET /tags lists them). No global tag works on a shared account. They are checked against the transaction as it is created: after a split it has no category, so only global tags fit; on a transfer they go on the side in account_id. If any is refused, the transaction is still created, untagged, and the response carries tags_error. Needs tag_ids_available on GET /capabilities: an older server ignores the field. Up to 200 ids; an empty field means no tags."
           },
           "description": {
             "type": "string",
@@ -1493,11 +2391,11 @@
           "idempotency_key": {
             "type": "string",
             "maxLength": 64,
-            "description": "A UUID per draft (not per attempt). A repeat within 7 days answers 201 with the transaction the first attempt recorded, inserting nothing. Also accepted as an Idempotency-Key header."
+            "description": "A UUID per draft (not per attempt). A repeat within 7 days answers 201 with the transaction the first attempt recorded, inserting nothing, even when the account has been closed since, or a transfer's other account closed, unshared or made read-only. A repeat after you lost access to the account itself answers 404. Also accepted as an Idempotency-Key header."
           },
           "splits": {
             "type": "string",
-            "description": "Optional per-item splits, as a JSON array of NewSplit objects. A string so it can ride in the same multipart body as `photo`. The parts must sum to `amount` and there must be at least two. If they are rejected the transaction is still created and the response carries `splits_error` — retrying would duplicate the transaction, which the idempotency key exists to prevent.",
+            "description": "Optional per-item splits, as a JSON array of NewSplit objects. A string so it can ride in the same multipart body as `photo`. The parts must sum to `amount` and there must be at least two. If they are rejected, or the field cannot be read as parts, the transaction is still created and the response carries `splits_error` — retrying would duplicate the transaction, which the idempotency key exists to prevent.",
             "example": "[{\"amount\":\"3.40\",\"category_id\":12},{\"amount\":\"20.37\",\"category_id\":13}]"
           }
         }
@@ -1641,7 +2539,7 @@
       },
       "Capabilities": {
         "type": "object",
-        "description": "Minimal discovery for capture clients: three keys, exactly. GET / (Info) carries the same facts and more.",
+        "description": "Minimal discovery for capture clients. ocr_available, currency and version are always present; the *_available flags are added as features land, so an older server leaves them out: read a missing one as false. GET / (Info) also describes the server and the user, with feature flags of its own, but does not repeat every flag here.",
         "required": [
           "ocr_available",
           "currency",
@@ -1656,6 +2554,57 @@
             "type": "boolean",
             "description": "Whether this server accepts per-item splits. Absent on older servers; treat absence as false.",
             "example": true
+          },
+          "check_available": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether this server has the read-only check routes: GET /budget/status, GET /bills/upcoming, GET /transactions/{id}/splits, and transfer links and split parts on transactions. Absent on older servers; treat absence as false."
+          },
+          "edit_available": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether this server has PATCH and DELETE /transactions/{id} and DELETE /transactions/{id}/splits. Absent on older servers; treat absence as false."
+          },
+          "tags_available": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether transactions carry tags and GET /tags exists. Absent on older servers; treat absence as false."
+          },
+          "reconcile_available": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether this server has POST and DELETE /transactions/{id}/reconcile. Absent on older servers; treat absence as false."
+          },
+          "transfers_available": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether POST /transactions takes transfer_account_id. Absent on older servers, which ignore the field and record a plain transaction: never send it without this flag."
+          },
+          "tag_ids_available": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether POST and PATCH /transactions take tag_ids. Absent on older servers, which ignore the field and answer success: never send it without this flag."
+          },
+          "transaction_filters": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "accountId",
+              "categoryId",
+              "dateFrom",
+              "dateTo",
+              "search",
+              "type",
+              "status",
+              "reconciled",
+              "uncategorized",
+              "tagId",
+              "amountMin",
+              "amountMax"
+            ],
+            "description": "The names of the filters GET /transactions takes on this server. A server ignores a query parameter it does not know and answers with the unfiltered list, so look a filter up here before relying on it. Absent on older servers, which have accountId, categoryId, dateFrom, dateTo and search."
           },
           "currency": {
             "type": "string",
@@ -1698,8 +2647,9 @@
           },
           "amount": {
             "type": "string",
-            "pattern": "^\\d+\\.\\d{2}$",
-            "example": "15.00"
+            "pattern": "^\\d+\\.\\d{2,8}$",
+            "example": "15.00",
+            "description": "Decimal string in the currency's places: two for most currencies (a zero-place one like JPY too), three for JOD, up to eight for crypto of the account's currency."
           },
           "currency": {
             "type": "string",
@@ -1710,6 +2660,46 @@
             "type": "string",
             "nullable": true,
             "example": "Current Account"
+          },
+          "account_id": {
+            "type": "integer",
+            "example": 36
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "debit",
+              "credit"
+            ],
+            "description": "debit is money out, credit is money in. amount stays positive."
+          },
+          "category_name": {
+            "type": "string",
+            "nullable": true,
+            "example": "Groceries",
+            "description": "Null when uncategorised or split; a split's categories are on its parts."
+          },
+          "is_split": {
+            "type": "boolean"
+          },
+          "splits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Split"
+            },
+            "description": "The parts of a split transaction, [] when it isn't split."
+          },
+          "linked_transaction_id": {
+            "type": "integer",
+            "nullable": true,
+            "example": 20071,
+            "description": "The other half of a transfer: the matching transaction in the other account. Null when this isn't a linked transfer."
+          },
+          "linked_account_name": {
+            "type": "string",
+            "nullable": true,
+            "example": "Savings",
+            "description": "The name of the account the other half sits in, only when the caller can see that account (their own, or shared with them). Null otherwise, even when linked_transaction_id is set."
           }
         }
       },
@@ -1727,7 +2717,7 @@
           },
           "amount": {
             "type": "string",
-            "description": "Fixed-point decimal string, as everywhere else in v1.",
+            "description": "Fixed-point decimal string, as everywhere else in v1, in the account currency's places.",
             "example": "3.40"
           },
           "category_id": {
@@ -1761,7 +2751,7 @@
           "category_id": {
             "type": "integer",
             "nullable": true,
-            "description": "Omit or null to leave the part uncategorised (useful for a tax line).",
+            "description": "Omit or null to leave the part uncategorised (useful for a tax line). Otherwise a category the account owner can use: one of their own categories, or one shared with them. On an account shared with you that means the owner's categories that were shared with you (or one the transaction already carries), not yours; any other id rejects the split set with the message \"Category not found\".",
             "example": 12
           },
           "description": {
@@ -1780,6 +2770,346 @@
             "items": {
               "$ref": "#/components/schemas/Split"
             }
+          }
+        }
+      },
+      "BudgetLine": {
+        "type": "object",
+        "description": "One budgeted category, with the figures the web Budget page shows on its row. A parent's figures cover its branch, as on the page.",
+        "properties": {
+          "category_id": {
+            "type": "integer",
+            "example": 12
+          },
+          "name": {
+            "type": "string",
+            "example": "Groceries"
+          },
+          "parent_id": {
+            "type": "integer",
+            "nullable": true,
+            "description": "The row's parent on the Budget page. For a shared category this can differ from where it is stored: a shared category whose parent isn't shared sits at the top."
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "expense",
+              "income"
+            ]
+          },
+          "period": {
+            "type": "string",
+            "enum": [
+              "weekly",
+              "monthly",
+              "quarterly",
+              "yearly"
+            ],
+            "description": "The period the budget is set for. budgeted, spent and remaining are always for the budget month, whatever the period: see budgeted, and period_to_date for a quarterly or yearly budget's whole period."
+          },
+          "budgeted": {
+            "type": "string",
+            "pattern": "^-?\\d+\\.\\d{2,8}$",
+            "example": "400.00",
+            "description": "The budget's share of the month, including any envelope carry-over. A budget set for another period is turned monthly by its share of a year: a weekly budget times 52 divided by 12, a quarterly one divided by 3 and a yearly one divided by 12. A parent adds its direct subcategories' budgets the same way."
+          },
+          "carried": {
+            "type": "string",
+            "pattern": "^-?\\d+\\.\\d{2,8}$",
+            "example": "0.00",
+            "description": "Envelope carry-over into this month, already included in budgeted."
+          },
+          "spent": {
+            "type": "string",
+            "pattern": "^-?\\d+\\.\\d{2,8}$",
+            "example": "431.20",
+            "description": "Spending in the budget month, net of refunds, so it can be negative."
+          },
+          "remaining": {
+            "type": "string",
+            "pattern": "^-?\\d+\\.\\d{2,8}$",
+            "example": "-31.20",
+            "description": "budgeted minus spent; negative when overspent."
+          },
+          "shared": {
+            "type": "boolean",
+            "description": "A category someone else shared with the user; its budget is theirs."
+          },
+          "period_to_date": {
+            "type": "object",
+            "nullable": true,
+            "description": "A quarterly or yearly budget's whole period so far, which the Budget page shows on the row as \"400.00 of 1,200.00 this year\". null for a weekly or monthly budget. Absent on older servers.",
+            "properties": {
+              "start_date": {
+                "type": "string",
+                "format": "date",
+                "example": "2026-01-01",
+                "description": "The first day of the quarter's or year's first budget month, which follows the user's budget start day."
+              },
+              "end_date": {
+                "type": "string",
+                "format": "date",
+                "example": "2026-10-31",
+                "description": "The last day of the budget month asked for."
+              },
+              "budgeted": {
+                "type": "string",
+                "pattern": "^-?\\d+\\.\\d{2,8}$",
+                "example": "1200.00",
+                "description": "The budget for the whole quarter or year. A parent adds its direct subcategories' budgets turned to its period."
+              },
+              "spent": {
+                "type": "string",
+                "pattern": "^-?\\d+\\.\\d{2,8}$",
+                "example": "400.00",
+                "description": "Spending from start_date to end_date, net of refunds; a parent's covers its branch."
+              }
+            }
+          }
+        }
+      },
+      "BudgetStatus": {
+        "type": "object",
+        "description": "A month's budget, figure for figure as the web Budget page shows it.",
+        "properties": {
+          "month": {
+            "type": "string",
+            "example": "2026-09"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-09-01",
+            "description": "The budget month's first day, which follows the user's budget start day."
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-09-30"
+          },
+          "currency": {
+            "type": "string",
+            "example": "GBP",
+            "description": "The user's base currency. When the user's accounts are in more than one currency, spending in each is converted to this one at the user's rate before it is added up, as on the Budget page. Every figure uses this currency's decimal places (at least two)."
+          },
+          "totals": {
+            "type": "object",
+            "description": "The Budget page's summary cards, for expense categories only. budgeted is each budgeted category's budget turned into a monthly amount; spent is the budget month's spending in every expense category, budgeted or not.",
+            "properties": {
+              "budgeted": {
+                "type": "string",
+                "pattern": "^-?\\d+\\.\\d{2,8}$",
+                "example": "1450.00"
+              },
+              "spent": {
+                "type": "string",
+                "pattern": "^-?\\d+\\.\\d{2,8}$",
+                "example": "912.40"
+              },
+              "remaining": {
+                "type": "string",
+                "pattern": "^-?\\d+\\.\\d{2,8}$",
+                "example": "537.60",
+                "description": "budgeted minus spent; an overspent category reduces it."
+              }
+            }
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BudgetLine"
+            },
+            "description": "Every category with a budget, in the Budget page's order. Income categories are listed but left out of totals."
+          }
+        }
+      },
+      "Bill": {
+        "type": "object",
+        "description": "One bill due soon or overdue.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 3
+          },
+          "name": {
+            "type": "string",
+            "example": "Netflix"
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^-?\\d+\\.\\d{2,8}$",
+            "example": "12.99",
+            "description": "The stored amount. For an amount_type other than fixed, the real figure is only worked out from the card's statement when the bill is paid. In the bill currency's places (at least two)."
+          },
+          "amount_type": {
+            "type": "string",
+            "example": "fixed",
+            "description": "fixed, statement, current_balance or minimum_payment."
+          },
+          "currency": {
+            "type": "string",
+            "nullable": true,
+            "example": "GBP",
+            "description": "The currency of the bill's account, else its owner's base currency."
+          },
+          "frequency": {
+            "type": "string",
+            "example": "monthly"
+          },
+          "next_due_date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-09-28"
+          },
+          "overdue": {
+            "type": "boolean",
+            "description": "next_due_date is before today."
+          },
+          "account_id": {
+            "type": "integer",
+            "nullable": true,
+            "example": 1
+          },
+          "account_name": {
+            "type": "string",
+            "nullable": true,
+            "example": "Current account",
+            "description": "Only when the caller can see that account, else null."
+          },
+          "category_id": {
+            "type": "integer",
+            "nullable": true,
+            "example": 9
+          },
+          "is_transfer": {
+            "type": "boolean"
+          },
+          "auto_pay": {
+            "type": "boolean"
+          },
+          "shared": {
+            "type": "boolean",
+            "description": "A bill someone else shared with the user."
+          }
+        }
+      },
+      "UpcomingBills": {
+        "type": "object",
+        "properties": {
+          "days": {
+            "type": "integer",
+            "example": 14,
+            "description": "The window actually used, after defaulting and clamping."
+          },
+          "bills": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Bill"
+            },
+            "description": "Overdue first, then by next_due_date."
+          }
+        }
+      },
+      "TransactionEdit": {
+        "type": "object",
+        "description": "Only the fields sent change. vendor, reference, notes and category_id sent as null (or an empty string) are cleared. The Transaction read shape can be sent back whole with a field edited: its read-only fields are ignored, and account_id, status and reconciled are refused (field_not_editable) only when they differ from what is stored.",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-09-28"
+          },
+          "amount": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "example": "42.50",
+            "description": "More than zero; `type` carries the direction. Zero or a negative amount is refused with 400 (error_code invalid_amount), unless it is the amount already stored, sent back unchanged. On a split transaction the parts are rescaled to keep summing to the new amount."
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "debit",
+              "credit"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "example": "Supermarket"
+          },
+          "vendor": {
+            "type": "string",
+            "nullable": true,
+            "example": "Example Market"
+          },
+          "merchant": {
+            "type": "string",
+            "description": "Shorthand for description and vendor together, as on create. An explicit description or vendor wins over it."
+          },
+          "reference": {
+            "type": "string",
+            "nullable": true
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          },
+          "category_id": {
+            "type": "integer",
+            "nullable": true,
+            "description": "null for uncategorised. Refused (409 split) on a split transaction. Must be a category the account owner can use, as on create."
+          },
+          "tag_ids": {
+            "oneOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "integer"
+                }
+              },
+              {
+                "type": "string",
+                "example": "[12,27]"
+              }
+            ],
+            "example": [
+              12,
+              27
+            ],
+            "description": "The whole set of tags; [] removes them all. A tag already on the transaction may always be sent back, even one that no longer fits its category; only newly added ones are checked, against the category this edit leaves. On your own account: your global tags, and the tags of the transaction's category. On an account shared with you: only the owner's category tags, for the transaction's category, from categories shared with you (GET /tags lists them). No global tag works on a shared account. Tags of the owner's that you cannot use (ones not in your GET /tags) stay on. A refused tag refuses the whole edit (400, error_code invalid_tags). The tags list of the read shape is ignored; only tag_ids sets tags. Needs tag_ids_available. Up to 200 ids. A JSON array inside a string is accepted too. null and an empty string are refused (invalid_tags): send [] to remove all tags, or leave tag_ids out to keep them. The set the transaction already has, in any order, changes nothing and leaves updated_at as it was; any other set moves updated_at, and the response carries the new value."
+          },
+          "confirm_reconciled": {
+            "type": "boolean",
+            "description": "Required to change the amount, type or date of a reconciled transaction. The web UI asks the user first; a client should do the same before sending it."
+          }
+        }
+      },
+      "Deletion": {
+        "type": "object",
+        "required": [
+          "id",
+          "deleted",
+          "unlinked_transaction_id"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 123
+          },
+          "deleted": {
+            "type": "boolean",
+            "example": true
+          },
+          "unlinked_transaction_id": {
+            "type": "integer",
+            "nullable": true,
+            "example": null,
+            "description": "When the deleted transaction was one side of a transfer, the other side, which survives as a plain transaction. A client can offer to delete it too."
           }
         }
       }

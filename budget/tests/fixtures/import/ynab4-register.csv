@@ -1,0 +1,6 @@
+"Account","Flag","Check Number","Date","Payee","Category","Master Category","Sub Category","Memo","Outflow","Inflow","Cleared","Running Balance"
+"Current Account","","","03/02/2015","Starting Balance","Income:Available this month","Income","Available this month","","£0.00","£900.00","R","£900.00"
+"Current Account","","104","14/02/2015","Village Garage","Transport:Car Maintenance","Transport","Car Maintenance","MOT","£54.85","£0.00","C","£845.15"
+"Credit Card","","","20/02/2015","Village Shop","Everyday:Groceries","Everyday","Groceries","","£120.00","£0.00","C","-£120.00"
+"Current Account","","","28/02/2015","Transfer : Credit Card","","","","card payment","£120.00","£0.00","C","£725.15"
+"Credit Card","","","28/02/2015","Transfer : Current Account","","","","card payment","£0.00","£120.00","C","£0.00"

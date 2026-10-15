@@ -2,13 +2,18 @@
  * Settings Module - User preferences and configuration
  */
 import { translate as t } from '@nextcloud/l10n';
-import { showSuccess, showError } from '../../utils/notifications.js';
+import { showSuccess, showError, showInfo } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { initDatePickers } from '../../utils/datepicker.js';
+import { apiFetch } from '../../utils/api.js';
+import { refreshBankSyncNav } from '../bank-sync/bankSyncStatus.js';
+import { helpDocUrl } from '../help/HelpModule.js';
+import ImportFolders, { leftAloneNotice } from './ImportFolders.js';
 
 export default class SettingsModule {
     constructor(app) {
         this.app = app;
+        this.importFolders = new ImportFolders({ getAccounts: () => this.app.accounts });
     }
 
     // Getters for app state
@@ -17,20 +22,16 @@ export default class SettingsModule {
 
     async loadSettingsView() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/settings'), {
-                headers: {
-                    'requesttoken': OC.requestToken
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error(t('budget', 'Failed to load settings'));
-            }
-
-            const settings = await response.json();
+            const settings = await apiFetch('/apps/budget/api/settings');
             await this.populateSettings(settings);
             this.updateNumberFormatPreview();
             this.setupReceiptFolderPicker();
+            this.setupImportFolderPicker();
+            this.setupAutoSave();
+            this.setupJumpList();
+            const importFolderHelp = document.getElementById('import-folder-help');
+            if (importFolderHelp) importFolderHelp.href = helpDocUrl('import');
+            await this.importFolders.load();
             await this.loadAdminSettings();
         } catch (error) {
             console.error('Error loading settings:', error);
@@ -39,21 +40,26 @@ export default class SettingsModule {
     }
 
     async loadAdminSettings() {
-        try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/admin/settings'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
+        // Only admins may read these. Asking anyway got everyone else a 403
+        // in the browser console on every visit to Settings, so skip the
+        // request when Nextcloud says this user isn't one.
+        if (typeof globalThis.OC?.isUserAdmin === 'function' && !globalThis.OC.isUserAdmin()) {
+            return;
+        }
 
+        try {
             // Non-admin users get a 403 — hide the section
-            if (response.status === 403 || !response.ok) {
+            const adminSettings = await apiFetch('/apps/budget/api/admin/settings').catch(() => null);
+            if (!adminSettings) {
                 return;
             }
 
-            const adminSettings = await response.json();
             const section = document.getElementById('admin-settings-section');
             if (section) {
                 section.style.display = 'block';
             }
+            const jump = document.querySelector('.settings-jump-admin');
+            if (jump) jump.hidden = false;
 
             const toggle = document.getElementById('setting-bank-sync-enabled');
             if (toggle) {
@@ -65,19 +71,13 @@ export default class SettingsModule {
                     this.bankSyncToggleBound = true;
                     toggle.addEventListener('change', async () => {
                         try {
-                            await fetch(OC.generateUrl('/apps/budget/api/admin/settings'), {
+                            await apiFetch('/apps/budget/api/admin/settings', {
                                 method: 'PUT',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'requesttoken': OC.requestToken
-                                },
-                                body: JSON.stringify({ bankSyncEnabled: toggle.checked })
+                                body: { bankSyncEnabled: toggle.checked },
                             });
                             showSuccess(t('budget', 'Admin settings saved'));
                             // Update bank sync nav visibility
-                            if (this.app.bankSyncModule) {
-                                this.app.bankSyncModule.checkStatus();
-                            }
+                            refreshBankSyncNav();
                         } catch (error) {
                             showError(t('budget', 'Failed to save admin settings'));
                             toggle.checked = !toggle.checked;
@@ -107,6 +107,10 @@ export default class SettingsModule {
         const apiKey = document.getElementById('setting-ocr-api-key');
         const clearKey = document.getElementById('setting-ocr-clear-key');
 
+        // Docs URLs come only from HelpModule, never the template.
+        const docsLink = document.getElementById('setting-ocr-docs-link');
+        if (docsLink) docsLink.href = helpDocUrl('receipt-scanning');
+
         provider.value = ocr.provider || 'none';
         endpoint.value = ocr.endpoint || '';
         model.value = ocr.model || '';
@@ -115,7 +119,7 @@ export default class SettingsModule {
         this.ocrState = {
             apiKeySet: !!ocr.apiKeySet,
             nextcloudAiAvailable: !!ocr.nextcloudAiAvailable,
-            relayBillingBase: ocr.relayBillingBase || 'https://ocr.otherworld.dev/billing',
+            relayBillingBase: ocr.relayBillingBase || 'https://api.otherworld.dev/billing',
         };
         this.renderOcrFields();
 
@@ -145,13 +149,13 @@ export default class SettingsModule {
         // itself never reaches this page.
         document.getElementById('setting-ocr-portal-btn')?.addEventListener('click', async () => {
             try {
-                const response = await fetch(OC.generateUrl('/apps/budget/api/admin/settings/ocr/portal'), {
+                const failed = t('budget', 'The billing portal could not be opened. Try again shortly.');
+                const data = await apiFetch('/apps/budget/api/admin/settings/ocr/portal', {
                     method: 'POST',
-                    headers: { 'requesttoken': OC.requestToken }
+                    errorMessage: failed,
                 });
-                const data = await response.json().catch(() => ({}));
-                if (!response.ok || !data.url) {
-                    throw new Error(data.error || t('budget', 'The billing portal could not be opened. Try again shortly.'));
+                if (!data?.url) {
+                    throw new Error(data?.error || failed);
                 }
                 window.open(data.url, '_blank', 'noopener');
             } catch (error) {
@@ -237,33 +241,20 @@ export default class SettingsModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/admin/settings'), {
+            // An error body is not always JSON (a maintenance-mode page, a
+            // proxy 502); apiFetch keeps the translated message for those.
+            const body = await apiFetch('/apps/budget/api/admin/settings', {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                body: JSON.stringify({ ocr })
+                body: { ocr },
+                errorMessage: t('budget', 'Failed to save admin settings'),
             });
-
-            // Check ok before parsing: an error body is not always JSON (a
-            // maintenance-mode page, a proxy 502), and a JSON parse error
-            // must not replace the translated failure message in the toast.
-            if (!response.ok) {
-                let message = '';
-                try {
-                    message = (await response.json()).error || '';
-                } catch (parseError) {
-                    // Non-JSON error body — fall through to the generic text.
-                }
-                throw new Error(message || t('budget', 'Failed to save admin settings'));
-            }
-
-            const body = await response.json();
 
             this.ocrState = {
                 apiKeySet: !!body.ocr?.apiKeySet,
                 nextcloudAiAvailable: !!body.ocr?.nextcloudAiAvailable,
                 relayBillingBase: body.ocr?.relayBillingBase
                     || this.ocrState?.relayBillingBase
-                    || 'https://ocr.otherworld.dev/billing',
+                    || 'https://api.otherworld.dev/billing',
             };
             document.getElementById('setting-ocr-api-key').value = '';
             this.renderOcrFields();
@@ -295,23 +286,26 @@ export default class SettingsModule {
     }
 
     /**
-     * "Browse…" next to the receipts folder opens Nextcloud's own folder
+     * "Browse…" next to a folder setting opens Nextcloud's own folder
      * picker, so the path never has to be typed (#352). The picker returns
      * an absolute Files path; the setting is stored relative to the root.
      * Bound once — this view's DOM is permanent.
      */
-    setupReceiptFolderPicker() {
-        const btn = document.getElementById('setting-receipt-folder-browse');
-        const input = document.getElementById('setting-receipt-folder');
+    setupFolderPicker(buttonId, inputId, title, fallback) {
+        const btn = document.getElementById(buttonId);
+        const input = document.getElementById(inputId);
         if (!btn || !input || btn.dataset.bound) return;
         btn.dataset.bound = '1';
 
         btn.addEventListener('click', () => {
-            const current = input.value.trim() || 'Budget/Receipts';
+            const current = input.value.trim() || fallback;
             OC.dialogs.filepicker(
-                t('budget', 'Select receipts folder'),
+                title,
                 (path) => {
                     input.value = String(path || '').replace(/^\/+|\/+$/g, '');
+                    // Setting the value from script fires no change event, and
+                    // settings save on change.
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
                 },
                 false,
                 'httpd/unix-directory',
@@ -322,24 +316,175 @@ export default class SettingsModule {
         });
     }
 
+    setupReceiptFolderPicker() {
+        this.setupFolderPicker('setting-receipt-folder-browse', 'setting-receipt-folder', t('budget', 'Select receipts folder'), 'Budget/Receipts');
+    }
+
+    setupImportFolderPicker() {
+        this.setupFolderPicker('setting-import-folder-browse', 'setting-import-folder', t('budget', 'Select import folder'), 'Budget/Import');
+    }
+
+    /**
+     * Each setting saves the moment it changes, as Nextcloud's own settings
+     * do. There used to be one Save button at the top of an eleven-section
+     * page, so a change made near the bottom was easy to leave unsaved.
+     * Bound once: this view's DOM is permanent.
+     */
+    setupAutoSave() {
+        const view = document.getElementById('settings-view');
+        if (!view || view.dataset.autosaveBound) return;
+        view.dataset.autosaveBound = '1';
+
+        view.addEventListener('change', (e) => {
+            const el = e.target.closest('.setting-input');
+            if (!el) return;
+            // The preview is the only feedback these controls give, so it
+            // follows the change at once rather than waiting for the save.
+            if (SettingsModule.PREVIEW_INPUTS.includes(el.id)) this.updateNumberFormatPreview();
+            this.saveSetting(el);
+        });
+    }
+
+    /** Controls the number format preview is drawn from. */
+    static PREVIEW_INPUTS = [
+        'setting-number-format-decimals',
+        'setting-number-format-decimal-sep',
+        'setting-number-format-thousands-sep',
+        'setting-default-currency',
+    ];
+
+    /** Scroll to a section from the jump list at the top of the page. */
+    setupJumpList() {
+        const nav = document.querySelector('.settings-jump');
+        if (!nav || nav.dataset.bound) return;
+        nav.dataset.bound = '1';
+
+        nav.addEventListener('click', (e) => {
+            const btn = e.target.closest('button[data-target]');
+            const section = btn && document.getElementById(btn.dataset.target);
+            if (!section) return;
+            section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            const heading = section.querySelector('h3');
+            if (heading) {
+                heading.setAttribute('tabindex', '-1');
+                heading.focus({ preventScroll: true });
+            }
+        });
+    }
+
+    /** Key and value of one setting control, as gatherSettings() reads them. */
+    settingEntry(element) {
+        const key = element.id.replace('setting-', '').replace(/-/g, '_');
+        const value = element.type === 'checkbox'
+            ? (element.checked ? 'true' : 'false')
+            : element.value;
+        return [key, value];
+    }
+
+    /**
+     * One save in flight per setting. Arrowing through a select or toggling a
+     * checkbox twice fires several changes; sent side by side, their replies
+     * could land in any order and leave the stored value (and this.settings)
+     * on an older choice. A change made while a save is running is sent once
+     * that save finishes, and only if it differs from what was just stored.
+     */
+    saveSetting(element) {
+        const [key] = this.settingEntry(element);
+        this.savesInFlight = this.savesInFlight || {};
+        const running = this.savesInFlight[key];
+        if (running) {
+            running.element = element;
+            running.again = true;
+            return running.promise;
+        }
+
+        const slot = { element, again: false };
+        this.savesInFlight[key] = slot;
+        slot.promise = (async () => {
+            try {
+                let first = true;
+                while (first || slot.again) {
+                    const [, value] = this.settingEntry(slot.element);
+                    if (!first && value === String(this.settings?.[key])) break;
+                    first = false;
+                    slot.again = false;
+                    await this.sendSetting(slot.element, slot);
+                }
+            } finally {
+                delete this.savesInFlight[key];
+            }
+        })();
+        return slot.promise;
+    }
+
+    async sendSetting(element, slot) {
+        const [key, value] = this.settingEntry(element);
+        const item = element.closest('.setting-item') || element.parentElement;
+
+        try {
+            const result = await apiFetch('/apps/budget/api/settings', {
+                method: 'PUT',
+                body: { [key]: value },
+                errorMessage: t('budget', 'Failed to save settings'),
+            });
+            // The server may normalise a value (the receipts folder does).
+            const saved = result?.settings?.[key] ?? value;
+            // A newer change is queued; leave the control showing it.
+            if (!slot.again && element.type !== 'checkbox' && saved !== value) element.value = saved;
+
+            this.settings[key] = saved;
+            this.applySettingSideEffects({ [key]: saved });
+            this.flashSaved(item);
+            // A moved import folder leaves the files already in its
+            // subfolders where they are (#425)
+            const notice = key === 'import_folder' ? leftAloneNotice(result?.importFolderLeftAlone) : '';
+            if (notice) showInfo(notice);
+        } catch (error) {
+            console.error('Error saving setting:', key, error);
+            showError(error.message || t('budget', 'Failed to save settings'));
+            // A newer change is queued and will be sent next; don't undo it.
+            if (slot.again) return;
+            // Put the control back to what is actually stored.
+            const stored = this.settings?.[key];
+            if (stored !== undefined) {
+                if (element.type === 'checkbox') {
+                    element.checked = stored === 'true' || stored === true;
+                } else {
+                    element.value = stored;
+                }
+            }
+        }
+    }
+
+    /** What a changed setting has to refresh elsewhere in the app. */
+    applySettingSideEffects(changed) {
+        this.updateAccountFormDefaults(changed);
+        if ('date_format' in changed || 'first_day_of_week' in changed) {
+            initDatePickers(this.app.settings);
+        }
+    }
+
+    /** A brief "Saved" beside the setting that was just stored. */
+    flashSaved(item) {
+        if (!item) return;
+        let note = item.querySelector(':scope > .setting-saved');
+        if (!note) {
+            note = document.createElement('span');
+            note.className = 'setting-saved';
+            note.setAttribute('role', 'status');
+            item.appendChild(note);
+        }
+        note.textContent = t('budget', 'Saved');
+        note.classList.add('visible');
+        clearTimeout(note._timer);
+        note._timer = setTimeout(() => note.classList.remove('visible'), 2000);
+    }
+
     async saveSettings() {
         try {
             const settings = this.gatherSettings();
 
-            const response = await fetch(OC.generateUrl('/apps/budget/api/settings'), {
-                method: 'PUT',
-                headers: {
-                    'requesttoken': OC.requestToken,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(settings)
-            });
-
-            if (!response.ok) {
-                throw new Error(t('budget', 'Failed to save settings'));
-            }
-
-            await response.json();
+            await apiFetch('/apps/budget/api/settings', { method: 'PUT', body: settings });
             showSuccess(t('budget', 'Settings saved successfully'));
 
             // Update stored settings to apply immediately
@@ -384,19 +529,11 @@ export default class SettingsModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/settings/reset'), {
-                method: 'POST',
-                headers: {
-                    'requesttoken': OC.requestToken
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error(t('budget', 'Failed to reset settings'));
-            }
-
-            const result = await response.json();
+            const result = await apiFetch('/apps/budget/api/settings/reset', { method: 'POST' });
             await this.populateSettings(result.defaults);
+            // The rest of the app reads these, not the form.
+            Object.assign(this.settings, result.defaults);
+            this.applySettingSideEffects(result.defaults);
             this.updateNumberFormatPreview();
             showSuccess(t('budget', 'Settings reset to defaults'));
         } catch (error) {
@@ -536,22 +673,11 @@ export default class SettingsModule {
                 confirmBtn.innerHTML = '<span class="icon-loading-small" aria-hidden="true"></span> ' + t('budget', 'Deleting...');
             }
 
-            const response = await fetch(OC.generateUrl('/apps/budget/api/setup/factory-reset'), {
+            await apiFetch('/apps/budget/api/setup/factory-reset', {
                 method: 'POST',
-                headers: {
-                    'requesttoken': OC.requestToken,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    confirmed: true
-                })
+                body: { confirmed: true },
+                errorMessage: t('budget', 'Factory reset failed'),
             });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || t('budget', 'Factory reset failed'));
-            }
 
             // Close modal
             this.closeFactoryResetModal();

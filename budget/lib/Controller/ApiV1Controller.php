@@ -24,88 +24,119 @@ use OCP\IRequest;
  * rather than failing at the point of use.
  */
 class ApiV1Controller extends OCSController {
-    /**
-     * Contract version of /ocs/v2.php/apps/budget/api/v1. Bumped only for a
-     * breaking change; additive fields keep the same version.
-     */
-    public const API_VERSION = '1.0';
+	/**
+	 * Contract version of /ocs/v2.php/apps/budget/api/v1. Bumped only for a
+	 * breaking change; additive fields keep the same version.
+	 */
+	public const API_VERSION = '1.0';
 
-    private string $userId;
+	private string $userId;
 
-    public function __construct(
-        IRequest $request,
-        private IAppManager $appManager,
-        private CurrencyConversionService $conversionService,
-        private OcrSettingsService $ocrSettings,
-        ?string $userId,
-    ) {
-        parent::__construct(Application::APP_ID, $request);
-        // OCS routes instantiate the controller before the security middleware
-        // runs its auth check, so an unauthenticated request arrives here with
-        // a null user. Typing it non-null makes that a TypeError — an empty
-        // 200 and a PHP error in the log — instead of the clean 401 the
-        // middleware is about to produce.
-        $this->userId = $userId ?? '';
-    }
+	public function __construct(
+		IRequest $request,
+		private IAppManager $appManager,
+		private CurrencyConversionService $conversionService,
+		private OcrSettingsService $ocrSettings,
+		?string $userId,
+	) {
+		parent::__construct(Application::APP_ID, $request);
+		// OCS routes instantiate the controller before the security middleware
+		// runs its auth check, so an unauthenticated request arrives here with
+		// a null user. Typing it non-null makes that a TypeError — an empty
+		// 200 and a PHP error in the log — instead of the clean 401 the
+		// middleware is about to produce.
+		$this->userId = $userId ?? '';
+	}
 
-    #[NoAdminRequired]
-    public function info(): DataResponse {
-        return new DataResponse([
-            'api_version' => self::API_VERSION,
-            'app_version' => $this->appVersion(),
-            'user_id' => $this->userId,
-            'base_currency' => $this->conversionService->getBaseCurrency($this->userId),
-            'features' => [
-                'accounts' => true,
-                'categories' => true,
-                'transactions' => true,
-                'create_transaction' => true,
-                'receipt_upload' => true,
-                // Server-side receipt extraction (#533): true only when this
-                // instance has an OCR provider configured AND usable, so the
-                // capture flow never appears on a server that cannot serve it.
-                'receipt_ocr' => $this->ocrSettings->isConfigured(),
-            ],
-            'limits' => [
-                'max_receipt_bytes' => AttachmentService::MAX_SIZE,
-                'receipt_mime_types' => AttachmentService::ALLOWED_MIMES,
-                'receipt_ocr_mime_types' => ReceiptExtractionService::EXTRACT_MIMES,
-                'transactions_max_limit' => ApiV1TransactionController::MAX_LIMIT,
-            ],
-        ]);
-    }
+	#[NoAdminRequired]
+	public function info(): DataResponse {
+		return new DataResponse([
+			'api_version' => self::API_VERSION,
+			'app_version' => $this->appVersion(),
+			'user_id' => $this->userId,
+			'base_currency' => $this->conversionService->getBaseCurrency($this->userId),
+			'features' => [
+				'accounts' => true,
+				'categories' => true,
+				'transactions' => true,
+				'create_transaction' => true,
+				'edit_transaction' => true,
+				'delete_transaction' => true,
+				'receipt_upload' => true,
+				'budget_status' => true,
+				'upcoming_bills' => true,
+				'tags' => true,
+				'reconcile_transaction' => true,
+				'create_transfer' => true,
+				'set_tags' => true,
+				// Server-side receipt extraction (#533): true only when this
+				// instance has an OCR provider configured AND usable, so the
+				// capture flow never appears on a server that cannot serve it.
+				'receipt_ocr' => $this->ocrSettings->isConfigured(),
+			],
+			'limits' => [
+				'max_receipt_bytes' => AttachmentService::MAX_SIZE,
+				'receipt_mime_types' => AttachmentService::ALLOWED_MIMES,
+				'receipt_ocr_mime_types' => ReceiptExtractionService::EXTRACT_MIMES,
+				'transactions_max_limit' => ApiV1TransactionController::MAX_LIMIT,
+			],
+		]);
+	}
 
-    /**
-     * The capture app's first call, shaped exactly as its handoff contract
-     * specifies. GET / (info) carries the same facts and more — this stays
-     * the app's minimal, stable view of them.
-     */
-    #[NoAdminRequired]
-    public function capabilities(): DataResponse {
-        return new DataResponse([
-            'ocr_available' => $this->ocrSettings->isConfigured(),
-            // Whether this server accepts per-item splits (a `splits` field on
-            // create, and POST /transactions/{id}/splits). A hard-coded true
-            // on purpose: it is a property of the code that is answering, so a
-            // client can gate its per-item UI on one boolean instead of
-            // parsing `version` — which is documented as advisory, never a
-            // gate. An older server omits the key entirely, and a client
-            // reading it as false gets exactly the right behaviour.
-            'splits_available' => true,
-            'currency' => $this->conversionService->getBaseCurrency($this->userId),
-            'version' => $this->appVersion(),
-        ]);
-    }
+	/**
+	 * The capture app's first call, shaped exactly as its handoff contract
+	 * specifies: its minimal, stable view of the server. GET / (info) also
+	 * describes the server and the user, with feature flags of its own.
+	 */
+	#[NoAdminRequired]
+	public function capabilities(): DataResponse {
+		return new DataResponse([
+			'ocr_available' => $this->ocrSettings->isConfigured(),
+			// Whether this server accepts per-item splits (a `splits` field on
+			// create, and POST /transactions/{id}/splits). A hard-coded true
+			// on purpose: it is a property of the code that is answering, so a
+			// client can gate its per-item UI on one boolean instead of
+			// parsing `version` — which is documented as advisory, never a
+			// gate. An older server omits the key entirely, and a client
+			// reading it as false gets exactly the right behaviour.
+			'splits_available' => true,
+			// Whether this server has the read-only "check" routes (#767):
+			// budget/status, bills/upcoming, and splits and transfer links on
+			// transactions. Hard-coded like splits_available, for the same
+			// reason; an older server omits it and a client reads false.
+			'check_available' => true,
+			// Whether this server can edit and delete transactions, and undo
+			// a split (discussion 412). Hard-coded like the two above.
+			'edit_available' => true,
+			// Tags on transactions and GET /tags (discussion 420), the two
+			// reconcile calls, and transfer_account_id on create. One flag
+			// each, hard-coded like the three above.
+			'tags_available' => true,
+			'reconcile_available' => true,
+			'transfers_available' => true,
+			// tag_ids on create and edit. An older server ignores the field and
+			// answers success, so a client checks this before sending it.
+			'tag_ids_available' => true,
+			// The filters GET /transactions takes, by name. Not a flag: a
+			// server ignores a filter it does not know and answers with the
+			// unfiltered list, and a flag saying "the new filters are here"
+			// would say true for the next one added too. An older server
+			// leaves this out, and has the first five.
+			'transaction_filters' => ApiV1TransactionController::FILTERS,
+			'currency' => $this->conversionService->getBaseCurrency($this->userId),
+			'version' => $this->appVersion(),
+		]);
+	}
 
-    /**
-     * The installed app version, or null when the app manager cannot resolve
-     * it — a client should treat the version as advisory, never as a gate.
-     */
-    private function appVersion(): ?string {
-        try {
-            return $this->appManager->getAppVersion(Application::APP_ID) ?: null;
-        } catch (\Throwable $e) {
-            return null;
-        }
-    }
+	/**
+	 * The installed app version, or null when the app manager cannot resolve
+	 * it — a client should treat the version as advisory, never as a gate.
+	 */
+	private function appVersion(): ?string {
+		try {
+			return $this->appManager->getAppVersion(Application::APP_ID) ?: null;
+		} catch (\Throwable $e) {
+			return null;
+		}
+	}
 }

@@ -1,0 +1,3 @@
+user_id,group_id,journal_id,created_at,updated_at,group_title,type,amount,foreign_amount,currency_code,foreign_currency_code,description,date,source_name,source_iban,source_type,destination_name,destination_iban,destination_type,reconciled,category,budget,bill,tags,notes
+1,10,10,2023-06-02T11:00:00+02:00,2023-06-02T11:00:00+02:00,,Withdrawal,-18.40,,GBP,,Bus pass,2023-06-02T00:00:00+02:00,Current account,,Asset account,City Transport,,Expense account,,Transport,,,,
+1,11,11,2023-06-30T09:00:00+02:00,2023-06-30T09:00:00+02:00,,Deposit,1200.00,,GBP,,June pay,2023-06-30T00:00:00+02:00,Acme Ltd,,Revenue account,Current account,,Asset account,,Salary,,,,

@@ -33,7 +33,36 @@ class GoalsServiceTest extends TestCase {
 		$g->setDescription($overrides['description'] ?? null);
 		$g->setTargetDate($overrides['targetDate'] ?? null);
 		$g->setTagId($overrides['tagId'] ?? null);
+		$g->setAccountId($overrides['accountId'] ?? null);
 		return $g;
+	}
+
+	/**
+	 * A tag-linked goal with a linked account counts the tagged money going
+	 * in and out of that account: a tagged transfer puts its tag on both
+	 * legs, and summed over every account each payment came to nothing.
+	 */
+	public function testATagLinkedGoalWithALinkedAccountCountsThatAccountOnly(): void {
+		$this->mapper->method('findAll')->willReturn([
+			$this->makeGoal(['id' => 1, 'tagId' => 5, 'accountId' => 7]),
+			$this->makeGoal(['id' => 2, 'tagId' => 6]),
+		]);
+		$this->transactionTagMapper->method('sumTransactionAmountsByTag')
+			->with(5, 'user1', 7)->willReturn(300.0);
+		$this->transactionTagMapper->method('sumTransactionAmountsByTags')
+			->with([6], 'user1')->willReturn([6 => 40.0]);
+
+		$goals = $this->service->findAll('user1');
+
+		$this->assertSame([300.0, 40.0], [$goals[0]->getCurrentAmount(), $goals[1]->getCurrentAmount()]);
+	}
+
+	public function testFindingOneGoalCountsItsLinkedAccount(): void {
+		$this->mapper->method('find')->willReturn($this->makeGoal(['tagId' => 5, 'accountId' => 7]));
+		$this->transactionTagMapper->expects($this->once())->method('sumTransactionAmountsByTag')
+			->with(5, 'user1', 7)->willReturn(300.0);
+
+		$this->assertSame(300.0, $this->service->find(1, 'user1')->getCurrentAmount());
 	}
 
 	// ── findAll ─────────────────────────────────────────────────────

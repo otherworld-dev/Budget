@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Api;
 
+use OCA\Budget\Enum\Currency;
+use OCA\Budget\Service\MoneyCalculator;
 use OCP\AppFramework\Db\Entity;
 
 /**
@@ -25,218 +27,386 @@ use OCP\AppFramework\Db\Entity;
  * matching the wider OCS ecosystem. The internal camelCase never leaks.
  */
 final class ApiSerializer {
-    private function __construct() {
-    }
+	private function __construct() {
+	}
 
-    public static function account(Entity|array $account): array {
-        $a = self::toArray($account);
+	public static function account(Entity|array $account): array {
+		$a = self::toArray($account);
 
-        return [
-            'id' => (int)($a['id'] ?? 0),
-            'name' => (string)($a['name'] ?? ''),
-            'type' => (string)($a['type'] ?? ''),
-            'currency' => (string)($a['currency'] ?? ''),
-            'balance' => self::money($a['balance'] ?? 0),
-            // Only set when the account is not in the user's base currency.
-            'balance_in_base_currency' => isset($a['convertedBalance']) ? self::money($a['convertedBalance']) : null,
-            'base_currency' => $a['baseCurrency'] ?? null,
-            'institution' => $a['institution'] ?? null,
-            'shared' => (bool)($a['_shared'] ?? false),
-            // Closed accounts keep their history but take no new activity (#372);
-            // a capture client should leave them out of its own picker.
-            'closed' => (bool)($a['closed'] ?? false),
-            'updated_at' => $a['updatedAt'] ?? null,
-        ];
-    }
+		return [
+			'id' => (int)($a['id'] ?? 0),
+			'name' => (string)($a['name'] ?? ''),
+			'type' => (string)($a['type'] ?? ''),
+			'currency' => (string)($a['currency'] ?? ''),
+			'balance' => self::money($a['balance'] ?? 0, $a['currency'] ?? null),
+			// Only set when the account is not in the user's base currency.
+			'balance_in_base_currency' => isset($a['convertedBalance']) ? self::money($a['convertedBalance'], $a['baseCurrency'] ?? null) : null,
+			'base_currency' => $a['baseCurrency'] ?? null,
+			'institution' => $a['institution'] ?? null,
+			'shared' => (bool)($a['_shared'] ?? false),
+			// The owner's Nextcloud user id. A transaction lands in the owner's
+			// ledger, so its category must be one of theirs: a client matches
+			// this against a category's owner to offer only usable ones.
+			'owner' => (string)($a['userId'] ?? ''),
+			// Closed accounts keep their history but take no new activity (#372);
+			// a capture client should leave them out of its own picker.
+			'closed' => (bool)($a['closed'] ?? false),
+			// When a reconciliation was last completed, null until there has
+			// been one (#427). When the user finished, not the statement date.
+			'last_reconciled_at' => ($a['lastReconciled'] ?? '') !== '' ? (string)$a['lastReconciled'] : null,
+			'updated_at' => $a['updatedAt'] ?? null,
+		];
+	}
 
-    public static function category(Entity|array $category): array {
-        $c = self::toArray($category);
+	public static function category(Entity|array $category): array {
+		$c = self::toArray($category);
 
-        return [
-            'id' => (int)($c['id'] ?? 0),
-            'name' => (string)($c['name'] ?? ''),
-            'type' => (string)($c['type'] ?? ''),
-            'parent_id' => isset($c['parentId']) ? (int)$c['parentId'] : null,
-            'icon' => $c['icon'] ?? null,
-            'color' => $c['color'] ?? null,
-            'shared' => (bool)($c['_shared'] ?? false),
-        ];
-    }
+		return [
+			'id' => (int)($c['id'] ?? 0),
+			'name' => (string)($c['name'] ?? ''),
+			'type' => (string)($c['type'] ?? ''),
+			'parent_id' => isset($c['parentId']) ? (int)$c['parentId'] : null,
+			'icon' => $c['icon'] ?? null,
+			'color' => $c['color'] ?? null,
+			'shared' => (bool)($c['_shared'] ?? false),
+			// Whose category it is; see account()'s owner for why
+			'owner' => (string)($c['userId'] ?? ''),
+		];
+	}
 
-    public static function transaction(Entity|array $transaction): array {
-        $t = self::toArray($transaction);
+	/**
+	 * @param string|null $currency The account's currency, for a row that
+	 *                              doesn't carry it (list rows join it in)
+	 */
+	public static function transaction(Entity|array $transaction, ?string $currency = null): array {
+		$t = self::toArray($transaction);
+		$currency ??= $t['accountCurrency'] ?? null;
 
-        $out = [
-            'id' => (int)($t['id'] ?? 0),
-            'account_id' => (int)($t['accountId'] ?? 0),
-            'category_id' => isset($t['categoryId']) ? (int)$t['categoryId'] : null,
-            'date' => $t['date'] ?? null,
-            'description' => (string)($t['description'] ?? ''),
-            'vendor' => $t['vendor'] ?? null,
-            'amount' => self::money($t['amount'] ?? 0),
-            'type' => (string)($t['type'] ?? ''),
-            'reference' => $t['reference'] ?? null,
-            'notes' => $t['notes'] ?? null,
-            'status' => $t['status'] ?? 'cleared',
-            'reconciled' => (bool)($t['reconciled'] ?? false),
-            'is_split' => (bool)($t['isSplit'] ?? false),
-            'created_at' => $t['createdAt'] ?? null,
-            'updated_at' => $t['updatedAt'] ?? null,
-        ];
+		$out = [
+			'id' => (int)($t['id'] ?? 0),
+			'account_id' => (int)($t['accountId'] ?? 0),
+			'category_id' => isset($t['categoryId']) ? (int)$t['categoryId'] : null,
+			'date' => $t['date'] ?? null,
+			'description' => (string)($t['description'] ?? ''),
+			'vendor' => $t['vendor'] ?? null,
+			'amount' => self::money($t['amount'] ?? 0, $currency),
+			'type' => (string)($t['type'] ?? ''),
+			'reference' => $t['reference'] ?? null,
+			'notes' => $t['notes'] ?? null,
+			'status' => $t['status'] ?? 'cleared',
+			'reconciled' => (bool)($t['reconciled'] ?? false),
+			'is_split' => (bool)($t['isSplit'] ?? false),
+			'created_at' => $t['createdAt'] ?? null,
+			'updated_at' => $t['updatedAt'] ?? null,
+			// The other half of a transfer (#407). The caller clears the name
+			// when that half's account is not one the requester can see.
+			'linked_transaction_id' => isset($t['linkedTransactionId']) ? (int)$t['linkedTransactionId'] : null,
+			'linked_account_name' => $t['linkedAccountName'] ?? null,
+			// A split transaction's parts (#408); [] when it isn't split.
+			'splits' => self::splits($t['splitCategories'] ?? [], $currency),
+			// Its tags (discussion 420); [] when it has none, never absent,
+			// so a client renders and filters them without a special case.
+			'tags' => self::map($t['tags'] ?? [], [self::class, 'tag']),
+		];
 
-        // List queries join these in; single-record lookups do not. Present
-        // only when known, so a client can render a list without a second
-        // round-trip per row but never sees an invented value.
-        foreach (['accountName' => 'account_name', 'accountCurrency' => 'account_currency', 'categoryName' => 'category_name'] as $joined => $wire) {
-            if (isset($t[$joined])) {
-                $out[$wire] = $t[$joined];
-            }
-        }
+		// List queries join these in; single-record lookups do not. Present
+		// only when known, so a client can render a list without a second
+		// round-trip per row but never sees an invented value.
+		foreach (['accountName' => 'account_name', 'accountCurrency' => 'account_currency', 'categoryName' => 'category_name'] as $joined => $wire) {
+			if (isset($t[$joined])) {
+				$out[$wire] = $t[$joined];
+			}
+		}
 
-        // Filtering by category also matches a split transaction through its
-        // parts, and such a row's `amount` is the whole transaction, not the
-        // part that matched. split_amount is that part, so a client totalling a
-        // category sums this where it is present rather than over-counting
-        // every category the transaction touches (#359).
-        if (($t['matchedSplitAmount'] ?? null) !== null) {
-            $out['split_amount'] = self::money($t['matchedSplitAmount']);
-        }
+		// Filtering by category also matches a split transaction through its
+		// parts, and such a row's `amount` is the whole transaction, not the
+		// part that matched. split_amount is that part, so a client totalling a
+		// category sums this where it is present rather than over-counting
+		// every category the transaction touches (#359).
+		if (($t['matchedSplitAmount'] ?? null) !== null) {
+			$out['split_amount'] = self::money($t['matchedSplitAmount'], $currency);
+		}
 
-        return $out;
-    }
+		return $out;
+	}
 
-    public static function attachment(Entity|array $attachment): array {
-        $a = self::toArray($attachment);
+	/**
+	 * A tag (discussion 420), the same shape on a transaction and in GET /tags.
+	 *
+	 * A global tag has no tag set and no category and can sit on any
+	 * transaction. A category tag belongs to a tag set of one category and can
+	 * only sit on a transaction in that category, which is what category_id is
+	 * for. A hidden tag is kept off the pickers for new entries (#373).
+	 */
+	public static function tag(Entity|array $tag): array {
+		$t = self::toArray($tag);
 
-        return [
-            'id' => (int)($a['id'] ?? 0),
-            'transaction_id' => (int)($a['transactionId'] ?? 0),
-            'file_id' => (int)($a['fileId'] ?? 0),
-            'file_name' => $a['fileName'] ?? null,
-            'mime_type' => $a['mimeType'] ?? null,
-            'created_at' => $a['createdAt'] ?? null,
-            // listForTransaction() flags rows whose file the user has deleted.
-            'missing' => (bool)($a['missing'] ?? false),
-        ];
-    }
+		return [
+			'id' => (int)($t['id'] ?? 0),
+			'name' => (string)($t['name'] ?? ''),
+			'color' => $t['color'] ?? null,
+			'tag_set_id' => isset($t['tagSetId']) ? (int)$t['tagSetId'] : null,
+			'tag_set_name' => $t['tagSetName'] ?? null,
+			'category_id' => isset($t['categoryId']) ? (int)$t['categoryId'] : null,
+			'hidden' => (bool)($t['hidden'] ?? false),
+			// Whose tag it is; see account()'s owner
+			'owner' => (string)($t['userId'] ?? ''),
+		];
+	}
 
-    /**
-     * The draft a receipt extraction produces (#533). Not an entity — the
-     * extraction service already normalises every field — but the shape is
-     * pinned here (and in ApiSerializerTest) like every other v1 shape, so
-     * the contract survives refactors of the service.
-     */
-    public static function receiptDraft(array $draft): array {
-        return [
-            'merchant' => $draft['merchant'] ?? null,
-            'date' => $draft['date'] ?? null,
-            'total' => $draft['total'] ?? null,
-            // A capture app that lets the user categorise each item needs the
-            // tax line: splits must sum exactly to the transaction, and most
-            // receipts print tax separately, so items alone do not reconcile.
-            // Additive to v1 — existing clients ignore unknown keys.
-            'subtotal' => $draft['subtotal'] ?? null,
-            'tax' => $draft['tax'] ?? null,
-            // Money taken off, positive as printed. Without it a supermarket
-            // receipt's items sum higher than the total and no client can make
-            // them reconcile into splits.
-            'discount' => $draft['discount'] ?? null,
-            'currency' => $draft['currency'] ?? null,
-            'suggested_category_id' => $draft['suggestedCategoryId'] ?? null,
-            'suggested_category_name' => $draft['suggestedCategoryName'] ?? null,
-            'line_items' => array_values(array_map(
-                static fn (array $item) => [
-                    'description' => (string)$item['description'],
-                    'amount' => (string)$item['amount'],
-                ],
-                $draft['lineItems'] ?? []
-            )),
-            'warnings' => array_values($draft['warnings'] ?? []),
-        ];
-    }
+	public static function attachment(Entity|array $attachment): array {
+		$a = self::toArray($attachment);
 
-    /**
-     * One row of GET /transactions/recent — the capture app's glanceable
-     * list, shaped exactly as its handoff specifies. merchant is the vendor
-     * when one was recorded, else the description: the app shows a shop
-     * name, not bank-statement prose.
-     *
-     * @param Entity|array $transaction A LIST-query row (the account joins
-     *                                  must be present).
-     */
-    public static function recentTransaction(Entity|array $transaction): array {
-        $t = self::toArray($transaction);
+		return [
+			'id' => (int)($a['id'] ?? 0),
+			'transaction_id' => (int)($a['transactionId'] ?? 0),
+			'file_id' => (int)($a['fileId'] ?? 0),
+			'file_name' => $a['fileName'] ?? null,
+			'mime_type' => $a['mimeType'] ?? null,
+			'created_at' => $a['createdAt'] ?? null,
+			// listForTransaction() flags rows whose file the user has deleted.
+			'missing' => (bool)($a['missing'] ?? false),
+		];
+	}
 
-        $vendor = $t['vendor'] ?? null;
+	/**
+	 * The draft a receipt extraction produces (#533). Not an entity — the
+	 * extraction service already normalises every field — but the shape is
+	 * pinned here (and in ApiSerializerTest) like every other v1 shape, so
+	 * the contract survives refactors of the service.
+	 */
+	public static function receiptDraft(array $draft): array {
+		return [
+			'merchant' => $draft['merchant'] ?? null,
+			'date' => $draft['date'] ?? null,
+			'total' => $draft['total'] ?? null,
+			// A capture app that lets the user categorise each item needs the
+			// tax line: splits must sum exactly to the transaction, and most
+			// receipts print tax separately, so items alone do not reconcile.
+			// Additive to v1 — existing clients ignore unknown keys.
+			'subtotal' => $draft['subtotal'] ?? null,
+			'tax' => $draft['tax'] ?? null,
+			// Money taken off, positive as printed. Without it a supermarket
+			// receipt's items sum higher than the total and no client can make
+			// them reconcile into splits.
+			'discount' => $draft['discount'] ?? null,
+			'currency' => $draft['currency'] ?? null,
+			'suggested_category_id' => $draft['suggestedCategoryId'] ?? null,
+			'suggested_category_name' => $draft['suggestedCategoryName'] ?? null,
+			'line_items' => array_values(array_map(
+				static fn (array $item) => [
+					'description' => (string)$item['description'],
+					'amount' => (string)$item['amount'],
+				],
+				$draft['lineItems'] ?? []
+			)),
+			'warnings' => array_values($draft['warnings'] ?? []),
+		];
+	}
 
-        return [
-            'id' => (int)($t['id'] ?? 0),
-            'merchant' => is_string($vendor) && $vendor !== '' ? $vendor : (string)($t['description'] ?? ''),
-            'date' => $t['date'] ?? null,
-            'amount' => self::money($t['amount'] ?? 0),
-            'currency' => $t['accountCurrency'] ?? null,
-            'account_name' => $t['accountName'] ?? null,
-        ];
-    }
+	/**
+	 * One row of GET /transactions/recent — the capture app's glanceable
+	 * list, shaped exactly as its handoff specifies. merchant is the vendor
+	 * when one was recorded, else the description: the app shows a shop
+	 * name, not bank-statement prose.
+	 *
+	 * @param Entity|array $transaction A LIST-query row (the account joins
+	 *                                  must be present).
+	 */
+	public static function recentTransaction(Entity|array $transaction): array {
+		$t = self::toArray($transaction);
 
-    /** @param callable(Entity|array): array $mapper */
-    public static function map(array $items, callable $mapper): array {
-        return array_values(array_map($mapper, $items));
-    }
+		$vendor = $t['vendor'] ?? null;
+		$currency = $t['accountCurrency'] ?? null;
 
-    /**
-     * Money as a fixed-point decimal string, never a JSON number.
-     *
-     * Every amount in this app is stored as DECIMAL(15,2) and calculated with
-     * BCMath through MoneyCalculator, precisely so that a penny cannot go
-     * missing. Handing a client a JSON number throws that away at the last
-     * step: JSON numbers are IEEE doubles in most parsers, so 0.1 + 0.2 stops
-     * being 0.30 the moment the client does arithmetic of its own.
-     *
-     * A string preserves what the database guarantees all the way to the
-     * client, and drops straight into the exact decimal type every platform
-     * has — BigDecimal on Android, Decimal in .NET, decimal.Decimal in Python.
-     * Clients that only display the figure can print it unchanged.
-     *
-     * Always two decimal places, matching the column scale: '0.00', '-12.50'.
-     */
-    private static function money(float|int|string $value): string {
-        return number_format((float)$value, 2, '.', '');
-    }
+		return [
+			'id' => (int)($t['id'] ?? 0),
+			'merchant' => is_string($vendor) && $vendor !== '' ? $vendor : (string)($t['description'] ?? ''),
+			'date' => $t['date'] ?? null,
+			'amount' => self::money($t['amount'] ?? 0, $currency),
+			'currency' => $t['accountCurrency'] ?? null,
+			'account_name' => $t['accountName'] ?? null,
+			// Added for "capture and check" (#767): without type a client
+			// cannot tell money in from money out.
+			'account_id' => (int)($t['accountId'] ?? 0),
+			'type' => (string)($t['type'] ?? ''),
+			'category_name' => $t['categoryName'] ?? null,
+			'is_split' => (bool)($t['isSplit'] ?? false),
+			'splits' => self::splits($t['splitCategories'] ?? [], $currency),
+			'linked_transaction_id' => isset($t['linkedTransactionId']) ? (int)$t['linkedTransactionId'] : null,
+			'linked_account_name' => $t['linkedAccountName'] ?? null,
+		];
+	}
 
-    /**
-     * One allocation of a split transaction.
-     *
-     * `amount` is a money string like every other figure in v1, so a client
-     * can sum the parts without a float ever entering the arithmetic.
-     */
-    public static function split(Entity|array $split): array {
-        $data = self::toArray($split);
+	/** @param callable(Entity|array): array $mapper */
+	public static function map(array $items, callable $mapper): array {
+		return array_values(array_map($mapper, $items));
+	}
 
-        return [
-            'id' => isset($data['id']) ? (int)$data['id'] : null,
-            'transaction_id' => isset($data['transactionId']) ? (int)$data['transactionId'] : null,
-            'amount' => self::money($data['amount'] ?? 0),
-            'category_id' => isset($data['categoryId']) ? (int)$data['categoryId'] : null,
-            'category_name' => $data['categoryName'] ?? null,
-            'description' => $data['description'] ?? null,
-        ];
-    }
+	/**
+	 * Money as a fixed-point decimal string, never a JSON number.
+	 *
+	 * Every amount in this app is stored as a DECIMAL and calculated with
+	 * BCMath through MoneyCalculator, precisely so that a penny cannot go
+	 * missing. Handing a client a JSON number throws that away at the last
+	 * step: JSON numbers are IEEE doubles in most parsers, so 0.1 + 0.2 stops
+	 * being 0.30 the moment the client does arithmetic of its own.
+	 *
+	 * A string preserves what the database guarantees all the way to the
+	 * client, and drops straight into the exact decimal type every platform
+	 * has — BigDecimal on Android, Decimal in .NET, decimal.Decimal in Python.
+	 * Clients that only display the figure can print it unchanged.
+	 *
+	 * In the currency's own places, never fewer than two: '0.00', '-12.50',
+	 * and a yen amount reads '1000.00' as it always has. A crypto amount
+	 * keeps its digits ('0.02200000'): at two places 0.022 BTC read '0.02',
+	 * and a client sending the read shape back to a PATCH changed the amount.
+	 */
+	private static function money(float|int|string $value, ?string $currency = null): string {
+		return number_format((float)$value, max(2, Currency::decimalsFor($currency)), '.', '');
+	}
 
-    /** @param iterable<Entity|array> $splits */
-    public static function splits(iterable $splits): array {
-        $out = [];
-        foreach ($splits as $split) {
-            $out[] = self::split($split);
-        }
-        return $out;
-    }
+	/**
+	 * One allocation of a split transaction.
+	 *
+	 * `amount` is a money string like every other figure in v1, so a client
+	 * can sum the parts without a float ever entering the arithmetic.
+	 */
+	public static function split(Entity|array $split, ?string $currency = null): array {
+		$data = self::toArray($split);
 
-    private static function toArray(Entity|array $value): array {
-        if (is_array($value)) {
-            return $value;
-        }
+		return [
+			'id' => isset($data['id']) ? (int)$data['id'] : null,
+			'transaction_id' => isset($data['transactionId']) ? (int)$data['transactionId'] : null,
+			'amount' => self::money($data['amount'] ?? 0, $currency),
+			'category_id' => isset($data['categoryId']) ? (int)$data['categoryId'] : null,
+			'category_name' => $data['categoryName'] ?? null,
+			'description' => $data['description'] ?? null,
+		];
+	}
 
-        return $value instanceof \JsonSerializable ? (array)$value->jsonSerialize() : [];
-    }
+	/**
+	 * @param iterable<Entity|array> $splits
+	 * @param string|null $currency The transaction's account currency
+	 */
+	public static function splits(iterable $splits, ?string $currency = null): array {
+		$out = [];
+		foreach ($splits as $split) {
+			$out[] = self::split($split, $currency);
+		}
+		return $out;
+	}
+
+	/**
+	 * DELETE /transactions/{id} (discussion 412). When the deleted row was
+	 * one side of a transfer, the other side survives as a plain transaction
+	 * and its id is here, so a client can offer to delete that too.
+	 */
+	public static function deletion(int $id, ?int $unlinkedTransactionId): array {
+		return [
+			'id' => $id,
+			'deleted' => true,
+			'unlinked_transaction_id' => $unlinkedTransactionId,
+		];
+	}
+
+	/**
+	 * GET /budget/status (#767): a month's budget, figure for figure as the
+	 * web Budget page shows it. `totals` covers expense categories only;
+	 * `categories` lists every budgeted row, income included.
+	 */
+	public static function budgetStatus(array $status): array {
+		$totals = $status['totals'] ?? [];
+		$currency = $status['currency'] ?? null;
+		$budgeted = self::money($totals['budgeted'] ?? 0, $currency);
+		$spent = self::money($totals['spent'] ?? 0, $currency);
+
+		return [
+			'month' => (string)($status['month'] ?? ''),
+			'start_date' => $status['startDate'] ?? null,
+			'end_date' => $status['endDate'] ?? null,
+			'currency' => $currency,
+			'totals' => [
+				'budgeted' => $budgeted,
+				'spent' => $spent,
+				// From the two figures as shown, as the Budget page works it
+				// out, so the three always add up: rounding each total on its
+				// own left Remaining a penny off Budgeted - Spent
+				'remaining' => self::money(
+					MoneyCalculator::subtract($budgeted, $spent, max(2, Currency::decimalsFor($currency))),
+					$currency
+				),
+			],
+			'categories' => array_values(array_map(
+				static fn (array $line): array => self::budgetLine($line, $currency),
+				$status['categories'] ?? []
+			)),
+		];
+	}
+
+	/**
+	 * One budgeted category of GET /budget/status. `budgeted` is the
+	 * budget's share of the month, so a weekly or yearly budget is turned
+	 * monthly, and includes any envelope carry-over, which `carried` repeats
+	 * for context; a parent's figures cover its branch, as on the page.
+	 * `parent_id` is its parent on the page, which for a shared category can
+	 * differ from where it is stored. `period_to_date` is what a quarterly or
+	 * yearly row shows beside the month: the budget for its whole period and
+	 * the spending so far, null for any other period.
+	 */
+	public static function budgetLine(array $line, ?string $currency = null): array {
+		$toDate = $line['periodToDate'] ?? null;
+		return [
+			'category_id' => (int)($line['categoryId'] ?? 0),
+			'name' => (string)($line['name'] ?? ''),
+			'parent_id' => isset($line['parentId']) ? (int)$line['parentId'] : null,
+			'type' => (string)($line['type'] ?? ''),
+			'period' => (string)($line['period'] ?? 'monthly'),
+			'budgeted' => self::money($line['budgeted'] ?? 0, $currency),
+			'carried' => self::money($line['carried'] ?? 0, $currency),
+			'spent' => self::money($line['spent'] ?? 0, $currency),
+			'remaining' => self::money($line['remaining'] ?? 0, $currency),
+			'shared' => (bool)($line['shared'] ?? false),
+			'period_to_date' => is_array($toDate) ? [
+				'start_date' => $toDate['startDate'] ?? null,
+				'end_date' => $toDate['endDate'] ?? null,
+				'budgeted' => self::money($toDate['budgeted'] ?? 0, $currency),
+				'spent' => self::money($toDate['spent'] ?? 0, $currency),
+			] : null,
+		];
+	}
+
+	/**
+	 * One bill of GET /bills/upcoming (#767). `amount` is the stored figure:
+	 * for an `amount_type` other than 'fixed' the real one is only worked
+	 * out from the card's statement when the bill is paid.
+	 */
+	public static function bill(Entity|array $bill): array {
+		$b = self::toArray($bill);
+
+		return [
+			'id' => (int)($b['id'] ?? 0),
+			'name' => (string)($b['name'] ?? ''),
+			'amount' => self::money($b['amount'] ?? 0, $b['currency'] ?? null),
+			'amount_type' => (string)($b['amountType'] ?? 'fixed'),
+			'currency' => $b['currency'] ?? null,
+			'frequency' => (string)($b['frequency'] ?? ''),
+			'next_due_date' => $b['nextDueDate'] ?? null,
+			'overdue' => (bool)($b['overdue'] ?? false),
+			'account_id' => isset($b['accountId']) ? (int)$b['accountId'] : null,
+			'account_name' => $b['accountName'] ?? null,
+			'category_id' => isset($b['categoryId']) ? (int)$b['categoryId'] : null,
+			'is_transfer' => (bool)($b['isTransfer'] ?? false),
+			'auto_pay' => (bool)($b['autoPayEnabled'] ?? false),
+			'shared' => (bool)($b['_shared'] ?? false),
+		];
+	}
+
+	private static function toArray(Entity|array $value): array {
+		if (is_array($value)) {
+			return $value;
+		}
+
+		return $value instanceof \JsonSerializable ? (array)$value->jsonSerialize() : [];
+	}
 }

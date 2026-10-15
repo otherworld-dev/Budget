@@ -26,59 +26,59 @@ use Psr\Log\LoggerInterface;
  * themselves, which keeps pagination and diffing trivial.
  */
 class ApiV1CategoryController extends OCSController {
-    use ApiErrorHandlerTrait;
+	use ApiErrorHandlerTrait;
 
-    /**
-     * Categories are typed 'income'/'expense', not the 'credit'/'debit' a
-     * transaction carries. The two vocabularies are separate on purpose and
-     * v1 passes each through unchanged rather than inventing a third.
-     */
-    private const TYPES = ['income', 'expense'];
+	/**
+	 * Categories are typed 'income'/'expense', not the 'credit'/'debit' a
+	 * transaction carries. The two vocabularies are separate on purpose and
+	 * v1 passes each through unchanged rather than inventing a third.
+	 */
+	private const TYPES = ['income', 'expense'];
 
-    private string $userId;
+	private string $userId;
 
-    public function __construct(
-        IRequest $request,
-        private CategoryService $service,
-        private GranularShareService $granularShareService,
-        private IL10N $l,
-        ?string $userId,
-        LoggerInterface $logger,
-    ) {
-        parent::__construct(Application::APP_ID, $request);
-        $this->setLogger($logger);
-        // Null until the security middleware rejects the request — see
-        // ApiV1Controller for why this must not be typed non-null.
-        $this->userId = $userId ?? '';
-    }
+	public function __construct(
+		IRequest $request,
+		private CategoryService $service,
+		private GranularShareService $granularShareService,
+		private IL10N $l,
+		?string $userId,
+		LoggerInterface $logger,
+	) {
+		parent::__construct(Application::APP_ID, $request);
+		$this->setLogger($logger);
+		// Null until the security middleware rejects the request — see
+		// ApiV1Controller for why this must not be typed non-null.
+		$this->userId = $userId ?? '';
+	}
 
-    /**
-     * @param string|null $type Restrict to 'expense' or 'income'.
-     */
-    #[NoAdminRequired]
-    public function index(?string $type = null): DataResponse {
-        if ($type !== null && !in_array($type, self::TYPES, true)) {
-            return new DataResponse(
-                ['error' => $this->l->t('Invalid category type. Must be income or expense')],
-                Http::STATUS_BAD_REQUEST
-            );
-        }
+	/**
+	 * @param string|null $type Restrict to 'expense' or 'income'.
+	 */
+	#[NoAdminRequired]
+	public function index(?string $type = null): DataResponse {
+		if ($type !== null && !in_array($type, self::TYPES, true)) {
+			return new DataResponse(
+				['error' => $this->l->t('Invalid category type. Must be income or expense')],
+				Http::STATUS_BAD_REQUEST
+			);
+		}
 
-        try {
-            $categories = $type !== null
-                ? $this->service->findByType($this->userId, $type)
-                : $this->service->findAll($this->userId);
+		try {
+			$categories = $type !== null
+				? $this->service->findByType($this->userId, $type)
+				: $this->service->findAll($this->userId);
 
-            $shared = $this->granularShareService->getSharedCategories($this->userId);
-            if ($type !== null) {
-                $shared = array_filter($shared, static fn ($c) => ($c['type'] ?? '') === $type);
-            }
+			$shared = $this->granularShareService->getSharedCategories($this->userId);
+			if ($type !== null) {
+				$shared = array_filter($shared, static fn ($c) => ($c['type'] ?? '') === $type);
+			}
 
-            $all = array_merge($categories, array_values($shared));
+			$all = array_merge($categories, array_values($shared));
 
-            return new DataResponse(ApiSerializer::map($all, [ApiSerializer::class, 'category']));
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to retrieve categories'));
-        }
-    }
+			return new DataResponse(ApiSerializer::map($all, [ApiSerializer::class, 'category']));
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to retrieve categories'));
+		}
+	}
 }

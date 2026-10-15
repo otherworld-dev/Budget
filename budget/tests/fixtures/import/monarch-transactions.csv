@@ -1,0 +1,8 @@
+Date,Merchant,Category,Account,Original Statement,Notes,Amount,Tags
+2024-04-01,Whole Foods,Groceries,Joint Checking (...1234),WHOLEFDS MKT 10234 AUSTIN TX,,-64.12,
+2024-04-02,City Utilities,Gas & Electric,Joint Checking (...1234),CITY OF AUSTIN UTIL WEB PMT,april bill,-118.40,"Household, Recurring"
+2024-04-05,Acme Payroll,Paychecks,Joint Checking (...1234),ACME PAYROLL DIR DEP,,3250.00,
+2024-04-10,Credit Card Payment,Credit Card Payment,Joint Checking (...1234),AMEX EPAYMENT ACH PMT,,-500.00,
+2024-04-10,Payment Received,Credit Card Payment,Amex Gold Card (...9876),ONLINE PAYMENT - THANK YOU,,500.00,
+2024-04-12,Delta Air Lines,Travel & Vacation,Amex Gold Card (...9876),DELTA AIR LINES ATLANTA,flights to Denver,-412.30,Vacation
+2024-04-12,Delta Air Lines,Travel & Vacation,Amex Gold Card (...9876),DELTA AIR LINES ATLANTA,seat upgrade,-412.30,Vacation

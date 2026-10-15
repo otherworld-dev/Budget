@@ -14,1006 +14,1452 @@ use OCA\Budget\Service\AccountService;
 use OCA\Budget\Service\Bill\FrequencyCalculator;
 use OCA\Budget\Service\RepairService;
 use OCA\Budget\Service\TransactionService;
+use OCA\Budget\Service\UserClock;
 use PHPUnit\Framework\TestCase;
 
 class RepairServiceTest extends TestCase {
-    private RepairService $service;
-    private TransactionMapper $transactionMapper;
-    private BillMapper $billMapper;
-    private AccountMapper $accountMapper;
-    private FrequencyCalculator $frequencyCalculator;
-    private AccountService $accountService;
-    private TransactionService $transactionService;
-
-    private const USER_ID = 'testuser';
-
-    protected function setUp(): void {
-        $this->transactionMapper = $this->createMock(TransactionMapper::class);
-        $this->billMapper = $this->createMock(BillMapper::class);
-        $this->accountMapper = $this->createMock(AccountMapper::class);
-        $this->frequencyCalculator = $this->createMock(FrequencyCalculator::class);
-        $this->accountService = $this->createMock(AccountService::class);
-        $this->transactionService = $this->createMock(TransactionService::class);
-
-        $this->service = new RepairService(
-            $this->transactionMapper,
-            $this->billMapper,
-            $this->accountMapper,
-            $this->frequencyCalculator,
-            $this->accountService,
-            $this->transactionService
-        );
-    }
-
-    private function makeAccount(array $overrides = []): Account {
-        $defaults = [
-            'id' => 1,
-            'name' => 'Checking',
-            'balance' => '1000.00',
-            'openingBalance' => '0.00',
-            'userId' => self::USER_ID,
-            'type' => 'checking',
-            'liabilityInCredit' => null,
-        ];
-        $data = array_merge($defaults, $overrides);
-
-        $account = new Account();
-        $account->setId($data['id']);
-        $account->setName($data['name']);
-        $account->setBalance((float) $data['balance']);
-        $account->setOpeningBalance((float) $data['openingBalance']);
-        $account->setUserId($data['userId']);
-        $account->setType($data['type']);
-        $account->setLiabilityInCredit($data['liabilityInCredit']);
-
-        return $account;
-    }
-
-    private function makeTransaction(array $overrides = []): Transaction {
-        $defaults = [
-            'id' => 1,
-            'date' => '2026-05-01',
-            'amount' => '50.00',
-            'type' => 'debit',
-            'status' => 'cleared',
-            'vendor' => 'Test Vendor',
-            'description' => 'Test Description',
-            'notes' => null,
-            'createdAt' => '2026-05-01 10:00:00',
-            'accountId' => 1,
-            'categoryId' => null,
-        ];
-        $data = array_merge($defaults, $overrides);
-
-        $tx = new Transaction();
-        $tx->setId($data['id']);
-        $tx->setDate($data['date']);
-        $tx->setAmount((float) $data['amount']);
-        $tx->setType($data['type']);
-        $tx->setStatus($data['status']);
-        $tx->setVendor($data['vendor']);
-        $tx->setDescription($data['description']);
-        $tx->setNotes($data['notes']);
-        $tx->setCreatedAt($data['createdAt']);
-        $tx->setAccountId($data['accountId']);
-        $tx->setCategoryId($data['categoryId']);
-
-        return $tx;
-    }
-
-    private function makeBill(array $overrides = []): Bill {
-        $defaults = [
-            'id' => 1,
-            'name' => 'Rent',
-            'frequency' => 'monthly',
-            'lastPaidDate' => '2026-05-01',
-            'nextDueDate' => '2026-06-01',
-            'dueDay' => 1,
-            'dueMonth' => null,
-            'amount' => '500.00',
-            'isActive' => true,
-            'customRecurrencePattern' => null,
-            'userId' => self::USER_ID,
-        ];
-        $data = array_merge($defaults, $overrides);
-
-        $bill = new Bill();
-        $bill->setId($data['id']);
-        $bill->setName($data['name']);
-        $bill->setFrequency($data['frequency']);
-        $bill->setLastPaidDate($data['lastPaidDate']);
-        $bill->setNextDueDate($data['nextDueDate']);
-        $bill->setDueDay($data['dueDay']);
-        $bill->setDueMonth($data['dueMonth']);
-        $bill->setAmount((float) $data['amount']);
-        $bill->setIsActive($data['isActive']);
-        $bill->setCustomRecurrencePattern($data['customRecurrencePattern']);
-        $bill->setUserId($data['userId']);
-
-        return $bill;
-    }
-
-    /**
-     * Helper to set up accountMapper->findAll to return given accounts.
-     */
-    private function withAccounts(array $accounts): void {
-        $this->accountMapper->method('findAll')
-            ->with(self::USER_ID)
-            ->willReturn($accounts);
-    }
-
-    /**
-     * Helper to set up billMapper->findActive to return given bills.
-     */
-    private function withActiveBills(array $bills): void {
-        $this->billMapper->method('findActive')
-            ->with(self::USER_ID)
-            ->willReturn($bills);
-    }
-
-    // ---------------------------------------------------------------
-    // 1. diagnose returns all 6 categories
-    // ---------------------------------------------------------------
-
-    public function testDiagnoseReturnsEveryDeclaredCategory(): void {
-        $this->withAccounts([]);
-        $this->withActiveBills([]);
-
-        $result = $this->service->diagnose(self::USER_ID);
-
-        // Asserted against the registry rather than a hand-kept literal, so
-        // adding a category cannot leave diagnose() and the controller's
-        // whitelist silently out of step.
-        $this->assertSame(RepairService::CATEGORIES, array_keys($result));
-    }
-
-    public function testBalanceDriftIsReportedLastSoItRecalculatesAfterEveryOtherFix(): void {
-        $categories = RepairService::CATEGORIES;
-        $this->assertSame('balanceDrift', end($categories));
-    }
-
-    // ---------------------------------------------------------------
-    // 2-3. findDuplicateAutoGenerated
-    // ---------------------------------------------------------------
-
-    public function testFindDuplicateAutoGeneratedIdentifiesPairsWithSameCreatedAtWithin14Days(): void {
-        $account = $this->makeAccount(['id' => 1]);
-        $this->withAccounts([$account]);
-        $this->withActiveBills([]);
-
-        // Two auto-generated transactions with same amount+createdAt, dates 5 days apart
-        $tx1 = $this->makeTransaction([
-            'id' => 10,
-            'date' => '2026-05-01',
-            'amount' => '100.00',
-            'createdAt' => '2026-05-01 12:00:00',
-            'notes' => 'Auto-generated from bill: Internet',
-            'vendor' => 'ISP',
-        ]);
-        $tx2 = $this->makeTransaction([
-            'id' => 11,
-            'date' => '2026-05-06',
-            'amount' => '100.00',
-            'createdAt' => '2026-05-01 12:00:00',
-            'notes' => 'Auto-generated from bill: Internet',
-            'vendor' => 'ISP',
-        ]);
-
-        $this->transactionMapper->method('findAutoGeneratedBillTransactions')
-            ->with(1)
-            ->willReturn([$tx1, $tx2]);
-        // No manual duplicates
-        $this->transactionMapper->method('findByDateRange')
-            ->willReturn([]);
-        $this->transactionMapper->method('getNetChangeAll')->willReturn(0.0);
-        $this->transactionMapper->method('findLinkedCreditsWithCategory')->willReturn([]);
-
-        $result = $this->service->diagnose(self::USER_ID);
-
-        $this->assertNotEmpty($result['duplicateTransactions']);
-        $ids = array_column($result['duplicateTransactions'], 'duplicateId');
-        $this->assertContains(11, $ids);
-    }
-
-    public function testFindDuplicateAutoGeneratedIgnoresEntriesOver14DaysApart(): void {
-        $account = $this->makeAccount(['id' => 1]);
-        $this->withAccounts([$account]);
-        $this->withActiveBills([]);
-
-        // Same amount+createdAt but 30 days apart (different billing cycle)
-        $tx1 = $this->makeTransaction([
-            'id' => 10,
-            'date' => '2026-05-01',
-            'amount' => '100.00',
-            'createdAt' => '2026-05-01 12:00:00',
-            'notes' => null,
-            'vendor' => 'ISP',
-        ]);
-        $tx2 = $this->makeTransaction([
-            'id' => 11,
-            'date' => '2026-05-31',
-            'amount' => '100.00',
-            'createdAt' => '2026-05-01 12:00:00',
-            'notes' => null,
-            'vendor' => 'ISP',
-        ]);
-
-        $this->transactionMapper->method('findAutoGeneratedBillTransactions')
-            ->willReturn([$tx1, $tx2]);
-        $this->transactionMapper->method('findByDateRange')->willReturn([]);
-        $this->transactionMapper->method('getNetChangeAll')->willReturn(0.0);
-        $this->transactionMapper->method('findLinkedCreditsWithCategory')->willReturn([]);
-
-        $result = $this->service->diagnose(self::USER_ID);
-
-        // The created_at grouping should not flag these as duplicates
-        // (they may still be flagged by same-bill-period check if notes match, but
-        // with null notes they won't match the auto-generated pattern)
-        $duplicateIds = array_column($result['duplicateTransactions'], 'duplicateId');
-        $this->assertNotContains(11, $duplicateIds);
-    }
-
-    // ---------------------------------------------------------------
-    // 4-8. findStuckBills
-    // ---------------------------------------------------------------
-
-    public function testFindStuckBillsDetectsNextDueBeforeLastPaid(): void {
-        $this->withAccounts([]);
-
-        $bill = $this->makeBill([
-            'id' => 1,
-            'name' => 'Rent',
-            'frequency' => 'monthly',
-            'lastPaidDate' => '2026-05-15',
-            'nextDueDate' => '2026-05-01', // before lastPaid
-        ]);
-        $this->withActiveBills([$bill]);
-
-        $result = $this->service->diagnose(self::USER_ID);
-
-        $this->assertCount(1, $result['stuckBills']);
-        $this->assertEquals('next_due_before_paid', $result['stuckBills'][0]['reason']);
-        $this->assertEquals(1, $result['stuckBills'][0]['billId']);
-    }
-
-    public function testFindStuckBillsDetectsNextDueNotAdvancedForMonthlyBills(): void {
-        $this->withAccounts([]);
-
-        // Monthly bill where nextDue is only 3 days after lastPaid (should be ~30 days)
-        $bill = $this->makeBill([
-            'id' => 2,
-            'name' => 'Electric',
-            'frequency' => 'monthly',
-            'lastPaidDate' => date('Y-m-d', strtotime('-5 days')),
-            'nextDueDate' => date('Y-m-d', strtotime('-2 days')),
-        ]);
-        $this->withActiveBills([$bill]);
-
-        $result = $this->service->diagnose(self::USER_ID);
-
-        $this->assertCount(1, $result['stuckBills']);
-        // Could be next_due_not_advanced or next_due_before_paid depending on exact dates
-        $this->assertContains($result['stuckBills'][0]['reason'], [
-            'next_due_not_advanced',
-            'next_due_before_paid',
-            'overdue_despite_recent_payment',
-        ]);
-    }
-
-    public function testFindStuckBillsDetectsOverdueDespiteRecentPayment(): void {
-        $this->withAccounts([]);
-
-        // Bill paid 10 days ago but nextDue is yesterday (overdue despite recent payment)
-        $bill = $this->makeBill([
-            'id' => 3,
-            'name' => 'Phone',
-            'frequency' => 'monthly',
-            'lastPaidDate' => date('Y-m-d', strtotime('-10 days')),
-            'nextDueDate' => date('Y-m-d', strtotime('-1 day')),
-        ]);
-        $this->withActiveBills([$bill]);
-
-        $result = $this->service->diagnose(self::USER_ID);
-
-        $this->assertCount(1, $result['stuckBills']);
-        $this->assertEquals('overdue_despite_recent_payment', $result['stuckBills'][0]['reason']);
-    }
-
-    public function testFindStuckBillsDetectsFarFutureDueDate(): void {
-        $this->withAccounts([]);
-
-        $bill = $this->makeBill([
-            'id' => 4,
-            'name' => 'Insurance',
-            'frequency' => 'yearly',
-            'lastPaidDate' => '2026-01-01',
-            'nextDueDate' => '2040-01-01', // >10 years from now
-        ]);
-        $this->withActiveBills([$bill]);
-
-        $result = $this->service->diagnose(self::USER_ID);
-
-        $this->assertCount(1, $result['stuckBills']);
-        $this->assertEquals('far_future_due_date', $result['stuckBills'][0]['reason']);
-    }
-
-    public function testFindStuckBillsSkipsOneTimeBills(): void {
-        $this->withAccounts([]);
-
-        $bill = $this->makeBill([
-            'id' => 5,
-            'name' => 'One-off payment',
-            'frequency' => 'one-time',
-            'lastPaidDate' => '2026-05-01',
-            'nextDueDate' => '2026-04-01', // before lastPaid, but one-time so should be skipped
-        ]);
-        $this->withActiveBills([$bill]);
-
-        $result = $this->service->diagnose(self::USER_ID);
-
-        $this->assertEmpty($result['stuckBills']);
-    }
-
-    // ---------------------------------------------------------------
-    // 9. findPaidOneTimeBillsStillActive
-    // ---------------------------------------------------------------
-
-    public function testFindPaidOneTimeBillsStillActive(): void {
-        $this->withAccounts([]);
-
-        $bill = $this->makeBill([
-            'id' => 10,
-            'name' => 'Setup Fee',
-            'frequency' => 'one-time',
-            'lastPaidDate' => '2026-04-15',
-            'nextDueDate' => '2026-04-15',
-            'isActive' => true,
-            'amount' => '250.00',
-        ]);
-        $this->withActiveBills([$bill]);
-
-        $result = $this->service->diagnose(self::USER_ID);
-
-        $this->assertCount(1, $result['paidOneTimeBills']);
-        $this->assertEquals(10, $result['paidOneTimeBills'][0]['billId']);
-        $this->assertEquals('Setup Fee', $result['paidOneTimeBills'][0]['name']);
-        $this->assertEquals(250.00, $result['paidOneTimeBills'][0]['amount']);
-    }
-
-    // ---------------------------------------------------------------
-    // 10. findFutureClearedTransactions
-    // ---------------------------------------------------------------
-
-    public function testFindFutureClearedTransactions(): void {
-        $account = $this->makeAccount(['id' => 1, 'name' => 'Checking']);
-        $this->withAccounts([$account]);
-        $this->withActiveBills([]);
-
-        $futureDate = date('Y-m-d', strtotime('+30 days'));
-        $futureTx = $this->makeTransaction([
-            'id' => 20,
-            'date' => $futureDate,
-            'amount' => '75.00',
-            'type' => 'debit',
-            'status' => 'cleared',
-            'vendor' => 'Future Payment',
-            'description' => '',
-            'accountId' => 1,
-        ]);
-
-        $this->transactionMapper->method('findByDateRange')
-            ->willReturn([$futureTx]);
-        $this->transactionMapper->method('findAutoGeneratedBillTransactions')
-            ->willReturn([]);
-        $this->transactionMapper->method('findLinkedCreditsWithCategory')
-            ->willReturn([]);
-        $this->transactionMapper->method('getNetChangeAll')->willReturn(0.0);
-
-        $result = $this->service->diagnose(self::USER_ID);
-
-        $this->assertCount(1, $result['futureClearedTransactions']);
-        $this->assertEquals(20, $result['futureClearedTransactions'][0]['transactionId']);
-        $this->assertEquals($futureDate, $result['futureClearedTransactions'][0]['date']);
-    }
-
-    // ---------------------------------------------------------------
-    // 11. findTransferCreditsWithCategory
-    // ---------------------------------------------------------------
-
-    public function testFindTransferCreditsWithCategoryNoLongerReported(): void {
-        // Transfer credits with categories are now expected (since v2.26.3)
-        $account = $this->makeAccount(['id' => 1, 'name' => 'Savings']);
-        $this->withAccounts([$account]);
-        $this->withActiveBills([]);
-        $this->transactionMapper->method('findAutoGeneratedBillTransactions')
-            ->willReturn([]);
-        $this->transactionMapper->method('findByDateRange')
-            ->willReturn([]);
-        $this->transactionMapper->method('getNetChangeAll')->willReturn(0.0);
-
-        $result = $this->service->diagnose(self::USER_ID);
-
-        $this->assertCount(0, $result['transferCreditCategories']);
-    }
-
-    // ---------------------------------------------------------------
-    // 12-13. findBalanceDrift
-    // ---------------------------------------------------------------
-
-    public function testFindBalanceDriftDetectsMismatch(): void {
-        $account = $this->makeAccount([
-            'id' => 1,
-            'name' => 'Checking',
-            'balance' => '1000.00',
-            'openingBalance' => '500.00',
-        ]);
-        $this->withAccounts([$account]);
-        $this->withActiveBills([]);
-
-        // Net transactions = 400, so expected = 500 + 400 = 900, stored = 1000 => drift of 100
-        $this->transactionMapper->method('getNetChangeAll')
-            ->with(1)
-            ->willReturn(400.0);
-        $this->transactionMapper->method('findAutoGeneratedBillTransactions')
-            ->willReturn([]);
-        $this->transactionMapper->method('findByDateRange')
-            ->willReturn([]);
-        $this->transactionMapper->method('findLinkedCreditsWithCategory')
-            ->willReturn([]);
-
-        $result = $this->service->diagnose(self::USER_ID);
-
-        $this->assertCount(1, $result['balanceDrift']);
-        $this->assertEquals(1, $result['balanceDrift'][0]['accountId']);
-        $this->assertEquals(1000.0, $result['balanceDrift'][0]['storedBalance']);
-        $this->assertEquals(900.0, $result['balanceDrift'][0]['expectedBalance']);
-        $this->assertEquals(-100.0, $result['balanceDrift'][0]['difference']);
-    }
-
-    public function testFindBalanceDriftNoDriftWhenBalanced(): void {
-        $account = $this->makeAccount([
-            'id' => 1,
-            'name' => 'Checking',
-            'balance' => '750.00',
-            'openingBalance' => '500.00',
-        ]);
-        $this->withAccounts([$account]);
-        $this->withActiveBills([]);
-
-        // Net = 250, expected = 500 + 250 = 750 = stored
-        $this->transactionMapper->method('getNetChangeAll')
-            ->with(1)
-            ->willReturn(250.0);
-        $this->transactionMapper->method('findAutoGeneratedBillTransactions')
-            ->willReturn([]);
-        $this->transactionMapper->method('findByDateRange')
-            ->willReturn([]);
-        $this->transactionMapper->method('findLinkedCreditsWithCategory')
-            ->willReturn([]);
-
-        $result = $this->service->diagnose(self::USER_ID);
-
-        $this->assertEmpty($result['balanceDrift']);
-    }
-
-    // ---------------------------------------------------------------
-    // 14. repair duplicateTransactions - deletes duplicates
-    // ---------------------------------------------------------------
-
-    public function testRepairDuplicateTransactionsDeletesDuplicates(): void {
-        $account = $this->makeAccount(['id' => 1]);
-        $this->withAccounts([$account]);
-
-        $tx1 = $this->makeTransaction([
-            'id' => 10,
-            'date' => '2026-05-01',
-            'amount' => '100.00',
-            'createdAt' => '2026-05-01 12:00:00',
-            'notes' => 'Auto-generated from bill: Internet',
-            'vendor' => 'ISP',
-        ]);
-        $tx2 = $this->makeTransaction([
-            'id' => 11,
-            'date' => '2026-05-05',
-            'amount' => '100.00',
-            'createdAt' => '2026-05-01 12:00:00',
-            'notes' => 'Auto-generated from bill: Internet',
-            'vendor' => 'ISP',
-        ]);
-
-        $this->transactionMapper->method('findAutoGeneratedBillTransactions')
-            ->willReturn([$tx1, $tx2]);
-        $this->transactionMapper->method('findByDateRange')
-            ->willReturn([]);
-
-        $this->transactionMapper->method('findById')
-            ->willReturnCallback(fn($id) => match ($id) {
-                11 => $tx2,
-                default => null,
-            });
-
-        // Both halves of this pair get flagged - the created_at grouping
-        // flags 11, and the same-bill-in-a-month pass then flags 10 against
-        // 11 - so exactly one deletion here is also the guard against the
-        // repair wiping the payment along with its duplicate.
-        //
-        // Through the service, which cascades to splits, tags, attachments
-        // and expense shares - a bare mapper delete orphans them for good
-        // (#359), and this tool is what a confused user reaches for first.
-        $this->transactionService->expects($this->once())
-            ->method('deleteAsAccountOwner')
-            ->with(11)
-            ->willReturn(true);
-        $this->transactionMapper->expects($this->never())->method('delete');
-
-        $result = $this->service->repair(self::USER_ID, ['duplicateTransactions']);
-
-        $this->assertArrayHasKey('duplicateTransactions', $result);
-        $this->assertEquals(1, $result['duplicateTransactions']['deleted']);
-    }
-
-    // A row that has gone in the meantime is skipped, not counted, and must
-    // not take the rest of the repair down with it.
-    public function testRepairDuplicateTransactionsSkipsRowsThatAreAlreadyGone(): void {
-        $account = $this->makeAccount(['id' => 1]);
-        $this->withAccounts([$account]);
-
-        $tx1 = $this->makeTransaction([
-            'id' => 10,
-            'date' => '2026-05-01',
-            'amount' => '100.00',
-            'createdAt' => '2026-05-01 12:00:00',
-            'notes' => 'Auto-generated from bill: Internet',
-            'vendor' => 'ISP',
-        ]);
-        $tx2 = $this->makeTransaction([
-            'id' => 11,
-            'date' => '2026-05-05',
-            'amount' => '100.00',
-            'createdAt' => '2026-05-01 12:00:00',
-            'notes' => 'Auto-generated from bill: Internet',
-            'vendor' => 'ISP',
-        ]);
-
-        $this->transactionMapper->method('findAutoGeneratedBillTransactions')
-            ->willReturn([$tx1, $tx2]);
-        $this->transactionMapper->method('findByDateRange')->willReturn([]);
-
-        $this->transactionService->method('deleteAsAccountOwner')
-            ->willThrowException(new \OCP\AppFramework\Db\DoesNotExistException('gone'));
-
-        $result = $this->service->repair(self::USER_ID, ['duplicateTransactions']);
-
-        $this->assertEquals(0, $result['duplicateTransactions']['deleted']);
-    }
-
-    // ---------------------------------------------------------------
-    // 15. repair stuckBills - recalculates nextDueDate
-    // ---------------------------------------------------------------
-
-    public function testRepairStuckBillsRecalculatesNextDueDate(): void {
-        $this->withAccounts([]);
-
-        $bill = $this->makeBill([
-            'id' => 1,
-            'name' => 'Rent',
-            'frequency' => 'monthly',
-            'lastPaidDate' => '2026-05-15',
-            'nextDueDate' => '2026-05-01', // stuck: before lastPaid
-            'dueDay' => 1,
-        ]);
-        $this->withActiveBills([$bill]);
-
-        $this->billMapper->method('find')
-            ->with(1, self::USER_ID)
-            ->willReturn($bill);
-
-        $this->frequencyCalculator->method('calculateNextDueDate')
-            ->willReturn('2026-06-01');
-
-        $this->billMapper->expects($this->once())
-            ->method('update')
-            ->with($this->callback(function (Bill $b) {
-                return $b->getNextDueDate() === '2026-06-01';
-            }));
-
-        $result = $this->service->repair(self::USER_ID, ['stuckBills']);
-
-        $this->assertEquals(1, $result['stuckBills']['fixed']);
-        $this->assertEquals(1, $result['stuckBills']['found']);
-    }
-
-    public function testRepairStuckBillsFarFutureRecalcPassesStartDateAnchor(): void {
-        // The far-future path recalculates from scratch; for an anchored
-        // biweekly bill that recalc must run from the startDate anchor or the
-        // repaired date lands in the wrong fortnight (#364).
-        $this->withAccounts([]);
-
-        $bill = $this->makeBill([
-            'id' => 2,
-            'name' => 'Pay cycle',
-            'frequency' => 'biweekly',
-            'lastPaidDate' => '2026-01-16',
-            'nextDueDate' => '2040-01-01', // >10 years out: far_future_due_date
-            'dueDay' => 5,
-        ]);
-        $bill->setStartDate('2026-01-02');
-        $this->withActiveBills([$bill]);
-
-        $this->billMapper->method('find')
-            ->with(2, self::USER_ID)
-            ->willReturn($bill);
-
-        $captured = null;
-        $this->frequencyCalculator->method('calculateNextDueDate')
-            ->willReturnCallback(function (...$args) use (&$captured) {
-                $captured = $args;
-                return '2026-09-04';
-            });
-
-        $result = $this->service->repair(self::USER_ID, ['stuckBills']);
-
-        $this->assertEquals(1, $result['stuckBills']['fixed']);
-        $this->assertSame('2026-01-02', $captured[6] ?? null, 'far-future recalc must anchor to the start date');
-    }
-
-    // ---------------------------------------------------------------
-    // 16. repair paidOneTimeBills - deactivates them
-    // ---------------------------------------------------------------
-
-    public function testRepairPaidOneTimeBillsDeactivatesThem(): void {
-        $this->withAccounts([]);
-
-        $bill = $this->makeBill([
-            'id' => 10,
-            'name' => 'Setup Fee',
-            'frequency' => 'one-time',
-            'lastPaidDate' => '2026-04-15',
-            'nextDueDate' => '2026-04-15',
-            'isActive' => true,
-        ]);
-        $this->withActiveBills([$bill]);
-
-        $this->billMapper->method('find')
-            ->with(10, self::USER_ID)
-            ->willReturn($bill);
-
-        $this->billMapper->expects($this->once())
-            ->method('update')
-            ->with($this->callback(function (Bill $b) {
-                return $b->getIsActive() === false
-                    && $b->getNextDueDate() === null;
-            }));
-
-        $result = $this->service->repair(self::USER_ID, ['paidOneTimeBills']);
-
-        $this->assertEquals(1, $result['paidOneTimeBills']['fixed']);
-        $this->assertEquals(1, $result['paidOneTimeBills']['found']);
-    }
-
-    // ---------------------------------------------------------------
-    // 17. repair futureClearedTransactions - sets to scheduled, reverses balance
-    // ---------------------------------------------------------------
-
-    public function testRepairFutureClearedTransactionsSetsToScheduled(): void {
-        $account = $this->makeAccount([
-            'id' => 1,
-            'name' => 'Checking',
-            'balance' => '900.00',
-        ]);
-        $this->withAccounts([$account]);
-        $this->withActiveBills([]);
-
-        $futureDate = date('Y-m-d', strtotime('+30 days'));
-        $futureTx = $this->makeTransaction([
-            'id' => 20,
-            'date' => $futureDate,
-            'amount' => '75.00',
-            'type' => 'debit',
-            'status' => 'cleared',
-            'vendor' => 'Future Payment',
-            'accountId' => 1,
-        ]);
-
-        $this->transactionMapper->method('findByDateRange')
-            ->willReturn([$futureTx]);
-        $this->transactionMapper->method('findAutoGeneratedBillTransactions')
-            ->willReturn([]);
-        $this->transactionMapper->method('findLinkedCreditsWithCategory')
-            ->willReturn([]);
-        $this->transactionMapper->method('getNetChangeAll')
-            ->willReturn(0.0);
-
-        $this->transactionMapper->method('findById')
-            ->with(20)
-            ->willReturn($futureTx);
-
-        $this->accountMapper->method('findById')
-            ->with(1)
-            ->willReturn($account);
-
-        $this->transactionMapper->expects($this->once())
-            ->method('update')
-            ->with($this->callback(function (Transaction $tx) {
-                return $tx->getStatus() === 'scheduled'
-                    && $tx->getUpdatedAt() !== null;
-            }));
-
-        // Balances are recomputed from the ledger after the status change —
-        // no hand-computed reversal (#274 root cause)
-        $this->accountService->expects($this->once())
-            ->method('recalculateAllBalances')
-            ->with(self::USER_ID);
-
-        $result = $this->service->repair(self::USER_ID, ['futureClearedTransactions']);
-
-        $this->assertEquals(1, $result['futureClearedTransactions']['fixed']);
-        $this->assertEquals(1, $result['futureClearedTransactions']['found']);
-    }
-
-    // ---------------------------------------------------------------
-    // splitParentCategories: split transactions left carrying a category (#360)
-
-    private function makeSplitParentWithCategory(int $id, int $categoryId): Transaction {
-        $tx = new Transaction();
-        $tx->setId($id);
-        $tx->setDate('2026-08-10');
-        $tx->setAmount('60.00');
-        $tx->setCategoryId($categoryId);
-        $tx->setDescription('Tesco');
-        $tx->setVendor('Tesco');
-        $tx->setIsSplit(true);
-        return $tx;
-    }
-
-    public function testDiagnoseReportsSplitTransactionsCarryingACategory(): void {
-        $this->transactionMapper->method('findCategorisedSplitParents')
-            ->with(self::USER_ID)
-            ->willReturn([$this->makeSplitParentWithCategory(7, 3)]);
-
-        $result = $this->service->diagnose(self::USER_ID);
-
-        $this->assertCount(1, $result['splitParentCategories']);
-        $this->assertSame(7, $result['splitParentCategories'][0]['transactionId']);
-        $this->assertSame(3, $result['splitParentCategories'][0]['categoryId']);
-    }
-
-    public function testRepairClearsTheStrayCategoryOffASplit(): void {
-        $tx = $this->makeSplitParentWithCategory(7, 3);
-        $this->transactionMapper->method('findCategorisedSplitParents')->willReturn([$tx]);
-        $this->transactionMapper->method('findById')->with(7)->willReturn($tx);
-
-        $updated = null;
-        $this->transactionMapper->method('update')->willReturnCallback(
-            function (Transaction $t) use (&$updated) {
-                $updated = $t;
-                return $t;
-            }
-        );
-
-        $result = $this->service->repair(self::USER_ID, ['splitParentCategories']);
-
-        $this->assertSame(1, $result['splitParentCategories']['fixed']);
-        $this->assertNotNull($updated);
-        $this->assertNull($updated->getCategoryId());
-        // The row stays a split -- only the category it should never have had goes.
-        $this->assertTrue($updated->getIsSplit());
-    }
-
-    public function testRepairReportsNothingWhenThereIsNothingToFix(): void {
-        $this->transactionMapper->method('findCategorisedSplitParents')->willReturn([]);
-        $this->transactionMapper->expects($this->never())->method('update');
-
-        $result = $this->service->repair(self::USER_ID, ['splitParentCategories']);
-
-        $this->assertSame(['fixed' => 0, 'found' => 0], $result['splitParentCategories']);
-    }
-
-    public function testSplitParentCategoriesIsARecognisedRepairCategory(): void {
-        $this->assertContains('splitParentCategories', RepairService::CATEGORIES);
-    }
-
-    // 18. transferCreditCategories repair removed (categories now preserved)
-    // ---------------------------------------------------------------
-
-    public function testRepairTransferCreditCategoriesNoLongerAvailable(): void {
-        // transferCreditCategories repair was removed — should be ignored
-        $result = $this->service->repair(self::USER_ID, ['transferCreditCategories']);
-        $this->assertEmpty($result);
-    }
-
-    // ---------------------------------------------------------------
-    // 19. repair balanceDrift - delegates to accountService
-    // ---------------------------------------------------------------
-
-    public function testRepairBalanceDriftDelegatesToAccountService(): void {
-        $this->accountService->expects($this->once())
-            ->method('recalculateAllBalances')
-            ->with(self::USER_ID)
-            ->willReturn(['recalculated' => 2]);
-
-        $result = $this->service->repair(self::USER_ID, ['balanceDrift']);
-
-        $this->assertArrayHasKey('balanceDrift', $result);
-        $this->assertEquals(['recalculated' => 2], $result['balanceDrift']);
-    }
-
-    // ---------------------------------------------------------------
-    // 20. repair only runs requested categories
-    // ---------------------------------------------------------------
-
-    public function testRepairOnlyRunsRequestedCategories(): void {
-        // Only request balanceDrift - other repairs should NOT run
-        $this->accountService->expects($this->once())
-            ->method('recalculateAllBalances')
-            ->with(self::USER_ID)
-            ->willReturn(['recalculated' => 1]);
-
-        // These should never be called since we only requested balanceDrift
-        $this->transactionMapper->expects($this->never())
-            ->method('delete');
-        $this->billMapper->expects($this->never())
-            ->method('update');
-
-        $result = $this->service->repair(self::USER_ID, ['balanceDrift']);
-
-        $this->assertArrayHasKey('balanceDrift', $result);
-        $this->assertArrayNotHasKey('duplicateTransactions', $result);
-        $this->assertArrayNotHasKey('stuckBills', $result);
-        $this->assertArrayNotHasKey('paidOneTimeBills', $result);
-        $this->assertArrayNotHasKey('futureClearedTransactions', $result);
-        $this->assertArrayNotHasKey('transferCreditCategories', $result);
-    }
-
-    // ---------------------------------------------------------------
-    // Additional edge case: stuck bill far-future uses null currentDue
-    // ---------------------------------------------------------------
-
-    public function testRepairStuckBillFarFutureRecalculatesFromScratch(): void {
-        $this->withAccounts([]);
-
-        $bill = $this->makeBill([
-            'id' => 4,
-            'name' => 'Insurance',
-            'frequency' => 'yearly',
-            'lastPaidDate' => '2026-01-01',
-            'nextDueDate' => '2040-01-01',
-            'dueDay' => 1,
-            'dueMonth' => 1,
-        ]);
-        $this->withActiveBills([$bill]);
-
-        $this->billMapper->method('find')
-            ->with(4, self::USER_ID)
-            ->willReturn($bill);
-
-        // For far-future, currentDue should be null and forceAdvance should be false
-        $this->frequencyCalculator->expects($this->once())
-            ->method('calculateNextDueDate')
-            ->with('yearly', 1, 1, null, null, false)
-            ->willReturn('2027-01-01');
-
-        $this->billMapper->expects($this->once())
-            ->method('update')
-            ->with($this->callback(function (Bill $b) {
-                return $b->getNextDueDate() === '2027-01-01';
-            }));
-
-        $result = $this->service->repair(self::USER_ID, ['stuckBills']);
-
-        $this->assertEquals(1, $result['stuckBills']['fixed']);
-    }
-
-    // ---------------------------------------------------------------
-    // liabilitySignFlipped (#353)
-    //
-    // A liability holding a POSITIVE opening balance is being counted as money
-    // you have rather than money you owe. It is only ambiguous because a real
-    // overpayment looks identical, so the user decides per account and the
-    // decision is persisted -- otherwise the scan reports it forever.
-    // ---------------------------------------------------------------
-
-    public function testFindLiabilitySignFlippedDetectsAPositiveDebt(): void {
-        $this->withAccounts([
-            $this->makeAccount(['id' => 1, 'name' => 'Loan', 'type' => 'loan', 'openingBalance' => '90904.56', 'balance' => '90904.56']),
-        ]);
-        $this->withActiveBills([]);
-        $this->transactionMapper->method('getNetChangeAll')->willReturn(0.0);
-
-        $found = $this->service->diagnose(self::USER_ID)['liabilitySignFlipped'];
-
-        $this->assertCount(1, $found);
-        $this->assertSame('Loan', $found[0]['accountName']);
-        // The figures the user recognises, not raw opening balances.
-        $this->assertEqualsWithDelta(90904.56, $found[0]['currentBalance'], 0.005);
-        $this->assertEqualsWithDelta(-90904.56, $found[0]['repairedBalance'], 0.005);
-    }
-
-    public function testFindLiabilitySignFlippedIgnoresACorrectlySignedDebt(): void {
-        $this->withAccounts([
-            $this->makeAccount(['id' => 1, 'type' => 'loan', 'openingBalance' => '-5000.00', 'balance' => '-5000.00']),
-        ]);
-        $this->withActiveBills([]);
-
-        $this->assertSame([], $this->service->diagnose(self::USER_ID)['liabilitySignFlipped']);
-    }
-
-    public function testFindLiabilitySignFlippedIgnoresAssets(): void {
-        $this->withAccounts([
-            $this->makeAccount(['id' => 1, 'type' => 'savings', 'openingBalance' => '5000.00', 'balance' => '5000.00']),
-        ]);
-        $this->withActiveBills([]);
-
-        $this->assertSame([], $this->service->diagnose(self::USER_ID)['liabilitySignFlipped']);
-    }
-
-    public function testFindLiabilitySignFlippedIgnoresADeclaredOverpayment(): void {
-        // This is what stops the category nagging forever once the user has
-        // said yes, I really did overpay this one.
-        $this->withAccounts([
-            $this->makeAccount(['id' => 1, 'type' => 'credit_card', 'openingBalance' => '50.00', 'balance' => '50.00', 'liabilityInCredit' => true]),
-        ]);
-        $this->withActiveBills([]);
-
-        $this->assertSame([], $this->service->diagnose(self::USER_ID)['liabilitySignFlipped']);
-    }
-
-    public function testFindLiabilitySignFlippedReportsLargestFirst(): void {
-        $this->withAccounts([
-            $this->makeAccount(['id' => 1, 'name' => 'Card', 'type' => 'credit_card', 'openingBalance' => '1200.00', 'balance' => '1200.00']),
-            $this->makeAccount(['id' => 2, 'name' => 'Mortgage', 'type' => 'mortgage', 'openingBalance' => '250000.00', 'balance' => '250000.00']),
-        ]);
-        $this->withActiveBills([]);
-        $this->transactionMapper->method('getNetChangeAll')->willReturn(0.0);
-
-        $found = $this->service->diagnose(self::USER_ID)['liabilitySignFlipped'];
-
-        $this->assertSame('Mortgage', $found[0]['accountName']);
-    }
-
-    public function testRepairLiabilitySignFlippedNegatesOpeningBalanceThenRecalculates(): void {
-        $account = $this->makeAccount(['id' => 1, 'type' => 'loan', 'openingBalance' => '90904.56', 'balance' => '90904.56']);
-        $this->withAccounts([$account]);
-        $this->withActiveBills([]);
-        $this->transactionMapper->method('getNetChangeAll')->willReturn(0.0);
-        $this->accountMapper->method('findById')->willReturn($account);
-
-        $captured = null;
-        $this->accountMapper->method('update')->willReturnCallback(function (Account $a) use (&$captured) {
-            $captured = $a;
-            return $a;
-        });
-        // balance is always re-derived FROM opening_balance, so repairing only
-        // the balance would look right and silently regress on the next edit.
-        $this->accountService->expects($this->once())->method('recalculateAllBalances');
-
-        $result = $this->service->repair(self::USER_ID, ['liabilitySignFlipped']);
-
-        $this->assertSame(1, $result['liabilitySignFlipped']['fixed']);
-        $this->assertEqualsWithDelta(-90904.56, $captured->getOpeningBalance(), 0.005);
-        $this->assertFalse($captured->getLiabilityInCredit());
-    }
-
-    public function testRepairLiabilitySignFlippedMarksDeselectedAccountsAsGenuineCredits(): void {
-        $account = $this->makeAccount(['id' => 7, 'type' => 'credit_card', 'openingBalance' => '50.00', 'balance' => '50.00']);
-        $this->withAccounts([$account]);
-        $this->withActiveBills([]);
-        $this->transactionMapper->method('getNetChangeAll')->willReturn(0.0);
-        $this->accountMapper->method('findById')->willReturn($account);
-
-        $captured = null;
-        $this->accountMapper->method('update')->willReturnCallback(function (Account $a) use (&$captured) {
-            $captured = $a;
-            return $a;
-        });
-        $this->accountService->expects($this->never())->method('recalculateAllBalances');
-
-        // Account 7 was unticked in the preview: this one really is overpaid.
-        $result = $this->service->repair(self::USER_ID, ['liabilitySignFlipped'], ['accountIds' => []]);
-
-        $this->assertSame(0, $result['liabilitySignFlipped']['fixed']);
-        $this->assertSame(1, $result['liabilitySignFlipped']['confirmed']);
-        $this->assertEqualsWithDelta(50.00, $captured->getOpeningBalance(), 0.005);
-        $this->assertTrue($captured->getLiabilityInCredit());
-    }
+	private RepairService $service;
+	private TransactionMapper $transactionMapper;
+	private BillMapper $billMapper;
+	private AccountMapper $accountMapper;
+	private FrequencyCalculator $frequencyCalculator;
+	private AccountService $accountService;
+	private TransactionService $transactionService;
+
+	private const USER_ID = 'testuser';
+
+	/** @var list<array{int, string, string}> findByDateRange() calls the ledger answered */
+	private array $dateRangeReads = [];
+
+	protected function setUp(): void {
+		$this->transactionMapper = $this->createMock(TransactionMapper::class);
+		$this->billMapper = $this->createMock(BillMapper::class);
+		$this->accountMapper = $this->createMock(AccountMapper::class);
+		$this->frequencyCalculator = $this->createMock(FrequencyCalculator::class);
+		$this->accountService = $this->createMock(AccountService::class);
+		$this->transactionService = $this->createMock(TransactionService::class);
+
+		$this->service = new RepairService(
+			$this->transactionMapper,
+			$this->billMapper,
+			$this->accountMapper,
+			$this->frequencyCalculator,
+			$this->accountService,
+			$this->transactionService
+		);
+	}
+
+	private function makeAccount(array $overrides = []): Account {
+		$defaults = [
+			'id' => 1,
+			'name' => 'Checking',
+			'balance' => '1000.00',
+			'openingBalance' => '0.00',
+			'userId' => self::USER_ID,
+			'type' => 'checking',
+			'liabilityInCredit' => null,
+		];
+		$data = array_merge($defaults, $overrides);
+
+		$account = new Account();
+		$account->setId($data['id']);
+		$account->setName($data['name']);
+		$account->setBalance((float)$data['balance']);
+		$account->setOpeningBalance((float)$data['openingBalance']);
+		$account->setUserId($data['userId']);
+		$account->setType($data['type']);
+		$account->setLiabilityInCredit($data['liabilityInCredit']);
+
+		return $account;
+	}
+
+	private function makeTransaction(array $overrides = []): Transaction {
+		$defaults = [
+			'id' => 1,
+			'date' => '2026-05-01',
+			'amount' => '50.00',
+			'type' => 'debit',
+			'status' => 'cleared',
+			'vendor' => 'Test Vendor',
+			'description' => 'Test Description',
+			'notes' => null,
+			'createdAt' => '2026-05-01 10:00:00',
+			'accountId' => 1,
+			'categoryId' => null,
+			'billId' => null,
+			'reconciled' => false,
+			'importId' => null,
+		];
+		$data = array_merge($defaults, $overrides);
+
+		$tx = new Transaction();
+		$tx->setId($data['id']);
+		$tx->setDate($data['date']);
+		$tx->setAmount((float)$data['amount']);
+		$tx->setType($data['type']);
+		$tx->setStatus($data['status']);
+		$tx->setVendor($data['vendor']);
+		$tx->setDescription($data['description']);
+		$tx->setNotes($data['notes']);
+		$tx->setCreatedAt($data['createdAt']);
+		$tx->setAccountId($data['accountId']);
+		$tx->setCategoryId($data['categoryId']);
+		$tx->setBillId($data['billId']);
+		$tx->setReconciled($data['reconciled']);
+		$tx->setImportId($data['importId']);
+
+		return $tx;
+	}
+
+	/** A payment row a bill generated: Mark Paid, auto-pay or Record transaction */
+	private function billPayment(int $id, int $billId, string $name, string $date, float $amount, ?string $createdAt = null, array $overrides = []): Transaction {
+		return $this->makeTransaction(array_merge([
+			'id' => $id,
+			'billId' => $billId,
+			'date' => $date,
+			'amount' => (string)$amount,
+			'vendor' => $name,
+			'description' => '',
+			'notes' => "Auto-generated from bill: {$name}",
+			'createdAt' => $createdAt ?? "{$date} 09:00:00",
+		], $overrides));
+	}
+
+	/**
+	 * Back the transaction mapper with an in-memory ledger, so every query
+	 * the repair makes sees the same rows.
+	 *
+	 * @param Transaction[] $ledger
+	 */
+	private function withLedger(array $ledger): void {
+		$scheduled = fn (Transaction $t): bool => ($t->getStatus() ?? 'cleared') === 'scheduled';
+		$this->transactionMapper->method('findAutoGeneratedBillTransactions')->willReturnCallback(
+			fn (int $accountId) => array_values(array_filter($ledger, fn (Transaction $t) => $t->getAccountId() === $accountId
+				&& str_starts_with($t->getNotes() ?? '', 'Auto-generated from bill:') && !$scheduled($t)))
+		);
+		$this->transactionMapper->method('findByDateRange')->willReturnCallback(
+			function (int $accountId, string $from, string $to) use ($ledger) {
+				$this->dateRangeReads[] = [$accountId, $from, $to];
+				return array_values(array_filter($ledger, fn (Transaction $t) => $t->getAccountId() === $accountId
+					&& $t->getDate() >= $from && $t->getDate() <= $to));
+			}
+		);
+		// As the database answers: plain rows, newest first, then by id
+		$this->transactionMapper->method('findRowsByDateRange')->willReturnCallback(
+			function (int $accountId, string $from, string $to) use ($ledger) {
+				$this->dateRangeReads[] = [$accountId, $from, $to];
+				$rows = array_map(fn (Transaction $t) => self::row($t), array_values(array_filter($ledger,
+					fn (Transaction $t) => $t->getAccountId() === $accountId && $t->getDate() >= $from && $t->getDate() <= $to)));
+				usort($rows, fn (array $a, array $b) => [$b['date'], $b['id']] <=> [$a['date'], $a['id']]);
+				return $rows;
+			}
+		);
+		$this->transactionMapper->method('findRecordedByBillIds')->willReturnCallback(
+			fn (array $billIds) => array_values(array_filter($ledger, fn (Transaction $t) => in_array($t->getBillId(), $billIds, true) && !$scheduled($t)))
+		);
+		$this->transactionMapper->method('findAllScheduledByBillId')->willReturnCallback(
+			fn (int $billId) => array_values(array_filter($ledger, fn (Transaction $t) => $t->getBillId() === $billId && $scheduled($t)))
+		);
+		$this->transactionMapper->method('findById')->willReturnCallback(function (int $id) use ($ledger) {
+			foreach ($ledger as $t) {
+				if ($t->getId() === $id) {
+					return $t;
+				}
+			}
+			return null;
+		});
+	}
+
+	/** A transaction as a database row, as Transaction::fromRow() reads it back */
+	private static function row(Transaction $t): array {
+		return [
+			'id' => $t->getId(),
+			'account_id' => $t->getAccountId(),
+			'category_id' => $t->getCategoryId(),
+			'date' => $t->getDate(),
+			'amount' => $t->getAmount(),
+			'type' => $t->getType(),
+			'status' => $t->getStatus(),
+			'vendor' => $t->getVendor(),
+			'description' => $t->getDescription(),
+			'notes' => $t->getNotes(),
+			'created_at' => $t->getCreatedAt(),
+			'bill_id' => $t->getBillId(),
+			'reconciled' => $t->getReconciled(),
+			'import_id' => $t->getImportId(),
+		];
+	}
+
+	/**
+	 * The service as a user sees it on $today, with the real schedule maths:
+	 * whether two payments settle one occurrence is a question about the
+	 * bill's actual dates.
+	 */
+	private function serviceOn(string $today): RepairService {
+		$clock = $this->createMock(UserClock::class);
+		$clock->method('today')->willReturn($today);
+		$clock->method('isFutureDate')->willReturnCallback(fn (string $date) => $date > $today);
+		return new RepairService(
+			$this->transactionMapper,
+			$this->billMapper,
+			$this->accountMapper,
+			new FrequencyCalculator(),
+			$this->accountService,
+			$this->transactionService,
+			$clock
+		);
+	}
+
+	/** What markPaid() leaves on a bill: the occurrence it settled and the rows it wrote */
+	private function paidSnapshot(string $paidDate, string $settledOccurrence, array $createdIds = [], ?int $linkedId = null): string {
+		return json_encode([
+			'previousState' => ['lastPaidDate' => null, 'nextDueDate' => $settledOccurrence, 'isActive' => true],
+			'createdTransactionIds' => $createdIds,
+			'scheduledTransactionIds' => [],
+			'linkedTransactionId' => $linkedId,
+			'hadScheduledTransaction' => true,
+			'paidDate' => $paidDate,
+		]);
+	}
+
+	/** @param Bill[] $bills */
+	private function withAllBills(array $bills): void {
+		$this->billMapper->method('findAll')->with(self::USER_ID)->willReturn($bills);
+	}
+
+	private function makeBill(array $overrides = []): Bill {
+		$defaults = [
+			'id' => 1,
+			'name' => 'Rent',
+			'frequency' => 'monthly',
+			'lastPaidDate' => '2026-05-01',
+			'nextDueDate' => '2026-06-01',
+			'dueDay' => 1,
+			'dueMonth' => null,
+			'amount' => '500.00',
+			'isActive' => true,
+			'customRecurrencePattern' => null,
+			'userId' => self::USER_ID,
+			'accountId' => 1,
+			'startDate' => null,
+			'paidUndoState' => null,
+		];
+		$data = array_merge($defaults, $overrides);
+
+		$bill = new Bill();
+		$bill->setId($data['id']);
+		$bill->setName($data['name']);
+		$bill->setFrequency($data['frequency']);
+		$bill->setLastPaidDate($data['lastPaidDate']);
+		$bill->setNextDueDate($data['nextDueDate']);
+		$bill->setDueDay($data['dueDay']);
+		$bill->setDueMonth($data['dueMonth']);
+		$bill->setAmount((float)$data['amount']);
+		$bill->setIsActive($data['isActive']);
+		$bill->setCustomRecurrencePattern($data['customRecurrencePattern']);
+		$bill->setUserId($data['userId']);
+		$bill->setAccountId($data['accountId']);
+		$bill->setStartDate($data['startDate']);
+		$bill->setPaidUndoState($data['paidUndoState']);
+		$bill->setIsTransfer(false);
+
+		return $bill;
+	}
+
+	/**
+	 * Helper to set up accountMapper->findAll to return given accounts.
+	 */
+	private function withAccounts(array $accounts): void {
+		$this->accountMapper->method('findAll')
+			->with(self::USER_ID)
+			->willReturn($accounts);
+	}
+
+	/**
+	 * Helper to set up billMapper->findActive to return given bills.
+	 */
+	private function withActiveBills(array $bills): void {
+		$this->billMapper->method('findActive')
+			->with(self::USER_ID)
+			->willReturn($bills);
+	}
+
+	// ---------------------------------------------------------------
+	// 1. diagnose returns all 6 categories
+	// ---------------------------------------------------------------
+
+	public function testDiagnoseReturnsEveryDeclaredCategory(): void {
+		$this->withAccounts([]);
+		$this->withActiveBills([]);
+
+		$result = $this->service->diagnose(self::USER_ID);
+
+		// Asserted against the registry rather than a hand-kept literal, so
+		// adding a category cannot leave diagnose() and the controller's
+		// whitelist silently out of step.
+		$this->assertSame(RepairService::CATEGORIES, array_keys($result));
+	}
+
+	public function testBalanceDriftIsReportedLastSoItRecalculatesAfterEveryOtherFix(): void {
+		$categories = RepairService::CATEGORIES;
+		$this->assertSame('balanceDrift', end($categories));
+	}
+
+	// ---------------------------------------------------------------
+	// 2-3. findDuplicateAutoGenerated
+	//
+	// A bill's payments are only duplicates of each other when two of them
+	// settle the same occurrence of the same bill. Name, amount, calendar
+	// month and the second a row was written all say nothing about that,
+	// and every one of them deleted real payments.
+	// ---------------------------------------------------------------
+
+	private function assertNoDuplicatesAndNothingDeleted(RepairService $service): void {
+		$this->transactionService->expects($this->never())->method('deleteAsAccountOwner');
+
+		$this->assertSame([], $service->diagnose(self::USER_ID)['duplicateTransactions']);
+		$this->assertSame(0, $service->repair(self::USER_ID, ['duplicateTransactions'])['duplicateTransactions']['deleted']);
+	}
+
+	public function testAWeeklyBillPaidOnTimeFourTimesInOneMonthHasNoDuplicates(): void {
+		$this->withAccounts([$this->makeAccount(['id' => 1])]);
+		$this->withAllBills([$this->makeBill([
+			'id' => 5, 'name' => 'Gym', 'frequency' => 'weekly', 'dueDay' => 1, 'amount' => '40.00',
+			'startDate' => '2026-08-31', 'lastPaidDate' => '2026-09-28', 'nextDueDate' => '2026-10-05',
+		])]);
+		$this->withLedger([
+			$this->billPayment(31, 5, 'Gym', '2026-09-07', 40.0),
+			$this->billPayment(32, 5, 'Gym', '2026-09-14', 40.0),
+			$this->billPayment(33, 5, 'Gym', '2026-09-21', 40.0),
+			$this->billPayment(34, 5, 'Gym', '2026-09-28', 40.0),
+		]);
+
+		$this->assertNoDuplicatesAndNothingDeleted($this->serviceOn('2026-09-30'));
+	}
+
+	public function testTwoBillsSharingANameAndAmountAreNotDuplicatesOfEachOther(): void {
+		// Two council tax bills, written in the same second (created together
+		// from Detect recurring bills, or auto-paid in one job run)
+		$this->withAccounts([$this->makeAccount(['id' => 1])]);
+		$this->withAllBills([
+			$this->makeBill(['id' => 1321, 'name' => 'Council Tax', 'amount' => '150.00', 'lastPaidDate' => '2026-09-01', 'nextDueDate' => '2026-10-01']),
+			$this->makeBill(['id' => 1322, 'name' => 'Council Tax', 'amount' => '150.00', 'dueDay' => 3, 'lastPaidDate' => '2026-09-03', 'nextDueDate' => '2026-10-03']),
+		]);
+		$this->withLedger([
+			$this->billPayment(41, 1321, 'Council Tax', '2026-09-01', 150.0, '2026-08-01 06:00:00'),
+			$this->billPayment(42, 1322, 'Council Tax', '2026-09-03', 150.0, '2026-08-01 06:00:00'),
+		]);
+
+		$this->assertNoDuplicatesAndNothingDeleted($this->serviceOn('2026-09-30'));
+	}
+
+	public function testALatePaymentAndTheNextOnTimePaymentInOneMonthAreNotDuplicates(): void {
+		// August's occurrence paid late on 09-03, September's on time on 09-25
+		$this->withAccounts([$this->makeAccount(['id' => 1])]);
+		$this->withAllBills([$this->makeBill([
+			'id' => 6, 'name' => 'Phone', 'dueDay' => 25, 'amount' => '30.00',
+			'lastPaidDate' => '2026-09-25', 'nextDueDate' => '2026-10-25',
+		])]);
+		$this->withLedger([
+			$this->billPayment(51, 6, 'Phone', '2026-07-25', 30.0),
+			$this->billPayment(52, 6, 'Phone', '2026-09-03', 30.0),
+			$this->billPayment(53, 6, 'Phone', '2026-09-25', 30.0),
+		]);
+
+		$this->assertNoDuplicatesAndNothingDeleted($this->serviceOn('2026-09-30'));
+	}
+
+	public function testAPaymentAndTheNextOccurrencesRowFromOneMarkPaidAreNotDuplicates(): void {
+		// Mark Paid found no pending row, so it wrote the payment and the next
+		// occurrence's row in one second; that row was paid in turn. Weekly
+		// across a month end, and monthly paid late then on time.
+		$this->withAccounts([$this->makeAccount(['id' => 1])]);
+		$this->withAllBills([
+			$this->makeBill(['id' => 7, 'name' => 'Cleaner', 'frequency' => 'weekly', 'amount' => '15.00',
+				'startDate' => '2026-08-31', 'lastPaidDate' => '2026-09-07', 'nextDueDate' => '2026-09-14']),
+			$this->makeBill(['id' => 8, 'name' => 'Rent', 'amount' => '35.00',
+				'lastPaidDate' => '2026-09-01', 'nextDueDate' => '2026-10-01']),
+		]);
+		$this->withLedger([
+			$this->billPayment(61, 7, 'Cleaner', '2026-08-31', 15.0, '2026-08-31 10:00:00'),
+			$this->billPayment(62, 7, 'Cleaner', '2026-09-07', 15.0, '2026-08-31 10:00:00'),
+			$this->billPayment(63, 8, 'Rent', '2026-08-29', 35.0, '2026-08-29 18:00:00'),
+			$this->billPayment(64, 8, 'Rent', '2026-09-01', 35.0, '2026-08-29 18:00:00'),
+		]);
+
+		$this->assertNoDuplicatesAndNothingDeleted($this->serviceOn('2026-09-30'));
+	}
+
+	public function testDailyAndSemiMonthlyBillsPaidEachOccurrenceHaveNoDuplicates(): void {
+		$this->withAccounts([$this->makeAccount(['id' => 1])]);
+		$this->withAllBills([
+			$this->makeBill(['id' => 9, 'name' => 'Paper', 'frequency' => 'daily', 'amount' => '5.00',
+				'lastPaidDate' => '2026-09-08', 'nextDueDate' => '2026-09-09']),
+			$this->makeBill(['id' => 10, 'name' => 'Nanny', 'frequency' => 'semi-monthly', 'amount' => '200.00',
+				'lastPaidDate' => '2026-09-16', 'nextDueDate' => '2026-10-01']),
+		]);
+		$rows = [];
+		foreach (range(1, 8) as $day) {
+			$rows[] = $this->billPayment(70 + $day, 9, 'Paper', sprintf('2026-09-%02d', $day), 5.0);
+		}
+		$rows[] = $this->billPayment(81, 10, 'Nanny', '2026-09-01', 200.0);
+		$rows[] = $this->billPayment(82, 10, 'Nanny', '2026-09-16', 200.0);
+		$this->withLedger($rows);
+
+		$this->assertNoDuplicatesAndNothingDeleted($this->serviceOn('2026-09-30'));
+	}
+
+	public function testOverdueOccurrencesCaughtUpOnOneDayAreNotDuplicates(): void {
+		$this->withAccounts([$this->makeAccount(['id' => 1])]);
+		$this->withAllBills([$this->makeBill([
+			'id' => 11, 'name' => 'Water', 'amount' => '20.00',
+			'lastPaidDate' => '2026-09-29', 'nextDueDate' => '2026-10-01',
+		])]);
+		$this->withLedger([
+			$this->billPayment(91, 11, 'Water', '2026-06-01', 20.0),
+			$this->billPayment(92, 11, 'Water', '2026-09-29', 20.0, '2026-06-01 09:00:00'),
+			$this->billPayment(93, 11, 'Water', '2026-09-29', 20.0, '2026-09-29 20:00:00'),
+			$this->billPayment(94, 11, 'Water', '2026-09-29', 20.0, '2026-09-29 20:00:01'),
+		]);
+
+		$this->assertNoDuplicatesAndNothingDeleted($this->serviceOn('2026-09-30'));
+	}
+
+	/**
+	 * Two rows of one bill that settle one occurrence: the pending row the
+	 * scheduled job used to clear on its date, and the payment Mark Paid
+	 * then wrote because it found no pending row. That really is one payment
+	 * booked twice, but nothing in the rows proves it, so it is reported
+	 * for the user to check and only removed when they tick it.
+	 */
+	public function testTwoPaymentsOfOneOccurrenceAreReportedForReviewNotDeleted(): void {
+		$this->withAccounts([$this->makeAccount(['id' => 1])]);
+		$this->withAllBills([$this->makeBill([
+			'id' => 12, 'name' => 'Rent', 'amount' => '500.00',
+			'lastPaidDate' => '2026-09-03', 'nextDueDate' => '2026-10-01',
+		])]);
+		$this->withLedger([
+			$this->billPayment(101, 12, 'Rent', '2026-08-01', 500.0, '2026-07-01 09:00:00'),
+			$this->billPayment(102, 12, 'Rent', '2026-09-01', 500.0, '2026-08-01 09:00:00'),
+			$this->billPayment(103, 12, 'Rent', '2026-09-03', 500.0, '2026-09-03 12:00:00'),
+		]);
+		$service = $this->serviceOn('2026-09-30');
+
+		$found = $service->diagnose(self::USER_ID)['duplicateTransactions'];
+
+		$this->assertCount(1, $found);
+		$this->assertSame('same_occurrence', $found[0]['reason']);
+		$this->assertSame(12, $found[0]['billId']);
+		$this->assertSame('2026-09-01', $found[0]['occurrence']);
+		$this->assertEqualsCanonicalizing([102, 103], [$found[0]['duplicateId'], $found[0]['originalId']]);
+		$this->assertFalse($found[0]['selected'], 'a guess must not be pre-ticked');
+
+		// Fix Selected Issues without the row ticked removes nothing
+		$this->transactionService->expects($this->once())
+			->method('deleteAsAccountOwner')
+			->with($found[0]['duplicateId'])
+			->willReturn(true);
+		$this->assertSame(0, $service->repair(self::USER_ID, ['duplicateTransactions'], ['transactionIds' => []])['duplicateTransactions']['deleted']);
+		$this->assertSame(0, $service->repair(self::USER_ID, ['duplicateTransactions'])['duplicateTransactions']['deleted']);
+
+		// ...and with it ticked, removes exactly that row
+		$result = $service->repair(self::USER_ID, ['duplicateTransactions'], ['transactionIds' => [$found[0]['duplicateId']]]);
+		$this->assertSame(1, $result['duplicateTransactions']['deleted']);
+	}
+
+	public function testTheRowTheLatestPaymentWroteIsKeptOverTheStaleOne(): void {
+		// Mark Unpaid removes the rows the payment wrote; removing that one
+		// here would leave the stale row behind as a payment of nothing
+		$this->withAccounts([$this->makeAccount(['id' => 1])]);
+		$this->withAllBills([$this->makeBill([
+			'id' => 12, 'name' => 'Rent', 'amount' => '500.00',
+			'lastPaidDate' => '2026-09-03', 'nextDueDate' => '2026-10-01',
+			'paidUndoState' => $this->paidSnapshot('2026-09-03', '2026-09-01', [103]),
+		])]);
+		$this->withLedger([
+			$this->billPayment(101, 12, 'Rent', '2026-08-01', 500.0, '2026-07-01 09:00:00'),
+			$this->billPayment(102, 12, 'Rent', '2026-09-01', 500.0, '2026-08-01 09:00:00'),
+			$this->billPayment(103, 12, 'Rent', '2026-09-03', 500.0, '2026-09-03 12:00:00'),
+		]);
+
+		$found = $this->serviceOn('2026-09-30')->diagnose(self::USER_ID)['duplicateTransactions'];
+
+		$this->assertCount(1, $found);
+		$this->assertSame(102, $found[0]['duplicateId']);
+		$this->assertSame(103, $found[0]['originalId']);
+	}
+
+	public function testARefundIsNotADuplicateOfTheBillPayment(): void {
+		$this->withAccounts([$this->makeAccount(['id' => 1])]);
+		$this->withAllBills([$this->makeBill(['id' => 20, 'name' => 'Amazon Prime', 'amount' => '8.99', 'dueDay' => 10,
+			'lastPaidDate' => '2026-09-10', 'nextDueDate' => '2026-10-10'])]);
+		$this->withLedger([
+			$this->billPayment(201, 20, 'Amazon Prime', '2026-09-10', 8.99),
+			$this->makeTransaction(['id' => 202, 'date' => '2026-09-11', 'amount' => '8.99', 'type' => 'credit',
+				'vendor' => 'Amazon Prime refund', 'description' => 'Amazon Prime refund', 'importId' => 'csv-1']),
+		]);
+
+		$this->assertNoDuplicatesAndNothingDeleted($this->serviceOn('2026-09-30'));
+	}
+
+	public function testAnotherBillsPaymentFromTheSameSupplierIsNotADuplicate(): void {
+		$this->withAccounts([$this->makeAccount(['id' => 1])]);
+		$this->withAllBills([
+			$this->makeBill(['id' => 1423, 'name' => 'British Gas', 'amount' => '60.00', 'dueDay' => 5,
+				'lastPaidDate' => '2026-09-05', 'nextDueDate' => '2026-10-05']),
+			$this->makeBill(['id' => 1424, 'name' => 'British Gas - gas', 'amount' => '55.00', 'dueDay' => 4,
+				'lastPaidDate' => '2026-09-04', 'nextDueDate' => '2026-10-04']),
+		]);
+		$this->withLedger([
+			$this->billPayment(301, 1423, 'British Gas', '2026-09-05', 60.0),
+			// The gas bill's payment, linked from the imported statement
+			$this->makeTransaction(['id' => 302, 'date' => '2026-09-04', 'amount' => '55.00',
+				'vendor' => 'BRITISH GAS DD', 'description' => 'BRITISH GAS DD', 'billId' => 1424, 'importId' => 'csv-2']),
+		]);
+
+		$this->assertNoDuplicatesAndNothingDeleted($this->serviceOn('2026-09-30'));
+	}
+
+	public function testAShortBillNameMustMatchAWholeWord(): void {
+		$this->withAccounts([$this->makeAccount(['id' => 1])]);
+		$this->withAllBills([$this->makeBill(['id' => 21, 'name' => 'BT', 'amount' => '30.00', 'dueDay' => 2,
+			'lastPaidDate' => '2026-09-02', 'nextDueDate' => '2026-10-02'])]);
+		$this->withLedger([
+			$this->billPayment(401, 21, 'BT', '2026-09-02', 30.0),
+			$this->makeTransaction(['id' => 402, 'date' => '2026-09-03', 'amount' => '30.00',
+				'vendor' => 'DEBT RECOVERY', 'description' => 'DEBT RECOVERY', 'importId' => 'csv-3']),
+		]);
+
+		$this->assertNoDuplicatesAndNothingDeleted($this->serviceOn('2026-09-30'));
+	}
+
+	/**
+	 * The case this category exists for: the bank's own row was imported as
+	 * well as the payment Mark Paid wrote. Same supplier, same amount, a day
+	 * apart, and the imported row belongs to no bill: that one is pre-ticked.
+	 */
+	public function testTheImportedBankRowOfAGeneratedPaymentIsPreselected(): void {
+		$this->withAccounts([$this->makeAccount(['id' => 1])]);
+		$this->withAllBills([$this->makeBill(['id' => 22, 'name' => 'Netflix', 'amount' => '10.99', 'dueDay' => 5,
+			'lastPaidDate' => '2026-09-05', 'nextDueDate' => '2026-10-05'])]);
+		$this->withLedger([
+			$this->billPayment(501, 22, 'Netflix', '2026-09-05', 10.99),
+			$this->makeTransaction(['id' => 502, 'date' => '2026-09-04', 'amount' => '10.99',
+				'vendor' => 'NETFLIX.COM', 'description' => 'NETFLIX.COM AMSTERDAM', 'importId' => 'csv-4']),
+		]);
+		$service = $this->serviceOn('2026-09-30');
+
+		$found = $service->diagnose(self::USER_ID)['duplicateTransactions'];
+
+		$this->assertCount(1, $found);
+		$this->assertSame(501, $found[0]['duplicateId']);
+		$this->assertSame(502, $found[0]['originalId']);
+		$this->assertSame('auto_gen_duplicates_manual', $found[0]['reason']);
+		$this->assertTrue($found[0]['selected']);
+
+		$this->transactionService->expects($this->once())
+			->method('deleteAsAccountOwner')
+			->with(501)
+			->willReturn(true);
+		$this->transactionMapper->expects($this->never())->method('delete');
+
+		$this->assertSame(1, $service->repair(self::USER_ID, ['duplicateTransactions'])['duplicateTransactions']['deleted']);
+	}
+
+	public function testANearMatchWithTheBankRowIsOnlyReported(): void {
+		// The amount differs (an estimate against the real bill) and the row
+		// was typed in by hand: plausible, not certain
+		$this->withAccounts([$this->makeAccount(['id' => 1])]);
+		$this->withAllBills([$this->makeBill(['id' => 23, 'name' => 'Electric', 'amount' => '80.00', 'dueDay' => 12,
+			'lastPaidDate' => '2026-09-12', 'nextDueDate' => '2026-10-12'])]);
+		$this->withLedger([
+			$this->billPayment(601, 23, 'Electric', '2026-09-12', 80.0),
+			$this->makeTransaction(['id' => 602, 'date' => '2026-09-13', 'amount' => '86.40',
+				'vendor' => 'Electric', 'description' => 'Electric bill']),
+		]);
+
+		$found = $this->serviceOn('2026-09-30')->diagnose(self::USER_ID)['duplicateTransactions'];
+
+		$this->assertCount(1, $found);
+		$this->assertSame(601, $found[0]['duplicateId']);
+		$this->assertFalse($found[0]['selected']);
+	}
+
+	public function testAReconciledBillPaymentIsNeverReportedOrDeleted(): void {
+		$this->withAccounts([$this->makeAccount(['id' => 1])]);
+		$this->withAllBills([$this->makeBill(['id' => 24, 'name' => 'Insurance', 'amount' => '75.00', 'dueDay' => 8,
+			'lastPaidDate' => '2026-09-08', 'nextDueDate' => '2026-10-08'])]);
+		$this->withLedger([
+			$this->billPayment(701, 24, 'Insurance', '2026-09-08', 75.0, null, ['reconciled' => true]),
+			$this->makeTransaction(['id' => 702, 'date' => '2026-09-08', 'amount' => '75.00',
+				'vendor' => 'INSURANCE', 'description' => 'INSURANCE', 'importId' => 'csv-5']),
+		]);
+		$service = $this->serviceOn('2026-09-30');
+
+		$this->assertSame([], $service->diagnose(self::USER_ID)['duplicateTransactions']);
+
+		// Not even when a request names it
+		$this->transactionService->expects($this->never())->method('deleteAsAccountOwner');
+		$result = $service->repair(self::USER_ID, ['duplicateTransactions'], ['transactionIds' => [701]]);
+		$this->assertSame(0, $result['duplicateTransactions']['deleted']);
+	}
+
+	public function testRepairOnlyDeletesRowsItFoundItself(): void {
+		$this->withAccounts([$this->makeAccount(['id' => 1])]);
+		$this->withAllBills([]);
+		$this->withLedger([$this->makeTransaction(['id' => 801, 'date' => '2026-09-01'])]);
+
+		$this->transactionService->expects($this->never())->method('deleteAsAccountOwner');
+
+		$result = $this->serviceOn('2026-09-30')->repair(self::USER_ID, ['duplicateTransactions'], ['transactionIds' => [801]]);
+		$this->assertSame(0, $result['duplicateTransactions']['deleted']);
+	}
+
+	/**
+	 * Each generated payment read the rows three days either side of it
+	 * with a query of its own: 859 queries for a long history (T6-9). The
+	 * rows are read once per year of payments now, with the same findings.
+	 */
+	public function testNearbyRowsAreReadOncePerYearOfPaymentsNotPerPayment(): void {
+		$this->withAccounts([$this->makeAccount(['id' => 1])]);
+		$this->withAllBills([$this->makeBill(['id' => 22, 'name' => 'Netflix', 'amount' => '10.99', 'dueDay' => 5,
+			'lastPaidDate' => '2026-12-05', 'nextDueDate' => '2027-01-05'])]);
+		$ledger = [];
+		$expected = [];
+		foreach (['2025', '2026'] as $year) {
+			foreach (range(1, 12) as $month) {
+				$id = 1000 + count($ledger);
+				$ledger[] = $this->billPayment($id, 22, 'Netflix', sprintf('%s-%02d-05', $year, $month), 10.99);
+				$ledger[] = $this->makeTransaction(['id' => $id + 1, 'date' => sprintf('%s-%02d-04', $year, $month), 'amount' => '10.99',
+					'vendor' => 'NETFLIX.COM', 'description' => 'NETFLIX.COM AMSTERDAM', 'importId' => 'csv-' . $id]);
+				$expected[] = [$id, $id + 1];
+			}
+		}
+		$this->withLedger($ledger);
+
+		$found = $this->serviceOn('2026-12-31')->diagnose(self::USER_ID)['duplicateTransactions'];
+
+		$this->assertSame($expected, array_map(fn (array $f) => [$f['duplicateId'], $f['originalId']], $found));
+		$this->assertSame([
+			[1, '2024-12-29', '2026-01-03'],
+			[1, '2025-12-29', '2027-01-03'],
+		], array_values(array_filter($this->dateRangeReads, fn (array $r) => $r[1] <= '2026-12-31')), 'the future-dated check reads from tomorrow on');
+	}
+
+	public function testABankRowOverTheNewYearFromItsPaymentIsStillFound(): void {
+		$this->withAccounts([$this->makeAccount(['id' => 1])]);
+		$this->withAllBills([$this->makeBill(['id' => 25, 'name' => 'Rent', 'amount' => '900.00', 'dueDay' => 1,
+			'lastPaidDate' => '2026-01-01', 'nextDueDate' => '2026-02-01'])]);
+		$this->withLedger([
+			$this->billPayment(901, 25, 'Rent', '2026-01-01', 900.0),
+			$this->makeTransaction(['id' => 902, 'date' => '2025-12-30', 'amount' => '900.00',
+				'vendor' => 'RENT', 'description' => 'RENT JAN', 'importId' => 'csv-9']),
+		]);
+
+		$found = $this->serviceOn('2026-01-31')->diagnose(self::USER_ID)['duplicateTransactions'];
+
+		$this->assertCount(1, $found);
+		$this->assertSame([901, 902], [$found[0]['duplicateId'], $found[0]['originalId']]);
+	}
+
+	// ---------------------------------------------------------------
+	// 4-8. findStuckBills
+	//
+	// A bill is stuck only when its due date sits on or before the
+	// occurrence its last payment settled. A late payment, a bill due today,
+	// or an overdue bill with one occurrence caught up are normal states,
+	// and moving them on drops an occurrence that is still owed.
+	// ---------------------------------------------------------------
+
+	public function testFindStuckBillsReportsADueDateBeforeTheLastPaymentForReviewOnly(): void {
+		// Without the payment's own record there is no telling a stuck bill
+		// from an overdue one with another occurrence still owed
+		$this->withAccounts([]);
+
+		$bill = $this->makeBill([
+			'id' => 1,
+			'name' => 'Rent',
+			'frequency' => 'monthly',
+			'lastPaidDate' => '2026-05-15',
+			'nextDueDate' => '2026-05-01', // before lastPaid
+		]);
+		$this->withActiveBills([$bill]);
+
+		$result = $this->service->diagnose(self::USER_ID);
+
+		$this->assertCount(1, $result['stuckBills']);
+		$this->assertEquals('next_due_before_paid', $result['stuckBills'][0]['reason']);
+		$this->assertEquals(1, $result['stuckBills'][0]['billId']);
+		$this->assertFalse($result['stuckBills'][0]['fixable']);
+	}
+
+	public function testALatePaymentJustBeforeTheNextDueDateIsNotStuck(): void {
+		// Rent due on the 1st, September paid late on 09-28: next due 10-01
+		$this->withAccounts([]);
+		$this->withActiveBills([
+			$this->makeBill(['id' => 2, 'lastPaidDate' => '2026-09-28', 'nextDueDate' => '2026-10-01',
+				'paidUndoState' => $this->paidSnapshot('2026-09-28', '2026-09-01', [11])]),
+			// Same, from before payments kept a record of what they settled
+			$this->makeBill(['id' => 3, 'lastPaidDate' => '2026-09-28', 'nextDueDate' => '2026-10-01']),
+			// Semi-monthly on the 10th and 25th, paid on time on the 25th
+			$this->makeBill(['id' => 4, 'frequency' => 'semi-monthly', 'dueDay' => 25,
+				'lastPaidDate' => '2026-09-25', 'nextDueDate' => '2026-10-10']),
+		]);
+
+		$this->assertSame([], $this->serviceOn('2026-09-29')->diagnose(self::USER_ID)['stuckBills']);
+	}
+
+	public function testABillDueTodayAfterAPaymentLastCycleIsNotStuck(): void {
+		$this->withAccounts([]);
+		$this->withActiveBills([
+			// Weekly, paid on time last week, due again today
+			$this->makeBill(['id' => 5, 'frequency' => 'weekly', 'startDate' => '2026-09-02',
+				'lastPaidDate' => '2026-09-23', 'nextDueDate' => '2026-09-30',
+				'paidUndoState' => $this->paidSnapshot('2026-09-23', '2026-09-23', [12])]),
+			// Monthly on the 30th, last month's payment a day late
+			$this->makeBill(['id' => 6, 'dueDay' => 30, 'lastPaidDate' => '2026-08-31', 'nextDueDate' => '2026-09-30']),
+		]);
+
+		$this->assertSame([], $this->serviceOn('2026-09-30')->diagnose(self::USER_ID)['stuckBills']);
+	}
+
+	public function testAnOverdueBillWithOneOccurrenceCaughtUpIsNotStuck(): void {
+		// Weekly, 09-13 and 09-20 owed, 09-13 marked paid today: 09-20 is
+		// still owed, whatever the paid date says
+		$this->withAccounts([]);
+		$this->withActiveBills([$this->makeBill([
+			'id' => 7, 'frequency' => 'weekly', 'startDate' => '2026-09-06',
+			'lastPaidDate' => '2026-09-28', 'nextDueDate' => '2026-09-20',
+			'paidUndoState' => $this->paidSnapshot('2026-09-28', '2026-09-13', [13]),
+		])]);
+
+		$this->assertSame([], $this->serviceOn('2026-09-28')->diagnose(self::USER_ID)['stuckBills']);
+	}
+
+	public function testABillWhoseDueDateDidNotMovePastThePaidOccurrenceIsStuck(): void {
+		$this->withAccounts([]);
+		$this->withActiveBills([$this->makeBill([
+			'id' => 8, 'lastPaidDate' => '2026-09-02', 'nextDueDate' => '2026-09-01',
+			'paidUndoState' => $this->paidSnapshot('2026-09-02', '2026-09-01', [14]),
+		])]);
+
+		$stuck = $this->serviceOn('2026-09-29')->diagnose(self::USER_ID)['stuckBills'];
+
+		$this->assertCount(1, $stuck);
+		$this->assertSame('next_due_not_advanced', $stuck[0]['reason']);
+		$this->assertTrue($stuck[0]['fixable']);
+	}
+
+	public function testFindStuckBillsDetectsFarFutureDueDate(): void {
+		$this->withAccounts([]);
+
+		$bill = $this->makeBill([
+			'id' => 4,
+			'name' => 'Insurance',
+			'frequency' => 'yearly',
+			'lastPaidDate' => '2026-01-01',
+			'nextDueDate' => '2040-01-01', // >10 years from now
+		]);
+		$this->withActiveBills([$bill]);
+
+		$result = $this->service->diagnose(self::USER_ID);
+
+		$this->assertCount(1, $result['stuckBills']);
+		$this->assertEquals('far_future_due_date', $result['stuckBills'][0]['reason']);
+		$this->assertTrue($result['stuckBills'][0]['fixable']);
+	}
+
+	public function testFindStuckBillsSkipsOneTimeBills(): void {
+		$this->withAccounts([]);
+
+		$bill = $this->makeBill([
+			'id' => 5,
+			'name' => 'One-off payment',
+			'frequency' => 'one-time',
+			'lastPaidDate' => '2026-05-01',
+			'nextDueDate' => '2026-04-01', // before lastPaid, but one-time so should be skipped
+		]);
+		$this->withActiveBills([$bill]);
+
+		$result = $this->service->diagnose(self::USER_ID);
+
+		$this->assertEmpty($result['stuckBills']);
+	}
+
+	// ---------------------------------------------------------------
+	// 9. findPaidOneTimeBillsStillActive
+	// ---------------------------------------------------------------
+
+	public function testFindPaidOneTimeBillsStillActive(): void {
+		$this->withAccounts([]);
+
+		$bill = $this->makeBill([
+			'id' => 10,
+			'name' => 'Setup Fee',
+			'frequency' => 'one-time',
+			'lastPaidDate' => '2026-04-15',
+			'nextDueDate' => '2026-04-15',
+			'isActive' => true,
+			'amount' => '250.00',
+		]);
+		$this->withActiveBills([$bill]);
+
+		$result = $this->service->diagnose(self::USER_ID);
+
+		$this->assertCount(1, $result['paidOneTimeBills']);
+		$this->assertEquals(10, $result['paidOneTimeBills'][0]['billId']);
+		$this->assertEquals('Setup Fee', $result['paidOneTimeBills'][0]['name']);
+		$this->assertEquals(250.00, $result['paidOneTimeBills'][0]['amount']);
+	}
+
+	// ---------------------------------------------------------------
+	// 10. findFutureClearedTransactions
+	// ---------------------------------------------------------------
+
+	public function testFindFutureClearedTransactions(): void {
+		$account = $this->makeAccount(['id' => 1, 'name' => 'Checking']);
+		$this->withAccounts([$account]);
+		$this->withActiveBills([]);
+
+		$futureDate = date('Y-m-d', strtotime('+30 days'));
+		$futureTx = $this->makeTransaction([
+			'id' => 20,
+			'date' => $futureDate,
+			'amount' => '75.00',
+			'type' => 'debit',
+			'status' => 'cleared',
+			'vendor' => 'Future Payment',
+			'description' => '',
+			'accountId' => 1,
+		]);
+
+		$this->transactionMapper->method('findByDateRange')
+			->willReturn([$futureTx]);
+		$this->transactionMapper->method('findAutoGeneratedBillTransactions')
+			->willReturn([]);
+		$this->transactionMapper->method('findLinkedCreditsWithCategory')
+			->willReturn([]);
+		$this->transactionMapper->method('getNetChangeAll')->willReturn(0.0);
+
+		$result = $this->service->diagnose(self::USER_ID);
+
+		$this->assertCount(1, $result['futureClearedTransactions']);
+		$this->assertEquals(20, $result['futureClearedTransactions'][0]['transactionId']);
+		$this->assertEquals($futureDate, $result['futureClearedTransactions'][0]['date']);
+	}
+
+	// ---------------------------------------------------------------
+	// 11. findTransferCreditsWithCategory
+	// ---------------------------------------------------------------
+
+	public function testFindTransferCreditsWithCategoryNoLongerReported(): void {
+		// Transfer credits with categories are now expected (since v2.26.3)
+		$account = $this->makeAccount(['id' => 1, 'name' => 'Savings']);
+		$this->withAccounts([$account]);
+		$this->withActiveBills([]);
+		$this->transactionMapper->method('findAutoGeneratedBillTransactions')
+			->willReturn([]);
+		$this->transactionMapper->method('findByDateRange')
+			->willReturn([]);
+		$this->transactionMapper->method('getNetChangeAll')->willReturn(0.0);
+
+		$result = $this->service->diagnose(self::USER_ID);
+
+		$this->assertCount(0, $result['transferCreditCategories']);
+	}
+
+	// ---------------------------------------------------------------
+	// 12-13. findBalanceDrift
+	// ---------------------------------------------------------------
+
+	public function testFindBalanceDriftDetectsMismatch(): void {
+		$account = $this->makeAccount([
+			'id' => 1,
+			'name' => 'Checking',
+			'balance' => '1000.00',
+			'openingBalance' => '500.00',
+		]);
+		$this->withAccounts([$account]);
+		$this->withActiveBills([]);
+
+		// Net transactions = 400, so expected = 500 + 400 = 900, stored = 1000 => drift of 100
+		$this->transactionMapper->method('getNetChangeAll')
+			->with(1)
+			->willReturn(400.0);
+		$this->transactionMapper->method('findAutoGeneratedBillTransactions')
+			->willReturn([]);
+		$this->transactionMapper->method('findByDateRange')
+			->willReturn([]);
+		$this->transactionMapper->method('findLinkedCreditsWithCategory')
+			->willReturn([]);
+
+		$result = $this->service->diagnose(self::USER_ID);
+
+		$this->assertCount(1, $result['balanceDrift']);
+		$this->assertEquals(1, $result['balanceDrift'][0]['accountId']);
+		$this->assertEquals(1000.0, $result['balanceDrift'][0]['storedBalance']);
+		$this->assertEquals(900.0, $result['balanceDrift'][0]['expectedBalance']);
+		$this->assertEquals(-100.0, $result['balanceDrift'][0]['difference']);
+	}
+
+	public function testFindBalanceDriftNoDriftWhenBalanced(): void {
+		$account = $this->makeAccount([
+			'id' => 1,
+			'name' => 'Checking',
+			'balance' => '750.00',
+			'openingBalance' => '500.00',
+		]);
+		$this->withAccounts([$account]);
+		$this->withActiveBills([]);
+
+		// Net = 250, expected = 500 + 250 = 750 = stored
+		$this->transactionMapper->method('getNetChangeAll')
+			->with(1)
+			->willReturn(250.0);
+		$this->transactionMapper->method('findAutoGeneratedBillTransactions')
+			->willReturn([]);
+		$this->transactionMapper->method('findByDateRange')
+			->willReturn([]);
+		$this->transactionMapper->method('findLinkedCreditsWithCategory')
+			->willReturn([]);
+
+		$result = $this->service->diagnose(self::USER_ID);
+
+		$this->assertEmpty($result['balanceDrift']);
+	}
+
+	// ---------------------------------------------------------------
+	// 14. repair duplicateTransactions - deletes duplicates
+	// ---------------------------------------------------------------
+
+	// A row that has gone in the meantime is skipped, not counted, and must
+	// not take the rest of the repair down with it.
+	public function testRepairDuplicateTransactionsSkipsRowsThatAreAlreadyGone(): void {
+		$this->withAccounts([$this->makeAccount(['id' => 1])]);
+		$this->withAllBills([$this->makeBill(['id' => 22, 'name' => 'Netflix', 'amount' => '10.99', 'dueDay' => 5,
+			'lastPaidDate' => '2026-09-05', 'nextDueDate' => '2026-10-05'])]);
+		$this->withLedger([
+			$this->billPayment(501, 22, 'Netflix', '2026-09-05', 10.99),
+			$this->makeTransaction(['id' => 502, 'date' => '2026-09-04', 'amount' => '10.99',
+				'vendor' => 'NETFLIX.COM', 'description' => 'NETFLIX.COM', 'importId' => 'csv-4']),
+		]);
+
+		$this->transactionService->method('deleteAsAccountOwner')
+			->willThrowException(new \OCP\AppFramework\Db\DoesNotExistException('gone'));
+
+		$result = $this->serviceOn('2026-09-30')->repair(self::USER_ID, ['duplicateTransactions']);
+
+		$this->assertEquals(0, $result['duplicateTransactions']['deleted']);
+	}
+
+	// ---------------------------------------------------------------
+	// 15. repair stuckBills - recalculates nextDueDate
+	// ---------------------------------------------------------------
+
+	public function testRepairLeavesABillThatOnlyNeedsCheckingAlone(): void {
+		// An overdue weekly bill with one occurrence paid today: moving it on
+		// would drop 09-20, which is still owed
+		$this->withAccounts([]);
+		$bill = $this->makeBill(['id' => 1, 'frequency' => 'weekly', 'startDate' => '2026-09-06',
+			'lastPaidDate' => '2026-09-28', 'nextDueDate' => '2026-09-20']);
+		$this->withActiveBills([$bill]);
+		$this->billMapper->method('find')->willReturn($bill);
+
+		$this->billMapper->expects($this->never())->method('update');
+
+		$result = $this->serviceOn('2026-09-28')->repair(self::USER_ID, ['stuckBills']);
+
+		$this->assertSame(0, $result['stuckBills']['fixed']);
+		$this->assertSame('2026-09-20', $bill->getNextDueDate());
+	}
+
+	public function testRepairMovesAStuckBillOnePastThePaidOccurrenceTogetherWithItsPendingRow(): void {
+		$this->withAccounts([]);
+		$this->accountMapper->method('findById')->willReturn($this->makeAccount(['id' => 1, 'userId' => 'owner']));
+		$bill = $this->makeBill(['id' => 8, 'lastPaidDate' => '2026-09-02', 'nextDueDate' => '2026-09-01',
+			'paidUndoState' => $this->paidSnapshot('2026-09-02', '2026-09-01', [14])]);
+		$this->withActiveBills([$bill]);
+		$this->billMapper->method('find')->with(8, self::USER_ID)->willReturn($bill);
+		$this->withLedger([
+			$this->billPayment(14, 8, 'Rent', '2026-09-02', 500.0),
+			$this->billPayment(15, 8, 'Rent', '2026-09-01', 500.0, '2026-09-02 09:00:00', ['status' => 'scheduled']),
+		]);
+
+		$this->billMapper->expects($this->once())->method('update')
+			->with($this->callback(fn (Bill $b) => $b->getNextDueDate() === '2026-10-01'));
+		// The pending row goes with it, or it books the payment for the
+		// occurrence the bill no longer shows
+		$this->transactionService->expects($this->once())->method('update')
+			->with(15, 'owner', ['date' => '2026-10-01']);
+
+		$result = $this->serviceOn('2026-09-29')->repair(self::USER_ID, ['stuckBills']);
+
+		$this->assertSame(1, $result['stuckBills']['fixed']);
+	}
+
+	public function testRepairOfAFarFutureDueDateMovesThePendingRowToo(): void {
+		$this->withAccounts([]);
+		$this->accountMapper->method('findById')->willReturn($this->makeAccount(['id' => 1, 'userId' => self::USER_ID]));
+		$bill = $this->makeBill(['id' => 9, 'frequency' => 'yearly', 'dueDay' => 1, 'dueMonth' => 1,
+			'lastPaidDate' => '2026-01-01', 'nextDueDate' => '2040-01-01']);
+		$this->withActiveBills([$bill]);
+		$this->billMapper->method('find')->willReturn($bill);
+		$this->withLedger([
+			$this->billPayment(21, 9, 'Insurance', '2040-01-01', 300.0, '2026-01-01 09:00:00', ['status' => 'scheduled']),
+		]);
+
+		$this->transactionService->expects($this->once())->method('update')
+			->with(21, self::USER_ID, ['date' => '2027-01-01']);
+
+		$result = $this->serviceOn('2026-09-29')->repair(self::USER_ID, ['stuckBills']);
+
+		$this->assertSame(1, $result['stuckBills']['fixed']);
+		$this->assertSame('2027-01-01', $bill->getNextDueDate());
+	}
+
+	public function testRepairStuckBillsFarFutureRecalcPassesStartDateAnchor(): void {
+		// The far-future path recalculates from scratch; for an anchored
+		// biweekly bill that recalc must run from the startDate anchor or the
+		// repaired date lands in the wrong fortnight (#364).
+		$this->withAccounts([]);
+
+		$bill = $this->makeBill([
+			'id' => 2,
+			'name' => 'Pay cycle',
+			'frequency' => 'biweekly',
+			'lastPaidDate' => '2026-01-16',
+			'nextDueDate' => '2040-01-01', // >10 years out: far_future_due_date
+			'dueDay' => 5,
+		]);
+		$bill->setStartDate('2026-01-02');
+		$this->withActiveBills([$bill]);
+
+		$this->billMapper->method('find')
+			->with(2, self::USER_ID)
+			->willReturn($bill);
+
+		$captured = null;
+		$this->frequencyCalculator->method('calculateNextDueDate')
+			->willReturnCallback(function (...$args) use (&$captured) {
+				$captured = $args;
+				return '2026-09-04';
+			});
+
+		$result = $this->service->repair(self::USER_ID, ['stuckBills']);
+
+		$this->assertEquals(1, $result['stuckBills']['fixed']);
+		$this->assertSame('2026-01-02', $captured[6] ?? null, 'far-future recalc must anchor to the start date');
+	}
+
+	// ---------------------------------------------------------------
+	// 16. repair paidOneTimeBills - deactivates them
+	// ---------------------------------------------------------------
+
+	public function testRepairPaidOneTimeBillsDeactivatesThem(): void {
+		$this->withAccounts([]);
+
+		$bill = $this->makeBill([
+			'id' => 10,
+			'name' => 'Setup Fee',
+			'frequency' => 'one-time',
+			'lastPaidDate' => '2026-04-15',
+			'nextDueDate' => '2026-04-15',
+			'isActive' => true,
+		]);
+		$this->withActiveBills([$bill]);
+
+		$this->billMapper->method('find')
+			->with(10, self::USER_ID)
+			->willReturn($bill);
+
+		$this->billMapper->expects($this->once())
+			->method('update')
+			->with($this->callback(function (Bill $b) {
+				return $b->getIsActive() === false
+					&& $b->getNextDueDate() === null;
+			}));
+
+		$result = $this->service->repair(self::USER_ID, ['paidOneTimeBills']);
+
+		$this->assertEquals(1, $result['paidOneTimeBills']['fixed']);
+		$this->assertEquals(1, $result['paidOneTimeBills']['found']);
+	}
+
+	// ---------------------------------------------------------------
+	// 17. repair futureClearedTransactions - sets to scheduled, reverses balance
+	// ---------------------------------------------------------------
+
+	public function testRepairFutureClearedTransactionsSetsToScheduled(): void {
+		$account = $this->makeAccount([
+			'id' => 1,
+			'name' => 'Checking',
+			'balance' => '900.00',
+		]);
+		$this->withAccounts([$account]);
+		$this->withActiveBills([]);
+
+		$futureDate = date('Y-m-d', strtotime('+30 days'));
+		$futureTx = $this->makeTransaction([
+			'id' => 20,
+			'date' => $futureDate,
+			'amount' => '75.00',
+			'type' => 'debit',
+			'status' => 'cleared',
+			'vendor' => 'Future Payment',
+			'accountId' => 1,
+		]);
+
+		$this->transactionMapper->method('findByDateRange')
+			->willReturn([$futureTx]);
+		$this->transactionMapper->method('findAutoGeneratedBillTransactions')
+			->willReturn([]);
+		$this->transactionMapper->method('findLinkedCreditsWithCategory')
+			->willReturn([]);
+		$this->transactionMapper->method('getNetChangeAll')
+			->willReturn(0.0);
+
+		$this->transactionMapper->method('findById')
+			->with(20)
+			->willReturn($futureTx);
+
+		$this->accountMapper->method('findById')
+			->with(1)
+			->willReturn($account);
+
+		$this->transactionMapper->expects($this->once())
+			->method('update')
+			->with($this->callback(function (Transaction $tx) {
+				return $tx->getStatus() === 'scheduled'
+					&& $tx->getUpdatedAt() !== null;
+			}));
+
+		// Balances are recomputed from the ledger after the status change —
+		// no hand-computed reversal (#274 root cause)
+		$this->accountService->expects($this->once())
+			->method('recalculateAllBalances')
+			->with(self::USER_ID);
+
+		$result = $this->service->repair(self::USER_ID, ['futureClearedTransactions']);
+
+		$this->assertEquals(1, $result['futureClearedTransactions']['fixed']);
+		$this->assertEquals(1, $result['futureClearedTransactions']['found']);
+	}
+
+	/**
+	 * A bill's payment dated ahead (its date edited, or Mark Paid from a
+	 * browser ahead of the server) is still a payment. As 'scheduled' it
+	 * reads as the bill's pending row, and the bill's next Mark Paid, Skip
+	 * or Mark Unpaid then re-dates or deletes it. A reconciled row was
+	 * checked against a statement. Both are listed for the user to check,
+	 * never switched.
+	 */
+	public function testFutureClearedLeavesBillPaymentsAndReconciledRowsAlone(): void {
+		$this->withAccounts([$this->makeAccount(['id' => 1])]);
+		$this->withActiveBills([]);
+		$this->withAllBills([]);
+		$plain = $this->makeTransaction(['id' => 30, 'date' => '2026-10-20', 'vendor' => 'Shop', 'description' => 'Shop']);
+		$payment = $this->billPayment(31, 4, 'Rent', '2026-10-20', 500.0);
+		$reconciled = $this->makeTransaction(['id' => 32, 'date' => '2026-10-21', 'reconciled' => true]);
+		$this->withLedger([$plain, $payment, $reconciled]);
+		$service = $this->serviceOn('2026-09-30');
+
+		$found = array_column($service->diagnose(self::USER_ID)['futureClearedTransactions'], null, 'transactionId');
+
+		$this->assertFalse($found[30]['review']);
+		$this->assertTrue($found[31]['review']);
+		$this->assertTrue($found[32]['review']);
+
+		$updated = [];
+		$this->transactionMapper->method('update')->willReturnCallback(function (Transaction $t) use (&$updated) {
+			$updated[] = $t->getId();
+			return $t;
+		});
+
+		$result = $service->repair(self::USER_ID, ['futureClearedTransactions']);
+
+		$this->assertSame([30], $updated);
+		$this->assertSame(1, $result['futureClearedTransactions']['fixed']);
+		$this->assertSame('cleared', $payment->getStatus());
+		$this->assertSame('cleared', $reconciled->getStatus());
+	}
+
+	public function testFutureClearedJudgesTheDateByTheUsersOwnToday(): void {
+		// A user whose day has already started ahead of the server's: a row
+		// dated their today is not in the future
+		$usersToday = date('Y-m-d', strtotime('+1 day'));
+		$this->withAccounts([$this->makeAccount(['id' => 1])]);
+		$this->withActiveBills([]);
+		$this->withAllBills([]);
+		$this->withLedger([$this->makeTransaction(['id' => 40, 'date' => $usersToday])]);
+
+		$found = $this->serviceOn($usersToday)->diagnose(self::USER_ID)['futureClearedTransactions'];
+
+		$this->assertSame([], $found);
+	}
+
+	// ---------------------------------------------------------------
+	// splitParentCategories: split transactions left carrying a category (#360)
+
+	private function makeSplitParentWithCategory(int $id, int $categoryId): Transaction {
+		$tx = new Transaction();
+		$tx->setId($id);
+		$tx->setDate('2026-08-10');
+		$tx->setAmount('60.00');
+		$tx->setCategoryId($categoryId);
+		$tx->setDescription('Tesco');
+		$tx->setVendor('Tesco');
+		$tx->setIsSplit(true);
+		return $tx;
+	}
+
+	public function testDiagnoseReportsSplitTransactionsCarryingACategory(): void {
+		$this->transactionMapper->method('findCategorisedSplitParents')
+			->with(self::USER_ID)
+			->willReturn([$this->makeSplitParentWithCategory(7, 3)]);
+
+		$result = $this->service->diagnose(self::USER_ID);
+
+		$this->assertCount(1, $result['splitParentCategories']);
+		$this->assertSame(7, $result['splitParentCategories'][0]['transactionId']);
+		$this->assertSame(3, $result['splitParentCategories'][0]['categoryId']);
+	}
+
+	public function testRepairClearsTheStrayCategoryOffASplit(): void {
+		$tx = $this->makeSplitParentWithCategory(7, 3);
+		$this->transactionMapper->method('findCategorisedSplitParents')->willReturn([$tx]);
+		$this->transactionMapper->method('findById')->with(7)->willReturn($tx);
+
+		$updated = null;
+		$this->transactionMapper->method('update')->willReturnCallback(
+			function (Transaction $t) use (&$updated) {
+				$updated = $t;
+				return $t;
+			}
+		);
+
+		$result = $this->service->repair(self::USER_ID, ['splitParentCategories']);
+
+		$this->assertSame(1, $result['splitParentCategories']['fixed']);
+		$this->assertNotNull($updated);
+		$this->assertNull($updated->getCategoryId());
+		// The row stays a split -- only the category it should never have had goes.
+		$this->assertTrue($updated->getIsSplit());
+	}
+
+	public function testRepairReportsNothingWhenThereIsNothingToFix(): void {
+		$this->transactionMapper->method('findCategorisedSplitParents')->willReturn([]);
+		$this->transactionMapper->expects($this->never())->method('update');
+
+		$result = $this->service->repair(self::USER_ID, ['splitParentCategories']);
+
+		$this->assertSame(['fixed' => 0, 'found' => 0], $result['splitParentCategories']);
+	}
+
+	public function testSplitParentCategoriesIsARecognisedRepairCategory(): void {
+		$this->assertContains('splitParentCategories', RepairService::CATEGORIES);
+	}
+
+	// 18. transferCreditCategories repair removed (categories now preserved)
+	// ---------------------------------------------------------------
+
+	public function testRepairTransferCreditCategoriesNoLongerAvailable(): void {
+		// transferCreditCategories repair was removed — should be ignored
+		$result = $this->service->repair(self::USER_ID, ['transferCreditCategories']);
+		$this->assertEmpty($result);
+	}
+
+	// ---------------------------------------------------------------
+	// 19. repair balanceDrift - delegates to accountService
+	// ---------------------------------------------------------------
+
+	public function testRepairBalanceDriftDelegatesToAccountService(): void {
+		$this->accountService->expects($this->once())
+			->method('recalculateAllBalances')
+			->with(self::USER_ID)
+			->willReturn(['recalculated' => 2]);
+
+		$result = $this->service->repair(self::USER_ID, ['balanceDrift']);
+
+		$this->assertArrayHasKey('balanceDrift', $result);
+		$this->assertEquals(['recalculated' => 2], $result['balanceDrift']);
+	}
+
+	// ---------------------------------------------------------------
+	// 20. repair only runs requested categories
+	// ---------------------------------------------------------------
+
+	public function testRepairOnlyRunsRequestedCategories(): void {
+		// Only request balanceDrift - other repairs should NOT run
+		$this->accountService->expects($this->once())
+			->method('recalculateAllBalances')
+			->with(self::USER_ID)
+			->willReturn(['recalculated' => 1]);
+
+		// These should never be called since we only requested balanceDrift
+		$this->transactionMapper->expects($this->never())
+			->method('delete');
+		$this->billMapper->expects($this->never())
+			->method('update');
+
+		$result = $this->service->repair(self::USER_ID, ['balanceDrift']);
+
+		$this->assertArrayHasKey('balanceDrift', $result);
+		$this->assertArrayNotHasKey('duplicateTransactions', $result);
+		$this->assertArrayNotHasKey('stuckBills', $result);
+		$this->assertArrayNotHasKey('paidOneTimeBills', $result);
+		$this->assertArrayNotHasKey('futureClearedTransactions', $result);
+		$this->assertArrayNotHasKey('transferCreditCategories', $result);
+	}
+
+	// ---------------------------------------------------------------
+	// Additional edge case: stuck bill far-future uses null currentDue
+	// ---------------------------------------------------------------
+
+	public function testRepairStuckBillFarFutureRecalculatesFromScratch(): void {
+		$this->withAccounts([]);
+
+		$bill = $this->makeBill([
+			'id' => 4,
+			'name' => 'Insurance',
+			'frequency' => 'yearly',
+			'lastPaidDate' => '2026-01-01',
+			'nextDueDate' => '2040-01-01',
+			'dueDay' => 1,
+			'dueMonth' => 1,
+		]);
+		$this->withActiveBills([$bill]);
+
+		$this->billMapper->method('find')
+			->with(4, self::USER_ID)
+			->willReturn($bill);
+
+		// For far-future, currentDue should be null and forceAdvance should be false
+		$this->frequencyCalculator->expects($this->once())
+			->method('calculateNextDueDate')
+			->with('yearly', 1, 1, null, null, false)
+			->willReturn('2027-01-01');
+
+		$this->billMapper->expects($this->once())
+			->method('update')
+			->with($this->callback(function (Bill $b) {
+				return $b->getNextDueDate() === '2027-01-01';
+			}));
+
+		$result = $this->service->repair(self::USER_ID, ['stuckBills']);
+
+		$this->assertEquals(1, $result['stuckBills']['fixed']);
+	}
+
+	// ---------------------------------------------------------------
+	// liabilitySignFlipped (#353)
+	//
+	// A liability holding a POSITIVE opening balance is being counted as money
+	// you have rather than money you owe. It is only ambiguous because a real
+	// overpayment looks identical, so the user decides per account and the
+	// decision is persisted -- otherwise the scan reports it forever.
+	// ---------------------------------------------------------------
+
+	public function testFindLiabilitySignFlippedDetectsAPositiveDebt(): void {
+		$this->withAccounts([
+			$this->makeAccount(['id' => 1, 'name' => 'Loan', 'type' => 'loan', 'openingBalance' => '90904.56', 'balance' => '90904.56']),
+		]);
+		$this->withActiveBills([]);
+		$this->transactionMapper->method('getNetChangeAll')->willReturn(0.0);
+
+		$found = $this->service->diagnose(self::USER_ID)['liabilitySignFlipped'];
+
+		$this->assertCount(1, $found);
+		$this->assertSame('Loan', $found[0]['accountName']);
+		// The figures the user recognises, not raw opening balances.
+		$this->assertEqualsWithDelta(90904.56, $found[0]['currentBalance'], 0.005);
+		$this->assertEqualsWithDelta(-90904.56, $found[0]['repairedBalance'], 0.005);
+	}
+
+	public function testFindLiabilitySignFlippedIgnoresACorrectlySignedDebt(): void {
+		$this->withAccounts([
+			$this->makeAccount(['id' => 1, 'type' => 'loan', 'openingBalance' => '-5000.00', 'balance' => '-5000.00']),
+		]);
+		$this->withActiveBills([]);
+
+		$this->assertSame([], $this->service->diagnose(self::USER_ID)['liabilitySignFlipped']);
+	}
+
+	public function testFindLiabilitySignFlippedIgnoresAssets(): void {
+		$this->withAccounts([
+			$this->makeAccount(['id' => 1, 'type' => 'savings', 'openingBalance' => '5000.00', 'balance' => '5000.00']),
+		]);
+		$this->withActiveBills([]);
+
+		$this->assertSame([], $this->service->diagnose(self::USER_ID)['liabilitySignFlipped']);
+	}
+
+	public function testFindLiabilitySignFlippedIgnoresADeclaredOverpayment(): void {
+		// This is what stops the category nagging forever once the user has
+		// said yes, I really did overpay this one.
+		$this->withAccounts([
+			$this->makeAccount(['id' => 1, 'type' => 'credit_card', 'openingBalance' => '50.00', 'balance' => '50.00', 'liabilityInCredit' => true]),
+		]);
+		$this->withActiveBills([]);
+
+		$this->assertSame([], $this->service->diagnose(self::USER_ID)['liabilitySignFlipped']);
+	}
+
+	public function testFindLiabilitySignFlippedReportsLargestFirst(): void {
+		$this->withAccounts([
+			$this->makeAccount(['id' => 1, 'name' => 'Card', 'type' => 'credit_card', 'openingBalance' => '1200.00', 'balance' => '1200.00']),
+			$this->makeAccount(['id' => 2, 'name' => 'Mortgage', 'type' => 'mortgage', 'openingBalance' => '250000.00', 'balance' => '250000.00']),
+		]);
+		$this->withActiveBills([]);
+		$this->transactionMapper->method('getNetChangeAll')->willReturn(0.0);
+
+		$found = $this->service->diagnose(self::USER_ID)['liabilitySignFlipped'];
+
+		$this->assertSame('Mortgage', $found[0]['accountName']);
+	}
+
+	public function testRepairLiabilitySignFlippedNegatesOpeningBalanceThenRecalculates(): void {
+		$account = $this->makeAccount(['id' => 1, 'type' => 'loan', 'openingBalance' => '90904.56', 'balance' => '90904.56']);
+		$this->withAccounts([$account]);
+		$this->withActiveBills([]);
+		$this->transactionMapper->method('getNetChangeAll')->willReturn(0.0);
+		$this->accountMapper->method('findById')->willReturn($account);
+
+		$captured = null;
+		$this->accountMapper->method('update')->willReturnCallback(function (Account $a) use (&$captured) {
+			$captured = $a;
+			return $a;
+		});
+		// balance is always re-derived FROM opening_balance, so repairing only
+		// the balance would look right and silently regress on the next edit.
+		$this->accountService->expects($this->once())->method('recalculateAllBalances');
+
+		$result = $this->service->repair(self::USER_ID, ['liabilitySignFlipped']);
+
+		$this->assertSame(1, $result['liabilitySignFlipped']['fixed']);
+		$this->assertEqualsWithDelta(-90904.56, $captured->getOpeningBalance(), 0.005);
+		$this->assertFalse($captured->getLiabilityInCredit());
+	}
+
+	public function testRepairLiabilitySignFlippedMarksDeselectedAccountsAsGenuineCredits(): void {
+		$account = $this->makeAccount(['id' => 7, 'type' => 'credit_card', 'openingBalance' => '50.00', 'balance' => '50.00']);
+		$this->withAccounts([$account]);
+		$this->withActiveBills([]);
+		$this->transactionMapper->method('getNetChangeAll')->willReturn(0.0);
+		$this->accountMapper->method('findById')->willReturn($account);
+
+		$captured = null;
+		$this->accountMapper->method('update')->willReturnCallback(function (Account $a) use (&$captured) {
+			$captured = $a;
+			return $a;
+		});
+		$this->accountService->expects($this->never())->method('recalculateAllBalances');
+
+		// Account 7 was unticked in the preview: this one really is overpaid.
+		$result = $this->service->repair(self::USER_ID, ['liabilitySignFlipped'], ['accountIds' => []]);
+
+		$this->assertSame(0, $result['liabilitySignFlipped']['fixed']);
+		$this->assertSame(1, $result['liabilitySignFlipped']['confirmed']);
+		$this->assertEqualsWithDelta(50.00, $captured->getOpeningBalance(), 0.005);
+		$this->assertTrue($captured->getLiabilityInCredit());
+	}
 }

@@ -2,15 +2,21 @@
  * Bills Module - Recurring bill tracking and detection
  */
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
+import { once } from '../../utils/submitGuard.js';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
-import { billRowDateText } from '../../utils/billDates.js';
+import { billRowState, oneTimeDateUnconfirmed } from '../../utils/billDates.js';
 import { showSuccess, showError, showWarning, showInfo, showUndoNotification } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
-import { serverErrorMessage } from '../../utils/helpers.js';
+import { apiFetch } from '../../utils/api.js';
+import { isoWeekday } from '../../utils/helpers.js';
+import { showMatchingTransactionDialog } from '../../utils/matchingDialog.js';
 import { offerableTags, offerableTagSets } from '../../utils/tags.js';
-import { pickableAccounts, accountOptionLabel, selectAccountValue } from '../../utils/accounts.js';
+import { pickableAccounts, accountOptionLabel, selectAccountValue, accountCurrency, linkableCandidates, billAccountsWritable } from '../../utils/accounts.js';
+import { showLoadError } from '../../utils/loading.js';
+import { requestMarkUnpaid } from '../../utils/billUnpaid.js';
+import { unavailableCategoryLabel } from '../../utils/formSelects.js';
 
 export default class BillsModule {
     constructor(app) {
@@ -30,6 +36,13 @@ export default class BillsModule {
     get settings() { return this.app.settings; }
 
     async loadBillsView() {
+        // Before any fetch: a failed first load must not leave the view's
+        // buttons (Add bill, filters) dead for the rest of the session.
+        if (!this._eventsSetup) {
+            this.setupBillsEventListeners();
+            this._eventsSetup = true;
+        }
+
         try {
             // Load summary first
             await this.loadBillsSummary();
@@ -40,20 +53,8 @@ export default class BillsModule {
             // active list (#333), but must stay visible to be marked unpaid
             // (#365) — filtered server-side so the payload doesn't grow
             // forever with dead bills on old installs.
-            const response = await fetch(OC.generateUrl('/apps/budget/api/bills?isTransfer=false&revertibleToo=true'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            this.bills = await response.json();
+            this.bills = await apiFetch('/apps/budget/api/bills?isTransfer=false&revertibleToo=true');
             this.renderBills(this.bills);
-
-            // Setup event listeners (only once)
-            if (!this._eventsSetup) {
-                this.setupBillsEventListeners();
-                this._eventsSetup = true;
-            }
 
             // Populate dropdowns in bill modal
             this.populateBillModalDropdowns();
@@ -66,6 +67,9 @@ export default class BillsModule {
         } catch (error) {
             console.error('Failed to load bills:', error);
             showError(t('budget', 'Failed to load bills'));
+            const emptyBills = document.getElementById('empty-bills');
+            if (emptyBills) emptyBills.style.display = 'none';
+            showLoadError('bills-list', t('budget', 'Failed to load bills'), () => this.loadBillsView());
         }
     }
 
@@ -80,14 +84,11 @@ export default class BillsModule {
         if (!card || !list) return;
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/bills/unrecorded-payments'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) {
+            const data = await apiFetch('/apps/budget/api/bills/unrecorded-payments').catch(() => null);
+            if (!data) {
                 card.style.display = 'none';
                 return;
             }
-            const data = await response.json();
             const items = data.items || [];
 
             if (items.length === 0) {
@@ -98,23 +99,30 @@ export default class BillsModule {
             const countBadge = document.getElementById('unrecorded-payments-count');
             if (countBadge) countBadge.textContent = String(data.count);
 
-            list.innerHTML = items.map(item => `
+            list.innerHTML = items.map(item => {
+                // Recording or reverting writes into the bill's accounts
+                // (a transfer's destination too): only into ones you can
+                // still write. Dismiss only notes it on your side.
+                const writable = this.accounts === undefined || billAccountsWritable(item, this.accounts);
+                return `
                 <div class="unrecorded-payment-row">
                     <div class="bill-suggestion-info">
                         <strong>${dom.escapeHtml(item.name)}</strong>
                         <span class="bill-suggestion-meta">${t('budget', 'Marked paid on {date}', { date: formatters.formatDate(item.lastPaidDate, this.settings) })} &middot; ${formatters.formatCurrency(item.amount, item.currency, this.settings)}</span>
+                        ${item.accountId && !writable ? `<span class="bill-account-hint">${t('budget', 'This bill uses an account you can no longer change. Edit the bill and choose another account.')}</span>` : ''}
                     </div>
                     <div class="bill-suggestion-actions">
                         ${item.accountId
-                            ? `<button class="primary unrecorded-payment-record" data-bill-id="${item.billId}">${t('budget', 'Record transaction')}</button>`
+                            ? (writable ? `<button class="primary unrecorded-payment-record" data-bill-id="${item.billId}">${t('budget', 'Record transaction')}</button>` : '')
                             : `<button class="unrecorded-payment-assign" data-bill-id="${item.billId}" title="${t('budget', 'One-time bills leave the list after payment — open it here to assign an account')}">${t('budget', 'Assign an account')}</button>`}
-                        ${item.canMarkUnpaid
+                        ${item.canMarkUnpaid && writable
                             ? `<button class="unrecorded-payment-unpaid" data-bill-id="${item.billId}" title="${t('budget', 'Revert the last payment')}">${t('budget', 'Mark Unpaid')}</button>`
                             : ''}
                         <button class="secondary unrecorded-payment-dismiss" data-bill-id="${item.billId}" title="${t('budget', 'Keep the bill as paid and stop listing this payment')}">${t('budget', 'Dismiss')}</button>
                     </div>
                 </div>
-            `).join('');
+            `;
+            }).join('');
 
             list.querySelectorAll('.unrecorded-payment-record').forEach(btn => {
                 btn.addEventListener('click', (e) => this.recordMissedPayment(parseInt(e.currentTarget.dataset.billId)));
@@ -151,14 +159,7 @@ export default class BillsModule {
      */
     async dismissUnrecordedPayment(billId) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${billId}/dismiss-unrecorded`), {
-                method: 'POST',
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-            }
+            await apiFetch(`/apps/budget/api/bills/${billId}/dismiss-unrecorded`, { method: 'POST' });
             await this.loadUnrecordedPayments();
         } catch (error) {
             showError(error.message || t('budget', 'Failed to dismiss the payment'));
@@ -167,14 +168,7 @@ export default class BillsModule {
 
     async recordMissedPayment(billId) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${billId}/record-payment`), {
-                method: 'POST',
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-            }
+            await apiFetch(`/apps/budget/api/bills/${billId}/record-payment`, { method: 'POST' });
             showSuccess(t('budget', 'Transaction recorded'));
             await this.loadBillsView();
             await this.app.loadAccounts();
@@ -193,14 +187,11 @@ export default class BillsModule {
         if (!card || !list) return;
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/bills/suggestions'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) {
+            const data = await apiFetch('/apps/budget/api/bills/suggestions').catch(() => null);
+            if (!data) {
                 card.style.display = 'none';
                 return;
             }
-            const data = await response.json();
             this._billSuggestions = data.suggestions || [];
 
             if (this._billSuggestions.length === 0) {
@@ -217,7 +208,7 @@ export default class BillsModule {
                     <div class="bill-suggestion-row" data-index="${index}">
                         <div class="bill-suggestion-info">
                             <strong>${dom.escapeHtml(item.suggestedName || item.description)}</strong>
-                            <span class="bill-suggestion-meta">${formatters.formatCurrency(item.amount, null, this.settings)} &middot; ${item.frequency} &middot; <span class="detected-confidence ${confidenceClass}">${t('budget', '{percent}% confidence', { percent: Math.round(item.confidence * 100) })}</span></span>
+                            <span class="bill-suggestion-meta">${formatters.formatCurrency(item.amount, accountCurrency(this.accounts, item.accountId), this.settings)} &middot; ${item.frequency} &middot; <span class="detected-confidence ${confidenceClass}">${/* xgettext:no-javascript-format */ t('budget', '{percent}% confidence', { percent: Math.round(item.confidence * 100) })}</span></span>
                         </div>
                         <div class="bill-suggestion-actions">
                             <button class="primary bill-suggestion-create" data-index="${index}">${t('budget', 'Create bill')}</button>
@@ -245,19 +236,20 @@ export default class BillsModule {
         }
     }
 
-    async createBillFromSuggestion(index) {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    createBillFromSuggestion(index) {
+        return once(`bill-suggestion-${index}`, document.querySelector(`.bill-suggestion-create[data-index="${index}"]`), () => this._createBillFromSuggestion(index));
+    }
+
+    async _createBillFromSuggestion(index) {
         const item = this._billSuggestions?.[index];
         if (!item) return;
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/bills/create-from-detected'), {
+            await apiFetch('/apps/budget/api/bills/create-from-detected', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                body: JSON.stringify({ bills: [item] })
+                body: { bills: [item] },
+                errorMessage: t('budget', 'Failed to create bill'),
             });
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to create bill')));
-            }
             showSuccess(t('budget', 'Bill "{name}" created', { name: item.suggestedName || item.description }));
             await this.loadBillsView();
         } catch (error) {
@@ -269,10 +261,9 @@ export default class BillsModule {
         const item = this._billSuggestions?.[index];
         if (!item) return;
         try {
-            await fetch(OC.generateUrl('/apps/budget/api/bills/suggestions/dismiss'), {
+            await apiFetch('/apps/budget/api/bills/suggestions/dismiss', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                body: JSON.stringify({ patternKey: item.patternKey })
+                body: { patternKey: item.patternKey },
             });
             await this.loadBillSuggestions();
         } catch (error) {
@@ -285,10 +276,9 @@ export default class BillsModule {
         if (!await confirmDialog(t('budget', 'Dismiss all suggestions? They will not be shown again.'))) return;
         try {
             for (const item of this._billSuggestions) {
-                await fetch(OC.generateUrl('/apps/budget/api/bills/suggestions/dismiss'), {
+                await apiFetch('/apps/budget/api/bills/suggestions/dismiss', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                    body: JSON.stringify({ patternKey: item.patternKey })
+                    body: { patternKey: item.patternKey },
                 });
             }
             await this.loadBillSuggestions();
@@ -299,13 +289,7 @@ export default class BillsModule {
 
     async loadBillsSummary() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/bills/summary'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            const summary = await response.json();
+            const summary = await apiFetch('/apps/budget/api/bills/summary');
 
             // Update summary cards
             document.getElementById('bills-due-count').textContent = summary.dueThisMonth || 0;
@@ -329,35 +313,14 @@ export default class BillsModule {
 
         emptyBills.style.display = 'none';
 
+        const today = formatters.getTodayDateString();
         billsList.innerHTML = bills.map(bill => {
-            // A paid one-time bill has no next occurrence, but it still has
-            // the date it was due - kept as its start date (#333, #375)
-            const dueDate = bill.nextDueDate || bill.next_due_date
-                || ((bill.frequency || 'monthly') === 'one-time' ? (bill.startDate || bill.start_date || null) : null);
-            // An inactive bill only stays in this list to be reverted (#365):
-            // it has no next occurrence, so it renders as paid — never as
-            // due/overdue, and never with actionable Mark Paid / Skip buttons
-            // (markPaid would happily execute on it).
-            const isActive = bill.isActive ?? bill.is_active ?? true;
-            const isPaid = !isActive || this.isBillPaidThisMonth(bill);
-            const isOverdue = !isPaid && dueDate && dueDate < formatters.getTodayDateString();
-            const isDueSoon = !isPaid && !isOverdue && dueDate && this.isDueSoon(dueDate);
-
-            let statusClass = '';
-            let statusText = '';
-            if (isPaid) {
-                statusClass = 'paid';
-                statusText = t('budget', 'Paid');
-            } else if (isOverdue) {
-                statusClass = 'overdue';
-                statusText = t('budget', 'Overdue');
-            } else if (isDueSoon) {
-                statusClass = 'due-soon';
-                statusText = t('budget', 'Due Soon');
-            } else {
-                statusClass = 'upcoming';
-                statusText = t('budget', 'Upcoming');
-            }
+            // Status, date and actions follow the bill's next occurrence, not
+            // the calendar month (#399); an inactive bill only stays in this
+            // list to be reverted (#365) and offers nothing to pay
+            const row = billRowState(bill, today, this.settings, this.accounts);
+            const statusClass = row.status;
+            const statusText = row.statusText;
 
             const frequency = bill.frequency || 'monthly';
             const frequencyLabels = {
@@ -390,69 +353,48 @@ export default class BillsModule {
                     <div class="bill-details">
                         <div class="bill-due-date">
                             <span class="icon-calendar" aria-hidden="true"></span>
-                            ${dom.escapeHtml(billRowDateText(bill, dueDate, isPaid, this.settings))}
+                            ${dom.escapeHtml(row.dateText)}
                         </div>
                         <div class="bill-status ${statusClass}">
                             <span class="status-badge">${statusText}</span>
-                            ${hasSplits ? `<span class="status-badge" title="${t('budget', 'Split across categories')}" style="background: #6f42c1; margin-left: 5px;">${t('budget', 'Split')}</span>` : ''}
-                            ${autoPayEnabled ? `<span class="status-badge auto-pay" title="${t('budget', 'Auto-pay enabled')}" style="background: #007bff; margin-left: 5px;"><span class="icon-checkmark"></span> ${t('budget', 'Auto-pay')}</span>` : ''}
-                            ${autoPayFailed ? `<span class="status-badge auto-pay-failed" title="${t('budget', 'Auto-pay failed - disabled')}" style="background: #ffc107; color: #856404; margin-left: 5px;"><span class="icon-error"></span> ${t('budget', 'Auto-pay Failed')}</span>` : ''}
-                            ${remainingPayments !== null ? `<span class="status-badge" title="${t('budget', 'Remaining payments')}" style="background: #6c757d; margin-left: 5px;">${t('budget', '{count} left', { count: remainingPayments })}</span>` : ''}
-                            ${endDate ? `<span class="status-badge" title="${t('budget', 'Ends {date}', { date: formatters.formatDate(endDate, this.settings) })}" style="background: #6c757d; margin-left: 5px;">${t('budget', 'Ends {date}', { date: formatters.formatDate(endDate, this.settings) })}</span>` : ''}
+                            ${row.dateUnconfirmed ? `<span class="status-badge badge-extra badge-unconfirmed" title="${t('budget', 'This date was filled in for the bill, not entered. Edit the bill to check it.')}">${t('budget', 'Check date')}</span>` : ''}
+                            ${hasSplits ? `<span class="status-badge badge-extra badge-split" title="${t('budget', 'Split across categories')}">${t('budget', 'Split')}</span>` : ''}
+                            ${autoPayEnabled ? `<span class="status-badge badge-extra auto-pay" title="${t('budget', 'Auto-pay enabled')}"><span class="icon-checkmark"></span> ${t('budget', 'Auto-pay')}</span>` : ''}
+                            ${autoPayFailed ? `<span class="status-badge badge-extra auto-pay-failed" title="${t('budget', 'Auto-pay failed - disabled')}"><span class="icon-error"></span> ${t('budget', 'Auto-pay Failed')}</span>` : ''}
+                            ${remainingPayments !== null ? `<span class="status-badge badge-extra badge-neutral" title="${t('budget', 'Remaining payments')}">${t('budget', '{count} left', { count: remainingPayments })}</span>` : ''}
+                            ${endDate ? `<span class="status-badge badge-extra badge-neutral" title="${t('budget', 'Ends {date}', { date: formatters.formatDate(endDate, this.settings) })}">${t('budget', 'Ends {date}', { date: formatters.formatDate(endDate, this.settings) })}</span>` : ''}
                         </div>
                     </div>
+                    ${row.accountHint ? `<p class="bill-account-hint">${dom.escapeHtml(row.accountHint)}</p>` : ''}
                     <div class="bill-actions">
-                        ${!isPaid ? `
+                        ${row.canPay ? `
                             <button class="bill-action-btn bill-paid-btn" data-bill-id="${bill.id}" title="${t('budget', 'Mark as paid')}">
                                 <span class="icon-checkmark" aria-hidden="true"></span>
                                 ${t('budget', 'Mark Paid')}
                             </button>
                         ` : ''}
-                        ${!isPaid && frequency !== 'one-time' ? `
+                        ${row.canSkip ? `
                             <button class="bill-action-btn bill-skip-btn" data-bill-id="${bill.id}" title="${t('budget', 'Skip this payment')}">
                                 <span aria-hidden="true">&#x23ED;</span>
                                 ${t('budget', 'Skip')}
                             </button>
                         ` : ''}
-                        ${bill.canMarkUnpaid ? `
+                        ${row.canUnpay ? `
                             <button class="bill-action-btn bill-unpaid-btn" data-bill-id="${bill.id}" title="${t('budget', 'Revert the last payment')}">
                                 <span class="icon-history" aria-hidden="true"></span>
                                 ${t('budget', 'Mark Unpaid')}
                             </button>
                         ` : ''}
-                        <button class="bill-action-btn bill-edit-btn" data-bill-id="${bill.id}" title="${t('budget', 'Edit bill')}">
+                        ${row.canWrite ? `<button class="bill-action-btn bill-edit-btn" data-bill-id="${bill.id}" title="${t('budget', 'Edit bill')}" aria-label="${t('budget', 'Edit bill')}">
                             <span class="icon-rename" aria-hidden="true"></span>
-                        </button>
-                        <button class="bill-action-btn bill-delete-btn" data-bill-id="${bill.id}" title="${t('budget', 'Delete bill')}">
+                        </button>` : ''}
+                        ${bill._shared && !bill._canManage ? '' : `<button class="bill-action-btn bill-delete-btn" data-bill-id="${bill.id}" title="${t('budget', 'Delete bill')}" aria-label="${t('budget', 'Delete bill')}">
                             <span class="icon-delete" aria-hidden="true"></span>
-                        </button>
+                        </button>`}
                     </div>
                 </div>
             `;
         }).join('');
-    }
-
-    isBillPaidThisMonth(bill) {
-        const frequency = bill.frequency || 'monthly';
-
-        // One-time bills are "paid" only when deactivated after payment
-        if (frequency === 'one-time') {
-            const isActive = bill.isActive ?? bill.is_active ?? true;
-            return !isActive;
-        }
-
-        const lastPaid = bill.lastPaidDate || bill.last_paid_date;
-        if (!lastPaid) return false;
-
-        // For recurring bills, check if paid in current month
-        const [year, month] = lastPaid.split('-').map(Number);
-        const now = new Date();
-        return month === now.getMonth() + 1 && year === now.getFullYear();
-    }
-
-    isDueSoon(dateStr) {
-        const diffDays = formatters.daysBetweenDates(formatters.getTodayDateString(), dateStr);
-        return diffDays >= 0 && diffDays <= 7;
     }
 
     filterBills(filter) {
@@ -529,6 +471,16 @@ export default class BillsModule {
         const billFrequency = document.getElementById('bill-frequency');
         if (billFrequency) {
             billFrequency.addEventListener('change', () => this.updateBillFormFields());
+        }
+
+        // A weekly bill's start date sets its weekday. Picking a date also
+        // confirms one that was filled in for the bill.
+        const billStartDate = document.getElementById('bill-start-date');
+        if (billStartDate) {
+            billStartDate.addEventListener('change', () => {
+                this.showDateUnconfirmed(false);
+                this.updateBillFormFields();
+            });
         }
 
         // Create transaction checkbox (show/hide date field)
@@ -662,6 +614,21 @@ export default class BillsModule {
         });
     }
 
+    /**
+     * The note under a one-time bill's date when the date was filled in for
+     * it rather than entered (see oneTimeDateUnconfirmed()).
+     *
+     * @param {boolean} show
+     */
+    showDateUnconfirmed(show) {
+        const note = document.getElementById('bill-start-date-unconfirmed');
+        if (!note) return;
+        note.textContent = show
+            ? t('budget', 'This date was filled in for the bill when it was saved without one. Check it, then save.')
+            : '';
+        note.style.display = show ? '' : 'none';
+    }
+
     showBillModal(bill = null) {
         const modal = document.getElementById('bill-modal');
         const title = document.getElementById('bill-modal-title');
@@ -684,9 +651,11 @@ export default class BillsModule {
             // without its category or pay-from account used to fall back to ""
             // and saveBill sent null — stripping them off the owner's bill
             // (#370). Keep the real id selected instead.
+            // A category not shared with you is named, as the bill came
             this.selectPossiblyUnavailable(
                 document.getElementById('bill-category'),
-                bill.categoryId ?? bill.category_id ?? null
+                bill.categoryId ?? bill.category_id ?? null,
+                bill.categoryName ? unavailableCategoryLabel(bill.categoryName) : null
             );
             // A closed account is offered as "(closed)", not as unavailable (#372)
             const billAccountSelect = document.getElementById('bill-account');
@@ -708,8 +677,13 @@ export default class BillsModule {
                 document.querySelectorAll('#bill-custom-months input[type="checkbox"]').forEach(cb => cb.checked = false);
             }
 
-            // Set start / end date / remaining payments
-            setDateValue('bill-start-date', bill.startDate || bill.start_date || '');
+            // Set start / end date / remaining payments. A one-time bill's
+            // date lives in its start date; one stored only as its next due
+            // date (from before the date field) opened with the date empty
+            const storedStart = bill.startDate || bill.start_date || '';
+            setDateValue('bill-start-date', storedStart
+                || ((bill.frequency || 'monthly') === 'one-time' ? (bill.nextDueDate || bill.next_due_date || '') : ''));
+            this.showDateUnconfirmed(oneTimeDateUnconfirmed(bill));
             setDateValue('bill-end-date', bill.endDate || bill.end_date || '');
             const remainingPayments = bill.remainingPayments ?? bill.remaining_payments;
             document.getElementById('bill-remaining-payments').value = remainingPayments !== null && remainingPayments !== undefined ? remainingPayments.toString() : '';
@@ -729,14 +703,10 @@ export default class BillsModule {
             const billExcludeEl = document.getElementById('bill-excluded-from-forecast');
             if (billExcludeEl) billExcludeEl.checked = bill.excludedFromForecast ?? bill.excluded_from_forecast ?? false;
 
-            // Load tag sets for bill's category
-            const categoryId = bill.categoryId || bill.category_id;
-            if (categoryId) {
-                this.loadBillTagSets(categoryId, bill);
-            } else {
-                const tagsContainer = document.getElementById('bill-tags-container');
-                if (tagsContainer) tagsContainer.innerHTML = '';
-            }
+            // Load the tag picker: global tags always, the category's tag sets
+            // when it has one. Skipped for a bill with no category (every
+            // split bill), saving then read no boxes and wiped its tags
+            this.loadBillTagSets(bill.categoryId || bill.category_id || null, bill);
 
             // Populate split template
             const splitTemplate = bill.splitTemplate || bill.split_template || [];
@@ -763,6 +733,7 @@ export default class BillsModule {
 
             // Clear start / end date / remaining payments
             clearDateValue('bill-start-date');
+            this.showDateUnconfirmed(false);
             clearDateValue('bill-end-date');
             document.getElementById('bill-remaining-payments').value = '';
 
@@ -817,8 +788,9 @@ export default class BillsModule {
      * bill whose category or account was not shared alongside it. Assigning a
      * missing value silently yields "", which saveBill would then submit as
      * null, so add a disabled placeholder carrying the real id (#370).
+     * `label` names it when more is known than "Unavailable".
      */
-    selectPossiblyUnavailable(select, value) {
+    selectPossiblyUnavailable(select, value, label = null) {
         if (!select) return;
         if (value === null || value === undefined || value === '') {
             select.value = '';
@@ -831,7 +803,7 @@ export default class BillsModule {
 
         const option = document.createElement('option');
         option.value = wanted;
-        option.textContent = t('budget', 'Unavailable (not shared with you)');
+        option.textContent = label || t('budget', 'Unavailable (not shared with you)');
         option.disabled = true;
         option.dataset.unavailable = '1';
         select.appendChild(option);
@@ -881,7 +853,9 @@ export default class BillsModule {
             customMonthsGroup.style.display = 'none';
             dueDayGroup.style.display = 'none';
             dueMonthGroup.style.display = 'none';
-        } else if (frequency === 'yearly') {
+        } else if (frequency === 'yearly' || frequency === 'semi-annually' || frequency === 'quarterly') {
+            // The month the cycle starts from. Hidden for quarterly and
+            // half-yearly bills, they always fell on the January grid
             customMonthsGroup.style.display = 'none';
             dueDayGroup.style.display = 'block';
             dueMonthGroup.style.display = 'block';
@@ -921,10 +895,21 @@ export default class BillsModule {
         const dueDayLabel = dueDayGroup.querySelector('label');
         const dueDayHelp = document.getElementById('bill-due-day-help');
 
+        const dueDayInput = document.getElementById('bill-due-day');
+        dueDayInput.disabled = false;
         if (frequency === 'weekly' || frequency === 'biweekly') {
             dueDayLabel.textContent = t('budget', 'Due Day (1-7)');
             dueDayHelp.textContent = t('budget', 'Day of the week (1=Monday, 7=Sunday)');
-            document.getElementById('bill-due-day').max = 7;
+            dueDayInput.max = 7;
+            // With a start date the server counts the weeks from it and
+            // ignores the weekday field, so the field follows the date
+            // instead of contradicting it (as on the income and transfer forms)
+            const anchor = document.getElementById('bill-start-date')?.value || '';
+            if (anchor) {
+                dueDayInput.value = String(isoWeekday(anchor));
+                dueDayInput.disabled = true;
+                dueDayHelp.textContent = t('budget', 'Follows the start date');
+            }
         } else if (frequency === 'custom') {
             dueDayLabel.textContent = t('budget', 'Due Day');
             dueDayHelp.textContent = t('budget', 'Day of the selected months when bill is due');
@@ -1007,7 +992,12 @@ export default class BillsModule {
         categorySelect.style.cssText = 'flex: 1;';
         categorySelect.innerHTML = `<option value="">${t('budget', 'No category')}</option>`;
         dom.populateCategorySelect(categorySelect, this.categoryTree || this.categories, { typeFilter: 'expense' });
-        if (split?.categoryId) categorySelect.value = split.categoryId;
+        // A shared bill's part may be filed under a category not shared with
+        // you: keep it, named as the bill came, or the save would clear it (#370)
+        if (split?.categoryId) {
+            this.selectPossiblyUnavailable(categorySelect, split.categoryId,
+                split.categoryName ? unavailableCategoryLabel(split.categoryName) : null);
+        }
 
         // Description input
         const descInput = document.createElement('input');
@@ -1023,6 +1013,7 @@ export default class BillsModule {
         removeBtn.className = 'bill-split-remove';
         removeBtn.textContent = '\u00d7';
         removeBtn.title = t('budget', 'Remove split');
+        removeBtn.setAttribute('aria-label', removeBtn.title);
         removeBtn.style.cssText = 'width: 28px; height: 28px; padding: 0; border: none; background: var(--color-error); color: white; border-radius: 50%; cursor: pointer; font-size: 16px; flex-shrink: 0;';
         removeBtn.addEventListener('click', () => {
             row.remove();
@@ -1045,16 +1036,18 @@ export default class BillsModule {
         });
         const remaining = totalAmount - allocated;
         const el = document.getElementById('bill-split-remaining');
+        // In the chosen account's currency, the one the form's amount is in
+        const currency = accountCurrency(this.accounts, document.getElementById('bill-account')?.value);
         if (el) {
             const absRemaining = Math.abs(remaining);
             if (absRemaining < 0.01) {
                 el.textContent = t('budget', 'Balanced');
                 el.style.color = 'var(--color-success)';
             } else if (remaining > 0) {
-                el.textContent = t('budget', '{amount} remaining', { amount: formatters.formatCurrency(remaining, null, this.settings) });
+                el.textContent = t('budget', '{amount} remaining', { amount: formatters.formatCurrency(remaining, currency, this.settings) });
                 el.style.color = 'var(--color-warning)';
             } else {
-                el.textContent = t('budget', '{amount} over', { amount: formatters.formatCurrency(absRemaining, null, this.settings) });
+                el.textContent = t('budget', '{amount} over', { amount: formatters.formatCurrency(absRemaining, currency, this.settings) });
                 el.style.color = 'var(--color-error)';
             }
         }
@@ -1081,7 +1074,12 @@ export default class BillsModule {
         return splits.length >= 2 ? splits : null;
     }
 
-    async saveBill() {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveBill() {
+        return once('bill-save', document.querySelector('#bill-form [type="submit"]'), () => this._saveBill());
+    }
+
+    async _saveBill() {
         const billId = document.getElementById('bill-id').value;
         const isNew = !billId;
 
@@ -1094,7 +1092,9 @@ export default class BillsModule {
             amount: parseFloat(document.getElementById('bill-amount').value),
             frequency: frequency,
             dueDay: document.getElementById('bill-due-day').value ? parseInt(document.getElementById('bill-due-day').value) : null,
-            dueMonth: document.getElementById('bill-due-month').value ? parseInt(document.getElementById('bill-due-month').value) : null,
+            // A month the form doesn't show is a stale value, not a schedule
+            dueMonth: ['yearly', 'semi-annually', 'quarterly'].includes(frequency) && document.getElementById('bill-due-month').value
+                ? parseInt(document.getElementById('bill-due-month').value) : null,
             categoryId: document.getElementById('bill-category').value ? parseInt(document.getElementById('bill-category').value) : null,
             accountId: document.getElementById('bill-account').value ? parseInt(document.getElementById('bill-account').value) : null,
             autoDetectPattern: document.getElementById('bill-auto-pattern').value || null,
@@ -1110,6 +1110,14 @@ export default class BillsModule {
             remainingPayments: document.getElementById('bill-remaining-payments').value ? parseInt(document.getElementById('bill-remaining-payments').value) : null,
             splitTemplate: this.getBillSplitTemplate()
         };
+
+        // The date input sits in a datepicker that hides the native one, so
+        // its required flag is never enforced by the browser; without a date
+        // the server put a one-time bill on 1 January next year (#399)
+        if (frequency === 'one-time' && !billData.startDate) {
+            showError(t('budget', 'Choose the date this bill is due'));
+            return;
+        }
 
         // A one-time bill's day and month follow its date (#375). The inputs
         // are hidden for it and may still hold a previous frequency's values
@@ -1140,24 +1148,13 @@ export default class BillsModule {
 
         try {
             const url = isNew
-                ? OC.generateUrl('/apps/budget/api/bills')
-                : OC.generateUrl(`/apps/budget/api/bills/${billId}`);
+                ? '/apps/budget/api/bills'
+                : `/apps/budget/api/bills/${billId}`;
 
-            const response = await fetch(url, {
+            await apiFetch(url, {
                 method: isNew ? 'POST' : 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify(billData)
+                body: billData,
             });
-
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                const errorMessage = serverErrorMessage(error, `HTTP ${response.status}: ${response.statusText}`);
-                console.error('Server error:', error);
-                throw new Error(errorMessage);
-            }
 
             this.hideBillModal();
             showSuccess(isNew ? t('budget', 'Bill created successfully') : t('budget', 'Bill updated successfully'));
@@ -1170,13 +1167,7 @@ export default class BillsModule {
 
     async editBill(billId) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${billId}`), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            const bill = await response.json();
+            const bill = await apiFetch(`/apps/budget/api/bills/${billId}`);
             this.showBillModal(bill);
         } catch (error) {
             console.error('Failed to load bill:', error);
@@ -1190,12 +1181,7 @@ export default class BillsModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${billId}`), {
-                method: 'DELETE',
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            await apiFetch(`/apps/budget/api/bills/${billId}`, { method: 'DELETE' });
 
             showSuccess(t('budget', 'Bill deleted successfully'));
             await this.loadBillsView();
@@ -1212,11 +1198,7 @@ export default class BillsModule {
     async showCalendarFeedModal() {
         let feed;
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/calendar-feed'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            feed = await response.json();
+            feed = await apiFetch('/apps/budget/api/calendar-feed');
         } catch (error) {
             console.error('Failed to fetch calendar feed info:', error);
             showError(t('budget', 'Failed to get calendar feed'));
@@ -1261,12 +1243,7 @@ export default class BillsModule {
         modal.querySelector('#calendar-feed-regenerate').addEventListener('click', async () => {
             if (!await confirmDialog(t('budget', 'Regenerate the link? Existing calendar subscriptions will stop updating.'))) return;
             try {
-                const response = await fetch(OC.generateUrl('/apps/budget/api/calendar-feed/regenerate'), {
-                    method: 'POST',
-                    headers: { 'requesttoken': OC.requestToken }
-                });
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                const fresh = await response.json();
+                const fresh = await apiFetch('/apps/budget/api/calendar-feed/regenerate', { method: 'POST' });
                 modal.querySelector('#calendar-feed-url').value = fresh.webcalUrl;
                 showSuccess(t('budget', 'New link generated'));
             } catch (error) {
@@ -1287,13 +1264,12 @@ export default class BillsModule {
 
             // Check for existing matching transactions before creating a new one
             if (bill.accountId || bill.account_id) {
-                const matchResponse = await fetch(
-                    OC.generateUrl(`/apps/budget/api/bills/${billId}/matching-transactions`),
-                    { headers: { 'requesttoken': OC.requestToken } }
-                );
+                const found = await apiFetch(`/apps/budget/api/bills/${billId}/matching-transactions`)
+                    .catch(() => null);
+                // Only rows the payment can be linked to
+                const candidates = found ? linkableCandidates(found, this.accounts) : null;
 
-                if (matchResponse.ok) {
-                    const candidates = await matchResponse.json();
+                if (candidates) {
                     if (candidates.length > 0) {
                         // Show dialog and let user choose
                         const choice = await this._showMatchingTransactionDialog(bill, candidates);
@@ -1311,7 +1287,7 @@ export default class BillsModule {
 
         } catch (error) {
             console.error('Failed to mark bill as paid:', error);
-            showError(t('budget', 'Failed to mark bill as paid'));
+            showError(error.message || t('budget', 'Failed to mark bill as paid'));
         }
     }
 
@@ -1336,28 +1312,18 @@ export default class BillsModule {
         } else {
             body.recordPayment = true;
         }
+        // The occurrence this row showed: a second click or a stale tab is
+        // refused by the server instead of paying it twice
+        body.dueDate = bill.nextDueDate || bill.next_due_date || null;
 
-        const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${billId}/paid`), {
+        const result = await apiFetch(`/apps/budget/api/bills/${billId}/paid`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'requesttoken': OC.requestToken
-            },
-            body: JSON.stringify(body)
+            body,
         });
 
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-        const result = await response.json();
-
-        // Store undo data from server response BEFORE reloading
-        this._undoData = {
-            billId: billId,
-            previousState: result.previousState,
-            createdTransactionIds: result.createdTransactionIds || [],
-            hadScheduledTransaction: result.hadScheduledTransaction || false,
-            action: 'markPaid'
-        };
+        // Store undo data BEFORE reloading; the server keeps what to revert
+        const undoData = { billId: billId, action: 'markPaid' };
+        this._undoData = undoData;
 
         await this.loadBillsView();
 
@@ -1383,14 +1349,28 @@ export default class BillsModule {
             }
             message = t('budget', 'Bill marked as paid — without a transaction.');
         } else {
-            const isOneTime = (bill.frequency === 'one-time');
-            message = isOneTime
-                ? t('budget', 'Bill marked as paid. Transaction created.')
-                : t('budget', 'Bill marked as paid. Future transaction created.');
+            // Only say a future transaction was created when one was: the
+            // bill pre-books, has an account and has a next occurrence
+            const paid = result.bill || bill;
+            const preBooks = (paid.createTransaction ?? paid.create_transaction ?? bill.createTransaction ?? true)
+                && (paid.accountId || paid.account_id || bill.accountId || bill.account_id)
+                && (paid.isActive ?? paid.is_active ?? true)
+                && bill.frequency !== 'one-time';
+            message = preBooks
+                ? t('budget', 'Bill marked as paid. Future transaction created.')
+                : t('budget', 'Bill marked as paid. Transaction created.');
         }
-        showUndoNotification(message, () => this.undoMarkBillPaid(), () => {
-            this._undoData = null;
-        });
+        // The toast undoes this payment, whatever was done since
+        showUndoNotification(message, () => this.undoMarkBillPaid(undoData), () => this._dropUndo(undoData));
+    }
+
+    /**
+     * An undo toast ran out: its action can't be undone any more. A later
+     * action may have replaced the latest undo data; only drop our own.
+     */
+    _dropUndo(undoData) {
+        undoData.spent = true;
+        if (this._undoData === undoData) this._undoData = null;
     }
 
     /**
@@ -1398,155 +1378,28 @@ export default class BillsModule {
      * Returns a Promise that resolves with the user's choice or null if cancelled.
      */
     _showMatchingTransactionDialog(bill, candidates) {
-        return new Promise((resolve) => {
-            const existing = document.getElementById('matching-tx-modal');
-            if (existing) existing.remove();
-
-            const currency = bill.currency || this.app.settings?.default_currency || '';
-            const formatAmount = (amount) => formatters.formatCurrency(amount, currency, this.settings);
-
-            // Only pre-select a candidate when it is a strong match — for weak
-            // matches the safe default is creating a new transaction, so a
-            // quick Confirm never links (or skips) by accident (#274)
-            const preselectFirst = candidates.length > 0 && candidates[0].score >= 50;
-
-            const candidateRows = candidates.map((c, i) => {
-                const tx = c.transaction;
-                const reasons = c.matchReasons.map(r => {
-                    const labels = {
-                        'exact_amount': t('budget', 'Exact amount'),
-                        'similar_amount': t('budget', 'Similar amount (±5%)'),
-                        'approximate_amount': t('budget', 'Approximate amount (±20%)'),
-                        'exact_vendor': t('budget', 'Vendor matches'),
-                        'partial_vendor': t('budget', 'Vendor partially matches'),
-                        'exact_description': t('budget', 'Description matches'),
-                        'partial_description': t('budget', 'Description partially matches'),
-                        'same_day': t('budget', 'Same day'),
-                        'next_day': t('budget', '±1 day'),
-                        'within_3_days': t('budget', '±3 days'),
-                        'within_7_days': t('budget', '±7 days'),
-                    };
-                    return labels[r] || r;
-                }).join(', ');
-
-                const desc = tx.description || tx.vendor || t('budget', '(no description)');
-                const checked = (preselectFirst && i === 0) ? 'checked' : '';
-
-                return `
-                    <label class="matching-tx-option ${(preselectFirst && i === 0) ? 'recommended' : ''}">
-                        <input type="radio" name="matching-tx-choice" value="${tx.id}" ${checked}>
-                        <div class="matching-tx-details">
-                            <div class="matching-tx-primary">
-                                <span class="matching-tx-date">${formatters.formatDate(tx.date)}</span>
-                                <span class="matching-tx-desc">${dom.escapeHtml(desc)}</span>
-                                <span class="matching-tx-amount">${formatAmount(tx.amount)}</span>
-                            </div>
-                            <div class="matching-tx-reasons">${dom.escapeHtml(reasons)}</div>
-                            ${c.score >= 50 ? `<span class="matching-tx-badge">${t('budget', 'Strong match')}</span>` : ''}
-                        </div>
-                    </label>
-                `;
-            }).join('');
-
-            const modal = document.createElement('div');
-            modal.id = 'matching-tx-modal';
-            modal.className = 'budget-modal-overlay';
-            modal.innerHTML = `
-                <div class="budget-modal" style="max-width: 600px;">
-                    <div class="budget-modal-header">
-                        <h2>${t('budget', 'Existing Transaction Found')}</h2>
-                        <button class="close-btn" title="${t('budget', 'Close')}">&times;</button>
-                    </div>
-                    <div class="budget-modal-body">
-                        <p class="matching-tx-intro">${t('budget', 'We found existing transactions that may already represent this bill payment ({billName}, {amount}). Would you like to link one instead of creating a new transaction?', { billName: dom.escapeHtml(bill.name), amount: formatAmount(bill.amount) })}</p>
-                        <p class="matching-tx-intro">${t('budget', 'Whichever you choose, the bill is marked as paid and moves on to its next due date.')}</p>
-                        <div class="matching-tx-list">
-                            ${candidateRows}
-                        </div>
-                        <label class="matching-tx-option matching-tx-create-new">
-                            <input type="radio" name="matching-tx-choice" value="create" ${preselectFirst ? '' : 'checked'}>
-                            <div class="matching-tx-details">
-                                <span class="matching-tx-desc">${t('budget', 'Create a new transaction instead')}</span>
-                            </div>
-                        </label>
-                        <label class="matching-tx-option matching-tx-skip">
-                            <input type="radio" name="matching-tx-choice" value="skip">
-                            <div class="matching-tx-details">
-                                <span class="matching-tx-desc">${t('budget', 'Don\'t create any transaction (just mark as paid)')}</span>
-                                <span class="matching-tx-skip-warning">${t('budget', 'Your account balance will NOT reflect this payment.')}</span>
-                            </div>
-                        </label>
-                    </div>
-                    <div class="budget-modal-footer">
-                        <button class="cancel-btn">${t('budget', 'Cancel')}</button>
-                        <button class="confirm-btn primary">${t('budget', 'Confirm')}</button>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(modal);
-
-            const cleanup = () => modal.remove();
-
-            modal.querySelector('.close-btn').addEventListener('click', () => {
-                cleanup();
-                resolve(null);
-            });
-            modal.querySelector('.cancel-btn').addEventListener('click', () => {
-                cleanup();
-                resolve(null);
-            });
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) {
-                    cleanup();
-                    resolve(null);
-                }
-            });
-
-            modal.querySelector('.confirm-btn').addEventListener('click', () => {
-                const selected = modal.querySelector('input[name="matching-tx-choice"]:checked');
-                if (!selected) {
-                    cleanup();
-                    resolve(null);
-                    return;
-                }
-
-                const value = selected.value;
-                cleanup();
-
-                if (value === 'create') {
-                    resolve({ action: 'create' });
-                } else if (value === 'skip') {
-                    resolve({ action: 'skip' });
-                } else {
-                    resolve({ action: 'link', transactionId: parseInt(value, 10) });
-                }
-            });
-        });
+        return showMatchingTransactionDialog(bill, candidates, this.settings);
     }
 
-    async undoMarkBillPaid() {
-        if (!this._undoData) {
+    /**
+     * @param {object} undoData - The payment to undo; each toast passes its
+     *   own, so an older toast never reverts a later action
+     */
+    async undoMarkBillPaid(undoData = this._undoData) {
+        if (!undoData || undoData.spent || undoData.action !== 'markPaid') {
             return;
         }
+        undoData.spent = true;
 
         try {
-            const { billId, previousState, createdTransactionIds, hadScheduledTransaction } = this._undoData;
+            // The server reverts from the snapshot it stored on the bill
+            const { billId } = undoData;
 
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${billId}/undo-paid`), {
+            await apiFetch(`/apps/budget/api/bills/${billId}/undo-paid`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ previousState, createdTransactionIds, hadScheduledTransaction })
             });
 
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.error || `HTTP ${response.status}`);
-            }
-
-            this._undoData = null;
+            if (this._undoData === undoData) this._undoData = null;
             await this.loadBillsView();
 
             showSuccess(t('budget', 'Action undone'));
@@ -1579,17 +1432,9 @@ export default class BillsModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${billId}/unpaid`), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                }
-            });
-
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to mark bill as unpaid')));
+            // Asks again when the payment was reconciled against a statement
+            if (!await requestMarkUnpaid(billId, t('budget', 'Failed to mark bill as unpaid'))) {
+                return;
             }
 
             await this.loadBillsView();
@@ -1611,31 +1456,22 @@ export default class BillsModule {
                 return;
             }
 
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${billId}/skip`), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                }
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            const result = await response.json();
+            const result = await apiFetch(`/apps/budget/api/bills/${billId}/skip`, { method: 'POST' });
             const previousNextDueDate = result.previousNextDueDate ?? null;
 
-            this._undoData = {
+            const undoData = {
                 billId: billId,
                 previousNextDueDate: previousNextDueDate,
                 action: 'skip'
             };
+            this._undoData = undoData;
 
             await this.loadBillsView();
 
             showUndoNotification(
                 t('budget', 'Payment skipped. Advanced to next due date.'),
-                () => this.undoSkipPayment(),
-                () => { this._undoData = null; }
+                () => this.undoSkipPayment(undoData),
+                () => this._dropUndo(undoData)
             );
 
         } catch (error) {
@@ -1644,29 +1480,22 @@ export default class BillsModule {
         }
     }
 
-    async undoSkipPayment() {
-        if (!this._undoData || this._undoData.action !== 'skip') {
+    /** @param {object} undoData - The skip to undo (see undoMarkBillPaid) */
+    async undoSkipPayment(undoData = this._undoData) {
+        if (!undoData || undoData.spent || undoData.action !== 'skip') {
             return;
         }
+        undoData.spent = true;
 
         try {
-            const { billId, previousNextDueDate } = this._undoData;
+            const { billId, previousNextDueDate } = undoData;
 
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${billId}/undo-skip`), {
+            await apiFetch(`/apps/budget/api/bills/${billId}/undo-skip`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ previousNextDueDate: previousNextDueDate })
+                body: { previousNextDueDate: previousNextDueDate },
             });
 
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.error || `HTTP ${response.status}`);
-            }
-
-            this._undoData = null;
+            if (this._undoData === undoData) this._undoData = null;
             await this.loadBillsView();
 
             showSuccess(t('budget', 'Action undone'));
@@ -1682,13 +1511,7 @@ export default class BillsModule {
         detectBtn.innerHTML = `<span class="icon-loading-small" aria-hidden="true"></span> ${t('budget', 'Detecting...')}`;
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/bills/detect?months=6'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            const detected = await response.json();
+            const detected = await apiFetch('/apps/budget/api/bills/detect?months=6');
 
             if (!detected || detected.length === 0) {
                 showInfo(t('budget', 'No recurring transactions detected'));
@@ -1721,9 +1544,9 @@ export default class BillsModule {
                     <div class="detected-bill-info">
                         <label for="detected-${index}" class="detected-bill-name">${dom.escapeHtml(item.description || item.name)}</label>
                         <div class="detected-bill-meta">
-                            <span class="detected-amount">${formatters.formatCurrency(item.avgAmount || item.amount, null, this.settings)}</span>
+                            <span class="detected-amount">${formatters.formatCurrency(item.avgAmount || item.amount, accountCurrency(this.accounts, item.accountId), this.settings)}</span>
                             <span class="detected-frequency">${item.frequency}</span>
-                            <span class="detected-confidence ${confidenceClass}">${t('budget', '{percent}% confidence', { percent: confidencePercent })}</span>
+                            <span class="detected-confidence ${confidenceClass}">${/* xgettext:no-javascript-format */ t('budget', '{percent}% confidence', { percent: confidencePercent })}</span>
                         </div>
                     </div>
                 </div>
@@ -1734,7 +1557,12 @@ export default class BillsModule {
         this._detectedBills = detected;
     }
 
-    async addSelectedDetectedBills() {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    addSelectedDetectedBills() {
+        return once('bills-add-detected', document.getElementById('add-selected-bills-btn'), () => this._addSelectedDetectedBills());
+    }
+
+    async _addSelectedDetectedBills() {
         const checkboxes = document.querySelectorAll('#detected-bills-list input[type="checkbox"]:checked');
         const selectedIndices = Array.from(checkboxes).map(cb => parseInt(cb.id.replace('detected-', '')));
 
@@ -1746,18 +1574,10 @@ export default class BillsModule {
         const billsToAdd = selectedIndices.map(i => this._detectedBills[i]);
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/bills/create-from-detected'), {
+            const result = await apiFetch('/apps/budget/api/bills/create-from-detected', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ bills: billsToAdd })
+                body: { bills: billsToAdd },
             });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            const result = await response.json();
             document.getElementById('detected-bills-panel').style.display = 'none';
             showSuccess(n('budget', '%n bill added successfully', '%n bills added successfully', result.created));
             await this.loadBillsView();
@@ -1794,10 +1614,12 @@ export default class BillsModule {
         if (!container) return;
 
         try {
-            // Load global tags and category tag sets in parallel
+            // Load global tags and category tag sets in parallel; a category
+            // not shared with you has none you can read (the server says 400)
+            const listed = categoryId && (!this.categories?.length || this.categories.some(c => String(c.id) === String(categoryId)));
             const [globalTagsResponse, categoryTagSets] = await Promise.all([
-                fetch(OC.generateUrl('/apps/budget/api/tags/global'), { headers: { 'requesttoken': OC.requestToken } }).then(r => r.ok ? r.json() : []).catch(() => []),
-                categoryId ? fetch(OC.generateUrl(`/apps/budget/api/tag-sets?categoryId=${categoryId}`), { headers: { 'requesttoken': OC.requestToken } }).then(r => r.ok ? r.json() : []).catch(() => []) : Promise.resolve([])
+                apiFetch('/apps/budget/api/tags/global').catch(() => []),
+                listed ? apiFetch(`/apps/budget/api/tag-sets?categoryId=${categoryId}`).catch(() => []) : Promise.resolve([])
             ]);
 
             // Get existing tag IDs if editing

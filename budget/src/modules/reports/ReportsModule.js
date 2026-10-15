@@ -3,7 +3,7 @@
  */
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
-import Chart from 'chart.js/auto';
+import Chart from '../../utils/chart.js';
 import { SankeyController, Flow } from 'chartjs-chart-sankey';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
 import { confirmDialog, promptDialog } from '../../utils/dialogs.js';
@@ -11,6 +11,13 @@ import { setDateValue } from '../../utils/datepicker.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import MultiSelect from '../../utils/multiselect.js';
 import { buildMoneyFlows, CENTER_KEY } from './moneyFlow.js';
+import { apiFetch } from '../../utils/api.js';
+
+/**
+ * A category row's label. The server flags the row for money with no
+ * category and leaves its name to us to translate.
+ */
+const categoryRowName = (row) => (row.uncategorized ? t('budget', 'Uncategorized') : (row.name || ''));
 
 Chart.register(SankeyController, Flow);
 
@@ -57,9 +64,6 @@ export default class ReportsModule {
         return formatters.getPrimaryCurrency(this.accounts, this.settings);
     }
 
-    escapeHtml(text) {
-        return dom.escapeHtml(text);
-    }
     setupReportEventListeners() {
         // Period preset change
         const presetSelect = document.getElementById('report-period-preset');
@@ -277,11 +281,9 @@ export default class ReportsModule {
 
     async loadSavedReports() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/reports/saved'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) return;
-            this.savedReports = await response.json();
+            const reports = await apiFetch('/apps/budget/api/reports/saved').catch(() => null);
+            if (!reports) return;
+            this.savedReports = reports;
             this.renderSavedReportsSelect();
         } catch (e) {
             console.error('Failed to load saved reports:', e);
@@ -379,13 +381,11 @@ export default class ReportsModule {
             return;
         }
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/reports/saved'), {
+            const data = await apiFetch('/apps/budget/api/reports/saved', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                body: JSON.stringify({ name: name.trim(), config: this.getReportConfig() })
+                body: { name: name.trim(), config: this.getReportConfig() },
+                errorMessage: t('budget', 'Failed to save report'),
             });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error || t('budget', 'Failed to save report'));
             showSuccess(t('budget', 'Report saved'));
             await this.loadSavedReports();
             this.renderSavedReportsSelect(data.id);
@@ -410,11 +410,7 @@ export default class ReportsModule {
         const report = (this.savedReports || []).find(r => String(r.id) === id);
         if (!await confirmDialog(t('budget', 'Delete saved report "{name}"?', { name: report?.name || '' }), { destructive: true })) return;
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/reports/saved/${id}`), {
-                method: 'DELETE',
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            await apiFetch(`/apps/budget/api/reports/saved/${id}`, { method: 'DELETE' });
             showSuccess(t('budget', 'Saved report deleted'));
             await this.loadSavedReports();
         } catch (e) {
@@ -424,17 +420,17 @@ export default class ReportsModule {
 
     async loadAllTagsForReports() {
         try {
-            const [tagSetsResponse, globalTagsResponse] = await Promise.all([
-                fetch(OC.generateUrl('/apps/budget/api/tag-sets'), { headers: { 'requesttoken': OC.requestToken } }),
-                fetch(OC.generateUrl('/apps/budget/api/tags/global'), { headers: { 'requesttoken': OC.requestToken } })
+            const failed = Symbol('failed');
+            const [tagSets, globalTags] = await Promise.all([
+                apiFetch('/apps/budget/api/tag-sets').catch(() => failed),
+                apiFetch('/apps/budget/api/tags/global').catch(() => failed)
             ]);
 
-            if (tagSetsResponse.ok) {
-                this.allTagSetsForReports = await tagSetsResponse.json();
+            if (tagSets !== failed) {
+                this.allTagSetsForReports = tagSets;
             }
 
-            if (globalTagsResponse.ok) {
-                const globalTags = await globalTagsResponse.json();
+            if (globalTags !== failed) {
                 if (globalTags.length > 0) {
                     this.allTagSetsForReports = this.allTagSetsForReports || [];
                     this.allTagSetsForReports.unshift({
@@ -525,16 +521,16 @@ export default class ReportsModule {
 
             let html = '';
             Object.values(grouped).forEach(group => {
-                html += `<div class="tags-group-header">${this.escapeHtml(group.name)}</div>`;
+                html += `<div class="tags-group-header">${dom.escapeHtml(group.name)}</div>`;
                 group.tags.forEach(tag => {
                     const isSelected = this.selectedReportTags.has(tag.id);
                     html += `
                         <div class="tags-autocomplete-item ${isSelected ? 'selected' : ''}"
                              data-tag-id="${tag.id}">
                             <span class="tag-chip"
-                                  style="display: inline-flex; align-items: center; background-color: ${this.escapeHtml(tag.color || '#888')}; color: white;
+                                  style="display: inline-flex; align-items: center; background-color: ${dom.escapeHtml(tag.color || '#888')}; color: white;
                                          padding: 2px 6px; border-radius: 10px; font-size: 10px; line-height: 14px; margin-right: 4px;">
-                                ${this.escapeHtml(tag.name)}
+                                ${dom.escapeHtml(tag.name)}
                             </span>
                             <span class="tag-check">${isSelected ? '✓' : ''}</span>
                         </div>
@@ -690,13 +686,7 @@ export default class ReportsModule {
     }
 
     async generateSummaryReport(params) {
-        const response = await fetch(
-            OC.generateUrl(`/apps/budget/api/reports/summary-comparison?${params}`),
-            { headers: { 'requesttoken': OC.requestToken } }
-        );
-
-        if (!response.ok) throw new Error('Failed to fetch summary');
-        const data = await response.json();
+        const data = await apiFetch(`/apps/budget/api/reports/summary-comparison?${params}`);
 
         const section = document.getElementById('report-summary');
         if (section) section.style.display = 'block';
@@ -757,7 +747,11 @@ export default class ReportsModule {
         this.reportCharts.trend = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: trends.labels || [],
+                // Y-m keys formatted in the user's language; the English
+                // labels only if the server did not send them
+                labels: Array.isArray(trends.months) && trends.months.length
+                    ? trends.months.map(m => formatters.formatYearMonth(m))
+                    : (trends.labels || []),
                 datasets: [
                     {
                         label: t('budget', 'Income'),
@@ -808,7 +802,7 @@ export default class ReportsModule {
             const accountCurrency = account.currency || currency;
             return `
             <tr>
-                <td>${this.escapeHtml(account.name)}</td>
+                <td>${dom.escapeHtml(account.name)}</td>
                 <td class="text-right positive">${this.formatCurrency(account.income || 0, accountCurrency)}</td>
                 <td class="text-right negative">${this.formatCurrency(account.expenses || 0, accountCurrency)}</td>
                 <td class="text-right ${(account.net || 0) >= 0 ? 'positive' : 'negative'}">${this.formatCurrency(account.net || 0, accountCurrency)}</td>
@@ -819,17 +813,10 @@ export default class ReportsModule {
     }
 
     async generateSpendingReport(params) {
-        const [categoryResponse, vendorResponse] = await Promise.all([
-            fetch(OC.generateUrl(`/apps/budget/api/reports/spending?${params}&groupBy=category`), {
-                headers: { 'requesttoken': OC.requestToken }
-            }),
-            fetch(OC.generateUrl(`/apps/budget/api/reports/spending?${params}&groupBy=vendor`), {
-                headers: { 'requesttoken': OC.requestToken }
-            })
+        const [categoryData, vendorData] = await Promise.all([
+            apiFetch(`/apps/budget/api/reports/spending?${params}&groupBy=category`),
+            apiFetch(`/apps/budget/api/reports/spending?${params}&groupBy=vendor`)
         ]);
-
-        const categoryData = await categoryResponse.json();
-        const vendorData = await vendorResponse.json();
 
         const section = document.getElementById('report-spending');
         if (section) section.style.display = 'block';
@@ -877,7 +864,7 @@ export default class ReportsModule {
         this.reportCharts.spending = new Chart(ctx, {
             type: 'doughnut',
             data: {
-                labels: sortedData.map(d => d.name),
+                labels: sortedData.map(d => categoryRowName(d)),
                 datasets: [{
                     data: sortedData.map(d => d.total),
                     backgroundColor: colors,
@@ -937,8 +924,8 @@ export default class ReportsModule {
             const color = item.color || defaultColors[i % defaultColors.length];
             return `
                 <div class="spending-legend-item">
-                    <span class="spending-legend-color" style="background: ${color}"></span>
-                    <span class="spending-legend-name">${item.name}</span>
+                    <span class="spending-legend-color" style="background: ${dom.escapeHtml(color)}"></span>
+                    <span class="spending-legend-name">${dom.escapeHtml(categoryRowName(item))}</span>
                     <span class="spending-legend-value">${this.formatCurrency(item.total)}</span>
                     <span class="spending-legend-pct">${pct}%</span>
                 </div>
@@ -957,8 +944,8 @@ export default class ReportsModule {
             return `
                 <tr>
                     <td>
-                        <span class="category-color" style="background: ${cat.color || '#888'}"></span>
-                        ${cat.name}
+                        <span class="category-color" style="background: ${dom.escapeHtml(cat.color || '#888')}"></span>
+                        ${dom.escapeHtml(categoryRowName(cat))}
                     </td>
                     <td class="text-right">${this.formatCurrency(cat.total, currency)}</td>
                     <td class="text-right">${pct}%</td>
@@ -973,15 +960,7 @@ export default class ReportsModule {
      * a net line — the shape a club treasurer needs at year end (#344).
      */
     async generateIncomeExpenseReport(params) {
-        const response = await fetch(OC.generateUrl(`/apps/budget/api/reports/income-expense?${params}`), {
-            headers: { 'requesttoken': OC.requestToken }
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-
-        const data = await response.json();
+        const data = await apiFetch(`/apps/budget/api/reports/income-expense?${params}`);
 
         const section = document.getElementById('report-income-expense');
         if (section) section.style.display = 'block';
@@ -996,15 +975,15 @@ export default class ReportsModule {
             const net = totals.net || 0;
             totalsBody.innerHTML = `
                 <tr>
-                    <td>${this.escapeHtml(t('budget', 'Total Income'))}</td>
+                    <td>${dom.escapeHtml(t('budget', 'Total Income'))}</td>
                     <td class="text-right">${this.formatCurrency(totals.income || 0, currency)}</td>
                 </tr>
                 <tr>
-                    <td>${this.escapeHtml(t('budget', 'Total Expenses'))}</td>
+                    <td>${dom.escapeHtml(t('budget', 'Total Expenses'))}</td>
                     <td class="text-right">${this.formatCurrency(totals.expenses || 0, currency)}</td>
                 </tr>
                 <tr class="${net < 0 ? 'negative' : 'positive'}">
-                    <td><strong>${this.escapeHtml(t('budget', 'Net'))}</strong></td>
+                    <td><strong>${dom.escapeHtml(t('budget', 'Net'))}</strong></td>
                     <td class="text-right"><strong>${this.formatCurrency(net, currency)}</strong></td>
                 </tr>
             `;
@@ -1016,7 +995,7 @@ export default class ReportsModule {
         if (!tbody) return;
 
         if (data.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="3">${this.escapeHtml(t('budget', 'Nothing in this period'))}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="3">${dom.escapeHtml(t('budget', 'Nothing in this period'))}</td></tr>`;
             return;
         }
 
@@ -1024,8 +1003,8 @@ export default class ReportsModule {
         tbody.innerHTML = sorted.map(item => `
             <tr>
                 <td>
-                    <span class="category-color" style="background: ${this.escapeHtml(item.color || '#888')}"></span>
-                    ${this.escapeHtml(item.name || '')}
+                    <span class="category-color" style="background: ${dom.escapeHtml(item.color || '#888')}"></span>
+                    ${dom.escapeHtml(categoryRowName(item))}
                 </td>
                 <td class="text-right">${this.formatCurrency(item.total, currency)}</td>
                 <td class="text-right">${item.count || 0}</td>
@@ -1039,7 +1018,7 @@ export default class ReportsModule {
 
         tbody.innerHTML = data.map(vendor => `
             <tr>
-                <td>${vendor.name}</td>
+                <td>${dom.escapeHtml(vendor.name)}</td>
                 <td class="text-right">${this.formatCurrency(vendor.total, currency)}</td>
                 <td class="text-right">${vendor.count}</td>
             </tr>
@@ -1047,13 +1026,7 @@ export default class ReportsModule {
     }
 
     async generateCashFlowReport(params) {
-        const response = await fetch(
-            OC.generateUrl(`/apps/budget/api/reports/cashflow?${params}`),
-            { headers: { 'requesttoken': OC.requestToken } }
-        );
-
-        if (!response.ok) throw new Error('Failed to fetch cash flow');
-        const data = await response.json();
+        const data = await apiFetch(`/apps/budget/api/reports/cashflow?${params}`);
 
         const section = document.getElementById('report-cashflow');
         if (section) section.style.display = 'block';
@@ -1079,13 +1052,7 @@ export default class ReportsModule {
 
     async generateCategoryMonthlyReport(params) {
         const sort = this.categoryMonthlySort || 'alpha';
-        const response = await fetch(
-            OC.generateUrl(`/apps/budget/api/reports/categories/monthly?${params}&sort=${sort}`),
-            { headers: { 'requesttoken': OC.requestToken } }
-        );
-
-        if (!response.ok) throw new Error('Failed to fetch category monthly report');
-        const data = await response.json();
+        const data = await apiFetch(`/apps/budget/api/reports/categories/monthly?${params}&sort=${sort}`);
 
         const section = document.getElementById('report-category-monthly');
         if (section) section.style.display = 'block';
@@ -1112,21 +1079,22 @@ export default class ReportsModule {
 
         const monthLabel = (m) => {
             const d = new Date(`${m}-01T00:00:00`);
-            return isNaN(d.getTime()) ? m : d.toLocaleDateString(undefined, { month: 'short', year: '2-digit' });
+            return isNaN(d.getTime()) ? m : d.toLocaleDateString(formatters.userLocale(), { month: 'short', year: '2-digit' });
         };
         const cell = (v) => {
             const val = v || 0;
             if (val === 0) return '<td class="text-right cm-zero">—</td>';
             const cls = val < 0 ? 'negative' : 'positive';
-            return `<td class="text-right ${cls}">${this.escapeHtml(this.formatCurrency(val, currency))}</td>`;
+            return `<td class="text-right ${cls}">${dom.escapeHtml(this.formatCurrency(val, currency))}</td>`;
         };
 
-        const headCells = months.map(m => `<th class="text-right">${this.escapeHtml(monthLabel(m))}</th>`).join('');
+        const headCells = months.map(m => `<th class="text-right">${dom.escapeHtml(monthLabel(m))}</th>`).join('');
         const bodyRows = rows.map(row => {
             const indent = (row.depth || 0) * 16;
             const monthCells = months.map(m => cell(row.monthly?.[m])).join('');
+            const name = categoryRowName(row);
             return `<tr class="${row.isParent ? 'cm-parent' : ''}">
-                <td class="cm-name" style="padding-left:${8 + indent}px">${this.escapeHtml(row.name || '')}</td>
+                <td class="cm-name" style="padding-left:${8 + indent}px">${dom.escapeHtml(name)}</td>
                 ${monthCells}
                 ${cell(row.total)}
             </tr>`;
@@ -1141,7 +1109,7 @@ export default class ReportsModule {
         </tr>`;
 
         const notice = data.mixedCurrency
-            ? `<div class="report-hint cm-currency-notice">${this.escapeHtml(t('budget', 'You have accounts in more than one currency. Amounts are summed in their original currency without conversion.'))}</div>`
+            ? `<div class="report-hint cm-currency-notice">${dom.escapeHtml(t('budget', 'You have accounts in more than one currency. Amounts are summed in their original currency without conversion.'))}</div>`
             : '';
 
         container.innerHTML = `
@@ -1273,27 +1241,17 @@ export default class ReportsModule {
         const endDate = encodeURIComponent(params.get('endDate') || '');
         const excludeSharedQuery = this.excludeShared ? '&excludeShared=1' : '';
 
-        const [incomeResponse, expenseResponse, categoriesResponse] = await Promise.all([
-            fetch(OC.generateUrl(`/apps/budget/api/categories/spending?startDate=${startDate}&endDate=${endDate}&transactionType=credit${excludeSharedQuery}`), {
-                headers: { 'requesttoken': OC.requestToken }
-            }),
-            fetch(OC.generateUrl(`/apps/budget/api/categories/spending?startDate=${startDate}&endDate=${endDate}&transactionType=debit${excludeSharedQuery}`), {
-                headers: { 'requesttoken': OC.requestToken }
-            }),
+        const [incomeRows, expenseRows, freshCategories] = await Promise.all([
+            apiFetch(`/apps/budget/api/categories/spending?startDate=${startDate}&endDate=${endDate}&transactionType=credit${excludeSharedQuery}`),
+            apiFetch(`/apps/budget/api/categories/spending?startDate=${startDate}&endDate=${endDate}&transactionType=debit${excludeSharedQuery}`),
             // The transform filters every spending row by its category's
             // type, so a category the app-level list doesn't know yet (made
             // after page load, or by another client) would silently drop its
             // flows. Fetch the list fresh; fall back to app state on failure.
-            fetch(OC.generateUrl('/apps/budget/api/categories'), {
-                headers: { 'requesttoken': OC.requestToken }
-            })
+            apiFetch('/apps/budget/api/categories').catch(() => null)
         ]);
 
-        if (!incomeResponse.ok || !expenseResponse.ok) throw new Error('Failed to fetch money flow data');
-
-        const incomeRows = await incomeResponse.json();
-        const expenseRows = await expenseResponse.json();
-        const categories = categoriesResponse.ok ? await categoriesResponse.json() : (this.categories || []);
+        const categories = freshCategories ?? (this.categories || []);
 
         const section = document.getElementById('report-moneyflow');
         if (section) section.style.display = 'block';
@@ -1391,7 +1349,7 @@ export default class ReportsModule {
         if (!yearMonth) return '';
         const [year, month] = yearMonth.split('-');
         const date = new Date(year, month - 1);
-        return date.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+        return date.toLocaleDateString(formatters.userLocale(), { month: 'short', year: 'numeric' });
     }
 
     // ==========================================
@@ -1463,12 +1421,7 @@ export default class ReportsModule {
                     endpoint = `/apps/budget/api/yoy/years?years=${years}${accountParam}`;
             }
 
-            const response = await fetch(OC.generateUrl(endpoint), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) throw new Error('Failed to fetch YoY data');
-            const data = await response.json();
+            const data = await apiFetch(endpoint);
 
             if (comparisonType === 'categories') {
                 this.displayYoYCategories(data);
@@ -1625,7 +1578,7 @@ export default class ReportsModule {
 
             return `
                 <tr>
-                    <td>${this.escapeHtml(cat.name)}</td>
+                    <td>${dom.escapeHtml(cat.name)}</td>
                     ${cat.years.map(y => `<td class="text-right">${this.formatCurrency(y.spending, currency)}</td>`).join('')}
                     <td class="text-right">${changeHtml}</td>
                 </tr>
@@ -1637,19 +1590,16 @@ export default class ReportsModule {
         const reportType = document.getElementById('report-type')?.value || 'summary';
 
         try {
-            let response;
+            let blob;
 
             if (reportType === 'yoy') {
-                response = await this.exportYoYReport(format);
+                blob = await this.exportYoYReport(format);
             } else if (reportType === 'bills-calendar') {
-                response = await this.exportBillsCalendarReport(format);
+                blob = await this.exportBillsCalendarReport(format);
             } else {
-                response = await this.exportStandardReport(format, reportType);
+                blob = await this.exportStandardReport(format, reportType);
             }
 
-            if (!response.ok) throw new Error('Export failed');
-
-            const blob = await response.blob();
             const filename = `${reportType}_report_${formatters.getTodayDateString()}.${format}`;
 
             // Trigger download
@@ -1673,20 +1623,17 @@ export default class ReportsModule {
         const startDate = document.getElementById('report-start-date')?.value;
         const endDate = document.getElementById('report-end-date')?.value;
 
-        return fetch(OC.generateUrl('/apps/budget/api/reports/export'), {
+        return apiFetch('/apps/budget/api/reports/export', {
             method: 'POST',
-            headers: {
-                'requesttoken': OC.requestToken,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
+            body: {
                 type: reportType,
                 format,
                 startDate,
                 endDate,
                 accountIds: this.getSelectedReportAccountIds(), // multi-select scope (#299)
                 excludeShared: !!this.excludeShared
-            })
+            },
+            responseType: 'blob',
         });
     }
 
@@ -1695,20 +1642,17 @@ export default class ReportsModule {
         const years = document.getElementById('yoy-years')?.value || 3;
         const month = document.getElementById('yoy-month')?.value || new Date().getMonth() + 1;
 
-        return fetch(OC.generateUrl('/apps/budget/api/yoy/export'), {
+        return apiFetch('/apps/budget/api/yoy/export', {
             method: 'POST',
-            headers: {
-                'requesttoken': OC.requestToken,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
+            body: {
                 comparisonType,
                 format,
                 years: parseInt(years),
                 month: parseInt(month),
                 accountIds: this.getSelectedReportAccountIds(), // multi-select scope (#299)
                 excludeShared: !!this.excludeShared
-            })
+            },
+            responseType: 'blob',
         });
     }
 
@@ -1718,19 +1662,16 @@ export default class ReportsModule {
         const includeTransfers = document.getElementById('bills-calendar-include-transfers')?.checked || false;
         const accountId = document.getElementById('bills-calendar-account')?.value || '';
 
-        return fetch(OC.generateUrl('/apps/budget/api/bills/export-calendar'), {
+        return apiFetch('/apps/budget/api/bills/export-calendar', {
             method: 'POST',
-            headers: {
-                'requesttoken': OC.requestToken,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
+            body: {
                 format,
                 year: parseInt(year),
                 billStatus,
                 includeTransfers: includeTransfers.toString(),
                 ...(accountId && { accountId: parseInt(accountId) })
-            })
+            },
+            responseType: 'blob',
         });
     }
 
@@ -1847,14 +1788,7 @@ export default class ReportsModule {
                 ...(accountId && { accountId })
             });
 
-            const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/bills/annual-overview?${params}`),
-                { headers: { 'requesttoken': OC.requestToken } }
-            );
-
-            if (!response.ok) throw new Error('Failed to fetch bills calendar data');
-
-            const data = await response.json();
+            const data = await apiFetch(`/apps/budget/api/bills/annual-overview?${params}`);
 
             // Render monthly totals chart
             this.renderBillsCalendarChart(data.monthlyTotals);
@@ -1898,7 +1832,7 @@ export default class ReportsModule {
         const ctx = canvas.getContext('2d');
         const currency = this.getPrimaryCurrency();
 
-        const months = [t('budget', 'Jan'), t('budget', 'Feb'), t('budget', 'Mar'), t('budget', 'Apr'), t('budget', 'May'), t('budget', 'Jun'), t('budget', 'Jul'), t('budget', 'Aug'), t('budget', 'Sep'), t('budget', 'Oct'), t('budget', 'Nov'), t('budget', 'Dec')];
+        const months = Array.from({ length: 12 }, (_, i) => formatters.monthName(i + 1, 'short'));
         const data = [];
         for (let i = 1; i <= 12; i++) {
             data.push(monthlyTotals[i] || 0);
@@ -1989,11 +1923,11 @@ export default class ReportsModule {
                 months.push(`<td class="month-cell ${cellClass}" title="${title}">${amount}</td>`);
             }
 
-            const transferBadge = bill.isTransfer ? ` <span class="transfer-badge" style="background: #0082c9; color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px;">${t('budget', 'Transfer')}</span>` : '';
+            const transferBadge = bill.isTransfer ? ` <span class="transfer-badge">${t('budget', 'Transfer')}</span>` : '';
 
             return `
                 <tr>
-                    <td class="bill-name-col">${this.escapeHtml(bill.name)}${transferBadge}</td>
+                    <td class="bill-name-col">${dom.escapeHtml(bill.name)}${transferBadge}</td>
                     ${months.join('')}
                 </tr>
             `;
@@ -2022,17 +1956,24 @@ export default class ReportsModule {
      * months already gone are blank. Each cell's tooltip breaks the month
      * down and the row's gives the starting balance and the lowest point.
      * With no account picked, or another year, there is no balance to start
-     * from, so a hint stands in for the row.
+     * from, so a hint stands in for the row. An account shared with the user
+     * gets none either: the server knows only the user's own bills and
+     * income, so the other person's bills on it would be missing.
      */
     renderProjectedBalanceRow(account, projectedBalance, projectedFlows) {
         if (!account) {
+            const pickedId = document.getElementById('bills-calendar-account')?.value || '';
+            const picked = pickedId ? (this.accounts || []).find(a => String(a.id) === String(pickedId)) : null;
+            if (picked && picked._shared) {
+                return `<tr class="balance-hint-row"><td colspan="13">${t('budget', 'The projected balance is only shown for your own accounts, not ones shared with you.')}</td></tr>`;
+            }
             return `<tr class="balance-hint-row"><td colspan="13">${t('budget', 'Pick an account above to see its projected balance for the rest of the year.')}</td></tr>`;
         }
         if (!projectedBalance) {
             return `<tr class="balance-hint-row"><td colspan="13">${t('budget', 'The projected balance is only shown for the current year.')}</td></tr>`;
         }
 
-        const monthNames = [t('budget', 'January'), t('budget', 'February'), t('budget', 'March'), t('budget', 'April'), t('budget', 'May'), t('budget', 'June'), t('budget', 'July'), t('budget', 'August'), t('budget', 'September'), t('budget', 'October'), t('budget', 'November'), t('budget', 'December')];
+        const monthNames = Array.from({ length: 12 }, (_, i) => formatters.monthName(i + 1));
         const money = value => this.formatCurrency(value, account.currency);
         const cells = [];
         let lowest = null;
@@ -2053,7 +1994,7 @@ export default class ReportsModule {
                     income: money(flows.income),
                 })
                 : '';
-            cells.push(`<td class="balance-cell${balance < 0 ? ' negative' : ''}" title="${this.escapeHtml(title)}">${money(balance)}</td>`);
+            cells.push(`<td class="balance-cell${balance < 0 ? ' negative' : ''}" title="${dom.escapeHtml(title)}">${money(balance)}</td>`);
         }
 
         let title = t('budget', '{account} today: {balance}. Each month carries on from the month before, less the bills and plus the transfers and recurring income still due.', {
@@ -2067,7 +2008,7 @@ export default class ReportsModule {
             });
         }
         return `
-            <tr class="totals-row balance-after-row" title="${this.escapeHtml(title)}">
+            <tr class="totals-row balance-after-row" title="${dom.escapeHtml(title)}">
                 <td class="bill-name-col"><strong>${t('budget', 'Projected balance')}</strong></td>
                 ${cells.join('')}
             </tr>
@@ -2079,7 +2020,7 @@ export default class ReportsModule {
         if (!container) return;
 
         const currency = this.getPrimaryCurrency();
-        const months = [t('budget', 'January'), t('budget', 'February'), t('budget', 'March'), t('budget', 'April'), t('budget', 'May'), t('budget', 'June'), t('budget', 'July'), t('budget', 'August'), t('budget', 'September'), t('budget', 'October'), t('budget', 'November'), t('budget', 'December')];
+        const months = Array.from({ length: 12 }, (_, i) => formatters.monthName(i + 1));
 
         // Find max total for color scaling
         const maxTotal = Math.max(...Object.values(monthlyTotals));

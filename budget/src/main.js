@@ -63,7 +63,9 @@ window.fetch = function(...args) {
 
 window.budgetDiagnostics = budgetDiagnostics;
 
-import Chart from 'chart.js/auto';
+// Before anything that could load a chunk
+import './publicPath.js';
+import Chart from './utils/chart.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 
 // Utilities
@@ -72,7 +74,13 @@ import * as dom from './utils/dom.js';
 import { showSuccess, showError, showWarning } from './utils/notifications.js';
 import { confirmDialog } from './utils/dialogs.js';
 import { initDatePickers } from './utils/datepicker.js';
-import { serverErrorMessage, hasSplitPortion, transactionDisplayAmount } from './utils/helpers.js';
+import { setupChartTheme } from './utils/chartTheme.js';
+import { setupHeaderMenus } from './utils/headerMenu.js';
+import { setupClickableCards } from './utils/clickableCards.js';
+import { transactionTotalsByCurrency } from './utils/helpers.js';
+import { categoryOptionsHtml } from './utils/formSelects.js';
+import { apiFetch, ApiError } from './utils/api.js';
+import { openAccounts } from './utils/accounts.js';
 
 // Configuration
 // Core
@@ -82,26 +90,42 @@ import KeyboardShortcuts from './core/KeyboardShortcuts.js';
 // Modules
 import DashboardModule from './modules/dashboard/DashboardModule.js';
 import TransactionsModule from './modules/transactions/TransactionsModule.js';
-import PensionsModule from './modules/pensions/PensionsModule.js';
-import AssetsModule from './modules/assets/AssetsModule.js';
 import SavingsModule from './modules/savings/SavingsModule.js';
-import ProjectsModule from './modules/projects/ProjectsModule.js';
 import IncomeModule from './modules/income/IncomeModule.js';
-import BillsModule from './modules/bills/BillsModule.js';
 import TransfersModule from './modules/transfers/TransfersModule.js';
 import SettingsModule from './modules/settings/SettingsModule.js';
 import SharedExpensesModule from './modules/shared-expenses/SharedExpensesModule.js';
 import TagSetsModule from './modules/tagsets/TagSetsModule.js';
-import RulesModule from './modules/rules/RulesModule.js';
-import ForecastModule from './modules/forecast/ForecastModule.js';
-import ReportsModule from './modules/reports/ReportsModule.js';
-import ImportModule from './modules/import/ImportModule.js';
 import AccountsModule from './modules/accounts/AccountsModule.js';
 import CategoriesModule from './modules/categories/CategoriesModule.js';
-import ExchangeRatesModule from './modules/exchange-rates/ExchangeRatesModule.js';
 import SharingModule from './modules/sharing/SharingModule.js';
-import BankSyncModule from './modules/bank-sync/BankSyncModule.js';
 import HelpModule, { HELP_TOPICS, helpDocUrl, SUPPORT_LINKS } from './modules/help/HelpModule.js';
+import OnboardingModule from './modules/onboarding/OnboardingModule.js';
+import { renderTransactionRow, transactionMenuActions } from './modules/transactions/transactionRow.js';
+import { refreshBankSyncNav } from './modules/bank-sync/bankSyncStatus.js';
+// The rule editor's styles ship in budget-app.css with the rest, rather than
+// as a stylesheet of their own fetched when the Rules view first opens
+import './modules/rules/components/CriteriaBuilder.css';
+import './modules/rules/components/ActionBuilder.css';
+
+/**
+ * Views whose code loads the first time they are opened, not with the app.
+ * Each becomes its own file in js/ (budget-<name>.js); nothing outside the
+ * view calls into these modules, so the rest of the app never waits on them.
+ * Reach one only through lazyModule().
+ */
+const LAZY_MODULES = {
+    reportsModule: () => import(/* webpackChunkName: "reports" */ './modules/reports/ReportsModule.js'),
+    forecastModule: () => import(/* webpackChunkName: "forecast" */ './modules/forecast/ForecastModule.js'),
+    pensionsModule: () => import(/* webpackChunkName: "pensions" */ './modules/pensions/PensionsModule.js'),
+    assetsModule: () => import(/* webpackChunkName: "assets" */ './modules/assets/AssetsModule.js'),
+    importModule: () => import(/* webpackChunkName: "import" */ './modules/import/ImportModule.js'),
+    bankSyncModule: () => import(/* webpackChunkName: "bank-sync" */ './modules/bank-sync/BankSyncModule.js'),
+    rulesModule: () => import(/* webpackChunkName: "rules" */ './modules/rules/RulesModule.js'),
+    billsModule: () => import(/* webpackChunkName: "bills" */ './modules/bills/BillsModule.js'),
+    exchangeRatesModule: () => import(/* webpackChunkName: "exchange-rates" */ './modules/exchange-rates/ExchangeRatesModule.js'),
+    projectsModule: () => import(/* webpackChunkName: "projects" */ './modules/projects/ProjectsModule.js'),
+};
 
 class BudgetApp {
     constructor() {
@@ -162,47 +186,65 @@ class BudgetApp {
         // Initialize modules
         this.dashboardModule = new DashboardModule(this);
         this.transactionsModule = new TransactionsModule(this);
-        this.pensionsModule = new PensionsModule(this);
-        this.assetsModule = new AssetsModule(this);
         this.savingsModule = new SavingsModule(this);
-        this.projectsModule = new ProjectsModule(this);
         this.incomeModule = new IncomeModule(this);
-        this.billsModule = new BillsModule(this);
         this.transfersModule = new TransfersModule(this);
         this.settingsModule = new SettingsModule(this);
         this.sharedExpensesModule = new SharedExpensesModule(this);
         this.tagSetsModule = new TagSetsModule(this);
-        this.rulesModule = new RulesModule(this);
-        this.forecastModule = new ForecastModule(this);
-        this.reportsModule = new ReportsModule(this);
-        this.importModule = new ImportModule(this);
         this.accountsModule = new AccountsModule(this);
         this.categoriesModule = new CategoriesModule(this);
-        this.exchangeRatesModule = new ExchangeRatesModule(this);
         this.sharingModule = new SharingModule(this);
-        this.bankSyncModule = new BankSyncModule(this);
         this.helpModule = new HelpModule(this);
+        this.onboardingModule = new OnboardingModule(this);
+        // The views in LAZY_MODULES get theirs from lazyModule()
+        this._lazyLoads = {};
 
         this.init();
+    }
+
+    /**
+     * The module behind a view in LAZY_MODULES, loading its file the first
+     * time. A failed load (a flaky connection, or files replaced by an app
+     * update under an open page) is reported and can be retried by opening
+     * the view again.
+     *
+     * @param {string} name - A LAZY_MODULES key, e.g. 'reportsModule'
+     * @returns {Promise<object>} The module instance
+     */
+    async lazyModule(name) {
+        if (this[name]) return this[name];
+        if (!this._lazyLoads[name]) {
+            this._lazyLoads[name] = LAZY_MODULES[name]()
+                .then(({ default: Module }) => {
+                    this[name] = new Module(this);
+                    return this[name];
+                })
+                .catch((error) => {
+                    delete this._lazyLoads[name];
+                    console.error(`Failed to load ${name}:`, error);
+                    showError(t('budget', 'This page could not be loaded. Reload the page to try again.'));
+                    throw error;
+                });
+        }
+        return this._lazyLoads[name];
     }
 
     async init() {
         this.setupNavigation();
         this.setupEventListeners();
         await this.loadInitialData();
-        this.bankSyncModule.init();
+        refreshBankSyncNav();
 
         // Honor a deep link in the URL hash (e.g. #/transactions?search=rent
         // from unified search results) instead of always landing on the
         // dashboard. Unknown hashes fall through to the dashboard.
-        const hashMatch = window.location.hash.match(/^#\/?([a-z-]+)(?:\?(.*))?$/);
+        const link = Router.deepLink(window.location.hash);
         let initialView = 'dashboard';
-        if (hashMatch && Router.VIEW_LOADERS[hashMatch[1]]) {
-            initialView = hashMatch[1];
-            if (initialView === 'transactions' && hashMatch[2]) {
-                const search = new URLSearchParams(hashMatch[2]).get('search');
-                const searchInput = document.getElementById('filter-search');
-                if (search && searchInput) searchInput.value = search;
+        if (link) {
+            initialView = link.view;
+            if (initialView === 'transactions' && link.search) {
+                this.transactionsModule.applySearchLink(link.search);
             }
         }
         // Seed the initial history entry with state (preserving any deep-link
@@ -210,14 +252,19 @@ class BudgetApp {
         // pushing a second entry on top of the page-load entry.
         window.history.replaceState({ view: initialView }, '', window.location.hash || `#${initialView}`);
         this.showView(initialView, { history: false });
+        // A link to one transaction opens it the way tapping its row does
+        if (link?.view === 'transactions' && link.transactionId !== null) {
+            this.transactionsModule.editTransaction(link.transactionId);
+        }
+        // The dashboard asks for the checklist itself; elsewhere only the
+        // sample-data banner needs it
+        if (initialView !== 'dashboard') {
+            this.onboardingModule.load();
+        }
 
         this.helpModule.showWhatsNewIfUpdated();
     }
 
-
-    getAuthHeaders() {
-        return { 'requesttoken': OC.requestToken };
-    }
 
     // Navigation - delegated to Router
     setupNavigation() {
@@ -307,7 +354,7 @@ class BudgetApp {
         const categoryType = document.getElementById('category-type');
         if (categoryType) {
             categoryType.addEventListener('change', () => {
-                this.categoriesModule.populateCategoryParentDropdown();
+                this.categoriesModule.refreshCategoryParentDropdown();
             });
         }
 
@@ -435,53 +482,90 @@ class BudgetApp {
             });
         }
 
-        // More-actions menu (fixed position to avoid overflow clipping)
+        // More-actions menu: a labelled dropdown under the row's ⋮ button, fixed
+        // so the table's overflow can't clip it. Delete lives here rather than
+        // as an always-visible button on every row.
+        const closeActionMenu = (restoreFocus) => {
+            const open = document.querySelector('.action-menu-fixed');
+            if (!open) return;
+            const owner = open._owner;
+            open.remove();
+            owner?.setAttribute('aria-expanded', 'false');
+            if (restoreFocus) owner?.focus();
+        };
+
         document.addEventListener('click', (e) => {
             const moreBtn = e.target.closest('.more-actions-btn');
-            if (moreBtn) {
-                e.stopPropagation();
-                const existing = document.querySelector('.action-menu-fixed');
-                if (existing) existing.remove();
-
-                const transactionId = moreBtn.getAttribute('data-transaction-id');
-                const transaction = this.transactions?.find(tx => tx.id === parseInt(transactionId));
-                const isLinked = transaction?.linkedTransactionId != null;
-                const rect = moreBtn.getBoundingClientRect();
-
-                const menu = document.createElement('div');
-                menu.className = 'action-menu-fixed';
-                menu.style.top = `${rect.top + (rect.height / 2)}px`;
-                menu.style.left = `${rect.left - 4}px`;
-                menu.style.transform = 'translate(-100%, -50%)';
-                menu.innerHTML = `
-                    <button class="action-menu-item transaction-duplicate-btn" data-transaction-id="${transactionId}" title="${t('budget', 'Duplicate transaction')}">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                    </button>
-                    <button class="action-menu-item transaction-share-btn" data-transaction-id="${transactionId}" title="${t('budget', 'Share expense')}">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                    </button>
-                    ${isLinked
-                        ? `<button class="action-menu-item transaction-unlink-btn" data-transaction-id="${transactionId}" title="${t('budget', 'Unlink transfer')}">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.84 12.25l1.72-1.71a4 4 0 0 0-5.66-5.66l-1.71 1.72"/><path d="M5.17 11.75l-1.71 1.71a4 4 0 0 0 5.66 5.66l1.71-1.71"/><line x1="2" y1="2" x2="22" y2="22"/></svg>
-                        </button>`
-                        : `<button class="action-menu-item transaction-match-btn" data-transaction-id="${transactionId}" title="${t('budget', 'Match transfer')}">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                        </button>`
-                    }
-                `;
-                document.body.appendChild(menu);
-
-                // Close menu on any click (after this event)
-                setTimeout(() => {
-                    const closeMenu = () => {
-                        menu.remove();
-                        document.removeEventListener('click', closeMenu);
-                    };
-                    document.addEventListener('click', closeMenu);
-                }, 0);
+            const existing = document.querySelector('.action-menu-fixed');
+            if (!moreBtn) {
+                // Any click elsewhere (including on a menu item, after its own
+                // handler has run) closes the menu.
+                if (existing) setTimeout(() => closeActionMenu(false), 0);
                 return;
             }
+            e.stopPropagation();
+            const reopening = existing && existing._owner === moreBtn;
+            closeActionMenu(false);
+            if (reopening) return;
+
+            const transactionId = moreBtn.getAttribute('data-transaction-id');
+            const transaction = this.transactions?.find(tx => tx.id === parseInt(transactionId));
+            const account = this.accounts?.find(a => a.id === transaction?.accountId);
+            const icon = (paths) => `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">${paths}</svg>`;
+            const item = (cls, label, paths) => `
+                <button type="button" role="menuitem" class="action-menu-item ${cls}" data-transaction-id="${transactionId}">
+                    ${icon(paths)}<span>${label}</span>
+                </button>`;
+            const items = {
+                duplicate: () => item('transaction-duplicate-btn', t('budget', 'Duplicate'),
+                    '<rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>'),
+                share: () => item('transaction-share-btn', t('budget', 'Share expense'),
+                    '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>'),
+                unlink: () => item('transaction-unlink-btn', t('budget', 'Unlink transfer'),
+                    '<path d="M18.84 12.25l1.72-1.71a4 4 0 0 0-5.66-5.66l-1.71 1.72"/><path d="M5.17 11.75l-1.71 1.71a4 4 0 0 0 5.66 5.66l1.71-1.71"/><line x1="2" y1="2" x2="22" y2="22"/>'),
+                match: () => item('transaction-match-btn', t('budget', 'Match transfer'),
+                    '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>'),
+                delete: () => '<div class="action-menu-separator" role="separator"></div>'
+                    + item('transaction-delete-btn action-menu-item--danger', t('budget', 'Delete'),
+                        '<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>'),
+            };
+
+            const menu = document.createElement('div');
+            menu.className = 'action-menu-fixed';
+            menu.setAttribute('role', 'menu');
+            // A row in an account shared read-only offers no changes
+            menu.innerHTML = transactionMenuActions(transaction, account).map(key => items[key]()).join('');
+            menu._owner = moreBtn;
+            document.body.appendChild(menu);
+
+            // Below the button, right-aligned to it; flipped above when it
+            // would run off the bottom of the window.
+            const rect = moreBtn.getBoundingClientRect();
+            const menuHeight = menu.offsetHeight;
+            const below = rect.bottom + 4;
+            menu.style.top = `${below + menuHeight > window.innerHeight - 8 ? Math.max(8, rect.top - 4 - menuHeight) : below}px`;
+            menu.style.left = `${Math.max(8, rect.right - menu.offsetWidth)}px`;
+
+            moreBtn.setAttribute('aria-expanded', 'true');
+            menu.querySelector('.action-menu-item')?.focus();
+
+            menu.addEventListener('keydown', (ev) => {
+                const items = [...menu.querySelectorAll('.action-menu-item')];
+                const i = items.indexOf(document.activeElement);
+                if (ev.key === 'Escape') {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    closeActionMenu(true);
+                } else if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+                    ev.preventDefault();
+                    const next = ev.key === 'ArrowDown' ? i + 1 : i - 1;
+                    items[(next + items.length) % items.length].focus();
+                } else if (ev.key === 'Tab') {
+                    closeActionMenu(false);
+                }
+            });
         });
+        window.addEventListener('scroll', () => closeActionMenu(false), true);
 
         // Account action buttons, transaction action buttons, and autocomplete (using event delegation)
         document.addEventListener('click', (e) => {
@@ -524,9 +608,10 @@ class BudgetApp {
                 const button = e.target.classList.contains('transaction-unlink-btn') ? e.target : e.target.closest('.transaction-unlink-btn');
                 const transactionId = parseInt(button.getAttribute('data-transaction-id'));
                 this.handleUnlinkTransaction(transactionId);
-            } else if (e.target.classList.contains('linked-indicator')) {
-                const linkedId = parseInt(e.target.getAttribute('data-linked-id'));
-                const linkedAccountId = parseInt(e.target.getAttribute('data-linked-account-id'));
+            } else if (e.target.closest('.linked-indicator')) {
+                const badge = e.target.closest('.linked-indicator');
+                const linkedId = parseInt(badge.getAttribute('data-linked-id'));
+                const linkedAccountId = parseInt(badge.getAttribute('data-linked-account-id'));
                 this.navigateToLinkedTransaction(linkedId, linkedAccountId);
             } else if (e.target.classList.contains('link-match-btn')) {
                 const sourceId = parseInt(e.target.getAttribute('data-source-id'));
@@ -549,8 +634,10 @@ class BudgetApp {
             } else if (e.target.id === 'confirm-selected-btn') {
                 this.handleConfirmSelected();
             } else if (e.target.classList.contains('autocomplete-item')) {
+                // The institution suggestions: the picker lives on the accounts
+                // module, the app shell has no selectInstitution of its own
                 const bankName = e.target.getAttribute('data-bank-name');
-                this.selectInstitution(bankName);
+                this.accountsModule?.selectInstitution(bankName);
             } else if (e.target.id === 'empty-categories-add-btn' || e.target.closest('#empty-categories-add-btn')) {
                 this.showAddCategoryModal();
             } else if (e.target.id === 'create-default-categories-btn' || e.target.closest('#create-default-categories-btn')) {
@@ -589,7 +676,8 @@ class BudgetApp {
                 importDropzone.classList.remove('dragover');
                 const files = e.dataTransfer.files;
                 if (files.length > 0) {
-                    this.handleImportFile(files[0]);
+                    // A failure has already shown a message (lazyModule).
+                    this.handleImportFile(files[0]).catch(() => {});
                 }
             });
         }
@@ -604,7 +692,8 @@ class BudgetApp {
             importFileInput.addEventListener('change', (e) => {
                 const file = e.target.files[0];
                 if (file) {
-                    this.handleImportFile(file);
+                    // A failure has already shown a message (lazyModule).
+                    this.handleImportFile(file).catch(() => {});
                 }
             });
         }
@@ -612,12 +701,6 @@ class BudgetApp {
         // Enhanced Transaction Features
         this.setupTransactionEventListeners();
         this.setupInlineEditingListeners();
-
-        // Enhanced Import System
-        this.setupImportEventListeners();
-
-        // Enhanced Forecast System
-        this.setupForecastEventListeners();
 
         // Note: Generate report button event listener is handled by ReportsModule
 
@@ -629,6 +712,8 @@ class BudgetApp {
 
         // Help panel
         this.setupHelpPanel();
+        setupHeaderMenus();
+        setupClickableCards();
 
         // Window resize handler for responsive dashboard layout
         let resizeTimeout;
@@ -745,8 +830,11 @@ class BudgetApp {
         const originalText = textElement.dataset.originalText || textElement.textContent;
         textElement.dataset.originalText = originalText;
 
-        const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-        const highlightedText = originalText.replace(regex, '<mark>$1</mark>');
+        // Escape first, then highlight: the label is text, and only the
+        // <mark> tags added here should be parsed as markup.
+        const safeQuery = dom.escapeHtml(query);
+        const regex = new RegExp(`(${safeQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+        const highlightedText = dom.escapeHtml(originalText).replace(regex, '<mark>$1</mark>');
 
         // Only update if we have an icon span to preserve
         const iconSpan = textElement.querySelector('.app-navigation-entry-icon');
@@ -776,26 +864,22 @@ class BudgetApp {
     async loadInitialData() {
         try {
             // Load all initial data in parallel for better performance
-            const [settingsResponse, accountsResponse, categoriesResponse, categoryTreeResponse, optionsResponse] = await Promise.all([
-                fetch(OC.generateUrl('/apps/budget/api/settings'), {
-                    headers: this.getAuthHeaders()
-                }),
-                fetch(OC.generateUrl('/apps/budget/api/accounts'), {
-                    headers: this.getAuthHeaders()
-                }),
-                fetch(OC.generateUrl('/apps/budget/api/categories'), {
-                    headers: this.getAuthHeaders()
-                }),
-                fetch(OC.generateUrl('/apps/budget/api/categories/tree'), {
-                    headers: this.getAuthHeaders()
-                }),
-                fetch(OC.generateUrl('/apps/budget/api/settings/options'), {
-                    headers: this.getAuthHeaders()
-                })
+            // A refused request comes back as its ApiError so each list can
+            // fail on its own; a network failure still aborts the load.
+            const refused = request => request.catch(error => {
+                if (error instanceof ApiError) return error;
+                throw error;
+            });
+            const [settingsData, accountsData, categoriesData, treeData, optionsData] = await Promise.all([
+                refused(apiFetch('/apps/budget/api/settings')),
+                refused(apiFetch('/apps/budget/api/accounts')),
+                refused(apiFetch('/apps/budget/api/categories')),
+                refused(apiFetch('/apps/budget/api/categories/tree')),
+                refused(apiFetch('/apps/budget/api/settings/options')),
             ]);
 
-            if (settingsResponse.ok) {
-                this.settings = await settingsResponse.json();
+            if (!(settingsData instanceof ApiError)) {
+                this.settings = settingsData;
                 this.settingsLoaded = true;
                 this.columnVisibility = this.parseColumnVisibility(this.settings.transaction_columns_visible);
                 this.syncColumnConfigUI();
@@ -808,8 +892,8 @@ class BudgetApp {
                 initDatePickers(this.settings);
             }
 
-            if (optionsResponse.ok) {
-                this.options = await optionsResponse.json();
+            if (!(optionsData instanceof ApiError)) {
+                this.options = optionsData;
             }
 
             // Accounts and categories back the Account and Category columns on
@@ -817,26 +901,23 @@ class BudgetApp {
             // load, leaving both arrays empty so the entire ledger rendered as
             // "Unknown Account" / "Uncategorized" behind a generic toast (#333).
             // Load them independently and name what actually failed.
-            if (accountsResponse.ok) {
-                const accountsData = await accountsResponse.json();
+            if (!(accountsData instanceof ApiError)) {
                 this.accounts = Array.isArray(accountsData) ? accountsData : [];
                 // A fresh list earns another recovery attempt later
                 this._accountRecoveryExhausted = false;
             } else {
                 this.accounts = [];
-                this.reportReferenceDataFailure(accountsResponse, 'accounts');
+                this.reportReferenceDataFailure(accountsData.response, 'accounts');
             }
 
-            if (categoriesResponse.ok) {
-                const categoriesData = await categoriesResponse.json();
+            if (!(categoriesData instanceof ApiError)) {
                 this.categories = Array.isArray(categoriesData) ? categoriesData : [];
             } else {
                 this.categories = [];
-                this.reportReferenceDataFailure(categoriesResponse, 'categories');
+                this.reportReferenceDataFailure(categoriesData.response, 'categories');
             }
 
-            if (categoryTreeResponse.ok) {
-                const treeData = await categoryTreeResponse.json();
+            if (!(treeData instanceof ApiError)) {
                 const rawTree = Array.isArray(treeData) ? treeData : [];
                 this.rawCategoryTree = rawTree;
                 // Merge own + shared categories (shared takes priority, dedup by name)
@@ -883,6 +964,8 @@ class BudgetApp {
     // ============================================
 
     async loadDashboard() {
+        // First-run checklist + sample-data banner; never throws
+        this.onboardingModule.load();
         return this.dashboardModule.loadDashboard();
     }
 
@@ -971,14 +1054,20 @@ class BudgetApp {
             `;
         };
 
+        const setOpen = (open) => {
+            panel.style.display = open ? 'flex' : 'none';
+            fab.setAttribute('aria-expanded', open ? 'true' : 'false');
+        };
+
         fab.addEventListener('click', () => {
-            const isVisible = panel.style.display !== 'none';
-            if (isVisible) {
-                panel.style.display = 'none';
+            if (panel.style.display !== 'none') {
+                setOpen(false);
                 return;
             }
             updateHelpContent();
-            panel.style.display = 'flex';
+            setOpen(true);
+            // On narrow screens the sidebar covers the page; get it out of the way.
+            this.router.closeMobileNavigation();
         });
 
         // Store update function so Router can call it on navigation
@@ -988,15 +1077,13 @@ class BudgetApp {
             }
         };
 
-        closeBtn?.addEventListener('click', () => {
-            panel.style.display = 'none';
-        });
+        closeBtn?.addEventListener('click', () => setOpen(false));
 
         // "Show keyboard shortcuts" button inside the help panel — open the
         // cheat-sheet overlay and close the panel so it's not behind it.
         content.addEventListener('click', (e) => {
             if (e.target.closest('.help-shortcuts-btn')) {
-                panel.style.display = 'none';
+                setOpen(false);
                 this.keyboardShortcuts.openShortcuts();
             }
         });
@@ -1005,7 +1092,7 @@ class BudgetApp {
         // must not fall through to the browser's hash handling).
         document.getElementById('help-panel-all-docs')?.addEventListener('click', (e) => {
             e.preventDefault();
-            panel.style.display = 'none';
+            setOpen(false);
             this.router.showView('help');
         });
     }
@@ -1161,172 +1248,24 @@ class BudgetApp {
         if (!tbody || !this.transactions) return;
 
         // Use backend-computed running balances directly
-        let balanceMap = null;
-        if (this.runningBalances) {
-            balanceMap = {};
-            for (const [id, balance] of Object.entries(this.runningBalances)) {
-                balanceMap[parseInt(id)] = parseFloat(balance);
-            }
-        }
+        const balances = this.runningBalances || null;
 
         tbody.innerHTML = this.transactions.map(transaction => {
             const account = this.accounts?.find(a => a.id === transaction.accountId);
-            const category = this.categories?.find(c => c.id === transaction.categoryId);
-            const currency = transaction.accountCurrency || account?.currency || this.getPrimaryCurrency();
-
-            const typeClass = transaction.type === 'credit' ? 'positive' : 'negative';
-            const formattedAmount = this.formatCurrency(transaction.amount, currency);
-
-            // Filtering by a category also matches a split transaction through
-            // its parts, and the row then stands for the part that matched
-            // rather than the whole transaction (#359). A part can be negative
-            // — a receipt's discount line — which flips the row's direction, so
-            // colour it from the signed share and not from the parent's type.
-            const isSplitPortion = hasSplitPortion(transaction);
-            const portionAmount = transactionDisplayAmount(transaction);
-            const signedPortion = transaction.type === 'credit' ? portionAmount : -portionAmount;
-            const amountClass = isSplitPortion ? (signedPortion >= 0 ? 'positive' : 'negative') : typeClass;
-            const displayAmount = isSplitPortion
-                ? this.formatCurrency(Math.abs(portionAmount), currency)
-                : formattedAmount;
-            const showsWholeToo = isSplitPortion
-                && Math.abs(Math.abs(portionAmount) - Math.abs(transaction.amount)) > 0.005;
-
-            const isLinked = transaction.linkedTransactionId != null;
-            const linkedAccountName = transaction.linkedAccountName || this.accounts?.find(a => a.id === transaction.linkedAccountId)?.name || '';
-            const linkedDirection = transaction.type === 'debit' ? '→' : '←';
-            const linkedLabel = linkedAccountName ? `${t('budget', 'Transfer')} ${linkedDirection} ${this.escapeHtml(linkedAccountName)}` : t('budget', 'Transfer');
-            const linkedTitle = linkedAccountName ? t('budget', 'Click to view linked transaction in {account}', { account: this.escapeHtml(linkedAccountName) }) : t('budget', 'Linked transfer');
-            const linkedBadge = isLinked
-                ? `<span class="linked-indicator" data-transaction-id="${transaction.id}" data-linked-id="${transaction.linkedTransactionId}" data-linked-account-id="${transaction.linkedAccountId || ''}" title="${linkedTitle}">&#x1F517; ${linkedLabel}</span>`
-                : '';
-            const isSplit = transaction.isSplit || transaction.is_split;
-            const splitBadge = isSplit
-                ? `<span class="split-indicator" title="${isSplitPortion
-                    ? t('budget', 'Part of a split transaction. The amount shown is the part in this category.')
-                    : t('budget', 'Split transaction')}">${isSplitPortion ? t('budget', 'Split part') : t('budget', 'Split')}</span>`
-                : '';
-            const sharedStatus = this.sharedTransactionStatuses?.[transaction.id];
-            const sharedBadge = sharedStatus === 'shared'
-                ? `<span class="shared-indicator" title="${t('budget', 'Shared expense - unsettled')}">&#x1F91D; ${t('budget', 'Shared')}</span>`
-                : sharedStatus === 'settled'
-                ? `<span class="shared-settled-indicator" title="${t('budget', 'Shared expense - settled')}">&#x2705; ${t('budget', 'Settled')}</span>`
-                : '';
-            const scheduledBadge = transaction.status === 'scheduled'
-                ? `<span class="scheduled-badge" title="${t('budget', 'Future transaction — not counted in the current balance until it occurs')}">${t('budget', 'Scheduled')}</span>`
-                : '';
-            const pendingBadge = transaction.status === 'pending'
-                ? `<span class="pending-badge" title="${t('budget', 'Not yet posted by your bank')}">${t('budget', 'Pending')}</span>`
-                : '';
-            const forecastExcludedBadge = transaction.excludedFromForecast
-                ? `<span class="forecast-excluded-badge" title="${t('budget', 'Excluded from forecast (extraordinary / one-time)')}">${t('budget', 'No forecast')}</span>`
-                : '';
-            const attachmentCount = this.attachmentCounts?.[transaction.id];
-            const attachmentBadge = attachmentCount
-                ? `<span class="attachment-indicator" title="${n('budget', '%n receipt attached', '%n receipts attached', attachmentCount)}">&#x1F4CE;${attachmentCount > 1 ? ' ' + attachmentCount : ''}</span>`
-                : '';
-            const pensionBadge = transaction.pensionContribId
-                ? `<span class="pension-indicator" title="${t('budget', 'Funds a pension contribution — excluded from spending')}">${t('budget', 'Pension')}</span>`
-                : '';
-            return `
-                <tr class="transaction-row ${isLinked ? 'is-linked' : ''}${transaction.reconciled ? ' is-reconciled' : ''}${transaction.status === 'scheduled' ? ' scheduled-transaction' : ''}${transaction.status === 'pending' ? ' pending-transaction' : ''}" data-transaction-id="${transaction.id}">
-                    <td class="select-column">
-                        <input type="checkbox" class="transaction-checkbox"
-                               data-transaction-id="${transaction.id}"
-                               ${this.transactionsModule.selectedTransactions?.has(transaction.id) ? 'checked' : ''}>
-                    </td>
-                    <td class="date-column editable-cell"
-                        data-field="date"
-                        data-value="${transaction.date}"
-                        data-transaction-id="${transaction.id}">
-                        <span class="cell-display">${this.formatDate(transaction.date)}</span>
-                    </td>
-                    <td class="description-column editable-cell"
-                        data-field="description"
-                        data-value="${this.escapeHtml(transaction.description)}"
-                        data-transaction-id="${transaction.id}">
-                        <div class="transaction-description">
-                            <span class="primary-text cell-display">${this.escapeHtml(transaction.description) || t('budget', 'No description')}</span>
-                            ${transaction.reference ? `<span class="secondary-text">${this.escapeHtml(transaction.reference)}</span>` : ''}
-                            ${(scheduledBadge || linkedBadge || splitBadge || sharedBadge || pendingBadge || forecastExcludedBadge || attachmentBadge || pensionBadge) ? `<div class="transaction-badges">${scheduledBadge}${pendingBadge}${forecastExcludedBadge}${attachmentBadge}${linkedBadge}${splitBadge}${sharedBadge}${pensionBadge}</div>` : ''}
-                        </div>
-                    </td>
-                    <td class="vendor-column editable-cell"
-                        data-field="vendor"
-                        data-value="${this.escapeHtml(transaction.vendor || '')}"
-                        data-transaction-id="${transaction.id}">
-                        <span class="cell-display">${this.escapeHtml(transaction.vendor) || '-'}</span>
-                    </td>
-                    <td class="category-column ${isSplit ? '' : 'editable-cell'}"
-                        data-field="categoryId"
-                        data-value="${transaction.categoryId || ''}"
-                        data-transaction-id="${transaction.id}"
-                        ${isSplit && transaction.splitCategories ? 'title="' + transaction.splitCategories.map(s => this.escapeHtml((s.categoryName || t('budget', 'Uncategorized')) + ': ' + this.formatCurrency(s.amount, currency))).join('&#10;') + '"' : ''}>
-                        ${isSplit && transaction.splitCategories
-                            ? (() => {
-                                const splitLabel = transaction.splitCategories.map(s =>
-                                    '<span class="split-cat-item' + (s.matched ? ' is-match' : '') + '">'
-                                    + this.escapeHtml(s.categoryName || t('budget', 'Uncategorized')) + '</span>'
-                                ).join(' / ');
-                                return '<span class="category-badge cell-display split-category">' + splitLabel + '</span>';
-                            })()
-                            : isSplit
-                            ? `<span class="category-badge cell-display split-category">${t('budget', 'Split')}</span>`
-                            : `<span class="category-badge cell-display ${category ? 'categorized' : 'uncategorized'}">
-                                ${category ? this.escapeHtml(category.name) : t('budget', 'Uncategorized')}
-                            </span>`
-                        }
-                    </td>
-                    <td class="tags-column editable-cell"
-                        data-field="tags"
-                        data-value="${this.getTransactionTagIds(transaction.id).join(',')}"
-                        data-category-id="${transaction.categoryId || ''}"
-                        data-transaction-id="${transaction.id}">
-                        <span class="cell-display">
-                            ${this.renderTransactionTags(transaction.id)}
-                        </span>
-                    </td>
-                    <td class="amount-column ${isSplitPortion ? 'split-portion' : 'editable-cell'}"
-                        data-field="amount"
-                        data-value="${transaction.amount}"
-                        data-type="${transaction.type}"
-                        data-transaction-id="${transaction.id}"
-                        ${isSplitPortion ? `title="${t('budget', 'This amount is set by the transaction split. Open the split to change it.')}"` : ''}>
-                        <span class="amount cell-display ${amountClass}">${displayAmount}</span>
-                        ${showsWholeToo ? `<span class="amount-whole">${t('budget', 'of {total}', { total: formattedAmount })}</span>` : ''}
-                    </td>
-                    <td class="balance-column">
-                        ${balanceMap !== null && balanceMap[transaction.id] !== undefined
-                            ? `<span class="transaction-balance ${balanceMap[transaction.id] >= 0 ? 'positive' : 'negative'}">${this.formatCurrency(balanceMap[transaction.id], currency)}</span>`
-                            : ''}
-                    </td>
-                    <td class="account-column editable-cell"
-                        data-field="accountId"
-                        data-value="${transaction.accountId}"
-                        data-transaction-id="${transaction.id}">
-                        <span class="account-name cell-display">${account ? this.escapeHtml(account.name) : t('budget', 'Unknown Account')}</span>
-                    </td>
-                    <td class="actions-column">
-                        <div class="transaction-actions">
-                            <button class="action-btn more-actions-btn"
-                                    data-transaction-id="${transaction.id}"
-                                    title="${t('budget', 'More actions')}">
-                                <span aria-hidden="true">&#x22EE;</span>
-                            </button>
-                            <button class="action-btn edit-btn transaction-edit-btn"
-                                    data-transaction-id="${transaction.id}"
-                                    title="${t('budget', 'Edit transaction')}">
-                                <span class="icon-rename" aria-hidden="true"></span>
-                            </button>
-                            <button class="action-btn delete-btn transaction-delete-btn"
-                                    data-transaction-id="${transaction.id}"
-                                    title="${t('budget', 'Delete transaction')}">
-                                <span class="icon-delete" aria-hidden="true"></span>
-                            </button>
-                        </div>
-                    </td>
-                </tr>
-            `;
+            return renderTransactionRow(transaction, {
+                variant: 'ledger',
+                accounts: this.accounts,
+                categories: this.categories,
+                currency: transaction.accountCurrency || account?.currency || this.getPrimaryCurrency(),
+                formatCurrency: (amount, currency) => this.formatCurrency(amount, currency),
+                formatDate: (date) => this.formatDate(date),
+                balance: balances && balances[transaction.id] !== undefined ? parseFloat(balances[transaction.id]) : undefined,
+                sharedStatus: this.sharedTransactionStatuses?.[transaction.id],
+                attachmentCount: this.attachmentCounts?.[transaction.id],
+                selected: this.transactionsModule.selectedTransactions?.has(transaction.id),
+                tagsHtml: this.renderTransactionTags(transaction.id),
+                tagIds: this.getTransactionTagIds(transaction.id),
+            });
         }).join('');
 
         this.recoverStaleAccounts();
@@ -1348,12 +1287,7 @@ class BudgetApp {
 
         this._recoveringAccounts = true;
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/accounts'), {
-                headers: this.getAuthHeaders(),
-            });
-            if (!response.ok) return;
-
-            const data = await response.json();
+            const data = await apiFetch('/apps/budget/api/accounts').catch(() => null);
             if (!Array.isArray(data)) return;
 
             this.accounts = data;
@@ -1391,11 +1325,11 @@ class BudgetApp {
 
         return tags.map(tag => `
             <span class="tag-chip"
-                  style="display: inline-block; background-color: ${this.escapeHtml(tag.color)}; color: white;
+                  style="display: inline-block; background-color: ${dom.escapeHtml(tag.color)}; color: white;
                          padding: 2px 6px; border-radius: 10px; font-size: 10px; line-height: 14px; margin: 0 2px 2px 0;
                          vertical-align: middle;"
-                  title="${this.escapeHtml(tag.name)}">
-                ${this.escapeHtml(tag.name)}
+                  title="${dom.escapeHtml(tag.name)}">
+                ${dom.escapeHtml(tag.name)}
             </span>
         `).join('');
     }
@@ -1539,17 +1473,7 @@ class BudgetApp {
                 url += '&' + params.toString();
             }
 
-            const response = await fetch(OC.generateUrl(url), {
-                headers: {
-                    'requesttoken': OC.requestToken
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-
-            const result = await response.json();
+            const result = await apiFetch(url);
             this.transactions = Array.isArray(result) ? result : (result.transactions || result);
             this.runningBalances = result.runningBalances ?? null;
             // Total matching the current filter across all pages — drives the
@@ -1558,7 +1482,7 @@ class BudgetApp {
 
             // Load tags, shared status and attachment counts for all displayed transactions
             await Promise.all([
-                this.loadAllTransactionTags(),
+                this.loadAllTransactionTags(result.tags),
                 this.loadSharedTransactionIds(),
                 this.loadAttachmentCounts(),
             ]);
@@ -1635,28 +1559,13 @@ class BudgetApp {
         }
 
         if (totalElement && this.transactions) {
-            const total = this.transactions.reduce((sum, tx) => {
-                // Scheduled rows are future placeholders (e.g. a bill's next
-                // occurrence) — no money has moved yet, so keep them out of
-                // the displayed total (#311).
-                if (tx.status === 'scheduled') return sum;
-                // Under a category filter a split row counts for its share of
-                // the transaction, so this total matches the spending chart it
-                // was opened from instead of the whole receipt (#359).
-                const amount = transactionDisplayAmount(tx);
-                return sum + (tx.type === 'credit' ? amount : -amount);
-            }, 0);
-
-            // Determine most common currency from displayed transactions
-            const currencyCounts = {};
-            this.transactions.forEach(tx => {
-                const currency = tx.accountCurrency || this.getPrimaryCurrency();
-                currencyCounts[currency] = (currencyCounts[currency] || 0) + 1;
-            });
-            const mostCommonCurrency = Object.entries(currencyCounts)
-                .sort((a, b) => b[1] - a[1])[0]?.[0] || this.getPrimaryCurrency();
-
-            totalElement.textContent = t('budget', 'Total: {amount}', { amount: this.formatCurrency(total, mostCommonCurrency) });
+            // One figure per currency: euro and pound rows added together
+            // gave a total in neither (see transactionTotalsByCurrency)
+            const totals = transactionTotalsByCurrency(this.transactions, this.getPrimaryCurrency());
+            const amount = totals.length > 0
+                ? totals.map(({ currency, total }) => this.formatCurrency(total, currency)).join(' · ')
+                : this.formatCurrency(0, this.getPrimaryCurrency());
+            totalElement.textContent = t('budget', 'Total: {amount}', { amount });
         }
     }
 
@@ -1703,33 +1612,28 @@ class BudgetApp {
     // Import Module Delegations
     // ============================================
 
-    setupImportEventListeners() {
-        return this.importModule.setupImportEventListeners();
+    async loadImportView() {
+        const importModule = await this.lazyModule('importModule');
+        // The wizard's markup is permanent, so its listeners are bound once
+        if (!this._importListenersBound) {
+            this._importListenersBound = true;
+            importModule.setupImportEventListeners();
+        }
+        // What import folders are holding for review, each time the page is opened (#425)
+        importModule.reviewQueue.load();
     }
 
     async handleImportFile(file) {
+        await this.loadImportView();
         return this.importModule.handleImportFile(file);
     }
-
-    // ============================================
-    // Forecast Module Delegations
-    // ============================================
-
-    setupForecastEventListeners() {
-        // This method may not exist in ForecastModule yet
-        // For now, just return to prevent errors
-        if (this.forecastModule.setupForecastEventListeners) {
-            return this.forecastModule.setupForecastEventListeners();
-        }
-    }
-
 
     // ===========================
     // Reports Management - delegated to ReportsModule
     // ===========================
 
     async loadReportsView() {
-        return this.reportsModule.loadReportsView();
+        return (await this.lazyModule('reportsModule')).loadReportsView();
     }
 
     // ==========================================
@@ -1737,7 +1641,7 @@ class BudgetApp {
     // ==========================================
 
     async loadForecastView() {
-        return this.forecastModule.loadForecastView();
+        return (await this.lazyModule('forecastModule')).loadForecastView();
     }
 
     // Shared Expenses - delegated to SharedExpensesModule
@@ -1755,43 +1659,9 @@ class BudgetApp {
     // ===========================
 
     setupSettingsEventListeners() {
-        // Save buttons (both top and bottom)
-        const saveButtons = [
-            document.getElementById('save-settings-btn'),
-            document.getElementById('save-settings-btn-bottom')
-        ];
-
-        saveButtons.forEach(btn => {
-            if (btn) {
-                btn.addEventListener('click', () => this.saveSettings());
-            }
-        });
-
-        // Reset buttons (both top and bottom)
-        const resetButtons = [
-            document.getElementById('reset-settings-btn'),
-            document.getElementById('reset-settings-btn-bottom')
-        ];
-
-        resetButtons.forEach(btn => {
-            if (btn) {
-                btn.addEventListener('click', () => this.resetSettings());
-            }
-        });
-
-        // Number format preview update
-        const numberFormatInputs = [
-            'setting-number-format-decimals',
-            'setting-number-format-decimal-sep',
-            'setting-number-format-thousands-sep'
-        ];
-
-        numberFormatInputs.forEach(id => {
-            const element = document.getElementById(id);
-            if (element) {
-                element.addEventListener('change', () => this.updateNumberFormatPreview());
-            }
-        });
+        // Settings save as they change (SettingsModule.setupAutoSave); only
+        // Reset has a button, in the Danger Zone.
+        document.getElementById('reset-settings-btn')?.addEventListener('click', () => this.resetSettings());
 
         // Migration event listeners
         this.setupMigrationEventListeners();
@@ -1816,19 +1686,10 @@ class BudgetApp {
             btn.innerHTML = '<span class="icon-loading-small" aria-hidden="true"></span> ' + t('budget', 'Recalculating...');
 
             try {
-                const response = await fetch(OC.generateUrl('/apps/budget/api/setup/recalculate-balances'), {
+                const data = await apiFetch('/apps/budget/api/setup/recalculate-balances', {
                     method: 'POST',
-                    headers: {
-                        'requesttoken': OC.requestToken,
-                        'Content-Type': 'application/json'
-                    }
+                    errorMessage: t('budget', 'Recalculation failed'),
                 });
-
-                const data = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(data.error || t('budget', 'Recalculation failed'));
-                }
 
                 if (data.updated > 0) {
                     showSuccess(t('budget', 'Recalculated {updated} of {total} account balances', { updated: data.updated, total: data.total }));
@@ -1856,14 +1717,9 @@ class BudgetApp {
             btn.innerHTML = '<span class="icon-loading-small" aria-hidden="true"></span> ' + t('budget', 'Scanning...');
 
             try {
-                const response = await fetch(OC.generateUrl('/apps/budget/api/setup/diagnose'), {
-                    headers: { 'requesttoken': OC.requestToken }
+                const data = await apiFetch('/apps/budget/api/setup/diagnose', {
+                    errorMessage: t('budget', 'Diagnosis failed'),
                 });
-
-                const data = await response.json();
-                if (!response.ok) {
-                    throw new Error(data.error || t('budget', 'Diagnosis failed'));
-                }
 
                 this._showRepairDataModal(data);
             } catch (error) {
@@ -1893,10 +1749,7 @@ class BudgetApp {
         modal.id = 'repair-data-modal';
         modal.className = 'budget-modal-overlay';
 
-        const formatCurrency = (amount) => {
-            const currency = this.settings?.default_currency || '';
-            return new Intl.NumberFormat(undefined, { style: 'currency', currency: currency || 'USD', minimumFractionDigits: 2 }).format(amount);
-        };
+        const formatCurrency = (amount) => this.formatCurrency(amount, this.getPrimaryCurrency());
 
         // Build findings HTML
         let findingsHtml = '';
@@ -1906,16 +1759,27 @@ class BudgetApp {
         } else {
             findingsHtml = `<div class="repair-summary"><p>${t('budget', 'Found {count} issue(s) across {categories} categories.', { count: totalIssues, categories: (dupCount > 0 ? 1 : 0) + (stuckCount > 0 ? 1 : 0) + (paidOneTimeCount > 0 ? 1 : 0) + (futureCount > 0 ? 1 : 0) + (driftCount > 0 ? 1 : 0) + (signCount > 0 ? 1 : 0) })}</p></div>`;
 
-            // Duplicate transactions
+            // Duplicate transactions. A tick per row, because a payment that
+            // only looks like a duplicate is a real payment lost for good when
+            // it is deleted. Only pairs the scan is sure of come ticked.
             if (dupCount > 0) {
-                const dupItems = findings.duplicateTransactions.slice(0, 20).map(d =>
-                    `<div class="repair-item">
-                        <span>${d.vendor || t('budget', '(unnamed)')}</span>
+                const dupItems = findings.duplicateTransactions.map(d => {
+                    let note = d.reason === 'same_occurrence'
+                        ? t('budget', 'Looks like a second payment for {occurrence} (other payment on {date})', { occurrence: d.occurrence, date: d.originalDate })
+                        : t('budget', 'Also recorded as {description} on {date}', { description: d.originalDescription || t('budget', '(unnamed)'), date: d.originalDate });
+                    if (d.originalReconciled) {
+                        note += ` (${t('budget', 'reconciled')})`;
+                    }
+                    return `<div class="repair-item">
+                        <label class="repair-item-select">
+                            <input type="checkbox" class="repair-dup-checkbox" data-transaction-id="${Number(d.duplicateId)}"${d.selected ? ' checked' : ''}>
+                            <span>${dom.escapeHtml(d.vendor) || t('budget', '(unnamed)')}</span>
+                        </label>
                         <span>${formatCurrency(d.amount)}</span>
-                        <span>${d.date}</span>
-                        <span class="repair-item-note">${t('budget', 'duplicate of')} ${d.originalDate}</span>
-                    </div>`
-                ).join('');
+                        <span>${dom.escapeHtml(d.date)}</span>
+                        <span class="repair-item-note">${note}</span>
+                    </div>`;
+                }).join('');
 
                 findingsHtml += `
                     <div class="repair-category" data-category="duplicateTransactions">
@@ -1923,19 +1787,27 @@ class BudgetApp {
                             <h4><input type="checkbox" class="repair-checkbox" checked> ${t('budget', 'Duplicate Auto-Generated Transactions')}</h4>
                             <span class="repair-category-count">${dupCount}</span>
                         </div>
-                        <div class="repair-category-details">${dupItems}${dupCount > 20 ? `<p>... ${t('budget', 'and {more} more', { more: dupCount - 20 })}</p>` : ''}</div>
+                        <div class="repair-category-details">
+                            <p class="repair-category-help">${t('budget', 'Only ticked rows are deleted. Rows that come ticked are bill payments the app recorded that an imported bank transaction records as well. The others only look like duplicates and may be real payments: check them in the account first, and tick only the ones you are sure about.')}</p>
+                            ${dupItems}
+                        </div>
                     </div>`;
             }
 
-            // Stuck bills
+            // Stuck bills. Only the ones known to be stuck are moved on; the
+            // rest may be overdue with a payment still owed.
             if (stuckCount > 0) {
                 const stuckItems = findings.stuckBills.map(b =>
                     `<div class="repair-item">
-                        <span>${b.name}</span>
+                        <span>${dom.escapeHtml(b.name)}</span>
                         <span>${t('budget', 'Due: {date}', { date: b.nextDueDate })}</span>
                         <span>${t('budget', 'Paid: {date}', { date: b.lastPaidDate })}</span>
+                        ${b.fixable ? '' : `<span class="repair-item-note">${t('budget', 'Check: not changed')}</span>`}
                     </div>`
                 ).join('');
+                const stuckHelp = findings.stuckBills.some(b => !b.fixable)
+                    ? `<p class="repair-category-help">${t('budget', 'Repairing moves these bills on to their next due date, with their pending transaction. Bills marked Check are left as they are: their due date is before the last payment, which is also how an overdue bill with another payment still owed looks. If that payment was made, use Skip on the Bills page.')}</p>`
+                    : '';
 
                 findingsHtml += `
                     <div class="repair-category" data-category="stuckBills">
@@ -1943,7 +1815,7 @@ class BudgetApp {
                             <h4><input type="checkbox" class="repair-checkbox" checked> ${t('budget', 'Bills with Stuck Due Dates')}</h4>
                             <span class="repair-category-count">${stuckCount}</span>
                         </div>
-                        <div class="repair-category-details">${stuckItems}</div>
+                        <div class="repair-category-details">${stuckHelp}${stuckItems}</div>
                     </div>`;
             }
 
@@ -1951,7 +1823,7 @@ class BudgetApp {
             if (paidOneTimeCount > 0) {
                 const paidOneTimeItems = findings.paidOneTimeBills.map(b =>
                     `<div class="repair-item">
-                        <span>${b.name}</span>
+                        <span>${dom.escapeHtml(b.name)}</span>
                         <span>${formatCurrency(b.amount)}</span>
                         <span>${t('budget', 'Paid: {date}', { date: b.lastPaidDate })}</span>
                     </div>`
@@ -1971,12 +1843,17 @@ class BudgetApp {
             if (futureCount > 0) {
                 const futureItems = findings.futureClearedTransactions.slice(0, 20).map(f =>
                     `<div class="repair-item">
-                        <span>${f.description || t('budget', '(unnamed)')}</span>
+                        <span>${dom.escapeHtml(f.description) || t('budget', '(unnamed)')}</span>
                         <span>${formatCurrency(f.amount)}</span>
-                        <span>${f.date}</span>
-                        <span class="repair-item-note">${f.accountName}</span>
+                        <span>${dom.escapeHtml(f.date)}</span>
+                        <span class="repair-item-note">${dom.escapeHtml(f.accountName)}${f.review ? ` · ${t('budget', 'Check: not changed')}` : ''}</span>
                     </div>`
                 ).join('');
+                // Bill payments and reconciled rows stay as they are: as
+                // scheduled, a bill's payment would be taken for its pending row
+                const futureHelp = findings.futureClearedTransactions.some(f => f.review)
+                    ? `<p class="repair-category-help">${t('budget', 'Repairing marks these as scheduled, so they count in the balance from their date. Bill payments and reconciled transactions marked Check are left as they are: check their dates on the Transactions page.')}</p>`
+                    : '';
 
                 findingsHtml += `
                     <div class="repair-category" data-category="futureClearedTransactions">
@@ -1984,7 +1861,7 @@ class BudgetApp {
                             <h4><input type="checkbox" class="repair-checkbox" checked> ${t('budget', 'Future Transactions Not Marked as Scheduled')}</h4>
                             <span class="repair-category-count">${futureCount}</span>
                         </div>
-                        <div class="repair-category-details">${futureItems}${futureCount > 20 ? `<p>... ${t('budget', 'and {more} more', { more: futureCount - 20 })}</p>` : ''}</div>
+                        <div class="repair-category-details">${futureHelp}${futureItems}${futureCount > 20 ? `<p>... ${t('budget', 'and {more} more', { more: futureCount - 20 })}</p>` : ''}</div>
                     </div>`;
             }
 
@@ -1996,7 +1873,7 @@ class BudgetApp {
                     `<div class="repair-item">
                         <label class="repair-item-select">
                             <input type="checkbox" class="repair-account-checkbox" data-account-id="${a.accountId}" checked>
-                            <span>${a.accountName}</span>
+                            <span>${dom.escapeHtml(a.accountName)}</span>
                         </label>
                         <span>${t('budget', 'Now: {amount} in credit', { amount: formatCurrency(Math.abs(a.currentBalance)) })}</span>
                         <span>${t('budget', 'After repair: {amount} owed', { amount: formatCurrency(Math.abs(a.repairedBalance)) })}</span>
@@ -2021,9 +1898,9 @@ class BudgetApp {
                 const splitCatItems = findings.splitParentCategories.slice(0, 20).map(tx => {
                     const category = this.categories?.find(c => c.id === tx.categoryId);
                     return `<div class="repair-item">
-                        <span>${this.escapeHtml(tx.description || tx.vendor || t('budget', 'Transaction'))}</span>
-                        <span>${this.escapeHtml(this.formatDate(tx.date))}</span>
-                        <span>${t('budget', 'Listed under {category}', { category: this.escapeHtml(category ? category.name : t('budget', 'Uncategorized')) })}</span>
+                        <span>${dom.escapeHtml(tx.description || tx.vendor || t('budget', 'Transaction'))}</span>
+                        <span>${dom.escapeHtml(this.formatDate(tx.date))}</span>
+                        <span>${t('budget', 'Listed under {category}', { category: dom.escapeHtml(category ? category.name : t('budget', 'Uncategorized')) }, undefined, { escape: false })}</span>
                     </div>`;
                 }).join('');
 
@@ -2044,7 +1921,7 @@ class BudgetApp {
             if (driftCount > 0) {
                 const driftItems = findings.balanceDrift.map(a =>
                     `<div class="repair-item">
-                        <span>${a.accountName}</span>
+                        <span>${dom.escapeHtml(a.accountName)}</span>
                         <span>${t('budget', 'Stored: {amount}', { amount: formatCurrency(a.storedBalance) })}</span>
                         <span>${t('budget', 'Expected: {amount}', { amount: formatCurrency(a.expectedBalance) })}</span>
                         <span class="repair-item-note">${t('budget', 'Diff: {amount}', { amount: formatCurrency(a.difference) })}</span>
@@ -2066,7 +1943,7 @@ class BudgetApp {
             <div class="budget-modal" style="max-width: 700px;">
                 <div class="budget-modal-header">
                     <h2>${t('budget', 'Data Integrity Report')}</h2>
-                    <button class="close-btn" title="${t('budget', 'Close')}">&times;</button>
+                    <button class="close-btn" title="${t('budget', 'Close')}" aria-label="${t('budget', 'Close')}">&times;</button>
                 </div>
                 <div class="budget-modal-body">
                     ${findingsHtml}
@@ -2122,24 +1999,22 @@ class BudgetApp {
                 const accountIds = Array.from(
                     modal.querySelectorAll('.repair-account-checkbox:checked')
                 ).map(cb => parseInt(cb.dataset.accountId, 10)).filter(Number.isFinite);
+                // Only the duplicate rows left ticked are deleted. Always an
+                // array too: without it the server falls back to the ones it
+                // is sure of, whatever the user unticked.
+                const transactionIds = Array.from(
+                    modal.querySelectorAll('.repair-dup-checkbox:checked')
+                ).map(cb => parseInt(cb.dataset.transactionId, 10)).filter(Number.isFinite);
 
                 repairBtn.disabled = true;
                 repairBtn.innerHTML = '<span class="icon-loading-small"></span> ' + t('budget', 'Repairing...');
 
                 try {
-                    const response = await fetch(OC.generateUrl('/apps/budget/api/setup/repair'), {
+                    const result = await apiFetch('/apps/budget/api/setup/repair', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'requesttoken': OC.requestToken
-                        },
-                        body: JSON.stringify({ categories: selectedCategories, accountIds })
+                        body: { categories: selectedCategories, accountIds, transactionIds },
+                        errorMessage: t('budget', 'Repair failed'),
                     });
-
-                    const result = await response.json();
-                    if (!response.ok) {
-                        throw new Error(result.error || t('budget', 'Repair failed'));
-                    }
 
                     cleanup();
 
@@ -2266,22 +2141,13 @@ class BudgetApp {
                 confirmBtn.innerHTML = '<span class="icon-loading-small" aria-hidden="true"></span> ' + t('budget', 'Deleting...');
             }
 
-            const response = await fetch(OC.generateUrl('/apps/budget/api/setup/factory-reset'), {
+            await apiFetch('/apps/budget/api/setup/factory-reset', {
                 method: 'POST',
-                headers: {
-                    'requesttoken': OC.requestToken,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
+                body: {
                     confirmed: true
-                })
+                },
+                errorMessage: t('budget', 'Factory reset failed'),
             });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || t('budget', 'Factory reset failed'));
-            }
 
             // Close modal
             this.closeFactoryResetModal();
@@ -2379,15 +2245,10 @@ class BudgetApp {
             exportBtn.disabled = true;
             exportBtn.innerHTML = '<span class="icon-loading-small"></span> ' + t('budget', 'Exporting...');
 
-            const response = await fetch(OC.generateUrl('/apps/budget/api/migration/export'), {
-                headers: {
-                    'requesttoken': OC.requestToken
-                }
+            const response = await apiFetch('/apps/budget/api/migration/export', {
+                responseType: 'response',
+                errorMessage: t('budget', 'Export failed'),
             });
-
-            if (!response.ok) {
-                throw new Error(t('budget', 'Export failed'));
-            }
 
             // Get filename from Content-Disposition header or use default
             const contentDisposition = response.headers.get('Content-Disposition');
@@ -2441,24 +2302,20 @@ class BudgetApp {
             const formData = new FormData();
             formData.append('file', file);
 
-            const response = await fetch(OC.generateUrl('/apps/budget/api/migration/preview'), {
+            const result = await apiFetch('/apps/budget/api/migration/preview', {
                 method: 'POST',
-                headers: {
-                    'requesttoken': OC.requestToken
-                },
-                body: formData
+                body: formData,
+                errorMessage: t('budget', 'Invalid export file'),
             });
 
-            const result = await response.json();
-
-            if (!response.ok || !result.valid) {
-                throw new Error(result.error || t('budget', 'Invalid export file'));
+            if (!result?.valid) {
+                throw new Error(result?.error || t('budget', 'Invalid export file'));
             }
 
             // Populate preview
             document.getElementById('preview-version').textContent = result.manifest?.version || t('budget', 'Unknown');
             document.getElementById('preview-date').textContent = result.manifest?.exportedAt
-                ? new Date(result.manifest.exportedAt).toLocaleString()
+                ? new Date(result.manifest.exportedAt).toLocaleString(formatters.userLocale())
                 : t('budget', 'Unknown');
 
             document.getElementById('preview-categories').textContent = result.counts?.categories || 0;
@@ -2517,20 +2374,16 @@ class BudgetApp {
             formData.append('file', this.migrationFile);
             formData.append('confirmed', 'true');
 
-            const response = await fetch(OC.generateUrl('/apps/budget/api/migration/import'), {
+            const data = await apiFetch('/apps/budget/api/migration/import', {
                 method: 'POST',
-                headers: {
-                    'requesttoken': OC.requestToken
-                },
-                body: formData
+                body: formData,
+                errorMessage: t('budget', 'Import failed'),
             });
-
-            const data = await response.json();
 
             progress.style.display = 'none';
 
-            if (!response.ok || !data.success) {
-                throw new Error(data.error || t('budget', 'Import failed'));
+            if (!data?.success) {
+                throw new Error(data?.error || t('budget', 'Import failed'));
             }
 
             // Show success result
@@ -2548,6 +2401,7 @@ class BudgetApp {
                         <div class="result-count"><strong>${data.counts.importRules}</strong> ${t('budget', 'import rules')}</div>
                         <div class="result-count"><strong>${data.counts.settings}</strong> ${t('budget', 'settings')}</div>
                     </div>
+                    ${(Array.isArray(data.warnings) ? data.warnings : []).map(warning => `<p class="result-hint">${dom.escapeHtml(warning)}</p>`).join('')}
                 </div>
             `;
             result.style.display = 'block';
@@ -2566,7 +2420,7 @@ class BudgetApp {
                 <div class="result-error">
                     <span class="icon-error-color"></span>
                     <h5>${t('budget', 'Import Failed')}</h5>
-                    <p>${error.message}</p>
+                    <p>${dom.escapeHtml(error.message)}</p>
                     <p class="result-hint">${t('budget', 'Your existing data has not been modified.')}</p>
                 </div>
             `;
@@ -2601,7 +2455,10 @@ class BudgetApp {
 
     // Bank Sync - delegated to BankSyncModule
     async loadBankSyncView() {
-        return this.bankSyncModule.loadBankSyncView();
+        const bankSyncModule = await this.lazyModule('bankSyncModule');
+        // Binds its listeners once
+        bankSyncModule.setupEventListeners();
+        return bankSyncModule.loadBankSyncView();
     }
 
     // Settings - delegated to SettingsModule
@@ -2625,7 +2482,7 @@ class BudgetApp {
     // Bills Management - delegated to BillsModule
     // ==========================================
     async loadBillsView() {
-        return this.billsModule.loadBillsView();
+        return (await this.lazyModule('billsModule')).loadBillsView();
     }
 
     async loadTransfersView() {
@@ -2633,11 +2490,11 @@ class BudgetApp {
     }
 
     async loadRulesView() {
-        return this.rulesModule.loadRulesView();
+        return (await this.lazyModule('rulesModule')).loadRulesView();
     }
 
     async loadExchangeRatesView() {
-        return this.exchangeRatesModule.loadExchangeRatesView();
+        return (await this.lazyModule('exchangeRatesModule')).loadExchangeRatesView();
     }
 
     // ============================================
@@ -2697,7 +2554,7 @@ class BudgetApp {
     // ============================================
 
     async loadProjectsView() {
-        return this.projectsModule.loadProjectsView();
+        return (await this.lazyModule('projectsModule')).loadProjectsView();
     }
 
     async loadSavingsGoalsView() {
@@ -2751,15 +2608,18 @@ class BudgetApp {
     async loadDebtPayoffView() {
         try {
             // Fetch summary, debts, and scenarios in parallel
-            const [summaryRes, debtsRes, scenariosRes] = await Promise.all([
-                fetch(OC.generateUrl('/apps/budget/api/debts/summary'), { headers: { 'requesttoken': OC.requestToken } }),
-                fetch(OC.generateUrl('/apps/budget/api/debts'), { headers: { 'requesttoken': OC.requestToken } }),
-                fetch(OC.generateUrl('/apps/budget/api/debt-scenarios'), { headers: { 'requesttoken': OC.requestToken } }),
+            // A refused request falls back to empty; a network failure still aborts
+            const orEmpty = (request, empty) => request.catch(error => {
+                if (error instanceof ApiError) return empty;
+                throw error;
+            });
+            const [summary, debtAccounts, debtScenarios] = await Promise.all([
+                orEmpty(apiFetch('/apps/budget/api/debts/summary'), {}),
+                orEmpty(apiFetch('/apps/budget/api/debts'), []),
+                orEmpty(apiFetch('/apps/budget/api/debt-scenarios'), []),
             ]);
-
-            const summary = summaryRes.ok ? await summaryRes.json() : {};
-            this.debtAccounts = debtsRes.ok ? await debtsRes.json() : [];
-            this.debtScenarios = scenariosRes.ok ? await scenariosRes.json() : [];
+            this.debtAccounts = debtAccounts;
+            this.debtScenarios = debtScenarios;
 
             const currency = this.getPrimaryCurrency();
 
@@ -2795,11 +2655,9 @@ class BudgetApp {
 
     async calculateAndDisplayScenario(scenarioId) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/debt-scenarios/${scenarioId}/calculate`), {
-                headers: { 'requesttoken': OC.requestToken }
+            const plan = await apiFetch(`/apps/budget/api/debt-scenarios/${scenarioId}/calculate`, {
+                errorMessage: 'Failed to calculate scenario',
             });
-            if (!response.ok) throw new Error('Failed to calculate scenario');
-            const plan = await response.json();
             this.currentDebtPlan = plan;
             this.updateDebtSummaryFromPlan(plan);
             this.renderDebtPayoffChart(plan, this.debtChartMode || 'area');
@@ -2812,11 +2670,9 @@ class BudgetApp {
 
     async calculateDefaultPlan() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/debts/payoff-plan?strategy=avalanche'), {
-                headers: { 'requesttoken': OC.requestToken }
+            const plan = await apiFetch('/apps/budget/api/debts/payoff-plan?strategy=avalanche', {
+                errorMessage: 'Failed to calculate payoff plan',
             });
-            if (!response.ok) throw new Error('Failed to calculate payoff plan');
-            const plan = await response.json();
             this.currentDebtPlan = plan;
             this.updateDebtSummaryFromPlan(plan);
             this.renderDebtPayoffChart(plan, 'area');
@@ -2847,11 +2703,11 @@ class BudgetApp {
         if (dateEl) {
             if (plan.payoffDate) {
                 const date = new Date(plan.payoffDate);
-                dateEl.textContent = date.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+                dateEl.textContent = date.toLocaleDateString(formatters.userLocale(), { month: 'short', year: 'numeric' });
             } else if (plan.totalMonths) {
                 const now = new Date();
                 now.setMonth(now.getMonth() + plan.totalMonths);
-                dateEl.textContent = now.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+                dateEl.textContent = now.toLocaleDateString(formatters.userLocale(), { month: 'short', year: 'numeric' });
             } else {
                 dateEl.textContent = t('budget', 'N/A');
             }
@@ -2887,9 +2743,8 @@ class BudgetApp {
         // Build labels from timeline months
         const labels = plan.timeline.map(entry => {
             if (entry.date) {
-                const d = new Date(entry.date);
-                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                return `${monthNames[d.getMonth()]} '${String(d.getFullYear()).slice(2)}`;
+                // Month names in the user's Nextcloud language, not English
+                return new Date(entry.date).toLocaleDateString(formatters.userLocale(), { month: 'short', year: '2-digit' });
             }
             return `${t('budget', 'Month')} ${entry.month || ''}`;
         });
@@ -2912,7 +2767,7 @@ class BudgetApp {
             });
 
             return {
-                label: this.escapeHtml(debt.name),
+                label: dom.escapeHtml(debt.name),
                 data,
                 borderColor: color,
                 backgroundColor: isArea ? color + '40' : 'transparent',
@@ -2946,7 +2801,7 @@ class BudgetApp {
                         stacked: isArea,
                         beginAtZero: true,
                         ticks: {
-                            callback: (value) => this.formatCurrency(value, this.getPrimaryCurrency()),
+                            callback: (value) => formatters.formatCurrencyCompact(value, this.getPrimaryCurrency(), this.settings),
                             color: getComputedStyle(document.documentElement).getPropertyValue('--color-text-maxcontrast').trim() || '#999',
                         },
                         grid: {
@@ -3010,6 +2865,11 @@ class BudgetApp {
 
         container.innerHTML = plan.debts.map((debt, index) => {
             const balance = parseFloat(debt.originalBalance) || 0;
+            // The plan is in the base currency; a debt in another one also
+            // shows what it owes in its own
+            const ownBalance = debt.currency && plan.currency && debt.currency !== plan.currency
+                ? ` (${this.formatCurrency(parseFloat(debt.nativeBalance) || 0, debt.currency)})`
+                : '';
             const rate = parseFloat(debt.interestRate) || 0;
             const minPayment = parseFloat(debt.minimumPayment) || 0;
             const interest = parseFloat(debt.interestPaid) || 0;
@@ -3019,14 +2879,14 @@ class BudgetApp {
             if (debt.payoffMonth) {
                 const payoffDate = new Date();
                 payoffDate.setMonth(payoffDate.getMonth() + debt.payoffMonth);
-                payoffDateStr = payoffDate.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+                payoffDateStr = payoffDate.toLocaleDateString(formatters.userLocale(), { month: 'short', year: 'numeric' });
             }
 
             return `
                 <div class="debt-card" data-debt-id="${debt.id || ''}" style="border-left-color: ${this._debtColor(index)};">
                     <div class="debt-card-header">
-                        <span class="debt-card-name">${this.escapeHtml(debt.name)}</span>
-                        <span class="debt-card-balance">${this.formatCurrency(balance, currency)}</span>
+                        <span class="debt-card-name">${dom.escapeHtml(debt.name)}</span>
+                        <span class="debt-card-balance">${this.formatCurrency(balance, currency)}${dom.escapeHtml(ownBalance)}</span>
                     </div>
                     <div class="debt-card-meta">
                         ${rate > 0 ? `<div>${t('budget', 'Interest Rate')}: ${rate.toFixed(1)}%</div>` : ''}
@@ -3068,12 +2928,12 @@ class BudgetApp {
             return `
                 <div class="debt-scenario-card ${isActive ? 'active' : ''} ${isSelected ? 'selected' : ''}"
                      data-scenario-id="${s.id}">
-                    <div class="scenario-card-name">${this.escapeHtml(s.name)}</div>
+                    <div class="scenario-card-name">${dom.escapeHtml(s.name)}</div>
                     <div class="scenario-card-meta">${strategy} · +${this.formatCurrency(extra, this.getPrimaryCurrency())}/mo</div>
                     <div class="scenario-card-actions">
-                        <button class="scenario-edit-btn" data-id="${s.id}" title="${t('budget', 'Edit')}">&#9998;</button>
-                        <button class="scenario-delete-btn" data-id="${s.id}" title="${t('budget', 'Delete')}">&times;</button>
-                        ${!isActive ? `<button class="scenario-activate-btn" data-id="${s.id}" title="${t('budget', 'Set as active')}">&#9733;</button>` : ''}
+                        <button class="scenario-edit-btn" data-id="${s.id}" title="${t('budget', 'Edit')}" aria-label="${t('budget', 'Edit')}">&#9998;</button>
+                        <button class="scenario-delete-btn" data-id="${s.id}" title="${t('budget', 'Delete')}" aria-label="${t('budget', 'Delete')}">&times;</button>
+                        ${!isActive ? `<button class="scenario-activate-btn" data-id="${s.id}" title="${t('budget', 'Set as active')}" aria-label="${t('budget', 'Set as active')}">&#9733;</button>` : ''}
                     </div>
                 </div>
             `;
@@ -3111,7 +2971,7 @@ class BudgetApp {
                 return `
                     <label>
                         <input type="checkbox" value="${debt.id}" ${checked ? 'checked' : ''} class="scenario-debt-checkbox">
-                        ${this.escapeHtml(debt.name)}
+                        ${dom.escapeHtml(debt.name)}
                         <span class="debt-detail">${balance} · ${rate}%</span>
                     </label>
                 `;
@@ -3126,8 +2986,8 @@ class BudgetApp {
                 const rate = overrides[debt.id] !== undefined ? overrides[debt.id] : (parseFloat(debt.interestRate) || 0);
                 return `
                     <div class="scenario-rate-item">
-                        <span class="rate-label">${this.escapeHtml(debt.name)}</span>
-                        <input type="number" class="rate-override-input" data-debt-id="${debt.id}" value="${rate}" min="0" step="0.01">
+                        <span class="rate-label">${dom.escapeHtml(debt.name)}</span>
+                        <input type="number" class="rate-override-input" data-debt-id="${debt.id}" value="${rate}" min="0" step="0.01" aria-label="${t('budget', 'Interest Rate')}: ${dom.escapeHtml(debt.name)}">
                         <span class="rate-suffix">%</span>
                     </div>
                 `;
@@ -3173,30 +3033,20 @@ class BudgetApp {
 
         try {
             const url = isEdit
-                ? OC.generateUrl(`/apps/budget/api/debt-scenarios/${this.editingScenarioId}`)
-                : OC.generateUrl('/apps/budget/api/debt-scenarios');
+                ? `/apps/budget/api/debt-scenarios/${this.editingScenarioId}`
+                : '/apps/budget/api/debt-scenarios';
 
-            const response = await fetch(url, {
+            const saved = await apiFetch(url, {
                 method: isEdit ? 'PUT' : 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken,
-                },
-                body: JSON.stringify(payload),
+                body: payload,
+                errorMessage: 'Failed to save scenario',
             });
-
-            if (!response.ok) throw new Error('Failed to save scenario');
-
-            const saved = await response.json();
 
             // Close modal
             this.hideModals();
 
             // Refresh scenarios
-            const scenariosRes = await fetch(OC.generateUrl('/apps/budget/api/debt-scenarios'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            this.debtScenarios = scenariosRes.ok ? await scenariosRes.json() : [];
+            this.debtScenarios = await apiFetch('/apps/budget/api/debt-scenarios').catch(() => []);
             this.renderScenarioCards();
 
             // Calculate and display the saved scenario
@@ -3213,18 +3063,13 @@ class BudgetApp {
         if (!await confirmDialog(t('budget', 'Are you sure you want to delete this scenario?'), { destructive: true })) return;
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/debt-scenarios/${id}`), {
+            await apiFetch(`/apps/budget/api/debt-scenarios/${id}`, {
                 method: 'DELETE',
-                headers: { 'requesttoken': OC.requestToken },
+                errorMessage: 'Failed to delete scenario',
             });
-
-            if (!response.ok) throw new Error('Failed to delete scenario');
 
             // Refresh scenarios
-            const scenariosRes = await fetch(OC.generateUrl('/apps/budget/api/debt-scenarios'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            this.debtScenarios = scenariosRes.ok ? await scenariosRes.json() : [];
+            this.debtScenarios = await apiFetch('/apps/budget/api/debt-scenarios').catch(() => []);
             this.renderScenarioCards();
 
             // If deleted the selected scenario, revert to default
@@ -3240,18 +3085,13 @@ class BudgetApp {
 
     async activateScenario(id) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/debt-scenarios/${id}/activate`), {
+            await apiFetch(`/apps/budget/api/debt-scenarios/${id}/activate`, {
                 method: 'POST',
-                headers: { 'requesttoken': OC.requestToken },
+                errorMessage: 'Failed to activate scenario',
             });
-
-            if (!response.ok) throw new Error('Failed to activate scenario');
 
             // Refresh scenarios
-            const scenariosRes = await fetch(OC.generateUrl('/apps/budget/api/debt-scenarios'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            this.debtScenarios = scenariosRes.ok ? await scenariosRes.json() : [];
+            this.debtScenarios = await apiFetch('/apps/budget/api/debt-scenarios').catch(() => []);
             this.renderScenarioCards();
         } catch (error) {
             console.error('Failed to activate scenario:', error);
@@ -3268,13 +3108,9 @@ class BudgetApp {
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/debts/compare?extraPayment=${extraPayment}`), {
-                headers: { 'requesttoken': OC.requestToken }
+            const comparison = await apiFetch(`/apps/budget/api/debts/compare?extraPayment=${extraPayment}`, {
+                errorMessage: t('budget', 'Failed to compare strategies'),
             });
-
-            if (!response.ok) throw new Error(t('budget', 'Failed to compare strategies'));
-
-            const comparison = await response.json();
             this.displayComparison(comparison);
         } catch (error) {
             console.error('Failed to compare strategies:', error);
@@ -3304,7 +3140,7 @@ class BudgetApp {
             chartContainer.innerHTML = `
                 <div style="display: flex; gap: 16px;">
                     <div class="debt-comparison-card${rec === 'avalanche' ? ' recommended' : ''}" style="flex: 1; background: var(--color-background-dark); border-radius: 8px; padding: 16px; ${rec === 'avalanche' ? 'border: 2px solid var(--color-primary-element);' : 'border: 2px solid transparent;'}">
-                        <h4 style="margin: 0 0 12px 0;">${this.escapeHtml(avalanchePlan.strategyName || t('budget', 'Avalanche'))}</h4>
+                        <h4 style="margin: 0 0 12px 0;">${dom.escapeHtml(avalanchePlan.strategyName || t('budget', 'Avalanche'))}</h4>
                         <div style="margin-bottom: 8px;">
                             <div style="font-size: 12px; color: var(--color-text-maxcontrast);">${t('budget', 'Months to payoff')}</div>
                             <div style="font-size: 20px; font-weight: bold;">${avalanchePlan.totalMonths || 0}</div>
@@ -3315,7 +3151,7 @@ class BudgetApp {
                         </div>
                     </div>
                     <div class="debt-comparison-card${rec === 'snowball' ? ' recommended' : ''}" style="flex: 1; background: var(--color-background-dark); border-radius: 8px; padding: 16px; ${rec === 'snowball' ? 'border: 2px solid var(--color-primary-element);' : 'border: 2px solid transparent;'}">
-                        <h4 style="margin: 0 0 12px 0;">${this.escapeHtml(snowballPlan.strategyName || t('budget', 'Snowball'))}</h4>
+                        <h4 style="margin: 0 0 12px 0;">${dom.escapeHtml(snowballPlan.strategyName || t('budget', 'Snowball'))}</h4>
                         <div style="margin-bottom: 8px;">
                             <div style="font-size: 12px; color: var(--color-text-maxcontrast);">${t('budget', 'Months to payoff')}</div>
                             <div style="font-size: 20px; font-weight: bold;">${snowballPlan.totalMonths || 0}</div>
@@ -3342,7 +3178,7 @@ class BudgetApp {
                         ${c.recommendation === 'avalanche' ? t('budget', 'Avalanche Recommended') :
                           c.recommendation === 'snowball' ? t('budget', 'Snowball Recommended') : t('budget', 'Either Works')}
                     </div>
-                    <div class="recommendation-text">${this.escapeHtml(c.explanation)}</div>
+                    <div class="recommendation-text">${dom.escapeHtml(c.explanation)}</div>
                     ${c.interestSavedByAvalanche > 0 ? `<div class="recommendation-savings">${t('budget', 'Avalanche saves {amount} in interest', { amount: this.formatCurrency(c.interestSavedByAvalanche, currency) })}</div>` : ''}
                     ${c.interestSavedByAvalanche < 0 ? `<div class="recommendation-savings">${t('budget', 'Snowball saves {amount} in interest', { amount: this.formatCurrency(Math.abs(c.interestSavedByAvalanche), currency) })}</div>` : ''}
                 </div>
@@ -3430,14 +3266,7 @@ class BudgetApp {
      */
     async findTransactionMatches(transactionId) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/matches`), {
-                headers: {
-                    'requesttoken': OC.requestToken
-                }
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            return await response.json();
+            return await apiFetch(`/apps/budget/api/transactions/${transactionId}/matches`);
         } catch (error) {
             console.error('Failed to find matches:', error);
             throw error;
@@ -3449,18 +3278,9 @@ class BudgetApp {
      */
     async linkTransactions(transactionId, targetId) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/link/${targetId}`), {
+            return await apiFetch(`/apps/budget/api/transactions/${transactionId}/link/${targetId}`, {
                 method: 'POST',
-                headers: {
-                    'requesttoken': OC.requestToken
-                }
             });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-            }
-            return await response.json();
         } catch (error) {
             console.error('Failed to link transactions:', error);
             throw error;
@@ -3472,18 +3292,9 @@ class BudgetApp {
      */
     async unlinkTransaction(transactionId) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/link`), {
+            return await apiFetch(`/apps/budget/api/transactions/${transactionId}/link`, {
                 method: 'DELETE',
-                headers: {
-                    'requesttoken': OC.requestToken
-                }
             });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-            }
-            return await response.json();
         } catch (error) {
             console.error('Failed to unlink transaction:', error);
             throw error;
@@ -3524,10 +3335,11 @@ class BudgetApp {
         const convertSelect = document.getElementById('matching-convert-account');
         const convertSection = document.getElementById('matching-convert');
         if (convertSelect && convertSection) {
-            const candidates = (this.accounts || []).filter(a =>
+            // Only an open account you can write to can take the new leg (#372)
+            const candidates = openAccounts(this.accounts).filter(a =>
                 a.id !== transaction.accountId && (a.currency || this.getPrimaryCurrency()) === currency);
             convertSelect.innerHTML = candidates.map(a =>
-                `<option value="${a.id}">${this.escapeHtml(a.name)}</option>`).join('');
+                `<option value="${a.id}">${dom.escapeHtml(a.name)}</option>`).join('');
             convertSection.style.display = candidates.length ? '' : 'none';
         }
 
@@ -3555,9 +3367,9 @@ class BudgetApp {
                 return `
                     <div class="match-item" data-match-id="${match.id}">
                         <span class="match-date">${this.formatDate(match.date)}</span>
-                        <span class="match-description">${this.escapeHtml(match.description)}</span>
+                        <span class="match-description">${dom.escapeHtml(match.description)}</span>
                         <span class="match-amount ${matchTypeClass}">${this.formatCurrency(match.amount, matchCurrency)}</span>
-                        <span class="match-account">${matchAccount?.name || t('budget', 'Unknown')}</span>
+                        <span class="match-account">${dom.escapeHtml(matchAccount?.name) || t('budget', 'Unknown')}</span>
                         <button class="link-match-btn" data-source-id="${transactionId}" data-target-id="${match.id}">
                             ${t('budget', 'Link as Transfer')}
                         </button>
@@ -3593,20 +3405,10 @@ class BudgetApp {
      */
     async convertToTransfer(transactionId, targetAccountId) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/convert-to-transfer`), {
+            return await apiFetch(`/apps/budget/api/transactions/${transactionId}/convert-to-transfer`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ targetAccountId })
+                body: { targetAccountId },
             });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-            }
-            return await response.json();
         } catch (error) {
             console.error('Failed to convert transaction to transfer:', error);
             throw error;
@@ -3773,7 +3575,7 @@ class BudgetApp {
             </div>
             <div class="split-info-row">
                 <span class="split-info-label">${t('budget', 'Description')}:</span>
-                <span>${this.escapeHtml(transaction.description)}</span>
+                <span>${dom.escapeHtml(transaction.description)}</span>
             </div>
             <div class="split-info-row">
                 <span class="split-info-label">${t('budget', 'Total Amount')}:</span>
@@ -3837,24 +3639,24 @@ class BudgetApp {
         row.innerHTML = `
             <div class="split-field split-amount-field">
                 <label>${t('budget', 'Amount')}</label>
-                <input type="number" class="split-amount" step="0.01" min="0.01"
+                <input aria-label="${t('budget', 'Amount')}" type="number" class="split-amount" step="0.01" min="0.01"
                        value="${split ? split.amount : ''}" placeholder="0.00" required>
             </div>
             <div class="split-field split-category-field">
                 <label>${t('budget', 'Category')}</label>
-                <select class="split-category">
+                <select aria-label="${t('budget', 'Category')}" class="split-category">
                     <option value="">${t('budget', 'Uncategorized')}</option>
                     ${this.getCategoryOptions(split?.categoryId, transactionType)}
                 </select>
             </div>
             <div class="split-field split-description-field">
                 <label>${t('budget', 'Description')}</label>
-                <input type="text" class="split-description" maxlength="255"
-                       value="${split?.description || ''}" placeholder="${t('budget', 'Optional note')}">
+                <input aria-label="${t('budget', 'Description')}" type="text" class="split-description" maxlength="255"
+                       value="${dom.escapeHtml(split?.description || '')}" placeholder="${t('budget', 'Optional note')}">
             </div>
             <div class="split-actions">
                 <button type="button" class="split-remove-btn ${isFirst ? 'disabled' : ''}"
-                        ${isFirst ? 'disabled' : ''} title="${t('budget', 'Remove split')}">
+                        ${isFirst ? 'disabled' : ''} title="${t('budget', 'Remove split')}" aria-label="${t('budget', 'Remove split')}">
                     <span class="icon-delete"></span>
                 </button>
             </div>
@@ -3880,19 +3682,10 @@ class BudgetApp {
     }
 
     /**
-     * Get category options HTML
+     * Get category options HTML (selectedName: see categoryOptionsHtml)
      */
-    getCategoryOptions(selectedId = null, transactionType = null) {
-        if (!this.categories) return '';
-
-        // Determine category type based on transaction type
-        // credit = income categories, debit = expense categories
-        const categoryType = transactionType === 'credit' ? 'income' : 'expense';
-
-        return this.categories
-            .filter(c => c.type === categoryType)
-            .map(c => `<option value="${c.id}" ${c.id === selectedId ? 'selected' : ''}>${this.escapeHtml(c.name)}</option>`)
-            .join('');
+    getCategoryOptions(selectedId = null, transactionType = null, account = null, selectedName = null) {
+        return categoryOptionsHtml(this.categories, selectedId, transactionType, account, selectedName);
     }
 
     /**
@@ -3954,11 +3747,7 @@ class BudgetApp {
      * API call to get transaction splits
      */
     async getTransactionSplits(transactionId) {
-        const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/splits`), {
-            headers: { 'requesttoken': OC.requestToken }
-        });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return await response.json();
+        return await apiFetch(`/apps/budget/api/transactions/${transactionId}/splits`);
     }
 
     /**
@@ -3989,19 +3778,10 @@ class BudgetApp {
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/splits`), {
+            await apiFetch(`/apps/budget/api/transactions/${transactionId}/splits`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ splits })
+                body: { splits },
             });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-            }
 
             this.hideSplitModal();
             showSuccess(t('budget', 'Transaction split successfully'));
@@ -4024,15 +3804,7 @@ class BudgetApp {
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/splits`), {
-                method: 'DELETE',
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-            }
+            await apiFetch(`/apps/budget/api/transactions/${transactionId}/splits`, { method: 'DELETE' });
 
             this.hideSplitModal();
             showSuccess(t('budget', 'Transaction unsplit successfully'));
@@ -4106,199 +3878,15 @@ class BudgetApp {
     }
 
     // =====================
-    // Pensions Methods
+    // Pensions and Assets (their modules load with the view)
     // =====================
 
     async loadPensionsView() {
-        return this.pensionsModule.loadPensionsView();
+        return (await this.lazyModule('pensionsModule')).loadPensionsView();
     }
-
-    async loadPensions() {
-        return this.pensionsModule.loadPensions();
-    }
-
-    async loadPensionSummary() {
-        return this.pensionsModule.loadPensionSummary();
-    }
-
-    async loadPensionProjection() {
-        return this.pensionsModule.loadPensionProjection();
-    }
-
-    renderPensions() {
-        return this.pensionsModule.renderPensions();
-    }
-
-    renderPensionCard(pension) {
-        return this.pensionsModule.renderPensionCard(pension);
-    }
-
-    updatePensionsSummary(summary) {
-        return this.pensionsModule.updatePensionsSummary(summary);
-    }
-
-    updatePensionsProjection(projection) {
-        return this.pensionsModule.updatePensionsProjection(projection);
-    }
-
-    setupPensionEventListeners() {
-        return this.pensionsModule.setupPensionEventListeners();
-    }
-
-    togglePensionFields() {
-        return this.pensionsModule.togglePensionFields();
-    }
-
-    showPensionModal(pensionId = null) {
-        return this.pensionsModule.showPensionModal(pensionId);
-    }
-
-    closePensionModal() {
-        return this.pensionsModule.closePensionModal();
-    }
-
-    async savePension() {
-        return this.pensionsModule.savePension();
-    }
-
-    async deletePension(pensionId) {
-        return this.pensionsModule.deletePension(pensionId);
-    }
-
-    async showPensionDetails(pensionId) {
-        return this.pensionsModule.showPensionDetails(pensionId);
-    }
-
-    closePensionDetails() {
-        return this.pensionsModule.closePensionDetails();
-    }
-
-    async loadPensionBalanceChart(pensionId) {
-        return this.pensionsModule.loadPensionBalanceChart(pensionId);
-    }
-
-    async loadPensionProjectionChart(pensionId) {
-        return this.pensionsModule.loadPensionProjectionChart(pensionId);
-    }
-
-    async loadPensionActivity(pensionId) {
-        return this.pensionsModule.loadPensionActivity(pensionId);
-    }
-
-    showBalanceModal() {
-        return this.pensionsModule.showBalanceModal();
-    }
-
-    closeBalanceModal() {
-        return this.pensionsModule.closeBalanceModal();
-    }
-
-    async saveSnapshot() {
-        return this.pensionsModule.saveSnapshot();
-    }
-
-    showContributionModal() {
-        return this.pensionsModule.showContributionModal();
-    }
-
-    closeContributionModal() {
-        return this.pensionsModule.closeContributionModal();
-    }
-
-    async saveContribution() {
-        return this.pensionsModule.saveContribution();
-    }
-
-    async loadDashboardPensionSummary() {
-        return this.pensionsModule.loadDashboardPensionSummary();
-    }
-
-    // =====================
-    // Assets Methods
-    // =====================
 
     async loadAssetsView() {
-        return this.assetsModule.loadAssetsView();
-    }
-
-    async loadAssets() {
-        return this.assetsModule.loadAssets();
-    }
-
-    async loadAssetSummary() {
-        return this.assetsModule.loadAssetSummary();
-    }
-
-    async loadAssetProjection() {
-        return this.assetsModule.loadAssetProjection();
-    }
-
-    renderAssets() {
-        return this.assetsModule.renderAssets();
-    }
-
-    renderAssetCard(asset) {
-        return this.assetsModule.renderAssetCard(asset);
-    }
-
-    updateAssetsSummary(summary) {
-        return this.assetsModule.updateAssetsSummary(summary);
-    }
-
-    updateAssetsProjection(projection) {
-        return this.assetsModule.updateAssetsProjection(projection);
-    }
-
-    setupAssetEventListeners() {
-        return this.assetsModule.setupAssetEventListeners();
-    }
-
-    showAssetModal(assetId = null) {
-        return this.assetsModule.showAssetModal(assetId);
-    }
-
-    closeAssetModal() {
-        return this.assetsModule.closeAssetModal();
-    }
-
-    async saveAsset() {
-        return this.assetsModule.saveAsset();
-    }
-
-    async deleteAsset(assetId) {
-        return this.assetsModule.deleteAsset(assetId);
-    }
-
-    async showAssetDetails(assetId) {
-        return this.assetsModule.showAssetDetails(assetId);
-    }
-
-    closeAssetDetails() {
-        return this.assetsModule.closeAssetDetails();
-    }
-
-    async loadAssetValueChart(assetId) {
-        return this.assetsModule.loadAssetValueChart(assetId);
-    }
-
-    async loadAssetProjectionChart(assetId) {
-        return this.assetsModule.loadAssetProjectionChart(assetId);
-    }
-
-    showValueModal() {
-        return this.assetsModule.showValueModal();
-    }
-
-    closeValueModal() {
-        return this.assetsModule.closeValueModal();
-    }
-
-    async saveValueUpdate() {
-        return this.assetsModule.saveValueUpdate();
-    }
-
-    async loadDashboardAssetSummary() {
-        return this.assetsModule.loadDashboardAssetSummary();
+        return (await this.lazyModule('assetsModule')).loadAssetsView();
     }
 
     parseColumnVisibility(settingValue) {
@@ -4379,18 +3967,11 @@ class BudgetApp {
                 transaction_columns_visible: JSON.stringify(this.columnVisibility)
             };
 
-            const response = await fetch(OC.generateUrl('/apps/budget/api/settings'), {
+            await apiFetch('/apps/budget/api/settings', {
                 method: 'PUT',
-                headers: {
-                    'requesttoken': OC.requestToken,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(settings)
+                body: settings,
+                errorMessage: t('budget', 'Failed to save column visibility'),
             });
-
-            if (!response.ok) {
-                throw new Error(t('budget', 'Failed to save column visibility'));
-            }
 
             this.settings.transaction_columns_visible = JSON.stringify(this.columnVisibility);
 
@@ -4456,17 +4037,15 @@ class BudgetApp {
         return this.tagSetsModule.renderCategoryTagSetsList(categoryId, readOnly);
     }
 
-    async loadAllTransactionTags() {
-        return this.tagSetsModule.loadAllTransactionTags();
+    async loadAllTransactionTags(tagsByTransaction) {
+        return this.tagSetsModule.loadAllTransactionTags(tagsByTransaction);
     }
 
     async loadSharedTransactionIds() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/shared/transaction-ids'), {
-                headers: { 'requesttoken': OC.requestToken }
+            const statuses = await apiFetch('/apps/budget/api/shared/transaction-ids', {
+                errorMessage: 'Failed to load shared transaction statuses',
             });
-            if (!response.ok) throw new Error('Failed to load shared transaction statuses');
-            const statuses = await response.json();
             // statuses is { "txId": "shared"|"settled", ... } with string keys
             this.sharedTransactionStatuses = {};
             for (const [id, status] of Object.entries(statuses)) {
@@ -4481,11 +4060,9 @@ class BudgetApp {
     /** Attachment counts per transaction (paperclip badges) — one bulk map per load. */
     async loadAttachmentCounts() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/attachments/transaction-ids'), {
-                headers: { 'requesttoken': OC.requestToken }
+            const counts = await apiFetch('/apps/budget/api/attachments/transaction-ids', {
+                errorMessage: 'Failed to load attachment counts',
             });
-            if (!response.ok) throw new Error('Failed to load attachment counts');
-            const counts = await response.json();
             this.attachmentCounts = {};
             for (const [id, count] of Object.entries(counts)) {
                 this.attachmentCounts[parseInt(id)] = count;
@@ -4523,9 +4100,6 @@ class BudgetApp {
         return formatters.formatDate(dateStr, this.settings);
     }
 
-    escapeHtml(text) {
-        return dom.escapeHtml(text);
-    }
 
     populateAccountDropdowns() {
         // Stub method - dropdowns are populated by individual modules as needed
@@ -4579,5 +4153,8 @@ class BudgetApp {
 
 // Initialize app when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
+    // Before any chart is drawn: axis labels, legends and grid lines follow
+    // the Nextcloud theme instead of Chart.js's fixed grey.
+    setupChartTheme(Chart);
     window.budgetApp = new BudgetApp();
 });

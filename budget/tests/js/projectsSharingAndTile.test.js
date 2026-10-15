@@ -57,7 +57,7 @@ describe('share configuration', () => {
 
         expect(mod.fetchApi).toHaveBeenCalledWith('/apps/budget/api/shares/3/items/project', expect.objectContaining({
             method: 'PUT',
-            body: JSON.stringify({ entityIds: [10], permission: 'read' }),
+            body: { entityIds: [10], permission: 'read' },
         }));
     });
 });

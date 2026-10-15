@@ -8,179 +8,329 @@ use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\TransactionSplit;
 use OCA\Budget\Db\TransactionSplitMapper;
+use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\TransactionSplitService;
+use OCP\IDBConnection;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 class TransactionSplitServiceTest extends TestCase {
-    private TransactionSplitService $service;
-    private TransactionSplitMapper $splitMapper;
-    private TransactionMapper $transactionMapper;
+	private TransactionSplitService $service;
+	private TransactionSplitMapper $splitMapper;
+	private TransactionMapper $transactionMapper;
+	private GranularShareService $granularShareService;
 
-    protected function setUp(): void {
-        $this->splitMapper = $this->createMock(TransactionSplitMapper::class);
-        $this->transactionMapper = $this->createMock(TransactionMapper::class);
-        $this->service = new TransactionSplitService($this->splitMapper, $this->transactionMapper);
-    }
+	protected function setUp(): void {
+		$this->splitMapper = $this->createMock(TransactionSplitMapper::class);
+		$this->transactionMapper = $this->createMock(TransactionMapper::class);
+		$this->granularShareService = $this->createMock(GranularShareService::class);
+		// The owner can see categories below 40; anything else belongs to someone else
+		$this->granularShareService->method('requireUsableCategory')
+			->willReturnCallback(function (string $ownerId, ?int $categoryId): void {
+				if ($categoryId !== null && $categoryId >= 40) {
+					throw new \InvalidArgumentException('Category not found');
+				}
+			});
+		$this->service = new TransactionSplitService($this->splitMapper, $this->transactionMapper, $this->granularShareService);
+	}
 
-    private function makeTransaction(float $amount, bool $isSplit = false): Transaction {
-        $t = new Transaction();
-        $t->setId(100);
-        $t->setAmount((string)$amount);
-        $t->setIsSplit($isSplit);
-        $t->setCategoryId(5);
-        return $t;
-    }
+	private function makeTransaction(float $amount, bool $isSplit = false): Transaction {
+		$t = new Transaction();
+		$t->setId(100);
+		$t->setAmount((string)$amount);
+		$t->setIsSplit($isSplit);
+		$t->setCategoryId(5);
+		return $t;
+	}
 
-    private function makeSplit(int $id, float $amount): TransactionSplit {
-        $s = new TransactionSplit();
-        $s->setId($id);
-        $s->setTransactionId(100);
-        $s->setAmount((string)$amount);
-        $s->setCategoryId(1);
-        return $s;
-    }
+	private function makeSplit(int $id, float $amount): TransactionSplit {
+		$s = new TransactionSplit();
+		$s->setId($id);
+		$s->setTransactionId(100);
+		$s->setAmount((string)$amount);
+		$s->setCategoryId(1);
+		return $s;
+	}
 
-    // ===== getSplits =====
+	// ===== getSplits =====
 
-    public function testGetSplitsVerifiesOwnershipAndReturnsSplits(): void {
-        $this->transactionMapper->expects($this->once())->method('find')
-            ->with(100, 'user1');
-        $splits = [$this->makeSplit(1, 50), $this->makeSplit(2, 50)];
-        $this->splitMapper->method('findByTransaction')->willReturn($splits);
+	public function testGetSplitsVerifiesOwnershipAndReturnsSplits(): void {
+		$this->transactionMapper->expects($this->once())->method('find')
+			->with(100, 'user1');
+		$splits = [$this->makeSplit(1, 50), $this->makeSplit(2, 50)];
+		$this->splitMapper->method('findByTransaction')->willReturn($splits);
 
-        $result = $this->service->getSplits(100, 'user1');
+		$result = $this->service->getSplits(100, 'user1');
 
-        $this->assertCount(2, $result);
-    }
+		$this->assertCount(2, $result);
+	}
 
-    // ===== splitTransaction =====
+	// ===== splitTransaction =====
 
-    public function testSplitTransactionCreatesSplitsAndUpdatesTransaction(): void {
-        $transaction = $this->makeTransaction(100.00);
-        $this->transactionMapper->method('find')->willReturn($transaction);
-        $this->transactionMapper->expects($this->once())->method('update');
-        $this->splitMapper->expects($this->once())->method('deleteByTransaction')->with(100);
-        $this->splitMapper->method('insert')->willReturnArgument(0);
-        $this->splitMapper->method('findByTransaction')->willReturn([]);
+	public function testSplitTransactionCreatesSplitsAndUpdatesTransaction(): void {
+		$transaction = $this->makeTransaction(100.00);
+		$this->transactionMapper->method('find')->willReturn($transaction);
+		$this->transactionMapper->expects($this->once())->method('update');
+		$this->splitMapper->expects($this->once())->method('deleteByTransaction')->with(100);
+		$this->splitMapper->method('insert')->willReturnArgument(0);
+		$this->splitMapper->method('findByTransaction')->willReturn([]);
 
-        $splits = [
-            ['categoryId' => 1, 'amount' => 60.00, 'description' => 'Food'],
-            ['categoryId' => 2, 'amount' => 40.00, 'description' => 'Drinks'],
-        ];
+		$splits = [
+			['categoryId' => 1, 'amount' => 60.00, 'description' => 'Food'],
+			['categoryId' => 2, 'amount' => 40.00, 'description' => 'Drinks'],
+		];
 
-        $this->service->splitTransaction(100, 'user1', $splits);
-    }
+		$this->service->splitTransaction(100, 'user1', $splits);
+	}
 
-    public function testSplitTransactionThrowsWhenAmountsMismatch(): void {
-        $transaction = $this->makeTransaction(100.00);
-        $this->transactionMapper->method('find')->willReturn($transaction);
+	public function testSplitTransactionRejectsACategoryTheOwnerCannotSee(): void {
+		$this->transactionMapper->method('find')->willReturn($this->makeTransaction(100.00));
+		$this->splitMapper->expects($this->never())->method('deleteByTransaction');
+		$this->splitMapper->expects($this->never())->method('insert');
 
-        $splits = [
-            ['categoryId' => 1, 'amount' => 60.00],
-            ['categoryId' => 2, 'amount' => 30.00], // Total 90, not 100
-        ];
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('Category not found');
 
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('Split amounts');
+		$this->service->splitTransaction(100, 'user1', [
+			['categoryId' => 1, 'amount' => 60.00],
+			['categoryId' => 42, 'amount' => 40.00],
+		]);
+	}
 
-        $this->service->splitTransaction(100, 'user1', $splits);
-    }
+	public function testSplitTransactionChecksCategoriesAgainstTheOwner(): void {
+		$this->transactionMapper->method('find')->willReturn($this->makeTransaction(100.00));
+		$this->splitMapper->method('insert')->willReturnArgument(0);
+		$this->splitMapper->method('findByTransaction')->willReturn([]);
+		$checked = [];
+		$gss = $this->createMock(GranularShareService::class);
+		$gss->method('requireUsableCategory')->willReturnCallback(
+			function (string $ownerId, ?int $categoryId) use (&$checked): void {
+				$checked[] = [$ownerId, $categoryId];
+			}
+		);
+		$service = new TransactionSplitService($this->splitMapper, $this->transactionMapper, $gss);
 
-    public function testSplitTransactionThrowsWithLessThanTwoSplits(): void {
-        $transaction = $this->makeTransaction(100.00);
-        $this->transactionMapper->method('find')->willReturn($transaction);
+		$service->splitTransaction(100, 'owner', [
+			['categoryId' => '3', 'amount' => 60.00],
+			['categoryId' => null, 'amount' => 40.00],
+		]);
 
-        $splits = [
-            ['categoryId' => 1, 'amount' => 100.00],
-        ];
+		$this->assertSame([['owner', 3], ['owner', null]], $checked);
+	}
 
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('at least 2 parts');
+	public function testUnsplitRejectsACategoryTheOwnerCannotSee(): void {
+		$this->transactionMapper->method('find')->willReturn($this->makeTransaction(100.00, true));
+		$this->splitMapper->expects($this->never())->method('deleteByTransaction');
 
-        $this->service->splitTransaction(100, 'user1', $splits);
-    }
+		$this->expectException(\InvalidArgumentException::class);
+		$this->service->unsplitTransaction(100, 'user1', 42);
+	}
 
-    public function testSplitTransactionAllowsSmallFloatingPointVariance(): void {
-        $transaction = $this->makeTransaction(100.00);
-        $this->transactionMapper->method('find')->willReturn($transaction);
-        $this->transactionMapper->method('update')->willReturnArgument(0);
-        $this->splitMapper->method('insert')->willReturnArgument(0);
-        $this->splitMapper->method('findByTransaction')->willReturn([]);
+	public function testUpdateSplitRejectsACategoryTheOwnerCannotSee(): void {
+		$this->splitMapper->method('find')->willReturn($this->makeSplit(1, 50));
+		$this->transactionMapper->method('find')->willReturn($this->makeTransaction(100.00, true));
+		$this->splitMapper->expects($this->never())->method('update');
 
-        $splits = [
-            ['categoryId' => 1, 'amount' => 66.67],
-            ['categoryId' => 2, 'amount' => 33.335], // Total 100.005 - within 0.01 tolerance
-        ];
+		$this->expectException(\InvalidArgumentException::class);
+		$this->service->updateSplit(1, 'user1', ['categoryId' => 42]);
+	}
 
-        // Should not throw
-        $this->service->splitTransaction(100, 'user1', $splits);
-        $this->assertTrue(true);
-    }
+	/**
+	 * The old parts were deleted before the new ones were checked, so a part
+	 * the database refused (a zero amount) left the transaction with some of
+	 * its parts, or none, while the request answered 400.
+	 */
+	#[DataProvider('unusablePartAmounts')]
+	public function testAnUnusablePartIsRefusedBeforeTheOldPartsAreDeleted(mixed $amount, string $reason): void {
+		$this->transactionMapper->method('find')->willReturn($this->makeTransaction(50.00, true));
+		$this->splitMapper->expects($this->never())->method('deleteByTransaction');
+		$this->splitMapper->expects($this->never())->method('insert');
+		$this->transactionMapper->expects($this->never())->method('update');
 
-    // ===== unsplitTransaction =====
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage($reason);
 
-    public function testUnsplitTransactionDeletesSplitsAndUpdates(): void {
-        $transaction = $this->makeTransaction(100.00, true);
-        $this->transactionMapper->method('find')->willReturn($transaction);
-        $this->transactionMapper->method('update')->willReturnArgument(0);
-        $this->splitMapper->expects($this->once())->method('deleteByTransaction')->with(100);
+		$this->service->splitTransaction(100, 'user1', [
+			['categoryId' => 1, 'amount' => 50.00],
+			['categoryId' => 2, 'amount' => $amount],
+		]);
+	}
 
-        $result = $this->service->unsplitTransaction(100, 'user1', 5);
+	public static function unusablePartAmounts(): array {
+		return [
+			'zero' => [0, 'Split 1: amount cannot be zero'],
+			'zero float' => [0.0, 'Split 1: amount cannot be zero'],
+			'zero string' => ['0.00', 'Split 1: amount cannot be zero'],
+			'not a number' => ['abc', 'Split 1: amount is required'],
+			'a list' => [['5'], 'Split 1: amount is required'],
+			'missing' => [null, 'Split 1: amount is required'],
+		];
+	}
 
-        $this->assertFalse($result->getIsSplit());
-        $this->assertEquals(5, $result->getCategoryId());
-    }
+	public function testANegativePartIsStillAllowed(): void {
+		$this->transactionMapper->method('find')->willReturn($this->makeTransaction(50.00));
+		$this->transactionMapper->method('update')->willReturnArgument(0);
+		$this->splitMapper->expects($this->exactly(2))->method('insert')->willReturnArgument(0);
+		$this->splitMapper->method('findByTransaction')->willReturn([]);
 
-    public function testUnsplitTransactionThrowsIfNotSplit(): void {
-        $transaction = $this->makeTransaction(100.00, false);
-        $this->transactionMapper->method('find')->willReturn($transaction);
+		$this->service->splitTransaction(100, 'user1', [
+			['categoryId' => 1, 'amount' => '60.00'],
+			['categoryId' => 2, 'amount' => '-10.00'],
+		]);
+	}
 
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('not split');
+	/** The delete, the inserts and the flag on the transaction land together */
+	public function testASplitIsWrittenInOneDatabaseTransaction(): void {
+		$db = $this->createMock(IDBConnection::class);
+		$db->expects($this->once())->method('beginTransaction');
+		$db->expects($this->once())->method('commit');
+		$db->expects($this->never())->method('rollBack');
+		$service = new TransactionSplitService($this->splitMapper, $this->transactionMapper, $this->granularShareService, $db);
+		$this->transactionMapper->method('find')->willReturn($this->makeTransaction(100.00));
+		$this->transactionMapper->method('update')->willReturnArgument(0);
+		$this->splitMapper->method('insert')->willReturnArgument(0);
+		$this->splitMapper->method('findByTransaction')->willReturn([]);
 
-        $this->service->unsplitTransaction(100, 'user1');
-    }
+		$service->splitTransaction(100, 'user1', [
+			['categoryId' => 1, 'amount' => 60.00],
+			['categoryId' => 2, 'amount' => 40.00],
+		]);
+	}
 
-    // ===== updateSplit =====
+	public function testAWriteThatFailsHalfwayRollsTheWholeSplitBack(): void {
+		$db = $this->createMock(IDBConnection::class);
+		$db->expects($this->once())->method('beginTransaction');
+		$db->expects($this->never())->method('commit');
+		$db->expects($this->once())->method('rollBack');
+		$service = new TransactionSplitService($this->splitMapper, $this->transactionMapper, $this->granularShareService, $db);
+		$this->transactionMapper->method('find')->willReturn($this->makeTransaction(100.00, true));
+		$this->transactionMapper->expects($this->never())->method('update');
+		$inserted = 0;
+		$this->splitMapper->method('insert')->willReturnCallback(function (TransactionSplit $split) use (&$inserted) {
+			if (++$inserted === 2) {
+				throw new \RuntimeException('database went away');
+			}
+			return $split;
+		});
 
-    public function testUpdateSplitUpdatesCategoryId(): void {
-        $split = $this->makeSplit(1, 50.00);
-        $transaction = $this->makeTransaction(100.00);
+		$this->expectException(\RuntimeException::class);
 
-        $this->splitMapper->method('find')->willReturn($split);
-        $this->transactionMapper->method('find')->willReturn($transaction);
-        $this->splitMapper->method('update')->willReturnArgument(0);
+		$service->splitTransaction(100, 'user1', [
+			['categoryId' => 1, 'amount' => 60.00],
+			['categoryId' => 2, 'amount' => 40.00],
+		]);
+	}
 
-        $result = $this->service->updateSplit(1, 'user1', ['categoryId' => 10]);
+	public function testSplitTransactionThrowsWhenAmountsMismatch(): void {
+		$transaction = $this->makeTransaction(100.00);
+		$this->transactionMapper->method('find')->willReturn($transaction);
 
-        $this->assertEquals(10, $result->getCategoryId());
-    }
+		$splits = [
+			['categoryId' => 1, 'amount' => 60.00],
+			['categoryId' => 2, 'amount' => 30.00], // Total 90, not 100
+		];
 
-    public function testUpdateSplitValidatesAmountTotal(): void {
-        $split = $this->makeSplit(1, 50.00);
-        $transaction = $this->makeTransaction(100.00);
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('Split amounts');
 
-        $this->splitMapper->method('find')->willReturn($split);
-        $this->transactionMapper->method('find')->willReturn($transaction);
-        $this->splitMapper->method('findByTransaction')->willReturn([
-            $this->makeSplit(1, 50.00),
-            $this->makeSplit(2, 50.00),
-        ]);
+		$this->service->splitTransaction(100, 'user1', $splits);
+	}
 
-        $this->expectException(\InvalidArgumentException::class);
+	public function testSplitTransactionThrowsWithLessThanTwoSplits(): void {
+		$transaction = $this->makeTransaction(100.00);
+		$this->transactionMapper->method('find')->willReturn($transaction);
 
-        // Changing split 1 to 80 means total = 80 + 50 = 130, not 100
-        $this->service->updateSplit(1, 'user1', ['amount' => 80.00]);
-    }
+		$splits = [
+			['categoryId' => 1, 'amount' => 100.00],
+		];
 
-    // ===== getCategoryTotalsFromSplits =====
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('at least 2 parts');
 
-    public function testGetCategoryTotalsFromSplitsDelegatesToMapper(): void {
-        $expected = [1 => 100.0, 2 => 50.0];
-        $this->splitMapper->method('getCategoryTotals')->willReturn($expected);
+		$this->service->splitTransaction(100, 'user1', $splits);
+	}
 
-        $result = $this->service->getCategoryTotalsFromSplits([100, 101]);
+	public function testSplitTransactionAllowsSmallFloatingPointVariance(): void {
+		$transaction = $this->makeTransaction(100.00);
+		$this->transactionMapper->method('find')->willReturn($transaction);
+		$this->transactionMapper->method('update')->willReturnArgument(0);
+		$this->splitMapper->method('insert')->willReturnArgument(0);
+		$this->splitMapper->method('findByTransaction')->willReturn([]);
 
-        $this->assertEquals($expected, $result);
-    }
+		$splits = [
+			['categoryId' => 1, 'amount' => 66.67],
+			['categoryId' => 2, 'amount' => 33.335], // Total 100.005 - within 0.01 tolerance
+		];
+
+		// Should not throw
+		$this->service->splitTransaction(100, 'user1', $splits);
+		$this->assertTrue(true);
+	}
+
+	// ===== unsplitTransaction =====
+
+	public function testUnsplitTransactionDeletesSplitsAndUpdates(): void {
+		$transaction = $this->makeTransaction(100.00, true);
+		$this->transactionMapper->method('find')->willReturn($transaction);
+		$this->transactionMapper->method('update')->willReturnArgument(0);
+		$this->splitMapper->expects($this->once())->method('deleteByTransaction')->with(100);
+
+		$result = $this->service->unsplitTransaction(100, 'user1', 5);
+
+		$this->assertFalse($result->getIsSplit());
+		$this->assertEquals(5, $result->getCategoryId());
+	}
+
+	public function testUnsplitTransactionThrowsIfNotSplit(): void {
+		$transaction = $this->makeTransaction(100.00, false);
+		$this->transactionMapper->method('find')->willReturn($transaction);
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('not split');
+
+		$this->service->unsplitTransaction(100, 'user1');
+	}
+
+	// ===== updateSplit =====
+
+	public function testUpdateSplitUpdatesCategoryId(): void {
+		$split = $this->makeSplit(1, 50.00);
+		$transaction = $this->makeTransaction(100.00);
+
+		$this->splitMapper->method('find')->willReturn($split);
+		$this->transactionMapper->method('find')->willReturn($transaction);
+		$this->splitMapper->method('update')->willReturnArgument(0);
+
+		$result = $this->service->updateSplit(1, 'user1', ['categoryId' => 10]);
+
+		$this->assertEquals(10, $result->getCategoryId());
+	}
+
+	public function testUpdateSplitValidatesAmountTotal(): void {
+		$split = $this->makeSplit(1, 50.00);
+		$transaction = $this->makeTransaction(100.00);
+
+		$this->splitMapper->method('find')->willReturn($split);
+		$this->transactionMapper->method('find')->willReturn($transaction);
+		$this->splitMapper->method('findByTransaction')->willReturn([
+			$this->makeSplit(1, 50.00),
+			$this->makeSplit(2, 50.00),
+		]);
+
+		$this->expectException(\InvalidArgumentException::class);
+
+		// Changing split 1 to 80 means total = 80 + 50 = 130, not 100
+		$this->service->updateSplit(1, 'user1', ['amount' => 80.00]);
+	}
+
+	// ===== getCategoryTotalsFromSplits =====
+
+	public function testGetCategoryTotalsFromSplitsDelegatesToMapper(): void {
+		$expected = [1 => 100.0, 2 => 50.0];
+		$this->splitMapper->method('getCategoryTotals')->willReturn($expected);
+
+		$result = $this->service->getCategoryTotalsFromSplits([100, 101]);
+
+		$this->assertEquals($expected, $result);
+	}
 }

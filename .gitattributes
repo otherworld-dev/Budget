@@ -2,3 +2,16 @@
 # leaves a stray carriage return on every entry, none of them match, and
 # vendor/ silently gets scanned back into the .pot. Keep it LF.
 budget/.l10nignore text eol=lf
+
+# php-cs-fixer (nextcloud/coding-standard) requires LF; a CRLF checkout on
+# Windows would make cs:check report every PHP file.
+*.php text eol=lf
+
+# Spreadsheet fixtures are byte-exact test inputs, some of them text
+# (HTML or tab-separated files named .xls): never convert their line ends.
+budget/tests/fixtures/spreadsheets/*.xls binary
+budget/tests/fixtures/spreadsheets/*.xlsx binary
+budget/tests/fixtures/spreadsheets/*.ods binary
+# Their golden CSV outputs are compared byte for byte too: never converted,
+# but still diffed as text, so a changed golden shows what changed.
+budget/tests/fixtures/spreadsheets/golden/*.csv -text

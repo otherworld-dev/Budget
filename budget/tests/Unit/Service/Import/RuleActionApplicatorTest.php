@@ -47,6 +47,8 @@ class RuleActionApplicatorTest extends TestCase {
 			'accountId' => 1,
 			'type' => 'expense',
 			'categoryId' => null,
+			'amount' => 0.0,
+			'date' => '2024-01-01',
 			'vendor' => null,
 			'notes' => null,
 			'reference' => null,
@@ -57,6 +59,8 @@ class RuleActionApplicatorTest extends TestCase {
 
 		$transaction->setAccountId($data['accountId']);
 		$transaction->setType($data['type']);
+		$transaction->setAmount((float)$data['amount']);
+		$transaction->setDate($data['date']);
 		if ($data['categoryId'] !== null) {
 			$transaction->setCategoryId($data['categoryId']);
 		}
@@ -89,10 +93,22 @@ class RuleActionApplicatorTest extends TestCase {
 		return $category;
 	}
 
-	private function makeAccount(int $id): Account {
+	private function makeAccount(int $id, string $userId = 'user123'): Account {
 		$account = new Account();
 		$account->setId($id);
+		$account->setUserId($userId);
 		return $account;
+	}
+
+	/**
+	 * Owners of the accounts a set_account test touches, by account id
+	 *
+	 * @param array<int, string> $owners
+	 */
+	private function accountsOwnedBy(array $owners): void {
+		$this->accountMapper->method('findById')->willReturnCallback(
+			fn (int $id) => isset($owners[$id]) ? $this->makeAccount($id, $owners[$id]) : throw new \OCP\AppFramework\Db\DoesNotExistException('no account')
+		);
 	}
 
 	// ===== Single Action Tests =====
@@ -116,6 +132,339 @@ class RuleActionApplicatorTest extends TestCase {
 
 		$this->assertArrayHasKey('description', $changes);
 		$this->assertSame('New description', $transaction->getDescription());
+	}
+
+	public function testRegexReplaceDescription(): void {
+		$transaction = $this->createTransaction(['description' => 'Invoice 12345']);
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [
+				[
+					'type' => 'regex_replace',
+					'field' => 'description',
+					'pattern' => '/\\d+/',
+					'replacement' => 'X',
+					'behavior' => 'always',
+					'priority' => 100,
+				]
+			]
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertSame('Invoice X', $transaction->getDescription());
+		$this->assertArrayHasKey('description', $changes);
+		$this->assertSame('Invoice X', $changes['description']['new']);
+	}
+
+	public function testRegexReplaceCanWriteToDifferentTargetField(): void {
+		$transaction = $this->createTransaction([
+			'description' => 'Invoice 12345',
+			'notes' => 'original notes',
+		]);
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [
+				[
+					'type' => 'regex_replace',
+					'field' => 'description',
+					'target' => 'notes',
+					'pattern' => '/\\d+/',
+					'replacement' => 'X',
+					'behavior' => 'always',
+					'priority' => 100,
+				]
+			]
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertSame('Invoice X', $transaction->getNotes());
+		$this->assertArrayHasKey('notes', $changes);
+		$this->assertSame('Invoice X', $changes['notes']['new']);
+	}
+
+	public function testRegexReplaceIfEmptyChecksItsTargetField(): void {
+		$transaction = $this->createTransaction(['description' => 'Invoice 123', 'notes' => null]);
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [[
+				'type' => 'regex_replace',
+				'field' => 'description',
+				'target' => 'notes',
+				'pattern' => '/\\d+/',
+				'replacement' => 'X',
+				'behavior' => 'if_empty',
+			]],
+		]);
+
+		$this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertSame('Invoice X', $transaction->getNotes());
+	}
+
+	public function testRegexReplaceLeavesTargetUnchangedWhenPatternDoesNotMatch(): void {
+		// preg_replace hands back the source string unchanged when the pattern
+		// doesn't match; writing that into a different target field would copy
+		// the whole source value into it rather than doing nothing.
+		$transaction = $this->createTransaction([
+			'description' => 'Groceries',
+			'notes' => 'original notes',
+		]);
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [
+				[
+					'type' => 'regex_replace',
+					'field' => 'description',
+					'target' => 'notes',
+					'pattern' => '/\\d+/',
+					'replacement' => 'X',
+					'behavior' => 'always',
+					'priority' => 100,
+				]
+			]
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertSame('original notes', $transaction->getNotes());
+		$this->assertArrayNotHasKey('notes', $changes);
+	}
+
+	/**
+	 * "Keep the first 20 characters" used to count bytes, so the cut split
+	 * "ü" in two and the stored description was no longer valid UTF-8 -- after
+	 * which the transactions list failed to load at all.
+	 */
+	public function testRegexReplaceCountsCharactersNotBytes(): void {
+		$transaction = $this->createTransaction(['description' => 'Zahlung Bäckerei Müller GmbH Berlin']);
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [[
+				'type' => 'regex_replace',
+				'field' => 'description',
+				'pattern' => '^(.{20}).+$',
+				'replacement' => '$1',
+			]],
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertSame('Zahlung Bäckerei Mül', $transaction->getDescription());
+		$this->assertSame('Zahlung Bäckerei Mül', $changes['description']['new']);
+	}
+
+	public function testRegexReplaceTreatsAccentedLettersAsWordCharacters(): void {
+		$transaction = $this->createTransaction(['description' => 'CAFÉ 123']);
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [[
+				'type' => 'regex_replace',
+				'field' => 'description',
+				'pattern' => '^(\w+).*$',
+				'replacement' => '$1',
+			]],
+		]);
+
+		$this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertSame('CAFÉ', $transaction->getDescription());
+	}
+
+	public function testRegexReplaceNeverStoresTextThatIsNotUtf8(): void {
+		// \C matches a single byte, so it cuts "ä" in half; that result is
+		// dropped instead of saved. (PCRE 10.44, PHP 8.4, won't compile \C
+		// with the u flag at all, so the replace runs on bytes there: the
+		// pattern must split a character on bytes as well as characters.)
+		$transaction = $this->createTransaction(['description' => 'Zahlung Bäckerei Müller']);
+		$this->logger->expects($this->atLeastOnce())->method('warning');
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [[
+				'type' => 'regex_replace',
+				'field' => 'description',
+				'pattern' => '^(Zahlung B)\C',
+				'replacement' => '$1',
+			]],
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertSame('Zahlung Bäckerei Müller', $transaction->getDescription());
+		$this->assertArrayNotHasKey('description', $changes);
+	}
+
+	public function testMultipleRegexReplacementsRunInPriorityOrder(): void {
+		$transaction = $this->createTransaction(['description' => 'Invoice 123']);
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [
+				['type' => 'regex_replace', 'field' => 'description', 'pattern' => '/123/', 'replacement' => 'ABC', 'priority' => 20],
+				['type' => 'regex_replace', 'field' => 'description', 'pattern' => '/ABC/', 'replacement' => 'XYZ', 'priority' => 10],
+			],
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertSame('Invoice XYZ', $transaction->getDescription());
+		$this->assertSame('Invoice 123', $changes['description']['old']);
+	}
+
+	public function testChangeCaseDescription(): void {
+		$transaction = $this->createTransaction(['description' => 'grocery run']);
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [
+				[
+					'type' => 'change_case',
+					'field' => 'description',
+					'mode' => 'upper',
+					'behavior' => 'always',
+					'priority' => 100,
+				]
+			]
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertSame('GROCERY RUN', $transaction->getDescription());
+		$this->assertArrayHasKey('description', $changes);
+		$this->assertSame('GROCERY RUN', $changes['description']['new']);
+	}
+
+	public function testChangeCaseDescriptionAlreadyUpperDoesNotRecordChange(): void {
+		// A row that already matches the target case shouldn't be reported as
+		// updated on every re-run of the rule.
+		$transaction = $this->createTransaction(['description' => 'GROCERY RUN']);
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [
+				[
+					'type' => 'change_case',
+					'field' => 'description',
+					'mode' => 'upper',
+					'behavior' => 'always',
+					'priority' => 100,
+				]
+			]
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertSame('GROCERY RUN', $transaction->getDescription());
+		$this->assertArrayNotHasKey('description', $changes);
+	}
+
+	public function testChangeCaseDescriptionSentence(): void {
+		$transaction = $this->createTransaction(['description' => 'grocery run']);
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [
+				[
+					'type' => 'change_case',
+					'field' => 'description',
+					'mode' => 'sentence',
+					'behavior' => 'always',
+					'priority' => 100,
+				]
+			]
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertSame('Grocery run', $transaction->getDescription());
+		$this->assertArrayHasKey('description', $changes);
+		$this->assertSame('Grocery run', $changes['description']['new']);
+	}
+
+	public function testChangeCaseUpperHandlesDiacritics(): void {
+		$transaction = $this->createTransaction(['description' => 'école']);
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [[
+				'type' => 'change_case',
+				'field' => 'description',
+				'mode' => 'upper',
+			]],
+		]);
+
+		$this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertSame('ÉCOLE', $transaction->getDescription());
+	}
+
+	public function testReplaceTextDescription(): void {
+		$transaction = $this->createTransaction(['description' => 'Invoice 12345']);
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [
+				[
+					'type' => 'replace_text',
+					'field' => 'description',
+					'find' => '12345',
+					'replace' => '67890',
+					'behavior' => 'always',
+					'priority' => 100,
+				]
+			]
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertSame('Invoice 67890', $transaction->getDescription());
+		$this->assertArrayHasKey('description', $changes);
+		$this->assertSame('Invoice 67890', $changes['description']['new']);
+	}
+
+	public function testReplaceTextDoesNotRecordChangeWhenFindNotPresent(): void {
+		// The find text isn't present, so str_replace returns the string as-is;
+		// that shouldn't be reported as an update.
+		$transaction = $this->createTransaction(['description' => 'Invoice 12345']);
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [
+				[
+					'type' => 'replace_text',
+					'field' => 'description',
+					'find' => 'nomatch',
+					'replace' => '67890',
+					'behavior' => 'always',
+					'priority' => 100,
+				]
+			]
+		]);
+
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertSame('Invoice 12345', $transaction->getDescription());
+		$this->assertArrayNotHasKey('description', $changes);
+	}
+
+	public function testValidateActionsAcceptsBareRegexPattern(): void {
+		$validation = $this->applicator->validateActions([
+			'version' => 2,
+			'actions' => [
+				[
+					'type' => 'regex_replace',
+					'field' => 'description',
+					'pattern' => '(.*) ref:\\d+',
+					'replacement' => '$1',
+					'behavior' => 'always',
+					'priority' => 50,
+				],
+			],
+		], 'user123');
+
+		$this->assertTrue($validation['valid'], 'Bare regex patterns should be accepted without wrapping /.../: ' . implode(', ', $validation['errors']));
 	}
 
 	public function testSetCategoryAlways(): void {
@@ -467,6 +816,7 @@ class RuleActionApplicatorTest extends TestCase {
 			->method('find')
 			->with(5, 'user123')
 			->willReturn($this->makeAccount(5));
+		$this->accountsOwnedBy([1 => 'user123', 5 => 'user123']);
 
 		$rule = $this->createRule([
 			'version' => 2,
@@ -893,7 +1243,7 @@ class RuleActionApplicatorTest extends TestCase {
 		$result = $this->applicator->validateActions($actions, 'user123');
 
 		$this->assertFalse($result['valid']);
-		$this->assertStringContainsString('invalid category', strtolower($result['errors'][0]));
+		$this->assertStringContainsString("category 999 is not available to the rule's owner", strtolower($result['errors'][0]));
 	}
 
 	public function testValidateInvalidAccountId(): void {
@@ -915,7 +1265,98 @@ class RuleActionApplicatorTest extends TestCase {
 		$result = $this->applicator->validateActions($actions, 'user123');
 
 		$this->assertFalse($result['valid']);
-		$this->assertStringContainsString('invalid account', strtolower($result['errors'][0]));
+		$this->assertStringContainsString("account 999 is not available to the rule's owner", strtolower($result['errors'][0]));
+	}
+
+	/**
+	 * Moving rows into an account writes to its ledger, so a rule may only
+	 * target a shared account the rule's owner can write to.
+	 */
+	public function testValidateRefusesAReadOnlySharedAccount(): void {
+		$this->accountMapper->method('find')->willThrowException(new \Exception('Account not found'));
+		$this->granularShareService->method('canAccess')->willReturn(true);
+		$this->granularShareService->method('canWrite')->willReturn(false);
+
+		$result = $this->applicator->validateActions([
+			'version' => 2,
+			'actions' => [['type' => 'set_account', 'value' => 8, 'behavior' => 'always', 'priority' => 100]],
+		], 'user123');
+
+		$this->assertFalse($result['valid']);
+		$this->assertStringContainsString('one of their own accounts', $result['errors'][0]);
+	}
+
+	/**
+	 * A rule runs on its owner's own transactions, and a row may not move into
+	 * another user's ledger (the web edit refuses the same move): a write
+	 * share on the target is not enough any more.
+	 */
+	public function testValidateRefusesAnotherUsersAccountEvenWithWriteAccess(): void {
+		$this->accountMapper->method('find')->willThrowException(new \Exception('Account not found'));
+		$this->granularShareService->method('canWrite')->willReturn(true);
+
+		$result = $this->applicator->validateActions([
+			'version' => 2,
+			'actions' => [['type' => 'set_account', 'value' => 8, 'behavior' => 'always', 'priority' => 100]],
+		], 'user123');
+
+		$this->assertFalse($result['valid']);
+		$this->assertStringContainsString('one of their own accounts', $result['errors'][0]);
+	}
+
+	public function testARuleDoesNotMoveARowIntoAnotherUsersAccountEvenWithWriteAccess(): void {
+		// The shared account's stored balance went stale and the row took the
+		// rule owner's private category into another user's ledger (R2-2)
+		$transaction = $this->createTransaction(['accountId' => 1]);
+		$this->accountMapper->method('find')->willThrowException(new \Exception('Account not found'));
+		$this->granularShareService->method('canWrite')->willReturn(true);
+		$this->accountsOwnedBy([1 => 'user123', 8 => 'owner2']);
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [['type' => 'set_account', 'value' => 8, 'behavior' => 'always', 'priority' => 100]],
+		]);
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertArrayNotHasKey('account', $changes);
+		$this->assertSame(1, $transaction->getAccountId());
+	}
+
+	public function testASharedRuleDoesNotMoveARowIntoItsOwnersAccount(): void {
+		// owner2's rule targets owner2's account; it runs on user123's rows,
+		// which stay in user123's ledger
+		$transaction = $this->createTransaction(['accountId' => 1]);
+		$this->accountMapper->method('find')->willReturnCallback(
+			fn (int $id, string $userId) => $userId === 'owner2' ? $this->makeAccount($id, 'owner2') : throw new \Exception('Account not found')
+		);
+		$this->granularShareService->method('canWrite')->willReturn(true);
+		$this->accountsOwnedBy([1 => 'user123', 8 => 'owner2']);
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [['type' => 'set_account', 'value' => 8, 'behavior' => 'always', 'priority' => 100]],
+		]);
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertArrayNotHasKey('account', $changes);
+		$this->assertSame(1, $transaction->getAccountId());
+	}
+
+	public function testARuleDoesNotMoveARowIntoAReadOnlySharedAccount(): void {
+		// A share made read-only after the rule was saved
+		$transaction = $this->createTransaction(['accountId' => 1]);
+		$this->accountMapper->method('find')->willThrowException(new \Exception('Account not found'));
+		$this->granularShareService->method('canAccess')->willReturn(true);
+		$this->granularShareService->method('canWrite')->willReturn(false);
+
+		$rule = $this->createRule([
+			'version' => 2,
+			'actions' => [['type' => 'set_account', 'value' => 8, 'behavior' => 'always', 'priority' => 100]],
+		]);
+		$changes = $this->applicator->applyRules($transaction, [$rule], 'user123');
+
+		$this->assertArrayNotHasKey('account', $changes);
+		$this->assertSame(1, $transaction->getAccountId());
 	}
 
 	public function testValidateInvalidTransactionType(): void {
@@ -934,7 +1375,7 @@ class RuleActionApplicatorTest extends TestCase {
 		$result = $this->applicator->validateActions($actions, 'user123');
 
 		$this->assertFalse($result['valid']);
-		$this->assertStringContainsString("invalid transaction type", strtolower($result['errors'][0]));
+		$this->assertStringContainsString('invalid transaction type', strtolower($result['errors'][0]));
 	}
 
 	public function testValidateTagsMustBeArray(): void {
@@ -975,13 +1416,28 @@ class RuleActionApplicatorTest extends TestCase {
 		$this->assertStringContainsString('unknown action type', strtolower($result['errors'][0]));
 	}
 
-	public function testValidateLegacyFormatAlwaysValid(): void {
+	public function testValidateLegacyFormatWithAUsableCategory(): void {
+		$this->categoryMapper->method('find')->with(5, 'user123')->willReturn($this->makeCategory(5));
 		$actions = ['categoryId' => 5, 'vendor' => 'Test'];
 
 		$result = $this->applicator->validateActions($actions, 'user123');
 
 		$this->assertTrue($result['valid']);
 		$this->assertEmpty($result['errors']);
+	}
+
+	/**
+	 * The legacy shape was never checked, so a rule could carry any user's
+	 * category id (R6-4).
+	 */
+	public function testValidateLegacyFormatRefusesACategoryTheOwnerCannotUse(): void {
+		$this->categoryMapper->method('find')->willThrowException(new \Exception('Category not found'));
+		$this->granularShareService->method('canAccess')->willReturn(false);
+
+		$result = $this->applicator->validateActions(['categoryId' => 99], 'user123');
+
+		$this->assertFalse($result['valid']);
+		$this->assertStringContainsString('category 99', $result['errors'][0]);
 	}
 
 	// ===== Vendor if_empty Tests =====

@@ -40,74 +40,74 @@ use OCP\Migration\IRepairStep;
  */
 class RestoreMissingColumns implements IRepairStep {
 
-    public function __construct(
-        private SchemaVersionService $schema,
-        private MigrationStepRunner $runner,
-    ) {
-    }
+	public function __construct(
+		private SchemaVersionService $schema,
+		private MigrationStepRunner $runner,
+	) {
+	}
 
-    public function getName(): string {
-        return 'Restore Budget database columns lost to a concurrent or interrupted update';
-    }
+	public function getName(): string {
+		return 'Restore Budget database columns lost to a concurrent or interrupted update';
+	}
 
-    public function run(IOutput $output): void {
-        $missing = $this->schema->getMissingColumns();
-        if ($missing === []) {
-            // Runs on every update: a clean schema is not worth a line.
-            return;
-        }
+	public function run(IOutput $output): void {
+		$missing = $this->schema->getMissingColumns();
+		if ($missing === []) {
+			// Runs on every update: a clean schema is not worth a line.
+			return;
+		}
 
-        // version => the columns it is re-run for
-        $versions = [];
-        foreach ($missing as $table => $columns) {
-            foreach ($columns as $column) {
-                $whole = $column === SchemaVersionService::WHOLE_TABLE;
-                $name = $whole ? $table : $table . '.' . $column;
-                $named = $this->schema->migrationsNaming($table, $whole ? null : $column);
-                if ($named === []) {
-                    $output->warning("Budget: no migration on this server adds $name, so it cannot be restored. The app's files are incomplete: reinstall the app.");
-                    continue;
-                }
-                foreach ($named as $version) {
-                    $versions[$version][] = $name;
-                }
-            }
-        }
-        ksort($versions, SORT_STRING);
+		// version => the columns it is re-run for
+		$versions = [];
+		foreach ($missing as $table => $columns) {
+			foreach ($columns as $column) {
+				$whole = $column === SchemaVersionService::WHOLE_TABLE;
+				$name = $whole ? $table : $table . '.' . $column;
+				$named = $this->schema->migrationsNaming($table, $whole ? null : $column);
+				if ($named === []) {
+					$output->warning("Budget: no migration on this server adds $name, so it cannot be restored. The app's files are incomplete: reinstall the app.");
+					continue;
+				}
+				foreach ($named as $version) {
+					$versions[$version][] = $name;
+				}
+			}
+		}
+		ksort($versions, SORT_STRING);
 
-        foreach ($versions as $version => $names) {
-            $version = (string)$version;
-            $output->info("Budget: re-running migration $version to restore " . implode(', ', array_unique($names)));
-            try {
-                $this->runner->execute($version, $output);
-            } catch (\Throwable $e) {
-                $output->warning("Budget: migration $version failed: " . $e->getMessage());
-            }
-        }
+		foreach ($versions as $version => $names) {
+			$version = (string)$version;
+			$output->info("Budget: re-running migration $version to restore " . implode(', ', array_unique($names)));
+			try {
+				$this->runner->execute($version, $output);
+			} catch (\Throwable $e) {
+				$output->warning("Budget: migration $version failed: " . $e->getMessage());
+			}
+		}
 
-        // Look again, from the live schema. This also drops the "verified"
-        // marker, which was recorded before whatever removed the column.
-        $this->schema->refresh();
-        $still = $this->schema->getMissingColumns();
-        if ($still === []) {
-            $output->info('Budget: every column the app writes is present again.');
-            return;
-        }
-        $output->warning('Budget: still missing after the repair: ' . implode(', ', self::names($still)));
-    }
+		// Look again, from the live schema. This also drops the "verified"
+		// marker, which was recorded before whatever removed the column.
+		$this->schema->refresh();
+		$still = $this->schema->getMissingColumns();
+		if ($still === []) {
+			$output->info('Budget: every column the app writes is present again.');
+			return;
+		}
+		$output->warning('Budget: still missing after the repair: ' . implode(', ', self::names($still)));
+	}
 
-    /**
-     * @param array<string, string[]> $missing
-     * @return string[]
-     */
-    private static function names(array $missing): array {
-        $names = [];
-        foreach ($missing as $table => $columns) {
-            foreach ($columns as $column) {
-                $names[] = $column === SchemaVersionService::WHOLE_TABLE ? $table : $table . '.' . $column;
-            }
-        }
+	/**
+	 * @param array<string, string[]> $missing
+	 * @return string[]
+	 */
+	private static function names(array $missing): array {
+		$names = [];
+		foreach ($missing as $table => $columns) {
+			foreach ($columns as $column) {
+				$names[] = $column === SchemaVersionService::WHOLE_TABLE ? $table : $table . '.' . $column;
+			}
+		}
 
-        return $names;
-    }
+		return $names;
+	}
 }

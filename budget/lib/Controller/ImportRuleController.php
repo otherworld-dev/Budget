@@ -6,7 +6,10 @@ namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Db\ShareItem;
+use OCA\Budget\Db\TagMapper;
+use OCA\Budget\Db\TagSetMapper;
 use OCA\Budget\Service\GranularShareService;
+use OCA\Budget\Service\Import\RegexPattern;
 use OCA\Budget\Service\ImportRuleService;
 use OCA\Budget\Service\ValidationService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
@@ -21,496 +24,640 @@ use OCP\IRequest;
 use Psr\Log\LoggerInterface;
 
 class ImportRuleController extends Controller {
-    use ApiErrorHandlerTrait;
-    use InputValidationTrait;
-    use SharedAccessTrait;
+	use ApiErrorHandlerTrait;
+	use InputValidationTrait;
+	use SharedAccessTrait;
 
-    private ImportRuleService $service;
-    private ValidationService $validationService;
-    private IL10N $l;
-    private string $userId;
+	private ImportRuleService $service;
+	private ValidationService $validationService;
+	private IL10N $l;
+	private string $userId;
 
-    private const VALID_FIELDS = ['description', 'vendor', 'reference', 'notes', 'amount'];
-    private const VALID_MATCH_TYPES = ['contains', 'exact', 'starts_with', 'ends_with', 'regex'];
+	private const VALID_FIELDS = ['description', 'vendor', 'reference', 'notes', 'amount'];
+	private const VALID_MATCH_TYPES = ['contains', 'exact', 'starts_with', 'ends_with', 'regex'];
 
-    public function __construct(
-        IRequest $request,
-        ImportRuleService $service,
-        ValidationService $validationService,
-        GranularShareService $granularShareService,
-        IL10N $l,
-        string $userId,
-        LoggerInterface $logger
-    ) {
-        parent::__construct(Application::APP_ID, $request);
-        $this->service = $service;
-        $this->validationService = $validationService;
-        $this->l = $l;
-        $this->userId = $userId;
-        $this->setLogger($logger);
-        $this->setInputValidator($validationService);
-        $this->setGranularShareService($granularShareService);
-    }
+	public function __construct(
+		IRequest $request,
+		ImportRuleService $service,
+		ValidationService $validationService,
+		GranularShareService $granularShareService,
+		IL10N $l,
+		string $userId,
+		LoggerInterface $logger,
+		private ?TagMapper $tagMapper = null,
+		private ?TagSetMapper $tagSetMapper = null,
+	) {
+		parent::__construct(Application::APP_ID, $request);
+		$this->service = $service;
+		$this->validationService = $validationService;
+		$this->l = $l;
+		$this->userId = $userId;
+		$this->setLogger($logger);
+		$this->setInputValidator($validationService);
+		$this->setGranularShareService($granularShareService);
+	}
 
-    /**
-     * @NoAdminRequired
-     */
-    public function index(): DataResponse {
-        try {
-            // Own rules (entities; serialized by DataResponse) plus rules shared
-            // with this user (already flagged _shared / _sharedBy / _canWrite).
-            $own = $this->service->findAll($this->userId);
-            $shared = $this->granularShareService->getSharedImportRules($this->userId);
-            return new DataResponse(array_merge($own, $shared));
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to retrieve import rules'));
-        }
-    }
+	/**
+	 * @NoAdminRequired
+	 */
+	public function index(): DataResponse {
+		try {
+			// Own rules (entities; serialized by DataResponse) plus rules shared
+			// with this user (already flagged _shared / _sharedBy / _canWrite).
+			$own = $this->service->findAll($this->userId);
+			$shared = $this->granularShareService->getSharedImportRules($this->userId);
+			return new DataResponse(array_merge($own, $shared));
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to retrieve import rules'));
+		}
+	}
 
-    /**
-     * @NoAdminRequired
-     */
-    public function groups(): DataResponse {
-        try {
-            $groups = $this->service->getGroups($this->userId);
-            return new DataResponse($groups);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to retrieve rule groups'));
-        }
-    }
+	/**
+	 * @NoAdminRequired
+	 */
+	public function groups(): DataResponse {
+		try {
+			$groups = $this->service->getGroups($this->userId);
+			return new DataResponse($groups);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to retrieve rule groups'));
+		}
+	}
 
-    /**
-     * @NoAdminRequired
-     */
-    public function show(int $id): DataResponse {
-        try {
-            $owner = $this->granularShareService->resolveOwner($this->userId, ShareItem::TYPE_IMPORT_RULE, $id);
-            if ($owner === null) {
-                return new DataResponse(
-                    ['error' => $this->l->t('%1$s not found', [$this->l->t('Import rule')])],
-                    Http::STATUS_NOT_FOUND
-                );
-            }
+	/**
+	 * @NoAdminRequired
+	 */
+	public function show(int $id): DataResponse {
+		try {
+			$owner = $this->granularShareService->resolveOwner($this->userId, ShareItem::TYPE_IMPORT_RULE, $id);
+			if ($owner === null) {
+				return new DataResponse(
+					['error' => $this->l->t('%1$s not found', [$this->l->t('Import rule')])],
+					Http::STATUS_NOT_FOUND
+				);
+			}
 
-            $rule = $this->service->find($id, $owner)->jsonSerialize();
-            if ($owner !== $this->userId) {
-                $rule['_shared'] = true;
-                $rule['_sharedBy'] = $owner;
-                $rule['_canWrite'] = $this->granularShareService->canWrite($this->userId, ShareItem::TYPE_IMPORT_RULE, $id);
-            }
-            return new DataResponse($rule);
-        } catch (\Exception $e) {
-            return $this->handleNotFoundError($e, $this->l->t('Import rule'), ['ruleId' => $id]);
-        }
-    }
+			$rule = $this->service->find($id, $owner)->jsonSerialize();
+			if ($owner !== $this->userId) {
+				$rule['_shared'] = true;
+				$rule['_sharedBy'] = $owner;
+				$rule['_canWrite'] = $this->granularShareService->canWrite($this->userId, ShareItem::TYPE_IMPORT_RULE, $id);
+			}
+			return new DataResponse($rule);
+		} catch (\Exception $e) {
+			return $this->handleNotFoundError($e, $this->l->t('Import rule'), ['ruleId' => $id]);
+		}
+	}
 
-    /**
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 30, period: 60)]
-    public function create(
-        string $name,
-        ?string $pattern = null,
-        ?string $field = null,
-        ?string $matchType = null,
-        ?array $criteria = null,
-        int $schemaVersion = 1,
-        ?int $categoryId = null,
-        ?string $vendorName = null,
-        int $priority = 0,
-        ?array $actions = null,
-        bool $applyOnImport = true,
-        bool $stopProcessing = true,
-        ?string $groupName = null
-    ): DataResponse {
-        try {
-            // Validate name (required)
-            $nameValidation = $this->validationService->validateName($name, true);
-            if (!$nameValidation['valid']) {
-                return new DataResponse(['error' => $nameValidation['error']], Http::STATUS_BAD_REQUEST);
-            }
-            $name = $nameValidation['sanitized'];
+	/**
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function create(
+		string $name,
+		?string $pattern = null,
+		?string $field = null,
+		?string $matchType = null,
+		?array $criteria = null,
+		int $schemaVersion = 1,
+		?int $categoryId = null,
+		?string $vendorName = null,
+		int $priority = 0,
+		?array $actions = null,
+		bool $applyOnImport = true,
+		bool $stopProcessing = true,
+		?string $groupName = null,
+	): DataResponse {
+		try {
+			// Validate name (required)
+			$nameValidation = $this->validationService->validateName($name, true);
+			if (!$nameValidation['valid']) {
+				return new DataResponse(['error' => $nameValidation['error']], Http::STATUS_BAD_REQUEST);
+			}
+			$name = $nameValidation['sanitized'];
 
-            // Validate based on schema version
-            if ($schemaVersion === 2) {
-                // v2 format: criteria required
-                if ($criteria === null) {
-                    return new DataResponse(['error' => $this->l->t('Criteria required for v2 rules')], Http::STATUS_BAD_REQUEST);
-                }
-                // Validation happens in service layer
-            } else {
-                // v1 format: pattern, field, matchType required
-                if (!$pattern || !$field || !$matchType) {
-                    return new DataResponse(['error' => $this->l->t('Pattern, field, and matchType required for v1 rules')], Http::STATUS_BAD_REQUEST);
-                }
+			// Validate based on schema version
+			if ($schemaVersion === 2) {
+				// v2 format: criteria required
+				if ($criteria === null) {
+					return new DataResponse(['error' => $this->l->t('Criteria required for v2 rules')], Http::STATUS_BAD_REQUEST);
+				}
+				// Validation happens in service layer
+			} else {
+				// v1 format: pattern, field, matchType required
+				if (!$pattern || !$field || !$matchType) {
+					return new DataResponse(['error' => $this->l->t('Pattern, field, and matchType required for v1 rules')], Http::STATUS_BAD_REQUEST);
+				}
 
-                // Validate pattern
-                $patternValidation = $this->validationService->validatePattern($pattern, true);
-                if (!$patternValidation['valid']) {
-                    return new DataResponse(['error' => $patternValidation['error']], Http::STATUS_BAD_REQUEST);
-                }
-                $pattern = $patternValidation['sanitized'];
+				// Validate pattern
+				$patternValidation = $this->validationService->validatePattern($pattern, true);
+				if (!$patternValidation['valid']) {
+					return new DataResponse(['error' => $patternValidation['error']], Http::STATUS_BAD_REQUEST);
+				}
+				$pattern = $patternValidation['sanitized'];
 
-                // Validate field
-                if (!in_array($field, self::VALID_FIELDS, true)) {
-                    return new DataResponse(['error' => $this->l->t('Invalid field. Must be one of: %1$s', [implode(', ', self::VALID_FIELDS)])], Http::STATUS_BAD_REQUEST);
-                }
+				// Validate field
+				if (!in_array($field, self::VALID_FIELDS, true)) {
+					return new DataResponse(['error' => $this->l->t('Invalid field. Must be one of: %1$s', [implode(', ', self::VALID_FIELDS)])], Http::STATUS_BAD_REQUEST);
+				}
 
-                // Validate matchType
-                if (!in_array($matchType, self::VALID_MATCH_TYPES, true)) {
-                    return new DataResponse(['error' => $this->l->t('Invalid match type. Must be one of: %1$s', [implode(', ', self::VALID_MATCH_TYPES)])], Http::STATUS_BAD_REQUEST);
-                }
+				// Validate matchType
+				if (!in_array($matchType, self::VALID_MATCH_TYPES, true)) {
+					return new DataResponse(['error' => $this->l->t('Invalid match type. Must be one of: %1$s', [implode(', ', self::VALID_MATCH_TYPES)])], Http::STATUS_BAD_REQUEST);
+				}
 
-                // Validate regex pattern if matchType is regex
-                if ($matchType === 'regex') {
-                    if (@preg_match('/' . $pattern . '/', '') === false) {
-                        return new DataResponse(['error' => $this->l->t('Invalid regex pattern')], Http::STATUS_BAD_REQUEST);
-                    }
-                }
-            }
+				// Validate regex pattern if matchType is regex. Accept both bare
+				// patterns and full /pattern/flags literals for backward compatibility.
+				if ($matchType === 'regex' && $pattern !== null) {
+					if (!RegexPattern::isValid($pattern)) {
+						return new DataResponse(['error' => $this->l->t('Invalid regex pattern')], Http::STATUS_BAD_REQUEST);
+					}
+				}
+			}
 
-            // Validate vendorName if provided
-            if ($vendorName !== null) {
-                $vendorValidation = $this->validationService->validateVendor($vendorName);
-                if (!$vendorValidation['valid']) {
-                    return new DataResponse(['error' => $vendorValidation['error']], Http::STATUS_BAD_REQUEST);
-                }
-                $vendorName = $vendorValidation['sanitized'];
-            }
+			// Validate vendorName if provided
+			if ($vendorName !== null) {
+				$vendorValidation = $this->validationService->validateVendor($vendorName);
+				if (!$vendorValidation['valid']) {
+					return new DataResponse(['error' => $vendorValidation['error']], Http::STATUS_BAD_REQUEST);
+				}
+				$vendorName = $vendorValidation['sanitized'];
+			}
 
-            // Validate actions vendor if provided (v1 legacy format)
-            if ($actions !== null && isset($actions['vendor'])) {
-                $vendorValidation = $this->validationService->validateVendor($actions['vendor']);
-                if (!$vendorValidation['valid']) {
-                    return new DataResponse(['error' => $vendorValidation['error']], Http::STATUS_BAD_REQUEST);
-                }
-                $actions['vendor'] = $vendorValidation['sanitized'];
-            }
+			// Validate actions vendor if provided (v1 legacy format)
+			if ($actions !== null && isset($actions['vendor'])) {
+				$vendorValidation = $this->validationService->validateVendor($actions['vendor']);
+				if (!$vendorValidation['valid']) {
+					return new DataResponse(['error' => $vendorValidation['error']], Http::STATUS_BAD_REQUEST);
+				}
+				$actions['vendor'] = $vendorValidation['sanitized'];
+			}
 
-            $rule = $this->service->create(
-                $this->userId,
-                $name,
-                $pattern,
-                $field,
-                $matchType,
-                $criteria,
-                $schemaVersion,
-                $categoryId,
-                $vendorName,
-                $priority,
-                $actions,
-                $applyOnImport,
-                $stopProcessing,
-                $groupName
-            );
-            return new DataResponse($rule, Http::STATUS_CREATED);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to create import rule'));
-        }
-    }
+			$rule = $this->service->create(
+				$this->userId,
+				$name,
+				$pattern,
+				$field,
+				$matchType,
+				$criteria,
+				$schemaVersion,
+				$categoryId,
+				$vendorName,
+				$priority,
+				$actions,
+				$applyOnImport,
+				$stopProcessing,
+				$groupName
+			);
+			return new DataResponse($rule, Http::STATUS_CREATED);
+		} catch (\InvalidArgumentException $e) {
+			// The service's validation says what is wrong with the rule (a bad
+			// regex, a missing field), which the generic message would hide
+			// now that the builder leaves regex checking to the server.
+			return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to create import rule'));
+		}
+	}
 
-    /**
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 30, period: 60)]
-    public function update(
-        int $id,
-        ?string $name = null,
-        ?string $pattern = null,
-        ?string $field = null,
-        ?string $matchType = null,
-        ?array $criteria = null,
-        ?int $schemaVersion = null,
-        ?int $categoryId = null,
-        ?string $vendorName = null,
-        ?int $priority = null,
-        ?bool $active = null,
-        ?array $actions = null,
-        ?bool $applyOnImport = null,
-        ?bool $stopProcessing = null,
-        ?string $groupName = null
-    ): DataResponse {
-        try {
-            // Owners and write-share recipients may edit; enforce before validating
-            $this->requireWriteAccess(ShareItem::TYPE_IMPORT_RULE, $id);
+	/**
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function update(
+		int $id,
+		?string $name = null,
+		?string $pattern = null,
+		?string $field = null,
+		?string $matchType = null,
+		?array $criteria = null,
+		?int $schemaVersion = null,
+		?int $categoryId = null,
+		?string $vendorName = null,
+		?int $priority = null,
+		?bool $active = null,
+		?array $actions = null,
+		?bool $applyOnImport = null,
+		?bool $stopProcessing = null,
+		?string $groupName = null,
+	): DataResponse {
+		try {
+			// Owners and write-share recipients may edit; enforce before validating
+			$this->requireWriteAccess(ShareItem::TYPE_IMPORT_RULE, $id);
 
-            $updates = [];
+			$updates = [];
 
-            // Validate name if provided
-            if ($name !== null) {
-                $nameValidation = $this->validationService->validateName($name, false);
-                if (!$nameValidation['valid']) {
-                    return new DataResponse(['error' => $nameValidation['error']], Http::STATUS_BAD_REQUEST);
-                }
-                $updates['name'] = $nameValidation['sanitized'];
-            }
+			// Validate name if provided
+			if ($name !== null) {
+				$nameValidation = $this->validationService->validateName($name, false);
+				if (!$nameValidation['valid']) {
+					return new DataResponse(['error' => $nameValidation['error']], Http::STATUS_BAD_REQUEST);
+				}
+				$updates['name'] = $nameValidation['sanitized'];
+			}
 
-            // Validate pattern if provided
-            if ($pattern !== null) {
-                $patternValidation = $this->validationService->validatePattern($pattern, false);
-                if (!$patternValidation['valid']) {
-                    return new DataResponse(['error' => $patternValidation['error']], Http::STATUS_BAD_REQUEST);
-                }
-                $updates['pattern'] = $patternValidation['sanitized'];
-            }
+			// Validate pattern if provided
+			if ($pattern !== null) {
+				$patternValidation = $this->validationService->validatePattern($pattern, false);
+				if (!$patternValidation['valid']) {
+					return new DataResponse(['error' => $patternValidation['error']], Http::STATUS_BAD_REQUEST);
+				}
+				$updates['pattern'] = $patternValidation['sanitized'];
+			}
 
-            // Validate field if provided
-            if ($field !== null) {
-                if (!in_array($field, self::VALID_FIELDS, true)) {
-                    return new DataResponse(['error' => $this->l->t('Invalid field. Must be one of: %1$s', [implode(', ', self::VALID_FIELDS)])], Http::STATUS_BAD_REQUEST);
-                }
-                $updates['field'] = $field;
-            }
+			// Validate field if provided
+			if ($field !== null) {
+				if (!in_array($field, self::VALID_FIELDS, true)) {
+					return new DataResponse(['error' => $this->l->t('Invalid field. Must be one of: %1$s', [implode(', ', self::VALID_FIELDS)])], Http::STATUS_BAD_REQUEST);
+				}
+				$updates['field'] = $field;
+			}
 
-            // Validate matchType if provided
-            if ($matchType !== null) {
-                if (!in_array($matchType, self::VALID_MATCH_TYPES, true)) {
-                    return new DataResponse(['error' => $this->l->t('Invalid match type. Must be one of: %1$s', [implode(', ', self::VALID_MATCH_TYPES)])], Http::STATUS_BAD_REQUEST);
-                }
-                $updates['matchType'] = $matchType;
+			// Validate matchType if provided
+			if ($matchType !== null) {
+				if (!in_array($matchType, self::VALID_MATCH_TYPES, true)) {
+					return new DataResponse(['error' => $this->l->t('Invalid match type. Must be one of: %1$s', [implode(', ', self::VALID_MATCH_TYPES)])], Http::STATUS_BAD_REQUEST);
+				}
+				$updates['matchType'] = $matchType;
 
-                // If updating to regex, validate the pattern
-                $patternToValidate = $updates['pattern'] ?? $pattern;
-                if ($matchType === 'regex' && $patternToValidate !== null) {
-                    if (@preg_match('/' . $patternToValidate . '/', '') === false) {
-                        return new DataResponse(['error' => $this->l->t('Invalid regex pattern')], Http::STATUS_BAD_REQUEST);
-                    }
-                }
-            }
+				// If updating to regex, validate the pattern. Accept bare values
+				// and full /pattern/flags literals for backward compatibility.
+				$patternToValidate = $updates['pattern'] ?? $pattern;
+				if ($matchType === 'regex' && $patternToValidate !== null) {
+					if (!RegexPattern::isValid($patternToValidate)) {
+						return new DataResponse(['error' => $this->l->t('Invalid regex pattern')], Http::STATUS_BAD_REQUEST);
+					}
+				}
+			}
 
-            // Validate vendorName if provided
-            if ($vendorName !== null) {
-                $vendorValidation = $this->validationService->validateVendor($vendorName);
-                if (!$vendorValidation['valid']) {
-                    return new DataResponse(['error' => $vendorValidation['error']], Http::STATUS_BAD_REQUEST);
-                }
-                $updates['vendorName'] = $vendorValidation['sanitized'];
-            }
+			// Validate vendorName if provided
+			if ($vendorName !== null) {
+				$vendorValidation = $this->validationService->validateVendor($vendorName);
+				if (!$vendorValidation['valid']) {
+					return new DataResponse(['error' => $vendorValidation['error']], Http::STATUS_BAD_REQUEST);
+				}
+				$updates['vendorName'] = $vendorValidation['sanitized'];
+			}
 
-            // Validate actions vendor if provided
-            if ($actions !== null && isset($actions['vendor'])) {
-                $vendorValidation = $this->validationService->validateVendor($actions['vendor']);
-                if (!$vendorValidation['valid']) {
-                    return new DataResponse(['error' => $vendorValidation['error']], Http::STATUS_BAD_REQUEST);
-                }
-                $actions['vendor'] = $vendorValidation['sanitized'];
-            }
+			// Validate actions vendor if provided
+			if ($actions !== null && isset($actions['vendor'])) {
+				$vendorValidation = $this->validationService->validateVendor($actions['vendor']);
+				if (!$vendorValidation['valid']) {
+					return new DataResponse(['error' => $vendorValidation['error']], Http::STATUS_BAD_REQUEST);
+				}
+				$actions['vendor'] = $vendorValidation['sanitized'];
+			}
 
-            // Handle v2 specific fields
-            if ($criteria !== null) {
-                $updates['criteria'] = $criteria;
-            }
-            if ($schemaVersion !== null) {
-                $updates['schemaVersion'] = $schemaVersion;
-            }
-            if ($stopProcessing !== null) {
-                $updates['stopProcessing'] = $stopProcessing;
-            }
+			// Handle v2 specific fields
+			if ($criteria !== null) {
+				$updates['criteria'] = $criteria;
+			}
+			if ($schemaVersion !== null) {
+				$updates['schemaVersion'] = $schemaVersion;
+			}
+			if ($stopProcessing !== null) {
+				$updates['stopProcessing'] = $stopProcessing;
+			}
 
-            // Handle other fields
-            if ($categoryId !== null) {
-                $updates['categoryId'] = $categoryId;
-            }
-            if ($priority !== null) {
-                $updates['priority'] = $priority;
-            }
-            if ($active !== null) {
-                $updates['active'] = $active;
-            }
-            if ($actions !== null) {
-                $updates['actions'] = $actions;
-            }
-            if ($applyOnImport !== null) {
-                $updates['applyOnImport'] = $applyOnImport;
-            }
-            if ($groupName !== null) {
-                // Empty string means clear the group
-                $updates['groupName'] = $groupName === '' ? null : $groupName;
-            }
+			// Handle other fields
+			if ($categoryId !== null) {
+				$updates['categoryId'] = $categoryId;
+			}
+			if ($priority !== null) {
+				$updates['priority'] = $priority;
+			}
+			if ($active !== null) {
+				$updates['active'] = $active;
+			}
+			if ($actions !== null) {
+				$updates['actions'] = $actions;
+			}
+			if ($applyOnImport !== null) {
+				$updates['applyOnImport'] = $applyOnImport;
+			}
+			if ($groupName !== null) {
+				// Empty string means clear the group
+				$updates['groupName'] = $groupName === '' ? null : $groupName;
+			}
 
-            if (empty($updates)) {
-                return new DataResponse(['error' => $this->l->t('No valid fields to update')], Http::STATUS_BAD_REQUEST);
-            }
+			if (empty($updates)) {
+				return new DataResponse(['error' => $this->l->t('No valid fields to update')], Http::STATUS_BAD_REQUEST);
+			}
 
-            // Write access confirmed above; resolve the owner so the
-            // owner-scoped service lookup succeeds for shared rules too.
-            $owner = $this->granularShareService->resolveOwner($this->userId, ShareItem::TYPE_IMPORT_RULE, $id)
-                ?? $this->userId;
+			// Write access confirmed above; resolve the owner so the
+			// owner-scoped service lookup succeeds for shared rules too.
+			$owner = $this->granularShareService->resolveOwner($this->userId, ShareItem::TYPE_IMPORT_RULE, $id)
+				?? $this->userId;
 
-            $rule = $this->service->update($id, $owner, $updates);
-            return new DataResponse($rule);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to update import rule'), Http::STATUS_BAD_REQUEST, ['ruleId' => $id]);
-        }
-    }
+			if (isset($updates['actions']) && $owner !== $this->userId) {
+				$updates['actions'] = $this->keepTagsTheEditorCannotSee($id, $owner, $updates['actions']);
+			}
 
-    /**
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 20, period: 60)]
-    public function destroy(int $id): DataResponse {
-        try {
-            $owner = $this->granularShareService->resolveOwner($this->userId, ShareItem::TYPE_IMPORT_RULE, $id);
-            if ($owner === null) {
-                return $this->handleNotFoundError(
-                    new \OCP\AppFramework\Db\DoesNotExistException('Import rule not found'),
-                    $this->l->t('Import rule'),
-                    ['ruleId' => $id]
-                );
-            }
-            // Only the owner may delete a rule — recipients (even with write
-            // access) can edit but not remove it.
-            if ($owner !== $this->userId) {
-                return new DataResponse(
-                    ['error' => $this->l->t('Only the rule owner can delete it')],
-                    Http::STATUS_FORBIDDEN
-                );
-            }
+			$rule = $this->service->update($id, $owner, $updates);
+			return new DataResponse($rule);
+		} catch (\InvalidArgumentException $e) {
+			return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to update import rule'), Http::STATUS_BAD_REQUEST, ['ruleId' => $id]);
+		}
+	}
 
-            $this->service->delete($id, $this->userId);
-            return new DataResponse(['status' => 'success']);
-        } catch (\Exception $e) {
-            return $this->handleNotFoundError($e, $this->l->t('Import rule'), ['ruleId' => $id]);
-        }
-    }
+	/**
+	 * The add-tags actions of a shared rule as someone other than its owner
+	 * saves it.
+	 *
+	 * The rule editor only shows the tags its user can see, and once they
+	 * tick a box in an action it saves just the ticked ones, so a
+	 * recipient's save stripped the owner's own tags off the rule. As with a
+	 * shared bill's tags: the tags in each add-tags action that the editor
+	 * can't see stay as they are (the k-th stored action's go to the k-th
+	 * one sent, or come back as their own action if the recipient removed
+	 * it), and only the ones they can see are replaced by what they sent. A
+	 * tag even the owner can't use any more is not kept. The owner's own
+	 * save still replaces the whole list.
+	 *
+	 * @param mixed $sent The actions the editor sent
+	 * @return mixed
+	 */
+	private function keepTagsTheEditorCannotSee(int $id, string $owner, mixed $sent): mixed {
+		if (!is_array($sent) || !isset($sent['actions']) || !is_array($sent['actions'])) {
+			return $sent;
+		}
 
-    /**
-     * @NoAdminRequired
-     */
-    public function test(array $transactionData): DataResponse {
-        try {
-            $results = $this->service->testRules($this->userId, $transactionData);
-            return new DataResponse($results);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to test import rules'));
-        }
-    }
+		$stored = $this->service->find($id, $owner)->getParsedActions();
+		$hiddenPerAction = [];
+		foreach (is_array($stored['actions'] ?? null) ? $stored['actions'] : [] as $action) {
+			if (!is_array($action) || ($action['type'] ?? null) !== 'add_tags') {
+				continue;
+			}
+			$ids = array_map('intval', is_array($action['value'] ?? null) ? $action['value'] : []);
+			$hidden = array_values(array_diff($ids, $this->usableTagIds($this->userId, $ids)));
+			$hidden = $hidden === [] ? [] : array_values(array_intersect($hidden, $this->usableTagIds($owner, $hidden)));
+			$hiddenPerAction[] = ['ids' => $hidden, 'action' => $action];
+		}
+		if ($hiddenPerAction === [] || array_merge(...array_column($hiddenPerAction, 'ids')) === []) {
+			return $sent;
+		}
 
-    /**
-     * Preview rule application to existing transactions
-     * @NoAdminRequired
-     */
-    public function preview(
-        array $ruleIds = [],
-        ?int $accountId = null,
-        ?string $startDate = null,
-        ?string $endDate = null,
-        bool $uncategorizedOnly = false
-    ): DataResponse {
-        try {
-            $filters = [
-                'accountId' => $accountId,
-                'startDate' => $startDate,
-                'endDate' => $endDate,
-                'uncategorizedOnly' => $uncategorizedOnly
-            ];
+		$k = 0;
+		foreach ($sent['actions'] as $i => $action) {
+			if (!is_array($action) || ($action['type'] ?? null) !== 'add_tags' || !isset($hiddenPerAction[$k])) {
+				continue;
+			}
+			$given = array_map('intval', is_array($action['value'] ?? null) ? $action['value'] : []);
+			$sent['actions'][$i]['value'] = array_values(array_unique(array_merge($given, $hiddenPerAction[$k]['ids'])));
+			$k++;
+		}
+		// Actions the recipient removed: what they couldn't see stays
+		for (; $k < count($hiddenPerAction); $k++) {
+			if ($hiddenPerAction[$k]['ids'] === []) {
+				continue;
+			}
+			$sent['actions'][] = array_merge($hiddenPerAction[$k]['action'], ['value' => $hiddenPerAction[$k]['ids']]);
+		}
+		$sent['actions'] = array_values($sent['actions']);
 
-            $results = $this->service->previewRuleApplication($this->userId, $ruleIds, $filters);
-            return new DataResponse($results);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to preview rule application'));
-        }
-    }
+		return $sent;
+	}
 
-    /**
-     * Test unsaved rule against existing transactions
-     * @NoAdminRequired
-     */
-    public function testUnsaved(
-        array $criteria,
-        int $schemaVersion = 2,
-        ?int $accountId = null,
-        ?string $startDate = null,
-        ?string $endDate = null,
-        bool $uncategorizedOnly = false,
-        int $limit = 50
-    ): DataResponse {
-        try {
-            $filters = [
-                'accountId' => $accountId,
-                'startDate' => $startDate,
-                'endDate' => $endDate,
-                'uncategorizedOnly' => $uncategorizedOnly
-            ];
+	/**
+	 * The tags among $tagIds that $userId can see and use: their own global
+	 * tags, and tags in a tag set whose category is theirs or shared with
+	 * them. Keep in step with GranularShareService::getUsableTagIds(), which
+	 * applies the same rule to bills, goals and transactions.
+	 *
+	 * @param int[] $tagIds
+	 * @return int[]
+	 */
+	protected function usableTagIds(string $userId, array $tagIds): array {
+		$tagIds = array_values(array_unique(array_map('intval', $tagIds)));
+		if ($tagIds === [] || $this->tagMapper === null) {
+			return [];
+		}
 
-            $results = $this->service->testUnsavedRule($this->userId, $criteria, $schemaVersion, $filters, $limit);
-            return new DataResponse($results);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to test rule against transactions'));
-        }
-    }
+		$visibleCategories = array_flip(array_map('intval', $this->granularShareService->getVisibleCategoryIds($userId)));
+		$categoryOfSet = [];
+		$usable = [];
+		foreach ($this->tagMapper->findByIds($tagIds) as $tag) {
+			$tagSetId = $tag->getTagSetId();
+			if ($tagSetId === null) {
+				if ($tag->getUserId() === $userId) {
+					$usable[] = (int)$tag->getId();
+				}
+				continue;
+			}
+			if (!array_key_exists($tagSetId, $categoryOfSet)) {
+				try {
+					$categoryOfSet[$tagSetId] = $this->tagSetMapper?->findById($tagSetId)->getCategoryId();
+				} catch (\OCP\AppFramework\Db\DoesNotExistException $e) {
+					$categoryOfSet[$tagSetId] = null;
+				}
+			}
+			$categoryId = $categoryOfSet[$tagSetId];
+			if ($categoryId !== null && isset($visibleCategories[(int)$categoryId])) {
+				$usable[] = (int)$tag->getId();
+			}
+		}
 
-    /**
-     * Apply rules to existing transactions
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 10, period: 60)]
-    public function apply(
-        array $ruleIds = [],
-        ?int $accountId = null,
-        ?string $startDate = null,
-        ?string $endDate = null,
-        bool $uncategorizedOnly = false
-    ): DataResponse {
-        try {
-            $filters = [
-                'accountId' => $accountId,
-                'startDate' => $startDate,
-                'endDate' => $endDate,
-                'uncategorizedOnly' => $uncategorizedOnly
-            ];
+		return $usable;
+	}
 
-            $results = $this->service->applyRulesToTransactions($this->userId, $ruleIds, $filters);
-            return new DataResponse($results);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to apply rules to transactions'));
-        }
-    }
+	/**
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 20, period: 60)]
+	public function destroy(int $id): DataResponse {
+		try {
+			$owner = $this->granularShareService->resolveOwner($this->userId, ShareItem::TYPE_IMPORT_RULE, $id);
+			if ($owner === null) {
+				return $this->handleNotFoundError(
+					new \OCP\AppFramework\Db\DoesNotExistException('Import rule not found'),
+					$this->l->t('Import rule'),
+					['ruleId' => $id]
+				);
+			}
+			// Only the owner may delete a rule — recipients (even with write
+			// access) can edit but not remove it.
+			if ($owner !== $this->userId) {
+				return new DataResponse(
+					['error' => $this->l->t('Only the rule owner can delete it')],
+					Http::STATUS_FORBIDDEN
+				);
+			}
 
-    /**
-     * Migrate a single rule from v1 to v2 format
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 20, period: 60)]
-    public function migrate(int $id): DataResponse {
-        try {
-            $rule = $this->service->migrateLegacyRule($id, $this->userId);
-            return new DataResponse($rule);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to migrate import rule'), Http::STATUS_BAD_REQUEST, ['ruleId' => $id]);
-        }
-    }
+			$this->service->delete($id, $this->userId);
+			return new DataResponse(['status' => 'success']);
+		} catch (\Exception $e) {
+			return $this->handleNotFoundError($e, $this->l->t('Import rule'), ['ruleId' => $id]);
+		}
+	}
 
-    /**
-     * Batch migrate all v1 rules to v2 format
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 5, period: 60)]
-    public function migrateAll(): DataResponse {
-        try {
-            $migrated = $this->service->migrateAllLegacyRules($this->userId);
-            return new DataResponse([
-                'migrated' => $migrated,
-                'count' => count($migrated)
-            ]);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to migrate import rules'));
-        }
-    }
+	/**
+	 * @NoAdminRequired
+	 */
+	public function test(array $transactionData): DataResponse {
+		try {
+			$results = $this->service->testRules($this->userId, $transactionData);
+			return new DataResponse($results);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to test import rules'));
+		}
+	}
 
-    /**
-     * Validate criteria tree structure
-     * @NoAdminRequired
-     */
-    public function validateCriteria(array $criteria): DataResponse {
-        try {
-            // Get CriteriaEvaluator via service (it's injected there)
-            // For now, return success - validation happens in service layer during create/update
-            return new DataResponse(['valid' => true]);
-        } catch (\InvalidArgumentException $e) {
-            return new DataResponse(['valid' => false, 'error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
-        } catch (\Exception $e) {
-            return new DataResponse(['valid' => false, 'error' => $this->l->t('Validation failed')], Http::STATUS_INTERNAL_SERVER_ERROR);
-        }
-    }
+	/**
+	 * Preview rule application to existing transactions
+	 * @NoAdminRequired
+	 */
+	public function preview(
+		array $ruleIds = [],
+		?int $accountId = null,
+		?string $startDate = null,
+		?string $endDate = null,
+		bool $uncategorizedOnly = false,
+	): DataResponse {
+		$ruleIds = self::ruleIdList($ruleIds);
+		if ($ruleIds === null) {
+			return new DataResponse(['error' => $this->l->t('Invalid request data')], Http::STATUS_BAD_REQUEST);
+		}
+		try {
+			$filters = [
+				'accountId' => $accountId,
+				'startDate' => $startDate,
+				'endDate' => $endDate,
+				'uncategorizedOnly' => $uncategorizedOnly
+			];
+
+			$results = $this->service->previewRuleApplication($this->userId, $ruleIds, $filters);
+			return new DataResponse($results);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to preview rule application'));
+		}
+	}
+
+	/**
+	 * Test unsaved rule against existing transactions
+	 * @NoAdminRequired
+	 */
+	public function testUnsaved(
+		array $criteria,
+		int $schemaVersion = 2,
+		?int $accountId = null,
+		?string $startDate = null,
+		?string $endDate = null,
+		bool $uncategorizedOnly = false,
+		int $limit = 50,
+	): DataResponse {
+		try {
+			$filters = [
+				'accountId' => $accountId,
+				'startDate' => $startDate,
+				'endDate' => $endDate,
+				'uncategorizedOnly' => $uncategorizedOnly
+			];
+
+			$results = $this->service->testUnsavedRule($this->userId, $criteria, $schemaVersion, $filters, $limit);
+			return new DataResponse($results);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to test rule against transactions'));
+		}
+	}
+
+	/**
+	 * Apply rules to existing transactions
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 10, period: 60)]
+	public function apply(
+		array $ruleIds = [],
+		?int $accountId = null,
+		?string $startDate = null,
+		?string $endDate = null,
+		bool $uncategorizedOnly = false,
+	): DataResponse {
+		$ruleIds = self::ruleIdList($ruleIds);
+		if ($ruleIds === null) {
+			return new DataResponse(['error' => $this->l->t('Invalid request data')], Http::STATUS_BAD_REQUEST);
+		}
+		try {
+			$filters = [
+				'accountId' => $accountId,
+				'startDate' => $startDate,
+				'endDate' => $endDate,
+				'uncategorizedOnly' => $uncategorizedOnly
+			];
+
+			$results = $this->service->applyRulesToTransactions($this->userId, $ruleIds, $filters);
+			return new DataResponse($results);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to apply rules to transactions'));
+		}
+	}
+
+	/**
+	 * The rule ids a preview or run names, as ints, or null when one of them
+	 * isn't a rule id. The service takes ints, so a null or a word in the
+	 * list ended in a TypeError and a 500.
+	 *
+	 * @return int[]|null
+	 */
+	private static function ruleIdList(array $ruleIds): ?array {
+		$ids = [];
+		foreach ($ruleIds as $id) {
+			if (is_int($id) && $id > 0) {
+				$ids[] = $id;
+			} elseif (is_string($id) && ctype_digit($id) && (int)$id > 0) {
+				$ids[] = (int)$id;
+			} else {
+				return null;
+			}
+		}
+		return $ids;
+	}
+
+	/**
+	 * Migrate a single rule from v1 to v2 format
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 20, period: 60)]
+	public function migrate(int $id): DataResponse {
+		try {
+			$rule = $this->service->migrateLegacyRule($id, $this->userId);
+			return new DataResponse($rule);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to migrate import rule'), Http::STATUS_BAD_REQUEST, ['ruleId' => $id]);
+		}
+	}
+
+	/**
+	 * Batch migrate all v1 rules to v2 format
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 5, period: 60)]
+	public function migrateAll(): DataResponse {
+		try {
+			$migrated = $this->service->migrateAllLegacyRules($this->userId);
+			return new DataResponse([
+				'migrated' => $migrated,
+				'count' => count($migrated)
+			]);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to migrate import rules'));
+		}
+	}
+
+	/**
+	 * Validate criteria tree structure
+	 * @NoAdminRequired
+	 */
+	public function validateCriteria(array $criteria): DataResponse {
+		try {
+			// Get CriteriaEvaluator via service (it's injected there)
+			// For now, return success - validation happens in service layer during create/update
+			return new DataResponse(['valid' => true]);
+		} catch (\InvalidArgumentException $e) {
+			return new DataResponse(['valid' => false, 'error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+		} catch (\Exception $e) {
+			return new DataResponse(['valid' => false, 'error' => $this->l->t('Validation failed')], Http::STATUS_INTERNAL_SERVER_ERROR);
+		}
+	}
 }

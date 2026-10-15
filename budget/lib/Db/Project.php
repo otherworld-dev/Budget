@@ -31,39 +31,39 @@ use OCP\AppFramework\Db\Entity;
  * @method void setUpdatedAt(?string $updatedAt)
  */
 class Project extends Entity implements JsonSerializable {
-    protected $userId;
-    protected $name;
-    protected $categoryId;
-    protected $totalAmount;
-    protected $startDate;
-    protected $endDate;
-    protected $createdAt;
-    protected $updatedAt;
+	protected $userId;
+	protected $name;
+	protected $categoryId;
+	protected $totalAmount;
+	protected $startDate;
+	protected $endDate;
+	protected $createdAt;
+	protected $updatedAt;
 
-    public function __construct() {
-        $this->addType('id', 'integer');
-        $this->addType('categoryId', 'integer');
-        $this->addType('totalAmount', 'float');
-    }
+	public function __construct() {
+		$this->addType('id', 'integer');
+		$this->addType('categoryId', 'integer');
+		$this->addType('totalAmount', 'float');
+	}
 
-    public function jsonSerialize(): array {
-        return [
-            'id' => $this->getId(),
-            'userId' => $this->getUserId(),
-            'name' => $this->getName(),
-            'categoryId' => $this->getCategoryId(),
-            'totalAmount' => $this->getTotalAmount(),
-            'startDate' => self::day($this->getStartDate()),
-            'endDate' => self::day($this->getEndDate()),
-            'createdAt' => $this->getCreatedAt(),
-            'updatedAt' => $this->getUpdatedAt(),
-        ];
-    }
+	public function jsonSerialize(): array {
+		return [
+			'id' => $this->getId(),
+			'userId' => $this->getUserId(),
+			'name' => $this->getName(),
+			'categoryId' => $this->getCategoryId(),
+			'totalAmount' => $this->getTotalAmount(),
+			'startDate' => self::day($this->getStartDate()),
+			'endDate' => self::day($this->getEndDate()),
+			'createdAt' => $this->getCreatedAt(),
+			'updatedAt' => $this->getUpdatedAt(),
+		];
+	}
 
-    /**
-     * A DATE column as Y-m-d. Some databases return it with a time part.
-     */
-    public static function day(?string $value): ?string {
-        return ($value === null || $value === '') ? null : substr($value, 0, 10);
-    }
+	/**
+	 * A DATE column as Y-m-d. Some databases return it with a time part.
+	 */
+	public static function day(?string $value): ?string {
+		return ($value === null || $value === '') ? null : substr($value, 0, 10);
+	}
 }

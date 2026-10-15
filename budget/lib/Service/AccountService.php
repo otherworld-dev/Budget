@@ -6,13 +6,17 @@ namespace OCA\Budget\Service;
 
 use OCA\Budget\Db\Account;
 use OCA\Budget\Db\AccountMapper;
+use OCA\Budget\Db\BillMapper;
+use OCA\Budget\Db\ImportAccountLinkMapper;
+use OCA\Budget\Db\ImportFolderMapper;
 use OCA\Budget\Db\InterestRateMapper;
+use OCA\Budget\Db\PensionRecurringContributionMapper;
 use OCA\Budget\Db\ShareItem;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Enum\AccountType;
 use OCA\Budget\Enum\Currency;
 use OCA\Budget\Exception\AccountInUseException;
-use OCA\Budget\Service\GranularShareService;
+use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Db\Entity;
 use OCP\IL10N;
 
@@ -20,630 +24,792 @@ use OCP\IL10N;
  * @extends AbstractCrudService<Account>
  */
 class AccountService extends AbstractCrudService {
-    private TransactionMapper $transactionMapper;
-    private InterestRateMapper $interestRateMapper;
-    private CurrencyConversionService $conversionService;
-    private GranularShareService $granularShareService;
-    private TransactionService $transactionService;
-    private IL10N $l;
-    private ?AutoShareService $autoShareService;
-    private ?AccountClosureService $closureService;
-    private ?BudgetCarryoverService $carryoverService;
-
-    public function __construct(
-        AccountMapper $mapper,
-        TransactionMapper $transactionMapper,
-        InterestRateMapper $interestRateMapper,
-        CurrencyConversionService $conversionService,
-        GranularShareService $granularShareService,
-        TransactionService $transactionService,
-        IL10N $l,
-        ?AutoShareService $autoShareService = null,
-        ?AccountClosureService $closureService = null,
-        ?BudgetCarryoverService $carryoverService = null
-    ) {
-        $this->mapper = $mapper;
-        $this->transactionMapper = $transactionMapper;
-        $this->interestRateMapper = $interestRateMapper;
-        $this->conversionService = $conversionService;
-        $this->granularShareService = $granularShareService;
-        $this->transactionService = $transactionService;
-        $this->l = $l;
-        $this->autoShareService = $autoShareService;
-        $this->closureService = $closureService;
-        $this->carryoverService = $carryoverService;
-    }
-
-    public function create(
-        string $userId,
-        string $name,
-        string $type,
-        float $balance = 0.0,
-        string $currency = 'USD',
-        ?string $institution = null,
-        ?string $accountNumber = null,
-        ?string $routingNumber = null,
-        ?string $sortCode = null,
-        ?string $iban = null,
-        ?string $swiftBic = null,
-        ?string $accountHolderName = null,
-        ?string $openingDate = null,
-        ?float $interestRate = null,
-        ?float $creditLimit = null,
-        ?float $overdraftLimit = null,
-        ?float $minimumPayment = null,
-        ?string $walletAddress = null,
-        bool $excludedFromReports = false,
-        ?int $statementDay = null,
-        ?bool $liabilityInCredit = null
-    ): Account {
-        $account = new Account();
-        $account->setUserId($userId);
-        $account->setName($name);
-        $account->setType($type);
-        // Single sign authority (#353). The caller supplies a magnitude plus an
-        // explicit intent; the type decides the sign.
-        $inCredit = $liabilityInCredit ?? false;
-        $signed = AccountType::signFor($type, $balance, $inCredit);
-        $account->setBalance($signed);
-        $account->setOpeningBalance($signed);
-        $account->setLiabilityInCredit(
-            AccountType::tryFrom($type)?->isLiability() ? $inCredit : null
-        );
-        $account->setCurrency($currency);
-        $account->setInstitution($institution);
-        $account->setAccountNumber($accountNumber);
-        $account->setRoutingNumber($routingNumber);
-        $account->setSortCode($sortCode);
-        $account->setIban($iban);
-        $account->setSwiftBic($swiftBic);
-        $account->setWalletAddress($walletAddress);
-        $account->setAccountHolderName($accountHolderName);
-        $account->setOpeningDate($openingDate);
-        $account->setInterestRate($interestRate);
-        $account->setCreditLimit($creditLimit);
-        $account->setOverdraftLimit($overdraftLimit);
-        $account->setMinimumPayment($minimumPayment);
-        $account->setStatementDay($statementDay);
-        $account->setExcludedFromReports($excludedFromReports);
-        $this->setTimestamps($account, true);
-
-        $account = $this->mapper->insert($account);
-        if ($this->autoShareService !== null) {
-            $this->autoShareService->autoShareNewEntity($userId, ShareItem::TYPE_ACCOUNT, $account->getId());
-        }
-        return $account;
-    }
-
-    /**
-     * @inheritDoc
-     */
-    protected function beforeDelete(Entity $entity, string $userId): void {
-        // Check if account has transactions. Typed and counted so the controller
-        // can offer to delete the ledger along with the account and retry (#336).
-        $transactions = $this->transactionMapper->findByAccount($entity->getId(), $userId, 1);
-        if (!empty($transactions)) {
-            throw new AccountInUseException(
-                $this->l->t('Cannot delete account with existing transactions. Please delete all transactions first.'),
-                $this->transactionMapper->countByAccount($entity->getId(), $userId)
-            );
-        }
-        // Clean up interest rate records
-        $this->interestRateMapper->deleteByAccount($entity->getId(), $userId);
-    }
-
-    /**
-     * Delete an account together with every transaction in it, so an account
-     * that came in through a bad import can be removed without emptying its
-     * ledger by hand first (#336).
-     *
-     * Each transaction goes through TransactionService::delete() so counterpart
-     * transfer legs get unlinked and tags, expense shares, attachment references
-     * and pension links are cleaned up the same way as a single delete. Import
-     * IDs are not dismissed and balances are not recomputed — both describe an
-     * account that is about to cease to exist.
-     *
-     * @return int Number of transactions deleted
-     */
-    public function deleteWithTransactions(int $id, string $userId): int {
-        // Ownership check (throws if not found / not the user's).
-        $this->find($id, $userId);
-
-        $transactionIds = $this->transactionMapper->findIdsByAccount($id, $userId);
-        foreach ($transactionIds as $transactionId) {
-            $this->transactionService->delete($transactionId, $userId, false, false);
-        }
-
-        // The ledger is empty now, so beforeDelete()'s guard passes.
-        $this->delete($id, $userId);
-
-        return count($transactionIds);
-    }
-
-    /**
-     * Delete several accounts in one request (#381).
-     *
-     * Exists as a server-side operation rather than a loop in the client
-     * because AccountController::destroy() is rate limited to 10 calls a
-     * minute: an account that still holds rows costs two of them, so clearing
-     * up the twenty-odd accounts a mis-mapped import leaves behind would stall
-     * a third of the way in. One bulk call is one slot.
-     *
-     * Two passes, matching the two questions the UI asks. With
-     * $deleteTransactions false only accounts that are already empty are
-     * removed; anything still holding rows comes back in `blocked` with its
-     * name and row count so the follow-up dialog can name what it is about to
-     * destroy. Passing true then clears those ledgers for real, through
-     * deleteWithTransactions() and so through TransactionService::delete() —
-     * never the mapper, which would orphan splits and attachments (#359).
-     *
-     * One bad id never abandons the rest: the point of the action is clearing
-     * up many at once, so failures are collected and reported per account.
-     *
-     * @param int[] $ids
-     * @return array{deleted: int[], blocked: array<array{id: int, name: string, transactionCount: int}>, errors: array<array{id: int, error: string}>, deletedTransactions: int}
-     */
-    public function bulkDelete(string $userId, array $ids, bool $deleteTransactions = false): array {
-        $deleted = [];
-        $blocked = [];
-        $errors = [];
-        $deletedTransactions = 0;
-
-        foreach ($ids as $id) {
-            $id = (int) $id;
-            try {
-                if ($deleteTransactions) {
-                    $deletedTransactions += $this->deleteWithTransactions($id, $userId);
-                } else {
-                    $this->delete($id, $userId);
-                }
-                $deleted[] = $id;
-            } catch (AccountInUseException $e) {
-                // Not an error — the expected outcome of the first pass, and
-                // the whole input to the question the client asks next.
-                $blocked[] = [
-                    'id' => $id,
-                    'name' => $this->accountNameOf($id, $userId),
-                    'transactionCount' => $e->getTransactionCount(),
-                ];
-            } catch (\Exception $e) {
-                $errors[] = ['id' => $id, 'error' => $e->getMessage()];
-            }
-        }
-
-        return [
-            'deleted' => $deleted,
-            'blocked' => $blocked,
-            'errors' => $errors,
-            'deletedTransactions' => $deletedTransactions,
-        ];
-    }
-
-    /**
-     * Name for a blocked account, falling back to its id so the dialog always
-     * has something to show even if the row has gone in the meantime.
-     */
-    private function accountNameOf(int $id, string $userId): string {
-        try {
-            return (string) $this->find($id, $userId)->getName();
-        } catch (\Exception $e) {
-            return (string) $id;
-        }
-    }
-
-    /**
-     * Find an account by ID without user scoping.
-     * Used for shared account access after permission has been verified.
-     */
-    public function findById(int $id): Entity {
-        return $this->mapper->findById($id);
-    }
-
-    /**
-     * Override update to support shared accounts.
-     * If the account doesn't belong to the acting user, look it up by ID
-     * and use the actual owner's userId for the update.
-     */
-    public function update(int $id, string $userId, array $updates): Entity {
-        // Try owner lookup first; fall back to ID-only for shared accounts
-        try {
-            $existing = $this->find($id, $userId);
-        } catch (\OCP\AppFramework\Db\DoesNotExistException $e) {
-            // Account not owned by this user — resolve the actual owner
-            $existing = $this->mapper->findById($id);
-            $userId = $existing->getUserId();
-        }
-
-        // ---- closing (#372) ------------------------------------------------
-        // Gated on the STORED state before anything is written, so a refusal
-        // leaves the account untouched. Reopening, and re-sending the flag for
-        // an account that is already closed, need no check.
-        if (array_key_exists('closed', $updates)) {
-            $updates['closed'] = filter_var($updates['closed'], FILTER_VALIDATE_BOOLEAN);
-            if ($updates['closed'] && !($existing->getClosed() ?? false) && $this->closureService !== null) {
-                $this->closureService->assertClosable($existing);
-            }
-        }
-        // -------------------------------------------------------------------
-
-        // ---- liability sign normalisation (#353) --------------------------
-        // The effective type is the one being saved, so a type flip is handled
-        // here and nowhere else. The client sends a MAGNITUDE plus an explicit
-        // liabilityInCredit flag; this is the only place the sign is applied.
-        $effectiveType = $updates['type'] ?? $existing->getType();
-        $isLiability = AccountType::tryFrom((string) $effectiveType)?->isLiability() ?? false;
-
-        if ($isLiability) {
-            if (array_key_exists('openingBalance', $updates) && !array_key_exists('liabilityInCredit', $updates)) {
-                // Only a client built before #353 can reach this. Refuse rather
-                // than guess: guessing rewrites real money either way.
-                throw new \InvalidArgumentException(
-                    $this->l->t('This page is out of date. Please reload it before editing this account.')
-                );
-            }
-            if (array_key_exists('liabilityInCredit', $updates)) {
-                $inCredit = (bool) $updates['liabilityInCredit'];
-                $updates['liabilityInCredit'] = $inCredit;
-                if (array_key_exists('openingBalance', $updates)) {
-                    $updates['openingBalance'] = AccountType::signFor(
-                        (string) $effectiveType,
-                        (float) $updates['openingBalance'],
-                        $inCredit
-                    );
-                }
-            }
-        } else {
-            // Asset types have no in-credit concept; never leave a stale flag on
-            // an account that was flipped away from being a liability.
-            if (array_key_exists('liabilityInCredit', $updates) || array_key_exists('type', $updates)) {
-                $updates['liabilityInCredit'] = null;
-            }
-        }
-        // -------------------------------------------------------------------
-
-        $account = parent::update($id, $userId, $updates);
-
-        if (isset($updates['openingBalance'])) {
-            $openingBalance = (string) ($account->getOpeningBalance() ?? 0);
-            $newBalance = MoneyCalculator::add($openingBalance, $this->transactionMapper->getNetChangeAll($id), Currency::decimalsFor($account->getCurrency()));
-
-            $this->mapper->updateBalance($id, $newBalance, $userId);
-            $account = $this->find($id, $userId);
-        }
-
-        return $account;
-    }
-
-    /**
-     * Get a single account with balance adjusted to exclude future transactions.
-     *
-     * @return array Account data array with adjusted balance
-     */
-    public function findWithCurrentBalance(int $id, string $userId): array {
-        $account = $this->find($id, $userId);
-
-        // Get future transaction adjustment for this account
-        $today = date('Y-m-d');
-        $futureChange = $this->transactionMapper->getNetChangeAfterDate($id, $today);
-
-        // Calculate balance as of today (stored balance minus future transactions),
-        // at the account currency's precision so crypto keeps its 8dp (#331).
-        $storedBalance = (string) $account->getBalance();
-        $balance = MoneyCalculator::subtract($storedBalance, (string) $futureChange, Currency::decimalsFor($account->getCurrency()));
-
-        // Convert account to array and override balance with adjusted value
-        $accountData = $account->toArrayMasked();
-        $accountData['balance'] = MoneyCalculator::toFloat($balance);
-        $accountData['storedBalance'] = MoneyCalculator::toFloat($storedBalance);
-
-        // Add fiat equivalent for non-base-currency accounts
-        $baseCurrency = $this->conversionService->getBaseCurrency($userId);
-        $this->addConvertedBalance($accountData, MoneyCalculator::toFloat($balance), $account->getCurrency(), $baseCurrency, $userId);
-
-        return $accountData;
-    }
-
-    /**
-     * Get all accounts with balances adjusted to exclude future transactions.
-     * Returns accounts as arrays with balance reflecting today's actual balance.
-     *
-     * @return array[] Array of account data arrays
-     */
-    public function findAllWithCurrentBalances(string $userId): array {
-        $accounts = $this->findAll($userId);
-
-        // Get future transaction adjustments for all accounts in one query
-        $today = date('Y-m-d');
-        $futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
-
-        $baseCurrency = $this->conversionService->getBaseCurrency($userId);
-
-        $result = [];
-        foreach ($accounts as $account) {
-            // Calculate balance as of today (stored balance minus future transactions),
-            // at the account currency's precision so crypto keeps its 8dp (#331).
-            $storedBalance = (string) $account->getBalance();
-            $futureChange = (string) ($futureChanges[$account->getId()] ?? 0);
-            $balance = MoneyCalculator::subtract($storedBalance, $futureChange, Currency::decimalsFor($account->getCurrency()));
-
-            // Convert account to array and override balance with adjusted value
-            $accountData = $account->toArrayMasked();
-            $balanceFloat = MoneyCalculator::toFloat($balance);
-            $accountData['balance'] = $balanceFloat;
-
-            // Add fiat equivalent for non-base-currency accounts
-            $this->addConvertedBalance($accountData, $balanceFloat, $account->getCurrency(), $baseCurrency, $userId);
-
-            $result[] = $accountData;
-        }
-
-        return $result;
-    }
-
-    /**
-     * Get specific accounts by IDs with masked data.
-     * Used for fetching shared accounts that belong to another user.
-     *
-     * @param int[] $accountIds
-     * @return array[] Array of account data arrays
-     */
-    public function findByIdsAsArrays(array $accountIds): array {
-        if (empty($accountIds)) {
-            return [];
-        }
-
-        /** @var AccountMapper $mapper */
-        $mapper = $this->mapper;
-        $accounts = $mapper->findByIds($accountIds);
-
-        $result = [];
-        foreach ($accounts as $account) {
-            $accountData = $account->toArrayMasked();
-            $accountData['_shared'] = true;
-            $result[] = $accountData;
-        }
-
-        return $result;
-    }
-
-    /**
-     * Add convertedBalance and baseCurrency to an account data array
-     * when the account's currency differs from the user's base currency.
-     */
-    private function addConvertedBalance(array &$accountData, float $balance, ?string $currency, string $baseCurrency, string $userId): void {
-        $currency = $currency ?: 'USD';
-
-        if (strtoupper($currency) === strtoupper($baseCurrency)) {
-            return;
-        }
-
-        if (!$this->conversionService->canConvert($currency, $userId)) {
-            return;
-        }
-
-        $accountData['convertedBalance'] = $this->conversionService->convertToBaseFloat($balance, $currency, $userId);
-        $accountData['baseCurrency'] = $baseCurrency;
-    }
-
-    public function getSummary(string $userId): array {
-        $accounts = $this->findAll($userId);
-
-        // Include shared accounts
-        $sharedAccountIds = $this->granularShareService->getSharedAccountIds($userId);
-        if (!empty($sharedAccountIds)) {
-            $sharedAccounts = $this->mapper->findByIds($sharedAccountIds);
-            $accounts = array_merge($accounts, $sharedAccounts);
-        }
-
-        // The summary feeds the dashboard / overview totals, so drop accounts the
-        // user flagged out of aggregations (#286). The account itself stays
-        // visible on the accounts page (AccountController::index keeps it).
-        $accounts = array_values(array_filter($accounts, static fn($a) => !$a->getExcludedFromReports()));
-
-        $totalBalance = '0.00';
-        $currencyBreakdown = [];
-        $accountsWithAdjustedBalance = [];
-
-        // Get future transaction adjustments for owned accounts
-        $today = date('Y-m-d');
-        $futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
-
-        // Get future transaction adjustments for shared accounts
-        if (!empty($sharedAccountIds)) {
-            $sharedFutureChanges = $this->transactionMapper->getNetChangeAfterDateForAccounts($sharedAccountIds, $today);
-            $futureChanges = $futureChanges + $sharedFutureChanges;
-        }
-
-        foreach ($accounts as $account) {
-            // Calculate balance as of today (stored balance minus future transactions),
-            // at the account currency's precision so crypto keeps its 8dp (#331).
-            $accountScale = Currency::decimalsFor($account->getCurrency());
-            $storedBalance = (string) $account->getBalance();
-            $futureChange = (string) ($futureChanges[$account->getId()] ?? 0);
-            $balance = MoneyCalculator::subtract($storedBalance, $futureChange, $accountScale);
-            $balanceFloat = MoneyCalculator::toFloat($balance);
-
-            // Convert account to array and override balance with adjusted value
-            $accountData = $account->toArrayMasked();
-            $accountData['balance'] = $balanceFloat;
-            if (in_array($account->getId(), $sharedAccountIds ?? [], true)) {
-                $accountData['_shared'] = true;
-            }
-            $accountsWithAdjustedBalance[] = $accountData;
-
-            $totalBalance = MoneyCalculator::add($totalBalance, $balance);
-            $currency = $account->getCurrency();
-
-            if (!isset($currencyBreakdown[$currency])) {
-                $currencyBreakdown[$currency] = '0.00';
-            }
-            // Per-currency total keeps that currency's own precision (#331).
-            $currencyBreakdown[$currency] = MoneyCalculator::add($currencyBreakdown[$currency], $balance, $accountScale);
-        }
-
-        // Convert back to float for API response compatibility
-        $currencyBreakdownFloat = [];
-        foreach ($currencyBreakdown as $currency => $amount) {
-            $currencyBreakdownFloat[$currency] = MoneyCalculator::toFloat($amount);
-        }
-
-        return [
-            'accounts' => $accountsWithAdjustedBalance,
-            'totalBalance' => MoneyCalculator::toFloat($totalBalance),
-            'currencyBreakdown' => $currencyBreakdownFloat,
-            'accountCount' => count($accounts)
-        ];
-    }
-
-    /**
-     * Get balance history for an account over a number of days.
-     * OPTIMIZED: Uses aggregated SQL query instead of O(days × transactions) algorithm.
-     */
-    public function getBalanceHistory(int $accountId, string $userId, int $days = 30): array {
-        $account = $this->find($accountId, $userId);
-        $endDate = date('Y-m-d');
-        $startDate = date('Y-m-d', strtotime("-{$days} days"));
-
-        // Single aggregated query for daily balance changes
-        $dailyChanges = $this->transactionMapper->getDailyBalanceChanges($accountId, $startDate, $endDate);
-
-        $balance = (string) $account->getBalance();
-        $history = [];
-
-        // Work backwards from current balance - O(days) instead of O(days × transactions)
-        for ($i = 0; $i < $days; $i++) {
-            $date = date('Y-m-d', strtotime("-{$i} days"));
-
-            // Reverse the day's net change to get the balance at start of day
-            if (isset($dailyChanges[$date])) {
-                $netChange = (string) $dailyChanges[$date];
-                $balance = MoneyCalculator::subtract($balance, $netChange);
-            }
-
-            $history[] = [
-                'date' => $date,
-                'balance' => MoneyCalculator::toFloat($balance)
-            ];
-        }
-
-        return array_reverse($history);
-    }
-
-    /**
-     * Whole-account overview metrics for the account-detail tiles (#285):
-     * total transaction count, this month's income and expenses, and the
-     * average transaction amount. Computed server-side over the whole account
-     * so the values no longer reflect only the currently displayed page.
-     * "This month" is the budget month running today, which with a custom
-     * start day is a budget period rather than the calendar month.
-     *
-     * @return array{totalTransactions: int, thisMonthIncome: float, thisMonthExpenses: float, avgTransaction: float}
-     */
-    public function getAccountMetrics(int $accountId, string $userId): array {
-        // Access check (throws if the account is not owned by / shared with the user)
-        $this->find($accountId, $userId);
-
-        [$monthStart, $monthEnd] = $this->carryoverService !== null
-            ? $this->carryoverService->budgetMonthRange($userId, $this->carryoverService->currentBudgetMonth($userId))
-            : [date('Y-m-01'), date('Y-m-t')];
-
-        $metrics = $this->transactionMapper->getAccountMetrics($accountId, $monthStart, $monthEnd);
-
-        return [
-            'totalTransactions' => $metrics['count'],
-            'thisMonthIncome' => $metrics['monthIncome'],
-            'thisMonthExpenses' => $metrics['monthExpenses'],
-            'avgTransaction' => $metrics['average'],
-        ];
-    }
-
-    public function reconcile(int $accountId, string $userId, float $statementBalance, ?string $statementDate = null): array {
-        $account = $this->find($accountId, $userId);
-
-        // Calculate balance as of the statement date (excluding transactions after that date).
-        // If no date provided, use today.
-        $asOfDate = $statementDate ?: date('Y-m-d');
-        $scale = Currency::decimalsFor($account->getCurrency());
-        $futureChange = $this->transactionMapper->getNetChangeAfterDate($accountId, $asOfDate);
-        $storedBalance = (string) $account->getBalance();
-        $currentBalance = MoneyCalculator::subtract($storedBalance, (string) $futureChange, $scale);
-
-        $statementBalanceStr = (string) $statementBalance;
-        $difference = MoneyCalculator::subtract($statementBalanceStr, $currentBalance, $scale);
-
-        return [
-            'currentBalance' => MoneyCalculator::toFloat($currentBalance),
-            'statementBalance' => $statementBalance,
-            'difference' => MoneyCalculator::toFloat($difference),
-            'isBalanced' => MoneyCalculator::equals($currentBalance, $statementBalanceStr, '0.01')
-        ];
-    }
-
-    /**
-     * Complete reconciliation: mark transactions as reconciled and update lastReconciled.
-     */
-    public function completeReconciliation(int $accountId, string $userId, array $transactionIds): array {
-        $account = $this->find($accountId, $userId);
-
-        // Mark transactions as reconciled
-        $reconciled = 0;
-        if (!empty($transactionIds)) {
-            $reconciled = $this->transactionMapper->bulkSetReconciled($accountId, $transactionIds, true);
-        }
-
-        // Update lastReconciled timestamp on account
-        $now = date('Y-m-d H:i:s');
-        $account->setLastReconciled($now);
-        $account->setUpdatedAt($now);
-        $this->mapper->update($account);
-
-        return [
-            'reconciledCount' => $reconciled,
-            'lastReconciled' => $now,
-        ];
-    }
-
-    /**
-     * Recalculate all account balances from opening_balance + transaction history.
-     *
-     * @return array{updated: int, accounts: array}
-     */
-    public function recalculateAllBalances(string $userId): array {
-        $accounts = $this->findAll($userId);
-        $updatedAccounts = [];
-        $updatedCount = 0;
-
-        foreach ($accounts as $account) {
-            $accountId = $account->getId();
-            $oldBalance = (string) $account->getBalance();
-            $openingBalance = (string) ($account->getOpeningBalance() ?? 0);
-
-            // new_balance = opening_balance + net transaction effect, at the
-            // account currency's precision so crypto keeps its 8dp (#331).
-            $newBalance = MoneyCalculator::add($openingBalance, $this->transactionMapper->getNetChangeAll($accountId), Currency::decimalsFor($account->getCurrency()));
-
-            $diff = MoneyCalculator::subtract($newBalance, $oldBalance);
-            $changed = !MoneyCalculator::equals($newBalance, $oldBalance, '0.005');
-
-            if ($changed) {
-                $this->mapper->updateBalance($accountId, $newBalance, $userId);
-                $updatedCount++;
-            }
-
-            $updatedAccounts[] = [
-                'id' => $accountId,
-                'name' => $account->getName(),
-                'oldBalance' => MoneyCalculator::toFloat($oldBalance),
-                'newBalance' => MoneyCalculator::toFloat($newBalance),
-                'difference' => MoneyCalculator::toFloat($diff),
-                'changed' => $changed,
-            ];
-        }
-
-        return [
-            'updated' => $updatedCount,
-            'total' => count($accounts),
-            'accounts' => $updatedAccounts,
-        ];
-    }
+	private TransactionMapper $transactionMapper;
+	private InterestRateMapper $interestRateMapper;
+	private CurrencyConversionService $conversionService;
+	private GranularShareService $granularShareService;
+	private TransactionService $transactionService;
+	private IL10N $l;
+	private ?AutoShareService $autoShareService;
+	private ?AccountClosureService $closureService;
+	private ?BudgetCarryoverService $carryoverService;
+	private AccountBalanceCalculator $balanceCalculator;
+
+	public function __construct(
+		AccountMapper $mapper,
+		TransactionMapper $transactionMapper,
+		InterestRateMapper $interestRateMapper,
+		CurrencyConversionService $conversionService,
+		GranularShareService $granularShareService,
+		TransactionService $transactionService,
+		IL10N $l,
+		?AutoShareService $autoShareService = null,
+		?AccountClosureService $closureService = null,
+		?BudgetCarryoverService $carryoverService = null,
+		private ?BillMapper $billMapper = null,
+		private ?PensionRecurringContributionMapper $pensionRecurringMapper = null,
+		private ?UserClock $userClock = null,
+		private ?ImportFolderMapper $importFolderMapper = null,
+		private ?ImportAccountLinkMapper $importLinkMapper = null,
+	) {
+		$this->mapper = $mapper;
+		$this->transactionMapper = $transactionMapper;
+		$this->interestRateMapper = $interestRateMapper;
+		$this->conversionService = $conversionService;
+		$this->granularShareService = $granularShareService;
+		$this->transactionService = $transactionService;
+		$this->balanceCalculator = new AccountBalanceCalculator($mapper, $transactionMapper);
+		$this->l = $l;
+		$this->autoShareService = $autoShareService;
+		$this->closureService = $closureService;
+		$this->carryoverService = $carryoverService;
+	}
+
+	public function create(
+		string $userId,
+		string $name,
+		string $type,
+		float $balance = 0.0,
+		string $currency = 'USD',
+		?string $institution = null,
+		?string $accountNumber = null,
+		?string $routingNumber = null,
+		?string $sortCode = null,
+		?string $iban = null,
+		?string $swiftBic = null,
+		?string $accountHolderName = null,
+		?string $openingDate = null,
+		?float $interestRate = null,
+		?float $creditLimit = null,
+		?float $overdraftLimit = null,
+		?float $minimumPayment = null,
+		?string $walletAddress = null,
+		bool $excludedFromReports = false,
+		?int $statementDay = null,
+		?bool $liabilityInCredit = null,
+	): Account {
+		$account = new Account();
+		$account->setUserId($userId);
+		$account->setName($name);
+		$account->setType($type);
+		// Single sign authority (#353). The caller supplies a magnitude plus an
+		// explicit intent; the type decides the sign.
+		$inCredit = $liabilityInCredit ?? false;
+		$signed = AccountType::signFor($type, $balance, $inCredit);
+		$account->setBalance($signed);
+		$account->setOpeningBalance($signed);
+		$account->setLiabilityInCredit(
+			AccountType::tryFrom($type)?->isLiability() ? $inCredit : null
+		);
+		$account->setCurrency($currency);
+		$account->setInstitution($institution);
+		$account->setAccountNumber($accountNumber);
+		$account->setRoutingNumber($routingNumber);
+		$account->setSortCode($sortCode);
+		$account->setIban($iban);
+		$account->setSwiftBic($swiftBic);
+		$account->setWalletAddress($walletAddress);
+		$account->setAccountHolderName($accountHolderName);
+		$account->setOpeningDate($openingDate);
+		$account->setInterestRate($interestRate);
+		$account->setCreditLimit($creditLimit);
+		$account->setOverdraftLimit($overdraftLimit);
+		$account->setMinimumPayment($minimumPayment);
+		$account->setStatementDay($statementDay);
+		$account->setExcludedFromReports($excludedFromReports);
+		$this->setTimestamps($account, true);
+
+		$account = $this->mapper->insert($account);
+		if ($this->autoShareService !== null) {
+			$this->autoShareService->autoShareNewEntity($userId, ShareItem::TYPE_ACCOUNT, $account->getId());
+		}
+		return $account;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	protected function beforeDelete(Entity $entity, string $userId): void {
+		// Check if account has transactions. Typed and counted so the controller
+		// can offer to delete the ledger along with the account and retry (#336).
+		$transactions = $this->transactionMapper->findByAccount($entity->getId(), $userId, 1);
+		if (!empty($transactions)) {
+			throw new AccountInUseException(
+				$this->l->t('Cannot delete account with existing transactions. Please delete all transactions first.'),
+				$this->transactionMapper->countByAccount($entity->getId(), $userId)
+			);
+		}
+		// Clean up interest rate records
+		$this->interestRateMapper->deleteByAccount($entity->getId(), $userId);
+		// Pension schedules funded from it would fail every run trying to
+		// post into an account that no longer exists
+		$this->pensionRecurringMapper?->detachSourceAccount($entity->getId());
+		// Import folders pointing at it would fail every file dropped in them (#425)
+		$this->importFolderMapper?->deleteByAccount($entity->getId());
+		// So would an OFX/QIF statement routed by a remembered link, and a
+		// backup would carry the link out pointing at nothing
+		$this->importLinkMapper?->deleteByAccount($entity->getId());
+
+		// Bills, transfers and recurring income on the account (anyone's)
+		// would otherwise go on running against a deleted id
+		$this->closureService?->stopSchedulesFor($entity);
+	}
+
+	/**
+	 * Delete an account together with every transaction in it, so an account
+	 * that came in through a bad import can be removed without emptying its
+	 * ledger by hand first (#336).
+	 *
+	 * Each transaction goes through TransactionService::delete() so counterpart
+	 * transfer legs get unlinked and tags, expense shares, attachment references
+	 * and pension links are cleaned up the same way as a single delete. Import
+	 * IDs are not dismissed and balances are not recomputed — both describe an
+	 * account that is about to cease to exist.
+	 *
+	 * @return int Number of transactions deleted
+	 */
+	public function deleteWithTransactions(int $id, string $userId): int {
+		// Ownership check (throws if not found / not the user's).
+		$this->find($id, $userId);
+
+		$transactionIds = $this->transactionMapper->findIdsByAccount($id, $userId);
+		foreach ($transactionIds as $transactionId) {
+			$this->transactionService->delete($transactionId, $userId, false, false);
+		}
+
+		// The ledger is empty now, so beforeDelete()'s guard passes.
+		$this->delete($id, $userId);
+
+		return count($transactionIds);
+	}
+
+	/**
+	 * Delete several accounts in one request (#381).
+	 *
+	 * Exists as a server-side operation rather than a loop in the client
+	 * because AccountController::destroy() is rate limited to 10 calls a
+	 * minute: an account that still holds rows costs two of them, so clearing
+	 * up the twenty-odd accounts a mis-mapped import leaves behind would stall
+	 * a third of the way in. One bulk call is one slot.
+	 *
+	 * Two passes, matching the two questions the UI asks. With
+	 * $deleteTransactions false only accounts that are already empty are
+	 * removed; anything still holding rows comes back in `blocked` with its
+	 * name and row count so the follow-up dialog can name what it is about to
+	 * destroy. Passing true then clears those ledgers for real, through
+	 * deleteWithTransactions() and so through TransactionService::delete() —
+	 * never the mapper, which would orphan splits and attachments (#359).
+	 *
+	 * One bad id never abandons the rest: the point of the action is clearing
+	 * up many at once, so failures are collected and reported per account.
+	 *
+	 * @param int[] $ids
+	 * @return array{deleted: int[], blocked: array<array{id: int, name: string, transactionCount: int}>, errors: array<array{id: int, error: string}>, deletedTransactions: int}
+	 */
+	public function bulkDelete(string $userId, array $ids, bool $deleteTransactions = false): array {
+		$deleted = [];
+		$blocked = [];
+		$errors = [];
+		$deletedTransactions = 0;
+
+		foreach ($ids as $id) {
+			$id = (int)$id;
+			try {
+				if ($deleteTransactions) {
+					$deletedTransactions += $this->deleteWithTransactions($id, $userId);
+				} else {
+					$this->delete($id, $userId);
+				}
+				$deleted[] = $id;
+			} catch (AccountInUseException $e) {
+				// Not an error — the expected outcome of the first pass, and
+				// the whole input to the question the client asks next.
+				$blocked[] = [
+					'id' => $id,
+					'name' => $this->accountNameOf($id, $userId),
+					'transactionCount' => $e->getTransactionCount(),
+				];
+			} catch (\Exception $e) {
+				$errors[] = ['id' => $id, 'error' => $e->getMessage()];
+			}
+		}
+
+		return [
+			'deleted' => $deleted,
+			'blocked' => $blocked,
+			'errors' => $errors,
+			'deletedTransactions' => $deletedTransactions,
+		];
+	}
+
+	/**
+	 * Name for a blocked account, falling back to its id so the dialog always
+	 * has something to show even if the row has gone in the meantime.
+	 */
+	private function accountNameOf(int $id, string $userId): string {
+		try {
+			return (string)$this->find($id, $userId)->getName();
+		} catch (\Exception $e) {
+			return (string)$id;
+		}
+	}
+
+	/**
+	 * Find an account by ID without user scoping.
+	 * Used for shared account access after permission has been verified.
+	 */
+	public function findById(int $id): Entity {
+		return $this->mapper->findById($id);
+	}
+
+	/**
+	 * Override update to support shared accounts.
+	 * If the account doesn't belong to the acting user, look it up by ID
+	 * and use the actual owner's userId for the update.
+	 */
+	public function update(int $id, string $userId, array $updates): Entity {
+		$actingUserId = $userId;
+		// Try owner lookup first; fall back to ID-only for shared accounts
+		try {
+			$existing = $this->find($id, $userId);
+		} catch (\OCP\AppFramework\Db\DoesNotExistException $e) {
+			// Account not owned by this user — resolve the actual owner
+			$existing = $this->mapper->findById($id);
+			$userId = $existing->getUserId();
+		}
+
+		// ---- closing (#372) ------------------------------------------------
+		// Gated on the STORED state before anything is written, so a refusal
+		// leaves the account untouched. Reopening, and re-sending the flag for
+		// an account that is already closed, need no check.
+		$closing = false;
+		if (array_key_exists('closed', $updates)) {
+			$updates['closed'] = filter_var($updates['closed'], FILTER_VALIDATE_BOOLEAN);
+			if ($updates['closed'] && !($existing->getClosed() ?? false) && $this->closureService !== null) {
+				$this->closureService->assertClosable($existing, $actingUserId);
+				$closing = true;
+			}
+		}
+		// -------------------------------------------------------------------
+
+		// ---- liability sign normalisation (#353) --------------------------
+		// The effective type is the one being saved, so a type flip is handled
+		// here and nowhere else. The client sends a MAGNITUDE plus an explicit
+		// liabilityInCredit flag; this is the only place the sign is applied.
+		$effectiveType = $updates['type'] ?? $existing->getType();
+		$isLiability = AccountType::tryFrom((string)$effectiveType)?->isLiability() ?? false;
+
+		if ($isLiability) {
+			if (array_key_exists('openingBalance', $updates) && !array_key_exists('liabilityInCredit', $updates)) {
+				// Only a client built before #353 can reach this. Refuse rather
+				// than guess: guessing rewrites real money either way.
+				throw new \InvalidArgumentException(
+					$this->l->t('This page is out of date. Please reload it before editing this account.')
+				);
+			}
+			if (array_key_exists('liabilityInCredit', $updates)) {
+				$inCredit = (bool)$updates['liabilityInCredit'];
+				$updates['liabilityInCredit'] = $inCredit;
+				if (array_key_exists('openingBalance', $updates)) {
+					$updates['openingBalance'] = AccountType::signFor(
+						(string)$effectiveType,
+						(float)$updates['openingBalance'],
+						$inCredit
+					);
+				}
+			}
+		} else {
+			// Asset types have no in-credit concept; never leave a stale flag on
+			// an account that was flipped away from being a liability.
+			if (array_key_exists('liabilityInCredit', $updates) || array_key_exists('type', $updates)) {
+				$updates['liabilityInCredit'] = null;
+			}
+		}
+		// -------------------------------------------------------------------
+
+		$account = parent::update($id, $userId, $updates);
+		if ($closing) {
+			// What can no longer post into it lets go of it (#372)
+			$this->closureService?->detachStaleSchedules($existing);
+		}
+
+		if (isset($updates['openingBalance'])) {
+			$newBalance = $this->balanceCalculator->balanceFor($id, $account->getOpeningBalance(), $account->getCurrency());
+			$this->mapper->updateBalance($id, $newBalance, $userId);
+			$account = $this->find($id, $userId);
+		}
+
+		return $account;
+	}
+
+	/**
+	 * Today in the user's own calendar. A purchase dated their today is
+	 * stored cleared; judged against the server's UTC date, the "balance as
+	 * of today" took it off again until UTC midnight caught up (#399).
+	 */
+	private function today(string $userId): string {
+		return $this->userClock?->today($userId) ?? date('Y-m-d');
+	}
+
+	/**
+	 * Get a single account with balance adjusted to exclude future transactions.
+	 *
+	 * @return array Account data array with adjusted balance
+	 */
+	public function findWithCurrentBalance(int $id, string $userId): array {
+		$account = $this->find($id, $userId);
+
+		// Get future transaction adjustment for this account
+		$today = $this->today($userId);
+		$futureChange = $this->transactionMapper->getNetChangeAfterDate($id, $today);
+
+		// Calculate balance as of today (stored balance minus future transactions),
+		// at the account currency's precision so crypto keeps its 8dp (#331).
+		// Floats go in uncast: (string) writes dust as "1.0E-5", which bcmath refuses.
+		$storedBalance = (float)($account->getBalance() ?? 0);
+		$balance = MoneyCalculator::subtract($storedBalance, $futureChange, Currency::decimalsFor($account->getCurrency()));
+
+		// Convert account to array and override balance with adjusted value
+		$accountData = $account->toArrayMasked();
+		$accountData['balance'] = MoneyCalculator::toFloat($balance);
+		$accountData['storedBalance'] = $storedBalance;
+		$accountData['projectedBalance'] = $this->projectedBalance(
+			$account,
+			$this->transactionMapper->getScheduledNetChangeForAccounts([$id])
+		);
+
+		// Add fiat equivalent for non-base-currency accounts
+		$baseCurrency = $this->conversionService->getBaseCurrency($userId);
+		$this->addConvertedBalance($accountData, MoneyCalculator::toFloat($balance), $account->getCurrency(), $baseCurrency, $userId);
+
+		return $accountData;
+	}
+
+	/**
+	 * Get all accounts with balances adjusted to exclude future transactions.
+	 * Returns accounts as arrays with balance reflecting today's actual balance.
+	 *
+	 * @return array[] Array of account data arrays
+	 */
+	public function findAllWithCurrentBalances(string $userId): array {
+		// Get future transaction adjustments for all accounts in one query
+		$futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $this->today($userId));
+		$baseCurrency = $this->conversionService->getBaseCurrency($userId);
+		$accounts = $this->findAll($userId);
+		$scheduled = $this->transactionMapper->getScheduledNetChangeForAccounts(
+			array_map(fn (Account $account) => $account->getId(), $accounts)
+		);
+
+		return array_map(
+			fn (Account $account) => $this->withCurrentBalance($account, $futureChanges, $baseCurrency, $userId, $scheduled),
+			$accounts
+		);
+	}
+
+	/**
+	 * The accounts shared with $userId, their balances as of today and in
+	 * $userId's base currency, as findAllWithCurrentBalances() gives their
+	 * own. GranularShareService::getSharedAccounts() returns the stored
+	 * balance, which counts future-dated transactions and is never
+	 * converted, so the two lists meant different things (#767).
+	 *
+	 * @return array[]
+	 */
+	public function findSharedWithCurrentBalances(string $userId): array {
+		$ids = $this->granularShareService->getSharedAccountIds($userId);
+		if ($ids === []) {
+			return [];
+		}
+		$futureChanges = $this->transactionMapper->getNetChangeAfterDateForAccounts($ids, $this->today($userId));
+		$baseCurrency = $this->conversionService->getBaseCurrency($userId);
+
+		$scheduled = $this->transactionMapper->getScheduledNetChangeForAccounts($ids);
+
+		/** @var AccountMapper $mapper */
+		$mapper = $this->mapper;
+		return array_map(
+			// _canWrite lets pickers for new activity leave out an account
+			// shared read-only, where anything posted can only be refused
+			fn (Account $account) => $this->withCurrentBalance($account, $futureChanges, $baseCurrency, $userId, $scheduled) + [
+				'_shared' => true,
+				'_canWrite' => $this->granularShareService->canWrite($userId, ShareItem::TYPE_ACCOUNT, $account->getId()),
+			],
+			$mapper->findByIds($ids)
+		);
+	}
+
+	/**
+	 * One account as an array with its balance as of today (stored balance
+	 * minus future transactions), at the account currency's precision so
+	 * crypto keeps its 8dp (#331), plus its base-currency equivalent.
+	 *
+	 * @param array<int, float> $futureChanges account id => net change after today
+	 * @param array<int, float>|null $scheduled account id => net of its scheduled rows, for projectedBalance
+	 */
+	private function withCurrentBalance(Account $account, array $futureChanges, string $baseCurrency, string $userId, ?array $scheduled = null): array {
+		// Floats go to MoneyCalculator as they are: (string) writes a tiny one
+		// in scientific notation ("1.0E-5"), which bcmath refuses outright, so
+		// a crypto account holding dust failed the whole list
+		$storedBalance = (float)($account->getBalance() ?? 0);
+		$futureChange = (float)($futureChanges[$account->getId()] ?? 0);
+		$balance = MoneyCalculator::subtract($storedBalance, $futureChange, Currency::decimalsFor($account->getCurrency()));
+
+		$accountData = $account->toArrayMasked();
+		$balanceFloat = MoneyCalculator::toFloat($balance);
+		$accountData['balance'] = $balanceFloat;
+		if ($scheduled !== null) {
+			$accountData['projectedBalance'] = $this->projectedBalance($account, $scheduled);
+		}
+		// Fiat equivalent for non-base-currency accounts
+		$this->addConvertedBalance($accountData, $balanceFloat, $account->getCurrency(), $baseCurrency, $userId);
+
+		return $accountData;
+	}
+
+	/**
+	 * The balance once everything booked into the account has gone through:
+	 * the stored balance (future-dated real rows included) plus its
+	 * scheduled rows, the pre-booked bills, transfers and income (#163).
+	 * The account page showed it only when it differed from today's
+	 * balance, and was never given it.
+	 *
+	 * @param array<int, float> $scheduled account id => net of its scheduled rows
+	 */
+	private function projectedBalance(Account $account, array $scheduled): float {
+		return MoneyCalculator::toFloat(MoneyCalculator::add(
+			(float)($account->getBalance() ?? 0),
+			(float)($scheduled[$account->getId()] ?? 0),
+			Currency::decimalsFor($account->getCurrency())
+		));
+	}
+
+	/**
+	 * Get specific accounts by IDs with masked data.
+	 * Used for fetching shared accounts that belong to another user.
+	 *
+	 * @param int[] $accountIds
+	 * @return array[] Array of account data arrays
+	 */
+	public function findByIdsAsArrays(array $accountIds): array {
+		if (empty($accountIds)) {
+			return [];
+		}
+
+		/** @var AccountMapper $mapper */
+		$mapper = $this->mapper;
+		$accounts = $mapper->findByIds($accountIds);
+
+		$result = [];
+		foreach ($accounts as $account) {
+			$accountData = $account->toArrayMasked();
+			$accountData['_shared'] = true;
+			$result[] = $accountData;
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Add convertedBalance and baseCurrency to an account data array
+	 * when the account's currency differs from the user's base currency.
+	 */
+	private function addConvertedBalance(array &$accountData, float $balance, ?string $currency, string $baseCurrency, string $userId): void {
+		$currency = $currency ?: 'USD';
+
+		if (strtoupper($currency) === strtoupper($baseCurrency)) {
+			return;
+		}
+
+		if (!$this->conversionService->canConvert($currency, $userId)) {
+			return;
+		}
+
+		$accountData['convertedBalance'] = $this->conversionService->convertToBaseFloat($balance, $currency, $userId);
+		$accountData['baseCurrency'] = $baseCurrency;
+	}
+
+	public function getSummary(string $userId): array {
+		$accounts = $this->findAll($userId);
+
+		// Include shared accounts
+		$sharedAccountIds = $this->granularShareService->getSharedAccountIds($userId);
+		if (!empty($sharedAccountIds)) {
+			$sharedAccounts = $this->mapper->findByIds($sharedAccountIds);
+			$accounts = array_merge($accounts, $sharedAccounts);
+		}
+
+		// The summary feeds the dashboard / overview totals, so drop accounts the
+		// user flagged out of aggregations (#286). The account itself stays
+		// visible on the accounts page (AccountController::index keeps it).
+		$accounts = array_values(array_filter($accounts, static fn ($a) => !$a->getExcludedFromReports()));
+
+		$totalBalance = '0.00';
+		$currencyBreakdown = [];
+		$accountsWithAdjustedBalance = [];
+
+		// Get future transaction adjustments for owned accounts
+		$today = $this->today($userId);
+		$futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
+
+		// Get future transaction adjustments for shared accounts
+		if (!empty($sharedAccountIds)) {
+			$sharedFutureChanges = $this->transactionMapper->getNetChangeAfterDateForAccounts($sharedAccountIds, $today);
+			$futureChanges = $futureChanges + $sharedFutureChanges;
+		}
+
+		foreach ($accounts as $account) {
+			// Calculate balance as of today (stored balance minus future transactions),
+			// at the account currency's precision so crypto keeps its 8dp (#331).
+			$accountScale = Currency::decimalsFor($account->getCurrency());
+			// Floats go in uncast: (string) writes dust as "1.0E-5", which bcmath refuses.
+			$storedBalance = (float)($account->getBalance() ?? 0);
+			$futureChange = (float)($futureChanges[$account->getId()] ?? 0);
+			$balance = MoneyCalculator::subtract($storedBalance, $futureChange, $accountScale);
+			$balanceFloat = MoneyCalculator::toFloat($balance);
+
+			// Convert account to array and override balance with adjusted value
+			$accountData = $account->toArrayMasked();
+			$accountData['balance'] = $balanceFloat;
+			if (in_array($account->getId(), $sharedAccountIds ?? [], true)) {
+				$accountData['_shared'] = true;
+			}
+			$accountsWithAdjustedBalance[] = $accountData;
+
+			$totalBalance = MoneyCalculator::add($totalBalance, $balance);
+			$currency = $account->getCurrency();
+
+			if (!isset($currencyBreakdown[$currency])) {
+				$currencyBreakdown[$currency] = '0.00';
+			}
+			// Per-currency total keeps that currency's own precision (#331).
+			$currencyBreakdown[$currency] = MoneyCalculator::add($currencyBreakdown[$currency], $balance, $accountScale);
+		}
+
+		// Convert back to float for API response compatibility
+		$currencyBreakdownFloat = [];
+		foreach ($currencyBreakdown as $currency => $amount) {
+			$currencyBreakdownFloat[$currency] = MoneyCalculator::toFloat($amount);
+		}
+
+		return [
+			'accounts' => $accountsWithAdjustedBalance,
+			'totalBalance' => MoneyCalculator::toFloat($totalBalance),
+			'currencyBreakdown' => $currencyBreakdownFloat,
+			'accountCount' => count($accounts)
+		];
+	}
+
+	/**
+	 * Get balance history for an account over a number of days.
+	 * OPTIMIZED: Uses aggregated SQL query instead of O(days × transactions) algorithm.
+	 */
+	/**
+	 * The account, when the user owns it or it is shared with them. find()
+	 * is the owner's alone, so the account page's tiles and balance chart
+	 * came back empty for an account shared with the viewer.
+	 *
+	 * @throws DoesNotExistException when the user can't see it
+	 */
+	private function findVisible(int $accountId, string $userId): Account {
+		try {
+			return $this->find($accountId, $userId);
+		} catch (DoesNotExistException $e) {
+			if (!$this->granularShareService->canAccess($userId, ShareItem::TYPE_ACCOUNT, $accountId)) {
+				throw $e;
+			}
+			/** @var AccountMapper $mapper */
+			$mapper = $this->mapper;
+			return $mapper->findById($accountId);
+		}
+	}
+
+	public function getBalanceHistory(int $accountId, string $userId, int $days = 30): array {
+		$account = $this->findVisible($accountId, $userId);
+		$today = new \DateTimeImmutable($this->today($userId));
+		$endDate = $today->format('Y-m-d');
+		$startDate = $today->modify("-{$days} days")->format('Y-m-d');
+
+		// Single aggregated query for daily balance changes
+		$dailyChanges = $this->transactionMapper->getDailyBalanceChanges($accountId, $startDate, $endDate);
+
+		$balance = (float)($account->getBalance() ?? 0);
+		$history = [];
+
+		// Work backwards from current balance - O(days) instead of O(days × transactions).
+		// Each date gets its balance at the END of the day, so today's is the
+		// current balance. Recording after reversing the day's change gave the
+		// day's opening balance instead: the line ended a day behind the
+		// account's own figure and never showed today.
+		for ($i = 0; $i < $days; $i++) {
+			$date = $today->modify("-{$i} days")->format('Y-m-d');
+
+			$history[] = [
+				'date' => $date,
+				'balance' => (float)$balance
+			];
+
+			// Reverse the day's net change: the balance at the end of the day before
+			if (isset($dailyChanges[$date])) {
+				$balance = MoneyCalculator::subtract($balance, (float)$dailyChanges[$date], Currency::decimalsFor($account->getCurrency()));
+			}
+		}
+
+		return array_reverse($history);
+	}
+
+	/**
+	 * Whole-account overview metrics for the account-detail tiles (#285):
+	 * total transaction count, this month's income and expenses, and the
+	 * average transaction amount. Computed server-side over the whole account
+	 * so the values no longer reflect only the currently displayed page.
+	 * "This month" is the budget month running today, which with a custom
+	 * start day is a budget period rather than the calendar month.
+	 *
+	 * @return array{totalTransactions: int, thisMonthIncome: float, thisMonthExpenses: float, avgTransaction: float}
+	 */
+	public function getAccountMetrics(int $accountId, string $userId): array {
+		// Access check (throws if the account is not owned by / shared with the user)
+		$this->findVisible($accountId, $userId);
+
+		[$monthStart, $monthEnd] = $this->carryoverService !== null
+			? $this->carryoverService->budgetMonthRange($userId, $this->carryoverService->currentBudgetMonth($userId))
+			: [substr($this->today($userId), 0, 8) . '01', (new \DateTimeImmutable($this->today($userId)))->format('Y-m-t')];
+
+		$metrics = $this->transactionMapper->getAccountMetrics($accountId, $monthStart, $monthEnd, $this->today($userId));
+
+		return [
+			'totalTransactions' => $metrics['count'],
+			'thisMonthIncome' => $metrics['monthIncome'],
+			'thisMonthExpenses' => $metrics['monthExpenses'],
+			'avgTransaction' => $metrics['average'],
+		];
+	}
+
+	/**
+	 * The active transfers paying into an account, set up by anyone who can
+	 * use it. A card shared between two people is paid by whichever of them
+	 * set the payment up; each saw only their own transfers, so the other
+	 * was offered to set up a second payment into the same card.
+	 *
+	 * @return array<array{nextDueDate: ?string, amount: float, amountType: string, mine: bool}>
+	 * @throws DoesNotExistException when the account isn't one the user can see
+	 */
+	public function getPaymentTransfers(int $accountId, string $userId): array {
+		if (!$this->canSee($userId, $accountId)) {
+			throw new DoesNotExistException('Account ' . $accountId . ' is not accessible to ' . $userId);
+		}
+		if ($this->billMapper === null) {
+			return [];
+		}
+
+		/** @var AccountMapper $mapper */
+		$mapper = $this->mapper;
+		$owner = $mapper->findById($accountId)->getUserId();
+		$payments = [];
+		foreach ($this->billMapper->findActiveTransfersInto($accountId) as $bill) {
+			// Someone the account is no longer shared with doesn't pay into it
+			if ($bill->getUserId() !== $owner && !$this->canSee($bill->getUserId(), $accountId)) {
+				continue;
+			}
+			$payments[] = [
+				'nextDueDate' => $bill->getNextDueDate(),
+				'amount' => (float)$bill->getAmount(),
+				'amountType' => $bill->getAmountType() ?? 'fixed',
+				'mine' => $bill->getUserId() === $userId,
+			];
+		}
+		return $payments;
+	}
+
+	private function canSee(string $userId, int $accountId): bool {
+		return in_array($accountId, array_map('intval', $this->granularShareService->getVisibleAccountIds($userId)), true);
+	}
+
+	public function reconcile(int $accountId, string $userId, float $statementBalance, ?string $statementDate = null): array {
+		$account = $this->find($accountId, $userId);
+
+		// Calculate balance as of the statement date (excluding transactions after that date).
+		// If no date provided, use today.
+		$asOfDate = $statementDate ?: $this->today($userId);
+		$scale = Currency::decimalsFor($account->getCurrency());
+		$futureChange = $this->transactionMapper->getNetChangeAfterDate($accountId, $asOfDate);
+		$storedBalance = (float)($account->getBalance() ?? 0);
+		$currentBalance = MoneyCalculator::subtract($storedBalance, $futureChange, $scale);
+
+		$difference = MoneyCalculator::subtract($statementBalance, $currentBalance, $scale);
+
+		return [
+			'currentBalance' => MoneyCalculator::toFloat($currentBalance),
+			'statementBalance' => $statementBalance,
+			'difference' => MoneyCalculator::toFloat($difference),
+			'isBalanced' => MoneyCalculator::equals($currentBalance, $statementBalance, '0.01')
+		];
+	}
+
+	/**
+	 * Complete reconciliation: mark transactions as reconciled and update lastReconciled.
+	 */
+	public function completeReconciliation(int $accountId, string $userId, array $transactionIds): array {
+		$account = $this->find($accountId, $userId);
+
+		// Mark transactions as reconciled
+		$reconciled = 0;
+		if (!empty($transactionIds)) {
+			$reconciled = $this->transactionMapper->bulkSetReconciled($accountId, $transactionIds, true);
+		}
+
+		// Update lastReconciled timestamp on account
+		$now = date('Y-m-d H:i:s');
+		$account->setLastReconciled($now);
+		$account->setUpdatedAt($now);
+		$this->mapper->update($account);
+
+		return [
+			'reconciledCount' => $reconciled,
+			'lastReconciled' => $now,
+		];
+	}
+
+	/**
+	 * Recalculate all account balances from opening_balance + transaction history.
+	 *
+	 * @return array{updated: int, accounts: array}
+	 */
+	public function recalculateAllBalances(string $userId): array {
+		$accounts = $this->findAll($userId);
+		$updatedAccounts = [];
+		$updatedCount = 0;
+
+		foreach ($accounts as $account) {
+			$accountId = $account->getId();
+			$oldBalance = (float)($account->getBalance() ?? 0);
+
+			// new_balance = opening_balance + net transaction effect, at the
+			// account currency's precision so crypto keeps its 8dp (#331).
+			$newBalance = $this->balanceCalculator->expectedBalance($account);
+
+			$diff = MoneyCalculator::subtract($newBalance, $oldBalance);
+			$changed = !MoneyCalculator::equals($newBalance, $oldBalance, '0.005');
+
+			if ($changed) {
+				$this->mapper->updateBalance($accountId, $newBalance, $userId);
+				$updatedCount++;
+			}
+
+			$updatedAccounts[] = [
+				'id' => $accountId,
+				'name' => $account->getName(),
+				'oldBalance' => $oldBalance,
+				'newBalance' => MoneyCalculator::toFloat($newBalance),
+				'difference' => MoneyCalculator::toFloat($diff),
+				'changed' => $changed,
+			];
+		}
+
+		return [
+			'updated' => $updatedCount,
+			'total' => count($accounts),
+			'accounts' => $updatedAccounts,
+		];
+	}
 }

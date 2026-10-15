@@ -18,24 +18,24 @@ use OCP\Migration\SimpleMigrationStep;
  */
 class Version001000082Date20260614 extends SimpleMigrationStep {
 
-    public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
-        /** @var ISchemaWrapper $schema */
-        $schema = $schemaClosure();
+	public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
+		/** @var ISchemaWrapper $schema */
+		$schema = $schemaClosure();
 
-        if (!$schema->hasTable('budget_accounts')) {
-            return null;
-        }
+		if (!$schema->hasTable('budget_accounts')) {
+			return null;
+		}
 
-        $table = $schema->getTable('budget_accounts');
+		$table = $schema->getTable('budget_accounts');
 
-        if (!$table->hasColumn('excluded_from_reports')) {
-            $table->addColumn('excluded_from_reports', Types::BOOLEAN, [
-                'notnull' => false,
-                'default' => false,
-            ]);
-            return $schema;
-        }
+		if (!$table->hasColumn('excluded_from_reports')) {
+			$table->addColumn('excluded_from_reports', Types::BOOLEAN, [
+				'notnull' => false,
+				'default' => false,
+			]);
+			return $schema;
+		}
 
-        return null;
-    }
+		return null;
+	}
 }

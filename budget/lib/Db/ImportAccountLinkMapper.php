@@ -13,34 +13,44 @@ use OCP\IDBConnection;
  * @template-extends QBMapper<ImportAccountLink>
  */
 class ImportAccountLinkMapper extends QBMapper {
-    public function __construct(IDBConnection $db) {
-        parent::__construct($db, 'budget_imp_links', ImportAccountLink::class);
-    }
+	public function __construct(IDBConnection $db) {
+		parent::__construct($db, 'budget_imp_links', ImportAccountLink::class);
+	}
 
-    /**
-     * @throws DoesNotExistException
-     */
-    public function findBySource(string $userId, string $format, string $sourceKey): ImportAccountLink {
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->eq('format', $qb->createNamedParameter($format)))
-            ->andWhere($qb->expr()->eq('source_key', $qb->createNamedParameter($sourceKey)));
+	/**
+	 * @throws DoesNotExistException
+	 */
+	public function findBySource(string $userId, string $format, string $sourceKey): ImportAccountLink {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+			->andWhere($qb->expr()->eq('format', $qb->createNamedParameter($format)))
+			->andWhere($qb->expr()->eq('source_key', $qb->createNamedParameter($sourceKey)));
 
-        return $this->findEntity($qb);
-    }
+		return $this->findEntity($qb);
+	}
 
-    /**
-     * @return ImportAccountLink[]
-     */
-    public function findAllByFormat(string $userId, string $format): array {
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->eq('format', $qb->createNamedParameter($format)));
+	/**
+	 * @return ImportAccountLink[]
+	 */
+	public function findAllByFormat(string $userId, string $format): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+			->andWhere($qb->expr()->eq('format', $qb->createNamedParameter($format)));
 
-        return $this->findEntities($qb);
-    }
+		return $this->findEntities($qb);
+	}
+
+	/**
+	 * Forget every routing into an account that is being deleted.
+	 */
+	public function deleteByAccount(int $accountId): void {
+		$qb = $this->db->getQueryBuilder();
+		$qb->delete($this->getTableName())
+			->where($qb->expr()->eq('budget_account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
+		$qb->executeStatement();
+	}
 }

@@ -138,7 +138,7 @@ class CleanupImportFilesJobTest extends TestCase {
 			->method('error')
 			->with(
 				$this->stringContains('Storage error'),
-				$this->callback(fn($ctx) => $ctx['app'] === 'budget')
+				$this->callback(fn ($ctx) => $ctx['app'] === 'budget')
 			);
 
 		$this->invokeRun();

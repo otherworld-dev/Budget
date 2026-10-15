@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<!--
+  Integration suite: runs against a REAL, installed Nextcloud with the budget
+  app enabled and a real database (sqlite, MySQL or PostgreSQL). Never point
+  it at an instance whose data matters - every test cleans up the rows it
+  created, but it writes to the live budget_* tables.
+
+  From the app folder:  composer test:integration
+  (or php vendor/bin/phpunit -c tests/Integration/phpunit.xml)
+  The server root is found by walking up from this folder; set
+  NEXTCLOUD_ROOT to override.
+-->
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/10.5/phpunit.xsd"
+         bootstrap="bootstrap.php"
+         colors="true"
+         cacheDirectory="/tmp/budget-integration-phpunit-cache"
+         executionOrder="default">
+  <testsuites>
+    <testsuite name="integration">
+      <directory suffix="Test.php">.</directory>
+    </testsuite>
+  </testsuites>
+  <source>
+    <include>
+      <directory suffix=".php">../../lib</directory>
+    </include>
+  </source>
+</phpunit>

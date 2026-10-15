@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Service\Ocr;
 
-use OCA\Budget\Service\AttachmentService;
 use OCA\Budget\AppInfo\Application;
+use OCA\Budget\Service\AttachmentService;
 use OCP\Files\IRootFolder;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
@@ -28,110 +28,110 @@ use Psr\Log\LoggerInterface;
  * this class failed task validation on every call.
  */
 class NextcloudOcrBackend {
-    /**
-     * The task type asked for (@since NC 33). OcrSettingsService gates the
-     * 'nextcloud' provider on exactly this type being available.
-     */
-    public const TASK_TYPE = 'core:image2text:ocr';
+	/**
+	 * The task type asked for (@since NC 33). OcrSettingsService gates the
+	 * 'nextcloud' provider on exactly this type being available.
+	 */
+	public const TASK_TYPE = 'core:image2text:ocr';
 
-    /** Hidden holding folder inside the user's Files for in-flight scans. */
-    /** Scratch folder for the task-processing hand-off, kept under the user's receipts folder (#352) */
-    private const TMP_SUBFOLDER = '.ocr-tmp';
+	/** Hidden holding folder inside the user's Files for in-flight scans. */
+	/** Scratch folder for the task-processing hand-off, kept under the user's receipts folder (#352) */
+	private const TMP_SUBFOLDER = '.ocr-tmp';
 
-    public function __construct(
-        private ContainerInterface $container,
-        private IRootFolder $rootFolder,
-        private LoggerInterface $logger,
-        private ?AttachmentService $attachments = null,
-    ) {
-    }
+	public function __construct(
+		private ContainerInterface $container,
+		private IRootFolder $rootFolder,
+		private LoggerInterface $logger,
+		private ?AttachmentService $attachments = null,
+	) {
+	}
 
-    /**
-     * Run OCR on the image and return the raw text.
-     *
-     * runTask() is the synchronous path: it executes inline when the provider
-     * supports it and otherwise waits on the scheduled task. Receipt capture
-     * is an interactive request, so a provider that cannot answer within the
-     * request is treated as failed rather than left running in the dark.
-     *
-     * @param string $imageBytes RAW image bytes (not base64).
-     * @throws OcrProviderException
-     */
-    public function extractText(string $imageBytes, string $mime, string $userId): string {
-        $file = null;
+	/**
+	 * Run OCR on the image and return the raw text.
+	 *
+	 * runTask() is the synchronous path: it executes inline when the provider
+	 * supports it and otherwise waits on the scheduled task. Receipt capture
+	 * is an interactive request, so a provider that cannot answer within the
+	 * request is treated as failed rather than left running in the dark.
+	 *
+	 * @param string $imageBytes RAW image bytes (not base64).
+	 * @throws OcrProviderException
+	 */
+	public function extractText(string $imageBytes, string $mime, string $userId): string {
+		$file = null;
 
-        try {
-            $manager = $this->container->get(\OCP\TaskProcessing\IManager::class);
+		try {
+			$manager = $this->container->get(\OCP\TaskProcessing\IManager::class);
 
-            // The task references the image by file id, and TaskProcessing
-            // checks that id resolves through the requesting user's mounts —
-            // so the bytes must briefly live in the user's own Files.
-            $userFolder = $this->rootFolder->getUserFolder($userId);
-            try {
-                $folder = $userFolder->get($this->tmpFolderPath($userId));
-            } catch (\OCP\Files\NotFoundException $e) {
-                // Create segment by segment: the receipts folder itself may not exist yet
-                $folder = $userFolder;
-                foreach (explode('/', $this->tmpFolderPath($userId)) as $segment) {
-                    $folder = $folder->nodeExists($segment) ? $folder->get($segment) : $folder->newFolder($segment);
-                }
-            }
-            $extension = str_replace('image/', '', $mime) === 'jpeg' ? 'jpg' : str_replace('image/', '', $mime);
-            $file = $folder->newFile(uniqid('scan-', true) . '.' . $extension, $imageBytes);
+			// The task references the image by file id, and TaskProcessing
+			// checks that id resolves through the requesting user's mounts —
+			// so the bytes must briefly live in the user's own Files.
+			$userFolder = $this->rootFolder->getUserFolder($userId);
+			try {
+				$folder = $userFolder->get($this->tmpFolderPath($userId));
+			} catch (\OCP\Files\NotFoundException $e) {
+				// Create segment by segment: the receipts folder itself may not exist yet
+				$folder = $userFolder;
+				foreach (explode('/', $this->tmpFolderPath($userId)) as $segment) {
+					$folder = $folder->nodeExists($segment) ? $folder->get($segment) : $folder->newFolder($segment);
+				}
+			}
+			$extension = str_replace('image/', '', $mime) === 'jpeg' ? 'jpg' : str_replace('image/', '', $mime);
+			$file = $folder->newFile(uniqid('scan-', true) . '.' . $extension, $imageBytes);
 
-            $task = new \OCP\TaskProcessing\Task(
-                self::TASK_TYPE,
-                ['input' => [$file->getId()]],
-                Application::APP_ID,
-                $userId
-            );
+			$task = new \OCP\TaskProcessing\Task(
+				self::TASK_TYPE,
+				['input' => [$file->getId()]],
+				Application::APP_ID,
+				$userId
+			);
 
-            $finished = $manager->runTask($task);
+			$finished = $manager->runTask($task);
 
-            if ($finished->getStatus() !== \OCP\TaskProcessing\Task::STATUS_SUCCESSFUL) {
-                throw new OcrProviderException(
-                    'TaskProcessing task ended with status ' . $finished->getStatus()
-                    . ($finished->getErrorMessage() !== null ? ': ' . $finished->getErrorMessage() : '')
-                );
-            }
+			if ($finished->getStatus() !== \OCP\TaskProcessing\Task::STATUS_SUCCESSFUL) {
+				throw new OcrProviderException(
+					'TaskProcessing task ended with status ' . $finished->getStatus()
+					. ($finished->getErrorMessage() !== null ? ': ' . $finished->getErrorMessage() : '')
+				);
+			}
 
-            // The output slot is a list of texts, one per input file.
-            $output = $finished->getOutput()['output'] ?? null;
-            if (is_array($output)) {
-                $output = implode("\n", array_filter($output, 'is_string'));
-            }
-            if (!is_string($output) || trim($output) === '') {
-                throw new OcrProviderException('TaskProcessing returned no text');
-            }
+			// The output slot is a list of texts, one per input file.
+			$output = $finished->getOutput()['output'] ?? null;
+			if (is_array($output)) {
+				$output = implode("\n", array_filter($output, 'is_string'));
+			}
+			if (!is_string($output) || trim($output) === '') {
+				throw new OcrProviderException('TaskProcessing returned no text');
+			}
 
-            return $output;
-        } catch (OcrProviderException $e) {
-            throw $e;
-        } catch (\Throwable $e) {
-            // Message ONLY — never the exception object. A serialized trace
-            // carries this method's arguments, i.e. the receipt image itself,
-            // straight into nextcloud.log.
-            $this->logger->warning('Receipt OCR via TaskProcessing failed: ' . $e->getMessage(), [
-                'app' => Application::APP_ID,
-            ]);
+			return $output;
+		} catch (OcrProviderException $e) {
+			throw $e;
+		} catch (\Throwable $e) {
+			// Message ONLY — never the exception object. A serialized trace
+			// carries this method's arguments, i.e. the receipt image itself,
+			// straight into nextcloud.log.
+			$this->logger->warning('Receipt OCR via TaskProcessing failed: ' . $e->getMessage(), [
+				'app' => Application::APP_ID,
+			]);
 
-            throw new OcrProviderException('TaskProcessing failed: ' . $e->getMessage(), 0, $e);
-        } finally {
-            if ($file !== null) {
-                try {
-                    $file->delete();
-                } catch (\Throwable $e) {
-                    $this->logger->debug('Could not remove temp scan file: ' . $e->getMessage(), [
-                        'app' => Application::APP_ID,
-                    ]);
-                }
-            }
-        }
-    }
+			throw new OcrProviderException('TaskProcessing failed: ' . $e->getMessage(), 0, $e);
+		} finally {
+			if ($file !== null) {
+				try {
+					$file->delete();
+				} catch (\Throwable $e) {
+					$this->logger->debug('Could not remove temp scan file: ' . $e->getMessage(), [
+						'app' => Application::APP_ID,
+					]);
+				}
+			}
+		}
+	}
 
-    /** <receipts folder>/.ocr-tmp — follows the user's receipts-folder setting. */
-    private function tmpFolderPath(string $userId): string {
-        $base = $this->attachments?->receiptsFolderFor($userId) ?? AttachmentService::DEFAULT_RECEIPTS_FOLDER;
-        return $base . '/' . self::TMP_SUBFOLDER;
-    }
+	/** <receipts folder>/.ocr-tmp — follows the user's receipts-folder setting. */
+	private function tmpFolderPath(string $userId): string {
+		$base = $this->attachments?->receiptsFolderFor($userId) ?? AttachmentService::DEFAULT_RECEIPTS_FOLDER;
+		return $base . '/' . self::TMP_SUBFOLDER;
+	}
 }

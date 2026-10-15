@@ -13,130 +13,130 @@ use OCP\IDBConnection;
  * @template-extends QBMapper<ImportRule>
  */
 class ImportRuleMapper extends QBMapper {
-    public function __construct(IDBConnection $db) {
-        parent::__construct($db, 'budget_import_rules', ImportRule::class);
-    }
+	public function __construct(IDBConnection $db) {
+		parent::__construct($db, 'budget_import_rules', ImportRule::class);
+	}
 
-    /**
-     * @throws DoesNotExistException
-     */
-    public function find(int $id, string $userId): ImportRule {
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)))
-            ->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
-        
-        return $this->findEntity($qb);
-    }
+	/**
+	 * @throws DoesNotExistException
+	 */
+	public function find(int $id, string $userId): ImportRule {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
 
-    /**
-     * @return ImportRule[]
-     */
-    public function findAll(string $userId): array {
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->orderBy('priority', 'DESC')
-            ->addOrderBy('name', 'ASC');
-        
-        return $this->findEntities($qb);
-    }
+		return $this->findEntity($qb);
+	}
 
-    /**
-     * @return ImportRule[]
-     */
-    public function findActive(string $userId): array {
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->eq('active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
-            ->orderBy('priority', 'DESC')
-            ->addOrderBy('id', 'ASC');
+	/**
+	 * @return ImportRule[]
+	 */
+	public function findAll(string $userId): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+			->orderBy('priority', 'DESC')
+			->addOrderBy('name', 'ASC');
 
-        return $this->findEntities($qb);
-    }
+		return $this->findEntities($qb);
+	}
 
-    /**
-     * Find multiple rules by IDs without user scoping.
-     * IDs are pre-authorized by GranularShareService (shared rules).
-     *
-     * @param int[] $ids
-     * @return ImportRule[]
-     */
-    public function findByIds(array $ids): array {
-        if (empty($ids)) {
-            return [];
-        }
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->in('id', $qb->createNamedParameter($ids, IQueryBuilder::PARAM_INT_ARRAY)))
-            ->orderBy('priority', 'DESC')
-            ->addOrderBy('id', 'ASC');
+	/**
+	 * @return ImportRule[]
+	 */
+	public function findActive(string $userId): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+			->andWhere($qb->expr()->eq('active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
+			->orderBy('priority', 'DESC')
+			->addOrderBy('id', 'ASC');
 
-        return $this->findEntities($qb);
-    }
+		return $this->findEntities($qb);
+	}
 
-    /**
-     * Find active rules among a pre-authorized set of IDs (shared rules that
-     * apply during a recipient's import/run). IDs are not user-scoped.
-     *
-     * @param int[] $ids
-     * @return ImportRule[]
-     */
-    public function findActiveByIds(array $ids): array {
-        if (empty($ids)) {
-            return [];
-        }
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->in('id', $qb->createNamedParameter($ids, IQueryBuilder::PARAM_INT_ARRAY)))
-            ->andWhere($qb->expr()->eq('active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
-            ->orderBy('priority', 'DESC')
-            ->addOrderBy('id', 'ASC');
+	/**
+	 * Find multiple rules by IDs without user scoping.
+	 * IDs are pre-authorized by GranularShareService (shared rules).
+	 *
+	 * @param int[] $ids
+	 * @return ImportRule[]
+	 */
+	public function findByIds(array $ids): array {
+		if (empty($ids)) {
+			return [];
+		}
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->in('id', $qb->createNamedParameter($ids, IQueryBuilder::PARAM_INT_ARRAY)))
+			->orderBy('priority', 'DESC')
+			->addOrderBy('id', 'ASC');
 
-        return $this->findEntities($qb);
-    }
+		return $this->findEntities($qb);
+	}
 
-    /**
-     * Get distinct group names for a user
-     *
-     * @return string[]
-     */
-    public function findGroups(string $userId): array {
-        $qb = $this->db->getQueryBuilder();
-        $qb->selectDistinct('group_name')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->isNotNull('group_name'))
-            ->andWhere($qb->expr()->neq('group_name', $qb->createNamedParameter('')))
-            ->orderBy('group_name', 'ASC');
+	/**
+	 * Find active rules among a pre-authorized set of IDs (shared rules that
+	 * apply during a recipient's import/run). IDs are not user-scoped.
+	 *
+	 * @param int[] $ids
+	 * @return ImportRule[]
+	 */
+	public function findActiveByIds(array $ids): array {
+		if (empty($ids)) {
+			return [];
+		}
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->in('id', $qb->createNamedParameter($ids, IQueryBuilder::PARAM_INT_ARRAY)))
+			->andWhere($qb->expr()->eq('active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
+			->orderBy('priority', 'DESC')
+			->addOrderBy('id', 'ASC');
 
-        $result = $qb->executeQuery();
-        $groups = [];
-        while ($row = $result->fetch()) {
-            $groups[] = $row['group_name'];
-        }
-        $result->closeCursor();
-        return $groups;
-    }
+		return $this->findEntities($qb);
+	}
 
-    /**
-     * Delete all import rules for a user
-     *
-     * @param string $userId
-     * @return int Number of deleted rows
-     */
-    public function deleteAll(string $userId): int {
-        $qb = $this->db->getQueryBuilder();
+	/**
+	 * Get distinct group names for a user
+	 *
+	 * @return string[]
+	 */
+	public function findGroups(string $userId): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->selectDistinct('group_name')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+			->andWhere($qb->expr()->isNotNull('group_name'))
+			->andWhere($qb->expr()->neq('group_name', $qb->createNamedParameter('')))
+			->orderBy('group_name', 'ASC');
 
-        $qb->delete($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId, IQueryBuilder::PARAM_STR)));
+		$result = $qb->executeQuery();
+		$groups = [];
+		while ($row = $result->fetch()) {
+			$groups[] = $row['group_name'];
+		}
+		$result->closeCursor();
+		return $groups;
+	}
 
-        return $qb->executeStatement();
-    }
+	/**
+	 * Delete all import rules for a user
+	 *
+	 * @param string $userId
+	 * @return int Number of deleted rows
+	 */
+	public function deleteAll(string $userId): int {
+		$qb = $this->db->getQueryBuilder();
+
+		$qb->delete($this->getTableName())
+			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId, IQueryBuilder::PARAM_STR)));
+
+		return $qb->executeStatement();
+	}
 }

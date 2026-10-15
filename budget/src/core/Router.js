@@ -1,6 +1,8 @@
 /**
  * Router - Client-side navigation and view management
  */
+import { closeAllModals } from '../utils/modals.js';
+
 export default class Router {
     constructor(app) {
         this.app = app;
@@ -14,6 +16,7 @@ export default class Router {
                 if (!href || !href.startsWith('#')) return;
 
                 e.preventDefault();
+                closeAllModals();
                 this.showView(href.substring(1));
 
                 // Close mobile navigation after selecting a view
@@ -33,8 +36,10 @@ export default class Router {
         });
 
         // Browser back / forward: re-render the view encoded in the URL without
-        // recording another history entry (that would fight the user).
+        // recording another history entry (that would fight the user). A modal
+        // left open would otherwise sit on top of the new view.
         window.addEventListener('popstate', (e) => {
+            closeAllModals();
             const view = (e.state && e.state.view) || this.viewFromHash() || 'dashboard';
             this.showView(view, { history: false });
         });
@@ -106,6 +111,7 @@ export default class Router {
         'categories': 'loadCategories',
         'tags': 'loadTagsView',
         'budget': 'loadBudgetView',
+        'import': 'loadImportView',
         'forecast': 'loadForecastView',
         'reports': 'loadReportsView',
         'bills': 'loadBillsView',
@@ -158,7 +164,7 @@ export default class Router {
         // Load view-specific data
         const loader = Router.VIEW_LOADERS[viewName];
         if (loader) {
-            this.app[loader]();
+            this.runLoader(loader);
         }
 
         if (history) {
@@ -174,6 +180,26 @@ export default class Router {
         document.querySelectorAll('.app-navigation-entry').forEach(entry => {
             entry.classList.toggle('active', entry.dataset.id === viewName);
         });
+    }
+
+    /**
+     * What a deep link in the URL hash asks for: #/transactions?search=rent
+     * from unified search, or #transactions?id=42 from the Android app's
+     * Activity rows. null when the hash names no view.
+     *
+     * @param {string} hash
+     * @returns {{view: string, search: string|null, transactionId: number|null}|null}
+     */
+    static deepLink(hash) {
+        const m = (hash || '').match(/^#\/?([a-z-]+)(?:\?(.*))?$/);
+        if (!m || !Router.VIEW_LOADERS[m[1]]) return null;
+        const params = new URLSearchParams(m[2] || '');
+        const id = params.get('id');
+        return {
+            view: m[1],
+            search: params.get('search'),
+            transactionId: id && /^[1-9]\d*$/.test(id) ? parseInt(id, 10) : null,
+        };
     }
 
     /**
@@ -207,7 +233,19 @@ export default class Router {
 
         const loader = Router.VIEW_LOADERS[viewName];
         if (loader) {
-            this.app[loader]();
+            this.runLoader(loader);
+        }
+    }
+
+    /**
+     * Call a view's loader. Some load their module on first use, and a
+     * failure there has already been reported to the user, so it must not
+     * surface again as an unhandled rejection.
+     */
+    runLoader(loader) {
+        const result = this.app[loader]();
+        if (result && typeof result.catch === 'function') {
+            result.catch((error) => console.error(`${loader} failed:`, error));
         }
     }
 }

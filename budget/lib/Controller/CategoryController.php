@@ -10,6 +10,7 @@ use OCA\Budget\Exception\ReadOnlyShareException;
 use OCA\Budget\Service\CategoryService;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\RecurringBudgetService;
+use OCA\Budget\Service\SharedBudgetService;
 use OCA\Budget\Service\ValidationService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCA\Budget\Traits\InputValidationTrait;
@@ -23,622 +24,818 @@ use OCP\IRequest;
 use Psr\Log\LoggerInterface;
 
 class CategoryController extends Controller {
-    use ApiErrorHandlerTrait;
-    use InputValidationTrait;
-    use SharedAccessTrait;
+	use ApiErrorHandlerTrait;
+	use InputValidationTrait;
+	use SharedAccessTrait;
 
-    /**
-     * Fields a write-shared recipient may change on a category they don't own:
-     * cosmetic fields plus sortOrder (so they can reorder shared categories, #328).
-     * Remaining structural fields (type, parentId), budget fields, and the scope
-     * flags (excludedFromReports/excludedFromBudget — they alter the OWNER's
-     * aggregates) stay owner-only. Any field not listed here is stripped from a
-     * recipient's update, so the restriction is fail-closed.
-     */
-    private const RECIPIENT_WRITABLE_FIELDS = ['name', 'icon', 'color', 'sortOrder'];
+	/**
+	 * Fields a write-shared recipient may change on a category they don't own:
+	 * cosmetic fields plus sortOrder (so they can reorder shared categories, #328).
+	 * Remaining structural fields (type, parentId), budget fields, and the scope
+	 * flags (excludedFromReports/excludedFromBudget — they alter the OWNER's
+	 * aggregates) stay owner-only. Any field not listed here is stripped from a
+	 * recipient's update, so the restriction is fail-closed. A share at Full
+	 * control lifts it: that recipient may change every field (see canManage).
+	 */
+	private const RECIPIENT_WRITABLE_FIELDS = ['name', 'icon', 'color', 'sortOrder'];
 
-    private CategoryService $service;
-    private ValidationService $validationService;
-    private RecurringBudgetService $recurringBudgetService;
-    private IL10N $l;
-    private string $userId;
+	private CategoryService $service;
+	private ValidationService $validationService;
+	private RecurringBudgetService $recurringBudgetService;
+	private SharedBudgetService $sharedBudgets;
+	private IL10N $l;
+	private string $userId;
 
-    public function __construct(
-        IRequest $request,
-        CategoryService $service,
-        ValidationService $validationService,
-        GranularShareService $granularShareService,
-        RecurringBudgetService $recurringBudgetService,
-        IL10N $l,
-        string $userId,
-        LoggerInterface $logger
-    ) {
-        parent::__construct(Application::APP_ID, $request);
-        $this->service = $service;
-        $this->validationService = $validationService;
-        $this->recurringBudgetService = $recurringBudgetService;
-        $this->l = $l;
-        $this->userId = $userId;
-        $this->setLogger($logger);
-        $this->setInputValidator($validationService);
-        $this->setGranularShareService($granularShareService);
-    }
+	public function __construct(
+		IRequest $request,
+		CategoryService $service,
+		ValidationService $validationService,
+		GranularShareService $granularShareService,
+		RecurringBudgetService $recurringBudgetService,
+		SharedBudgetService $sharedBudgets,
+		IL10N $l,
+		string $userId,
+		LoggerInterface $logger,
+	) {
+		parent::__construct(Application::APP_ID, $request);
+		$this->service = $service;
+		$this->validationService = $validationService;
+		$this->recurringBudgetService = $recurringBudgetService;
+		$this->sharedBudgets = $sharedBudgets;
+		$this->l = $l;
+		$this->userId = $userId;
+		$this->setLogger($logger);
+		$this->setInputValidator($validationService);
+		$this->setGranularShareService($granularShareService);
+	}
 
-    /**
-     * @NoAdminRequired
-     */
-    public function index(?string $type = null): DataResponse {
-        try {
-            if ($type) {
-                $categories = $this->service->findByType($this->userId, $type);
-            } else {
-                $categories = $this->service->findAll($this->userId);
-            }
+	/**
+	 * @NoAdminRequired
+	 */
+	public function index(?string $type = null): DataResponse {
+		try {
+			if ($type) {
+				$categories = $this->service->findByType($this->userId, $type);
+			} else {
+				$categories = $this->service->findAll($this->userId);
+			}
 
-            // Always merge shared categories (marked with _shared flag)
-            $shared = $this->granularShareService->getSharedCategories($this->userId);
-            if (!empty($shared)) {
-                if ($type) {
-                    $shared = array_filter($shared, fn($c) => ($c['type'] ?? '') === $type);
-                }
-                $categories = array_merge(
-                    array_map(fn($c) => $c->jsonSerialize(), $categories),
-                    array_values($shared)
-                );
-            }
+			// Always merge shared categories (marked with _shared flag)
+			$shared = $this->granularShareService->getSharedCategories($this->userId);
+			if (!empty($shared)) {
+				if ($type) {
+					$shared = array_filter($shared, fn ($c) => ($c['type'] ?? '') === $type);
+				}
+				$categories = array_merge(
+					array_map(fn ($c) => $c->jsonSerialize(), $categories),
+					array_values($shared)
+				);
+			}
 
-            return new DataResponse($categories);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to retrieve categories'));
-        }
-    }
+			return new DataResponse($categories);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to retrieve categories'));
+		}
+	}
 
-    /**
-     * @NoAdminRequired
-     */
-    public function tree(): DataResponse {
-        try {
-            $tree = $this->service->getCategoryTree($this->userId);
+	/**
+	 * @NoAdminRequired
+	 */
+	public function tree(): DataResponse {
+		try {
+			$tree = $this->service->getCategoryTree($this->userId);
 
-            // Always merge shared categories (marked with _shared flag)
-            $shared = $this->granularShareService->getSharedCategories($this->userId);
-            if (!empty($shared)) {
-                // Index by ID and build parent-child hierarchy
-                $byId = [];
-                foreach ($shared as $cat) {
-                    $cat['children'] = [];
-                    $byId[$cat['id']] = $cat;
-                }
+			// Always merge shared categories (marked with _shared flag)
+			$shared = $this->granularShareService->getSharedCategories($this->userId);
+			if (!empty($shared)) {
+				// Index by ID and build parent-child hierarchy
+				$byId = [];
+				foreach ($shared as $cat) {
+					$cat['children'] = [];
+					$byId[$cat['id']] = $cat;
+				}
 
-                $sharedTree = [];
-                foreach ($byId as $id => &$cat) {
-                    $parentId = $cat['parentId'] ?? null;
-                    if ($parentId && isset($byId[$parentId])) {
-                        $byId[$parentId]['children'][] = &$cat;
-                    } else {
-                        $sharedTree[] = &$cat;
-                    }
-                }
-                unset($cat);
+				$sharedTree = [];
+				foreach ($byId as $id => &$cat) {
+					$parentId = $cat['parentId'] ?? null;
+					if ($parentId && isset($byId[$parentId])) {
+						$byId[$parentId]['children'][] = &$cat;
+					} else {
+						$sharedTree[] = &$cat;
+					}
+				}
+				unset($cat);
 
-                $tree = array_merge($tree, $sharedTree);
-            }
+				$tree = array_merge($tree, $sharedTree);
+			}
 
-            return new DataResponse($tree);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to retrieve category tree'));
-        }
-    }
+			return new DataResponse($tree);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to retrieve category tree'));
+		}
+	}
 
-    /**
-     * @NoAdminRequired
-     */
-    public function transactionCounts(): DataResponse {
-        try {
-            $counts = $this->service->getCategoryTransactionCounts($this->getEffectiveUserId(), $this->getVisibleAccountIds());
-            return new DataResponse($counts);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to retrieve transaction counts'));
-        }
-    }
+	/**
+	 * @NoAdminRequired
+	 */
+	public function transactionCounts(): DataResponse {
+		try {
+			$counts = $this->service->getCategoryTransactionCounts($this->getEffectiveUserId(), $this->getVisibleAccountIds());
+			return new DataResponse($counts);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to retrieve transaction counts'));
+		}
+	}
 
-    /**
-     * @NoAdminRequired
-     */
-    public function show(int $id): DataResponse {
-        try {
-            $category = $this->service->find($id, $this->getEffectiveUserId());
-            return new DataResponse($category);
-        } catch (\Exception $e) {
-            return $this->handleNotFoundError($e, $this->l->t('Category'), ['categoryId' => $id]);
-        }
-    }
+	/**
+	 * @NoAdminRequired
+	 */
+	public function show(int $id): DataResponse {
+		try {
+			$category = $this->service->find($id, $this->getEffectiveUserId());
+			return new DataResponse($category);
+		} catch (\Exception $e) {
+			return $this->handleNotFoundError($e, $this->l->t('Category'), ['categoryId' => $id]);
+		}
+	}
 
-    /**
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 30, period: 60)]
-    public function create(
-        string $name,
-        string $type,
-        ?int $parentId = null,
-        ?string $icon = null,
-        ?string $color = null,
-        ?float $budgetAmount = null,
-        int $sortOrder = 0,
-        bool $excludedFromReports = false,
-        bool $excludedFromBudget = false
-    ): DataResponse {
-        try {
-            // Validate name (required)
-            $nameValidation = $this->validationService->validateName($name, true);
-            if (!$nameValidation['valid']) {
-                return new DataResponse(['error' => $nameValidation['error']], Http::STATUS_BAD_REQUEST);
-            }
-            $name = $nameValidation['sanitized'];
+	/**
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function create(
+		string $name,
+		string $type,
+		?int $parentId = null,
+		?string $icon = null,
+		?string $color = null,
+		?float $budgetAmount = null,
+		int $sortOrder = 0,
+		bool $excludedFromReports = false,
+		bool $excludedFromBudget = false,
+	): DataResponse {
+		try {
+			// Validate name (required)
+			$nameValidation = $this->validationService->validateName($name, true);
+			if (!$nameValidation['valid']) {
+				return new DataResponse(['error' => $nameValidation['error']], Http::STATUS_BAD_REQUEST);
+			}
+			$name = $nameValidation['sanitized'];
 
-            // Validate type
-            $validTypes = ['income', 'expense'];
-            if (!in_array($type, $validTypes, true)) {
-                return new DataResponse(['error' => $this->l->t('Invalid category type. Must be income or expense')], Http::STATUS_BAD_REQUEST);
-            }
+			// Validate type
+			$validTypes = ['income', 'expense'];
+			if (!in_array($type, $validTypes, true)) {
+				return new DataResponse(['error' => $this->l->t('Invalid category type. Must be income or expense')], Http::STATUS_BAD_REQUEST);
+			}
 
-            // Validate optional fields
-            if ($icon !== null) {
-                $iconValidation = $this->validationService->validateIcon($icon);
-                if (!$iconValidation['valid']) {
-                    return new DataResponse(['error' => $iconValidation['error']], Http::STATUS_BAD_REQUEST);
-                }
-                $icon = $iconValidation['sanitized'];
-            }
+			// Validate optional fields
+			if ($icon !== null) {
+				$iconValidation = $this->validationService->validateIcon($icon);
+				if (!$iconValidation['valid']) {
+					return new DataResponse(['error' => $iconValidation['error']], Http::STATUS_BAD_REQUEST);
+				}
+				$icon = $iconValidation['sanitized'];
+			}
 
-            if ($color !== null) {
-                $colorValidation = $this->validationService->validateColor($color);
-                if (!$colorValidation['valid']) {
-                    return new DataResponse(['error' => $colorValidation['error']], Http::STATUS_BAD_REQUEST);
-                }
-                $color = $colorValidation['sanitized'];
-            }
+			if ($color !== null) {
+				$colorValidation = $this->validationService->validateColor($color);
+				if (!$colorValidation['valid']) {
+					return new DataResponse(['error' => $colorValidation['error']], Http::STATUS_BAD_REQUEST);
+				}
+				$color = $colorValidation['sanitized'];
+			}
 
-            $category = $this->service->create(
-                $this->getEffectiveUserId(),
-                $name,
-                $type,
-                $parentId,
-                $icon,
-                $color,
-                $budgetAmount,
-                $sortOrder,
-                $excludedFromReports,
-                $excludedFromBudget
-            );
-            return new DataResponse($category, Http::STATUS_CREATED);
-        } catch (\Exception $e) {
-            return $this->handleValidationError($e);
-        }
-    }
+			// Under someone else's category the new one is theirs, so it sits
+			// in their tree, and it is shared back to this user, who is recorded
+			// as its creator. That needs Full control of the parent; a write
+			// share covers name and colour, not the tree (#402).
+			$owner = $this->userId;
+			$createdBy = null;
+			if ($parentId !== null) {
+				$parentOwner = $this->granularShareService->resolveOwner($this->userId, 'category', $parentId);
+				if ($parentOwner !== null && $parentOwner !== $this->userId) {
+					if (!$this->granularShareService->canManage($this->userId, 'category', $parentId)) {
+						return $this->subcategoryRefusal();
+					}
+					$owner = $parentOwner;
+					$createdBy = $this->userId;
+				}
+			}
 
-    /**
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 30, period: 60)]
-    public function update(
-        int $id,
-        ?string $name = null,
-        ?string $type = null,
-        ?int $parentId = null,
-        ?string $icon = null,
-        ?string $color = null,
-        ?float $budgetAmount = null,
-        ?string $budgetPeriod = null,
-        ?int $sortOrder = null
-    ): DataResponse {
-        try {
-            $this->requireWriteAccess('category', $id);
+			$category = $this->service->create(
+				$owner,
+				$name,
+				$type,
+				$parentId,
+				$icon,
+				$color,
+				$budgetAmount,
+				$sortOrder,
+				$excludedFromReports,
+				$excludedFromBudget,
+				$createdBy
+			);
+			if ($createdBy !== null) {
+				$this->granularShareService->shareBackToRecipient($owner, $this->userId, 'category', $category->getId(), $parentId);
+			}
+			return new DataResponse($category, Http::STATUS_CREATED);
+		} catch (\Exception $e) {
+			return $this->handleValidationError($e);
+		}
+	}
 
-            $updates = [];
+	/**
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function update(
+		int $id,
+		?string $name = null,
+		?string $type = null,
+		?int $parentId = null,
+		?string $icon = null,
+		?string $color = null,
+		?float $budgetAmount = null,
+		?string $budgetPeriod = null,
+		?int $sortOrder = null,
+	): DataResponse {
+		try {
+			$this->requireWriteAccess('category', $id);
 
-            // Validate name if provided
-            if ($name !== null) {
-                $nameValidation = $this->validationService->validateName($name, false);
-                if (!$nameValidation['valid']) {
-                    return new DataResponse(['error' => $nameValidation['error']], Http::STATUS_BAD_REQUEST);
-                }
-                $updates['name'] = $nameValidation['sanitized'];
-            }
+			$updates = [];
 
-            // Validate type if provided
-            if ($type !== null) {
-                $validTypes = ['income', 'expense'];
-                if (!in_array($type, $validTypes, true)) {
-                    return new DataResponse(['error' => $this->l->t('Invalid category type. Must be income or expense')], Http::STATUS_BAD_REQUEST);
-                }
-                $updates['type'] = $type;
-            }
+			// Validate name if provided
+			if ($name !== null) {
+				$nameValidation = $this->validationService->validateName($name, false);
+				if (!$nameValidation['valid']) {
+					return new DataResponse(['error' => $nameValidation['error']], Http::STATUS_BAD_REQUEST);
+				}
+				$updates['name'] = $nameValidation['sanitized'];
+			}
 
-            // Validate icon if provided
-            if ($icon !== null) {
-                $iconValidation = $this->validationService->validateIcon($icon);
-                if (!$iconValidation['valid']) {
-                    return new DataResponse(['error' => $iconValidation['error']], Http::STATUS_BAD_REQUEST);
-                }
-                $updates['icon'] = $iconValidation['sanitized'];
-            }
+			// Validate type if provided
+			if ($type !== null) {
+				$validTypes = ['income', 'expense'];
+				if (!in_array($type, $validTypes, true)) {
+					return new DataResponse(['error' => $this->l->t('Invalid category type. Must be income or expense')], Http::STATUS_BAD_REQUEST);
+				}
+				$updates['type'] = $type;
+			}
 
-            // Validate color if provided
-            if ($color !== null) {
-                $colorValidation = $this->validationService->validateColor($color);
-                if (!$colorValidation['valid']) {
-                    return new DataResponse(['error' => $colorValidation['error']], Http::STATUS_BAD_REQUEST);
-                }
-                $updates['color'] = $colorValidation['sanitized'];
-            }
+			// Validate icon if provided
+			if ($icon !== null) {
+				$iconValidation = $this->validationService->validateIcon($icon);
+				if (!$iconValidation['valid']) {
+					return new DataResponse(['error' => $iconValidation['error']], Http::STATUS_BAD_REQUEST);
+				}
+				$updates['icon'] = $iconValidation['sanitized'];
+			}
 
-            // Validate budgetPeriod if provided
-            if ($budgetPeriod !== null) {
-                $validPeriods = ['monthly', 'weekly', 'yearly', 'quarterly'];
-                if (!in_array($budgetPeriod, $validPeriods, true)) {
-                    return new DataResponse(['error' => $this->l->t('Invalid budget period. Must be monthly, weekly, yearly, or quarterly')], Http::STATUS_BAD_REQUEST);
-                }
-                $updates['budgetPeriod'] = $budgetPeriod;
-            }
+			// Validate color if provided
+			if ($color !== null) {
+				$colorValidation = $this->validationService->validateColor($color);
+				if (!$colorValidation['valid']) {
+					return new DataResponse(['error' => $colorValidation['error']], Http::STATUS_BAD_REQUEST);
+				}
+				$updates['color'] = $colorValidation['sanitized'];
+			}
 
-            // Handle parentId — use request params to distinguish "not sent" from "explicitly null"
-            $params = $this->request->getParams();
-            if (array_key_exists('parentId', $params)) {
-                $updates['parentId'] = $params['parentId'] !== null ? (int) $params['parentId'] : null;
-            }
-            if ($budgetAmount !== null) {
-                $updates['budgetAmount'] = $budgetAmount;
-            }
-            if ($sortOrder !== null) {
-                $updates['sortOrder'] = $sortOrder;
-            }
-            if (array_key_exists('excludedFromReports', $params)) {
-                $updates['excludedFromReports'] = (bool) $params['excludedFromReports'];
-            }
-            if (array_key_exists('excludedFromBudget', $params)) {
-                $updates['excludedFromBudget'] = (bool) $params['excludedFromBudget'];
-            }
-            if (array_key_exists('budgetRollover', $params)) {
-                $updates['budgetRollover'] = (bool) $params['budgetRollover'];
-            }
+			// Validate budgetPeriod if provided
+			if ($budgetPeriod !== null) {
+				$validPeriods = ['monthly', 'weekly', 'yearly', 'quarterly'];
+				if (!in_array($budgetPeriod, $validPeriods, true)) {
+					return new DataResponse(['error' => $this->l->t('Invalid budget period. Must be monthly, weekly, yearly, or quarterly')], Http::STATUS_BAD_REQUEST);
+				}
+				$updates['budgetPeriod'] = $budgetPeriod;
+			}
 
-            // Write access is confirmed above. Resolve the actual owner so the
-            // owner-scoped service lookup succeeds for write-shared categories.
-            // Recipients are restricted to cosmetic fields plus sortOrder (so they
-            // can reorder shared categories, #328); type, parentId, budgets and
-            // report-scope stay owner-only.
-            $owner = $this->granularShareService->resolveOwner($this->userId, 'category', $id)
-                ?? $this->userId;
-            if ($owner !== $this->userId) {
-                $updates = array_intersect_key($updates, array_flip(self::RECIPIENT_WRITABLE_FIELDS));
-            }
+			// Handle parentId — use request params to distinguish "not sent" from "explicitly null"
+			$params = $this->request->getParams();
+			if (array_key_exists('parentId', $params)) {
+				$updates['parentId'] = $params['parentId'] !== null ? (int)$params['parentId'] : null;
+			}
+			if ($budgetAmount !== null) {
+				$updates['budgetAmount'] = $budgetAmount;
+			}
+			if ($sortOrder !== null) {
+				$updates['sortOrder'] = $sortOrder;
+			}
+			if (array_key_exists('excludedFromReports', $params)) {
+				$updates['excludedFromReports'] = (bool)$params['excludedFromReports'];
+			}
+			if (array_key_exists('excludedFromBudget', $params)) {
+				$updates['excludedFromBudget'] = (bool)$params['excludedFromBudget'];
+			}
+			if (array_key_exists('budgetRollover', $params)) {
+				$updates['budgetRollover'] = (bool)$params['budgetRollover'];
+			}
 
-            if (empty($updates)) {
-                return new DataResponse(['error' => $this->l->t('No valid fields to update')], Http::STATUS_BAD_REQUEST);
-            }
+			// Write access is confirmed above. Resolve the actual owner so the
+			// owner-scoped service lookup succeeds for write-shared categories.
+			// Write recipients are restricted to cosmetic fields plus sortOrder
+			// (so they can reorder shared categories, #328); type, parentId,
+			// budgets and report-scope stay with the owner and anyone the owner
+			// gave Full control.
+			$owner = $this->granularShareService->resolveOwner($this->userId, 'category', $id)
+				?? $this->userId;
+			$manages = $owner === $this->userId
+				|| $this->granularShareService->canManage($this->userId, 'category', $id);
+			if (!$manages) {
+				$updates = array_intersect_key($updates, array_flip(self::RECIPIENT_WRITABLE_FIELDS));
+			} elseif (isset($updates['parentId'])) {
+				$refusal = $this->parentRefusal($updates['parentId'], $owner);
+				if ($refusal !== null) {
+					return $refusal;
+				}
+			}
 
-            $category = $this->service->update($id, $owner, $updates);
-            return new DataResponse($category);
-        } catch (ReadOnlyShareException $e) {
-            // Read-only share violation → 403 with a clear message.
-            return $this->handleError($e, $this->l->t('Failed to update category'), Http::STATUS_FORBIDDEN, ['categoryId' => $id]);
-        } catch (\Exception $e) {
-            // Surface curated service-level validation messages (e.g. duplicate
-            // name, self-parent) to the user.
-            return $this->handleValidationError($e);
-        }
-    }
+			if (empty($updates)) {
+				return new DataResponse(['error' => $this->l->t('No valid fields to update')], Http::STATUS_BAD_REQUEST);
+			}
 
-    /**
-     * @NoAdminRequired
-     */
-    /**
-     * Reorder a category relative to a target sibling (drag-and-drop). Renumbers
-     * the sibling group so the order is deterministic. Own categories support all
-     * positions; write-shared categories may be reordered (above/below) but not
-     * nested (reparenting is owner-only) (#328).
-     *
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 60, period: 60)]
-    public function reorder(int $id): DataResponse {
-        try {
-            $params = $this->request->getParams();
-            $targetId = isset($params['targetId']) ? (int) $params['targetId'] : 0;
-            $position = $params['position'] ?? 'below';
-            if (!in_array($position, ['above', 'below', 'child'], true)) {
-                return new DataResponse(['error' => $this->l->t('Invalid position')], Http::STATUS_BAD_REQUEST);
-            }
+			$category = $this->service->update($id, $owner, $updates);
+			return new DataResponse($category);
+		} catch (ReadOnlyShareException $e) {
+			// Read-only share violation → 403 with a clear message.
+			return $this->handleError($e, $this->l->t('Failed to update category'), Http::STATUS_FORBIDDEN, ['categoryId' => $id]);
+		} catch (\Exception $e) {
+			// Surface curated service-level validation messages (e.g. duplicate
+			// name, self-parent) to the user.
+			return $this->handleValidationError($e);
+		}
+	}
 
-            $this->requireWriteAccess('category', $id);
-            $owner = $this->granularShareService->resolveOwner($this->userId, 'category', $id) ?? $this->userId;
+	/**
+	 * Refuse moving a category owned by $categoryOwner under $parentId when
+	 * this user may not build under that parent, or when it is in another
+	 * person's tree. Under someone else's category the user needs Full
+	 * control of it, as a write share covers name and colour, not the tree
+	 * (#402). Ownership never transfers, so a category only ever moves within
+	 * its owner's tree. A parent this user can't see is refused too: the
+	 * service checks the parent against the owner, so a recipient could
+	 * otherwise file a category under one of the owner's that was never
+	 * shared with them.
+	 */
+	private function parentRefusal(int $parentId, string $categoryOwner): ?DataResponse {
+		$parentOwner = $this->granularShareService->resolveOwner($this->userId, 'category', $parentId);
+		if ($parentOwner === null) {
+			return new DataResponse(['error' => $this->l->t('Parent category not found')], Http::STATUS_BAD_REQUEST);
+		}
+		if ($parentOwner !== $this->userId
+			&& !$this->granularShareService->canManage($this->userId, 'category', $parentId)) {
+			return $this->subcategoryRefusal();
+		}
+		if ($parentOwner !== $categoryOwner) {
+			return new DataResponse(
+				['error' => $this->l->t('A category can only be moved under another category with the same owner')],
+				Http::STATUS_FORBIDDEN
+			);
+		}
+		return null;
+	}
 
-            // Reparenting is structural — owner-only. Recipients may only reorder.
-            if ($position === 'child' && $owner !== $this->userId) {
-                return new DataResponse(['error' => $this->l->t('Shared categories cannot be nested')], Http::STATUS_FORBIDDEN);
-            }
+	private function subcategoryRefusal(): DataResponse {
+		return new DataResponse(
+			['error' => $this->l->t('Only the owner can add subcategories to a shared category')],
+			Http::STATUS_FORBIDDEN
+		);
+	}
 
-            $category = $this->service->reorderCategory($id, $owner, $targetId, $position);
-            return new DataResponse($category);
-        } catch (ReadOnlyShareException $e) {
-            return $this->handleError($e, $this->l->t('Failed to reorder category'), Http::STATUS_FORBIDDEN, ['categoryId' => $id]);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to reorder category'), Http::STATUS_BAD_REQUEST, ['categoryId' => $id]);
-        }
-    }
+	/**
+	 * Set the budget of a category shared with this user at Full control, for
+	 * the month the Budget page is showing. The change lands where the
+	 * owner's own edit would: their adjustment for that month if they made
+	 * one, otherwise the category's budget. The recipient's own adjustments
+	 * never hold the owner's categories, so routing it through them failed.
+	 *
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 60, period: 60)]
+	public function updateSharedBudget(int $id, string $month, ?float $amount = null, ?string $period = null): DataResponse {
+		try {
+			if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
+				return new DataResponse(['error' => $this->l->t('Invalid month format. Use YYYY-MM')], Http::STATUS_BAD_REQUEST);
+			}
+			if ($period !== null && !in_array($period, ['monthly', 'weekly', 'yearly', 'quarterly'], true)) {
+				return new DataResponse(['error' => $this->l->t('Invalid budget period')], Http::STATUS_BAD_REQUEST);
+			}
 
-    /**
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 20, period: 60)]
-    public function destroy(int $id, bool $reassign = false): DataResponse {
-        try {
-            $owner = $this->granularShareService->resolveOwner($this->userId, 'category', $id);
-            if ($owner === null) {
-                return new DataResponse(
-                    ['error' => $this->l->t('%1$s not found', [$this->l->t('Category')])],
-                    Http::STATUS_NOT_FOUND
-                );
-            }
-            // Only the owner may delete a category — recipients (even with write
-            // access) can edit it but not remove it. Deletion cascades to the
-            // owner's child categories, budget snapshots, and tag metadata.
-            if ($owner !== $this->userId) {
-                return new DataResponse(
-                    ['error' => $this->l->t('Only the category owner can delete it')],
-                    Http::STATUS_FORBIDDEN
-                );
-            }
+			$owner = $this->granularShareService->resolveOwner($this->userId, 'category', $id);
+			if ($owner === null) {
+				return new DataResponse(
+					['error' => $this->l->t('%1$s not found', [$this->l->t('Category')])],
+					Http::STATUS_NOT_FOUND
+				);
+			}
+			if ($owner !== $this->userId
+				&& !$this->granularShareService->canManage($this->userId, 'category', $id)) {
+				return new DataResponse(
+					['error' => $this->l->t('Only the owner can change the budget of a shared category')],
+					Http::STATUS_FORBIDDEN
+				);
+			}
 
-            // reassign=true moves the category's (and descendants') transactions
-            // to No Category first, so it can be deleted without hand-recategorizing (#332).
-            if ($reassign) {
-                $this->service->deleteWithReassign($id, $this->userId);
-            } else {
-                $this->service->delete($id, $this->userId);
-            }
-            return new DataResponse(['status' => 'success']);
-        } catch (CategoryInUseException $e) {
-            // Machine-readable code lets the client offer to reassign and retry.
-            return new DataResponse(
-                ['error' => $e->getMessage(), 'code' => 'has_transactions'],
-                Http::STATUS_CONFLICT
-            );
-        } catch (\Exception $e) {
-            // Surface validation messages (e.g., "has transactions assigned") to the user
-            return $this->handleValidationError($e);
-        }
-    }
+			if ($this->service->hasSnapshot($owner, $month)) {
+				$this->service->updateSnapshotBudget($owner, $id, $month, $amount, $period);
+				return new DataResponse(['target' => 'adjustment']);
+			}
 
-    /**
-     * Ids of categories this user muted from their own reports
-     *
-     * @NoAdminRequired
-     */
-    public function reportMutes(): DataResponse {
-        try {
-            return new DataResponse($this->service->getMutedCategoryIds($this->getEffectiveUserId()));
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to load report preferences'));
-        }
-    }
+			$updates = [];
+			if ($amount !== null) {
+				$updates['budgetAmount'] = $amount;
+			}
+			if ($period !== null) {
+				$updates['budgetPeriod'] = $period;
+			}
+			if ($updates === []) {
+				return new DataResponse(['error' => $this->l->t('No valid fields to update')], Http::STATUS_BAD_REQUEST);
+			}
+			$this->service->update($id, $owner, $updates);
+			return new DataResponse(['target' => 'category']);
+		} catch (\Exception $e) {
+			return $this->handleValidationError($e);
+		}
+	}
 
-    /**
-     * Hide/show a category in THIS user's reports only. Works for any category
-     * the user can see (own or shared with them); never touches the owner's
-     * excluded-from-reports flag.
-     *
-     * @NoAdminRequired
-     */
-    public function setReportMute(int $id, bool $muted = true): DataResponse {
-        try {
-            $userId = $this->getEffectiveUserId();
-            $visibleIds = $this->granularShareService->getVisibleCategoryIds($userId);
-            if (!in_array($id, $visibleIds, true)) {
-                return new DataResponse(['error' => $this->l->t('Category not found')], Http::STATUS_NOT_FOUND);
-            }
-            $this->service->setReportMute($id, $userId, $muted);
-            return new DataResponse(['categoryId' => $id, 'muted' => $muted]);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to update report preference'));
-        }
-    }
+	/**
+	 * @NoAdminRequired
+	 */
+	/**
+	 * Reorder a category relative to a target sibling (drag-and-drop). Renumbers
+	 * the sibling group so the order is deterministic. Own categories support all
+	 * positions; write-shared categories may be reordered among their siblings
+	 * but not moved to another level (reparenting is owner-only) (#328), unless
+	 * the share gives Full control. The target must be a category this user
+	 * can see, in the same owner's tree.
+	 *
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 60, period: 60)]
+	public function reorder(int $id): DataResponse {
+		try {
+			$params = $this->request->getParams();
+			$targetId = isset($params['targetId']) ? (int)$params['targetId'] : 0;
+			$position = $params['position'] ?? 'below';
+			if (!in_array($position, ['above', 'below', 'child'], true)) {
+				return new DataResponse(['error' => $this->l->t('Invalid position')], Http::STATUS_BAD_REQUEST);
+			}
 
-    /**
-     * @NoAdminRequired
-     */
-    public function allSpending(string $startDate, string $endDate, string $transactionType = 'debit', ?bool $excludeShared = null): DataResponse {
-        try {
-            // Validate transaction type
-            if (!in_array($transactionType, ['debit', 'credit'], true)) {
-                $transactionType = 'debit';
-            }
-            $visibleAccountIds = $this->getEffectiveAccountIds((bool) $excludeShared);
-            $spending = $this->service->getAllCategorySpending($this->userId, $startDate, $endDate, $visibleAccountIds, $transactionType);
-            return new DataResponse($spending);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to retrieve category spending'));
-        }
-    }
+			$this->requireWriteAccess('category', $id);
+			$owner = $this->granularShareService->resolveOwner($this->userId, 'category', $id) ?? $this->userId;
 
-    /**
-     * @NoAdminRequired
-     */
-    public function spending(int $id, string $startDate, string $endDate): DataResponse {
-        try {
-            // Resolve the owner so a shared category reads the owner's data, not
-            // the recipient's (whose owner-scoped queries would find nothing) (#328).
-            $owner = $this->granularShareService->resolveOwner($this->userId, 'category', $id);
-            if ($owner === null) {
-                return new DataResponse(['error' => $this->l->t('%1$s not found', [$this->l->t('Category')])], Http::STATUS_NOT_FOUND);
-            }
-            $spending = $this->service->getCategorySpending($id, $owner, $startDate, $endDate);
-            return new DataResponse(['spending' => $spending]);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to retrieve category spending'), Http::STATUS_BAD_REQUEST, ['categoryId' => $id]);
-        }
-    }
+			// The target places the category, so it must be one this user can
+			// see, in the same tree. The service looks it up under the owner,
+			// where any of the owner's categories, shared or not, would do.
+			$targetOwner = $this->granularShareService->resolveOwner($this->userId, 'category', $targetId);
+			if ($targetOwner === null) {
+				return new DataResponse(
+					['error' => $this->l->t('%1$s not found', [$this->l->t('Category')])],
+					Http::STATUS_NOT_FOUND
+				);
+			}
+			if ($position !== 'child' && $targetOwner !== $owner) {
+				return new DataResponse(
+					['error' => $this->l->t('A category can only be moved next to another category with the same owner')],
+					Http::STATUS_FORBIDDEN
+				);
+			}
 
-    /**
-     * @NoAdminRequired
-     */
-    public function details(int $id, ?string $startDate = null, ?string $endDate = null, ?int $accountId = null): DataResponse {
-        try {
-            // Resolve the owner so a shared category reads the owner's data, not
-            // the recipient's (whose owner-scoped queries would find nothing) (#328).
-            $owner = $this->granularShareService->resolveOwner($this->userId, 'category', $id);
-            if ($owner === null) {
-                return new DataResponse(['error' => $this->l->t('%1$s not found', [$this->l->t('Category')])], Http::STATUS_NOT_FOUND);
-            }
-            // The months follow the viewer's budget start day, like the rest of their view
-            $details = $this->service->getCategoryDetails($id, $owner, $startDate, $endDate, $accountId, $this->userId);
-            return new DataResponse($details);
-        } catch (\Exception $e) {
-            return $this->handleNotFoundError($e, $this->l->t('Category'), ['categoryId' => $id]);
-        }
-    }
+			// Above or below a category on another level moves it to that
+			// level, which is as structural as nesting: the owner's, or a Full
+			// control recipient's, and only under a parent they could pick in
+			// an edit. Write recipients may only reorder among siblings.
+			$category = $this->service->find($id, $owner);
+			$newParentId = $position === 'child'
+				? $targetId
+				: $this->service->find($targetId, $owner)->getParentId();
+			if ($position === 'child' || $newParentId !== $category->getParentId()) {
+				if ($owner !== $this->userId
+					&& !$this->granularShareService->canManage($this->userId, 'category', $id)) {
+					$message = $position === 'child'
+						? $this->l->t('Shared categories cannot be nested')
+						: $this->l->t('Only the owner can move a shared category to another level');
+					return new DataResponse(['error' => $message], Http::STATUS_FORBIDDEN);
+				}
+				if ($newParentId !== null) {
+					$refusal = $this->parentRefusal($newParentId, $owner);
+					if ($refusal !== null) {
+						return $refusal;
+					}
+				}
+			}
 
-    /**
-     * @NoAdminRequired
-     */
-    public function transactions(int $id, int $limit = 5): DataResponse {
-        try {
-            // Resolve the owner so a shared category reads the owner's data, not
-            // the recipient's (whose owner-scoped queries would find nothing) (#328).
-            $owner = $this->granularShareService->resolveOwner($this->userId, 'category', $id);
-            if ($owner === null) {
-                return new DataResponse(['error' => $this->l->t('%1$s not found', [$this->l->t('Category')])], Http::STATUS_NOT_FOUND);
-            }
-            // Two queries per call now that split shares are listed alongside
-            // direct rows, so cap what a caller can ask for (#359).
-            $transactions = $this->service->getCategoryTransactions($id, $owner, max(1, min($limit, 100)));
-            return new DataResponse($transactions);
-        } catch (\Exception $e) {
-            return $this->handleNotFoundError($e, $this->l->t('Category'), ['categoryId' => $id]);
-        }
-    }
+			$category = $this->service->reorderCategory($id, $owner, $targetId, $position);
+			return new DataResponse($category);
+		} catch (ReadOnlyShareException $e) {
+			return $this->handleError($e, $this->l->t('Failed to reorder category'), Http::STATUS_FORBIDDEN, ['categoryId' => $id]);
+		} catch (\InvalidArgumentException $e) {
+			// Curated refusals from the service, e.g. nesting a category
+			// inside its own branch
+			return $this->handleValidationError($e);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to reorder category'), Http::STATUS_BAD_REQUEST, ['categoryId' => $id]);
+		}
+	}
 
-    /**
-     * Create a budget snapshot for a given month.
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 10, period: 60)]
-    public function createSnapshot(string $month): DataResponse {
-        try {
-            if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
-                return new DataResponse(['error' => $this->l->t('Invalid month format. Use YYYY-MM')], Http::STATUS_BAD_REQUEST);
-            }
+	/**
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 20, period: 60)]
+	public function destroy(int $id, bool $reassign = false): DataResponse {
+		try {
+			$owner = $this->granularShareService->resolveOwner($this->userId, 'category', $id);
+			if ($owner === null) {
+				return new DataResponse(
+					['error' => $this->l->t('%1$s not found', [$this->l->t('Category')])],
+					Http::STATUS_NOT_FOUND
+				);
+			}
+			// Only the owner may delete a category — recipients (even with write
+			// access) can edit it but not remove it. Deletion cascades to the
+			// owner's child categories, budget snapshots, and tag metadata. The
+			// one exception is a Full control recipient removing a subcategory
+			// they added, which the service keeps to an unused leaf.
+			if ($owner !== $this->userId) {
+				if (!$reassign && $this->granularShareService->canManage($this->userId, 'category', $id)) {
+					try {
+						$this->service->deleteAsCreator($id, $owner, $this->userId);
+						return new DataResponse(['status' => 'success']);
+					} catch (\InvalidArgumentException $e) {
+						return new DataResponse(['error' => $e->getMessage()], Http::STATUS_FORBIDDEN);
+					}
+				}
+				return new DataResponse(
+					['error' => $this->l->t('Only the category owner can delete it')],
+					Http::STATUS_FORBIDDEN
+				);
+			}
 
-            $snapshots = $this->service->createBudgetSnapshot($this->userId, $month);
-            return new DataResponse([
-                'status' => 'success',
-                'month' => $month,
-                'count' => count($snapshots),
-            ], Http::STATUS_CREATED);
-        } catch (\Exception $e) {
-            return $this->handleValidationError($e);
-        }
-    }
+			// reassign=true moves the category's (and descendants') transactions
+			// to No Category first, so it can be deleted without hand-recategorizing (#332).
+			if ($reassign) {
+				$this->service->deleteWithReassign($id, $this->userId);
+			} else {
+				$this->service->delete($id, $this->userId);
+			}
+			return new DataResponse(['status' => 'success']);
+		} catch (CategoryInUseException $e) {
+			// Machine-readable code lets the client offer to reassign and retry.
+			return new DataResponse(
+				['error' => $e->getMessage(), 'code' => 'has_transactions'],
+				Http::STATUS_CONFLICT
+			);
+		} catch (\Exception $e) {
+			// Surface validation messages (e.g., "has transactions assigned") to the user
+			return $this->handleValidationError($e);
+		}
+	}
 
-    /**
-     * Delete a budget snapshot for a given month.
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 10, period: 60)]
-    public function deleteSnapshot(string $month): DataResponse {
-        try {
-            if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
-                return new DataResponse(['error' => $this->l->t('Invalid month format. Use YYYY-MM')], Http::STATUS_BAD_REQUEST);
-            }
+	/**
+	 * Ids of categories this user muted from their own reports
+	 *
+	 * @NoAdminRequired
+	 */
+	public function reportMutes(): DataResponse {
+		try {
+			return new DataResponse($this->service->getMutedCategoryIds($this->getEffectiveUserId()));
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to load report preferences'));
+		}
+	}
 
-            $this->service->deleteBudgetSnapshot($this->userId, $month);
-            return new DataResponse(['status' => 'success']);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to delete budget snapshot'));
-        }
-    }
+	/**
+	 * Hide/show a category in THIS user's reports only. Works for any category
+	 * the user can see (own or shared with them); never touches the owner's
+	 * excluded-from-reports flag.
+	 *
+	 * @NoAdminRequired
+	 */
+	public function setReportMute(int $id, bool $muted = true): DataResponse {
+		try {
+			$userId = $this->getEffectiveUserId();
+			$visibleIds = $this->granularShareService->getVisibleCategoryIds($userId);
+			if (!in_array($id, $visibleIds, true)) {
+				return new DataResponse(['error' => $this->l->t('Category not found')], Http::STATUS_NOT_FOUND);
+			}
+			$this->service->setReportMute($id, $userId, $muted);
+			return new DataResponse(['categoryId' => $id, 'muted' => $muted]);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to update report preference'));
+		}
+	}
 
-    /**
-     * Get all snapshot months for the user.
-     * @NoAdminRequired
-     */
-    public function snapshotMonths(): DataResponse {
-        try {
-            $months = $this->service->getSnapshotMonths($this->userId);
-            return new DataResponse($months);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to retrieve snapshot months'));
-        }
-    }
+	/**
+	 * @NoAdminRequired
+	 */
+	public function allSpending(string $startDate, string $endDate, string $transactionType = 'debit', ?bool $excludeShared = null): DataResponse {
+		try {
+			// Validate transaction type
+			if (!in_array($transactionType, ['debit', 'credit'], true)) {
+				$transactionType = 'debit';
+			}
+			$visibleAccountIds = $this->getEffectiveAccountIds((bool)$excludeShared);
+			$spending = $this->service->getAllCategorySpending($this->userId, $startDate, $endDate, $visibleAccountIds, $transactionType);
+			return new DataResponse($spending);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to retrieve category spending'));
+		}
+	}
 
-    /**
-     * Get resolved effective budgets for a given month.
-     * @NoAdminRequired
-     */
-    public function effectiveBudgets(string $month, ?bool $excludeShared = null): DataResponse {
-        try {
-            if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
-                return new DataResponse(['error' => $this->l->t('Invalid month format. Use YYYY-MM')], Http::STATUS_BAD_REQUEST);
-            }
+	/**
+	 * @NoAdminRequired
+	 */
+	public function spending(int $id, string $startDate, string $endDate): DataResponse {
+		try {
+			// Resolve the owner so a shared category reads the owner's data, not
+			// the recipient's (whose owner-scoped queries would find nothing) (#328).
+			$owner = $this->granularShareService->resolveOwner($this->userId, 'category', $id);
+			if ($owner === null) {
+				return new DataResponse(['error' => $this->l->t('%1$s not found', [$this->l->t('Category')])], Http::STATUS_NOT_FOUND);
+			}
+			$spending = $this->service->getCategorySpending($id, $owner, $startDate, $endDate);
+			return new DataResponse(['spending' => $spending]);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to retrieve category spending'), Http::STATUS_BAD_REQUEST, ['categoryId' => $id]);
+		}
+	}
 
-            $hasSnapshot = $this->service->hasSnapshot($this->userId, $month);
-            // Same account scope the Budget view's spending call uses, so the
-            // envelope carryover counts a shared account like everything else
-            // on the page (#341).
-            $budgets = $this->service->resolveEffectiveBudgets(
-                $this->userId,
-                $month,
-                $this->getEffectiveAccountIds((bool) $excludeShared)
-            );
-            return new DataResponse([
-                'month' => $month,
-                'hasSnapshot' => $hasSnapshot,
-                'budgets' => $budgets,
-            ]);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to retrieve effective budgets'));
-        }
-    }
+	/**
+	 * @NoAdminRequired
+	 */
+	public function details(int $id, ?string $startDate = null, ?string $endDate = null, ?int $accountId = null): DataResponse {
+		try {
+			// Resolve the owner so a shared category reads the owner's data, not
+			// the recipient's (whose owner-scoped queries would find nothing) (#328).
+			$owner = $this->granularShareService->resolveOwner($this->userId, 'category', $id);
+			if ($owner === null) {
+				return new DataResponse(['error' => $this->l->t('%1$s not found', [$this->l->t('Category')])], Http::STATUS_NOT_FOUND);
+			}
+			// Sharing a category shares its name and budget, not the owner's
+			// accounts: only rows in accounts this user can see count, and an
+			// account they can't see is not one they can ask about
+			$visibleAccountIds = $this->getVisibleAccountIds();
+			if ($accountId !== null && !in_array($accountId, $visibleAccountIds, true)) {
+				return new DataResponse(['error' => $this->l->t('Account not found')], Http::STATUS_NOT_FOUND);
+			}
+			// The months follow the viewer's budget start day, like the rest of their view
+			$details = $this->service->getCategoryDetails($id, $owner, $startDate, $endDate, $accountId, $this->userId, $visibleAccountIds);
+			return new DataResponse($details);
+		} catch (\Exception $e) {
+			return $this->handleNotFoundError($e, $this->l->t('Category'), ['categoryId' => $id]);
+		}
+	}
 
-    /**
-     * Get the monthly-normalized recurring total committed per category, derived
-     * from active recurring bills and recurring income (#269). The budget view
-     * uses these as an automatic fallback for categories with no manual budget.
-     * @NoAdminRequired
-     */
-    public function recurringBudgets(): DataResponse {
-        try {
-            $budgets = $this->recurringBudgetService->getMonthlyBudgetsByCategory($this->userId);
-            return new DataResponse(['budgets' => $budgets]);
-        } catch (\Exception $e) {
-            return $this->handleError($e, $this->l->t('Failed to retrieve recurring budgets'));
-        }
-    }
+	/**
+	 * @NoAdminRequired
+	 */
+	public function transactions(int $id, int $limit = 5): DataResponse {
+		try {
+			// Resolve the owner so a shared category reads the owner's data, not
+			// the recipient's (whose owner-scoped queries would find nothing) (#328).
+			$owner = $this->granularShareService->resolveOwner($this->userId, 'category', $id);
+			if ($owner === null) {
+				return new DataResponse(['error' => $this->l->t('%1$s not found', [$this->l->t('Category')])], Http::STATUS_NOT_FOUND);
+			}
+			// Two queries per call now that split shares are listed alongside
+			// direct rows, so cap what a caller can ask for (#359). Only rows
+			// in accounts this user can see, as in details().
+			$transactions = $this->service->getCategoryTransactions($id, $owner, max(1, min($limit, 100)), $this->getVisibleAccountIds());
+			return new DataResponse($transactions);
+		} catch (\Exception $e) {
+			return $this->handleNotFoundError($e, $this->l->t('Category'), ['categoryId' => $id]);
+		}
+	}
 
-    /**
-     * Update a single category budget within a snapshot.
-     * @NoAdminRequired
-     */
-    #[UserRateLimit(limit: 30, period: 60)]
-    public function updateSnapshotBudget(string $month, int $categoryId, ?float $amount = null, ?string $period = null): DataResponse {
-        try {
-            if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
-                return new DataResponse(['error' => $this->l->t('Invalid month format. Use YYYY-MM')], Http::STATUS_BAD_REQUEST);
-            }
+	/**
+	 * Create a budget snapshot for a given month.
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 10, period: 60)]
+	public function createSnapshot(string $month): DataResponse {
+		try {
+			if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
+				return new DataResponse(['error' => $this->l->t('Invalid month format. Use YYYY-MM')], Http::STATUS_BAD_REQUEST);
+			}
 
-            if ($period !== null) {
-                $validPeriods = ['monthly', 'weekly', 'yearly', 'quarterly'];
-                if (!in_array($period, $validPeriods, true)) {
-                    return new DataResponse(['error' => $this->l->t('Invalid budget period')], Http::STATUS_BAD_REQUEST);
-                }
-            }
+			$snapshots = $this->service->createBudgetSnapshot($this->userId, $month);
+			return new DataResponse([
+				'status' => 'success',
+				'month' => $month,
+				'count' => count($snapshots),
+			], Http::STATUS_CREATED);
+		} catch (\Exception $e) {
+			return $this->handleValidationError($e);
+		}
+	}
 
-            $snapshot = $this->service->updateSnapshotBudget($this->userId, $categoryId, $month, $amount, $period);
-            return new DataResponse($snapshot);
-        } catch (\Exception $e) {
-            return $this->handleValidationError($e);
-        }
-    }
+	/**
+	 * Delete a budget snapshot for a given month.
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 10, period: 60)]
+	public function deleteSnapshot(string $month): DataResponse {
+		try {
+			if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
+				return new DataResponse(['error' => $this->l->t('Invalid month format. Use YYYY-MM')], Http::STATUS_BAD_REQUEST);
+			}
+
+			$this->service->deleteBudgetSnapshot($this->userId, $month);
+			return new DataResponse(['status' => 'success']);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to delete budget snapshot'));
+		}
+	}
+
+	/**
+	 * Get all snapshot months for the user.
+	 * @NoAdminRequired
+	 */
+	public function snapshotMonths(): DataResponse {
+		try {
+			$months = $this->service->getSnapshotMonths($this->userId);
+			return new DataResponse($months);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to retrieve snapshot months'));
+		}
+	}
+
+	/**
+	 * Get resolved effective budgets for a given month.
+	 * @NoAdminRequired
+	 */
+	public function effectiveBudgets(string $month, ?bool $excludeShared = null): DataResponse {
+		try {
+			if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
+				return new DataResponse(['error' => $this->l->t('Invalid month format. Use YYYY-MM')], Http::STATUS_BAD_REQUEST);
+			}
+
+			$hasSnapshot = $this->service->hasSnapshot($this->userId, $month);
+			// Same account scope the Budget view's spending call uses, so the
+			// envelope carryover counts a shared account like everything else
+			// on the page (#341).
+			$accountIds = $this->getEffectiveAccountIds((bool)$excludeShared);
+			$budgets = $this->service->resolveEffectiveBudgets(
+				$this->userId,
+				$month,
+				$accountIds
+			);
+			// The page's "Ready to assign" card, for the same month and scope.
+			// Only this user's own budgets give out their income, so it is
+			// worked out before the shared categories join the list.
+			$readyToAssign = $this->service->getReadyToAssign($this->userId, $month, $accountIds, $budgets);
+			return new DataResponse([
+				'month' => $month,
+				'hasSnapshot' => $hasSnapshot,
+				'budgets' => $budgets + $this->sharedBudgets->effectiveBudgets($this->userId, $month),
+				'readyToAssign' => $readyToAssign,
+			]);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to retrieve effective budgets'));
+		}
+	}
+
+	/**
+	 * Get the monthly-normalized recurring total committed per category, derived
+	 * from active recurring bills and recurring income (#269). The budget view
+	 * uses these as an automatic fallback for categories with no manual budget.
+	 * For the month the page shows, and for a category shared with the user,
+	 * its owner's figure, the one its Remaining is measured against.
+	 * @NoAdminRequired
+	 */
+	public function recurringBudgets(?string $month = null): DataResponse {
+		try {
+			if ($month !== null && !preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $month)) {
+				return new DataResponse(['error' => $this->l->t('Invalid month format. Use YYYY-MM')], Http::STATUS_BAD_REQUEST);
+			}
+			$budgets = $this->recurringBudgetService->getMonthlyBudgetsForViewer($this->userId, $month);
+			return new DataResponse(['budgets' => $budgets]);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to retrieve recurring budgets'));
+		}
+	}
+
+	/**
+	 * Update a single category budget within a snapshot.
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function updateSnapshotBudget(string $month, int $categoryId, ?float $amount = null, ?string $period = null): DataResponse {
+		try {
+			if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
+				return new DataResponse(['error' => $this->l->t('Invalid month format. Use YYYY-MM')], Http::STATUS_BAD_REQUEST);
+			}
+
+			if ($period !== null) {
+				$validPeriods = ['monthly', 'weekly', 'yearly', 'quarterly'];
+				if (!in_array($period, $validPeriods, true)) {
+					return new DataResponse(['error' => $this->l->t('Invalid budget period')], Http::STATUS_BAD_REQUEST);
+				}
+			}
+
+			$snapshot = $this->service->updateSnapshotBudget($this->userId, $categoryId, $month, $amount, $period);
+			return new DataResponse($snapshot);
+		} catch (\Exception $e) {
+			return $this->handleValidationError($e);
+		}
+	}
 }

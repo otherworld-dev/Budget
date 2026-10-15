@@ -16,6 +16,7 @@ use OCA\Budget\Service\SettingService;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\IJob;
 use OCP\IDBConnection;
+use OCP\IUserManager;
 use OCP\Notification\IManager as INotificationManager;
 use OCP\Notification\INotification;
 use PHPUnit\Framework\TestCase;
@@ -37,6 +38,8 @@ class BillReminderJobTest extends TestCase {
 	private $pensionRecurMapper;
 	/** @var PensionRecurringService&\PHPUnit\Framework\MockObject\MockObject */
 	private $pensionRecurService;
+	/** @var \OCA\Budget\Db\RecurringIncome[] what findDueForAutoCreate returns */
+	private array $dueIncome = [];
 
 	protected function setUp(): void {
 		$this->timeFactory = $this->createMock(ITimeFactory::class);
@@ -53,6 +56,8 @@ class BillReminderJobTest extends TestCase {
 
 		$container = $this->createMock(ContainerInterface::class);
 		$container->method('get')->willReturnMap([
+			// JobUsers keeps only users Nextcloud still knows
+			[IUserManager::class, $this->createConfiguredMock(IUserManager::class, ['userExists' => true])],
 			[BillMapper::class, $this->billMapper],
 			[BillService::class, $this->billService],
 			[RecurringIncomeMapper::class, $this->incomeMapper],
@@ -67,7 +72,7 @@ class BillReminderJobTest extends TestCase {
 		\OC::$server = $container;
 
 		// Default: no income due for auto-create, no pension schedules due
-		$this->incomeMapper->method('findDueForAutoCreate')->willReturn([]);
+		$this->incomeMapper->method('findDueForAutoCreate')->willReturnCallback(fn () => $this->dueIncome);
 		$this->pensionRecurMapper->method('findDueForAutoPost')->willReturn([]);
 
 		$this->job = new BillReminderJob($this->timeFactory);
@@ -113,6 +118,89 @@ class BillReminderJobTest extends TestCase {
 
 		$result = $this->invokeShouldSendReminder($bill, $dueDate);
 		$this->assertFalse($result);
+	}
+
+	public function testALongReminderWindowRemindsOnce(): void {
+		// "More than a week before the due date" read every reminder sent
+		// 8 to 30 days out as an old one, and resent it every six hours
+		$bill = $this->makeBill(['reminderDays' => 20, 'lastReminderSent' => '2026-03-26 10:00:00']);
+
+		$this->assertFalse($this->invokeShouldSendReminder($bill, new \DateTime('2026-04-15')));
+	}
+
+	public function testTheOverdueNoticeFollowsAReminder(): void {
+		// A reminder two days before the due date suppressed the overdue
+		// notice for good
+		$bill = $this->makeBill(['reminderDays' => 3, 'lastReminderSent' => '2026-04-13 10:00:00']);
+
+		$this->assertTrue($this->invokeShouldSendReminder($bill, new \DateTime('2026-04-15'), true));
+	}
+
+	public function testTheOverdueNoticeIsSentOnce(): void {
+		$bill = $this->makeBill(['reminderDays' => 3, 'lastReminderSent' => '2026-04-16 10:00:00']);
+
+		$this->assertFalse($this->invokeShouldSendReminder($bill, new \DateTime('2026-04-15'), true));
+	}
+
+	public function testAWeeklyBillIsRemindedEveryWeek(): void {
+		$bill = $this->makeBill(['reminderDays' => 2, 'lastReminderSent' => '2026-04-06 10:00:00']);
+
+		$this->assertTrue($this->invokeShouldSendReminder($bill, new \DateTime('2026-04-15')));
+	}
+
+	public function testAReminderSentAfterMidnightEastOfUtcGoesOutOnce(): void {
+		// Sent at 01:00 on 5 October in Sydney, stamped 14:00 on 4 October
+		// UTC. Read as a UTC date it was older than the window opening on the
+		// 5th, and every run that day sent it again
+		$bill = $this->makeBill(['reminderDays' => 3, 'lastReminderSent' => '2026-10-04 14:00:00']);
+
+		$this->assertFalse($this->invokeShouldSendReminder($bill, new \DateTime('2026-10-08'), false, 'Australia/Sydney'));
+	}
+
+	public function testAnOverdueNoticeSentAfterMidnightEastOfUtcGoesOutOnce(): void {
+		$bill = $this->makeBill(['reminderDays' => 3, 'lastReminderSent' => '2026-10-04 14:00:00']);
+
+		$this->assertFalse($this->invokeShouldSendReminder($bill, new \DateTime('2026-10-04'), true, 'Australia/Sydney'));
+	}
+
+	public function testALatePaymentDoesNotSwallowTheNextReminder(): void {
+		// A weekly bill reminded a week ahead: the overdue notice for 4
+		// October went out on the 5th, inside the next occurrence's window,
+		// and the reminder for the 11th was never sent
+		$bill = $this->makeBill(['reminderDays' => 7, 'nextDueDate' => '2026-10-11',
+			'lastReminderSent' => '2026-10-05 08:00:00', 'lastReminderDue' => '2026-10-04']);
+
+		$this->assertTrue($this->invokeShouldSendReminder($bill, new \DateTime('2026-10-11')));
+	}
+
+	public function testEachNoticeGoesOutOncePerDueDate(): void {
+		// The reminder for 15 October went out on the 13th
+		$bill = $this->makeBill(['reminderDays' => 3, 'lastReminderSent' => '2026-10-13 08:00:00', 'lastReminderDue' => '2026-10-15']);
+		$this->assertFalse($this->invokeShouldSendReminder($bill, new \DateTime('2026-10-15')));
+		// ...even after the window is shortened to one day
+		$bill->setReminderDays(1);
+		$this->assertFalse($this->invokeShouldSendReminder($bill, new \DateTime('2026-10-15')));
+		// The overdue notice still follows it, once
+		$this->assertTrue($this->invokeShouldSendReminder($bill, new \DateTime('2026-10-15'), true));
+		$bill->setLastReminderSent('2026-10-16 08:00:00');
+		$this->assertFalse($this->invokeShouldSendReminder($bill, new \DateTime('2026-10-15'), true));
+	}
+
+	public function testANoticeRecordsTheDueDateItWasFor(): void {
+		$this->mockGetAllUserIds(['user1']);
+		$this->billMapper->method('findDueForAutoPay')->willReturn([]);
+		$tomorrow = (new \DateTime('+1 day'))->format('Y-m-d');
+		$bill = $this->makeBill(['reminderDays' => 3, 'nextDueDate' => $tomorrow]);
+		$this->billMapper->method('findActive')->willReturn([$bill]);
+		$notification = $this->createMock(INotification::class);
+		foreach (['setApp', 'setUser', 'setDateTime', 'setObject', 'setSubject'] as $method) {
+			$notification->method($method)->willReturnSelf();
+		}
+		$this->notificationManager->method('createNotification')->willReturn($notification);
+		$this->billMapper->expects($this->once())->method('update')
+			->with($this->callback(fn (Bill $b) => $b->getLastReminderDue() === $tomorrow && $b->getLastReminderSent() !== null));
+
+		$this->invokeRun();
 	}
 
 	// ===== formatAmount() =====
@@ -247,6 +335,44 @@ class BillReminderJobTest extends TestCase {
 		$this->invokeRun();
 	}
 
+	/**
+	 * A reminder for a bill on a dollar account said £50.00: the bills were
+	 * never given their account's currency, and the amount was formatted in
+	 * the user's default one.
+	 */
+	public function testRemindersAndAutoPayNoticesUseTheBillsCurrency(): void {
+		$this->mockGetAllUserIds(['user1']);
+		$this->settingService->method('get')->willReturn('GBP');
+		$tomorrow = (new \DateTime('+1 day'))->format('Y-m-d');
+		$reminded = $this->makeBill(['id' => 1, 'amount' => 50.0, 'reminderDays' => 3, 'nextDueDate' => $tomorrow]);
+		$autoPaid = $this->makeBill(['id' => 2, 'amount' => 20.0]);
+		$paidCopy = $this->makeBill(['id' => 2, 'amount' => 20.0]);
+		$this->billMapper->method('findActive')->willReturn([$reminded]);
+		$this->billMapper->method('findDueForAutoPay')->willReturn([$autoPaid]);
+		$this->billService->method('processAutoPay')->willReturn(['success' => true, 'bill' => $paidCopy]);
+		$this->billService->method('enrichBillsWithCurrency')->willReturnCallback(function (array $bills) {
+			foreach ($bills as $bill) {
+				$bill->setCurrency('USD');
+			}
+			return $bills;
+		});
+
+		$amounts = [];
+		$notification = $this->createMock(INotification::class);
+		foreach (['setApp', 'setUser', 'setDateTime', 'setObject'] as $method) {
+			$notification->method($method)->willReturnSelf();
+		}
+		$notification->method('setSubject')->willReturnCallback(function (string $subject, array $params) use (&$amounts, $notification) {
+			$amounts[$subject] = $params['amount'];
+			return $notification;
+		});
+		$this->notificationManager->method('createNotification')->willReturn($notification);
+
+		$this->invokeRun();
+
+		$this->assertSame(['bill_auto_paid' => '$20.00', 'bill_reminder' => '$50.00'], $amounts);
+	}
+
 	// ===== run() - Auto-Pay =====
 
 	public function testRunProcessesAutoPayBeforeReminders(): void {
@@ -309,6 +435,86 @@ class BillReminderJobTest extends TestCase {
 		$this->invokeRun();
 	}
 
+	public function testAnAutoPayAnotherRunAlreadyMadeSendsNothing(): void {
+		// Two runs at once: the second found nothing left to pay and told the
+		// user auto-pay had failed
+		$this->mockGetAllUserIds(['user1']);
+		$this->billMapper->method('findDueForAutoPay')->willReturn([$this->makeBill(['id' => 10])]);
+		$this->billService->method('processAutoPay')->willReturn([
+			'success' => false, 'disabled' => false, 'message' => 'Nothing due', 'bill' => null,
+		]);
+		$this->billMapper->method('findActive')->willReturn([]);
+		$this->notificationManager->expects($this->never())->method('notify');
+
+		$this->invokeRun();
+	}
+
+	public function testAnIncomeAutoCreateWithNothingDueSendsNothing(): void {
+		$this->mockGetAllUserIds(['user1']);
+		$this->billMapper->method('findDueForAutoPay')->willReturn([]);
+		$this->billMapper->method('findActive')->willReturn([]);
+		$income = new \OCA\Budget\Db\RecurringIncome();
+		$income->setId(4);
+		$this->dueIncome = [$income];
+		$this->incomeService->method('processAutoCreate')->willReturn([
+			'success' => false, 'disabled' => false, 'message' => 'Nothing due', 'income' => $income,
+		]);
+		$this->notificationManager->expects($this->never())->method('notify');
+
+		$this->invokeRun();
+	}
+
+	public function testAnIncomeAutoCreateThatSwitchedItselfOffSaysSo(): void {
+		$this->mockGetAllUserIds(['user1']);
+		$this->billMapper->method('findDueForAutoPay')->willReturn([]);
+		$this->billMapper->method('findActive')->willReturn([]);
+		$income = new \OCA\Budget\Db\RecurringIncome();
+		$income->setId(4);
+		$income->setName('Wages');
+		$income->setAmount(100.0);
+		$this->dueIncome = [$income];
+		$this->incomeService->method('processAutoCreate')->willReturn([
+			'success' => false, 'disabled' => true, 'message' => 'No account set for income', 'income' => $income,
+		]);
+		$notification = $this->createMock(INotification::class);
+		foreach (['setApp', 'setUser', 'setDateTime', 'setObject'] as $method) {
+			$notification->method($method)->willReturnSelf();
+		}
+		$notification->method('setSubject')->with('income_auto_create_failed', $this->anything())->willReturnSelf();
+		$this->notificationManager->method('createNotification')->willReturn($notification);
+		$this->notificationManager->expects($this->once())->method('notify');
+
+		$this->invokeRun();
+	}
+
+	/**
+	 * A failure while looking up or paying a user's auto-pay bills is logged
+	 * and the run carries on to the reminders. The catch used to call an
+	 * undefined $logger, so the "log it" path crashed the whole job instead.
+	 */
+	public function testRunLogsAutoPayFailureAndStillSendsReminders(): void {
+		$this->mockGetAllUserIds(['user1']);
+
+		$this->billMapper->method('findDueForAutoPay')
+			->willThrowException(new \RuntimeException('Auto-pay lookup failed'));
+
+		$this->logger->expects($this->once())
+			->method('warning')
+			->with(
+				$this->logicalAnd(
+					$this->stringContains('Auto-pay processing failed for user user1'),
+					$this->stringContains('Auto-pay lookup failed')
+				),
+				$this->callback(fn ($ctx) => ($ctx['app'] ?? null) === 'budget')
+			);
+		$this->logger->expects($this->never())->method('error');
+
+		// The reminder pass for the same user still runs
+		$this->billMapper->expects($this->once())->method('findActive')->with('user1')->willReturn([]);
+
+		$this->invokeRun();
+	}
+
 	// ===== run() - Error Handling =====
 
 	public function testRunContinuesOnPerUserFailure(): void {
@@ -339,13 +545,96 @@ class BillReminderJobTest extends TestCase {
 			->method('error')
 			->with(
 				$this->stringContains('DB down'),
-				$this->callback(fn($ctx) => $ctx['app'] === 'budget')
+				$this->callback(fn ($ctx) => $ctx['app'] === 'budget')
 			);
 
 		$this->invokeRun();
 	}
 
 	// ===== Helpers =====
+
+	/**
+	 * A pension auto-post that can't post switches itself off and says so.
+	 * It used to log a warning and fail again every six hours, with the
+	 * schedule still showing a normal next date.
+	 */
+	public function testAPensionAutoPostThatSwitchedItselfOffTellsTheUser(): void {
+		$this->mockGetAllUserIds(['user1']);
+		$schedule = new \OCA\Budget\Db\PensionRecurringContribution();
+		$schedule->setId(7);
+		$schedule->setPensionId(2);
+		$schedule->setAmount(200.0);
+		$this->pensionRecurService->method('findDueForAutoPost')->with('user1')->willReturn([$schedule]);
+		$this->pensionRecurService->method('processAutoPost')->willReturn([
+			'success' => false,
+			'disabled' => true,
+			'recurring' => $schedule,
+			'pensionName' => 'Work',
+			'message' => 'The account this contribution comes from no longer exists',
+		]);
+
+		$notification = $this->createMock(INotification::class);
+		$notification->method('setApp')->willReturnSelf();
+		$notification->method('setUser')->willReturnSelf();
+		$notification->method('setDateTime')->willReturnSelf();
+		$notification->method('setObject')->willReturnSelf();
+		$notification->expects($this->once())->method('setSubject')
+			->with('pension_auto_post_failed', $this->callback(function (array $params) {
+				return $params['pensionName'] === 'Work'
+					&& $params['recurringId'] === 7
+					&& $params['reason'] === 'The account this contribution comes from no longer exists';
+			}))
+			->willReturnSelf();
+		$this->notificationManager->method('createNotification')->willReturn($notification);
+		$this->notificationManager->expects($this->once())->method('notify');
+		$this->billMapper->method('findActive')->willReturn([]);
+
+		$this->invokeRun();
+	}
+
+	public function testAPensionAutoPostFailureShowsThePensionsCurrency(): void {
+		// A euro pension's contribution read "£75.00" for a pound user
+		$this->mockGetAllUserIds(['user1']);
+		$this->settingService->method('get')->willReturn('GBP');
+		$schedule = new \OCA\Budget\Db\PensionRecurringContribution();
+		$schedule->setId(7);
+		$schedule->setPensionId(2);
+		$schedule->setAmount(75.0);
+		$this->pensionRecurService->method('findDueForAutoPost')->willReturn([$schedule]);
+		$this->pensionRecurService->method('processAutoPost')->willReturn([
+			'success' => false, 'disabled' => true, 'recurring' => $schedule, 'pensionName' => 'Euro pot',
+			'pensionCurrency' => 'EUR', 'message' => 'The account this contribution comes from no longer exists',
+		]);
+		$amount = null;
+		$notification = $this->createMock(INotification::class);
+		foreach (['setApp', 'setUser', 'setDateTime', 'setObject'] as $method) {
+			$notification->method($method)->willReturnSelf();
+		}
+		$notification->method('setSubject')->willReturnCallback(function (string $subject, array $params) use (&$amount, $notification) {
+			$amount = $params['amount'];
+			return $notification;
+		});
+		$this->notificationManager->method('createNotification')->willReturn($notification);
+		$this->billMapper->method('findActive')->willReturn([]);
+
+		$this->invokeRun();
+
+		$this->assertSame('€75.00', $amount);
+	}
+
+	public function testAPensionScheduleWithNothingDueSendsNothing(): void {
+		$this->mockGetAllUserIds(['user1']);
+		$schedule = new \OCA\Budget\Db\PensionRecurringContribution();
+		$schedule->setId(7);
+		$this->pensionRecurService->method('findDueForAutoPost')->willReturn([$schedule]);
+		$this->pensionRecurService->method('processAutoPost')->willReturn([
+			'success' => false, 'disabled' => false, 'message' => 'Nothing due',
+		]);
+		$this->notificationManager->expects($this->never())->method('notify');
+		$this->billMapper->method('findActive')->willReturn([]);
+
+		$this->invokeRun();
+	}
 
 	private function makeBill(array $overrides = []): Bill {
 		$bill = new Bill();
@@ -358,11 +647,14 @@ class BillReminderJobTest extends TestCase {
 		$bill->setReminderDays($overrides['reminderDays'] ?? null);
 		$bill->setNextDueDate($overrides['nextDueDate'] ?? '2099-06-15');
 		$bill->setLastReminderSent($overrides['lastReminderSent'] ?? null);
+		if (isset($overrides['lastReminderDue'])) {
+			$bill->setLastReminderDue($overrides['lastReminderDue']);
+		}
 		return $bill;
 	}
 
 	private function mockGetAllUserIds(array $userIds): void {
-		$rows = array_map(fn($id) => ['user_id' => $id], $userIds);
+		$rows = array_map(fn ($id) => ['user_id' => $id], $userIds);
 		$currentIndex = 0;
 
 		$result = $this->createMock(\OCP\DB\IResult::class);
@@ -385,9 +677,9 @@ class BillReminderJobTest extends TestCase {
 		$this->db->method('getQueryBuilder')->willReturn($qb);
 	}
 
-	private function invokeShouldSendReminder($bill, \DateTime $dueDate): bool {
+	private function invokeShouldSendReminder($bill, \DateTime $dueDate, bool $overdue = false, string $zone = 'UTC'): bool {
 		$method = new \ReflectionMethod($this->job, 'shouldSendReminder');
-		return $method->invoke($this->job, $bill, $dueDate);
+		return $method->invoke($this->job, $bill, $dueDate, $overdue, new \DateTimeZone($zone));
 	}
 
 	private function invokeFormatAmount(string $userId, float $amount): string {

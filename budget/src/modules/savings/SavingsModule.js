@@ -5,10 +5,13 @@ import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
+import { once } from '../../utils/submitGuard.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import { offerableTags } from '../../utils/tags.js';
 import { pickableAccounts, accountOptionLabel, selectAccountValue } from '../../utils/accounts.js';
+import { showLoading, showLoadError } from '../../utils/loading.js';
+import { apiFetch, ApiError } from '../../utils/api.js';
 
 export default class SavingsModule {
     constructor(app) {
@@ -24,22 +27,17 @@ export default class SavingsModule {
     get settings() { return this.app.settings; }
 
     async loadSavingsGoalsView() {
+        // Before any fetch, so a failed first load leaves working buttons.
+        if (!this._eventsSetup) {
+            this.setupGoalsEventListeners();
+            this._eventsSetup = true;
+        }
+
+        showLoading('goals-list');
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/savings-goals'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            this.savingsGoals = await response.json();
+            this.savingsGoals = await apiFetch('/apps/budget/api/savings-goals');
             this.updateGoalsSummary();
             this.renderGoals(this.savingsGoals);
-
-            // Setup event listeners (only once)
-            if (!this._eventsSetup) {
-                this.setupGoalsEventListeners();
-                this._eventsSetup = true;
-            }
 
             // Populate dropdowns in modal
             this.populateGoalAccountDropdown();
@@ -47,6 +45,9 @@ export default class SavingsModule {
         } catch (error) {
             console.error('Failed to load savings goals:', error);
             showError(t('budget', 'Failed to load savings goals'));
+            const emptyGoals = document.getElementById('empty-goals');
+            if (emptyGoals) emptyGoals.style.display = 'none';
+            showLoadError('goals-list', t('budget', 'Failed to load savings goals'), () => this.loadSavingsGoalsView());
         }
     }
 
@@ -89,14 +90,16 @@ export default class SavingsModule {
             const targetDate = goal.targetDate || goal.target_date;
 
             // Sharing: own goals are always editable; shared goals depend on
-            // the permission flag from the API. Only owners may delete.
+            // the permission flag from the API. Deleting a shared goal needs
+            // Full control from its owner.
             const isShared = goal._shared === true;
             const canWrite = !isShared || goal._canWrite === true;
+            const canDelete = !isShared || goal._canManage === true;
             const owner = goal.userId || goal.user_id || '';
 
             let targetDateText = '';
             if (targetDate) {
-                const date = new Date(targetDate);
+                const date = formatters.parseLocalDate(targetDate);
                 const today = new Date();
                 const daysLeft = Math.ceil((date - today) / (1000 * 60 * 60 * 24));
 
@@ -107,7 +110,7 @@ export default class SavingsModule {
                 } else if (daysLeft <= 30) {
                     targetDateText = n('budget', '%n day left', '%n days left', daysLeft);
                 } else {
-                    targetDateText = t('budget', 'Target: {date}', { date: date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) });
+                    targetDateText = t('budget', 'Target: {date}', { date: formatters.formatDate(targetDate, this.settings) });
                 }
             }
 
@@ -122,8 +125,10 @@ export default class SavingsModule {
                 footerAction = '<span></span>';
             }
 
+            // The title is escaped as a whole, so t() neither escapes nor
+            // sanitises the name ("&" showed as "&amp;")
             const sharedBadge = isShared
-                ? `<span class="goal-shared-badge" title="${dom.escapeHtml(t('budget', 'Shared by {owner}', { owner }))}"><span class="icon-shared"></span> ${t('budget', 'Shared')}</span>`
+                ? `<span class="goal-shared-badge" title="${dom.escapeHtml(t('budget', 'Shared by {owner}', { owner }, undefined, { escape: false, sanitize: false }))}"><span class="icon-shared"></span> ${t('budget', 'Shared')}</span>`
                 : '';
 
             return `
@@ -135,10 +140,10 @@ export default class SavingsModule {
                             ${sharedBadge}
                         </div>
                         <div class="goal-card-actions">
-                            ${canWrite ? `<button class="edit-goal-btn" title="${t('budget', 'Edit')}" data-goal-id="${goal.id}">
+                            ${canWrite ? `<button class="edit-goal-btn" title="${t('budget', 'Edit')}" aria-label="${t('budget', 'Edit')}" data-goal-id="${goal.id}">
                                 <span class="icon-rename"></span>
                             </button>` : ''}
-                            ${!isShared ? `<button class="delete-goal-btn delete-btn" title="${t('budget', 'Delete')}" data-goal-id="${goal.id}">
+                            ${canDelete ? `<button class="delete-goal-btn delete-btn" title="${t('budget', 'Delete')}" aria-label="${t('budget', 'Delete')}" data-goal-id="${goal.id}">
                                 <span class="icon-delete"></span>
                             </button>` : ''}
                         </div>
@@ -264,7 +269,7 @@ export default class SavingsModule {
         // A goal tracks a balance rather than posting into the account, so a
         // closed one is not offered anew but stays if already linked (#372).
         dropdown.innerHTML = `<option value="">${t('budget', 'No linked account')}</option>` +
-            pickableAccounts(this.accounts, dropdown.value).map(a =>
+            pickableAccounts(this.accounts, dropdown.value, { readOnlyShares: true }).map(a =>
                 `<option value="${a.id}">${dom.escapeHtml(accountOptionLabel(a))}</option>`
             ).join('');
     }
@@ -274,13 +279,12 @@ export default class SavingsModule {
         if (!dropdown) return;
 
         try {
-            const [tagSetsResponse, globalTagsResponse] = await Promise.all([
-                fetch(OC.generateUrl('/apps/budget/api/tag-sets'), { headers: { 'requesttoken': OC.requestToken } }),
-                fetch(OC.generateUrl('/apps/budget/api/tags/global'), { headers: { 'requesttoken': OC.requestToken } })
+            const [tagSets, globalTags] = await Promise.all([
+                apiFetch('/apps/budget/api/tag-sets'),
+                apiFetch('/apps/budget/api/tags/global').catch(() => null)
             ]);
 
-            if (!tagSetsResponse.ok) throw new Error(`HTTP ${tagSetsResponse.status}`);
-            this._allTagSets = await tagSetsResponse.json();
+            this._allTagSets = tagSets;
 
             // Every tag by id, hidden ones included, so ensureGoalTagOption()
             // can put back the one a goal is already linked to (#373).
@@ -289,8 +293,7 @@ export default class SavingsModule {
             let html = `<option value="">${t('budget', 'No linked tag')}</option>`;
 
             // Global tags first — hidden ones are not offered for a new link
-            if (globalTagsResponse.ok) {
-                const globalTags = await globalTagsResponse.json();
+            if (globalTags) {
                 globalTags.forEach(tag => this._goalTagsById.set(tag.id, tag));
                 const offered = offerableTags(globalTags);
                 if (offered.length > 0) {
@@ -392,7 +395,12 @@ export default class SavingsModule {
         modal.style.display = 'flex';
     }
 
-    async saveGoal() {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveGoal() {
+        return once('goal-save', document.querySelector('#goal-form [type="submit"]'), () => this._saveGoal());
+    }
+
+    async _saveGoal() {
         const goalId = document.getElementById('goal-id').value;
         const tagValue = document.getElementById('goal-tag')?.value;
 
@@ -414,23 +422,20 @@ export default class SavingsModule {
         };
 
         try {
-            const url = goalId
-                ? OC.generateUrl(`/apps/budget/api/savings-goals/${goalId}`)
-                : OC.generateUrl('/apps/budget/api/savings-goals');
+            const path = goalId
+                ? `/apps/budget/api/savings-goals/${goalId}`
+                : '/apps/budget/api/savings-goals';
 
-            const response = await fetch(url, {
-                method: goalId ? 'PUT' : 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify(data)
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                console.error('Save goal error response:', response.status, errorData);
-                showError(errorData.error || t('budget', 'Failed to save goal'));
+            try {
+                await apiFetch(path, {
+                    method: goalId ? 'PUT' : 'POST',
+                    body: data,
+                    errorMessage: t('budget', 'Failed to save goal'),
+                });
+            } catch (error) {
+                if (!(error instanceof ApiError)) throw error;
+                console.error('Save goal error response:', error.status, error.data);
+                showError(error.message);
                 return;
             }
 
@@ -456,12 +461,7 @@ export default class SavingsModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/savings-goals/${goalId}`), {
-                method: 'DELETE',
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            await apiFetch(`/apps/budget/api/savings-goals/${goalId}`, { method: 'DELETE' });
 
             showSuccess(t('budget', 'Goal deleted'));
             await this.loadSavingsGoalsView();
@@ -489,7 +489,12 @@ export default class SavingsModule {
         modal.style.display = 'flex';
     }
 
-    async addMoneyToGoal() {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    addMoneyToGoal() {
+        return once('goal-add-money', document.querySelector('#add-to-goal-form [type="submit"]'), () => this._addMoneyToGoal());
+    }
+
+    async _addMoneyToGoal() {
         const goalId = document.getElementById('add-to-goal-id').value;
         const amount = parseFloat(document.getElementById('add-amount').value) || 0;
 
@@ -511,16 +516,10 @@ export default class SavingsModule {
         const newAmount = currentAmount + amount;
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/savings-goals/${goalId}`), {
+            await apiFetch(`/apps/budget/api/savings-goals/${goalId}`, {
                 method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ currentAmount: newAmount })
+                body: { currentAmount: newAmount }
             });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
             document.getElementById('add-to-goal-modal').style.display = 'none';
             showSuccess(t('budget', 'Added {amount} to goal', { amount: formatters.formatCurrency(amount, null, this.settings) }));

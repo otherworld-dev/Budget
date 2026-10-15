@@ -25,38 +25,38 @@ use OCP\Migration\SimpleMigrationStep;
  * never has to care about this table.
  */
 class Version001000093Date20260804 extends SimpleMigrationStep {
-    public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
-        /** @var ISchemaWrapper $schema */
-        $schema = $schemaClosure();
+	public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
+		/** @var ISchemaWrapper $schema */
+		$schema = $schemaClosure();
 
-        if (!$schema->hasTable('budget_idem_keys')) {
-            $table = $schema->createTable('budget_idem_keys');
-            $table->addColumn('id', Types::BIGINT, [
-                'autoincrement' => true,
-                'notnull' => true,
-            ]);
-            $table->addColumn('user_id', Types::STRING, [
-                'notnull' => true,
-                'length' => 64,
-            ]);
-            $table->addColumn('idem_key', Types::STRING, [
-                'notnull' => true,
-                'length' => 64,
-            ]);
-            $table->addColumn('transaction_id', Types::BIGINT, [
-                'notnull' => true,
-            ]);
-            $table->addColumn('created_at', Types::DATETIME, [
-                'notnull' => true,
-            ]);
+		if (!$schema->hasTable('budget_idem_keys')) {
+			$table = $schema->createTable('budget_idem_keys');
+			$table->addColumn('id', Types::BIGINT, [
+				'autoincrement' => true,
+				'notnull' => true,
+			]);
+			$table->addColumn('user_id', Types::STRING, [
+				'notnull' => true,
+				'length' => 64,
+			]);
+			$table->addColumn('idem_key', Types::STRING, [
+				'notnull' => true,
+				'length' => 64,
+			]);
+			$table->addColumn('transaction_id', Types::BIGINT, [
+				'notnull' => true,
+			]);
+			$table->addColumn('created_at', Types::DATETIME, [
+				'notnull' => true,
+			]);
 
-            $table->setPrimaryKey(['id'], 'budget_idemk_pk');
-            // The whole point: one key, one transaction, per user.
-            $table->addUniqueIndex(['user_id', 'idem_key'], 'budget_idemk_user_key');
-            // The purge deletes by age.
-            $table->addIndex(['created_at'], 'budget_idemk_created');
-        }
+			$table->setPrimaryKey(['id'], 'budget_idemk_pk');
+			// The whole point: one key, one transaction, per user.
+			$table->addUniqueIndex(['user_id', 'idem_key'], 'budget_idemk_user_key');
+			// The purge deletes by age.
+			$table->addIndex(['created_at'], 'budget_idemk_created');
+		}
 
-        return $schema;
-    }
+		return $schema;
+	}
 }

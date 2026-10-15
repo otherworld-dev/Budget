@@ -59,6 +59,8 @@ class AccountControllerTest extends TestCase {
 		$granularShareService->method('canAccess')->willReturn(true);
 		$granularShareService->method('getOwnAccountIds')->willReturn([1, 2, 3]);
 		$granularShareService->method('getSharedAccounts')->willReturn([]);
+		$granularShareService->method('resolveOwner')
+			->willReturnCallback(fn (string $user, string $type, int $id) => in_array($id, [1, 2, 3], true) ? 'user1' : null);
 		$interestService = $this->createMock(InterestService::class);
 		$investmentService = $this->createMock(InvestmentService::class);
 
@@ -101,6 +103,8 @@ class AccountControllerTest extends TestCase {
 		$granularShareService->method('canAccess')->willReturn(true);
 		$granularShareService->method('getOwnAccountIds')->willReturn([1, 2, 3]);
 		$granularShareService->method('getSharedAccounts')->willReturn([]);
+		$granularShareService->method('resolveOwner')
+			->willReturnCallback(fn (string $user, string $type, int $id) => in_array($id, [1, 2, 3], true) ? 'user1' : null);
 		$interestService = $this->createMock(InterestService::class);
 		$investmentService = $this->createMock(InvestmentService::class);
 		return new AccountController(
@@ -127,6 +131,19 @@ class AccountControllerTest extends TestCase {
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 		$this->assertCount(2, $response->getData());
+	}
+
+	public function testIndexGivesSharedAccountsTodaysBalanceLikeOwnOnes(): void {
+		// The raw stored balance counts future-dated transactions, so the web
+		// and the API (#767) must both take shared accounts as of today
+		$this->service->method('findAllWithCurrentBalances')->willReturn([['id' => 1, 'name' => 'Checking', 'balance' => 100.0]]);
+		$this->service->expects($this->once())->method('findSharedWithCurrentBalances')->with('user1')
+			->willReturn([['id' => 9, 'name' => 'Joint', 'balance' => 2387.8, '_shared' => true]]);
+
+		$data = $this->controller->index()->getData();
+
+		$this->assertSame([1, 9], array_column($data, 'id'));
+		$this->assertSame(2387.8, $data[1]['balance']);
 	}
 
 	public function testIndexHandlesError(): void {
@@ -182,6 +199,19 @@ class AccountControllerTest extends TestCase {
 		$response = $this->controller->getMetrics(999);
 
 		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
+	}
+
+	public function testPaymentTransfersComeFromTheService(): void {
+		$payments = [['nextDueDate' => '2026-10-25', 'amount' => 0.0, 'amountType' => 'statement', 'mine' => false]];
+		$this->service->method('getPaymentTransfers')->with(7, 'user1')->willReturn($payments);
+
+		$this->assertSame($payments, $this->controller->paymentTransfers(7)->getData());
+	}
+
+	public function testPaymentTransfersOfAnAccountOutOfReachAreNotFound(): void {
+		$this->service->method('getPaymentTransfers')->willThrowException(new \OCP\AppFramework\Db\DoesNotExistException('no'));
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $this->controller->paymentTransfers(999)->getStatus());
 	}
 
 	// ── create ──────────────────────────────────────────────────────
@@ -639,7 +669,7 @@ class AccountControllerTest extends TestCase {
 
 		$this->service->expects($this->once())
 			->method('update')
-			->with(1, 'user1', $this->callback(fn($updates) => ($updates['excludedFromReports'] ?? null) === true))
+			->with(1, 'user1', $this->callback(fn ($updates) => ($updates['excludedFromReports'] ?? null) === true))
 			->willReturn($this->makeAccount());
 
 		$response = $this->controller->update(1);
@@ -738,6 +768,65 @@ class AccountControllerTest extends TestCase {
 		$response = $this->controller->destroy(999);
 
 		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
+	}
+
+	// ── only the owner deletes an account ───────────────────────────
+
+	/** user1 owns 1-3; account 9 is shared to them with write access. */
+	private function controllerWithSharedAccount(): AccountController {
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn(true);
+		$granularShareService->method('canWrite')->willReturn(true);
+		$granularShareService->method('getOwnAccountIds')->willReturn([1, 2, 3]);
+		$granularShareService->method('getVisibleAccountIds')->willReturn([1, 2, 3, 9]);
+		return new AccountController(
+			$this->request, $this->service, $this->validationService, $this->auditService,
+			$granularShareService, $this->createMock(InterestService::class),
+			$this->createMock(InvestmentService::class), $this->l, 'user1', $this->logger
+		);
+	}
+
+	/**
+	 * Write access to a shared account covers its transactions. It used to
+	 * also let the recipient delete the account and its entire ledger.
+	 */
+	public function testDestroyRefusesASharedAccountEvenWithWriteAccess(): void {
+		$this->service->expects($this->never())->method('delete');
+		$this->service->expects($this->never())->method('deleteWithTransactions');
+
+		$response = $this->controllerWithSharedAccount()->destroy(9, true);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+		$this->assertSame('Only the account owner can delete an account', $response->getData()['error']);
+	}
+
+	public function testDestroyOfAnAccountTheCallerCannotSeeIsNotFound(): void {
+		$this->service->expects($this->never())->method('delete');
+
+		$response = $this->controllerWithSharedAccount()->destroy(77);
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
+	}
+
+	public function testBulkDeleteRefusesTheWholeSelectionIfAnyAccountIsShared(): void {
+		$this->service->expects($this->never())->method('bulkDelete');
+
+		$response = $this->controllerWithSharedAccount()->bulkDelete([1, 9], true);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	public function testBulkDeleteOfOwnAccountsDeletesThemAsTheOwner(): void {
+		$this->service->method('find')->willReturnCallback(fn (int $id) => $this->makeAccount(['id' => $id]));
+		$this->service->expects($this->once())->method('bulkDelete')
+			->with('user1', [1, 2], false)
+			->willReturn(['deleted' => [1, 2], 'blocked' => [], 'errors' => [], 'deletedTransactions' => 0]);
+		$this->auditService->expects($this->exactly(2))->method('logAccountDeleted');
+
+		$response = $this->controllerWithSharedAccount()->bulkDelete([1, 2]);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame([1, 2], $response->getData()['deleted']);
 	}
 
 	// ── reveal ──────────────────────────────────────────────────────
@@ -871,6 +960,22 @@ class AccountControllerTest extends TestCase {
 		$this->assertCount(1, $response->getData());
 	}
 
+	public function testGetBalanceHistoryClampsTheDays(): void {
+		// A day count of 100000000 looped that many times in one request
+		$asked = [];
+		$this->service->method('getBalanceHistory')->willReturnCallback(function (int $id, string $user, int $days) use (&$asked) {
+			$asked[] = $days;
+			return [];
+		});
+
+		$this->controller->getBalanceHistory(1, 100000000);
+		$this->controller->getBalanceHistory(1, 0);
+		$this->controller->getBalanceHistory(1, -5);
+		$this->controller->getBalanceHistory(1, 365);
+
+		$this->assertSame([3650, 1, 1, 365], $asked);
+	}
+
 	public function testGetBalanceHistoryReturnsNotFoundOnError(): void {
 		$this->service->method('getBalanceHistory')->willThrowException(new \RuntimeException('not found'));
 
@@ -897,6 +1002,114 @@ class AccountControllerTest extends TestCase {
 		$response = $this->controller->reconcile(1, 1000.00);
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	// ── reconcile, interest and valuation of a shared account (V4-2) ──
+
+	/**
+	 * Account 9 is owen's, shared with user1 (write unless $readOnly);
+	 * account 12 is one she can't see.
+	 *
+	 * @return array{0: AccountController, 1: InterestService, 2: InvestmentService}
+	 */
+	private function onASharedAccount(bool $readOnly = false): array {
+		$shares = $this->createMock(GranularShareService::class);
+		$shares->method('getOwnAccountIds')->willReturn([1, 2, 3]);
+		$shares->method('resolveOwner')
+			->willReturnCallback(fn (string $user, string $type, int $id) => $id === 9 ? 'owen' : null);
+		$shares->method('canWrite')->willReturn(!$readOnly);
+		$shares->method('requireWriteAccess')->willReturnCallback(function () use ($readOnly): void {
+			if ($readOnly) {
+				throw new \OCA\Budget\Exception\ReadOnlyShareException();
+			}
+		});
+		$interest = $this->createMock(InterestService::class);
+		$investment = $this->createMock(InvestmentService::class);
+		$controller = new AccountController($this->request, $this->service, $this->validationService,
+			$this->auditService, $shares, $interest, $investment, $this->l, 'user1', $this->logger);
+		return [$controller, $interest, $investment];
+	}
+
+	public function testReconcilingASharedAccountRunsAsItsOwner(): void {
+		[$controller] = $this->onASharedAccount();
+		$this->service->expects($this->once())->method('reconcile')
+			->with(9, 'owen', 100.0, null)->willReturn(['isBalanced' => false]);
+		$this->service->expects($this->once())->method('completeReconciliation')
+			->with(9, 'owen', [])->willReturn(['reconciledCount' => 0]);
+
+		$this->assertSame(Http::STATUS_OK, $controller->reconcile(9, 100.0)->getStatus());
+		$this->assertSame(Http::STATUS_OK, $controller->completeReconciliation(9)->getStatus());
+	}
+
+	public function testAReadOnlyRecipientCannotReconcile(): void {
+		[$controller] = $this->onASharedAccount(true);
+		$this->service->expects($this->never())->method('reconcile');
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $controller->reconcile(9, 100.0)->getStatus());
+	}
+
+	public function testReconcilingAnAccountTheUserCannotSeeIsNotFound(): void {
+		[$controller] = $this->onASharedAccount();
+		$this->service->expects($this->never())->method('reconcile');
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $controller->reconcile(12, 100.0)->getStatus());
+	}
+
+	public function testASharedAccountsInterestAndValuationAreReadAsItsOwner(): void {
+		// Read-only is enough to see them
+		[$controller, $interest, $investment] = $this->onASharedAccount(true);
+		$interest->expects($this->once())->method('calculateAccruedInterest')->with(9, 'owen')->willReturn(['accruedInterest' => 1.0]);
+		$interest->expects($this->exactly(2))->method('getRateHistory')->with(9, 'owen')->willReturn([]);
+		$investment->expects($this->once())->method('calculateUnrealisedPnL')->with(9, 'owen')->willReturn([]);
+
+		$this->assertSame(Http::STATUS_OK, $controller->getInterestDetails(9)->getStatus());
+		$this->assertSame(Http::STATUS_OK, $controller->getInterestRates(9)->getStatus());
+		$this->assertSame(Http::STATUS_OK, $controller->getValuation(9)->getStatus());
+	}
+
+	public function testInterestOfAnAccountTheUserCannotSeeIsNotFound(): void {
+		// The rates route answered anyone, with an empty list
+		[$controller, $interest] = $this->onASharedAccount();
+		$interest->expects($this->never())->method('getRateHistory');
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $controller->getInterestRates(12)->getStatus());
+		$this->assertSame(Http::STATUS_NOT_FOUND, $controller->getInterestDetails(12)->getStatus());
+		$this->assertSame(Http::STATUS_NOT_FOUND, $controller->getValuation(12)->getStatus());
+	}
+
+	public function testARateAddedToASharedAccountIsTheOwners(): void {
+		[$controller, $interest] = $this->onASharedAccount();
+		$this->mockInput(json_encode(['rate' => 2.5, 'compoundingFrequency' => 'monthly', 'effectiveDate' => '2026-10-01']));
+		$interest->expects($this->once())->method('addRateChange')
+			->with(9, 'owen', 2.5, 'monthly', '2026-10-01')->willReturn(new \OCA\Budget\Db\InterestRate());
+
+		$this->assertSame(Http::STATUS_OK, $controller->addInterestRate(9)->getStatus());
+	}
+
+	private function rate(int $id): \OCA\Budget\Db\InterestRate {
+		$rate = new \OCA\Budget\Db\InterestRate();
+		$rate->setId($id);
+		return $rate;
+	}
+
+	public function testARateIsDeletedOnlyThroughItsOwnAccount(): void {
+		// Rate 77 is on another of owen's accounts, maybe one never shared
+		[$controller, $interest] = $this->onASharedAccount();
+		$interest->method('getRateHistory')->with(9, 'owen')->willReturn([$this->rate(5), $this->rate(6)]);
+		$interest->expects($this->once())->method('deleteRateChange')->with(6, 'owen');
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $controller->deleteInterestRate(9, 77)->getStatus());
+		$this->assertSame(Http::STATUS_OK, $controller->deleteInterestRate(9, 6)->getStatus());
+	}
+
+	public function testAReadOnlyRecipientCannotChangeRates(): void {
+		[$controller, $interest] = $this->onASharedAccount(true);
+		$this->mockInput(json_encode(['rate' => 2.5]));
+		$interest->expects($this->never())->method('addRateChange');
+		$interest->expects($this->never())->method('deleteRateChange');
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $controller->addInterestRate(9)->getStatus());
+		$this->assertSame(Http::STATUS_FORBIDDEN, $controller->deleteInterestRate(9, 5)->getStatus());
 	}
 
 	// ── statementDay (#347) ─────────────────────────────────────────
@@ -941,7 +1154,7 @@ class AccountControllerTest extends TestCase {
 
 		$this->service->expects($this->once())
 			->method('update')
-			->with(1, 'user1', $this->callback(fn($updates) => ($updates['closed'] ?? null) === true))
+			->with(1, 'user1', $this->callback(fn ($updates) => ($updates['closed'] ?? null) === true))
 			->willReturn($this->makeAccount());
 
 		$response = $this->controller->update(1);

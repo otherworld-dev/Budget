@@ -2,7 +2,47 @@
  * Formatting utilities for currency, dates, and numbers
  * All functions are pure - they accept required data as parameters
  */
-import { translate as t } from '@nextcloud/l10n';
+import { translate as t, getCanonicalLocale } from '@nextcloud/l10n';
+
+/**
+ * Locale for month and weekday names: the user's Nextcloud locale, not the
+ * browser's. Dates the user reads as figures go through formatDate() and the
+ * date-format setting instead.
+ */
+export function userLocale() {
+    try {
+        return getCanonicalLocale() || undefined;
+    } catch (e) {
+        return undefined;
+    }
+}
+
+/**
+ * A month's name in the user's Nextcloud locale ("January", "janvier").
+ * Replaces the hand-translated month lists, which drifted from the locale
+ * and needed 24 strings translating in every language.
+ *
+ * @param {number} month 1-12
+ * @param {'long'|'short'|'narrow'} [style]
+ * @returns {string}
+ */
+export function monthName(month, style = 'long') {
+    return new Date(2000, month - 1, 1).toLocaleDateString(userLocale(), { month: style });
+}
+
+/**
+ * Format a 'YYYY-MM' month key ("Jan 2026" by default) in the user's locale.
+ * Anything that is not such a key comes back unchanged.
+ *
+ * @param {string} yearMonth
+ * @param {object} [options] Intl.DateTimeFormat options
+ * @returns {string}
+ */
+export function formatYearMonth(yearMonth, options = { month: 'short', year: 'numeric' }) {
+    const match = /^(\d{4})-(\d{2})$/.exec(String(yearMonth ?? ''));
+    if (!match) return yearMonth;
+    return new Date(Number(match[1]), Number(match[2]) - 1, 1).toLocaleDateString(userLocale(), options);
+}
 
 /**
  * Currency configuration with symbol and position metadata
@@ -121,6 +161,8 @@ export function currencyDecimals(currency, settings = {}) {
     if (config && config.decimals !== undefined) {
         return config.decimals;
     }
+    // Decimal Places = 0 is a display choice (formatCurrency honours it); an
+    // amount field still takes pence, or 12.99 could not be entered at all.
     return parseInt(settings.number_format_decimals) || 2;
 }
 
@@ -139,8 +181,10 @@ export function currencyStep(currency, settings = {}) {
 export function formatCurrency(amount, currency, settings) {
     const currencyCode = currency || getPrimaryCurrency([], settings);
     const config = CURRENCY_CONFIG[currencyCode] || { symbol: currencyCode, position: 'prefix' };
-    // Use currency-native decimals for crypto, user setting for fiat
-    const decimals = config.decimals !== undefined ? config.decimals : (parseInt(settings.number_format_decimals) || 2);
+    // Use currency-native decimals for crypto, user setting for fiat. A
+    // setting of 0 is a choice, not "unset": `parseInt(...) || 2` read it as 2.
+    const chosen = parseInt(settings?.number_format_decimals, 10);
+    const decimals = config.decimals !== undefined ? config.decimals : (Number.isNaN(chosen) ? 2 : chosen);
     const decimalSep = settings.number_format_decimal_sep || '.';
     const thousandsSep = settings.number_format_thousands_sep ?? ',';
 
@@ -197,18 +241,18 @@ export function formatDate(dateStr, settings) {
     // Use user's date format preference from settings
     const format = settings?.date_format || 'Y-m-d';
 
-    // Format the date according to PHP date format codes
+    // Format the date according to PHP date format codes, in one pass: a
+    // month name put in by one code must not be read by the next ("janv."
+    // has a j in it).
     const pad = (num) => String(num).padStart(2, '0');
-    const monthNames = [t('budget', 'Jan'), t('budget', 'Feb'), t('budget', 'Mar'), t('budget', 'Apr'), t('budget', 'May'), t('budget', 'Jun'), t('budget', 'Jul'), t('budget', 'Aug'), t('budget', 'Sep'), t('budget', 'Oct'), t('budget', 'Nov'), t('budget', 'Dec')];
-    const monthName = monthNames[month - 1];
-
-    // Convert PHP date format to actual date string
-    return format
-        .replace('Y', year)
-        .replace('m', pad(month))
-        .replace('d', pad(day))
-        .replace('M', monthName)
-        .replace('j', day);
+    const tokens = {
+        Y: () => String(year),
+        m: () => pad(month),
+        d: () => pad(day),
+        M: () => monthName(month, 'short'),
+        j: () => String(day),
+    };
+    return format.replace(/[YmdMj]/g, token => tokens[token]());
 }
 
 /**
@@ -240,6 +284,7 @@ export function formatAccountType(type) {
  * @returns {string} Compact formatted currency string
  */
 export function formatCurrencyCompact(value, currency, settings) {
+    settings = settings || {};
     const currencyCode = currency || getPrimaryCurrency([], settings);
     const config = CURRENCY_CONFIG[currencyCode] || { symbol: currencyCode, position: 'prefix' };
     const { symbol, position } = config;
@@ -255,14 +300,19 @@ export function formatCurrencyCompact(value, currency, settings) {
     } else if (Math.abs(value) >= 1000) {
         scaledValue = value / 1000;
         suffix = 'K';
+    } else if (Number.isInteger(value)) {
+        // A round figure (an axis tick) reads better without ".00".
+        scaledValue = value;
+        suffix = '';
     } else {
         // No scaling needed, use regular formatting
         return formatCurrency(value, currency, settings);
     }
 
-    // Format the scaled number
+    // Format the scaled number: one decimal at most, and none when it is .0
+    // ("£4K", not "£4.0K").
     const absScaled = Math.abs(scaledValue);
-    const formatted = absScaled.toFixed(1);
+    const formatted = absScaled.toFixed(suffix ? 1 : 0).replace(/\.0$/, '');
     const parts = formatted.split('.');
     const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, thousandsSep);
     const decPart = parts[1] || '';
@@ -383,7 +433,7 @@ export function getPeriodDateRange(period, startDay = 1, referenceDate = null) {
             return {
                 start: formatDateForAPI(weekStart),
                 end: formatDateForAPI(weekEnd),
-                label: `Week of ${weekStart.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`
+                label: t('budget', 'Week of {date}', { date: weekStart.toLocaleDateString(userLocale(), { month: 'short', day: 'numeric' }) })
             };
         }
 
@@ -396,7 +446,7 @@ export function getPeriodDateRange(period, startDay = 1, referenceDate = null) {
                 return {
                     start: formatDateForAPI(monthStart),
                     end: formatDateForAPI(monthEnd),
-                    label: now.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+                    label: now.toLocaleDateString(userLocale(), { month: 'long', year: 'numeric' })
                 };
             }
 
@@ -415,8 +465,9 @@ export function getPeriodDateRange(period, startDay = 1, referenceDate = null) {
                 const nextMonth = now.getMonth() + 1;
                 const daysInNextMonth = new Date(now.getFullYear(), nextMonth + 1, 0).getDate();
                 const nextStartDay = Math.min(startDay, daysInNextMonth);
-                const nextPeriodStart = new Date(now.getFullYear(), nextMonth, nextStartDay);
-                periodEnd = new Date(nextPeriodStart.getTime() - 86400000);
+                // The calendar day before, not 24 hours before: a clocks-
+                // forward day is 23 hours long, and that lost a day
+                periodEnd = new Date(now.getFullYear(), nextMonth, nextStartDay - 1);
             } else {
                 // Period started last month
                 const prevMonth = now.getMonth() - 1;
@@ -424,14 +475,13 @@ export function getPeriodDateRange(period, startDay = 1, referenceDate = null) {
                 const prevStartDay = Math.min(startDay, daysInPrevMonth);
                 periodStart = new Date(now.getFullYear(), prevMonth, prevStartDay);
 
-                // End is day before start day this month
-                const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), effectiveStartDay);
-                periodEnd = new Date(thisMonthStart.getTime() - 86400000);
+                // End is the calendar day before this month's start day
+                periodEnd = new Date(now.getFullYear(), now.getMonth(), effectiveStartDay - 1);
             }
 
-            const label = periodStart.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+            const label = periodStart.toLocaleDateString(userLocale(), { month: 'short', day: 'numeric' })
                 + ' \u2013 '
-                + periodEnd.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                + periodEnd.toLocaleDateString(userLocale(), { month: 'short', day: 'numeric' });
 
             return {
                 start: formatDateForAPI(periodStart),
@@ -513,6 +563,31 @@ export function currentBudgetMonth(startDay = 1, referenceDate = null) {
  */
 export function budgetMonthRange(month, startDay = 1) {
     return getPeriodDateRange('monthly', startDay, `${month}-15`);
+}
+
+/**
+ * The dates a quarterly or yearly budget has run by the end of a budget
+ * month: from the start of the first budget month of its calendar quarter
+ * or year to the end of the month, so with a budget start day it is made of
+ * whole budget months. The Budget page shows a quarterly or yearly row's
+ * spending over these dates beside the month's. As BudgetPeriod::toDateRange
+ * on the server.
+ *
+ * @param {string} period - weekly, monthly, quarterly or yearly
+ * @param {string} month - YYYY-MM
+ * @param {number} [startDay=1] - Day of month the budget cycle starts
+ * @returns {object|null} {start, end}, or null for a weekly or monthly budget
+ */
+export function periodToDateRange(period, month, startDay = 1) {
+    const monthNumber = parseInt(month.slice(5, 7), 10);
+    let first;
+    if (period === 'yearly') first = 1;
+    else if (period === 'quarterly') first = Math.floor((monthNumber - 1) / 3) * 3 + 1;
+    else return null;
+    return {
+        start: budgetMonthRange(`${month.slice(0, 4)}-${String(first).padStart(2, '0')}`, startDay).start,
+        end: budgetMonthRange(month, startDay).end,
+    };
 }
 
 /**

@@ -434,7 +434,7 @@ class BankSyncControllerTest extends TestCase {
 
 		$this->syncService->expects($this->once())
 			->method('updateConnectionEntity')
-			->with($this->callback(fn(BankConnection $c) => $c->getIncludePending() === true));
+			->with($this->callback(fn (BankConnection $c) => $c->getIncludePending() === true));
 
 		$response = $this->controller->updateConnection(5);
 

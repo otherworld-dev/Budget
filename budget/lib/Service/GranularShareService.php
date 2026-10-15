@@ -4,10 +4,6 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Service;
 
-use OCA\Budget\Db\Share;
-use OCA\Budget\Db\ShareItem;
-use OCA\Budget\Db\ShareItemMapper;
-use OCA\Budget\Db\ShareMapper;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\BillMapper;
 use OCA\Budget\Db\CategoryMapper;
@@ -15,7 +11,14 @@ use OCA\Budget\Db\ImportRuleMapper;
 use OCA\Budget\Db\ProjectMapper;
 use OCA\Budget\Db\RecurringIncomeMapper;
 use OCA\Budget\Db\SavingsGoalMapper;
+use OCA\Budget\Db\Share;
+use OCA\Budget\Db\ShareItem;
+use OCA\Budget\Db\ShareItemMapper;
+use OCA\Budget\Db\ShareMapper;
+use OCA\Budget\Db\TagMapper;
+use OCA\Budget\Db\TagSetMapper;
 use OCA\Budget\Exception\ReadOnlyShareException;
+use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\IL10N;
 use OCP\IUserManager;
 
@@ -26,547 +29,826 @@ use OCP\IUserManager;
  * "can this user write to bill #42?" — with per-request caching.
  */
 class GranularShareService {
-    private ShareMapper $shareMapper;
-    private ShareItemMapper $shareItemMapper;
-    private AccountMapper $accountMapper;
-    private BillMapper $billMapper;
-    private CategoryMapper $categoryMapper;
-    private RecurringIncomeMapper $recurringIncomeMapper;
-    private SavingsGoalMapper $savingsGoalMapper;
-    private ImportRuleMapper $importRuleMapper;
-    private IL10N $l;
-    private ?IUserManager $userManager;
-    private ?ProjectMapper $projectMapper;
+	private ShareMapper $shareMapper;
+	private ShareItemMapper $shareItemMapper;
+	private AccountMapper $accountMapper;
+	private BillMapper $billMapper;
+	private CategoryMapper $categoryMapper;
+	private RecurringIncomeMapper $recurringIncomeMapper;
+	private SavingsGoalMapper $savingsGoalMapper;
+	private ImportRuleMapper $importRuleMapper;
+	private IL10N $l;
+	private ?IUserManager $userManager;
+	private ?ProjectMapper $projectMapper;
 
-    /** @var array<string, mixed> Per-request cache */
-    private array $cache = [];
+	/** @var array<string, mixed> Per-request cache */
+	private array $cache = [];
 
-    public function __construct(
-        ShareMapper $shareMapper,
-        ShareItemMapper $shareItemMapper,
-        AccountMapper $accountMapper,
-        BillMapper $billMapper,
-        CategoryMapper $categoryMapper,
-        RecurringIncomeMapper $recurringIncomeMapper,
-        SavingsGoalMapper $savingsGoalMapper,
-        ImportRuleMapper $importRuleMapper,
-        IL10N $l,
-        ?IUserManager $userManager = null,
-        ?ProjectMapper $projectMapper = null
-    ) {
-        $this->shareMapper = $shareMapper;
-        $this->shareItemMapper = $shareItemMapper;
-        $this->accountMapper = $accountMapper;
-        $this->billMapper = $billMapper;
-        $this->categoryMapper = $categoryMapper;
-        $this->recurringIncomeMapper = $recurringIncomeMapper;
-        $this->savingsGoalMapper = $savingsGoalMapper;
-        $this->importRuleMapper = $importRuleMapper;
-        $this->l = $l;
-        $this->userManager = $userManager;
-        $this->projectMapper = $projectMapper;
-    }
+	public function __construct(
+		ShareMapper $shareMapper,
+		ShareItemMapper $shareItemMapper,
+		AccountMapper $accountMapper,
+		BillMapper $billMapper,
+		CategoryMapper $categoryMapper,
+		RecurringIncomeMapper $recurringIncomeMapper,
+		SavingsGoalMapper $savingsGoalMapper,
+		ImportRuleMapper $importRuleMapper,
+		IL10N $l,
+		?IUserManager $userManager = null,
+		?ProjectMapper $projectMapper = null,
+		private ?TagMapper $tagMapper = null,
+		private ?TagSetMapper $tagSetMapper = null,
+	) {
+		$this->shareMapper = $shareMapper;
+		$this->shareItemMapper = $shareItemMapper;
+		$this->accountMapper = $accountMapper;
+		$this->billMapper = $billMapper;
+		$this->categoryMapper = $categoryMapper;
+		$this->recurringIncomeMapper = $recurringIncomeMapper;
+		$this->savingsGoalMapper = $savingsGoalMapper;
+		$this->importRuleMapper = $importRuleMapper;
+		$this->l = $l;
+		$this->userManager = $userManager;
+		$this->projectMapper = $projectMapper;
+	}
 
-    /**
-     * Resolve a user ID to a display name (per-request cached). Falls back to the
-     * raw uid if the user can't be resolved — used to label shared entities by owner.
-     */
-    private function displayNameFor(string $uid): string {
-        $key = "displayname:{$uid}";
-        if (isset($this->cache[$key])) {
-            return $this->cache[$key];
-        }
-        $name = $uid;
-        if ($this->userManager !== null) {
-            $user = $this->userManager->get($uid);
-            if ($user !== null) {
-                $name = $user->getDisplayName();
-            }
-        }
-        $this->cache[$key] = $name;
-        return $name;
-    }
+	/**
+	 * Resolve a user ID to a display name (per-request cached). Falls back to the
+	 * raw uid if the user can't be resolved — used to label shared entities by owner.
+	 */
+	private function displayNameFor(string $uid): string {
+		$key = "displayname:{$uid}";
+		if (isset($this->cache[$key])) {
+			return $this->cache[$key];
+		}
+		$name = $uid;
+		if ($this->userManager !== null) {
+			$user = $this->userManager->get($uid);
+			if ($user !== null) {
+				$name = $user->getDisplayName();
+			}
+		}
+		$this->cache[$key] = $name;
+		return $name;
+	}
 
-    // ==========================================
-    // Visibility — own + shared entity IDs
-    // ==========================================
+	// ==========================================
+	// Visibility — own + shared entity IDs
+	// ==========================================
 
-    /**
-     * Get all account IDs visible to a user (own + shared from accepted shares).
-     *
-     * @return int[]
-     */
-    public function getVisibleAccountIds(string $userId): array {
-        return $this->getVisibleIds($userId, ShareItem::TYPE_ACCOUNT);
-    }
+	/**
+	 * Get all account IDs visible to a user (own + shared from accepted shares).
+	 *
+	 * @return int[]
+	 */
+	public function getVisibleAccountIds(string $userId): array {
+		return $this->getVisibleIds($userId, ShareItem::TYPE_ACCOUNT);
+	}
 
-    /**
-     * Account IDs a user may post new activity to — own accounts plus shared
-     * ones carrying write permission.
-     *
-     * Transfer matching uses this rather than getVisibleAccountIds(): linking
-     * writes to BOTH legs, so a candidate in a read-only shared account can
-     * never be linked and offering it is a dead end (#378).
-     *
-     * @return int[]
-     */
-    public function getWritableAccountIds(string $userId): array {
-        return array_values(array_filter(
-            $this->getVisibleAccountIds($userId),
-            fn(int $accountId) => $this->canWrite($userId, ShareItem::TYPE_ACCOUNT, $accountId)
-        ));
-    }
+	/**
+	 * Account IDs a user may post new activity to — own accounts plus shared
+	 * ones carrying write permission.
+	 *
+	 * Transfer matching uses this rather than getVisibleAccountIds(): linking
+	 * writes to BOTH legs, so a candidate in a read-only shared account can
+	 * never be linked and offering it is a dead end (#378).
+	 *
+	 * @return int[]
+	 */
+	public function getWritableAccountIds(string $userId): array {
+		return array_values(array_filter(
+			$this->getVisibleAccountIds($userId),
+			fn (int $accountId) => $this->canWrite($userId, ShareItem::TYPE_ACCOUNT, $accountId)
+		));
+	}
 
-    /**
-     * @return int[]
-     */
-    public function getVisibleCategoryIds(string $userId): array {
-        return $this->getVisibleIds($userId, ShareItem::TYPE_CATEGORY);
-    }
+	/**
+	 * @return int[]
+	 */
+	public function getVisibleCategoryIds(string $userId): array {
+		return $this->getVisibleIds($userId, ShareItem::TYPE_CATEGORY);
+	}
 
-    /**
-     * @return int[]
-     */
-    public function getVisibleBillIds(string $userId): array {
-        return $this->getVisibleIds($userId, ShareItem::TYPE_BILL);
-    }
+	/**
+	 * Refuse a category id the ledger owner cannot see.
+	 *
+	 * A category id arriving from a client was stored as-is, and the listing
+	 * queries join the category name without a user filter (a category shared
+	 * TO the owner is legitimately someone else's), so any id at all — another
+	 * user's category included — came back with its name attached. Every write
+	 * path that takes a category from the client checks it here, against the
+	 * account OWNER's visible categories (own + shared to them), since the row
+	 * lands in the owner's ledger. Null (uncategorised) is always fine.
+	 *
+	 * @throws \InvalidArgumentException
+	 */
+	public function requireUsableCategory(string $ownerId, ?int $categoryId): void {
+		if ($categoryId === null) {
+			return;
+		}
+		$visible = array_map('intval', $this->getVisibleCategoryIds($ownerId));
+		if (!in_array($categoryId, $visible, true)) {
+			throw new \InvalidArgumentException($this->l->t('Category not found'));
+		}
+	}
 
-    /**
-     * @return int[]
-     */
-    public function getVisibleRecurringIncomeIds(string $userId): array {
-        return $this->getVisibleIds($userId, ShareItem::TYPE_RECURRING_INCOME);
-    }
+	/**
+	 * The other half of the category rule when someone writes into a ledger
+	 * that isn't theirs (an account shared with them to write): the category
+	 * must be one they can see, as well as one the owner can use, which
+	 * requireUsableCategory() checks. With the owner's check alone, a write
+	 * recipient could file a row under one of the owner's categories that was
+	 * never shared with them, by its id, and read its name back.
+	 *
+	 * A category the row already carries ($kept) may stay, so a row the owner
+	 * filed under such a category keeps saving. The owner writing to their own
+	 * ledger is not affected.
+	 *
+	 * @param array<int|null> $kept
+	 * @throws \InvalidArgumentException
+	 */
+	public function requireCategoryVisibleToWriter(string $ownerId, string $writerId, ?int $categoryId, array $kept = []): void {
+		if ($categoryId === null || $writerId === $ownerId) {
+			return;
+		}
+		$allowed = array_flip(array_map('intval', array_merge(
+			array_values(array_filter($kept, static fn ($id) => $id !== null)),
+			$this->getVisibleCategoryIds($writerId)
+		)));
+		if (!isset($allowed[$categoryId])) {
+			throw new \InvalidArgumentException($this->l->t('Category not found'));
+		}
+	}
 
-    /**
-     * @return int[]
-     */
-    public function getVisibleSavingsGoalIds(string $userId): array {
-        return $this->getVisibleIds($userId, ShareItem::TYPE_SAVINGS_GOAL);
-    }
+	/**
+	 * The ids among $tagIds that belong to $userId's ledger or to one shared
+	 * with them: their own global tags, and the tags of categories they can
+	 * see (their own, and ones shared with them).
+	 *
+	 * A tag id arriving from a client used to be stored unchecked, on a bill
+	 * or a goal, and read back by id with its name and colour, so any user
+	 * could attach and then read every other user's tags by walking the ids.
+	 * Unknown ids are left out.
+	 *
+	 * @param array<int|string> $tagIds
+	 * @return int[]
+	 */
+	public function getUsableTagIds(string $userId, array $tagIds): array {
+		$tagIds = array_values(array_unique(array_map('intval', $tagIds)));
+		if ($tagIds === [] || $this->tagMapper === null) {
+			return [];
+		}
 
-    /**
-     * @return int[]
-     */
-    public function getVisibleImportRuleIds(string $userId): array {
-        return $this->getVisibleIds($userId, ShareItem::TYPE_IMPORT_RULE);
-    }
+		$visibleCategories = array_flip(array_map('intval', $this->getVisibleCategoryIds($userId)));
+		$categoryOfSet = [];
+		$usable = [];
+		foreach ($this->tagMapper->findByIds($tagIds) as $tag) {
+			$tagSetId = $tag->getTagSetId();
+			if ($tagSetId === null) {
+				if ($tag->getUserId() === $userId) {
+					$usable[] = (int)$tag->getId();
+				}
+				continue;
+			}
+			if (!array_key_exists($tagSetId, $categoryOfSet)) {
+				try {
+					$categoryOfSet[$tagSetId] = $this->tagSetMapper?->findById($tagSetId)->getCategoryId();
+				} catch (DoesNotExistException $e) {
+					$categoryOfSet[$tagSetId] = null;
+				}
+			}
+			$categoryId = $categoryOfSet[$tagSetId];
+			if ($categoryId !== null && isset($visibleCategories[(int)$categoryId])) {
+				$usable[] = (int)$tag->getId();
+			}
+		}
 
-    /**
-     * Get only the shared entity IDs (not own) for a user.
-     * Useful for cross-user budget aggregation.
-     *
-     * @return int[]
-     */
-    public function getSharedAccountIds(string $userId): array {
-        return $this->getSharedIds($userId, ShareItem::TYPE_ACCOUNT);
-    }
+		return $usable;
+	}
 
-    /**
-     * @return int[]
-     */
-    public function getSharedCategoryIds(string $userId): array {
-        return $this->getSharedIds($userId, ShareItem::TYPE_CATEGORY);
-    }
+	/**
+	 * Refuse any tag id that isn't in getUsableTagIds() for $userId.
+	 *
+	 * @param array<int|string> $tagIds
+	 * @throws \InvalidArgumentException
+	 */
+	public function requireUsableTags(string $userId, array $tagIds): void {
+		$tagIds = array_values(array_unique(array_map('intval', $tagIds)));
+		if ($tagIds === []) {
+			return;
+		}
+		if (count($this->getUsableTagIds($userId, $tagIds)) !== count($tagIds)) {
+			throw new \InvalidArgumentException($this->l->t('Invalid tag ID'));
+		}
+	}
 
-    /**
-     * @return int[]
-     */
-    public function getSharedSavingsGoalIds(string $userId): array {
-        return $this->getSharedIds($userId, ShareItem::TYPE_SAVINGS_GOAL);
-    }
+	/**
+	 * @return int[]
+	 */
+	public function getVisibleBillIds(string $userId): array {
+		return $this->getVisibleIds($userId, ShareItem::TYPE_BILL);
+	}
 
-    /**
-     * @return int[]
-     */
-    public function getSharedImportRuleIds(string $userId): array {
-        return $this->getSharedIds($userId, ShareItem::TYPE_IMPORT_RULE);
-    }
+	/**
+	 * @return int[]
+	 */
+	public function getVisibleRecurringIncomeIds(string $userId): array {
+		return $this->getVisibleIds($userId, ShareItem::TYPE_RECURRING_INCOME);
+	}
 
-    // ==========================================
-    // Permissions
-    // ==========================================
+	/**
+	 * @return int[]
+	 */
+	public function getVisibleSavingsGoalIds(string $userId): array {
+		return $this->getVisibleIds($userId, ShareItem::TYPE_SAVINGS_GOAL);
+	}
 
-    /**
-     * Check if a user can access an entity (own or shared).
-     */
-    public function canAccess(string $userId, string $entityType, int $entityId): bool {
-        $visibleIds = $this->getVisibleIds($userId, $entityType);
-        return in_array($entityId, $visibleIds, true);
-    }
+	/**
+	 * @return int[]
+	 */
+	public function getVisibleImportRuleIds(string $userId): array {
+		return $this->getVisibleIds($userId, ShareItem::TYPE_IMPORT_RULE);
+	}
 
-    /**
-     * Check if a user can write to an entity.
-     * Own entities are always writable. Shared entities depend on permission.
-     */
-    public function canWrite(string $userId, string $entityType, int $entityId): bool {
-        // Per-request memo: getSharedCategories()/GoalsController call this once
-        // per shared entity, each otherwise issuing a fresh getEntityPermission
-        // query. Cache is cleared in updateShareItems() when shares change.
-        $cacheKey = "canwrite:{$userId}:{$entityType}:{$entityId}";
-        if (isset($this->cache[$cacheKey])) {
-            return $this->cache[$cacheKey];
-        }
+	/**
+	 * Get only the shared entity IDs (not own) for a user.
+	 * Useful for cross-user budget aggregation.
+	 *
+	 * @return int[]
+	 */
+	public function getSharedAccountIds(string $userId): array {
+		return $this->getSharedIds($userId, ShareItem::TYPE_ACCOUNT);
+	}
 
-        $result = false;
-        // Own entities are always writable
-        if (in_array($entityId, $this->getOwnIds($userId, $entityType), true)) {
-            $result = true;
-        } else {
-            // Check shared permission across accepted incoming shares
-            foreach ($this->getAcceptedIncomingShares($userId) as $share) {
-                $permission = $this->shareItemMapper->getEntityPermission(
-                    $share->getId(),
-                    $entityType,
-                    $entityId
-                );
-                if ($permission === ShareItem::PERMISSION_WRITE) {
-                    $result = true;
-                    break;
-                }
-            }
-        }
+	/**
+	 * @return int[]
+	 */
+	public function getSharedCategoryIds(string $userId): array {
+		return $this->getSharedIds($userId, ShareItem::TYPE_CATEGORY);
+	}
 
-        $this->cache[$cacheKey] = $result;
-        return $result;
-    }
+	/**
+	 * @return int[]
+	 */
+	public function getSharedSavingsGoalIds(string $userId): array {
+		return $this->getSharedIds($userId, ShareItem::TYPE_SAVINGS_GOAL);
+	}
 
-    /**
-     * Enforce write access — throws ReadOnlyShareException if denied.
-     */
-    public function requireWriteAccess(string $userId, string $entityType, int $entityId): void {
-        if (!$this->canWrite($userId, $entityType, $entityId)) {
-            throw new ReadOnlyShareException();
-        }
-    }
+	/**
+	 * @return int[]
+	 */
+	public function getSharedImportRuleIds(string $userId): array {
+		return $this->getSharedIds($userId, ShareItem::TYPE_IMPORT_RULE);
+	}
 
-    /**
-     * Resolve the owner of an entity the user can access.
-     *
-     * Returns the user's own ID when they own the entity, the share owner's ID
-     * when it has been shared with them via an accepted share, or null when the
-     * entity is not accessible to the user. Used to perform owner-scoped lookups
-     * on behalf of a recipient.
-     */
-    public function resolveOwner(string $userId, string $entityType, int $entityId): ?string {
-        if (in_array($entityId, $this->getOwnIds($userId, $entityType), true)) {
-            return $userId;
-        }
+	// ==========================================
+	// Permissions
+	// ==========================================
 
-        foreach ($this->getAcceptedIncomingShares($userId) as $share) {
-            $ids = $this->shareItemMapper->findSharedEntityIds($share->getId(), $entityType);
-            if (in_array($entityId, $ids, true)) {
-                return $share->getOwnerUserId();
-            }
-        }
+	/**
+	 * Check if a user can access an entity (own or shared).
+	 */
+	public function canAccess(string $userId, string $entityType, int $entityId): bool {
+		$visibleIds = $this->getVisibleIds($userId, $entityType);
+		return in_array($entityId, $visibleIds, true);
+	}
 
-        return null;
-    }
+	/**
+	 * Check if a user can write to an entity.
+	 * Own entities are always writable. Shared entities depend on permission.
+	 */
+	public function canWrite(string $userId, string $entityType, int $entityId): bool {
+		// Per-request memo: getSharedCategories()/GoalsController call this once
+		// per shared entity, each otherwise issuing a fresh getEntityPermission
+		// query. Cache is cleared in updateShareItems() when shares change.
+		$cacheKey = "canwrite:{$userId}:{$entityType}:{$entityId}";
+		if (isset($this->cache[$cacheKey])) {
+			return $this->cache[$cacheKey];
+		}
 
-    // ==========================================
-    // Share configuration (settings panel)
-    // ==========================================
+		$result = false;
+		// Own entities are always writable
+		if (in_array($entityId, $this->getOwnIds($userId, $entityType), true)) {
+			$result = true;
+		} else {
+			// Check shared permission across accepted incoming shares
+			foreach ($this->getAcceptedIncomingShares($userId) as $share) {
+				$permission = $this->shareItemMapper->getEntityPermission(
+					$share->getId(),
+					$entityType,
+					$entityId
+				);
+				if ($permission === ShareItem::PERMISSION_WRITE || $permission === ShareItem::PERMISSION_FULL) {
+					$result = true;
+					break;
+				}
+			}
+		}
 
-    /**
-     * Get the full share configuration for display in the settings panel.
-     *
-     * @return array<string, array{ids: int[], permission: string}>
-     */
-    public function getShareConfig(int $shareId): array {
-        $config = [];
-        foreach (ShareItem::VALID_TYPES as $type) {
-            $items = $this->shareItemMapper->findByShareIdAndType($shareId, $type);
-            if (!empty($items)) {
-                $ids = array_map(fn(ShareItem $item) => $item->getEntityId(), $items);
-                // All items of the same type have the same permission (set by settings panel)
-                $permission = $items[0]->getPermission();
-                $config[$type] = [
-                    'ids' => $ids,
-                    'permission' => $permission,
-                ];
-            }
-        }
-        return $config;
-    }
+		$this->cache[$cacheKey] = $result;
+		return $result;
+	}
 
-    /**
-     * Replace all share items for a given share + entity type.
-     * Called from the settings panel save action.
-     *
-     * @param int[] $entityIds
-     */
-    public function updateShareItems(
-        string $ownerUserId,
-        int $shareId,
-        string $entityType,
-        array $entityIds,
-        string $permission
-    ): void {
-        // Validate entity type
-        if (!in_array($entityType, ShareItem::VALID_TYPES, true)) {
-            throw new \InvalidArgumentException($this->l->t('Invalid entity type: %1$s', [$entityType]));
-        }
+	/**
+	 * Whether a user has Full control of an entity: their own, or shared with
+	 * them at PERMISSION_FULL. Full control lets a recipient change what write
+	 * keeps for the owner (a category's type, parent, subcategories, budgets
+	 * and scope flags), never delete it.
+	 */
+	public function canManage(string $userId, string $entityType, int $entityId): bool {
+		$cacheKey = "canmanage:{$userId}:{$entityType}:{$entityId}";
+		if (isset($this->cache[$cacheKey])) {
+			return $this->cache[$cacheKey];
+		}
 
-        // Validate permission
-        if (!in_array($permission, [ShareItem::PERMISSION_READ, ShareItem::PERMISSION_WRITE], true)) {
-            throw new \InvalidArgumentException($this->l->t('Invalid permission: %1$s', [$permission]));
-        }
+		$result = in_array($entityId, $this->getOwnIds($userId, $entityType), true);
+		if (!$result) {
+			foreach ($this->getAcceptedIncomingShares($userId) as $share) {
+				$permission = $this->shareItemMapper->getEntityPermission($share->getId(), $entityType, $entityId);
+				if ($permission === ShareItem::PERMISSION_FULL) {
+					$result = true;
+					break;
+				}
+			}
+		}
 
-        // Verify the share belongs to this owner
-        $share = $this->shareMapper->findById($shareId);
-        if ($share->getOwnerUserId() !== $ownerUserId) {
-            throw new \InvalidArgumentException($this->l->t('You are not the owner of this share'));
-        }
+		$this->cache[$cacheKey] = $result;
+		return $result;
+	}
 
-        // Validate that entity IDs belong to the owner
-        $ownIds = $this->getOwnIds($ownerUserId, $entityType);
-        $invalidIds = array_diff($entityIds, $ownIds);
-        if (!empty($invalidIds)) {
-            throw new \InvalidArgumentException($this->l->t('Some entities do not belong to you'));
-        }
+	/**
+	 * Share an entity a recipient just created in the owner's data back to
+	 * them, at the permission they hold on $parentId (the item it was created
+	 * under). Without this, a subcategory a Full control recipient adds under
+	 * the owner's category would belong to the owner and vanish from the
+	 * recipient's own view the moment it was saved.
+	 */
+	public function shareBackToRecipient(string $ownerUserId, string $recipientUserId, string $entityType, int $entityId, int $parentId): void {
+		foreach ($this->getAcceptedIncomingShares($recipientUserId) as $share) {
+			if ($share->getOwnerUserId() !== $ownerUserId) {
+				continue;
+			}
+			$permission = $this->shareItemMapper->getEntityPermission($share->getId(), $entityType, $parentId);
+			if ($permission !== null) {
+				$this->shareItemMapper->shareEntity($share->getId(), $entityType, $entityId, $permission);
+			}
+		}
+		$this->cache = [];
+	}
 
-        $this->shareItemMapper->replaceForShareAndType($shareId, $entityType, $entityIds, $permission);
+	/**
+	 * Enforce write access — throws ReadOnlyShareException if denied.
+	 */
+	public function requireWriteAccess(string $userId, string $entityType, int $entityId): void {
+		if (!$this->canWrite($userId, $entityType, $entityId)) {
+			throw new ReadOnlyShareException();
+		}
+	}
 
-        // Clear cache
-        $this->cache = [];
-    }
+	/**
+	 * Resolve the owner of an entity the user can access.
+	 *
+	 * Returns the user's own ID when they own the entity, the share owner's ID
+	 * when it has been shared with them via an accepted share, or null when the
+	 * entity is not accessible to the user. Used to perform owner-scoped lookups
+	 * on behalf of a recipient.
+	 */
+	public function resolveOwner(string $userId, string $entityType, int $entityId): ?string {
+		if (in_array($entityId, $this->getOwnIds($userId, $entityType), true)) {
+			return $userId;
+		}
 
-    /**
-     * Get the user's own account IDs (not shared).
-     * @return int[]
-     */
-    public function getOwnAccountIds(string $userId): array {
-        return $this->getOwnIds($userId, ShareItem::TYPE_ACCOUNT);
-    }
+		foreach ($this->getAcceptedIncomingShares($userId) as $share) {
+			$ids = $this->shareItemMapper->findSharedEntityIds($share->getId(), $entityType);
+			if (in_array($entityId, $ids, true)) {
+				return $share->getOwnerUserId();
+			}
+		}
 
-    // ==========================================
-    // Entity fetching (for controllers)
-    // ==========================================
+		return null;
+	}
 
-    /**
-     * Fetch shared accounts as arrays (masked).
-     *
-     * @return array[]
-     */
-    public function getSharedAccounts(string $userId): array {
-        $ids = $this->getSharedIds($userId, ShareItem::TYPE_ACCOUNT);
-        if (empty($ids)) return [];
-        $accounts = $this->accountMapper->findByIds($ids);
-        return array_map(fn($a) => array_merge($a->toArrayMasked(), ['_shared' => true]), $accounts);
-    }
+	// ==========================================
+	// Share configuration (settings panel)
+	// ==========================================
 
-    /**
-     * Fetch shared categories as serialized arrays.
-     *
-     * @return array[]
-     */
-    public function getSharedCategories(string $userId): array {
-        $ids = $this->getSharedIds($userId, ShareItem::TYPE_CATEGORY);
-        if (empty($ids)) return [];
-        $categories = array_values($this->categoryMapper->findByIdsUnscoped($ids));
-        // Preserve the owner's ordering so recipients see shared categories in the
-        // same order the owner arranged them, not an arbitrary id/insertion order (#328).
-        usort($categories, static fn($a, $b) =>
-            [$a->getSortOrder() ?? 0, $a->getName()] <=> [$b->getSortOrder() ?? 0, $b->getName()]);
-        return array_map(fn($c) => array_merge($c->jsonSerialize(), [
-            '_shared' => true,
-            '_sharedBy' => $c->getUserId(),
-            '_sharedByName' => $this->displayNameFor($c->getUserId()),
-            '_canWrite' => $this->canWrite($userId, ShareItem::TYPE_CATEGORY, $c->getId()),
-        ]), $categories);
-    }
+	/**
+	 * Get the full share configuration for display in the settings panel.
+	 *
+	 * @return array<string, array{ids: int[], permission: string}>
+	 */
+	public function getShareConfig(int $shareId): array {
+		$config = [];
+		foreach (ShareItem::VALID_TYPES as $type) {
+			$items = $this->shareItemMapper->findByShareIdAndType($shareId, $type);
+			if (!empty($items)) {
+				$ids = array_map(fn (ShareItem $item) => $item->getEntityId(), $items);
+				// All items of the same type have the same permission (set by settings panel)
+				$permission = $items[0]->getPermission();
+				$config[$type] = [
+					'ids' => $ids,
+					'permission' => $permission,
+				];
+			}
+		}
+		return $config;
+	}
 
-    /**
-     * Fetch shared bills as serialized arrays.
-     *
-     * @return array[]
-     */
-    public function getSharedBills(string $userId): array {
-        $ids = $this->getSharedIds($userId, ShareItem::TYPE_BILL);
-        if (empty($ids)) return [];
-        $bills = $this->billMapper->findByIds($ids);
-        return array_map(function ($b) use ($userId) {
-            $canWrite = $this->canWrite($userId, ShareItem::TYPE_BILL, $b->getId());
-            $serialized = $b->jsonSerialize();
-            return array_merge($serialized, [
-                '_shared' => true,
-                '_sharedBy' => $b->getUserId(),
-                '_sharedByName' => $this->displayNameFor($b->getUserId()),
-                '_canWrite' => $canWrite,
-                // Bill actions run under the bill's OWNER since #368, so a
-                // recipient's markUnpaid succeeds now — offer it whenever they
-                // may write. Read-only recipients still never see the action.
-                'canMarkUnpaid' => $canWrite && ($serialized['canMarkUnpaid'] ?? false),
-            ]);
-        }, $bills);
-    }
+	/**
+	 * Replace all share items for a given share + entity type.
+	 * Called from the settings panel save action.
+	 *
+	 * @param int[] $entityIds
+	 */
+	public function updateShareItems(
+		string $ownerUserId,
+		int $shareId,
+		string $entityType,
+		array $entityIds,
+		string $permission,
+	): void {
+		// Validate entity type
+		if (!in_array($entityType, ShareItem::VALID_TYPES, true)) {
+			throw new \InvalidArgumentException($this->l->t('Invalid entity type: %1$s', [$entityType]));
+		}
 
-    /**
-     * Fetch shared recurring income as serialized arrays.
-     *
-     * @return array[]
-     */
-    public function getSharedRecurringIncome(string $userId): array {
-        $ids = $this->getSharedIds($userId, ShareItem::TYPE_RECURRING_INCOME);
-        if (empty($ids)) return [];
-        $income = $this->recurringIncomeMapper->findByIds($ids);
-        return array_map(fn($r) => array_merge($r->jsonSerialize(), ['_shared' => true]), $income);
-    }
+		// Validate permission
+		if (!ShareItem::isValidPermission($permission, $entityType)) {
+			throw new \InvalidArgumentException($this->l->t('Invalid permission: %1$s', [$permission]));
+		}
 
-    /**
-     * Fetch shared savings goals as serialized arrays.
-     *
-     * @return array[]
-     */
-    public function getSharedSavingsGoals(string $userId): array {
-        $ids = $this->getSharedIds($userId, ShareItem::TYPE_SAVINGS_GOAL);
-        if (empty($ids)) return [];
-        $goals = $this->savingsGoalMapper->findByIds($ids);
-        return array_map(fn($g) => array_merge($g->jsonSerialize(), ['_shared' => true]), $goals);
-    }
+		// Verify the share belongs to this owner
+		$share = $this->shareMapper->findById($shareId);
+		if ($share->getOwnerUserId() !== $ownerUserId) {
+			throw new \InvalidArgumentException($this->l->t('You are not the owner of this share'));
+		}
 
-    /**
-     * Ids of projects shared with the user through accepted shares (#391).
-     *
-     * @return int[]
-     */
-    public function getSharedProjectIds(string $userId): array {
-        return $this->getSharedIds($userId, ShareItem::TYPE_PROJECT);
-    }
+		// Validate that entity IDs belong to the owner
+		$ownIds = $this->getOwnIds($ownerUserId, $entityType);
+		$invalidIds = array_diff($entityIds, $ownIds);
+		if (!empty($invalidIds)) {
+			throw new \InvalidArgumentException($this->l->t('Some entities do not belong to you'));
+		}
 
-    /**
-     * An owner's display name for "Shared by …" labels, or their uid when
-     * the user cannot be resolved.
-     */
-    public function ownerDisplayName(string $uid): string {
-        return $this->displayNameFor($uid);
-    }
+		$this->shareItemMapper->replaceForShareAndType($shareId, $entityType, $entityIds, $permission);
 
-    /**
-     * Fetch shared import rules as serialized arrays, flagged with the owner
-     * and the recipient's write permission (mirrors getSharedCategories).
-     *
-     * @return array[]
-     */
-    public function getSharedImportRules(string $userId): array {
-        $ids = $this->getSharedIds($userId, ShareItem::TYPE_IMPORT_RULE);
-        if (empty($ids)) return [];
-        $rules = $this->importRuleMapper->findByIds($ids);
-        return array_map(fn($r) => array_merge($r->jsonSerialize(), [
-            '_shared' => true,
-            '_sharedBy' => $r->getUserId(),
-            '_sharedByName' => $this->displayNameFor($r->getUserId()),
-            '_canWrite' => $this->canWrite($userId, ShareItem::TYPE_IMPORT_RULE, $r->getId()),
-        ]), $rules);
-    }
+		// Clear cache
+		$this->cache = [];
+	}
 
-    // ==========================================
-    // Internal helpers
-    // ==========================================
+	/**
+	 * Get the user's own account IDs (not shared).
+	 * @return int[]
+	 */
+	public function getOwnAccountIds(string $userId): array {
+		return $this->getOwnIds($userId, ShareItem::TYPE_ACCOUNT);
+	}
 
-    /**
-     * Get accepted incoming shares for a user (cached).
-     *
-     * @return Share[]
-     */
-    public function getAcceptedIncomingShares(string $userId): array {
-        $cacheKey = "incoming:{$userId}";
-        if (isset($this->cache[$cacheKey])) {
-            return $this->cache[$cacheKey];
-        }
+	// ==========================================
+	// Entity fetching (for controllers)
+	// ==========================================
 
-        $all = $this->shareMapper->findByRecipient($userId);
-        $accepted = array_filter($all, fn(Share $s) => $s->getStatus() === Share::STATUS_ACCEPTED);
-        $this->cache[$cacheKey] = array_values($accepted);
-        return $this->cache[$cacheKey];
-    }
+	/**
+	 * Fetch shared accounts as arrays (masked).
+	 *
+	 * @return array[]
+	 */
+	public function getSharedAccounts(string $userId): array {
+		$ids = $this->getSharedIds($userId, ShareItem::TYPE_ACCOUNT);
+		if (empty($ids)) {
+			return [];
+		}
+		$accounts = $this->accountMapper->findByIds($ids);
+		return array_map(fn ($a) => array_merge($a->toArrayMasked(), ['_shared' => true]), $accounts);
+	}
 
-    /**
-     * Get visible IDs = own + shared (cached).
-     *
-     * @return int[]
-     */
-    private function getVisibleIds(string $userId, string $entityType): array {
-        $cacheKey = "visible:{$userId}:{$entityType}";
-        if (isset($this->cache[$cacheKey])) {
-            return $this->cache[$cacheKey];
-        }
+	/**
+	 * Fetch shared categories as serialized arrays.
+	 *
+	 * @return array[]
+	 */
+	public function getSharedCategories(string $userId): array {
+		$ids = $this->getSharedIds($userId, ShareItem::TYPE_CATEGORY);
+		if (empty($ids)) {
+			return [];
+		}
+		$categories = array_values($this->categoryMapper->findByIdsUnscoped($ids));
+		// Preserve the owner's ordering so recipients see shared categories in the
+		// same order the owner arranged them, not an arbitrary id/insertion order (#328).
+		usort($categories, static fn ($a, $b)
+			=> [$a->getSortOrder() ?? 0, $a->getName()] <=> [$b->getSortOrder() ?? 0, $b->getName()]);
+		return array_map(fn ($c) => array_merge($c->jsonSerialize(), [
+			'_shared' => true,
+			'_sharedBy' => $c->getUserId(),
+			'_sharedByName' => $this->displayNameFor($c->getUserId()),
+			'_canWrite' => $this->canWrite($userId, ShareItem::TYPE_CATEGORY, $c->getId()),
+			'_canManage' => $this->canManage($userId, ShareItem::TYPE_CATEGORY, $c->getId()),
+			// A subcategory this user added under Full control; the server
+			// still refuses it once it has subcategories or transactions
+			'_canDelete' => $c->getCreatedBy() === $userId
+				&& $this->canManage($userId, ShareItem::TYPE_CATEGORY, $c->getId()),
+		]), $categories);
+	}
 
-        $ownIds = $this->getOwnIds($userId, $entityType);
-        $sharedIds = $this->getSharedIds($userId, $entityType);
+	/**
+	 * Fetch shared bills as serialized arrays.
+	 *
+	 * @return array[]
+	 */
+	public function getSharedBills(string $userId): array {
+		return $this->withCategoryNames(array_map(function ($b) use ($userId) {
+			$canWrite = $this->canWrite($userId, ShareItem::TYPE_BILL, $b->getId());
+			$serialized = $b->jsonSerialize();
+			return array_merge($serialized, [
+				'_shared' => true,
+				'_sharedBy' => $b->getUserId(),
+				'_sharedByName' => $this->displayNameFor($b->getUserId()),
+				'_canWrite' => $canWrite,
+				'_canManage' => $this->canManage($userId, ShareItem::TYPE_BILL, $b->getId()),
+				// Bill actions run under the bill's OWNER since #368, so a
+				// recipient's markUnpaid succeeds now — offer it whenever they
+				// may write. Read-only recipients still never see the action.
+				'canMarkUnpaid' => $canWrite && ($serialized['canMarkUnpaid'] ?? false),
+			]);
+		}, $this->getSharedBillEntities($userId)));
+	}
 
-        $merged = array_values(array_unique(array_merge($ownIds, $sharedIds)));
-        $this->cache[$cacheKey] = $merged;
-        return $merged;
-    }
+	/**
+	 * The bills shared with $userId, as entities. The Bills page summary
+	 * works on entities, and its cards left shared bills out while the list
+	 * under them showed them.
+	 *
+	 * @return \OCA\Budget\Db\Bill[]
+	 */
+	public function getSharedBillEntities(string $userId): array {
+		$ids = $this->getSharedIds($userId, ShareItem::TYPE_BILL);
+		if (empty($ids)) {
+			return [];
+		}
+		return $this->billMapper->findByIds($ids);
+	}
 
-    /**
-     * Get the user's own entity IDs (cached).
-     *
-     * @return int[]
-     */
-    private function getOwnIds(string $userId, string $entityType): array {
-        $cacheKey = "own:{$userId}:{$entityType}";
-        if (isset($this->cache[$cacheKey])) {
-            return $this->cache[$cacheKey];
-        }
+	/**
+	 * Fetch shared recurring income as serialized arrays.
+	 *
+	 * @return array[]
+	 */
+	public function getSharedRecurringIncome(string $userId): array {
+		$ids = $this->getSharedIds($userId, ShareItem::TYPE_RECURRING_INCOME);
+		if (empty($ids)) {
+			return [];
+		}
+		$income = $this->recurringIncomeMapper->findByIds($ids);
+		return $this->withCategoryNames(array_map(fn ($r) => array_merge($r->jsonSerialize(), [
+			'_shared' => true,
+			'_canWrite' => $this->canWrite($userId, ShareItem::TYPE_RECURRING_INCOME, $r->getId()),
+			'_canManage' => $this->canManage($userId, ShareItem::TYPE_RECURRING_INCOME, $r->getId()),
+		]), $income));
+	}
 
-        $ids = match ($entityType) {
-            ShareItem::TYPE_ACCOUNT => array_map(
-                fn($a) => $a->getId(),
-                $this->accountMapper->findAll($userId)
-            ),
-            ShareItem::TYPE_CATEGORY => array_map(
-                fn($c) => $c->getId(),
-                $this->categoryMapper->findAll($userId)
-            ),
-            ShareItem::TYPE_BILL => array_map(
-                fn($b) => $b->getId(),
-                $this->billMapper->findAll($userId)
-            ),
-            ShareItem::TYPE_RECURRING_INCOME => array_map(
-                fn($r) => $r->getId(),
-                $this->recurringIncomeMapper->findAll($userId)
-            ),
-            ShareItem::TYPE_SAVINGS_GOAL => array_map(
-                fn($g) => $g->getId(),
-                $this->savingsGoalMapper->findAll($userId)
-            ),
-            ShareItem::TYPE_IMPORT_RULE => array_map(
-                fn($r) => $r->getId(),
-                $this->importRuleMapper->findAll($userId)
-            ),
-            ShareItem::TYPE_PROJECT => $this->projectMapper === null ? [] : array_map(
-                fn($p) => $p->getId(),
-                $this->projectMapper->findAll($userId)
-            ),
-            default => [],
-        };
+	/**
+	 * Name the categories shared bills, transfers or recurring income are
+	 * filed under: each item's own (`categoryName`) and each part of a bill's
+	 * split template. The item is shared, so its category is named for the
+	 * user even when the category itself isn't shared with them, as on a
+	 * transaction in an account shared with them; the pickers still don't
+	 * offer it. Only a category the item's owner can see is named, never
+	 * another user's category id left on the item, and only its name is
+	 * sent. Accounts stay unnamed: an account that wasn't shared is never
+	 * named (UpcomingBillsService, the transfer badge).
+	 *
+	 * @param array<int, array<string, mixed>> $items serialized, each with its owner's userId
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function withCategoryNames(array $items): array {
+		$categoryIdsOf = static function (array $item): array {
+			$parts = is_array($item['splitTemplate'] ?? null) ? $item['splitTemplate'] : [];
+			$ids = [];
+			foreach (array_merge([$item], $parts) as $holder) {
+				$id = is_array($holder) ? ($holder['categoryId'] ?? null) : null;
+				if (is_numeric($id) && (int)$id > 0) {
+					$ids[] = (int)$id;
+				}
+			}
+			return $ids;
+		};
 
-        $this->cache[$cacheKey] = $ids;
-        return $ids;
-    }
+		// owner => category id => whether the owner can see it
+		$seen = [];
+		foreach ($items as $item) {
+			$owner = (string)($item['userId'] ?? '');
+			foreach ($categoryIdsOf($item) as $id) {
+				$seen[$owner][$id] ??= $owner !== '' && $this->canAccess($owner, ShareItem::TYPE_CATEGORY, $id);
+			}
+		}
+		$wanted = [];
+		foreach ($seen as $byId) {
+			foreach (array_keys(array_filter($byId)) as $id) {
+				$wanted[$id] = $id;
+			}
+		}
+		$names = [];
+		foreach ($this->categoryMapper->findByIdsUnscoped(array_values($wanted)) as $category) {
+			$names[(int)$category->getId()] = (string)$category->getName();
+		}
 
-    /**
-     * Get only the shared entity IDs from accepted incoming shares (cached).
-     *
-     * @return int[]
-     */
-    private function getSharedIds(string $userId, string $entityType): array {
-        $cacheKey = "shared:{$userId}:{$entityType}";
-        if (isset($this->cache[$cacheKey])) {
-            return $this->cache[$cacheKey];
-        }
+		$nameOf = static function (string $owner, mixed $id) use ($seen, $names): ?string {
+			$id = is_numeric($id) ? (int)$id : 0;
+			return ($seen[$owner][$id] ?? false) ? ($names[$id] ?? null) : null;
+		};
+		foreach ($items as $i => $item) {
+			$owner = (string)($item['userId'] ?? '');
+			$items[$i]['categoryName'] = $nameOf($owner, $item['categoryId'] ?? null);
+			if (is_array($item['splitTemplate'] ?? null)) {
+				foreach ($item['splitTemplate'] as $p => $part) {
+					if (is_array($part)) {
+						$items[$i]['splitTemplate'][$p]['categoryName'] = $nameOf($owner, $part['categoryId'] ?? null);
+					}
+				}
+			}
+		}
+		return $items;
+	}
 
-        $sharedIds = [];
-        $shares = $this->getAcceptedIncomingShares($userId);
-        foreach ($shares as $share) {
-            $ids = $this->shareItemMapper->findSharedEntityIds($share->getId(), $entityType);
-            $sharedIds = array_merge($sharedIds, $ids);
-        }
+	/**
+	 * Fetch shared savings goals as serialized arrays.
+	 *
+	 * @return array[]
+	 */
+	public function getSharedSavingsGoals(string $userId): array {
+		$ids = $this->getSharedIds($userId, ShareItem::TYPE_SAVINGS_GOAL);
+		if (empty($ids)) {
+			return [];
+		}
+		$goals = $this->savingsGoalMapper->findByIds($ids);
+		return array_map(fn ($g) => array_merge($g->jsonSerialize(), ['_shared' => true]), $goals);
+	}
 
-        $sharedIds = array_values(array_unique($sharedIds));
-        $this->cache[$cacheKey] = $sharedIds;
-        return $sharedIds;
-    }
+	/**
+	 * Ids of projects shared with the user through accepted shares (#391).
+	 *
+	 * @return int[]
+	 */
+	public function getSharedProjectIds(string $userId): array {
+		return $this->getSharedIds($userId, ShareItem::TYPE_PROJECT);
+	}
+
+	/**
+	 * An owner's display name for "Shared by …" labels, or their uid when
+	 * the user cannot be resolved.
+	 */
+	public function ownerDisplayName(string $uid): string {
+		return $this->displayNameFor($uid);
+	}
+
+	/**
+	 * Fetch shared import rules as serialized arrays, flagged with the owner
+	 * and the recipient's write permission (mirrors getSharedCategories).
+	 *
+	 * @return array[]
+	 */
+	public function getSharedImportRules(string $userId): array {
+		$ids = $this->getSharedIds($userId, ShareItem::TYPE_IMPORT_RULE);
+		if (empty($ids)) {
+			return [];
+		}
+		$rules = $this->importRuleMapper->findByIds($ids);
+		return array_map(fn ($r) => array_merge($r->jsonSerialize(), [
+			'_shared' => true,
+			'_sharedBy' => $r->getUserId(),
+			'_sharedByName' => $this->displayNameFor($r->getUserId()),
+			'_canWrite' => $this->canWrite($userId, ShareItem::TYPE_IMPORT_RULE, $r->getId()),
+		]), $rules);
+	}
+
+	// ==========================================
+	// Internal helpers
+	// ==========================================
+
+	/**
+	 * The people $ownerId shared categories with, each with the category ids
+	 * shared: they can file their own bills into those categories, and the
+	 * owner's automatic budget for a category counts those bills too.
+	 *
+	 * @return array<string, int[]> recipient user id => shared category ids
+	 */
+	public function getCategoryShareRecipients(string $ownerId): array {
+		$recipients = [];
+		foreach ($this->shareMapper->findByOwner($ownerId) as $share) {
+			if ($share->getStatus() !== Share::STATUS_ACCEPTED) {
+				continue;
+			}
+			$ids = $this->shareItemMapper->findSharedEntityIds($share->getId(), ShareItem::TYPE_CATEGORY);
+			if (!empty($ids)) {
+				$recipients[$share->getSharedWithUserId()] = array_map('intval', $ids);
+			}
+		}
+		return $recipients;
+	}
+
+	/**
+	 * Get accepted incoming shares for a user (cached).
+	 *
+	 * @return Share[]
+	 */
+	public function getAcceptedIncomingShares(string $userId): array {
+		$cacheKey = "incoming:{$userId}";
+		if (isset($this->cache[$cacheKey])) {
+			return $this->cache[$cacheKey];
+		}
+
+		$all = $this->shareMapper->findByRecipient($userId);
+		$accepted = array_filter($all, fn (Share $s) => $s->getStatus() === Share::STATUS_ACCEPTED);
+		$this->cache[$cacheKey] = array_values($accepted);
+		return $this->cache[$cacheKey];
+	}
+
+	/**
+	 * Get visible IDs = own + shared (cached).
+	 *
+	 * @return int[]
+	 */
+	private function getVisibleIds(string $userId, string $entityType): array {
+		$cacheKey = "visible:{$userId}:{$entityType}";
+		if (isset($this->cache[$cacheKey])) {
+			return $this->cache[$cacheKey];
+		}
+
+		$ownIds = $this->getOwnIds($userId, $entityType);
+		$sharedIds = $this->getSharedIds($userId, $entityType);
+
+		$merged = array_values(array_unique(array_merge($ownIds, $sharedIds)));
+		$this->cache[$cacheKey] = $merged;
+		return $merged;
+	}
+
+	/**
+	 * Get the user's own entity IDs (cached).
+	 *
+	 * @return int[]
+	 */
+	private function getOwnIds(string $userId, string $entityType): array {
+		$cacheKey = "own:{$userId}:{$entityType}";
+		if (isset($this->cache[$cacheKey])) {
+			return $this->cache[$cacheKey];
+		}
+
+		$ids = match ($entityType) {
+			ShareItem::TYPE_ACCOUNT => array_map(
+				fn ($a) => $a->getId(),
+				$this->accountMapper->findAll($userId)
+			),
+			ShareItem::TYPE_CATEGORY => array_map(
+				fn ($c) => $c->getId(),
+				$this->categoryMapper->findAll($userId)
+			),
+			ShareItem::TYPE_BILL => array_map(
+				fn ($b) => $b->getId(),
+				$this->billMapper->findAll($userId)
+			),
+			ShareItem::TYPE_RECURRING_INCOME => array_map(
+				fn ($r) => $r->getId(),
+				$this->recurringIncomeMapper->findAll($userId)
+			),
+			ShareItem::TYPE_SAVINGS_GOAL => array_map(
+				fn ($g) => $g->getId(),
+				$this->savingsGoalMapper->findAll($userId)
+			),
+			ShareItem::TYPE_IMPORT_RULE => array_map(
+				fn ($r) => $r->getId(),
+				$this->importRuleMapper->findAll($userId)
+			),
+			ShareItem::TYPE_PROJECT => $this->projectMapper === null ? [] : array_map(
+				fn ($p) => $p->getId(),
+				$this->projectMapper->findAll($userId)
+			),
+			default => [],
+		};
+
+		$this->cache[$cacheKey] = $ids;
+		return $ids;
+	}
+
+	/**
+	 * Get only the shared entity IDs from accepted incoming shares (cached).
+	 *
+	 * @return int[]
+	 */
+	private function getSharedIds(string $userId, string $entityType): array {
+		$cacheKey = "shared:{$userId}:{$entityType}";
+		if (isset($this->cache[$cacheKey])) {
+			return $this->cache[$cacheKey];
+		}
+
+		$sharedIds = [];
+		$shares = $this->getAcceptedIncomingShares($userId);
+		foreach ($shares as $share) {
+			$ids = $this->shareItemMapper->findSharedEntityIds($share->getId(), $entityType);
+			$sharedIds = array_merge($sharedIds, $ids);
+		}
+
+		$sharedIds = array_values(array_unique($sharedIds));
+		$this->cache[$cacheKey] = $sharedIds;
+		return $sharedIds;
+	}
 }

@@ -8,17 +8,17 @@ use OCA\Budget\Service\Parser\OfxParser;
 use PHPUnit\Framework\TestCase;
 
 class OfxParserTest extends TestCase {
-    private OfxParser $parser;
+	private OfxParser $parser;
 
-    protected function setUp(): void {
-        $this->parser = new OfxParser();
-    }
+	protected function setUp(): void {
+		$this->parser = new OfxParser();
+	}
 
-    /**
-     * Sample OFX content matching real-world bank exports (SGML format).
-     */
-    private function getSampleOfxContent(): string {
-        return <<<'OFX'
+	/**
+	 * Sample OFX content matching real-world bank exports (SGML format).
+	 */
+	private function getSampleOfxContent(): string {
+		return <<<'OFX'
 OFXHEADER:100
 DATA:OFXSGML
 VERSION:102
@@ -108,96 +108,96 @@ NEWFILEUID:NONE
     </CREDITCARDMSGSRSV1>
 </OFX>
 OFX;
-    }
+	}
 
-    public function testParseReturnsAccountsArray(): void {
-        $result = $this->parser->parse($this->getSampleOfxContent());
+	public function testParseReturnsAccountsArray(): void {
+		$result = $this->parser->parse($this->getSampleOfxContent());
 
-        $this->assertIsArray($result);
-        $this->assertArrayHasKey('accounts', $result);
-        $this->assertIsArray($result['accounts']);
-    }
+		$this->assertIsArray($result);
+		$this->assertArrayHasKey('accounts', $result);
+		$this->assertIsArray($result['accounts']);
+	}
 
-    public function testParseFindsBankAccount(): void {
-        $result = $this->parser->parse($this->getSampleOfxContent());
+	public function testParseFindsBankAccount(): void {
+		$result = $this->parser->parse($this->getSampleOfxContent());
 
-        // Should find 1 bank account + 1 credit card account
-        $this->assertCount(2, $result['accounts']);
+		// Should find 1 bank account + 1 credit card account
+		$this->assertCount(2, $result['accounts']);
 
-        // First should be the bank account
-        $bankAccount = $result['accounts'][0];
-        $this->assertEquals('89020944', $bankAccount['accountId']);
-        $this->assertEquals('541002', $bankAccount['bankId']);
-        $this->assertEquals('checking', $bankAccount['type']);
-        $this->assertEquals('GBP', $bankAccount['currency']);
-    }
+		// First should be the bank account
+		$bankAccount = $result['accounts'][0];
+		$this->assertEquals('89020944', $bankAccount['accountId']);
+		$this->assertEquals('541002', $bankAccount['bankId']);
+		$this->assertEquals('checking', $bankAccount['type']);
+		$this->assertEquals('GBP', $bankAccount['currency']);
+	}
 
-    public function testParseFindsCreditCardAccount(): void {
-        $result = $this->parser->parse($this->getSampleOfxContent());
+	public function testParseFindsCreditCardAccount(): void {
+		$result = $this->parser->parse($this->getSampleOfxContent());
 
-        // Second should be the credit card
-        $ccAccount = $result['accounts'][1];
-        $this->assertEquals('552213******8589', $ccAccount['accountId']);
-        $this->assertNull($ccAccount['bankId']);
-        $this->assertEquals('credit_card', $ccAccount['type']);
-    }
+		// Second should be the credit card
+		$ccAccount = $result['accounts'][1];
+		$this->assertEquals('552213******8589', $ccAccount['accountId']);
+		$this->assertNull($ccAccount['bankId']);
+		$this->assertEquals('credit_card', $ccAccount['type']);
+	}
 
-    public function testParseExtractsBalances(): void {
-        $result = $this->parser->parse($this->getSampleOfxContent());
+	public function testParseExtractsBalances(): void {
+		$result = $this->parser->parse($this->getSampleOfxContent());
 
-        $bankAccount = $result['accounts'][0];
-        $this->assertEquals(27.79, $bankAccount['ledgerBalance']);
-        $this->assertEquals(0.00, $bankAccount['availableBalance']);
-        $this->assertEquals('2025-12-30', $bankAccount['balanceDate']);
-    }
+		$bankAccount = $result['accounts'][0];
+		$this->assertEquals(27.79, $bankAccount['ledgerBalance']);
+		$this->assertEquals(0.00, $bankAccount['availableBalance']);
+		$this->assertEquals('2025-12-30', $bankAccount['balanceDate']);
+	}
 
-    public function testParseExtractsTransactions(): void {
-        $result = $this->parser->parse($this->getSampleOfxContent());
+	public function testParseExtractsTransactions(): void {
+		$result = $this->parser->parse($this->getSampleOfxContent());
 
-        $transactions = $result['accounts'][0]['transactions'];
-        $this->assertCount(2, $transactions);
+		$transactions = $result['accounts'][0]['transactions'];
+		$this->assertCount(2, $transactions);
 
-        // First transaction - credit
-        $credit = $transactions[0];
-        $this->assertEquals('202512300001', $credit['id']);
-        $this->assertEquals('2025-12-30', $credit['date']);
-        $this->assertEquals(49.27, $credit['amount']);
-        $this->assertEquals('credit', $credit['type']);
-        $this->assertEquals('EBAY COMMERCE UK L', $credit['description']);
-        $this->assertEquals('P.7252976115', $credit['memo']);
-        $this->assertEquals('CREDIT', $credit['transactionType']);
+		// First transaction - credit
+		$credit = $transactions[0];
+		$this->assertEquals('202512300001', $credit['id']);
+		$this->assertEquals('2025-12-30', $credit['date']);
+		$this->assertEquals(49.27, $credit['amount']);
+		$this->assertEquals('credit', $credit['type']);
+		$this->assertEquals('EBAY COMMERCE UK L', $credit['description']);
+		$this->assertEquals('P.7252976115', $credit['memo']);
+		$this->assertEquals('CREDIT', $credit['transactionType']);
 
-        // Second transaction - debit
-        $debit = $transactions[1];
-        $this->assertEquals('202512300003', $debit['id']);
-        $this->assertEquals(134.39, $debit['amount']);
-        $this->assertEquals('debit', $debit['type']);
-        $this->assertEquals('BARCLAYS PRTNR FIN', $debit['description']);
-        $this->assertNull($debit['memo']);
-    }
+		// Second transaction - debit
+		$debit = $transactions[1];
+		$this->assertEquals('202512300003', $debit['id']);
+		$this->assertEquals(134.39, $debit['amount']);
+		$this->assertEquals('debit', $debit['type']);
+		$this->assertEquals('BARCLAYS PRTNR FIN', $debit['description']);
+		$this->assertNull($debit['memo']);
+	}
 
-    public function testParseToTransactionListFlattensData(): void {
-        $transactions = $this->parser->parseToTransactionList($this->getSampleOfxContent());
+	public function testParseToTransactionListFlattensData(): void {
+		$transactions = $this->parser->parseToTransactionList($this->getSampleOfxContent());
 
-        $this->assertCount(2, $transactions);
+		$this->assertCount(2, $transactions);
 
-        // Each transaction should have account metadata
-        $first = $transactions[0];
-        $this->assertArrayHasKey('_account', $first);
-        $this->assertArrayHasKey('_balances', $first);
-        $this->assertEquals('89020944', $first['_account']['accountId']);
-        $this->assertEquals(27.79, $first['_balances']['ledger']);
-    }
+		// Each transaction should have account metadata
+		$first = $transactions[0];
+		$this->assertArrayHasKey('_account', $first);
+		$this->assertArrayHasKey('_balances', $first);
+		$this->assertEquals('89020944', $first['_account']['accountId']);
+		$this->assertEquals(27.79, $first['_balances']['ledger']);
+	}
 
-    public function testParseToTransactionListRespectsLimit(): void {
-        $transactions = $this->parser->parseToTransactionList($this->getSampleOfxContent(), 1);
+	public function testParseToTransactionListRespectsLimit(): void {
+		$transactions = $this->parser->parseToTransactionList($this->getSampleOfxContent(), 1);
 
-        $this->assertCount(1, $transactions);
-    }
+		$this->assertCount(1, $transactions);
+	}
 
-    public function testParseDateFormats(): void {
-        // Test YYYYMMDD format
-        $ofx = '<OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS>
+	public function testParseDateFormats(): void {
+		// Test YYYYMMDD format
+		$ofx = '<OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS>
             <CURDEF>USD</CURDEF>
             <BANKACCTFROM><ACCTID>123</ACCTID></BANKACCTFROM>
             <BANKTRANLIST>
@@ -209,12 +209,12 @@ OFX;
             </BANKTRANLIST>
         </STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>';
 
-        $result = $this->parser->parse($ofx);
-        $this->assertEquals('2025-12-25', $result['accounts'][0]['transactions'][0]['date']);
-    }
+		$result = $this->parser->parse($ofx);
+		$this->assertEquals('2025-12-25', $result['accounts'][0]['transactions'][0]['date']);
+	}
 
-    public function testParseHandlesEmptyTransactionList(): void {
-        $ofx = '<OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS>
+	public function testParseHandlesEmptyTransactionList(): void {
+		$ofx = '<OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS>
             <CURDEF>GBP</CURDEF>
             <BANKACCTFROM>
                 <BANKID>123456</BANKID>
@@ -227,15 +227,15 @@ OFX;
             </BANKTRANLIST>
         </STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>';
 
-        $result = $this->parser->parse($ofx);
+		$result = $this->parser->parse($ofx);
 
-        $this->assertCount(1, $result['accounts']);
-        $this->assertEquals('789', $result['accounts'][0]['accountId']);
-        $this->assertCount(0, $result['accounts'][0]['transactions']);
-    }
+		$this->assertCount(1, $result['accounts']);
+		$this->assertEquals('789', $result['accounts'][0]['accountId']);
+		$this->assertCount(0, $result['accounts'][0]['transactions']);
+	}
 
-    public function testParseHandlesNegativeAmounts(): void {
-        $ofx = '<OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS>
+	public function testParseHandlesNegativeAmounts(): void {
+		$ofx = '<OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS>
             <CURDEF>USD</CURDEF>
             <BANKACCTFROM><ACCTID>123</ACCTID></BANKACCTFROM>
             <BANKTRANLIST>
@@ -247,16 +247,16 @@ OFX;
             </BANKTRANLIST>
         </STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>';
 
-        $result = $this->parser->parse($ofx);
-        $txn = $result['accounts'][0]['transactions'][0];
+		$result = $this->parser->parse($ofx);
+		$txn = $result['accounts'][0]['transactions'][0];
 
-        $this->assertEquals(50.00, $txn['amount']); // Absolute value
-        $this->assertEquals(-50.00, $txn['rawAmount']); // Signed value
-        $this->assertEquals('debit', $txn['type']);
-    }
+		$this->assertEquals(50.00, $txn['amount']); // Absolute value
+		$this->assertEquals(-50.00, $txn['rawAmount']); // Signed value
+		$this->assertEquals('debit', $txn['type']);
+	}
 
-    public function testParseMultipleBankAccounts(): void {
-        $ofx = '<OFX><BANKMSGSRSV1>
+	public function testParseMultipleBankAccounts(): void {
+		$ofx = '<OFX><BANKMSGSRSV1>
             <STMTTRNRS><STMTRS>
                 <CURDEF>GBP</CURDEF>
                 <BANKACCTFROM><ACCTID>111</ACCTID></BANKACCTFROM>
@@ -269,10 +269,10 @@ OFX;
             </STMTRS></STMTTRNRS>
         </BANKMSGSRSV1></OFX>';
 
-        $result = $this->parser->parse($ofx);
+		$result = $this->parser->parse($ofx);
 
-        $this->assertCount(2, $result['accounts']);
-        $this->assertEquals('111', $result['accounts'][0]['accountId']);
-        $this->assertEquals('222', $result['accounts'][1]['accountId']);
-    }
+		$this->assertCount(2, $result['accounts']);
+		$this->assertEquals('111', $result['accounts'][0]['accountId']);
+		$this->assertEquals('222', $result['accounts'][1]['accountId']);
+	}
 }

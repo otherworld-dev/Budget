@@ -8,522 +8,588 @@ use OCA\Budget\Db\Account;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\DebtScenarioMapper;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Enum\Currency;
 
 /**
  * Service for calculating debt payoff strategies.
  * Supports snowball (smallest balance first) and avalanche (highest interest first) methods.
  */
 class DebtPayoffService {
-    /**
-     * Liability account types considered as debts.
-     */
-    private const LIABILITY_TYPES = ['credit_card', 'loan', 'mortgage', 'line_of_credit'];
+	/**
+	 * Liability account types considered as debts.
+	 */
+	private const LIABILITY_TYPES = ['credit_card', 'loan', 'mortgage', 'line_of_credit'];
 
-    /**
-     * Maximum months to simulate (40 years).
-     */
-    private const MAX_MONTHS = 480;
+	/**
+	 * Maximum months to simulate (40 years).
+	 */
+	private const MAX_MONTHS = 480;
 
-    private AccountMapper $accountMapper;
-    private TransactionMapper $transactionMapper;
-    private ?DebtScenarioMapper $scenarioMapper;
+	private AccountMapper $accountMapper;
+	private TransactionMapper $transactionMapper;
+	private ?DebtScenarioMapper $scenarioMapper;
 
-    public function __construct(
-        AccountMapper $accountMapper,
-        TransactionMapper $transactionMapper,
-        ?DebtScenarioMapper $scenarioMapper = null
-    ) {
-        $this->accountMapper = $accountMapper;
-        $this->transactionMapper = $transactionMapper;
-        $this->scenarioMapper = $scenarioMapper;
-    }
+	public function __construct(
+		AccountMapper $accountMapper,
+		TransactionMapper $transactionMapper,
+		?DebtScenarioMapper $scenarioMapper = null,
+		private ?UserClock $userClock = null,
+		private ?CurrencyConversionService $conversionService = null,
+	) {
+		$this->accountMapper = $accountMapper;
+		$this->transactionMapper = $transactionMapper;
+		$this->scenarioMapper = $scenarioMapper;
+	}
 
-    /**
-     * Get all debt accounts for a user.
-     *
-     * @return Account[]
-     */
-    public function getDebts(string $userId): array {
-        $accounts = $this->accountMapper->findAll($userId);
-        return array_filter($accounts, function (Account $account) {
-            return $this->isDebt($account);
-        });
-    }
+	/**
+	 * An amount of $debt's in the user's base currency, which the summary
+	 * and the plan work in: the plan pools payments across debts, and the
+	 * Debt Payoff page shows every figure in the base currency. Added as
+	 * stored, a dollar card owing 276.96 read as a debt of 276.96 pounds.
+	 * A currency with no rate is left as it is.
+	 */
+	private function toBase(float $amount, Account $debt, string $userId): float {
+		if ($this->conversionService === null) {
+			return $amount;
+		}
+		$currency = $debt->getCurrency() ?: $this->conversionService->getBaseCurrency($userId);
+		return (float)$this->conversionService->convertToBase($amount, $currency, $userId);
+	}
 
-    /**
-     * Get debt summary for a user.
-     */
-    public function getSummary(string $userId): array {
-        $debts = $this->getDebts($userId);
+	private function baseCurrency(string $userId): ?string {
+		return $this->conversionService?->getBaseCurrency($userId);
+	}
 
-        // Get future transaction adjustments to calculate balance as of today
-        $today = date('Y-m-d');
-        $futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
+	/**
+	 * Get all debt accounts for a user.
+	 *
+	 * @return Account[]
+	 */
+	public function getDebts(string $userId): array {
+		$accounts = $this->accountMapper->findAll($userId);
+		return array_filter($accounts, function (Account $account) {
+			return $this->isDebt($account);
+		});
+	}
 
-        $totalBalance = '0.00';
-        $totalMinimumPayment = '0.00';
-        $highestRate = 0.0;
-        $lowestBalance = PHP_FLOAT_MAX;
+	/**
+	 * Get debt summary for a user.
+	 */
+	public function getSummary(string $userId): array {
+		$debts = $this->getDebts($userId);
 
-        foreach ($debts as $debt) {
-            // Calculate balance as of today (stored balance minus future transactions)
-            $storedBalance = (float) $debt->getBalance();
-            $futureChange = $futureChanges[$debt->getId()] ?? 0;
-            $signedBalance = $storedBalance - $futureChange;
-            if ($signedBalance >= 0) {
-                // Paid off, or in credit — not a debt to plan a payoff for (#353)
-                continue;
-            }
-            $balance = abs($signedBalance);
+		// Get future transaction adjustments to calculate balance as of today
+		// (the user's: a payment dated it is already in the stored balance)
+		$today = $this->userClock?->today($userId) ?? date('Y-m-d');
+		$futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
 
-            // Use MoneyCalculator for precise accumulation
-            $totalBalance = MoneyCalculator::add($totalBalance, (string) $balance);
+		$totalBalance = '0.00';
+		$totalMinimumPayment = '0.00';
+		$highestRate = 0.0;
+		$lowestBalance = PHP_FLOAT_MAX;
 
-            $minPayment = (string) ($debt->getMinimumPayment() ?? 0);
-            $totalMinimumPayment = MoneyCalculator::add($totalMinimumPayment, $minPayment);
+		foreach ($debts as $debt) {
+			// Calculate balance as of today (stored balance minus future transactions)
+			$storedBalance = (float)$debt->getBalance();
+			$futureChange = $futureChanges[$debt->getId()] ?? 0;
+			$signedBalance = $storedBalance - $futureChange;
+			if ($signedBalance >= 0) {
+				// Paid off, or in credit — not a debt to plan a payoff for (#353)
+				continue;
+			}
+			$balance = $this->toBase(abs($signedBalance), $debt, $userId);
 
-            $rate = (float) ($debt->getInterestRate() ?? 0);
-            if ($rate > $highestRate) {
-                $highestRate = $rate;
-            }
-            if ($balance < $lowestBalance) {
-                $lowestBalance = $balance;
-            }
-        }
+			// Use MoneyCalculator for precise accumulation
+			$totalBalance = MoneyCalculator::add($totalBalance, $balance, 8);
 
-        // Count active debts (those with balance > 0 after adjustment)
-        $activeDebtCount = 0;
-        foreach ($debts as $debt) {
-            $storedBal = (float) $debt->getBalance();
-            $futureChg = $futureChanges[$debt->getId()] ?? 0;
-            if (abs($storedBal - $futureChg) > 0) {
-                $activeDebtCount++;
-            }
-        }
+			$minPayment = $this->toBase((float)($debt->getMinimumPayment() ?? 0), $debt, $userId);
+			$totalMinimumPayment = MoneyCalculator::add($totalMinimumPayment, $minPayment, 8);
 
-        return [
-            'totalBalance' => MoneyCalculator::toFloat($totalBalance),
-            'totalMinimumPayment' => MoneyCalculator::toFloat($totalMinimumPayment),
-            'debtCount' => $activeDebtCount,
-            'highestInterestRate' => round($highestRate, 2),
-            'lowestBalance' => $lowestBalance === PHP_FLOAT_MAX ? 0 : round($lowestBalance, 2),
-        ];
-    }
+			$rate = (float)($debt->getInterestRate() ?? 0);
+			if ($rate > $highestRate) {
+				$highestRate = $rate;
+			}
+			if ($balance < $lowestBalance) {
+				$lowestBalance = $balance;
+			}
+		}
 
-    /**
-     * Calculate payoff plan using the specified strategy.
-     *
-     * @param string $userId User ID
-     * @param string $strategy 'avalanche' or 'snowball'
-     * @param float|null $extraPayment Extra monthly payment beyond minimums
-     * @param int[]|null $selectedDebtIds Limit simulation to these debt account IDs (null = all)
-     * @param float $lumpSum One-time extra payment applied in $lumpSumMonth
-     * @param int $lumpSumMonth Month number (1-based) in which to apply the lump sum
-     * @param array<string,float>|null $rateOverrides Map of debt ID (string) to override APR percentage
-     */
-    public function calculatePayoffPlan(
-        string $userId,
-        string $strategy = 'avalanche',
-        ?float $extraPayment = null,
-        ?array $selectedDebtIds = null,
-        float $lumpSum = 0,
-        int $lumpSumMonth = 1,
-        ?array $rateOverrides = null
-    ): array {
-        $debts = $this->getDebts($userId);
-        $extraPayment = $extraPayment ?? 0;
+		// Count active debts (those with balance > 0 after adjustment)
+		$activeDebtCount = 0;
+		foreach ($debts as $debt) {
+			$storedBal = (float)$debt->getBalance();
+			$futureChg = $futureChanges[$debt->getId()] ?? 0;
+			if (abs($storedBal - $futureChg) > 0) {
+				$activeDebtCount++;
+			}
+		}
 
-        // Get future transaction adjustments to calculate balance as of today
-        $today = date('Y-m-d');
-        $futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
+		return [
+			'totalBalance' => round(MoneyCalculator::toFloat($totalBalance), 2),
+			'totalMinimumPayment' => round(MoneyCalculator::toFloat($totalMinimumPayment), 2),
+			'debtCount' => $activeDebtCount,
+			'highestInterestRate' => round($highestRate, 2),
+			'lowestBalance' => $lowestBalance === PHP_FLOAT_MAX ? 0 : round($lowestBalance, 2),
+			// The currency the amounts are in
+			'currency' => $this->baseCurrency($userId),
+		];
+	}
 
-        // Filter to debts with balance > 0 (after adjustment)
-        $activeDebts = array_filter($debts, function($d) use ($futureChanges) {
-            $storedBalance = (float) $d->getBalance();
-            $futureChange = $futureChanges[$d->getId()] ?? 0;
-            return abs($storedBalance - $futureChange) > 0;
-        });
+	/**
+	 * Calculate payoff plan using the specified strategy.
+	 *
+	 * @param string $userId User ID
+	 * @param string $strategy 'avalanche' or 'snowball'
+	 * @param float|null $extraPayment Extra monthly payment beyond minimums
+	 * @param int[]|null $selectedDebtIds Limit simulation to these debt account IDs (null = all)
+	 * @param float $lumpSum One-time extra payment applied in $lumpSumMonth
+	 * @param int $lumpSumMonth Month number (1-based) in which to apply the lump sum
+	 * @param array<string,float>|null $rateOverrides Map of debt ID (string) to override APR percentage
+	 */
+	public function calculatePayoffPlan(
+		string $userId,
+		string $strategy = 'avalanche',
+		?float $extraPayment = null,
+		?array $selectedDebtIds = null,
+		float $lumpSum = 0,
+		int $lumpSumMonth = 1,
+		?array $rateOverrides = null,
+	): array {
+		$debts = $this->getDebts($userId);
+		$extraPayment = $extraPayment ?? 0;
 
-        if (empty($activeDebts)) {
-            return [
-                'strategy' => $strategy,
-                'extraPayment' => $extraPayment,
-                'debts' => [],
-                'timeline' => [],
-                'totalMonths' => 0,
-                'totalInterest' => 0,
-                'totalPaid' => 0,
-                'payoffDate' => null,
-            ];
-        }
+		// Get future transaction adjustments to calculate balance as of today
+		// (the user's: a payment dated it is already in the stored balance)
+		$today = $this->userClock?->today($userId) ?? date('Y-m-d');
+		$futureChanges = $this->transactionMapper->getNetChangeAfterDateBatch($userId, $today);
 
-        // Build debt data structure
-        $debtData = [];
-        foreach ($activeDebts as $debt) {
-            // Calculate balance as of today
-            $storedBalance = (float) $debt->getBalance();
-            $futureChange = $futureChanges[$debt->getId()] ?? 0;
-            $signedBalance = $storedBalance - $futureChange;
-            if ($signedBalance >= 0) {
-                // Paid off, or in credit — not a debt to plan a payoff for (#353)
-                continue;
-            }
-            $balance = abs($signedBalance);
-            $minimumPayment = (float) ($debt->getMinimumPayment() ?? 25); // Default $25 minimum
-            $interestRate = (float) ($debt->getInterestRate() ?? 0) / 100; // Convert percentage to decimal
+		// Filter to debts with balance > 0 (after adjustment)
+		$activeDebts = array_filter($debts, function ($d) use ($futureChanges) {
+			$storedBalance = (float)$d->getBalance();
+			$futureChange = $futureChanges[$d->getId()] ?? 0;
+			return abs($storedBalance - $futureChange) > 0;
+		});
 
-            // Minimum payment should be at least enough to cover monthly interest + some principal
-            $monthlyInterest = $balance * ($interestRate / 12);
-            if ($minimumPayment <= $monthlyInterest && $interestRate > 0) {
-                $minimumPayment = $monthlyInterest + 10; // Ensure progress
-            }
+		if (empty($activeDebts)) {
+			return [
+				'strategy' => $strategy,
+				'extraPayment' => $extraPayment,
+				'debts' => [],
+				'timeline' => [],
+				'totalMonths' => 0,
+				'totalInterest' => 0,
+				'totalPaid' => 0,
+				'payoffDate' => null,
+			];
+		}
 
-            $debtData[] = [
-                'id' => $debt->getId(),
-                'name' => $debt->getName(),
-                'type' => $debt->getType(),
-                'balance' => $balance,
-                'originalBalance' => $balance,
-                'minimumPayment' => $minimumPayment,
-                'interestRate' => $interestRate,
-                'monthlyRate' => $interestRate / 12,
-                'interestPaid' => 0,
-                'paidOff' => false,
-                'payoffMonth' => null,
-            ];
-        }
+		// Build debt data structure
+		$debtData = [];
+		foreach ($activeDebts as $debt) {
+			// Calculate balance as of today
+			$storedBalance = (float)$debt->getBalance();
+			$futureChange = $futureChanges[$debt->getId()] ?? 0;
+			$signedBalance = $storedBalance - $futureChange;
+			if ($signedBalance >= 0) {
+				// Paid off, or in credit — not a debt to plan a payoff for (#353)
+				continue;
+			}
+			// The plan runs in the base currency (see toBase()); each debt
+			// keeps its own balance in its own currency for showing beside it
+			$nativeBalance = abs($signedBalance);
+			$balance = $this->toBase($nativeBalance, $debt, $userId);
+			$minimumPayment = $debt->getMinimumPayment() !== null
+				? $this->toBase((float)$debt->getMinimumPayment(), $debt, $userId)
+				: 25.0; // Default minimum, in the base currency
+			$interestRate = (float)($debt->getInterestRate() ?? 0) / 100; // Convert percentage to decimal
 
-        // Filter to selected debts if specified
-        if ($selectedDebtIds !== null) {
-            $debtData = array_values(array_filter($debtData, function ($debt) use ($selectedDebtIds) {
-                return in_array($debt['id'], $selectedDebtIds);
-            }));
-        }
+			// Minimum payment should be at least enough to cover monthly interest + some principal
+			$monthlyInterest = $balance * ($interestRate / 12);
+			if ($minimumPayment <= $monthlyInterest && $interestRate > 0) {
+				$minimumPayment = $monthlyInterest + 10; // Ensure progress
+			}
 
-        // Apply rate overrides
-        if ($rateOverrides !== null) {
-            foreach ($debtData as &$debt) {
-                $idStr = (string)$debt['id'];
-                if (isset($rateOverrides[$idStr])) {
-                    $debt['interestRate'] = (float)$rateOverrides[$idStr] / 100;
-                    $debt['monthlyRate'] = $debt['interestRate'] / 12;
-                }
-            }
-            unset($debt);
-        }
+			$debtData[] = [
+				'id' => $debt->getId(),
+				'name' => $debt->getName(),
+				'type' => $debt->getType(),
+				'balance' => $balance,
+				'originalBalance' => $balance,
+				'currency' => $debt->getCurrency() ?: $this->baseCurrency($userId),
+				'nativeBalance' => $nativeBalance,
+				'minimumPayment' => $minimumPayment,
+				'interestRate' => $interestRate,
+				'monthlyRate' => $interestRate / 12,
+				'interestPaid' => 0,
+				'paidOff' => false,
+				'payoffMonth' => null,
+			];
+		}
 
-        if (empty($debtData)) {
-            return [
-                'strategy' => $strategy,
-                'extraPayment' => $extraPayment,
-                'debts' => [],
-                'timeline' => [],
-                'totalMonths' => 0,
-                'totalInterest' => 0,
-                'totalPaid' => 0,
-                'payoffDate' => null,
-            ];
-        }
+		// Filter to selected debts if specified
+		if ($selectedDebtIds !== null) {
+			$debtData = array_values(array_filter($debtData, function ($debt) use ($selectedDebtIds) {
+				return in_array($debt['id'], $selectedDebtIds);
+			}));
+		}
 
-        // Sort based on strategy
-        $debtData = $this->sortByStrategy($debtData, $strategy);
+		// Apply rate overrides
+		if ($rateOverrides !== null) {
+			foreach ($debtData as &$debt) {
+				$idStr = (string)$debt['id'];
+				if (isset($rateOverrides[$idStr])) {
+					$debt['interestRate'] = (float)$rateOverrides[$idStr] / 100;
+					$debt['monthlyRate'] = $debt['interestRate'] / 12;
+				}
+			}
+			unset($debt);
+		}
 
-        // Simulate payoff
-        $timeline = [];
-        $month = 0;
-        $totalInterest = 0;
-        $totalPaid = 0;
+		if (empty($debtData)) {
+			return [
+				'strategy' => $strategy,
+				'extraPayment' => $extraPayment,
+				'debts' => [],
+				'timeline' => [],
+				'totalMonths' => 0,
+				'totalInterest' => 0,
+				'totalPaid' => 0,
+				'payoffDate' => null,
+			];
+		}
 
-        while ($this->hasActiveDebts($debtData) && $month < self::MAX_MONTHS) {
-            $month++;
-            $monthData = ['month' => $month, 'payments' => [], 'debtsPaidOff' => []];
-            $monthlyExtra = $extraPayment;
-            if ($lumpSum > 0 && $month === $lumpSumMonth) {
-                $monthlyExtra += $lumpSum;
-            }
-            $availableExtra = $monthlyExtra;
+		// Sort based on strategy
+		$debtData = $this->sortByStrategy($debtData, $strategy);
 
-            // Apply interest and minimum payments first
-            foreach ($debtData as &$debt) {
-                if ($debt['paidOff']) {
-                    continue;
-                }
+		// Simulate payoff
+		$timeline = [];
+		$month = 0;
+		$totalInterest = 0;
+		$totalPaid = 0;
 
-                // Apply monthly interest
-                $interest = $debt['balance'] * $debt['monthlyRate'];
-                $debt['balance'] += $interest;
-                $debt['interestPaid'] += $interest;
-                $totalInterest += $interest;
+		// What the plan pays every month until everything is paid: every
+		// debt's minimum plus the extra. A paid-off debt's minimum is not
+		// saved but rolls on to the next debt in the strategy's order, which
+		// is what a snowball or avalanche is. The freed minimum used to count
+		// only in the month the debt was cleared, so the monthly payment
+		// shrank with every debt paid off (75, then 50, then 25) and the
+		// last debt took years longer than the plan's own headline payment.
+		$monthlyBudget = array_sum(array_column($debtData, 'minimumPayment')) + $extraPayment;
 
-                // Apply minimum payment
-                $payment = min($debt['minimumPayment'], $debt['balance']);
-                $debt['balance'] -= $payment;
-                $totalPaid += $payment;
+		while ($this->hasActiveDebts($debtData) && $month < self::MAX_MONTHS) {
+			$month++;
+			$monthData = ['month' => $month, 'payments' => [], 'debtsPaidOff' => []];
+			$available = $monthlyBudget;
+			if ($lumpSum > 0 && $month === $lumpSumMonth) {
+				$available += $lumpSum;
+			}
 
-                $monthData['payments'][] = [
-                    'debtId' => $debt['id'],
-                    'name' => $debt['name'],
-                    'payment' => round($payment, 2),
-                    'interest' => round($interest, 2),
-                    'remainingBalance' => round($debt['balance'], 2),
-                    'type' => 'minimum',
-                ];
+			// Apply interest and minimum payments first. The minimums of the
+			// debts still open never add up to more than the budget, which
+			// holds every debt's minimum
+			foreach ($debtData as &$debt) {
+				if ($debt['paidOff']) {
+					continue;
+				}
 
-                // Check if paid off
-                if ($debt['balance'] <= 0.01) {
-                    $debt['paidOff'] = true;
-                    $debt['payoffMonth'] = $month;
-                    $debt['balance'] = 0;
-                    $monthData['debtsPaidOff'][] = $debt['name'];
-                    // Freed minimum payment goes to extra pool
-                    $availableExtra += $debt['minimumPayment'];
-                }
-            }
-            unset($debt);
+				// Apply monthly interest
+				$interest = $debt['balance'] * $debt['monthlyRate'];
+				$debt['balance'] += $interest;
+				$debt['interestPaid'] += $interest;
+				$totalInterest += $interest;
 
-            // Apply extra payments to priority debt (first non-paid-off)
-            foreach ($debtData as &$debt) {
-                if ($debt['paidOff'] || $availableExtra <= 0) {
-                    continue;
-                }
+				// Apply minimum payment
+				$payment = min($debt['minimumPayment'], $debt['balance']);
+				$debt['balance'] -= $payment;
+				$totalPaid += $payment;
+				$available -= $payment;
 
-                $extraToApply = min($availableExtra, $debt['balance']);
-                if ($extraToApply > 0) {
-                    $debt['balance'] -= $extraToApply;
-                    $totalPaid += $extraToApply;
-                    $availableExtra -= $extraToApply;
+				$monthData['payments'][] = [
+					'debtId' => $debt['id'],
+					'name' => $debt['name'],
+					'payment' => round($payment, 2),
+					'interest' => round($interest, 2),
+					'remainingBalance' => round($debt['balance'], 2),
+					'type' => 'minimum',
+				];
 
-                    $monthData['payments'][] = [
-                        'debtId' => $debt['id'],
-                        'name' => $debt['name'],
-                        'payment' => round($extraToApply, 2),
-                        'remainingBalance' => round($debt['balance'], 2),
-                        'type' => 'extra',
-                    ];
+				// Check if paid off
+				if ($debt['balance'] <= 0.01) {
+					$debt['paidOff'] = true;
+					$debt['payoffMonth'] = $month;
+					$debt['balance'] = 0;
+					$monthData['debtsPaidOff'][] = $debt['name'];
+				}
+			}
+			unset($debt);
 
-                    if ($debt['balance'] <= 0.01) {
-                        $debt['paidOff'] = true;
-                        $debt['payoffMonth'] = $month;
-                        $debt['balance'] = 0;
-                        if (!in_array($debt['name'], $monthData['debtsPaidOff'])) {
-                            $monthData['debtsPaidOff'][] = $debt['name'];
-                        }
-                        $availableExtra += $debt['minimumPayment'];
-                    }
-                }
-                break; // Only apply extra to one debt at a time
-            }
-            unset($debt);
+			// The rest of the budget (the extra, freed minimums and whatever a
+			// debt cleared with less than its minimum left over) goes to the
+			// priority debt, and on to the next when that one is cleared: the
+			// month pays its whole budget and never more
+			foreach ($debtData as &$debt) {
+				if ($available <= 0.005) {
+					break;
+				}
+				if ($debt['paidOff']) {
+					continue;
+				}
 
-            // Re-sort after each payoff for proper prioritization
-            if (!empty($monthData['debtsPaidOff'])) {
-                $debtData = $this->sortByStrategy($debtData, $strategy);
-            }
+				$extraToApply = min($available, $debt['balance']);
+				$debt['balance'] -= $extraToApply;
+				$totalPaid += $extraToApply;
+				$available -= $extraToApply;
 
-            $timeline[] = $monthData;
-        }
+				$monthData['payments'][] = [
+					'debtId' => $debt['id'],
+					'name' => $debt['name'],
+					'payment' => round($extraToApply, 2),
+					'remainingBalance' => round($debt['balance'], 2),
+					'type' => 'extra',
+				];
 
-        // Calculate payoff date
-        $payoffDate = null;
-        if ($month < self::MAX_MONTHS) {
-            $payoffDate = date('Y-m-d', strtotime("+{$month} months"));
-        }
+				if ($debt['balance'] <= 0.01) {
+					$debt['paidOff'] = true;
+					$debt['payoffMonth'] = $month;
+					$debt['balance'] = 0;
+					if (!in_array($debt['name'], $monthData['debtsPaidOff'])) {
+						$monthData['debtsPaidOff'][] = $debt['name'];
+					}
+				}
+			}
+			unset($debt);
 
-        // Build debt results
-        $debtResults = [];
-        foreach ($debtData as $debt) {
-            $debtResults[] = [
-                'id' => $debt['id'],
-                'name' => $debt['name'],
-                'type' => $debt['type'],
-                'originalBalance' => round($debt['originalBalance'], 2),
-                'interestRate' => round($debt['interestRate'] * 100, 2),
-                'interestPaid' => round($debt['interestPaid'], 2),
-                'payoffMonth' => $debt['payoffMonth'],
-            ];
-        }
+			// Each entry's remaining balance is the debt's at the end of the
+			// month, whichever of its payments the charts read
+			$monthEnd = [];
+			foreach ($debtData as $debt) {
+				$monthEnd[$debt['id']] = round($debt['balance'], 2);
+			}
+			foreach ($monthData['payments'] as &$entry) {
+				$entry['remainingBalance'] = $monthEnd[$entry['debtId']];
+			}
+			unset($entry);
 
-        return [
-            'strategy' => $strategy,
-            'strategyName' => $strategy === 'avalanche' ? 'Debt Avalanche' : 'Debt Snowball',
-            'strategyDescription' => $strategy === 'avalanche'
-                ? 'Pay highest interest rate debts first (saves most money)'
-                : 'Pay smallest balance debts first (quick wins for motivation)',
-            'extraPayment' => $extraPayment,
-            'debts' => $debtResults,
-            'totalMonths' => $month,
-            'totalInterest' => round($totalInterest, 2),
-            'totalPaid' => round($totalPaid, 2),
-            'payoffDate' => $payoffDate,
-            'timeline' => $timeline,
-        ];
-    }
+			// Re-sort after each payoff for proper prioritization
+			if (!empty($monthData['debtsPaidOff'])) {
+				$debtData = $this->sortByStrategy($debtData, $strategy);
+			}
 
-    /**
-     * Compare both strategies to help user decide.
-     */
-    public function compareStrategies(string $userId, ?float $extraPayment = null): array {
-        $avalanche = $this->calculatePayoffPlan($userId, 'avalanche', $extraPayment);
-        $snowball = $this->calculatePayoffPlan($userId, 'snowball', $extraPayment);
+			$timeline[] = $monthData;
+		}
 
-        // Remove timeline from comparison (too verbose)
-        unset($avalanche['timeline'], $snowball['timeline']);
+		// Calculate payoff date
+		$payoffDate = null;
+		if ($month < self::MAX_MONTHS) {
+			$payoffDate = date('Y-m-d', strtotime("+{$month} months"));
+		}
 
-        $interestSaved = $snowball['totalInterest'] - $avalanche['totalInterest'];
-        $timeDifference = $snowball['totalMonths'] - $avalanche['totalMonths'];
+		// Build debt results
+		$debtResults = [];
+		foreach ($debtData as $debt) {
+			$debtResults[] = [
+				'id' => $debt['id'],
+				'name' => $debt['name'],
+				'type' => $debt['type'],
+				'originalBalance' => round($debt['originalBalance'], 2),
+				// What it owes in its own currency, which the plan's figures
+				// (all in the base currency) are converted from
+				'currency' => $debt['currency'],
+				'nativeBalance' => round($debt['nativeBalance'], Currency::decimalsFor($debt['currency'])),
+				// What the plan pays on it each month before any extra: the
+				// account's minimum, 25 when none is set, or more when that
+				// would not cover the interest. The Debt Payoff page adds these
+				// up for its Monthly Payment, which read 0 without them.
+				'minimumPayment' => round($debt['minimumPayment'], 2),
+				'interestRate' => round($debt['interestRate'] * 100, 2),
+				'interestPaid' => round($debt['interestPaid'], 2),
+				'payoffMonth' => $debt['payoffMonth'],
+			];
+		}
 
-        return [
-            'avalanche' => $avalanche,
-            'snowball' => $snowball,
-            'comparison' => [
-                'interestSavedByAvalanche' => round($interestSaved, 2),
-                'monthsFasterByAvalanche' => $timeDifference,
-                'recommendation' => $interestSaved > 50
-                    ? 'avalanche'
-                    : ($interestSaved < -50 ? 'snowball' : 'either'),
-                'explanation' => $this->getRecommendationExplanation($interestSaved, $timeDifference),
-            ],
-        ];
-    }
+		return [
+			'strategy' => $strategy,
+			// The currency every amount of the plan is in
+			'currency' => $this->baseCurrency($userId),
+			'strategyName' => $strategy === 'avalanche' ? 'Debt Avalanche' : 'Debt Snowball',
+			'strategyDescription' => $strategy === 'avalanche'
+				? 'Pay highest interest rate debts first (saves most money)'
+				: 'Pay smallest balance debts first (quick wins for motivation)',
+			'extraPayment' => $extraPayment,
+			'debts' => $debtResults,
+			'totalMonths' => $month,
+			'totalInterest' => round($totalInterest, 2),
+			'totalPaid' => round($totalPaid, 2),
+			'payoffDate' => $payoffDate,
+			'timeline' => $timeline,
+		];
+	}
 
-    /**
-     * Compare actual current debt balance against the projected balance from the active scenario.
-     */
-    public function getProgressVsActive(string $userId): array {
-        if ($this->scenarioMapper === null) {
-            return ['hasActiveScenario' => false];
-        }
+	/**
+	 * Compare both strategies to help user decide.
+	 */
+	public function compareStrategies(string $userId, ?float $extraPayment = null): array {
+		$avalanche = $this->calculatePayoffPlan($userId, 'avalanche', $extraPayment);
+		$snowball = $this->calculatePayoffPlan($userId, 'snowball', $extraPayment);
 
-        $scenario = $this->scenarioMapper->findActive($userId);
-        if ($scenario === null) {
-            return ['hasActiveScenario' => false];
-        }
+		// Remove timeline from comparison (too verbose)
+		unset($avalanche['timeline'], $snowball['timeline']);
 
-        $monthsElapsed = max(0, (int)round(
-            (time() - strtotime($scenario->getCreatedAt())) / (30.44 * 86400)
-        ));
+		$interestSaved = $snowball['totalInterest'] - $avalanche['totalInterest'];
+		$timeDifference = $snowball['totalMonths'] - $avalanche['totalMonths'];
 
-        // Resolve selected debt IDs — empty array means "all", so pass null
-        $parsedIds = $scenario->getParsedSelectedDebtIds();
-        $selectedDebtIds = !empty($parsedIds) ? $parsedIds : null;
+		return [
+			'avalanche' => $avalanche,
+			'snowball' => $snowball,
+			'comparison' => [
+				'interestSavedByAvalanche' => round($interestSaved, 2),
+				'monthsFasterByAvalanche' => $timeDifference,
+				'recommendation' => $interestSaved > 50
+					? 'avalanche'
+					: ($interestSaved < -50 ? 'snowball' : 'either'),
+				'explanation' => $this->getRecommendationExplanation($interestSaved, $timeDifference),
+			],
+		];
+	}
 
-        // Resolve rate overrides — empty array means none
-        $parsedOverrides = $scenario->getParsedRateOverrides();
-        $rateOverrides = !empty($parsedOverrides) ? $parsedOverrides : null;
+	/**
+	 * Compare actual current debt balance against the projected balance from the active scenario.
+	 */
+	public function getProgressVsActive(string $userId): array {
+		if ($this->scenarioMapper === null) {
+			return ['hasActiveScenario' => false];
+		}
 
-        // Calculate plan using scenario params
-        $plan = $this->calculatePayoffPlan(
-            $userId,
-            $scenario->getStrategy(),
-            $scenario->getExtraPayment(),
-            $selectedDebtIds,
-            $scenario->getLumpSum(),
-            $scenario->getLumpSumMonth(),
-            $rateOverrides
-        );
+		$scenario = $this->scenarioMapper->findActive($userId);
+		if ($scenario === null) {
+			return ['hasActiveScenario' => false];
+		}
 
-        // Find projected balance at current month from timeline
-        $projectedBalance = 0;
-        if ($monthsElapsed > 0 && $monthsElapsed <= count($plan['timeline'])) {
-            $entry = $plan['timeline'][$monthsElapsed - 1] ?? null;
-            if ($entry) {
-                $balancesByDebt = [];
-                foreach ($entry['payments'] as $payment) {
-                    $balancesByDebt[$payment['debtId']] = $payment['remainingBalance'];
-                }
-                $projectedBalance = array_sum($balancesByDebt);
-            }
-        } elseif ($monthsElapsed === 0) {
-            // Just started — projected is original total
-            $projectedBalance = $scenario->getOriginalTotalDebt();
-        }
-        // If past the end of the timeline, projected is 0 (fully paid off)
+		$monthsElapsed = max(0, (int)round(
+			(time() - strtotime($scenario->getCreatedAt())) / (30.44 * 86400)
+		));
 
-        // Get actual current total debt
-        $summary = $this->getSummary($userId);
-        $actualBalance = abs($summary['totalBalance']);
+		// Resolve selected debt IDs — empty array means "all", so pass null
+		$parsedIds = $scenario->getParsedSelectedDebtIds();
+		$selectedDebtIds = !empty($parsedIds) ? $parsedIds : null;
 
-        $difference = $projectedBalance - $actualBalance;
-        $tolerance = $scenario->getOriginalTotalDebt() * 0.05;
+		// Resolve rate overrides — empty array means none
+		$parsedOverrides = $scenario->getParsedRateOverrides();
+		$rateOverrides = !empty($parsedOverrides) ? $parsedOverrides : null;
 
-        if ($difference > $tolerance) {
-            $status = 'ahead';
-        } elseif ($difference < -$tolerance) {
-            $status = 'behind';
-        } else {
-            $status = 'on_track';
-        }
+		// Calculate plan using scenario params
+		$plan = $this->calculatePayoffPlan(
+			$userId,
+			$scenario->getStrategy(),
+			$scenario->getExtraPayment(),
+			$selectedDebtIds,
+			$scenario->getLumpSum(),
+			$scenario->getLumpSumMonth(),
+			$rateOverrides
+		);
 
-        return [
-            'hasActiveScenario' => true,
-            'scenarioName' => $scenario->getName(),
-            'monthsElapsed' => $monthsElapsed,
-            'projectedBalance' => round($projectedBalance, 2),
-            'actualBalance' => round($actualBalance, 2),
-            'difference' => round($difference, 2),
-            'status' => $status,
-            'projectedPayoffDate' => $plan['payoffDate'],
-            'originalTotalDebt' => $scenario->getOriginalTotalDebt(),
-            'totalMonths' => $plan['totalMonths'],
-        ];
-    }
+		// Find projected balance at current month from timeline
+		$projectedBalance = 0;
+		if ($monthsElapsed > 0 && $monthsElapsed <= count($plan['timeline'])) {
+			$entry = $plan['timeline'][$monthsElapsed - 1] ?? null;
+			if ($entry) {
+				$balancesByDebt = [];
+				foreach ($entry['payments'] as $payment) {
+					$balancesByDebt[$payment['debtId']] = $payment['remainingBalance'];
+				}
+				$projectedBalance = array_sum($balancesByDebt);
+			}
+		} elseif ($monthsElapsed === 0) {
+			// Just started — projected is original total
+			$projectedBalance = $scenario->getOriginalTotalDebt();
+		}
+		// If past the end of the timeline, projected is 0 (fully paid off)
 
-    /**
-     * Check if account is a debt.
-     */
-    private function isDebt(Account $account): bool {
-        return in_array($account->getType(), self::LIABILITY_TYPES, true);
-    }
+		// Get actual current total debt
+		$summary = $this->getSummary($userId);
+		$actualBalance = abs($summary['totalBalance']);
 
-    /**
-     * Sort debts by strategy.
-     */
-    private function sortByStrategy(array $debtData, string $strategy): array {
-        usort($debtData, function ($a, $b) use ($strategy) {
-            // Paid-off debts go to end
-            if ($a['paidOff'] && !$b['paidOff']) {
-                return 1;
-            }
-            if (!$a['paidOff'] && $b['paidOff']) {
-                return -1;
-            }
+		$difference = $projectedBalance - $actualBalance;
+		$tolerance = $scenario->getOriginalTotalDebt() * 0.05;
 
-            if ($strategy === 'avalanche') {
-                // Highest interest rate first
-                return $b['interestRate'] <=> $a['interestRate'];
-            } else {
-                // Snowball: Lowest balance first
-                return $a['balance'] <=> $b['balance'];
-            }
-        });
+		if ($difference > $tolerance) {
+			$status = 'ahead';
+		} elseif ($difference < -$tolerance) {
+			$status = 'behind';
+		} else {
+			$status = 'on_track';
+		}
 
-        return $debtData;
-    }
+		return [
+			'hasActiveScenario' => true,
+			'scenarioName' => $scenario->getName(),
+			'monthsElapsed' => $monthsElapsed,
+			'projectedBalance' => round($projectedBalance, 2),
+			'actualBalance' => round($actualBalance, 2),
+			'difference' => round($difference, 2),
+			'status' => $status,
+			'projectedPayoffDate' => $plan['payoffDate'],
+			'originalTotalDebt' => $scenario->getOriginalTotalDebt(),
+			'totalMonths' => $plan['totalMonths'],
+		];
+	}
 
-    /**
-     * Check if there are still debts to pay.
-     */
-    private function hasActiveDebts(array $debtData): bool {
-        foreach ($debtData as $debt) {
-            if (!$debt['paidOff']) {
-                return true;
-            }
-        }
-        return false;
-    }
+	/**
+	 * Check if account is a debt.
+	 */
+	private function isDebt(Account $account): bool {
+		return in_array($account->getType(), self::LIABILITY_TYPES, true);
+	}
 
-    /**
-     * Get explanation for recommendation.
-     */
-    private function getRecommendationExplanation(float $interestSaved, int $timeDifference): string {
-        if ($interestSaved > 500) {
-            return 'Strongly recommended unless you need quick wins.';
-        } elseif ($interestSaved > 50) {
-            return 'Both methods work, but avalanche is more cost-effective.';
-        } elseif ($interestSaved < -50) {
-            return 'Snowball saves more due to your debt structure. Go with snowball!';
-        } else {
-            return 'Both methods are nearly identical for your debts. Choose based on preference.';
-        }
-    }
+	/**
+	 * Sort debts by strategy.
+	 */
+	private function sortByStrategy(array $debtData, string $strategy): array {
+		usort($debtData, function ($a, $b) use ($strategy) {
+			// Paid-off debts go to end
+			if ($a['paidOff'] && !$b['paidOff']) {
+				return 1;
+			}
+			if (!$a['paidOff'] && $b['paidOff']) {
+				return -1;
+			}
+
+			if ($strategy === 'avalanche') {
+				// Highest interest rate first
+				return $b['interestRate'] <=> $a['interestRate'];
+			} else {
+				// Snowball: Lowest balance first
+				return $a['balance'] <=> $b['balance'];
+			}
+		});
+
+		return $debtData;
+	}
+
+	/**
+	 * Check if there are still debts to pay.
+	 */
+	private function hasActiveDebts(array $debtData): bool {
+		foreach ($debtData as $debt) {
+			if (!$debt['paidOff']) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Get explanation for recommendation.
+	 */
+	private function getRecommendationExplanation(float $interestSaved, int $timeDifference): string {
+		if ($interestSaved > 500) {
+			return 'Strongly recommended unless you need quick wins.';
+		} elseif ($interestSaved > 50) {
+			return 'Both methods work, but avalanche is more cost-effective.';
+		} elseif ($interestSaved < -50) {
+			return 'Snowball saves more due to your debt structure. Go with snowball!';
+		} else {
+			return 'Both methods are nearly identical for your debts. Choose based on preference.';
+		}
+	}
 }

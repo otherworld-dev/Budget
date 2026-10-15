@@ -16,38 +16,38 @@ use OCP\Migration\SimpleMigrationStep;
  * don't re-import them.
  */
 class Version001000068Date20260529 extends SimpleMigrationStep {
-    public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
-        /** @var ISchemaWrapper $schema */
-        $schema = $schemaClosure();
+	public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
+		/** @var ISchemaWrapper $schema */
+		$schema = $schemaClosure();
 
-        if (!$schema->hasTable('budget_dismiss_imp')) {
-            $table = $schema->createTable('budget_dismiss_imp');
+		if (!$schema->hasTable('budget_dismiss_imp')) {
+			$table = $schema->createTable('budget_dismiss_imp');
 
-            $table->addColumn('id', Types::BIGINT, [
-                'autoincrement' => true,
-                'notnull' => true,
-                'length' => 8,
-            ]);
+			$table->addColumn('id', Types::BIGINT, [
+				'autoincrement' => true,
+				'notnull' => true,
+				'length' => 8,
+			]);
 
-            $table->addColumn('account_id', Types::BIGINT, [
-                'notnull' => true,
-            ]);
+			$table->addColumn('account_id', Types::BIGINT, [
+				'notnull' => true,
+			]);
 
-            $table->addColumn('import_id', Types::STRING, [
-                'notnull' => true,
-                'length' => 255,
-            ]);
+			$table->addColumn('import_id', Types::STRING, [
+				'notnull' => true,
+				'length' => 255,
+			]);
 
-            $table->addColumn('dismissed_at', Types::STRING, [
-                'notnull' => true,
-                'length' => 19,
-            ]);
+			$table->addColumn('dismissed_at', Types::STRING, [
+				'notnull' => true,
+				'length' => 19,
+			]);
 
-            $table->setPrimaryKey(['id']);
-            $table->addUniqueIndex(['account_id', 'import_id'], 'bdgt_dismiss_acct_imp');
-            $table->addIndex(['account_id'], 'bdgt_dismiss_acct_idx');
-        }
+			$table->setPrimaryKey(['id']);
+			$table->addUniqueIndex(['account_id', 'import_id'], 'bdgt_dismiss_acct_imp');
+			$table->addIndex(['account_id'], 'bdgt_dismiss_acct_idx');
+		}
 
-        return $schema;
-    }
+		return $schema;
+	}
 }

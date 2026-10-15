@@ -27,27 +27,27 @@ use OCP\AppFramework\Db\Entity;
  * @method void setCreatedAt(string $createdAt)
  */
 class Attachment extends Entity implements JsonSerializable {
-    protected $transactionId;
-    protected $userId;
-    protected $fileId;
-    protected $fileName;
-    protected $mimeType;
-    protected $createdAt;
+	protected $transactionId;
+	protected $userId;
+	protected $fileId;
+	protected $fileName;
+	protected $mimeType;
+	protected $createdAt;
 
-    public function __construct() {
-        $this->addType('id', 'integer');
-        $this->addType('transactionId', 'integer');
-        $this->addType('fileId', 'integer');
-    }
+	public function __construct() {
+		$this->addType('id', 'integer');
+		$this->addType('transactionId', 'integer');
+		$this->addType('fileId', 'integer');
+	}
 
-    public function jsonSerialize(): array {
-        return [
-            'id' => $this->getId(),
-            'transactionId' => $this->getTransactionId(),
-            'fileId' => $this->getFileId(),
-            'fileName' => $this->getFileName(),
-            'mimeType' => $this->getMimeType(),
-            'createdAt' => $this->getCreatedAt(),
-        ];
-    }
+	public function jsonSerialize(): array {
+		return [
+			'id' => $this->getId(),
+			'transactionId' => $this->getTransactionId(),
+			'fileId' => $this->getFileId(),
+			'fileName' => $this->getFileName(),
+			'mimeType' => $this->getMimeType(),
+			'createdAt' => $this->getCreatedAt(),
+		];
+	}
 }

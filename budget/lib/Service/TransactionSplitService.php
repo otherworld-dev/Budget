@@ -8,154 +8,210 @@ use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\TransactionSplit;
 use OCA\Budget\Db\TransactionSplitMapper;
-use OCP\AppFramework\Db\DoesNotExistException;
+use OCP\IDBConnection;
+use OCP\IL10N;
 
 class TransactionSplitService {
-    private TransactionSplitMapper $splitMapper;
-    private TransactionMapper $transactionMapper;
+	private TransactionSplitMapper $splitMapper;
+	private TransactionMapper $transactionMapper;
+	private GranularShareService $granularShareService;
 
-    public function __construct(
-        TransactionSplitMapper $splitMapper,
-        TransactionMapper $transactionMapper
-    ) {
-        $this->splitMapper = $splitMapper;
-        $this->transactionMapper = $transactionMapper;
-    }
+	public function __construct(
+		TransactionSplitMapper $splitMapper,
+		TransactionMapper $transactionMapper,
+		GranularShareService $granularShareService,
+		private ?IDBConnection $db = null,
+		private ?IL10N $l = null,
+	) {
+		$this->splitMapper = $splitMapper;
+		$this->transactionMapper = $transactionMapper;
+		$this->granularShareService = $granularShareService;
+	}
 
-    /**
-     * Get all splits for a transaction.
-     *
-     * @return TransactionSplit[]
-     */
-    public function getSplits(int $transactionId, string $userId): array {
-        // Verify the transaction belongs to the user
-        $this->transactionMapper->find($transactionId, $userId);
-        return $this->splitMapper->findByTransaction($transactionId);
-    }
+	/**
+	 * Get all splits for a transaction.
+	 *
+	 * @return TransactionSplit[]
+	 */
+	public function getSplits(int $transactionId, string $userId): array {
+		// Verify the transaction belongs to the user
+		$this->transactionMapper->find($transactionId, $userId);
+		return $this->splitMapper->findByTransaction($transactionId);
+	}
 
-    /**
-     * Split a transaction into multiple category allocations.
-     *
-     * @param array $splits Array of ['categoryId' => int|null, 'amount' => float, 'description' => string|null]
-     * @return TransactionSplit[]
-     * @throws \InvalidArgumentException If splits don't sum to transaction amount
-     */
-    public function splitTransaction(int $transactionId, string $userId, array $splits): array {
-        // Get the transaction and verify ownership
-        $transaction = $this->transactionMapper->find($transactionId, $userId);
+	/**
+	 * Split a transaction into multiple category allocations.
+	 *
+	 * @param array $splits Array of ['categoryId' => int|null, 'amount' => float, 'description' => string|null]
+	 * @return TransactionSplit[]
+	 * @throws \InvalidArgumentException If splits don't sum to transaction amount
+	 */
+	public function splitTransaction(int $transactionId, string $userId, array $splits): array {
+		// Get the transaction and verify ownership
+		$transaction = $this->transactionMapper->find($transactionId, $userId);
 
-        // Validate split amounts sum to transaction amount
-        $splitTotal = array_reduce($splits, fn($sum, $split) => $sum + ($split['amount'] ?? 0), 0.0);
-        $transactionAmount = (float) $transaction->getAmount();
+		// Every part is checked before anything is written. The old parts are
+		// deleted below, so a part refused after that (the database rejected
+		// a zero amount) left the transaction with some of its parts, or none.
+		// A part may be negative (a coupon line); zero is not an allocation.
+		$amounts = [];
+		foreach ($splits as $i => $splitData) {
+			$amount = $splitData['amount'] ?? null;
+			if (is_string($amount)) {
+				$amount = trim($amount);
+			}
+			if (!is_numeric($amount)) {
+				throw new \InvalidArgumentException($this->t('Split %1$s: amount is required', [$i]));
+			}
+			$amount = MoneyCalculator::plain($amount);
+			// At the column's scale: a part stored as 0.00000000 is empty
+			if (MoneyCalculator::compare($amount, '0', 8) === 0) {
+				throw new \InvalidArgumentException($this->t('Split %1$s: amount cannot be zero', [$i]));
+			}
+			$amounts[$i] = $amount;
+		}
 
-        // Allow small floating point variance
-        if (abs($splitTotal - $transactionAmount) > 0.01) {
-            throw new \InvalidArgumentException(
-                sprintf('Split amounts (%.2f) must equal transaction amount (%.2f)', $splitTotal, $transactionAmount)
-            );
-        }
+		// Validate split amounts sum to transaction amount, allowing a cent of
+		// rounding between the parts and the total
+		$splitTotal = MoneyCalculator::sum($amounts, 8);
+		$transactionAmount = (string)$transaction->getAmount();
+		if (!MoneyCalculator::equals($splitTotal, $transactionAmount, '0.01')) {
+			throw new \InvalidArgumentException(
+				sprintf('Split amounts (%.2f) must equal transaction amount (%.2f)', (float)$splitTotal, (float)$transactionAmount)
+			);
+		}
 
-        // Must have at least 2 splits
-        if (count($splits) < 2) {
-            throw new \InvalidArgumentException('A split transaction must have at least 2 parts');
-        }
+		// Must have at least 2 splits
+		if (count($splits) < 2) {
+			throw new \InvalidArgumentException('A split transaction must have at least 2 parts');
+		}
 
-        // Delete existing splits
-        $this->splitMapper->deleteByTransaction($transactionId);
+		// Every part's category must be one the ledger owner can see ($userId
+		// is the owner: the transaction was found under it above)
+		foreach ($splits as $splitData) {
+			$this->granularShareService->requireUsableCategory($userId, self::categoryIdOf($splitData['categoryId'] ?? null));
+		}
 
-        // Create new splits
-        $createdSplits = [];
-        $now = date('Y-m-d H:i:s');
+		// The old parts go and the new ones arrive together, or not at all
+		$now = date('Y-m-d H:i:s');
+		$this->db?->beginTransaction();
+		try {
+			// Delete existing splits
+			$this->splitMapper->deleteByTransaction($transactionId);
 
-        foreach ($splits as $splitData) {
-            $split = new TransactionSplit();
-            $split->setTransactionId($transactionId);
-            $split->setCategoryId($splitData['categoryId'] ?? null);
-            $split->setAmount((string) ($splitData['amount'] ?? 0));
-            $split->setDescription($splitData['description'] ?? null);
-            $split->setCreatedAt($now);
+			// Create new splits
+			foreach ($splits as $i => $splitData) {
+				$split = new TransactionSplit();
+				$split->setTransactionId($transactionId);
+				$split->setCategoryId(self::categoryIdOf($splitData['categoryId'] ?? null));
+				$split->setAmount($amounts[$i]);
+				$split->setDescription($splitData['description'] ?? null);
+				$split->setCreatedAt($now);
 
-            $createdSplits[] = $this->splitMapper->insert($split);
-        }
+				$this->splitMapper->insert($split);
+			}
 
-        // Mark transaction as split and clear its category
-        $transaction->setIsSplit(true);
-        $transaction->setCategoryId(null);
-        $transaction->setUpdatedAt($now);
-        $this->transactionMapper->update($transaction);
+			// Mark transaction as split and clear its category
+			$transaction->setIsSplit(true);
+			$transaction->setCategoryId(null);
+			$transaction->setUpdatedAt($now);
+			$this->transactionMapper->update($transaction);
 
-        // Fetch splits with category names
-        return $this->splitMapper->findByTransaction($transactionId);
-    }
+			$this->db?->commit();
+		} catch (\Throwable $e) {
+			$this->db?->rollBack();
+			throw $e;
+		}
 
-    /**
-     * Remove splits from a transaction (unsplit).
-     *
-     * @param int|null $categoryId Category to assign to the unsplit transaction
-     */
-    public function unsplitTransaction(int $transactionId, string $userId, ?int $categoryId = null): Transaction {
-        // Get the transaction and verify ownership
-        $transaction = $this->transactionMapper->find($transactionId, $userId);
+		// Fetch splits with category names
+		return $this->splitMapper->findByTransaction($transactionId);
+	}
 
-        if (!$transaction->getIsSplit()) {
-            throw new \InvalidArgumentException('Transaction is not split');
-        }
+	/**
+	 * Remove splits from a transaction (unsplit).
+	 *
+	 * @param int|null $categoryId Category to assign to the unsplit transaction
+	 */
+	public function unsplitTransaction(int $transactionId, string $userId, ?int $categoryId = null): Transaction {
+		// Get the transaction and verify ownership
+		$transaction = $this->transactionMapper->find($transactionId, $userId);
 
-        // Delete all splits
-        $this->splitMapper->deleteByTransaction($transactionId);
+		if (!$transaction->getIsSplit()) {
+			throw new \InvalidArgumentException('Transaction is not split');
+		}
+		$this->granularShareService->requireUsableCategory($userId, $categoryId);
 
-        // Mark transaction as not split and optionally set category
-        $transaction->setIsSplit(false);
-        $transaction->setCategoryId($categoryId);
-        $transaction->setUpdatedAt(date('Y-m-d H:i:s'));
+		// Delete all splits
+		$this->splitMapper->deleteByTransaction($transactionId);
 
-        return $this->transactionMapper->update($transaction);
-    }
+		// Mark transaction as not split and optionally set category
+		$transaction->setIsSplit(false);
+		$transaction->setCategoryId($categoryId);
+		$transaction->setUpdatedAt(date('Y-m-d H:i:s'));
 
-    /**
-     * Update a single split.
-     */
-    public function updateSplit(int $splitId, string $userId, array $data): TransactionSplit {
-        $split = $this->splitMapper->find($splitId);
+		return $this->transactionMapper->update($transaction);
+	}
 
-        // Verify the transaction belongs to the user
-        $transaction = $this->transactionMapper->find($split->getTransactionId(), $userId);
+	/**
+	 * Update a single split.
+	 */
+	public function updateSplit(int $splitId, string $userId, array $data): TransactionSplit {
+		$split = $this->splitMapper->find($splitId);
 
-        // Update fields
-        if (isset($data['categoryId'])) {
-            $split->setCategoryId($data['categoryId'] ?: null);
-        }
-        if (isset($data['amount'])) {
-            // Validate new total
-            $splits = $this->splitMapper->findByTransaction($split->getTransactionId());
-            $newTotal = array_reduce($splits, function($sum, $s) use ($split, $data) {
-                if ($s->getId() === $split->getId()) {
-                    return $sum + $data['amount'];
-                }
-                return $sum + (float) $s->getAmount();
-            }, 0.0);
+		// Verify the transaction belongs to the user
+		$transaction = $this->transactionMapper->find($split->getTransactionId(), $userId);
 
-            if (abs($newTotal - (float) $transaction->getAmount()) > 0.01) {
-                throw new \InvalidArgumentException(
-                    sprintf('Split amounts (%.2f) must equal transaction amount (%.2f)', $newTotal, $transaction->getAmount())
-                );
-            }
+		// Update fields
+		if (isset($data['categoryId'])) {
+			$categoryId = self::categoryIdOf($data['categoryId']);
+			$this->granularShareService->requireUsableCategory($userId, $categoryId);
+			$split->setCategoryId($categoryId);
+		}
+		if (isset($data['amount'])) {
+			// Validate new total
+			$splits = $this->splitMapper->findByTransaction($split->getTransactionId());
+			$newTotal = array_reduce($splits, function ($sum, $s) use ($split, $data) {
+				if ($s->getId() === $split->getId()) {
+					return $sum + $data['amount'];
+				}
+				return $sum + (float)$s->getAmount();
+			}, 0.0);
 
-            $split->setAmount((string) $data['amount']);
-        }
-        if (array_key_exists('description', $data)) {
-            $split->setDescription($data['description']);
-        }
+			if (abs($newTotal - (float)$transaction->getAmount()) > 0.01) {
+				throw new \InvalidArgumentException(
+					sprintf('Split amounts (%.2f) must equal transaction amount (%.2f)', $newTotal, $transaction->getAmount())
+				);
+			}
 
-        return $this->splitMapper->update($split);
-    }
+			$split->setAmount((string)$data['amount']);
+		}
+		if (array_key_exists('description', $data)) {
+			$split->setDescription($data['description']);
+		}
 
-    /**
-     * Get category totals from splits for a list of transactions.
-     *
-     * @return array Array of [categoryId => totalAmount]
-     */
-    public function getCategoryTotalsFromSplits(array $transactionIds): array {
-        return $this->splitMapper->getCategoryTotals($transactionIds);
-    }
+		return $this->splitMapper->update($split);
+	}
+
+	/** Translated when a translator was injected; tests build the service without one. */
+	private function t(string $text, array $parameters = []): string {
+		return $this->l !== null ? $this->l->t($text, $parameters) : vsprintf($text, $parameters);
+	}
+
+	/** A split's category from client input: empty/0 means uncategorised. */
+	private static function categoryIdOf(mixed $raw): ?int {
+		if ($raw === null || $raw === '' || $raw === false) {
+			return null;
+		}
+		$id = (int)$raw;
+		return $id > 0 ? $id : null;
+	}
+
+	/**
+	 * Get category totals from splits for a list of transactions.
+	 *
+	 * @return array Array of [categoryId => totalAmount]
+	 */
+	public function getCategoryTotalsFromSplits(array $transactionIds): array {
+		return $this->splitMapper->getCategoryTotals($transactionIds);
+	}
 }

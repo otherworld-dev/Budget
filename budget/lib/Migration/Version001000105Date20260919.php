@@ -25,83 +25,83 @@ use OCP\Migration\SimpleMigrationStep;
  */
 class Version001000105Date20260919 extends SimpleMigrationStep {
 
-    private const ORPHANED_TABLES = ['budget_expense_shares', 'budget_settlements'];
+	private const ORPHANED_TABLES = ['budget_expense_shares', 'budget_settlements'];
 
-    public function __construct(
-        private IDBConnection $db,
-    ) {
-    }
+	public function __construct(
+		private IDBConnection $db,
+	) {
+	}
 
-    public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
-        return null;
-    }
+	public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
+		return null;
+	}
 
-    public function postSchemaChange(IOutput $output, Closure $schemaClosure, array $options): void {
-        /** @var ISchemaWrapper $schema */
-        $schema = $schemaClosure();
+	public function postSchemaChange(IOutput $output, Closure $schemaClosure, array $options): void {
+		/** @var ISchemaWrapper $schema */
+		$schema = $schemaClosure();
 
-        if (!$schema->hasTable('budget_contacts')) {
-            return;
-        }
+		if (!$schema->hasTable('budget_contacts')) {
+			return;
+		}
 
-        $live = $this->liveContactIds();
+		$live = $this->liveContactIds();
 
-        foreach (self::ORPHANED_TABLES as $table) {
-            if (!$schema->hasTable($table)) {
-                continue;
-            }
+		foreach (self::ORPHANED_TABLES as $table) {
+			if (!$schema->hasTable($table)) {
+				continue;
+			}
 
-            $deleted = $this->deleteOrphans($table, $live);
-            if ($deleted > 0) {
-                $output->info("Removed {$deleted} row(s) from {$table} whose contact was deleted");
-            }
-        }
-    }
+			$deleted = $this->deleteOrphans($table, $live);
+			if ($deleted > 0) {
+				$output->info("Removed {$deleted} row(s) from {$table} whose contact was deleted");
+			}
+		}
+	}
 
-    /**
-     * @return array<int, true> live contact ids, as a lookup
-     */
-    private function liveContactIds(): array {
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('id')->from('budget_contacts');
+	/**
+	 * @return array<int, true> live contact ids, as a lookup
+	 */
+	private function liveContactIds(): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('id')->from('budget_contacts');
 
-        $result = $qb->executeQuery();
-        $ids = [];
-        while ($row = $result->fetch()) {
-            $ids[(int)$row['id']] = true;
-        }
-        $result->closeCursor();
+		$result = $qb->executeQuery();
+		$ids = [];
+		while ($row = $result->fetch()) {
+			$ids[(int)$row['id']] = true;
+		}
+		$result->closeCursor();
 
-        return $ids;
-    }
+		return $ids;
+	}
 
-    /**
-     * Found first and deleted by primary key in batches, as DELETE cannot
-     * join and a NOT IN over every contact id would be unbounded.
-     *
-     * @param array<int, true> $liveContactIds
-     */
-    private function deleteOrphans(string $table, array $liveContactIds): int {
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('id', 'contact_id')->from($table);
+	/**
+	 * Found first and deleted by primary key in batches, as DELETE cannot
+	 * join and a NOT IN over every contact id would be unbounded.
+	 *
+	 * @param array<int, true> $liveContactIds
+	 */
+	private function deleteOrphans(string $table, array $liveContactIds): int {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('id', 'contact_id')->from($table);
 
-        $result = $qb->executeQuery();
-        $orphanIds = [];
-        while ($row = $result->fetch()) {
-            if (!isset($liveContactIds[(int)$row['contact_id']])) {
-                $orphanIds[] = (int)$row['id'];
-            }
-        }
-        $result->closeCursor();
+		$result = $qb->executeQuery();
+		$orphanIds = [];
+		while ($row = $result->fetch()) {
+			if (!isset($liveContactIds[(int)$row['contact_id']])) {
+				$orphanIds[] = (int)$row['id'];
+			}
+		}
+		$result->closeCursor();
 
-        $deleted = 0;
-        foreach (array_chunk($orphanIds, 500) as $chunk) {
-            $del = $this->db->getQueryBuilder();
-            $del->delete($table)
-                ->where($del->expr()->in('id', $del->createNamedParameter($chunk, IQueryBuilder::PARAM_INT_ARRAY)));
-            $deleted += $del->executeStatement();
-        }
+		$deleted = 0;
+		foreach (array_chunk($orphanIds, 500) as $chunk) {
+			$del = $this->db->getQueryBuilder();
+			$del->delete($table)
+				->where($del->expr()->in('id', $del->createNamedParameter($chunk, IQueryBuilder::PARAM_INT_ARRAY)));
+			$deleted += $del->executeStatement();
+		}
 
-        return $deleted;
-    }
+		return $deleted;
+	}
 }

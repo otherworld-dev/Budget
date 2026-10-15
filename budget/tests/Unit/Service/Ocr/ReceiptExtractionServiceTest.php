@@ -370,7 +370,10 @@ class ReceiptExtractionServiceTest extends TestCase {
 		$response->method('getStatusCode')->willReturn(429);
 		$this->client->method('post')->willThrowException(
 			new class('rate limited', $response) extends \RuntimeException {
-				public function __construct(string $message, private object $response) {
+				public function __construct(
+					string $message,
+					private object $response,
+				) {
 					parent::__construct($message);
 				}
 

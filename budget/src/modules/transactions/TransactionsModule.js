@@ -15,11 +15,17 @@ import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue } from '../../utils/datepicker.js';
-import { serverErrorMessage, downloadTransactionsCsv } from '../../utils/helpers.js';
-import { openAccounts, pickableAccounts, accountOptionLabel, selectAccountValue } from '../../utils/accounts.js';
+import { downloadTransactionsCsv } from '../../utils/helpers.js';
+import { apiFetch, ApiError } from '../../utils/api.js';
+import { once } from '../../utils/submitGuard.js';
+import { selectPossiblyUnavailable, unavailableCategoryLabel } from '../../utils/formSelects.js';
+import { openAccounts, pickableAccounts, accountOptionLabel, selectAccountValue, usableCategories, categoryTreeOf, sharedAccountOwner, isReadOnlyShare } from '../../utils/accounts.js';
 import { offerableTags } from '../../utils/tags.js';
 import flatpickr from 'flatpickr';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
+
+/** Width at which the transactions table turns into cards (shared with the account register). */
+const PHONE_CARD_QUERY = dom.PHONE_CARD_QUERY;
 
 export default class TransactionsModule {
     constructor(app) {
@@ -73,9 +79,6 @@ export default class TransactionsModule {
         return formatters.formatDate(dateStr, this.settings);
     }
 
-    escapeHtml(text) {
-        return dom.escapeHtml(text);
-    }
 
     getPrimaryCurrency() {
         return this.app.getPrimaryCurrency();
@@ -345,13 +348,35 @@ export default class TransactionsModule {
 
             // Individual transaction checkboxes
             if (e.target.classList.contains('transaction-checkbox')) {
-                const transactionId = parseInt(e.target.getAttribute('data-transaction-id'));
-                this.toggleTransactionSelection(transactionId, e.target.checked);
-                if (this.reconcileMode && this.reconcileSession) {
-                    this.queueReconcileTick(transactionId, e.target.checked);
-                }
+                this.handleTransactionCheckbox(e.target);
             }
         });
+    }
+
+    /**
+     * One row's checkbox. In a reconciliation session it is the statement
+     * tick, and a scheduled row can't be ticked: it is on no statement yet
+     * (a bill due today, before it is paid), the server refuses it, and a
+     * tick that moved nothing used to be balanced with an adjustment.
+     */
+    handleTransactionCheckbox(checkbox) {
+        const transactionId = parseInt(checkbox.getAttribute('data-transaction-id'));
+        const inSession = this.reconcileMode && this.reconcileSession;
+        if (inSession && checkbox.checked && !this.isReconcileTickable(transactionId)) {
+            checkbox.checked = false;
+            showWarning(t('budget', 'This transaction is scheduled, so it is not on a statement yet and cannot be ticked.'));
+            return;
+        }
+        this.toggleTransactionSelection(transactionId, checkbox.checked);
+        if (inSession) {
+            this.queueReconcileTick(transactionId, checkbox.checked);
+        }
+    }
+
+    /** Whether a row can be ticked into a reconciliation session. */
+    isReconcileTickable(transactionId) {
+        const tx = this.app.transactions?.find(row => row.id === transactionId);
+        return (tx?.status ?? 'cleared') !== 'scheduled';
     }
 
     // Transaction filtering and display methods
@@ -500,7 +525,7 @@ export default class TransactionsModule {
         const accountFilter = document.getElementById('filter-account');
         if (accountFilter && this.accounts) {
             accountFilter.innerHTML = `<option value="">${t('budget', 'All Accounts')}</option>`
-                + this.accounts.map(account => `<option value="${account.id}">${account.name}</option>`).join('');
+                + this.accounts.map(account => `<option value="${account.id}">${dom.escapeHtml(account.name)}</option>`).join('');
         }
 
         // Populate category filter
@@ -518,7 +543,7 @@ export default class TransactionsModule {
         if (reconcileAccount && this.accounts) {
             reconcileAccount.innerHTML = `<option value="">${t('budget', 'Select account to reconcile')}</option>`;
             openAccounts(this.accounts).forEach(account => {
-                reconcileAccount.innerHTML += `<option value="${account.id}">${account.name}</option>`;
+                reconcileAccount.innerHTML += `<option value="${account.id}">${dom.escapeHtml(account.name)}</option>`;
             });
         }
 
@@ -529,18 +554,17 @@ export default class TransactionsModule {
     async loadFilterTags() {
         // Always refetch to pick up newly created tag sets and global tags
         try {
-            const [tagSetsResponse, globalTagsResponse] = await Promise.all([
-                fetch(OC.generateUrl('/apps/budget/api/tag-sets'), { headers: { 'requesttoken': OC.requestToken } }),
-                fetch(OC.generateUrl('/apps/budget/api/tags/global'), { headers: { 'requesttoken': OC.requestToken } })
+            const [tagSets, globalTags] = await Promise.all([
+                apiFetch('/apps/budget/api/tag-sets').catch(() => null),
+                apiFetch('/apps/budget/api/tags/global').catch(() => null)
             ]);
 
-            if (tagSetsResponse.ok) {
-                this.allFilterTagSets = await tagSetsResponse.json();
+            if (tagSets) {
+                this.allFilterTagSets = tagSets;
             }
 
             // Wrap global tags as a virtual tag set for the filter dropdown
-            if (globalTagsResponse.ok) {
-                const globalTags = await globalTagsResponse.json();
+            if (globalTags) {
                 if (globalTags.length > 0) {
                     this.allFilterTagSets = this.allFilterTagSets || [];
                     this.allFilterTagSets.unshift({
@@ -761,6 +785,25 @@ export default class TransactionsModule {
         this._maybeCheckReconcileSession(this.app.transactionFilters.account);
     }
 
+    /**
+     * Arrive with a search applied, as a result picked in Nextcloud's
+     * unified search does (#/transactions?search=...): the list is filtered
+     * by it, and the Filters panel opens to show why. Typing the term into
+     * the closed panel's search box alone filtered nothing.
+     *
+     * @param {string} search
+     */
+    applySearchLink(search) {
+        this.app.transactionFilters = { ...(this.app.transactionFilters || {}), search };
+        this.app.currentPage = 1;
+        const panel = document.getElementById('transactions-filters');
+        if (panel?.style.display === 'none') {
+            this.toggleFiltersPanel();
+        } else {
+            this.syncFilterControlsFromState();
+        }
+    }
+
     clearFilters() {
         this.resetAllMatchingSelectionOnFilterChange();
         // Clearing is just syncing to an empty filter set — one enumeration
@@ -789,6 +832,13 @@ export default class TransactionsModule {
         if (currentHeader) {
             currentHeader.className = `sort-indicator ${this.app.currentSort.direction}`;
         }
+
+        // Tell assistive tech which column is sorted, and which way.
+        document.querySelectorAll('#transactions-table th[data-sort]').forEach(th => {
+            th.setAttribute('aria-sort', th.dataset.sort === field
+                ? (this.app.currentSort.direction === 'asc' ? 'ascending' : 'descending')
+                : 'none');
+        });
 
         this.app.loadTransactions();
     }
@@ -836,6 +886,10 @@ export default class TransactionsModule {
         if (this.reconcileMode && this.reconcileSession) {
             document.querySelectorAll('.transaction-checkbox').forEach(checkbox => {
                 const transactionId = parseInt(checkbox.getAttribute('data-transaction-id'));
+                // Scheduled rows are on no statement yet, see handleTransactionCheckbox()
+                if (checked && !this.isReconcileTickable(transactionId)) {
+                    return;
+                }
                 if (checkbox.checked !== checked) {
                     checkbox.checked = checked;
                     this.queueReconcileTick(transactionId, checked);
@@ -907,15 +961,7 @@ export default class TransactionsModule {
             const params = this.app.buildTransactionFilterParams();
             const url = '/apps/budget/api/transactions/ids'
                 + (params.toString() ? '?' + params.toString() : '');
-            const response = await fetch(OC.generateUrl(url), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-
-            const result = await response.json();
+            const result = await apiFetch(url);
 
             // The filter may have changed while the fetch was in flight —
             // installing the stale id set would select rows the user is no
@@ -1070,18 +1116,12 @@ export default class TransactionsModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/transactions/bulk-delete'), {
+            const result = await apiFetch('/apps/budget/api/transactions/bulk-delete', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({
+                body: {
                     ids: Array.from(this.selectedTransactions)
-                })
+                }
             });
-
-            const result = await response.json();
 
             if (result.success > 0) {
                 showSuccess(n('budget', 'Successfully deleted %n transaction', 'Successfully deleted %n transactions', result.success));
@@ -1110,19 +1150,13 @@ export default class TransactionsModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/transactions/bulk-reconcile'), {
+            const result = await apiFetch('/apps/budget/api/transactions/bulk-reconcile', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({
+                body: {
                     ids: Array.from(this.selectedTransactions),
                     reconciled: true
-                })
+                }
             });
-
-            const result = await response.json();
 
             if (result.success > 0) {
                 showSuccess(n('budget', 'Successfully reconciled %n transaction', 'Successfully reconciled %n transactions', result.success));
@@ -1151,19 +1185,13 @@ export default class TransactionsModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/transactions/bulk-reconcile'), {
+            const result = await apiFetch('/apps/budget/api/transactions/bulk-reconcile', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({
+                body: {
                     ids: Array.from(this.selectedTransactions),
                     reconciled: false
-                })
+                }
             });
-
-            const result = await response.json();
 
             if (result.success > 0) {
                 showSuccess(n('budget', 'Successfully unreconciled %n transaction', 'Successfully unreconciled %n transactions', result.success));
@@ -1196,11 +1224,17 @@ export default class TransactionsModule {
             countElement.textContent = this.selectedTransactions.size;
         }
 
-        // Populate category dropdown
+        // Populate category dropdown: only categories every selected row's
+        // ledger takes (a row in an account shared with you is filed in its
+        // owner's ledger), as far as the loaded page shows their accounts
         if (categorySelect && this.categories) {
             categorySelect.innerHTML = `<option value="">${t('budget', 'Don\'t change')}</option>`
                 + `<option value="none">${t('budget', 'Uncategorized')}</option>`;
-            dom.populateCategorySelect(categorySelect, this.categoryTree || this.categories);
+            const selectedAccounts = (this.transactions || [])
+                .filter(tx => this.selectedTransactions.has(tx.id))
+                .map(tx => (this.accounts || []).find(a => a.id === tx.accountId));
+            const scoped = usableCategories(this.categories, selectedAccounts);
+            dom.populateCategorySelect(categorySelect, scoped ? categoryTreeOf(scoped) : (this.categoryTree || this.categories));
         }
 
         // Reset form
@@ -1239,19 +1273,13 @@ export default class TransactionsModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/transactions/bulk-edit'), {
+            const result = await apiFetch('/apps/budget/api/transactions/bulk-edit', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({
+                body: {
                     ids: Array.from(this.selectedTransactions),
                     updates: updates
-                })
+                }
             });
-
-            const result = await response.json();
 
             if (result.success > 0) {
                 showSuccess(n('budget', 'Successfully updated %n transaction', 'Successfully updated %n transactions', result.success));
@@ -1319,16 +1347,12 @@ export default class TransactionsModule {
 
         let options = { totalSelected: 0, globalTags: [], tagSets: [], unaffectedCount: 0 };
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/transactions/bulk-tag-options'), {
+            const loaded = await apiFetch('/apps/budget/api/transactions/bulk-tag-options', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ ids: Array.from(this.selectedTransactions) })
-            });
-            if (response.ok) {
-                options = await response.json();
+                body: { ids: Array.from(this.selectedTransactions) }
+            }).catch(() => null);
+            if (loaded) {
+                options = loaded;
             }
         } catch (error) {
             console.error('Failed to load bulk tag options:', error);
@@ -1428,23 +1452,22 @@ export default class TransactionsModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/transactions/bulk-tags'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({
-                    ids: Array.from(this.selectedTransactions),
-                    addTagIds,
-                    removeTagIds
-                })
-            });
-
-            const result = await response.json();
-
-            if (!response.ok) {
-                showError(serverErrorMessage(result, t('budget', 'Failed to update tags')));
+            let result;
+            try {
+                result = await apiFetch('/apps/budget/api/transactions/bulk-tags', {
+                    method: 'POST',
+                    body: {
+                        ids: Array.from(this.selectedTransactions),
+                        addTagIds,
+                        removeTagIds
+                    },
+                    errorMessage: t('budget', 'Failed to update tags'),
+                });
+            } catch (error) {
+                // A refusal carries the server's reason; anything else takes
+                // the generic toast below
+                if (!(error instanceof ApiError)) throw error;
+                showError(error.message);
                 return;
             }
 
@@ -1510,18 +1533,16 @@ export default class TransactionsModule {
     }
 
     /**
-     * Read an error message from a failed response without assuming it is JSON.
-     * A 500 returns Nextcloud's HTML error page; calling response.json() on it
-     * throws an opaque parser error (on Safari/WebKit: "The string did not match
-     * the expected pattern"), which previously masked the real failure (#287).
+     * The message for a failed reconciliation step. apiFetch already prefers
+     * the server's `error` over the caller's fallback; a failure with no JSON
+     * body at all is Nextcloud's HTML error page (a 500), where pointing at the
+     * logs says more than the fallback would (#287).
      */
-    async reconcileErrorMessage(response, fallback) {
-        try {
-            const data = await response.json();
-            return data.error || fallback;
-        } catch (e) {
-            return t('budget', 'Server error ({status}) — check the Nextcloud logs', { status: response.status });
+    reconcileErrorMessage(error) {
+        if (error instanceof ApiError && error.data === null) {
+            return t('budget', 'Server error ({status}) — check the Nextcloud logs', { status: error.status });
         }
+        return error.message;
     }
 
     async startReconciliation() {
@@ -1535,34 +1556,28 @@ export default class TransactionsModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/accounts/${accountId}/reconciliation/session`), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({
-                    statementBalance: parseFloat(statementBalance),
-                    statementDate: statementDate
-                })
-            });
-
-            if (response.status === 409) {
-                const data = await response.json();
+            let state;
+            try {
+                state = await apiFetch(`/apps/budget/api/accounts/${accountId}/reconciliation/session`, {
+                    method: 'POST',
+                    body: {
+                        statementBalance: parseFloat(statementBalance),
+                        statementDate: statementDate
+                    },
+                    errorMessage: t('budget', 'Failed to start reconciliation'),
+                });
+            } catch (error) {
+                if (!(error instanceof ApiError) || error.status !== 409) throw error;
                 if (await confirmDialog(t('budget', 'A reconciliation is already in progress for this account. Resume it?'))) {
-                    await this.enterReconcileSession(data.existing);
+                    await this.enterReconcileSession(error.data.existing);
                 }
                 return;
             }
-            if (!response.ok) {
-                throw new Error(await this.reconcileErrorMessage(response, t('budget', 'Failed to start reconciliation')));
-            }
 
-            const state = await response.json();
             await this.enterReconcileSession(state);
         } catch (error) {
             console.error('Reconciliation failed:', error);
-            showError(t('budget', 'Failed to start reconciliation: {message}', { message: error.message }));
+            showError(t('budget', 'Failed to start reconciliation: {message}', { message: this.reconcileErrorMessage(error) }));
         }
     }
 
@@ -1590,7 +1605,14 @@ export default class TransactionsModule {
         // whole ledger, scheduled rows years out included (#374).
         const filterAccount = document.getElementById('filter-account');
         if (filterAccount) {
-            filterAccount.value = String(state.session.accountId);
+            // Started from an account's page, the filter has no options yet,
+            // and a value with no option to match is dropped: the list then
+            // showed every account's transactions
+            const accountId = String(state.session.accountId);
+            if (![...filterAccount.options].some(option => option.value === accountId)) {
+                this.populateFilterDropdowns();
+            }
+            filterAccount.value = accountId;
             // Through the helper: these inputs are flatpickr-managed, and a
             // bare .value assignment leaves the picker's own state behind.
             setDateValue('filter-date-to', state.session.statementDate || '');
@@ -1679,15 +1701,10 @@ export default class TransactionsModule {
         const accountId = this.reconcileSession.session.accountId;
 
         try {
-            const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/accounts/${accountId}/reconciliation/tick-all`),
-                { method: 'POST', headers: { 'requesttoken': OC.requestToken } }
-            );
-            if (!response.ok) {
-                throw new Error(await this.reconcileErrorMessage(response, t('budget', 'Failed to tick transactions')));
-            }
-
-            const state = await response.json();
+            const state = await apiFetch(`/apps/budget/api/accounts/${accountId}/reconciliation/tick-all`, {
+                method: 'POST',
+                errorMessage: t('budget', 'Failed to tick transactions'),
+            });
             this.reconcileSession = state;
             this.selectedTransactions = new Set(state.tickedIds || []);
             this._reconTickQueue.clear();
@@ -1696,7 +1713,7 @@ export default class TransactionsModule {
             await this.app.loadTransactions();
         } catch (error) {
             console.error('Tick all failed:', error);
-            showError(t('budget', 'Failed to tick transactions: {message}', { message: error.message }));
+            showError(t('budget', 'Failed to tick transactions: {message}', { message: this.reconcileErrorMessage(error) }));
         }
     }
 
@@ -1744,15 +1761,11 @@ export default class TransactionsModule {
             let state = null;
             for (const [ids, ticked] of [[ticks, true], [unticks, false]]) {
                 if (ids.length === 0) continue;
-                const response = await fetch(OC.generateUrl(`/apps/budget/api/accounts/${accountId}/reconciliation/tick`), {
+                state = await apiFetch(`/apps/budget/api/accounts/${accountId}/reconciliation/tick`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                    body: JSON.stringify({ transactionIds: ids, ticked })
+                    body: { transactionIds: ids, ticked },
+                    errorMessage: t('budget', 'Failed to update reconciliation'),
                 });
-                if (!response.ok) {
-                    throw new Error(await this.reconcileErrorMessage(response, t('budget', 'Failed to update reconciliation')));
-                }
-                state = await response.json();
             }
             if (state && this.reconcileSession) {
                 // Server state is authoritative
@@ -1762,7 +1775,7 @@ export default class TransactionsModule {
             }
         } catch (error) {
             console.error('Reconcile tick failed:', error);
-            showError(t('budget', 'Failed to update reconciliation: {message}', { message: error.message }));
+            showError(t('budget', 'Failed to update reconciliation: {message}', { message: this.reconcileErrorMessage(error) }));
             await this.refreshReconcileSession();
         }
     }
@@ -1772,18 +1785,12 @@ export default class TransactionsModule {
         if (!this.reconcileSession) return;
         const accountId = this.reconcileSession.session.accountId;
         try {
-            const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/accounts/${accountId}/reconciliation/session`),
-                { headers: { 'requesttoken': OC.requestToken } }
-            );
-            if (response.ok) {
-                const state = await response.json();
-                if (state.session) {
-                    this.reconcileSession = state;
-                    this.selectedTransactions = new Set(state.tickedIds || []);
-                    this.renderReconcileBar();
-                    this.app.loadTransactions();
-                }
+            const state = await apiFetch(`/apps/budget/api/accounts/${accountId}/reconciliation/session`).catch(() => null);
+            if (state?.session) {
+                this.reconcileSession = state;
+                this.selectedTransactions = new Set(state.tickedIds || []);
+                this.renderReconcileBar();
+                this.app.loadTransactions();
             }
         } catch (error) {
             console.error('Failed to refresh reconcile session:', error);
@@ -1795,13 +1802,13 @@ export default class TransactionsModule {
      */
     async checkActiveReconcileSession(accountId) {
         if (!accountId || this.reconcileMode) return;
+        // Reconciling needs write access: an account shared with you
+        // read-only has no session for you, and asking is a 403
+        const account = (this.accounts || []).find(a => String(a.id) === String(accountId));
+        if (isReadOnlyShare(account)) return;
         try {
-            const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/accounts/${accountId}/reconciliation/session`),
-                { headers: { 'requesttoken': OC.requestToken } }
-            );
-            if (!response.ok) return;
-            const state = await response.json();
+            const state = await apiFetch(`/apps/budget/api/accounts/${accountId}/reconciliation/session`).catch(() => null);
+            if (!state) return;
             if (state.session) {
                 this.showReconcileResumeBanner(state);
             }
@@ -1871,17 +1878,14 @@ export default class TransactionsModule {
         const accountId = this.reconcileSession.session.accountId;
         try {
             await this.flushReconcileTicks();
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/accounts/${accountId}/reconciliation/session`), {
+            await apiFetch(`/apps/budget/api/accounts/${accountId}/reconciliation/session`, {
                 method: 'DELETE',
-                headers: { 'requesttoken': OC.requestToken }
+                errorMessage: t('budget', 'Failed to cancel'),
             });
-            if (!response.ok) {
-                throw new Error(await this.reconcileErrorMessage(response, t('budget', 'Failed to cancel')));
-            }
             this.exitReconcileMode();
             showSuccess(t('budget', 'Reconciliation cancelled'));
         } catch (error) {
-            showError(t('budget', 'Failed to cancel reconciliation: {message}', { message: error.message }));
+            showError(t('budget', 'Failed to cancel reconciliation: {message}', { message: this.reconcileErrorMessage(error) }));
         }
     }
 
@@ -1896,16 +1900,10 @@ export default class TransactionsModule {
 
         try {
             await this.flushReconcileTicks();
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/accounts/${accountId}/reconciliation/complete`), {
+            const result = await apiFetch(`/apps/budget/api/accounts/${accountId}/reconciliation/complete`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken }
+                errorMessage: t('budget', 'Failed to complete reconciliation'),
             });
-
-            if (!response.ok) {
-                throw new Error(await this.reconcileErrorMessage(response, t('budget', 'Failed to complete reconciliation')));
-            }
-
-            const result = await response.json();
             this.exitReconcileMode();
             this.app.loadAccounts();
             this.app.loadTransactions();
@@ -1917,46 +1915,38 @@ export default class TransactionsModule {
                     result.untickedBeforeStatementDate));
             }
         } catch (error) {
-            showError(t('budget', 'Failed to complete reconciliation: {error}', { error: error.message }));
+            showError(t('budget', 'Failed to complete reconciliation: {error}', { error: this.reconcileErrorMessage(error) }));
         }
     }
 
     async createReconciliationAdjustment(type, amount) {
         if (!this.reconcileSession) return;
         const accountId = this.reconcileSession.session.accountId;
-        const today = new Date().toISOString().split('T')[0];
+        // The user's local date: toISOString()'s UTC one is tomorrow every
+        // evening west of UTC, which stored the adjustment scheduled
+        const today = formatters.getTodayDateString();
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/transactions'), {
+            const created = await apiFetch('/apps/budget/api/transactions', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({
+                body: {
                     date: today,
                     accountId: accountId,
                     type: type,
                     amount: amount,
                     description: t('budget', 'Reconciliation Adjustment'),
                     notes: t('budget', 'Adjustment to match statement balance of {amount}', { amount: this.formatCurrency(this.reconcileSession.session.statementBalance) })
-                })
+                },
+                errorMessage: t('budget', 'Failed to create adjustment'),
             });
-
-            if (!response.ok) {
-                throw new Error(await this.reconcileErrorMessage(response, t('budget', 'Failed to create adjustment')));
-            }
-
-            const created = await response.json();
 
             // Tick the adjustment straight into the session — zeroes the difference
-            const tickResponse = await fetch(OC.generateUrl(`/apps/budget/api/accounts/${accountId}/reconciliation/tick`), {
+            const ticked = await apiFetch(`/apps/budget/api/accounts/${accountId}/reconciliation/tick`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                body: JSON.stringify({ transactionIds: [created.id], ticked: true })
-            });
-            if (tickResponse.ok) {
-                this.reconcileSession = await tickResponse.json();
+                body: { transactionIds: [created.id], ticked: true }
+            }).catch(() => null);
+            if (ticked) {
+                this.reconcileSession = ticked;
                 this.selectedTransactions = new Set(this.reconcileSession.tickedIds || []);
             }
 
@@ -1965,7 +1955,7 @@ export default class TransactionsModule {
             this.renderReconcileBar();
         } catch (error) {
             console.error('Failed to create adjustment:', error);
-            showError(t('budget', 'Failed to create adjustment: {message}', { message: error.message }));
+            showError(t('budget', 'Failed to create adjustment: {message}', { message: this.reconcileErrorMessage(error) }));
         }
     }
 
@@ -1974,7 +1964,7 @@ export default class TransactionsModule {
         return transactions.map(tx => `
             <div class="transaction-item">
                 <span class="transaction-date">${this.formatDate(tx.date)}</span>
-                <span class="transaction-description">${tx.description}</span>
+                <span class="transaction-description">${dom.escapeHtml(tx.description)}</span>
                 <span class="amount ${tx.type}">${this.formatCurrency(tx.amount, tx.accountCurrency)}</span>
             </div>
         `).join('');
@@ -2044,6 +2034,17 @@ export default class TransactionsModule {
     showTransactionModal(transaction = null, preSelectedAccountId = null) {
         const modal = document.getElementById('transaction-modal');
         if (modal) {
+            // The saved transaction being edited, wherever it was opened from
+            // (an account's register, a link): the list's page may not hold it.
+            this._formTransaction = transaction?.id ? transaction : null;
+
+            const titleEl = document.getElementById('transaction-modal-title');
+            if (titleEl) {
+                titleEl.textContent = transaction?.id
+                    ? t('budget', 'Edit transaction')
+                    : t('budget', 'New transaction');
+            }
+
             // Populate account and category dropdowns first
             this.populateTransactionModalDropdowns();
 
@@ -2074,7 +2075,7 @@ export default class TransactionsModule {
                 if (excludeForecastEl) excludeForecastEl.checked = !!transaction.excludedFromForecast;
 
                 // Receipt attachments (only on saved transactions)
-                this.setupAttachmentsSection(transaction.id);
+                this.setupAttachmentsSection(transaction.id, (this.accounts || []).find(a => a.id === transaction.accountId) || null);
 
                 // Scanning can still fill gaps on an existing transaction —
                 // it only writes into fields that are empty.
@@ -2087,6 +2088,9 @@ export default class TransactionsModule {
                 document.getElementById('transaction-form').reset();
                 document.getElementById('transaction-id').value = '';
                 setDateValue('transaction-date', formatters.getTodayDateString());
+                // Most entries are spending; start there rather than on an
+                // empty "choose a type" the user must always fill in.
+                document.getElementById('transaction-type').value = 'debit';
 
                 // Receipts can be chosen before saving: they are held and
                 // attached as soon as the transaction has an id.
@@ -2105,9 +2109,13 @@ export default class TransactionsModule {
                 const amtLabel = document.getElementById('transaction-amount-label');
                 if (amtLabel) amtLabel.textContent = t('budget', 'Amount');
 
-                // Pre-select account if provided
-                if (preSelectedAccountId) {
-                    document.getElementById('transaction-account').value = preSelectedAccountId;
+                // Pre-select an account: the one asked for, else the one the
+                // list is filtered to, else the last one used, else the only
+                // open one.
+                const accountSelect = document.getElementById('transaction-account');
+                const defaultAccountId = preSelectedAccountId || this._defaultTransactionAccountId();
+                if (defaultAccountId && accountSelect.querySelector(`option[value="${defaultAccountId}"]`)) {
+                    accountSelect.value = String(defaultAccountId);
                 }
 
                 // Clear tag selectors
@@ -2144,51 +2152,177 @@ export default class TransactionsModule {
                 handleTypeChange();
             }
 
-            // Source or destination account change — check for cross-currency
-            const sourceAccountSelect = document.getElementById('transaction-account');
-            if (sourceAccountSelect) {
-                sourceAccountSelect.addEventListener('change', () => {
-                    this._checkCrossCurrencyTransfer();
-                    this._updateAmountStep();
-                });
-            }
-            const toAccountSelect2 = document.getElementById('transfer-to-account');
-            if (toAccountSelect2) {
-                toAccountSelect2.addEventListener('change', () => {
-                    this._checkCrossCurrencyTransfer();
-                    this._updateAmountStep();
-                });
-            }
+            // Source/destination account and amount listeners (bound once).
+            this._bindTransferAmountFields();
 
             // Match the amount inputs' step to the account currency's precision so
             // crypto accounts accept up to 8 decimals instead of just 2 (#331).
             this._updateAmountStep();
 
-            // Source amount change — update destination amount if cross-currency
-            // Source amount change — update destination amount if cross-currency
-            const amountInput = document.getElementById('transaction-amount');
-            if (amountInput) {
-                amountInput.addEventListener('input', () => {
-                    // Reset user-edited flag when source amount changes
-                    const destInput = document.getElementById('transfer-dest-amount');
-                    if (destInput) destInput.dataset.userEdited = '';
-                    this._updateDestAmountFromRate();
-                });
-            }
-
-            // Track manual edits to destination amount
-            const destAmountInput = document.getElementById('transfer-dest-amount');
-            if (destAmountInput) {
-                destAmountInput.addEventListener('input', () => {
-                    destAmountInput.dataset.userEdited = 'true';
-                });
+            // Only the categories the chosen account can take, now and
+            // whenever the account changes; a saved row keeps its own
+            this._refreshFormCategoryOptions(transaction?.id ? (transaction.categoryId ?? '') : undefined);
+            const accountPicker = document.getElementById('transaction-account');
+            if (accountPicker && !this._categoryScopeBound) {
+                this._categoryScopeBound = true;
+                accountPicker.addEventListener('change', () => this._refreshFormCategoryOptions());
             }
 
             // Set up inline split toggle
             this.setupInlineSplitToggle();
 
+            // "More options" starts open when this transaction already uses
+            // something in it; receipt scanning opens it too (setupReceiptScan).
+            const extras = document.getElementById('transaction-extras');
+            if (extras) {
+                extras.open = !!(transaction && (transaction.notes || transaction.excludedFromForecast
+                    || this.app.attachmentCounts?.[transaction.id]));
+            }
+
+            this._setupTypeToggle();
+            this._syncTypeToggle();
+
             modal.style.display = 'flex';
+            this._keepKeyboardDownWhenViewing(transaction);
         }
+    }
+
+    /** The account picked in the transaction form, if any. */
+    _formAccount() {
+        const id = document.getElementById('transaction-account')?.value;
+        return id ? (this.accounts || []).find(a => String(a.id) === String(id)) || null : null;
+    }
+
+    /**
+     * Rebuild the form's category choices, and its split rows', for the
+     * account picked. A row in an account someone shared with you is filed
+     * in their ledger, which only takes their categories: your own were
+     * offered and then refused on save ("Category not found"). The category
+     * the transaction already has is always kept, even one its owner didn't
+     * share with you: the server lets a row keep its category, and an empty
+     * select would have cleared it on save. Such a category is named, as
+     * the row came with its name, but not offered as a choice.
+     *
+     * @param {number|string|null} [recordCategoryId] The category of the
+     *   saved transaction being opened; omitted when the account changes
+     */
+    _refreshFormCategoryOptions(recordCategoryId = undefined) {
+        const select = document.getElementById('transaction-category');
+        if (!select || !this.categories) return;
+        const account = this._formAccount();
+        const keepUnlisted = recordCategoryId !== undefined
+            || select.selectedOptions?.[0]?.dataset.unavailable === '1';
+        const current = recordCategoryId !== undefined ? String(recordCategoryId ?? '') : select.value;
+        const scoped = usableCategories(this.categories, [account], [current]);
+        select.innerHTML = `<option value="">${t('budget', 'No category')}</option>`;
+        dom.populateCategorySelect(select, scoped ? categoryTreeOf(scoped) : (this.categoryTree || this.categories));
+        if (keepUnlisted) {
+            // Only the saved row's own category can be kept unlisted
+            const record = this._formTransaction;
+            const name = record && String(record.categoryId ?? '') === current ? record.categoryName : null;
+            selectPossiblyUnavailable(select, current, name ? unavailableCategoryLabel(name) : null);
+        } else {
+            select.value = current;
+        }
+
+        const type = document.getElementById('transaction-type')?.value;
+        document.querySelectorAll('#inline-splits-container .inline-split-category').forEach(splitSelect => {
+            const value = splitSelect.value;
+            const name = splitSelect.selectedOptions?.[0]?.dataset.categoryName || null;
+            splitSelect.innerHTML = `<option value="">${t('budget', 'Uncategorized')}</option>`
+                + this.app.getCategoryOptions(value ? parseInt(value, 10) : null, type, account, name);
+            splitSelect.value = value;
+        });
+    }
+
+    /**
+     * On a phone an existing transaction is often opened just to look at it
+     * (a tap on its card, or the Android app's link), and the dialog putting
+     * the cursor in Amount popped the keyboard up over half the form. Focus
+     * goes to the title instead, which the dialog handler takes as focus
+     * already placed. Adding a transaction still starts in Amount.
+     *
+     * @param {object|null} transaction - The transaction being opened
+     */
+    _keepKeyboardDownWhenViewing(transaction) {
+        if (!transaction?.id || !window.matchMedia?.(PHONE_CARD_QUERY).matches) return;
+        const title = document.getElementById('transaction-modal-title');
+        if (!title) return;
+        title.setAttribute('tabindex', '-1');
+        title.focus({ preventScroll: true });
+    }
+
+    /**
+     * Account for a new transaction when none was asked for: the account the
+     * list is filtered to, then the last one a transaction was saved to, then
+     * the only open account. Null when none of those applies.
+     */
+    _defaultTransactionAccountId() {
+        const open = openAccounts(this.accounts);
+        const isOpen = (id) => open.some(a => String(a.id) === String(id));
+
+        const filtered = document.getElementById('filter-account')?.value;
+        if (filtered && isOpen(filtered)) return filtered;
+
+        let last = null;
+        try {
+            last = window.localStorage.getItem('budget.lastTransactionAccountId');
+        } catch (e) {
+            // Storage blocked (private mode, policy): no remembered account.
+        }
+        if (last && isOpen(last)) return last;
+
+        return open.length === 1 ? open[0].id : null;
+    }
+
+    /** Wire the Expense / Income / Transfer buttons to the hidden type select. */
+    _setupTypeToggle() {
+        if (this._typeToggleBound) return;
+        const toggle = document.getElementById('transaction-type-toggle');
+        const select = document.getElementById('transaction-type');
+        if (!toggle || !select) return;
+        this._typeToggleBound = true;
+
+        const choose = (btn) => {
+            if (!btn || btn.hidden || select.value === btn.dataset.value) return;
+            select.value = btn.dataset.value;
+            // The select's own change handler shows or hides the transfer fields.
+            select.dispatchEvent(new Event('change'));
+            this._syncTypeToggle();
+        };
+
+        toggle.addEventListener('click', (e) => choose(e.target.closest('button[data-value]')));
+
+        // Arrow keys move between the options, as in any radio group.
+        toggle.addEventListener('keydown', (e) => {
+            if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return;
+            e.preventDefault();
+            const buttons = [...toggle.querySelectorAll('button[data-value]')].filter(b => !b.hidden);
+            const i = buttons.findIndex(b => b.dataset.value === select.value);
+            const step = (e.key === 'ArrowRight' || e.key === 'ArrowDown') ? 1 : -1;
+            const next = buttons[(i + step + buttons.length) % buttons.length];
+            choose(next);
+            next?.focus();
+        });
+    }
+
+    /**
+     * Mirror the select onto the buttons: which one is chosen, and whether
+     * Transfer is offered at all (it is removed from the select when editing).
+     */
+    _syncTypeToggle() {
+        const toggle = document.getElementById('transaction-type-toggle');
+        const select = document.getElementById('transaction-type');
+        if (!toggle || !select) return;
+        toggle.querySelectorAll('button[data-value]').forEach(btn => {
+            const offered = !!select.querySelector(`option[value="${btn.dataset.value}"]`);
+            const chosen = offered && select.value === btn.dataset.value;
+            btn.hidden = !offered;
+            btn.classList.toggle('active', chosen);
+            btn.setAttribute('aria-checked', chosen ? 'true' : 'false');
+            // Only the chosen option is in the tab order (roving tabindex).
+            btn.tabIndex = chosen || (!select.value && btn.dataset.value === 'debit') ? 0 : -1;
+        });
     }
 
     async editTransaction(id) {
@@ -2203,11 +2337,10 @@ export default class TransactionsModule {
         // If still not found, fetch from API
         if (!transaction) {
             try {
-                const response = await this.app.api.get(`/apps/budget/api/transactions/${id}`);
-                transaction = response.data;
+                transaction = await apiFetch(`/apps/budget/api/transactions/${id}`);
             } catch (error) {
                 console.error('Failed to fetch transaction for editing:', error);
-                this.app.showNotification(t('budget', 'Failed to load transaction'), 'error');
+                showError(t('budget', 'Failed to load transaction'));
                 return;
             }
         }
@@ -2226,11 +2359,10 @@ export default class TransactionsModule {
 
         if (!transaction) {
             try {
-                const response = await this.app.api.get(`/apps/budget/api/transactions/${id}`);
-                transaction = response.data;
+                transaction = await apiFetch(`/apps/budget/api/transactions/${id}`);
             } catch (error) {
                 console.error('Failed to fetch transaction for duplicating:', error);
-                this.app.showNotification(t('budget', 'Failed to load transaction'), 'error');
+                showError(t('budget', 'Failed to load transaction'));
                 return;
             }
         }
@@ -2265,10 +2397,7 @@ export default class TransactionsModule {
 
         if (this._ocrAvailable === undefined) {
             try {
-                const res = await fetch(OC.generateUrl('/apps/budget/api/receipts/ocr-status'), {
-                    headers: { 'requesttoken': OC.requestToken }
-                });
-                this._ocrAvailable = res.ok ? !!(await res.json()).available : false;
+                this._ocrAvailable = !!(await apiFetch('/apps/budget/api/receipts/ocr-status'))?.available;
             } catch (e) {
                 this._ocrAvailable = false;
             }
@@ -2276,6 +2405,12 @@ export default class TransactionsModule {
 
         group.style.display = this._ocrAvailable ? '' : 'none';
         if (!this._ocrAvailable) return;
+
+        // Scanning is a way to fill the whole form, so don't fold it away.
+        if (isNewTransaction) {
+            const extras = document.getElementById('transaction-extras');
+            if (extras) extras.open = true;
+        }
 
         this._scanIsNewTransaction = isNewTransaction;
 
@@ -2328,19 +2463,11 @@ export default class TransactionsModule {
             const body = new FormData();
             body.append('image', file);
 
-            const response = await fetch(OC.generateUrl('/apps/budget/api/receipts/extract'), {
+            const draft = await apiFetch('/apps/budget/api/receipts/extract', {
                 method: 'POST',
-                headers: { 'requesttoken': OC.requestToken },
-                body
+                body,
+                errorMessage: t('budget', 'The receipt could not be read'),
             });
-
-            if (!response.ok) {
-                let message = '';
-                try { message = (await response.json()).error || ''; } catch (e) { /* non-JSON error page */ }
-                throw new Error(message || t('budget', 'The receipt could not be read'));
-            }
-
-            const draft = await response.json();
             const filled = this.applyReceiptDraft(draft);
 
             // Keep the photo so saving attaches it — the attachment endpoint
@@ -2612,9 +2739,20 @@ export default class TransactionsModule {
      * @param {?number} transactionId null while adding — the transaction does
      *   not exist yet, so chosen receipts are held and attached after save.
      */
-    setupAttachmentsSection(transactionId) {
+    /**
+     * @param {number|null} transactionId The saved transaction, or null when adding
+     * @param {object|null} [account] Its account. Receipts belong to the
+     *   account's owner, so on a row in an account shared with you the
+     *   section stays hidden instead of asking for them (a 404 every time).
+     */
+    setupAttachmentsSection(transactionId, account = null) {
         const group = document.getElementById('transaction-attachments-group');
         if (!group) return;
+        if (transactionId && sharedAccountOwner(account)) {
+            group.style.display = 'none';
+            this._attachmentTxId = null;
+            return;
+        }
         group.style.display = '';
         this._attachmentTxId = transactionId;
 
@@ -2687,7 +2825,7 @@ export default class TransactionsModule {
                 <span class="attachment-thumb">${p.kind === 'path' ? '🗂️' : '📄'}</span>
                 <span>${dom.escapeHtml(p.name)}</span>
                 <span class="attachment-pending-tag">${t('budget', 'on save')}</span>
-                <button type="button" class="attachment-remove" title="${t('budget', 'Remove attachment')}" data-pending-index="${i}">✕</button>
+                <button type="button" class="attachment-remove" title="${t('budget', 'Remove attachment')}" aria-label="${t('budget', 'Remove attachment')}" data-pending-index="${i}">✕</button>
             </div>`).join('');
 
         list.querySelectorAll('.attachment-remove').forEach((btn) => {
@@ -2712,11 +2850,10 @@ export default class TransactionsModule {
 
         for (const pending of this._pendingAttachments) {
             try {
-                if (pending.kind === 'path') {
-                    await this.attachExistingFile(transactionId, pending.path);
-                } else {
-                    await this.uploadAttachment(transactionId, pending.file);
-                }
+                const ok = pending.kind === 'path'
+                    ? await this.attachExistingFile(transactionId, pending.path)
+                    : await this.uploadAttachment(transactionId, pending.file);
+                if (!ok) failed++;
             } catch (e) {
                 failed++;
             }
@@ -2730,12 +2867,7 @@ export default class TransactionsModule {
         const list = document.getElementById('transaction-attachments-list');
         if (!list) return;
         try {
-            const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/attachments`),
-                { headers: { 'requesttoken': OC.requestToken } }
-            );
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const attachments = await response.json();
+            const attachments = await apiFetch(`/apps/budget/api/transactions/${transactionId}/attachments`);
 
             list.innerHTML = attachments.map(a => {
                 const thumb = a.isImage && !a.missing
@@ -2749,7 +2881,7 @@ export default class TransactionsModule {
                     <div class="attachment-item ${a.missing ? 'attachment-missing' : ''}" data-attachment-id="${a.id}">
                         <span class="attachment-thumb">${thumb}</span>
                         ${openLink}
-                        <button type="button" class="attachment-remove" title="${t('budget', 'Remove attachment')}" data-attachment-id="${a.id}">✕</button>
+                        <button type="button" class="attachment-remove" title="${t('budget', 'Remove attachment')}" aria-label="${t('budget', 'Remove attachment')}" data-attachment-id="${a.id}">✕</button>
                     </div>`;
             }).join('') || `<span class="form-text">${t('budget', 'No receipts attached')}</span>`;
 
@@ -2769,54 +2901,60 @@ export default class TransactionsModule {
         try {
             const formData = new FormData();
             formData.append('file', file);
-            const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/attachments/upload`),
-                { method: 'POST', headers: { 'requesttoken': OC.requestToken }, body: formData }
-            );
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error || t('budget', 'Failed to upload receipt'));
+            await apiFetch(`/apps/budget/api/transactions/${transactionId}/attachments/upload`, {
+                method: 'POST',
+                body: formData,
+                errorMessage: t('budget', 'Failed to upload receipt'),
+            });
             this.app.attachmentCounts = null; // invalidate badge cache
+            return true;
         } catch (error) {
             showError(error.message || t('budget', 'Failed to upload receipt'));
+            return false;
         }
     }
 
     async attachExistingFile(transactionId, path) {
         try {
-            const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/attachments`),
-                {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                    body: JSON.stringify({ path })
-                }
-            );
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error || t('budget', 'Failed to attach file'));
+            await apiFetch(`/apps/budget/api/transactions/${transactionId}/attachments`, {
+                method: 'POST',
+                body: { path },
+                errorMessage: t('budget', 'Failed to attach file'),
+            });
             this.app.attachmentCounts = null;
+            return true;
         } catch (error) {
             showError(error.message || t('budget', 'Failed to attach file'));
+            return false;
         }
     }
 
     async detachAttachment(transactionId, attachmentId) {
         try {
-            const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/attachments/${attachmentId}`),
-                { method: 'DELETE', headers: { 'requesttoken': OC.requestToken } }
-            );
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            await apiFetch(`/apps/budget/api/transactions/${transactionId}/attachments/${attachmentId}`, { method: 'DELETE' });
             this.app.attachmentCounts = null;
         } catch (error) {
             showError(t('budget', 'Failed to remove attachment'));
         }
     }
 
-    async saveTransaction() {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveTransaction() {
+        return once('transaction-save', document.querySelector('#transaction-form [type="submit"]'), () => this._saveTransaction());
+    }
+
+    async _saveTransaction() {
         // Get form values
         const id = document.getElementById('transaction-id').value;
         const date = document.getElementById('transaction-date').value;
         const accountId = parseInt(document.getElementById('transaction-account').value);
+        if (!id && accountId) {
+            try {
+                window.localStorage.setItem('budget.lastTransactionAccountId', String(accountId));
+            } catch (e) {
+                // Storage blocked: the next form just won't pre-select it.
+            }
+        }
         const type = document.getElementById('transaction-type').value;
         const amount = parseFloat(document.getElementById('transaction-amount').value);
 
@@ -2856,13 +2994,9 @@ export default class TransactionsModule {
 
             try {
                 // Step 1: Create debit transaction in FROM account
-                const debitResponse = await fetch(OC.generateUrl('/apps/budget/api/transactions'), {
+                const debitData = await apiFetch('/apps/budget/api/transactions', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'requesttoken': OC.requestToken
-                    },
-                    body: JSON.stringify({
+                    body: {
                         date,
                         accountId: accountId,
                         type: 'debit',
@@ -2871,14 +3005,9 @@ export default class TransactionsModule {
                         vendor: vendor || null,
                         categoryId: categoryId ? parseInt(categoryId) : null,
                         notes: notes || null
-                    })
+                    },
+                    errorMessage: 'Failed to create transfer debit transaction',
                 });
-
-                if (!debitResponse.ok) {
-                    const error = await debitResponse.json();
-                    throw new Error(serverErrorMessage(error, 'Failed to create transfer debit transaction'));
-                }
-                const debitData = await debitResponse.json();
                 const debitTransactionId = debitData.id;
 
                 // Step 2: Create credit transaction in TO account
@@ -2889,13 +3018,9 @@ export default class TransactionsModule {
                     ? parseFloat(destAmountInput.value)
                     : amount;
 
-                const creditResponse = await fetch(OC.generateUrl('/apps/budget/api/transactions'), {
+                const creditData = await apiFetch('/apps/budget/api/transactions', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'requesttoken': OC.requestToken
-                    },
-                    body: JSON.stringify({
+                    body: {
                         date,
                         accountId: toAccountId,
                         type: 'credit',
@@ -2904,32 +3029,16 @@ export default class TransactionsModule {
                         vendor: vendor || null,
                         categoryId: categoryId ? parseInt(categoryId) : null,
                         notes: notes || null
-                    })
+                    },
+                    errorMessage: 'Failed to create transfer credit transaction',
                 });
-
-                if (!creditResponse.ok) {
-                    const error = await creditResponse.json();
-                    throw new Error(serverErrorMessage(error, 'Failed to create transfer credit transaction'));
-                }
-                const creditData = await creditResponse.json();
                 const creditTransactionId = creditData.id;
 
                 // Step 3: Link the two transactions using existing matching API
-                const linkResponse = await fetch(
-                    OC.generateUrl(`/apps/budget/api/transactions/${debitTransactionId}/link/${creditTransactionId}`),
-                    {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'requesttoken': OC.requestToken
-                        }
-                    }
-                );
-
-                if (!linkResponse.ok) {
-                    const error = await linkResponse.json();
-                    throw new Error(serverErrorMessage(error, 'Failed to link transfer transactions'));
-                }
+                await apiFetch(`/apps/budget/api/transactions/${debitTransactionId}/link/${creditTransactionId}`, {
+                    method: 'POST',
+                    errorMessage: 'Failed to link transfer transactions',
+                });
 
                 // Success
                 showSuccess(t('budget', 'Transfer created successfully'));
@@ -2982,84 +3091,98 @@ export default class TransactionsModule {
             }
         }
 
+        // Split unticked on a split transaction: unsplit it into the category
+        // picked. The update alone can't, as the server keeps a split
+        // transaction's category empty while its parts exist.
+        const edited = this._editedTransaction(id);
+        const unsplitting = !!(edited && (edited.isSplit || edited.is_split) && !splitToggleEl?.checked);
+
         try {
-            let response;
+            let created = null;
             if (id) {
+                if (unsplitting) {
+                    await apiFetch(`/apps/budget/api/transactions/${id}/splits`, {
+                        method: 'DELETE',
+                        body: { categoryId: data.categoryId },
+                        errorMessage: t('budget', 'Failed to unsplit transaction'),
+                    });
+                }
                 // Update existing transaction
-                response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${id}`), {
+                await apiFetch(`/apps/budget/api/transactions/${id}`, {
                     method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'requesttoken': OC.requestToken
-                    },
-                    body: JSON.stringify(data)
+                    body: data,
+                    errorMessage: t('budget', 'Failed to save transaction'),
                 });
             } else {
                 // Create new transaction
-                response = await fetch(OC.generateUrl('/apps/budget/api/transactions'), {
+                created = await apiFetch('/apps/budget/api/transactions', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'requesttoken': OC.requestToken
-                    },
-                    body: JSON.stringify(data)
+                    body: data,
+                    errorMessage: t('budget', 'Failed to save transaction'),
                 });
             }
 
-            if (response.ok) {
-                const created = !id ? await response.json() : null;
-                const txId = created?.id || parseInt(id);
+            const txId = created?.id || parseInt(id);
 
-                // Save tags for newly created transactions
-                if (!id && selectedTagIds.length > 0 && txId) {
-                    await this.app.tagSetsModule.saveTransactionTags(txId, selectedTagIds);
+            // Save tags for newly created transactions
+            if (!id && selectedTagIds.length > 0 && txId) {
+                await this.app.tagSetsModule.saveTransactionTags(txId, selectedTagIds);
+            }
+
+            // Save inline splits if enabled
+            const splitToggle = document.getElementById('transaction-split-toggle');
+            if (splitToggle?.checked && txId) {
+                await this.saveInlineSplits(txId);
+            }
+
+            // Receipts chosen before the transaction existed — a scanned
+            // photo, or ones picked by hand — are attached now that it has
+            // an id. Failing here must not fail the save: the transaction
+            // is already recorded, and a re-submit would duplicate it.
+            if (txId) {
+                if (this._scannedReceiptFile) {
+                    this._pendingAttachments.push({
+                        kind: 'file',
+                        file: this._scannedReceiptFile,
+                        name: this._scannedReceiptFile.name,
+                    });
+                    this._scannedReceiptFile = null;
                 }
-
-                // Save inline splits if enabled
-                const splitToggle = document.getElementById('transaction-split-toggle');
-                if (splitToggle?.checked && txId) {
-                    await this.saveInlineSplits(txId);
+                const failed = await this.flushPendingAttachments(txId);
+                if (failed > 0) {
+                    showWarning(t('budget', 'The transaction was saved, but {count} receipt(s) could not be attached', { count: failed }));
                 }
+            }
 
-                // Receipts chosen before the transaction existed — a scanned
-                // photo, or ones picked by hand — are attached now that it has
-                // an id. Failing here must not fail the save: the transaction
-                // is already recorded, and a re-submit would duplicate it.
-                if (txId) {
-                    if (this._scannedReceiptFile) {
-                        this._pendingAttachments.push({
-                            kind: 'file',
-                            file: this._scannedReceiptFile,
-                            name: this._scannedReceiptFile.name,
-                        });
-                        this._scannedReceiptFile = null;
-                    }
-                    const failed = await this.flushPendingAttachments(txId);
-                    if (failed > 0) {
-                        showWarning(t('budget', 'The transaction was saved, but {count} receipt(s) could not be attached', { count: failed }));
-                    }
-                }
+            showSuccess(id ? t('budget', 'Transaction updated') : t('budget', 'Transaction created'));
+            this.app.hideModals();
+            await this.app.loadTransactions();
+            await this.app.loadAccounts(); // Refresh account balances
 
-                showSuccess(id ? t('budget', 'Transaction updated') : t('budget', 'Transaction created'));
-                this.app.hideModals();
-                await this.app.loadTransactions();
-                await this.app.loadAccounts(); // Refresh account balances
+            // Refresh account details view if currently viewing an account
+            await this.app.refreshCurrentAccountView();
 
-                // Refresh account details view if currently viewing an account
-                await this.app.refreshCurrentAccountView();
-
-                // Refresh dashboard if currently viewing it
-                if (window.location.hash === '' || window.location.hash === '#/dashboard') {
-                    await this.app.loadDashboard();
-                }
-            } else {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to save transaction')));
+            // Refresh dashboard if currently viewing it
+            if (window.location.hash === '' || window.location.hash === '#/dashboard') {
+                await this.app.loadDashboard();
             }
         } catch (error) {
             console.error('Failed to save transaction:', error);
             showError(error.message || t('budget', 'Failed to save transaction'));
         }
+    }
+
+    /**
+     * The saved transaction the form is editing: the one it was opened with,
+     * else the list's copy. Null for a new transaction.
+     *
+     * @param {string|number} id - The form's transaction id
+     */
+    _editedTransaction(id) {
+        const txId = parseInt(id);
+        if (!txId) return null;
+        if (this._formTransaction?.id === txId) return this._formTransaction;
+        return this.transactions?.find(tx => tx.id === txId) || null;
     }
 
     // ===========================
@@ -3079,7 +3202,7 @@ export default class TransactionsModule {
         const isEdit = !!txId;
         const typeSelect = document.getElementById('transaction-type');
         const isTransfer = typeSelect?.value === 'transfer';
-        const transaction = isEdit ? this.transactions?.find(tx => tx.id === parseInt(txId)) : null;
+        const transaction = this._editedTransaction(txId);
         const isSplit = transaction?.isSplit || transaction?.is_split;
 
         // Reset state
@@ -3210,24 +3333,24 @@ export default class TransactionsModule {
         row.innerHTML = `
             <div class="split-field split-amount-field">
                 <label>${t('budget', 'Amount')}</label>
-                <input type="number" class="inline-split-amount" step="0.01" ${minAttr} placeholder="0.00"
+                <input aria-label="${t('budget', 'Amount')}" type="number" class="inline-split-amount" step="0.01" ${minAttr} placeholder="0.00"
                        value="${existingSplit ? existingSplit.amount : ''}">
             </div>
             <div class="split-field split-category-field">
                 <label>${t('budget', 'Category')}</label>
-                <select class="inline-split-category">
+                <select aria-label="${t('budget', 'Category')}" class="inline-split-category">
                     <option value="">${t('budget', 'Uncategorized')}</option>
-                    ${this.app.getCategoryOptions(existingSplit?.categoryId || null, transactionType)}
+                    ${this.app.getCategoryOptions(existingSplit?.categoryId || null, transactionType, this._formAccount(), existingSplit?.categoryName || null)}
                 </select>
             </div>
             <div class="split-field split-description-field">
                 <label>${t('budget', 'Description')}</label>
-                <input type="text" class="inline-split-description" maxlength="255" placeholder="${t('budget', 'Optional note')}"
-                       value="${existingSplit?.description || ''}">
+                <input aria-label="${t('budget', 'Description')}" type="text" class="inline-split-description" maxlength="255" placeholder="${t('budget', 'Optional note')}"
+                       value="${dom.escapeHtml(existingSplit?.description || '')}">
             </div>
             <div class="split-actions">
                 <button type="button" class="split-remove-btn ${isFirst ? 'disabled' : ''}"
-                        ${isFirst ? 'disabled' : ''} title="${t('budget', 'Remove')}">
+                        ${isFirst ? 'disabled' : ''} title="${t('budget', 'Remove')}" aria-label="${t('budget', 'Remove')}">
                     &times;
                 </button>
             </div>
@@ -3366,12 +3489,8 @@ export default class TransactionsModule {
         container.innerHTML = '';
 
         try {
-            const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/splits`),
-                { headers: { 'requesttoken': OC.requestToken } }
-            );
-            if (!response.ok) return;
-            const splits = await response.json();
+            const splits = await apiFetch(`/apps/budget/api/transactions/${transactionId}/splits`).catch(() => null);
+            if (!splits) return;
 
             if (splits.length > 0) {
                 // A stored set may contain a negative part (a receipt savings
@@ -3416,30 +3535,21 @@ export default class TransactionsModule {
         if (splits.length < 2) return;
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/splits`), {
+            await apiFetch(`/apps/budget/api/transactions/${transactionId}/splits`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ splits })
+                body: { splits }
             });
-
+        } catch (error) {
             // The result was previously ignored entirely, so a rejected set
             // left the transaction silently unsplit after telling the user it
             // had saved — the failure was invisible in the UI and in the
             // console alike. The transaction itself is fine, so this warns
             // rather than throwing.
-            if (!response.ok) {
-                let reason = '';
-                try { reason = (await response.json()).error || ''; } catch (e) { /* non-JSON error */ }
-                showWarning(reason
-                    ? t('budget', 'The transaction was saved, but not split: {reason}', { reason })
-                    : t('budget', 'The transaction was saved, but its splits could not be stored'));
-            }
-        } catch (error) {
             console.error('Failed to save inline splits:', error);
-            showWarning(t('budget', 'The transaction was saved, but its splits could not be stored'));
+            const reason = error instanceof ApiError ? (error.data?.error || '') : '';
+            showWarning(reason
+                ? t('budget', 'The transaction was saved, but not split: {reason}', { reason })
+                : t('budget', 'The transaction was saved, but its splits could not be stored'));
         }
     }
 
@@ -3457,7 +3567,14 @@ export default class TransactionsModule {
                 ? t('budget', 'This will decrease the account balance by {amount}.', { amount })
                 : t('budget', 'This will increase the account balance by {amount}.', { amount });
 
-            if (transaction.billId) {
+            // A scheduled row is in no balance yet, and a bill's one is the
+            // payment it hasn't made: neither the balance line nor the "real
+            // payment" warning is true of it
+            if (transaction.status === 'scheduled') {
+                message = transaction.billId
+                    ? t('budget', 'This is the upcoming payment of a bill, not money that has moved. Deleting it removes the scheduled entry until the bill is next paid; the bill itself stays, and the account balance does not change. Are you sure?')
+                    : t('budget', 'This transaction is scheduled and not in the account balance yet, so the balance does not change. Are you sure you want to delete it?');
+            } else if (transaction.billId) {
                 message = t('budget', 'This transaction was auto-generated from a bill payment.') + `\n\n${balanceEffect}\n\n` + t('budget', 'If this is a real payment, deleting it will cause your balance to diverge from your bank statement. Are you sure?');
             } else {
                 message = t('budget', 'Are you sure you want to delete this transaction?') + `\n\n${balanceEffect}`;
@@ -3477,28 +3594,29 @@ export default class TransactionsModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${id}`), {
-                method: 'DELETE',
-                headers: {
-                    'requesttoken': OC.requestToken
-                }
-            });
+            try {
+                await apiFetch(`/apps/budget/api/transactions/${id}`, {
+                    method: 'DELETE',
+                    errorMessage: t('budget', 'Failed to delete transaction'),
+                });
+            } catch (error) {
+                // A refusal carries the server's reason; anything else takes
+                // the generic toast below
+                if (!(error instanceof ApiError)) throw error;
+                showError(error.message);
+                return;
+            }
 
-            if (response.ok) {
-                showSuccess(t('budget', 'Transaction deleted'));
-                await this.app.loadTransactions();
-                await this.app.loadAccounts(); // Refresh account balances
+            showSuccess(t('budget', 'Transaction deleted'));
+            await this.app.loadTransactions();
+            await this.app.loadAccounts(); // Refresh account balances
 
-                // Refresh account details view if currently viewing an account
-                await this.app.refreshCurrentAccountView();
+            // Refresh account details view if currently viewing an account
+            await this.app.refreshCurrentAccountView();
 
-                // Refresh dashboard if currently viewing it
-                if (window.location.hash === '' || window.location.hash === '#/dashboard') {
-                    await this.app.loadDashboard();
-                }
-            } else {
-                const error = await response.json().catch(() => ({}));
-                showError(serverErrorMessage(error, t('budget', 'Failed to delete transaction')));
+            // Refresh dashboard if currently viewing it
+            if (window.location.hash === '' || window.location.hash === '#/dashboard') {
+                await this.app.loadDashboard();
             }
         } catch (error) {
             console.error('Failed to delete transaction:', error);
@@ -3509,14 +3627,7 @@ export default class TransactionsModule {
     // Transaction matching and linking
     async findTransactionMatches(transactionId) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/matches`), {
-                headers: {
-                    'requesttoken': OC.requestToken
-                }
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            return await response.json();
+            return await apiFetch(`/apps/budget/api/transactions/${transactionId}/matches`);
         } catch (error) {
             console.error('Failed to find matches:', error);
             throw error;
@@ -3525,18 +3636,7 @@ export default class TransactionsModule {
 
     async linkTransactions(transactionId, targetId) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/link/${targetId}`), {
-                method: 'POST',
-                headers: {
-                    'requesttoken': OC.requestToken
-                }
-            });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-            }
-            return await response.json();
+            return await apiFetch(`/apps/budget/api/transactions/${transactionId}/link/${targetId}`, { method: 'POST' });
         } catch (error) {
             console.error('Failed to link transactions:', error);
             throw error;
@@ -3545,18 +3645,7 @@ export default class TransactionsModule {
 
     async unlinkTransaction(transactionId) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/link`), {
-                method: 'DELETE',
-                headers: {
-                    'requesttoken': OC.requestToken
-                }
-            });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-            }
-            return await response.json();
+            return await apiFetch(`/apps/budget/api/transactions/${transactionId}/link`, { method: 'DELETE' });
         } catch (error) {
             console.error('Failed to unlink transaction:', error);
             throw error;
@@ -3582,6 +3671,42 @@ export default class TransactionsModule {
         };
         apply('transaction-amount', 'transaction-account');
         apply('transfer-dest-amount', 'transfer-to-account');
+    }
+
+    /**
+     * The account and amount fields of the transaction form are permanent DOM,
+     * and the form opens many times per page load. Bind their listeners once:
+     * binding on every open stacked a handler per open, so after N opens each
+     * keystroke in a cross-currency transfer sent N conversion requests.
+     */
+    _bindTransferAmountFields() {
+        const bind = (id, event, handler) => {
+            const el = document.getElementById(id);
+            if (!el || el.dataset.transferFieldsBound) return;
+            el.dataset.transferFieldsBound = '1';
+            el.addEventListener(event, handler);
+        };
+
+        // Source or destination account change — check for cross-currency
+        const onAccountChange = () => {
+            this._checkCrossCurrencyTransfer();
+            this._updateAmountStep();
+        };
+        bind('transaction-account', 'change', onAccountChange);
+        bind('transfer-to-account', 'change', onAccountChange);
+
+        // Source amount change — update destination amount if cross-currency
+        bind('transaction-amount', 'input', () => {
+            // Reset user-edited flag when source amount changes
+            const destInput = document.getElementById('transfer-dest-amount');
+            if (destInput) destInput.dataset.userEdited = '';
+            this._updateDestAmountFromRate();
+        });
+
+        // Track manual edits to destination amount
+        bind('transfer-dest-amount', 'input', (e) => {
+            e.target.dataset.userEdited = 'true';
+        });
     }
 
     _checkCrossCurrencyTransfer() {
@@ -3628,6 +3753,11 @@ export default class TransactionsModule {
      * Fetch exchange rate and update destination amount field.
      */
     async _updateDestAmountFromRate() {
+        // Only the latest request may fill the field: a slow earlier reply
+        // must not overwrite a newer conversion. Bumped before any early
+        // return so a reply for a form that has since changed is dropped too.
+        const seq = this._destRateSeq = (this._destRateSeq || 0) + 1;
+
         const destAmountWrapper = document.getElementById('transfer-dest-amount-wrapper');
         if (!destAmountWrapper || destAmountWrapper.style.display === 'none') return;
 
@@ -3642,12 +3772,9 @@ export default class TransactionsModule {
         if (!sourceAccount?.currency || !destAccount?.currency) return;
 
         try {
-            const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/exchange-rates/convert?from=${sourceAccount.currency}&to=${destAccount.currency}&amount=${sourceAmount}`),
-                { headers: { 'requesttoken': OC.requestToken } }
-            );
-            if (response.ok) {
-                const data = await response.json();
+            const data = await apiFetch(`/apps/budget/api/exchange-rates/convert?from=${sourceAccount.currency}&to=${destAccount.currency}&amount=${sourceAmount}`).catch(() => null);
+            if (seq !== this._destRateSeq) return;
+            if (data) {
                 const destInput = document.getElementById('transfer-dest-amount');
                 // Only auto-fill if user hasn't manually edited it
                 if (destInput && !destInput.dataset.userEdited) {
@@ -3690,10 +3817,11 @@ export default class TransactionsModule {
         const convertSelect = document.getElementById('matching-convert-account');
         const convertSection = document.getElementById('matching-convert');
         if (convertSelect && convertSection) {
-            const candidates = (this.accounts || []).filter(a =>
+            // Only an open account you can write to can take the new leg (#372)
+            const candidates = openAccounts(this.accounts).filter(a =>
                 a.id !== transaction.accountId && (a.currency || this.getPrimaryCurrency()) === currency);
             convertSelect.innerHTML = candidates.map(a =>
-                `<option value="${a.id}">${this.escapeHtml(a.name)}</option>`).join('');
+                `<option value="${a.id}">${dom.escapeHtml(a.name)}</option>`).join('');
             convertSection.style.display = candidates.length ? '' : 'none';
         }
 
@@ -3721,9 +3849,9 @@ export default class TransactionsModule {
                 return `
                     <div class="match-item" data-match-id="${match.id}">
                         <span class="match-date">${this.formatDate(match.date)}</span>
-                        <span class="match-description">${this.escapeHtml(match.description)}</span>
+                        <span class="match-description">${dom.escapeHtml(match.description)}</span>
                         <span class="match-amount ${matchTypeClass}">${this.formatCurrency(match.amount, matchCurrency)}</span>
-                        <span class="match-account">${matchAccount?.name || t('budget', 'Unknown')}</span>
+                        <span class="match-account">${dom.escapeHtml(matchAccount?.name) || t('budget', 'Unknown')}</span>
                         <button class="link-match-btn" data-source-id="${transactionId}" data-target-id="${match.id}">
                             ${t('budget', 'Link as Transfer')}
                         </button>
@@ -3798,7 +3926,7 @@ export default class TransactionsModule {
             </div>
             <div class="split-info-row">
                 <span class="split-info-label">${t('budget', 'Description:')}</span>
-                <span>${this.escapeHtml(transaction.description)}</span>
+                <span>${dom.escapeHtml(transaction.description)}</span>
             </div>
             <div class="split-info-row">
                 <span class="split-info-label">${t('budget', 'Total Amount:')}</span>
@@ -3859,24 +3987,24 @@ export default class TransactionsModule {
         row.innerHTML = `
             <div class="split-field split-amount-field">
                 <label>${t('budget', 'Amount')}</label>
-                <input type="number" class="split-amount" step="0.01" min="0.01"
+                <input aria-label="${t('budget', 'Amount')}" type="number" class="split-amount" step="0.01" min="0.01"
                        value="${split ? split.amount : ''}" placeholder="0.00" required>
             </div>
             <div class="split-field split-category-field">
                 <label>${t('budget', 'Category')}</label>
-                <select class="split-category">
+                <select aria-label="${t('budget', 'Category')}" class="split-category">
                     <option value="">${t('budget', 'Uncategorized')}</option>
                     ${this.getCategoryOptions(split?.categoryId, transactionType)}
                 </select>
             </div>
             <div class="split-field split-description-field">
                 <label>${t('budget', 'Description')}</label>
-                <input type="text" class="split-description" maxlength="255"
-                       value="${split?.description || ''}" placeholder="${t('budget', 'Optional note')}">
+                <input aria-label="${t('budget', 'Description')}" type="text" class="split-description" maxlength="255"
+                       value="${dom.escapeHtml(split?.description || '')}" placeholder="${t('budget', 'Optional note')}">
             </div>
             <div class="split-actions">
                 <button type="button" class="split-remove-btn ${isFirst ? 'disabled' : ''}"
-                        ${isFirst ? 'disabled' : ''} title="${t('budget', 'Remove split')}">
+                        ${isFirst ? 'disabled' : ''} title="${t('budget', 'Remove split')}" aria-label="${t('budget', 'Remove split')}">
                     <span class="icon-delete"></span>
                 </button>
             </div>
@@ -3903,7 +4031,7 @@ export default class TransactionsModule {
 
         return this.categories
             .filter(c => c.type === categoryType)
-            .map(c => `<option value="${c.id}" ${c.id === selectedId ? 'selected' : ''}>${this.escapeHtml(c.name)}</option>`)
+            .map(c => `<option value="${c.id}" ${c.id === selectedId ? 'selected' : ''}>${dom.escapeHtml(c.name)}</option>`)
             .join('');
     }
 
@@ -3927,11 +4055,7 @@ export default class TransactionsModule {
     }
 
     async getTransactionSplits(transactionId) {
-        const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/splits`), {
-            headers: { 'requesttoken': OC.requestToken }
-        });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return await response.json();
+        return await apiFetch(`/apps/budget/api/transactions/${transactionId}/splits`);
     }
 
     async saveSplits() {
@@ -3959,19 +4083,10 @@ export default class TransactionsModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/splits`), {
+            await apiFetch(`/apps/budget/api/transactions/${transactionId}/splits`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ splits })
+                body: { splits }
             });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-            }
 
             this.hideSplitModal();
             showSuccess(t('budget', 'Transaction split successfully'));
@@ -3991,15 +4106,7 @@ export default class TransactionsModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/splits`), {
-                method: 'DELETE',
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-            }
+            await apiFetch(`/apps/budget/api/transactions/${transactionId}/splits`, { method: 'DELETE' });
 
             this.hideSplitModal();
             showSuccess(t('budget', 'Transaction unsplit successfully'));
@@ -4020,37 +4127,14 @@ export default class TransactionsModule {
     // ===== Bulk Transfer Matching =====
 
     async scanForMatches(dateWindow = 3) {
-        const response = await fetch(
-            OC.generateUrl(`/apps/budget/api/transactions/scan-matches?dateWindow=${dateWindow}`),
-            {
-                method: 'GET',
-                headers: { 'requesttoken': OC.requestToken }
-            }
-        );
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-        }
-        return await response.json();
+        return await apiFetch(`/apps/budget/api/transactions/scan-matches?dateWindow=${dateWindow}`);
     }
 
     async bulkLinkPairs(pairs) {
-        const response = await fetch(
-            OC.generateUrl('/apps/budget/api/transactions/bulk-link'),
-            {
-                method: 'POST',
-                headers: {
-                    'requesttoken': OC.requestToken,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ pairs })
-            }
-        );
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-        }
-        return await response.json();
+        return await apiFetch('/apps/budget/api/transactions/bulk-link', {
+            method: 'POST',
+            body: { pairs }
+        });
     }
 
     showBulkMatchModal() {
@@ -4277,19 +4361,19 @@ export default class TransactionsModule {
             <div class="bulk-match-pair" data-tx-id="${tx.id}" data-linked-id="${linked.id}">
                 <div class="pair-transaction">
                     <span class="pair-date">${this.formatDate(tx.date)}</span>
-                    <span class="pair-description">${this.escapeHtml(tx.description)}</span>
+                    <span class="pair-description">${dom.escapeHtml(tx.description)}</span>
                     <div class="pair-details">
                         <span class="pair-amount ${txTypeClass}">${this.formatCurrency(tx.amount, txCurrency)}</span>
-                        <span class="pair-account">${this.escapeHtml(tx.account_name)}</span>
+                        <span class="pair-account">${dom.escapeHtml(tx.account_name)}</span>
                     </div>
                 </div>
                 <span class="pair-arrow">\u2194</span>
                 <div class="pair-transaction">
                     <span class="pair-date">${this.formatDate(linked.date)}</span>
-                    <span class="pair-description">${this.escapeHtml(linked.description)}</span>
+                    <span class="pair-description">${dom.escapeHtml(linked.description)}</span>
                     <div class="pair-details">
                         <span class="pair-amount ${linkedTypeClass}">${this.formatCurrency(linked.amount, linkedCurrency)}</span>
-                        <span class="pair-account">${this.escapeHtml(linked.accountName)}</span>
+                        <span class="pair-account">${dom.escapeHtml(linked.accountName)}</span>
                     </div>
                 </div>
                 <button class="undo-match-btn" data-tx-id="${tx.id}">${t('budget', 'Undo')}</button>
@@ -4313,19 +4397,19 @@ export default class TransactionsModule {
                 <div class="pair-content">
                     <div class="pair-transaction">
                         <span class="pair-date">${this.formatDate(tx.date)}</span>
-                        <span class="pair-description">${this.escapeHtml(tx.description)}</span>
+                        <span class="pair-description">${dom.escapeHtml(tx.description)}</span>
                         <div class="pair-details">
                             <span class="pair-amount ${txTypeClass}">${this.formatCurrency(tx.amount, txCurrency)}</span>
-                            <span class="pair-account">${this.escapeHtml(tx.account_name)}</span>
+                            <span class="pair-account">${dom.escapeHtml(tx.account_name)}</span>
                         </div>
                     </div>
                     <span class="pair-arrow">\u2194</span>
                     <div class="pair-transaction">
                         <span class="pair-date">${this.formatDate(match.date)}</span>
-                        <span class="pair-description">${this.escapeHtml(match.description)}</span>
+                        <span class="pair-description">${dom.escapeHtml(match.description)}</span>
                         <div class="pair-details">
                             <span class="pair-amount ${matchTypeClass}">${this.formatCurrency(match.amount, matchCurrency)}</span>
-                            <span class="pair-account">${this.escapeHtml(match.accountName)}</span>
+                            <span class="pair-account">${dom.escapeHtml(match.accountName)}</span>
                         </div>
                     </div>
                 </div>
@@ -4348,10 +4432,10 @@ export default class TransactionsModule {
                     <div class="match-info">
                         <div class="match-info-main">
                             <span class="match-date">${this.formatDate(match.date)}</span>
-                            <span class="match-description">${this.escapeHtml(match.description)}</span>
+                            <span class="match-description">${dom.escapeHtml(match.description)}</span>
                         </div>
                         <span class="pair-amount ${matchTypeClass}">${this.formatCurrency(match.amount, matchCurrency)}</span>
-                        <span class="pair-account">${this.escapeHtml(match.accountName)}</span>
+                        <span class="pair-account">${dom.escapeHtml(match.accountName)}</span>
                     </div>
                 </label>
             `;
@@ -4362,10 +4446,10 @@ export default class TransactionsModule {
                 <div class="review-source">
                     <div class="review-source-info">
                         <span class="review-source-date">${this.formatDate(tx.date)}</span>
-                        <span class="review-source-description">${this.escapeHtml(tx.description)}</span>
+                        <span class="review-source-description">${dom.escapeHtml(tx.description)}</span>
                         <div class="review-source-details">
                             <span class="pair-amount ${txTypeClass}">${this.formatCurrency(tx.amount, txCurrency)}</span>
-                            <span class="pair-account">${this.escapeHtml(tx.account_name)}</span>
+                            <span class="pair-account">${dom.escapeHtml(tx.account_name)}</span>
                         </div>
                     </div>
                 </div>
@@ -4546,12 +4630,31 @@ export default class TransactionsModule {
             return;
         }
 
+        // On a phone the rows are cards (see the 640px layout in style.css),
+        // and editing one small cell in place is fiddly: a tap anywhere on the
+        // card opens the full edit form instead. Runs in the capture phase so
+        // it gets there before the inline editor below. Checkboxes, buttons
+        // and links inside the card keep their own behaviour.
+        transactionsTable.addEventListener('click', (e) => {
+            if (!window.matchMedia(PHONE_CARD_QUERY).matches) return;
+            const row = e.target.closest('tr.transaction-row');
+            if (!row || e.target.closest('input, button, a, select, .linked-indicator, .cell-editing, .editing')) return;
+            e.preventDefault();
+            e.stopPropagation();
+            // A row in an account shared read-only can't be changed
+            if (row.dataset.readOnly) return;
+            this.editTransaction(parseInt(row.dataset.transactionId, 10));
+        }, true);
+
         // Handle click on editable cells
         transactionsTable.addEventListener('click', (e) => {
             const cell = e.target.closest('.editable-cell');
             if (cell && !cell.classList.contains('editing')) {
                 // Don't trigger if clicking on checkbox
                 if (e.target.type === 'checkbox') return;
+                // The transfer badge is a button of its own (it opens the
+                // linked transaction), not a way into the description editor.
+                if (e.target.closest('.linked-indicator')) return;
                 this.startInlineEdit(cell);
             }
         });
@@ -4589,7 +4692,7 @@ export default class TransactionsModule {
                 this.createTextEditor(cell, value, 'description');
                 break;
             case 'categoryId':
-                this.createCategoryEditor(cell, value);
+                this.createCategoryEditor(cell, value, transaction);
                 break;
             case 'amount':
                 this.createAmountEditor(cell, transaction);
@@ -4683,7 +4786,7 @@ export default class TransactionsModule {
         input.select();
     }
 
-    createCategoryEditor(cell, currentCategoryId) {
+    createCategoryEditor(cell, currentCategoryId, transaction = null) {
         const container = document.createElement('div');
         container.className = 'category-autocomplete';
 
@@ -4692,9 +4795,16 @@ export default class TransactionsModule {
         input.className = 'category-autocomplete-input';
         input.placeholder = t('budget', 'Type to search...');
 
+        // A row in an account someone shared with you takes only their
+        // categories (see _refreshFormCategoryOptions)
+        const account = transaction ? (this.accounts || []).find(a => a.id === transaction.accountId) : null;
+        const scoped = usableCategories(this.categories, [account], [currentCategoryId]);
+
         // Try hierarchical first (for categories page), then flat (for transactions page)
         let categoryData = null;
-        if (this.categoryTree && this.categoryTree.length > 0) {
+        if (scoped) {
+            categoryData = categoryTreeOf(scoped);
+        } else if (this.categoryTree && this.categoryTree.length > 0) {
             categoryData = this.categoryTree;
         } else if (this.allCategories && this.allCategories.length > 0) {
             categoryData = this.allCategories;
@@ -4705,9 +4815,13 @@ export default class TransactionsModule {
         // Build flat list of categories for search
         const flatCategories = categoryData ? this.getFlatCategoryList(categoryData) : [];
 
-        // Set current category name as value
+        // Set current category name as value (one not shared with you is
+        // kept as it is, named as the row came, as the cell shows it; only a
+        // change is saved)
         const currentCategory = flatCategories.find(c => c.id === parseInt(currentCategoryId));
-        input.value = currentCategory ? currentCategory.name : '';
+        input.value = currentCategory
+            ? currentCategory.name
+            : (currentCategoryId ? (transaction?.categoryName || unavailableCategoryLabel(null)) : '');
         input.dataset.categoryId = currentCategoryId || '';
 
         const dropdown = document.createElement('div');
@@ -4728,8 +4842,8 @@ export default class TransactionsModule {
                 dropdown.innerHTML = filtered.map(c => `
                     <div class="category-autocomplete-item ${c.id === parseInt(input.dataset.categoryId) ? 'selected' : ''}"
                          data-category-id="${c.id}"
-                         data-category-name="${c.name}">
-                        ${c.prefix}${c.name}
+                         data-category-name="${dom.escapeHtml(c.name)}">
+                        ${dom.escapeHtml(c.prefix)}${dom.escapeHtml(c.name)}
                     </div>
                 `).join('');
             }
@@ -4868,9 +4982,15 @@ export default class TransactionsModule {
         cell.innerHTML = `<span style="color: var(--color-text-maxcontrast); font-size: 11px;">${t('budget', 'Loading...')}</span>`;
 
         try {
+            // A row in an account someone shared with you is tagged as its
+            // owner, who can't see your own tags (the server refuses them):
+            // only the tags of the row's category can go on it.
+            const account = this.accounts?.find(a => a.id === transaction.accountId);
+            const ownersRow = !!account?._shared;
+
             // Load both global tags and category tag sets
             const [globalTagsResponse, tagSets] = await Promise.all([
-                fetch(OC.generateUrl('/apps/budget/api/tags/global'), { headers: { 'requesttoken': OC.requestToken } }).then(r => r.ok ? r.json() : []).catch(() => []),
+                ownersRow ? Promise.resolve([]) : apiFetch('/apps/budget/api/tags/global').catch(() => []),
                 categoryId ? this.loadTagSetsForCategory(categoryId) : Promise.resolve([])
             ]);
 
@@ -4949,16 +5069,16 @@ export default class TransactionsModule {
 
                 let html = '';
                 Object.values(grouped).forEach(group => {
-                    html += `<div class="tags-group-header">${this.escapeHtml(group.name)}</div>`;
+                    html += `<div class="tags-group-header">${dom.escapeHtml(group.name)}</div>`;
                     group.tags.forEach(tag => {
                         const isSelected = selectedTags.has(tag.id);
                         html += `
                             <div class="tags-autocomplete-item ${isSelected ? 'selected' : ''}"
                                  data-tag-id="${tag.id}">
                                 <span class="tag-chip"
-                                      style="display: inline-flex; align-items: center; background-color: ${this.escapeHtml(tag.color)}; color: white;
+                                      style="display: inline-flex; align-items: center; background-color: ${dom.escapeHtml(tag.color)}; color: white;
                                              padding: 2px 6px; border-radius: 10px; font-size: 10px; line-height: 14px; margin-right: 4px;">
-                                    ${this.escapeHtml(tag.name)}
+                                    ${dom.escapeHtml(tag.name)}
                                 </span>
                                 <span class="tag-check">${isSelected ? '✓' : ''}</span>
                             </div>
@@ -5042,40 +5162,30 @@ export default class TransactionsModule {
         const tagIds = Array.from(selectedTags);
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}/tags`), {
+            await apiFetch(`/apps/budget/api/transactions/${transactionId}/tags`, {
                 method: 'PUT',
-                headers: {
-                    'requesttoken': OC.requestToken,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ tagIds })
+                body: { tagIds },
+                errorMessage: t('budget', 'Failed to update tags'),
             });
 
-            if (response.ok) {
-                await this.app.loadTransactionTags(transactionId);
-                this.cancelInlineEdit(cell);
+            await this.app.loadTransactionTags(transactionId);
+            this.cancelInlineEdit(cell);
 
-                const cellDisplay = cell.querySelector('.cell-display');
-                if (cellDisplay) {
-                    cellDisplay.innerHTML = this.app.renderTransactionTags(transactionId);
-                }
-            } else {
-                console.error('Failed to save tags');
-                this.cancelInlineEdit(cell);
+            const cellDisplay = cell.querySelector('.cell-display');
+            if (cellDisplay) {
+                cellDisplay.innerHTML = this.app.renderTransactionTags(transactionId);
             }
         } catch (error) {
             console.error('Failed to save tags:', error);
+            // The server says why, e.g. a tag the account's owner can't see
+            showError(error.message || t('budget', 'Failed to update tags'));
             this.cancelInlineEdit(cell);
         }
     }
 
     async loadTagSetsForCategory(categoryId) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/tag-sets?categoryId=${categoryId}`), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            return await response.json();
+            return await apiFetch(`/apps/budget/api/tag-sets?categoryId=${categoryId}`);
         } catch (error) {
             console.error('Failed to load tag sets:', error);
             return [];
@@ -5192,29 +5302,19 @@ export default class TransactionsModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/transactions/${transactionId}`), {
+            const result = await apiFetch(`/apps/budget/api/transactions/${transactionId}`, {
                 method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify(updateData)
+                body: updateData
             });
+            Object.assign(transaction, result);
 
-            if (response.ok) {
-                const result = await response.json();
-                Object.assign(transaction, result);
-
-                if (field === 'accountId') {
-                    await this.app.loadAccounts();
-                }
-
-                this.app.renderEnhancedTransactionsTable();
-                this.app.applyColumnVisibility();
-                showSuccess(t('budget', 'Transaction updated'));
-            } else {
-                throw new Error('Update failed');
+            if (field === 'accountId') {
+                await this.app.loadAccounts();
             }
+
+            this.app.renderEnhancedTransactionsTable();
+            this.app.applyColumnVisibility();
+            showSuccess(t('budget', 'Transaction updated'));
         } catch (error) {
             console.error('Failed to save inline edit:', error);
             showError(t('budget', 'Failed to update transaction'));
@@ -5268,7 +5368,7 @@ export default class TransactionsModule {
             <div class="budget-modal">
                 <div class="budget-modal-header">
                     <h2>${t('budget', 'Find Duplicate Transactions')}</h2>
-                    <button class="close-btn" title="${t('budget', 'Close')}">&times;</button>
+                    <button class="close-btn" title="${t('budget', 'Close')}" aria-label="${t('budget', 'Close')}">&times;</button>
                 </div>
                 <div class="budget-modal-body">
                     <div id="duplicates-loading" class="loading-indicator">
@@ -5302,12 +5402,7 @@ export default class TransactionsModule {
         this._duplicatesDirty = false;
 
         try {
-            const response = await fetch(
-                OC.generateUrl('/apps/budget/api/transactions/duplicates'),
-                { headers: { 'requesttoken': OC.requestToken } }
-            );
-            if (!response.ok) throw new Error('Failed to fetch duplicates');
-            const data = await response.json();
+            const data = await apiFetch('/apps/budget/api/transactions/duplicates');
 
             document.getElementById('duplicates-loading').style.display = 'none';
             const content = document.getElementById('duplicates-content');
@@ -5351,9 +5446,9 @@ export default class TransactionsModule {
             html += `
                 <div class="duplicate-group">
                     <div class="duplicate-group-header">
-                        <strong>${this.escapeHtml(first.description) || t('budget', '(no description)')}</strong>
-                        &mdash; ${amount} (${this.escapeHtml(first.type)})
-                        &mdash; ${this.escapeHtml(first.accountName)}
+                        <strong>${dom.escapeHtml(first.description) || t('budget', '(no description)')}</strong>
+                        &mdash; ${amount} (${dom.escapeHtml(first.type)})
+                        &mdash; ${dom.escapeHtml(first.accountName)}
                     </div>
                     <div class="duplicate-group-items">
             `;
@@ -5373,9 +5468,9 @@ export default class TransactionsModule {
                         <input type="checkbox" class="duplicate-checkbox"
                             data-group="${groupIdx}" data-tx-id="${tx.id}" ${checked}>
                         <span class="duplicate-item-details">
-                            <span class="duplicate-date">${this.escapeHtml(tx.date)}</span>
-                            <span class="duplicate-vendor">${this.escapeHtml(tx.vendor) || '-'}</span>
-                            <span class="duplicate-category">${(tx.isSplit || tx.is_split) ? this.escapeHtml(t('budget', 'Split')) : (this.escapeHtml(tx.categoryName) || '-')}</span>
+                            <span class="duplicate-date">${dom.escapeHtml(tx.date)}</span>
+                            <span class="duplicate-vendor">${dom.escapeHtml(tx.vendor) || '-'}</span>
+                            <span class="duplicate-category">${(tx.isSplit || tx.is_split) ? dom.escapeHtml(t('budget', 'Split')) : (dom.escapeHtml(tx.categoryName) || '-')}</span>
                             <span class="duplicate-amount">${formatters.formatCurrency(tx.amount, tx.currency, this.settings)}</span>
                             ${keepLabel}${billLabel}${statusLabel}
                         </span>
@@ -5439,20 +5534,10 @@ export default class TransactionsModule {
         deleteBtn.textContent = t('budget', 'Deleting...');
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/transactions/bulk-delete'), {
+            const result = await apiFetch('/apps/budget/api/transactions/bulk-delete', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ ids })
+                body: { ids }
             });
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
-
-            const result = await response.json();
 
             if (result.success > 0) {
                 showSuccess(n('budget', 'Deleted %n duplicate transaction', 'Deleted %n duplicate transactions', result.success));

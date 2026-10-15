@@ -5,13 +5,14 @@ declare(strict_types=1);
 namespace OCA\Budget\BackgroundJob;
 
 use OCA\Budget\AppInfo\Application;
+use OCA\Budget\BackgroundJob\Support\JobUsers;
 use OCA\Budget\Db\BillMapper;
-use OCA\Budget\Db\PensionRecurringContributionMapper;
 use OCA\Budget\Db\RecurringIncomeMapper;
 use OCA\Budget\Service\BillService;
 use OCA\Budget\Service\PensionRecurringService;
 use OCA\Budget\Service\RecurringIncomeService;
 use OCA\Budget\Service\SettingService;
+use OCA\Budget\Service\UserClock;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\TimedJob;
 use OCP\IDBConnection;
@@ -28,454 +29,510 @@ use Psr\Log\LoggerInterface;
  * 3. Haven't had a reminder sent for this due date yet
  */
 class BillReminderJob extends TimedJob {
-    public function __construct(ITimeFactory $time) {
-        parent::__construct($time);
+	public function __construct(ITimeFactory $time) {
+		parent::__construct($time);
 
-        // Run every 6 hours
-        $this->setInterval(6 * 60 * 60);
-        $this->setTimeSensitivity(\OCP\BackgroundJob\IJob::TIME_INSENSITIVE);
-    }
+		// Run every 6 hours
+		$this->setInterval(6 * 60 * 60);
+		$this->setTimeSensitivity(\OCP\BackgroundJob\IJob::TIME_INSENSITIVE);
+	}
 
-    protected function run($argument): void {
-        $billMapper = Server::get(BillMapper::class);
-        $billService = Server::get(BillService::class);
-        $incomeMapper = Server::get(RecurringIncomeMapper::class);
-        $incomeService = Server::get(RecurringIncomeService::class);
-        $pensionRecurMapper = Server::get(PensionRecurringContributionMapper::class);
-        $pensionRecurService = Server::get(PensionRecurringService::class);
-        $notificationManager = Server::get(INotificationManager::class);
-        $db = Server::get(IDBConnection::class);
-        $logger = Server::get(LoggerInterface::class);
-        $settingService = Server::get(SettingService::class);
+	protected function run($argument): void {
+		$billMapper = Server::get(BillMapper::class);
+		$billService = Server::get(BillService::class);
+		$incomeMapper = Server::get(RecurringIncomeMapper::class);
+		$incomeService = Server::get(RecurringIncomeService::class);
+		$pensionRecurService = Server::get(PensionRecurringService::class);
+		$notificationManager = Server::get(INotificationManager::class);
+		$db = Server::get(IDBConnection::class);
+		$logger = Server::get(LoggerInterface::class);
+		$settingService = Server::get(SettingService::class);
+		$clock = Server::get(UserClock::class);
 
-        try {
-            $userIds = $this->getAllUserIds($db);
-            $notificationCount = 0;
-            $autoPayCount = 0;
-            $autoPayFailedCount = 0;
-            $autoCreateIncomeCount = 0;
-            $autoCreateIncomeFailedCount = 0;
-            $pensionPostCount = 0;
-            $pensionPostFailedCount = 0;
-            $today = new \DateTime();
-            $today->setTime(0, 0, 0);
+		try {
+			$userIds = $this->getAllUserIds($db);
+			$notificationCount = 0;
+			$autoPayCount = 0;
+			$autoPayFailedCount = 0;
+			$autoCreateIncomeCount = 0;
+			$autoCreateIncomeFailedCount = 0;
+			$pensionPostCount = 0;
+			$pensionPostFailedCount = 0;
+			foreach ($userIds as $userId) {
+				try {
+					// The user's today: the server's date put reminders and
+					// overdue notices a day off either side of UTC
+					$today = new \DateTime($clock instanceof UserClock ? $clock->today($userId) : date('Y-m-d'));
+					$today->setTime(0, 0, 0);
+					// The same calendar for when the last notice went out
+					$zone = $clock instanceof UserClock ? $clock->now($userId)->getTimezone() : new \DateTimeZone('UTC');
 
-            foreach ($userIds as $userId) {
-                try {
-                    // Process auto-pay BEFORE reminders to avoid sending reminder for auto-paid bill
-                    $autoPay = $this->processAutoPayForUser($userId, $billMapper, $billService, $notificationManager, $settingService);
-                    $autoPayCount += $autoPay['success'];
-                    $autoPayFailedCount += $autoPay['failed'];
+					// Process auto-pay BEFORE reminders to avoid sending reminder for auto-paid bill
+					$autoPay = $this->processAutoPayForUser($userId, $today->format('Y-m-d'), $billMapper, $billService, $notificationManager, $settingService, $logger);
+					$autoPayCount += $autoPay['success'];
+					$autoPayFailedCount += $autoPay['failed'];
 
-                    // Process auto-create for recurring income
-                    $autoCreate = $this->processAutoCreateIncomeForUser($userId, $incomeMapper, $incomeService, $notificationManager, $settingService, $logger);
-                    $autoCreateIncomeCount += $autoCreate['success'];
-                    $autoCreateIncomeFailedCount += $autoCreate['failed'];
+					// Process auto-create for recurring income
+					$autoCreate = $this->processAutoCreateIncomeForUser($userId, $today->format('Y-m-d'), $incomeMapper, $incomeService, $notificationManager, $settingService, $logger);
+					$autoCreateIncomeCount += $autoCreate['success'];
+					$autoCreateIncomeFailedCount += $autoCreate['failed'];
 
-                    // Process auto-post for recurring pension contributions (#251)
-                    $pensionPost = $this->processAutoPostPensionsForUser($userId, $pensionRecurMapper, $pensionRecurService, $logger);
-                    $pensionPostCount += $pensionPost['success'];
-                    $pensionPostFailedCount += $pensionPost['failed'];
+					// Process auto-post for recurring pension contributions (#251)
+					$pensionPost = $this->processAutoPostPensionsForUser($userId, $pensionRecurService, $notificationManager, $settingService, $logger);
+					$pensionPostCount += $pensionPost['success'];
+					$pensionPostFailedCount += $pensionPost['failed'];
 
-                    $bills = $billMapper->findActive($userId);
+					$bills = $billMapper->findActive($userId);
+					// Each in its account's currency, not the user's default
+					$billService->enrichBillsWithCurrency($bills, $userId);
 
-                    foreach ($bills as $bill) {
-                        // Skip if no reminder configured
-                        if ($bill->getReminderDays() === null) {
-                            continue;
-                        }
+					foreach ($bills as $bill) {
+						// Skip if no reminder configured
+						if ($bill->getReminderDays() === null) {
+							continue;
+						}
 
-                        $nextDueDate = $bill->getNextDueDate();
-                        if (!$nextDueDate) {
-                            continue;
-                        }
+						$nextDueDate = $bill->getNextDueDate();
+						if (!$nextDueDate) {
+							continue;
+						}
 
-                        $dueDate = new \DateTime($nextDueDate);
-                        $dueDate->setTime(0, 0, 0);
+						$dueDate = new \DateTime($nextDueDate);
+						$dueDate->setTime(0, 0, 0);
 
-                        $daysUntilDue = (int)$today->diff($dueDate)->format('%R%a');
+						$daysUntilDue = (int)$today->diff($dueDate)->format('%R%a');
 
-                        // Check if we should send a reminder
-                        if ($daysUntilDue < 0) {
-                            // Bill is overdue - send overdue notification if not already sent
-                            if ($this->shouldSendReminder($bill, $dueDate)) {
-                                $this->sendOverdueNotification($notificationManager, $settingService, $userId, $bill, $daysUntilDue);
-                                $this->markReminderSent($billMapper, $bill);
-                                $notificationCount++;
-                            }
-                        } elseif ($daysUntilDue <= $bill->getReminderDays()) {
-                            // Within reminder window
-                            if ($this->shouldSendReminder($bill, $dueDate)) {
-                                $this->sendReminderNotification($notificationManager, $settingService, $userId, $bill, $daysUntilDue);
-                                $this->markReminderSent($billMapper, $bill);
-                                $notificationCount++;
-                            }
-                        }
-                    }
-                } catch (\Exception $e) {
-                    $logger->warning(
-                        "Failed to process bill reminders for user {$userId}: " . $e->getMessage(),
-                        ['app' => 'budget', 'userId' => $userId]
-                    );
-                }
-            }
+						// Check if we should send a reminder
+						if ($daysUntilDue < 0) {
+							// Bill is overdue - send overdue notification if not already sent
+							if ($this->shouldSendReminder($bill, $dueDate, true, $zone)) {
+								$this->sendOverdueNotification($notificationManager, $settingService, $userId, $bill, $daysUntilDue);
+								$this->markReminderSent($billMapper, $bill, $nextDueDate);
+								$notificationCount++;
+							}
+						} elseif ($daysUntilDue <= $bill->getReminderDays()) {
+							// Within reminder window
+							if ($this->shouldSendReminder($bill, $dueDate, false, $zone)) {
+								$this->sendReminderNotification($notificationManager, $settingService, $userId, $bill, $daysUntilDue);
+								$this->markReminderSent($billMapper, $bill, $nextDueDate);
+								$notificationCount++;
+							}
+						}
+					}
+				} catch (\Exception $e) {
+					$logger->warning(
+						"Failed to process bill reminders for user {$userId}: " . $e->getMessage(),
+						['app' => 'budget', 'userId' => $userId]
+					);
+				}
+			}
 
-            if ($notificationCount > 0 || $autoPayCount > 0 || $autoCreateIncomeCount > 0 || $pensionPostCount > 0) {
-                $logger->info(
-                    "Bill reminder job completed: {$notificationCount} reminders sent, {$autoPayCount} bills auto-paid, {$autoPayFailedCount} auto-pay failures, {$autoCreateIncomeCount} income auto-created, {$autoCreateIncomeFailedCount} income auto-create failures, {$pensionPostCount} pension contributions posted, {$pensionPostFailedCount} pension post failures",
-                    ['app' => 'budget']
-                );
-            }
-        } catch (\Exception $e) {
-            $logger->error(
-                'Bill reminder job failed: ' . $e->getMessage(),
-                ['app' => 'budget', 'exception' => $e]
-            );
-        }
-    }
+			if ($notificationCount > 0 || $autoPayCount > 0 || $autoCreateIncomeCount > 0 || $pensionPostCount > 0) {
+				$logger->info(
+					"Bill reminder job completed: {$notificationCount} reminders sent, {$autoPayCount} bills auto-paid, {$autoPayFailedCount} auto-pay failures, {$autoCreateIncomeCount} income auto-created, {$autoCreateIncomeFailedCount} income auto-create failures, {$pensionPostCount} pension contributions posted, {$pensionPostFailedCount} pension post failures",
+					['app' => 'budget']
+				);
+			}
+		} catch (\Exception $e) {
+			$logger->error(
+				'Bill reminder job failed: ' . $e->getMessage(),
+				['app' => 'budget', 'exception' => $e]
+			);
+		}
+	}
 
-    /**
-     * Check if we should send a reminder for this bill.
-     * Avoids sending duplicate reminders for the same due date.
-     */
-    private function shouldSendReminder($bill, \DateTime $dueDate): bool {
-        $lastReminderSent = $bill->getLastReminderSent();
-        if (!$lastReminderSent) {
-            return true;
-        }
+	/**
+	 * Whether this occurrence still needs its reminder, or its overdue
+	 * notice: one of each per due date.
+	 *
+	 * A reminder for the occurrence went out once the last one was sent
+	 * inside its reminder window; the overdue notice once one was sent after
+	 * the due date. "More than a week before the due date" read every
+	 * reminder sent 8 to 30 days out as an old one and resent it every six
+	 * hours, and a reminder two days out stopped the overdue notice for good.
+	 *
+	 * The bill remembers the due date its last notice was for, so a notice
+	 * for an earlier occurrence says nothing about this one: the overdue
+	 * notice of a bill paid late fell inside the next occurrence's reminder
+	 * window, and that reminder was never sent. When it went out is read on
+	 * the user's calendar, as their today is: stamped in UTC and read as a
+	 * UTC date, a notice sent after midnight east of UTC looked a day old,
+	 * and every run that day sent it again.
+	 */
+	private function shouldSendReminder($bill, \DateTime $dueDate, bool $overdue = false, ?\DateTimeZone $zone = null): bool {
+		$lastReminderSent = $bill->getLastReminderSent();
+		if (!$lastReminderSent) {
+			return true;
+		}
 
-        // Only send one reminder per due date period
-        $lastReminder = new \DateTime($lastReminderSent);
-        $lastReminder->setTime(0, 0, 0);
+		$due = $dueDate->format('Y-m-d');
+		$sentFor = $bill->getLastReminderDue();
+		if ($sentFor !== null && $sentFor !== '' && $sentFor !== $due) {
+			return true;
+		}
+		$sentOn = (new \DateTimeImmutable($lastReminderSent, new \DateTimeZone('UTC')))
+			->setTimezone($zone ?? new \DateTimeZone('UTC'))
+			->format('Y-m-d');
 
-        // If the last reminder was sent more than a week before the due date,
-        // it was for a previous occurrence - send a new reminder
-        $daysSinceReminder = (int)$lastReminder->diff($dueDate)->format('%R%a');
-        return $daysSinceReminder > 7;
-    }
+		if ($overdue) {
+			// Sent on or before the due date, it was the reminder
+			return $sentOn <= $due;
+		}
+		if ($sentFor === $due) {
+			return false;
+		}
+		// Sent before the due date was remembered: one inside the window was
+		// this occurrence's
+		$windowStart = (clone $dueDate)->modify('-' . max(0, $bill->getReminderDays() ?? 7) . ' days')->format('Y-m-d');
+		return $sentOn < $windowStart;
+	}
 
-    private function sendReminderNotification(
-        INotificationManager $notificationManager,
-        SettingService $settingService,
-        string $userId,
-        $bill,
-        int $daysUntilDue
-    ): void {
-        $notification = $notificationManager->createNotification();
+	private function sendReminderNotification(
+		INotificationManager $notificationManager,
+		SettingService $settingService,
+		string $userId,
+		$bill,
+		int $daysUntilDue,
+	): void {
+		$notification = $notificationManager->createNotification();
 
-        $notification->setApp(Application::APP_ID)
-            ->setUser($userId)
-            ->setDateTime(new \DateTime())
-            ->setObject('bill', (string)$bill->getId())
-            ->setSubject('bill_reminder', [
-                'billId' => $bill->getId(),
-                'billName' => $bill->getName(),
-                'amount' => $this->formatAmount($settingService, $userId, $bill->getAmount()),
-                'daysUntilDue' => $daysUntilDue,
-            ]);
+		$notification->setApp(Application::APP_ID)
+			->setUser($userId)
+			->setDateTime(new \DateTime())
+			->setObject('bill', (string)$bill->getId())
+			->setSubject('bill_reminder', [
+				'billId' => $bill->getId(),
+				'billName' => $bill->getName(),
+				'amount' => $this->formatAmount($settingService, $userId, $bill->getAmount(), $bill->getCurrency()),
+				'daysUntilDue' => $daysUntilDue,
+			]);
 
-        $notificationManager->notify($notification);
-    }
+		$notificationManager->notify($notification);
+	}
 
-    private function sendOverdueNotification(
-        INotificationManager $notificationManager,
-        SettingService $settingService,
-        string $userId,
-        $bill,
-        int $daysOverdue
-    ): void {
-        $notification = $notificationManager->createNotification();
+	private function sendOverdueNotification(
+		INotificationManager $notificationManager,
+		SettingService $settingService,
+		string $userId,
+		$bill,
+		int $daysOverdue,
+	): void {
+		$notification = $notificationManager->createNotification();
 
-        $notification->setApp(Application::APP_ID)
-            ->setUser($userId)
-            ->setDateTime(new \DateTime())
-            ->setObject('bill', (string)$bill->getId())
-            ->setSubject('bill_overdue', [
-                'billId' => $bill->getId(),
-                'billName' => $bill->getName(),
-                'amount' => $this->formatAmount($settingService, $userId, $bill->getAmount()),
-                'daysOverdue' => $daysOverdue,
-            ]);
+		$notification->setApp(Application::APP_ID)
+			->setUser($userId)
+			->setDateTime(new \DateTime())
+			->setObject('bill', (string)$bill->getId())
+			->setSubject('bill_overdue', [
+				'billId' => $bill->getId(),
+				'billName' => $bill->getName(),
+				'amount' => $this->formatAmount($settingService, $userId, $bill->getAmount(), $bill->getCurrency()),
+				'daysOverdue' => $daysOverdue,
+			]);
 
-        $notificationManager->notify($notification);
-    }
+		$notificationManager->notify($notification);
+	}
 
-    private function markReminderSent(BillMapper $billMapper, $bill): void {
-        $bill->setLastReminderSent(date('Y-m-d H:i:s'));
-        $billMapper->update($bill);
-    }
+	private function markReminderSent(BillMapper $billMapper, $bill, string $dueDate): void {
+		$bill->setLastReminderSent(date('Y-m-d H:i:s'));
+		$bill->setLastReminderDue($dueDate);
+		$billMapper->update($bill);
+	}
 
-    private function formatAmount(SettingService $settingService, string $userId, float $amount): string {
-        // Shared implementation with the dashboard widgets and calendar feed
-        return (new \OCA\Budget\Service\AmountFormatter($settingService))->formatForUser($userId, $amount);
-    }
+	/**
+	 * @param string|null $currency the bill's or income's account currency;
+	 *                              null falls back to the user's default
+	 */
+	private function formatAmount(SettingService $settingService, string $userId, float $amount, ?string $currency = null): string {
+		// Shared implementation with the dashboard widgets and calendar feed
+		return (new \OCA\Budget\Service\AmountFormatter($settingService))->formatForUser($userId, $amount, $currency);
+	}
 
-    /**
-     * Get all unique user IDs from the bills table.
-     *
-     * @return string[]
-     */
-    private function getAllUserIds(IDBConnection $db): array {
-        $userIds = [];
+	/**
+	 * Users with an active bill, active recurring income (for auto-create)
+	 * or an auto-posting pension contribution schedule (#251).
+	 *
+	 * @return string[]
+	 */
+	private function getAllUserIds(IDBConnection $db): array {
+		$users = new JobUsers($db);
+		return JobUsers::union(
+			$users->from('budget_bills', ['is_active' => true]),
+			$users->from('budget_recurring_income', ['is_active' => true]),
+			$users->from('budget_pen_recur', ['is_active' => true, 'auto_post_enabled' => true])
+		);
+	}
 
-        // Users with active bills
-        $qb = $db->getQueryBuilder();
-        $qb->selectDistinct('user_id')
-            ->from('budget_bills')
-            ->where($qb->expr()->eq('is_active', $qb->createNamedParameter(true)));
+	/**
+	 * Auto-post due recurring pension contributions for a user (#251).
+	 *
+	 * A schedule that can't post switches its auto-post off, and the user is
+	 * told, rather than it failing quietly every run with a normal-looking
+	 * next date. One with nothing due by the user's own date is left alone.
+	 *
+	 * @return array{success: int, failed: int}
+	 */
+	private function processAutoPostPensionsForUser(
+		string $userId,
+		PensionRecurringService $recurService,
+		INotificationManager $notificationManager,
+		SettingService $settingService,
+		LoggerInterface $logger,
+	): array {
+		$successCount = 0;
+		$failedCount = 0;
 
-        $result = $qb->executeQuery();
-        while ($row = $result->fetch()) {
-            $userIds[$row['user_id']] = true;
-        }
-        $result->closeCursor();
+		try {
+			$due = $recurService->findDueForAutoPost($userId);
+			foreach ($due as $schedule) {
+				$result = $recurService->processAutoPost($schedule->getId(), $userId);
+				if ($result['success']) {
+					$successCount++;
+				} elseif ($result['disabled'] ?? false) {
+					$failedCount++;
+					$logger->warning(
+						"Pension auto-post failed for schedule {$schedule->getId()} (user {$userId}), turned off: " . ($result['message'] ?? 'unknown'),
+						['app' => 'budget']
+					);
+					$this->sendPensionAutoPostFailureNotification(
+						$notificationManager,
+						$settingService,
+						$userId,
+						$result['recurring'] ?? $schedule,
+						$result['pensionName'] ?? '',
+						(string)($result['message'] ?? ''),
+						$result['pensionCurrency'] ?? null
+					);
+				}
+			}
+		} catch (\Exception $e) {
+			$logger->warning("Pension auto-post processing failed for user {$userId}: " . $e->getMessage(), ['app' => 'budget']);
+		}
 
-        // Users with active recurring income (for auto-create)
-        $qb2 = $db->getQueryBuilder();
-        $qb2->selectDistinct('user_id')
-            ->from('budget_recurring_income')
-            ->where($qb2->expr()->eq('is_active', $qb2->createNamedParameter(true)));
+		return ['success' => $successCount, 'failed' => $failedCount];
+	}
 
-        $result2 = $qb2->executeQuery();
-        while ($row = $result2->fetch()) {
-            $userIds[$row['user_id']] = true;
-        }
-        $result2->closeCursor();
+	private function sendPensionAutoPostFailureNotification(
+		INotificationManager $notificationManager,
+		SettingService $settingService,
+		string $userId,
+		$schedule,
+		string $pensionName,
+		string $reason,
+		?string $currency = null,
+	): void {
+		$notification = $notificationManager->createNotification();
 
-        // Users with auto-post pension contribution schedules (#251)
-        $qb3 = $db->getQueryBuilder();
-        $qb3->selectDistinct('user_id')
-            ->from('budget_pen_recur')
-            ->where($qb3->expr()->eq('is_active', $qb3->createNamedParameter(true)))
-            ->andWhere($qb3->expr()->eq('auto_post_enabled', $qb3->createNamedParameter(true)));
+		$notification->setApp(Application::APP_ID)
+			->setUser($userId)
+			->setDateTime(new \DateTime())
+			->setObject('pension_recurring', (string)$schedule->getId())
+			->setSubject('pension_auto_post_failed', [
+				'recurringId' => $schedule->getId(),
+				'pensionId' => $schedule->getPensionId(),
+				'pensionName' => $pensionName,
+				// In the pension's currency, as the contribution is
+				'amount' => $this->formatAmount($settingService, $userId, (float)$schedule->getAmount(), $currency),
+				'reason' => $reason,
+			]);
 
-        $result3 = $qb3->executeQuery();
-        while ($row = $result3->fetch()) {
-            $userIds[$row['user_id']] = true;
-        }
-        $result3->closeCursor();
+		$notificationManager->notify($notification);
+	}
 
-        return array_keys($userIds);
-    }
+	/**
+	 * Process auto-pay for all due bills for a user.
+	 *
+	 * @return array ['success' => int, 'failed' => int]
+	 */
+	private function processAutoPayForUser(
+		string $userId,
+		string $today,
+		BillMapper $billMapper,
+		BillService $billService,
+		INotificationManager $notificationManager,
+		SettingService $settingService,
+		LoggerInterface $logger,
+	): array {
+		$successCount = 0;
+		$failedCount = 0;
 
-    /**
-     * Auto-post due recurring pension contributions for a user (#251).
-     *
-     * @return array{success: int, failed: int}
-     */
-    private function processAutoPostPensionsForUser(
-        string $userId,
-        PensionRecurringContributionMapper $recurMapper,
-        PensionRecurringService $recurService,
-        LoggerInterface $logger
-    ): array {
-        $successCount = 0;
-        $failedCount = 0;
+		try {
+			$dueForAutoPay = $billMapper->findDueForAutoPay($userId, $today);
+			$billService->enrichBillsWithCurrency($dueForAutoPay, $userId);
 
-        try {
-            $due = $recurMapper->findDueForAutoPost($userId);
-            foreach ($due as $schedule) {
-                $result = $recurService->processAutoPost($schedule->getId(), $userId);
-                if ($result['success']) {
-                    $successCount++;
-                } else {
-                    $failedCount++;
-                    $logger->warning(
-                        "Pension auto-post failed for schedule {$schedule->getId()} (user {$userId}): " . ($result['message'] ?? 'unknown'),
-                        ['app' => 'budget']
-                    );
-                }
-            }
-        } catch (\Exception $e) {
-            $logger->warning("Pension auto-post processing failed for user {$userId}: " . $e->getMessage(), ['app' => 'budget']);
-        }
+			foreach ($dueForAutoPay as $bill) {
+				$result = $billService->processAutoPay($bill->getId(), $userId);
 
-        return ['success' => $successCount, 'failed' => $failedCount];
-    }
+				if ($result['success']) {
+					// A bill that fell behind catches up every occurrence it
+					// owes in one go; it still gets one notification
+					$successCount += $result['count'] ?? 1;
+					$billService->enrichBillsWithCurrency([$result['bill']], $userId);
+					$this->sendAutoPaySuccessNotification(
+						$notificationManager,
+						$settingService,
+						$userId,
+						$result['bill']
+					);
+				} elseif ($result['disabled'] ?? true) {
+					// Only a failure that switched auto-pay off: a bill another
+					// run had just paid is nothing to report
+					$failedCount++;
+					$this->sendAutoPayFailureNotification(
+						$notificationManager,
+						$settingService,
+						$userId,
+						$bill,
+						$result['message']
+					);
+				}
+			}
+		} catch (\Exception $e) {
+			// Log but don't fail entire job
+			$logger->warning("Auto-pay processing failed for user {$userId}: " . $e->getMessage(), ['app' => 'budget']);
+		}
 
-    /**
-     * Process auto-pay for all due bills for a user.
-     *
-     * @return array ['success' => int, 'failed' => int]
-     */
-    private function processAutoPayForUser(
-        string $userId,
-        BillMapper $billMapper,
-        BillService $billService,
-        INotificationManager $notificationManager,
-        SettingService $settingService
-    ): array {
-        $successCount = 0;
-        $failedCount = 0;
+		return ['success' => $successCount, 'failed' => $failedCount];
+	}
 
-        try {
-            $dueForAutoPay = $billMapper->findDueForAutoPay($userId);
+	private function sendAutoPaySuccessNotification(
+		INotificationManager $notificationManager,
+		SettingService $settingService,
+		string $userId,
+		$bill,
+	): void {
+		$notification = $notificationManager->createNotification();
 
-            foreach ($dueForAutoPay as $bill) {
-                $result = $billService->processAutoPay($bill->getId(), $userId);
+		$notification->setApp(Application::APP_ID)
+			->setUser($userId)
+			->setDateTime(new \DateTime())
+			->setObject('bill', (string)$bill->getId())
+			->setSubject('bill_auto_paid', [
+				'billId' => $bill->getId(),
+				'billName' => $bill->getName(),
+				'amount' => $this->formatAmount($settingService, $userId, $bill->getAmount(), $bill->getCurrency()),
+				'nextDueDate' => $bill->getNextDueDate(),
+			]);
 
-                if ($result['success']) {
-                    $successCount++;
-                    $this->sendAutoPaySuccessNotification(
-                        $notificationManager,
-                        $settingService,
-                        $userId,
-                        $result['bill']
-                    );
-                } else {
-                    $failedCount++;
-                    $this->sendAutoPayFailureNotification(
-                        $notificationManager,
-                        $settingService,
-                        $userId,
-                        $bill,
-                        $result['message']
-                    );
-                }
-            }
-        } catch (\Exception $e) {
-            // Log but don't fail entire job
-            $logger->warning("Auto-pay processing failed for user {$userId}: " . $e->getMessage());
-        }
+		$notificationManager->notify($notification);
+	}
 
-        return ['success' => $successCount, 'failed' => $failedCount];
-    }
+	private function sendAutoPayFailureNotification(
+		INotificationManager $notificationManager,
+		SettingService $settingService,
+		string $userId,
+		$bill,
+		string $reason,
+	): void {
+		$notification = $notificationManager->createNotification();
 
-    private function sendAutoPaySuccessNotification(
-        INotificationManager $notificationManager,
-        SettingService $settingService,
-        string $userId,
-        $bill
-    ): void {
-        $notification = $notificationManager->createNotification();
+		$notification->setApp(Application::APP_ID)
+			->setUser($userId)
+			->setDateTime(new \DateTime())
+			->setObject('bill', (string)$bill->getId())
+			->setSubject('bill_auto_pay_failed', [
+				'billId' => $bill->getId(),
+				'billName' => $bill->getName(),
+				'amount' => $this->formatAmount($settingService, $userId, $bill->getAmount(), $bill->getCurrency()),
+				'reason' => $reason,
+			]);
 
-        $notification->setApp(Application::APP_ID)
-            ->setUser($userId)
-            ->setDateTime(new \DateTime())
-            ->setObject('bill', (string)$bill->getId())
-            ->setSubject('bill_auto_paid', [
-                'billId' => $bill->getId(),
-                'billName' => $bill->getName(),
-                'amount' => $this->formatAmount($settingService, $userId, $bill->getAmount()),
-                'nextDueDate' => $bill->getNextDueDate(),
-            ]);
+		$notificationManager->notify($notification);
+	}
 
-        $notificationManager->notify($notification);
-    }
+	/**
+	 * Process auto-create for all due recurring income for a user.
+	 *
+	 * @return array ['success' => int, 'failed' => int]
+	 */
+	private function processAutoCreateIncomeForUser(
+		string $userId,
+		string $today,
+		RecurringIncomeMapper $incomeMapper,
+		RecurringIncomeService $incomeService,
+		INotificationManager $notificationManager,
+		SettingService $settingService,
+		LoggerInterface $logger,
+	): array {
+		$successCount = 0;
+		$failedCount = 0;
 
-    private function sendAutoPayFailureNotification(
-        INotificationManager $notificationManager,
-        SettingService $settingService,
-        string $userId,
-        $bill,
-        string $reason
-    ): void {
-        $notification = $notificationManager->createNotification();
+		try {
+			$dueIncome = $incomeMapper->findDueForAutoCreate($userId, $today);
+			$incomeService->enrichWithCurrency($dueIncome, $userId);
 
-        $notification->setApp(Application::APP_ID)
-            ->setUser($userId)
-            ->setDateTime(new \DateTime())
-            ->setObject('bill', (string)$bill->getId())
-            ->setSubject('bill_auto_pay_failed', [
-                'billId' => $bill->getId(),
-                'billName' => $bill->getName(),
-                'amount' => $this->formatAmount($settingService, $userId, $bill->getAmount()),
-                'reason' => $reason,
-            ]);
+			foreach ($dueIncome as $income) {
+				$result = $incomeService->processAutoCreate($income->getId(), $userId);
 
-        $notificationManager->notify($notification);
-    }
+				if ($result['success']) {
+					$successCount++;
+					$incomeService->enrichWithCurrency([$result['income']], $userId);
+					$this->sendAutoCreateIncomeSuccessNotification(
+						$notificationManager,
+						$settingService,
+						$userId,
+						$result['income']
+					);
+				} elseif ($result['disabled'] ?? true) {
+					$failedCount++;
+					$this->sendAutoCreateIncomeFailureNotification(
+						$notificationManager,
+						$settingService,
+						$userId,
+						$income,
+						$result['message']
+					);
+				}
+			}
+		} catch (\Exception $e) {
+			$logger->warning("Income auto-create processing failed for user {$userId}: " . $e->getMessage());
+		}
 
-    /**
-     * Process auto-create for all due recurring income for a user.
-     *
-     * @return array ['success' => int, 'failed' => int]
-     */
-    private function processAutoCreateIncomeForUser(
-        string $userId,
-        RecurringIncomeMapper $incomeMapper,
-        RecurringIncomeService $incomeService,
-        INotificationManager $notificationManager,
-        SettingService $settingService,
-        LoggerInterface $logger
-    ): array {
-        $successCount = 0;
-        $failedCount = 0;
+		return ['success' => $successCount, 'failed' => $failedCount];
+	}
 
-        try {
-            $dueIncome = $incomeMapper->findDueForAutoCreate($userId);
+	private function sendAutoCreateIncomeSuccessNotification(
+		INotificationManager $notificationManager,
+		SettingService $settingService,
+		string $userId,
+		$income,
+	): void {
+		$notification = $notificationManager->createNotification();
 
-            foreach ($dueIncome as $income) {
-                $result = $incomeService->processAutoCreate($income->getId(), $userId);
+		$notification->setApp(Application::APP_ID)
+			->setUser($userId)
+			->setDateTime(new \DateTime())
+			->setObject('recurring_income', (string)$income->getId())
+			->setSubject('income_auto_created', [
+				'incomeId' => $income->getId(),
+				'incomeName' => $income->getName(),
+				'amount' => $this->formatAmount($settingService, $userId, $income->getAmount(), $income->getCurrency()),
+				'nextExpectedDate' => $income->getNextExpectedDate(),
+			]);
 
-                if ($result['success']) {
-                    $successCount++;
-                    $this->sendAutoCreateIncomeSuccessNotification(
-                        $notificationManager,
-                        $settingService,
-                        $userId,
-                        $result['income']
-                    );
-                } else {
-                    $failedCount++;
-                    $this->sendAutoCreateIncomeFailureNotification(
-                        $notificationManager,
-                        $settingService,
-                        $userId,
-                        $income,
-                        $result['message']
-                    );
-                }
-            }
-        } catch (\Exception $e) {
-            $logger->warning("Income auto-create processing failed for user {$userId}: " . $e->getMessage());
-        }
+		$notificationManager->notify($notification);
+	}
 
-        return ['success' => $successCount, 'failed' => $failedCount];
-    }
+	private function sendAutoCreateIncomeFailureNotification(
+		INotificationManager $notificationManager,
+		SettingService $settingService,
+		string $userId,
+		$income,
+		string $reason,
+	): void {
+		$notification = $notificationManager->createNotification();
 
-    private function sendAutoCreateIncomeSuccessNotification(
-        INotificationManager $notificationManager,
-        SettingService $settingService,
-        string $userId,
-        $income
-    ): void {
-        $notification = $notificationManager->createNotification();
+		$notification->setApp(Application::APP_ID)
+			->setUser($userId)
+			->setDateTime(new \DateTime())
+			->setObject('recurring_income', (string)$income->getId())
+			->setSubject('income_auto_create_failed', [
+				'incomeId' => $income->getId(),
+				'incomeName' => $income->getName(),
+				'amount' => $this->formatAmount($settingService, $userId, $income->getAmount(), $income->getCurrency()),
+				'reason' => $reason,
+			]);
 
-        $notification->setApp(Application::APP_ID)
-            ->setUser($userId)
-            ->setDateTime(new \DateTime())
-            ->setObject('recurring_income', (string)$income->getId())
-            ->setSubject('income_auto_created', [
-                'incomeId' => $income->getId(),
-                'incomeName' => $income->getName(),
-                'amount' => $this->formatAmount($settingService, $userId, $income->getAmount()),
-                'nextExpectedDate' => $income->getNextExpectedDate(),
-            ]);
-
-        $notificationManager->notify($notification);
-    }
-
-    private function sendAutoCreateIncomeFailureNotification(
-        INotificationManager $notificationManager,
-        SettingService $settingService,
-        string $userId,
-        $income,
-        string $reason
-    ): void {
-        $notification = $notificationManager->createNotification();
-
-        $notification->setApp(Application::APP_ID)
-            ->setUser($userId)
-            ->setDateTime(new \DateTime())
-            ->setObject('recurring_income', (string)$income->getId())
-            ->setSubject('income_auto_create_failed', [
-                'incomeId' => $income->getId(),
-                'incomeName' => $income->getName(),
-                'amount' => $this->formatAmount($settingService, $userId, $income->getAmount()),
-                'reason' => $reason,
-            ]);
-
-        $notificationManager->notify($notification);
-    }
+		$notificationManager->notify($notification);
+	}
 }

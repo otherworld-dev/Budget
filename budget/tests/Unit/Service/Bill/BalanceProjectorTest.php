@@ -91,6 +91,21 @@ class BalanceProjectorTest extends TestCase {
 		$this->assertEqualsWithDelta(-200.0, $result['balance'][12], 0.001);
 	}
 
+	public function testAWeeklyBillsRemainingPaymentsThisMonthStillCount(): void {
+		// One payment made in October settled the whole month, dropping the
+		// three still to go out
+		$rows = [$this->row([
+			'expectedAmounts' => [10 => 400.0, 11 => 400.0],
+			'paidMonths' => [10],
+			'owedAmounts' => [10 => 300.0, 11 => 400.0],
+		])];
+
+		$result = $this->projector->project($rows, 5, 1000.0, [], 10, 2);
+
+		$this->assertEqualsWithDelta(700.0, $result['balance'][10], 0.001);
+		$this->assertEqualsWithDelta(300.0, $result['balance'][11], 0.001);
+	}
+
 	// ── incomeByMonth ───────────────────────────────────────────────
 
 	/** Every occurrence from today to December counts; one expected before today does not. */

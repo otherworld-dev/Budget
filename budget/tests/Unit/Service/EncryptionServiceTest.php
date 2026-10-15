@@ -119,7 +119,7 @@ class EncryptionServiceTest extends TestCase {
 
 	public function testEncryptFieldsSelectiveEncryption(): void {
 		$this->crypto->method('encrypt')->willReturnCallback(
-			fn(string $v) => "ENC_{$v}"
+			fn (string $v) => "ENC_{$v}"
 		);
 
 		$data = [
@@ -155,7 +155,7 @@ class EncryptionServiceTest extends TestCase {
 
 	public function testDecryptFieldsSelectiveDecryption(): void {
 		$this->crypto->method('decrypt')->willReturnCallback(
-			fn(string $v) => "DECRYPTED_{$v}"
+			fn (string $v) => "DECRYPTED_{$v}"
 		);
 
 		$data = [

@@ -158,8 +158,9 @@ class NetWorthServiceTest extends TestCase {
 		];
 
 		$this->accountMapper->method('findAll')->willReturn($accounts);
-		// Future transaction of 500 means stored balance includes it
-		$this->transactionMapper->method('getNetChangeAfterDateBatch')->willReturn([1 => 500]);
+		// Future transaction of 500 means stored balance includes it. Looked
+		// up for the accounts in view, shared ones included
+		$this->transactionMapper->method('getNetChangeAfterDateForAccounts')->with([1])->willReturn([1 => 500]);
 		$this->conversionService->method('getBaseCurrency')->willReturn('GBP');
 		$this->conversionService->method('needsConversion')->willReturn(false);
 

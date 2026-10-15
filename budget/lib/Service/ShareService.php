@@ -9,264 +9,318 @@ use OCA\Budget\Db\Share;
 use OCA\Budget\Db\ShareItemMapper;
 use OCA\Budget\Db\ShareMapper;
 use OCP\AppFramework\Db\DoesNotExistException;
-use OCP\IUserManager;
+use OCP\IGroupManager;
 use OCP\IL10N;
+use OCP\IUserManager;
 use OCP\Notification\IManager as INotificationManager;
+use OCP\Share\IManager as IShareManager;
 
 class ShareService {
-    private ShareMapper $mapper;
-    private ShareItemMapper $shareItemMapper;
-    private AuditService $auditService;
-    private IUserManager $userManager;
-    private INotificationManager $notificationManager;
-    private IL10N $l;
+	private ShareMapper $mapper;
+	private ShareItemMapper $shareItemMapper;
+	private AuditService $auditService;
+	private IUserManager $userManager;
+	private INotificationManager $notificationManager;
+	private IL10N $l;
 
-    public function __construct(
-        ShareMapper $mapper,
-        ShareItemMapper $shareItemMapper,
-        AuditService $auditService,
-        IUserManager $userManager,
-        INotificationManager $notificationManager,
-        IL10N $l
-    ) {
-        $this->mapper = $mapper;
-        $this->shareItemMapper = $shareItemMapper;
-        $this->auditService = $auditService;
-        $this->userManager = $userManager;
-        $this->notificationManager = $notificationManager;
-        $this->l = $l;
-    }
+	public function __construct(
+		ShareMapper $mapper,
+		ShareItemMapper $shareItemMapper,
+		AuditService $auditService,
+		IUserManager $userManager,
+		INotificationManager $notificationManager,
+		IL10N $l,
+		private IShareManager $shareManager,
+		private IGroupManager $groupManager,
+	) {
+		$this->mapper = $mapper;
+		$this->shareItemMapper = $shareItemMapper;
+		$this->auditService = $auditService;
+		$this->userManager = $userManager;
+		$this->notificationManager = $notificationManager;
+		$this->l = $l;
+	}
 
-    /**
-     * Find a share by ID.
-     *
-     * @throws \OCP\AppFramework\Db\DoesNotExistException
-     */
-    public function findById(int $shareId): Share {
-        return $this->mapper->findById($shareId);
-    }
+	/**
+	 * Whether the admin's "only share with group members" setting lets
+	 * $ownerUserId share with $recipient: they need a group in common,
+	 * ignoring the groups the admin excluded from it.
+	 */
+	public function mayShareWith(string $ownerUserId, \OCP\IUser $recipient): bool {
+		if (!$this->shareManager->shareWithGroupMembersOnly()) {
+			return true;
+		}
+		$owner = $this->userManager->get($ownerUserId);
+		if ($owner === null) {
+			return false;
+		}
+		$common = array_intersect(
+			$this->groupManager->getUserGroupIds($owner),
+			$this->groupManager->getUserGroupIds($recipient)
+		);
+		$excluded = $this->shareManager->shareWithGroupMembersOnlyExcludeGroupsList();
+		return array_diff($common, is_array($excluded) ? $excluded : []) !== [];
+	}
 
-    /**
-     * Share budget with another Nextcloud user.
-     * Creates a pending share that the recipient must accept.
-     */
-    public function shareWith(string $ownerUserId, string $sharedWithUserId): Share {
-        // Cannot share with yourself
-        if ($ownerUserId === $sharedWithUserId) {
-            throw new \InvalidArgumentException($this->l->t('You cannot share your budget with yourself'));
-        }
+	/**
+	 * Find a share by ID.
+	 *
+	 * @throws \OCP\AppFramework\Db\DoesNotExistException
+	 */
+	public function findById(int $shareId): Share {
+		return $this->mapper->findById($shareId);
+	}
 
-        // Verify recipient exists in Nextcloud
-        $recipient = $this->userManager->get($sharedWithUserId);
-        if ($recipient === null) {
-            throw new \InvalidArgumentException($this->l->t('Unable to share with this user'));
-        }
+	/**
+	 * Share budget with another Nextcloud user.
+	 * Creates a pending share that the recipient must accept.
+	 */
+	public function shareWith(string $ownerUserId, string $sharedWithUserId): Share {
+		// Cannot share with yourself
+		if ($ownerUserId === $sharedWithUserId) {
+			throw new \InvalidArgumentException($this->l->t('You cannot share your budget with yourself'));
+		}
 
-        // Check for existing share (any status)
-        try {
-            $existing = $this->mapper->findByOwnerAndRecipient($ownerUserId, $sharedWithUserId);
-            if ($existing->getStatus() === Share::STATUS_ACCEPTED) {
-                throw new \InvalidArgumentException($this->l->t('Budget is already shared with this user'));
-            }
-            if ($existing->getStatus() === Share::STATUS_PENDING) {
-                throw new \InvalidArgumentException($this->l->t('A pending share already exists for this user'));
-            }
-            // If declined, allow re-sharing by updating the existing record
-            $existing->setStatus(Share::STATUS_PENDING);
-            $existing->setUpdatedAt(date('Y-m-d H:i:s'));
-            $share = $this->mapper->update($existing);
-        } catch (DoesNotExistException $e) {
-            $share = new Share();
-            $share->setOwnerUserId($ownerUserId);
-            $share->setSharedWithUserId($sharedWithUserId);
-            $share->setStatus(Share::STATUS_PENDING);
-            $share->setCreatedAt(date('Y-m-d H:i:s'));
-            $share->setUpdatedAt(date('Y-m-d H:i:s'));
-            $share = $this->mapper->insert($share);
-        }
+		// Verify recipient exists in Nextcloud
+		$recipient = $this->userManager->get($sharedWithUserId);
+		if ($recipient === null) {
+			throw new \InvalidArgumentException($this->l->t('Unable to share with this user'));
+		}
 
-        // Send notification to recipient
-        $this->sendShareNotification($ownerUserId, $sharedWithUserId, $share->getId());
+		// Honour the admin's "only share with group members" setting, the way
+		// Nextcloud's own share manager does: owner and recipient must have a
+		// group in common, ignoring the groups the admin excluded from it.
+		// Same message as a missing user, so it says nothing about who exists.
+		if (!$this->mayShareWith($ownerUserId, $recipient)) {
+			throw new \InvalidArgumentException($this->l->t('Unable to share with this user'));
+		}
 
-        $this->auditService->log(
-            $ownerUserId,
-            'share_created',
-            'share',
-            $share->getId(),
-            ['sharedWith' => $sharedWithUserId]
-        );
+		// Check for existing share (any status)
+		try {
+			$existing = $this->mapper->findByOwnerAndRecipient($ownerUserId, $sharedWithUserId);
+			if ($existing->getStatus() === Share::STATUS_ACCEPTED) {
+				throw new \InvalidArgumentException($this->l->t('Budget is already shared with this user'));
+			}
+			if ($existing->getStatus() === Share::STATUS_PENDING) {
+				throw new \InvalidArgumentException($this->l->t('A pending share already exists for this user'));
+			}
+			// If declined, allow re-sharing by updating the existing record
+			$existing->setStatus(Share::STATUS_PENDING);
+			$existing->setUpdatedAt(date('Y-m-d H:i:s'));
+			$share = $this->mapper->update($existing);
+		} catch (DoesNotExistException $e) {
+			$share = new Share();
+			$share->setOwnerUserId($ownerUserId);
+			$share->setSharedWithUserId($sharedWithUserId);
+			$share->setStatus(Share::STATUS_PENDING);
+			$share->setCreatedAt(date('Y-m-d H:i:s'));
+			$share->setUpdatedAt(date('Y-m-d H:i:s'));
+			$share = $this->mapper->insert($share);
+		}
 
-        return $share;
-    }
+		// Send notification to recipient
+		$this->sendShareNotification($ownerUserId, $sharedWithUserId, $share->getId());
 
-    /**
-     * Accept a pending share invitation
-     */
-    public function accept(int $shareId, string $recipientUserId): Share {
-        $share = $this->mapper->findById($shareId);
+		$this->auditService->log(
+			$ownerUserId,
+			'share_created',
+			'share',
+			$share->getId(),
+			['sharedWith' => $sharedWithUserId]
+		);
 
-        if ($share->getSharedWithUserId() !== $recipientUserId) {
-            throw new \InvalidArgumentException($this->l->t('You are not the recipient of this share'));
-        }
+		return $share;
+	}
 
-        if ($share->getStatus() !== Share::STATUS_PENDING) {
-            throw new \InvalidArgumentException($this->l->t('This share is not pending'));
-        }
+	/**
+	 * Accept a pending share invitation
+	 */
+	public function accept(int $shareId, string $recipientUserId): Share {
+		$share = $this->mapper->findById($shareId);
 
-        $share->setStatus(Share::STATUS_ACCEPTED);
-        $share->setUpdatedAt(date('Y-m-d H:i:s'));
-        $share = $this->mapper->update($share);
+		if ($share->getSharedWithUserId() !== $recipientUserId) {
+			throw new \InvalidArgumentException($this->l->t('You are not the recipient of this share'));
+		}
 
-        $this->auditService->log(
-            $recipientUserId,
-            'share_accepted',
-            'share',
-            $shareId,
-            ['owner' => $share->getOwnerUserId()]
-        );
+		if ($share->getStatus() !== Share::STATUS_PENDING) {
+			throw new \InvalidArgumentException($this->l->t('This share is not pending'));
+		}
 
-        return $share;
-    }
+		$share->setStatus(Share::STATUS_ACCEPTED);
+		$share->setUpdatedAt(date('Y-m-d H:i:s'));
+		$share = $this->mapper->update($share);
+		$this->dismissInvitation($recipientUserId, $shareId);
 
-    /**
-     * Decline a pending share invitation
-     */
-    public function decline(int $shareId, string $recipientUserId): Share {
-        $share = $this->mapper->findById($shareId);
+		$this->auditService->log(
+			$recipientUserId,
+			'share_accepted',
+			'share',
+			$shareId,
+			['owner' => $share->getOwnerUserId()]
+		);
 
-        if ($share->getSharedWithUserId() !== $recipientUserId) {
-            throw new \InvalidArgumentException($this->l->t('You are not the recipient of this share'));
-        }
+		return $share;
+	}
 
-        if ($share->getStatus() !== Share::STATUS_PENDING) {
-            throw new \InvalidArgumentException($this->l->t('This share is not pending'));
-        }
+	/**
+	 * Decline a pending share invitation
+	 */
+	public function decline(int $shareId, string $recipientUserId): Share {
+		$share = $this->mapper->findById($shareId);
 
-        $share->setStatus(Share::STATUS_DECLINED);
-        $share->setUpdatedAt(date('Y-m-d H:i:s'));
-        $share = $this->mapper->update($share);
+		if ($share->getSharedWithUserId() !== $recipientUserId) {
+			throw new \InvalidArgumentException($this->l->t('You are not the recipient of this share'));
+		}
 
-        $this->auditService->log(
-            $recipientUserId,
-            'share_declined',
-            'share',
-            $shareId,
-            ['owner' => $share->getOwnerUserId()]
-        );
+		if ($share->getStatus() !== Share::STATUS_PENDING) {
+			throw new \InvalidArgumentException($this->l->t('This share is not pending'));
+		}
 
-        return $share;
-    }
+		$share->setStatus(Share::STATUS_DECLINED);
+		$share->setUpdatedAt(date('Y-m-d H:i:s'));
+		$share = $this->mapper->update($share);
+		$this->dismissInvitation($recipientUserId, $shareId);
 
-    /**
-     * Revoke a share (owner removes access)
-     */
-    public function revoke(int $shareId, string $ownerUserId): void {
-        $share = $this->mapper->findById($shareId);
+		$this->auditService->log(
+			$recipientUserId,
+			'share_declined',
+			'share',
+			$shareId,
+			['owner' => $share->getOwnerUserId()]
+		);
 
-        if ($share->getOwnerUserId() !== $ownerUserId) {
-            throw new \InvalidArgumentException($this->l->t('You are not the owner of this share'));
-        }
+		return $share;
+	}
 
-        $sharedWith = $share->getSharedWithUserId();
+	/**
+	 * Revoke a share (owner removes access)
+	 */
+	public function revoke(int $shareId, string $ownerUserId): void {
+		$share = $this->mapper->findById($shareId);
 
-        // Cascade delete share items before deleting the share
-        $this->shareItemMapper->deleteByShareId($shareId);
-        $this->mapper->delete($share);
+		if ($share->getOwnerUserId() !== $ownerUserId) {
+			throw new \InvalidArgumentException($this->l->t('You are not the owner of this share'));
+		}
 
-        // Dismiss any pending notifications for the revoked share
-        $notification = $this->notificationManager->createNotification();
-        $notification->setApp('budget')
-            ->setUser($sharedWith)
-            ->setObject('share', (string) $shareId);
-        $this->notificationManager->markProcessed($notification);
+		$sharedWith = $share->getSharedWithUserId();
 
-        $this->auditService->log(
-            $ownerUserId,
-            'share_revoked',
-            'share',
-            $shareId,
-            ['sharedWith' => $sharedWith]
-        );
-    }
+		// Cascade delete share items before deleting the share
+		$this->shareItemMapper->deleteByShareId($shareId);
+		$this->mapper->delete($share);
 
-    /**
-     * Remove self from a share (recipient leaves)
-     */
-    public function leave(int $shareId, string $recipientUserId): void {
-        $share = $this->mapper->findById($shareId);
+		// Dismiss any pending notifications for the revoked share
+		$notification = $this->notificationManager->createNotification();
+		$notification->setApp('budget')
+			->setUser($sharedWith)
+			->setObject('share', (string)$shareId);
+		$this->notificationManager->markProcessed($notification);
 
-        if ($share->getSharedWithUserId() !== $recipientUserId) {
-            throw new \InvalidArgumentException($this->l->t('You are not the recipient of this share'));
-        }
+		$this->auditService->log(
+			$ownerUserId,
+			'share_revoked',
+			'share',
+			$shareId,
+			['sharedWith' => $sharedWith]
+		);
+	}
 
-        // Cascade delete share items before deleting the share
-        $this->shareItemMapper->deleteByShareId($shareId);
-        $this->mapper->delete($share);
+	/**
+	 * Remove self from a share (recipient leaves)
+	 */
+	public function leave(int $shareId, string $recipientUserId): void {
+		$share = $this->mapper->findById($shareId);
 
-        $this->auditService->log(
-            $recipientUserId,
-            'share_left',
-            'share',
-            $shareId,
-            ['owner' => $share->getOwnerUserId()]
-        );
-    }
+		if ($share->getSharedWithUserId() !== $recipientUserId) {
+			throw new \InvalidArgumentException($this->l->t('You are not the recipient of this share'));
+		}
 
-    /**
-     * Get all outgoing shares for an owner
-     *
-     * @return Share[]
-     */
-    public function getOutgoingShares(string $ownerUserId): array {
-        return $this->mapper->findByOwner($ownerUserId);
-    }
+		// Cascade delete share items before deleting the share
+		$this->shareItemMapper->deleteByShareId($shareId);
+		$this->mapper->delete($share);
+		$this->dismissInvitation($recipientUserId, $shareId);
 
-    /**
-     * Get all incoming shares for a recipient
-     *
-     * @return Share[]
-     */
-    public function getIncomingShares(string $recipientUserId): array {
-        return $this->mapper->findByRecipient($recipientUserId);
-    }
+		$this->auditService->log(
+			$recipientUserId,
+			'share_left',
+			'share',
+			$shareId,
+			['owner' => $share->getOwnerUserId()]
+		);
+	}
 
-    /**
-     * Get pending incoming shares
-     *
-     * @return Share[]
-     */
-    public function getPendingShares(string $recipientUserId): array {
-        return $this->mapper->findPendingForRecipient($recipientUserId);
-    }
+	/**
+	 * Get all outgoing shares for an owner
+	 *
+	 * @return Share[]
+	 */
+	public function getOutgoingShares(string $ownerUserId): array {
+		return $this->mapper->findByOwner($ownerUserId);
+	}
 
-    /**
-     * Get owner user IDs whose budgets the given user has accepted access to.
-     *
-     * @return string[]
-     */
-    public function getAcceptedOwnerIds(string $recipientUserId): array {
-        return $this->mapper->findAcceptedOwnerIds($recipientUserId);
-    }
+	/**
+	 * Get all incoming shares for a recipient
+	 *
+	 * @return Share[]
+	 */
+	public function getIncomingShares(string $recipientUserId): array {
+		return $this->mapper->findByRecipient($recipientUserId);
+	}
 
-    /**
-     * Send a Nextcloud notification to the share recipient
-     */
-    private function sendShareNotification(string $ownerUserId, string $recipientUserId, int $shareId): void {
-        $notification = $this->notificationManager->createNotification();
+	/**
+	 * Get pending incoming shares
+	 *
+	 * @return Share[]
+	 */
+	public function getPendingShares(string $recipientUserId): array {
+		return $this->mapper->findPendingForRecipient($recipientUserId);
+	}
 
-        $ownerUser = $this->userManager->get($ownerUserId);
-        $ownerDisplayName = $ownerUser ? $ownerUser->getDisplayName() : $ownerUserId;
+	/**
+	 * Get owner user IDs whose budgets the given user has accepted access to.
+	 *
+	 * @return string[]
+	 */
+	public function getAcceptedOwnerIds(string $recipientUserId): array {
+		return $this->mapper->findAcceptedOwnerIds($recipientUserId);
+	}
 
-        $notification->setApp('budget')
-            ->setUser($recipientUserId)
-            ->setDateTime(new DateTime())
-            ->setObject('share', (string) $shareId)
-            ->setSubject('share_invitation', [
-                'ownerUserId' => $ownerUserId,
-                'ownerDisplayName' => $ownerDisplayName,
-                'shareId' => $shareId,
-            ]);
+	/**
+	 * Mark the share's invitation processed once it has been answered or
+	 * left, as revoke() does: it stayed in the recipient's notifications,
+	 * still asking them to accept or decline. Best-effort: the share has
+	 * already changed either way.
+	 */
+	private function dismissInvitation(string $recipientUserId, int $shareId): void {
+		try {
+			$notification = $this->notificationManager->createNotification();
+			$notification->setApp('budget')
+				->setUser($recipientUserId)
+				->setObject('share', (string)$shareId);
+			$this->notificationManager->markProcessed($notification);
+		} catch (\Throwable $e) {
+			// Nothing to undo: the notification just stays until dismissed
+		}
+	}
 
-        $this->notificationManager->notify($notification);
-    }
+	/**
+	 * Send a Nextcloud notification to the share recipient
+	 */
+	private function sendShareNotification(string $ownerUserId, string $recipientUserId, int $shareId): void {
+		$notification = $this->notificationManager->createNotification();
+
+		$ownerUser = $this->userManager->get($ownerUserId);
+		$ownerDisplayName = $ownerUser ? $ownerUser->getDisplayName() : $ownerUserId;
+
+		$notification->setApp('budget')
+			->setUser($recipientUserId)
+			->setDateTime(new DateTime())
+			->setObject('share', (string)$shareId)
+			->setSubject('share_invitation', [
+				'ownerUserId' => $ownerUserId,
+				'ownerDisplayName' => $ownerDisplayName,
+				'shareId' => $shareId,
+			]);
+
+		$this->notificationManager->notify($notification);
+	}
 }

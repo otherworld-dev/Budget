@@ -53,7 +53,7 @@ class CurrencyConversionServiceTest extends TestCase {
 			]);
 
 		$result = $this->service->convert('100', 'USD', 'GBP');
-		$resultFloat = round((float) $result, 2);
+		$resultFloat = round((float)$result, 2);
 		$this->assertEqualsWithDelta(78.70, $resultFloat, 0.01);
 	}
 
@@ -65,7 +65,7 @@ class CurrencyConversionServiceTest extends TestCase {
 			]);
 
 		$result = $this->service->convert('100', 'GBP', 'EUR');
-		$resultFloat = round((float) $result, 2);
+		$resultFloat = round((float)$result, 2);
 		$this->assertEqualsWithDelta(117.65, $resultFloat, 0.01);
 	}
 
@@ -78,7 +78,7 @@ class CurrencyConversionServiceTest extends TestCase {
 			]);
 
 		$result = $this->service->convert('200', 'USD', 'GBP', $date);
-		$resultFloat = round((float) $result, 2);
+		$resultFloat = round((float)$result, 2);
 		$this->assertEqualsWithDelta(156.36, $resultFloat, 0.01);
 	}
 
@@ -112,7 +112,7 @@ class CurrencyConversionServiceTest extends TestCase {
 			]);
 
 		$result = $this->service->convert(100.50, 'USD', 'GBP');
-		$resultFloat = (float) $result;
+		$resultFloat = (float)$result;
 		$this->assertGreaterThan(0, $resultFloat);
 	}
 
@@ -128,7 +128,7 @@ class CurrencyConversionServiceTest extends TestCase {
 			]);
 
 		$result = $this->service->convertLocal('100', 'USD', 'GBP');
-		$this->assertGreaterThan(0, (float) $result);
+		$this->assertGreaterThan(0, (float)$result);
 	}
 
 	// ===== convertToBase() with manual rates =====
@@ -157,9 +157,27 @@ class CurrencyConversionServiceTest extends TestCase {
 			]);
 
 		$result = $this->service->convertToBase('1000', 'ARS', 'user1');
-		$resultFloat = round((float) $result, 2);
+		$resultFloat = round((float)$result, 2);
 		// ARS→GBP: 1000 * (0.85 / 1048.9) ≈ 0.81
 		$this->assertEqualsWithDelta(0.81, $resultFloat, 0.01);
+	}
+
+	/**
+	 * A crypto balance holding dust reaches here as a float; (string) wrote it
+	 * as "1.0E-5" and bcmul() threw a ValueError, so the account page and the
+	 * accounts list failed for a BTC account worth almost nothing.
+	 */
+	public function testConvertToBaseAcceptsDust(): void {
+		$this->settingService->method('get')->with('user1', 'default_currency')->willReturn('GBP');
+		$this->manualRateMapper->method('findByUserAndCurrency')->willReturn(null);
+		$this->exchangeRateService->method('getRateLocal')
+			->willReturnMap([
+				['BTC', null, '0.0000100000'],
+				['GBP', null, '0.8500000000'],
+			]);
+
+		$this->assertEqualsWithDelta(0.85, (float)$this->service->convertToBase(0.00001, 'BTC', 'user1'), 0.0001);
+		$this->assertSame('0.00001', $this->service->convert(0.00001, 'BTC', 'BTC'));
 	}
 
 	public function testConvertToBaseFallsBackToAutoWhenNoManualRate(): void {
@@ -177,7 +195,7 @@ class CurrencyConversionServiceTest extends TestCase {
 			]);
 
 		$result = $this->service->convertToBase('100', 'USD', 'user1');
-		$resultFloat = round((float) $result, 2);
+		$resultFloat = round((float)$result, 2);
 		$this->assertEqualsWithDelta(78.70, $resultFloat, 0.01);
 	}
 
@@ -192,7 +210,9 @@ class CurrencyConversionServiceTest extends TestCase {
 
 		$this->manualRateMapper->method('findByUserAndCurrency')
 			->willReturnCallback(function ($userId, $currency) use ($manualGbp) {
-				if ($currency === 'GBP') return $manualGbp;
+				if ($currency === 'GBP') {
+					return $manualGbp;
+				}
 				return null;
 			});
 
@@ -202,7 +222,7 @@ class CurrencyConversionServiceTest extends TestCase {
 			]);
 
 		$result = $this->service->convertToBase('100', 'USD', 'user1');
-		$resultFloat = round((float) $result, 2);
+		$resultFloat = round((float)$result, 2);
 		// USD→GBP: 100 * (0.90 / 1.08) ≈ 83.33
 		$this->assertEqualsWithDelta(83.33, $resultFloat, 0.01);
 	}
@@ -230,7 +250,7 @@ class CurrencyConversionServiceTest extends TestCase {
 			]);
 
 		$result = $this->service->convertToBase('100', 'USD', 'user1');
-		$resultFloat = round((float) $result, 2);
+		$resultFloat = round((float)$result, 2);
 		$this->assertEqualsWithDelta(78.70, $resultFloat, 0.01);
 	}
 
@@ -248,7 +268,7 @@ class CurrencyConversionServiceTest extends TestCase {
 			]);
 
 		$result = $this->service->convertToBase('100', 'USD', 'user1');
-		$resultFloat = round((float) $result, 2);
+		$resultFloat = round((float)$result, 2);
 		// USD→GBP: 100 * (0.85/1.08) ≈ 78.70
 		$this->assertEqualsWithDelta(78.70, $resultFloat, 0.01);
 	}
@@ -361,6 +381,79 @@ class CurrencyConversionServiceTest extends TestCase {
 	}
 
 	// ===== Helpers =====
+
+	/**
+	 * Between two currencies neither of which is the base one, at the
+	 * user's own rate where they set one. Unlike convert(), a missing rate
+	 * is no answer rather than the amount unchanged.
+	 */
+	public function testConvertBetweenUsesTheUsersRatesAndSaysWhenItCannot(): void {
+		$manual = new ManualExchangeRate();
+		$manual->setRatePerEur('1.2000000000');
+		$this->manualRateMapper->method('findByUserAndCurrency')
+			->willReturnCallback(fn ($userId, $currency) => $currency === 'USD' ? $manual : null);
+		$this->exchangeRateService->method('getRateLocal')
+			->willReturnCallback(fn (string $currency) => $currency === 'GBP' ? '0.8000000000' : null);
+
+		// 100 GBP = 125 EUR = 150 USD at the user's rate
+		$this->assertEqualsWithDelta(150.0, (float)$this->service->convertBetween(100.0, 'GBP', 'USD', 'user1'), 0.0001);
+		$this->assertSame('100', $this->service->convertBetween(100.0, 'GBP', 'gbp', 'user1'));
+		$this->assertNull($this->service->convertBetween(100.0, 'GBP', 'JPY', 'user1'));
+	}
+
+	// ===== Memo (T6-7) =====
+
+	/**
+	 * Reports convert a row at a time, and every conversion read the base
+	 * currency setting and the user's manual rates again: about 3,000
+	 * queries for an all-time summary (T6-7). Each is read once now.
+	 */
+	public function testTheBaseCurrencyAndEachManualRateAreReadOnce(): void {
+		$this->settingService->expects($this->once())->method('get')
+			->with('user1', 'default_currency')->willReturn('GBP');
+		$manual = new ManualExchangeRate();
+		$manual->setRatePerEur('1.2000000000');
+		$this->manualRateMapper->expects($this->exactly(2))->method('findByUserAndCurrency')
+			->willReturnCallback(fn ($userId, $currency) => $currency === 'USD' ? $manual : null);
+		$this->exchangeRateService->method('getRateLocal')
+			->willReturnCallback(fn (string $currency) => $currency === 'GBP' ? '0.8000000000' : null);
+
+		for ($i = 0; $i < 50; $i++) {
+			// 120 USD = 100 EUR = 80 GBP
+			$this->assertEqualsWithDelta(80.0, $this->service->convertToBaseFloat('120', 'USD', 'user1'), 0.0001);
+			$this->assertSame('GBP', $this->service->getBaseCurrency('user1'));
+		}
+	}
+
+	public function testEachUserHasTheirOwnBaseCurrencyAndRates(): void {
+		$this->settingService->method('get')
+			->willReturnCallback(fn (string $userId) => $userId === 'bob' ? 'USD' : 'GBP');
+		$this->manualRateMapper->method('findByUserAndCurrency')->willReturn(null);
+
+		$this->assertSame('GBP', $this->service->getBaseCurrency('alice'));
+		$this->assertSame('USD', $this->service->getBaseCurrency('bob'));
+		$this->assertSame('GBP', $this->service->getBaseCurrency('alice'));
+	}
+
+	/**
+	 * A write to anyone's settings or manual rates drops the memo, so a
+	 * conversion after it sees the new value (the mappers and the reset /
+	 * restore table cleaner report every write).
+	 */
+	public function testAWriteToSettingsOrRatesIsSeenByTheNextConversion(): void {
+		$currency = 'GBP';
+		$this->settingService->method('get')->willReturnCallback(function () use (&$currency) {
+			return $currency;
+		});
+
+		$this->assertSame('GBP', $this->service->getBaseCurrency('user1'));
+		$currency = 'EUR';
+		$this->assertSame('GBP', $this->service->getBaseCurrency('user1'), 'memoized until a write');
+
+		CurrencyConversionService::userDataChanged();
+
+		$this->assertSame('EUR', $this->service->getBaseCurrency('user1'));
+	}
 
 	private function makeAccount(?string $currency, int $id): Account {
 		$account = new Account();

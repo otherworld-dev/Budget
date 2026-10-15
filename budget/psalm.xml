@@ -1,0 +1,60 @@
+<?xml version="1.0"?>
+<!--
+  Static analysis for the Budget app.
+
+  OCP comes from the nextcloud/ocp dev package (the oldest supported server,
+  so calls into APIs newer than that get flagged). It has no autoloader, so it
+  is scanned as extra files rather than autoloaded. The Doctrine DBAL and \OC
+  classes that OCP refers to live in the server, not here; the unit-test stubs
+  stand in for them.
+
+  Existing findings live in psalm-baseline.xml. CI fails on anything new.
+  Regenerate the baseline with:  composer psalm:baseline
+-->
+<psalm
+	errorLevel="4"
+	phpVersion="8.1"
+	resolveFromConfigFile="true"
+	findUnusedBaselineEntry="false"
+	findUnusedCode="false"
+	errorBaseline="psalm-baseline.xml"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns="https://getpsalm.org/schema/config"
+	xsi:schemaLocation="https://getpsalm.org/schema/config vendor/vimeo/psalm/config.xsd"
+>
+	<projectFiles>
+		<directory name="lib"/>
+		<ignoreFiles>
+			<directory name="vendor"/>
+		</ignoreFiles>
+	</projectFiles>
+	<extraFiles>
+		<directory name="vendor/nextcloud/ocp"/>
+		<directory name="vendor/psr"/>
+		<directory name="vendor/symfony/console"/>
+		<directory name="vendor/tecnickcom/tcpdf"/>
+	</extraFiles>
+	<stubs>
+		<file name="tests/stubs/doctrine_dbal.php" preloadClasses="true"/>
+		<file name="tests/stubs/oc_server.php" preloadClasses="true"/>
+		<file name="tests/stubs/oc_hooks_emitter.php" preloadClasses="true"/>
+	</stubs>
+	<issueHandlers>
+		<UndefinedClass>
+			<errorLevel type="suppress">
+				<!-- Server-internal classes that exist at runtime only. -->
+				<referencedClass name="OC\*"/>
+				<referencedClass name="OC"/>
+				<referencedClass name="OC_App"/>
+				<referencedClass name="OC_Util"/>
+				<referencedClass name="Doctrine\*"/>
+			</errorLevel>
+		</UndefinedClass>
+		<UndefinedDocblockClass>
+			<errorLevel type="suppress">
+				<referencedClass name="OC\*"/>
+				<referencedClass name="Doctrine\*"/>
+			</errorLevel>
+		</UndefinedDocblockClass>
+	</issueHandlers>
+</psalm>

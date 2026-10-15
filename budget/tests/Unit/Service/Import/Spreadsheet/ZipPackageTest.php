@@ -1,0 +1,55 @@
+<?php
+
+declare(strict_types=1);
+
+namespace OCA\Budget\Tests\Unit\Service\Import\Spreadsheet;
+
+use OCA\Budget\Service\Import\Spreadsheet\SpreadsheetTooLargeError;
+use OCA\Budget\Service\Import\Spreadsheet\ZipPackage;
+use PHPUnit\Framework\TestCase;
+
+class ZipPackageTest extends TestCase {
+	public function testTheTotalReadFromOneFileIsCapped(): void {
+		// Parts of zeros compress to almost nothing, so a small upload can
+		// hold many of them, each under the per-part cap
+		$path = tempnam(sys_get_temp_dir(), 'zip');
+		$zip = new \ZipArchive();
+		$zip->open($path, \ZipArchive::OVERWRITE);
+		$part = str_repeat("\0", 40 * 1024 * 1024);
+		foreach (['a', 'b', 'c'] as $name) {
+			$zip->addFromString($name, $part);
+		}
+		$zip->close();
+		unset($part);
+
+		$package = new ZipPackage($path);
+		try {
+			$package->read('a');
+			$package->read('b');
+			$this->expectException(SpreadsheetTooLargeError::class);
+			$package->read('c');
+		} finally {
+			$package->close();
+			unlink($path);
+		}
+	}
+
+	public function testAPartPastItsCapIsTooLarge(): void {
+		// Too large, not unreadable: the user is told to split the file,
+		// not that it may be password-protected
+		$path = tempnam(sys_get_temp_dir(), 'zip');
+		$zip = new \ZipArchive();
+		$zip->open($path, \ZipArchive::OVERWRITE);
+		$zip->addFromString('big', str_repeat("\0", ZipPackage::MAX_PART_BYTES + 1));
+		$zip->close();
+
+		$package = new ZipPackage($path);
+		try {
+			$this->expectException(SpreadsheetTooLargeError::class);
+			$package->read('big');
+		} finally {
+			$package->close();
+			unlink($path);
+		}
+	}
+}

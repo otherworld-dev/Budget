@@ -4,11 +4,15 @@
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
+import { once } from '../../utils/submitGuard.js';
 import { confirmDialog, promptDialog } from '../../utils/dialogs.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
-import { serverErrorMessage, downloadTransactionsCsv, isLiabilityType, LIABILITY_ACCOUNT_TYPES, hasSplitPortion, transactionDisplayAmount } from '../../utils/helpers.js';
+import { downloadTransactionsCsv, isLiabilityType, LIABILITY_ACCOUNT_TYPES } from '../../utils/helpers.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
-import { openAccounts } from '../../utils/accounts.js';
+import { openAccounts, usableCategories, categoryTreeOf, isReadOnlyShare } from '../../utils/accounts.js';
+import { showLoading, clearLoading, showLoadError } from '../../utils/loading.js';
+import { apiFetch, ApiError } from '../../utils/api.js';
+import { renderTransactionRow } from '../transactions/transactionRow.js';
 
 // Which account attributes are rendered in the accounts view (tiles + list).
 // User-configurable through the gear menu in the accounts header, stored in
@@ -44,6 +48,10 @@ const ACCOUNT_ATTRIBUTE_DEFAULTS = {
 const ACCOUNT_ORDER_DEFAULTS = [...ACCOUNT_COLUMN_KEYS];
 const ACCOUNT_SORT_FIELDS = ['name', 'balance', 'type', 'institution', 'lastReconciled', 'created'];
 const ACCOUNT_SORT_DEFAULTS = { field: 'name', direction: 'asc' };
+
+// The account page's reconciliation history opens on this many of its
+// newest rows; a toggle under the table shows the rest (#418).
+const RECON_HISTORY_COLLAPSED_ROWS = 2;
 
 export default class AccountsModule {
     constructor(app) {
@@ -147,21 +155,12 @@ export default class AccountsModule {
     // ============================================
 
     async loadAccounts() {
+        if (this.app.currentView === 'accounts') showLoading('accounts-assets-grid');
         try {
-            const [response, summaryResponse] = await Promise.all([
-                fetch(OC.generateUrl('/apps/budget/api/accounts'), {
-                    headers: { 'requesttoken': OC.requestToken }
-                }),
-                fetch(OC.generateUrl('/apps/budget/api/reports/summary'), {
-                    headers: { 'requesttoken': OC.requestToken }
-                }).catch(() => ({ ok: false }))
+            const [accounts, summary] = await Promise.all([
+                apiFetch('/apps/budget/api/accounts'),
+                apiFetch('/apps/budget/api/reports/summary').catch(() => null)
             ]);
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-
-            const accounts = await response.json();
 
             // Check if we got a CSRF error instead of accounts
             if (accounts && accounts.message === "CSRF check failed") {
@@ -172,8 +171,6 @@ export default class AccountsModule {
                 console.error('API returned non-array:', accounts);
                 throw new Error('API returned invalid data format');
             }
-
-            const summary = summaryResponse.ok ? await summaryResponse.json() : null;
 
             // Update the instance accounts array
             this.accounts = accounts;
@@ -189,6 +186,7 @@ export default class AccountsModule {
             this.setupAccountCardClickHandlers();
         } catch (error) {
             console.error('Failed to load accounts:', error);
+            clearLoading('accounts-assets-grid');
         }
     }
 
@@ -520,20 +518,20 @@ export default class AccountsModule {
         // Tiles show the same attributes in the same order as the list columns
         const metaItems = {
             type: () => `<span class="account-type-badge">${typeInfo.label}</span>`,
-            institution: () => (institution ? `<span class="account-institution">${institution}</span>` : ''),
-            accountNumber: () => (accountNumber ? `<span class="account-number">${accountNumber}</span>` : ''),
+            institution: () => (institution ? `<span class="account-institution">${dom.escapeHtml(institution)}</span>` : ''),
+            accountNumber: () => (accountNumber ? `<span class="account-number">${dom.escapeHtml(accountNumber)}</span>` : ''),
             lastReconciled: () => `<span class="account-reconciled">${this.formatLastReconciled(account)}</span>`
         };
 
         return `
-            <div class="account-card${account.closed ? ' is-closed' : ''}" data-type="${accountType}" data-account-id="${accountId}">
-                ${this.renderAccountSelectCheckbox(accountId)}
+            <div class="account-card${account.closed ? ' is-closed' : ''}" data-type="${accountType}" data-account-id="${accountId}" tabindex="0">
+                ${account._shared ? '' : this.renderAccountSelectCheckbox(accountId)}
                 <div class="account-card-header">
                     <div class="account-icon" style="background-color: ${typeInfo.color};">
                         <span class="${typeInfo.icon}" aria-hidden="true"></span>
                     </div>
                     <div class="account-details">
-                        <h3 class="account-name">${accountName}</h3>
+                        <h3 class="account-name">${dom.escapeHtml(accountName)}</h3>
                         <div class="account-meta">
                             ${account.closed ? `<span class="account-closed-badge" title="${t('budget', 'Closed: history kept, no new activity')}">${t('budget', 'Closed')}</span>` : ''}
                             ${account.excludedFromReports ? `<span class="account-excluded-badge" title="${t('budget', 'Excluded from reports, dashboard & forecast')}">${t('budget', 'Excluded')}</span>` : ''}
@@ -565,12 +563,12 @@ export default class AccountsModule {
                         <span>${healthStatus.tooltip}</span>
                     </div>` : '<div class="account-status-placeholder"></div>'}
                     <div class="account-actions">
-                        <button class="account-action-btn edit-btn edit-account-btn" data-account-id="${accountId}" title="${t('budget', 'Edit Account')}">
+                        ${isReadOnlyShare(account) ? '' : `<button class="account-action-btn edit-btn edit-account-btn" data-account-id="${accountId}" title="${t('budget', 'Edit Account')}" aria-label="${t('budget', 'Edit Account')}">
                             <span class="icon-rename" aria-hidden="true"></span>
-                        </button>
-                        <button class="account-action-btn delete-btn delete-account-btn" data-account-id="${accountId}" title="${t('budget', 'Delete Account')}">
+                        </button>`}
+                        ${account._shared ? '' : `<button class="account-action-btn delete-btn delete-account-btn" data-account-id="${accountId}" title="${t('budget', 'Delete Account')}" aria-label="${t('budget', 'Delete Account')}">
                             <span class="icon-delete" aria-hidden="true"></span>
-                        </button>
+                        </button>`}
                     </div>
                 </div>
             </div>
@@ -594,10 +592,10 @@ export default class AccountsModule {
             : (accountBalance >= 0 ? 'positive' : 'negative');
 
         const cells = {
-            name: () => `<div class="account-row-name">${accountName}${account.closed ? ` <span class="account-closed-badge">${t('budget', 'Closed')}</span>` : ''}</div>`,
+            name: () => `<div class="account-row-name">${dom.escapeHtml(accountName)}${account.closed ? ` <span class="account-closed-badge">${t('budget', 'Closed')}</span>` : ''}</div>`,
             type: () => `<div class="account-row-type">${typeInfo.label}</div>`,
-            institution: () => `<div class="account-row-institution">${institution || '—'}</div>`,
-            accountNumber: () => `<div class="account-row-number">${accountNumber || '—'}</div>`,
+            institution: () => `<div class="account-row-institution">${dom.escapeHtml(institution) || '—'}</div>`,
+            accountNumber: () => `<div class="account-row-number">${dom.escapeHtml(accountNumber) || '—'}</div>`,
             lastReconciled: () => `<div class="account-row-reconciled">${this.formatLastReconciled(account)}</div>`,
             balance: () => `<div class="account-row-balance ${balanceClass}">
                     ${this.formatCurrency(displayBalance, accountCurrency)}
@@ -607,18 +605,18 @@ export default class AccountsModule {
 
         return `
             <div class="account-row${account.closed ? ' is-closed' : ''}" data-type="${accountType}" data-account-id="${accountId}">
-                <div class="account-row-select">${this.renderAccountSelectCheckbox(accountId)}</div>
+                <div class="account-row-select">${account._shared ? '' : this.renderAccountSelectCheckbox(accountId)}</div>
                 <div class="account-row-icon" style="background-color: ${typeInfo.color};">
                     <span class="${typeInfo.icon}" aria-hidden="true"></span>
                 </div>
                 ${this.visibleAccountColumns(attributes, order).map(attr => cells[attr.key]()).join('')}
                 <div class="account-row-actions">
-                    <button class="account-action-btn edit-btn edit-account-btn" data-account-id="${accountId}" title="${t('budget', 'Edit')}">
+                    ${isReadOnlyShare(account) ? '' : `<button class="account-action-btn edit-btn edit-account-btn" data-account-id="${accountId}" title="${t('budget', 'Edit')}" aria-label="${t('budget', 'Edit')}">
                         <span class="icon-rename" aria-hidden="true"></span>
-                    </button>
-                    <button class="account-action-btn delete-btn delete-account-btn" data-account-id="${accountId}" title="${t('budget', 'Delete')}">
+                    </button>`}
+                    ${account._shared ? '' : `<button class="account-action-btn delete-btn delete-account-btn" data-account-id="${accountId}" title="${t('budget', 'Delete')}" aria-label="${t('budget', 'Delete')}">
                         <span class="icon-delete" aria-hidden="true"></span>
-                    </button>
+                    </button>`}
                 </div>
             </div>
         `;
@@ -700,13 +698,10 @@ export default class AccountsModule {
      * partway through with no way to tell what had gone.
      */
     _sendBulkAccountDelete(ids, deleteTransactions) {
-        return fetch(OC.generateUrl('/apps/budget/api/accounts/bulk-delete'), {
+        return apiFetch('/apps/budget/api/accounts/bulk-delete', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'requesttoken': OC.requestToken
-            },
-            body: JSON.stringify({ ids, deleteTransactions })
+            body: { ids, deleteTransactions },
+            errorMessage: t('budget', 'Failed to delete accounts'),
         });
     }
 
@@ -718,7 +713,8 @@ export default class AccountsModule {
             n('budget',
                 'Delete %n account? Accounts that still have transactions are kept back and asked about separately.',
                 'Delete %n accounts? Accounts that still have transactions are kept back and asked about separately.',
-                ids.length),
+                ids.length)
+                + '\n\n' + t('budget', 'Any bills, transfers or recurring income that use them are switched off.'),
             { destructive: true }
         )) {
             return;
@@ -782,11 +778,8 @@ export default class AccountsModule {
         }
     }
 
-    async _readBulkResult(response) {
-        const body = await response.json().catch(() => ({}));
-        if (!response.ok) {
-            throw new Error(serverErrorMessage(body, t('budget', 'Failed to delete accounts')));
-        }
+    _readBulkResult(body) {
+        body = body || {};
         return {
             deleted: body.deleted || [],
             blocked: body.blocked || [],
@@ -991,76 +984,28 @@ export default class AccountsModule {
         });
     }
 
+    /**
+     * Each tile's balance trend: the account's daily balances over the last
+     * week, as the server works them out for the dashboard's account chart
+     * (signed, scheduled rows left out, shared accounts included). This
+     * used to query the transactions list with parameter names it doesn't
+     * read and wait for an array it never sends, so no line was drawn.
+     */
     async loadAccountSparklines(accounts) {
-        // Load balance history for each account and render sparklines
         for (const account of accounts) {
             try {
                 const accountId = account.id || account.Id;
                 if (!accountId) continue;
 
-                // Get transactions for this account from the last 7 days
-                const endDate = new Date();
-                const startDate = new Date();
-                startDate.setDate(startDate.getDate() - 7);
+                const history = await apiFetch(`/apps/budget/api/accounts/${accountId}/balance-history?days=7`)
+                    .catch(() => null);
+                if (!Array.isArray(history)) continue;
 
-                const response = await fetch(
-                    OC.generateUrl(`/apps/budget/api/transactions?account=${accountId}&startDate=${formatters.formatDateForAPI(startDate)}&endDate=${formatters.formatDateForAPI(endDate)}`),
-                    { headers: { 'requesttoken': OC.requestToken } }
-                );
-
-                if (!response.ok) continue;
-
-                const transactions = await response.json();
-                if (!Array.isArray(transactions)) continue;
-
-                // Calculate daily balances
-                const balanceHistory = this.calculateBalanceHistory(account, transactions, 7);
-
-                // Render sparkline
-                this.renderSparkline(accountId, balanceHistory);
+                this.renderSparkline(accountId, history.map(day => parseFloat(day.balance) || 0));
             } catch (error) {
                 console.error(`Failed to load sparkline for account ${account.id}:`, error);
             }
         }
-    }
-
-    calculateBalanceHistory(account, transactions, days) {
-        const currentBalance = parseFloat(account.balance) || 0;
-        const balances = [];
-
-        // Sort transactions by date descending
-        const sortedTxns = [...transactions].sort((a, b) =>
-            new Date(b.date || b.Date) - new Date(a.date || a.Date)
-        );
-
-        // Start with current balance and work backwards
-        let runningBalance = currentBalance;
-        const today = new Date();
-        today.setHours(23, 59, 59, 999);
-
-        for (let i = 0; i < days; i++) {
-            const date = new Date(today);
-            date.setDate(date.getDate() - i);
-            date.setHours(0, 0, 0, 0);
-
-            // Find transactions on this day and reverse their effect
-            const dayTxns = sortedTxns.filter(tx => {
-                const txnDate = new Date(tx.date || tx.Date);
-                txnDate.setHours(0, 0, 0, 0);
-                return txnDate.getTime() === date.getTime();
-            });
-
-            // Store the balance at end of this day
-            balances.unshift(runningBalance);
-
-            // Reverse transactions to get previous day's balance
-            dayTxns.forEach(tx => {
-                const amount = parseFloat(tx.amount || tx.Amount) || 0;
-                runningBalance -= amount;
-            });
-        }
-
-        return balances;
     }
 
     renderSparkline(accountId, balances) {
@@ -1196,7 +1141,18 @@ export default class AccountsModule {
         const closedBadge = document.getElementById('account-closed-badge');
         if (closedBadge) closedBadge.style.display = account.closed ? 'inline-flex' : 'none';
         const reconcileBtn = document.getElementById('reconcile-account-btn');
-        if (reconcileBtn) reconcileBtn.style.display = account.closed ? 'none' : '';
+        // An account shared with you read-only takes no changes: no edit,
+        // reconciling or new transactions, all refused by the server
+        const readOnly = isReadOnlyShare(account);
+        if (reconcileBtn) reconcileBtn.style.display = account.closed || readOnly ? 'none' : '';
+        const editBtn = document.getElementById('edit-account-btn');
+        if (editBtn) editBtn.style.display = readOnly ? 'none' : '';
+        const addTransactionBtn = document.getElementById('account-add-transaction-btn');
+        if (addTransactionBtn) addTransactionBtn.style.display = readOnly ? 'none' : '';
+        // An import runs as you, not as the account's owner, so an import
+        // into any account shared with you fails
+        const importBtn = document.getElementById('account-import-btn');
+        if (importBtn) importBtn.style.display = account._shared ? 'none' : '';
 
         const institutionEl = document.getElementById('account-institution');
         if (account.institution) {
@@ -1268,15 +1224,17 @@ export default class AccountsModule {
         document.getElementById('account-available-balance').textContent = this.formatCurrency(displayAvailable, currency);
         document.getElementById('account-available-balance').className = `balance-amount ${isLiabilityAccount ? (availableBalance < 0 ? 'negative' : 'positive') : (availableBalance >= 0 ? 'positive' : 'negative')}`;
 
-        // Show projected balance (including scheduled future transactions) if different from current
+        // Show projected balance (including scheduled future transactions) if
+        // different from current. The server works it out: the stored
+        // balance plus the pre-booked bills, transfers and income (#163).
         const projectedInfo = document.getElementById('projected-balance-info');
         const projectedEl = document.getElementById('account-projected-balance');
         if (projectedInfo && projectedEl) {
-            const storedBalance = parseFloat(account.storedBalance ?? account.balance) || 0;
-            if (Math.abs(storedBalance - currentBalance) > 0.01) {
+            const projectedBalance = parseFloat(account.projectedBalance ?? account.storedBalance ?? account.balance) || 0;
+            if (Math.abs(projectedBalance - currentBalance) > 0.01) {
                 projectedInfo.style.display = 'block';
-                projectedEl.textContent = this.formatCurrency(storedBalance, currency);
-                projectedEl.className = `balance-amount projected ${storedBalance >= 0 ? 'positive' : 'negative'}`;
+                projectedEl.textContent = this.formatCurrency(projectedBalance, currency);
+                projectedEl.className = `balance-amount projected ${projectedBalance >= 0 ? 'positive' : 'negative'}`;
             } else {
                 projectedInfo.style.display = 'none';
             }
@@ -1324,15 +1282,7 @@ export default class AccountsModule {
         if (!section || !body) return;
 
         try {
-            const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/accounts/${accountId}/reconciliation/history`),
-                { headers: { 'requesttoken': OC.requestToken } }
-            );
-            if (!response.ok) {
-                section.style.display = 'none';
-                return;
-            }
-            const history = await response.json();
+            const history = await apiFetch(`/apps/budget/api/accounts/${accountId}/reconciliation/history`);
             if (!Array.isArray(history) || history.length === 0) {
                 section.style.display = 'none';
                 return;
@@ -1346,20 +1296,51 @@ export default class AccountsModule {
                     <td>${session.completedAt ? this.formatDate(session.completedAt) : '-'}</td>
                 </tr>
             `).join('');
+            this.setReconciliationHistoryExpanded(false);
             section.style.display = 'block';
         } catch (error) {
             section.style.display = 'none';
         }
     }
 
+    /**
+     * Show the whole reconciliation history, or only its newest rows. A
+     * history that short has no toggle and always shows in full.
+     */
+    setReconciliationHistoryExpanded(expanded) {
+        const body = document.getElementById('recon-history-body');
+        const toggle = document.getElementById('recon-history-toggle');
+        // Without the toggle there'd be no way back to the hidden rows
+        if (!body || !toggle) return;
+
+        const rows = Array.from(body.rows);
+        rows.forEach((row, i) => {
+            row.hidden = !expanded && i >= RECON_HISTORY_COLLAPSED_ROWS;
+        });
+
+        if (rows.length <= RECON_HISTORY_COLLAPSED_ROWS) {
+            toggle.style.display = 'none';
+            return;
+        }
+
+        toggle.textContent = expanded
+            ? t('budget', 'Show fewer')
+            : t('budget', 'Show all ({count})', { count: rows.length });
+        toggle.setAttribute('aria-expanded', String(expanded));
+        toggle.style.display = '';
+
+        if (!toggle._hasListener) {
+            toggle._hasListener = true;
+            toggle.addEventListener('click', () => {
+                this.setReconciliationHistoryExpanded(toggle.getAttribute('aria-expanded') !== 'true');
+            });
+        }
+    }
+
     async loadInterestDetails(accountId, currency) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/accounts/${accountId}/interest`), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) return;
-
-            const data = await response.json();
+            const data = await apiFetch(`/apps/budget/api/accounts/${accountId}/interest`).catch(() => null);
+            if (!data) return;
 
             const accruedInterestEl = document.getElementById('account-accrued-interest');
             const accruedInterestInfo = document.getElementById('accrued-interest-info');
@@ -1403,14 +1384,14 @@ export default class AccountsModule {
         tbody.innerHTML = rates.map((rate, _index) => `
             <tr>
                 <td>${this.formatDate(rate.effectiveDate)}</td>
-                <td>${rate.rate}%</td>
+                <td>${dom.escapeHtml(rate.rate)}%</td>
                 <td>${compoundingLabels[rate.compoundingFrequency] || rate.compoundingFrequency}</td>
                 <td>
                     ${rates.length > 1 ? `
                         <button class="action-btn delete-btn delete-rate-btn"
                                 data-rate-id="${rate.id}"
                                 data-account-id="${accountId}"
-                                title="${t('budget', 'Delete')}">
+                                title="${t('budget', 'Delete')}" aria-label="${t('budget', 'Delete')}">
                             <span class="icon-delete" aria-hidden="true"></span>
                         </button>
                     ` : ''}
@@ -1424,19 +1405,14 @@ export default class AccountsModule {
                 const rateId = parseInt(btn.dataset.rateId);
                 const acctId = parseInt(btn.dataset.accountId);
                 try {
-                    const response = await fetch(OC.generateUrl(`/apps/budget/api/accounts/${acctId}/interest-rates/${rateId}`), {
+                    await apiFetch(`/apps/budget/api/accounts/${acctId}/interest-rates/${rateId}`, {
                         method: 'DELETE',
-                        headers: { 'requesttoken': OC.requestToken }
+                        errorMessage: t('budget', 'Failed to delete rate change'),
                     });
-                    if (response.ok) {
-                        showSuccess(t('budget', 'Rate change deleted'));
-                        this.loadInterestDetails(acctId, this.currentAccount?.currency || 'USD');
-                    } else {
-                        const error = await response.json();
-                        showError(serverErrorMessage(error, t('budget', 'Failed to delete rate change')));
-                    }
+                    showSuccess(t('budget', 'Rate change deleted'));
+                    this.loadInterestDetails(acctId, this.currentAccount?.currency || 'USD');
                 } catch (error) {
-                    showError(t('budget', 'Failed to delete rate change'));
+                    showError(error instanceof ApiError ? error.message : t('budget', 'Failed to delete rate change'));
                 }
             });
         });
@@ -1459,7 +1435,7 @@ export default class AccountsModule {
             return;
         }
 
-        const effectiveDate = await promptDialog(t('budget', 'Effective date (YYYY-MM-DD)'), { defaultValue: new Date().toISOString().split('T')[0] });
+        const effectiveDate = await promptDialog(t('budget', 'Effective date (YYYY-MM-DD)'), { defaultValue: formatters.getTodayDateString() });
         if (!effectiveDate) return;
 
         const compounding = await promptDialog(t('budget', 'Compounding frequency (daily, monthly, yearly, simple)'), { defaultValue: 'daily' });
@@ -1473,35 +1449,22 @@ export default class AccountsModule {
 
     async addRateChange(accountId, rate, compoundingFrequency, effectiveDate) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/accounts/${accountId}/interest-rates`), {
+            await apiFetch(`/apps/budget/api/accounts/${accountId}/interest-rates`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ rate, compoundingFrequency, effectiveDate })
+                body: { rate, compoundingFrequency, effectiveDate },
+                errorMessage: t('budget', 'Failed to add rate change'),
             });
-
-            if (response.ok) {
-                showSuccess(t('budget', 'Rate change added'));
-                this.loadInterestDetails(accountId, this.currentAccount?.currency || 'USD');
-            } else {
-                const error = await response.json();
-                showError(serverErrorMessage(error, t('budget', 'Failed to add rate change')));
-            }
+            showSuccess(t('budget', 'Rate change added'));
+            this.loadInterestDetails(accountId, this.currentAccount?.currency || 'USD');
         } catch (error) {
-            showError(t('budget', 'Failed to add rate change'));
+            showError(error instanceof ApiError ? error.message : t('budget', 'Failed to add rate change'));
         }
     }
 
     async loadValuation(accountId) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/accounts/${accountId}/valuation`), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) return;
-
-            const data = await response.json();
+            const data = await apiFetch(`/apps/budget/api/accounts/${accountId}/valuation`).catch(() => null);
+            if (!data) return;
             const baseCurrency = data.baseCurrency || 'GBP';
 
             const costInfo = document.getElementById('investment-cost-info');
@@ -1578,12 +1541,14 @@ export default class AccountsModule {
                 });
             }
 
-            const response = await fetch(OC.generateUrl('/apps/budget/api/transactions?' + params.toString()), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
+            let result = null;
+            try {
+                result = await apiFetch('/apps/budget/api/transactions?' + params.toString());
+            } catch (error) {
+                if (!(error instanceof ApiError)) throw error;
+            }
 
-            if (response.ok) {
-                const result = await response.json();
+            if (result) {
                 this.accountTransactions = result.transactions || result; // Handle both formats
                 this.accountTotalPages = result.totalPages || 1;
                 this.accountTotal = result.total || this.accountTransactions.length;
@@ -1602,9 +1567,11 @@ export default class AccountsModule {
 
         } catch (error) {
             console.error('Failed to load account transactions:', error);
-            // Show empty state
+            // Not the "no transactions yet" empty state: that would tell the
+            // user the account is empty when the fetch simply failed.
             this.accountTransactions = [];
-            this.renderAccountTransactions();
+            showLoadError('account-transactions-body', t('budget', 'Failed to load transactions'),
+                () => this.loadAccountTransactions(accountId));
         }
     }
 
@@ -1628,93 +1595,18 @@ export default class AccountsModule {
         }
 
         // Use backend-computed running balances directly
-        let balanceMap = null;
-        if (this.accountRunningBalances) {
-            balanceMap = {};
-            for (const [id, balance] of Object.entries(this.accountRunningBalances)) {
-                balanceMap[parseInt(id)] = parseFloat(balance);
-            }
-        }
+        const balances = this.accountRunningBalances || null;
+        const currency = this.currentAccount?.currency || this.getPrimaryCurrency();
 
-        tbody.innerHTML = this.accountTransactions.map(transaction => {
-            const amount = parseFloat(transaction.amount) || 0;
-            const currency = this.currentAccount?.currency || this.getPrimaryCurrency();
-            const category = this.categories?.find(c => c.id === transaction.categoryId);
-            const isScheduled = transaction.status === 'scheduled';
-            const scheduledBadge = isScheduled ? '<span class="scheduled-badge" title="' + t('budget', 'Future transaction — not counted in the current balance until it occurs') + '">' + t('budget', 'Scheduled') + '</span>' : '';
-            const pendingBadge = transaction.status === 'pending' ? '<span class="pending-badge" title="' + t('budget', 'Not yet posted by your bank') + '">' + t('budget', 'Pending') + '</span>' : '';
-
-            // Transfer badge
-            const isLinked = transaction.linkedTransactionId != null;
-            const linkedAccountName = transaction.linkedAccountName || this.app.accounts?.find(a => a.id === transaction.linkedAccountId)?.name || '';
-            const linkedDirection = transaction.type === 'debit' ? '→' : '←';
-            const linkedLabel = linkedAccountName ? t('budget', 'Transfer {direction} {account}', { direction: linkedDirection, account: dom.escapeHtml(linkedAccountName) }) : t('budget', 'Transfer');
-            const linkedTitle = linkedAccountName ? t('budget', 'Click to view linked transaction in {account}', { account: dom.escapeHtml(linkedAccountName) }) : t('budget', 'Linked transfer');
-            const linkedBadge = isLinked
-                ? `<span class="linked-indicator" data-transaction-id="${transaction.id}" data-linked-id="${transaction.linkedTransactionId}" data-linked-account-id="${transaction.linkedAccountId || ''}" title="${linkedTitle}">&#x1F517; ${linkedLabel}</span>`
-                : '';
-
-            // Split badge. Filtering the register by a category also matches a
-            // split through its parts, and the row then stands for the part
-            // that matched rather than the whole transaction (#359).
-            const isSplit = transaction.isSplit || transaction.is_split;
-            const isSplitPortion = hasSplitPortion(transaction);
-            const splitBadge = isSplit
-                ? `<span class="split-indicator" title="${isSplitPortion
-                    ? t('budget', 'Part of a split transaction. The amount shown is the part in this category.')
-                    : t('budget', 'Split transaction')}">${isSplitPortion ? t('budget', 'Split part') : t('budget', 'Split')}</span>`
-                : '';
-            const portionAmount = transactionDisplayAmount(transaction);
-            const signedPortion = transaction.type === 'credit' ? portionAmount : -portionAmount;
-            const showsWholeToo = isSplitPortion
-                && Math.abs(Math.abs(portionAmount) - Math.abs(amount)) > 0.005;
-
-            return `
-                <tr class="transaction-row${isScheduled ? ' scheduled-transaction' : ''}${isLinked ? ' is-linked' : ''}${transaction.reconciled ? ' is-reconciled' : ''}" data-transaction-id="${transaction.id}">
-                    <td class="date-column">
-                        <span class="transaction-date">${this.formatDate(transaction.date)}</span>${scheduledBadge}
-                    </td>
-                    <td class="description-column">
-                        <div class="transaction-description">
-                            <span class="description-main">${dom.escapeHtml(transaction.description) || t('budget', 'No description')}</span>
-                            ${(linkedBadge || splitBadge || pendingBadge) ? `<div class="transaction-badges">${pendingBadge}${linkedBadge}${splitBadge}</div>` : ''}
-                        </div>
-                    </td>
-                    <td class="vendor-column">${dom.escapeHtml(transaction.vendor || '')}</td>
-                    <td class="category-column">
-                        ${isSplit && transaction.splitCategories
-                            ? `<span class="category-name split-category" title="${transaction.splitCategories.map(sp => dom.escapeHtml((sp.categoryName || t('budget', 'Uncategorized')) + ': ' + this.formatCurrency(sp.amount, currency))).join('&#10;')}">${transaction.splitCategories.map(sp => '<span class="split-cat-item' + (sp.matched ? ' is-match' : '') + '">' + dom.escapeHtml(sp.categoryName || t('budget', 'Uncategorized')) + '</span>').join(' / ')}</span>`
-                            : isSplit
-                            ? `<span class="category-name split-category">${t('budget', 'Split')}</span>`
-                            : `<span class="category-name ${category ? '' : 'uncategorized'}">
-                            ${category ? dom.escapeHtml(category.name) : t('budget', 'Uncategorized')}
-                        </span>`}
-                        <div class="transaction-tags-display" data-transaction-id="${transaction.id}" style="margin-top: 4px;"></div>
-                    </td>
-                    <td class="amount-column">
-                        <span class="transaction-amount ${isSplitPortion ? (signedPortion >= 0 ? 'credit' : 'debit') : transaction.type}">
-                            ${(isSplitPortion ? signedPortion >= 0 : transaction.type === 'credit') ? '+' : '-'}${this.formatCurrency(Math.abs(portionAmount), currency)}
-                        </span>
-                        ${showsWholeToo ? `<span class="amount-whole">${t('budget', 'of {total}', { total: this.formatCurrency(Math.abs(amount), currency) })}</span>` : ''}
-                    </td>
-                    <td class="balance-column">
-                        ${balanceMap !== null && balanceMap[transaction.id] !== undefined
-                            ? `<span class="transaction-balance ${balanceMap[transaction.id] >= 0 ? 'positive' : 'negative'}${isScheduled ? ' projected' : ''}">${this.formatCurrency(balanceMap[transaction.id], currency)}</span>`
-                            : ''}
-                    </td>
-                    <td class="actions-column">
-                        <div class="transaction-actions">
-                            <button class="icon-rename edit-transaction-btn"
-                                    data-transaction-id="${transaction.id}"
-                                    title="${t('budget', 'Edit transaction')}"></button>
-                            <button class="icon-delete delete-transaction-btn"
-                                    data-transaction-id="${transaction.id}"
-                                    title="${t('budget', 'Delete transaction')}"></button>
-                        </div>
-                    </td>
-                </tr>
-            `;
-        }).join('');
+        tbody.innerHTML = this.accountTransactions.map(transaction => renderTransactionRow(transaction, {
+            variant: 'register',
+            accounts: this.app.accounts,
+            categories: this.categories,
+            currency,
+            formatCurrency: (amount, cur) => this.formatCurrency(amount, cur),
+            formatDate: (date) => this.formatDate(date),
+            balance: balances && balances[transaction.id] !== undefined ? parseFloat(balances[transaction.id]) : undefined,
+        })).join('');
 
         // Add event listeners for transaction actions
         this.setupAccountTransactionActionListeners();
@@ -1724,6 +1616,22 @@ export default class AccountsModule {
     }
 
     setupAccountTransactionActionListeners() {
+        // On a phone the register rows are cards, like the main transactions
+        // list, and a tap on the card opens the edit form. Bound once on the
+        // table, which outlives the re-rendered rows.
+        const table = document.getElementById('account-transactions-table');
+        if (table && this._registerTapTable !== table) {
+            this._registerTapTable = table;
+            table.addEventListener('click', (e) => {
+                if (!window.matchMedia?.(dom.PHONE_CARD_QUERY).matches) return;
+                const row = e.target.closest('tr.transaction-row');
+                if (!row || e.target.closest('input, button, a, select, .linked-indicator')) return;
+                // A row in an account shared read-only can't be changed
+                if (row.dataset.readOnly) return;
+                this.editTransaction(parseInt(row.dataset.transactionId, 10));
+            });
+        }
+
         // Edit transaction buttons
         document.querySelectorAll('.edit-transaction-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -1746,8 +1654,8 @@ export default class AccountsModule {
         document.querySelectorAll('#account-transactions-body .linked-indicator').forEach(badge => {
             badge.addEventListener('click', (e) => {
                 e.stopPropagation();
-                const linkedId = parseInt(e.target.getAttribute('data-linked-id'));
-                const linkedAccountId = parseInt(e.target.getAttribute('data-linked-account-id'));
+                const linkedId = parseInt(badge.getAttribute('data-linked-id'));
+                const linkedAccountId = parseInt(badge.getAttribute('data-linked-account-id'));
                 this.app.navigateToLinkedTransaction(linkedId, linkedAccountId);
             });
         });
@@ -1784,20 +1692,11 @@ export default class AccountsModule {
             // from this.accountTransactions only saw one page (max
             // accountRowsPerPage rows), so the count, this-month totals and
             // average were all wrong for accounts with more than a page of data.
-            const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/accounts/${accountId}/metrics`),
-                { headers: { 'requesttoken': OC.requestToken } }
-            );
-
-            if (!response.ok) {
-                throw new Error(`Metrics request failed with status ${response.status}`);
-            }
-
-            const metrics = await response.json();
+            const metrics = await apiFetch(`/apps/budget/api/accounts/${accountId}/metrics`);
             const currency = this.currentAccount?.currency || this.getPrimaryCurrency();
 
             document.getElementById('total-transactions').textContent =
-                (metrics.totalTransactions || 0).toLocaleString();
+                (metrics.totalTransactions || 0).toLocaleString(formatters.userLocale());
             document.getElementById('total-income').textContent =
                 this.formatCurrency(metrics.thisMonthIncome || 0, currency);
             document.getElementById('total-expenses').textContent =
@@ -1842,14 +1741,14 @@ export default class AccountsModule {
         if (account.closed) return;
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/bills?isTransfer=true'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) return;
-            const transfers = await response.json();
+            // Every active transfer into the card, whoever set it up: on a
+            // shared card the other person's payment counts too, and the
+            // viewer's own transfers alone offered a second one
+            const transfers = await apiFetch(`/apps/budget/api/accounts/${account.id}/payment-transfers`).catch(() => null);
+            if (!Array.isArray(transfers)) return;
             // The user may have navigated elsewhere while we fetched
             if (this.currentAccount?.id !== account.id) return;
-            const paymentBill = transfers.find(b => b.destinationAccountId === account.id && b.isActive);
+            const paymentBill = transfers[0];
             if (paymentBill) {
                 infoTile.style.display = 'block';
                 const due = paymentBill.nextDueDate
@@ -1862,7 +1761,8 @@ export default class AccountsModule {
                 };
                 infoEl.textContent = dynamicLabels[paymentBill.amountType]
                     || `${due} · ${this.formatCurrency(paymentBill.amount, account.currency)}`;
-            } else {
+            } else if (!isReadOnlyShare(account)) {
+                // A payment bill would post into the card
                 setupBtn.style.display = '';
             }
         } catch (error) {
@@ -2001,17 +1901,16 @@ export default class AccountsModule {
 
     async loadAccountFilterTags() {
         try {
-            const [tagSetsResponse, globalTagsResponse] = await Promise.all([
-                fetch(OC.generateUrl('/apps/budget/api/tag-sets'), { headers: { 'requesttoken': OC.requestToken } }),
-                fetch(OC.generateUrl('/apps/budget/api/tags/global'), { headers: { 'requesttoken': OC.requestToken } })
+            const [tagSets, globalTags] = await Promise.all([
+                apiFetch('/apps/budget/api/tag-sets').catch(() => null),
+                apiFetch('/apps/budget/api/tags/global').catch(() => null)
             ]);
 
-            if (tagSetsResponse.ok) {
-                this.allAccountFilterTagSets = await tagSetsResponse.json();
+            if (tagSets) {
+                this.allAccountFilterTagSets = tagSets;
             }
 
-            if (globalTagsResponse.ok) {
-                const globalTags = await globalTagsResponse.json();
+            if (globalTags) {
                 if (globalTags.length > 0) {
                     this.allAccountFilterTagSets = this.allAccountFilterTagSets || [];
                     this.allAccountFilterTagSets.unshift({
@@ -2232,16 +2131,10 @@ export default class AccountsModule {
 
         // Resume an in-progress session instead of starting over
         try {
-            const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/accounts/${accountId}/reconciliation/session`),
-                { headers: { 'requesttoken': OC.requestToken } }
-            );
-            if (response.ok) {
-                const state = await response.json();
-                if (state.session && this.app.transactionsModule) {
-                    await this.app.transactionsModule.enterReconcileSession(state);
-                    return;
-                }
+            const state = await apiFetch(`/apps/budget/api/accounts/${accountId}/reconciliation/session`);
+            if (state?.session && this.app.transactionsModule) {
+                await this.app.transactionsModule.enterReconcileSession(state);
+                return;
             }
         } catch (error) {
             // Fall through to the start panel
@@ -2253,7 +2146,7 @@ export default class AccountsModule {
             if (reconcileAccountSelect.options.length <= 1 && this.accounts) {
                 reconcileAccountSelect.innerHTML = '<option value="">' + t('budget', 'Select account to reconcile') + '</option>';
                 openAccounts(this.accounts).forEach(account => {
-                    reconcileAccountSelect.innerHTML += `<option value="${account.id}">${account.name}</option>`;
+                    reconcileAccountSelect.innerHTML += `<option value="${account.id}">${dom.escapeHtml(account.name)}</option>`;
                 });
             }
             reconcileAccountSelect.value = accountId;
@@ -2284,12 +2177,7 @@ export default class AccountsModule {
         this.expandedCategories = this.expandedCategories || new Set();
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/categories/tree'), {
-                headers: {
-                    'requesttoken': OC.requestToken
-                }
-            });
-            const categories = await response.json();
+            const categories = await apiFetch('/apps/budget/api/categories/tree');
 
             // Update category state with fetched data
             if (Array.isArray(categories)) {
@@ -2380,44 +2268,25 @@ export default class AccountsModule {
 
             const method = transactionId ? 'PUT' : 'POST';
 
-            const response = await fetch(OC.generateUrl(url), {
+            const result = await apiFetch(url, {
                 method: method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify(formData)
+                body: formData,
+                errorMessage: t('budget', 'Failed to save transaction'),
             });
+            const savedTransactionId = result.id || transactionId;
 
-            if (response.ok) {
-                const result = await response.json();
-                const savedTransactionId = result.id || transactionId;
+            // Save tags if any are selected
+            const selectedTagIds = this.getSelectedTransactionTags();
+            if (selectedTagIds.length > 0 && savedTransactionId) {
+                await this.saveTransactionTags(savedTransactionId, selectedTagIds);
+            }
 
-                // Save tags if any are selected
-                const selectedTagIds = this.getSelectedTransactionTags();
-                if (selectedTagIds.length > 0 && savedTransactionId) {
-                    await this.saveTransactionTags(savedTransactionId, selectedTagIds);
-                }
-
-                showSuccess(t('budget', 'Transaction saved successfully'));
-                this.hideModals();
-                this.loadTransactions();
-                // Also reload account transactions if we're on account details view
-                if (this.currentView === 'account-details' && this.currentAccount) {
-                    this.loadAccountTransactions(this.currentAccount.id);
-                }
-            } else {
-                // Try to get the actual error message from backend
-                let errorMessage = t('budget', 'Failed to save transaction');
-                try {
-                    const errorData = await response.json();
-                    if (errorData.error) {
-                        errorMessage = errorData.error;
-                    }
-                } catch (e) {
-                    // If we can't parse JSON, use default message
-                }
-                throw new Error(errorMessage);
+            showSuccess(t('budget', 'Transaction saved successfully'));
+            this.hideModals();
+            this.loadTransactions();
+            // Also reload account transactions if we're on account details view
+            if (this.currentView === 'account-details' && this.currentAccount) {
+                this.loadAccountTransactions(this.currentAccount.id);
             }
         } catch (error) {
             console.error('Failed to save transaction:', error);
@@ -2426,7 +2295,12 @@ export default class AccountsModule {
     }
 
     // Phase 4: Quick Add Transaction methods
-    async saveQuickAddTransaction() {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveQuickAddTransaction() {
+        return once('quick-add-save', document.querySelector('#quick-add-form [type="submit"]'), () => this._saveQuickAddTransaction());
+    }
+
+    async _saveQuickAddTransaction() {
         // Helper function to safely get and clean form values
         const getFormValue = (id, defaultValue = null, isNumeric = false, isInteger = false) => {
             const element = document.getElementById(id);
@@ -2492,37 +2366,21 @@ export default class AccountsModule {
         };
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/transactions'), {
+            await apiFetch('/apps/budget/api/transactions', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify(formData)
+                body: formData,
+                errorMessage: t('budget', 'Failed to add transaction'),
             });
 
-            if (response.ok) {
-                this.showQuickAddMessage(t('budget', 'Transaction added successfully!'), 'success');
-                this.resetQuickAddForm();
-                // Reload transactions if on transactions view
-                if (this.app.currentView === 'transactions') {
-                    this.app.loadTransactions();
-                }
-                // Reload dashboard to update totals
-                if (this.app.currentView === 'dashboard') {
-                    this.app.loadDashboard();
-                }
-            } else {
-                let errorMessage = t('budget', 'Failed to add transaction');
-                try {
-                    const errorData = await response.json();
-                    if (errorData.error) {
-                        errorMessage = errorData.error;
-                    }
-                } catch (e) {
-                    // If we can't parse JSON, use default message
-                }
-                throw new Error(errorMessage);
+            this.showQuickAddMessage(t('budget', 'Transaction added successfully!'), 'success');
+            this.resetQuickAddForm();
+            // Reload transactions if on transactions view
+            if (this.app.currentView === 'transactions') {
+                this.app.loadTransactions();
+            }
+            // Reload dashboard to update totals
+            if (this.app.currentView === 'dashboard') {
+                this.app.loadDashboard();
             }
         } catch (error) {
             console.error('Failed to save quick add transaction:', error);
@@ -2576,11 +2434,23 @@ export default class AccountsModule {
             });
         }
 
-        // Populate category dropdown (hierarchical with indentation)
+        // Populate category dropdown (hierarchical with indentation), for the
+        // account picked: one someone shared with you takes only their
+        // categories (usableCategories), so it follows the account
         const categorySelect = document.getElementById('quick-add-category');
-        if (categorySelect) {
+        const fillCategories = () => {
+            if (!categorySelect) return;
+            const current = categorySelect.value;
+            const account = (this.accounts || []).find(a => String(a.id) === accountSelect?.value);
+            const scoped = usableCategories(this.categories, [account], [current]);
             categorySelect.innerHTML = '<option value="">' + t('budget', 'No category') + '</option>';
-            dom.populateCategorySelect(categorySelect, this.categoryTree || this.categories);
+            dom.populateCategorySelect(categorySelect, scoped ? categoryTreeOf(scoped) : (this.categoryTree || this.categories));
+            categorySelect.value = current;
+        };
+        fillCategories();
+        if (accountSelect && !accountSelect.dataset.categoryScopeBound) {
+            accountSelect.dataset.categoryScopeBound = '1';
+            accountSelect.addEventListener('change', fillCategories);
         }
 
         // Set today's date as default
@@ -2590,7 +2460,12 @@ export default class AccountsModule {
         }
     }
 
-    async saveAccount() {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveAccount() {
+        return once('account-save', document.querySelector('#account-form [type="submit"]'), () => this._saveAccount());
+    }
+
+    async _saveAccount() {
         try {
             // Get form elements
             const nameElement = document.getElementById('account-name');
@@ -2742,64 +2617,32 @@ export default class AccountsModule {
 
             const method = accountId ? 'PUT' : 'POST';
 
-            const response = await fetch(OC.generateUrl(url), {
+            // No errorMessage: the toast below already says "Failed to save
+            // account: …", so a failure without a server message shows its
+            // HTTP status there.
+            await apiFetch(url, {
                 method: method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify(formData)
+                body: formData,
             });
 
-            if (response.ok) {
-                // Try to parse response as JSON, but handle empty responses
-                const contentType = response.headers.get('content-type');
-                if (contentType && contentType.includes('application/json')) {
-                    const text = await response.text();
-                    if (text.trim()) {
-                        JSON.parse(text);
-                    }
-                }
+            showSuccess(t('budget', 'Account saved successfully'));
+            this.hideModals();
+            await this.loadAccounts();
+            await this.loadInitialData(); // Refresh dropdowns
 
-                showSuccess(t('budget', 'Account saved successfully'));
-                this.hideModals();
-                await this.loadAccounts();
-                await this.loadInitialData(); // Refresh dropdowns
+            // Refresh dashboard if currently viewing it
+            if (window.location.hash === '' || window.location.hash === '#/dashboard') {
+                await this.app.loadDashboard();
+            }
 
-                // Refresh dashboard if currently viewing it
-                if (window.location.hash === '' || window.location.hash === '#/dashboard') {
-                    await this.app.loadDashboard();
+            // Refresh account details view if it's currently visible
+            const detailsView = document.getElementById('account-details-view');
+            if (detailsView && detailsView.style.display !== 'none' && accountId) {
+                const updatedAccount = this.accounts.find(a => a.id === parseInt(accountId));
+                if (updatedAccount) {
+                    this.currentAccount = updatedAccount;
+                    this.populateAccountOverview(updatedAccount);
                 }
-
-                // Refresh account details view if it's currently visible
-                const detailsView = document.getElementById('account-details-view');
-                if (detailsView && detailsView.style.display !== 'none' && accountId) {
-                    const updatedAccount = this.accounts.find(a => a.id === parseInt(accountId));
-                    if (updatedAccount) {
-                        this.currentAccount = updatedAccount;
-                        this.populateAccountOverview(updatedAccount);
-                    }
-                }
-            } else {
-                // Handle error responses more safely
-                let errorMessage = t('budget', 'Failed to save account');
-                try {
-                    const contentType = response.headers.get('content-type');
-                    if (contentType && contentType.includes('application/json')) {
-                        const text = await response.text();
-                        if (text.trim()) {
-                            const errorData = JSON.parse(text);
-                            errorMessage = errorData.error || errorMessage;
-                        }
-                    } else {
-                        // Non-JSON response, get status text
-                        errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-                    }
-                } catch (parseError) {
-                    console.error('Error parsing response:', parseError);
-                    errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-                }
-                throw new Error(errorMessage);
             }
         } catch (error) {
             console.error('Failed to save account:', error);
@@ -2854,18 +2697,52 @@ export default class AccountsModule {
             return;
         }
 
+        // Which opening of the dialog a load belongs to: one for an account
+        // opened earlier (or before Add Account) must never fill it.
+        const load = {};
+        this._accountDialogLoad = load;
+        const form = document.getElementById('account-form');
+        // While it loads the fields can't be used and Save is off; Cancel
+        // stays usable
+        const setLoading = (loading) => {
+            const fields = form?.querySelector('.modal-scroll');
+            const save = form?.querySelector('[type="submit"]');
+            fields?.toggleAttribute('inert', loading);
+            if (save) save.disabled = loading;
+            if (loading) {
+                form?.setAttribute('aria-busy', 'true');
+            } else {
+                form?.removeAttribute('aria-busy');
+            }
+        };
+
         if (accountId) {
             title.textContent = t('budget', 'Edit Account');
+            // Cleared and unusable until this account's values are in. It used
+            // to show the previous account's values meanwhile, and anything
+            // typed in that moment was overwritten by the load while Save
+            // still reported success.
+            this.resetAccountForm();
+            setLoading(true);
             // Populate first, THEN apply type-conditional field visibility. The load
             // is async, so running the conditionals on a fixed timer raced it — if
             // they ran before the type was set, the type-specific fields (credit
             // limit, etc.) stayed hidden until the type was toggled (#330).
-            this.loadAccountData(accountId).then(() => {
+            this.loadAccountData(accountId, () => this._accountDialogLoad === load).then((loaded) => {
+                if (this._accountDialogLoad !== load) return;
+                setLoading(false);
+                if (!loaded) {
+                    // An empty form's Save would create a new account
+                    this.hideModals();
+                    return;
+                }
                 this.setupAccountTypeConditionals();
                 this.setupBankingFieldValidation();
+                document.getElementById('account-name')?.focus();
             });
         } else {
             title.textContent = t('budget', 'Add Account');
+            setLoading(false);
             this.resetAccountForm();
             setTimeout(() => {
                 this.setupAccountTypeConditionals();
@@ -2883,14 +2760,20 @@ export default class AccountsModule {
         }
     }
 
-    async loadAccountData(accountId) {
+    /**
+     * Fill the dialog with an account.
+     *
+     * @param {number} accountId
+     * @param {Function} [stillWanted] - False once the dialog has been opened
+     *   again, for another account or to add one: the answer is dropped
+     * @returns {Promise<boolean>} Whether the dialog now holds the account
+     */
+    async loadAccountData(accountId, stillWanted = () => true) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/accounts/${accountId}`), {
-                headers: {
-                    'requesttoken': OC.requestToken
-                }
-            });
-            const account = await response.json();
+            const account = await apiFetch(`/apps/budget/api/accounts/${accountId}`);
+            if (!stillWanted()) {
+                return false;
+            }
 
             document.getElementById('account-id').value = account.id;
             document.getElementById('account-name').value = account.name;
@@ -2997,9 +2880,13 @@ export default class AccountsModule {
             const excludedEl = document.getElementById('account-excluded-from-reports');
             if (excludedEl) excludedEl.checked = account.excludedFromReports || false;
             this.syncClosedControl(account);
+            return true;
         } catch (error) {
             console.error('Failed to load account data:', error);
-            showError(t('budget', 'Failed to load account data'));
+            if (stillWanted()) {
+                showError(t('budget', 'Failed to load account data'));
+            }
+            return false;
         }
     }
 
@@ -3020,11 +2907,16 @@ export default class AccountsModule {
         return inCredit ? Math.abs(typed) : -Math.abs(typed);
     }
 
-    /** Refresh the read-only Current Balance field from the typed opening balance. */
+    /**
+     * Refresh the read-only Current Balance field from the typed opening
+     * balance. Editing only: on a new account that field is the starting
+     * balance being typed, and the hidden opening balance (0) overwrote it
+     * whenever the type, currency or "in credit" changed.
+     */
     updateOpeningBalancePreview() {
         const field = document.getElementById('account-opening-balance');
         const balanceField = document.getElementById('account-balance');
-        if (!field || !balanceField) {
+        if (!field || !balanceField || !document.getElementById('account-id')?.value) {
             return;
         }
         const netChange = parseFloat(field.dataset.netChange) || 0;
@@ -3180,47 +3072,45 @@ export default class AccountsModule {
      * server clears the account's ledger before removing it (#336).
      */
     _sendAccountDelete(id, deleteTransactions) {
-        const url = OC.generateUrl(`/apps/budget/api/accounts/${id}`)
-            + (deleteTransactions ? '?deleteTransactions=true' : '');
-        return fetch(url, {
+        return apiFetch(`/apps/budget/api/accounts/${id}`
+            + (deleteTransactions ? '?deleteTransactions=true' : ''), {
             method: 'DELETE',
-            headers: { 'requesttoken': OC.requestToken }
+            errorMessage: t('budget', 'Failed to delete account'),
         });
     }
 
     async deleteAccount(id) {
-        if (!await confirmDialog(t('budget', 'Are you sure you want to delete this account? This action cannot be undone.'), { destructive: true })) {
+        if (!await confirmDialog(
+            t('budget', 'Are you sure you want to delete this account? This action cannot be undone.')
+                + '\n\n' + t('budget', 'Any bills, transfers or recurring income that use it are switched off.'),
+            { destructive: true }
+        )) {
             return;
         }
 
         try {
-            let response = await this._sendAccountDelete(id, false);
-
-            // The account still has transactions — offer to delete those too
-            // rather than making the user empty the ledger by hand (#336).
-            if (response.status === 409) {
-                const body = await response.json().catch(() => ({}));
-                if (body.code !== 'has_transactions') {
-                    throw new Error(body.error || t('budget', 'Failed to delete account'));
+            let result;
+            try {
+                result = await this._sendAccountDelete(id, false);
+            } catch (error) {
+                // The account still has transactions — offer to delete those too
+                // rather than making the user empty the ledger by hand (#336).
+                if (!(error instanceof ApiError) || error.status !== 409
+                    || error.data?.code !== 'has_transactions') {
+                    throw error;
                 }
-                const count = body.transactionCount || 0;
+                const count = error.data.transactionCount || 0;
                 const question = count > 0
                     ? t('budget', 'This account still has {count} transaction(s). Delete them along with the account? This cannot be undone.', { count })
                     : t('budget', 'This account still has transactions. Delete them along with the account? This cannot be undone.');
                 if (!await confirmDialog(question, { destructive: true })) {
                     return;
                 }
-                response = await this._sendAccountDelete(id, true);
+                result = await this._sendAccountDelete(id, true);
             }
 
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to delete account')));
-            }
-
-            const result = await response.json().catch(() => ({}));
-            showSuccess(result.deletedTransactions > 0
-                ? t('budget', 'Account and its {count} transaction(s) deleted', { count: result.deletedTransactions })
+            showSuccess(result?.deletedTransactions > 0
+                ? t('budget', 'Account and its {count} transaction(s) deleted', { count: result?.deletedTransactions })
                 : t('budget', 'Account deleted successfully'));
             await this.loadAccounts();
             await this.loadInitialData(); // Refresh dropdowns
@@ -3246,10 +3136,7 @@ export default class AccountsModule {
 
         // Get banking field requirements for the selected currency
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/accounts/banking-requirements/${currency}`), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            await response.json();
+            await apiFetch(`/apps/budget/api/accounts/banking-requirements/${currency}`);
         } catch (error) {
             console.warn('Failed to load banking requirements:', error);
         }
@@ -3369,10 +3256,7 @@ export default class AccountsModule {
         try {
             // Get banking institutions from backend
             if (!this.bankingInstitutions) {
-                const response = await fetch(OC.generateUrl('/apps/budget/api/accounts/banking-institutions'), {
-                    headers: { 'requesttoken': OC.requestToken }
-                });
-                this.bankingInstitutions = await response.json();
+                this.bankingInstitutions = await apiFetch('/apps/budget/api/accounts/banking-institutions');
             }
 
             // Get currency to show relevant banks
@@ -3412,16 +3296,18 @@ export default class AccountsModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/accounts/validate/${fieldType}`), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ [fieldType.replace('-', '')]: value })
-            });
-
-            const result = await response.json();
+            let result;
+            try {
+                result = await apiFetch(`/apps/budget/api/accounts/validate/${fieldType}`, {
+                    method: 'POST',
+                    // routing-number -> routingNumber, the controller's parameter name
+                    body: { [fieldType.replace(/-(\w)/g, (_, c) => c.toUpperCase())]: value },
+                });
+            } catch (error) {
+                // A refused check still shows its error body as the feedback
+                if (!(error instanceof ApiError) || !error.data) throw error;
+                result = error.data;
+            }
             this.showValidationFeedback(fieldId, result);
 
             // Auto-format if validation succeeded
@@ -3532,7 +3418,7 @@ export default class AccountsModule {
                 label: t('budget', 'Credit Card')
             },
             'investment': {
-                icon: 'icon-trending',
+                icon: 'icon-category-monitoring',
                 color: '#7ED321',
                 label: t('budget', 'Investment')
             },
@@ -3635,7 +3521,7 @@ export default class AccountsModule {
         }
 
         if (!this.accountTransactions || this.accountTransactions.length === 0) {
-            OC.Notification.showTemporary(t('budget', 'No transactions to export'));
+            showWarning(t('budget', 'No transactions to export'));
             return;
         }
 
@@ -3659,7 +3545,7 @@ export default class AccountsModule {
             await downloadTransactionsCsv(params, account.name || 'account');
         } catch (error) {
             console.error('Failed to export transactions:', error);
-            OC.Notification.showTemporary(t('budget', 'Failed to export transactions'));
+            showError(t('budget', 'Failed to export transactions'));
         }
     }
 }

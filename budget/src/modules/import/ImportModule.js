@@ -4,11 +4,14 @@
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
+import { once } from '../../utils/submitGuard.js';
 import { confirmDialog, promptDialog } from '../../utils/dialogs.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
-import { serverErrorMessage, groupImportErrors } from '../../utils/helpers.js';
-import { openAccounts } from '../../utils/accounts.js';
+import { groupImportErrors } from '../../utils/helpers.js';
+import { apiFetch, ApiError } from '../../utils/api.js';
+import { importTargetAccounts, accountCurrency } from '../../utils/accounts.js';
 import MultiSelect from '../../utils/multiselect.js';
+import ReviewQueue from './ReviewQueue.js';
 
 /**
  * The free-text targets. Each can be fed from several source columns at once
@@ -85,6 +88,27 @@ const SELECT_ID_TO_FIELD = Object.fromEntries(
     Object.entries(MAPPING_SELECT_IDS).map(([field, id]) => [id, field])
 );
 
+/**
+ * What each app-export preset does with the file, shown under the Import
+ * Format picker. The server's preset descriptions are English-only; these
+ * go through t(). A function, not a constant, so the strings are looked up
+ * after the translations have loaded.
+ *
+ * @param {string} presetId
+ * @returns {string|null}
+ */
+export function appPresetNote(presetId) {
+    const notes = {
+        toshl: () => t('budget', 'Reads a Toshl Finance export: each account in the file is matched by name or created, categories and tags are created as needed, and transfer rows are skipped.'),
+        'firefly-iii': () => t('budget', 'Reads a Firefly III export: each account in the file is matched by name or created in its own currency, categories and tags are created as needed, and each transfer is imported into both accounts and linked.'),
+        ynab: () => t('budget', 'Reads a YNAB register export: each account is matched by name or created, category groups become parent categories, and transfers are linked. Income assigned to "Ready to Assign" is left uncategorized.'),
+        'actual-budget': () => t('budget', 'Reads an Actual Budget export: each account is matched by name or created, category groups become parent categories, split transactions are imported as their parts, and transfers are linked.'),
+        mint: () => t('budget', 'Reads a Mint transactions.csv: each account is matched by name or created, categories are created as needed, labels become tags, and transfers and card payments are linked.'),
+        'monarch-money': () => t('budget', 'Reads a Monarch Money download: each account is matched by name or created, categories are created as needed, and transfers and card payments are linked.'),
+    };
+    return notes[presetId] ? notes[presetId]() : null;
+}
+
 export default class ImportModule {
     constructor(app) {
         this.app = app;
@@ -106,6 +130,9 @@ export default class ImportModule {
         this.presets = [];
         this.selectedPreset = null;
         this.previewTotalValid = 0;
+        // App picked under "Switching from another app?" before uploading;
+        // its preset is selected as soon as the file arrives
+        this.pendingPreset = null;
 
         // User-saved import template state
         this.userTemplates = [];
@@ -113,6 +140,12 @@ export default class ImportModule {
 
         // Multiselect component instances
         this.multiSelects = {};
+
+        // Statements an import folder is holding for review (#425)
+        this.reviewQueue = new ReviewQueue({
+            getAccounts: () => this.accounts,
+            openInWizard: (upload) => this.openReviewedFile(upload),
+        });
     }
 
     // ============================================
@@ -168,39 +201,70 @@ export default class ImportModule {
     // Import Module Methods
     // ============================================
 
+    /**
+     * Open a file an import folder was holding for review (#425): the wizard
+     * starts as for an upload, with the folder's template chosen. The
+     * `review` block stays on currentImportData so the account can be
+     * preselected and the file moved once it is imported.
+     */
+    async openReviewedFile(upload) {
+        // Nothing of the file before it may reach this one. The account
+        // select is cleared as well: no reset touches it, and whatever was
+        // left chosen there would win over the folder's own account
+        this.resetImportWizard();
+        const account = document.getElementById('import-account');
+        if (account) account.value = '';
+
+        await this.showImportMapping(upload);
+
+        const templateId = upload?.review?.templateId;
+        const select = document.getElementById('import-preset');
+        const value = `template:${templateId}`;
+        // Only when the template is still there; otherwise the wizard is
+        // left unmapped, as for any upload
+        if (upload?.format === 'csv' && templateId && select && [...select.options].some(o => o.value === value)) {
+            select.value = value;
+            await this.onImportFormatChange(value);
+        }
+    }
+
+    /**
+     * Move a reviewed file out of its Review folder once it has been
+     * imported. When not one row went in and the server said why, it stays
+     * waiting: filed under Imported it would look dealt with.
+     */
+    async finishReviewedFile(review, result) {
+        if (!review?.fileId) return;
+        if (!(result?.imported > 0) && result?.errors?.length > 0) {
+            await this.reviewQueue.load();
+            return;
+        }
+        await this.reviewQueue.finish(review.fileId, 'imported');
+    }
+
     async handleImportFile(file) {
         const formData = new FormData();
         formData.append('file', file);
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/import/upload'), {
+            const result = await apiFetch('/apps/budget/api/import/upload', {
                 method: 'POST',
-                headers: {
-                    'requesttoken': OC.requestToken
-                },
-                body: formData
+                body: formData,
+                errorMessage: t('budget', 'Upload failed'),
             });
-
-            if (response.ok) {
-                const result = await response.json();
-                this.currentImportData = result;
-                this.showImportMapping(result);
-            } else {
-                throw new Error(t('budget', 'Upload failed'));
-            }
+            this.currentImportData = result;
+            this.showImportMapping(result);
         } catch (error) {
             console.error('Failed to upload file:', error);
-            showError(t('budget', 'Failed to upload file'));
+            // The server's own message, such as why a spreadsheet could not be read (#424)
+            showError(error instanceof ApiError ? error.message : t('budget', 'Failed to upload file'));
         }
     }
 
     async loadPresets() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/import/templates'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (response.ok) {
-                const data = await response.json();
+            const data = await apiFetch('/apps/budget/api/import/templates').catch(() => null);
+            if (data) {
                 this.presets = Object.values(data).filter(t => t.isPreset);
             }
         } catch (error) {
@@ -210,11 +274,9 @@ export default class ImportModule {
 
     async loadUserTemplates() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/import-templates'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (response.ok) {
-                this.userTemplates = await response.json();
+            const templates = await apiFetch('/apps/budget/api/import-templates').catch(() => null);
+            if (templates) {
+                this.userTemplates = templates;
             }
         } catch (error) {
             console.error('Failed to load import templates:', error);
@@ -267,13 +329,14 @@ export default class ImportModule {
             <select id="import-preset">
                 <option value="">${t('budget', 'Custom CSV (manual mapping)')}</option>
                 ${csvTemplates.length ? `<optgroup label="${t('budget', 'My Templates')}">${templateOptions}</optgroup>` : ''}
-                ${this.presets.length ? `<optgroup label="${t('budget', 'Bank Presets')}">${presetOptions}</optgroup>` : ''}
+                ${this.presets.length ? `<optgroup label="${t('budget', 'Other apps')}">${presetOptions}</optgroup>` : ''}
             </select>
             <div class="import-template-actions">
                 <button type="button" class="button" id="save-template-btn">${t('budget', 'Save mapping as template…')}</button>
                 <button type="button" class="button" id="manage-templates-btn">${t('budget', 'Manage templates')}</button>
             </div>
             <p class="preset-description" id="preset-description" style="display:none;"></p>
+            <p class="preset-detected" id="preset-detected" hidden></p>
         `;
 
         const select = document.getElementById('import-preset');
@@ -288,6 +351,10 @@ export default class ImportModule {
         this.selectedPreset = null;
         this.selectedTemplate = null;
 
+        // "Detected as ..." only describes the automatic choice
+        const detected = document.getElementById('preset-detected');
+        if (detected) detected.hidden = true;
+
         const desc = document.getElementById('preset-description');
         const mappingContainer = document.querySelector('#import-step-2 .mapping-container');
         const mappingOptions = document.querySelector('#import-step-2 .mapping-options');
@@ -301,8 +368,9 @@ export default class ImportModule {
             this.selectedPreset = value.slice('preset:'.length);
             const preset = this.presets.find(p => String(p.id) === this.selectedPreset);
             if (preset && desc) {
-                desc.textContent = preset.description || '';
-                desc.style.display = preset.description ? 'block' : 'none';
+                const note = appPresetNote(this.selectedPreset) || preset.description || '';
+                desc.textContent = note;
+                desc.style.display = note ? 'block' : 'none';
             }
             setManualMappingVisible(false);
         } else if (value.startsWith('template:')) {
@@ -536,7 +604,12 @@ export default class ImportModule {
         nameInput?.focus();
     }
 
-    async saveCurrentTemplate() {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveCurrentTemplate() {
+        return once('import-template-save', document.querySelector('#import-save-template-form [type="submit"]'), () => this._saveCurrentTemplate());
+    }
+
+    async _saveCurrentTemplate() {
         const nameInput = document.getElementById('import-template-name');
         const name = (nameInput?.value || '').trim();
         if (!name) {
@@ -565,36 +638,35 @@ export default class ImportModule {
             // every later import. The server keeps only the four fields these
             // formats can resolve (#340).
             requestBody.mapping = this.getCurrentMapping();
-            requestBody.applyRules = true;
+            requestBody.applyRules = this.applyRulesChosen();
         }
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/import-templates'), {
+            const data = await apiFetch('/apps/budget/api/import-templates', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                body: JSON.stringify(requestBody)
+                body: requestBody,
+                errorMessage: t('budget', 'Failed to save import template'),
             });
-            const data = await response.json();
-            if (response.ok) {
-                showSuccess(t('budget', 'Import template saved'));
-                this.closeTemplateModal('import-save-template-modal');
-                await this.loadUserTemplates();
-                // Select the newly saved template in whichever selector is active.
-                this.selectedTemplate = data.id;
-                this.selectedPreset = null;
-                if (format === 'csv') {
-                    this.renderPresetSelector();
-                    const select = document.getElementById('import-preset');
-                    if (select) select.value = `template:${data.id}`;
-                } else {
-                    this.renderRoutingTemplateBar();
-                    const select = document.getElementById('import-routing-template');
-                    if (select) select.value = `template:${data.id}`;
-                }
+            showSuccess(t('budget', 'Import template saved'));
+            this.closeTemplateModal('import-save-template-modal');
+            await this.loadUserTemplates();
+            // Select the newly saved template in whichever selector is active.
+            this.selectedTemplate = data.id;
+            this.selectedPreset = null;
+            if (format === 'csv') {
+                this.renderPresetSelector();
+                const select = document.getElementById('import-preset');
+                if (select) select.value = `template:${data.id}`;
             } else {
-                showError(data.error || t('budget', 'Failed to save import template'));
+                this.renderRoutingTemplateBar();
+                const select = document.getElementById('import-routing-template');
+                if (select) select.value = `template:${data.id}`;
             }
         } catch (error) {
+            if (error instanceof ApiError) {
+                showError(error.message);
+                return;
+            }
             console.error('Failed to save import template:', error);
             showError(t('budget', 'Failed to save import template'));
         }
@@ -655,21 +727,20 @@ export default class ImportModule {
         if (!name || name === template.name) return;
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/import-templates/' + id), {
+            await apiFetch('/apps/budget/api/import-templates/' + id, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                body: JSON.stringify({ name })
+                body: { name },
+                errorMessage: t('budget', 'Failed to rename import template'),
             });
-            const data = await response.json();
-            if (response.ok) {
-                showSuccess(t('budget', 'Import template renamed'));
-                await this.loadUserTemplates();
-                this.renderManageTemplatesList();
-                this.refreshTemplateSelectors();
-            } else {
-                showError(data.error || t('budget', 'Failed to rename import template'));
-            }
+            showSuccess(t('budget', 'Import template renamed'));
+            await this.loadUserTemplates();
+            this.renderManageTemplatesList();
+            this.refreshTemplateSelectors();
         } catch (error) {
+            if (error instanceof ApiError) {
+                showError(error.message);
+                return;
+            }
             console.error('Failed to rename import template:', error);
             showError(t('budget', 'Failed to rename import template'));
         }
@@ -679,21 +750,14 @@ export default class ImportModule {
         if (!await confirmDialog(t('budget', 'Are you sure you want to delete this import template?'), { destructive: true })) return;
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/import-templates/' + id), {
-                method: 'DELETE',
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (response.ok) {
-                showSuccess(t('budget', 'Import template deleted'));
-                if (this.selectedTemplate === id) {
-                    this.selectedTemplate = null;
-                }
-                await this.loadUserTemplates();
-                this.renderManageTemplatesList();
-                this.refreshTemplateSelectors();
-            } else {
-                showError(t('budget', 'Failed to delete import template'));
+            await apiFetch('/apps/budget/api/import-templates/' + id, { method: 'DELETE' });
+            showSuccess(t('budget', 'Import template deleted'));
+            if (this.selectedTemplate === id) {
+                this.selectedTemplate = null;
             }
+            await this.loadUserTemplates();
+            this.renderManageTemplatesList();
+            this.refreshTemplateSelectors();
         } catch (error) {
             console.error('Failed to delete import template:', error);
             showError(t('budget', 'Failed to delete import template'));
@@ -894,10 +958,71 @@ export default class ImportModule {
             });
         }
 
+        // "Switching from another app?": remember the app, then open the file picker
+        const switchFrom = document.getElementById('import-switch-from');
+        if (switchFrom) {
+            switchFrom.addEventListener('click', (e) => {
+                const button = e.target.closest('.import-switch-app');
+                if (button) this.choosePendingPreset(button);
+            });
+        }
+
         // Initialize import state
         this.currentImportStep = 1;
         this.currentImportData = null;
         this.importHistory = [];
+    }
+
+    /**
+     * Pick (or, clicked again, drop) the app a file is coming from.
+     *
+     * @param {HTMLElement} button The app's button in the switch-from list
+     */
+    choosePendingPreset(button) {
+        const presetId = button.dataset.preset;
+        const again = this.pendingPreset === presetId;
+        this.pendingPreset = again ? null : presetId;
+
+        document.querySelectorAll('.import-switch-app').forEach(b => {
+            b.setAttribute('aria-pressed', String(b === button && !again));
+        });
+
+        const status = document.getElementById('import-switch-selected');
+        if (status) {
+            const name = button.querySelector('strong')?.textContent || presetId;
+            status.textContent = again ? '' : t('budget', 'Now choose your {app} export file.', { app: name });
+            status.hidden = again;
+        }
+
+        if (!again) document.getElementById('import-file-input')?.click();
+    }
+
+    /**
+     * Select the app preset for a freshly uploaded CSV: the app picked under
+     * "Switching from another app?", else the one the server recognised
+     * from the header row. Never overrides a format already chosen.
+     *
+     * @param {object} uploadResult Upload response
+     */
+    async applyPresetForUpload(uploadResult) {
+        const select = document.getElementById('import-preset');
+        if (!select || select.value !== '') return;
+
+        const chosen = this.pendingPreset;
+        const presetId = chosen || uploadResult.suggestedPreset;
+        const preset = presetId ? this.presets.find(p => String(p.id) === String(presetId)) : null;
+        if (!preset) return;
+
+        select.value = `preset:${preset.id}`;
+        await this.onImportFormatChange(select.value);
+
+        if (!chosen) {
+            const detected = document.getElementById('preset-detected');
+            if (detected) {
+                detected.textContent = t('budget', 'This file looks like a {app} export, so that format has been selected. Choose Custom CSV to map the columns yourself.', { app: preset.name });
+                detected.hidden = false;
+            }
+        }
     }
 
     switchImportTab(tabName) {
@@ -975,6 +1100,12 @@ export default class ImportModule {
             }
         }
 
+        // "Apply import rules" starts each new file from the user's setting
+        // (on unless they switched it off); a template may change it, and the
+        // box decides what the preview shows and the import does (T3-9)
+        const applyRules = document.getElementById('apply-rules');
+        if (applyRules) applyRules.checked = this.settings?.import_auto_apply_rules !== 'false';
+
         // Populate column mapping dropdowns
         this.populateColumnMappings(uploadResult.columns);
         this.applyFormatDefaults(uploadResult.format, uploadResult.columns || []);
@@ -994,6 +1125,7 @@ export default class ImportModule {
                 await this.loadPresets();
             }
             this.showPresetSelector();
+            await this.applyPresetForUpload(uploadResult);
         } else {
             // Presets are CSV-only. Without this an OFX/QIF upload that follows
             // a preset-driven CSV import in the same page session inherits a
@@ -1106,27 +1238,16 @@ export default class ImportModule {
         this.latestPreviewRequestId = resolvedRequestId;
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/import/data-preview'), {
+            const result = await apiFetch('/apps/budget/api/import/data-preview', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken,
-                },
-                body: JSON.stringify({
+                body: {
                     fileId,
                     fileName: this.currentImportData.filename || '',
                     delimiter: selectedDelimiter,
                     skipFirstRow: selectedSkipFirstRow,
                     encoding: selectedEncoding,
-                }),
+                },
             });
-
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-            }
-
-            const result = await response.json();
             if (this.latestPreviewRequestId !== resolvedRequestId) {
                 return null;
             }
@@ -1430,6 +1551,15 @@ export default class ImportModule {
         this.validateMappingStep();
     }
 
+    /**
+     * Whether this import runs the user's import rules: the "Apply import
+     * rules" box, on when there is no box to read.
+     */
+    applyRulesChosen() {
+        const box = document.getElementById('apply-rules');
+        return box ? box.checked : true;
+    }
+
     getCurrentMapping() {
         return {
             date: document.getElementById('map-date')?.value || null,
@@ -1608,6 +1738,8 @@ export default class ImportModule {
             fileId: this.currentImportData.fileId,
             mapping: mapping,
             skipDuplicates: false,
+            // The preview shows what the import will do (T3-9)
+            applyRules: this.applyRulesChosen(),
             delimiter: document.getElementById('csv-delimiter')?.value || ',',
             // Whatever the mapping screen was decoded with must be what gets
             // parsed and imported, or the preview lies about the result (#371)
@@ -1650,28 +1782,21 @@ export default class ImportModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/import/preview'), {
+            const result = await apiFetch('/apps/budget/api/import/preview', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify(requestBody)
+                body: requestBody,
+                errorMessage: t('budget', 'Processing failed'),
             });
-
-            if (response.ok) {
-                const result = await response.json();
-                this.processedTransactions = result.transactions;
-                this.previewTotalValid = result.validTransactions || result.transactions.length;
-                this.updateImportSummary(result);
-                const previewTable = document.getElementById('preview-table');
-                if (previewTable) previewTable.style.display = '';
-                this.showTransactionPreview(result.transactions);
-                this.filterPreviewTransactions();
-            } else {
-                const errorData = await response.json();
-                throw new Error(errorData.error || t('budget', 'Processing failed'));
-            }
+            this.processedTransactions = result.transactions;
+            this.previewTotalValid = result.validTransactions || result.transactions.length;
+            this.updateImportSummary(result);
+            const previewTable = document.getElementById('preview-table');
+            if (previewTable) previewTable.style.display = '';
+            this.showTransactionPreview(result.transactions, {
+                accountId: requestBody.accountId ?? null,
+                accountsToCreate: result.accountsToCreate || [],
+            });
+            this.filterPreviewTransactions();
         } catch (error) {
             console.error('Failed to process import data:', error);
             showError(t('budget', 'Failed to process import data: {message}', { message: error.message }));
@@ -1762,7 +1887,10 @@ export default class ImportModule {
                 const names = result.categoriesToCreate.map(c => c.name);
                 container.innerHTML = `<p><strong>${t('budget', 'Categories to create:')}</strong> ${dom.escapeHtml(names.join(', '))}</p>`;
                 if (result.skippedByPreset > 0) {
-                    container.innerHTML += `<p>${t('budget', '{count} transfer rows will be skipped', { count: result.skippedByPreset })}</p>`;
+                    const skippedText = this.selectedPreset === 'toshl'
+                        ? t('budget', '{count} transfer rows will be skipped', { count: result.skippedByPreset })
+                        : t('budget', '{count} split total rows will be skipped; the parts of each split are imported instead', { count: result.skippedByPreset });
+                    container.innerHTML += `<p>${skippedText}</p>`;
                 }
             }
         } else if (categoriesContainer) {
@@ -1864,6 +1992,8 @@ export default class ImportModule {
         }
 
         container.innerHTML = warnings.map(warning => {
+            // The context line is escaped as a whole below, so t() neither
+            // escapes nor sanitises the account name ("&" showed as "&amp;")
             const account = warning.accountName || t('budget', 'this account');
             let headline;
             let context;
@@ -1879,19 +2009,19 @@ export default class ImportModule {
                     matching: warning.matching,
                     total: warning.total,
                 });
-                context = t('budget', 'but {percent}% of what is already in {account} is an expense. If that looks wrong, go back and map the column holding the transaction type before importing.', {
+                context = /* xgettext:no-javascript-format */ t('budget', 'but {percent}% of what is already in {account} is an expense. If that looks wrong, go back and map the column holding the transaction type before importing.', {
                     percent: warning.existingOppositePercent,
                     account: account,
-                });
+                }, undefined, { escape: false, sanitize: false });
             } else {
                 headline = t('budget', '{matching} of {total} rows would be added as an expense', {
                     matching: warning.matching,
                     total: warning.total,
                 });
-                context = t('budget', 'but {percent}% of what is already in {account} is income. If that looks wrong, go back and map the column holding the transaction type before importing.', {
+                context = /* xgettext:no-javascript-format */ t('budget', 'but {percent}% of what is already in {account} is income. If that looks wrong, go back and map the column holding the transaction type before importing.', {
                     percent: warning.existingOppositePercent,
                     account: account,
-                });
+                }, undefined, { escape: false, sanitize: false });
             }
 
             return `<div class="import-direction-warning">
@@ -1904,7 +2034,32 @@ export default class ImportModule {
         }).join('');
     }
 
-    showTransactionPreview(transactions) {
+    /**
+     * The currency a previewed row will be stored in: its account's. An
+     * OFX/QIF row names the account it is routed to; a row from a file with
+     * an account column goes to the account it names (matched or about to be
+     * created) or, with a blank cell, to the chosen one; any other row to the
+     * chosen account. Null, for the default currency, when none is known.
+     *
+     * @param {object} transaction a previewed row
+     * @param {{accountId?: number|null, accountsToCreate?: Array}} context
+     * @returns {string|null}
+     */
+    previewRowCurrency(transaction, context = {}) {
+        const accounts = this.availableAccounts?.length ? this.availableAccounts : this.accounts;
+        if (transaction.destinationAccountId) {
+            return accountCurrency(accounts, transaction.destinationAccountId);
+        }
+        const name = transaction._accountName ?? '';
+        if (name !== '') {
+            const named = (context.accountsToCreate || []).find(account => account.name === name);
+            if (!named) return null;
+            return (named.exists ? accountCurrency(accounts, named.existingId) : null) || named.currency || null;
+        }
+        return accountCurrency(accounts, context.accountId ?? null);
+    }
+
+    showTransactionPreview(transactions, context = {}) {
         const tbody = document.querySelector('#preview-table tbody');
         if (!tbody) return;
 
@@ -1944,7 +2099,7 @@ export default class ImportModule {
                 <td>${dom.escapeHtml(transaction.description || '')}</td>
                 <td class="preview-notes"${showNotes ? '' : ' style="display: none;"'} title="${dom.escapeHtml(notes)}">${dom.escapeHtml(notes)}</td>
                 <td class="${amount < 0 ? 'negative' : 'positive'}">
-                    ${this.formatCurrency(amount)}
+                    ${this.formatCurrency(amount, this.previewRowCurrency(transaction, context))}
                 </td>
                 <td data-preview-cell="category">${dom.escapeHtml(this.getCategoryLabel(transaction))}</td>
                 <td>
@@ -2015,15 +2170,18 @@ export default class ImportModule {
         if (!select) return;
         const current = select.value;
         select.innerHTML = `<option value="">${asFallback ? t('budget', 'Skip rows without an account') : t('budget', 'Select account…')}</option>`;
-        openAccounts(accounts).forEach(account => {
+        importTargetAccounts(accounts).forEach(account => {
             const option = document.createElement('option');
             option.value = account.id;
             const accountNum = account.accountNumber ? ` - ${account.accountNumber}` : '';
             option.textContent = `${account.name} (${account.type}${accountNum})`;
             select.appendChild(option);
         });
-        if ([...select.options].some(o => o.value === current)) {
-            select.value = current;
+        // A file opened from an import folder goes to that folder's account
+        // unless something else was picked (#425)
+        const preferred = current || String(this.currentImportData?.review?.accountId ?? '');
+        if ([...select.options].some(o => o.value === preferred)) {
+            select.value = preferred;
         }
         const label = document.querySelector('label[for="import-account"]');
         if (label) {
@@ -2035,11 +2193,7 @@ export default class ImportModule {
 
     async loadAccountsForImport() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/accounts'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            const accounts = await response.json();
+            const accounts = await apiFetch('/apps/budget/api/accounts');
             this.availableAccounts = accounts;
 
             const singleAccountSection = document.getElementById('single-account-selection');
@@ -2072,6 +2226,12 @@ export default class ImportModule {
                 if (singleAccountSection) singleAccountSection.style.display = 'flex';
                 if (multiAccountSection) multiAccountSection.style.display = 'none';
                 this.populateImportAccountSelect(accounts, false);
+                // A file opened from an import folder arrives with its
+                // account chosen. The preview runs when an account is picked,
+                // and nobody picks one here, so it is run now (#425)
+                if (this.currentImportData?.review && document.getElementById('import-account')?.value) {
+                    this.processImportData();
+                }
             }
         } catch (error) {
             console.error('Failed to load accounts:', error);
@@ -2087,6 +2247,22 @@ export default class ImportModule {
 
         container.innerHTML = '';
 
+        // A file opened from an import folder goes to that folder's account,
+        // whatever the account it names is called, as it would have done
+        // unreviewed (#425). Not a file of several accounts (a current
+        // account and a card, say), nor one in another currency: those are
+        // mapped account by account, as any upload is. An account the file
+        // has nothing for does not count (an OFX of every account at the
+        // bank), nor one named again (a camt file's statement for each day)
+        const targets = importTargetAccounts(accounts);
+        const reviewed = targets.find(a => String(a.id) === String(this.currentImportData?.review?.accountId));
+        const active = this.sourceAccounts.filter(source => source.transactionCount !== 0);
+        const activeIds = new Set(active.map(source => String(source.accountId)));
+        const fitsFolder = reviewed && activeIds.size === 1 && active.every(source => {
+            const currency = String(source.currency || '').toUpperCase();
+            return !currency || !reviewed.currency || currency === String(reviewed.currency).toUpperCase();
+        });
+
         this.sourceAccounts.forEach(sourceAccount => {
             const row = document.createElement('div');
             row.className = 'account-mapping-row';
@@ -2098,25 +2274,27 @@ export default class ImportModule {
             if (sourceAccount.currency) details.push(sourceAccount.currency);
             if (sourceAccount.transactionCount) details.push(n('budget', '%n transaction', '%n transactions', sourceAccount.transactionCount));
             if (sourceAccount.ledgerBalance !== null && sourceAccount.ledgerBalance !== undefined) {
-                details.push(t('budget', 'Balance: {balance}', { balance: this.formatCurrency(sourceAccount.ledgerBalance) }));
+                details.push(t('budget', 'Balance: {balance}', { balance: this.formatCurrency(sourceAccount.ledgerBalance, sourceAccount.currency || null) }, undefined, { escape: false }));
             }
 
             // Build account options HTML with auto-match selection
-            const suggestedMatch = sourceAccount.suggestedMatch;
+            const suggestedMatch = fitsFolder && activeIds.has(String(sourceAccount.accountId))
+                ? reviewed.id
+                : sourceAccount.suggestedMatch;
             let optionsHtml = `<option value="">${t('budget', 'Skip this account')}</option>`;
-            openAccounts(accounts).forEach(account => {
+            targets.forEach(account => {
                 const accountNum = account.accountNumber ? ` - ${account.accountNumber}` : '';
                 const selected = suggestedMatch === account.id ? ' selected' : '';
-                optionsHtml += `<option value="${account.id}"${selected}>${account.name} (${account.type}${accountNum})</option>`;
+                optionsHtml += `<option value="${account.id}"${selected}>${dom.escapeHtml(account.name)} (${account.type}${dom.escapeHtml(accountNum)})</option>`;
             });
 
             row.innerHTML = `
                 <div class="source-account-info">
-                    <span class="source-account-id">${sourceAccount.accountId}</span>
-                    <span class="source-account-details">${details.join(' • ')}</span>
+                    <span class="source-account-id">${dom.escapeHtml(sourceAccount.accountId)}</span>
+                    <span class="source-account-details">${dom.escapeHtml(details.join(' • '))}</span>
                 </div>
                 <span class="mapping-arrow">→</span>
-                <select class="destination-account-select" data-source-id="${sourceAccount.accountId}">
+                <select class="destination-account-select" data-source-id="${dom.escapeHtml(sourceAccount.accountId)}" aria-label="${t('budget', 'Budget account for {account}', { account: sourceAccount.accountId })}">
                     ${optionsHtml}
                 </select>
             `;
@@ -2296,7 +2474,7 @@ export default class ImportModule {
             <div class="budget-modal" style="max-width: 640px;">
                 <div class="budget-modal-header">
                     <h2>${n('budget', '%n row was not imported', '%n rows were not imported', total)}</h2>
-                    <button class="close-btn" title="${t('budget', 'Close')}">&times;</button>
+                    <button class="close-btn" title="${t('budget', 'Close')}" aria-label="${t('budget', 'Close')}">&times;</button>
                 </div>
                 <div class="budget-modal-body">
                     <ul style="margin: 0; padding-left: 1.2em;">
@@ -2341,7 +2519,9 @@ export default class ImportModule {
             fileId: this.currentImportData.fileId,
             mapping: mapping,
             skipDuplicates: !(document.getElementById('import-duplicates')?.checked ?? false),
-            applyRules: true,
+            // The box was ignored and rules always ran (T3-9). A template's
+            // own choice is already in it, set when the template was picked.
+            applyRules: this.applyRulesChosen(),
             delimiter: document.getElementById('csv-delimiter')?.value || ',',
             // Whatever the mapping screen was decoded with must be what gets
             // parsed and imported, or the preview lies about the result (#371)
@@ -2356,11 +2536,6 @@ export default class ImportModule {
         // Include saved template ID if selected (server resolves the mapping/routing)
         if (this.selectedTemplate) {
             requestBody.templateId = this.selectedTemplate;
-            // OFX/QIF routing templates carry their own apply-rules option (no UI control).
-            const tpl = this.userTemplates.find(t => t.id === this.selectedTemplate);
-            if (tpl && typeof tpl.applyRules === 'boolean') {
-                requestBody.applyRules = tpl.applyRules;
-            }
         }
 
         // Check if preset has accountColumn or manual mapping has account column
@@ -2394,13 +2569,11 @@ export default class ImportModule {
         importBtn.textContent = t('budget', 'Importing…');
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/import/process'), {
+            const response = await apiFetch('/apps/budget/api/import/process', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify(requestBody)
+                body: requestBody,
+                errorMessage: t('budget', 'Import failed'),
+                responseType: 'response',
             });
 
             const responseText = await response.text();
@@ -2412,38 +2585,44 @@ export default class ImportModule {
                 throw new Error(t('budget', 'Server error ({status}): Invalid response', { status: response.status }));
             }
 
-            if (response.ok) {
-                showSuccess(t('budget', 'Successfully imported {imported} transactions ({skipped} skipped)', { imported: result.imported, skipped: result.skipped }));
-                if (result.billsMarkedPaid > 0) {
-                    showSuccess(n(
-                        'budget',
-                        '%n bill was automatically marked as paid from matching transactions',
-                        '%n bills were automatically marked as paid from matching transactions',
-                        result.billsMarkedPaid
-                    ));
-                }
-                if (result.errors && result.errors.length > 0) {
-                    // Partial failure (e.g. a mapped destination account was
-                    // deleted) — must not masquerade as a full success. The
-                    // server sends a reason per row and this used to throw
-                    // them away and point at nextcloud.log, which in #333 was
-                    // a log the reporter could not read: 14 of 27 rows dropped
-                    // and no way to find out why.
-                    this.showImportErrors(result.errors);
-                    console.warn('Import errors:', result.errors);
-                }
-                if (result.categoriesCreated && result.categoriesCreated > 0) {
-                    showInfo(n('budget', 'Import complete. %n category created — it may take a moment to appear.', 'Import complete. %n categories created — they may take a moment to appear.', result.categoriesCreated));
-                }
-                this.resetImportWizard();
-                this.loadTransactions();
-                this.app.loadAccounts();
-
-                // Auto-match transfers in the background
-                this.autoMatchTransfers();
-            } else {
-                throw new Error(result.error || t('budget', 'Import failed'));
+            showSuccess(t('budget', 'Successfully imported {imported} transactions ({skipped} skipped)', { imported: result.imported, skipped: result.skipped }));
+            if (result.billsMarkedPaid > 0) {
+                showSuccess(n(
+                    'budget',
+                    '%n bill was automatically marked as paid from matching transactions',
+                    '%n bills were automatically marked as paid from matching transactions',
+                    result.billsMarkedPaid
+                ));
             }
+            if (result.errors && result.errors.length > 0) {
+                // Partial failure (e.g. a mapped destination account was
+                // deleted) — must not masquerade as a full success. The
+                // server sends a reason per row and this used to throw
+                // them away and point at nextcloud.log, which in #333 was
+                // a log the reporter could not read: 14 of 27 rows dropped
+                // and no way to find out why.
+                this.showImportErrors(result.errors);
+                console.warn('Import errors:', result.errors);
+            }
+            if (result.transfersLinked > 0) {
+                showInfo(n(
+                    'budget',
+                    '%n transfer between your accounts was linked',
+                    '%n transfers between your accounts were linked',
+                    result.transfersLinked
+                ));
+            }
+            if (result.categoriesCreated && result.categoriesCreated > 0) {
+                showInfo(n('budget', 'Import complete. %n category created — it may take a moment to appear.', 'Import complete. %n categories created — they may take a moment to appear.', result.categoriesCreated));
+            }
+            const review = this.currentImportData?.review;
+            this.resetImportWizard();
+            await this.finishReviewedFile(review, result);
+            this.loadTransactions();
+            this.app.loadAccounts();
+
+            // Auto-match transfers in the background
+            this.autoMatchTransfers(result.transactionIds);
         } catch (error) {
             console.error('Failed to execute import:', error);
             showError(t('budget', 'Failed to import transactions: {message}', { message: error.message }));
@@ -2454,19 +2633,23 @@ export default class ImportModule {
         }
     }
 
-    async autoMatchTransfers() {
+    /**
+     * Pair up transfers among the rows just imported. Their other halves can
+     * be anywhere, but the search starts from these alone: sweeping the
+     * whole ledger linked unrelated rows of the same amount the moment
+     * anything was imported.
+     */
+    async autoMatchTransfers(transactionIds) {
+        if (!Array.isArray(transactionIds) || transactionIds.length === 0) {
+            return;
+        }
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/transactions/bulk-match'), {
+            const result = await apiFetch('/apps/budget/api/transactions/bulk-match', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ dateWindow: 3 })
-            });
+                body: { dateWindow: 3, transactionIds },
+            }).catch(() => null);
 
-            if (response.ok) {
-                const result = await response.json();
+            if (result) {
                 const matched = result.autoMatched?.length || 0;
                 if (matched > 0) {
                     showSuccess(t('budget', 'Auto-linked {count} transfer pairs', { count: matched }));
@@ -2493,8 +2676,15 @@ export default class ImportModule {
         this.selectedPreset = null;
         this.selectedTemplate = null;
         this.previewTotalValid = 0;
+        this.pendingPreset = null;
 
         this.setImportStep(1);
+
+        document.querySelectorAll('.import-switch-app').forEach(b => b.setAttribute('aria-pressed', 'false'));
+        const switchStatus = document.getElementById('import-switch-selected');
+        if (switchStatus) switchStatus.hidden = true;
+        const presetDetected = document.getElementById('preset-detected');
+        if (presetDetected) presetDetected.hidden = true;
 
         // Reset preset selector
         const presetSelect = document.getElementById('import-preset');
@@ -2547,58 +2737,48 @@ export default class ImportModule {
     // Import History Management
     async loadImportHistory() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/import/history'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            const history = await response.json();
-            this.importHistory = history;
-            this.renderImportHistory(history);
+            const history = await apiFetch('/apps/budget/api/import/history');
+            this.importHistory = Array.isArray(history) ? history : [];
+            this.renderImportHistory(this.importHistory);
         } catch (error) {
             console.error('Failed to load import history:', error);
         }
     }
 
+    /**
+     * One row per import batch as the server groups them
+     * (TransactionMapper::getRecentImports): the account, when it was
+     * imported, how many transactions and the dates they span. The server
+     * keeps no file name or status for a batch, so there are none to show.
+     *
+     * @param {Array<{account_name: string, count: number|string, min_date: string, max_date: string, imported_at: string}>} history
+     */
     renderImportHistory(history) {
         const tbody = document.querySelector('#history-table tbody');
         if (!tbody) return;
 
-        tbody.innerHTML = '';
+        if (!history || history.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" class="empty-state-small">${t('budget', 'No recent imports')}</td></tr>`;
+            return;
+        }
 
-        history.forEach(item => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${this.formatDate(item.importDate)}</td>
-                <td>${item.filename}</td>
-                <td>${item.accountName}</td>
-                <td>${item.transactionCount}</td>
-                <td>
-                    <span class="status-badge status-${item.status}">
-                        ${item.status.charAt(0).toUpperCase() + item.status.slice(1)}
-                    </span>
-                </td>
-                <td>
-                    <button class="icon-download import-download-btn" data-import-id="${item.id}" title="${t('budget', 'Download')}"></button>
-                    <button class="icon-delete import-rollback-btn" data-import-id="${item.id}" title="${t('budget', 'Rollback')}"></button>
-                </td>
+        const day = (value) => (value ? this.formatDate(String(value).slice(0, 10)) : '');
+
+        tbody.innerHTML = history.map(item => {
+            const first = day(item.min_date);
+            const last = day(item.max_date);
+            const range = first && last && first !== last
+                ? t('budget', '{start} to {end}', { start: first, end: last })
+                : (first || last);
+            return `
+                <tr>
+                    <td>${dom.escapeHtml(day(item.imported_at))}</td>
+                    <td>${dom.escapeHtml(item.account_name || '')}</td>
+                    <td>${parseInt(item.count, 10) || 0}</td>
+                    <td>${dom.escapeHtml(range)}</td>
+                </tr>
             `;
-            tbody.appendChild(row);
-        });
-
-        // Setup event listeners
-        document.querySelectorAll('.import-download-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const importId = parseInt(btn.dataset.importId);
-                this.downloadImport(importId);
-            });
-        });
-
-        document.querySelectorAll('.import-rollback-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const importId = parseInt(btn.dataset.importId);
-                this.rollbackImport(importId);
-            });
-        });
+        }).join('');
     }
 
     formatFileSize(bytes) {
@@ -2607,59 +2787,5 @@ export default class ImportModule {
         const sizes = [t('budget', 'Bytes'), t('budget', 'KB'), t('budget', 'MB'), t('budget', 'GB')];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    }
-
-    async downloadImport(importId) {
-        try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/import/download/${importId}`), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (response.ok) {
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `import_${importId}.csv`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
-            } else {
-                throw new Error(t('budget', 'Download failed'));
-            }
-        } catch (error) {
-            console.error('Failed to download import:', error);
-            showError(t('budget', 'Failed to download import file'));
-        }
-    }
-
-    async rollbackImport(importId) {
-        if (!await confirmDialog(t('budget', 'Are you sure you want to rollback this import? All imported transactions will be deleted.'), { destructive: true })) {
-            return;
-        }
-
-        try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/import/rollback/${importId}`), {
-                method: 'POST',
-                headers: {
-                    'requesttoken': OC.requestToken,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (response.ok) {
-                const result = await response.json();
-                showSuccess(n('budget', 'Rolled back %n transaction', 'Rolled back %n transactions', result.deleted));
-                this.loadImportHistory();
-                this.loadTransactions();
-            } else {
-                const errorData = await response.json();
-                throw new Error(errorData.error || t('budget', 'Rollback failed'));
-            }
-        } catch (error) {
-            console.error('Failed to rollback import:', error);
-            showError(t('budget', 'Failed to rollback import: {message}', { message: error.message }));
-        }
     }
 }

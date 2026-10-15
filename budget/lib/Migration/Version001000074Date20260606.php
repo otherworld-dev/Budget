@@ -16,22 +16,22 @@ use OCP\Migration\SimpleMigrationStep;
  */
 class Version001000074Date20260606 extends SimpleMigrationStep {
 
-    public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
-        /** @var ISchemaWrapper $schema */
-        $schema = $schemaClosure();
+	public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
+		/** @var ISchemaWrapper $schema */
+		$schema = $schemaClosure();
 
-        if (!$schema->hasTable('budget_bc')) {
-            return null;
-        }
+		if (!$schema->hasTable('budget_bc')) {
+			return null;
+		}
 
-        $table = $schema->getTable('budget_bc');
-        if (!$table->hasColumn('include_pending')) {
-            $table->addColumn('include_pending', Types::BOOLEAN, [
-                'notnull' => false,
-                'default' => false,
-            ]);
-        }
+		$table = $schema->getTable('budget_bc');
+		if (!$table->hasColumn('include_pending')) {
+			$table->addColumn('include_pending', Types::BOOLEAN, [
+				'notnull' => false,
+				'default' => false,
+			]);
+		}
 
-        return $schema;
-    }
+		return $schema;
+	}
 }

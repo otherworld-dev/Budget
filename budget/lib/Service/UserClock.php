@@ -23,56 +23,56 @@ use OCP\IConfig;
  * answer UTC for all of them.
  */
 class UserClock {
-    public function __construct(
-        private IConfig $config,
-    ) {
-    }
+	public function __construct(
+		private IConfig $config,
+	) {
+	}
 
-    /**
-     * Today's date (Y-m-d) as the given user's calendar shows it.
-     *
-     * Falls back to the instance's configured timezone, then the server's,
-     * when a user has none stored — a user who has never opened the web UI
-     * has nothing better to offer.
-     */
-    public function today(?string $userId): string {
-        return $this->now($userId)->format('Y-m-d');
-    }
+	/**
+	 * Today's date (Y-m-d) as the given user's calendar shows it.
+	 *
+	 * Falls back to the instance's configured timezone, then the server's,
+	 * when a user has none stored — a user who has never opened the web UI
+	 * has nothing better to offer.
+	 */
+	public function today(?string $userId): string {
+		return $this->now($userId)->format('Y-m-d');
+	}
 
-    /**
-     * True when $date (Y-m-d) is a genuine future date for this user, and so
-     * a transaction on it should be recorded as scheduled rather than
-     * counted in the balance today.
-     */
-    public function isFutureDate(string $date, ?string $userId): bool {
-        return $date > $this->today($userId);
-    }
+	/**
+	 * True when $date (Y-m-d) is a genuine future date for this user, and so
+	 * a transaction on it should be recorded as scheduled rather than
+	 * counted in the balance today.
+	 */
+	public function isFutureDate(string $date, ?string $userId): bool {
+		return $date > $this->today($userId);
+	}
 
-    public function now(?string $userId): \DateTimeImmutable {
-        return new \DateTimeImmutable('now', $this->timezoneFor($userId));
-    }
+	public function now(?string $userId): \DateTimeImmutable {
+		return new \DateTimeImmutable('now', $this->timezoneFor($userId));
+	}
 
-    private function timezoneFor(?string $userId): \DateTimeZone {
-        $candidates = [];
+	private function timezoneFor(?string $userId): \DateTimeZone {
+		$candidates = [];
 
-        if ($userId !== null && $userId !== '') {
-            // Where Nextcloud's own web UI stores the browser's timezone.
-            $candidates[] = (string)$this->config->getUserValue($userId, 'core', 'timezone', '');
-        }
-        $candidates[] = (string)$this->config->getSystemValue('default_timezone', '');
+		if ($userId !== null && $userId !== '') {
+			// Where Nextcloud's own web UI stores the browser's timezone.
+			$candidates[] = (string)$this->config->getUserValue($userId, 'core', 'timezone', '');
+		}
+		$candidates[] = (string)$this->config->getSystemValue('default_timezone', '');
 
-        foreach ($candidates as $candidate) {
-            if (trim($candidate) === '') {
-                continue;
-            }
-            try {
-                return new \DateTimeZone($candidate);
-            } catch (\Exception $e) {
-                // Stored garbage, or a zone this PHP build does not know:
-                // try the next candidate rather than fail a save.
-            }
-        }
+		foreach ($candidates as $candidate) {
+			if (trim($candidate) === '') {
+				continue;
+			}
+			try {
+				return new \DateTimeZone($candidate);
+			} catch (\Exception $e) {
+				// Stored garbage, or a zone this PHP build does not know:
+				// try the next candidate rather than fail a save.
+			}
+		}
 
-        return new \DateTimeZone(date_default_timezone_get());
-    }
+		return new \DateTimeZone(date_default_timezone_get());
+	}
 }

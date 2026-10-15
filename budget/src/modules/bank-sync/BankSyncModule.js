@@ -1,8 +1,11 @@
 import { translate as t } from '@nextcloud/l10n';
 import { showSuccess, showError } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
-import { serverErrorMessage } from '../../utils/helpers.js';
-import { pickableAccounts, accountOptionLabel } from '../../utils/accounts.js';
+import { apiFetch } from '../../utils/api.js';
+import { refreshBankSyncNav } from './bankSyncStatus.js';
+import { importTargetAccounts, accountOptionLabel } from '../../utils/accounts.js';
+import { userLocale } from '../../utils/formatters.js';
+import { escapeHtml } from '../../utils/dom.js';
 
 /**
  * Bank Sync Module — manages bank connections, account mappings, and sync operations.
@@ -40,20 +43,7 @@ export default class BankSyncModule {
     }
 
     async checkStatus() {
-        try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/bank-sync/status'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            const data = await response.json();
-            const navItem = document.getElementById('bank-sync-nav');
-            if (navItem) {
-                navItem.style.display = data.enabled ? '' : 'none';
-            }
-            return data;
-        } catch (error) {
-            console.error('Failed to check bank sync status:', error);
-            return { enabled: false };
-        }
+        return refreshBankSyncNav();
     }
 
     setupEventListeners() {
@@ -123,11 +113,7 @@ export default class BankSyncModule {
 
     async loadConnections() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/bank-sync/connections'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) throw new Error('Failed to fetch connections');
-            this.connections = await response.json();
+            this.connections = await apiFetch('/apps/budget/api/bank-sync/connections');
             this.renderConnections();
         } catch (error) {
             console.error('Failed to load bank connections:', error);
@@ -160,18 +146,18 @@ export default class BankSyncModule {
 
             const providerLabel = connection.provider === 'gocardless' ? 'GoCardless' : 'SimpleFIN';
             const lastSync = connection.lastSyncAt
-                ? t('budget', 'Last sync: {date}', { date: new Date(connection.lastSyncAt).toLocaleString() })
+                ? t('budget', 'Last sync: {date}', { date: new Date(connection.lastSyncAt).toLocaleString(userLocale()) })
                 : t('budget', 'Never synced');
             const mappedCount = mappings.filter(m => m.budgetAccountId && m.enabled).length;
             const isExpired = connection.status === 'expired';
             const isGoCardless = connection.provider === 'gocardless';
 
             const actionBtn = (isExpired && isGoCardless)
-                ? `<button class="btn btn-sm btn-warning bank-reauth-btn" data-connection-id="${connection.id}" title="${t('budget', 'Re-authorize')}">${t('budget', 'Re-authorize')}</button>`
-                : `<button class="btn btn-sm bank-sync-btn" data-connection-id="${connection.id}" title="${t('budget', 'Sync now')}">
+                ? `<button class="btn-warning bank-reauth-btn" data-connection-id="${connection.id}" title="${t('budget', 'Re-authorize')}">${t('budget', 'Re-authorize')}</button>`
+                : `<button class="bank-sync-btn" data-connection-id="${connection.id}" title="${t('budget', 'Sync now')}" aria-label="${t('budget', 'Sync now')}">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z"/></svg>
                 </button>
-                <button class="btn btn-sm bank-force-sync-btn" data-connection-id="${connection.id}" title="${t('budget', 'Re-import previously deleted transactions')}" style="font-size: 11px; padding: 2px 8px; opacity: 0.7;">
+                <button class="bank-force-sync-btn" data-connection-id="${connection.id}" title="${t('budget', 'Re-import previously deleted transactions')}" style="font-size: 11px; padding: 2px 8px; opacity: 0.7;">
                     ${t('budget', 'Force')}
                 </button>`;
 
@@ -179,16 +165,16 @@ export default class BankSyncModule {
                 <div class="bank-connection-card" data-connection-id="${connection.id}">
                     <div class="bank-connection-header">
                         <div class="bank-connection-info">
-                            <strong>${this.escapeHtml(connection.name)}</strong>
+                            <strong>${escapeHtml(connection.name)}</strong>
                             <span class="bank-connection-provider">${providerLabel}</span>
                             <span class="bank-connection-status ${statusClass}">${statusLabel}</span>
                         </div>
                         <div class="bank-connection-actions">
                             ${actionBtn}
-                            <button class="btn btn-sm bank-mappings-btn" data-connection-id="${connection.id}" title="${t('budget', 'Account mappings')}">
+                            <button class="bank-mappings-btn" data-connection-id="${connection.id}" title="${t('budget', 'Account mappings')}" aria-label="${t('budget', 'Account mappings')}">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3,6H21V8H3V6M3,11H21V13H3V11M3,16H21V18H3V16Z"/></svg>
                             </button>
-                            <button class="btn btn-sm btn-danger bank-disconnect-btn" data-connection-id="${connection.id}" title="${t('budget', 'Disconnect')}">
+                            <button class="danger bank-disconnect-btn" data-connection-id="${connection.id}" title="${t('budget', 'Disconnect')}" aria-label="${t('budget', 'Disconnect')}">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/></svg>
                             </button>
                         </div>
@@ -205,7 +191,7 @@ export default class BankSyncModule {
                             <input type="checkbox" class="include-pending-checkbox" data-connection-id="${connection.id}" ${connection.includePending ? 'checked' : ''}>
                             <span>${t('budget', 'Include pending')}</span>
                         </label>` : ''}
-                        ${connection.lastError ? `<span class="bank-connection-error">${this.escapeHtml(connection.lastError)}</span>` : ''}
+                        ${connection.lastError ? `<span class="bank-connection-error">${escapeHtml(connection.lastError)}</span>` : ''}
                     </div>
                 </div>
             `;
@@ -356,16 +342,10 @@ export default class BankSyncModule {
         btn.textContent = t('budget', 'Connecting...');
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/bank-sync/connections'), {
+            await apiFetch('/apps/budget/api/bank-sync/connections', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                body: JSON.stringify({ provider: 'simplefin', name, setupToken })
+                body: { provider: 'simplefin', name, setupToken },
             });
-
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-            }
 
             document.getElementById('bank-sync-modal').style.display = 'none';
             showSuccess(t('budget', 'Bank connected successfully'));
@@ -428,23 +408,14 @@ export default class BankSyncModule {
         const creds = this._wizardCredentials || {};
 
         try {
-            const url = OC.generateUrl('/apps/budget/api/bank-sync/providers/gocardless/institutions');
-            const response = await fetch(url, {
+            this._institutions = await apiFetch('/apps/budget/api/bank-sync/providers/gocardless/institutions', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                body: JSON.stringify({
+                body: {
                     country,
                     secretId: creds.secretId || '',
                     secretKey: creds.secretKey || '',
-                })
+                },
             });
-
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-            }
-
-            this._institutions = await response.json();
             this.renderInstitutions(this._institutions);
         } catch (error) {
             this._showStepError(2, t('budget', 'Failed to load banks: {error}', { error: error.message }));
@@ -464,9 +435,9 @@ export default class BankSyncModule {
         }
 
         grid.innerHTML = institutions.map(inst => `
-            <div class="bank-institution-tile" data-institution-id="${this.escapeHtml(inst.id)}" tabindex="0" role="button">
-                ${inst.logo ? `<img src="${this.escapeHtml(inst.logo)}" alt="" class="bank-institution-logo" loading="lazy">` : '<div class="bank-institution-logo-placeholder"></div>'}
-                <span class="bank-institution-name">${this.escapeHtml(inst.name)}</span>
+            <div class="bank-institution-tile" data-institution-id="${escapeHtml(inst.id)}" tabindex="0" role="button">
+                ${inst.logo ? `<img src="${escapeHtml(inst.logo)}" alt="" class="bank-institution-logo" loading="lazy">` : '<div class="bank-institution-logo-placeholder"></div>'}
+                <span class="bank-institution-name">${escapeHtml(inst.name)}</span>
             </div>
         `).join('');
 
@@ -518,43 +489,27 @@ export default class BankSyncModule {
             let result;
 
             if (this._reauthorizeConnectionId) {
-                const response = await fetch(OC.generateUrl(`/apps/budget/api/bank-sync/connections/${this._reauthorizeConnectionId}/reauthorize`), {
+                result = await apiFetch(`/apps/budget/api/bank-sync/connections/${this._reauthorizeConnectionId}/reauthorize`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                    body: JSON.stringify({
+                    body: {
                         institutionId: this._selectedInstitutionId,
                         redirectUrl,
-                    })
+                    },
                 });
-
-                if (!response.ok) {
-                    const error = await response.json().catch(() => ({}));
-                    throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-                }
-
-                result = await response.json();
                 this._wizardConnectionId = this._reauthorizeConnectionId;
             } else {
                 const creds = this._wizardCredentials;
-                const response = await fetch(OC.generateUrl('/apps/budget/api/bank-sync/connections'), {
+                result = await apiFetch('/apps/budget/api/bank-sync/connections', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                    body: JSON.stringify({
+                    body: {
                         provider: 'gocardless',
                         name: creds.name,
                         secretId: creds.secretId,
                         secretKey: creds.secretKey,
                         institutionId: this._selectedInstitutionId,
                         redirectUrl,
-                    })
+                    },
                 });
-
-                if (!response.ok) {
-                    const error = await response.json().catch(() => ({}));
-                    throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-                }
-
-                result = await response.json();
                 this._wizardConnectionId = result.connection?.id;
             }
 
@@ -599,17 +554,9 @@ export default class BankSyncModule {
         btn.textContent = t('budget', 'Checking...');
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bank-sync/connections/${this._wizardConnectionId}/refresh`), {
+            const mappings = await apiFetch(`/apps/budget/api/bank-sync/connections/${this._wizardConnectionId}/refresh`, {
                 method: 'POST',
-                headers: { 'requesttoken': OC.requestToken }
             });
-
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-            }
-
-            const mappings = await response.json();
 
             if (Array.isArray(mappings) && mappings.length > 0) {
                 this._authComplete = true;
@@ -664,22 +611,10 @@ export default class BankSyncModule {
     async syncConnection(connectionId, force = false) {
         try {
             showSuccess(t('budget', force ? 'Force syncing...' : 'Syncing...'));
-            const url = OC.generateUrl(`/apps/budget/api/bank-sync/connections/${connectionId}/sync`);
-            const response = await fetch(url, {
+            const result = await apiFetch(`/apps/budget/api/bank-sync/connections/${connectionId}/sync`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ force })
+                body: { force },
             });
-
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-            }
-
-            const result = await response.json();
 
             if (result.message) {
                 showError(result.message);
@@ -718,13 +653,9 @@ export default class BankSyncModule {
             showSuccess(t('budget', 'Syncing {current} of {total}...', { current: i + 1, total: activeConnections.length }));
 
             try {
-                const response = await fetch(OC.generateUrl(`/apps/budget/api/bank-sync/connections/${conn.id}/sync`), {
+                const result = await apiFetch(`/apps/budget/api/bank-sync/connections/${conn.id}/sync`, {
                     method: 'POST',
-                    headers: { 'requesttoken': OC.requestToken }
                 });
-
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                const result = await response.json();
                 totalImported += result.imported || 0;
                 totalSkipped += result.skipped || 0;
                 synced++;
@@ -756,11 +687,9 @@ export default class BankSyncModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bank-sync/connections/${connectionId}`), {
+            await apiFetch(`/apps/budget/api/bank-sync/connections/${connectionId}`, {
                 method: 'DELETE',
-                headers: { 'requesttoken': OC.requestToken }
             });
-            if (!response.ok) throw new Error('Failed to disconnect');
 
             showSuccess(t('budget', 'Bank disconnected'));
             const mappingsSection = document.getElementById('bank-mappings-section');
@@ -779,12 +708,7 @@ export default class BankSyncModule {
         if (!section) return;
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bank-sync/connections/${connectionId}/mappings`), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) throw new Error('Failed to fetch mappings');
-
-            const mappings = await response.json();
+            const mappings = await apiFetch(`/apps/budget/api/bank-sync/connections/${connectionId}/mappings`);
             section.style.display = 'block';
 
             const conn = this.connections.find(c => c.connection.id === connectionId);
@@ -804,10 +728,11 @@ export default class BankSyncModule {
         if (!container) return;
 
         // A mapping syncs NEW transactions in, so closed accounts are not offered
-        // — except one a mapping already targets (#372).
-        const accounts = pickableAccounts(this.app.accounts, mappings.map(m => m.budgetAccountId));
+        // — except one a mapping already targets (#372). Nor are accounts
+        // shared with you: the sync imports as you, not as their owner.
+        const accounts = importTargetAccounts(this.app.accounts, mappings.map(m => m.budgetAccountId));
         const accountOptions = accounts.map(a =>
-            `<option value="${a.id}">${this.escapeHtml(accountOptionLabel(a))} (${a.currency})</option>`
+            `<option value="${a.id}">${escapeHtml(accountOptionLabel(a))} (${a.currency})</option>`
         ).join('');
 
         container.innerHTML = mappings.map(mapping => {
@@ -822,13 +747,13 @@ export default class BankSyncModule {
                                    data-mapping-id="${mapping.id}" data-connection-id="${connectionId}" ${enabled}>
                         </label>
                         <div>
-                            <strong>${this.escapeHtml(mapping.externalAccountName || mapping.externalAccountId)}</strong>
+                            <strong>${escapeHtml(mapping.externalAccountName || mapping.externalAccountId)}</strong>
                             ${balance ? `<small>${balance}</small>` : ''}
-                            ${mapping.consentExpires ? `<small class="consent-warning">${t('budget', 'Consent expires: {date}', { date: new Date(mapping.consentExpires).toLocaleDateString() })}</small>` : ''}
+                            ${mapping.consentExpires ? `<small class="consent-warning">${t('budget', 'Consent expires: {date}', { date: new Date(mapping.consentExpires).toLocaleDateString(userLocale()) })}</small>` : ''}
                         </div>
                     </div>
                     <div class="bank-mapping-target">
-                        <select class="mapping-account-select" data-mapping-id="${mapping.id}" data-connection-id="${connectionId}">
+                        <select class="mapping-account-select" data-mapping-id="${mapping.id}" data-connection-id="${connectionId}" aria-label="${t('budget', 'Budget account for {account}', { account: mapping.externalAccountName || mapping.externalAccountId })}">
                             <option value="">${t('budget', '— Not mapped —')}</option>
                             ${accountOptions}
                         </select>
@@ -869,13 +794,11 @@ export default class BankSyncModule {
             if (budgetAccountId !== null) body.budgetAccountId = budgetAccountId;
             if (enabled !== null) body.enabled = enabled;
 
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bank-sync/connections/${connectionId}/mappings/${mappingId}`), {
+            await apiFetch(`/apps/budget/api/bank-sync/connections/${connectionId}/mappings/${mappingId}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                body: JSON.stringify(body)
+                body,
             });
 
-            if (!response.ok) throw new Error('Failed to update mapping');
             showSuccess(t('budget', 'Mapping updated'));
         } catch (error) {
             showError(t('budget', 'Failed to update mapping'));
@@ -891,17 +814,9 @@ export default class BankSyncModule {
         if (btn) btn.disabled = true;
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bank-sync/connections/${this.selectedConnectionId}/refresh`), {
+            const mappings = await apiFetch(`/apps/budget/api/bank-sync/connections/${this.selectedConnectionId}/refresh`, {
                 method: 'POST',
-                headers: { 'requesttoken': OC.requestToken }
             });
-
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-            }
-
-            const mappings = await response.json();
             this.renderMappings(mappings, this.selectedConnectionId);
             showSuccess(t('budget', 'Accounts refreshed'));
         } catch (error) {
@@ -915,12 +830,10 @@ export default class BankSyncModule {
 
     async updateConnectionApplyRules(connectionId, applyRules) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bank-sync/connections/${connectionId}`), {
+            await apiFetch(`/apps/budget/api/bank-sync/connections/${connectionId}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                body: JSON.stringify({ applyRules })
+                body: { applyRules },
             });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
             showSuccess(t('budget', applyRules ? 'Import rules will be applied during sync' : 'Import rules disabled for this connection'));
         } catch (error) {
             showError(t('budget', 'Failed to update connection settings'));
@@ -929,22 +842,14 @@ export default class BankSyncModule {
 
     async updateConnectionIncludePending(connectionId, includePending) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bank-sync/connections/${connectionId}`), {
+            await apiFetch(`/apps/budget/api/bank-sync/connections/${connectionId}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                body: JSON.stringify({ includePending })
+                body: { includePending },
             });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
             showSuccess(t('budget', includePending ? 'Pending transactions will be included during sync' : 'Pending transactions excluded for this connection'));
         } catch (error) {
             showError(t('budget', 'Failed to update connection settings'));
         }
     }
 
-    escapeHtml(text) {
-        if (!text) return '';
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
 }

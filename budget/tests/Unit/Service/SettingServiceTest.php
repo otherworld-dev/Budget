@@ -11,119 +11,137 @@ use OCP\AppFramework\Db\DoesNotExistException;
 use PHPUnit\Framework\TestCase;
 
 class SettingServiceTest extends TestCase {
-    private SettingService $service;
-    private SettingMapper $mapper;
+	private SettingService $service;
+	private SettingMapper $mapper;
 
-    protected function setUp(): void {
-        $this->mapper = $this->createMock(SettingMapper::class);
-        $this->service = new SettingService($this->mapper);
-    }
+	protected function setUp(): void {
+		$this->mapper = $this->createMock(SettingMapper::class);
+		$this->service = new SettingService($this->mapper);
+	}
 
-    private function makeSetting(string $key, string $value): Setting {
-        $setting = new Setting();
-        $setting->setUserId('user1');
-        $setting->setKey($key);
-        $setting->setValue($value);
-        return $setting;
-    }
+	private function makeSetting(string $key, string $value): Setting {
+		$setting = new Setting();
+		$setting->setUserId('user1');
+		$setting->setKey($key);
+		$setting->setValue($value);
+		return $setting;
+	}
 
-    // ===== get =====
+	// ===== get =====
 
-    public function testGetReturnsValueWhenFound(): void {
-        $setting = $this->makeSetting('theme', 'dark');
-        $this->mapper->method('findByKey')->willReturn($setting);
+	public function testGetReturnsValueWhenFound(): void {
+		$setting = $this->makeSetting('theme', 'dark');
+		$this->mapper->method('findByKey')->willReturn($setting);
 
-        $result = $this->service->get('user1', 'theme');
+		$result = $this->service->get('user1', 'theme');
 
-        $this->assertEquals('dark', $result);
-    }
+		$this->assertEquals('dark', $result);
+	}
 
-    public function testGetReturnsNullWhenNotFound(): void {
-        $this->mapper->method('findByKey')
-            ->willThrowException(new DoesNotExistException(''));
+	public function testGetReturnsNullWhenNotFound(): void {
+		$this->mapper->method('findByKey')
+			->willThrowException(new DoesNotExistException(''));
 
-        $result = $this->service->get('user1', 'missing');
+		$result = $this->service->get('user1', 'missing');
 
-        $this->assertNull($result);
-    }
+		$this->assertNull($result);
+	}
 
-    // ===== set =====
+	// ===== set =====
 
-    public function testSetUpdatesExistingSetting(): void {
-        $existing = $this->makeSetting('theme', 'light');
-        $this->mapper->method('findByKey')->willReturn($existing);
-        $this->mapper->method('update')->willReturnArgument(0);
+	public function testSetUpdatesExistingSetting(): void {
+		$existing = $this->makeSetting('theme', 'light');
+		$this->mapper->method('findByKey')->willReturn($existing);
+		$this->mapper->method('update')->willReturnArgument(0);
 
-        $result = $this->service->set('user1', 'theme', 'dark');
+		$result = $this->service->set('user1', 'theme', 'dark');
 
-        $this->assertEquals('dark', $result->getValue());
-    }
+		$this->assertEquals('dark', $result->getValue());
+	}
 
-    public function testSetCreatesNewSetting(): void {
-        $this->mapper->method('findByKey')
-            ->willThrowException(new DoesNotExistException(''));
-        $this->mapper->method('insert')->willReturnArgument(0);
+	public function testSetCreatesNewSetting(): void {
+		$this->mapper->method('findByKey')
+			->willThrowException(new DoesNotExistException(''));
+		$this->mapper->method('insert')->willReturnArgument(0);
 
-        $result = $this->service->set('user1', 'currency', 'USD');
+		$result = $this->service->set('user1', 'currency', 'USD');
 
-        $this->assertEquals('user1', $result->getUserId());
-        $this->assertEquals('currency', $result->getKey());
-        $this->assertEquals('USD', $result->getValue());
-    }
+		$this->assertEquals('user1', $result->getUserId());
+		$this->assertEquals('currency', $result->getKey());
+		$this->assertEquals('USD', $result->getValue());
+	}
 
-    // ===== getAll =====
+	// ===== getAll =====
 
-    public function testGetAllReturnsKeyValuePairs(): void {
-        $this->mapper->method('findAll')->willReturn([
-            $this->makeSetting('theme', 'dark'),
-            $this->makeSetting('currency', 'GBP'),
-        ]);
+	public function testSetUpdatesRowAddedByAnOverlappingSave(): void {
+		$added = $this->makeSetting('theme', 'light');
+		$this->mapper->method('findByKey')
+			->willReturnOnConsecutiveCalls(
+				$this->throwException(new DoesNotExistException('')),
+				$added
+			);
+		$duplicate = $this->createMock(\OCP\DB\Exception::class);
+		$duplicate->method('getReason')->willReturn(\OCP\DB\Exception::REASON_UNIQUE_CONSTRAINT_VIOLATION);
+		$this->mapper->method('insert')->willThrowException($duplicate);
+		$this->mapper->expects($this->once())->method('update')->with($added)->willReturnArgument(0);
 
-        $result = $this->service->getAll('user1');
+		$result = $this->service->set('user1', 'theme', 'dark');
 
-        $this->assertEquals(['theme' => 'dark', 'currency' => 'GBP'], $result);
-    }
+		$this->assertSame($added, $result);
+		$this->assertSame('dark', $result->getValue());
+	}
 
-    public function testGetAllReturnsEmptyArrayWhenNoSettings(): void {
-        $this->mapper->method('findAll')->willReturn([]);
+	public function testGetAllReturnsKeyValuePairs(): void {
+		$this->mapper->method('findAll')->willReturn([
+			$this->makeSetting('theme', 'dark'),
+			$this->makeSetting('currency', 'GBP'),
+		]);
 
-        $result = $this->service->getAll('user1');
+		$result = $this->service->getAll('user1');
 
-        $this->assertEmpty($result);
-    }
+		$this->assertEquals(['theme' => 'dark', 'currency' => 'GBP'], $result);
+	}
 
-    // ===== delete =====
+	public function testGetAllReturnsEmptyArrayWhenNoSettings(): void {
+		$this->mapper->method('findAll')->willReturn([]);
 
-    public function testDeleteCallsMapper(): void {
-        $this->mapper->method('deleteByKey')->willReturn(1);
+		$result = $this->service->getAll('user1');
 
-        $result = $this->service->delete('user1', 'theme');
+		$this->assertEmpty($result);
+	}
 
-        $this->assertEquals(1, $result);
-    }
+	// ===== delete =====
 
-    // ===== deleteAll =====
+	public function testDeleteCallsMapper(): void {
+		$this->mapper->method('deleteByKey')->willReturn(1);
 
-    public function testDeleteAllCallsMapper(): void {
-        $this->mapper->method('deleteAll')->willReturn(5);
+		$result = $this->service->delete('user1', 'theme');
 
-        $result = $this->service->deleteAll('user1');
+		$this->assertEquals(1, $result);
+	}
 
-        $this->assertEquals(5, $result);
-    }
+	// ===== deleteAll =====
 
-    // ===== exists =====
+	public function testDeleteAllCallsMapper(): void {
+		$this->mapper->method('deleteAll')->willReturn(5);
 
-    public function testExistsReturnsTrueWhenFound(): void {
-        $this->mapper->method('findByKey')->willReturn($this->makeSetting('theme', 'dark'));
+		$result = $this->service->deleteAll('user1');
 
-        $this->assertTrue($this->service->exists('user1', 'theme'));
-    }
+		$this->assertEquals(5, $result);
+	}
 
-    public function testExistsReturnsFalseWhenNotFound(): void {
-        $this->mapper->method('findByKey')
-            ->willThrowException(new DoesNotExistException(''));
+	// ===== exists =====
 
-        $this->assertFalse($this->service->exists('user1', 'missing'));
-    }
+	public function testExistsReturnsTrueWhenFound(): void {
+		$this->mapper->method('findByKey')->willReturn($this->makeSetting('theme', 'dark'));
+
+		$this->assertTrue($this->service->exists('user1', 'theme'));
+	}
+
+	public function testExistsReturnsFalseWhenNotFound(): void {
+		$this->mapper->method('findByKey')
+			->willThrowException(new DoesNotExistException(''));
+
+		$this->assertFalse($this->service->exists('user1', 'missing'));
+	}
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Db;
 
+use JsonSerializable;
 use OCP\AppFramework\Db\Entity;
 
 /**
@@ -24,28 +25,28 @@ use OCP\AppFramework\Db\Entity;
  * @method string getUpdatedAt()
  * @method void setUpdatedAt(string $updatedAt)
  */
-class SavedReport extends Entity {
-    protected $userId;
-    protected $name;
-    protected $config;
-    protected $createdAt;
-    protected $updatedAt;
+class SavedReport extends Entity implements JsonSerializable {
+	protected $userId;
+	protected $name;
+	protected $config;
+	protected $createdAt;
+	protected $updatedAt;
 
-    public function __construct() {
-        $this->addType('id', 'integer');
-    }
+	public function __construct() {
+		$this->addType('id', 'integer');
+	}
 
-    /**
-     * Serialise for the API, decoding the stored config JSON into an object.
-     */
-    public function jsonSerialize(): array {
-        $config = json_decode($this->config ?? '{}', true);
-        return [
-            'id' => $this->getId(),
-            'name' => $this->getName(),
-            'config' => is_array($config) ? $config : [],
-            'createdAt' => $this->getCreatedAt(),
-            'updatedAt' => $this->getUpdatedAt(),
-        ];
-    }
+	/**
+	 * Serialise for the API, decoding the stored config JSON into an object.
+	 */
+	public function jsonSerialize(): array {
+		$config = json_decode($this->config ?? '{}', true);
+		return [
+			'id' => $this->getId(),
+			'name' => $this->getName(),
+			'config' => is_array($config) ? $config : [],
+			'createdAt' => $this->getCreatedAt(),
+			'updatedAt' => $this->getUpdatedAt(),
+		];
+	}
 }

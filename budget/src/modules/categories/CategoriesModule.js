@@ -4,12 +4,16 @@
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
+import { once } from '../../utils/submitGuard.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
-import Chart from 'chart.js/auto';
-import { serverErrorMessage } from '../../utils/helpers.js';
-import { expenseProgressStatus } from '../../utils/budgetProgress.js';
+import Chart from '../../utils/chart.js';
+import { apiFetch, ApiError } from '../../utils/api.js';
+import { expenseProgressStatus, progressBarAttrs, overBudgetText } from '../../utils/budgetProgress.js';
+import { showLoadError } from '../../utils/loading.js';
 import { nextCategoryColor, distinctCategoryColors } from '../../utils/colors.js';
+import { parentPickerTree } from './parentPicker.js';
+import { roundMoney } from '../../utils/money.js';
 
 export default class CategoriesModule {
     constructor(app) {
@@ -70,27 +74,22 @@ export default class CategoriesModule {
         return formatters.formatDate(date, this.settings);
     }
 
-    escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
 
     async loadCategories() {
+        // Before any fetch (and guarded inside), so a failed first load
+        // leaves the tabs and Add button working.
+        this.setupCategoriesEventListeners();
         try {
-            const [treeResponse, countsResponse, mutesResponse] = await Promise.all([
-                fetch(OC.generateUrl('/apps/budget/api/categories/tree'), {
-                    headers: { 'requesttoken': OC.requestToken }
+            let treeError = null;
+            const [fullTree, counts, mutes] = await Promise.all([
+                apiFetch('/apps/budget/api/categories/tree').catch((error) => {
+                    treeError = error;
+                    return null;
                 }),
-                fetch(OC.generateUrl('/apps/budget/api/categories/transaction-counts'), {
-                    headers: { 'requesttoken': OC.requestToken }
-                }),
-                fetch(OC.generateUrl('/apps/budget/api/categories/report-mutes'), {
-                    headers: { 'requesttoken': OC.requestToken }
-                }).catch(() => ({ ok: false })),
+                apiFetch('/apps/budget/api/categories/transaction-counts').catch(() => null),
+                apiFetch('/apps/budget/api/categories/report-mutes').catch(() => null),
             ]);
-            if (treeResponse.ok) {
-                const fullTree = await treeResponse.json();
+            if (!treeError) {
                 // Unmerged, for the project form's own-category picker (#391)
                 this.app.rawCategoryTree = fullTree;
                 // Merge own + shared for dropdowns and budget view
@@ -102,25 +101,28 @@ export default class CategoriesModule {
                 // that don't duplicate an own name+type, shown read-only (#306).
                 this.managementTree = this.buildManagementTree(fullTree);
             }
-            if (countsResponse.ok) {
-                this.serverTransactionCounts = await countsResponse.json();
+            if (counts) {
+                this.serverTransactionCounts = counts;
             }
-            if (mutesResponse.ok) {
+            if (mutes) {
                 // Categories this user hid from their own reports (shared ones)
-                this.reportMutedIds = new Set(await mutesResponse.json());
+                this.reportMutedIds = new Set(mutes);
             }
+            if (treeError) throw treeError;
             this.renderCategoriesTree();
-            this.setupCategoriesEventListeners();
         } catch (error) {
             console.error('Failed to load categories:', error);
             showError(t('budget', 'Failed to load categories'));
+            const emptyState = document.getElementById('empty-categories');
+            if (emptyState) emptyState.style.display = 'none';
+            showLoadError('categories-tree', t('budget', 'Failed to load categories'), () => this.loadCategories());
         }
     }
 
     renderCategoryTree(categories, level = 0) {
         return categories.map(cat => `
             <div class="category-item" style="margin-left: ${level * 20}px" data-id="${cat.id}">
-                <span class="category-name">${cat.name}</span>
+                <span class="category-name">${dom.escapeHtml(cat.name)}</span>
                 ${cat.children ? this.renderCategoryTree(cat.children, level + 1) : ''}
             </div>
         `).join('');
@@ -231,9 +233,11 @@ export default class CategoriesModule {
     }
 
     switchCategoryType(type) {
-        // Update active tab
-        document.querySelectorAll('.tab-button').forEach(btn => {
+        // Update active tab. Only this page's tabs: a bare .tab-button also
+        // matched the Bills, Budget and Transfers tabs and cleared theirs.
+        document.querySelectorAll('.categories-tabs .tab-button').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.tab === type);
+            btn.setAttribute('aria-selected', btn.dataset.tab === type ? 'true' : 'false');
         });
 
         this.currentCategoryType = type;
@@ -297,12 +301,15 @@ export default class CategoriesModule {
             const shared = !!category._shared;
             const canWrite = !!category._canWrite;
             const sharedOwner = category._sharedByName || category._sharedBy || '';
+            const sharedOwnerHtml = dom.escapeHtml(sharedOwner);
             const mutedForMe = shared && !!this.reportMutedIds?.has(category.id);
 
             return `
                 <div class="category-node" data-level="${level}">
                     <div class="category-item ${isSelected ? 'selected' : ''} ${isChecked ? 'checked' : ''} ${shared && !canWrite ? 'category-shared' : ''} ${shared && canWrite ? 'category-write-shared' : ''}"
                          data-category-id="${category.id}"
+                         tabindex="0"
+                         ${shared && !canWrite ? '' : 'aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown Alt+ArrowLeft Alt+ArrowRight"'}
                          ${shared && !canWrite ? 'data-shared="1"' : ''}${shared && canWrite ? 'data-write-shared="1"' : ''}
                          draggable="${shared ? 'false' : 'true'}">
                         ${shared ? '' : `<input type="checkbox"
@@ -311,22 +318,26 @@ export default class CategoriesModule {
                                ${isChecked ? 'checked' : ''}>`}
                         ${hasChildren ? `
                             <button class="category-toggle ${isExpanded ? 'expanded' : ''}"
-                                    data-category-id="${category.id}">
+                                    data-category-id="${category.id}"
+                                    aria-expanded="${isExpanded ? 'true' : 'false'}"
+                                    aria-label="${isExpanded ? t('budget', 'Collapse') : t('budget', 'Expand')}">
                                 <span class="icon-triangle-e" aria-hidden="true"></span>
                             </button>
                         ` : '<div style="width: 20px;"></div>'}
 
-                        <div class="category-icon" style="background-color: ${category.color || '#999'};">
-                            <span class="${category.icon || 'icon-tag'}" aria-hidden="true"></span>
+                        <div class="category-icon" style="background-color: ${dom.escapeHtml(category.color || '#999')};">
+                            <span class="${dom.escapeHtml(category.icon || 'icon-tag')}" aria-hidden="true"></span>
                         </div>
 
                         <div class="category-content">
-                            <span class="category-name">${category.name}</span>
+                            <span class="category-name">${dom.escapeHtml(category.name)}</span>
                             <div class="category-meta">
-                                ${shared && canWrite
-                                    ? `<span class="category-shared-badge write-shared" title="${t('budget', 'Shared by {owner} — you can edit', { owner: sharedOwner })}">${t('budget', 'Shared (editable)')} · ${sharedOwner}</span>`
+                                ${shared && category._canManage
+                                    ? `<span class="category-shared-badge write-shared" title="${t('budget', 'Shared by {owner} — you have full control', { owner: sharedOwner })}">${t('budget', 'Shared (full control)')} · ${sharedOwnerHtml}</span>`
+                                    : shared && canWrite
+                                    ? `<span class="category-shared-badge write-shared" title="${t('budget', 'Shared by {owner} — you can edit', { owner: sharedOwner })}">${t('budget', 'Shared (editable)')} · ${sharedOwnerHtml}</span>`
                                     : shared
-                                    ? `<span class="category-shared-badge" title="${t('budget', 'Shared by {owner}', { owner: sharedOwner })}">${t('budget', 'Shared')} · ${sharedOwner}</span>`
+                                    ? `<span class="category-shared-badge" title="${t('budget', 'Shared by {owner}', { owner: sharedOwner })}">${t('budget', 'Shared')} · ${sharedOwnerHtml}</span>`
                                     : ''}
                                 ${mutedForMe ? `<span class="category-muted-badge" title="${t('budget', 'Hidden from your reports — the owner and other viewers are unaffected')}">${t('budget', 'Hidden from my reports')}</span>` : ''}
                                 ${transactionCount > 0 ? `<span class="transaction-count">${transactionCount}</span>` : ''}
@@ -336,11 +347,11 @@ export default class CategoriesModule {
                         ${shared ? `<button class="category-mute-btn ${mutedForMe ? 'muted' : ''}"
                                 data-category-id="${category.id}"
                                 data-muted="${mutedForMe ? '1' : '0'}"
-                                title="${mutedForMe ? t('budget', 'Show in my reports') : t('budget', 'Hide from my reports')}">
+                                title="${mutedForMe ? t('budget', 'Show in my reports') : t('budget', 'Hide from my reports')}" aria-label="${mutedForMe ? t('budget', 'Show in my reports') : t('budget', 'Hide from my reports')}">
                             <span class="icon-toggle" aria-hidden="true"></span>
                         </button>` : `<button class="category-delete-btn"
                                 data-category-id="${category.id}"
-                                title="${t('budget', 'Delete {name}', { name: category.name })}">
+                                title="${t('budget', 'Delete {name}', { name: category.name })}" aria-label="${t('budget', 'Delete {name}', { name: category.name })}">
                             <span class="icon-delete" aria-hidden="true"></span>
                         </button>`}
                     </div>
@@ -415,15 +426,10 @@ export default class CategoriesModule {
                 const categoryId = parseInt(btn.dataset.categoryId);
                 const muted = btn.dataset.muted !== '1';
                 try {
-                    const response = await fetch(OC.generateUrl(`/apps/budget/api/categories/${categoryId}/report-mute`), {
+                    await apiFetch(`/apps/budget/api/categories/${categoryId}/report-mute`, {
                         method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'requesttoken': OC.requestToken
-                        },
-                        body: JSON.stringify({ muted })
+                        body: { muted },
                     });
-                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
                     if (!this.reportMutedIds) this.reportMutedIds = new Set();
                     if (muted) {
                         this.reportMutedIds.add(categoryId);
@@ -476,11 +482,84 @@ export default class CategoriesModule {
                 const draggedId = parseInt(e.dataTransfer.getData('text/plain'));
                 const targetId = parseInt(item.dataset.categoryId);
 
-                if (draggedId !== targetId) {
+                if (draggedId !== targetId && !this.isDropInOwnBranch(draggedId, item)) {
                     this.reorderCategory(draggedId, targetId, this.getDropPosition(e, item));
                 }
             });
+
+            // Keyboard equivalent of the drag, so reordering does not need a
+            // pointer: Alt+Up/Down moves among siblings, Alt+Right nests under
+            // the category above, Alt+Left moves out to the parent's level.
+            // Same reorder endpoint (and the same shared-category rules) as a drop.
+            item.addEventListener('keydown', (e) => {
+                if (!e.altKey || e.target !== item) return;
+                const move = this.keyboardReorderTarget(item, e.key);
+                if (move === undefined) return;
+                e.preventDefault();
+                if (!move) return;
+                const id = parseInt(item.dataset.categoryId);
+                this.reorderCategory(id, move.targetId, move.position).then(() => {
+                    document.querySelector(`.category-item[data-category-id="${id}"]`)?.focus();
+                });
+            });
         });
+    }
+
+    /**
+     * Whether a drop on targetItem lands inside the dragged category's own
+     * branch. Any position next to or under one of its own subcategories
+     * would make it a descendant of itself, so such a drop is ignored.
+     *
+     * @param {number} draggedId - the category being dragged
+     * @param {HTMLElement} targetItem - the .category-item dropped on
+     * @returns {boolean}
+     */
+    isDropInOwnBranch(draggedId, targetItem) {
+        const draggedNode = document
+            .querySelector(`.category-item[data-category-id="${draggedId}"]`)
+            ?.closest('.category-node');
+        return !!draggedNode && draggedNode.contains(targetItem);
+    }
+
+    /**
+     * Where an Alt+Arrow key press moves a category in the tree.
+     *
+     * @param {HTMLElement} item - the focused .category-item
+     * @param {string} key - KeyboardEvent.key
+     * @returns {{targetId: number, position: string}|null|undefined}
+     *          undefined for a key that is not a move, null when there is
+     *          nowhere to move (already first, last or top level)
+     */
+    keyboardReorderTarget(item, key) {
+        const node = item.closest('.category-node');
+        if (!node) return undefined;
+        const idOf = (n) => parseInt(n?.querySelector(':scope > .category-item')?.dataset.categoryId);
+        const sibling = (dir) => {
+            let el = node[dir];
+            while (el && !el.classList.contains('category-node')) el = el[dir];
+            return el;
+        };
+
+        switch (key) {
+            case 'ArrowUp': {
+                const prev = sibling('previousElementSibling');
+                return prev ? { targetId: idOf(prev), position: 'above' } : null;
+            }
+            case 'ArrowDown': {
+                const next = sibling('nextElementSibling');
+                return next ? { targetId: idOf(next), position: 'below' } : null;
+            }
+            case 'ArrowRight': {
+                const prev = sibling('previousElementSibling');
+                return prev ? { targetId: idOf(prev), position: 'child' } : null;
+            }
+            case 'ArrowLeft': {
+                const parent = node.parentElement?.closest('.category-node');
+                return parent ? { targetId: idOf(parent), position: 'below' } : null;
+            }
+            default:
+                return undefined;
+        }
     }
 
     showDropIndicator(e, targetItem) {
@@ -531,14 +610,17 @@ export default class CategoriesModule {
             // Shared categories belong to another user. A write-shared category may
             // be REORDERED among its same-owner write-shared siblings (above/below);
             // the server accepts only the sortOrder change (parentId/type stay
-            // owner-only). Everything else — read-shared, cross-owner, nesting
-            // (child), or mixing own and shared — is blocked for clear UX (#328).
+            // owner-only). Nesting one under another needs Full control of both.
+            // Everything else — read-shared, cross-owner, or mixing own and
+            // shared — is blocked for clear UX (#328).
             if (draggedCategory._shared || targetCategory._shared) {
-                const bothWriteSharedSameOwner =
+                const sameOwnerShared =
                     draggedCategory._shared && targetCategory._shared &&
-                    draggedCategory._canWrite && targetCategory._canWrite &&
                     draggedCategory._sharedBy === targetCategory._sharedBy;
-                if (!bothWriteSharedSameOwner || position === 'child') {
+                const allowed = position === 'child'
+                    ? sameOwnerShared && draggedCategory._canManage && targetCategory._canManage
+                    : sameOwnerShared && draggedCategory._canWrite && targetCategory._canWrite;
+                if (!allowed) {
                     showWarning(t('budget', 'Shared categories can only be reordered among themselves'));
                     return;
                 }
@@ -547,23 +629,15 @@ export default class CategoriesModule {
             // The server renumbers the whole sibling group from (target, position)
             // so the result is deterministic — setting a single sortOrder collided
             // with a sibling and the move was silently dropped (#328).
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/categories/${draggedId}/reorder`), {
+            await apiFetch(`/apps/budget/api/categories/${draggedId}/reorder`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ targetId, position })
+                body: { targetId, position },
+                errorMessage: t('budget', 'Failed to reorder category'),
             });
 
-            if (response.ok) {
-                // Reload categories to reflect changes
-                await this.loadCategories();
-                showSuccess(t('budget', 'Category reordered successfully'));
-            } else {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to reorder category')));
-            }
+            // Reload categories to reflect changes
+            await this.loadCategories();
+            showSuccess(t('budget', 'Category reordered successfully'));
 
         } catch (error) {
             console.error('Failed to reorder category:', error);
@@ -606,12 +680,22 @@ export default class CategoriesModule {
         // categories can edit them (#328).
         const isReadShared = !!category._shared && !category._canWrite;
 
+        // Action button visibility by ownership/write access, set before the
+        // fetch so the last category's buttons don't linger while it loads:
+        //  - own category    → Edit + Delete
+        //  - write-shared     → Edit only (delete is owner-only), except a
+        //                       subcategory you added under Full control
+        //  - read-shared      → neither (read-only details view, #328)
+        const editBtn = document.getElementById('edit-category-btn');
+        const deleteBtn = document.getElementById('delete-category-btn');
+        const canDelete = !category._shared || !!category._canDelete;
+        if (editBtn) editBtn.style.display = isReadShared ? 'none' : '';
+        if (deleteBtn) deleteBtn.style.display = canDelete ? '' : 'none';
+
         // Load data from server in parallel
-        const [detailsRes, transactionsRes] = await Promise.all([
+        const [detailsRes, transactions] = await Promise.all([
             this.fetchCategoryDetails(category.id),
-            fetch(OC.generateUrl(`/apps/budget/api/categories/${category.id}/transactions?limit=5`), {
-                headers: { 'requesttoken': OC.requestToken }
-            }),
+            apiFetch(`/apps/budget/api/categories/${category.id}/transactions?limit=5`).catch(() => null),
             this.app.renderCategoryTagSetsList(category.id, isReadShared),
         ]);
 
@@ -623,8 +707,7 @@ export default class CategoriesModule {
             this.renderCategorySpendingChartFromServer(detailsRes.monthlySpending, category.color, detailsRes.budget, detailsRes.budgetPeriod);
         }
 
-        if (transactionsRes.ok) {
-            const transactions = await transactionsRes.json();
+        if (transactions) {
             this.renderRecentTransactions(transactions);
         }
 
@@ -634,7 +717,7 @@ export default class CategoriesModule {
             const currentVal = accountSelect.value;
             accountSelect.innerHTML = `<option value="">${t('budget', 'All Accounts')}</option>`;
             this.app.accounts.forEach(acc => {
-                accountSelect.innerHTML += `<option value="${acc.id}">${this.escapeHtml(acc.name)}</option>`;
+                accountSelect.innerHTML += `<option value="${acc.id}">${dom.escapeHtml(acc.name)}</option>`;
             });
             accountSelect.value = currentVal;
             accountSelect.onchange = () => this.refreshCategoryChart();
@@ -645,16 +728,6 @@ export default class CategoriesModule {
         if (periodSelect) {
             periodSelect.onchange = () => this.refreshCategoryChart();
         }
-
-        // Action button visibility by ownership/write access:
-        //  - own category    → Edit + Delete
-        //  - write-shared     → Edit only (delete is owner-only)
-        //  - read-shared      → neither (read-only details view, #328)
-        const editBtn = document.getElementById('edit-category-btn');
-        const deleteBtn = document.getElementById('delete-category-btn');
-        const isWriteShared = !!category._shared && !!category._canWrite;
-        if (editBtn) editBtn.style.display = isReadShared ? 'none' : '';
-        if (deleteBtn) deleteBtn.style.display = (isReadShared || isWriteShared) ? 'none' : '';
     }
 
     /**
@@ -686,12 +759,7 @@ export default class CategoriesModule {
                 url += `&accountId=${accountId}`;
             }
 
-            const response = await fetch(
-                OC.generateUrl(url),
-                { headers: { 'requesttoken': OC.requestToken } }
-            );
-            if (!response.ok) return null;
-            return await response.json();
+            return await apiFetch(url).catch(() => null);
         } catch (error) {
             console.error('Failed to fetch category details:', error);
             return null;
@@ -723,6 +791,14 @@ export default class CategoriesModule {
             typeEl.className = `category-type-badge ${category.type}`;
         }
 
+        // An income category earns rather than spends, so its total and chart
+        // say so (#422).
+        const isIncome = category.type === 'income';
+        const totalLabelEl = document.getElementById('category-total-label');
+        if (totalLabelEl) totalLabelEl.textContent = isIncome ? t('budget', 'Total Income') : t('budget', 'Total Spent');
+        const chartTitleEl = document.getElementById('category-chart-title');
+        if (chartTitleEl) chartTitleEl.textContent = isIncome ? t('budget', 'Monthly Income') : t('budget', 'Monthly Spending');
+
         // Build category path
         const path = this.getCategoryPath(category);
         const pathEl = document.getElementById('category-display-path');
@@ -731,7 +807,7 @@ export default class CategoriesModule {
 
     updateAnalyticsFromServer(details) {
         const countEl = document.getElementById('total-transactions-count');
-        if (countEl) countEl.textContent = details.count.toLocaleString();
+        if (countEl) countEl.textContent = details.count.toLocaleString(formatters.userLocale());
 
         const avgEl = document.getElementById('avg-transaction-amount');
         if (avgEl) avgEl.textContent = this.formatCurrency(details.average);
@@ -778,7 +854,7 @@ export default class CategoriesModule {
             const isInbound = signed >= 0;
             const partsTitle = isSplit && transaction.splitCategories
                 ? transaction.splitCategories
-                    .map(part => this.escapeHtml((part.categoryName || t('budget', 'Uncategorized'))
+                    .map(part => dom.escapeHtml((part.categoryName || t('budget', 'Uncategorized'))
                         + ': ' + this.formatCurrency(part.amount)))
                     .join('&#10;')
                 : '';
@@ -786,7 +862,7 @@ export default class CategoriesModule {
             return `
             <div class="transaction-item"${partsTitle ? ` title="${partsTitle}"` : ''}>
                 <div class="transaction-description">
-                    ${this.escapeHtml(transaction.description || '')}
+                    ${dom.escapeHtml(transaction.description || '')}
                     ${isSplit ? `<span class="split-indicator" title="${t('budget', 'Part of a split transaction. The amount shown is the part in this category.')}">${t('budget', 'Split part')}</span>` : ''}
                     ${showsWholeToo ? `<span class="transaction-split-whole">${t('budget', 'Split part of {total}', { total: this.formatCurrency(Math.abs(whole)) })}</span>` : ''}
                 </div>
@@ -850,8 +926,8 @@ export default class CategoriesModule {
             const key = formatters.shiftMonth(currentMonth, -i);
             const d = formatters.parseLocalDate(`${key}-01`);
             const label = monthCount > 12
-                ? d.toLocaleDateString(undefined, { month: 'short', year: '2-digit' })
-                : d.toLocaleDateString(undefined, { month: 'short' });
+                ? d.toLocaleDateString(formatters.userLocale(), { month: 'short', year: '2-digit' })
+                : d.toLocaleDateString(formatters.userLocale(), { month: 'short' });
             labels.push(label);
             amounts.push(serverMap[key] || 0);
         }
@@ -1080,18 +1156,26 @@ export default class CategoriesModule {
             return;
         }
 
-        const isWriteShared = !!this.selectedCategory._shared && !!this.selectedCategory._canWrite;
+        const shared = !!this.selectedCategory._shared;
+        const isWriteShared = shared && !!this.selectedCategory._canWrite
+            && !this.selectedCategory._canManage;
 
-        title.textContent = isWriteShared
+        title.textContent = shared
             ? t('budget', 'Edit Shared Category')
             : t('budget', 'Edit Category');
-        this.populateCategoryParentDropdown(this.selectedCategory.id, this.selectedCategory.parentId);
+        let parentScope = 'own';
+        if (isWriteShared) {
+            parentScope = 'locked';
+        } else if (shared) {
+            parentScope = { owner: this.selectedCategory._sharedBy };
+        }
+        this.populateCategoryParentDropdown(this.selectedCategory.id, this.selectedCategory.parentId, parentScope);
         this.loadCategoryData(this.selectedCategory);
 
         // For write-shared categories, lock fields that belong to the owner —
         // recipients may edit only name and colour. Structural fields (type,
         // parent) and the scope flags (excludedFromReports, excludedFromBudget)
-        // stay owner-only.
+        // stay with the owner, and with anyone the owner gave Full control.
         const parentSelect = document.getElementById('category-parent');
         const typeSelect = document.getElementById('category-type');
         const excludedCheckbox = document.getElementById('category-excluded-from-reports');
@@ -1115,8 +1199,10 @@ export default class CategoriesModule {
             return;
         }
         // Only own categories can be deleted — shared categories (read or write)
-        // are owner-only for deletion.
-        if (this.selectedCategory._shared) {
+        // are owner-only for deletion, bar a subcategory you added under Full
+        // control, which the server allows while nothing uses it.
+        const shared = !!this.selectedCategory._shared;
+        if (shared && !this.selectedCategory._canDelete) {
             return;
         }
 
@@ -1127,7 +1213,11 @@ export default class CategoriesModule {
         }
 
         try {
-            const { deleted, reassigned } = await this._deleteCategoryWithReassign(categoryId, categoryName);
+            // No reassign for a shared one: moving the owner's transactions
+            // is the owner's call, so the server refuses it in use instead
+            const { deleted, reassigned } = shared
+                ? await this._sendCategoryDelete(categoryId, false).then(() => ({ deleted: true, reassigned: false }))
+                : await this._deleteCategoryWithReassign(categoryId, categoryName);
             if (!deleted) return;
 
             showSuccess(reassigned
@@ -1179,11 +1269,10 @@ export default class CategoriesModule {
      * the category's (and descendants') transactions to No Category first (#332).
      */
     _sendCategoryDelete(categoryId, reassign) {
-        const url = OC.generateUrl(`/apps/budget/api/categories/${categoryId}`)
-            + (reassign ? '?reassign=true' : '');
-        return fetch(url, {
+        return apiFetch(`/apps/budget/api/categories/${categoryId}`
+            + (reassign ? '?reassign=true' : ''), {
             method: 'DELETE',
-            headers: { 'requesttoken': OC.requestToken }
+            errorMessage: t('budget', 'Failed to delete category'),
         });
     }
 
@@ -1212,22 +1301,18 @@ export default class CategoriesModule {
             return { deleted: false, reassigned: false };
         }
 
-        let response = await this._sendCategoryDelete(categoryId, reassign);
-
-        if (!reassign && response.status === 409) {
-            const body = await response.json().catch(() => ({}));
-            if (body.code === 'has_transactions') {
-                if (!await confirmDialog(reassignPrompt, { destructive: true })) {
-                    return { deleted: false, reassigned: false };
-                }
-                reassign = true;
-                response = await this._sendCategoryDelete(categoryId, true);
+        try {
+            await this._sendCategoryDelete(categoryId, reassign);
+        } catch (error) {
+            if (reassign || !(error instanceof ApiError) || error.status !== 409
+                || error.data?.code !== 'has_transactions') {
+                throw error;
             }
-        }
-
-        if (!response.ok) {
-            const error = await response.json().catch(() => ({}));
-            throw new Error(serverErrorMessage(error, t('budget', 'Failed to delete category')));
+            if (!await confirmDialog(reassignPrompt, { destructive: true })) {
+                return { deleted: false, reassigned: false };
+            }
+            reassign = true;
+            await this._sendCategoryDelete(categoryId, true);
         }
         return { deleted: true, reassigned: reassign };
     }
@@ -1257,13 +1342,7 @@ export default class CategoriesModule {
     async _projectUsesCategoryBranch(categoryId) {
         const ids = new Set(this._selfAndDescendantIds(categoryId));
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/projects'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) {
-                return false;
-            }
-            const projects = await response.json();
+            const projects = await apiFetch('/apps/budget/api/projects');
             return Array.isArray(projects) && projects.some(project =>
                 ids.has(project.categoryId)
                 || (project.allocations || []).some(allocation => ids.has(allocation.categoryId)));
@@ -1299,21 +1378,13 @@ export default class CategoriesModule {
 
         for (const categoryId of categoryIds) {
             try {
-                const response = await fetch(OC.generateUrl(`/apps/budget/api/categories/${categoryId}`), {
+                await apiFetch(`/apps/budget/api/categories/${categoryId}`, {
                     method: 'DELETE',
-                    headers: {
-                        'requesttoken': OC.requestToken
-                    }
+                    errorMessage: t('budget', 'Failed to delete'),
                 });
 
-                if (response.ok) {
-                    deleted++;
-                    this.selectedCategoryIds.delete(categoryId);
-                } else {
-                    const error = await response.json();
-                    const category = this.findCategoryById(categoryId);
-                    errors.push(`${category?.name || categoryId}: ${serverErrorMessage(error, t('budget', 'Failed to delete'))}`);
-                }
+                deleted++;
+                this.selectedCategoryIds.delete(categoryId);
             } catch (error) {
                 const category = this.findCategoryById(categoryId);
                 errors.push(`${category?.name || categoryId}: ${error.message}`);
@@ -1360,21 +1431,13 @@ export default class CategoriesModule {
         for (const [index, categoryId] of categoryIds.entries()) {
             const category = this.findCategoryById(categoryId);
             try {
-                const response = await fetch(OC.generateUrl(`/apps/budget/api/categories/${categoryId}`), {
+                await apiFetch(`/apps/budget/api/categories/${categoryId}`, {
                     method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'requesttoken': OC.requestToken
-                    },
-                    body: JSON.stringify({ color: colors[index] })
+                    body: { color: colors[index] },
+                    errorMessage: t('budget', 'Failed to update category'),
                 });
 
-                if (response.ok) {
-                    recolored++;
-                } else {
-                    const error = await response.json().catch(() => ({}));
-                    errors.push(`${category?.name || categoryId}: ${serverErrorMessage(error, t('budget', 'Failed to update category'))}`);
-                }
+                recolored++;
             } catch (error) {
                 errors.push(`${category?.name || categoryId}: ${error.message}`);
             }
@@ -1453,7 +1516,14 @@ export default class CategoriesModule {
         this.app.renderCategoryTagSetsUI(category.id);
     }
 
-    populateCategoryParentDropdown(excludeId = null, selectedId = null) {
+    /**
+     * Fill the parent picker for the category being saved. scope is 'add',
+     * 'own' or { owner } (see parentPickerTree), or 'locked' for a
+     * write-shared category, whose picker is disabled but must still show its
+     * current parent from the merged tree.
+     */
+    populateCategoryParentDropdown(excludeId = null, selectedId = null, scope = 'add') {
+        this._parentPickerArgs = [excludeId, selectedId, scope];
         const parentSelect = document.getElementById('category-parent');
         if (!parentSelect) return;
 
@@ -1463,7 +1533,10 @@ export default class CategoriesModule {
         parentSelect.innerHTML = `<option value="">${t('budget', 'None (Top Level)')}</option>`;
 
         if (this.categoryTree) {
-            dom.populateCategorySelect(parentSelect, this.categoryTree, {
+            const tree = scope === 'locked'
+                ? this.categoryTree
+                : parentPickerTree(this.app.rawCategoryTree, scope);
+            dom.populateCategorySelect(parentSelect, tree, {
                 typeFilter: currentType,
                 excludeId: excludeId ? parseInt(excludeId) : null,
                 selectedId: selectedId ? parseInt(selectedId) : null,
@@ -1471,7 +1544,19 @@ export default class CategoriesModule {
         }
     }
 
-    async saveCategory() {
+    /** Refill the parent picker for the form as it was opened (type changed). */
+    refreshCategoryParentDropdown() {
+        const [excludeId, selectedId] = this._parentPickerArgs || [];
+        const scope = this._parentPickerArgs?.[2] ?? 'add';
+        this.populateCategoryParentDropdown(excludeId ?? null, selectedId ?? null, scope);
+    }
+
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveCategory() {
+        return once('category-save', document.querySelector('#category-form [type="submit"]'), () => this._saveCategory());
+    }
+
+    async _saveCategory() {
         const categoryId = document.getElementById('category-id').value;
         const name = document.getElementById('category-name').value.trim();
         const type = document.getElementById('category-type').value;
@@ -1496,7 +1581,8 @@ export default class CategoriesModule {
             && this.selectedCategory
             && String(this.selectedCategory.id) === String(categoryId)
             && !!this.selectedCategory._shared
-            && !!this.selectedCategory._canWrite;
+            && !!this.selectedCategory._canWrite
+            && !this.selectedCategory._canManage;
 
         const categoryData = { name, color };
         if (!isEditingWriteShared) {
@@ -1513,30 +1599,21 @@ export default class CategoriesModule {
                 : '/apps/budget/api/categories';
             const method = isEdit ? 'PUT' : 'POST';
 
-            const response = await fetch(OC.generateUrl(url), {
+            const savedCategory = await apiFetch(url, {
                 method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify(categoryData)
+                body: categoryData,
+                errorMessage: t('budget', 'Failed to save category'),
             });
 
-            if (response.ok) {
-                const savedCategory = await response.json();
-                showSuccess(isEdit ? t('budget', 'Category updated successfully') : t('budget', 'Category created successfully'));
-                this.app.hideModals();
-                await this.loadCategories();
-                await this.app.loadInitialData();
+            showSuccess(isEdit ? t('budget', 'Category updated successfully') : t('budget', 'Category created successfully'));
+            this.app.hideModals();
+            await this.loadCategories();
+            await this.app.loadInitialData();
 
-                // Re-select the category to update the details panel
-                const categoryIdToSelect = isEdit ? parseInt(categoryId) : savedCategory.id;
-                if (categoryIdToSelect) {
-                    this.selectCategory(categoryIdToSelect);
-                }
-            } else {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to save category')));
+            // Re-select the category to update the details panel
+            const categoryIdToSelect = isEdit ? parseInt(categoryId) : savedCategory.id;
+            if (categoryIdToSelect) {
+                this.selectCategory(categoryIdToSelect);
             }
         } catch (error) {
             console.error('Failed to save category:', error);
@@ -1552,29 +1629,15 @@ export default class CategoriesModule {
         }
         this._creatingDefaults = true;
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/setup/initialize'), {
+            await apiFetch('/apps/budget/api/setup/initialize', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({})
+                body: {},
+                errorMessage: t('budget', 'Failed to create default categories'),
             });
 
-            if (response.ok) {
-                showSuccess(t('budget', 'Default categories created successfully'));
-                await this.loadCategories();
-                await this.app.loadInitialData();
-            } else {
-                let message = t('budget', 'Failed to create default categories');
-                try {
-                    const error = await response.json();
-                    message = serverErrorMessage(error, message);
-                } catch (e) {
-                    // Response wasn't JSON (e.g. server error page)
-                }
-                throw new Error(message);
-            }
+            showSuccess(t('budget', 'Default categories created successfully'));
+            await this.loadCategories();
+            await this.app.loadInitialData();
         } catch (error) {
             console.error('Failed to create default categories:', error);
             showError(error.message || t('budget', 'Failed to create default categories'));
@@ -1590,13 +1653,10 @@ export default class CategoriesModule {
     /** Download the user's own category tree as a JSON file. */
     async exportCategories() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/categories/export'), {
-                headers: { 'requesttoken': OC.requestToken }
+            const blob = await apiFetch('/apps/budget/api/categories/export', {
+                responseType: 'blob',
+                errorMessage: t('budget', 'Failed to export categories'),
             });
-            if (!response.ok) {
-                throw new Error(t('budget', 'Failed to export categories'));
-            }
-            const blob = await response.blob();
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -1628,17 +1688,13 @@ export default class CategoriesModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/categories/import/preview'), {
+            const data = await apiFetch('/apps/budget/api/categories/import/preview', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                body: JSON.stringify({ content })
+                body: { content },
+                errorMessage: t('budget', 'Failed to read the category file'),
             });
-            const data = await response.json().catch(() => ({}));
-            if (!response.ok) {
-                throw new Error(data.error || t('budget', 'Failed to read the category file'));
-            }
             this.pendingCategoryImport = content;
-            this.showCategoryImportModal(data);
+            this.showCategoryImportModal(data || {});
         } catch (error) {
             console.error('Failed to preview category import:', error);
             showError(error.message || t('budget', 'Failed to read the category file'));
@@ -1660,7 +1716,7 @@ export default class CategoriesModule {
         const warningsEl = document.getElementById('category-import-warnings');
         if (warningsEl) {
             const warnings = Array.isArray(plan.warnings) ? plan.warnings : [];
-            warningsEl.innerHTML = warnings.map(w => `<li>${this.escapeHtml(w)}</li>`).join('');
+            warningsEl.innerHTML = warnings.map(w => `<li>${dom.escapeHtml(w)}</li>`).join('');
             warningsEl.style.display = warnings.length ? '' : 'none';
         }
 
@@ -1690,7 +1746,7 @@ export default class CategoriesModule {
                 ? `<span class="category-import-type">${node.type === 'income' ? t('budget', 'Income') : t('budget', 'Expense')}</span>`
                 : '';
             return `<div class="category-import-node" style="--depth: ${depth}">` +
-                `<span class="category-import-name">${this.escapeHtml(node.name)}</span>${type}${badge}</div>` +
+                `<span class="category-import-name">${dom.escapeHtml(node.name)}</span>${type}${badge}</div>` +
                 this.renderCategoryImportNodes(node.children || [], depth + 1);
         }).join('');
     }
@@ -1706,17 +1762,13 @@ export default class CategoriesModule {
         const confirmBtn = document.getElementById('category-import-confirm-btn');
         if (confirmBtn) confirmBtn.disabled = true;
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/categories/import'), {
+            const data = await apiFetch('/apps/budget/api/categories/import', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                body: JSON.stringify({ content: this.pendingCategoryImport })
+                body: { content: this.pendingCategoryImport },
+                errorMessage: t('budget', 'Failed to import categories'),
             });
-            const data = await response.json().catch(() => ({}));
-            if (!response.ok) {
-                throw new Error(data.error || t('budget', 'Failed to import categories'));
-            }
             this.closeCategoryImportModal();
-            showSuccess(n('budget', 'Imported %n category', 'Imported %n categories', data.created || 0));
+            showSuccess(n('budget', 'Imported %n category', 'Imported %n categories', data?.created || 0));
             await this.loadCategories();
             await this.app.loadInitialData();
         } catch (error) {
@@ -1750,18 +1802,13 @@ export default class CategoriesModule {
 
         // Always fetch fresh with shared categories for budget view
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/categories/tree'), {
-                headers: this.app.getAuthHeaders()
-            });
-            if (response.ok) {
-                const rawTree = await response.json();
-                // Unmerged, for the project form's own-category picker (#391)
-                this.app.rawCategoryTree = rawTree;
-                // Merge own + shared: shared takes priority, children merged
-                const mergedTree = this.mergeCategoryTree(rawTree);
-                this.categoryTree = mergedTree;
-                this.allCategories = this.flattenCategories(mergedTree);
-            }
+            const rawTree = await apiFetch('/apps/budget/api/categories/tree');
+            // Unmerged, for the project form's own-category picker (#391)
+            this.app.rawCategoryTree = rawTree;
+            // Merge own + shared: shared takes priority, children merged
+            const mergedTree = this.mergeCategoryTree(rawTree);
+            this.categoryTree = mergedTree;
+            this.allCategories = this.flattenCategories(mergedTree);
         } catch (error) {
             console.error('Failed to load categories for budget:', error);
         }
@@ -1796,16 +1843,12 @@ export default class CategoriesModule {
         // month's in place.
         let budgets = null;
         let hasSnapshot = false;
+        let readyToAssign = null;
         try {
-            const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/budget-snapshots/${month}/budgets`),
-                { headers: this.app.getAuthHeaders() }
-            );
-            if (response.ok) {
-                const data = await response.json();
-                budgets = data.budgets || {};
-                hasSnapshot = data.hasSnapshot || false;
-            }
+            const data = await apiFetch(`/apps/budget/api/budget-snapshots/${month}/budgets`);
+            budgets = data.budgets || {};
+            hasSnapshot = data.hasSnapshot || false;
+            readyToAssign = data.readyToAssign || null;
         } catch (error) {
             console.error('Failed to fetch effective budgets:', error);
         }
@@ -1813,19 +1856,19 @@ export default class CategoriesModule {
         // Also fetch snapshot months list
         let snapshotMonths = null;
         try {
-            const response = await fetch(
-                OC.generateUrl('/apps/budget/api/budget-snapshots'),
-                { headers: this.app.getAuthHeaders() }
-            );
-            if (response.ok) {
-                snapshotMonths = await response.json();
-            }
+            // A refused request keeps the list already shown; only an
+            // unreachable server empties it.
+            snapshotMonths = await apiFetch('/apps/budget/api/budget-snapshots').catch((error) => {
+                if (error instanceof ApiError) return null;
+                throw error;
+            });
         } catch (error) {
             snapshotMonths = [];
         }
 
         if (generation !== this._budgetsGeneration) return;
         this._effectiveBudgets = budgets;
+        this._readyToAssign = readyToAssign;
         this._currentMonthHasSnapshot = hasSnapshot;
         if (snapshotMonths !== null) {
             this._snapshotMonths = snapshotMonths;
@@ -1833,33 +1876,49 @@ export default class CategoriesModule {
     }
 
     /**
-     * Fetch the monthly-normalized recurring total committed per category (#269).
-     * Used as an automatic fallback budget for categories with no manual budget.
+     * Show another budget month. If the month changes again mid-load, the
+     * newer change loads and renders its own month; this one stops.
+     */
+    async changeBudgetMonth(month) {
+        this.budgetMonth = month;
+        await this.fetchEffectiveBudgets();
+        if (this.budgetMonth !== month) return;
+        // The auto budgets are the month's own: the bills running in it
+        await this.fetchRecurringBudgets();
+        if (this.budgetMonth !== month) return;
+        await this.calculateCategorySpending();
+        if (this.budgetMonth !== month) return;
+        this.renderBudgetTree();
+        this.updateBudgetSummary();
+        this.renderSnapshotControls();
+    }
+
+    /**
+     * Fetch the monthly-normalized recurring total committed per category (#269)
+     * for the month shown: the bills running in it, so a bill ending this
+     * month stops budgeting the next and its replacement starts. Used as an
+     * automatic fallback budget for categories with no manual budget; a
+     * category shared with the user carries its owner's figure.
      */
     async fetchRecurringBudgets() {
+        const month = this.budgetMonth;
         try {
-            const response = await fetch(
-                OC.generateUrl('/apps/budget/api/categories/recurring-budgets'),
-                { headers: this.app.getAuthHeaders() }
-            );
-            if (response.ok) {
-                const data = await response.json();
-                this._recurringBudgets = data.budgets || {};
-            } else {
-                this._recurringBudgets = {};
-            }
+            const query = month ? `?month=${encodeURIComponent(month)}` : '';
+            const data = await apiFetch(`/apps/budget/api/categories/recurring-budgets${query}`);
+            if (this.budgetMonth !== month) return;
+            this._recurringBudgets = data.budgets || {};
         } catch (error) {
             console.error('Failed to fetch recurring budgets:', error);
-            this._recurringBudgets = {};
+            if (this.budgetMonth === month) this._recurringBudgets = {};
         }
     }
 
     /**
      * Recurring-derived budget for a category, converted from the monthly total
      * to the category's budget period. Returns 0 when there's no recurring item.
-     * Past months never get the fallback: the figures reflect TODAY's recurring
-     * bills/income, and applying them retroactively would rewrite history
-     * (including overriding budgets the user explicitly zeroed back then).
+     * Past months never get the fallback, as on the server: applying it
+     * retroactively would rewrite history (including overriding budgets the
+     * user explicitly zeroed back then).
      */
     _getRecurringBudgetAmount(categoryId, period) {
         if (this.budgetMonth && this.budgetMonth < this._currentBudgetMonth()) return 0;
@@ -1926,7 +1985,7 @@ export default class CategoriesModule {
         const container = document.getElementById('budget-snapshot-controls');
         if (!container) return;
 
-        const monthLabel = formatters.parseLocalDate(this.budgetMonth + '-01').toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+        const monthLabel = formatters.parseLocalDate(this.budgetMonth + '-01').toLocaleDateString(formatters.userLocale(), { month: 'long', year: 'numeric' });
 
         if (this._currentMonthHasSnapshot) {
             // Show notice that this month has adjusted budgets
@@ -1934,7 +1993,7 @@ export default class CategoriesModule {
                 <div class="budget-snapshot-notice">
                     <span class="icon-info" aria-hidden="true"></span>
                     <span>${t('budget', 'Budgets adjusted from {month}', { month: monthLabel })}</span>
-                    <button class="budget-snapshot-remove" title="${t('budget', 'Remove adjustment')}">
+                    <button class="budget-snapshot-remove" title="${t('budget', 'Remove adjustment')}" aria-label="${t('budget', 'Remove adjustment')}">
                         <span class="icon-close" aria-hidden="true"></span>
                     </button>
                 </div>
@@ -1956,57 +2015,49 @@ export default class CategoriesModule {
         }
     }
 
-    confirmCreateSnapshot() {
-        const monthLabel = formatters.parseLocalDate(this.budgetMonth + '-01').toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    async confirmCreateSnapshot() {
+        const monthLabel = formatters.parseLocalDate(this.budgetMonth + '-01').toLocaleDateString(formatters.userLocale(), { month: 'long', year: 'numeric' });
 
-        OC.dialogs.confirmDestructive(
+        // Not a destructive action (earlier months keep their values), so the
+        // app's own dialog with a normal confirm button, not the deprecated
+        // OC.dialogs.confirmDestructive and its red one.
+        const confirmed = await confirmDialog(
             t('budget', 'This will save the current budget values as a new baseline from {month} onwards. Previous months will keep their existing values. You can edit the new values after confirming.', { month: monthLabel }),
-            t('budget', 'Adjust budgets from {month}?', { month: monthLabel }),
             {
-                type: OC.dialogs.YES_NO_BUTTONS,
-                confirm: t('budget', 'Confirm'),
-                cancel: t('budget', 'Cancel'),
-            },
-            async (confirmed) => {
-                if (!confirmed) return;
-                await this.createSnapshot(this.budgetMonth);
+                title: t('budget', 'Adjust budgets from {month}?', { month: monthLabel }),
+                confirmLabel: t('budget', 'Confirm'),
+                cancelLabel: t('budget', 'Cancel'),
             }
         );
+        if (!confirmed) return;
+        await this.createSnapshot(this.budgetMonth);
     }
 
     async createSnapshot(month) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/budget-snapshots/${month}`), {
+            await apiFetch(`/apps/budget/api/budget-snapshots/${month}`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                }
+                errorMessage: t('budget', 'Failed to create budget adjustment'),
             });
 
-            if (response.ok) {
-                this._currentMonthHasSnapshot = true;
-                if (!this._snapshotMonths.includes(month)) {
-                    this._snapshotMonths.push(month);
-                    this._snapshotMonths.sort().reverse();
-                }
-                await this.fetchEffectiveBudgets();
-                this.renderBudgetTree();
-                this.updateBudgetSummary();
-                this.renderSnapshotControls();
-
-                const monthLabel = new Date(month + '-01').toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
-                showSuccess(t('budget', 'Budget adjusted from {month}. You can now edit values for this month onwards.', { month: monthLabel }));
-
-                // Undo toast
-                this._showSnapshotUndo(month);
-            } else {
-                const data = await response.json().catch(() => ({}));
-                showError(data.error || t('budget', 'Failed to create budget adjustment'));
+            this._currentMonthHasSnapshot = true;
+            if (!this._snapshotMonths.includes(month)) {
+                this._snapshotMonths.push(month);
+                this._snapshotMonths.sort().reverse();
             }
+            await this.fetchEffectiveBudgets();
+            this.renderBudgetTree();
+            this.updateBudgetSummary();
+            this.renderSnapshotControls();
+
+            const monthLabel = formatters.parseLocalDate(month + '-01').toLocaleDateString(formatters.userLocale(), { month: 'long', year: 'numeric' });
+            showSuccess(t('budget', 'Budget adjusted from {month}. You can now edit values for this month onwards.', { month: monthLabel }));
+
+            // Undo toast
+            this._showSnapshotUndo(month);
         } catch (error) {
             console.error('Failed to create snapshot:', error);
-            showError(t('budget', 'Failed to create budget adjustment'));
+            showError(error instanceof ApiError ? error.message : t('budget', 'Failed to create budget adjustment'));
         }
     }
 
@@ -2039,25 +2090,17 @@ export default class CategoriesModule {
 
     async deleteSnapshot(month) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/budget-snapshots/${month}`), {
+            await apiFetch(`/apps/budget/api/budget-snapshots/${month}`, {
                 method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                }
             });
 
-            if (response.ok) {
-                this._currentMonthHasSnapshot = false;
-                this._snapshotMonths = this._snapshotMonths.filter(m => m !== month);
-                await this.fetchEffectiveBudgets();
-                this.renderBudgetTree();
-                this.updateBudgetSummary();
-                this.renderSnapshotControls();
-                showSuccess(t('budget', 'Budget adjustment removed'));
-            } else {
-                showError(t('budget', 'Failed to remove budget adjustment'));
-            }
+            this._currentMonthHasSnapshot = false;
+            this._snapshotMonths = this._snapshotMonths.filter(m => m !== month);
+            await this.fetchEffectiveBudgets();
+            this.renderBudgetTree();
+            this.updateBudgetSummary();
+            this.renderSnapshotControls();
+            showSuccess(t('budget', 'Budget adjustment removed'));
         } catch (error) {
             console.error('Failed to delete snapshot:', error);
             showError(t('budget', 'Failed to remove budget adjustment'));
@@ -2068,8 +2111,12 @@ export default class CategoriesModule {
         // Budget type tabs
         document.querySelectorAll('.budget-tabs .tab-button').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                document.querySelectorAll('.budget-tabs .tab-button').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.budget-tabs .tab-button').forEach(b => {
+                    b.classList.remove('active');
+                    b.setAttribute('aria-selected', 'false');
+                });
                 e.currentTarget.classList.add('active');
+                e.currentTarget.setAttribute('aria-selected', 'true');
                 this.budgetType = e.currentTarget.dataset.budgetType;
                 this.renderBudgetTree();
                 this.updateBudgetSummary();
@@ -2079,19 +2126,7 @@ export default class CategoriesModule {
         // Month selector
         const monthSelect = document.getElementById('budget-month');
         if (monthSelect) {
-            monthSelect.addEventListener('change', async (e) => {
-                const month = e.target.value;
-                this.budgetMonth = month;
-                // If the month changes again mid-load, the newer change
-                // loads and renders its own month; this one stops.
-                await this.fetchEffectiveBudgets();
-                if (this.budgetMonth !== month) return;
-                await this.calculateCategorySpending();
-                if (this.budgetMonth !== month) return;
-                this.renderBudgetTree();
-                this.updateBudgetSummary();
-                this.renderSnapshotControls();
-            });
+            monthSelect.addEventListener('change', (e) => this.changeBudgetMonth(e.target.value));
         }
 
         // Month navigation arrows
@@ -2136,7 +2171,7 @@ export default class CategoriesModule {
         for (let i = -12; i <= 3; i++) {
             const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
             const value = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
-            const label = date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+            const label = date.toLocaleDateString(formatters.userLocale(), { month: 'long', year: 'numeric' });
             options.push({ value, label });
         }
 
@@ -2175,48 +2210,56 @@ export default class CategoriesModule {
         // Get all categories (not just ones with budgets — parents need children's spending)
         const allCategories = this.flattenCategories(budgetTree);
 
-        // Group categories by period and type to minimize API calls
         // Income categories need credit transactions, expense categories need debit
-        const groups = {};
-
+        const idsByType = {};
         allCategories.forEach(cat => {
-            const period = cat.budgetPeriod || 'monthly';
             const txType = cat.type === 'income' ? 'credit' : 'debit';
-            const key = `${period}:${txType}`;
-            if (!groups[key]) {
-                groups[key] = { period, txType, categoryIds: [] };
-            }
-            groups[key].categoryIds.push(cat.id);
+            (idsByType[txType] = idsByType[txType] || []).push(cat.id);
         });
 
-        // Fetch spending for each period+type group
-        try {
-            for (const { period, txType, categoryIds } of Object.values(groups)) {
-                if (categoryIds.length === 0) continue;
+        // Every row counts the month's spending, whatever its budget's
+        // period: a weekly or yearly budget is compared as its share of the
+        // month. A quarterly or yearly row also shows its period so far.
+        const startDay = this._budgetStartDay();
+        const month = budgetMonth || this._currentBudgetMonth();
+        const monthRange = formatters.budgetMonthRange(month, startDay);
+        const periodRanges = {};
+        allCategories.forEach(cat => {
+            for (const period of [cat.budgetPeriod, this._getEffectiveBudgetPeriod(cat.id, cat.budgetPeriod)]) {
+                const range = formatters.periodToDateRange(period || 'monthly', month, startDay);
+                if (range) periodRanges[period] = range;
+            }
+        });
 
-                // Get date range for this period
-                const startDay = period === 'monthly' ? parseInt(this.app.settings?.budget_start_day || '1', 10) : 1;
-                // The selected month is the cycle holding its 15th
-                const referenceDate = budgetMonth ? `${budgetMonth}-15` : null;
-                const dateRange = formatters.getPeriodDateRange(period, startDay, referenceDate);
-
-                // Fetch spending for this period and transaction type
-                const response = await fetch(
-                    OC.generateUrl(`/apps/budget/api/categories/spending?startDate=${dateRange.start}&endDate=${dateRange.end}&transactionType=${txType}`),
-                    {
-                        headers: { 'requesttoken': OC.requestToken }
+        // One request per date range and direction; the first month of a
+        // quarter is also its quarter so far
+        const answers = {};
+        const spendingOver = async (range, txType) => {
+            const key = `${range.start}|${range.end}|${txType}`;
+            if (!(key in answers)) {
+                answers[key] = await apiFetch(
+                    `/apps/budget/api/categories/spending?startDate=${range.start}&endDate=${range.end}&transactionType=${txType}`
+                ).catch(() => null);
+            }
+            return answers[key];
+        };
+        const collect = async (range, into) => {
+            for (const [txType, categoryIds] of Object.entries(idsByType)) {
+                const spendingData = await spendingOver(range, txType);
+                (spendingData || []).forEach(item => {
+                    if (categoryIds.includes(item.categoryId)) {
+                        into[item.categoryId] = parseFloat(item.spent) || 0;
                     }
-                );
+                });
+            }
+        };
 
-                if (response.ok) {
-                    const spendingData = await response.json();
-                    // Map spending to categories
-                    spendingData.forEach(item => {
-                        if (categoryIds.includes(item.categoryId)) {
-                            categorySpending[item.categoryId] = parseFloat(item.spent) || 0;
-                        }
-                    });
-                }
+        const periodSpending = {};
+        try {
+            await collect(monthRange, categorySpending);
+            for (const [period, range] of Object.entries(periodRanges)) {
+                periodSpending[period] = { range, spent: {} };
+                await collect(range, periodSpending[period].spent);
             }
         } catch (error) {
             console.error('Failed to fetch category spending:', error);
@@ -2224,6 +2267,7 @@ export default class CategoriesModule {
 
         if (generation !== this._spendingGeneration) return;
         this.categorySpending = categorySpending;
+        this._periodSpending = periodSpending;
         this._ownSpending = {};
         this._budgetTree = budgetTree;
 
@@ -2251,24 +2295,52 @@ export default class CategoriesModule {
                 }
 
                 // Sum all children's spending and budgets into this parent.
-                // Budgets fall back to the recurring-derived amount when unset (#269).
+                // Budgets fall back to the recurring-derived amount when unset
+                // (#269), and count as their share of the month as the
+                // spending is the month's.
                 let childSpentTotal = 0;
                 let childBudgetTotal = 0;
                 for (const child of category.children) {
                     childSpentTotal += this.categorySpending[child.id] || 0;
-                    const childPeriod = this._getEffectiveBudgetPeriod(child.id, child.budgetPeriod);
-                    childBudgetTotal += this._getEffectiveBudgetForCalc(child.id, child.budgetAmount, childPeriod);
+                    childBudgetTotal += this._getBudgetFor(child, 'monthly');
                 }
 
                 // Own spending + children's spending (idempotent)
                 this.categorySpending[category.id] = this._ownSpending[category.id] + childSpentTotal;
 
                 // Store aggregated budget: parent's own budget + children's budgets
-                const ownPeriod = this._getEffectiveBudgetPeriod(category.id, category.budgetPeriod);
-                const ownBudget = this._getEffectiveBudgetForCalc(category.id, category.budgetAmount, ownPeriod);
-                category._aggregatedBudget = ownBudget + childBudgetTotal;
+                category._aggregatedBudget = this._getBudgetFor(category, 'monthly') + childBudgetTotal;
             }
         }
+    }
+
+    /**
+     * A category's own budget (as _getEffectiveBudgetForCalc) as an amount
+     * for another period, by the yearly ratios: a yearly 1,200 is 100 a
+     * month, and a weekly 20 is 86.67.
+     */
+    _getBudgetFor(category, period) {
+        const ownPeriod = this._getEffectiveBudgetPeriod(category.id, category.budgetPeriod);
+        const budget = this._getEffectiveBudgetForCalc(category.id, category.budgetAmount, ownPeriod);
+        return formatters.prorateBudget(budget, ownPeriod, period);
+    }
+
+    /**
+     * What a quarterly or yearly row shows beside the month's figures, "400
+     * of 1,200 this year": its budget for the whole period (a parent's adds
+     * its direct children's, as the month's does) and the spending of its
+     * branch from the period's start to the end of the month. Null for a
+     * weekly or monthly row, or before the spending has loaded.
+     */
+    _getPeriodToDate(category) {
+        const period = this._getEffectiveBudgetPeriod(category.id, category.budgetPeriod);
+        const loaded = this._periodSpending?.[period];
+        if (!loaded) return null;
+        const branchSpent = (cat) => (cat.children || [])
+            .reduce((sum, child) => sum + branchSpent(child), loaded.spent[cat.id] || 0);
+        const budget = (category.children || [])
+            .reduce((sum, child) => sum + this._getBudgetFor(child, period), this._getBudgetFor(category, period));
+        return { period, budget, spent: branchSpent(category), start: loaded.range.start, end: loaded.range.end };
     }
 
     /**
@@ -2310,7 +2382,9 @@ export default class CategoriesModule {
             return;
         }
 
-        if (headerEl) headerEl.style.display = 'grid';
+        // Left to the stylesheet, which hides the column header on phones:
+        // an inline 'grid' showed it there, cut off at the screen's edge
+        if (headerEl) headerEl.style.display = '';
         if (emptyState) emptyState.style.display = 'none';
 
         treeContainer.innerHTML = this.renderBudgetCategoryNodes(filteredCategories, 0);
@@ -2339,13 +2413,17 @@ export default class CategoriesModule {
             const rolloverEligible = category.type === 'expense' && effectivePeriod === 'monthly';
             const carriedProjected = this.budgetMonth && this.budgetMonth > this._currentBudgetMonth();
 
-            // Get spending for this category (already calculated for the period)
+            // Get spending for this category (the month's, already calculated)
             const spent = this.categorySpending[category.id] || 0;
+
+            // The month's spending is compared with the budget's share of the
+            // month: a weekly 20 is 86.67, a yearly 1,200 is 100
+            const monthlyBudgetAmount = formatters.prorateBudget(effectiveBudgetAmount, effectivePeriod, 'monthly');
 
             // For parents, use aggregated budget (own + children's); for leaves, use effective budget
             const budget = (hasChildren && category._aggregatedBudget != null)
                 ? category._aggregatedBudget
-                : effectiveBudgetAmount;
+                : monthlyBudgetAmount;
 
             const remaining = budget - spent;
             // An envelope whose overspend has used up this month's budget has
@@ -2373,46 +2451,80 @@ export default class CategoriesModule {
                 progressStatus = expenseProgressStatus(percentage);
             }
 
+            // What the row is measured against when it isn't the amount typed
+            // in: a parent's total, or a weekly, quarterly or yearly budget's
+            // share of the month
+            const perMonth = (amount) => t('budget', '{amount} a month', { amount: this.formatCurrency(amount) });
+            let budgetHint = '';
+            if (hasChildren && budget > monthlyBudgetAmount) {
+                budgetHint = `<span class="budget-aggregate-hint">${t('budget', 'Total')}: ${effectivePeriod === 'monthly' ? this.formatCurrency(budget) : perMonth(budget)}</span>`;
+            } else if (effectivePeriod !== 'monthly' && budget > 0) {
+                budgetHint = `<span class="budget-aggregate-hint budget-monthly-hint">${perMonth(budget)}</span>`;
+            }
+
+            // A quarterly or yearly row also shows its whole period so far
+            const toDate = hasBudget ? this._getPeriodToDate(category) : null;
+            let toDateHint = '';
+            if (toDate && toDate.budget > 0) {
+                const day = (date) => formatters.parseLocalDate(date).toLocaleDateString(formatters.userLocale(), { day: 'numeric', month: 'short', year: 'numeric' });
+                const figures = { spent: this.formatCurrency(toDate.spent), budget: this.formatCurrency(toDate.budget) };
+                toDateHint = `<span class="budget-period-to-date" title="${dom.escapeHtml(day(toDate.start) + ' \u2013 ' + day(toDate.end))}">${toDate.period === 'yearly'
+                    ? t('budget', '{spent} of {budget} this year', figures)
+                    : t('budget', '{spent} of {budget} this quarter', figures)}</span>`;
+            }
+
             // For income, negative remaining = exceeded target (good), positive = not yet reached (neutral)
             const remainingClass = isIncome
                 ? (remaining <= 0 ? 'positive' : 'zero')
                 : (remaining > 0 ? 'positive' : (remaining < 0 ? 'negative' : 'zero'));
 
+            // A shared category's budget is its owner's: only they, or someone
+            // they gave Full control, can change it. The server refuses anyone
+            // else, so the controls are read-only rather than failing on save.
+            const budgetLocked = !!category._shared && !category._canManage;
+            const lockedAttrs = budgetLocked
+                ? `disabled title="${t('budget', 'Only the owner can change the budget of a shared category')}"`
+                : '';
+
             return `
                 <div class="budget-category-row ${hasChildren ? 'parent-row' : ''}" data-category-id="${category.id}">
                     <div class="budget-category-name level-${level}" data-label="">
-                        <span class="category-color" style="background-color: ${category.color || '#3b82f6'}"></span>
-                        <span class="category-label">${category.name}</span>
+                        <span class="category-color" style="background-color: ${dom.escapeHtml(category.color || '#3b82f6')}"></span>
+                        <span class="category-label">${dom.escapeHtml(category.name)}</span>
                         ${rolloverEligible ? `<button class="budget-rollover-toggle ${rolloverEnabled ? 'active' : ''}"
                                 data-category-id="${category.id}"
                                 data-enabled="${rolloverEnabled ? '1' : '0'}"
                                 title="${rolloverEnabled ? t('budget', 'Envelope budgeting on: unspent budget carries to next month. Click to turn off.') : t('budget', 'Turn on envelope budgeting: unspent budget carries to next month')}"
-                                aria-pressed="${rolloverEnabled ? 'true' : 'false'}">&#8635;</button>` : ''}
+                                aria-label="${t('budget', 'Envelope budgeting')}"
+                                aria-pressed="${rolloverEnabled ? 'true' : 'false'}"
+                                ${budgetLocked ? 'disabled' : ''}>&#8635;</button>` : ''}
                     </div>
                     <div class="budget-input-wrapper" data-label="${t('budget', 'Budget')}">
                         <input type="number"
                                class="budget-input ${isAutoBudget ? 'auto-budget' : ''}"
+                               aria-label="${t('budget', 'Budget for {category}', { category: category.name })}"
                                data-category-id="${category.id}"
                                value="${manualBudgetAmount ? Math.round(manualBudgetAmount * 100) / 100 : ''}"
                                placeholder="${isAutoBudget ? Math.round(recurringBudgetAmount * 100) / 100 : '0.00'}"
                                step="0.01"
-                               min="0">
+                               min="0"
+                               ${lockedAttrs}>
                         ${isAutoBudget ? `<span class="budget-auto-hint" title="${t('budget', 'Auto-calculated from recurring bills/income. Enter a value to override.')}">${t('budget', 'auto')}</span>` : ''}
                         ${rolloverEnabled && Math.abs(carried) >= 0.005 ? `<span class="budget-carried-hint ${carried < 0 ? 'negative' : 'positive'}" title="${(carried < 0
                             ? t('budget', '{base} − {over} overspent = {available} available', { base: this.formatCurrency(baseBudgetAmount), over: this.formatCurrency(Math.abs(carried)), available: this.formatCurrency(effectiveBudgetAmount) })
                             : t('budget', '{base} + {carried} carried = {available} available', { base: this.formatCurrency(baseBudgetAmount), carried: this.formatCurrency(carried), available: this.formatCurrency(effectiveBudgetAmount) })
                         ) + (carriedProjected ? ' ' + t('budget', '(projected)') : '')}">${carried < 0 ? '\u2212' : '+'}${this.formatCurrency(Math.abs(carried))}${carriedProjected ? '*' : ''}</span>` : ''}
-                        ${hasChildren && budget > effectiveBudgetAmount ? `<span class="budget-aggregate-hint">${t('budget', 'Total')}: ${this.formatCurrency(budget)}</span>` : ''}
+                        ${budgetHint}
                     </div>
                     <div data-label="${t('budget', 'Period')}">
-                        <select class="budget-period-select" data-category-id="${category.id}">
+                        <select class="budget-period-select" data-category-id="${category.id}" aria-label="${t('budget', 'Budget period for {category}', { category: category.name })}" ${lockedAttrs}>
                             <option value="monthly" ${effectivePeriod === 'monthly' ? 'selected' : ''}>${t('budget', 'Monthly')}</option>
                             <option value="weekly" ${effectivePeriod === 'weekly' ? 'selected' : ''}>${t('budget', 'Weekly')}</option>
                             <option value="quarterly" ${effectivePeriod === 'quarterly' ? 'selected' : ''}>${t('budget', 'Quarterly')}</option>
                             <option value="yearly" ${effectivePeriod === 'yearly' ? 'selected' : ''}>${t('budget', 'Yearly')}</option>
                         </select>
                     </div>
-                    <div class="budget-spent" data-label="${t('budget', 'Spent')}">
+                    <div class="budget-spent ${Math.abs(spent) < 0.005 ? 'zero' : ''}" data-label="${t('budget', 'Spent')}">
                         ${this.formatCurrency(spent)}
                     </div>
                     <div class="budget-remaining ${remainingClass}" data-label="${t('budget', 'Remaining')}">
@@ -2420,10 +2532,12 @@ export default class CategoriesModule {
                     </div>
                     <div class="budget-progress-wrapper" data-label="${t('budget', 'Progress')}">
                         ${hasBudget ? `
-                            <div class="budget-progress-bar">
+                            <div class="budget-progress-bar" ${progressBarAttrs(budget > 0 ? (spent / budget) * 100 : percentage, category.name)}>
                                 <div class="budget-progress-fill ${progressStatus}" style="width: ${percentage}%"></div>
                             </div>
                             <span class="budget-progress-text">${Math.round(percentage)}%</span>
+                            ${overBudgetText(!isIncome && spent - budget > 0.005)}
+                            ${toDateHint}
                         ` : `<span class="no-budget">${t('budget', 'No budget set')}</span>`}
                     </div>
                 </div>
@@ -2462,14 +2576,13 @@ export default class CategoriesModule {
                 // Pro-rate budget from current period to new period
                 const proratedBudget = formatters.prorateBudget(currentBudget, currentPeriod, newPeriod);
 
-                // Save both the new period and pro-rated amount
+                // Save both the new period and pro-rated amount. The save
+                // loads the page's figures again, the month's spending and
+                // the new period's so far with them.
                 await this.saveCategoryBudget(categoryId, {
                     budgetPeriod: newPeriod,
                     budgetAmount: proratedBudget
                 });
-
-                // Recalculate spending for the new period
-                await this.recalculateCategorySpending(categoryId, newPeriod);
 
                 // Update old period data attribute for next change
                 e.target.dataset.oldPeriod = newPeriod;
@@ -2484,14 +2597,10 @@ export default class CategoriesModule {
                 const enable = btn.dataset.enabled !== '1';
                 btn.disabled = true;
                 try {
-                    const response = await fetch(OC.generateUrl(`/apps/budget/api/categories/${categoryId}`), {
+                    await apiFetch(`/apps/budget/api/categories/${categoryId}`, {
                         method: 'PUT',
-                        headers: { 'Content-Type': 'application/json', ...this.app.getAuthHeaders() },
-                        body: JSON.stringify({ budgetRollover: enable })
+                        body: { budgetRollover: enable },
                     });
-                    if (!response.ok) {
-                        throw new Error('Failed to update category');
-                    }
                     const category = this.findCategoryById(categoryId);
                     if (category) {
                         category.budgetRollover = enable;
@@ -2513,49 +2622,6 @@ export default class CategoriesModule {
         });
     }
 
-    async recalculateCategorySpending(categoryId, period) {
-        try {
-            // Get date range for the period — same reference month as the
-            // bulk load (calculateCategorySpending), or the refreshed figure
-            // covers a different window than every other row on the page
-            const startDay = period === 'monthly' ? parseInt(this.app.settings?.budget_start_day || '1', 10) : 1;
-            const referenceDate = this.budgetMonth ? `${this.budgetMonth}-15` : null;
-            const dateRange = formatters.getPeriodDateRange(period, startDay, referenceDate);
-
-            // Same direction as the bulk load: income categories are measured
-            // by credits. Omitting the type made the netted response answer
-            // debit-primary, flipping an income category's Spent to a large
-            // negative until the next full reload (#361).
-            const category = (this.app.categories || []).find(c => c.id === categoryId);
-            const txType = category?.type === 'income' ? 'credit' : 'debit';
-
-            // Fetch spending for this category in the period
-            const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/categories/spending?startDate=${dateRange.start}&endDate=${dateRange.end}&transactionType=${txType}`),
-                {
-                    headers: { 'requesttoken': OC.requestToken }
-                }
-            );
-
-            if (response.ok) {
-                const spendingData = await response.json();
-
-                // Find this category's spending in the response
-                const categorySpending = spendingData.find(item => item.categoryId === categoryId);
-                const spent = categorySpending ? parseFloat(categorySpending.spent) || 0 : 0;
-
-                // Update local spending data for this category
-                this.categorySpending[categoryId] = spent;
-
-                // Re-render to show updated spending
-                this.renderBudgetTree();
-                this.updateBudgetSummary();
-            }
-        } catch (error) {
-            console.error('Failed to recalculate spending:', error);
-        }
-    }
-
     async saveCategoryBudget(categoryId, updates) {
         try {
             // Convert empty string or null to 0 for budgetAmount
@@ -2565,87 +2631,88 @@ export default class CategoriesModule {
                 updates.budgetAmount = parseFloat(updates.budgetAmount) || 0;
             }
 
-            let response;
-
-            if (this._currentMonthHasSnapshot) {
+            // No errorMessage: the toast below already says "Failed to update
+            // budget: …", so a failure without a server message shows its
+            // HTTP status there.
+            const shared = !!this.findCategoryById(parseInt(categoryId))?._shared;
+            let savedToCategory = !this._currentMonthHasSnapshot;
+            if (shared) {
+                // The owner's budget: the server puts it in their adjustment
+                // for this month if they have one, otherwise on the category.
+                // This user's own adjustment never holds it.
+                const payload = {};
+                if ('budgetAmount' in updates) payload.amount = updates.budgetAmount;
+                if ('budgetPeriod' in updates) payload.period = updates.budgetPeriod;
+                const result = await apiFetch(
+                    `/apps/budget/api/categories/${categoryId}/budget/${this.budgetMonth}`,
+                    { method: 'PUT', body: payload }
+                );
+                savedToCategory = result?.target === 'category';
+            } else if (this._currentMonthHasSnapshot) {
                 // Save to snapshot API
                 const snapshotPayload = {};
                 if ('budgetAmount' in updates) snapshotPayload.amount = updates.budgetAmount;
                 if ('budgetPeriod' in updates) snapshotPayload.period = updates.budgetPeriod;
 
-                response = await fetch(
-                    OC.generateUrl(`/apps/budget/api/budget-snapshots/${this.budgetMonth}/categories/${categoryId}`),
+                await apiFetch(
+                    `/apps/budget/api/budget-snapshots/${this.budgetMonth}/categories/${categoryId}`,
                     {
                         method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'requesttoken': OC.requestToken
-                        },
-                        body: JSON.stringify(snapshotPayload)
+                        body: snapshotPayload,
                     }
                 );
             } else {
                 // Save to category directly (default behaviour)
-                response = await fetch(OC.generateUrl(`/apps/budget/api/categories/${categoryId}`), {
+                await apiFetch(`/apps/budget/api/categories/${categoryId}`, {
                     method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'requesttoken': OC.requestToken
-                    },
-                    body: JSON.stringify(updates)
+                    body: updates,
                 });
             }
 
-            if (response.ok) {
-                // Update local data
-                const category = this.findCategoryById(parseInt(categoryId));
-                if (category) {
-                    if (!this._currentMonthHasSnapshot) {
-                        Object.assign(category, updates);
-                    }
-                }
-
-                // Update effective budgets cache locally
-                if (this._effectiveBudgets) {
-                    if (!this._effectiveBudgets[categoryId]) {
-                        this._effectiveBudgets[categoryId] = { amount: 0, period: 'monthly' };
-                    }
-                    if ('budgetAmount' in updates) {
-                        this._effectiveBudgets[categoryId].amount = updates.budgetAmount;
-                    }
-                    if ('budgetPeriod' in updates) {
-                        this._effectiveBudgets[categoryId].period = updates.budgetPeriod;
-                    }
-                }
-
-                // Re-aggregate parent budgets and re-render
-                this.aggregateParentSpending(this.categoryTree || []);
-                this.renderBudgetTree();
-                this.updateBudgetSummary();
-
-                // Refresh dashboard if currently viewing it
-                if (window.location.hash === '' || window.location.hash === '#/dashboard') {
-                    await this.app.loadDashboard();
-                }
-
-                showSuccess(t('budget', 'Budget updated'));
-            } else {
-                // Try to get detailed error message
-                let errorMessage = t('budget', 'Failed to update budget');
-                try {
-                    const errorData = await response.json();
-                    if (errorData.error) {
-                        errorMessage = errorData.error;
-                    }
-                } catch (e) {
-                    errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-                }
-                throw new Error(errorMessage);
+            // Update local data
+            const category = this.findCategoryById(parseInt(categoryId));
+            if (category && savedToCategory) {
+                Object.assign(category, updates);
             }
+
+            // Every figure on the page reads the budget available as the
+            // server composed it (with any carryover), so patching the amount
+            // here left Remaining, the parent's total and the summary on the
+            // old budget. Fetch the composed budgets again and redraw, as the
+            // envelope toggle does; that also moves "Ready to assign".
+            await this.fetchEffectiveBudgets();
+            await this.calculateCategorySpending();
+            this._renderBudgetTreeKeepingInput();
+            this.updateBudgetSummary();
+
+            // Refresh dashboard if currently viewing it
+            if (window.location.hash === '' || window.location.hash === '#/dashboard') {
+                await this.app.loadDashboard();
+            }
+
+            showSuccess(t('budget', 'Budget updated'));
         } catch (error) {
             console.error('Failed to save budget:', error);
             showError(t('budget', 'Failed to update budget: {message}', { message: error.message }));
         }
+    }
+
+    /**
+     * Redraw the budget rows, keeping the budget box being typed in: a save
+     * redraws every row, and after Tab the typing has already moved on to
+     * the next box.
+     */
+    _renderBudgetTreeKeepingInput() {
+        const active = document.activeElement;
+        const typing = active?.classList?.contains('budget-input')
+            ? { id: active.dataset.categoryId, value: active.value }
+            : null;
+        this.renderBudgetTree();
+        if (!typing) return;
+        const input = document.querySelector(`.budget-input[data-category-id="${typing.id}"]`);
+        if (!input || input.disabled) return;
+        input.value = typing.value;
+        input.focus();
     }
 
     updateBudgetSummary() {
@@ -2674,7 +2741,13 @@ export default class CategoriesModule {
             totalSpent += spent;
         });
 
-        const totalRemaining = totalBudgeted - totalSpent;
+        // Whole pennies, as the server adds them: monthly equivalents of
+        // weekly budgets carry fractions, and a float sum dropped a penny
+        // from Remaining against Budgeted - Spent (and v1's budget status)
+        const decimals = formatters.currencyDecimals(formatters.getPrimaryCurrency([], this.settings), this.settings);
+        totalBudgeted = roundMoney(totalBudgeted, decimals);
+        totalSpent = roundMoney(totalSpent, decimals);
+        const totalRemaining = roundMoney(totalBudgeted - totalSpent, decimals);
 
         // Update DOM
         const budgetedEl = document.getElementById('budget-total-budgeted');
@@ -2686,6 +2759,41 @@ export default class CategoriesModule {
         if (spentEl) spentEl.textContent = this.formatCurrency(totalSpent);
         if (remainingEl) remainingEl.textContent = this.formatCurrency(totalRemaining);
         if (countEl) countEl.textContent = categoriesWithBudget;
+
+        this.renderReadyToAssign();
+    }
+
+    /**
+     * The "Ready to assign" card: the selected month's income minus its
+     * expense budgets, as the server worked it out for that month
+     * (readyToAssign on the effective-budgets response).
+     */
+    renderReadyToAssign() {
+        const valueEl = document.getElementById('budget-ready-to-assign');
+        const hintEl = document.getElementById('budget-ready-to-assign-hint');
+        if (!valueEl) return;
+
+        const figure = this._readyToAssign;
+        valueEl.classList.remove('positive', 'negative');
+        if (!figure || figure.amount == null) {
+            valueEl.textContent = '--';
+            return;
+        }
+
+        const amount = parseFloat(figure.amount) || 0;
+        valueEl.textContent = this.formatCurrency(amount);
+        if (amount > 0) valueEl.classList.add('positive');
+        if (amount < 0) valueEl.classList.add('negative');
+
+        if (hintEl) {
+            const income = this.formatCurrency(parseFloat(figure.income) || 0);
+            const budgeted = this.formatCurrency(parseFloat(figure.budgeted) || 0);
+            if (amount < 0) {
+                hintEl.textContent = t('budget', 'Over-assigned: {income} in, {budgeted} budgeted', { income, budgeted });
+            } else {
+                hintEl.textContent = t('budget', '{income} in, {budgeted} budgeted', { income, budgeted });
+            }
+        }
     }
 
     flattenCategories(categories, result = []) {

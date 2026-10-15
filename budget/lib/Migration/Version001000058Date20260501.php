@@ -14,19 +14,19 @@ use OCP\Migration\SimpleMigrationStep;
  * Add last_reconciled column to budget_accounts for tracking reconciliation history.
  */
 class Version001000058Date20260501 extends SimpleMigrationStep {
-    public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
-        /** @var ISchemaWrapper $schema */
-        $schema = $schemaClosure();
+	public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
+		/** @var ISchemaWrapper $schema */
+		$schema = $schemaClosure();
 
-        $table = $schema->getTable('budget_accounts');
-        if (!$table->hasColumn('last_reconciled')) {
-            $table->addColumn('last_reconciled', Types::STRING, [
-                'notnull' => false,
-                'length' => 19,
-                'default' => null,
-            ]);
-        }
+		$table = $schema->getTable('budget_accounts');
+		if (!$table->hasColumn('last_reconciled')) {
+			$table->addColumn('last_reconciled', Types::STRING, [
+				'notnull' => false,
+				'length' => 19,
+				'default' => null,
+			]);
+		}
 
-        return $schema;
-    }
+		return $schema;
+	}
 }

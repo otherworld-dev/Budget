@@ -9,6 +9,7 @@ use OCA\Budget\Db\Category;
 use OCA\Budget\Service\CategoryService;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\RecurringBudgetService;
+use OCA\Budget\Service\SharedBudgetService;
 use OCA\Budget\Service\ValidationService;
 use OCP\AppFramework\Http;
 use OCP\IL10N;
@@ -30,7 +31,7 @@ class CategoryControllerTest extends TestCase {
 		$l = $this->createMock(IL10N::class);
 		$l->method('t')->willReturnCallback(function (string $text, array $params = []) {
 			foreach ($params as $i => $param) {
-				$text = str_replace('%' . ($i + 1) . '$s', (string) $param, $text);
+				$text = str_replace('%' . ($i + 1) . '$s', (string)$param, $text);
 			}
 			return $text;
 		});
@@ -48,6 +49,7 @@ class CategoryControllerTest extends TestCase {
 			$this->validationService,
 			$this->granularShareService,
 			$this->recurringBudgetService,
+			new SharedBudgetService($this->service, $this->granularShareService),
 			$l,
 			'user1',
 			$logger
@@ -204,7 +206,7 @@ class CategoryControllerTest extends TestCase {
 			->method('create')
 			->with(
 				'user1',
-				$this->callback(fn($v) => $v === 'Groceries'),
+				$this->callback(fn ($v) => $v === 'Groceries'),
 				'expense',
 				$this->anything(),
 				$this->anything(),
@@ -215,6 +217,27 @@ class CategoryControllerTest extends TestCase {
 			->willReturn($category);
 
 		$response = $this->controller->create('  Groceries  ', 'expense');
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+	}
+
+	public function testCreateRefusesSubcategoryUnderSharedParent(): void {
+		// Parent 7 belongs to owner1 and is shared with user1 (#402)
+		$this->granularShareService->method('resolveOwner')
+			->with('user1', 'category', 7)->willReturn('owner1');
+		$this->service->expects($this->never())->method('create');
+
+		$response = $this->controller->create('Snacks', 'expense', 7);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+		$this->assertSame('Only the owner can add subcategories to a shared category', $response->getData()['error']);
+	}
+
+	public function testCreateAllowsSubcategoryUnderOwnParent(): void {
+		$this->granularShareService->method('resolveOwner')->willReturn('user1');
+		$this->service->expects($this->once())->method('create')->willReturn($this->makeCategory());
+
+		$response = $this->controller->create('Snacks', 'expense', 7);
 
 		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
 	}
@@ -329,6 +352,240 @@ class CategoryControllerTest extends TestCase {
 
 	// ── destroy ─────────────────────────────────────────────────────
 
+	public function testUpdateRefusesMovingOwnCategoryUnderSharedParent(): void {
+		// Category 1 is user1's own; the new parent 7 is owner1's (#402)
+		$this->granularShareService->method('resolveOwner')->willReturnCallback(
+			fn (string $userId, string $type, int $id) => $id === 7 ? 'owner1' : 'user1'
+		);
+		$this->request->method('getParams')->willReturn(['parentId' => 7]);
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controller->update(1, null, null, 7);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	public function testReorderRefusesNestingOwnCategoryUnderSharedTarget(): void {
+		$this->granularShareService->method('resolveOwner')->willReturnCallback(
+			fn (string $userId, string $type, int $id) => $id === 7 ? 'owner1' : 'user1'
+		);
+		$this->request->method('getParams')->willReturn(['targetId' => 7, 'position' => 'child']);
+		$this->service->expects($this->never())->method('reorderCategory');
+
+		$response = $this->controller->reorder(1);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	// ── Full control ────────────────────────────────────────────────
+
+	/** Category 7 (and 8) belong to owner1 and are shared with user1 at Full control. */
+	private function givenFullControlOf(array $ids): void {
+		$this->granularShareService->method('resolveOwner')->willReturnCallback(
+			fn (string $userId, string $type, int $id) => in_array($id, $ids, true) ? 'owner1' : 'user1'
+		);
+		$this->granularShareService->method('canManage')->willReturnCallback(
+			fn (string $userId, string $type, int $id) => in_array($id, $ids, true)
+		);
+	}
+
+	public function testFullControlSubcategoryBelongsToTheParentsOwner(): void {
+		$this->givenFullControlOf([7]);
+		$created = $this->makeCategory(['id' => 42, 'userId' => 'owner1']);
+		$this->service->expects($this->once())
+			->method('create')
+			->with('owner1', 'Snacks', 'expense', 7, null, null, null, 0, false, false, 'user1')
+			->willReturn($created);
+		$this->granularShareService->expects($this->once())
+			->method('shareBackToRecipient')
+			->with('owner1', 'user1', 'category', 42, 7);
+
+		$response = $this->controller->create('Snacks', 'expense', 7);
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+	}
+
+	public function testOwnSubcategoryIsNotSharedBack(): void {
+		$this->givenFullControlOf([]);
+		$this->service->method('create')->willReturn($this->makeCategory());
+		$this->granularShareService->expects($this->never())->method('shareBackToRecipient');
+
+		$this->controller->create('Snacks', 'expense', 3);
+	}
+
+	public function testFullControlRecipientCanChangeStructure(): void {
+		$this->givenFullControlOf([7, 8]);
+		$this->request->method('getParams')->willReturn(['parentId' => 8, 'excludedFromReports' => true]);
+		$this->service->expects($this->once())
+			->method('update')
+			->with(7, 'owner1', $this->callback(fn ($updates) => $updates['type'] === 'income'
+				&& $updates['parentId'] === 8
+				&& $updates['budgetAmount'] === 99.0
+				&& $updates['excludedFromReports'] === true))
+			->willReturn($this->makeCategory());
+
+		$response = $this->controller->update(7, null, 'income', 8, null, null, 99.0);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testFullControlCannotMoveACategoryIntoAnotherPersonsTree(): void {
+		// 7 is owner1's, 3 is user1's own: ownership never transfers
+		$this->givenFullControlOf([7]);
+		$this->request->method('getParams')->willReturn(['parentId' => 3]);
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controller->update(7, null, null, 3);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+		$this->assertSame('A category can only be moved under another category with the same owner', $response->getData()['error']);
+	}
+
+	public function testFullControlAllowsNestingWithinTheOwnersTree(): void {
+		$this->givenFullControlOf([7, 8]);
+		$this->request->method('getParams')->willReturn(['targetId' => 8, 'position' => 'child']);
+		$this->service->expects($this->once())
+			->method('reorderCategory')->with(7, 'owner1', 8, 'child')
+			->willReturn($this->makeCategory());
+
+		$response = $this->controller->reorder(7);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	/** The service finds each id under the owner with the given parent. */
+	private function givenParents(array $parents): void {
+		$this->service->method('find')->willReturnCallback(function (int $id) use ($parents) {
+			$category = $this->makeCategory(['id' => $id, 'userId' => 'owner1']);
+			$category->setParentId($parents[$id] ?? null);
+			return $category;
+		});
+	}
+
+	public function testWriteRecipientCannotMoveACategoryToAnotherLevelByDroppingItNextToOne(): void {
+		// 1 is a top-level category, 2 sits under 9: above 2 would put 1 under 9
+		$this->granularShareService->method('resolveOwner')->willReturn('owner1');
+		$this->givenParents([2 => 9]);
+		$this->request->method('getParams')->willReturn(['targetId' => 2, 'position' => 'above']);
+		$this->service->expects($this->never())->method('reorderCategory');
+
+		$response = $this->controller->reorder(1);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+		$this->assertSame('Only the owner can move a shared category to another level', $response->getData()['error']);
+	}
+
+	public function testWriteRecipientCanStillReorderAmongSiblings(): void {
+		$this->granularShareService->method('resolveOwner')->willReturn('owner1');
+		$this->givenParents([1 => 9, 2 => 9]);
+		$this->request->method('getParams')->willReturn(['targetId' => 2, 'position' => 'below']);
+		$this->service->expects($this->once())
+			->method('reorderCategory')->with(1, 'owner1', 2, 'below')
+			->willReturn($this->makeCategory());
+
+		$response = $this->controller->reorder(1);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testReorderRefusesATargetThisUserCannotSee(): void {
+		// 2 is one of owner1's categories that was never shared with user1
+		$this->granularShareService->method('resolveOwner')->willReturnCallback(
+			fn (string $userId, string $type, int $id) => $id === 2 ? null : 'owner1'
+		);
+		$this->request->method('getParams')->willReturn(['targetId' => 2, 'position' => 'below']);
+		$this->service->expects($this->never())->method('reorderCategory');
+
+		$response = $this->controller->reorder(1);
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
+	}
+
+	public function testReorderRefusesATargetInAnotherPersonsTree(): void {
+		// 1 is user1's own, 7 is owner1's: next to it would mix the two trees
+		$this->givenFullControlOf([7]);
+		$this->request->method('getParams')->willReturn(['targetId' => 7, 'position' => 'above']);
+		$this->service->expects($this->never())->method('reorderCategory');
+
+		$response = $this->controller->reorder(1);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	public function testFullControlCannotMoveNextToACategoryUnderAnUnsharedParent(): void {
+		// 7 and 8 are shared at Full control; 8's parent 99 never was
+		$this->granularShareService->method('resolveOwner')->willReturnCallback(
+			fn (string $userId, string $type, int $id) => in_array($id, [7, 8], true) ? 'owner1' : null
+		);
+		$this->granularShareService->method('canManage')->willReturn(true);
+		$this->givenParents([8 => 99]);
+		$this->request->method('getParams')->willReturn(['targetId' => 8, 'position' => 'above']);
+		$this->service->expects($this->never())->method('reorderCategory');
+
+		$response = $this->controller->reorder(7);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Parent category not found', $response->getData()['error']);
+	}
+
+	public function testFullControlCannotEditACategoryUnderAnUnsharedParent(): void {
+		$this->granularShareService->method('resolveOwner')->willReturnCallback(
+			fn (string $userId, string $type, int $id) => $id === 7 ? 'owner1' : null
+		);
+		$this->granularShareService->method('canManage')->willReturn(true);
+		$this->request->method('getParams')->willReturn(['parentId' => 99]);
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controller->update(7, null, null, 99);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Parent category not found', $response->getData()['error']);
+	}
+
+	public function testReorderShowsWhyAMoveIntoItsOwnBranchWasRefused(): void {
+		$this->granularShareService->method('resolveOwner')->willReturn('user1');
+		$this->givenParents([6 => 5]);
+		$this->request->method('getParams')->willReturn(['targetId' => 6, 'position' => 'above']);
+		$this->service->method('reorderCategory')
+			->willThrowException(new \InvalidArgumentException('A category cannot be nested inside itself'));
+
+		$response = $this->controller->reorder(5);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('A category cannot be nested inside itself', $response->getData()['error']);
+	}
+
+	public function testCreatorCanDeleteASubcategoryTheyAdded(): void {
+		$this->givenFullControlOf([42]);
+		$this->service->expects($this->once())->method('deleteAsCreator')->with(42, 'owner1', 'user1');
+		$this->service->expects($this->never())->method('delete');
+
+		$response = $this->controller->destroy(42);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testCreatorDeleteRefusalIsForbidden(): void {
+		$this->givenFullControlOf([42]);
+		$this->service->method('deleteAsCreator')
+			->willThrowException(new \InvalidArgumentException('This category has transactions, so only its owner can delete it'));
+
+		$response = $this->controller->destroy(42);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+		$this->assertSame('This category has transactions, so only its owner can delete it', $response->getData()['error']);
+	}
+
+	public function testFullControlNeverReassignsTheOwnersTransactions(): void {
+		$this->givenFullControlOf([42]);
+		$this->service->expects($this->never())->method('deleteAsCreator');
+		$this->service->expects($this->never())->method('deleteWithReassign');
+
+		$response = $this->controller->destroy(42, true);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
 	public function testDestroySuccess(): void {
 		// destroy() resolves the owner first (owner-only delete, #306 phase 2)
 		$this->granularShareService->method('resolveOwner')->willReturn('user1');
@@ -405,6 +662,27 @@ class CategoryControllerTest extends TestCase {
 		$response = $this->controller->setReportMute(999, true);
 
 		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
+	}
+
+	// ── recurring budgets ───────────────────────────────────────────
+
+	/**
+	 * The page's "auto" hint is the month it shows, and a shared category's
+	 * is its owner's figure, the one its Remaining is measured against.
+	 */
+	public function testRecurringBudgetsAreTheViewersForTheMonthShown(): void {
+		$this->recurringBudgetService->expects($this->once())->method('getMonthlyBudgetsForViewer')
+			->with('user1', '2026-11')->willReturn([10 => 50.0]);
+
+		$response = $this->controller->recurringBudgets('2026-11');
+
+		$this->assertSame(['budgets' => [10 => 50.0]], $response->getData());
+	}
+
+	public function testRecurringBudgetsRefuseAMalformedMonth(): void {
+		$this->recurringBudgetService->expects($this->never())->method('getMonthlyBudgetsForViewer');
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $this->controller->recurringBudgets('2026-13')->getStatus());
 	}
 
 	// ── allSpending ─────────────────────────────────────────────────
@@ -507,5 +785,61 @@ class CategoryControllerTest extends TestCase {
 		$response = $this->controller->transactions(999);
 
 		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
+	}
+
+	// ── a shared category shows only accounts the viewer can see (T4-2) ──
+
+	public function testDetailsReadsOnlyTheAccountsTheViewerCanSee(): void {
+		// owner1 shared category 137 and account 4 with user1, not account 2
+		$this->granularShareService->method('resolveOwner')
+			->with('user1', 'category', 137)->willReturn('owner1');
+		$this->granularShareService->method('getVisibleAccountIds')
+			->with('user1')->willReturn([1, 4]);
+		$this->service->expects($this->once())
+			->method('getCategoryDetails')
+			->with(137, 'owner1', null, null, null, 'user1', [1, 4])
+			->willReturn(['count' => 1, 'total' => 10.0]);
+
+		$response = $this->controller->details(137);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testDetailsRefusesAnAccountTheViewerCannotSee(): void {
+		$this->granularShareService->method('resolveOwner')->willReturn('owner1');
+		$this->granularShareService->method('getVisibleAccountIds')->willReturn([1, 4]);
+		$this->service->expects($this->never())->method('getCategoryDetails');
+
+		$response = $this->controller->details(137, null, null, 2);
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
+	}
+
+	public function testDetailsAcceptsASharedAccountTheViewerCanSee(): void {
+		$this->granularShareService->method('resolveOwner')->willReturn('owner1');
+		$this->granularShareService->method('getVisibleAccountIds')->willReturn([1, 4]);
+		$this->service->expects($this->once())
+			->method('getCategoryDetails')
+			->with(137, 'owner1', '2026-01-01', '2026-03-31', 4, 'user1', [1, 4])
+			->willReturn(['count' => 0, 'total' => 0.0]);
+
+		$response = $this->controller->details(137, '2026-01-01', '2026-03-31', 4);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testTransactionsListsOnlyTheAccountsTheViewerCanSee(): void {
+		$this->granularShareService->method('resolveOwner')
+			->with('user1', 'category', 137)->willReturn('owner1');
+		$this->granularShareService->method('getVisibleAccountIds')
+			->with('user1')->willReturn([1, 4]);
+		$this->service->expects($this->once())
+			->method('getCategoryTransactions')
+			->with(137, 'owner1', 5, [1, 4])
+			->willReturn([]);
+
+		$response = $this->controller->transactions(137);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
 }

@@ -8,6 +8,7 @@ use OCA\Budget\Api\ApiSerializer;
 use OCA\Budget\Db\Account;
 use OCA\Budget\Db\Attachment;
 use OCA\Budget\Db\Category;
+use OCA\Budget\Db\Tag;
 use OCA\Budget\Db\Transaction;
 use PHPUnit\Framework\TestCase;
 
@@ -27,8 +28,18 @@ class ApiSerializerTest extends TestCase {
 
 		$this->assertSame([
 			'id', 'name', 'type', 'currency', 'balance', 'balance_in_base_currency',
-			'base_currency', 'institution', 'shared', 'closed', 'updated_at',
+			'base_currency', 'institution', 'shared', 'owner', 'closed', 'last_reconciled_at',
+			'updated_at',
 		], array_keys($result));
+	}
+
+	public function testAccountOwnerIsTheOwnersUserId(): void {
+		// A share recipient must pick one of the owner's categories, so the
+		// owner is on the wire (as `owner`, never the internal userId key)
+		$result = ApiSerializer::account(['id' => 9, 'userId' => 'owner2', '_shared' => true]);
+
+		$this->assertSame('owner2', $result['owner']);
+		$this->assertArrayNotHasKey('userId', $result);
 	}
 
 	public function testAccountCoercesTypes(): void {
@@ -85,6 +96,67 @@ class ApiSerializerTest extends TestCase {
 		$this->assertSame('GBP', $result['base_currency']);
 	}
 
+	// ── money in the currency's own places ───────────────────────────
+
+	/**
+	 * Every figure went out at two places, so a Bitcoin balance of 0.022
+	 * read "0.02" and a 0.015 transaction "0.02". Worse, a client sending
+	 * the read shape back to PATCH a description changed the amount. Money
+	 * now keeps its currency's places, never fewer than two: every two- and
+	 * zero-place currency reads exactly as before.
+	 */
+	public function testAnAccountBalanceKeepsItsCurrencysPlaces(): void {
+		$btc = ApiSerializer::account(['id' => 1, 'currency' => 'BTC', 'balance' => 0.022, 'convertedBalance' => 1234.5, 'baseCurrency' => 'GBP']);
+
+		$this->assertSame('0.02200000', $btc['balance']);
+		// The converted figure is in the base currency
+		$this->assertSame('1234.50', $btc['balance_in_base_currency']);
+	}
+
+	public function testTwoAndZeroPlaceCurrenciesReadExactlyAsBefore(): void {
+		$this->assertSame('12.50', ApiSerializer::account(['id' => 1, 'currency' => 'GBP', 'balance' => 12.5])['balance']);
+		$this->assertSame('1000.00', ApiSerializer::account(['id' => 1, 'currency' => 'JPY', 'balance' => 1000])['balance']);
+		$this->assertSame('7.05', ApiSerializer::account(['id' => 1, 'currency' => 'XYZ', 'balance' => 7.05])['balance']);
+	}
+
+	public function testAThreePlaceCurrencyKeepsItsThirdPlace(): void {
+		$this->assertSame('1.235', ApiSerializer::account(['id' => 1, 'currency' => 'JOD', 'balance' => 1.235])['balance']);
+	}
+
+	public function testATransactionAndItsPartsUseTheAccountsCurrency(): void {
+		// A list row carries the account currency; a single row is given it
+		$row = [
+			'id' => 1, 'amount' => 0.015, 'matchedSplitAmount' => 0.005,
+			'splitCategories' => [['id' => 1, 'transactionId' => 1, 'amount' => 0.005], ['id' => 2, 'transactionId' => 1, 'amount' => 0.01]],
+		];
+
+		foreach ([ApiSerializer::transaction($row + ['accountCurrency' => 'BTC']), ApiSerializer::transaction($row, 'BTC')] as $result) {
+			$this->assertSame('0.01500000', $result['amount']);
+			$this->assertSame('0.00500000', $result['split_amount']);
+			$this->assertSame(['0.00500000', '0.01000000'], array_column($result['splits'], 'amount'));
+		}
+		$this->assertSame('0.02', ApiSerializer::transaction($row)['amount']);
+	}
+
+	public function testARecentRowUsesItsAccountsCurrency(): void {
+		$result = ApiSerializer::recentTransaction(['id' => 1, 'amount' => 0.015, 'accountCurrency' => 'BTC', 'splitCategories' => [['amount' => 0.015]]]);
+
+		$this->assertSame('0.01500000', $result['amount']);
+		$this->assertSame('0.01500000', $result['splits'][0]['amount']);
+	}
+
+	public function testBillsAndBudgetsUseTheirCurrency(): void {
+		$this->assertSame('0.00250000', ApiSerializer::bill(['id' => 1, 'amount' => 0.0025, 'currency' => 'ETH'])['amount']);
+
+		$status = ApiSerializer::budgetStatus([
+			'currency' => 'BTC',
+			'totals' => ['budgeted' => '0.012345', 'spent' => '0', 'remaining' => '0.012345'],
+			'categories' => [['categoryId' => 1, 'budgeted' => '0.01', 'spent' => '0.002', 'remaining' => '0.008', 'carried' => '0']],
+		]);
+		$this->assertSame('0.01234500', $status['totals']['budgeted']);
+		$this->assertSame('0.00800000', $status['categories'][0]['remaining']);
+	}
+
 	public function testAccountSharedFlagComesFromInternalMarker(): void {
 		$this->assertTrue(ApiSerializer::account(['id' => 1, '_shared' => true])['shared']);
 		$this->assertFalse(ApiSerializer::account(['id' => 1])['shared']);
@@ -96,9 +168,19 @@ class ApiSerializerTest extends TestCase {
 		$result = ApiSerializer::category(['id' => 1, 'name' => 'Food', 'type' => 'expense']);
 
 		$this->assertSame(
-			['id', 'name', 'type', 'parent_id', 'icon', 'color', 'shared'],
+			['id', 'name', 'type', 'parent_id', 'icon', 'color', 'shared', 'owner'],
 			array_keys($result)
 		);
+	}
+
+	public function testCategoryOwnerMatchesItsAccountsOwner(): void {
+		$own = new Category();
+		$own->setId(7);
+		$own->setUserId('user1');
+
+		$this->assertSame('user1', ApiSerializer::category($own)['owner']);
+		// A shared category arrives as an array row carrying the owner's id
+		$this->assertSame('owner2', ApiSerializer::category(['id' => 8, 'userId' => 'owner2', '_shared' => true])['owner']);
 	}
 
 	public function testCategoryAcceptsAnEntity(): void {
@@ -144,6 +226,7 @@ class ApiSerializerTest extends TestCase {
 			'id', 'account_id', 'category_id', 'date', 'description', 'vendor',
 			'amount', 'type', 'reference', 'notes', 'status', 'reconciled',
 			'is_split', 'created_at', 'updated_at',
+			'linked_transaction_id', 'linked_account_name', 'splits', 'tags',
 		], array_keys($result));
 	}
 
@@ -229,7 +312,7 @@ class ApiSerializerTest extends TestCase {
 		$this->assertSame('scheduled', ApiSerializer::transaction(['id' => 1, 'status' => 'scheduled'])['status']);
 	}
 
-	public function testTransactionDropsInternalLinkageFields(): void {
+	public function testTransactionCarriesItsTransferLinkButNoOtherInternals(): void {
 		$result = ApiSerializer::transaction([
 			'id' => 1,
 			'accountId' => 2,
@@ -237,12 +320,199 @@ class ApiSerializerTest extends TestCase {
 			'billId' => 44,
 			'pensionContribId' => 9,
 			'linkedTransactionId' => 500,
+			'linkedAccountId' => 7,
+			'linkedAccountName' => 'Savings',
 			'reconSessionId' => 12,
+			'_canWrite' => true,
 		]);
 
-		foreach (['importId', 'billId', 'pensionContribId', 'linkedTransactionId', 'reconSessionId'] as $internal) {
+		// The other half of a transfer is part of v1 now (#407)...
+		$this->assertSame(500, $result['linked_transaction_id']);
+		$this->assertSame('Savings', $result['linked_account_name']);
+		// ...but nothing else that only means something inside the app.
+		foreach (['importId', 'billId', 'pensionContribId', 'linkedTransactionId', 'linkedAccountId',
+			'linkedAccountName', 'reconSessionId', '_canWrite', 'splitCategories'] as $internal) {
 			$this->assertArrayNotHasKey($internal, $result);
 		}
+	}
+
+	public function testTransactionWithoutATransferHasNullLinks(): void {
+		$result = ApiSerializer::transaction(['id' => 1]);
+
+		$this->assertNull($result['linked_transaction_id']);
+		$this->assertNull($result['linked_account_name']);
+	}
+
+	public function testTransactionSplitsAreAnEmptyListWhenNotSplit(): void {
+		$this->assertSame([], ApiSerializer::transaction(['id' => 1])['splits']);
+	}
+
+	public function testTransactionMapsItsSplitParts(): void {
+		// A list row carries its parts as splitCategories (#408)
+		$result = ApiSerializer::transaction([
+			'id' => 5,
+			'isSplit' => true,
+			'splitCategories' => [
+				['id' => 31, 'transactionId' => 5, 'categoryId' => 12, 'categoryName' => 'Groceries', 'amount' => 3.4, 'description' => 'Flat White'],
+				['id' => 32, 'transactionId' => 5, 'categoryId' => null, 'categoryName' => null, 'amount' => 1.42, 'description' => null],
+			],
+		]);
+
+		$this->assertSame([
+			['id' => 31, 'transaction_id' => 5, 'amount' => '3.40', 'category_id' => 12, 'category_name' => 'Groceries', 'description' => 'Flat White'],
+			['id' => 32, 'transaction_id' => 5, 'amount' => '1.42', 'category_id' => null, 'category_name' => null, 'description' => null],
+		], $result['splits']);
+	}
+
+	// ── recent ──────────────────────────────────────────────────────
+
+	public function testRecentTransactionKeysAreFixed(): void {
+		$result = ApiSerializer::recentTransaction(['id' => 1]);
+
+		$this->assertSame([
+			'id', 'merchant', 'date', 'amount', 'currency', 'account_name',
+			'account_id', 'type', 'category_name', 'is_split', 'splits',
+			'linked_transaction_id', 'linked_account_name',
+		], array_keys($result));
+	}
+
+	public function testRecentTransactionSaysWhichWayTheMoneyWent(): void {
+		$result = ApiSerializer::recentTransaction([
+			'id' => 1,
+			'accountId' => 3,
+			'amount' => 1500,
+			'type' => 'credit',
+			'categoryName' => 'Salary',
+		]);
+
+		$this->assertSame(3, $result['account_id']);
+		$this->assertSame('credit', $result['type']);
+		// Amounts stay positive; type carries the direction
+		$this->assertSame('1500.00', $result['amount']);
+		$this->assertSame('Salary', $result['category_name']);
+	}
+
+	public function testRecentTransactionCarriesSplitsAndTransferLink(): void {
+		$result = ApiSerializer::recentTransaction([
+			'id' => 1,
+			'isSplit' => true,
+			'splitCategories' => [['id' => 9, 'transactionId' => 1, 'categoryId' => 4, 'categoryName' => 'Fuel', 'amount' => 20.0, 'description' => null]],
+			'linkedTransactionId' => 77,
+			'linkedAccountName' => null,
+		]);
+
+		$this->assertTrue($result['is_split']);
+		$this->assertSame('20.00', $result['splits'][0]['amount']);
+		$this->assertSame(77, $result['linked_transaction_id']);
+		$this->assertNull($result['linked_account_name']);
+		$this->assertNull(ApiSerializer::recentTransaction(['id' => 2])['category_name']);
+	}
+
+	// ── splits ──────────────────────────────────────────────────────
+
+	public function testSplitKeysAreFixed(): void {
+		$this->assertSame(
+			['id', 'transaction_id', 'amount', 'category_id', 'category_name', 'description'],
+			array_keys(ApiSerializer::split([]))
+		);
+	}
+
+	// ── deletion (discussion 412) ──────────────────────────────────
+
+	public function testDeletionKeysAreFixed(): void {
+		$this->assertSame(
+			['id' => 10, 'deleted' => true, 'unlinked_transaction_id' => 56],
+			ApiSerializer::deletion(10, 56)
+		);
+	}
+
+	public function testDeletionOfAPlainTransactionLeavesNothingUnlinked(): void {
+		$this->assertNull(ApiSerializer::deletion(10, null)['unlinked_transaction_id']);
+	}
+
+	// ── budget status (#767) ───────────────────────────────────────
+
+	public function testBudgetStatusKeysAreFixed(): void {
+		$result = ApiSerializer::budgetStatus(['month' => '2026-09']);
+
+		$this->assertSame(['month', 'start_date', 'end_date', 'currency', 'totals', 'categories'], array_keys($result));
+		$this->assertSame(['budgeted', 'spent', 'remaining'], array_keys($result['totals']));
+	}
+
+	public function testBudgetLineKeysAreFixed(): void {
+		$this->assertSame([
+			'category_id', 'name', 'parent_id', 'type', 'period',
+			'budgeted', 'carried', 'spent', 'remaining', 'shared', 'period_to_date',
+		], array_keys(ApiSerializer::budgetLine([])));
+	}
+
+	public function testABudgetLineHasNoPeriodSoFarUnlessQuarterlyOrYearly(): void {
+		$this->assertNull(ApiSerializer::budgetLine(['period' => 'weekly'])['period_to_date']);
+	}
+
+	public function testAYearlyBudgetLineCarriesTheYearSoFar(): void {
+		$line = ApiSerializer::budgetLine([
+			'categoryId' => 22, 'period' => 'yearly', 'budgeted' => '100.0000000000', 'spent' => '0', 'remaining' => '100',
+			'periodToDate' => ['startDate' => '2026-01-01', 'endDate' => '2026-10-31', 'budgeted' => '1200.0000000000', 'spent' => '400.5'],
+		], 'GBP');
+
+		$this->assertSame('100.00', $line['budgeted']);
+		$this->assertSame([
+			'start_date' => '2026-01-01',
+			'end_date' => '2026-10-31',
+			'budgeted' => '1200.00',
+			'spent' => '400.50',
+		], $line['period_to_date']);
+	}
+
+	public function testBudgetStatusRemainingIsBudgetedLessSpentAsShown(): void {
+		// Converted spending carries fractions: rounding the three totals on
+		// their own gave 1746.42 against the page's 3106.67 - 1360.24
+		$result = ApiSerializer::budgetStatus([
+			'month' => '2026-10',
+			'currency' => 'EUR',
+			'totals' => ['budgeted' => '3106.666667', 'spent' => '1360.244000', 'remaining' => '1746.422667'],
+		]);
+
+		$this->assertSame('3106.67', $result['totals']['budgeted']);
+		$this->assertSame('1360.24', $result['totals']['spent']);
+		$this->assertSame('1746.43', $result['totals']['remaining']);
+	}
+
+	public function testBudgetStatusAmountsAreMoneyStrings(): void {
+		$result = ApiSerializer::budgetStatus([
+			'month' => '2026-09',
+			'totals' => ['budgeted' => '525.333333', 'spent' => '1220.000000', 'remaining' => '-694.666667'],
+			'categories' => [['categoryId' => 12, 'budgeted' => '400.000000', 'spent' => '431.2', 'remaining' => '-31.2', 'carried' => '0']],
+		]);
+
+		$this->assertSame(['budgeted' => '525.33', 'spent' => '1220.00', 'remaining' => '-694.67'], $result['totals']);
+		$this->assertSame('-31.20', $result['categories'][0]['remaining']);
+		$this->assertSame(12, $result['categories'][0]['category_id']);
+	}
+
+	// ── bills (#767) ───────────────────────────────────────────────
+
+	public function testBillKeysAreFixed(): void {
+		$this->assertSame([
+			'id', 'name', 'amount', 'amount_type', 'currency', 'frequency', 'next_due_date',
+			'overdue', 'account_id', 'account_name', 'category_id', 'is_transfer', 'auto_pay', 'shared',
+		], array_keys(ApiSerializer::bill(['id' => 1])));
+	}
+
+	public function testBillMapsTheServiceRow(): void {
+		$result = ApiSerializer::bill([
+			'id' => '3', 'name' => 'Netflix', 'amount' => 12.99, 'amountType' => 'fixed', 'currency' => 'GBP',
+			'frequency' => 'monthly', 'nextDueDate' => '2026-09-28', 'overdue' => false, 'accountId' => 1,
+			'accountName' => 'Current account', 'categoryId' => 9, 'isTransfer' => false, 'autoPayEnabled' => true,
+			'_shared' => true, 'userId' => 'owner1', 'paidUndoState' => 'x',
+		]);
+
+		$this->assertSame(3, $result['id']);
+		$this->assertSame('12.99', $result['amount']);
+		$this->assertTrue($result['auto_pay']);
+		$this->assertTrue($result['shared']);
+		$this->assertArrayNotHasKey('userId', $result);
 	}
 
 	// ── receipts ────────────────────────────────────────────────────
@@ -378,5 +648,93 @@ class ApiSerializerTest extends TestCase {
 		$account->setClosed(true);
 
 		$this->assertTrue(ApiSerializer::account($account)['closed']);
+	}
+
+	/**
+	 * Additive v1 field (#427): when a reconciliation of the account was last
+	 * completed, in the same format as updated_at. Null until there has been one.
+	 */
+	public function testAccountLastReconciledAtIsNullUntilThereHasBeenOne(): void {
+		$this->assertNull(ApiSerializer::account(['id' => 1])['last_reconciled_at']);
+		$this->assertNull(ApiSerializer::account(['id' => 1, 'lastReconciled' => null])['last_reconciled_at']);
+		$this->assertNull(ApiSerializer::account(['id' => 1, 'lastReconciled' => ''])['last_reconciled_at']);
+	}
+
+	public function testAccountLastReconciledAtComesFromTheEntity(): void {
+		$account = new Account();
+		$account->setId(3);
+		$account->setName('Current');
+		$account->setType('checking');
+		$account->setCurrency('GBP');
+		$account->setLastReconciled('2026-10-11 17:55:21');
+
+		$this->assertSame('2026-10-11 17:55:21', ApiSerializer::account($account)['last_reconciled_at']);
+	}
+
+	// ── tags (discussion 420) ───────────────────────────────────────
+
+	public function testTagKeysAreFixed(): void {
+		$result = ApiSerializer::tag(['id' => 12, 'name' => 'Haushalt']);
+
+		$this->assertSame([
+			'id', 'name', 'color', 'tag_set_id', 'tag_set_name', 'category_id', 'hidden', 'owner',
+		], array_keys($result));
+	}
+
+	public function testAGlobalTagHasNoTagSetAndNoCategory(): void {
+		$result = ApiSerializer::tag(['id' => 12, 'name' => 'Haushalt', 'color' => '#3b82f6', 'userId' => 'alice']);
+
+		$this->assertSame(12, $result['id']);
+		$this->assertSame('Haushalt', $result['name']);
+		$this->assertSame('#3b82f6', $result['color']);
+		$this->assertNull($result['tag_set_id']);
+		$this->assertNull($result['tag_set_name']);
+		$this->assertNull($result['category_id']);
+		$this->assertFalse($result['hidden']);
+		$this->assertSame('alice', $result['owner']);
+	}
+
+	public function testACategoryTagSaysWhichTagSetAndCategoryItBelongsTo(): void {
+		$result = ApiSerializer::tag([
+			'id' => '27', 'name' => 'Tesco', 'color' => null, 'hidden' => 1,
+			'tagSetId' => '4', 'tagSetName' => 'Shop', 'categoryId' => '415', 'userId' => 'alice',
+		]);
+
+		$this->assertSame(27, $result['id']);
+		$this->assertNull($result['color']);
+		$this->assertSame(4, $result['tag_set_id']);
+		$this->assertSame('Shop', $result['tag_set_name']);
+		$this->assertSame(415, $result['category_id']);
+		$this->assertTrue($result['hidden']);
+	}
+
+	public function testTagAcceptsAnEntity(): void {
+		$tag = new Tag();
+		$tag->setId(5);
+		$tag->setName('Urlaub');
+		$tag->setUserId('bob');
+
+		$result = ApiSerializer::tag($tag);
+
+		$this->assertSame(5, $result['id']);
+		$this->assertSame('Urlaub', $result['name']);
+		$this->assertSame('bob', $result['owner']);
+		$this->assertNull($result['tag_set_id']);
+	}
+
+	/** Always a list: a client renders and filters tags without a special case. */
+	public function testATransactionWithoutTagsCarriesAnEmptyList(): void {
+		$this->assertSame([], ApiSerializer::transaction(['id' => 1])['tags']);
+		$this->assertSame([], ApiSerializer::transaction(['id' => 1, 'tags' => null])['tags']);
+	}
+
+	public function testATransactionCarriesItsTagsInTheTagShape(): void {
+		$result = ApiSerializer::transaction(['id' => 1, 'tags' => [
+			['id' => 12, 'name' => 'Haushalt', 'userId' => 'alice'],
+			['id' => 27, 'name' => 'Tesco', 'tagSetId' => 4, 'tagSetName' => 'Shop', 'categoryId' => 415, 'userId' => 'alice'],
+		]]);
+
+		$this->assertSame([12, 27], array_column($result['tags'], 'id'));
+		$this->assertSame(ApiSerializer::tag(['id' => 27, 'name' => 'Tesco', 'tagSetId' => 4, 'tagSetName' => 'Shop', 'categoryId' => 415, 'userId' => 'alice']), $result['tags'][1]);
 	}
 }

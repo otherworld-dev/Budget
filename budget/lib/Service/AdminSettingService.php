@@ -12,22 +12,22 @@ use OCP\IConfig;
  * These are global settings that apply to all users, controlled by the admin.
  */
 class AdminSettingService {
-    public function __construct(
-        private IConfig $config
-    ) {
-    }
+	public function __construct(
+		private IConfig $config,
+	) {
+	}
 
-    public function isBankSyncEnabled(): bool {
-        return $this->config->getAppValue(Application::APP_ID, 'bank_sync_enabled', 'false') === 'true';
-    }
+	public function isBankSyncEnabled(): bool {
+		return $this->config->getAppValue(Application::APP_ID, 'bank_sync_enabled', 'false') === 'true';
+	}
 
-    public function setBankSyncEnabled(bool $enabled): void {
-        $this->config->setAppValue(Application::APP_ID, 'bank_sync_enabled', $enabled ? 'true' : 'false');
-    }
+	public function setBankSyncEnabled(bool $enabled): void {
+		$this->config->setAppValue(Application::APP_ID, 'bank_sync_enabled', $enabled ? 'true' : 'false');
+	}
 
-    public function getAll(): array {
-        return [
-            'bankSyncEnabled' => $this->isBankSyncEnabled(),
-        ];
-    }
+	public function getAll(): array {
+		return [
+			'bankSyncEnabled' => $this->isBankSyncEnabled(),
+		];
+	}
 }

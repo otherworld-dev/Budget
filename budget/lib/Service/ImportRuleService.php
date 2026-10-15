@@ -4,896 +4,1067 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Service;
 
+use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\ImportRule;
 use OCA\Budget\Db\ImportRuleMapper;
-use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\QueryFilterBuilder;
 use OCA\Budget\Db\ShareItem;
-use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\Transaction;
+use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Service\Import\CriteriaEvaluator;
 use OCA\Budget\Service\Import\RuleActionApplicator;
+use OCA\Budget\Service\Import\SetupDefaultRules;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
+use Psr\Log\LoggerInterface;
 
 /**
  * @extends AbstractCrudService<ImportRule>
  */
 class ImportRuleService extends AbstractCrudService {
-    private CategoryMapper $categoryMapper;
-    private TransactionMapper $transactionMapper;
-    private TransactionService $transactionService;
-    private IDBConnection $db;
-    private CriteriaEvaluator $criteriaEvaluator;
-    private RuleActionApplicator $actionApplicator;
-    private GranularShareService $granularShareService;
-    private ?AutoShareService $autoShareService;
-
-    /** @var array<int,string> Cache of account id => type for the account/account_type rule fields */
-    private array $accountTypeCache = [];
-
-    public function __construct(
-        ImportRuleMapper $mapper,
-        CategoryMapper $categoryMapper,
-        TransactionMapper $transactionMapper,
-        TransactionService $transactionService,
-        IDBConnection $db,
-        CriteriaEvaluator $criteriaEvaluator,
-        RuleActionApplicator $actionApplicator,
-        GranularShareService $granularShareService,
-        ?AutoShareService $autoShareService = null
-    ) {
-        $this->mapper = $mapper;
-        $this->categoryMapper = $categoryMapper;
-        $this->transactionMapper = $transactionMapper;
-        $this->transactionService = $transactionService;
-        $this->db = $db;
-        $this->criteriaEvaluator = $criteriaEvaluator;
-        $this->actionApplicator = $actionApplicator;
-        $this->granularShareService = $granularShareService;
-        $this->autoShareService = $autoShareService;
-    }
-
-    /**
-     * Active rules that apply for a user: their own plus rules shared with them
-     * (an accepted incoming share). Sorted by priority DESC so higher-priority
-     * rules win, matching findActive's ordering.
-     *
-     * @return ImportRule[]
-     */
-    public function findActiveIncludingShared(string $userId): array {
-        $own = $this->mapper->findActive($userId);
-        $sharedIds = $this->granularShareService->getSharedImportRuleIds($userId);
-        $shared = $this->mapper->findActiveByIds($sharedIds);
-
-        $all = array_merge($own, $shared);
-        usort($all, fn(ImportRule $a, ImportRule $b) => $b->getPriority() - $a->getPriority());
-        return $all;
-    }
-
-    /**
-     * Find a rule the user may run — their own, or one shared with them.
-     * Returns null when the id is neither owned nor accessible via a share.
-     */
-    private function findAccessibleRule(int $ruleId, string $userId): ?ImportRule {
-        $owner = $this->granularShareService->resolveOwner($userId, ShareItem::TYPE_IMPORT_RULE, $ruleId);
-        if ($owner === null) {
-            return null;
-        }
-        try {
-            return $this->mapper->find($ruleId, $owner);
-        } catch (DoesNotExistException $e) {
-            return null;
-        }
-    }
-
-    /**
-     * Get distinct group names for a user
-     *
-     * @return string[]
-     */
-    public function getGroups(string $userId): array {
-        return $this->mapper->findGroups($userId);
-    }
-
-    public function create(
-        string $userId,
-        string $name,
-        ?string $pattern = null,
-        ?string $field = null,
-        ?string $matchType = null,
-        ?array $criteria = null,
-        int $schemaVersion = 1,
-        ?int $categoryId = null,
-        ?string $vendorName = null,
-        int $priority = 0,
-        ?array $actions = null,
-        bool $applyOnImport = true,
-        bool $stopProcessing = true,
-        ?string $groupName = null
-    ): ImportRule {
-        // Validate based on schema version
-        if ($schemaVersion === 2) {
-            // v2 format: criteria required
-            if ($criteria === null) {
-                throw new \InvalidArgumentException('Criteria required for v2 rules');
-            }
-
-            // Validate criteria structure
-            $validation = $this->criteriaEvaluator->validate($criteria);
-            if (!$validation['valid']) {
-                throw new \InvalidArgumentException('Invalid criteria: ' . implode(', ', $validation['errors']));
-            }
-
-            // Validate actions if provided
-            if ($actions !== null) {
-                $actionValidation = $this->actionApplicator->validateActions($actions, $userId);
-                if (!$actionValidation['valid']) {
-                    throw new \InvalidArgumentException('Invalid actions: ' . implode(', ', $actionValidation['errors']));
-                }
-            }
-        } else {
-            // v1 format: pattern, field, matchType required
-            if (!$pattern || !$field || !$matchType) {
-                throw new \InvalidArgumentException('Pattern, field, and matchType required for v1 rules');
-            }
-
-            // Validate category if provided (either in categoryId or actions)
-            $effectiveCategoryId = $categoryId;
-            if ($actions !== null && isset($actions['categoryId'])) {
-                $effectiveCategoryId = $actions['categoryId'];
-            }
-            if ($effectiveCategoryId !== null) {
-                $this->categoryMapper->find($effectiveCategoryId, $userId);
-            }
-
-            // Validate match type
-            $validMatchTypes = ['contains', 'starts_with', 'ends_with', 'equals', 'regex', 'exact'];
-            if (!in_array($matchType, $validMatchTypes)) {
-                throw new \InvalidArgumentException('Invalid match type');
-            }
-
-            // Validate field
-            $validFields = ['description', 'vendor', 'amount', 'reference', 'notes'];
-            if (!in_array($field, $validFields)) {
-                throw new \InvalidArgumentException('Invalid field');
-            }
-        }
-
-        $rule = new ImportRule();
-        $rule->setUserId($userId);
-        $rule->setName($name);
-        $rule->setPattern($pattern ?? '');
-        $rule->setField($field ?? 'description');
-        $rule->setMatchType($matchType ?? 'contains');
-        $rule->setCategoryId($categoryId);
-        $rule->setVendorName($vendorName);
-        $rule->setPriority($priority);
-        $rule->setActive(true);
-        $rule->setApplyOnImport($applyOnImport);
-        $rule->setSchemaVersion($schemaVersion);
-        $rule->setStopProcessing($stopProcessing);
-        $rule->setCreatedAt(date('Y-m-d H:i:s'));
-
-        // Set criteria JSON for v2 rules
-        if ($criteria !== null) {
-            $rule->setCriteriaFromArray($criteria);
-        }
-
-        // Set actions JSON if provided
-        if ($actions !== null) {
-            $rule->setActionsFromArray($actions);
-        }
-
-        // Set group name if provided
-        if ($groupName !== null && $groupName !== '') {
-            $rule->setGroupName(substr(trim($groupName), 0, 100));
-        }
-
-        $inserted = $this->mapper->insert($rule);
-        if ($this->autoShareService !== null) {
-            $this->autoShareService->autoShareNewEntity($userId, ShareItem::TYPE_IMPORT_RULE, $inserted->getId());
-        }
-        return $inserted;
-    }
-
-    public function update(int $id, string $userId, array $updates): ImportRule {
-        $rule = $this->find($id, $userId);
-
-        // Determine if upgrading from v1 to v2
-        $currentVersion = $rule->getSchemaVersion() ?? 1;
-        $newVersion = $updates['schemaVersion'] ?? $currentVersion;
-
-        // Validate based on schema version
-        if ($newVersion === 2) {
-            // Validate criteria if being updated
-            if (isset($updates['criteria'])) {
-                $validation = $this->criteriaEvaluator->validate($updates['criteria']);
-                if (!$validation['valid']) {
-                    throw new \InvalidArgumentException('Invalid criteria: ' . implode(', ', $validation['errors']));
-                }
-            } else {
-                // A rule ending up at v2 must have valid criteria (mirrors the
-                // create() invariant). Without this, a JSON edit that sets
-                // schemaVersion=2 but omits criteria silently produced an inert
-                // rule that matches nothing (#318). Only enforced when the rule
-                // has no usable criteria yet — a partial v2 update that leaves
-                // existing criteria untouched is fine.
-                $upgradingToV2 = ($currentVersion !== 2);
-                $storedCriteria = $rule->getCriteria();
-                $hasStoredCriteria = ($storedCriteria !== null && $storedCriteria !== '');
-                if ($upgradingToV2 || !$hasStoredCriteria) {
-                    throw new \InvalidArgumentException('Criteria required for v2 rules');
-                }
-            }
-
-            // Validate actions if being updated
-            if (isset($updates['actions'])) {
-                $actionValidation = $this->actionApplicator->validateActions($updates['actions'], $userId);
-                if (!$actionValidation['valid']) {
-                    throw new \InvalidArgumentException('Invalid actions: ' . implode(', ', $actionValidation['errors']));
-                }
-            }
-        } else {
-            // v1 validation (existing logic)
-            // Validate category if being updated (either in categoryId or actions)
-            if (isset($updates['categoryId']) && $updates['categoryId'] !== null) {
-                $this->categoryMapper->find($updates['categoryId'], $userId);
-            }
-            if (isset($updates['actions']) && isset($updates['actions']['categoryId'])) {
-                $this->categoryMapper->find($updates['actions']['categoryId'], $userId);
-            }
-
-            // Validate match type if being updated
-            if (isset($updates['matchType'])) {
-                $validMatchTypes = ['contains', 'starts_with', 'ends_with', 'equals', 'regex', 'exact'];
-                if (!in_array($updates['matchType'], $validMatchTypes)) {
-                    throw new \InvalidArgumentException('Invalid match type');
-                }
-            }
-
-            // Validate field if being updated
-            if (isset($updates['field'])) {
-                $validFields = ['description', 'vendor', 'amount', 'reference', 'notes'];
-                if (!in_array($updates['field'], $validFields)) {
-                    throw new \InvalidArgumentException('Invalid field');
-                }
-            }
-        }
-
-        // Handle criteria array specially - convert to JSON
-        if (isset($updates['criteria']) && is_array($updates['criteria'])) {
-            $rule->setCriteriaFromArray($updates['criteria']);
-            unset($updates['criteria']);
-        }
-
-        // Handle actions array specially - convert to JSON
-        if (isset($updates['actions']) && is_array($updates['actions'])) {
-            $rule->setActionsFromArray($updates['actions']);
-            unset($updates['actions']);
-        }
-
-        // Set updated_at timestamp
-        $rule->setUpdatedAt(date('Y-m-d H:i:s'));
-
-        foreach ($updates as $key => $value) {
-            if (property_exists($rule, $key)) {
-                $setter = 'set' . ucfirst($key);
-                $rule->$setter($value);
-            }
-        }
-
-        return $this->mapper->update($rule);
-    }
-
-
-    public function testRules(string $userId, array $transactionData): array {
-        $rules = $this->mapper->findActive($userId);
-        $results = [];
-
-        foreach ($rules as $rule) {
-            $matches = $this->testRule($rule, $transactionData);
-            if ($matches) {
-                $results[] = [
-                    'ruleId' => $rule->getId(),
-                    'ruleName' => $rule->getName(),
-                    'categoryId' => $this->effectiveCategoryId($rule),
-                    'vendorName' => $rule->getVendorName(),
-                    'priority' => $rule->getPriority()
-                ];
-            }
-        }
-        
-        // Sort by priority (highest first)
-        usort($results, function($a, $b) {
-            return $b['priority'] - $a['priority'];
-        });
-        
-        return $results;
-    }
-
-    /**
-     * The category a rule actually assigns, wherever it stores it.
-     *
-     * Legacy (schema v1) rules keep it in the category_id column; rules made
-     * in the current builder (schema v2) keep it as a set_category action in
-     * the actions JSON and leave the column NULL. Anything reporting "which
-     * category would this rule apply" must look in both places, or every
-     * modern rule reads as category-less — which is how the receipt draft's
-     * category suggestion silently returned null for every real user.
-     */
-    public function effectiveCategoryId(ImportRule $rule): ?int {
-        if ($rule->getCategoryId() !== null) {
-            return $rule->getCategoryId();
-        }
-
-        foreach ($rule->getParsedActions() as $action) {
-            if (is_array($action) && ($action['type'] ?? null) === 'set_category' && isset($action['value'])) {
-                return (int)$action['value'];
-            }
-        }
-
-        return null;
-    }
-
-    private function testRule(ImportRule $rule, array $data): bool {
-        $schemaVersion = $rule->getSchemaVersion() ?? 1;
-
-        if ($schemaVersion === 2) {
-            // v2 format: use CriteriaEvaluator
-            $criteria = $rule->getCriteria();
-            return $this->criteriaEvaluator->evaluate($criteria, $data, $schemaVersion);
-        } else {
-            // v1 format: legacy evaluation
-            $criteria = [
-                'field' => $rule->getField(),
-                'pattern' => $rule->getPattern(),
-                'matchType' => $rule->getMatchType()
-            ];
-            return $this->criteriaEvaluator->evaluate($criteria, $data, $schemaVersion);
-        }
-    }
-
-    public function createDefaultRules(string $userId): array {
-        $defaultRules = [
-            [
-                'name' => 'Grocery Stores',
-                'pattern' => 'grocery|supermarket|safeway|kroger|trader joe|whole foods',
-                'field' => 'description',
-                'matchType' => 'regex',
-                'categoryName' => 'Groceries',
-                'priority' => 10
-            ],
-            [
-                'name' => 'Gas Stations',
-                'pattern' => 'gas|fuel|shell|chevron|exxon|bp|mobil',
-                'field' => 'description', 
-                'matchType' => 'regex',
-                'categoryName' => 'Gas',
-                'priority' => 10
-            ],
-            [
-                'name' => 'Restaurants',
-                'pattern' => 'restaurant|cafe|coffee|starbucks|mcdonald|burger',
-                'field' => 'description',
-                'matchType' => 'regex', 
-                'categoryName' => 'Dining Out',
-                'priority' => 8
-            ],
-            [
-                'name' => 'Online Shopping',
-                'pattern' => 'amazon|ebay|paypal|stripe',
-                'field' => 'description',
-                'matchType' => 'regex',
-                'categoryName' => 'Shopping',
-                'priority' => 5
-            ],
-            [
-                'name' => 'Utilities',
-                'pattern' => 'electric|water|gas|utility|power|energy',
-                'field' => 'description',
-                'matchType' => 'regex',
-                'categoryName' => 'Utilities',
-                'priority' => 9
-            ],
-            [
-                'name' => 'ATM Withdrawals',
-                'pattern' => 'ATM|withdrawal|cash',
-                'field' => 'description',
-                'matchType' => 'regex',
-                'categoryName' => 'Cash',
-                'priority' => 7
-            ]
-        ];
-
-        $created = [];
-        foreach ($defaultRules as $ruleData) {
-            try {
-                // Find category by name (this is simplified - in practice you'd need better category matching)
-                $categoryId = null; // Would need to implement category lookup
-                
-                $rule = $this->create(
-                    userId: $userId,
-                    name: $ruleData['name'],
-                    pattern: $ruleData['pattern'],
-                    field: $ruleData['field'],
-                    matchType: $ruleData['matchType'],
-                    categoryId: $categoryId,
-                    priority: $ruleData['priority']
-                );
-                
-                $created[] = $rule;
-            } catch (\Exception $e) {
-                // Skip if category not found or other error
-                continue;
-            }
-        }
-
-        return $created;
-    }
-
-    /**
-     * Find transactions matching the given filters
-     *
-     * @param string $userId
-     * @param array $filters ['accountId' => ?int, 'startDate' => ?string, 'endDate' => ?string, 'uncategorizedOnly' => bool]
-     * @return Transaction[]
-     */
-    public function findTransactionsForRules(string $userId, array $filters): array {
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('t.*')
-            ->from('budget_transactions', 't')
-            ->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
-            ->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)));
-
-        // Filter by account
-        if (!empty($filters['accountId'])) {
-            $qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($filters['accountId'], IQueryBuilder::PARAM_INT)));
-        }
-
-        // Filter by date range
-        if (!empty($filters['startDate'])) {
-            $qb->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($filters['startDate'])));
-        }
-        if (!empty($filters['endDate'])) {
-            $qb->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($filters['endDate'])));
-        }
-
-        // Filter uncategorized only
-        if (!empty($filters['uncategorizedOnly'])) {
-            $qb->andWhere($qb->expr()->isNull('t.category_id'));
-            // Never hand a split parent to a rule run: its null category is
-            // deliberate (the splits hold the categories), and categorising
-            // the parent double-counts it against its own splits (#356).
-            // The partition complement, same as the aggregates (#360): a
-            // NULL-flag row that HAS parts is a split parent from before the
-            // column existed, and offering it for categorization is exactly
-            // how damaged rows carrying both a category and parts get made.
-            $qb->andWhere($qb->expr()->orX(
-                $qb->expr()->eq('t.is_split', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)),
-                'NOT ' . QueryFilterBuilder::hasSplitPartsExpr($qb, 't')
-            ));
-        }
-
-        $qb->orderBy('t.date', 'DESC');
-
-        $result = $qb->executeQuery();
-        $transactions = [];
-        while ($row = $result->fetch()) {
-            $transaction = Transaction::fromRow($row);
-            $transactions[] = $transaction;
-        }
-        $result->closeCursor();
-
-        return $transactions;
-    }
-
-    /**
-     * Preview rule application without modifying transactions
-     *
-     * @param string $userId
-     * @param array $ruleIds Specific rule IDs to apply (empty = all active)
-     * @param array $filters Transaction filters
-     * @return array Preview results with matched transactions and changes
-     */
-    public function previewRuleApplication(string $userId, array $ruleIds, array $filters): array {
-        $transactions = $this->findTransactionsForRules($userId, $filters);
-
-        // Get rules to apply — own plus rules shared with this user
-        if (empty($ruleIds)) {
-            $rules = $this->findActiveIncludingShared($userId);
-        } else {
-            $rules = [];
-            foreach ($ruleIds as $ruleId) {
-                $rule = $this->findAccessibleRule($ruleId, $userId);
-                if ($rule !== null && $rule->getActive()) {
-                    $rules[] = $rule;
-                }
-            }
-        }
-
-        // Sort rules by priority (highest first)
-        usort($rules, function($a, $b) {
-            return $b->getPriority() - $a->getPriority();
-        });
-
-        $preview = [];
-        $matchCount = 0;
-
-        foreach ($transactions as $transaction) {
-            $transactionData = $this->extractTransactionData($transaction, $userId);
-
-            foreach ($rules as $rule) {
-                if ($this->testRule($rule, $transactionData)) {
-                    // Show ALL matching transactions in preview
-                    $preview[] = [
-                        'transactionId' => $transaction->getId(),
-                        'transactionDescription' => $transaction->getDescription(),
-                        'transactionDate' => $transaction->getDate(),
-                        'transactionAmount' => $transaction->getAmount(),
-                        'transactionCategoryId' => $transaction->getCategoryId(),
-                        'ruleId' => $rule->getId(),
-                        'ruleName' => $rule->getName()
-                    ];
-                    $matchCount++;
-                    break; // First matching rule wins
-                }
-            }
-        }
-
-        return [
-            'totalTransactions' => count($transactions),
-            'matchCount' => $matchCount,
-            'preview' => $preview
-        ];
-    }
-
-    /**
-     * Apply rules to existing transactions
-     * Supports multiple matching rules with conflict resolution
-     *
-     * @param string $userId
-     * @param array $ruleIds Specific rule IDs to apply (empty = all active)
-     * @param array $filters Transaction filters
-     * @return array Results with success/failure counts
-     */
-    public function applyRulesToTransactions(string $userId, array $ruleIds, array $filters): array {
-        $transactions = $this->findTransactionsForRules($userId, $filters);
-
-        // Get rules to apply — own plus rules shared with this user
-        if (empty($ruleIds)) {
-            $rules = $this->findActiveIncludingShared($userId);
-        } else {
-            $rules = [];
-            foreach ($ruleIds as $ruleId) {
-                $rule = $this->findAccessibleRule($ruleId, $userId);
-                if ($rule !== null && $rule->getActive()) {
-                    $rules[] = $rule;
-                }
-            }
-        }
-
-        // Sort rules by priority (highest first)
-        usort($rules, function($a, $b) {
-            return $b->getPriority() - $a->getPriority();
-        });
-
-        $success = 0;
-        $failed = 0;
-        $skipped = 0;
-        $applied = [];
-
-        foreach ($transactions as $transaction) {
-            $transactionData = $this->extractTransactionData($transaction, $userId);
-
-            // Find all matching rules
-            $matchingRules = [];
-            foreach ($rules as $rule) {
-                if ($this->testRule($rule, $transactionData)) {
-                    $matchingRules[] = $rule;
-
-                    // Check stop_processing flag
-                    if ($rule->getStopProcessing() ?? true) {
-                        break; // Don't evaluate more rules
-                    }
-                }
-            }
-
-            if (empty($matchingRules)) {
-                $skipped++;
-                continue;
-            }
-
-            try {
-                // Apply all matching rules
-                $changes = $this->actionApplicator->applyRules($transaction, $matchingRules, $userId);
-
-                if (!empty($changes)) {
-                    $transaction->setUpdatedAt(date('Y-m-d H:i:s'));
-                    $updatedTransaction = $this->transactionMapper->update($transaction);
-
-                    // Rules can change type (set_type) or account (set_account) —
-                    // both affect balances, so recompute from the ledger
-                    if (isset($changes['type']) || isset($changes['account'])) {
-                        $this->transactionService->recalculateAccountBalance($updatedTransaction->getAccountId(), $userId);
-                        if (isset($changes['account']) && !empty($changes['account']['old'])) {
-                            $this->transactionService->recalculateAccountBalance((int)$changes['account']['old'], $userId);
-                        }
-                    }
-
-                    // Apply deferred tag actions after transaction is persisted
-                    $this->actionApplicator->applyDeferredTagActions($updatedTransaction, $changes, $userId, $changes);
-
-                    // Apply deferred transfer linking
-                    if (!empty($changes['_deferred_link_transfer'])) {
-                        try {
-                            $matches = $this->transactionService->findPotentialMatches($updatedTransaction->getId(), $userId, 3);
-                            if (!empty($matches)) {
-                                $this->transactionService->linkTransactions($updatedTransaction->getId(), $matches[0]->getId(), $userId);
-                                $changes['transferLinked'] = $matches[0]->getId();
-                            }
-                        } catch (\Exception $e) {
-                            // Silently skip — no match found or already linked
-                        }
-                    }
-
-                    $success++;
-                    $applied[] = [
-                        'transactionId' => $updatedTransaction->getId(),
-                        'date' => $updatedTransaction->getDate(),
-                        'description' => $updatedTransaction->getDescription(),
-                        'amount' => $updatedTransaction->getAmount(),
-                        'categoryId' => $updatedTransaction->getCategoryId(),
-                        'isSplit' => (bool)$updatedTransaction->getIsSplit(),
-                        'rules' => array_map(fn($r) => ['id' => $r->getId(), 'name' => $r->getName()], $matchingRules),
-                        'changes' => $changes
-                    ];
-                } else {
-                    $skipped++;
-                }
-            } catch (\Exception $e) {
-                $failed++;
-            }
-        }
-
-        return [
-            'totalTransactions' => count($transactions),
-            'success' => $success,
-            'failed' => $failed,
-            'skipped' => $skipped,
-            'applied' => $applied
-        ];
-    }
-
-    /**
-     * Extract transaction data as array for rule evaluation
-     *
-     * @param Transaction $transaction
-     * @param string $userId Owner of the transactions being evaluated
-     * @return array
-     */
-    private function extractTransactionData(Transaction $transaction, string $userId): array {
-        $accountId = $transaction->getAccountId();
-        return [
-            'description' => $transaction->getDescription(),
-            'vendor' => $transaction->getVendor() ?? '',
-            'amount' => $transaction->getAmount(),
-            'type' => $transaction->getType(),
-            'reference' => $transaction->getReference() ?? '',
-            'notes' => $transaction->getNotes() ?? '',
-            'date' => $transaction->getDate(),
-            'account' => $accountId,
-            'account_type' => $this->getAccountType($accountId, $userId),
-        ];
-    }
-
-    /**
-     * Look up an account's type for the 'account_type' rule field, cached per
-     * request so applying rules across many transactions on the same account
-     * costs a single query.
-     *
-     * @param int|null $accountId
-     * @param string $userId
-     * @return string Account type, or '' when unknown
-     */
-    private function getAccountType(?int $accountId, string $userId): string {
-        if (!$accountId) {
-            return '';
-        }
-        if (!array_key_exists($accountId, $this->accountTypeCache)) {
-            $qb = $this->db->getQueryBuilder();
-            $qb->select('type')
-                ->from('budget_accounts')
-                ->where($qb->expr()->eq('id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
-                ->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
-            $type = $qb->executeQuery()->fetchOne();
-            $this->accountTypeCache[$accountId] = $type !== false ? (string)$type : '';
-        }
-        return $this->accountTypeCache[$accountId];
-    }
-
-    /**
-     * Get active rules for a user
-     */
-    public function findActive(string $userId): array {
-        return $this->mapper->findActive($userId);
-    }
-
-    /**
-     * Test unsaved rule criteria against existing transactions
-     *
-     * @param string $userId User ID
-     * @param array $criteria Rule criteria (v2 format)
-     * @param int $schemaVersion Schema version (1 or 2)
-     * @param array $filters Transaction filters
-     * @param int $limit Maximum number of matching transactions to return
-     * @return array Array with matching transactions
-     */
-    public function testUnsavedRule(string $userId, array $criteria, int $schemaVersion, array $filters, int $limit = 50): array {
-        // Validate criteria
-        if ($schemaVersion === 2) {
-            $validation = $this->criteriaEvaluator->validate($criteria);
-            if (!$validation['valid']) {
-                throw new \InvalidArgumentException('Invalid criteria: ' . implode(', ', $validation['errors']));
-            }
-        }
-
-        // Find transactions matching filters
-        $transactions = $this->findTransactionsForRules($userId, $filters);
-
-        $matches = [];
-        $count = 0;
-
-        foreach ($transactions as $transaction) {
-            if ($count >= $limit) {
-                break;
-            }
-
-            $transactionData = $this->extractTransactionData($transaction, $userId);
-
-            // Test criteria against transaction
-            $isMatch = false;
-            if ($schemaVersion === 2) {
-                $isMatch = $this->criteriaEvaluator->evaluate($criteria, $transactionData, $schemaVersion);
-            } else {
-                // v1 format (if needed for backwards compatibility)
-                $isMatch = $this->criteriaEvaluator->evaluate($criteria, $transactionData, $schemaVersion);
-            }
-
-            if ($isMatch) {
-                $matches[] = [
-                    'id' => $transaction->getId(),
-                    'date' => $transaction->getDate(),
-                    'description' => $transaction->getDescription(),
-                    'vendor' => $transaction->getVendor(),
-                    'amount' => $transaction->getAmount(),
-                    'categoryId' => $transaction->getCategoryId(),
-                    'accountId' => $transaction->getAccountId(),
-                    // A split holds its categories on its parts, so a rule will
-                    // not set one on it (#360). Say so, rather than leaving the
-                    // preview to show "Uncategorized" and imply a change coming.
-                    'isSplit' => (bool)$transaction->getIsSplit(),
-                ];
-                $count++;
-            }
-        }
-
-        return [
-            'totalMatches' => $count,
-            'matches' => $matches,
-            'limitReached' => $count >= $limit
-        ];
-    }
-
-    /**
-     * Migrate a legacy v1 rule to v2 format
-     *
-     * @param int $ruleId Rule ID to migrate
-     * @param string $userId User ID
-     * @return ImportRule Migrated rule
-     * @throws DoesNotExistException
-     */
-    public function migrateLegacyRule(int $ruleId, string $userId): ImportRule {
-        $rule = $this->find($ruleId, $userId);
-
-        // Check if already properly migrated
-        if ($rule->getSchemaVersion() === 2 && $rule->getCriteria() !== null && $rule->getCriteria() !== '') {
-            // Also check if criteria has valid structure (root must be a group, not a condition)
-            $parsedCriteria = $rule->getParsedCriteria();
-            if ($parsedCriteria && isset($parsedCriteria['root']) && isset($parsedCriteria['root']['operator'])) {
-                // Valid v2 structure - no need to re-migrate
-                return $rule;
-            }
-            // Has criteria but invalid structure (old broken migration) - fall through to re-migrate
-        }
-
-        // Convert field/pattern/matchType to criteria tree
-        // Wrap single condition in a group for CriteriaBuilder compatibility
-        $criteria = [
-            'version' => 2,
-            'root' => [
-                'operator' => 'AND',
-                'conditions' => [
-                    [
-                        'type' => 'condition',
-                        'field' => $rule->getField(),
-                        'matchType' => $rule->getMatchType(),
-                        'pattern' => $rule->getPattern(),
-                        'negate' => false
-                    ]
-                ]
-            ]
-        ];
-
-        // Convert legacy actions to v2 format
-        $legacyActions = $rule->getParsedActions();
-        $actions = [
-            'version' => 2,
-            'stopProcessing' => true, // Default for migrated rules
-            'actions' => []
-        ];
-
-        if (isset($legacyActions['categoryId']) && $legacyActions['categoryId'] !== null) {
-            $actions['actions'][] = [
-                'type' => 'set_category',
-                'value' => $legacyActions['categoryId'],
-                'behavior' => 'always',
-                'priority' => 100
-            ];
-        }
-
-        if (isset($legacyActions['vendor']) && $legacyActions['vendor'] !== null && $legacyActions['vendor'] !== '') {
-            $actions['actions'][] = [
-                'type' => 'set_vendor',
-                'value' => $legacyActions['vendor'],
-                'behavior' => 'always',
-                'priority' => 90
-            ];
-        }
-
-        if (isset($legacyActions['notes']) && $legacyActions['notes'] !== null && $legacyActions['notes'] !== '') {
-            $actions['actions'][] = [
-                'type' => 'set_notes',
-                'value' => $legacyActions['notes'],
-                'behavior' => 'always',
-                'priority' => 80
-            ];
-        }
-
-        // Update the rule - explicitly set all fields to ensure they're saved
-        $rule->setCriteriaFromArray($criteria);
-        $rule->setActionsFromArray($actions);
-        $rule->setSchemaVersion(2);
-        $rule->setStopProcessing(true);
-        $rule->setUpdatedAt(date('Y-m-d H:i:s'));
-
-        return $this->mapper->update($rule);
-    }
-
-    /**
-     * Batch migrate all legacy rules for a user
-     *
-     * @param string $userId User ID
-     * @return array Array of migrated rule IDs
-     */
-    public function migrateAllLegacyRules(string $userId): array {
-        $rules = $this->mapper->findAll($userId);
-        $migrated = [];
-
-        foreach ($rules as $rule) {
-            // Only migrate v1 rules
-            if (($rule->getSchemaVersion() ?? 1) === 1) {
-                try {
-                    $this->migrateLegacyRule($rule->getId(), $userId);
-                    $migrated[] = $rule->getId();
-                } catch (\Exception $e) {
-                    // Log error but continue with other rules
-                    continue;
-                }
-            }
-        }
-
-        return $migrated;
-    }
+	private CategoryMapper $categoryMapper;
+	private TransactionMapper $transactionMapper;
+	private TransactionService $transactionService;
+	private IDBConnection $db;
+	private CriteriaEvaluator $criteriaEvaluator;
+	private RuleActionApplicator $actionApplicator;
+	private GranularShareService $granularShareService;
+	private ?AutoShareService $autoShareService;
+	private ?LoggerInterface $logger;
+
+	/** @var array<int,string> Cache of account id => type for the account/account_type rule fields */
+	private array $accountTypeCache = [];
+
+	public function __construct(
+		ImportRuleMapper $mapper,
+		CategoryMapper $categoryMapper,
+		TransactionMapper $transactionMapper,
+		TransactionService $transactionService,
+		IDBConnection $db,
+		CriteriaEvaluator $criteriaEvaluator,
+		RuleActionApplicator $actionApplicator,
+		GranularShareService $granularShareService,
+		?AutoShareService $autoShareService = null,
+		?LoggerInterface $logger = null,
+	) {
+		$this->mapper = $mapper;
+		$this->categoryMapper = $categoryMapper;
+		$this->transactionMapper = $transactionMapper;
+		$this->transactionService = $transactionService;
+		$this->db = $db;
+		$this->criteriaEvaluator = $criteriaEvaluator;
+		$this->actionApplicator = $actionApplicator;
+		$this->granularShareService = $granularShareService;
+		$this->autoShareService = $autoShareService;
+		$this->logger = $logger;
+	}
+
+	/**
+	 * Active rules that apply for a user: their own plus rules shared with them
+	 * (an accepted incoming share). Sorted by priority DESC so higher-priority
+	 * rules win, matching findActive's ordering.
+	 *
+	 * @return ImportRule[]
+	 */
+	public function findActiveIncludingShared(string $userId): array {
+		$own = $this->mapper->findActive($userId);
+		$sharedIds = $this->granularShareService->getSharedImportRuleIds($userId);
+		$shared = $this->mapper->findActiveByIds($sharedIds);
+
+		$all = array_merge($own, $shared);
+		usort($all, fn (ImportRule $a, ImportRule $b) => $b->getPriority() - $a->getPriority());
+		return $all;
+	}
+
+	/**
+	 * Find a rule the user may run — their own, or one shared with them.
+	 * Returns null when the id is neither owned nor accessible via a share.
+	 */
+	private function findAccessibleRule(int $ruleId, string $userId): ?ImportRule {
+		$owner = $this->granularShareService->resolveOwner($userId, ShareItem::TYPE_IMPORT_RULE, $ruleId);
+		if ($owner === null) {
+			return null;
+		}
+		try {
+			return $this->mapper->find($ruleId, $owner);
+		} catch (DoesNotExistException $e) {
+			return null;
+		}
+	}
+
+	/**
+	 * Get distinct group names for a user
+	 *
+	 * @return string[]
+	 */
+	public function getGroups(string $userId): array {
+		return $this->mapper->findGroups($userId);
+	}
+
+	public function create(
+		string $userId,
+		string $name,
+		?string $pattern = null,
+		?string $field = null,
+		?string $matchType = null,
+		?array $criteria = null,
+		int $schemaVersion = 1,
+		?int $categoryId = null,
+		?string $vendorName = null,
+		int $priority = 0,
+		?array $actions = null,
+		bool $applyOnImport = true,
+		bool $stopProcessing = true,
+		?string $groupName = null,
+	): ImportRule {
+		// Validate based on schema version
+		if ($schemaVersion === 2) {
+			// v2 format: criteria required
+			if ($criteria === null) {
+				throw new \InvalidArgumentException('Criteria required for v2 rules');
+			}
+
+			// Store 'between' ranges in their canonical array shape (the
+			// visual builder sends the JSON text the user typed)
+			$criteria = CriteriaEvaluator::normalizeCriteria($criteria);
+
+			// Validate criteria structure
+			$validation = $this->criteriaEvaluator->validate($criteria);
+			if (!$validation['valid']) {
+				throw new \InvalidArgumentException('Invalid criteria: ' . implode(', ', $validation['errors']));
+			}
+
+			// Validate actions if provided
+			if ($actions !== null) {
+				$this->assertValidActions($actions, $userId);
+			}
+			// The legacy column is still read (effectiveCategoryId(), Run
+			// rules), so it is held to the same rule as an action
+			if ($categoryId !== null) {
+				$this->assertValidActions(['categoryId' => $categoryId], $userId);
+			}
+		} else {
+			// v1 format: pattern, field, matchType required
+			if (!$pattern || !$field || !$matchType) {
+				throw new \InvalidArgumentException('Pattern, field, and matchType required for v1 rules');
+			}
+
+			// Validate category if provided (either in categoryId or actions)
+			$effectiveCategoryId = $categoryId;
+			if ($actions !== null && isset($actions['categoryId'])) {
+				$effectiveCategoryId = $actions['categoryId'];
+			}
+			if ($effectiveCategoryId !== null) {
+				$this->categoryMapper->find($effectiveCategoryId, $userId);
+			}
+			// A v1 rule may carry actions in the current format too, and the
+			// import applies them: they were stored unchecked (R6-4)
+			if ($actions !== null) {
+				$this->assertValidActions($actions, $userId);
+			}
+
+			// Validate match type
+			$validMatchTypes = ['contains', 'starts_with', 'ends_with', 'equals', 'regex', 'exact'];
+			if (!in_array($matchType, $validMatchTypes)) {
+				throw new \InvalidArgumentException('Invalid match type');
+			}
+
+			// Validate field
+			$validFields = ['description', 'vendor', 'amount', 'reference', 'notes'];
+			if (!in_array($field, $validFields)) {
+				throw new \InvalidArgumentException('Invalid field');
+			}
+		}
+
+		$rule = new ImportRule();
+		$rule->setUserId($userId);
+		$rule->setName($name);
+		$rule->setPattern($pattern ?? '');
+		$rule->setField($field ?? 'description');
+		$rule->setMatchType($matchType ?? 'contains');
+		$rule->setCategoryId($categoryId);
+		$rule->setVendorName($vendorName);
+		$rule->setPriority($priority);
+		$rule->setActive(true);
+		$rule->setApplyOnImport($applyOnImport);
+		$rule->setSchemaVersion($schemaVersion);
+		$rule->setStopProcessing($stopProcessing);
+		$rule->setCreatedAt(date('Y-m-d H:i:s'));
+
+		// Set criteria JSON for v2 rules
+		if ($criteria !== null) {
+			$rule->setCriteriaFromArray($criteria);
+		}
+
+		// Set actions JSON if provided
+		if ($actions !== null) {
+			$rule->setActionsFromArray($actions);
+		}
+
+		// Set group name if provided
+		if ($groupName !== null && $groupName !== '') {
+			$rule->setGroupName(substr(trim($groupName), 0, 100));
+		}
+
+		$inserted = $this->mapper->insert($rule);
+		if ($this->autoShareService !== null) {
+			$this->autoShareService->autoShareNewEntity($userId, ShareItem::TYPE_IMPORT_RULE, $inserted->getId());
+		}
+		return $inserted;
+	}
+
+	public function update(int $id, string $userId, array $updates): ImportRule {
+		$rule = $this->find($id, $userId);
+
+		// Determine if upgrading from v1 to v2
+		$currentVersion = $rule->getSchemaVersion() ?? 1;
+		$newVersion = $updates['schemaVersion'] ?? $currentVersion;
+
+		// Validate based on schema version
+		if ($newVersion === 2) {
+			// Validate criteria if being updated
+			if (isset($updates['criteria'])) {
+				if (is_array($updates['criteria'])) {
+					$updates['criteria'] = CriteriaEvaluator::normalizeCriteria($updates['criteria']);
+				}
+				$validation = $this->criteriaEvaluator->validate($updates['criteria']);
+				if (!$validation['valid']) {
+					throw new \InvalidArgumentException('Invalid criteria: ' . implode(', ', $validation['errors']));
+				}
+			} else {
+				// A rule ending up at v2 must have valid criteria (mirrors the
+				// create() invariant). Without this, a JSON edit that sets
+				// schemaVersion=2 but omits criteria silently produced an inert
+				// rule that matches nothing (#318). Only enforced when the rule
+				// has no usable criteria yet — a partial v2 update that leaves
+				// existing criteria untouched is fine.
+				$upgradingToV2 = ($currentVersion !== 2);
+				$storedCriteria = $rule->getCriteria();
+				$hasStoredCriteria = ($storedCriteria !== null && $storedCriteria !== '');
+				if ($upgradingToV2 || !$hasStoredCriteria) {
+					throw new \InvalidArgumentException('Criteria required for v2 rules');
+				}
+			}
+
+			// Validate actions if being updated
+			if (isset($updates['actions'])) {
+				$this->assertValidActions($updates['actions'], $userId);
+			} elseif ($currentVersion !== 2) {
+				// Switching a v1 rule to v2 without resending its actions keeps
+				// the ones it was saved with, which a v1 save never checked
+				$this->assertValidActions($rule->getParsedActions(), $userId);
+			}
+			if (isset($updates['categoryId'])) {
+				$this->assertValidActions(['categoryId' => $updates['categoryId']], $userId);
+			}
+		} else {
+			// v1 validation (existing logic)
+			// Validate category if being updated (either in categoryId or actions)
+			if (isset($updates['categoryId']) && $updates['categoryId'] !== null) {
+				$this->categoryMapper->find($updates['categoryId'], $userId);
+			}
+			if (isset($updates['actions']) && isset($updates['actions']['categoryId'])) {
+				$this->categoryMapper->find($updates['actions']['categoryId'], $userId);
+			}
+			if (isset($updates['actions'])) {
+				$this->assertValidActions($updates['actions'], $userId);
+			}
+
+			// Validate match type if being updated
+			if (isset($updates['matchType'])) {
+				$validMatchTypes = ['contains', 'starts_with', 'ends_with', 'equals', 'regex', 'exact'];
+				if (!in_array($updates['matchType'], $validMatchTypes)) {
+					throw new \InvalidArgumentException('Invalid match type');
+				}
+			}
+
+			// Validate field if being updated
+			if (isset($updates['field'])) {
+				$validFields = ['description', 'vendor', 'amount', 'reference', 'notes'];
+				if (!in_array($updates['field'], $validFields)) {
+					throw new \InvalidArgumentException('Invalid field');
+				}
+			}
+		}
+
+		// Handle criteria array specially - convert to JSON
+		if (isset($updates['criteria']) && is_array($updates['criteria'])) {
+			$rule->setCriteriaFromArray($updates['criteria']);
+			unset($updates['criteria']);
+		}
+
+		// Handle actions array specially - convert to JSON
+		if (isset($updates['actions']) && is_array($updates['actions'])) {
+			$rule->setActionsFromArray($updates['actions']);
+			unset($updates['actions']);
+		}
+
+		// Set updated_at timestamp
+		$rule->setUpdatedAt(date('Y-m-d H:i:s'));
+
+		foreach ($updates as $key => $value) {
+			if (property_exists($rule, $key)) {
+				$setter = 'set' . ucfirst($key);
+				$rule->$setter($value);
+			}
+		}
+
+		return $this->mapper->update($rule);
+	}
+
+	/**
+	 * Refuse actions that point at something the rule's owner can't use: a
+	 * category outside their ledger, an account that isn't theirs.
+	 *
+	 * @throws \InvalidArgumentException
+	 */
+	private function assertValidActions(array $actions, string $userId): void {
+		$validation = $this->actionApplicator->validateActions($actions, $userId);
+		if (!$validation['valid']) {
+			throw new \InvalidArgumentException('Invalid actions: ' . implode(', ', $validation['errors']));
+		}
+	}
+
+	public function testRules(string $userId, array $transactionData): array {
+		$rules = $this->mapper->findActive($userId);
+		$results = [];
+
+		foreach ($rules as $rule) {
+			$matches = $this->testRule($rule, $transactionData);
+			if ($matches) {
+				$results[] = [
+					'ruleId' => $rule->getId(),
+					'ruleName' => $rule->getName(),
+					'categoryId' => $this->effectiveCategoryId($rule),
+					'vendorName' => $rule->getVendorName(),
+					'priority' => $rule->getPriority()
+				];
+			}
+		}
+
+		// Sort by priority (highest first)
+		usort($results, function ($a, $b) {
+			return $b['priority'] - $a['priority'];
+		});
+
+		return $results;
+	}
+
+	/**
+	 * The category a rule actually assigns, wherever it stores it.
+	 *
+	 * Legacy (schema v1) rules keep it in the category_id column; rules made
+	 * in the current builder (schema v2) keep it as a set_category action in
+	 * the actions JSON and leave the column NULL. Anything reporting "which
+	 * category would this rule apply" must look in both places, or every
+	 * modern rule reads as category-less — which is how the receipt draft's
+	 * category suggestion silently returned null for every real user.
+	 */
+	public function effectiveCategoryId(ImportRule $rule): ?int {
+		if ($rule->getCategoryId() !== null) {
+			return $rule->getCategoryId();
+		}
+
+		foreach ($rule->getParsedActions() as $action) {
+			if (is_array($action) && ($action['type'] ?? null) === 'set_category' && isset($action['value'])) {
+				return (int)$action['value'];
+			}
+		}
+
+		return null;
+	}
+
+	private function testRule(ImportRule $rule, array $data): bool {
+		$schemaVersion = $rule->getSchemaVersion() ?? 1;
+
+		if ($schemaVersion === 2) {
+			// v2 format: use CriteriaEvaluator
+			$criteria = $rule->getCriteria();
+			return $this->criteriaEvaluator->evaluate($criteria, $data, $schemaVersion);
+		} else {
+			// v1 format: legacy evaluation
+			$criteria = [
+				'field' => $rule->getField(),
+				'pattern' => $rule->getPattern(),
+				'matchType' => $rule->getMatchType()
+			];
+			return $this->criteriaEvaluator->evaluate($criteria, $data, $schemaVersion);
+		}
+	}
+
+	/**
+	 * The priority setup gives its rules: the lowest there is, below the 1 a
+	 * rule made in the rule editor starts at, so a rule the user makes wins
+	 * whenever both match. At 5-10 the defaults matched first and kept the
+	 * user's own rules from running (T3). The 0-100 range is the editor's.
+	 */
+	public const DEFAULT_RULE_PRIORITY = 0;
+
+	public function createDefaultRules(string $userId): array {
+		// SetupDefaultRules lists them in the order they used to rank (their
+		// old priorities 10, 10, 9, 8, 7, 5): at one priority the older rule
+		// runs first, so creating them in that order keeps their order among
+		// themselves. Their patterns match whole words (V3-4).
+		$defaultRules = [];
+		foreach (SetupDefaultRules::DEFINITIONS as $name => $definition) {
+			$defaultRules[] = [
+				'name' => $name,
+				'pattern' => $definition['pattern'],
+				'field' => 'description',
+				'matchType' => 'regex',
+				'categoryName' => $definition['category'],
+			];
+		}
+
+		// Each rule sets the category it is named for. They were created with
+		// none: a rule with no action still matches first and stops the rules
+		// after it, so "Create default categories" left every user with six
+		// rules that kept their own rules from ever running (T3). A rule whose
+		// category the user doesn't have is not created at all.
+		$categories = $this->categoryMapper->findAll($userId);
+		$existingRules = $this->findAll($userId);
+
+		$created = [];
+		foreach ($defaultRules as $ruleData) {
+			// Pressing the button again must not stack a second copy, beside
+			// one made with this pattern or the one it had before
+			$patterns = [$ruleData['pattern'], SetupDefaultRules::RULES[$ruleData['name']] ?? null];
+			foreach ($existingRules as $existing) {
+				if ($existing->getName() === $ruleData['name'] && in_array($existing->getPattern(), $patterns, true)) {
+					continue 2;
+				}
+			}
+
+			$categoryId = self::defaultRuleCategoryId($categories, $ruleData['categoryName']);
+			if ($categoryId === null) {
+				continue;
+			}
+
+			try {
+				$created[] = $this->create(
+					userId: $userId,
+					name: $ruleData['name'],
+					pattern: $ruleData['pattern'],
+					field: $ruleData['field'],
+					matchType: $ruleData['matchType'],
+					criteria: SetupDefaultRules::criteriaFor($ruleData['pattern']),
+					schemaVersion: 2,
+					priority: self::DEFAULT_RULE_PRIORITY,
+					actions: [
+						'version' => 2,
+						'stopProcessing' => true,
+						'actions' => [[
+							'type' => 'set_category',
+							'value' => $categoryId,
+							'behavior' => 'always',
+							'priority' => 100,
+						]],
+					],
+				);
+			} catch (\Exception $e) {
+				continue;
+			}
+		}
+
+		return $created;
+	}
+
+	/**
+	 * The user's expense category a default rule files into: a top-level one
+	 * of that name, else the only one of that name at any level (the default
+	 * tree has Groceries under Food). Null when there is none, or several
+	 * subcategories share the name and none of them is clearly meant.
+	 *
+	 * @param \OCA\Budget\Db\Category[] $categories
+	 */
+	private static function defaultRuleCategoryId(array $categories, string $name): ?int {
+		$matches = array_values(array_filter(
+			$categories,
+			static fn ($category) => $category->getName() === $name && $category->getType() === 'expense'
+		));
+		foreach ($matches as $category) {
+			if ($category->getParentId() === null) {
+				return $category->getId();
+			}
+		}
+		return count($matches) === 1 ? $matches[0]->getId() : null;
+	}
+
+	/**
+	 * Find transactions matching the given filters
+	 *
+	 * @param string $userId
+	 * @param array $filters ['accountId' => ?int, 'startDate' => ?string, 'endDate' => ?string, 'uncategorizedOnly' => bool]
+	 * @return Transaction[]
+	 */
+	public function findTransactionsForRules(string $userId, array $filters): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('t.*')
+			->from('budget_transactions', 't')
+			->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'))
+			->where($qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId)));
+
+		// Filter by account
+		if (!empty($filters['accountId'])) {
+			$qb->andWhere($qb->expr()->eq('t.account_id', $qb->createNamedParameter($filters['accountId'], IQueryBuilder::PARAM_INT)));
+		}
+
+		// Particular rows: a chunk of a rule run done again row by row
+		if (!empty($filters['ids'])) {
+			$qb->andWhere($qb->expr()->in('t.id', $qb->createNamedParameter(array_map('intval', $filters['ids']), IQueryBuilder::PARAM_INT_ARRAY)));
+		}
+
+		// Filter by date range
+		if (!empty($filters['startDate'])) {
+			$qb->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($filters['startDate'])));
+		}
+		if (!empty($filters['endDate'])) {
+			$qb->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($filters['endDate'])));
+		}
+
+		// Filter uncategorized only
+		if (!empty($filters['uncategorizedOnly'])) {
+			$qb->andWhere($qb->expr()->isNull('t.category_id'));
+			// Never hand a split parent to a rule run: its null category is
+			// deliberate (the splits hold the categories), and categorising
+			// the parent double-counts it against its own splits (#356).
+			// The partition complement, same as the aggregates (#360): a
+			// NULL-flag row that HAS parts is a split parent from before the
+			// column existed, and offering it for categorization is exactly
+			// how damaged rows carrying both a category and parts get made.
+			$qb->andWhere($qb->expr()->orX(
+				$qb->expr()->eq('t.is_split', $qb->createNamedParameter(false, IQueryBuilder::PARAM_BOOL)),
+				'NOT ' . QueryFilterBuilder::hasSplitPartsExpr($qb, 't')
+			));
+		}
+
+		$qb->orderBy('t.date', 'DESC');
+
+		$result = $qb->executeQuery();
+		$transactions = [];
+		while ($row = $result->fetch()) {
+			$transaction = Transaction::fromRow($row);
+			$transactions[] = $transaction;
+		}
+		$result->closeCursor();
+
+		return $transactions;
+	}
+
+	/**
+	 * Preview rule application without modifying transactions
+	 *
+	 * @param string $userId
+	 * @param array $ruleIds Specific rule IDs to apply (empty = all active)
+	 * @param array $filters Transaction filters
+	 * @return array Preview results with matched transactions and changes
+	 */
+	public function previewRuleApplication(string $userId, array $ruleIds, array $filters): array {
+		$transactions = $this->findTransactionsForRules($userId, $filters);
+
+		// Get rules to apply — own plus rules shared with this user
+		if (empty($ruleIds)) {
+			$rules = $this->findActiveIncludingShared($userId);
+		} else {
+			$rules = [];
+			foreach ($ruleIds as $ruleId) {
+				$rule = $this->findAccessibleRule($ruleId, $userId);
+				if ($rule !== null && $rule->getActive()) {
+					$rules[] = $rule;
+				}
+			}
+		}
+
+		// Sort rules by priority (highest first)
+		usort($rules, function ($a, $b) {
+			return $b->getPriority() - $a->getPriority();
+		});
+
+		$preview = [];
+		$matchCount = 0;
+
+		foreach ($transactions as $transaction) {
+			$transactionData = $this->extractTransactionData($transaction, $userId);
+
+			foreach ($rules as $rule) {
+				if ($this->testRule($rule, $transactionData)) {
+					// Listed up to a limit: a whole ledger's matches came to
+					// 5 MB (T6-3). matchCount still counts every one.
+					if (count($preview) < self::RESULT_LIST_LIMIT) {
+						$preview[] = [
+							'transactionId' => $transaction->getId(),
+							'transactionDescription' => $transaction->getDescription(),
+							'transactionDate' => $transaction->getDate(),
+							'transactionAmount' => $transaction->getAmount(),
+							'transactionCategoryId' => $transaction->getCategoryId(),
+							'ruleId' => $rule->getId(),
+							'ruleName' => $rule->getName()
+						];
+					}
+					$matchCount++;
+					break; // First matching rule wins
+				}
+			}
+		}
+
+		return [
+			'totalTransactions' => count($transactions),
+			'matchCount' => $matchCount,
+			'preview' => $preview,
+			'previewTruncated' => $matchCount > count($preview),
+		];
+	}
+
+	/**
+	 * Apply rules to existing transactions
+	 * Supports multiple matching rules with conflict resolution
+	 *
+	 * @param string $userId
+	 * @param array $ruleIds Specific rule IDs to apply (empty = all active)
+	 * @param array $filters Transaction filters
+	 * @return array Results with success/failure counts
+	 */
+	public function applyRulesToTransactions(string $userId, array $ruleIds, array $filters): array {
+		$transactions = $this->findTransactionsForRules($userId, $filters);
+
+		// Get rules to apply — own plus rules shared with this user
+		if (empty($ruleIds)) {
+			$rules = $this->findActiveIncludingShared($userId);
+		} else {
+			$rules = [];
+			foreach ($ruleIds as $ruleId) {
+				$rule = $this->findAccessibleRule($ruleId, $userId);
+				if ($rule !== null && $rule->getActive()) {
+					$rules[] = $rule;
+				}
+			}
+		}
+
+		// Sort rules by priority (highest first)
+		usort($rules, function ($a, $b) {
+			return $b->getPriority() - $a->getPriority();
+		});
+
+		$outcome = self::emptyRunOutcome();
+		foreach (array_chunk($transactions, self::RUN_CHUNK) as $chunk) {
+			$this->applyRulesToChunk($chunk, $rules, $userId, $outcome);
+		}
+
+		// Accounts whose ledger a rule changed, recomputed once each after the
+		// run rather than once per changed row
+		foreach (array_keys($outcome['touched']) as $accountId) {
+			try {
+				// As the account's owner: recomputing a shared account as the
+				// user who ran the rules failed and left its balance stale
+				$owner = $this->transactionService->findAccountById((int)$accountId)->getUserId();
+				$this->transactionService->recalculateAccountBalance((int)$accountId, $owner);
+			} catch (\Exception $e) {
+				// The rows are already saved; one account's failure must not
+				// cost the others their recompute
+				$this->logger?->warning('Balance recompute after a rule run failed', [
+					'app' => 'budget',
+					'accountId' => $accountId,
+					'exception' => $e,
+				]);
+			}
+		}
+
+		return [
+			'totalTransactions' => count($transactions),
+			'success' => $outcome['success'],
+			'failed' => $outcome['failed'],
+			'skipped' => $outcome['skipped'],
+			// Listed up to a limit: a run over a whole ledger sent every
+			// change back, 6 MB for 27,000 rows (T6-3). The counts are whole.
+			'applied' => $outcome['applied'],
+			'appliedTruncated' => $outcome['success'] > count($outcome['applied']),
+		];
+	}
+
+	/** Rows a rule run saves per database transaction (T6-3) */
+	private const RUN_CHUNK = 500;
+
+	/** Rows a rule run or preview lists back to the browser (T6-3) */
+	private const RESULT_LIST_LIMIT = 500;
+
+	/**
+	 * @return array{success: int, failed: int, skipped: int, applied: array, touched: array<int, true>}
+	 */
+	private static function emptyRunOutcome(): array {
+		return ['success' => 0, 'failed' => 0, 'skipped' => 0, 'applied' => [], 'touched' => []];
+	}
+
+	/**
+	 * Apply the rules to one chunk of rows, saved in one database transaction.
+	 *
+	 * Every changed row used to be its own autocommitted UPDATE, so a run
+	 * over a whole ledger synced to disk once per row: 27,000 changed rows
+	 * took 96 s (T6-3). A row that fails is counted and left as before. But
+	 * after a failed statement PostgreSQL refuses the rest of a transaction,
+	 * and committing it then drops every change in it, so when anything in
+	 * the chunk fails at the database the chunk is rolled back and done again
+	 * one row at a time, each saved on its own, from the rows as stored.
+	 *
+	 * @param Transaction[] $chunk
+	 * @param ImportRule[] $rules
+	 * @param array{success: int, failed: int, skipped: int, applied: array, touched: array<int, true>} $outcome
+	 */
+	private function applyRulesToChunk(array $chunk, array $rules, string $userId, array &$outcome): void {
+		$chunkOutcome = self::emptyRunOutcome();
+		$this->db->beginTransaction();
+		try {
+			foreach ($chunk as $transaction) {
+				$this->applyRulesToRow($transaction, $rules, $userId, $chunkOutcome, true);
+			}
+			// A failed statement whose error was handled further down (a tag,
+			// a transfer link) still leaves PostgreSQL refusing what follows
+			$probe = $this->db->getQueryBuilder();
+			$probe->select('id')->from('budget_import_rules')->setMaxResults(1);
+			$probe->executeQuery()->closeCursor();
+			$this->db->commit();
+		} catch (\Throwable $e) {
+			if ($this->db->inTransaction()) {
+				$this->db->rollBack();
+			}
+			$this->logger?->warning('A rule run saved one chunk row by row after a database error', [
+				'app' => 'budget',
+				'exception' => $e,
+			]);
+			$chunkOutcome = self::emptyRunOutcome();
+			$ids = array_map(static fn (Transaction $transaction) => $transaction->getId(), $chunk);
+			foreach ($this->findTransactionsForRules($userId, ['ids' => $ids]) as $transaction) {
+				$this->applyRulesToRow($transaction, $rules, $userId, $chunkOutcome, false);
+			}
+		}
+
+		$outcome['success'] += $chunkOutcome['success'];
+		$outcome['failed'] += $chunkOutcome['failed'];
+		$outcome['skipped'] += $chunkOutcome['skipped'];
+		$outcome['touched'] += $chunkOutcome['touched'];
+		foreach ($chunkOutcome['applied'] as $entry) {
+			if (count($outcome['applied']) >= self::RESULT_LIST_LIMIT) {
+				break;
+			}
+			$outcome['applied'][] = $entry;
+		}
+	}
+
+	/**
+	 * Apply the matching rules to one row and save it.
+	 *
+	 * @param ImportRule[] $rules
+	 * @param array{success: int, failed: int, skipped: int, applied: array, touched: array<int, true>} $outcome
+	 * @param bool $inChunkTransaction A database error is passed up, for the chunk to be done again row by row
+	 */
+	private function applyRulesToRow(Transaction $transaction, array $rules, string $userId, array &$outcome, bool $inChunkTransaction): void {
+		$transactionData = $this->extractTransactionData($transaction, $userId);
+
+		// Find all matching rules
+		$matchingRules = [];
+		foreach ($rules as $rule) {
+			if ($this->testRule($rule, $transactionData)) {
+				$matchingRules[] = $rule;
+
+				// Check stop_processing flag
+				if ($rule->getStopProcessing() ?? true) {
+					break; // Don't evaluate more rules
+				}
+			}
+		}
+
+		if (empty($matchingRules)) {
+			$outcome['skipped']++;
+			return;
+		}
+
+		try {
+			// Apply all matching rules
+			$changes = $this->actionApplicator->applyRules($transaction, $matchingRules, $userId);
+
+			if (!empty($changes)) {
+				$transaction->setUpdatedAt(date('Y-m-d H:i:s'));
+				$updatedTransaction = $this->transactionMapper->update($transaction);
+
+				// Rules can change type (set_type) or account (set_account) —
+				// both affect balances, so the ledger is recomputed once the
+				// run is over. Recomputing it here, per changed row, redid
+				// the whole account's sum for every row a rule touched.
+				if (isset($changes['type']) || isset($changes['account'])) {
+					$outcome['touched'][$updatedTransaction->getAccountId()] = true;
+					if (isset($changes['account']) && !empty($changes['account']['old'])) {
+						$outcome['touched'][(int)$changes['account']['old']] = true;
+					}
+				}
+
+				// Apply deferred tag actions after transaction is persisted
+				$this->actionApplicator->applyDeferredTagActions($updatedTransaction, $changes, $userId, $changes);
+
+				// Apply deferred transfer linking
+				if (!empty($changes['_deferred_link_transfer'])) {
+					try {
+						$matches = $this->transactionService->findPotentialMatches($updatedTransaction->getId(), $userId, 3);
+						if (!empty($matches)) {
+							$this->transactionService->linkTransactions($updatedTransaction->getId(), $matches[0]->getId(), $userId);
+							$changes['transferLinked'] = $matches[0]->getId();
+						}
+					} catch (\Exception $e) {
+						// Silently skip — no match found or already linked
+					}
+				}
+
+				$outcome['success']++;
+				$outcome['applied'][] = [
+					'transactionId' => $updatedTransaction->getId(),
+					'date' => $updatedTransaction->getDate(),
+					'description' => $updatedTransaction->getDescription(),
+					'amount' => $updatedTransaction->getAmount(),
+					'categoryId' => $updatedTransaction->getCategoryId(),
+					'isSplit' => (bool)$updatedTransaction->getIsSplit(),
+					'rules' => array_map(fn ($r) => ['id' => $r->getId(), 'name' => $r->getName()], $matchingRules),
+					'changes' => $changes
+				];
+			} else {
+				$outcome['skipped']++;
+			}
+		} catch (\OCP\DB\Exception $e) {
+			if ($inChunkTransaction) {
+				throw $e;
+			}
+			$outcome['failed']++;
+		} catch (\Exception $e) {
+			$outcome['failed']++;
+		}
+	}
+
+	/**
+	 * Extract transaction data as array for rule evaluation
+	 *
+	 * @param Transaction $transaction
+	 * @param string $userId Owner of the transactions being evaluated
+	 * @return array
+	 */
+	private function extractTransactionData(Transaction $transaction, string $userId): array {
+		$accountId = $transaction->getAccountId();
+		return [
+			'description' => $transaction->getDescription(),
+			'vendor' => $transaction->getVendor() ?? '',
+			'amount' => $transaction->getAmount(),
+			'type' => $transaction->getType(),
+			'reference' => $transaction->getReference() ?? '',
+			'notes' => $transaction->getNotes() ?? '',
+			'date' => $transaction->getDate(),
+			'account' => $accountId,
+			'account_type' => $this->getAccountType($accountId, $userId),
+		];
+	}
+
+	/**
+	 * Look up an account's type for the 'account_type' rule field, cached per
+	 * request so applying rules across many transactions on the same account
+	 * costs a single query.
+	 *
+	 * @param int|null $accountId
+	 * @param string $userId
+	 * @return string Account type, or '' when unknown
+	 */
+	private function getAccountType(?int $accountId, string $userId): string {
+		if (!$accountId) {
+			return '';
+		}
+		if (!array_key_exists($accountId, $this->accountTypeCache)) {
+			$qb = $this->db->getQueryBuilder();
+			$qb->select('type')
+				->from('budget_accounts')
+				->where($qb->expr()->eq('id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+				->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+			$type = $qb->executeQuery()->fetchOne();
+			$this->accountTypeCache[$accountId] = $type !== false ? (string)$type : '';
+		}
+		return $this->accountTypeCache[$accountId];
+	}
+
+	/**
+	 * Get active rules for a user
+	 */
+	public function findActive(string $userId): array {
+		return $this->mapper->findActive($userId);
+	}
+
+	/**
+	 * Test unsaved rule criteria against existing transactions
+	 *
+	 * @param string $userId User ID
+	 * @param array $criteria Rule criteria (v2 format)
+	 * @param int $schemaVersion Schema version (1 or 2)
+	 * @param array $filters Transaction filters
+	 * @param int $limit Maximum number of matching transactions to return
+	 * @return array Array with matching transactions
+	 */
+	public function testUnsavedRule(string $userId, array $criteria, int $schemaVersion, array $filters, int $limit = 50): array {
+		// Validate criteria
+		if ($schemaVersion === 2) {
+			$validation = $this->criteriaEvaluator->validate($criteria);
+			if (!$validation['valid']) {
+				throw new \InvalidArgumentException('Invalid criteria: ' . implode(', ', $validation['errors']));
+			}
+		}
+
+		// Find transactions matching filters
+		$transactions = $this->findTransactionsForRules($userId, $filters);
+
+		$matches = [];
+		$count = 0;
+
+		foreach ($transactions as $transaction) {
+			if ($count >= $limit) {
+				break;
+			}
+
+			$transactionData = $this->extractTransactionData($transaction, $userId);
+
+			// Test criteria against transaction
+			$isMatch = false;
+			if ($schemaVersion === 2) {
+				$isMatch = $this->criteriaEvaluator->evaluate($criteria, $transactionData, $schemaVersion);
+			} else {
+				// v1 format (if needed for backwards compatibility)
+				$isMatch = $this->criteriaEvaluator->evaluate($criteria, $transactionData, $schemaVersion);
+			}
+
+			if ($isMatch) {
+				$matches[] = [
+					'id' => $transaction->getId(),
+					'date' => $transaction->getDate(),
+					'description' => $transaction->getDescription(),
+					'vendor' => $transaction->getVendor(),
+					'amount' => $transaction->getAmount(),
+					'categoryId' => $transaction->getCategoryId(),
+					'accountId' => $transaction->getAccountId(),
+					// A split holds its categories on its parts, so a rule will
+					// not set one on it (#360). Say so, rather than leaving the
+					// preview to show "Uncategorized" and imply a change coming.
+					'isSplit' => (bool)$transaction->getIsSplit(),
+				];
+				$count++;
+			}
+		}
+
+		return [
+			'totalMatches' => $count,
+			'matches' => $matches,
+			'limitReached' => $count >= $limit
+		];
+	}
+
+	/**
+	 * Migrate a legacy v1 rule to v2 format
+	 *
+	 * @param int $ruleId Rule ID to migrate
+	 * @param string $userId User ID
+	 * @return ImportRule Migrated rule
+	 * @throws DoesNotExistException
+	 */
+	public function migrateLegacyRule(int $ruleId, string $userId): ImportRule {
+		$rule = $this->find($ruleId, $userId);
+
+		// Check if already properly migrated
+		if ($rule->getSchemaVersion() === 2 && $rule->getCriteria() !== null && $rule->getCriteria() !== '') {
+			// Also check if criteria has valid structure (root must be a group, not a condition)
+			$parsedCriteria = $rule->getParsedCriteria();
+			if ($parsedCriteria && isset($parsedCriteria['root']) && isset($parsedCriteria['root']['operator'])) {
+				// Valid v2 structure - no need to re-migrate
+				return $rule;
+			}
+			// Has criteria but invalid structure (old broken migration) - fall through to re-migrate
+		}
+
+		// Convert field/pattern/matchType to criteria tree
+		// Wrap single condition in a group for CriteriaBuilder compatibility
+		$criteria = [
+			'version' => 2,
+			'root' => [
+				'operator' => 'AND',
+				'conditions' => [
+					[
+						'type' => 'condition',
+						'field' => $rule->getField(),
+						'matchType' => $rule->getMatchType(),
+						'pattern' => $rule->getPattern(),
+						'negate' => false
+					]
+				]
+			]
+		];
+
+		// Convert legacy actions to v2 format
+		$legacyActions = $rule->getParsedActions();
+		$actions = [
+			'version' => 2,
+			'stopProcessing' => true, // Default for migrated rules
+			'actions' => []
+		];
+
+		if (isset($legacyActions['categoryId']) && $legacyActions['categoryId'] !== null) {
+			$actions['actions'][] = [
+				'type' => 'set_category',
+				'value' => $legacyActions['categoryId'],
+				'behavior' => 'always',
+				'priority' => 100
+			];
+		}
+
+		if (isset($legacyActions['vendor']) && $legacyActions['vendor'] !== null && $legacyActions['vendor'] !== '') {
+			$actions['actions'][] = [
+				'type' => 'set_vendor',
+				'value' => $legacyActions['vendor'],
+				'behavior' => 'always',
+				'priority' => 90
+			];
+		}
+
+		if (isset($legacyActions['notes']) && $legacyActions['notes'] !== null && $legacyActions['notes'] !== '') {
+			$actions['actions'][] = [
+				'type' => 'set_notes',
+				'value' => $legacyActions['notes'],
+				'behavior' => 'always',
+				'priority' => 80
+			];
+		}
+
+		// Update the rule - explicitly set all fields to ensure they're saved
+		$rule->setCriteriaFromArray($criteria);
+		$rule->setActionsFromArray($actions);
+		$rule->setSchemaVersion(2);
+		$rule->setStopProcessing(true);
+		$rule->setUpdatedAt(date('Y-m-d H:i:s'));
+
+		return $this->mapper->update($rule);
+	}
+
+	/**
+	 * Batch migrate all legacy rules for a user
+	 *
+	 * @param string $userId User ID
+	 * @return array Array of migrated rule IDs
+	 */
+	public function migrateAllLegacyRules(string $userId): array {
+		$rules = $this->mapper->findAll($userId);
+		$migrated = [];
+
+		foreach ($rules as $rule) {
+			// Only migrate v1 rules
+			if (($rule->getSchemaVersion() ?? 1) === 1) {
+				try {
+					$this->migrateLegacyRule($rule->getId(), $userId);
+					$migrated[] = $rule->getId();
+				} catch (\Exception $e) {
+					// Log error but continue with other rules
+					continue;
+				}
+			}
+		}
+
+		return $migrated;
+	}
 }

@@ -17,21 +17,21 @@ use OCP\Migration\SimpleMigrationStep;
  */
 class Version001000075Date20260607 extends SimpleMigrationStep {
 
-    public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
-        /** @var ISchemaWrapper $schema */
-        $schema = $schemaClosure();
+	public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
+		/** @var ISchemaWrapper $schema */
+		$schema = $schemaClosure();
 
-        if (!$schema->hasTable('budget_bills')) {
-            return null;
-        }
+		if (!$schema->hasTable('budget_bills')) {
+			return null;
+		}
 
-        $table = $schema->getTable('budget_bills');
-        if (!$table->hasColumn('start_date')) {
-            $table->addColumn('start_date', Types::DATE, [
-                'notnull' => false,
-            ]);
-        }
+		$table = $schema->getTable('budget_bills');
+		if (!$table->hasColumn('start_date')) {
+			$table->addColumn('start_date', Types::DATE, [
+				'notnull' => false,
+			]);
+		}
 
-        return $schema;
-    }
+		return $schema;
+	}
 }

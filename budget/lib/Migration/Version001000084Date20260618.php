@@ -22,25 +22,25 @@ use OCP\Migration\SimpleMigrationStep;
  */
 class Version001000084Date20260618 extends SimpleMigrationStep {
 
-    public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
-        /** @var ISchemaWrapper $schema */
-        $schema = $schemaClosure();
-        $changed = false;
+	public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
+		/** @var ISchemaWrapper $schema */
+		$schema = $schemaClosure();
+		$changed = false;
 
-        foreach (['budget_transactions', 'budget_bills', 'budget_recurring_income'] as $tableName) {
-            if (!$schema->hasTable($tableName)) {
-                continue;
-            }
-            $table = $schema->getTable($tableName);
-            if (!$table->hasColumn('excluded_from_forecast')) {
-                $table->addColumn('excluded_from_forecast', Types::BOOLEAN, [
-                    'notnull' => false,
-                    'default' => false,
-                ]);
-                $changed = true;
-            }
-        }
+		foreach (['budget_transactions', 'budget_bills', 'budget_recurring_income'] as $tableName) {
+			if (!$schema->hasTable($tableName)) {
+				continue;
+			}
+			$table = $schema->getTable($tableName);
+			if (!$table->hasColumn('excluded_from_forecast')) {
+				$table->addColumn('excluded_from_forecast', Types::BOOLEAN, [
+					'notnull' => false,
+					'default' => false,
+				]);
+				$changed = true;
+			}
+		}
 
-        return $changed ? $schema : null;
-    }
+		return $changed ? $schema : null;
+	}
 }

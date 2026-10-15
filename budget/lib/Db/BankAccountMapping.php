@@ -34,39 +34,39 @@ use OCP\AppFramework\Db\Entity;
  * @method void setUpdatedAt(string $updatedAt)
  */
 class BankAccountMapping extends Entity implements JsonSerializable {
-    protected $connectionId;
-    protected $externalAccountId;
-    protected $externalAccountName;
-    protected $budgetAccountId;
-    protected $enabled;
-    protected $requisitionId;
-    protected $consentExpires;
-    protected $lastBalance;
-    protected $lastCurrency;
-    protected $createdAt;
-    protected $updatedAt;
+	protected $connectionId;
+	protected $externalAccountId;
+	protected $externalAccountName;
+	protected $budgetAccountId;
+	protected $enabled;
+	protected $requisitionId;
+	protected $consentExpires;
+	protected $lastBalance;
+	protected $lastCurrency;
+	protected $createdAt;
+	protected $updatedAt;
 
-    public function __construct() {
-        $this->addType('id', 'integer');
-        $this->addType('connectionId', 'integer');
-        $this->addType('budgetAccountId', 'integer');
-        $this->addType('enabled', 'boolean');
-    }
+	public function __construct() {
+		$this->addType('id', 'integer');
+		$this->addType('connectionId', 'integer');
+		$this->addType('budgetAccountId', 'integer');
+		$this->addType('enabled', 'boolean');
+	}
 
-    public function jsonSerialize(): array {
-        return [
-            'id' => $this->getId(),
-            'connectionId' => $this->getConnectionId(),
-            'externalAccountId' => $this->getExternalAccountId(),
-            'externalAccountName' => $this->getExternalAccountName(),
-            'budgetAccountId' => $this->getBudgetAccountId(),
-            'enabled' => $this->getEnabled() ?? false,
-            'requisitionId' => $this->getRequisitionId(),
-            'consentExpires' => $this->getConsentExpires(),
-            'lastBalance' => $this->getLastBalance(),
-            'lastCurrency' => $this->getLastCurrency(),
-            'createdAt' => $this->getCreatedAt(),
-            'updatedAt' => $this->getUpdatedAt(),
-        ];
-    }
+	public function jsonSerialize(): array {
+		return [
+			'id' => $this->getId(),
+			'connectionId' => $this->getConnectionId(),
+			'externalAccountId' => $this->getExternalAccountId(),
+			'externalAccountName' => $this->getExternalAccountName(),
+			'budgetAccountId' => $this->getBudgetAccountId(),
+			'enabled' => $this->getEnabled() ?? false,
+			'requisitionId' => $this->getRequisitionId(),
+			'consentExpires' => $this->getConsentExpires(),
+			'lastBalance' => $this->getLastBalance(),
+			'lastCurrency' => $this->getLastCurrency(),
+			'createdAt' => $this->getCreatedAt(),
+			'updatedAt' => $this->getUpdatedAt(),
+		];
+	}
 }

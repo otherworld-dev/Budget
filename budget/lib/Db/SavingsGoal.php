@@ -34,46 +34,46 @@ use OCP\AppFramework\Db\Entity;
  * @method void setCreatedAt(string $createdAt)
  */
 class SavingsGoal extends Entity implements JsonSerializable {
-    protected $userId;
-    protected $name;
-    protected $targetAmount;
-    protected $currentAmount;
-    protected $targetMonths;
-    protected $description;
-    protected $targetDate;
-    protected $tagId;
-    protected $accountId;
-    protected $color;
-    protected $createdAt;
+	protected $userId;
+	protected $name;
+	protected $targetAmount;
+	protected $currentAmount;
+	protected $targetMonths;
+	protected $description;
+	protected $targetDate;
+	protected $tagId;
+	protected $accountId;
+	protected $color;
+	protected $createdAt;
 
-    public function __construct() {
-        $this->addType('id', 'integer');
-        $this->addType('targetAmount', 'float');
-        $this->addType('currentAmount', 'float');
-        $this->addType('targetMonths', 'integer');
-        $this->addType('tagId', 'integer');
-        $this->addType('accountId', 'integer');
-    }
+	public function __construct() {
+		$this->addType('id', 'integer');
+		$this->addType('targetAmount', 'float');
+		$this->addType('currentAmount', 'float');
+		$this->addType('targetMonths', 'integer');
+		$this->addType('tagId', 'integer');
+		$this->addType('accountId', 'integer');
+	}
 
-    public function jsonSerialize(): array {
-        $current = $this->getCurrentAmount();
-        $target = $this->getTargetAmount();
-        $completed = $current >= $target;
+	public function jsonSerialize(): array {
+		$current = $this->getCurrentAmount();
+		$target = $this->getTargetAmount();
+		$completed = $current >= $target;
 
-        return [
-            'id' => $this->getId(),
-            'userId' => $this->getUserId(),
-            'name' => $this->getName(),
-            'targetAmount' => $target,
-            'currentAmount' => $current,
-            'targetMonths' => $this->getTargetMonths(),
-            'description' => $this->getDescription(),
-            'targetDate' => $this->getTargetDate(),
-            'tagId' => $this->getTagId(),
-            'accountId' => $this->getAccountId(),
-            'color' => $this->getColor(),
-            'createdAt' => $this->getCreatedAt(),
-            'completed' => $completed,
-        ];
-    }
+		return [
+			'id' => $this->getId(),
+			'userId' => $this->getUserId(),
+			'name' => $this->getName(),
+			'targetAmount' => $target,
+			'currentAmount' => $current,
+			'targetMonths' => $this->getTargetMonths(),
+			'description' => $this->getDescription(),
+			'targetDate' => $this->getTargetDate(),
+			'tagId' => $this->getTagId(),
+			'accountId' => $this->getAccountId(),
+			'color' => $this->getColor(),
+			'createdAt' => $this->getCreatedAt(),
+			'completed' => $completed,
+		];
+	}
 }

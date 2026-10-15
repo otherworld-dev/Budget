@@ -82,7 +82,7 @@ class CleanupAuditLogsJobTest extends TestCase {
 			->method('error')
 			->with(
 				$this->stringContains('DB error'),
-				$this->callback(fn($ctx) => $ctx['app'] === 'budget')
+				$this->callback(fn ($ctx) => $ctx['app'] === 'budget')
 			);
 
 		$this->invokeRun();

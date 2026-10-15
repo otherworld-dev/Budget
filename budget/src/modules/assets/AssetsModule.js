@@ -5,10 +5,12 @@ import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError } from '../../utils/notifications.js';
+import { once } from '../../utils/submitGuard.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
-import Chart from 'chart.js/auto';
-import { serverErrorMessage } from '../../utils/helpers.js';
+import Chart from '../../utils/chart.js';
+import { apiFetch } from '../../utils/api.js';
+import { showLoading, showLoadError } from '../../utils/loading.js';
 
 export default class AssetsModule {
     constructor(app) {
@@ -24,38 +26,37 @@ export default class AssetsModule {
     get charts() { return this.app.charts; }
 
     async loadAssetsView() {
+        // Before any fetch, so a failed first load leaves working buttons.
+        this.setupAssetEventListeners();
+        showLoading('assets-list');
         try {
             await this.loadAssets();
             this.renderAssets();
-            this.setupAssetEventListeners();
         } catch (error) {
             console.error('Failed to load assets view:', error);
             showError(t('budget', 'Failed to load assets'));
+            const emptyState = document.getElementById('empty-assets');
+            if (emptyState) emptyState.style.display = 'none';
+            showLoadError('assets-list', t('budget', 'Failed to load assets'), () => this.loadAssetsView());
         }
     }
 
     async loadAssets() {
-        const response = await fetch(OC.generateUrl('/apps/budget/api/assets'), {
-            headers: { 'requesttoken': OC.requestToken }
+        this.assets = await apiFetch('/apps/budget/api/assets', {
+            errorMessage: 'Failed to fetch assets',
         });
-        if (!response.ok) throw new Error('Failed to fetch assets');
-        this.assets = await response.json();
     }
 
     async loadAssetSummary() {
-        const response = await fetch(OC.generateUrl('/apps/budget/api/assets/summary'), {
-            headers: { 'requesttoken': OC.requestToken }
+        return await apiFetch('/apps/budget/api/assets/summary', {
+            errorMessage: 'Failed to fetch asset summary',
         });
-        if (!response.ok) throw new Error('Failed to fetch asset summary');
-        return await response.json();
     }
 
     async loadAssetProjection() {
-        const response = await fetch(OC.generateUrl('/apps/budget/api/assets/projection'), {
-            headers: { 'requesttoken': OC.requestToken }
+        return await apiFetch('/apps/budget/api/assets/projection', {
+            errorMessage: 'Failed to fetch asset projection',
         });
-        if (!response.ok) throw new Error('Failed to fetch asset projection');
-        return await response.json();
     }
 
     renderAssets() {
@@ -151,7 +152,7 @@ export default class AssetsModule {
             : '';
 
         return `
-            <div class="asset-card" data-id="${asset.id}">
+            <div class="asset-card" data-id="${asset.id}" tabindex="0">
                 <div class="asset-card-header">
                     <div class="asset-card-title">
                         <span class="asset-type-icon" style="background: ${typeInfo.color}15; color: ${typeInfo.color}">
@@ -163,10 +164,10 @@ export default class AssetsModule {
                         </div>
                     </div>
                     <div class="asset-card-actions">
-                        <button class="asset-edit-btn icon-button" title="${t('budget', 'Edit')}" data-id="${asset.id}">
+                        <button class="asset-edit-btn icon-button" title="${t('budget', 'Edit')}" aria-label="${t('budget', 'Edit')}" data-id="${asset.id}">
                             <span class="icon-rename" aria-hidden="true"></span>
                         </button>
-                        <button class="asset-delete-btn icon-button delete-btn" title="${t('budget', 'Delete')}" data-id="${asset.id}">
+                        <button class="asset-delete-btn icon-button delete-btn" title="${t('budget', 'Delete')}" aria-label="${t('budget', 'Delete')}" data-id="${asset.id}">
                             <span class="icon-delete" aria-hidden="true"></span>
                         </button>
                     </div>
@@ -353,7 +354,12 @@ export default class AssetsModule {
         modal.setAttribute('aria-hidden', 'true');
     }
 
-    async saveAsset() {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveAsset() {
+        return once('asset-save', document.querySelector('#asset-form [type="submit"]'), () => this._saveAsset());
+    }
+
+    async _saveAsset() {
         const form = document.getElementById('asset-form');
         const formData = new FormData(form);
         const assetId = formData.get('id');
@@ -374,22 +380,14 @@ export default class AssetsModule {
 
         try {
             const url = assetId
-                ? OC.generateUrl(`/apps/budget/api/assets/${assetId}`)
-                : OC.generateUrl('/apps/budget/api/assets');
+                ? `/apps/budget/api/assets/${assetId}`
+                : '/apps/budget/api/assets';
 
-            const response = await fetch(url, {
+            await apiFetch(url, {
                 method: assetId ? 'PUT' : 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify(data)
+                body: data,
+                errorMessage: t('budget', 'Failed to save asset'),
             });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to save asset')));
-            }
 
             this.closeAssetModal();
             await this.loadAssets();
@@ -406,15 +404,10 @@ export default class AssetsModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/assets/${assetId}`), {
+            await apiFetch(`/apps/budget/api/assets/${assetId}`, {
                 method: 'DELETE',
-                headers: { 'requesttoken': OC.requestToken }
+                errorMessage: t('budget', 'Failed to delete asset'),
             });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to delete asset')));
-            }
 
             await this.loadAssets();
             this.renderAssets();
@@ -533,13 +526,9 @@ export default class AssetsModule {
 
     async loadAssetValueChart(assetId) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/assets/${assetId}/snapshots`), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
+            const snapshots = await apiFetch(`/apps/budget/api/assets/${assetId}/snapshots`).catch(() => null);
+            if (!snapshots) return [];
 
-            if (!response.ok) return [];
-
-            const snapshots = await response.json();
             const canvas = document.getElementById('asset-value-chart');
             if (!canvas) return snapshots || [];
 
@@ -598,13 +587,9 @@ export default class AssetsModule {
 
     async loadAssetProjectionChart(assetId) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/assets/${assetId}/projection`), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
+            const data = await apiFetch(`/apps/budget/api/assets/${assetId}/projection`).catch(() => null);
+            if (!data) return;
 
-            if (!response.ok) return;
-
-            const data = await response.json();
             const canvas = document.getElementById('asset-projection-chart');
             if (!canvas) return;
 
@@ -689,28 +674,25 @@ export default class AssetsModule {
         modal.setAttribute('aria-hidden', 'true');
     }
 
-    async saveValueUpdate() {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveValueUpdate() {
+        return once('asset-value-save', document.querySelector('#asset-value-form [type="submit"]'), () => this._saveValueUpdate());
+    }
+
+    async _saveValueUpdate() {
         const form = document.getElementById('asset-value-form');
         const formData = new FormData(form);
         const assetId = formData.get('assetId');
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/assets/${assetId}/snapshots`), {
+            await apiFetch(`/apps/budget/api/assets/${assetId}/snapshots`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({
+                body: {
                     value: parseFloat(formData.get('value')),
                     date: formData.get('date')
-                })
+                },
+                errorMessage: t('budget', 'Failed to update value'),
             });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to update value')));
-            }
 
             this.closeValueModal();
             await this.loadAssets();

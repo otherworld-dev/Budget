@@ -16,7 +16,7 @@ vi.mock('@nextcloud/l10n', () => ({
 }));
 
 const charts = vi.hoisted(() => []);
-vi.mock('chart.js/auto', () => ({
+vi.mock('../../src/utils/chart.js', () => ({
     default: class {
         constructor(_ctx, config) { charts.push(config); }
         destroy() {}

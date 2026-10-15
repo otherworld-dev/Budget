@@ -6,9 +6,9 @@ namespace OCA\Budget\Service\Import;
 
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\CategoryMapper;
+use OCA\Budget\Db\ImportRule;
 use OCA\Budget\Db\ShareItem;
 use OCA\Budget\Db\Transaction;
-use OCA\Budget\Db\ImportRule;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\TransactionTagService;
 use Psr\Log\LoggerInterface;
@@ -39,7 +39,7 @@ class RuleActionApplicator {
 		CategoryMapper $categoryMapper,
 		AccountMapper $accountMapper,
 		GranularShareService $granularShareService,
-		LoggerInterface $logger
+		LoggerInterface $logger,
 	) {
 		$this->transactionTagService = $transactionTagService;
 		$this->categoryMapper = $categoryMapper;
@@ -64,14 +64,46 @@ class RuleActionApplicator {
 	}
 
 	/**
-	 * Whether the acting user may target an account in a rule action (own or shared).
+	 * Whether the acting user may move transactions into an account with a
+	 * rule action: their own, or one shared with them that they can write
+	 * to. Moving a row in writes to that account's ledger, so a read-only
+	 * share is not enough.
 	 */
 	private function canUseAccount(int $accountId, string $userId): bool {
 		try {
 			$this->accountMapper->find($accountId, $userId);
 			return true;
 		} catch (\Exception $e) {
-			return $this->granularShareService->canAccess($userId, ShareItem::TYPE_ACCOUNT, $accountId);
+			return $this->granularShareService->canWrite($userId, ShareItem::TYPE_ACCOUNT, $accountId);
+		}
+	}
+
+	private function isOwnAccount(int $accountId, string $userId): bool {
+		try {
+			$this->accountMapper->find($accountId, $userId);
+			return true;
+		} catch (\Exception $e) {
+			return false;
+		}
+	}
+
+	/**
+	 * Whether a rule may move this transaction into $accountId: an account
+	 * the acting user can write to, with the same owner as the account the
+	 * row is in now. A row must not move into another user's ledger, as the
+	 * web edit already refuses: the move left that account's stored balance
+	 * stale and carried the rule owner's category into a ledger that can't
+	 * use it (R2-2).
+	 */
+	private function canMoveInto(Transaction $transaction, int $accountId, string $userId): bool {
+		if (!$this->canUseAccount($accountId, $userId)) {
+			return false;
+		}
+		try {
+			$currentOwner = $this->accountMapper->findById((int)$transaction->getAccountId())->getUserId();
+			return $currentOwner === $this->accountMapper->findById($accountId)->getUserId();
+		} catch (\Exception $e) {
+			return false;
 		}
 	}
 
@@ -127,7 +159,7 @@ class RuleActionApplicator {
 	 * @param array $legacyActions Legacy format: {categoryId, vendor, notes}
 	 * @return array v2 format: [{type, value, behavior, priority}, ...]
 	 */
-	private function convertLegacyActions(array $legacyActions): array {
+	public static function convertLegacyActions(array $legacyActions): array {
 		$actions = [];
 
 		if (isset($legacyActions['categoryId']) && $legacyActions['categoryId'] !== null) {
@@ -174,7 +206,7 @@ class RuleActionApplicator {
 		array $actionList,
 		string $userId,
 		array &$appliedActions,
-		array &$changes
+		array &$changes,
 	): void {
 		// Sort actions by priority (higher first)
 		usort($actionList, function ($a, $b) {
@@ -209,7 +241,7 @@ class RuleActionApplicator {
 		array $action,
 		string $userId,
 		array &$appliedActions,
-		array &$changes
+		array &$changes,
 	): void {
 		$type = $action['type'] ?? null;
 		$value = $action['value'] ?? null;
@@ -314,8 +346,8 @@ class RuleActionApplicator {
 
 			case 'set_account':
 				if ($this->shouldApply($type, $behavior, $transaction->getAccountId(), $appliedActions)) {
-					// Account must be accessible to the acting user (own or shared)
-					if ($this->canUseAccount((int)$value, $userId)) {
+					// Writable by the acting user, and in the same ledger
+					if ($this->canMoveInto($transaction, (int)$value, $userId)) {
 						$oldValue = $transaction->getAccountId();
 						$transaction->setAccountId((int)$value);
 						$appliedActions[$type] = ['priority' => $priority, 'value' => $value];
@@ -362,6 +394,112 @@ class RuleActionApplicator {
 				$changes['excludedFromForecast'] = ['old' => $oldValue, 'new' => $newValue];
 				break;
 
+			case 'regex_replace':
+				$sourceField = $action['field'] ?? 'description';
+				$targetField = $action['target'] ?? $sourceField;
+				$pattern = $action['pattern'] ?? null;
+				$replacement = $action['replacement'] ?? '';
+				if (!in_array($sourceField, ['description', 'vendor', 'reference', 'notes'], true)
+					|| !in_array($targetField, ['description', 'vendor', 'reference', 'notes'], true)
+					|| !is_string($pattern) || !is_string($replacement)) {
+					$this->logger->warning('Invalid regex replace action fields', ['action' => $action]);
+					break;
+				}
+				$currentValue = match ($sourceField) {
+					'description' => $transaction->getDescription(),
+					'vendor' => $transaction->getVendor(),
+					'reference' => $transaction->getReference(),
+					'notes' => $transaction->getNotes(),
+				};
+				if ($pattern === '') {
+					$this->logger->warning('Regex replace action missing pattern', ['action' => $action]);
+					break;
+				}
+				if (!is_string($currentValue)) {
+					break;
+				}
+				$normalizedPattern = RegexPattern::forReplace($pattern);
+				if ($normalizedPattern === null) {
+					$this->logger->warning('Invalid regex replace pattern', ['pattern' => $pattern]);
+					break;
+				}
+				$targetCurrentValue = $this->getFieldValue($transaction, $targetField);
+				if ($behavior !== 'if_empty' || $targetCurrentValue === null || $targetCurrentValue === '') {
+					$regex = @preg_replace($normalizedPattern, $replacement, $currentValue, -1, $matchCount);
+					if ($regex === null) {
+						$this->logger->warning('Invalid regex replace pattern', ['pattern' => $pattern]);
+						break;
+					}
+					// No match means preg_replace handed back the source unchanged;
+					// writing that into a different target would copy it verbatim.
+					if ($matchCount === 0) {
+						break;
+					}
+					// Text that is not UTF-8 breaks every list it appears in
+					if (!mb_check_encoding($regex, 'UTF-8')) {
+						$this->logger->warning('Regex replace skipped: the result is not valid UTF-8', ['pattern' => $pattern]);
+						break;
+					}
+					$oldValue = match ($targetField) {
+						'description' => $transaction->getDescription(),
+						'vendor' => $transaction->getVendor(),
+						'reference' => $transaction->getReference(),
+						'notes' => $transaction->getNotes(),
+					};
+					$this->setFieldValue($transaction, $targetField, $regex);
+					$changes[$targetField] = [
+						'old' => $changes[$targetField]['old'] ?? $oldValue,
+						'new' => $regex,
+					];
+				}
+				break;
+
+			case 'change_case':
+				$field = $action['field'] ?? 'description';
+				$mode = $action['mode'] ?? 'upper';
+				$currentValue = $this->getFieldValue($transaction, $field);
+				if (!in_array($mode, ['upper', 'lower', 'title', 'sentence'], true)) {
+					$this->logger->warning('Invalid case mode in rule action', ['mode' => $mode]);
+					break;
+				}
+				if (!in_array($field, ['description', 'vendor', 'reference', 'notes'], true)
+					|| ($currentValue !== null && !is_string($currentValue))) {
+					break;
+				}
+				$oldValue = $currentValue;
+				$currentValue ??= '';
+				$updated = match ($mode) {
+					'upper' => mb_strtoupper($currentValue, 'UTF-8'),
+					'lower' => mb_strtolower($currentValue, 'UTF-8'),
+					'title' => mb_convert_case($currentValue, MB_CASE_TITLE, 'UTF-8'),
+					'sentence' => mb_strtoupper(mb_substr($currentValue, 0, 1, 'UTF-8'), 'UTF-8') . mb_strtolower(mb_substr($currentValue, 1, null, 'UTF-8'), 'UTF-8'),
+				};
+				if ($updated !== ($oldValue ?? '')) {
+					$this->setFieldValue($transaction, $field, $updated);
+					$changes[$field] = ['old' => $changes[$field]['old'] ?? $oldValue, 'new' => $updated];
+				}
+				break;
+
+			case 'replace_text':
+				$field = $action['field'] ?? 'description';
+				$find = $action['find'] ?? '';
+				$replace = $action['replace'] ?? '';
+				$currentValue = $this->getFieldValue($transaction, $field);
+				if (!in_array($field, ['description', 'vendor', 'reference', 'notes'], true)
+					|| !is_string($find) || $find === '' || !is_string($replace)
+					|| ($currentValue !== null && !is_string($currentValue))) {
+					$this->logger->warning('Replace text action missing find value', ['action' => $action]);
+					break;
+				}
+				$oldValue = $currentValue;
+				$currentValue ??= '';
+				$updated = str_replace($find, $replace, $currentValue);
+				if ($updated !== ($oldValue ?? '')) {
+					$this->setFieldValue($transaction, $field, $updated);
+					$changes[$field] = ['old' => $changes[$field]['old'] ?? $oldValue, 'new' => $updated];
+				}
+				break;
+
 			default:
 				$this->logger->warning('Unknown action type', ['type' => $type]);
 		}
@@ -391,6 +529,38 @@ class RuleActionApplicator {
 
 		// 'always' or 'replace' - always apply
 		return true;
+	}
+
+	private function getFieldValue(Transaction $transaction, string $field) {
+		switch ($field) {
+			case 'description':
+				return $transaction->getDescription();
+			case 'vendor':
+				return $transaction->getVendor();
+			case 'reference':
+				return $transaction->getReference();
+			case 'notes':
+				return $transaction->getNotes();
+			default:
+				return null;
+		}
+	}
+
+	private function setFieldValue(Transaction $transaction, string $field, string $value): void {
+		switch ($field) {
+			case 'description':
+				$transaction->setDescription($value);
+				break;
+			case 'vendor':
+				$transaction->setVendor($value);
+				break;
+			case 'reference':
+				$transaction->setReference($value);
+				break;
+			case 'notes':
+				$transaction->setNotes($value);
+				break;
+		}
 	}
 
 	/**
@@ -454,8 +624,12 @@ class RuleActionApplicator {
 		} elseif (isset($actions['actions'])) {
 			$actionList = $actions['actions'];
 		} else {
-			// Legacy format - no validation needed
-			return ['valid' => true, 'errors' => []];
+			// Legacy format: its category is the only reference to check
+			$categoryId = $actions['categoryId'] ?? null;
+			if ($categoryId !== null && !$this->canUseCategory((int)$categoryId, $userId)) {
+				$errors[] = "Action 0: category $categoryId is not available to the rule's owner (it must be theirs or shared with them)";
+			}
+			return ['valid' => empty($errors), 'errors' => $errors];
 		}
 
 		// Check action count
@@ -476,13 +650,18 @@ class RuleActionApplicator {
 			switch ($type) {
 				case 'set_category':
 					if ($value !== null && !$this->canUseCategory((int)$value, $userId)) {
-						$errors[] = "Action $idx: invalid category ID $value";
+						// Validated as the rule's owner, so a recipient editing a
+						// shared rule can't point it at their own category (#402)
+						$errors[] = "Action $idx: category $value is not available to the rule's owner (it must be theirs or shared with them)";
 					}
 					break;
 
 				case 'set_account':
-					if ($value !== null && !$this->canUseAccount((int)$value, $userId)) {
-						$errors[] = "Action $idx: invalid account ID $value";
+					// A rule runs on its owner's transactions, and a row never
+					// moves into another user's ledger: only the owner's own
+					// accounts are valid targets, a write share included
+					if ($value !== null && !$this->isOwnAccount((int)$value, $userId)) {
+						$errors[] = "Action $idx: account $value is not available to the rule's owner (it must be one of their own accounts)";
 					}
 					break;
 
@@ -503,6 +682,55 @@ class RuleActionApplicator {
 				case 'set_notes':
 				case 'set_reference':
 					// String values - no specific validation
+					break;
+
+				case 'regex_replace':
+					$field = $action['field'] ?? null;
+					if (!in_array($field, ['description', 'vendor', 'reference', 'notes'], true)) {
+						$errors[] = "Action $idx: invalid regex source field '$field'";
+						break;
+					}
+					$targetField = $action['target'] ?? $field;
+					if (!in_array($targetField, ['description', 'vendor', 'reference', 'notes'], true)) {
+						$errors[] = "Action $idx: invalid regex target field '$targetField'";
+						break;
+					}
+					$pattern = $action['pattern'] ?? null;
+					if (!is_string($pattern) || $pattern === '') {
+						$errors[] = "Action $idx: regex pattern is required";
+						break;
+					}
+					if (isset($action['replacement']) && !is_string($action['replacement'])) {
+						$errors[] = "Action $idx: regex replacement must be a string";
+						break;
+					}
+					if (!RegexPattern::isValid($pattern)) {
+						$errors[] = "Action $idx: invalid regex pattern '$pattern'";
+					}
+					break;
+
+				case 'change_case':
+					$field = $action['field'] ?? null;
+					if (!in_array($field, ['description', 'vendor', 'reference', 'notes'], true)) {
+						$errors[] = "Action $idx: invalid text target field '$field'";
+						break;
+					}
+					$mode = $action['mode'] ?? null;
+					if (!in_array($mode, ['upper', 'lower', 'title', 'sentence'], true)) {
+						$errors[] = "Action $idx: invalid case mode '$mode'";
+					}
+					break;
+
+				case 'replace_text':
+					$field = $action['field'] ?? null;
+					if (!in_array($field, ['description', 'vendor', 'reference', 'notes'], true)) {
+						$errors[] = "Action $idx: invalid text target field '$field'";
+						break;
+					}
+					$find = $action['find'] ?? null;
+					if (!is_string($find) || $find === '') {
+						$errors[] = "Action $idx: replace text target is required";
+					}
 					break;
 
 				case 'link_transfer':

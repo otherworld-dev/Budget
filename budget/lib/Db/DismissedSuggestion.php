@@ -24,13 +24,13 @@ use OCP\AppFramework\Db\Entity;
  * @method void setDismissedAt(string $dismissedAt)
  */
 class DismissedSuggestion extends Entity {
-    protected $userId;
-    protected $suggestionType;
-    protected $patternHash;
-    protected $pattern;
-    protected $dismissedAt;
+	protected $userId;
+	protected $suggestionType;
+	protected $patternHash;
+	protected $pattern;
+	protected $dismissedAt;
 
-    public function __construct() {
-        $this->addType('id', 'integer');
-    }
+	public function __construct() {
+		$this->addType('id', 'integer');
+	}
 }

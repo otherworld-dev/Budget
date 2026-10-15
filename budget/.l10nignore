@@ -1,5 +1,6 @@
-js/budget-app.js
-js/budget-app.js.map
+# The built bundle and the view chunks webpack splits off it (budget-*.js):
+# their strings are extracted from src/, never from the minified output.
+js/
 # Composer dependencies are third-party code - their strings belong to those
 # projects, not to Budget, and Weblate should never be asked to translate them.
 vendor

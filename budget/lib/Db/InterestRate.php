@@ -24,27 +24,27 @@ use OCP\AppFramework\Db\Entity;
  * @method void setCreatedAt(string $createdAt)
  */
 class InterestRate extends Entity implements JsonSerializable {
-    protected $accountId;
-    protected $userId;
-    protected $rate;
-    protected $compoundingFrequency;
-    protected $effectiveDate;
-    protected $createdAt;
+	protected $accountId;
+	protected $userId;
+	protected $rate;
+	protected $compoundingFrequency;
+	protected $effectiveDate;
+	protected $createdAt;
 
-    public function __construct() {
-        $this->addType('id', 'integer');
-        $this->addType('accountId', 'integer');
-        $this->addType('rate', 'float');
-    }
+	public function __construct() {
+		$this->addType('id', 'integer');
+		$this->addType('accountId', 'integer');
+		$this->addType('rate', 'float');
+	}
 
-    public function jsonSerialize(): array {
-        return [
-            'id' => $this->getId(),
-            'accountId' => $this->getAccountId(),
-            'rate' => $this->getRate(),
-            'compoundingFrequency' => $this->getCompoundingFrequency(),
-            'effectiveDate' => $this->getEffectiveDate(),
-            'createdAt' => $this->getCreatedAt(),
-        ];
-    }
+	public function jsonSerialize(): array {
+		return [
+			'id' => $this->getId(),
+			'accountId' => $this->getAccountId(),
+			'rate' => $this->getRate(),
+			'compoundingFrequency' => $this->getCompoundingFrequency(),
+			'effectiveDate' => $this->getEffectiveDate(),
+			'createdAt' => $this->getCreatedAt(),
+		];
+	}
 }

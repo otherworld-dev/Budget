@@ -19,44 +19,44 @@ use OCP\Migration\SimpleMigrationStep;
  */
 class Version001000088Date20260627 extends SimpleMigrationStep {
 
-    public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
-        /** @var ISchemaWrapper $schema */
-        $schema = $schemaClosure();
+	public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
+		/** @var ISchemaWrapper $schema */
+		$schema = $schemaClosure();
 
-        if ($schema->hasTable('budget_share_auto')) {
-            return null;
-        }
+		if ($schema->hasTable('budget_share_auto')) {
+			return null;
+		}
 
-        $table = $schema->createTable('budget_share_auto');
-        $table->addColumn('id', Types::BIGINT, [
-            'autoincrement' => true,
-            'notnull' => true,
-            'unsigned' => true,
-        ]);
-        $table->addColumn('share_id', Types::BIGINT, [
-            'notnull' => true,
-            'unsigned' => true,
-        ]);
-        $table->addColumn('entity_type', Types::STRING, [
-            'notnull' => true,
-            'length' => 32,
-        ]);
-        $table->addColumn('permission', Types::STRING, [
-            'notnull' => true,
-            'length' => 16,
-            'default' => 'read',
-        ]);
-        $table->addColumn('created_at', Types::DATETIME, [
-            'notnull' => true,
-        ]);
-        $table->addColumn('updated_at', Types::DATETIME, [
-            'notnull' => true,
-        ]);
+		$table = $schema->createTable('budget_share_auto');
+		$table->addColumn('id', Types::BIGINT, [
+			'autoincrement' => true,
+			'notnull' => true,
+			'unsigned' => true,
+		]);
+		$table->addColumn('share_id', Types::BIGINT, [
+			'notnull' => true,
+			'unsigned' => true,
+		]);
+		$table->addColumn('entity_type', Types::STRING, [
+			'notnull' => true,
+			'length' => 32,
+		]);
+		$table->addColumn('permission', Types::STRING, [
+			'notnull' => true,
+			'length' => 16,
+			'default' => 'read',
+		]);
+		$table->addColumn('created_at', Types::DATETIME, [
+			'notnull' => true,
+		]);
+		$table->addColumn('updated_at', Types::DATETIME, [
+			'notnull' => true,
+		]);
 
-        $table->setPrimaryKey(['id']);
-        $table->addUniqueIndex(['share_id', 'entity_type'], 'bgt_shauto_uniq');
-        $table->addIndex(['share_id'], 'bgt_shauto_sid');
+		$table->setPrimaryKey(['id']);
+		$table->addUniqueIndex(['share_id', 'entity_type'], 'bgt_shauto_uniq');
+		$table->addIndex(['share_id'], 'bgt_shauto_sid');
 
-        return $schema;
-    }
+		return $schema;
+	}
 }

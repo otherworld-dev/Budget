@@ -9,6 +9,8 @@ import { translate as t } from '@nextcloud/l10n';
 import { showSuccess, showError } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import * as dom from '../../utils/dom.js';
+import { showLoading, showLoadError } from '../../utils/loading.js';
+import { apiFetch } from '../../utils/api.js';
 
 export default class ExchangeRatesModule {
     constructor(app) {
@@ -21,21 +23,20 @@ export default class ExchangeRatesModule {
     get settings() { return this.app.settings; }
 
     async loadExchangeRatesView() {
-        try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/exchange-rates'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            this.data = await response.json();
-            this.renderRatesPage();
+        // Before any fetch, so a failed first load leaves working controls.
+        if (!this._eventsSetup) {
+            this.setupEventListeners();
+            this._eventsSetup = true;
+        }
 
-            if (!this._eventsSetup) {
-                this.setupEventListeners();
-                this._eventsSetup = true;
-            }
+        showLoading('exchange-rates-list');
+        try {
+            this.data = await apiFetch('/apps/budget/api/exchange-rates');
+            this.renderRatesPage();
         } catch (error) {
             console.error('Failed to load exchange rates:', error);
             showError(t('budget', 'Failed to load exchange rates'));
+            showLoadError('exchange-rates-list', t('budget', 'Failed to load exchange rates'), () => this.loadExchangeRatesView());
         }
     }
 
@@ -121,14 +122,14 @@ export default class ExchangeRatesModule {
                     </div>
                     <div class="rate-actions">
                         ${curr.hasManual ? `
-                            <button class="edit-manual-rate-btn icon-button" data-currency="${curr.code}" data-rate="${currentDisplayRate}" title="${t('budget', 'Edit manual rate')}">
+                            <button class="edit-manual-rate-btn icon-button" data-currency="${curr.code}" data-rate="${currentDisplayRate}" title="${t('budget', 'Edit manual rate')}" aria-label="${t('budget', 'Edit manual rate')}">
                                 <span class="icon-rename" aria-hidden="true"></span>
                             </button>
-                            <button class="remove-manual-rate-btn icon-button" data-currency="${curr.code}" title="${t('budget', 'Remove manual rate')}">
+                            <button class="remove-manual-rate-btn icon-button" data-currency="${curr.code}" title="${t('budget', 'Remove manual rate')}" aria-label="${t('budget', 'Remove manual rate')}">
                                 <span class="icon-delete" aria-hidden="true"></span>
                             </button>
                         ` : `
-                            <button class="set-manual-rate-btn icon-button" data-currency="${curr.code}" title="${t('budget', 'Set manual rate')}">
+                            <button class="set-manual-rate-btn icon-button" data-currency="${curr.code}" title="${t('budget', 'Set manual rate')}" aria-label="${t('budget', 'Set manual rate')}">
                                 <span class="icon-rename" aria-hidden="true"></span>
                             </button>
                         `}
@@ -303,18 +304,11 @@ export default class ExchangeRatesModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/exchange-rates/manual'), {
+            await apiFetch('/apps/budget/api/exchange-rates/manual', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ currency, rate })
+                body: { currency, rate },
+                errorMessage: 'Failed to save',
             });
-            if (!response.ok) {
-                const err = await response.json();
-                throw new Error(err.error || 'Failed to save');
-            }
             showSuccess(t('budget', 'Manual rate set for {currency}', { currency }));
             this.hideManualRateModal();
             await this.loadExchangeRatesView();
@@ -332,11 +326,7 @@ export default class ExchangeRatesModule {
 
     async removeManualRate(currency) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/exchange-rates/manual/${currency}`), {
-                method: 'DELETE',
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            await apiFetch(`/apps/budget/api/exchange-rates/manual/${currency}`, { method: 'DELETE' });
             showSuccess(t('budget', 'Manual rate removed for {currency}', { currency }));
             await this.loadExchangeRatesView();
         } catch (error) {
@@ -353,11 +343,7 @@ export default class ExchangeRatesModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/exchange-rates/refresh'), {
-                method: 'POST',
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            await apiFetch('/apps/budget/api/exchange-rates/refresh', { method: 'POST' });
             showSuccess(t('budget', 'Exchange rates refreshed'));
             await this.loadExchangeRatesView();
         } catch (error) {

@@ -19,846 +19,1081 @@ use OCP\IL10N;
 use PHPUnit\Framework\TestCase;
 
 class AccountServiceTest extends TestCase {
-    private AccountService $service;
-    private AccountMapper $accountMapper;
-    private TransactionMapper $transactionMapper;
-    private GranularShareService $granularShareService;
-    private CurrencyConversionService $conversionService;
-    private TransactionService $transactionService;
-
-    protected function setUp(): void {
-        $this->accountMapper = $this->createMock(AccountMapper::class);
-        $this->transactionMapper = $this->createMock(TransactionMapper::class);
-        $this->transactionService = $this->createMock(TransactionService::class);
-        $this->conversionService = $this->createMock(CurrencyConversionService::class);
-        $this->granularShareService = $this->createMock(GranularShareService::class);
-        $this->granularShareService->method('getSharedAccountIds')->willReturn([]);
-
-        $l = $this->createMock(IL10N::class);
-        $l->method('t')->willReturnCallback(function (string $text, array $params = []) {
-            foreach ($params as $i => $param) {
-                $text = str_replace('%' . ($i + 1) . '$s', (string) $param, $text);
-            }
-            return $text;
-        });
-        $interestRateMapper = $this->createMock(InterestRateMapper::class);
-
-        $this->service = new AccountService(
-            $this->accountMapper,
-            $this->transactionMapper,
-            $interestRateMapper,
-            $this->conversionService,
-            $this->granularShareService,
-            $this->transactionService,
-            $l
-        );
-    }
-
-    private function makeAccount(array $overrides = []): Account {
-        $account = new Account();
-        $defaults = [
-            'id' => 1,
-            'userId' => 'user1',
-            'name' => 'Checking',
-            'type' => 'checking',
-            'balance' => 1000.00,
-            'currency' => 'USD',
-        ];
-        $data = array_merge($defaults, $overrides);
-
-        $account->setId($data['id']);
-        $account->setUserId($data['userId']);
-        $account->setName($data['name']);
-        $account->setType($data['type']);
-        $account->setBalance($data['balance']);
-        $account->setCurrency($data['currency']);
-        return $account;
-    }
-
-    // ===== create() =====
-
-    public function testCreateSetsRequiredFields(): void {
-        $this->accountMapper->expects($this->once())
-            ->method('insert')
-            ->willReturnCallback(function (Account $account) {
-                $this->assertEquals('user1', $account->getUserId());
-                $this->assertEquals('Savings', $account->getName());
-                $this->assertEquals('savings', $account->getType());
-                $this->assertEquals(500.00, $account->getBalance());
-                $this->assertEquals('EUR', $account->getCurrency());
-                $account->setId(1);
-                return $account;
-            });
-
-        $result = $this->service->create('user1', 'Savings', 'savings', 500.00, 'EUR');
-
-        $this->assertEquals('Savings', $result->getName());
-    }
-
-    public function testCreateSetsOptionalFields(): void {
-        $this->accountMapper->expects($this->once())
-            ->method('insert')
-            ->willReturnCallback(function (Account $account) {
-                $this->assertEquals('Chase', $account->getInstitution());
-                $this->assertEquals('12345678', $account->getAccountNumber());
-                $this->assertEquals('021000021', $account->getRoutingNumber());
-                $this->assertEquals('12-34-56', $account->getSortCode());
-                $this->assertEquals('DE89370400440532013000', $account->getIban());
-                $this->assertEquals('DEUTDEFF', $account->getSwiftBic());
-                $this->assertEquals('John Doe', $account->getAccountHolderName());
-                $this->assertEquals('2020-01-01', $account->getOpeningDate());
-                $this->assertEquals(1.5, $account->getInterestRate());
-                $this->assertEquals(5000.00, $account->getCreditLimit());
-                $this->assertEquals(200.00, $account->getOverdraftLimit());
-                $this->assertEquals(25.00, $account->getMinimumPayment());
-                $this->assertEquals('0xabc123', $account->getWalletAddress());
-                $account->setId(1);
-                return $account;
-            });
-
-        $this->service->create(
-            'user1', 'Full Account', 'checking', 0.0, 'USD',
-            'Chase', '12345678', '021000021', '12-34-56',
-            'DE89370400440532013000', 'DEUTDEFF', 'John Doe',
-            '2020-01-01', 1.5, 5000.00, 200.00, 25.00, '0xabc123'
-        );
-    }
-
-    public function testCreateUsesDefaults(): void {
-        $this->accountMapper->expects($this->once())
-            ->method('insert')
-            ->willReturnCallback(function (Account $account) {
-                $this->assertEquals(0.0, $account->getBalance());
-                $this->assertEquals('USD', $account->getCurrency());
-                $account->setId(1);
-                return $account;
-            });
-
-        $this->service->create('user1', 'Basic', 'checking');
-    }
-
-    // ===== find() (inherited from AbstractCrudService) =====
-
-    public function testFindDelegatesToMapper(): void {
-        $account = $this->makeAccount();
-        $this->accountMapper->expects($this->once())
-            ->method('find')
-            ->with(1, 'user1')
-            ->willReturn($account);
-
-        $result = $this->service->find(1, 'user1');
-        $this->assertSame($account, $result);
-    }
-
-    // ===== delete() (with beforeDelete hook) =====
-
-    public function testDeletePreventsWhenTransactionsExist(): void {
-        $account = $this->makeAccount();
-        $this->accountMapper->method('find')->willReturn($account);
-
-        $this->transactionMapper->method('findByAccount')
-            ->with(1, 'user1', 1)
-            ->willReturn([['id' => 1]]);
-
-        // Typed so the controller can offer to delete the transactions too (#336).
-        $this->expectException(\OCA\Budget\Exception\AccountInUseException::class);
-        $this->expectExceptionMessage('existing transactions');
-
-        $this->service->delete(1, 'user1');
-    }
-
-    public function testDeleteReportsTransactionCountOnConflict(): void {
-        $account = $this->makeAccount();
-        $this->accountMapper->method('find')->willReturn($account);
-        $this->transactionMapper->method('findByAccount')->willReturn([['id' => 1]]);
-        $this->transactionMapper->method('countByAccount')
-            ->with(1, 'user1')
-            ->willReturn(42);
-
-        try {
-            $this->service->delete(1, 'user1');
-            $this->fail('Expected AccountInUseException');
-        } catch (\OCA\Budget\Exception\AccountInUseException $e) {
-            $this->assertSame(42, $e->getTransactionCount());
-        }
-    }
-
-    public function testDeleteSucceedsWhenNoTransactions(): void {
-        $account = $this->makeAccount();
-        $this->accountMapper->method('find')->willReturn($account);
-
-        $this->transactionMapper->method('findByAccount')
-            ->with(1, 'user1', 1)
-            ->willReturn([]);
-
-        $this->accountMapper->expects($this->once())
-            ->method('delete')
-            ->with($account);
-
-        $this->service->delete(1, 'user1');
-    }
-
-    // ===== deleteWithTransactions() (#336) =====
-
-    public function testDeleteWithTransactionsClearsLedgerThenDeletesAccount(): void {
-        $account = $this->makeAccount();
-        $this->accountMapper->method('find')->willReturn($account);
-
-        $this->transactionMapper->method('findIdsByAccount')
-            ->with(1, 'user1')
-            ->willReturn([10, 11, 12]);
-        // The guard runs after the ledger is cleared, so it sees nothing left.
-        $this->transactionMapper->method('findByAccount')->willReturn([]);
-
-        // dismiss=false and recalculate=false: the account is going away, so
-        // neither dismissed import IDs nor its balance are worth maintaining.
-        $deleted = [];
-        $this->transactionService->expects($this->exactly(3))
-            ->method('delete')
-            ->willReturnCallback(function (int $id, string $userId, bool $dismiss, bool $recalculate) use (&$deleted): int {
-                $this->assertSame('user1', $userId);
-                $this->assertFalse($dismiss);
-                $this->assertFalse($recalculate);
-                $deleted[] = $id;
-                return 1;
-            });
-
-        $this->accountMapper->expects($this->once())
-            ->method('delete')
-            ->with($account);
-
-        $count = $this->service->deleteWithTransactions(1, 'user1');
-
-        $this->assertSame(3, $count);
-        $this->assertSame([10, 11, 12], $deleted);
-    }
-
-    public function testDeleteWithTransactionsOnEmptyAccountJustDeletesIt(): void {
-        $account = $this->makeAccount();
-        $this->accountMapper->method('find')->willReturn($account);
-        $this->transactionMapper->method('findIdsByAccount')->willReturn([]);
-        $this->transactionMapper->method('findByAccount')->willReturn([]);
-
-        $this->transactionService->expects($this->never())->method('delete');
-        $this->accountMapper->expects($this->once())->method('delete')->with($account);
-
-        $this->assertSame(0, $this->service->deleteWithTransactions(1, 'user1'));
-    }
-
-    // ===== bulkDelete() (#381) =====
-
-    /**
-     * Clearing up after a mis-mapped import means deleting a pile of accounts
-     * that all still hold rows. The first pass is deliberately non-destructive:
-     * it removes what is already empty and reports the rest, so the dialog that
-     * asks about the ledgers can name them and count them.
-     */
-    public function testBulkDeleteFirstPassRemovesEmptyAccountsAndReportsTheRest(): void {
-        $empty = $this->makeAccount(['id' => 1, 'name' => 'Empty']);
-        $full = $this->makeAccount(['id' => 2, 'name' => '2026-01-07']);
-
-        $this->accountMapper->method('find')->willReturnCallback(
-            fn (int $id) => $id === 1 ? $empty : $full
-        );
-        // findByAccount is beforeDelete()'s guard: non-empty blocks the delete.
-        $this->transactionMapper->method('findByAccount')->willReturnCallback(
-            fn (int $id) => $id === 1 ? [] : [['id' => 99]]
-        );
-        $this->transactionMapper->method('countByAccount')->willReturn(17);
-
-        $this->accountMapper->expects($this->once())->method('delete')->with($empty);
-        $this->transactionService->expects($this->never())->method('delete');
-
-        $result = $this->service->bulkDelete('user1', [1, 2], false);
-
-        $this->assertSame([1], $result['deleted']);
-        $this->assertSame(
-            [['id' => 2, 'name' => '2026-01-07', 'transactionCount' => 17]],
-            $result['blocked']
-        );
-        $this->assertSame([], $result['errors']);
-    }
-
-    public function testBulkDeleteSecondPassClearsLedgersAndReportsTheRowCount(): void {
-        $a = $this->makeAccount(['id' => 2, 'name' => 'A']);
-        $b = $this->makeAccount(['id' => 3, 'name' => 'B']);
-
-        $this->accountMapper->method('find')->willReturnCallback(
-            fn (int $id) => $id === 2 ? $a : $b
-        );
-        $this->transactionMapper->method('findIdsByAccount')->willReturnCallback(
-            fn (int $id) => $id === 2 ? [10, 11] : [12]
-        );
-        $this->transactionMapper->method('findByAccount')->willReturn([]);
-
-        // Every row goes through TransactionService::delete(), which cascades to
-        // splits, tags and attachments (#359) — never the mapper directly.
-        $this->transactionService->expects($this->exactly(3))->method('delete')->willReturn(1);
-        $this->accountMapper->expects($this->exactly(2))->method('delete');
-
-        $result = $this->service->bulkDelete('user1', [2, 3], true);
-
-        $this->assertSame([2, 3], $result['deleted']);
-        $this->assertSame([], $result['blocked']);
-        $this->assertSame(3, $result['deletedTransactions']);
-    }
-
-    /**
-     * One bad id must not abandon the rest of the selection — the whole point
-     * of the bulk action is clearing up many at once.
-     */
-    public function testBulkDeleteKeepsGoingAfterAFailureAndReportsIt(): void {
-        $ok = $this->makeAccount(['id' => 1, 'name' => 'Fine']);
-
-        $this->accountMapper->method('find')->willReturnCallback(function (int $id) use ($ok) {
-            if ($id === 2) {
-                throw new DoesNotExistException('gone');
-            }
-            return $ok;
-        });
-        $this->transactionMapper->method('findByAccount')->willReturn([]);
-
-        $this->accountMapper->expects($this->exactly(2))->method('delete');
-
-        $result = $this->service->bulkDelete('user1', [1, 2, 3], false);
-
-        $this->assertSame([1, 3], $result['deleted']);
-        $this->assertCount(1, $result['errors']);
-        $this->assertSame(2, $result['errors'][0]['id']);
-    }
-
-    public function testBulkDeleteWithNoIdsDoesNothing(): void {
-        $this->accountMapper->expects($this->never())->method('delete');
-
-        $result = $this->service->bulkDelete('user1', [], false);
-
-        $this->assertSame([], $result['deleted']);
-        $this->assertSame([], $result['blocked']);
-        $this->assertSame([], $result['errors']);
-    }
-
-    public function testDeleteWithTransactionsRefusesAnotherUsersAccount(): void {
-        // find() is the ownership gate — it must run before the ledger is touched.
-        $this->accountMapper->method('find')
-            ->willThrowException(new DoesNotExistException('not found'));
-
-        $this->transactionService->expects($this->never())->method('delete');
-        $this->accountMapper->expects($this->never())->method('delete');
-
-        $this->expectException(DoesNotExistException::class);
-        $this->service->deleteWithTransactions(1, 'user2');
-    }
-
-    // ===== findWithCurrentBalance() =====
-
-    public function testFindWithCurrentBalanceAdjustsForFutureTransactions(): void {
-        $account = $this->makeAccount(['balance' => 1000.00]);
-        $this->accountMapper->method('find')->willReturn($account);
-
-        // Future transactions add 200 net (e.g., $300 credit - $100 debit in the future)
-        $this->transactionMapper->method('getNetChangeAfterDate')
-            ->willReturn(200.0);
-
-        $result = $this->service->findWithCurrentBalance(1, 'user1');
-
-        // Current balance = stored (1000) - future change (200) = 800
-        $this->assertEquals(800.0, $result['balance']);
-        $this->assertEquals('Checking', $result['name']);
-    }
-
-    public function testFindWithCurrentBalanceNoFutureTransactions(): void {
-        $account = $this->makeAccount(['balance' => 500.00]);
-        $this->accountMapper->method('find')->willReturn($account);
-
-        $this->transactionMapper->method('getNetChangeAfterDate')->willReturn(0.0);
-
-        $result = $this->service->findWithCurrentBalance(1, 'user1');
-
-        $this->assertEquals(500.0, $result['balance']);
-    }
-
-    // ===== findAllWithCurrentBalances() =====
-
-    public function testFindAllWithCurrentBalancesAdjustsBatch(): void {
-        $accounts = [
-            $this->makeAccount(['id' => 1, 'balance' => 1000.00]),
-            $this->makeAccount(['id' => 2, 'balance' => 500.00]),
-        ];
-        $this->accountMapper->method('findAll')->willReturn($accounts);
-
-        $this->transactionMapper->method('getNetChangeAfterDateBatch')
-            ->willReturn([
-                1 => 100.0,  // Account 1 has 100 in future
-                // Account 2 has no future transactions
-            ]);
-
-        $result = $this->service->findAllWithCurrentBalances('user1');
-
-        $this->assertCount(2, $result);
-        $this->assertEquals(900.0, $result[0]['balance']);  // 1000 - 100
-        $this->assertEquals(500.0, $result[1]['balance']);   // 500 - 0
-    }
-
-    // ===== getSummary() =====
-
-    public function testGetSummarySingleCurrency(): void {
-        $accounts = [
-            $this->makeAccount(['id' => 1, 'balance' => 1000.00, 'currency' => 'USD']),
-            $this->makeAccount(['id' => 2, 'balance' => 500.00, 'currency' => 'USD']),
-        ];
-        $this->accountMapper->method('findAll')->willReturn($accounts);
-        $this->transactionMapper->method('getNetChangeAfterDateBatch')->willReturn([]);
-
-        $result = $this->service->getSummary('user1');
-
-        $this->assertEquals(1500.0, $result['totalBalance']);
-        $this->assertEquals(2, $result['accountCount']);
-        $this->assertArrayHasKey('USD', $result['currencyBreakdown']);
-        $this->assertEquals(1500.0, $result['currencyBreakdown']['USD']);
-    }
-
-    public function testGetSummaryMultiCurrency(): void {
-        $accounts = [
-            $this->makeAccount(['id' => 1, 'balance' => 1000.00, 'currency' => 'USD']),
-            $this->makeAccount(['id' => 2, 'balance' => 800.00, 'currency' => 'EUR']),
-        ];
-        $this->accountMapper->method('findAll')->willReturn($accounts);
-        $this->transactionMapper->method('getNetChangeAfterDateBatch')->willReturn([]);
-
-        $result = $this->service->getSummary('user1');
-
-        $this->assertEquals(1800.0, $result['totalBalance']);
-        $this->assertEquals(1000.0, $result['currencyBreakdown']['USD']);
-        $this->assertEquals(800.0, $result['currencyBreakdown']['EUR']);
-    }
-
-    public function testGetSummaryWithFutureAdjustment(): void {
-        $accounts = [
-            $this->makeAccount(['id' => 1, 'balance' => 1000.00]),
-        ];
-        $this->accountMapper->method('findAll')->willReturn($accounts);
-        $this->transactionMapper->method('getNetChangeAfterDateBatch')
-            ->willReturn([1 => 200.0]);
-
-        $result = $this->service->getSummary('user1');
-
-        // Stored balance 1000, future change 200, so current = 800
-        $this->assertEquals(800.0, $result['totalBalance']);
-        $this->assertEquals(800.0, $result['accounts'][0]['balance']);
-    }
-
-    public function testGetSummaryEmptyAccounts(): void {
-        $this->accountMapper->method('findAll')->willReturn([]);
-        $this->transactionMapper->method('getNetChangeAfterDateBatch')->willReturn([]);
-
-        $result = $this->service->getSummary('user1');
-
-        $this->assertEquals(0.0, $result['totalBalance']);
-        $this->assertEquals(0, $result['accountCount']);
-        $this->assertEmpty($result['currencyBreakdown']);
-    }
-
-    // ===== getBalanceHistory() =====
-
-    public function testGetBalanceHistoryWorksBackwardsFromCurrentBalance(): void {
-        $account = $this->makeAccount(['balance' => 1000.00]);
-        $this->accountMapper->method('find')->willReturn($account);
-
-        $today = date('Y-m-d');
-        $yesterday = date('Y-m-d', strtotime('-1 day'));
-
-        $this->transactionMapper->method('getDailyBalanceChanges')
-            ->willReturn([
-                $today => 100.0,       // Today +100 was applied
-                $yesterday => -50.0,   // Yesterday -50 was applied
-            ]);
-
-        $result = $this->service->getBalanceHistory(1, 'user1', 3);
-
-        // Working backwards from 1000 (current stored balance):
-        // i=0 (today):    1000 - 100 = 900 (opening balance of today)
-        // i=1 (yesterday): 900 - (-50) = 950 (opening balance of yesterday)
-        // i=2 (2 days ago): 950 (no changes, opening balance of 2 days ago)
-        $this->assertCount(3, $result);
-
-        // Result is reversed so earliest date first
-        $this->assertEquals(950.0, $result[0]['balance']);  // 2 days ago
-        $this->assertEquals(950.0, $result[1]['balance']);  // yesterday
-        $this->assertEquals(900.0, $result[2]['balance']);  // today
-    }
-
-    public function testGetBalanceHistoryNoDailyChanges(): void {
-        $account = $this->makeAccount(['balance' => 500.00]);
-        $this->accountMapper->method('find')->willReturn($account);
-        $this->transactionMapper->method('getDailyBalanceChanges')->willReturn([]);
-
-        $result = $this->service->getBalanceHistory(1, 'user1', 5);
-
-        $this->assertCount(5, $result);
-        // All days should have the same balance since no changes
-        foreach ($result as $entry) {
-            $this->assertEquals(500.0, $entry['balance']);
-        }
-    }
-
-    // ===== reconcile() =====
-
-    public function testReconcileBalanced(): void {
-        $account = $this->makeAccount(['balance' => 1000.00]);
-        $this->accountMapper->method('find')->willReturn($account);
-
-        $result = $this->service->reconcile(1, 'user1', 1000.00);
-
-        $this->assertEquals(1000.0, $result['currentBalance']);
-        $this->assertEquals(1000.0, $result['statementBalance']);
-        $this->assertEquals(0.0, $result['difference']);
-        $this->assertTrue($result['isBalanced']);
-    }
-
-    public function testReconcileWithinTolerance(): void {
-        $account = $this->makeAccount(['balance' => 1000.00]);
-        $this->accountMapper->method('find')->willReturn($account);
-
-        $result = $this->service->reconcile(1, 'user1', 1000.005);
-
-        $this->assertTrue($result['isBalanced']);
-    }
-
-    public function testReconcileOutOfBalance(): void {
-        $account = $this->makeAccount(['balance' => 1000.00]);
-        $this->accountMapper->method('find')->willReturn($account);
-
-        $result = $this->service->reconcile(1, 'user1', 990.00);
-
-        $this->assertEquals(-10.0, $result['difference']);
-        $this->assertFalse($result['isBalanced']);
-    }
-
-    // ===== getAccountMetrics() (#285) =====
-
-    public function testGetAccountMetricsMapsMapperOutputForCurrentMonth(): void {
-        $this->accountMapper->method('find')->willReturn($this->makeAccount());
-        $this->transactionMapper->expects($this->once())
-            ->method('getAccountMetrics')
-            ->with(1, date('Y-m-01'), date('Y-m-t'))
-            ->willReturn(['count' => 1603, 'average' => 12.5, 'monthIncome' => 300.0, 'monthExpenses' => 180.0]);
-
-        $result = $this->service->getAccountMetrics(1, 'user1');
-
-        // Whole-account count, not a single page (the #285 fix)
-        $this->assertSame(1603, $result['totalTransactions']);
-        $this->assertSame(300.0, $result['thisMonthIncome']);
-        $this->assertSame(180.0, $result['thisMonthExpenses']);
-        $this->assertSame(12.5, $result['avgTransaction']);
-    }
-
-    /**
-     * With a budget start day, "this month" on the account page is the budget
-     * period running today: with start day 28 on 29 September, October's.
-     */
-    public function testGetAccountMetricsCoversTheRunningBudgetPeriod(): void {
-        $carryoverService = $this->createMock(BudgetCarryoverService::class);
-        $carryoverService->method('currentBudgetMonth')->with('user1')->willReturn('2026-10');
-        $carryoverService->method('budgetMonthRange')->with('user1', '2026-10')->willReturn(['2026-09-28', '2026-10-27']);
-        $l = $this->createMock(IL10N::class);
-        $service = new AccountService(
-            $this->accountMapper,
-            $this->transactionMapper,
-            $this->createMock(InterestRateMapper::class),
-            $this->conversionService,
-            $this->granularShareService,
-            $this->transactionService,
-            $l,
-            null,
-            null,
-            $carryoverService
-        );
-        $this->accountMapper->method('find')->willReturn($this->makeAccount());
-        $this->transactionMapper->expects($this->once())
-            ->method('getAccountMetrics')
-            ->with(1, '2026-09-28', '2026-10-27')
-            ->willReturn(['count' => 3, 'average' => 10.0, 'monthIncome' => 50.0, 'monthExpenses' => 20.0]);
-
-        $result = $service->getAccountMetrics(1, 'user1');
-
-        $this->assertSame(50.0, $result['thisMonthIncome']);
-        $this->assertSame(20.0, $result['thisMonthExpenses']);
-    }
-
-    public function testGetAccountMetricsRequiresAccessibleAccount(): void {
-        $this->accountMapper->method('find')->willThrowException(new DoesNotExistException('no access'));
-        $this->transactionMapper->expects($this->never())->method('getAccountMetrics');
-
-        $this->expectException(DoesNotExistException::class);
-        $this->service->getAccountMetrics(999, 'user1');
-    }
-
-    // ===== exclude-from-reports (#286) =====
-
-    public function testGetSummaryExcludesFlaggedAccounts(): void {
-        $included = $this->makeAccount(['id' => 1, 'balance' => 1000.00, 'currency' => 'USD']);
-        $excluded = $this->makeAccount(['id' => 2, 'balance' => 500.00, 'currency' => 'USD']);
-        $excluded->setExcludedFromReports(true);
-        $this->accountMapper->method('findAll')->willReturn([$included, $excluded]);
-        $this->transactionMapper->method('getNetChangeAfterDateBatch')->willReturn([]);
-
-        $result = $this->service->getSummary('user1');
-
-        // The flagged account drops out of the dashboard summary entirely
-        $this->assertEquals(1, $result['accountCount']);
-        $this->assertEquals(1000.0, $result['totalBalance']);
-        $this->assertSame([1], array_column($result['accounts'], 'id'));
-    }
-
-    public function testCreateStoresExcludedFromReports(): void {
-        $captured = null;
-        $this->accountMapper->method('insert')->willReturnCallback(function ($account) use (&$captured) {
-            $captured = $account;
-            return $account;
-        });
-
-        $this->service->create('user1', 'Hidden', 'checking', 0.0, 'USD', excludedFromReports: true);
-
-        $this->assertTrue($captured->getExcludedFromReports());
-    }
-
-    public function testCreateStoresStatementDay(): void {
-        $this->accountMapper->expects($this->once())
-            ->method('insert')
-            ->willReturnCallback(function (Account $account) {
-                $this->assertSame(15, $account->getStatementDay());
-                $account->setId(1);
-                return $account;
-            });
-
-        $this->service->create('user1', 'Visa', 'credit_card', 0.0, 'USD', statementDay: 15);
-    }
-
-    // ---------------------------------------------------------------
-    // Liability balance sign (#353)
-    //
-    // A liability stores what is owed as a NEGATIVE number. The caller supplies
-    // a magnitude plus an explicit intent flag; AccountService is the single
-    // place the sign is applied. Before #353 the rule lived in one controller
-    // branch, so the edit path stored whatever the user typed and a statement
-    // balance entered without a minus turned a debt into an asset.
-    // ---------------------------------------------------------------
-
-    private function captureInsert(&$captured): void {
-        $this->accountMapper->method('insert')->willReturnCallback(function (Account $account) use (&$captured) {
-            $captured = $account;
-            $account->setId(1);
-            return $account;
-        });
-    }
-
-    public function testCreateStoresLiabilityBalanceAsNegative(): void {
-        $this->captureInsert($captured);
-
-        $this->service->create('user1', 'Visa', 'credit_card', 500.0, 'USD');
-
-        $this->assertSame(-500.0, $captured->getBalance());
-        $this->assertSame(-500.0, $captured->getOpeningBalance());
-        $this->assertFalse($captured->getLiabilityInCredit());
-    }
-
-    public function testCreateKeepsAssetBalancePositive(): void {
-        $this->captureInsert($captured);
-
-        $this->service->create('user1', 'Current', 'checking', 500.0, 'USD');
-
-        $this->assertSame(500.0, $captured->getBalance());
-        $this->assertNull($captured->getLiabilityInCredit());
-    }
-
-    public function testCreateKeepsNegativeAssetBalanceForAnOverdraft(): void {
-        $this->captureInsert($captured);
-
-        $this->service->create('user1', 'Overdrawn', 'checking', -200.0, 'USD');
-
-        $this->assertSame(-200.0, $captured->getBalance());
-    }
-
-    public function testCreateSigningIsIdempotentForAnAlreadyNegativeLiability(): void {
-        $this->captureInsert($captured);
-
-        $this->service->create('user1', 'Visa', 'credit_card', -500.0, 'USD');
-
-        $this->assertSame(-500.0, $captured->getBalance());
-    }
-
-    public function testCreateStoresLiabilityInCreditAsPositive(): void {
-        $this->captureInsert($captured);
-
-        $this->service->create('user1', 'Overpaid card', 'credit_card', 500.0, 'USD', liabilityInCredit: true);
-
-        $this->assertSame(500.0, $captured->getBalance());
-        $this->assertTrue($captured->getLiabilityInCredit());
-    }
-
-    public function testUpdateSignsLiabilityOpeningBalanceFromTheIntentFlag(): void {
-        $account = $this->makeAccount(['type' => 'loan']);
-        $this->accountMapper->method('find')->willReturn($account);
-        $this->accountMapper->method('update')->willReturnArgument(0);
-        $this->transactionMapper->method('getNetChangeAll')->willReturn(0.0);
-
-        $captured = null;
-        $this->accountMapper->method('update')->willReturnCallback(function (Account $a) use (&$captured) {
-            $captured = $a;
-            return $a;
-        });
-
-        $this->service->update(1, 'user1', [
-            'type' => 'loan',
-            'openingBalance' => 90904.56,
-            'liabilityInCredit' => false,
-        ]);
-
-        $this->assertSame(-90904.56, $captured->getOpeningBalance());
-    }
-
-    public function testUpdateRejectsLiabilityOpeningBalanceWithoutAnIntentFlag(): void {
-        $account = $this->makeAccount(['type' => 'loan']);
-        $this->accountMapper->method('find')->willReturn($account);
-        // Guessing the sign rewrites real money either way, so a client that
-        // cannot say what it means is refused rather than interpreted.
-        $this->accountMapper->expects($this->never())->method('update');
-
-        $this->expectException(\InvalidArgumentException::class);
-
-        $this->service->update(1, 'user1', ['type' => 'loan', 'openingBalance' => 90904.56]);
-    }
-
-    public function testUpdateSignsForTheTargetTypeWhenAnAssetIsFlippedToALiability(): void {
-        $account = $this->makeAccount(['type' => 'savings']);
-        $this->accountMapper->method('find')->willReturn($account);
-        $this->transactionMapper->method('getNetChangeAll')->willReturn(0.0);
-
-        $captured = null;
-        $this->accountMapper->method('update')->willReturnCallback(function (Account $a) use (&$captured) {
-            $captured = $a;
-            return $a;
-        });
-
-        $this->service->update(1, 'user1', [
-            'type' => 'mortgage',
-            'openingBalance' => 1000.0,
-            'liabilityInCredit' => false,
-        ]);
-
-        // The TARGET type decides the sign, applied once. A second transition
-        // handler on top of this would negate it again.
-        $this->assertSame(-1000.0, $captured->getOpeningBalance());
-    }
-
-    public function testUpdateClearsTheInCreditFlagWhenALiabilityBecomesAnAsset(): void {
-        $account = $this->makeAccount(['type' => 'credit_card']);
-        $this->accountMapper->method('find')->willReturn($account);
-        $this->transactionMapper->method('getNetChangeAll')->willReturn(0.0);
-
-        $captured = null;
-        $this->accountMapper->method('update')->willReturnCallback(function (Account $a) use (&$captured) {
-            $captured = $a;
-            return $a;
-        });
-
-        $this->service->update(1, 'user1', ['type' => 'savings', 'openingBalance' => 100.0]);
-
-        $this->assertNull($captured->getLiabilityInCredit());
-    }
-
-    // ===== closing an account (#372) =====
-
-    /** The service wired with a closure guard, which setUp() leaves out. */
-    private function serviceWithGuard(AccountClosureService $guard): AccountService {
-        $l = $this->createMock(IL10N::class);
-        $l->method('t')->willReturnArgument(0);
-
-        return new AccountService(
-            $this->accountMapper,
-            $this->transactionMapper,
-            $this->createMock(InterestRateMapper::class),
-            $this->conversionService,
-            $this->granularShareService,
-            $this->transactionService,
-            $l,
-            null,
-            $guard
-        );
-    }
-
-    /**
-     * The guard runs against the stored state BEFORE anything is written, so a
-     * refused close leaves the account exactly as it was: no half-saved edit.
-     */
-    public function testClosingRunsTheGuardBeforeAnythingIsSaved(): void {
-        $account = $this->makeAccount(['balance' => 12.34]);
-        $this->accountMapper->method('find')->willReturn($account);
-
-        $guard = $this->createMock(AccountClosureService::class);
-        $guard->expects($this->once())
-            ->method('assertClosable')
-            ->with($account)
-            ->willThrowException(new \InvalidArgumentException('still has a balance'));
-        $this->accountMapper->expects($this->never())->method('update');
-
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('still has a balance');
-
-        $this->serviceWithGuard($guard)->update(1, 'user1', ['closed' => true, 'name' => 'Renamed']);
-    }
-
-    public function testClosingPersistsTheFlagWhenTheGuardPasses(): void {
-        $account = $this->makeAccount(['balance' => 0.0]);
-        $this->accountMapper->method('find')->willReturn($account);
-
-        $guard = $this->createMock(AccountClosureService::class);
-        $guard->expects($this->once())->method('assertClosable')->with($account);
-        $this->accountMapper->expects($this->once())
-            ->method('update')
-            ->with($this->callback(fn(Account $a) => $a->getClosed() === true))
-            ->willReturnArgument(0);
-
-        $this->serviceWithGuard($guard)->update(1, 'user1', ['closed' => true]);
-    }
-
-    public function testReopeningSkipsTheGuard(): void {
-        $account = $this->makeAccount();
-        $account->setClosed(true);
-        $this->accountMapper->method('find')->willReturn($account);
-
-        $guard = $this->createMock(AccountClosureService::class);
-        $guard->expects($this->never())->method('assertClosable');
-        $this->accountMapper->expects($this->once())
-            ->method('update')
-            ->with($this->callback(fn(Account $a) => $a->getClosed() === false))
-            ->willReturnArgument(0);
-
-        $this->serviceWithGuard($guard)->update(1, 'user1', ['closed' => false]);
-    }
-
-    public function testEditingAClosedAccountWithoutTheFlagSkipsTheGuard(): void {
-        $account = $this->makeAccount();
-        $account->setClosed(true);
-        $this->accountMapper->method('find')->willReturn($account);
-        $this->accountMapper->method('update')->willReturnArgument(0);
-
-        $guard = $this->createMock(AccountClosureService::class);
-        $guard->expects($this->never())->method('assertClosable');
-
-        $this->serviceWithGuard($guard)->update(1, 'user1', ['name' => 'Renamed']);
-    }
-
-    /** Re-sending closed=true for an already-closed account is a no-op, not a re-check. */
-    public function testReClosingAClosedAccountSkipsTheGuard(): void {
-        $account = $this->makeAccount(['balance' => 50.0]);
-        $account->setClosed(true);
-        $this->accountMapper->method('find')->willReturn($account);
-        $this->accountMapper->method('update')->willReturnArgument(0);
-
-        $guard = $this->createMock(AccountClosureService::class);
-        $guard->expects($this->never())->method('assertClosable');
-
-        $this->serviceWithGuard($guard)->update(1, 'user1', ['closed' => true]);
-    }
+	private AccountService $service;
+	private AccountMapper $accountMapper;
+	private TransactionMapper $transactionMapper;
+	private GranularShareService $granularShareService;
+	private CurrencyConversionService $conversionService;
+	private TransactionService $transactionService;
+
+	protected function setUp(): void {
+		$this->accountMapper = $this->createMock(AccountMapper::class);
+		$this->transactionMapper = $this->createMock(TransactionMapper::class);
+		$this->transactionService = $this->createMock(TransactionService::class);
+		$this->conversionService = $this->createMock(CurrencyConversionService::class);
+		$this->granularShareService = $this->createMock(GranularShareService::class);
+		$this->granularShareService->method('getSharedAccountIds')->willReturn([]);
+
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnCallback(function (string $text, array $params = []) {
+			foreach ($params as $i => $param) {
+				$text = str_replace('%' . ($i + 1) . '$s', (string)$param, $text);
+			}
+			return $text;
+		});
+		$interestRateMapper = $this->createMock(InterestRateMapper::class);
+
+		$this->service = new AccountService(
+			$this->accountMapper,
+			$this->transactionMapper,
+			$interestRateMapper,
+			$this->conversionService,
+			$this->granularShareService,
+			$this->transactionService,
+			$l
+		);
+	}
+
+	// ── shared accounts as of today (#767) ───────────────────────
+
+	/**
+	 * A service whose user has these accounts shared with them. setUp()
+	 * stubs getSharedAccountIds() to [], and a stub in the test can't
+	 * override that, so this builds its own sharing mock.
+	 */
+	private function serviceSharing(array $accountIds): AccountService {
+		$shares = $this->createMock(GranularShareService::class);
+		$shares->method('getSharedAccountIds')->with('user1')->willReturn($accountIds);
+		$l = $this->createMock(IL10N::class);
+
+		return new AccountService(
+			$this->accountMapper,
+			$this->transactionMapper,
+			$this->createMock(InterestRateMapper::class),
+			$this->conversionService,
+			$shares,
+			$this->transactionService,
+			$l
+		);
+	}
+
+	public function testASharedAccountsBalanceLeavesOutFutureTransactions(): void {
+		$joint = new Account();
+		$joint->setId(9);
+		$joint->setName('Joint');
+		$joint->setCurrency('GBP');
+		$joint->setBalance(1000.0);
+		$this->accountMapper->method('findByIds')->with([9])->willReturn([$joint]);
+		// A rent payment dated next week is already in the stored balance
+		$this->transactionMapper->method('getNetChangeAfterDateForAccounts')->with([9], date('Y-m-d'))->willReturn([9 => -400.0]);
+		$this->conversionService->method('getBaseCurrency')->willReturn('GBP');
+
+		$accounts = $this->serviceSharing([9])->findSharedWithCurrentBalances('user1');
+
+		$this->assertSame(1400.0, $accounts[0]['balance']);
+		$this->assertTrue($accounts[0]['_shared']);
+	}
+
+	/**
+	 * Pickers for new activity leave out an account shared read-only: an
+	 * entry posted into it can only be refused.
+	 */
+	public function testASharedAccountSaysWhetherItCanBeWrittenTo(): void {
+		$joint = new Account();
+		$joint->setId(9);
+		$joint->setCurrency('GBP');
+		$joint->setBalance(0.0);
+		$this->accountMapper->method('findByIds')->willReturn([$joint]);
+		$this->transactionMapper->method('getNetChangeAfterDateForAccounts')->willReturn([]);
+		$this->conversionService->method('getBaseCurrency')->willReturn('GBP');
+		$shares = $this->createMock(GranularShareService::class);
+		$shares->method('getSharedAccountIds')->willReturn([9]);
+		$shares->method('canWrite')->with('user1', 'account', 9)->willReturn(false);
+		$service = new AccountService($this->accountMapper, $this->transactionMapper, $this->createMock(InterestRateMapper::class),
+			$this->conversionService, $shares, $this->transactionService, $this->createMock(IL10N::class));
+
+		$account = $service->findSharedWithCurrentBalances('user1')[0];
+
+		$this->assertFalse($account['_canWrite']);
+	}
+
+	public function testASharedAccountIsConvertedToTheViewersBaseCurrency(): void {
+		$usd = new Account();
+		$usd->setId(9);
+		$usd->setCurrency('USD');
+		$usd->setBalance(100.0);
+		$this->accountMapper->method('findByIds')->willReturn([$usd]);
+		$this->transactionMapper->method('getNetChangeAfterDateForAccounts')->willReturn([]);
+		$this->conversionService->method('getBaseCurrency')->with('user1')->willReturn('GBP');
+		$this->conversionService->method('canConvert')->willReturn(true);
+		$this->conversionService->method('convertToBaseFloat')->with(100.0, 'USD', 'user1')->willReturn(79.5);
+
+		$account = $this->serviceSharing([9])->findSharedWithCurrentBalances('user1')[0];
+
+		$this->assertSame(79.5, $account['convertedBalance']);
+		$this->assertSame('GBP', $account['baseCurrency']);
+	}
+
+	/**
+	 * (string) of a tiny float is scientific notation ("1.0E-5"), which bcmath
+	 * refuses with a ValueError that nothing catches, so one crypto account
+	 * holding dust, or a float residue in the future-change sum, failed the
+	 * whole accounts list.
+	 */
+	public function testTinyBalancesAndFloatResiduesDoNotBreakTheList(): void {
+		$dust = new Account();
+		$dust->setId(9);
+		$dust->setCurrency('BTC');
+		$dust->setBalance(0.00001);
+		$this->transactionMapper->method('getNetChangeAfterDateForAccounts')->willReturn([9 => 0.1 + 0.2 - 0.3]);
+		$this->accountMapper->method('findByIds')->willReturn([$dust]);
+		$this->conversionService->method('getBaseCurrency')->willReturn('BTC');
+
+		$account = $this->serviceSharing([9])->findSharedWithCurrentBalances('user1')[0];
+
+		$this->assertSame(0.00001, $account['balance']);
+	}
+
+	/**
+	 * The account page, the summary and the dashboard widget made the same
+	 * (string) cast as the list, so a BTC account holding 0.00001 threw a
+	 * ValueError from bcsub() there too.
+	 */
+	public function testDustDoesNotBreakTheAccountPageOrTheSummary(): void {
+		$dust = $this->makeAccount(['id' => 1, 'balance' => 0.00001, 'currency' => 'BTC']);
+		$this->accountMapper->method('find')->willReturn($dust);
+		$this->accountMapper->method('findAll')->willReturn([$dust]);
+		$this->transactionMapper->method('getNetChangeAfterDate')->willReturn(0.0);
+		$this->transactionMapper->method('getNetChangeAfterDateBatch')->willReturn([1 => 0.1 + 0.2 - 0.3]);
+		$this->transactionMapper->method('getDailyBalanceChanges')->willReturn([date('Y-m-d') => 0.000002]);
+		$this->conversionService->method('getBaseCurrency')->willReturn('BTC');
+
+		$this->assertSame(0.00001, $this->service->findWithCurrentBalance(1, 'user1')['balance']);
+		$summary = $this->service->getSummary('user1');
+		$this->assertSame(0.00001, $summary['accounts'][0]['balance']);
+		$this->assertSame(0.00001, $summary['currencyBreakdown']['BTC']);
+		$this->assertCount(2, $this->service->getBalanceHistory(1, 'user1', 2));
+		$this->assertTrue($this->service->reconcile(1, 'user1', 0.00001)['isBalanced']);
+	}
+
+	public function testNoSharedAccountsMeansNoQueries(): void {
+		$this->granularShareService->method('getSharedAccountIds')->willReturn([]);
+		$this->transactionMapper->expects($this->never())->method('getNetChangeAfterDateForAccounts');
+
+		$this->assertSame([], $this->service->findSharedWithCurrentBalances('user1'));
+	}
+
+	private function makeAccount(array $overrides = []): Account {
+		$account = new Account();
+		$defaults = [
+			'id' => 1,
+			'userId' => 'user1',
+			'name' => 'Checking',
+			'type' => 'checking',
+			'balance' => 1000.00,
+			'currency' => 'USD',
+		];
+		$data = array_merge($defaults, $overrides);
+
+		$account->setId($data['id']);
+		$account->setUserId($data['userId']);
+		$account->setName($data['name']);
+		$account->setType($data['type']);
+		$account->setBalance($data['balance']);
+		$account->setCurrency($data['currency']);
+		return $account;
+	}
+
+	// ===== create() =====
+
+	public function testCreateSetsRequiredFields(): void {
+		$this->accountMapper->expects($this->once())
+			->method('insert')
+			->willReturnCallback(function (Account $account) {
+				$this->assertEquals('user1', $account->getUserId());
+				$this->assertEquals('Savings', $account->getName());
+				$this->assertEquals('savings', $account->getType());
+				$this->assertEquals(500.00, $account->getBalance());
+				$this->assertEquals('EUR', $account->getCurrency());
+				$account->setId(1);
+				return $account;
+			});
+
+		$result = $this->service->create('user1', 'Savings', 'savings', 500.00, 'EUR');
+
+		$this->assertEquals('Savings', $result->getName());
+	}
+
+	public function testCreateSetsOptionalFields(): void {
+		$this->accountMapper->expects($this->once())
+			->method('insert')
+			->willReturnCallback(function (Account $account) {
+				$this->assertEquals('Chase', $account->getInstitution());
+				$this->assertEquals('12345678', $account->getAccountNumber());
+				$this->assertEquals('021000021', $account->getRoutingNumber());
+				$this->assertEquals('12-34-56', $account->getSortCode());
+				$this->assertEquals('DE89370400440532013000', $account->getIban());
+				$this->assertEquals('DEUTDEFF', $account->getSwiftBic());
+				$this->assertEquals('John Doe', $account->getAccountHolderName());
+				$this->assertEquals('2020-01-01', $account->getOpeningDate());
+				$this->assertEquals(1.5, $account->getInterestRate());
+				$this->assertEquals(5000.00, $account->getCreditLimit());
+				$this->assertEquals(200.00, $account->getOverdraftLimit());
+				$this->assertEquals(25.00, $account->getMinimumPayment());
+				$this->assertEquals('0xabc123', $account->getWalletAddress());
+				$account->setId(1);
+				return $account;
+			});
+
+		$this->service->create(
+			'user1', 'Full Account', 'checking', 0.0, 'USD',
+			'Chase', '12345678', '021000021', '12-34-56',
+			'DE89370400440532013000', 'DEUTDEFF', 'John Doe',
+			'2020-01-01', 1.5, 5000.00, 200.00, 25.00, '0xabc123'
+		);
+	}
+
+	public function testCreateUsesDefaults(): void {
+		$this->accountMapper->expects($this->once())
+			->method('insert')
+			->willReturnCallback(function (Account $account) {
+				$this->assertEquals(0.0, $account->getBalance());
+				$this->assertEquals('USD', $account->getCurrency());
+				$account->setId(1);
+				return $account;
+			});
+
+		$this->service->create('user1', 'Basic', 'checking');
+	}
+
+	// ===== find() (inherited from AbstractCrudService) =====
+
+	public function testFindDelegatesToMapper(): void {
+		$account = $this->makeAccount();
+		$this->accountMapper->expects($this->once())
+			->method('find')
+			->with(1, 'user1')
+			->willReturn($account);
+
+		$result = $this->service->find(1, 'user1');
+		$this->assertSame($account, $result);
+	}
+
+	// ===== delete() (with beforeDelete hook) =====
+
+	public function testDeletePreventsWhenTransactionsExist(): void {
+		$account = $this->makeAccount();
+		$this->accountMapper->method('find')->willReturn($account);
+
+		$this->transactionMapper->method('findByAccount')
+			->with(1, 'user1', 1)
+			->willReturn([['id' => 1]]);
+
+		// Typed so the controller can offer to delete the transactions too (#336).
+		$this->expectException(\OCA\Budget\Exception\AccountInUseException::class);
+		$this->expectExceptionMessage('existing transactions');
+
+		$this->service->delete(1, 'user1');
+	}
+
+	public function testDeleteReportsTransactionCountOnConflict(): void {
+		$account = $this->makeAccount();
+		$this->accountMapper->method('find')->willReturn($account);
+		$this->transactionMapper->method('findByAccount')->willReturn([['id' => 1]]);
+		$this->transactionMapper->method('countByAccount')
+			->with(1, 'user1')
+			->willReturn(42);
+
+		try {
+			$this->service->delete(1, 'user1');
+			$this->fail('Expected AccountInUseException');
+		} catch (\OCA\Budget\Exception\AccountInUseException $e) {
+			$this->assertSame(42, $e->getTransactionCount());
+		}
+	}
+
+	public function testDeletingAnAccountRemovesTheImportFoldersThatPostIntoIt(): void {
+		$folders = $this->createMock(\OCA\Budget\Db\ImportFolderMapper::class);
+		$folders->expects($this->once())->method('deleteByAccount')->with(1);
+		$service = new AccountService(
+			$this->accountMapper,
+			$this->transactionMapper,
+			$this->createMock(InterestRateMapper::class),
+			$this->conversionService,
+			$this->granularShareService,
+			$this->transactionService,
+			$this->createMock(IL10N::class),
+			importFolderMapper: $folders,
+		);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount());
+		$this->transactionMapper->method('findByAccount')->willReturn([]);
+
+		$service->delete(1, 'user1');
+	}
+
+	public function testDeletingAnAccountForgetsTheImportRoutingsIntoIt(): void {
+		$links = $this->createMock(\OCA\Budget\Db\ImportAccountLinkMapper::class);
+		$links->expects($this->once())->method('deleteByAccount')->with(1);
+		$service = new AccountService(
+			$this->accountMapper,
+			$this->transactionMapper,
+			$this->createMock(InterestRateMapper::class),
+			$this->conversionService,
+			$this->granularShareService,
+			$this->transactionService,
+			$this->createMock(IL10N::class),
+			importLinkMapper: $links,
+		);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount());
+		$this->transactionMapper->method('findByAccount')->willReturn([]);
+
+		$service->delete(1, 'user1');
+	}
+
+	public function testDeleteSucceedsWhenNoTransactions(): void {
+		$account = $this->makeAccount();
+		$this->accountMapper->method('find')->willReturn($account);
+
+		$this->transactionMapper->method('findByAccount')
+			->with(1, 'user1', 1)
+			->willReturn([]);
+
+		$this->accountMapper->expects($this->once())
+			->method('delete')
+			->with($account);
+
+		$this->service->delete(1, 'user1');
+	}
+
+	/**
+	 * A pension schedule funded from a deleted account kept auto-posting into
+	 * an account that no longer existed and failed quietly every six hours.
+	 * Deleting the account takes it off those schedules and turns their
+	 * auto-post off.
+	 */
+	public function testDeletingAnAccountTakesItOffThePensionSchedulesFundedFromIt(): void {
+		$account = $this->makeAccount();
+		$this->accountMapper->method('find')->willReturn($account);
+		$this->transactionMapper->method('findByAccount')->willReturn([]);
+		$schedules = $this->createMock(\OCA\Budget\Db\PensionRecurringContributionMapper::class);
+		$schedules->expects($this->once())->method('detachSourceAccount')->with(1);
+		$service = new AccountService(
+			$this->accountMapper,
+			$this->transactionMapper,
+			$this->createMock(InterestRateMapper::class),
+			$this->conversionService,
+			$this->granularShareService,
+			$this->transactionService,
+			$this->createMock(IL10N::class),
+			pensionRecurringMapper: $schedules,
+		);
+
+		$service->delete(1, 'user1');
+	}
+
+	private function serviceWithClosure(AccountClosureService $closure): AccountService {
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnArgument(0);
+		return new AccountService(
+			$this->accountMapper,
+			$this->transactionMapper,
+			$this->createMock(InterestRateMapper::class),
+			$this->conversionService,
+			$this->granularShareService,
+			$this->transactionService,
+			$l,
+			null,
+			$closure
+		);
+	}
+
+	public function testDeletingAnAccountStopsTheBillsThatUseIt(): void {
+		$account = $this->makeAccount();
+		$this->accountMapper->method('find')->willReturn($account);
+		$this->transactionMapper->method('findByAccount')->willReturn([]);
+		$closure = $this->createMock(AccountClosureService::class);
+		$closure->expects($this->once())->method('stopSchedulesFor')->with($account)->willReturn([]);
+		$this->accountMapper->expects($this->once())->method('delete')->with($account);
+
+		$this->serviceWithClosure($closure)->delete(1, 'user1');
+	}
+
+	public function testARefusedAccountDeleteStopsNothing(): void {
+		$this->accountMapper->method('find')->willReturn($this->makeAccount());
+		$this->transactionMapper->method('findByAccount')->willReturn([['id' => 1]]);
+		$closure = $this->createMock(AccountClosureService::class);
+		$closure->expects($this->never())->method('stopSchedulesFor');
+
+		$this->expectException(\OCA\Budget\Exception\AccountInUseException::class);
+
+		$this->serviceWithClosure($closure)->delete(1, 'user1');
+	}
+
+	// ===== deleteWithTransactions() (#336) =====
+
+	public function testDeleteWithTransactionsClearsLedgerThenDeletesAccount(): void {
+		$account = $this->makeAccount();
+		$this->accountMapper->method('find')->willReturn($account);
+
+		$this->transactionMapper->method('findIdsByAccount')
+			->with(1, 'user1')
+			->willReturn([10, 11, 12]);
+		// The guard runs after the ledger is cleared, so it sees nothing left.
+		$this->transactionMapper->method('findByAccount')->willReturn([]);
+
+		// dismiss=false and recalculate=false: the account is going away, so
+		// neither dismissed import IDs nor its balance are worth maintaining.
+		$deleted = [];
+		$this->transactionService->expects($this->exactly(3))
+			->method('delete')
+			->willReturnCallback(function (int $id, string $userId, bool $dismiss, bool $recalculate) use (&$deleted): int {
+				$this->assertSame('user1', $userId);
+				$this->assertFalse($dismiss);
+				$this->assertFalse($recalculate);
+				$deleted[] = $id;
+				return 1;
+			});
+
+		$this->accountMapper->expects($this->once())
+			->method('delete')
+			->with($account);
+
+		$count = $this->service->deleteWithTransactions(1, 'user1');
+
+		$this->assertSame(3, $count);
+		$this->assertSame([10, 11, 12], $deleted);
+	}
+
+	public function testDeleteWithTransactionsOnEmptyAccountJustDeletesIt(): void {
+		$account = $this->makeAccount();
+		$this->accountMapper->method('find')->willReturn($account);
+		$this->transactionMapper->method('findIdsByAccount')->willReturn([]);
+		$this->transactionMapper->method('findByAccount')->willReturn([]);
+
+		$this->transactionService->expects($this->never())->method('delete');
+		$this->accountMapper->expects($this->once())->method('delete')->with($account);
+
+		$this->assertSame(0, $this->service->deleteWithTransactions(1, 'user1'));
+	}
+
+	// ===== bulkDelete() (#381) =====
+
+	/**
+	 * Clearing up after a mis-mapped import means deleting a pile of accounts
+	 * that all still hold rows. The first pass is deliberately non-destructive:
+	 * it removes what is already empty and reports the rest, so the dialog that
+	 * asks about the ledgers can name them and count them.
+	 */
+	public function testBulkDeleteFirstPassRemovesEmptyAccountsAndReportsTheRest(): void {
+		$empty = $this->makeAccount(['id' => 1, 'name' => 'Empty']);
+		$full = $this->makeAccount(['id' => 2, 'name' => '2026-01-07']);
+
+		$this->accountMapper->method('find')->willReturnCallback(
+			fn (int $id) => $id === 1 ? $empty : $full
+		);
+		// findByAccount is beforeDelete()'s guard: non-empty blocks the delete.
+		$this->transactionMapper->method('findByAccount')->willReturnCallback(
+			fn (int $id) => $id === 1 ? [] : [['id' => 99]]
+		);
+		$this->transactionMapper->method('countByAccount')->willReturn(17);
+
+		$this->accountMapper->expects($this->once())->method('delete')->with($empty);
+		$this->transactionService->expects($this->never())->method('delete');
+
+		$result = $this->service->bulkDelete('user1', [1, 2], false);
+
+		$this->assertSame([1], $result['deleted']);
+		$this->assertSame(
+			[['id' => 2, 'name' => '2026-01-07', 'transactionCount' => 17]],
+			$result['blocked']
+		);
+		$this->assertSame([], $result['errors']);
+	}
+
+	public function testBulkDeleteSecondPassClearsLedgersAndReportsTheRowCount(): void {
+		$a = $this->makeAccount(['id' => 2, 'name' => 'A']);
+		$b = $this->makeAccount(['id' => 3, 'name' => 'B']);
+
+		$this->accountMapper->method('find')->willReturnCallback(
+			fn (int $id) => $id === 2 ? $a : $b
+		);
+		$this->transactionMapper->method('findIdsByAccount')->willReturnCallback(
+			fn (int $id) => $id === 2 ? [10, 11] : [12]
+		);
+		$this->transactionMapper->method('findByAccount')->willReturn([]);
+
+		// Every row goes through TransactionService::delete(), which cascades to
+		// splits, tags and attachments (#359) — never the mapper directly.
+		$this->transactionService->expects($this->exactly(3))->method('delete')->willReturn(1);
+		$this->accountMapper->expects($this->exactly(2))->method('delete');
+
+		$result = $this->service->bulkDelete('user1', [2, 3], true);
+
+		$this->assertSame([2, 3], $result['deleted']);
+		$this->assertSame([], $result['blocked']);
+		$this->assertSame(3, $result['deletedTransactions']);
+	}
+
+	/**
+	 * One bad id must not abandon the rest of the selection — the whole point
+	 * of the bulk action is clearing up many at once.
+	 */
+	public function testBulkDeleteKeepsGoingAfterAFailureAndReportsIt(): void {
+		$ok = $this->makeAccount(['id' => 1, 'name' => 'Fine']);
+
+		$this->accountMapper->method('find')->willReturnCallback(function (int $id) use ($ok) {
+			if ($id === 2) {
+				throw new DoesNotExistException('gone');
+			}
+			return $ok;
+		});
+		$this->transactionMapper->method('findByAccount')->willReturn([]);
+
+		$this->accountMapper->expects($this->exactly(2))->method('delete');
+
+		$result = $this->service->bulkDelete('user1', [1, 2, 3], false);
+
+		$this->assertSame([1, 3], $result['deleted']);
+		$this->assertCount(1, $result['errors']);
+		$this->assertSame(2, $result['errors'][0]['id']);
+	}
+
+	public function testBulkDeleteWithNoIdsDoesNothing(): void {
+		$this->accountMapper->expects($this->never())->method('delete');
+
+		$result = $this->service->bulkDelete('user1', [], false);
+
+		$this->assertSame([], $result['deleted']);
+		$this->assertSame([], $result['blocked']);
+		$this->assertSame([], $result['errors']);
+	}
+
+	public function testDeleteWithTransactionsRefusesAnotherUsersAccount(): void {
+		// find() is the ownership gate — it must run before the ledger is touched.
+		$this->accountMapper->method('find')
+			->willThrowException(new DoesNotExistException('not found'));
+
+		$this->transactionService->expects($this->never())->method('delete');
+		$this->accountMapper->expects($this->never())->method('delete');
+
+		$this->expectException(DoesNotExistException::class);
+		$this->service->deleteWithTransactions(1, 'user2');
+	}
+
+	// ===== findWithCurrentBalance() =====
+
+	public function testFindWithCurrentBalanceAdjustsForFutureTransactions(): void {
+		$account = $this->makeAccount(['balance' => 1000.00]);
+		$this->accountMapper->method('find')->willReturn($account);
+
+		// Future transactions add 200 net (e.g., $300 credit - $100 debit in the future)
+		$this->transactionMapper->method('getNetChangeAfterDate')
+			->willReturn(200.0);
+
+		$result = $this->service->findWithCurrentBalance(1, 'user1');
+
+		// Current balance = stored (1000) - future change (200) = 800
+		$this->assertEquals(800.0, $result['balance']);
+		$this->assertEquals('Checking', $result['name']);
+	}
+
+	public function testFindWithCurrentBalanceNoFutureTransactions(): void {
+		$account = $this->makeAccount(['balance' => 500.00]);
+		$this->accountMapper->method('find')->willReturn($account);
+
+		$this->transactionMapper->method('getNetChangeAfterDate')->willReturn(0.0);
+
+		$result = $this->service->findWithCurrentBalance(1, 'user1');
+
+		$this->assertEquals(500.0, $result['balance']);
+	}
+
+	// ===== findAllWithCurrentBalances() =====
+
+	public function testFindAllWithCurrentBalancesAdjustsBatch(): void {
+		$accounts = [
+			$this->makeAccount(['id' => 1, 'balance' => 1000.00]),
+			$this->makeAccount(['id' => 2, 'balance' => 500.00]),
+		];
+		$this->accountMapper->method('findAll')->willReturn($accounts);
+
+		$this->transactionMapper->method('getNetChangeAfterDateBatch')
+			->willReturn([
+				1 => 100.0,  // Account 1 has 100 in future
+				// Account 2 has no future transactions
+			]);
+
+		$result = $this->service->findAllWithCurrentBalances('user1');
+
+		$this->assertCount(2, $result);
+		$this->assertEquals(900.0, $result[0]['balance']);  // 1000 - 100
+		$this->assertEquals(500.0, $result[1]['balance']);   // 500 - 0
+	}
+
+	// ===== getSummary() =====
+
+	public function testGetSummarySingleCurrency(): void {
+		$accounts = [
+			$this->makeAccount(['id' => 1, 'balance' => 1000.00, 'currency' => 'USD']),
+			$this->makeAccount(['id' => 2, 'balance' => 500.00, 'currency' => 'USD']),
+		];
+		$this->accountMapper->method('findAll')->willReturn($accounts);
+		$this->transactionMapper->method('getNetChangeAfterDateBatch')->willReturn([]);
+
+		$result = $this->service->getSummary('user1');
+
+		$this->assertEquals(1500.0, $result['totalBalance']);
+		$this->assertEquals(2, $result['accountCount']);
+		$this->assertArrayHasKey('USD', $result['currencyBreakdown']);
+		$this->assertEquals(1500.0, $result['currencyBreakdown']['USD']);
+	}
+
+	public function testGetSummaryMultiCurrency(): void {
+		$accounts = [
+			$this->makeAccount(['id' => 1, 'balance' => 1000.00, 'currency' => 'USD']),
+			$this->makeAccount(['id' => 2, 'balance' => 800.00, 'currency' => 'EUR']),
+		];
+		$this->accountMapper->method('findAll')->willReturn($accounts);
+		$this->transactionMapper->method('getNetChangeAfterDateBatch')->willReturn([]);
+
+		$result = $this->service->getSummary('user1');
+
+		$this->assertEquals(1800.0, $result['totalBalance']);
+		$this->assertEquals(1000.0, $result['currencyBreakdown']['USD']);
+		$this->assertEquals(800.0, $result['currencyBreakdown']['EUR']);
+	}
+
+	public function testGetSummaryWithFutureAdjustment(): void {
+		$accounts = [
+			$this->makeAccount(['id' => 1, 'balance' => 1000.00]),
+		];
+		$this->accountMapper->method('findAll')->willReturn($accounts);
+		$this->transactionMapper->method('getNetChangeAfterDateBatch')
+			->willReturn([1 => 200.0]);
+
+		$result = $this->service->getSummary('user1');
+
+		// Stored balance 1000, future change 200, so current = 800
+		$this->assertEquals(800.0, $result['totalBalance']);
+		$this->assertEquals(800.0, $result['accounts'][0]['balance']);
+	}
+
+	public function testGetSummaryEmptyAccounts(): void {
+		$this->accountMapper->method('findAll')->willReturn([]);
+		$this->transactionMapper->method('getNetChangeAfterDateBatch')->willReturn([]);
+
+		$result = $this->service->getSummary('user1');
+
+		$this->assertEquals(0.0, $result['totalBalance']);
+		$this->assertEquals(0, $result['accountCount']);
+		$this->assertEmpty($result['currencyBreakdown']);
+	}
+
+	// ===== getBalanceHistory() =====
+
+	public function testGetBalanceHistoryWorksBackwardsFromCurrentBalance(): void {
+		$account = $this->makeAccount(['balance' => 1000.00]);
+		$this->accountMapper->method('find')->willReturn($account);
+
+		$today = date('Y-m-d');
+		$yesterday = date('Y-m-d', strtotime('-1 day'));
+
+		$this->transactionMapper->method('getDailyBalanceChanges')
+			->willReturn([
+				$today => 100.0,       // Today +100 was applied
+				$yesterday => -50.0,   // Yesterday -50 was applied
+			]);
+
+		$result = $this->service->getBalanceHistory(1, 'user1', 3);
+
+		// Each date's balance at the END of that day, working back from
+		// 1000 (current stored balance). It used to record each day's
+		// opening balance, so the line ended a day behind and never showed
+		// today: the account tile read 1000 while its trend ended at 900.
+		// today:      1000
+		// yesterday:  1000 - 100 = 900
+		// 2 days ago:  900 - (-50) = 950
+		$this->assertCount(3, $result);
+
+		// Result is reversed so earliest date first
+		$this->assertEquals(950.0, $result[0]['balance']);  // 2 days ago
+		$this->assertEquals(900.0, $result[1]['balance']);  // yesterday
+		$this->assertEquals(1000.0, $result[2]['balance']); // today = the current balance
+		$this->assertSame(date('Y-m-d'), $result[2]['date']);
+	}
+
+	public function testGetBalanceHistoryNoDailyChanges(): void {
+		$account = $this->makeAccount(['balance' => 500.00]);
+		$this->accountMapper->method('find')->willReturn($account);
+		$this->transactionMapper->method('getDailyBalanceChanges')->willReturn([]);
+
+		$result = $this->service->getBalanceHistory(1, 'user1', 5);
+
+		$this->assertCount(5, $result);
+		// All days should have the same balance since no changes
+		foreach ($result as $entry) {
+			$this->assertEquals(500.0, $entry['balance']);
+		}
+	}
+
+	// ===== reconcile() =====
+
+	public function testReconcileBalanced(): void {
+		$account = $this->makeAccount(['balance' => 1000.00]);
+		$this->accountMapper->method('find')->willReturn($account);
+
+		$result = $this->service->reconcile(1, 'user1', 1000.00);
+
+		$this->assertEquals(1000.0, $result['currentBalance']);
+		$this->assertEquals(1000.0, $result['statementBalance']);
+		$this->assertEquals(0.0, $result['difference']);
+		$this->assertTrue($result['isBalanced']);
+	}
+
+	public function testReconcileWithinTolerance(): void {
+		$account = $this->makeAccount(['balance' => 1000.00]);
+		$this->accountMapper->method('find')->willReturn($account);
+
+		$result = $this->service->reconcile(1, 'user1', 1000.005);
+
+		$this->assertTrue($result['isBalanced']);
+	}
+
+	public function testReconcileOutOfBalance(): void {
+		$account = $this->makeAccount(['balance' => 1000.00]);
+		$this->accountMapper->method('find')->willReturn($account);
+
+		$result = $this->service->reconcile(1, 'user1', 990.00);
+
+		$this->assertEquals(-10.0, $result['difference']);
+		$this->assertFalse($result['isBalanced']);
+	}
+
+	// ===== getAccountMetrics() (#285) =====
+
+	public function testGetAccountMetricsMapsMapperOutputForCurrentMonth(): void {
+		$this->accountMapper->method('find')->willReturn($this->makeAccount());
+		$this->transactionMapper->expects($this->once())
+			->method('getAccountMetrics')
+			->with(1, date('Y-m-01'), date('Y-m-t'))
+			->willReturn(['count' => 1603, 'average' => 12.5, 'monthIncome' => 300.0, 'monthExpenses' => 180.0]);
+
+		$result = $this->service->getAccountMetrics(1, 'user1');
+
+		// Whole-account count, not a single page (the #285 fix)
+		$this->assertSame(1603, $result['totalTransactions']);
+		$this->assertSame(300.0, $result['thisMonthIncome']);
+		$this->assertSame(180.0, $result['thisMonthExpenses']);
+		$this->assertSame(12.5, $result['avgTransaction']);
+	}
+
+	/**
+	 * With a budget start day, "this month" on the account page is the budget
+	 * period running today: with start day 28 on 29 September, October's.
+	 */
+	public function testGetAccountMetricsCoversTheRunningBudgetPeriod(): void {
+		$carryoverService = $this->createMock(BudgetCarryoverService::class);
+		$carryoverService->method('currentBudgetMonth')->with('user1')->willReturn('2026-10');
+		$carryoverService->method('budgetMonthRange')->with('user1', '2026-10')->willReturn(['2026-09-28', '2026-10-27']);
+		$l = $this->createMock(IL10N::class);
+		$service = new AccountService(
+			$this->accountMapper,
+			$this->transactionMapper,
+			$this->createMock(InterestRateMapper::class),
+			$this->conversionService,
+			$this->granularShareService,
+			$this->transactionService,
+			$l,
+			null,
+			null,
+			$carryoverService
+		);
+		$this->accountMapper->method('find')->willReturn($this->makeAccount());
+		$this->transactionMapper->expects($this->once())
+			->method('getAccountMetrics')
+			->with(1, '2026-09-28', '2026-10-27')
+			->willReturn(['count' => 3, 'average' => 10.0, 'monthIncome' => 50.0, 'monthExpenses' => 20.0]);
+
+		$result = $service->getAccountMetrics(1, 'user1');
+
+		$this->assertSame(50.0, $result['thisMonthIncome']);
+		$this->assertSame(20.0, $result['thisMonthExpenses']);
+	}
+
+	public function testGetAccountMetricsRequiresAccessibleAccount(): void {
+		$this->accountMapper->method('find')->willThrowException(new DoesNotExistException('no access'));
+		$this->transactionMapper->expects($this->never())->method('getAccountMetrics');
+
+		$this->expectException(DoesNotExistException::class);
+		$this->service->getAccountMetrics(999, 'user1');
+	}
+
+	// ===== exclude-from-reports (#286) =====
+
+	public function testGetSummaryExcludesFlaggedAccounts(): void {
+		$included = $this->makeAccount(['id' => 1, 'balance' => 1000.00, 'currency' => 'USD']);
+		$excluded = $this->makeAccount(['id' => 2, 'balance' => 500.00, 'currency' => 'USD']);
+		$excluded->setExcludedFromReports(true);
+		$this->accountMapper->method('findAll')->willReturn([$included, $excluded]);
+		$this->transactionMapper->method('getNetChangeAfterDateBatch')->willReturn([]);
+
+		$result = $this->service->getSummary('user1');
+
+		// The flagged account drops out of the dashboard summary entirely
+		$this->assertEquals(1, $result['accountCount']);
+		$this->assertEquals(1000.0, $result['totalBalance']);
+		$this->assertSame([1], array_column($result['accounts'], 'id'));
+	}
+
+	public function testCreateStoresExcludedFromReports(): void {
+		$captured = null;
+		$this->accountMapper->method('insert')->willReturnCallback(function ($account) use (&$captured) {
+			$captured = $account;
+			return $account;
+		});
+
+		$this->service->create('user1', 'Hidden', 'checking', 0.0, 'USD', excludedFromReports: true);
+
+		$this->assertTrue($captured->getExcludedFromReports());
+	}
+
+	public function testCreateStoresStatementDay(): void {
+		$this->accountMapper->expects($this->once())
+			->method('insert')
+			->willReturnCallback(function (Account $account) {
+				$this->assertSame(15, $account->getStatementDay());
+				$account->setId(1);
+				return $account;
+			});
+
+		$this->service->create('user1', 'Visa', 'credit_card', 0.0, 'USD', statementDay: 15);
+	}
+
+	// ---------------------------------------------------------------
+	// Liability balance sign (#353)
+	//
+	// A liability stores what is owed as a NEGATIVE number. The caller supplies
+	// a magnitude plus an explicit intent flag; AccountService is the single
+	// place the sign is applied. Before #353 the rule lived in one controller
+	// branch, so the edit path stored whatever the user typed and a statement
+	// balance entered without a minus turned a debt into an asset.
+	// ---------------------------------------------------------------
+
+	private function captureInsert(&$captured): void {
+		$this->accountMapper->method('insert')->willReturnCallback(function (Account $account) use (&$captured) {
+			$captured = $account;
+			$account->setId(1);
+			return $account;
+		});
+	}
+
+	public function testCreateStoresLiabilityBalanceAsNegative(): void {
+		$this->captureInsert($captured);
+
+		$this->service->create('user1', 'Visa', 'credit_card', 500.0, 'USD');
+
+		$this->assertSame(-500.0, $captured->getBalance());
+		$this->assertSame(-500.0, $captured->getOpeningBalance());
+		$this->assertFalse($captured->getLiabilityInCredit());
+	}
+
+	public function testCreateKeepsAssetBalancePositive(): void {
+		$this->captureInsert($captured);
+
+		$this->service->create('user1', 'Current', 'checking', 500.0, 'USD');
+
+		$this->assertSame(500.0, $captured->getBalance());
+		$this->assertNull($captured->getLiabilityInCredit());
+	}
+
+	public function testCreateKeepsNegativeAssetBalanceForAnOverdraft(): void {
+		$this->captureInsert($captured);
+
+		$this->service->create('user1', 'Overdrawn', 'checking', -200.0, 'USD');
+
+		$this->assertSame(-200.0, $captured->getBalance());
+	}
+
+	public function testCreateSigningIsIdempotentForAnAlreadyNegativeLiability(): void {
+		$this->captureInsert($captured);
+
+		$this->service->create('user1', 'Visa', 'credit_card', -500.0, 'USD');
+
+		$this->assertSame(-500.0, $captured->getBalance());
+	}
+
+	public function testCreateStoresLiabilityInCreditAsPositive(): void {
+		$this->captureInsert($captured);
+
+		$this->service->create('user1', 'Overpaid card', 'credit_card', 500.0, 'USD', liabilityInCredit: true);
+
+		$this->assertSame(500.0, $captured->getBalance());
+		$this->assertTrue($captured->getLiabilityInCredit());
+	}
+
+	public function testUpdateSignsLiabilityOpeningBalanceFromTheIntentFlag(): void {
+		$account = $this->makeAccount(['type' => 'loan']);
+		$this->accountMapper->method('find')->willReturn($account);
+		$this->accountMapper->method('update')->willReturnArgument(0);
+		$this->transactionMapper->method('getNetChangeAll')->willReturn(0.0);
+
+		$captured = null;
+		$this->accountMapper->method('update')->willReturnCallback(function (Account $a) use (&$captured) {
+			$captured = $a;
+			return $a;
+		});
+
+		$this->service->update(1, 'user1', [
+			'type' => 'loan',
+			'openingBalance' => 90904.56,
+			'liabilityInCredit' => false,
+		]);
+
+		$this->assertSame(-90904.56, $captured->getOpeningBalance());
+	}
+
+	public function testUpdateRejectsLiabilityOpeningBalanceWithoutAnIntentFlag(): void {
+		$account = $this->makeAccount(['type' => 'loan']);
+		$this->accountMapper->method('find')->willReturn($account);
+		// Guessing the sign rewrites real money either way, so a client that
+		// cannot say what it means is refused rather than interpreted.
+		$this->accountMapper->expects($this->never())->method('update');
+
+		$this->expectException(\InvalidArgumentException::class);
+
+		$this->service->update(1, 'user1', ['type' => 'loan', 'openingBalance' => 90904.56]);
+	}
+
+	public function testUpdateSignsForTheTargetTypeWhenAnAssetIsFlippedToALiability(): void {
+		$account = $this->makeAccount(['type' => 'savings']);
+		$this->accountMapper->method('find')->willReturn($account);
+		$this->transactionMapper->method('getNetChangeAll')->willReturn(0.0);
+
+		$captured = null;
+		$this->accountMapper->method('update')->willReturnCallback(function (Account $a) use (&$captured) {
+			$captured = $a;
+			return $a;
+		});
+
+		$this->service->update(1, 'user1', [
+			'type' => 'mortgage',
+			'openingBalance' => 1000.0,
+			'liabilityInCredit' => false,
+		]);
+
+		// The TARGET type decides the sign, applied once. A second transition
+		// handler on top of this would negate it again.
+		$this->assertSame(-1000.0, $captured->getOpeningBalance());
+	}
+
+	public function testUpdateClearsTheInCreditFlagWhenALiabilityBecomesAnAsset(): void {
+		$account = $this->makeAccount(['type' => 'credit_card']);
+		$this->accountMapper->method('find')->willReturn($account);
+		$this->transactionMapper->method('getNetChangeAll')->willReturn(0.0);
+
+		$captured = null;
+		$this->accountMapper->method('update')->willReturnCallback(function (Account $a) use (&$captured) {
+			$captured = $a;
+			return $a;
+		});
+
+		$this->service->update(1, 'user1', ['type' => 'savings', 'openingBalance' => 100.0]);
+
+		$this->assertNull($captured->getLiabilityInCredit());
+	}
+
+	// ===== closing an account (#372) =====
+
+	/** The service wired with a closure guard, which setUp() leaves out. */
+	private function serviceWithGuard(AccountClosureService $guard): AccountService {
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnArgument(0);
+
+		return new AccountService(
+			$this->accountMapper,
+			$this->transactionMapper,
+			$this->createMock(InterestRateMapper::class),
+			$this->conversionService,
+			$this->granularShareService,
+			$this->transactionService,
+			$l,
+			null,
+			$guard
+		);
+	}
+
+	/**
+	 * The guard runs against the stored state BEFORE anything is written, so a
+	 * refused close leaves the account exactly as it was: no half-saved edit.
+	 */
+	public function testClosingRunsTheGuardBeforeAnythingIsSaved(): void {
+		$account = $this->makeAccount(['balance' => 12.34]);
+		$this->accountMapper->method('find')->willReturn($account);
+
+		$guard = $this->createMock(AccountClosureService::class);
+		$guard->expects($this->once())
+			->method('assertClosable')
+			->with($account)
+			->willThrowException(new \InvalidArgumentException('still has a balance'));
+		$this->accountMapper->expects($this->never())->method('update');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('still has a balance');
+
+		$this->serviceWithGuard($guard)->update(1, 'user1', ['closed' => true, 'name' => 'Renamed']);
+	}
+
+	public function testClosingPersistsTheFlagWhenTheGuardPasses(): void {
+		$account = $this->makeAccount(['balance' => 0.0]);
+		$this->accountMapper->method('find')->willReturn($account);
+
+		$guard = $this->createMock(AccountClosureService::class);
+		$guard->expects($this->once())->method('assertClosable')->with($account);
+		$this->accountMapper->expects($this->once())
+			->method('update')
+			->with($this->callback(fn (Account $a) => $a->getClosed() === true))
+			->willReturnArgument(0);
+
+		$this->serviceWithGuard($guard)->update(1, 'user1', ['closed' => true]);
+	}
+
+	public function testReopeningSkipsTheGuard(): void {
+		$account = $this->makeAccount();
+		$account->setClosed(true);
+		$this->accountMapper->method('find')->willReturn($account);
+
+		$guard = $this->createMock(AccountClosureService::class);
+		$guard->expects($this->never())->method('assertClosable');
+		$this->accountMapper->expects($this->once())
+			->method('update')
+			->with($this->callback(fn (Account $a) => $a->getClosed() === false))
+			->willReturnArgument(0);
+
+		$this->serviceWithGuard($guard)->update(1, 'user1', ['closed' => false]);
+	}
+
+	public function testEditingAClosedAccountWithoutTheFlagSkipsTheGuard(): void {
+		$account = $this->makeAccount();
+		$account->setClosed(true);
+		$this->accountMapper->method('find')->willReturn($account);
+		$this->accountMapper->method('update')->willReturnArgument(0);
+
+		$guard = $this->createMock(AccountClosureService::class);
+		$guard->expects($this->never())->method('assertClosable');
+
+		$this->serviceWithGuard($guard)->update(1, 'user1', ['name' => 'Renamed']);
+	}
+
+	/** Re-sending closed=true for an already-closed account is a no-op, not a re-check. */
+	public function testReClosingAClosedAccountSkipsTheGuard(): void {
+		$account = $this->makeAccount(['balance' => 50.0]);
+		$account->setClosed(true);
+		$this->accountMapper->method('find')->willReturn($account);
+		$this->accountMapper->method('update')->willReturnArgument(0);
+
+		$guard = $this->createMock(AccountClosureService::class);
+		$guard->expects($this->never())->method('assertClosable');
+
+		$this->serviceWithGuard($guard)->update(1, 'user1', ['closed' => true]);
+	}
 }

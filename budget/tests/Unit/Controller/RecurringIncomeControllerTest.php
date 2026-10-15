@@ -116,6 +116,103 @@ class RecurringIncomeControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
 	}
 
+	private function controllerRefusingCategory(int $refusedCategoryId): RecurringIncomeController {
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn(true);
+		$granularShareService->method('resolveOwner')->willReturn('user1');
+		$granularShareService->method('requireUsableCategory')->willReturnCallback(
+			function (string $ownerId, ?int $categoryId) use ($refusedCategoryId): void {
+				if ($categoryId === $refusedCategoryId) {
+					throw new \InvalidArgumentException('Category not found');
+				}
+			}
+		);
+		return new RecurringIncomeController(
+			$this->request, $this->service, $this->validationService, $granularShareService,
+			$this->l, 'user1', $this->logger
+		);
+	}
+
+	public function testCreateRejectsACategoryTheOwnerCannotSee(): void {
+		$this->service->expects($this->never())->method('create');
+
+		$response = $this->controllerRefusingCategory(999)->create('Salary', 2000.0, categoryId: 999);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Category not found', $response->getData()['error']);
+	}
+
+	public function testUpdateRejectsACategoryTheOwnerCannotSee(): void {
+		$this->request->method('getParams')->willReturn(['categoryId' => 999]);
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controllerRefusingCategory(999)->update(4);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	/** Account 4 is Alice's, shared with user1; Alice can't see category 7 */
+	private function controllerOnAlicesAccount(): RecurringIncomeController {
+		$shares = $this->createMock(GranularShareService::class);
+		$shares->method('canAccess')->willReturn(true);
+		$shares->method('canWrite')->willReturn(true);
+		$shares->method('resolveOwner')->willReturnCallback(
+			fn ($user, $type, $id) => $type === 'account' && $id === 4 ? 'alice' : 'user1'
+		);
+		$shares->method('requireUsableCategory')->willReturnCallback(function (string $owner, ?int $categoryId) {
+			if ($owner === 'alice' && $categoryId === 7) {
+				throw new \InvalidArgumentException('Category not found');
+			}
+		});
+		return new RecurringIncomeController($this->request, $this->service, $this->validationService, $shares, $this->l, 'user1', $this->logger);
+	}
+
+	public function testIncomeIntoAnotherUsersAccountNeedsACategoryTheyCanSee(): void {
+		$this->service->expects($this->never())->method('create');
+
+		$response = $this->controllerOnAlicesAccount()->create('Salary', 2000.0, categoryId: 7, accountId: 4);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertStringContainsString('cannot see this category', $response->getData()['error']);
+	}
+
+	public function testIncomeIntoAnotherUsersAccountMayUseACategorySharedWithThem(): void {
+		$this->service->expects($this->once())->method('create')->willReturn(new RecurringIncome());
+
+		$response = $this->controllerOnAlicesAccount()->create('Salary', 2000.0, categoryId: 8, accountId: 4);
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+	}
+
+	private function storedIncomeOnAlicesAccount(int $categoryId): RecurringIncome {
+		$income = new RecurringIncome();
+		$income->setId(3);
+		$income->setAccountId(4);
+		$income->setCategoryId($categoryId);
+		return $income;
+	}
+
+	public function testMovingIncomeToACategoryTheAccountOwnerCannotSeeIsRefused(): void {
+		$this->service->method('find')->willReturn($this->storedIncomeOnAlicesAccount(8));
+		$this->request->method('getParams')->willReturn(['categoryId' => 7]);
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controllerOnAlicesAccount()->update(3);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertStringContainsString('cannot see this category', $response->getData()['error']);
+	}
+
+	public function testIncomeSavedWithItsStoredCategoryStillSaves(): void {
+		$this->service->method('find')->willReturn($this->storedIncomeOnAlicesAccount(7));
+		$this->request->method('getParams')->willReturn(['name' => 'Salary', 'categoryId' => 7, 'accountId' => 4]);
+		$this->service->expects($this->once())->method('update')->willReturn(new RecurringIncome());
+
+		$response = $this->controllerOnAlicesAccount()->update(3);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
 	public function testCreatePassesAllArguments(): void {
 		$income = $this->createMock(RecurringIncome::class);
 		$this->service->expects($this->once())
@@ -533,11 +630,15 @@ class RecurringIncomeControllerTest extends TestCase {
 	 * Built fresh rather than re-stubbing setUp()'s mock, which PHPUnit will
 	 * not let a later willReturn() override.
 	 */
-	private function controllerOwnedBy(?string $owner, bool $canWrite = true): RecurringIncomeController {
+	private function controllerOwnedBy(?string $owner, bool $canWrite = true, bool $canManage = false): RecurringIncomeController {
 		$granularShareService = $this->createMock(GranularShareService::class);
 		$granularShareService->method('canAccess')->willReturn($owner !== null);
+		$granularShareService->method('withCategoryNames')->willReturnCallback(
+			fn (array $items) => array_map(fn (array $item) => $item + ['categoryName' => 'Name of ' . ($item['categoryId'] ?? 'none')], $items)
+		);
 		$granularShareService->method('resolveOwner')->willReturn($owner);
 		$granularShareService->method('canWrite')->willReturn($canWrite);
+		$granularShareService->method('canManage')->willReturn($canManage);
 		if (!$canWrite) {
 			$granularShareService->method('requireWriteAccess')
 				->willThrowException(new \OCA\Budget\Exception\ReadOnlyShareException());
@@ -567,6 +668,18 @@ class RecurringIncomeControllerTest extends TestCase {
 		$this->assertTrue($response->getData()['_shared']);
 	}
 
+	public function testShowNamesSharedIncomesCategory(): void {
+		$income = new RecurringIncome();
+		$income->setId(7);
+		$income->setCategoryId(31);
+		$this->service->method('find')->with(7, 'owner1')->willReturn($income);
+
+		$data = $this->controllerOwnedBy('owner1')->show(7)->getData();
+
+		$this->assertSame('Name of 31', $data['categoryName']);
+		$this->assertTrue($data['_shared']);
+	}
+
 	public function testShowReturnsNotFoundWhenIncomeIsNotVisible(): void {
 		$this->service->expects($this->never())->method('find');
 
@@ -576,11 +689,21 @@ class RecurringIncomeControllerTest extends TestCase {
 	}
 
 	public function testDestroyDeletesSharedIncomeUnderItsOwner(): void {
+		// Deleting needs Full control from the owner
 		$this->service->expects($this->once())->method('delete')->with(7, 'owner1');
 
-		$response = $this->controllerOwnedBy('owner1')->destroy(7);
+		$response = $this->controllerOwnedBy('owner1', true, true)->destroy(7);
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testDestroyRefusesSharedIncomeAtReadAndWrite(): void {
+		$this->service->expects($this->never())->method('delete');
+
+		$response = $this->controllerOwnedBy('owner1', true, false)->destroy(7);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+		$this->assertSame('Deleting a shared item needs Full control from its owner', $response->getData()['error']);
 	}
 
 	public function testMarkReceivedRunsAsTheIncomeOwner(): void {
@@ -594,6 +717,77 @@ class RecurringIncomeControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
 
+	/** The service checks the account against the person receiving, not only the owner */
+	public function testReceivingAndUndoingPassTheActingUser(): void {
+		$this->request->method('getParams')->willReturn(['createTransaction' => true]);
+		$this->service->expects($this->once())->method('markReceived')
+			->with(7, 'owner1', null, true, null, 'user1')->willReturn(new RecurringIncome());
+		$this->service->expects($this->once())->method('markUnreceived')
+			->with(7, 'owner1', 'user1')->willReturn(new RecurringIncome());
+
+		$controller = $this->controllerOwnedBy('owner1');
+		$this->assertSame(Http::STATUS_OK, $controller->markReceived(7)->getStatus());
+		$this->assertSame(Http::STATUS_OK, $controller->markUnreceived(7)->getStatus());
+	}
+
+	public function testReceivingIntoAnAccountTheRecipientCannotWriteToIsForbidden(): void {
+		$this->request->method('getParams')->willReturn(['createTransaction' => true]);
+		$this->service->method('markReceived')->willThrowException(new \OCA\Budget\Exception\ReadOnlyShareException());
+
+		$response = $this->controllerOwnedBy('owner1')->markReceived(7);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+		$this->assertSame('This shared item is read-only', $response->getData()['error']);
+	}
+
+	public function testMarkReceivedPassesTheShownDateAndReadsFalseAsFalse(): void {
+		// A bare (bool) cast turned the string "false" into true and booked
+		// a transaction nobody asked for
+		$this->request->method('getParams')->willReturn(['createTransaction' => 'false', 'expectedDate' => '2026-10-03']);
+		$this->service->expects($this->once())->method('markReceived')
+			->with(7, 'owner1', null, false, '2026-10-03')
+			->willReturn(new RecurringIncome());
+
+		$response = $this->controllerOwnedBy('owner1')->markReceived(7);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testMarkReceivedShowsWhyItWasRefused(): void {
+		$this->request->method('getParams')->willReturn([]);
+		$this->service->method('markReceived')->willThrowException(new \InvalidArgumentException('This payment was already recorded'));
+
+		$response = $this->controllerOwnedBy('owner1')->markReceived(7);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('This payment was already recorded', $response->getData()['error']);
+	}
+
+	public function testMarkUnreceivedRevertsTheLastReceipt(): void {
+		$this->service->expects($this->once())->method('markUnreceived')->with(7, 'owner1')->willReturn(new RecurringIncome());
+
+		$response = $this->controllerOwnedBy('owner1')->markUnreceived(7);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testMarkUnreceivedIsRefusedOnAReadOnlyShare(): void {
+		$this->service->expects($this->never())->method('markUnreceived');
+
+		$response = $this->controllerOwnedBy('owner1', false)->markUnreceived(7);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	public function testUpdateReadsTheFlagsFalseAsFalse(): void {
+		$this->request->method('getParams')->willReturn(['autoCreateEnabled' => 'false', 'isActive' => '0']);
+		$this->service->expects($this->once())->method('update')
+			->with(7, 'owner1', ['autoCreateEnabled' => false, 'isActive' => false])
+			->willReturn(new RecurringIncome());
+
+		$this->controllerOwnedBy('owner1')->update(7);
+	}
+
 	public function testMarkReceivedIsRefusedOnAReadOnlyShare(): void {
 		$this->request->method('getParams')->willReturn([]);
 		$this->service->expects($this->never())->method('markReceived');
@@ -601,5 +795,265 @@ class RecurringIncomeControllerTest extends TestCase {
 		$response = $this->controllerOwnedBy('owner1', false)->markReceived(7);
 
 		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	// ── skip / undo skip (#396) ─────────────────────────────────────
+
+	public function testSkipPaymentRunsAsTheIncomeOwner(): void {
+		$income = new RecurringIncome();
+		$this->service->expects($this->once())->method('skipPayment')
+			->with(7, 'owner1')
+			->willReturn(['income' => $income, 'previousNextExpectedDate' => '2026-04-25']);
+
+		$response = $this->controllerOwnedBy('owner1')->skipPayment(7);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame('2026-04-25', $response->getData()['previousNextExpectedDate']);
+	}
+
+	public function testSkipPaymentIsRefusedOnAReadOnlyShare(): void {
+		$this->service->expects($this->never())->method('skipPayment');
+
+		$response = $this->controllerOwnedBy('owner1', false)->skipPayment(7);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	public function testSkipPaymentPassesTheServiceRefusalThrough(): void {
+		$this->service->method('skipPayment')
+			->willThrowException(new \InvalidArgumentException('Cannot skip a one-time income'));
+
+		$response = $this->controller->skipPayment(7);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Cannot skip a one-time income', $response->getData()['error']);
+	}
+
+	public function testUndoSkipRestoresTheDateAsTheIncomeOwner(): void {
+		$this->request->method('getParams')->willReturn(['previousNextExpectedDate' => '2026-04-25']);
+		$this->service->expects($this->once())->method('undoSkip')
+			->with(7, 'owner1', '2026-04-25')
+			->willReturn(new RecurringIncome());
+
+		$response = $this->controllerOwnedBy('owner1')->undoSkip(7);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testUndoSkipRejectsAMissingOrMalformedDate(): void {
+		$validationService = $this->createMock(ValidationService::class);
+		$validationService->method('validateDate')
+			->willReturn(['valid' => false, 'error' => 'Previous expected date is required', 'formatted' => null]);
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('resolveOwner')->willReturn('user1');
+		$controller = new RecurringIncomeController(
+			$this->request,
+			$this->service,
+			$validationService,
+			$granularShareService,
+			$this->l,
+			'user1',
+			$this->logger
+		);
+		$this->request->method('getParams')->willReturn([]);
+		$this->service->expects($this->never())->method('undoSkip');
+
+		$response = $controller->undoSkip(7);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	public function testUndoSkipIsRefusedOnAReadOnlyShare(): void {
+		$this->request->method('getParams')->willReturn(['previousNextExpectedDate' => '2026-04-25']);
+		$this->service->expects($this->never())->method('undoSkip');
+
+		$response = $this->controllerOwnedBy('owner1', false)->undoSkip(7);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	// ── the account an income books into ────────────────────────────
+
+	/**
+	 * Owen shares his income 1 and his joint account 1 with Rita, both at
+	 * write. Owen's private account 2 was never shared with her, and Owen
+	 * can't post to Rita's own account 9.
+	 */
+	private function controllerForRita(): RecurringIncomeController {
+		$writable = ['rita' => [1, 9], 'owen' => [1, 2]];
+		$shares = $this->createMock(GranularShareService::class);
+		$shares->method('canAccess')->willReturn(true);
+		$shares->method('resolveOwner')->willReturnCallback(
+			fn (string $user, string $type, int $id) => ($type === 'account' && $id === 9) ? 'rita' : 'owen'
+		);
+		$shares->method('canWrite')->willReturnCallback(
+			fn (string $user, string $type, int $id) => $type !== 'account' || in_array($id, $writable[$user] ?? [], true)
+		);
+		$shares->method('requireWriteAccess')->willReturnCallback(function (string $user, string $type, int $id) use ($writable): void {
+			if ($type === 'account' && !in_array($id, $writable[$user] ?? [], true)) {
+				throw new \OCA\Budget\Exception\ReadOnlyShareException();
+			}
+		});
+		// Rita sees categories below 16; 16 and up are owen's, never shared
+		$shares->method('requireCategoryVisibleToWriter')->willReturnCallback(
+			function (string $owner, string $writer, ?int $categoryId, array $kept = []): void {
+				if ($categoryId !== null && $writer !== $owner && !in_array($categoryId, $kept, true) && $categoryId >= 16) {
+					throw new \InvalidArgumentException('Category not found');
+				}
+			}
+		);
+		return new RecurringIncomeController($this->request, $this->service, $this->validationService, $shares, $this->l, 'rita', $this->logger);
+	}
+
+	public function testARecipientCannotFileTheOwnersIncomeUnderAnUnsharedCategory(): void {
+		$this->service->method('find')->willReturn($this->owensIncomeOn(1));
+		$this->request->method('getParams')->willReturn(['categoryId' => 16]);
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controllerForRita()->update(1);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	public function testAnIncomeKeepsTheUnsharedCategoryItAlreadyHas(): void {
+		$income = $this->owensIncomeOn(1);
+		$income->setCategoryId(16);
+		$this->service->method('find')->willReturn($income);
+		$this->request->method('getParams')->willReturn(['categoryId' => 16, 'notes' => 'checked']);
+		$this->service->expects($this->once())->method('update')->willReturn(new RecurringIncome());
+
+		$this->assertSame(Http::STATUS_OK, $this->controllerForRita()->update(1)->getStatus());
+	}
+
+	private function owensIncomeOn(?int $accountId): RecurringIncome {
+		$income = new RecurringIncome();
+		$income->setId(1);
+		$income->setUserId('owen');
+		$income->setAccountId($accountId);
+		return $income;
+	}
+
+	public function testARecipientCannotPointTheOwnersIncomeAtAnAccountNeverSharedWithHer(): void {
+		$this->service->method('find')->willReturn($this->owensIncomeOn(1));
+		$this->request->method('getParams')->willReturn(['accountId' => 2]);
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controllerForRita()->update(1);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	public function testARecipientCannotMoveTheOwnersIncomeOntoAnAccountOnlySheCanUse(): void {
+		$this->service->method('find')->willReturn($this->owensIncomeOn(1));
+		$this->request->method('getParams')->willReturn(['accountId' => 9]);
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controllerForRita()->update(1);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame("The owner of this income can't use that account. Choose another one.", $response->getData()['error']);
+	}
+
+	public function testARecipientMayMoveTheIncomeToAnAccountTheyBothUse(): void {
+		$this->service->method('find')->willReturn($this->owensIncomeOn(null));
+		$this->request->method('getParams')->willReturn(['accountId' => 1]);
+		$this->service->expects($this->once())->method('update')->with(1, 'owen', ['accountId' => 1])->willReturn(new RecurringIncome());
+
+		$response = $this->controllerForRita()->update(1);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testTheStoredAccountKeepsSavingWhateverItIs(): void {
+		// The form sends back what is stored, shared with the editor or not
+		$this->service->method('find')->willReturn($this->owensIncomeOn(2));
+		$this->request->method('getParams')->willReturn(['name' => 'Salary', 'accountId' => 2]);
+		$this->service->expects($this->once())->method('update')->willReturn(new RecurringIncome());
+
+		$response = $this->controllerForRita()->update(1);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testNewIncomeCannotBookIntoAnAccountTheUserCannotWriteTo(): void {
+		$this->service->expects($this->never())->method('create');
+
+		$response = $this->controllerForRita()->create('Salary', 10.0, accountId: 2);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	public function testDetectedIncomeCannotBookIntoAnAccountTheUserCannotWriteTo(): void {
+		$this->request->method('getParams')->willReturn(['incomes' => [
+			['suggestedName' => 'Salary', 'amount' => 2000, 'frequency' => 'monthly', 'accountId' => 2],
+		]]);
+		$this->service->expects($this->never())->method('createFromDetected');
+
+		$response = $this->controllerForRita()->createFromDetected();
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	// ── createFromDetected ──────────────────────────────────────────
+
+	private function controllerValidatingFor(): RecurringIncomeController {
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('canAccess')->willReturn(true);
+		$granularShareService->method('resolveOwner')->willReturn('user1');
+		return new RecurringIncomeController(
+			$this->request, $this->service, new ValidationService($this->l), $granularShareService,
+			$this->l, 'user1', $this->logger
+		);
+	}
+
+	public function testCreateFromDetectedRefusesANamelessItemBeforeCreatingAny(): void {
+		// The create route refuses a blank name; this one saved nameless incomes
+		$this->request->method('getParams')->willReturn(['incomes' => [
+			['suggestedName' => 'Salary', 'amount' => 2000, 'frequency' => 'monthly'],
+			['suggestedName' => '', 'description' => '', 'amount' => 200, 'frequency' => 'monthly'],
+		]]);
+		$this->service->expects($this->never())->method('createFromDetected');
+
+		$response = $this->controllerValidatingFor()->createFromDetected();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Name is required', $response->getData()['error']);
+	}
+
+	public function testCreateFromDetectedRefusesAnUnknownFrequency(): void {
+		$this->request->method('getParams')->willReturn(['incomes' => [
+			['suggestedName' => 'Salary', 'amount' => 2000, 'frequency' => 'fortnightly'],
+		]]);
+		$this->service->expects($this->never())->method('createFromDetected');
+
+		$response = $this->controllerValidatingFor()->createFromDetected();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	public function testCreateFromDetectedNamesEachItemFromTheFirstNonBlankField(): void {
+		$this->request->method('getParams')->willReturn(['incomes' => [
+			['suggestedName' => '', 'description' => '  DEPOSIT  ', 'amount' => 200, 'frequency' => 'monthly'],
+			['name' => 'Lodger', 'suggestedName' => 'Smith', 'amount' => 400, 'frequency' => 'weekly', 'startDate' => '2026-09-25'],
+		]]);
+		$this->service->expects($this->once())
+			->method('createFromDetected')
+			->with('user1', $this->callback(fn (array $items) => $items[0]['name'] === 'DEPOSIT' && $items[1]['name'] === 'Lodger'))
+			->willReturn([]);
+
+		$response = $this->controllerValidatingFor()->createFromDetected();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+	}
+
+	public function testCreateFromDetectedRefusesABadStartDate(): void {
+		$this->request->method('getParams')->willReturn(['incomes' => [
+			['suggestedName' => 'Lodger', 'amount' => 400, 'frequency' => 'weekly', 'startDate' => '25/09/2026'],
+		]]);
+		$this->service->expects($this->never())->method('createFromDetected');
+
+		$response = $this->controllerValidatingFor()->createFromDetected();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 	}
 }

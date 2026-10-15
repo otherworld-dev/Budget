@@ -15,97 +15,97 @@ use OCP\IDBConnection;
  * @template-extends QBMapper<BankConnection>
  */
 class BankConnectionMapper extends QBMapper {
-    use EncryptedFieldsTrait;
+	use EncryptedFieldsTrait;
 
-    public function __construct(IDBConnection $db, EncryptionService $encryptionService) {
-        parent::__construct($db, 'budget_bc', BankConnection::class);
-        $this->initializeEncryption($encryptionService, BankConnection::class);
-    }
+	public function __construct(IDBConnection $db, EncryptionService $encryptionService) {
+		parent::__construct($db, 'budget_bc', BankConnection::class);
+		$this->initializeEncryption($encryptionService, BankConnection::class);
+	}
 
-    public function find(int $id, string $userId): BankConnection {
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)))
-            ->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+	public function find(int $id, string $userId): BankConnection {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
 
-        $entity = $this->findEntity($qb);
-        $this->decryptEntity($entity);
-        return $entity;
-    }
+		$entity = $this->findEntity($qb);
+		$this->decryptEntity($entity);
+		return $entity;
+	}
 
-    /**
-     * @return BankConnection[]
-     */
-    public function findAll(string $userId): array {
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->orderBy('created_at', 'DESC');
+	/**
+	 * @return BankConnection[]
+	 */
+	public function findAll(string $userId): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+			->orderBy('created_at', 'DESC');
 
-        $entities = $this->findEntities($qb);
-        foreach ($entities as $entity) {
-            $this->decryptEntity($entity);
-        }
-        return $entities;
-    }
+		$entities = $this->findEntities($qb);
+		foreach ($entities as $entity) {
+			$this->decryptEntity($entity);
+		}
+		return $entities;
+	}
 
-    /**
-     * Find all active connections across all users (for background job).
-     *
-     * @return BankConnection[]
-     */
-    public function findActiveForSync(): array {
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from($this->getTableName())
-            ->where($qb->expr()->eq('status', $qb->createNamedParameter('active')));
+	/**
+	 * Find all active connections across all users (for background job).
+	 *
+	 * @return BankConnection[]
+	 */
+	public function findActiveForSync(): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('status', $qb->createNamedParameter('active')));
 
-        $entities = $this->findEntities($qb);
-        foreach ($entities as $entity) {
-            $this->decryptEntity($entity);
-        }
-        return $entities;
-    }
+		$entities = $this->findEntities($qb);
+		foreach ($entities as $entity) {
+			$this->decryptEntity($entity);
+		}
+		return $entities;
+	}
 
-    /**
-     * Find active connection IDs and user IDs for background sync.
-     * Returns lightweight data to avoid decrypting all credentials into memory at once.
-     *
-     * @return array<array{id: int, userId: string}>
-     */
-    public function findActiveIdsForSync(): array {
-        $qb = $this->db->getQueryBuilder();
-        // 'error' connections are included so transient provider failures
-        // self-heal on the next daily run (a successful sync resets the status)
-        $qb->select('id', 'user_id')
-            ->from($this->getTableName())
-            ->where($qb->expr()->in('status', $qb->createNamedParameter(
-                ['active', 'error'],
-                IQueryBuilder::PARAM_STR_ARRAY
-            )));
+	/**
+	 * Find active connection IDs and user IDs for background sync.
+	 * Returns lightweight data to avoid decrypting all credentials into memory at once.
+	 *
+	 * @return array<array{id: int, userId: string}>
+	 */
+	public function findActiveIdsForSync(): array {
+		$qb = $this->db->getQueryBuilder();
+		// 'error' connections are included so transient provider failures
+		// self-heal on the next daily run (a successful sync resets the status)
+		$qb->select('id', 'user_id')
+			->from($this->getTableName())
+			->where($qb->expr()->in('status', $qb->createNamedParameter(
+				['active', 'error'],
+				IQueryBuilder::PARAM_STR_ARRAY
+			)));
 
-        $result = $qb->executeQuery();
-        $rows = [];
-        while ($row = $result->fetch()) {
-            $rows[] = ['id' => (int) $row['id'], 'userId' => $row['user_id']];
-        }
-        $result->closeCursor();
-        return $rows;
-    }
+		$result = $qb->executeQuery();
+		$rows = [];
+		while ($row = $result->fetch()) {
+			$rows[] = ['id' => (int)$row['id'], 'userId' => $row['user_id']];
+		}
+		$result->closeCursor();
+		return $rows;
+	}
 
-    public function insert(Entity $entity): Entity {
-        $this->encryptEntity($entity);
-        $result = parent::insert($entity);
-        $this->decryptEntity($result);
-        return $result;
-    }
+	public function insert(Entity $entity): Entity {
+		$this->encryptEntity($entity);
+		$result = parent::insert($entity);
+		$this->decryptEntity($result);
+		return $result;
+	}
 
-    public function update(Entity $entity): Entity {
-        $this->encryptEntity($entity);
-        $result = parent::update($entity);
-        $this->decryptEntity($result);
-        return $result;
-    }
+	public function update(Entity $entity): Entity {
+		$this->encryptEntity($entity);
+		$result = parent::update($entity);
+		$this->decryptEntity($result);
+		return $result;
+	}
 }

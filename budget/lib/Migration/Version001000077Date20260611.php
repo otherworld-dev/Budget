@@ -26,64 +26,64 @@ use OCP\Migration\SimpleMigrationStep;
  */
 class Version001000077Date20260611 extends SimpleMigrationStep {
 
-    public function __construct(
-        private IDBConnection $db,
-    ) {
-    }
+	public function __construct(
+		private IDBConnection $db,
+	) {
+	}
 
-    public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
-        return null;
-    }
+	public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
+		return null;
+	}
 
-    public function postSchemaChange(IOutput $output, Closure $schemaClosure, array $options): void {
-        // Net per account over all non-scheduled transactions
-        $netQb = $this->db->getQueryBuilder();
-        $netQb->select('account_id')
-            ->selectAlias(
-                $netQb->createFunction("COALESCE(SUM(CASE WHEN type = 'credit' THEN amount ELSE -amount END), 0)"),
-                'net'
-            )
-            ->from('budget_transactions')
-            ->where(
-                $netQb->expr()->orX(
-                    $netQb->expr()->neq('status', $netQb->createNamedParameter('scheduled')),
-                    $netQb->expr()->isNull('status')
-                )
-            )
-            ->groupBy('account_id');
-        $result = $netQb->executeQuery();
-        $nets = [];
-        while ($row = $result->fetch()) {
-            $nets[(int)$row['account_id']] = (float)$row['net'];
-        }
-        $result->closeCursor();
+	public function postSchemaChange(IOutput $output, Closure $schemaClosure, array $options): void {
+		// Net per account over all non-scheduled transactions
+		$netQb = $this->db->getQueryBuilder();
+		$netQb->select('account_id')
+			->selectAlias(
+				$netQb->createFunction("COALESCE(SUM(CASE WHEN type = 'credit' THEN amount ELSE -amount END), 0)"),
+				'net'
+			)
+			->from('budget_transactions')
+			->where(
+				$netQb->expr()->orX(
+					$netQb->expr()->neq('status', $netQb->createNamedParameter('scheduled')),
+					$netQb->expr()->isNull('status')
+				)
+			)
+			->groupBy('account_id');
+		$result = $netQb->executeQuery();
+		$nets = [];
+		while ($row = $result->fetch()) {
+			$nets[(int)$row['account_id']] = (float)$row['net'];
+		}
+		$result->closeCursor();
 
-        $accQb = $this->db->getQueryBuilder();
-        $accQb->select('id', 'balance', 'opening_balance')->from('budget_accounts');
-        $result = $accQb->executeQuery();
-        $accounts = $result->fetchAll();
-        $result->closeCursor();
+		$accQb = $this->db->getQueryBuilder();
+		$accQb->select('id', 'balance', 'opening_balance')->from('budget_accounts');
+		$result = $accQb->executeQuery();
+		$accounts = $result->fetchAll();
+		$result->closeCursor();
 
-        $fixed = 0;
-        foreach ($accounts as $acc) {
-            $stored = (float)($acc['balance'] ?? 0);
-            $opening = (float)($acc['opening_balance'] ?? 0);
-            $net = $nets[(int)$acc['id']] ?? 0.0;
+		$fixed = 0;
+		foreach ($accounts as $acc) {
+			$stored = (float)($acc['balance'] ?? 0);
+			$opening = (float)($acc['opening_balance'] ?? 0);
+			$net = $nets[(int)$acc['id']] ?? 0.0;
 
-            if (abs($stored - ($opening + $net)) <= 0.005) {
-                continue; // invariant already holds
-            }
+			if (abs($stored - ($opening + $net)) <= 0.005) {
+				continue; // invariant already holds
+			}
 
-            $update = $this->db->getQueryBuilder();
-            $update->update('budget_accounts')
-                ->set('opening_balance', $update->createNamedParameter(round($stored - $net, 2)))
-                ->where($update->expr()->eq('id', $update->createNamedParameter((int)$acc['id'], IQueryBuilder::PARAM_INT)));
-            $update->executeStatement();
-            $fixed++;
-        }
+			$update = $this->db->getQueryBuilder();
+			$update->update('budget_accounts')
+				->set('opening_balance', $update->createNamedParameter(round($stored - $net, 2)))
+				->where($update->expr()->eq('id', $update->createNamedParameter((int)$acc['id'], IQueryBuilder::PARAM_INT)));
+			$update->executeStatement();
+			$fixed++;
+		}
 
-        if ($fixed > 0) {
-            $output->info("Backfilled opening_balance for {$fixed} account(s) to preserve displayed balances under ledger-derived recalculation.");
-        }
-    }
+		if ($fixed > 0) {
+			$output->info("Backfilled opening_balance for {$fixed} account(s) to preserve displayed balances under ledger-derived recalculation.");
+		}
+	}
 }

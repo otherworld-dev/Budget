@@ -69,9 +69,11 @@ export function showUndoNotification(message, undoCallback, onExpire) {
     notification.className = 'undo-notification';
     let expired = false;
     notification.innerHTML = `
-        <span class="undo-message">${message}</span>
+        <span class="undo-message"></span>
         <button class="undo-btn">${t('budget', 'Undo')}</button>
     `;
+    // The message is plain text; set it as such so it can never be parsed as markup.
+    notification.querySelector('.undo-message').textContent = plainText(message);
 
     Object.assign(notification.style, {
         position: 'fixed',

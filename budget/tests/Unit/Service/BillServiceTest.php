@@ -40,7 +40,7 @@ class BillServiceTest extends TestCase {
 		$l = $this->createMock(IL10N::class);
 		$l->method('t')->willReturnCallback(function (string $text, array $params = []) {
 			foreach ($params as $i => $param) {
-				$text = str_replace('%' . ($i + 1) . '$s', (string) $param, $text);
+				$text = str_replace('%' . ($i + 1) . '$s', (string)$param, $text);
 			}
 			return $text;
 		});
@@ -50,6 +50,11 @@ class BillServiceTest extends TestCase {
 		$logger = $this->createMock(LoggerInterface::class);
 		$this->dismissedMapper = $this->createMock(DismissedSuggestionMapper::class);
 		$this->incomeMapper = $this->createMock(RecurringIncomeMapper::class);
+		// The pure schedule questions run for real; tests pin calculateNextDueDate
+		foreach (['occurrenceOnOrAfter', 'occurrenceAfter', 'occurrenceBefore', 'occurrencesBetween', 'periodStart', 'reschedule'] as $method) {
+			$this->frequencyCalculator->method($method)
+				->willReturnCallback(fn (...$args) => (new FrequencyCalculator())->$method(...$args));
+		}
 		$this->service = new BillService(
 			$this->mapper,
 			$this->frequencyCalculator,
@@ -66,6 +71,81 @@ class BillServiceTest extends TestCase {
 		);
 	}
 
+	public function testSharedBillsArePricedFromTheirOwnersAccounts(): void {
+		$usd = new Account();
+		$usd->setId(5);
+		$usd->setCurrency('USD');
+		$accounts = $this->createMock(AccountMapper::class);
+		$accounts->method('findAll')->willReturnMap([['owner1', [$usd]], ['owner2', []]]);
+		$currency = $this->createMock(CurrencyConversionService::class);
+		$currency->method('getBaseCurrency')->willReturnMap([['owner1', 'GBP'], ['owner2', 'EUR']]);
+		$service = new BillService(
+			$this->mapper,
+			$this->frequencyCalculator,
+			$this->recurringDetector,
+			$this->transactionService,
+			$this->createMock(IL10N::class),
+			$accounts,
+			$currency,
+			$this->createMock(TransactionSplitService::class),
+			$this->createMock(LoggerInterface::class),
+			$this->dismissedMapper,
+		);
+
+		// Each is priced as its owner sees it: their account, else their base
+		$bills = $service->enrichSharedBillsWithCurrency([
+			['id' => 1, 'userId' => 'owner1', 'accountId' => 5],
+			['id' => 2, 'userId' => 'owner1', 'accountId' => null],
+			['id' => 3, 'userId' => 'owner2', 'accountId' => 7],
+		]);
+
+		$this->assertSame(['USD', 'GBP', 'EUR'], array_column($bills, 'currency'));
+	}
+
+	/**
+	 * The Bills page cards counted only the user's own bills while the list
+	 * under them showed shared ones too, so a shared overdue bill was in the
+	 * list but the Overdue card said 0.
+	 */
+	public function testMonthlySummaryCountsSharedBills(): void {
+		$own = $this->makeBill(['id' => 1, 'userId' => 'user1', 'amount' => 10.0, 'nextDueDate' => date('Y-m-t'), 'accountId' => null]);
+		$shared = $this->makeBill(['id' => 2, 'userId' => 'owner1', 'amount' => 120.0, 'nextDueDate' => date('Y-m-d', strtotime('-40 days')), 'accountId' => 5]);
+		$inactive = $this->makeBill(['id' => 3, 'userId' => 'owner1', 'amount' => 99.0, 'isActive' => false, 'nextDueDate' => date('Y-m-d', strtotime('-40 days'))]);
+		$usd = new Account();
+		$usd->setId(5);
+		$usd->setCurrency('USD');
+		$mapper = $this->createMock(BillMapper::class);
+		$mapper->method('findActive')->with('user1')->willReturn([$own]);
+		$accounts = $this->createMock(AccountMapper::class);
+		$accounts->method('findAll')->willReturnMap([['user1', []], ['owner1', [$usd]]]);
+		$currency = $this->createMock(CurrencyConversionService::class);
+		$currency->method('getBaseCurrency')->willReturn('GBP');
+		// The shared bill is priced in its owner's account currency, then
+		// converted at the viewer's rates
+		$currency->expects($this->atLeastOnce())->method('convertToBaseFloat')
+			->with($this->anything(), 'USD', 'user1')->willReturnCallback(fn (float $amount) => $amount / 2);
+		$frequency = $this->createMock(FrequencyCalculator::class);
+		$frequency->method('getMonthlyEquivalent')->willReturnCallback(fn (Bill $bill) => (float)$bill->getAmount());
+		$service = new BillService(
+			$mapper,
+			$frequency,
+			$this->recurringDetector,
+			$this->transactionService,
+			$this->createMock(IL10N::class),
+			$accounts,
+			$currency,
+			$this->createMock(TransactionSplitService::class),
+			$this->createMock(LoggerInterface::class),
+			$this->dismissedMapper,
+		);
+
+		$summary = $service->getMonthlySummary('user1', [$shared, $inactive]);
+
+		$this->assertSame(2, $summary['billCount']);
+		$this->assertSame(1, $summary['overdue']);
+		$this->assertSame(70.0, $summary['monthlyTotal']);
+	}
+
 	private function makeBill(array $overrides = []): Bill {
 		$bill = new Bill();
 		$bill->setId($overrides['id'] ?? 1);
@@ -77,7 +157,7 @@ class BillServiceTest extends TestCase {
 		$bill->setDueMonth($overrides['dueMonth'] ?? null);
 		$bill->setIsActive($overrides['isActive'] ?? true);
 		$bill->setAccountId($overrides['accountId'] ?? 1);
-		$bill->setNextDueDate($overrides['nextDueDate'] ?? '2099-06-15');
+		$bill->setNextDueDate(array_key_exists('nextDueDate', $overrides) ? $overrides['nextDueDate'] : '2099-06-15');
 		$bill->setAutoPayEnabled($overrides['autoPayEnabled'] ?? false);
 		$bill->setAutoPayFailed($overrides['autoPayFailed'] ?? false);
 		$bill->setLastPaidDate($overrides['lastPaidDate'] ?? null);
@@ -98,18 +178,17 @@ class BillServiceTest extends TestCase {
 	// ── create ──────────────────────────────────────────────────────
 
 	public function testCreateBasicBill(): void {
-		$this->frequencyCalculator->method('calculateNextDueDate')
-			->willReturn('2099-07-01');
+		$expected = (new FrequencyCalculator())->occurrenceOnOrAfter('monthly', 1, null, date('Y-m-d'));
 		$this->mapper->expects($this->once())
 			->method('insert')
-			->willReturnCallback(fn(Bill $b) => $b);
+			->willReturnCallback(fn (Bill $b) => $b);
 
 		$bill = $this->service->create('user1', 'Netflix', 15.99, 'monthly', 1);
 
 		$this->assertSame('Netflix', $bill->getName());
 		$this->assertEqualsWithDelta(15.99, $bill->getAmount(), 0.001);
 		$this->assertSame('monthly', $bill->getFrequency());
-		$this->assertSame('2099-07-01', $bill->getNextDueDate());
+		$this->assertSame($expected, $bill->getNextDueDate());
 		$this->assertTrue($bill->getIsActive());
 	}
 
@@ -117,7 +196,7 @@ class BillServiceTest extends TestCase {
 		// First call = next due from today (before start); second = from start date.
 		$this->frequencyCalculator->method('calculateNextDueDate')
 			->willReturnOnConsecutiveCalls('2099-07-01', '2099-09-01');
-		$this->mapper->expects($this->once())->method('insert')->willReturnCallback(fn(Bill $b) => $b);
+		$this->mapper->expects($this->once())->method('insert')->willReturnCallback(fn (Bill $b) => $b);
 
 		$bill = $this->service->create(
 			'user1', 'Rent', 1000.0, 'monthly', 1,
@@ -162,7 +241,7 @@ class BillServiceTest extends TestCase {
 		$this->frequencyCalculator->method('calculateNextDueDate')
 			->with('one-time', 26, 8, null, null, false, '2020-08-26')
 			->willReturn('2020-08-26');
-		$this->mapper->method('insert')->willReturnCallback(fn(Bill $b) => $b);
+		$this->mapper->method('insert')->willReturnCallback(fn (Bill $b) => $b);
 
 		// dueDay/dueMonth deliberately wrong in the request (1 January): the date wins
 		$bill = $this->service->create('user1', 'Garage', 321.60, 'one-time', 1, 1, startDate: '2020-08-26');
@@ -180,7 +259,7 @@ class BillServiceTest extends TestCase {
 	 */
 	public function testCreatePreCreatesAScheduledPlaceholderEvenForAPastDate(): void {
 		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2020-08-26');
-		$this->mapper->method('insert')->willReturnCallback(fn(Bill $b) => $b);
+		$this->mapper->method('insert')->willReturnCallback(fn (Bill $b) => $b);
 
 		$this->transactionService->expects($this->once())
 			->method('createFromBill')
@@ -199,7 +278,7 @@ class BillServiceTest extends TestCase {
 		return $method->invoke($this->service, $occurrences, $bill, $payments, 2026);
 	}
 
-	private function monthly(array $months = null): array {
+	private function monthly(?array $months = null): array {
 		$occ = array_fill(1, 12, false);
 		foreach ($months ?? range(1, 12) as $m) {
 			$occ[$m] = true;
@@ -212,6 +291,51 @@ class BillServiceTest extends TestCase {
 		$method = new \ReflectionMethod($this->service, 'calculateMonthlyOccurrences');
 		$method->setAccessible(true);
 		return array_keys(array_filter($method->invoke($this->service, $this->makeBill($billOverrides), $year)));
+	}
+
+	/** Every date the calendar puts a bill on in a year, by month. */
+	private function occurrenceDates(array $billOverrides, int $year = 2026): array {
+		$method = new \ReflectionMethod($this->service, 'occurrencesInYear');
+		$method->setAccessible(true);
+		return $method->invoke($this->service, $this->makeBill($billOverrides), $year);
+	}
+
+	public function testTheCalendarShowsSemiMonthlyBills(): void {
+		// The calendar had no case for them: they never appeared
+		$this->assertSame(range(1, 12), $this->occurringMonths(['frequency' => 'semi-monthly', 'dueDay' => 1]));
+		$this->assertSame(['2026-02-01', '2026-02-16'], $this->occurrenceDates(['frequency' => 'semi-monthly', 'dueDay' => 1])[2]);
+	}
+
+	public function testTheCalendarWrapsAQuarterlyBillRoundTheYear(): void {
+		// A November quarter showed only in November
+		$this->assertSame([2, 5, 8, 11], $this->occurringMonths(['frequency' => 'quarterly', 'dueDay' => 1, 'dueMonth' => 11]));
+	}
+
+	public function testTheCalendarTakesAQuarterlyBillsMonthFromItsDueDate(): void {
+		// With no month stored it fell back to January, whatever the bill said
+		$this->assertSame([2, 5, 8, 11], $this->occurringMonths([
+			'frequency' => 'quarterly', 'dueDay' => 10, 'dueMonth' => null, 'nextDueDate' => '2026-02-10',
+		]));
+	}
+
+	public function testTheCalendarShowsAOneTimeBillOnlyInItsYear(): void {
+		// It came back in the same month of every later year
+		$bill = ['frequency' => 'one-time', 'dueDay' => 20, 'dueMonth' => 8, 'startDate' => '2025-08-20', 'isActive' => false, 'nextDueDate' => null];
+		$this->assertSame([], $this->occurringMonths($bill, 2026));
+		$this->assertSame([8], $this->occurringMonths($bill, 2025));
+	}
+
+	public function testTheCalendarShowsACustomDatesPattern(): void {
+		$this->assertSame([1, 7], $this->occurringMonths([
+			'frequency' => 'custom', 'customRecurrencePattern' => '{"dates":[{"month":1,"day":15},{"month":7,"day":31}]}',
+		]));
+	}
+
+	public function testTheCalendarCountsEveryWeeklyPayment(): void {
+		// A weekly bill counted once a month in the totals and projection
+		$dates = $this->occurrenceDates(['frequency' => 'weekly', 'dueDay' => 5, 'startDate' => '2026-01-02']);
+		$this->assertCount(5, $dates[1]);
+		$this->assertCount(4, $dates[2]);
 	}
 
 	/** The old heuristic marked every month up to last_paid_date paid. Only months with a payment are. */
@@ -335,7 +459,7 @@ class BillServiceTest extends TestCase {
 	public function testOneTimeBillsWithTheSameNameShareOneCalendarRow(): void {
 		$method = new \ReflectionMethod($this->service, 'groupOneTimeBillsByName');
 		$method->setAccessible(true);
-		$row = fn(int $id, string $name, string $freq, int $month, float $amount, bool $paid, bool $active) => [
+		$row = fn (int $id, string $name, string $freq, int $month, float $amount, bool $paid, bool $active) => [
 			'id' => $id, 'name' => $name, 'frequency' => $freq, 'currency' => 'CHF', 'amount' => $amount, 'isActive' => $active,
 			'occurrences' => array_replace(array_fill(1, 12, false), [$month => true]),
 			'paidMonths' => $paid ? [$month] : [], 'paidAmounts' => $paid ? [$month => $amount] : [],
@@ -475,7 +599,7 @@ class BillServiceTest extends TestCase {
 		$this->mapper->method('findByType')->willReturn([$water, $gas]);
 		$this->transactionService->method('findBillPaymentsInYear')->willReturn([]);
 
-		$names = fn(array $result) => array_column($result['bills'], 'name');
+		$names = fn (array $result) => array_column($result['bills'], 'name');
 
 		$this->assertSame(['Gas'], $names($this->service->getAnnualOverview('user1', 2026)));
 		$this->assertSame(['Water', 'Gas'], $names($this->service->getAnnualOverview('user1', 2027)));
@@ -500,7 +624,7 @@ class BillServiceTest extends TestCase {
 	public function testGroupingOneTimeBillsMergesUnrecordedMonths(): void {
 		$method = new \ReflectionMethod($this->service, 'groupOneTimeBillsByName');
 		$method->setAccessible(true);
-		$row = fn(int $id, int $month, bool $paid, bool $unrecorded) => [
+		$row = fn (int $id, int $month, bool $paid, bool $unrecorded) => [
 			'id' => $id, 'name' => 'Garage', 'frequency' => 'one-time', 'currency' => 'CHF', 'amount' => 100.0, 'isActive' => false,
 			'occurrences' => array_replace(array_fill(1, 12, false), [$month => true]),
 			'paidMonths' => $paid ? [$month] : [], 'paidAmounts' => $paid ? [$month => 100.0] : [],
@@ -527,7 +651,10 @@ class BillServiceTest extends TestCase {
 	 */
 	public function testAnnualOverviewDrawsCellsFromPaymentsAndKeepsPaidInactiveBills(): void {
 		$monthly = $this->makeBill(['id' => 1, 'name' => 'Netflix', 'amount' => 15.99]);
-		$garage = $this->makeBill(['id' => 2, 'name' => 'Garage', 'amount' => 321.60, 'frequency' => 'one-time', 'dueMonth' => 8, 'isActive' => false]);
+		// Paid, so it has no next due date; from before one-time bills kept
+		// their date, so only its month says when it was due
+		$garage = $this->makeBill(['id' => 2, 'name' => 'Garage', 'amount' => 321.60, 'frequency' => 'one-time', 'dueMonth' => 8,
+			'isActive' => false, 'nextDueDate' => null, 'lastPaidDate' => '2026-09-03']);
 		$never = $this->makeBill(['id' => 3, 'name' => 'Old gym', 'amount' => 30.0, 'isActive' => false]);
 
 		// "active" fetches everything and narrows afterwards
@@ -600,10 +727,10 @@ class BillServiceTest extends TestCase {
 		$this->transactionService->method('findBillPaymentsInYear')->willReturn([]);
 		$this->incomeMapper->expects($this->once())->method('findActive')->with('user1')->willReturn([]);
 
-		$result = $this->service->getAnnualOverview('user1', (int) date('Y'), false, 'active', 5);
+		$result = $this->service->getAnnualOverview('user1', (int)date('Y'), false, 'active', 5);
 
 		$this->assertSame(['id' => 5, 'name' => 'Current', 'currency' => 'CHF', 'balance' => 1000.0], $result['account']);
-		$current = (int) date('n');
+		$current = (int)date('n');
 		for ($month = 1; $month <= 12; $month++) {
 			if ($month < $current) {
 				$this->assertNull($result['projectedBalance'][$month], "month $month has gone");
@@ -621,12 +748,12 @@ class BillServiceTest extends TestCase {
 	 * so every month up to this one lands in this one.
 	 */
 	public function testAnnualOverviewProjectsTransfersTheTableHides(): void {
-		$year = (int) date('Y');
+		$year = (int)date('Y');
 		$this->accountMapper->method('findAll')->willReturn([$this->makeAccount(5, 'Current'), $this->makeAccount(7, 'Savings')]);
 		$this->transactionService->method('getBalanceAsOf')->willReturn(1000.0);
 		$topUp = $this->makeBill(['id' => 3, 'name' => 'Top-up', 'amount' => 100.0, 'accountId' => 7, 'isTransfer' => true, 'destinationAccountId' => 5, 'nextDueDate' => "$year-01-15"]);
 		$this->mapper->method('findByType')->willReturnCallback(
-			fn(string $userId, ?bool $isTransfer) => $isTransfer === false ? [] : [$topUp]
+			fn (string $userId, ?bool $isTransfer) => $isTransfer === false ? [] : [$topUp]
 		);
 		$this->transactionService->method('findBillPaymentsInYear')->willReturn([]);
 		$this->incomeMapper->method('findActive')->willReturn([]);
@@ -634,9 +761,53 @@ class BillServiceTest extends TestCase {
 		$result = $this->service->getAnnualOverview('user1', $year, false, 'active', 5);
 
 		$this->assertSame([], $result['bills'], 'the table still hides it');
-		$current = (int) date('n');
+		$current = (int)date('n');
 		$this->assertEqualsWithDelta(100.0 * $current, $result['projectedFlows'][$current]['transfersIn'], 0.001);
 		$this->assertEqualsWithDelta(2200.0, $result['projectedBalance'][12], 0.001);
+	}
+
+	/**
+	 * A scheduled pension contribution paid from the account comes out of
+	 * its projected balance like a bill. It was left out, so the projection
+	 * overstated the account by every contribution still to come.
+	 */
+	public function testAnnualOverviewTakesScheduledPensionContributionsOffTheBalance(): void {
+		$current = (int)date('n');
+		$byMonth = [$current => 200.0];
+		if ($current < 12) {
+			$byMonth[12] = 200.0;
+		}
+		$pensions = $this->createMock(\OCA\Budget\Service\PensionRecurringService::class);
+		$pensions->expects($this->once())->method('upcomingDebitsByMonth')->with(5, date('Y-m-d'))->willReturn($byMonth);
+		$accounts = $this->createMock(AccountMapper::class);
+		$accounts->method('findAll')->willReturn([$this->makeAccount(5, 'Current')]);
+		$this->transactionService->method('getBalanceAsOf')->willReturn(1000.0);
+		$this->mapper->method('findByType')->willReturn([]);
+		$this->transactionService->method('findBillPaymentsInYear')->willReturn([]);
+		$this->incomeMapper->method('findActive')->willReturn([]);
+		$currency = $this->createMock(\OCA\Budget\Service\CurrencyConversionService::class);
+		$currency->method('getBaseCurrency')->willReturn('CHF');
+		$service = new BillService(
+			$this->mapper,
+			$this->frequencyCalculator,
+			$this->recurringDetector,
+			$this->transactionService,
+			$this->createMock(IL10N::class),
+			$accounts,
+			$currency,
+			$this->createMock(TransactionSplitService::class),
+			$this->createMock(LoggerInterface::class),
+			$this->dismissedMapper,
+			null,
+			$this->incomeMapper,
+			pensionRecurringService: $pensions,
+		);
+
+		$result = $service->getAnnualOverview('user1', (int)date('Y'), false, 'active', 5);
+
+		$this->assertEqualsWithDelta(200.0, $result['projectedFlows'][$current]['bills'], 0.001);
+		$this->assertEqualsWithDelta(800.0, $result['projectedBalance'][$current], 0.001);
+		$this->assertEqualsWithDelta(1000.0 - array_sum($byMonth), $result['projectedBalance'][12], 0.001);
 	}
 
 	/** Another year has no today to start from, so the account is named but nothing is projected. */
@@ -647,7 +818,7 @@ class BillServiceTest extends TestCase {
 		$this->transactionService->method('findBillPaymentsInYear')->willReturn([]);
 		$this->incomeMapper->expects($this->never())->method('findActive');
 
-		$result = $this->service->getAnnualOverview('user1', (int) date('Y') + 1, false, 'active', 5);
+		$result = $this->service->getAnnualOverview('user1', (int)date('Y') + 1, false, 'active', 5);
 
 		$this->assertSame('Current', $result['account']['name']);
 		$this->assertNull($result['projectedBalance']);
@@ -659,7 +830,7 @@ class BillServiceTest extends TestCase {
 		$this->transactionService->method('findBillPaymentsInYear')->willReturn([]);
 		$this->transactionService->expects($this->never())->method('getBalanceAsOf');
 
-		$result = $this->service->getAnnualOverview('user1', (int) date('Y'));
+		$result = $this->service->getAnnualOverview('user1', (int)date('Y'));
 
 		$this->assertNull($result['account']);
 		$this->assertNull($result['projectedBalance']);
@@ -672,7 +843,7 @@ class BillServiceTest extends TestCase {
 		$this->mapper->method('findByType')->willReturn([]);
 		$this->transactionService->method('findBillPaymentsInYear')->willReturn([]);
 
-		$result = $this->service->getAnnualOverview('user1', (int) date('Y'), false, 'active', 99);
+		$result = $this->service->getAnnualOverview('user1', (int)date('Y'), false, 'active', 99);
 
 		$this->assertNull($result['account']);
 		$this->assertNull($result['projectedBalance']);
@@ -736,7 +907,7 @@ class BillServiceTest extends TestCase {
 			return $b;
 		});
 
-		$mk = fn(array $o = []) => array_merge([
+		$mk = fn (array $o = []) => array_merge([
 			'patternKey' => 'netflix|16', 'description' => 'NETFLIX 12345',
 			'suggestedName' => 'Netflix', 'amount' => 15.99, 'frequency' => 'monthly',
 			'dueDay' => 16, 'categoryId' => null, 'accountId' => null,
@@ -778,6 +949,51 @@ class BillServiceTest extends TestCase {
 		$this->assertTrue($created[0]->getIsTransfer());
 		$this->assertSame(3, $created[0]->getDestinationAccountId());
 		$this->assertNull($created[0]->getCategoryId());
+	}
+
+	public function testCreateFromDetectedKeepsTheDetectedSchedule(): void {
+		// A weekly bill counts from the payment the detector last saw, and a
+		// quarterly one keeps its months: both were dropped, so the weekly
+		// one fell on the wrong weekday and the quarterly one in Jan/Apr/Jul/Oct
+		$this->mapper->method('insert')->willReturnArgument(0);
+
+		[$weekly, $quarterly] = $this->service->createFromDetected('user1', [
+			['suggestedName' => 'Gym', 'amount' => 9.99, 'frequency' => 'weekly', 'dueDay' => 5, 'dueMonth' => null, 'startDate' => '2026-09-25'],
+			['suggestedName' => 'Water', 'amount' => 120.0, 'frequency' => 'quarterly', 'dueDay' => 10, 'dueMonth' => 9, 'startDate' => null],
+		]);
+
+		$this->assertSame('2026-09-25', $weekly->getStartDate());
+		$this->assertSame(5, $weekly->getDueDay());
+		// On the Friday fortnight of the payment it last saw...
+		$this->assertSame('Fri', (new \DateTime($weekly->getNextDueDate()))->format('D'));
+		$this->assertSame(0, (new \DateTime('2026-09-25'))->diff(new \DateTime($weekly->getNextDueDate()))->days % 7);
+		// ...and in the quarter's own months
+		$this->assertSame(9, $quarterly->getDueMonth());
+		$this->assertNull($quarterly->getStartDate());
+		$this->assertContains((int)substr($quarterly->getNextDueDate(), 5, 2), [3, 6, 9, 12]);
+	}
+
+	public function testCreateFromDetectedSkipsABlankSuggestedName(): void {
+		// `suggestedName ?? description` kept '' and created a nameless bill
+		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-07-01');
+		$this->mapper->method('insert')->willReturnArgument(0);
+
+		$created = $this->service->createFromDetected('user1', [
+			['suggestedName' => '', 'description' => 'DIRECT DEBIT', 'amount' => 20.0, 'frequency' => 'monthly'],
+			['name' => 'Phone', 'suggestedName' => 'Ee', 'description' => 'EE LTD', 'amount' => 30.0, 'frequency' => 'monthly'],
+		]);
+
+		$this->assertSame('DIRECT DEBIT', $created[0]->getName());
+		$this->assertSame('Phone', $created[1]->getName());
+	}
+
+	public function testCreateFromDetectedRefusesAnItemWithNoName(): void {
+		$this->mapper->expects($this->never())->method('insert');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->service->createFromDetected('user1', [
+			['suggestedName' => ' ', 'description' => '', 'amount' => 20.0, 'frequency' => 'monthly'],
+		]);
 	}
 
 	// ── markPaid ────────────────────────────────────────────────────
@@ -913,9 +1129,7 @@ class BillServiceTest extends TestCase {
 		$this->mapper->method('update')->willReturnArgument(0);
 		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-07-15');
 
-		$this->transactionService->expects($this->once())
-			->method('update')
-			->with(42, 'user1', ['billId' => 1]);
+		$this->linkable($this->makeImportedTx(['id' => 42]));
 		$this->transactionService->expects($this->once())
 			->method('createFromBill')
 			->with('user1', $bill, null);
@@ -937,9 +1151,19 @@ class BillServiceTest extends TestCase {
 		$this->service->markPaid(1, 'user1', null, false);
 	}
 
+	/** The mapper keeps what updateFields() writes, as the real one does */
+	private function persistUpdates(Bill $bill): void {
+		$this->mapper->method('updateFields')->willReturnCallback(function (int $id, string $user, array $fields) use ($bill) {
+			foreach ($fields as $column => $value) {
+				$bill->{'set' . str_replace('_', '', ucwords($column, '_'))}($value);
+			}
+		});
+	}
+
 	public function testUpdateTogglingOffRemovesPlaceholders(): void {
 		$bill = $this->makeBill(); // no flag = enabled
 		$this->mapper->method('find')->willReturn($bill);
+		$this->persistUpdates($bill);
 		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-06-15');
 
 		$this->transactionService->expects($this->once())->method('deleteScheduledBillTransactions')->with(1);
@@ -951,10 +1175,10 @@ class BillServiceTest extends TestCase {
 	public function testUpdateTogglingOnCreatesPlaceholder(): void {
 		$bill = $this->makeBill(['createTransaction' => false]);
 		$this->mapper->method('find')->willReturn($bill);
+		$this->persistUpdates($bill);
 		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-06-15');
 
 		$this->transactionService->expects($this->once())->method('createFromBill');
-		$this->transactionService->expects($this->never())->method('deleteScheduledBillTransactions');
 
 		$this->service->update(1, 'user1', ['createTransaction' => true]);
 	}
@@ -966,6 +1190,7 @@ class BillServiceTest extends TestCase {
 		// nothing (#584).
 		$bill = $this->makeBill(['createTransaction' => false]);
 		$this->mapper->method('find')->willReturn($bill);
+		$this->persistUpdates($bill);
 		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-06-20');
 
 		$this->transactionService->expects($this->once())->method('createFromBill');
@@ -999,10 +1224,10 @@ class BillServiceTest extends TestCase {
 		// it paid; an unrelated edit must leave that date alone (#584).
 		$real = new FrequencyCalculator();
 		$this->frequencyCalculator->method('calculateNextDueDate')
-			->willReturnCallback(fn(...$args) => $real->calculateNextDueDate(...$args));
+			->willReturnCallback(fn (...$args) => $real->calculateNextDueDate(...$args));
 
 		$due = (new \DateTime('+5 days'))->format('Y-m-d');
-		$dueDay = (int) (new \DateTime($due))->format('j');
+		$dueDay = (int)(new \DateTime($due))->format('j');
 		$nextDue = $due;
 		for ($i = 0; $i < $periodsAhead; $i++) {
 			$nextDue = $real->calculateNextDueDate('monthly', $dueDay, null, $nextDue, null, true);
@@ -1030,18 +1255,47 @@ class BillServiceTest extends TestCase {
 		return ['one period ahead' => [1], 'two periods ahead' => [2]];
 	}
 
+	public function testUpdateKeepsAPaidAheadDueDateOnTheFirstOfTheMonth(): void {
+		// The paid-ahead check asked the calculator from the day before the
+		// stored date, which for a bill due on the 1st is the previous month:
+		// monthly snapped to that month's 1st, so the date read as stale and
+		// every edit reset it. The data-provider test above only hit this when
+		// today + 5 days fell on a 1st.
+		$real = new FrequencyCalculator();
+		$this->frequencyCalculator->method('calculateNextDueDate')
+			->willReturnCallback(fn (...$args) => $real->calculateNextDueDate(...$args));
+
+		$bill = $this->makeBill([
+			'dueDay' => 1,
+			'nextDueDate' => (new \DateTime('first day of +2 months'))->format('Y-m-d'),
+			'lastPaidDate' => date('Y-m-d'),
+		]);
+		$this->mapper->method('find')->willReturn($bill);
+
+		$captured = null;
+		$this->mapper->method('updateFields')
+			->willReturnCallback(function ($id, $userId, $updates) use (&$captured) {
+				$captured = $updates;
+			});
+
+		$this->service->update(1, 'user1', ['name' => 'Renamed']);
+
+		$this->assertNotNull($captured);
+		$this->assertArrayNotHasKey('next_due_date', $captured);
+	}
+
 	// ── biweekly anchoring to startDate (#364) ──────────────────────
 
 	public function testCreateBiweeklyAnchorsToStartDate(): void {
 		// Back the mock with the real calculator so the anchor maths runs.
 		$this->frequencyCalculator->method('calculateNextDueDate')
-			->willReturnCallback(fn(...$args) => (new FrequencyCalculator())->calculateNextDueDate(...$args));
-		$this->mapper->method('insert')->willReturnCallback(fn(Bill $b) => $b);
+			->willReturnCallback(fn (...$args) => (new FrequencyCalculator())->calculateNextDueDate(...$args));
+		$this->mapper->method('insert')->willReturnCallback(fn (Bill $b) => $b);
 
 		// Anchor 21 days ago: occurrences at -21, -7 and +7 days. Without the
 		// anchor, creation week would win and next due would land at +14.
 		$anchor = (new \DateTime('-21 days'))->format('Y-m-d');
-		$dueDay = (int) (new \DateTime())->format('N'); // same weekday as anchor
+		$dueDay = (int)(new \DateTime())->format('N'); // same weekday as anchor
 
 		$bill = $this->service->create('user1', 'Pay', 100.0, 'biweekly', $dueDay, startDate: $anchor);
 
@@ -1054,12 +1308,12 @@ class BillServiceTest extends TestCase {
 		// flipped its parity. With a startDate anchor the stored due date is
 		// consistent and must be left alone.
 		$this->frequencyCalculator->method('calculateNextDueDate')
-			->willReturnCallback(fn(...$args) => (new FrequencyCalculator())->calculateNextDueDate(...$args));
+			->willReturnCallback(fn (...$args) => (new FrequencyCalculator())->calculateNextDueDate(...$args));
 
 		$anchor = (new \DateTime('-21 days'))->format('Y-m-d');
 		$bill = $this->makeBill([
 			'frequency' => 'biweekly',
-			'dueDay' => (int) (new \DateTime())->format('N'),
+			'dueDay' => (int)(new \DateTime())->format('N'),
 			'nextDueDate' => (new \DateTime('+7 days'))->format('Y-m-d'),
 		]);
 		$bill->setStartDate($anchor);
@@ -1079,7 +1333,7 @@ class BillServiceTest extends TestCase {
 
 	public function testUpdateScheduleChangeRecomputesFromStartDateAnchor(): void {
 		$this->frequencyCalculator->method('calculateNextDueDate')
-			->willReturnCallback(fn(...$args) => (new FrequencyCalculator())->calculateNextDueDate(...$args));
+			->willReturnCallback(fn (...$args) => (new FrequencyCalculator())->calculateNextDueDate(...$args));
 
 		// Weekly bill due today, anchored 21 days back; switching it to
 		// biweekly must land on the anchor's fortnight (+7 days), not on
@@ -1087,7 +1341,7 @@ class BillServiceTest extends TestCase {
 		$anchor = (new \DateTime('-21 days'))->format('Y-m-d');
 		$bill = $this->makeBill([
 			'frequency' => 'weekly',
-			'dueDay' => (int) (new \DateTime())->format('N'),
+			'dueDay' => (int)(new \DateTime())->format('N'),
 			'nextDueDate' => (new \DateTime())->format('Y-m-d'),
 		]);
 		$bill->setStartDate($anchor);
@@ -1106,7 +1360,7 @@ class BillServiceTest extends TestCase {
 
 	public function testUpdateSettingStartDateReanchorsNextDue(): void {
 		$this->frequencyCalculator->method('calculateNextDueDate')
-			->willReturnCallback(fn(...$args) => (new FrequencyCalculator())->calculateNextDueDate(...$args));
+			->willReturnCallback(fn (...$args) => (new FrequencyCalculator())->calculateNextDueDate(...$args));
 
 		// Un-anchored biweekly bill stuck on creation-week parity (+14 days);
 		// giving it a startDate must snap next due onto the anchor's
@@ -1114,7 +1368,7 @@ class BillServiceTest extends TestCase {
 		$anchor = (new \DateTime('-21 days'))->format('Y-m-d');
 		$bill = $this->makeBill([
 			'frequency' => 'biweekly',
-			'dueDay' => (int) (new \DateTime())->format('N'),
+			'dueDay' => (int)(new \DateTime())->format('N'),
 			'nextDueDate' => (new \DateTime('+14 days'))->format('Y-m-d'),
 		]);
 		$this->mapper->method('find')->willReturn($bill);
@@ -1132,7 +1386,7 @@ class BillServiceTest extends TestCase {
 
 	public function testCreatePersistsPreBookOptOut(): void {
 		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-07-01');
-		$this->mapper->method('insert')->willReturnCallback(fn(Bill $b) => $b);
+		$this->mapper->method('insert')->willReturnCallback(fn (Bill $b) => $b);
 
 		$bill = $this->service->create('user1', 'Netflix', 15.99, 'monthly', 1, createTransaction: false);
 
@@ -1270,6 +1524,7 @@ class BillServiceTest extends TestCase {
 		$bill->setAmount(2912.0);
 		$bill->setFrequency('monthly');
 		$bill->setIsActive(true);
+		$bill->setNextDueDate('2099-06-28');
 		$this->mapper->method('find')->willReturn($bill);
 		$this->mapper->method('update')->willReturnArgument(0);
 		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-07-28');
@@ -1297,7 +1552,8 @@ class BillServiceTest extends TestCase {
 	// ── processAutoPay ──────────────────────────────────────────────
 
 	public function testProcessAutoPaySuccess(): void {
-		$bill = $this->makeBill(['autoPayEnabled' => true, 'accountId' => 1]);
+		// Due, as the job only asks for bills that are
+		$bill = $this->makeBill(['autoPayEnabled' => true, 'accountId' => 1, 'nextDueDate' => '2026-06-15']);
 		$this->mapper->method('find')->willReturn($bill);
 		$this->mapper->method('update')->willReturnArgument(0);
 		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-07-15');
@@ -1448,7 +1704,52 @@ class BillServiceTest extends TestCase {
 		$this->assertSame($expected, $result);
 	}
 
+	public function testDetectRecurringBillsAsksForTransfersWhenFindingTransfers(): void {
+		$this->recurringDetector->expects($this->once())
+			->method('detectRecurringBills')
+			->with('user1', 6, true)
+			->willReturn([]);
+
+		$this->service->detectRecurringBills('user1', 6, true);
+	}
+
 	// ===== Auto-match bills from imported transactions (#274) =====
+
+	/**
+	 * Rows a payment may link: findTransaction() finds them, and linking
+	 * hands the row back with the bill's id, as the real service does. The
+	 * ones a bill booked are found by findBookedBillRows() as its query does.
+	 */
+	private function linkable(\OCA\Budget\Db\Transaction ...$rows): void {
+		$byId = [];
+		foreach ($rows as $row) {
+			$byId[$row->getId()] = $row;
+		}
+		$this->transactionService->method('findTransaction')->willReturnCallback(fn (int $id) => $byId[$id] ?? null);
+		$this->transactionService->method('findBookedBillRows')->willReturnCallback(
+			fn (int $billId, string $type, string $notesPrefix, string $from, string $to) => array_values(array_filter(
+				$byId,
+				fn ($row) => $row->getBillId() === $billId && $row->getType() === $type
+					&& str_starts_with((string)$row->getNotes(), $notesPrefix) && ($row->getImportId() ?? '') === ''
+					&& ($row->getStatus() ?? 'cleared') !== 'scheduled'
+					&& $row->getDate() >= $from && $row->getDate() <= $to
+			))
+		);
+		$this->transactionService->method('findTransferArrivals')->willReturnCallback(
+			fn (int $accountId, float $amount, string $from, string $to, float $margin) => array_values(array_filter(
+				$byId,
+				fn ($row) => $row->getAccountId() === $accountId && $row->getType() === 'credit'
+					&& $row->getBillId() === null && $row->getLinkedTransactionId() === null
+					&& ($row->getStatus() ?? 'cleared') !== 'scheduled'
+					&& $row->getDate() >= $from && $row->getDate() <= $to
+					&& abs((float)$row->getAmount() - $amount) <= $margin
+			))
+		);
+		$this->transactionService->method('linkBillAsAccountOwner')->willReturnCallback(function (int $id, Bill $bill) use ($byId) {
+			$byId[$id]->setBillId($bill->getId());
+			return $byId[$id];
+		});
+	}
 
 	private function makeImportedTx(array $overrides = []): \OCA\Budget\Db\Transaction {
 		$tx = new \OCA\Budget\Db\Transaction();
@@ -1483,20 +1784,491 @@ class BillServiceTest extends TestCase {
 		$tx = $this->makeImportedTx();
 
 		// The existing transaction gets LINKED — no new money movement
-		$this->transactionService->expects($this->once())
-			->method('update')
-			->with(500, 'user1', ['billId' => 1]);
+		$this->linkable($tx);
+		// Nothing is booked for this payment; only the next occurrence pre-books
+		$this->transactionService->expects($this->once())->method('createFromBill')->with('user1', $bill, null);
 
 		$marked = $this->service->autoMatchPaidFromImport('user1', [$tx]);
 
 		$this->assertSame(1, $marked);
+		$this->assertSame(1, $tx->getBillId());
 		$this->assertSame('2026-06-14', $bill->getLastPaidDate());
 		$this->assertSame('2026-07-15', $bill->getNextDueDate());
+	}
+
+	public function testAnImportReplacesThePaymentMarkPaidAlreadyBooked(): void {
+		// Marked paid on the due date, then the statement came in: the bank
+		// row was added beside the payment and the balance dropped twice
+		$bill = $this->setupAutoMatchBill(['nextDueDate' => '2026-07-15', 'lastPaidDate' => '2026-06-15']);
+		$bill->setPaidUndoState(json_encode([
+			'previousState' => ['nextDueDate' => '2026-06-15'],
+			'createdTransactionIds' => [600],
+			'scheduledTransactionIds' => [601],
+			'linkedTransactionId' => null,
+			'paidDate' => '2026-06-15',
+		]));
+		$booked = $this->makeImportedTx(['id' => 600, 'date' => '2026-06-15', 'description' => '']);
+		$booked->setNotes('Auto-generated from bill: Netflix');
+		$booked->setBillId(1);
+		$imported = $this->makeImportedTx(['id' => 500, 'date' => '2026-06-16']);
+		$imported->setImportId('bank-1');
+		$this->linkable($booked, $imported);
+		// What the user added to the booked payment goes to the bank row
+		$this->transactionService->expects($this->once())->method('replaceBookedRow')
+			->with($booked, $imported, 'Auto-generated from bill: Netflix', true);
+
+		$this->assertSame(1, $this->service->autoMatchPaidFromImport('user1', [$imported]));
+
+		$this->assertSame(1, $imported->getBillId());
+		$this->assertSame('2026-07-15', $bill->getNextDueDate(), 'Not paid a second time');
+		$snapshot = json_decode($bill->getPaidUndoState(), true);
+		$this->assertSame(500, $snapshot['linkedTransactionId']);
+		$this->assertSame([], $snapshot['createdTransactionIds']);
+	}
+
+	public function testANewestFirstStatementStillReplacesTheOlderBookedPayment(): void {
+		// June was marked paid by hand. The statement lists July first, which
+		// paid the next occurrence and moved the bill past June, so June's
+		// bank row was left beside the booked payment.
+		$bill = $this->setupAutoMatchBill(['nextDueDate' => '2026-07-15', 'lastPaidDate' => '2026-06-15']);
+		$bill->setPaidUndoState(json_encode([
+			'previousState' => ['nextDueDate' => '2026-06-15'], 'createdTransactionIds' => [600],
+			'linkedTransactionId' => null, 'paidDate' => '2026-06-15',
+		]));
+		$booked = $this->makeImportedTx(['id' => 600, 'date' => '2026-06-15', 'description' => '']);
+		$booked->setNotes('Auto-generated from bill: Netflix');
+		$booked->setBillId(1);
+		$june = $this->makeImportedTx(['id' => 501, 'date' => '2026-06-15']);
+		$july = $this->makeImportedTx(['id' => 502, 'date' => '2026-07-14']);
+		$this->linkable($booked, $june, $july);
+		$this->transactionService->expects($this->once())->method('replaceBookedRow')->with($booked, $june);
+
+		$this->assertSame(2, $this->service->autoMatchPaidFromImport('user1', [$july, $june]));
+
+		$this->assertSame(1, $june->getBillId());
+		$this->assertSame(1, $july->getBillId(), 'July pays the next occurrence');
+	}
+
+	public function testAnEarlierBookedPaymentIsReplacedToo(): void {
+		// Auto-pay booked May and June; only the last payment, the one the
+		// snapshot names, could take the bank's row in its place
+		$bill = $this->setupAutoMatchBill(['nextDueDate' => '2026-07-15', 'lastPaidDate' => '2026-06-15']);
+		$snapshot = json_encode(['previousState' => ['nextDueDate' => '2026-06-15'], 'createdTransactionIds' => [601], 'linkedTransactionId' => null, 'paidDate' => '2026-06-15']);
+		$bill->setPaidUndoState($snapshot);
+		$may = $this->makeImportedTx(['id' => 600, 'date' => '2026-05-15', 'description' => '']);
+		$may->setNotes('Auto-generated from bill: Netflix');
+		$may->setBillId(1);
+		$bankMay = $this->makeImportedTx(['id' => 500, 'date' => '2026-05-16']);
+		$this->linkable($may, $bankMay);
+		$this->transactionService->expects($this->once())->method('replaceBookedRow')->with($may, $bankMay);
+
+		$this->assertSame(1, $this->service->autoMatchPaidFromImport('user1', [$bankMay]));
+
+		$this->assertSame($snapshot, $bill->getPaidUndoState(), 'June\'s payment can still be undone');
+		$this->assertSame('2026-07-15', $bill->getNextDueDate());
+	}
+
+	public function testAnImportLeavesAReconciledPaymentAlone(): void {
+		$bill = $this->setupAutoMatchBill(['nextDueDate' => '2026-07-15', 'lastPaidDate' => '2026-06-15']);
+		$bill->setPaidUndoState(json_encode(['previousState' => [], 'createdTransactionIds' => [600], 'paidDate' => '2026-06-15']));
+		$booked = $this->makeImportedTx(['id' => 600, 'date' => '2026-06-15']);
+		$booked->setNotes('Auto-generated from bill: Netflix');
+		$booked->setBillId(1);
+		$booked->setReconciled(true);
+		$imported = $this->makeImportedTx(['id' => 500, 'date' => '2026-06-16']);
+		$this->linkable($booked, $imported);
+		$this->transactionService->expects($this->never())->method('replaceBookedRow');
+		$this->transactionService->expects($this->never())->method('deleteAsAccountOwner');
+
+		$this->service->autoMatchPaidFromImport('user1', [$imported]);
+	}
+
+	public function testAnImportReplacesATransferPaymentMarkedLateRatherThanPayingTheNextOne(): void {
+		// The 1 October occurrence marked paid on the 20th moved the transfer
+		// to 1 November; the bank's withdrawal of the 20th fell inside
+		// November's window, so November was paid too and the money moved twice
+		$bill = $this->setupAutoMatchBill([
+			'isTransfer' => true, 'destinationAccountId' => 2, 'autoDetectPattern' => null,
+			'nextDueDate' => '2026-11-01', 'lastPaidDate' => '2026-10-20',
+		]);
+		$bill->setTransferDescriptionPattern('NETFLIX');
+		$bill->setPaidUndoState(json_encode([
+			'previousState' => ['nextDueDate' => '2026-10-01'],
+			'createdTransactionIds' => [600, 601],
+			'scheduledTransactionIds' => [602, 603],
+			'linkedTransactionId' => null,
+			'paidDate' => '2026-10-20',
+		]));
+		[$booked, $deposit] = $this->bookedTransferPair('2026-10-20');
+		$imported = $this->makeImportedTx(['id' => 500, 'date' => '2026-10-20']);
+		$imported->setImportId('bank-1');
+		$this->linkable($booked, $deposit, $imported);
+		// The booked deposit isn't the bank row's other side: it goes, and
+		// the bank row gets its own arrival
+		$this->transactionService->expects($this->once())->method('replaceBookedRow')
+			->with($booked, $imported, 'Auto-generated transfer: Netflix', false);
+		$this->transactionService->expects($this->once())->method('completeTransferPayment')
+			->with($imported, $this->isInstanceOf(Bill::class))->willReturn(905);
+		$this->transactionService->expects($this->once())->method('deleteAsAccountOwner')->with(601, false, 1)->willReturn(true);
+
+		$this->assertSame(1, $this->service->autoMatchPaidFromImport('user1', [$imported]));
+
+		$this->assertSame('2026-11-01', $bill->getNextDueDate(), 'Not paid a second time');
+		$this->assertSame('2026-10-20', $bill->getLastPaidDate());
+		$snapshot = json_decode($bill->getPaidUndoState(), true);
+		$this->assertSame(500, $snapshot['linkedTransactionId']);
+		$this->assertSame([905], $snapshot['createdTransactionIds']);
+	}
+
+	/**
+	 * A transfer's withdrawal (600) and deposit (601) as Mark Paid books
+	 * them on $date
+	 *
+	 * @return \OCA\Budget\Db\Transaction[]
+	 */
+	private function bookedTransferPair(string $date): array {
+		$booked = $this->makeImportedTx(['id' => 600, 'date' => $date, 'description' => '']);
+		$booked->setNotes('Auto-generated transfer: Netflix');
+		$booked->setBillId(1);
+		$booked->setLinkedTransactionId(601);
+		$deposit = $this->makeImportedTx(['id' => 601, 'accountId' => 2, 'type' => 'credit', 'date' => $date, 'description' => '']);
+		$deposit->setNotes('Auto-generated transfer: Netflix');
+		$deposit->setBillId(1);
+		$deposit->setLinkedTransactionId(600);
+		return [$booked, $deposit];
+	}
+
+	public function testAReconciledDepositStaysAndIsPairedWithTheBanksWithdrawal(): void {
+		// The savings account was reconciled with the booked deposit in it;
+		// the swap deleted it and booked another
+		$bill = $this->setupAutoMatchBill([
+			'isTransfer' => true, 'destinationAccountId' => 2, 'autoDetectPattern' => null,
+			'nextDueDate' => '2026-11-01', 'lastPaidDate' => '2026-10-20',
+		]);
+		$bill->setTransferDescriptionPattern('NETFLIX');
+		$bill->setPaidUndoState(json_encode(['previousState' => [], 'createdTransactionIds' => [600, 601], 'linkedTransactionId' => null, 'paidDate' => '2026-10-20']));
+		[$booked, $deposit] = $this->bookedTransferPair('2026-10-20');
+		$deposit->setReconciled(true);
+		$imported = $this->makeImportedTx(['id' => 500, 'date' => '2026-10-20']);
+		$imported->setImportId('bank-1');
+		$this->linkable($booked, $deposit, $imported);
+		$this->transactionService->expects($this->once())->method('replaceBookedRow')
+			->with($booked, $imported, 'Auto-generated transfer: Netflix', true);
+		$this->transactionService->expects($this->never())->method('transferArrivalAmount');
+		$this->transactionService->expects($this->never())->method('deleteAsAccountOwner');
+
+		$this->assertSame(1, $this->service->autoMatchPaidFromImport('user1', [$imported]));
+
+		$this->assertSame('2026-11-01', $bill->getNextDueDate());
+	}
+
+	public function testTheBanksCopyOfAReconciledPaymentPaysNothingElse(): void {
+		// Marked paid late (20 October for 1 October) and reconciled: the
+		// bank's row of it fell in November's window and paid November too
+		$bill = $this->setupAutoMatchBill(['nextDueDate' => '2026-11-01', 'lastPaidDate' => '2026-10-20']);
+		$bill->setPaidUndoState(json_encode(['previousState' => [], 'createdTransactionIds' => [600], 'linkedTransactionId' => null, 'paidDate' => '2026-10-20']));
+		$booked = $this->makeImportedTx(['id' => 600, 'date' => '2026-10-20', 'description' => '']);
+		$booked->setNotes('Auto-generated from bill: Netflix');
+		$booked->setBillId(1);
+		$booked->setReconciled(true);
+		$imported = $this->makeImportedTx(['id' => 500, 'date' => '2026-10-20']);
+		$this->linkable($booked, $imported);
+		$this->transactionService->expects($this->never())->method('replaceBookedRow');
+		$this->transactionService->expects($this->never())->method('linkBillAsAccountOwner');
+
+		$this->assertSame(0, $this->service->autoMatchPaidFromImport('user1', [$imported]));
+
+		$this->assertSame('2026-11-01', $bill->getNextDueDate());
+		$this->assertNull($imported->getBillId());
+	}
+
+	/**
+	 * The savings statement came in first; Mark Paid then booked the
+	 * transfer's deposit beside the bank's own credit of it
+	 */
+	public function testMarkPaidLetsTheDestinationsCreditAlreadyThereTakeTheDepositsPlace(): void {
+		$bill = $this->setupAutoMatchBill([
+			'isTransfer' => true, 'destinationAccountId' => 2, 'autoDetectPattern' => null,
+			'nextDueDate' => '2026-06-15', 'createTransaction' => false,
+		]);
+		[$withdrawal, $deposit] = $this->bookedTransferPair('2026-06-15');
+		$credit = $this->makeImportedTx(['id' => 500, 'accountId' => 2, 'type' => 'credit', 'date' => '2026-06-14', 'description' => 'FROM CHECKING']);
+		$credit->setImportId('bank-2');
+		$this->linkable($withdrawal, $deposit, $credit);
+		$this->transactionService->method('clearScheduledBillTransaction')->willReturn(null);
+		$this->transactionService->method('createFromBill')->willReturn($withdrawal);
+		$this->transactionService->method('findTransferArrivals')->willReturn([$credit]);
+		$this->transactionService->expects($this->once())->method('replaceBookedRow')
+			->with($deposit, $credit, 'Auto-generated transfer: Netflix');
+
+		$result = $this->service->markPaid(1, 'user1', '2026-06-15', true);
+
+		$this->assertTrue($result['paymentTransactionRecorded']);
+		$snapshot = json_decode($bill->getPaidUndoState(), true);
+		$this->assertSame([600], $snapshot['createdTransactionIds'], 'Mark Unpaid must not delete the bank\'s credit');
+	}
+
+	public function testMarkPaidLeavesACreditTheAppBookedForIncomeAlone(): void {
+		$this->setupAutoMatchBill([
+			'isTransfer' => true, 'destinationAccountId' => 2, 'autoDetectPattern' => null,
+			'nextDueDate' => '2026-06-15', 'createTransaction' => false,
+		]);
+		[$withdrawal, $deposit] = $this->bookedTransferPair('2026-06-15');
+		$wages = $this->makeImportedTx(['id' => 500, 'accountId' => 2, 'type' => 'credit', 'date' => '2026-06-14', 'description' => '']);
+		$wages->setNotes('Auto-generated from income: Wages');
+		$this->linkable($withdrawal, $deposit, $wages);
+		$this->transactionService->method('clearScheduledBillTransaction')->willReturn(null);
+		$this->transactionService->method('createFromBill')->willReturn($withdrawal);
+		$this->transactionService->expects($this->never())->method('replaceBookedRow');
+
+		$this->service->markPaid(1, 'user1', '2026-06-15', true);
+	}
+
+	/**
+	 * The withdrawal linked as the payment (an import, the Mark Paid dialog,
+	 * auto-pay): the destination's credit already in, five days later, was
+	 * left beside the deposit booked for it, as only three days were looked at
+	 */
+	public function testLinkingTheWithdrawalLetsTheDestinationsCreditAlreadyThereBeItsArrival(): void {
+		$bill = $this->setupAutoMatchBill([
+			'isTransfer' => true, 'destinationAccountId' => 2, 'autoDetectPattern' => null,
+			'nextDueDate' => '2026-06-15', 'createTransaction' => false,
+		]);
+		$bankWithdrawal = $this->makeImportedTx(['id' => 700, 'date' => '2026-06-15', 'description' => 'SAVINGS TFR']);
+		$bankWithdrawal->setImportId('bank-1');
+		$deposit = $this->makeImportedTx(['id' => 601, 'accountId' => 2, 'type' => 'credit', 'date' => '2026-06-15', 'description' => '']);
+		$deposit->setNotes('Auto-generated transfer: Netflix');
+		$deposit->setBillId(1);
+		$deposit->setLinkedTransactionId(700);
+		$credit = $this->makeImportedTx(['id' => 500, 'accountId' => 2, 'type' => 'credit', 'date' => '2026-06-20', 'description' => 'FROM CHECKING']);
+		$credit->setImportId('bank-2');
+		$this->linkable($bankWithdrawal, $deposit, $credit);
+		$this->transactionService->method('completeTransferPayment')->willReturn(601);
+		$this->transactionService->expects($this->once())->method('replaceBookedRow')
+			->with($deposit, $credit, 'Auto-generated transfer: Netflix');
+
+		$this->service->markPaid(1, 'user1', null, false, 700);
+
+		$snapshot = json_decode($bill->getPaidUndoState(), true);
+		$this->assertSame([], $snapshot['createdTransactionIds'], 'Mark Unpaid must not delete the bank\'s credit');
+		$this->assertSame(1, $credit->getBillId());
+	}
+
+	/**
+	 * The salary came in two days after a 2,000 top-up was marked paid and
+	 * was taken as the top-up's arrival: the income stayed expected and
+	 * auto-create booked the salary a second time
+	 */
+	public function testARecurringIncomesCreditIsNeverATransfersArrival(): void {
+		$salary = $this->makeImportedTx(['id' => 510, 'accountId' => 2, 'type' => 'credit', 'date' => '2026-06-17', 'description' => 'ACME PAYROLL']);
+		$topUp = $this->makeImportedTx(['id' => 511, 'accountId' => 2, 'type' => 'credit', 'date' => '2026-06-19', 'description' => 'FROM SAVINGS']);
+		[, $deposit] = $this->transferWithBookedDeposit([], [$salary, $topUp]);
+		$income = new \OCA\Budget\Db\RecurringIncome();
+		$income->setAccountId(2);
+		$income->setAutoDetectPattern('ACME');
+		$this->incomeMapper->method('findActiveByAccount')->with(2)->willReturn([$income]);
+		$this->transactionService->expects($this->once())->method('replaceBookedRow')->with($deposit, $topUp);
+
+		$this->service->autoMatchPaidFromImport('user1', [$topUp, $salary]);
+
+		$this->assertNull($salary->getBillId(), 'Left for the income');
+		$this->assertSame(1, $topUp->getBillId());
+	}
+
+	public function testTheCreditNamingTheTransferIsItsArrival(): void {
+		// A joint account: the partner's own 15.99 came in the same day
+		$partners = $this->makeImportedTx(['id' => 510, 'accountId' => 2, 'type' => 'credit', 'date' => '2026-06-15', 'description' => 'BOB SMITH SHARE']);
+		$ours = $this->makeImportedTx(['id' => 511, 'accountId' => 2, 'type' => 'credit', 'date' => '2026-06-17', 'description' => 'A SMITH SAVINGS TFR']);
+		[, $deposit] = $this->transferWithBookedDeposit([], [$partners, $ours]);
+		$this->transactionService->expects($this->once())->method('replaceBookedRow')->with($deposit, $ours);
+
+		$this->service->autoMatchPaidFromImport('user1', [$ours, $partners]);
+	}
+
+	public function testTheCreditNearestTheDepositIsItsArrivalNotTheOldest(): void {
+		$earlier = $this->makeImportedTx(['id' => 510, 'accountId' => 2, 'type' => 'credit', 'date' => '2026-06-04', 'description' => 'CREDIT']);
+		$nearer = $this->makeImportedTx(['id' => 511, 'accountId' => 2, 'type' => 'credit', 'date' => '2026-06-16', 'description' => 'CREDIT']);
+		[, $deposit] = $this->transferWithBookedDeposit([], [$earlier, $nearer]);
+		$this->transactionService->expects($this->once())->method('replaceBookedRow')->with($deposit, $nearer);
+
+		$this->service->autoMatchPaidFromImport('user1', [$nearer, $earlier]);
+	}
+
+	public function testWithinOneCurrencyTheArrivalIsTheExactAmount(): void {
+		[, , $credit] = $this->transferWithBookedDeposit();
+		$credit->setAmount(16.50);
+		$this->transactionService->expects($this->never())->method('replaceBookedRow');
+
+		$this->service->autoMatchPaidFromImport('user1', [$credit]);
+	}
+
+	public function testBetweenCurrenciesTheArrivalMayBeATenthOff(): void {
+		// The bank converts at its own rate: 117.40 for the app's 117.65
+		[, $deposit, $credit] = $this->transferWithBookedDeposit();
+		$credit->setAmount(15.20);
+		$this->transactionService->method('transferBetweenCurrencies')->willReturn(true);
+		$this->transactionService->expects($this->once())->method('replaceBookedRow')->with($deposit, $credit);
+
+		$this->service->autoMatchPaidFromImport('user1', [$credit]);
+	}
+
+	public function testWhatWasAddedToABookedDepositGoesToTheArrivalTheBankRowGets(): void {
+		$bill = $this->setupAutoMatchBill([
+			'isTransfer' => true, 'destinationAccountId' => 2, 'autoDetectPattern' => null,
+			'nextDueDate' => '2026-11-01', 'lastPaidDate' => '2026-10-20',
+		]);
+		$bill->setTransferDescriptionPattern('NETFLIX');
+		$bill->setPaidUndoState(json_encode(['previousState' => [], 'createdTransactionIds' => [600, 601], 'linkedTransactionId' => null, 'paidDate' => '2026-10-20']));
+		[$booked, $deposit] = $this->bookedTransferPair('2026-10-20');
+		$imported = $this->makeImportedTx(['id' => 500, 'date' => '2026-10-20']);
+		$imported->setImportId('bank-1');
+		$arrival = $this->makeImportedTx(['id' => 905, 'accountId' => 2, 'type' => 'credit', 'date' => '2026-10-20']);
+		$this->linkable($booked, $deposit, $imported, $arrival);
+		$this->transactionService->method('completeTransferPayment')->willReturnCallback(function () use ($imported) {
+			$imported->setLinkedTransactionId(905);
+			return 905;
+		});
+		$replaced = [];
+		$this->transactionService->method('replaceBookedRow')->willReturnCallback(function ($from, $to) use (&$replaced) {
+			$replaced[] = [$from->getId(), $to->getId()];
+		});
+		$this->transactionService->expects($this->never())->method('deleteAsAccountOwner');
+
+		$this->assertSame(1, $this->service->autoMatchPaidFromImport('user1', [$imported]));
+
+		$this->assertSame([[600, 500], [601, 905]], $replaced);
+	}
+
+	public function testAnImportedWithdrawalPaysARecurringTransfer(): void {
+		// The transfer form's description pattern was never read and transfers
+		// were left out of matching, so the statement's rows stayed apart and
+		// Mark Paid then moved the money twice
+		$bill = $this->setupAutoMatchBill(['isTransfer' => true, 'destinationAccountId' => 2, 'autoDetectPattern' => null]);
+		$bill->setTransferDescriptionPattern('NETFLIX');
+		$tx = $this->makeImportedTx();
+		$this->linkable($tx);
+		$this->transactionService->expects($this->once())->method('completeTransferPayment')
+			->with($tx, $this->isInstanceOf(Bill::class))->willReturn(901);
+
+		$this->assertSame(1, $this->service->autoMatchPaidFromImport('user1', [$tx]));
+
+		$snapshot = json_decode($bill->getPaidUndoState(), true);
+		$this->assertSame([901], $snapshot['createdTransactionIds'], 'A deposit booked here goes on revert');
+	}
+
+	public function testAWithdrawalIsNotLinkedToATransferWhoseArrivalCannotBePriced(): void {
+		// No rate between the two currencies: the withdrawal was linked and
+		// the pre-booked rows deleted before booking the arrival failed,
+		// leaving the bill half paid. It is priced first now.
+		$bill = $this->setupAutoMatchBill(['isTransfer' => true, 'destinationAccountId' => 2, 'autoDetectPattern' => null]);
+		$bill->setTransferDescriptionPattern('NETFLIX');
+		$tx = $this->makeImportedTx();
+		$this->transactionService->method('findTransaction')->willReturn($tx);
+		$this->transactionService->method('transferArrivalAmount')->willThrowException(new \Exception('No exchange rate between GBP and CHF'));
+		$this->transactionService->expects($this->never())->method('linkBillAsAccountOwner');
+		$this->transactionService->expects($this->never())->method('deleteScheduledBillTransactions');
+		$this->transactionService->expects($this->never())->method('completeTransferPayment');
+
+		$this->assertSame(0, $this->service->autoMatchPaidFromImport('user1', [$tx]));
+		$this->assertSame('2026-06-15', $bill->getNextDueDate());
+		$this->assertNull($bill->getPaidUndoState());
+	}
+
+	public function testTheWithdrawalsArrivalIsPricedBeforeItIsLinked(): void {
+		$bill = $this->setupAutoMatchBill(['isTransfer' => true, 'destinationAccountId' => 2, 'autoDetectPattern' => null]);
+		$bill->setTransferDescriptionPattern('NETFLIX');
+		$tx = $this->makeImportedTx();
+		$this->linkable($tx);
+		$this->transactionService->method('transferArrivalAmount')->willReturn(117.65);
+		$this->transactionService->expects($this->once())->method('completeTransferPayment')
+			->with($tx, $this->isInstanceOf(Bill::class), 117.65)->willReturn(901);
+
+		$this->assertSame(1, $this->service->autoMatchPaidFromImport('user1', [$tx]));
+	}
+
+	/**
+	 * A transfer into account 2 paid on 15 June, its deposit (601) booked
+	 * by the app, and the destination's own credit of it just imported.
+	 *
+	 * @return array{0: Bill, 1: \OCA\Budget\Db\Transaction, 2: \OCA\Budget\Db\Transaction}
+	 */
+	private function transferWithBookedDeposit(array $deposit = [], ?array $credits = null): array {
+		$bill = $this->setupAutoMatchBill([
+			'isTransfer' => true, 'destinationAccountId' => 2, 'autoDetectPattern' => null,
+			'nextDueDate' => '2026-07-15', 'lastPaidDate' => '2026-06-15',
+		]);
+		$bill->setTransferDescriptionPattern('SAVINGS TFR');
+		$bill->setPaidUndoState(json_encode([
+			'previousState' => ['nextDueDate' => '2026-06-15'],
+			'createdTransactionIds' => [600, 601],
+			'scheduledTransactionIds' => [602, 603],
+			'linkedTransactionId' => null,
+			'paidDate' => '2026-06-15',
+		]));
+		$booked = $this->makeImportedTx(array_merge(['id' => 601, 'accountId' => 2, 'type' => 'credit', 'date' => '2026-06-15', 'description' => ''], $deposit));
+		$booked->setNotes('Auto-generated transfer: Netflix');
+		$booked->setBillId(1);
+		$booked->setLinkedTransactionId(600);
+		$credit = $this->makeImportedTx(['id' => 500, 'accountId' => 2, 'type' => 'credit', 'date' => '2026-06-16', 'description' => 'FROM CHECKING']);
+		$credit->setImportId('bank-2');
+		// $credits: the destination's own rows a test puts there instead
+		$this->linkable($booked, ...($credits ?? [$credit]));
+		return [$bill, $booked, $credit];
+	}
+
+	public function testTheDestinationsCreditTakesThePlaceOfTheDepositBookedForIt(): void {
+		// Paying the transfer booked its arrival, and the destination's own
+		// statement then brought the same money in a second time
+		[$bill, $deposit, $credit] = $this->transferWithBookedDeposit();
+		$this->transactionService->expects($this->once())->method('replaceBookedRow')->with($deposit, $credit);
+
+		$this->assertSame(0, $this->service->autoMatchPaidFromImport('user1', [$credit]), 'No bill was marked paid');
+
+		$this->assertSame(1, $credit->getBillId());
+		$this->assertSame('2026-07-15', $bill->getNextDueDate());
+		$snapshot = json_decode($bill->getPaidUndoState(), true);
+		$this->assertSame([600], $snapshot['createdTransactionIds'], 'Mark Unpaid must not delete the bank\'s credit');
+	}
+
+	public function testAReconciledDepositKeepsItsPlace(): void {
+		[, $deposit, $credit] = $this->transferWithBookedDeposit();
+		$deposit->setReconciled(true);
+		$this->transactionService->expects($this->never())->method('replaceBookedRow');
+
+		$this->service->autoMatchPaidFromImport('user1', [$credit]);
+
+		$this->assertNull($credit->getBillId());
+	}
+
+	public function testACreditFarFromTheDepositsAmountIsNotItsArrival(): void {
+		[, , $credit] = $this->transferWithBookedDeposit(['amount' => 30.0]);
+		$this->transactionService->expects($this->never())->method('replaceBookedRow');
+
+		$this->service->autoMatchPaidFromImport('user1', [$credit]);
+	}
+
+	public function testACreditAlreadyPairedIsLeftAlone(): void {
+		// The import's own transfer matching, or a withdrawal earlier in the
+		// same batch, took it as its arrival
+		[, , $credit] = $this->transferWithBookedDeposit();
+		$credit->setLinkedTransactionId(77);
+		$this->transactionService->expects($this->never())->method('replaceBookedRow');
+
+		$this->service->autoMatchPaidFromImport('user1', [$credit]);
+	}
+
+	public function testABankSyncHoldWaitsUntilItPosts(): void {
+		[, , $credit] = $this->transferWithBookedDeposit();
+		$credit->setStatus('pending');
+		$this->transactionService->expects($this->never())->method('replaceBookedRow');
+
+		$this->service->autoMatchPaidFromImport('user1', [$credit]);
 	}
 
 	public function testAutoMatchMatchesPatternInVendor(): void {
 		$this->setupAutoMatchBill();
 		$tx = $this->makeImportedTx(['description' => 'Card payment 9912', 'vendor' => 'Netflix Inc']);
+		$this->linkable($tx);
 
 		$this->assertSame(1, $this->service->autoMatchPaidFromImport('user1', [$tx]));
 	}
@@ -1540,9 +2312,10 @@ class BillServiceTest extends TestCase {
 		// outside the new window
 		$tx1 = $this->makeImportedTx(['id' => 500, 'date' => '2026-06-14']);
 		$tx2 = $this->makeImportedTx(['id' => 501, 'date' => '2026-06-16']);
+		$this->linkable($tx1, $tx2);
 
-		$this->transactionService->expects($this->once())->method('update');
 		$this->assertSame(1, $this->service->autoMatchPaidFromImport('user1', [$tx1, $tx2]));
+		$this->assertNull($tx2->getBillId());
 	}
 
 	public function testAutoMatchIgnoresTransferAndPatternlessBills(): void {
@@ -1567,6 +2340,22 @@ class BillServiceTest extends TestCase {
 		$this->assertSame(7, $result[0]['billId']);
 		$this->assertSame('Hypothek', $result[0]['name']);
 		$this->assertSame($paidDate, $result[0]['lastPaidDate']);
+	}
+
+	public function testFindUnrecordedPaymentsTellsATransfersDestination(): void {
+		// The card offers Record transaction only when the user can write
+		// both accounts a transfer posts into
+		$paidDate = date('Y-m-d', strtotime('-10 days'));
+		$transfer = $this->makeBill(['id' => 7, 'isTransfer' => true, 'accountId' => 1, 'destinationAccountId' => 4, 'lastPaidDate' => $paidDate]);
+		$bill = $this->makeBill(['id' => 8, 'accountId' => 1, 'lastPaidDate' => $paidDate]);
+		$this->mapper->method('findAll')->willReturn([$transfer, $bill]);
+		$this->transactionService->method('findRecordedBillTransactions')->willReturn([]);
+
+		$result = $this->service->findUnrecordedPayments('user1');
+		usort($result, static fn ($a, $b) => $a['billId'] <=> $b['billId']);
+
+		$this->assertSame([true, 4], [$result[0]['isTransfer'], $result[0]['destinationAccountId']]);
+		$this->assertSame([false, null], [$result[1]['isTransfer'], $result[1]['destinationAccountId']]);
 	}
 
 	public function testFindUnrecordedPaymentsIgnoresRecordedPayment(): void {
@@ -1620,6 +2409,149 @@ class BillServiceTest extends TestCase {
 
 		$this->expectException(\InvalidArgumentException::class);
 		$this->service->recordMissedPayment(7, 'user1');
+	}
+
+	/**
+	 * What markPaid() leaves on the bill for the payment made on $paidDate:
+	 * the rows it recorded or linked.
+	 */
+	private function paymentSnapshot(string $paidDate, array $createdIds = [], ?int $linkedId = null): string {
+		return json_encode([
+			'previousState' => ['lastPaidDate' => null, 'nextDueDate' => $paidDate],
+			'createdTransactionIds' => $createdIds,
+			'scheduledTransactionIds' => [],
+			'linkedTransactionId' => $linkedId,
+			'hadScheduledTransaction' => false,
+			'paidDate' => $paidDate,
+		]);
+	}
+
+	private function billRow(int $id, int $billId, string $date): \OCA\Budget\Db\Transaction {
+		$tx = $this->makeImportedTx(['id' => $id, 'date' => $date]);
+		$tx->setBillId($billId);
+		return $tx;
+	}
+
+	public function testAPaymentMovedToItsBankDateStillCountsAsRecorded(): void {
+		// Marked paid today, then the row corrected to the day the bank took
+		// it, three weeks back
+		$paidDate = date('Y-m-d', strtotime('-1 day'));
+		$bill = $this->makeBill(['id' => 7, 'lastPaidDate' => $paidDate]);
+		$bill->setPaidUndoState($this->paymentSnapshot($paidDate, [900]));
+		$this->mapper->method('findAll')->willReturn([$bill]);
+		$this->mapper->method('find')->willReturn($bill);
+		$this->transactionService->method('findRecordedBillTransactions')
+			->willReturn([$this->billRow(900, 7, date('Y-m-d', strtotime('-22 days')))]);
+
+		$this->assertSame([], $this->service->findUnrecordedPayments('user1'));
+
+		// ...and Record transaction won't book it a second time
+		$this->transactionService->expects($this->never())->method('createFromBill');
+		$this->expectException(\InvalidArgumentException::class);
+		$this->service->recordMissedPayment(7, 'user1');
+	}
+
+	public function testALinkedBankRowFromWeeksBeforeTheClickCountsAsRecorded(): void {
+		// An overdue bill marked paid by linking the bank's row from its due
+		// date, 20 days before the click
+		$paidDate = date('Y-m-d');
+		$bill = $this->makeBill(['id' => 7, 'lastPaidDate' => $paidDate]);
+		$bill->setPaidUndoState($this->paymentSnapshot($paidDate, [], 901));
+		$this->mapper->method('findAll')->willReturn([$bill]);
+		$this->transactionService->method('findRecordedBillTransactions')
+			->willReturn([$this->billRow(901, 7, date('Y-m-d', strtotime('-20 days')))]);
+
+		$this->assertSame([], $this->service->findUnrecordedPayments('user1'));
+	}
+
+	public function testAWeeklyPaymentWithoutATransactionIsFlaggedThoughLastWeeksHasOne(): void {
+		$paidDate = date('Y-m-d', strtotime('-2 days'));
+		$bill = $this->makeBill(['id' => 7, 'frequency' => 'weekly', 'lastPaidDate' => $paidDate]);
+		$bill->setPaidUndoState($this->paymentSnapshot($paidDate, []));
+		$this->mapper->method('findAll')->willReturn([$bill]);
+		// Last week's payment, recorded with a transaction
+		$this->transactionService->method('findRecordedBillTransactions')
+			->willReturn([$this->billRow(800, 7, date('Y-m-d', strtotime('-9 days')))]);
+
+		$result = $this->service->findUnrecordedPayments('user1');
+
+		$this->assertCount(1, $result);
+		$this->assertSame(7, $result[0]['billId']);
+	}
+
+	public function testOverdueOccurrencesCaughtUpOnOneDayAreEachChecked(): void {
+		// Two paid today: the first with a transaction, the second without.
+		// The second payment's snapshot remembers the first was paid today.
+		$paidDate = date('Y-m-d');
+		$bill = $this->makeBill(['id' => 7, 'lastPaidDate' => $paidDate]);
+		$snapshot = json_decode($this->paymentSnapshot($paidDate, []), true);
+		$snapshot['previousState']['lastPaidDate'] = $paidDate;
+		$bill->setPaidUndoState(json_encode($snapshot));
+		$this->mapper->method('findAll')->willReturn([$bill]);
+		$this->transactionService->method('findRecordedBillTransactions')
+			->willReturn([$this->billRow(800, 7, $paidDate)]);
+
+		$this->assertCount(1, $this->service->findUnrecordedPayments('user1'));
+	}
+
+	public function testARowRecordedBy254ButNotNamedInTheSnapshotCounts(): void {
+		// 2.54.0's Record transaction booked the row on the paid date and
+		// never added it to the snapshot: the card listed the payment again
+		// and Record booked it a second time
+		$paidDate = date('Y-m-d', strtotime('-3 days'));
+		$bill = $this->makeBill(['id' => 7, 'frequency' => 'weekly', 'lastPaidDate' => $paidDate]);
+		$snapshot = json_decode($this->paymentSnapshot($paidDate, []), true);
+		$snapshot['previousState']['lastPaidDate'] = date('Y-m-d', strtotime('-10 days'));
+		$bill->setPaidUndoState(json_encode($snapshot));
+		$this->mapper->method('findAll')->willReturn([$bill]);
+		$this->mapper->method('find')->willReturn($bill);
+		$this->transactionService->method('findRecordedBillTransactions')
+			->willReturn([$this->billRow(903, 7, $paidDate)]);
+
+		$this->assertSame([], $this->service->findUnrecordedPayments('user1'));
+
+		$this->transactionService->expects($this->never())->method('createFromBill');
+		$this->expectException(\InvalidArgumentException::class);
+		$this->service->recordMissedPayment(7, 'user1');
+	}
+
+	public function testWithoutASnapshotAWeeklyBillsPreviousPaymentDoesNotCount(): void {
+		// Payments from before bills kept a record of their rows: matched by
+		// date, within half the bill's interval
+		$paidDate = date('Y-m-d', strtotime('-2 days'));
+		$weekly = $this->makeBill(['id' => 7, 'frequency' => 'weekly', 'lastPaidDate' => $paidDate]);
+		$biweekly = $this->makeBill(['id' => 8, 'frequency' => 'biweekly', 'lastPaidDate' => $paidDate]);
+		$this->mapper->method('findAll')->willReturn([$weekly, $biweekly]);
+		$this->transactionService->method('findRecordedBillTransactions')->willReturn([
+			$this->billRow(800, 7, date('Y-m-d', strtotime('-9 days'))),
+			$this->billRow(801, 8, date('Y-m-d', strtotime('-16 days'))),
+		]);
+
+		$this->assertEqualsCanonicalizing([7, 8], array_column($this->service->findUnrecordedPayments('user1'), 'billId'));
+	}
+
+	public function testRecordingAMissedPaymentAddsItToThePaymentsSnapshot(): void {
+		// So the card sees it from then on, and Mark Unpaid takes it back
+		// along with the payment
+		$paidDate = date('Y-m-d', strtotime('-3 days'));
+		$bill = $this->makeBill(['id' => 7, 'lastPaidDate' => $paidDate]);
+		$bill->setPaidUndoState($this->paymentSnapshot($paidDate, []));
+		$this->mapper->method('find')->willReturn($bill);
+		$this->transactionService->method('findRecordedBillTransactions')->willReturn([]);
+		$this->transactionService->method('createFromBill')
+			->willReturn($this->makeImportedTx(['id' => 902, 'date' => $paidDate]));
+
+		$saved = null;
+		$this->mapper->expects($this->once())->method('update')
+			->willReturnCallback(function (Bill $b) use (&$saved) {
+				$saved = json_decode($b->getPaidUndoState(), true);
+				return $b;
+			});
+
+		$this->service->recordMissedPayment(7, 'user1');
+
+		$this->assertSame([902], $saved['createdTransactionIds']);
+		$this->assertSame($paidDate, $saved['paidDate']);
 	}
 
 	public function testRecordMissedPaymentRefusesWithoutAccount(): void {
@@ -1743,7 +2675,7 @@ class BillServiceTest extends TestCase {
 			->with(20, $this->anything())
 			->willReturn(440.0);
 		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-09-15');
-		$this->mapper->method('insert')->willReturnCallback(fn(Bill $b) => $b);
+		$this->mapper->method('insert')->willReturnCallback(fn (Bill $b) => $b);
 
 		$bill = $this->service->create(
 			userId: 'user1', name: 'Visa payment', amount: 0.0, frequency: 'monthly',
@@ -1869,6 +2801,43 @@ class BillServiceTest extends TestCase {
 		$result = $this->service->markPaid(1, 'user1', '2026-08-19');
 
 		$this->assertEqualsWithDelta(30.0, $result['bill']->getAmount(), 0.001);
+	}
+
+	/**
+	 * "Minimum payment" to a card with no minimum stored resolved to
+	 * min(0, owed) = 0.00: a 0.00 pair booked every month, the transfer
+	 * shown paid, and the card never paid down (#399 review, F60).
+	 */
+	public function testCreateMinimumPaymentBillNeedsTheCardsMinimum(): void {
+		$this->accountMapper->method('findById')->willReturn($this->makeCardAccount());
+		$this->mapper->expects($this->never())->method('insert');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('minimum payment');
+
+		$this->service->create(
+			userId: 'user1', name: 'Visa payment', amount: 0.0, frequency: 'monthly',
+			dueDay: 15, accountId: 1, isTransfer: true, destinationAccountId: 20,
+			amountType: 'minimum_payment'
+		);
+	}
+
+	public function testPayingAMinimumPaymentBillRefusesOnceTheCardsMinimumIsCleared(): void {
+		$this->accountMapper->method('findById')->willReturn($this->makeCardAccount());
+		$bill = $this->makeBill([
+			'isTransfer' => true, 'destinationAccountId' => 20,
+			'amount' => 50.0, 'nextDueDate' => '2026-08-15',
+		]);
+		$bill->setAmountType('minimum_payment');
+		$this->mapper->method('find')->willReturn($bill);
+		$this->transactionService->method('getStatementAmountForAccount')->willReturn(500.0);
+		$this->transactionService->expects($this->never())->method('createFromBill');
+		$this->mapper->expects($this->never())->method('update');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('minimum payment');
+
+		$this->service->markPaid(1, 'user1', '2026-08-19');
 	}
 
 	public function testCreateCurrentBalanceBillRequiresCardDestination(): void {
@@ -2042,6 +3011,51 @@ class BillServiceTest extends TestCase {
 		$this->service->markUnpaid(1, 'user1');
 	}
 
+	/**
+	 * A payment reconciled against a bank statement was deleted by Mark
+	 * Unpaid with no warning, and the account stopped matching the statement.
+	 */
+	public function testMarkUnpaidAsksBeforeDeletingAReconciledPayment(): void {
+		$bill = $this->makeBill(['nextDueDate' => '2099-07-15', 'lastPaidDate' => '2099-06-15']);
+		$bill->setPaidUndoState($this->makePaidUndoSnapshot());
+		$this->mapper->method('find')->willReturn($bill);
+		$this->transactionService->method('countReconciledBillRows')->with([55, 56], 1)->willReturn(1);
+		$this->transactionService->expects($this->never())->method('deleteAsAccountOwner');
+		$this->mapper->expects($this->never())->method('update');
+
+		$this->expectException(\OCA\Budget\Exception\ReconciledPaymentException::class);
+
+		$this->service->markUnpaid(1, 'user1');
+	}
+
+	public function testMarkUnpaidGoesAheadOnceTheUserConfirms(): void {
+		$bill = $this->makeBill(['nextDueDate' => '2099-07-15', 'lastPaidDate' => '2099-06-15']);
+		$bill->setPaidUndoState($this->makePaidUndoSnapshot());
+		$this->mapper->method('find')->willReturn($bill);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->transactionService->method('countReconciledBillRows')->willReturn(1);
+		$this->transactionService->expects($this->atLeastOnce())->method('deleteAsAccountOwner');
+
+		$restored = $this->service->markUnpaid(1, 'user1', true);
+
+		$this->assertSame('2099-06-15', $restored->getNextDueDate());
+	}
+
+	/**
+	 * A deleted bill's payments kept its id, so a bill set up again in its
+	 * place never offered them in Mark Paid, and the payment was recorded a
+	 * second time.
+	 */
+	public function testDeletingABillLetsGoOfItsRecordedPayments(): void {
+		$bill = $this->makeBill();
+		$this->mapper->method('find')->willReturn($bill);
+		$this->transactionService->expects($this->once())->method('deleteScheduledBillTransactions')->with(1);
+		$this->transactionService->expects($this->once())->method('detachBillPayments')->with(1);
+		$this->mapper->expects($this->once())->method('delete')->with($bill);
+
+		$this->service->delete(1, 'user1');
+	}
+
 	public function testMarkUnpaidWithoutSnapshotThrows(): void {
 		$bill = $this->makeBill();
 		$this->mapper->method('find')->willReturn($bill);
@@ -2119,12 +3133,12 @@ class BillServiceTest extends TestCase {
 		// after today", which is today itself — snapping the bill back onto
 		// the just-paid occurrence, which auto-pay then paid again.
 		$this->frequencyCalculator->method('calculateNextDueDate')
-			->willReturnCallback(fn(...$args) => (new FrequencyCalculator())->calculateNextDueDate(...$args));
+			->willReturnCallback(fn (...$args) => (new FrequencyCalculator())->calculateNextDueDate(...$args));
 
 		$today = new \DateTime();
 		$bill = $this->makeBill([
 			'frequency' => 'biweekly',
-			'dueDay' => (int) $today->format('N'),
+			'dueDay' => (int)$today->format('N'),
 			'nextDueDate' => (clone $today)->modify('+14 days')->format('Y-m-d'),
 			'lastPaidDate' => $today->format('Y-m-d'),
 		]);
@@ -2148,13 +3162,13 @@ class BillServiceTest extends TestCase {
 		// paid one period earlier. The overdue date is real, unpaid state —
 		// an unrelated edit must not silently snap it into the future.
 		$this->frequencyCalculator->method('calculateNextDueDate')
-			->willReturnCallback(fn(...$args) => (new FrequencyCalculator())->calculateNextDueDate(...$args));
+			->willReturnCallback(fn (...$args) => (new FrequencyCalculator())->calculateNextDueDate(...$args));
 
 		$today = new \DateTime();
 		$overdue = (clone $today)->modify('-3 days')->format('Y-m-d');
 		$bill = $this->makeBill([
 			'frequency' => 'biweekly',
-			'dueDay' => (int) (new \DateTime($overdue))->format('N'),
+			'dueDay' => (int)(new \DateTime($overdue))->format('N'),
 			'nextDueDate' => $overdue,
 			'lastPaidDate' => (clone $today)->modify('-17 days')->format('Y-m-d'),
 		]);
@@ -2262,9 +3276,7 @@ class BillServiceTest extends TestCase {
 		$this->mapper->method('update')->willReturnArgument(0);
 		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-07-15');
 
-		$this->transactionService->expects($this->once())
-			->method('update')
-			->with(77, 'user1', ['billId' => 1]);
+		$this->linkable($this->makeImportedTx(['id' => 77]));
 
 		$result = $this->service->markPaid(1, 'user1', null, false, 77);
 
@@ -2290,6 +3302,79 @@ class BillServiceTest extends TestCase {
 		$restored = $this->service->markUnpaid(1, 'user1');
 
 		$this->assertSame('2099-06-15', $restored->getNextDueDate());
+	}
+
+	// ── a bank-sync hold that paid the bill is cancelled ────────────
+
+	private function billPaidByHold(int $holdId, array $snapshotOverrides = [], array $billOverrides = []): Bill {
+		$bill = $this->makeBill(array_merge([
+			'userId' => 'owner1', 'nextDueDate' => '2099-07-15', 'lastPaidDate' => '2099-06-12',
+		], $billOverrides));
+		$bill->setPaidUndoState($this->makePaidUndoSnapshot(array_merge([
+			'createdTransactionIds' => [],
+			'scheduledTransactionIds' => [3390],
+			'linkedTransactionId' => $holdId,
+		], $snapshotOverrides)));
+		$this->mapper->method('findByIds')->with([1])->willReturn([$bill]);
+		$this->mapper->method('find')->willReturn($bill);
+		$this->mapper->method('update')->willReturnArgument(0);
+		return $bill;
+	}
+
+	public function testACancelledHoldUndoesTheBillPaymentItMade(): void {
+		// The hold paid the bill (auto-match or the Mark Paid dialog), then
+		// the bank dropped it. Deleting it left the bill paid and moved on,
+		// with the unrecorded-payments card offering to record a payment the
+		// bank never took.
+		$bill = $this->billPaidByHold(3387);
+
+		$this->transactionService->expects($this->once())
+			->method('unlinkBillAsAccountOwner')
+			->with(3387);
+
+		$this->assertTrue($this->service->revertCancelledPayment(1, 3387));
+		$this->assertSame('2099-06-15', $bill->getNextDueDate());
+		$this->assertNull($bill->getLastPaidDate());
+		$this->assertNull($bill->getPaidUndoState());
+	}
+
+	public function testACancelledHoldIsRevertedAsTheBillsOwner(): void {
+		$this->billPaidByHold(3387);
+		$this->mapper->expects($this->atLeastOnce())->method('find')->with(1, 'owner1');
+
+		$this->service->revertCancelledPayment(1, 3387);
+	}
+
+	public function testACancelledHoldBringsBackThePreBookedRowItsLinkRemoved(): void {
+		// Linking the hold removed the pre-booked row for the occurrence it
+		// paid without recording that, so the revert alone left the restored
+		// occurrence with no row at all.
+		$bill = $this->billPaidByHold(3387);
+
+		$this->transactionService->expects($this->once())
+			->method('createFromBill')
+			->with('owner1', $bill, null);
+
+		$this->service->revertCancelledPayment(1, 3387);
+	}
+
+	public function testACancelledHoldBooksNoRowForABillThatDoesNotPreBook(): void {
+		$this->billPaidByHold(3387, [], ['createTransaction' => false]);
+
+		$this->transactionService->expects($this->never())->method('createFromBill');
+
+		$this->service->revertCancelledPayment(1, 3387);
+	}
+
+	public function testACancelledHoldLeavesABillPaidSinceByAnotherPayment(): void {
+		// The snapshot only covers the latest payment: a hold behind it can't
+		// be undone without also undoing the later one.
+		$this->billPaidByHold(88);
+
+		$this->mapper->expects($this->never())->method('update');
+		$this->transactionService->expects($this->never())->method('unlinkBillAsAccountOwner');
+
+		$this->assertFalse($this->service->revertCancelledPayment(1, 3387));
 	}
 
 	public function testMarkUnpaidWithNonArrayTransactionIdsThrows(): void {

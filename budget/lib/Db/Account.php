@@ -71,308 +71,320 @@ use OCP\AppFramework\Db\Entity;
  * @method void setClosed(?bool $closed)
  */
 class Account extends Entity implements JsonSerializable {
-    protected $userId;
-    protected $name;
-    protected $type;
-    protected $balance;
-    protected $openingBalance;
-    protected $currency;
-    protected $institution;
+	protected $userId;
+	protected $name;
+	protected $type;
+	protected $balance;
+	protected $openingBalance;
+	protected $currency;
+	protected $institution;
 
-    #[Encrypted]
-    protected $accountNumber;
+	#[Encrypted]
+	protected $accountNumber;
 
-    #[Encrypted]
-    protected $routingNumber;
+	#[Encrypted]
+	protected $routingNumber;
 
-    #[Encrypted]
-    protected $sortCode;
+	#[Encrypted]
+	protected $sortCode;
 
-    #[Encrypted]
-    protected $iban;
+	#[Encrypted]
+	protected $iban;
 
-    #[Encrypted]
-    protected $swiftBic;
+	#[Encrypted]
+	protected $swiftBic;
 
-    #[Encrypted]
-    protected $walletAddress;
+	#[Encrypted]
+	protected $walletAddress;
 
-    protected $accountHolderName;
-    protected $openingDate;
-    protected $interestRate;
-    protected $creditLimit;
-    protected $overdraftLimit;
-    protected $minimumPayment;
-    protected $statementDay;    // Day of month (1-31) the card's statement payment is due (#347)
-    protected $interestEnabled;
-    protected $compoundingFrequency;
-    protected $accruedInterest;
-    protected $createdAt;
-    protected $updatedAt;
-    protected $lastReconciled;
-    // When true, the account is omitted from every "all accounts" aggregation —
-    // reports, dashboard, forecast, net worth, total balance and budgets (#286).
-    // The account itself stays fully usable (accounts list, detail page, its
-    // own transaction list).
-    protected $excludedFromReports;
-    // For liability accounts only: true when a POSITIVE balance means the
-    // account is in credit / overpaid rather than a mis-signed debt (#353).
-    // NULL = never declared; the Repair Data tool resolves legacy rows.
-    protected $liabilityInCredit;
-    // A closed account keeps its history and still counts in every total,
-    // but no picker offers it for new activity (#372). Closing is gated by
-    // AccountClosureService: zero balance, nothing after today, nothing
-    // scheduled to post into it. NULL = open (the column post-dates most rows).
-    protected $closed;
+	protected $accountHolderName;
+	protected $openingDate;
+	protected $interestRate;
+	protected $creditLimit;
+	protected $overdraftLimit;
+	protected $minimumPayment;
+	protected $statementDay;    // Day of month (1-31) the card's statement payment is due (#347)
+	protected $interestEnabled;
+	protected $compoundingFrequency;
+	protected $accruedInterest;
+	protected $createdAt;
+	protected $updatedAt;
+	protected $lastReconciled;
+	// When true, the account is omitted from every "all accounts" aggregation —
+	// reports, dashboard, forecast, net worth, total balance and budgets (#286).
+	// The account itself stays fully usable (accounts list, detail page, its
+	// own transaction list).
+	protected $excludedFromReports;
+	// For liability accounts only: true when a POSITIVE balance means the
+	// account is in credit / overpaid rather than a mis-signed debt (#353).
+	// NULL = never declared; the Repair Data tool resolves legacy rows.
+	protected $liabilityInCredit;
+	// A closed account keeps its history and still counts in every total,
+	// but no picker offers it for new activity (#372). Closing is gated by
+	// AccountClosureService: zero balance, nothing after today, nothing
+	// scheduled to post into it. NULL = open (the column post-dates most rows).
+	protected $closed;
 
-    public function __construct() {
-        $this->addType('id', 'integer');
-        $this->addType('balance', 'float');
-        $this->addType('openingBalance', 'float');
-        $this->addType('interestRate', 'float');
-        $this->addType('creditLimit', 'float');
-        $this->addType('overdraftLimit', 'float');
-        $this->addType('minimumPayment', 'float');
-        $this->addType('statementDay', 'integer');
-        $this->addType('interestEnabled', 'boolean');
-        $this->addType('accruedInterest', 'float');
-        $this->addType('excludedFromReports', 'boolean');
-        $this->addType('liabilityInCredit', 'boolean');
-        $this->addType('closed', 'boolean');
-    }
+	public function __construct() {
+		$this->addType('id', 'integer');
+		$this->addType('balance', 'float');
+		$this->addType('openingBalance', 'float');
+		$this->addType('interestRate', 'float');
+		$this->addType('creditLimit', 'float');
+		$this->addType('overdraftLimit', 'float');
+		$this->addType('minimumPayment', 'float');
+		$this->addType('statementDay', 'integer');
+		$this->addType('interestEnabled', 'boolean');
+		$this->addType('accruedInterest', 'float');
+		$this->addType('excludedFromReports', 'boolean');
+		$this->addType('liabilityInCredit', 'boolean');
+		$this->addType('closed', 'boolean');
+	}
 
-    /**
-     * Explicit setter for currency
-     * Note: This overrides the magic setter to ensure proper field tracking
-     */
-    public function setCurrency(string $currency): void {
-        // Only update if value changed (same logic as parent setter)
-        if ($currency === $this->currency) {
-            return;
-        }
-        $this->markFieldUpdated('currency');
-        $this->currency = $currency;
-    }
+	/**
+	 * Explicit setter for currency
+	 * Note: This overrides the magic setter to ensure proper field tracking
+	 */
+	public function setCurrency(string $currency): void {
+		// Only update if value changed (same logic as parent setter)
+		if ($currency === $this->currency) {
+			return;
+		}
+		$this->markFieldUpdated('currency');
+		$this->currency = $currency;
+	}
 
-    /**
-     * Explicit getter for currency
-     */
-    public function getCurrency(): string {
-        return $this->currency ?? '';
-    }
+	/**
+	 * Explicit getter for currency
+	 */
+	public function getCurrency(): string {
+		return $this->currency ?? '';
+	}
 
-    /**
-     * Default serialization returns masked sensitive data.
-     */
-    public function jsonSerialize(): array {
-        return $this->toArrayMasked();
-    }
+	/**
+	 * Default serialization returns masked sensitive data.
+	 */
+	public function jsonSerialize(): array {
+		return $this->toArrayMasked();
+	}
 
-    /**
-     * Get array representation with sensitive fields masked.
-     */
-    public function toArrayMasked(): array {
-        return [
-            'id' => $this->getId(),
-            'userId' => $this->getUserId(),
-            'name' => $this->getName(),
-            'type' => $this->getType(),
-            'balance' => $this->getBalance(),
-            'openingBalance' => $this->getOpeningBalance(),
-            'currency' => $this->getCurrency(),
-            'institution' => $this->getInstitution(),
-            'accountNumber' => $this->maskAccountNumber($this->getAccountNumber()),
-            'routingNumber' => $this->maskRoutingNumber($this->getRoutingNumber()),
-            'sortCode' => $this->maskSortCode($this->getSortCode()),
-            'iban' => $this->maskIban($this->getIban()),
-            'swiftBic' => $this->maskSwiftBic($this->getSwiftBic()),
-            'walletAddress' => $this->maskWalletAddress($this->getWalletAddress()),
-            'accountHolderName' => $this->getAccountHolderName(),
-            'openingDate' => $this->getOpeningDate(),
-            'interestRate' => $this->getInterestRate(),
-            'creditLimit' => $this->getCreditLimit(),
-            'overdraftLimit' => $this->getOverdraftLimit(),
-            'minimumPayment' => $this->getMinimumPayment(),
-            'statementDay' => $this->getStatementDay(),
-            'interestEnabled' => $this->getInterestEnabled() ?? false,
-            'compoundingFrequency' => $this->getCompoundingFrequency(),
-            'accruedInterest' => $this->getAccruedInterest() ?? 0.0,
-            'createdAt' => $this->getCreatedAt(),
-            'updatedAt' => $this->getUpdatedAt(),
-            'lastReconciled' => $this->getLastReconciled(),
-            'excludedFromReports' => $this->getExcludedFromReports() ?? false,
-            'liabilityInCredit' => $this->getLiabilityInCredit(),
-            'closed' => $this->getClosed() ?? false,
-            'hasSensitiveData' => $this->hasSensitiveData(),
-        ];
-    }
+	/**
+	 * Get array representation with sensitive fields masked.
+	 */
+	public function toArrayMasked(): array {
+		return [
+			'id' => $this->getId(),
+			'userId' => $this->getUserId(),
+			'name' => $this->getName(),
+			'type' => $this->getType(),
+			'balance' => $this->getBalance(),
+			'openingBalance' => $this->getOpeningBalance(),
+			'currency' => $this->getCurrency(),
+			'institution' => $this->getInstitution(),
+			'accountNumber' => $this->maskAccountNumber($this->getAccountNumber()),
+			'routingNumber' => $this->maskRoutingNumber($this->getRoutingNumber()),
+			'sortCode' => $this->maskSortCode($this->getSortCode()),
+			'iban' => $this->maskIban($this->getIban()),
+			'swiftBic' => $this->maskSwiftBic($this->getSwiftBic()),
+			'walletAddress' => $this->maskWalletAddress($this->getWalletAddress()),
+			'accountHolderName' => $this->getAccountHolderName(),
+			'openingDate' => $this->getOpeningDate(),
+			'interestRate' => $this->getInterestRate(),
+			'creditLimit' => $this->getCreditLimit(),
+			'overdraftLimit' => $this->getOverdraftLimit(),
+			'minimumPayment' => $this->getMinimumPayment(),
+			'statementDay' => $this->getStatementDay(),
+			'interestEnabled' => $this->getInterestEnabled() ?? false,
+			'compoundingFrequency' => $this->getCompoundingFrequency(),
+			'accruedInterest' => $this->getAccruedInterest() ?? 0.0,
+			'createdAt' => $this->getCreatedAt(),
+			'updatedAt' => $this->getUpdatedAt(),
+			'lastReconciled' => $this->getLastReconciled(),
+			'excludedFromReports' => $this->getExcludedFromReports() ?? false,
+			'liabilityInCredit' => $this->getLiabilityInCredit(),
+			'closed' => $this->getClosed() ?? false,
+			'hasSensitiveData' => $this->hasSensitiveData(),
+		];
+	}
 
-    /**
-     * Get array representation with all fields (including sensitive) unmasked.
-     * Only use this for the reveal endpoint with proper audit logging.
-     */
-    public function toArrayFull(): array {
-        return [
-            'id' => $this->getId(),
-            'userId' => $this->getUserId(),
-            'name' => $this->getName(),
-            'type' => $this->getType(),
-            'balance' => $this->getBalance(),
-            'openingBalance' => $this->getOpeningBalance(),
-            'currency' => $this->getCurrency(),
-            'institution' => $this->getInstitution(),
-            'accountNumber' => $this->getAccountNumber(),
-            'routingNumber' => $this->getRoutingNumber(),
-            'sortCode' => $this->getSortCode(),
-            'iban' => $this->getIban(),
-            'swiftBic' => $this->getSwiftBic(),
-            'walletAddress' => $this->getWalletAddress(),
-            'accountHolderName' => $this->getAccountHolderName(),
-            'openingDate' => $this->getOpeningDate(),
-            'interestRate' => $this->getInterestRate(),
-            'creditLimit' => $this->getCreditLimit(),
-            'overdraftLimit' => $this->getOverdraftLimit(),
-            'minimumPayment' => $this->getMinimumPayment(),
-            'statementDay' => $this->getStatementDay(),
-            'interestEnabled' => $this->getInterestEnabled() ?? false,
-            'compoundingFrequency' => $this->getCompoundingFrequency(),
-            'accruedInterest' => $this->getAccruedInterest() ?? 0.0,
-            'createdAt' => $this->getCreatedAt(),
-            'updatedAt' => $this->getUpdatedAt(),
-            'lastReconciled' => $this->getLastReconciled(),
-            'excludedFromReports' => $this->getExcludedFromReports() ?? false,
-            'liabilityInCredit' => $this->getLiabilityInCredit(),
-            'closed' => $this->getClosed() ?? false,
-        ];
-    }
+	/**
+	 * Get array representation with all fields (including sensitive) unmasked.
+	 * Only use this for the reveal endpoint with proper audit logging.
+	 */
+	public function toArrayFull(): array {
+		return [
+			'id' => $this->getId(),
+			'userId' => $this->getUserId(),
+			'name' => $this->getName(),
+			'type' => $this->getType(),
+			'balance' => $this->getBalance(),
+			'openingBalance' => $this->getOpeningBalance(),
+			'currency' => $this->getCurrency(),
+			'institution' => $this->getInstitution(),
+			'accountNumber' => $this->getAccountNumber(),
+			'routingNumber' => $this->getRoutingNumber(),
+			'sortCode' => $this->getSortCode(),
+			'iban' => $this->getIban(),
+			'swiftBic' => $this->getSwiftBic(),
+			'walletAddress' => $this->getWalletAddress(),
+			'accountHolderName' => $this->getAccountHolderName(),
+			'openingDate' => $this->getOpeningDate(),
+			'interestRate' => $this->getInterestRate(),
+			'creditLimit' => $this->getCreditLimit(),
+			'overdraftLimit' => $this->getOverdraftLimit(),
+			'minimumPayment' => $this->getMinimumPayment(),
+			'statementDay' => $this->getStatementDay(),
+			'interestEnabled' => $this->getInterestEnabled() ?? false,
+			'compoundingFrequency' => $this->getCompoundingFrequency(),
+			'accruedInterest' => $this->getAccruedInterest() ?? 0.0,
+			'createdAt' => $this->getCreatedAt(),
+			'updatedAt' => $this->getUpdatedAt(),
+			'lastReconciled' => $this->getLastReconciled(),
+			'excludedFromReports' => $this->getExcludedFromReports() ?? false,
+			'liabilityInCredit' => $this->getLiabilityInCredit(),
+			'closed' => $this->getClosed() ?? false,
+		];
+	}
 
-    /**
-     * Check if this account has any sensitive banking data.
-     */
-    public function hasSensitiveData(): bool {
-        return !empty($this->getAccountNumber())
-            || !empty($this->getRoutingNumber())
-            || !empty($this->getSortCode())
-            || !empty($this->getIban())
-            || !empty($this->getSwiftBic())
-            || !empty($this->getWalletAddress());
-    }
+	/**
+	 * Check if this account has any sensitive banking data.
+	 */
+	public function hasSensitiveData(): bool {
+		return !empty($this->getAccountNumber())
+			|| !empty($this->getRoutingNumber())
+			|| !empty($this->getSortCode())
+			|| !empty($this->getIban())
+			|| !empty($this->getSwiftBic())
+			|| !empty($this->getWalletAddress());
+	}
 
-    /**
-     * Get list of which sensitive fields are populated.
-     */
-    public function getPopulatedSensitiveFields(): array {
-        $fields = [];
-        if (!empty($this->getAccountNumber())) $fields[] = 'accountNumber';
-        if (!empty($this->getRoutingNumber())) $fields[] = 'routingNumber';
-        if (!empty($this->getSortCode())) $fields[] = 'sortCode';
-        if (!empty($this->getIban())) $fields[] = 'iban';
-        if (!empty($this->getSwiftBic())) $fields[] = 'swiftBic';
-        if (!empty($this->getWalletAddress())) $fields[] = 'walletAddress';
-        return $fields;
-    }
+	/**
+	 * Get list of which sensitive fields are populated.
+	 */
+	public function getPopulatedSensitiveFields(): array {
+		$fields = [];
+		if (!empty($this->getAccountNumber())) {
+			$fields[] = 'accountNumber';
+		}
+		if (!empty($this->getRoutingNumber())) {
+			$fields[] = 'routingNumber';
+		}
+		if (!empty($this->getSortCode())) {
+			$fields[] = 'sortCode';
+		}
+		if (!empty($this->getIban())) {
+			$fields[] = 'iban';
+		}
+		if (!empty($this->getSwiftBic())) {
+			$fields[] = 'swiftBic';
+		}
+		if (!empty($this->getWalletAddress())) {
+			$fields[] = 'walletAddress';
+		}
+		return $fields;
+	}
 
-    /**
-     * Mask account number: show last 4 digits only.
-     * Example: "12345678" -> "****5678"
-     */
-    private function maskAccountNumber(?string $value): ?string {
-        if ($value === null || strlen($value) < 4) {
-            return $value;
-        }
-        // If value still has encryption prefix, decryption failed
-        if (str_starts_with($value, 'enc:')) {
-            return '[DECRYPTION FAILED]';
-        }
-        return str_repeat('*', strlen($value) - 4) . substr($value, -4);
-    }
+	/**
+	 * Mask account number: show last 4 digits only.
+	 * Example: "12345678" -> "****5678"
+	 */
+	private function maskAccountNumber(?string $value): ?string {
+		if ($value === null || strlen($value) < 4) {
+			return $value;
+		}
+		// If value still has encryption prefix, decryption failed
+		if (str_starts_with($value, 'enc:')) {
+			return '[DECRYPTION FAILED]';
+		}
+		return str_repeat('*', strlen($value) - 4) . substr($value, -4);
+	}
 
-    /**
-     * Mask routing number: show last 4 digits only.
-     * Example: "123456789" -> "*****6789"
-     */
-    private function maskRoutingNumber(?string $value): ?string {
-        if ($value === null || strlen($value) < 4) {
-            return $value;
-        }
-        // If value still has encryption prefix, decryption failed
-        if (str_starts_with($value, 'enc:')) {
-            return '[DECRYPTION FAILED]';
-        }
-        return str_repeat('*', strlen($value) - 4) . substr($value, -4);
-    }
+	/**
+	 * Mask routing number: show last 4 digits only.
+	 * Example: "123456789" -> "*****6789"
+	 */
+	private function maskRoutingNumber(?string $value): ?string {
+		if ($value === null || strlen($value) < 4) {
+			return $value;
+		}
+		// If value still has encryption prefix, decryption failed
+		if (str_starts_with($value, 'enc:')) {
+			return '[DECRYPTION FAILED]';
+		}
+		return str_repeat('*', strlen($value) - 4) . substr($value, -4);
+	}
 
-    /**
-     * Mask sort code: show last 2 digits only.
-     * Example: "12-34-56" -> "**-**-56"
-     */
-    private function maskSortCode(?string $value): ?string {
-        if ($value === null || strlen($value) < 2) {
-            return $value;
-        }
-        // If value still has encryption prefix, decryption failed
-        if (str_starts_with($value, 'enc:')) {
-            return '[DECRYPTION FAILED]';
-        }
-        // Handle formatted (12-34-56) and unformatted (123456)
-        if (strpos($value, '-') !== false) {
-            $parts = explode('-', $value);
-            if (count($parts) === 3) {
-                return '**-**-' . $parts[2];
-            }
-        }
-        return str_repeat('*', strlen($value) - 2) . substr($value, -2);
-    }
+	/**
+	 * Mask sort code: show last 2 digits only.
+	 * Example: "12-34-56" -> "**-**-56"
+	 */
+	private function maskSortCode(?string $value): ?string {
+		if ($value === null || strlen($value) < 2) {
+			return $value;
+		}
+		// If value still has encryption prefix, decryption failed
+		if (str_starts_with($value, 'enc:')) {
+			return '[DECRYPTION FAILED]';
+		}
+		// Handle formatted (12-34-56) and unformatted (123456)
+		if (strpos($value, '-') !== false) {
+			$parts = explode('-', $value);
+			if (count($parts) === 3) {
+				return '**-**-' . $parts[2];
+			}
+		}
+		return str_repeat('*', strlen($value) - 2) . substr($value, -2);
+	}
 
-    /**
-     * Mask IBAN: show country code and last 4 characters.
-     * Example: "DE89370400440532013000" -> "DE**************3000"
-     */
-    private function maskIban(?string $value): ?string {
-        if ($value === null || strlen($value) < 6) {
-            return $value;
-        }
-        // If value still has encryption prefix, decryption failed
-        if (str_starts_with($value, 'enc:')) {
-            return '[DECRYPTION FAILED]';
-        }
-        $countryCode = substr($value, 0, 2);
-        $lastFour = substr($value, -4);
-        $middleLength = strlen($value) - 6;
-        return $countryCode . str_repeat('*', $middleLength) . $lastFour;
-    }
+	/**
+	 * Mask IBAN: show country code and last 4 characters.
+	 * Example: "DE89370400440532013000" -> "DE**************3000"
+	 */
+	private function maskIban(?string $value): ?string {
+		if ($value === null || strlen($value) < 6) {
+			return $value;
+		}
+		// If value still has encryption prefix, decryption failed
+		if (str_starts_with($value, 'enc:')) {
+			return '[DECRYPTION FAILED]';
+		}
+		$countryCode = substr($value, 0, 2);
+		$lastFour = substr($value, -4);
+		$middleLength = strlen($value) - 6;
+		return $countryCode . str_repeat('*', $middleLength) . $lastFour;
+	}
 
-    /**
-     * Mask SWIFT/BIC: show first 4 and last 3 characters.
-     * Example: "DEUTDEFF500" -> "DEUT***500"
-     */
-    private function maskSwiftBic(?string $value): ?string {
-        if ($value === null || strlen($value) < 7) {
-            return $value;
-        }
-        // If value still has encryption prefix, decryption failed
-        if (str_starts_with($value, 'enc:')) {
-            return '[DECRYPTION FAILED]';
-        }
-        $first = substr($value, 0, 4);
-        $last = substr($value, -3);
-        $middleLength = strlen($value) - 7;
-        return $first . str_repeat('*', $middleLength) . $last;
-    }
+	/**
+	 * Mask SWIFT/BIC: show first 4 and last 3 characters.
+	 * Example: "DEUTDEFF500" -> "DEUT***500"
+	 */
+	private function maskSwiftBic(?string $value): ?string {
+		if ($value === null || strlen($value) < 7) {
+			return $value;
+		}
+		// If value still has encryption prefix, decryption failed
+		if (str_starts_with($value, 'enc:')) {
+			return '[DECRYPTION FAILED]';
+		}
+		$first = substr($value, 0, 4);
+		$last = substr($value, -3);
+		$middleLength = strlen($value) - 7;
+		return $first . str_repeat('*', $middleLength) . $last;
+	}
 
-    /**
-     * Mask wallet address: show first 6 and last 6 characters.
-     * Example: "0x1234567890abcdef1234567890abcdef12345678" -> "0x1234...345678"
-     */
-    private function maskWalletAddress(?string $value): ?string {
-        if ($value === null || strlen($value) < 12) {
-            return $value;
-        }
-        if (str_starts_with($value, 'enc:')) {
-            return '[DECRYPTION FAILED]';
-        }
-        $first = substr($value, 0, 6);
-        $last = substr($value, -6);
-        return $first . '...' . $last;
-    }
+	/**
+	 * Mask wallet address: show first 6 and last 6 characters.
+	 * Example: "0x1234567890abcdef1234567890abcdef12345678" -> "0x1234...345678"
+	 */
+	private function maskWalletAddress(?string $value): ?string {
+		if ($value === null || strlen($value) < 12) {
+			return $value;
+		}
+		if (str_starts_with($value, 'enc:')) {
+			return '[DECRYPTION FAILED]';
+		}
+		$first = substr($value, 0, 6);
+		$last = substr($value, -6);
+		return $first . '...' . $last;
+	}
 }

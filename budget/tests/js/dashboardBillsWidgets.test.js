@@ -128,3 +128,64 @@ describe('Upcoming Bills renders from cache with no argument', () => {
         expect(document.getElementById('upcoming-bills').innerHTML).toContain('No upcoming bills');
     });
 });
+
+describe('Upcoming Bills and bills shared with the user', () => {
+    const shared = (name, due) => ({ ...bill(name, due), _shared: true });
+
+    it('lists shared bills unless the tile excludes them, with no refetch', () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date(2026, 7, 24));
+        const dash = makeDashboard({ upcomingBills: [bill('Rent', '2026-09-01'), shared('Council tax', '2026-09-02')] });
+
+        dash.updateUpcomingBillsWidget();
+        expect(document.getElementById('upcoming-bills').innerHTML).toContain('Council tax');
+
+        dash.dashboardConfig.widgets.tileSettings.upcomingBills = { excludeSharedBills: true };
+        dash.refreshTileAfterSettingsChange('upcomingBills', 'widgets');
+
+        const html = document.getElementById('upcoming-bills').innerHTML;
+        expect(html).toContain('Rent');
+        expect(html).not.toContain('Council tax');
+        expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('offers the setting only when shared bills are listed, or it is already on', () => {
+        const schema = { excludeSharedBills: true };
+        const withShared = makeDashboard({ upcomingBills: [bill('Rent', '2026-09-01'), shared('Council tax', '2026-09-02')] });
+        const ownOnly = makeDashboard({ upcomingBills: [bill('Rent', '2026-09-01')] });
+
+        expect(withShared._excludeSharedBillsField(schema, {})).toContain('data-setting="excludeSharedBills"');
+        expect(ownOnly._excludeSharedBillsField(schema, {})).toBe('');
+        // Ticked earlier, so it can still be unticked once the shared bills are gone
+        expect(ownOnly._excludeSharedBillsField(schema, { excludeSharedBills: true })).toContain('checked');
+        expect(withShared._excludeSharedBillsField({}, {})).toBe('');
+    });
+});
+
+describe('Upcoming Bills and bills overdue for more than a week', () => {
+    it('hides them by default and shows them once the tile is set to, with no refetch', () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date(2026, 9, 2));
+        const dash = makeDashboard({ upcomingBills: [bill('Council tax', '2026-09-20'), bill('Water rates', '2026-10-03')] });
+
+        dash.updateUpcomingBillsWidget();
+        expect(document.getElementById('upcoming-bills').innerHTML).not.toContain('Council tax');
+        expect(document.getElementById('upcoming-bills').innerHTML).toContain('Water rates');
+
+        dash.dashboardConfig.widgets.tileSettings.upcomingBills = { showAllOverdue: true };
+        dash.refreshTileAfterSettingsChange('upcomingBills', 'widgets');
+
+        expect(document.getElementById('upcoming-bills').innerHTML).toContain('Council tax');
+        expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('offers the setting on the tile, unticked until the user turns it on', () => {
+        const dash = makeDashboard({});
+        const schema = { showAllOverdue: true };
+
+        expect(dash._showAllOverdueField(schema, {})).toContain('data-setting="showAllOverdue"');
+        expect(dash._showAllOverdueField(schema, {})).not.toContain('checked');
+        expect(dash._showAllOverdueField(schema, { showAllOverdue: true })).toContain('checked');
+        expect(dash._showAllOverdueField({}, {})).toBe('');
+    });
+});

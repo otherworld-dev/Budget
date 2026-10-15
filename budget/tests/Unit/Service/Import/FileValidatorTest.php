@@ -15,7 +15,7 @@ class FileValidatorTest extends TestCase {
 		$l = $this->createMock(IL10N::class);
 		$l->method('t')->willReturnCallback(function (string $text, array $params = []) {
 			foreach ($params as $i => $param) {
-				$text = str_replace('%' . ($i + 1) . '$s', (string) $param, $text);
+				$text = str_replace('%' . ($i + 1) . '$s', (string)$param, $text);
 			}
 			return $text;
 		});
@@ -61,6 +61,11 @@ class FileValidatorTest extends TestCase {
 
 	public function testValidateExtensionTxt(): void {
 		$this->assertSame('txt', $this->validator->validateExtension('export.txt'));
+	}
+
+	// YNAB writes a plan that uses a comma decimal as tab-separated text
+	public function testValidateExtensionTsv(): void {
+		$this->assertSame('tsv', $this->validator->validateExtension('Plan - Register.tsv'));
 	}
 
 	public function testValidateExtensionUppercase(): void {
@@ -202,7 +207,11 @@ class FileValidatorTest extends TestCase {
 		$this->assertContains('ofx', $extensions);
 		$this->assertContains('qif', $extensions);
 		$this->assertContains('txt', $extensions);
-		$this->assertCount(5, $extensions);
+		$this->assertContains('tsv', $extensions);
+		$this->assertContains('xls', $extensions);
+		$this->assertContains('xlsx', $extensions);
+		$this->assertContains('ods', $extensions);
+		$this->assertCount(9, $extensions);
 	}
 
 	public function testGetMaxFileSize(): void {
@@ -220,7 +229,7 @@ class FileValidatorTest extends TestCase {
 	public function testValidateRejectsBadExtension(): void {
 		$this->expectException(\Exception::class);
 		$this->expectExceptionMessage('Unsupported file format');
-		$this->validator->validate('data.xlsx', 1024);
+		$this->validator->validate('statement.pdf', 1024);
 	}
 
 	public function testValidatePassesWithoutTmpPath(): void {
@@ -412,32 +421,58 @@ class FileValidatorTest extends TestCase {
 		}
 	}
 
-    // ===== camt.053 XML (#350) =====
+	// ===== camt.053 XML (#350) =====
 
-    public function testXmlExtensionIsAllowed(): void {
-        $this->assertSame('xml', $this->validator->validateExtension('statement.xml'));
-    }
+	public function testXmlExtensionIsAllowed(): void {
+		$this->assertSame('xml', $this->validator->validateExtension('statement.xml'));
+	}
 
-    public function testCamtContentIsAccepted(): void {
-        $tmp = tempnam(sys_get_temp_dir(), 'camt');
-        file_put_contents($tmp, file_get_contents(__DIR__ . '/../Parser/fixtures/camt053-wir-sample.xml'));
-        try {
-            $this->validator->validateContent($tmp, 'xml');
-            $this->addToAssertionCount(1);
-        } finally {
-            unlink($tmp);
-        }
-    }
+	public function testCamtContentIsAccepted(): void {
+		$tmp = tempnam(sys_get_temp_dir(), 'camt');
+		file_put_contents($tmp, file_get_contents(__DIR__ . '/../Parser/fixtures/camt053-wir-sample.xml'));
+		try {
+			$this->validator->validateContent($tmp, 'xml');
+			$this->addToAssertionCount(1);
+		} finally {
+			unlink($tmp);
+		}
+	}
 
-    public function testArbitraryXmlIsRejected(): void {
-        $tmp = tempnam(sys_get_temp_dir(), 'camt');
-        file_put_contents($tmp, '<?xml version="1.0"?><note><to>Tove</to></note>');
-        try {
-            $this->expectException(\Exception::class);
-            $this->expectExceptionMessage('camt');
-            $this->validator->validateContent($tmp, 'xml');
-        } finally {
-            unlink($tmp);
-        }
-    }
+	public function testArbitraryXmlIsRejected(): void {
+		$tmp = tempnam(sys_get_temp_dir(), 'camt');
+		file_put_contents($tmp, '<?xml version="1.0"?><note><to>Tove</to></note>');
+		try {
+			$this->expectException(\Exception::class);
+			$this->expectExceptionMessage('camt');
+			$this->validator->validateContent($tmp, 'xml');
+		} finally {
+			unlink($tmp);
+		}
+	}
+
+	// ── spreadsheets (#424) ─────────────────────────────────────────
+
+	public function testSpreadsheetExtensionsAreAllowed(): void {
+		$this->assertSame('xls', $this->validator->validateExtension('estratto.xls'));
+		$this->assertSame('xlsx', $this->validator->validateExtension('estratto.XLSX'));
+		$this->assertSame('ods', $this->validator->validateExtension('estratto.ods'));
+	}
+
+	public function testABinarySpreadsheetPassesTheUploadChecks(): void {
+		$path = tempnam(sys_get_temp_dir(), 'xls');
+		file_put_contents($path, "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1" . str_repeat("\0", 600));
+		try {
+			$this->validator->validate('estratto.xls', 608, $path);
+			$this->assertTrue(true);
+		} finally {
+			unlink($path);
+		}
+	}
+
+	public function testValidateTextChecksCsvContent(): void {
+		$this->validator->validateText("a,b\n1,2\n", 'csv');
+		$this->expectException(\Exception::class);
+		$this->expectExceptionMessage('appears to be binary');
+		$this->validator->validateText("a,b\n1,\x002\n", 'csv');
+	}
 }

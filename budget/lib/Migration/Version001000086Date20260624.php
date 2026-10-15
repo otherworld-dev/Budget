@@ -29,72 +29,72 @@ use OCP\Migration\SimpleMigrationStep;
  */
 class Version001000086Date20260624 extends SimpleMigrationStep {
 
-    public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
-        /** @var ISchemaWrapper $schema */
-        $schema = $schemaClosure();
-        $changed = false;
+	public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
+		/** @var ISchemaWrapper $schema */
+		$schema = $schemaClosure();
+		$changed = false;
 
-        if ($schema->hasTable('budget_pen_contribs')) {
-            $table = $schema->getTable('budget_pen_contribs');
-            if (!$table->hasColumn('transaction_id')) {
-                $table->addColumn('transaction_id', Types::BIGINT, [
-                    'notnull' => false,
-                    'unsigned' => true,
-                ]);
-                $changed = true;
-            }
-            if (!$table->hasColumn('source_account_id')) {
-                $table->addColumn('source_account_id', Types::BIGINT, [
-                    'notnull' => false,
-                    'unsigned' => true,
-                ]);
-                $changed = true;
-            }
-            if (!$table->hasColumn('kind')) {
-                $table->addColumn('kind', Types::STRING, [
-                    'notnull' => false,
-                    'length' => 20,
-                    'default' => 'contribution',
-                ]);
-                $changed = true;
-            }
-            if (!$table->hasIndex('bgt_pencon_txid')) {
-                $table->addIndex(['transaction_id'], 'bgt_pencon_txid');
-                $changed = true;
-            }
-            if (!$table->hasIndex('bgt_pencon_acct')) {
-                $table->addIndex(['source_account_id'], 'bgt_pencon_acct');
-                $changed = true;
-            }
-        }
+		if ($schema->hasTable('budget_pen_contribs')) {
+			$table = $schema->getTable('budget_pen_contribs');
+			if (!$table->hasColumn('transaction_id')) {
+				$table->addColumn('transaction_id', Types::BIGINT, [
+					'notnull' => false,
+					'unsigned' => true,
+				]);
+				$changed = true;
+			}
+			if (!$table->hasColumn('source_account_id')) {
+				$table->addColumn('source_account_id', Types::BIGINT, [
+					'notnull' => false,
+					'unsigned' => true,
+				]);
+				$changed = true;
+			}
+			if (!$table->hasColumn('kind')) {
+				$table->addColumn('kind', Types::STRING, [
+					'notnull' => false,
+					'length' => 20,
+					'default' => 'contribution',
+				]);
+				$changed = true;
+			}
+			if (!$table->hasIndex('bgt_pencon_txid')) {
+				$table->addIndex(['transaction_id'], 'bgt_pencon_txid');
+				$changed = true;
+			}
+			if (!$table->hasIndex('bgt_pencon_acct')) {
+				$table->addIndex(['source_account_id'], 'bgt_pencon_acct');
+				$changed = true;
+			}
+		}
 
-        if ($schema->hasTable('budget_transactions')) {
-            $table = $schema->getTable('budget_transactions');
-            if (!$table->hasColumn('pension_contrib_id')) {
-                $table->addColumn('pension_contrib_id', Types::BIGINT, [
-                    'notnull' => false,
-                    'unsigned' => true,
-                ]);
-                $changed = true;
-            }
-            if (!$table->hasIndex('bgt_tx_pencontrib')) {
-                $table->addIndex(['pension_contrib_id'], 'bgt_tx_pencontrib');
-                $changed = true;
-            }
-        }
+		if ($schema->hasTable('budget_transactions')) {
+			$table = $schema->getTable('budget_transactions');
+			if (!$table->hasColumn('pension_contrib_id')) {
+				$table->addColumn('pension_contrib_id', Types::BIGINT, [
+					'notnull' => false,
+					'unsigned' => true,
+				]);
+				$changed = true;
+			}
+			if (!$table->hasIndex('bgt_tx_pencontrib')) {
+				$table->addIndex(['pension_contrib_id'], 'bgt_tx_pencontrib');
+				$changed = true;
+			}
+		}
 
-        if ($schema->hasTable('budget_pensions')) {
-            $table = $schema->getTable('budget_pensions');
-            if (!$table->hasColumn('projection_target')) {
-                $table->addColumn('projection_target', Types::DECIMAL, [
-                    'notnull' => false,
-                    'precision' => 15,
-                    'scale' => 2,
-                ]);
-                $changed = true;
-            }
-        }
+		if ($schema->hasTable('budget_pensions')) {
+			$table = $schema->getTable('budget_pensions');
+			if (!$table->hasColumn('projection_target')) {
+				$table->addColumn('projection_target', Types::DECIMAL, [
+					'notnull' => false,
+					'precision' => 15,
+					'scale' => 2,
+				]);
+				$changed = true;
+			}
+		}
 
-        return $changed ? $schema : null;
-    }
+		return $changed ? $schema : null;
+	}
 }

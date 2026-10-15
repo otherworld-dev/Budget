@@ -11,14 +11,14 @@ namespace OCA\Budget\Exception;
  * (#336).
  */
 class AccountInUseException extends \Exception {
-    private int $transactionCount;
+	private int $transactionCount;
 
-    public function __construct(string $message, int $transactionCount = 0) {
-        parent::__construct($message);
-        $this->transactionCount = $transactionCount;
-    }
+	public function __construct(string $message, int $transactionCount = 0) {
+		parent::__construct($message);
+		$this->transactionCount = $transactionCount;
+	}
 
-    public function getTransactionCount(): int {
-        return $this->transactionCount;
-    }
+	public function getTransactionCount(): int {
+		return $this->transactionCount;
+	}
 }

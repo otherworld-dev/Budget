@@ -1,7 +1,7 @@
 import './ActionBuilder.css';
-import { buildCategoryOptionsHtml } from '../../../utils/dom.js';
+import { buildCategoryOptionsHtml, escapeHtml } from '../../../utils/dom.js';
 import { offerableTagSets } from '../../../utils/tags.js';
-import { pickableAccounts, accountOptionLabel } from '../../../utils/accounts.js';
+import { ruleTargetAccounts, accountOptionLabel } from '../../../utils/accounts.js';
 import { translate as t } from '@nextcloud/l10n';
 
 /**
@@ -86,7 +86,7 @@ export class ActionBuilder {
 					${this.renderActions()}
 				</div>
 				<div class="actions-controls">
-					<select id="add-action-type" class="add-action-select">
+					<select id="add-action-type" class="add-action-select" aria-label="${t('budget', '+ Add Action')}">
 						<option value="">${t('budget', '+ Add Action')}</option>
 						<option value="set_category">${t('budget', 'Set Category')}</option>
 						<option value="set_vendor">${t('budget', 'Set Vendor')}</option>
@@ -96,6 +96,9 @@ export class ActionBuilder {
 						<option value="set_account">${t('budget', 'Set Account')}</option>
 						<option value="set_type">${t('budget', 'Set Transaction Type')}</option>
 						<option value="set_reference">${t('budget', 'Set Reference')}</option>
+						<option value="regex_replace">${t('budget', 'Regex Replace')}</option>
+						<option value="change_case">${t('budget', 'Change Case')}</option>
+						<option value="replace_text">${t('budget', 'Replace Text')}</option>
 						<option value="set_forecast_exclude">${t('budget', 'Exclude from Forecast')}</option>
 						<option value="link_transfer">${t('budget', 'Auto-Link as Transfer')}</option>
 					</select>
@@ -129,6 +132,9 @@ export class ActionBuilder {
 			'set_account': t('budget', 'Set Account'),
 			'set_type': t('budget', 'Set Transaction Type'),
 			'set_reference': t('budget', 'Set Reference'),
+			'regex_replace': t('budget', 'Regex Replace'),
+			'change_case': t('budget', 'Change Case'),
+			'replace_text': t('budget', 'Replace Text'),
 			'set_forecast_exclude': t('budget', 'Exclude from Forecast'),
 			'link_transfer': t('budget', 'Auto-Link as Transfer')
 		};
@@ -141,9 +147,9 @@ export class ActionBuilder {
 				<div class="action-header">
 					<span class="action-type-label">${actionTypeLabels[action.type] || action.type}</span>
 					<div class="action-controls">
-						<button class="btn-move-up" data-index="${index}" ${!canMoveUp ? 'disabled' : ''} title="${t('budget', 'Move up')}">↑</button>
-						<button class="btn-move-down" data-index="${index}" ${!canMoveDown ? 'disabled' : ''} title="${t('budget', 'Move down')}">↓</button>
-						<button class="btn-remove-action" data-index="${index}" title="${t('budget', 'Remove action')}">✕</button>
+						<button class="btn-move-up" data-index="${index}" ${!canMoveUp ? 'disabled' : ''} title="${t('budget', 'Move up')}" aria-label="${t('budget', 'Move up')}">↑</button>
+						<button class="btn-move-down" data-index="${index}" ${!canMoveDown ? 'disabled' : ''} title="${t('budget', 'Move down')}" aria-label="${t('budget', 'Move down')}">↓</button>
+						<button class="btn-remove-action" data-index="${index}" title="${t('budget', 'Remove action')}" aria-label="${t('budget', 'Remove action')}">✕</button>
 					</div>
 				</div>
 				<div class="action-config">
@@ -171,6 +177,12 @@ export class ActionBuilder {
 				return this.renderTypeAction(action, index);
 			case 'set_reference':
 				return this.renderReferenceAction(action, index);
+			case 'regex_replace':
+				return this.renderRegexReplaceAction(action, index);
+			case 'change_case':
+				return this.renderChangeCaseAction(action, index);
+			case 'replace_text':
+				return this.renderReplaceTextAction(action, index);
 			case 'set_forecast_exclude':
 				return this.renderForecastExcludeAction(action, index);
 			case 'link_transfer':
@@ -180,19 +192,98 @@ export class ActionBuilder {
 		}
 	}
 
+	renderRegexReplaceAction(action, index) {
+		return `
+			<div>
+				<div class="form-row regex-row">
+					<select aria-label="${t('budget', 'Field')}" class="action-field" data-index="${index}" data-field="field">
+						<option value="description" ${action.field === 'description' ? 'selected' : ''}>${t('budget', 'Description')}</option>
+						<option value="vendor" ${action.field === 'vendor' ? 'selected' : ''}>${t('budget', 'Vendor')}</option>
+						<option value="reference" ${action.field === 'reference' ? 'selected' : ''}>${t('budget', 'Reference')}</option>
+						<option value="notes" ${action.field === 'notes' ? 'selected' : ''}>${t('budget', 'Notes')}</option>
+					</select>
+					→
+					<select aria-label="${t('budget', 'Target')}" class="action-target" data-index="${index}" data-field="target">
+						<option value="description" ${action.target === 'description' ? 'selected' : ''}>${t('budget', 'Description')}</option>
+						<option value="vendor" ${action.target === 'vendor' ? 'selected' : ''}>${t('budget', 'Vendor')}</option>
+						<option value="reference" ${action.target === 'reference' ? 'selected' : ''}>${t('budget', 'Reference')}</option>
+						<option value="notes" ${action.target === 'notes' ? 'selected' : ''}>${t('budget', 'Notes')}</option>
+					</select>
+					<select aria-label="${t('budget', 'Behavior')}" class="action-behavior" data-index="${index}" data-field="behavior">
+						<option value="always" ${action.behavior === 'always' ? 'selected' : ''}>${t('budget', 'Always set')}</option>
+						<option value="if_empty" ${action.behavior === 'if_empty' ? 'selected' : ''}>${t('budget', 'Only if empty')}</option>
+					</select>
+				</div>
+				<div class="form-row regex-row">
+					<input aria-label="${t('budget', 'Pattern')}" type="text" class="action-pattern" data-index="${index}" data-field="pattern"
+						value="${escapeHtml(action.pattern || '')}" placeholder="${t('budget', 'Pattern: /\\d+/')}">
+					<input aria-label="${t('budget', 'Replacement')}" type="text" class="action-replacement" data-index="${index}" data-field="replacement"
+						value="${escapeHtml(action.replacement || '')}" placeholder="${t('budget', 'Replacement: e.g., X or $1')}">
+				</div>
+			</div>
+		`;
+	}
+
+	renderChangeCaseAction(action, index) {
+		return `
+			<div class="form-row">
+				<label>${t('budget', 'Field:')}</label>
+				<select aria-label="${t('budget', 'Field:')}" class="action-field" data-index="${index}" data-field="field">
+					<option value="description" ${action.field === 'description' ? 'selected' : ''}>${t('budget', 'Description')}</option>
+					<option value="vendor" ${action.field === 'vendor' ? 'selected' : ''}>${t('budget', 'Vendor')}</option>
+					<option value="reference" ${action.field === 'reference' ? 'selected' : ''}>${t('budget', 'Reference')}</option>
+					<option value="notes" ${action.field === 'notes' ? 'selected' : ''}>${t('budget', 'Notes')}</option>
+				</select>
+			</div>
+			<div class="form-row">
+				<label>${t('budget', 'Mode:')}</label>
+				<select aria-label="${t('budget', 'Mode:')}" class="action-mode" data-index="${index}" data-field="mode">
+					<option value="upper" ${action.mode === 'upper' ? 'selected' : ''}>${t('budget', 'Uppercase')}</option>
+					<option value="lower" ${action.mode === 'lower' ? 'selected' : ''}>${t('budget', 'Lowercase')}</option>
+					<option value="title" ${action.mode === 'title' ? 'selected' : ''}>${t('budget', 'Title Case')}</option>
+					<option value="sentence" ${action.mode === 'sentence' ? 'selected' : ''}>${t('budget', 'Sentence case')}</option>
+				</select>
+			</div>
+		`;
+	}
+
+	renderReplaceTextAction(action, index) {
+		return `
+			<div>
+				<div class="transform-row form-row">
+					<label>${t('budget', 'Field:')}</label>
+					<select aria-label="${t('budget', 'Field:')}" class="action-field" data-index="${index}" data-field="field">
+						<option value="description" ${action.field === 'description' ? 'selected' : ''}>${t('budget', 'Description')}</option>
+						<option value="vendor" ${action.field === 'vendor' ? 'selected' : ''}>${t('budget', 'Vendor')}</option>
+						<option value="reference" ${action.field === 'reference' ? 'selected' : ''}>${t('budget', 'Reference')}</option>
+						<option value="notes" ${action.field === 'notes' ? 'selected' : ''}>${t('budget', 'Notes')}</option>
+					</select>
+					<label>${t('budget', 'Find:')}</label>
+					<input aria-label="${t('budget', 'Find:')}" type="text" class="action-find" data-index="${index}" data-field="find"
+						value="${escapeHtml(action.find || '')}" placeholder="${t('budget', 'e.g., ACME')}">
+				</div>
+				<div class="transform-row form-row">
+					<label>${t('budget', 'Replace:')}</label>
+					<input aria-label="${t('budget', 'Replace:')}" type="text" class="action-replace" data-index="${index}" data-field="replace"
+						value="${escapeHtml(action.replace || '')}" placeholder="${t('budget', 'e.g., Amazon')}">
+				</div>
+			</div>
+		`;
+	}
+
 	renderCategoryAction(action, index) {
 		const categoryTree = this.options.categoryTree || this.options.categories || [];
 		return `
 			<div class="form-row">
 				<label>${t('budget', 'Category:')}</label>
-				<select class="action-value" data-index="${index}" data-field="value">
+				<select aria-label="${t('budget', 'Category:')}" class="action-value" data-index="${index}" data-field="value">
 					<option value="">${t('budget', '-- Select Category --')}</option>
 					${buildCategoryOptionsHtml(categoryTree, { selectedId: action.value })}
 				</select>
 			</div>
 			<div class="form-row">
 				<label>${t('budget', 'Behavior:')}</label>
-				<select class="action-behavior" data-index="${index}" data-field="behavior">
+				<select aria-label="${t('budget', 'Behavior:')}" class="action-behavior" data-index="${index}" data-field="behavior">
 					<option value="always" ${action.behavior === 'always' ? 'selected' : ''}>${t('budget', 'Always set')}</option>
 					<option value="if_empty" ${action.behavior === 'if_empty' ? 'selected' : ''}>${t('budget', 'Only if empty')}</option>
 				</select>
@@ -204,12 +295,12 @@ export class ActionBuilder {
 		return `
 			<div class="form-row">
 				<label>${t('budget', 'Vendor Name:')}</label>
-				<input type="text" class="action-value" data-index="${index}" data-field="value"
-					value="${this.escapeHtml(action.value || '')}" placeholder="${t('budget', 'e.g., Amazon, Starbucks')}">
+				<input aria-label="${t('budget', 'Vendor Name:')}" type="text" class="action-value" data-index="${index}" data-field="value"
+					value="${escapeHtml(action.value || '')}" placeholder="${t('budget', 'e.g., Amazon, Starbucks')}">
 			</div>
 			<div class="form-row">
 				<label>${t('budget', 'Behavior:')}</label>
-				<select class="action-behavior" data-index="${index}" data-field="behavior">
+				<select aria-label="${t('budget', 'Behavior:')}" class="action-behavior" data-index="${index}" data-field="behavior">
 					<option value="always" ${action.behavior === 'always' ? 'selected' : ''}>${t('budget', 'Always set')}</option>
 					<option value="if_empty" ${action.behavior === 'if_empty' ? 'selected' : ''}>${t('budget', 'Only if empty')}</option>
 				</select>
@@ -221,12 +312,12 @@ export class ActionBuilder {
 		return `
 			<div class="form-row">
 				<label>${t('budget', 'Description:')}</label>
-				<input type="text" class="action-value" data-index="${index}" data-field="value"
-					value="${this.escapeHtml(action.value || '')}" placeholder="${t('budget', 'e.g., Grocery purchase, Salary')}">
+				<input aria-label="${t('budget', 'Description:')}" type="text" class="action-value" data-index="${index}" data-field="value"
+					value="${escapeHtml(action.value || '')}" placeholder="${t('budget', 'e.g., Grocery purchase, Salary')}">
 			</div>
 			<div class="form-row">
 				<label>${t('budget', 'Behavior:')}</label>
-				<select class="action-behavior" data-index="${index}" data-field="behavior">
+				<select aria-label="${t('budget', 'Behavior:')}" class="action-behavior" data-index="${index}" data-field="behavior">
 					<option value="always" ${action.behavior === 'always' ? 'selected' : ''}>${t('budget', 'Always set')}</option>
 					<option value="if_empty" ${action.behavior === 'if_empty' ? 'selected' : ''}>${t('budget', 'Only if empty')}</option>
 				</select>
@@ -238,12 +329,12 @@ export class ActionBuilder {
 		return `
 			<div class="form-row">
 				<label>${t('budget', 'Notes Text:')}</label>
-				<textarea class="action-value" data-index="${index}" data-field="value" rows="2"
-					placeholder="${t('budget', 'Text to add to transaction notes')}">${this.escapeHtml(action.value || '')}</textarea>
+				<textarea aria-label="${t('budget', 'Notes Text:')}" class="action-value" data-index="${index}" data-field="value" rows="2"
+					placeholder="${t('budget', 'Text to add to transaction notes')}">${escapeHtml(action.value || '')}</textarea>
 			</div>
 			<div class="form-row">
 				<label>${t('budget', 'Behavior:')}</label>
-				<select class="action-behavior" data-index="${index}" data-field="behavior">
+				<select aria-label="${t('budget', 'Behavior:')}" class="action-behavior" data-index="${index}" data-field="behavior">
 					<option value="replace" ${action.behavior === 'replace' ? 'selected' : ''}>${t('budget', 'Replace notes')}</option>
 					<option value="append" ${action.behavior === 'append' ? 'selected' : ''}>${t('budget', 'Append to notes')}</option>
 				</select>
@@ -251,8 +342,8 @@ export class ActionBuilder {
 			${action.behavior === 'append' ? `
 			<div class="form-row">
 				<label>${t('budget', 'Separator:')}</label>
-				<input type="text" class="action-separator" data-index="${index}" data-field="separator"
-					value="${this.escapeHtml(action.separator || ' | ')}" placeholder="${t('budget', 'e.g., | or -')}">
+				<input aria-label="${t('budget', 'Separator:')}" type="text" class="action-separator" data-index="${index}" data-field="separator"
+					value="${escapeHtml(action.separator || ' | ')}" placeholder="${t('budget', 'e.g., | or -')}">
 			</div>
 			` : ''}
 		`;
@@ -270,12 +361,12 @@ export class ActionBuilder {
 					${tagSets.length === 0 ? `<p class="no-tags-message">${t('budget', 'No tag sets available')}</p>` : ''}
 					${tagSets.map(tagSet => `
 						<fieldset class="tag-set-group">
-							<legend>${this.escapeHtml(tagSet.name)}</legend>
+							<legend>${escapeHtml(tagSet.name)}</legend>
 							${(tagSet.tags || []).map(tag => `
 								<label class="tag-checkbox">
 									<input type="checkbox" class="tag-select" data-index="${index}"
 										data-tag-id="${tag.id}" ${selectedTagIds.includes(tag.id) ? 'checked' : ''}>
-									<span>${this.escapeHtml(tag.name)}</span>
+									<span>${escapeHtml(tag.name)}</span>
 								</label>
 							`).join('')}
 						</fieldset>
@@ -284,7 +375,7 @@ export class ActionBuilder {
 			</div>
 			<div class="form-row">
 				<label>${t('budget', 'Behavior:')}</label>
-				<select class="action-behavior" data-index="${index}" data-field="behavior">
+				<select aria-label="${t('budget', 'Behavior:')}" class="action-behavior" data-index="${index}" data-field="behavior">
 					<option value="merge" ${action.behavior === 'merge' ? 'selected' : ''}>${t('budget', 'Merge with existing tags')}</option>
 					<option value="replace" ${action.behavior === 'replace' ? 'selected' : ''}>${t('budget', 'Replace all tags')}</option>
 				</select>
@@ -293,15 +384,16 @@ export class ActionBuilder {
 	}
 
 	renderAccountAction(action, index) {
-		// A rule routes NEW transactions, so closed accounts are not offered (#372)
-		const accounts = pickableAccounts(this.options.accounts, action.value);
+		// A rule moves rows only into its owner's own open accounts (#372;
+		// the server refuses any other on save)
+		const accounts = ruleTargetAccounts(this.options.accounts, this.options.accountOwner || null, action.value);
 		return `
 			<div class="form-row">
 				<label>${t('budget', 'Account:')}</label>
-				<select class="action-value" data-index="${index}" data-field="value">
+				<select aria-label="${t('budget', 'Account:')}" class="action-value" data-index="${index}" data-field="value">
 					<option value="">${t('budget', '-- Select Account --')}</option>
 					${accounts.map(account => `
-						<option value="${account.id}" ${action.value == account.id ? 'selected' : ''}>${this.escapeHtml(accountOptionLabel(account))}</option>
+						<option value="${account.id}" ${action.value == account.id ? 'selected' : ''}>${escapeHtml(accountOptionLabel(account))}</option>
 					`).join('')}
 				</select>
 			</div>
@@ -335,12 +427,12 @@ export class ActionBuilder {
 		return `
 			<div class="form-row">
 				<label>${t('budget', 'Reference Value:')}</label>
-				<input type="text" class="action-value" data-index="${index}" data-field="value"
-					value="${this.escapeHtml(action.value || '')}" placeholder="${t('budget', 'e.g., CHECK-1234, AUTO')}">
+				<input aria-label="${t('budget', 'Reference Value:')}" type="text" class="action-value" data-index="${index}" data-field="value"
+					value="${escapeHtml(action.value || '')}" placeholder="${t('budget', 'e.g., CHECK-1234, AUTO')}">
 			</div>
 			<div class="form-row">
 				<label>${t('budget', 'Behavior:')}</label>
-				<select class="action-behavior" data-index="${index}" data-field="behavior">
+				<select aria-label="${t('budget', 'Behavior:')}" class="action-behavior" data-index="${index}" data-field="behavior">
 					<option value="always" ${action.behavior === 'always' ? 'selected' : ''}>${t('budget', 'Always set')}</option>
 					<option value="if_empty" ${action.behavior === 'if_empty' ? 'selected' : ''}>${t('budget', 'Only if empty')}</option>
 				</select>
@@ -353,7 +445,7 @@ export class ActionBuilder {
 		return `
 			<div class="form-row">
 				<label>${t('budget', 'Forecast:')}</label>
-				<select class="action-value" data-index="${index}" data-field="value">
+				<select aria-label="${t('budget', 'Forecast:')}" class="action-value" data-index="${index}" data-field="value">
 					<option value="true" ${excluded ? 'selected' : ''}>${t('budget', 'Exclude from forecast')}</option>
 					<option value="false" ${!excluded ? 'selected' : ''}>${t('budget', 'Include in forecast')}</option>
 				</select>
@@ -414,7 +506,14 @@ export class ActionBuilder {
 		this.container.addEventListener('change', (e) => {
 			if (e.target.classList.contains('action-value') ||
 				e.target.classList.contains('action-behavior') ||
-				e.target.classList.contains('action-separator')) {
+				e.target.classList.contains('action-separator') ||
+				e.target.classList.contains('action-field') ||
+				e.target.classList.contains('action-target') ||
+				e.target.classList.contains('action-pattern') ||
+				e.target.classList.contains('action-replacement') ||
+				e.target.classList.contains('action-mode') ||
+				e.target.classList.contains('action-find') ||
+				e.target.classList.contains('action-replace')) {
 				const index = parseInt(e.target.dataset.index);
 				const field = e.target.dataset.field;
 				this.updateActionField(index, field, e.target.value);
@@ -427,7 +526,11 @@ export class ActionBuilder {
 		// Delegate input events for text fields
 		this.container.addEventListener('input', (e) => {
 			if (e.target.classList.contains('action-value') ||
-				e.target.classList.contains('action-separator')) {
+				e.target.classList.contains('action-separator') ||
+				e.target.classList.contains('action-pattern') ||
+				e.target.classList.contains('action-replacement') ||
+				e.target.classList.contains('action-find') ||
+				e.target.classList.contains('action-replace')) {
 				const index = parseInt(e.target.dataset.index);
 				const field = e.target.dataset.field;
 				this.updateActionField(index, field, e.target.value);
@@ -442,6 +545,20 @@ export class ActionBuilder {
 			behavior: this.getDefaultBehaviorForType(type),
 			priority: 50
 		};
+
+		if (type === 'regex_replace') {
+			newAction.field = 'description';
+			newAction.target = 'description';
+			newAction.pattern = '';
+			newAction.replacement = '';
+		} else if (type === 'change_case') {
+			newAction.field = 'description';
+			newAction.mode = 'upper';
+		} else if (type === 'replace_text') {
+			newAction.field = 'description';
+			newAction.find = '';
+			newAction.replace = '';
+		}
 
 		this.actions.push(newAction);
 		this.render();
@@ -467,6 +584,10 @@ export class ActionBuilder {
 		switch (type) {
 			case 'set_notes':
 				return 'replace';
+			case 'regex_replace':
+			case 'change_case':
+			case 'replace_text':
+				return 'always';
 			case 'add_tags':
 				return 'merge';
 			case 'set_category':
@@ -571,6 +692,33 @@ export class ActionBuilder {
 						errors.push(t('budget', 'Action {number}: Reference value is empty', { number: index + 1 }));
 					}
 					break;
+				case 'regex_replace':
+					if (!action.field || !['description', 'vendor', 'reference', 'notes'].includes(action.field)) {
+						errors.push(t('budget', 'Action {number}: Regex field is invalid', { number: index + 1 }));
+					}
+					if (action.target && !['description', 'vendor', 'reference', 'notes'].includes(action.target)) {
+						errors.push(t('budget', 'Action {number}: Regex target field is invalid', { number: index + 1 }));
+					}
+					if (!action.pattern || action.pattern.trim() === '') {
+						errors.push(t('budget', 'Action {number}: Regex pattern is empty', { number: index + 1 }));
+					}
+					break;
+				case 'change_case':
+					if (!action.field || !['description', 'vendor', 'reference', 'notes'].includes(action.field)) {
+						errors.push(t('budget', 'Action {number}: Text field is invalid', { number: index + 1 }));
+					}
+					if (!action.mode || !['upper', 'lower', 'title', 'sentence'].includes(action.mode)) {
+						errors.push(t('budget', 'Action {number}: Case mode is invalid', { number: index + 1 }));
+					}
+					break;
+				case 'replace_text':
+					if (!action.field || !['description', 'vendor', 'reference', 'notes'].includes(action.field)) {
+						errors.push(t('budget', 'Action {number}: Text field is invalid', { number: index + 1 }));
+					}
+					if (!action.find || action.find.trim() === '') {
+						errors.push(t('budget', 'Action {number}: Replace text target is empty', { number: index + 1 }));
+					}
+					break;
 			}
 		});
 
@@ -580,9 +728,4 @@ export class ActionBuilder {
 		};
 	}
 
-	escapeHtml(text) {
-		const div = document.createElement('div');
-		div.textContent = text;
-		return div.innerHTML;
-	}
 }

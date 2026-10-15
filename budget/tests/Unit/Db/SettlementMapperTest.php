@@ -37,8 +37,8 @@ class SettlementMapperTest extends TestCase {
 		$this->qb->method('createNamedParameter')->willReturn(':param');
 
 		foreach (['select', 'selectAlias', 'from', 'where', 'andWhere',
-				   'orderBy', 'groupBy', 'insert', 'delete', 'update',
-				   'set', 'setValue'] as $method) {
+			'orderBy', 'groupBy', 'insert', 'delete', 'update',
+			'set', 'setValue'] as $method) {
 			$this->qb->method($method)->willReturnSelf();
 		}
 

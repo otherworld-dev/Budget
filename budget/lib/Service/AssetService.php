@@ -18,7 +18,7 @@ class AssetService {
 	public function __construct(
 		AssetMapper $assetMapper,
 		AssetSnapshotMapper $snapshotMapper,
-		CurrencyConversionService $conversionService
+		CurrencyConversionService $conversionService,
 	) {
 		$this->assetMapper = $assetMapper;
 		$this->snapshotMapper = $snapshotMapper;
@@ -52,7 +52,7 @@ class AssetService {
 		?float $currentValue = null,
 		?float $purchasePrice = null,
 		?string $purchaseDate = null,
-		?float $annualChangeRate = null
+		?float $annualChangeRate = null,
 	): Asset {
 		$asset = new Asset();
 		$asset->setUserId($userId);
@@ -92,7 +92,7 @@ class AssetService {
 		?float $currentValue = null,
 		?float $purchasePrice = null,
 		?string $purchaseDate = null,
-		?float $annualChangeRate = null
+		?float $annualChangeRate = null,
 	): Asset {
 		$asset = $this->assetMapper->find($id, $userId);
 
@@ -155,7 +155,7 @@ class AssetService {
 		int $assetId,
 		string $userId,
 		float $value,
-		string $date
+		string $date,
 	): AssetSnapshot {
 		// Verify asset exists and belongs to user
 		$asset = $this->assetMapper->find($assetId, $userId);

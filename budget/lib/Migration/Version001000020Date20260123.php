@@ -15,56 +15,56 @@ use OCP\Migration\SimpleMigrationStep;
  */
 class Version001000020Date20260123 extends SimpleMigrationStep {
 
-    public function changeSchema(IOutput $output, \Closure $schemaClosure, array $options): ?ISchemaWrapper {
-        /** @var ISchemaWrapper $schema */
-        $schema = $schemaClosure();
+	public function changeSchema(IOutput $output, \Closure $schemaClosure, array $options): ?ISchemaWrapper {
+		/** @var ISchemaWrapper $schema */
+		$schema = $schemaClosure();
 
-        // Create auth table
-        if (!$schema->hasTable('budget_auth')) {
-            $table = $schema->createTable('budget_auth');
+		// Create auth table
+		if (!$schema->hasTable('budget_auth')) {
+			$table = $schema->createTable('budget_auth');
 
-            $table->addColumn('user_id', Types::STRING, [
-                'notnull' => true,
-                'length' => 64,
-            ]);
+			$table->addColumn('user_id', Types::STRING, [
+				'notnull' => true,
+				'length' => 64,
+			]);
 
-            $table->addColumn('password_hash', Types::STRING, [
-                'notnull' => true,
-                'length' => 255,
-            ]);
+			$table->addColumn('password_hash', Types::STRING, [
+				'notnull' => true,
+				'length' => 255,
+			]);
 
-            $table->addColumn('session_token', Types::STRING, [
-                'notnull' => false,
-                'length' => 128,
-            ]);
+			$table->addColumn('session_token', Types::STRING, [
+				'notnull' => false,
+				'length' => 128,
+			]);
 
-            $table->addColumn('session_expires_at', Types::DATETIME, [
-                'notnull' => false,
-            ]);
+			$table->addColumn('session_expires_at', Types::DATETIME, [
+				'notnull' => false,
+			]);
 
-            $table->addColumn('failed_attempts', Types::INTEGER, [
-                'notnull' => true,
-                'default' => 0,
-            ]);
+			$table->addColumn('failed_attempts', Types::INTEGER, [
+				'notnull' => true,
+				'default' => 0,
+			]);
 
-            $table->addColumn('locked_until', Types::DATETIME, [
-                'notnull' => false,
-            ]);
+			$table->addColumn('locked_until', Types::DATETIME, [
+				'notnull' => false,
+			]);
 
-            $table->addColumn('created_at', Types::DATETIME, [
-                'notnull' => true,
-                'default' => 'CURRENT_TIMESTAMP',
-            ]);
+			$table->addColumn('created_at', Types::DATETIME, [
+				'notnull' => true,
+				'default' => 'CURRENT_TIMESTAMP',
+			]);
 
-            $table->addColumn('updated_at', Types::DATETIME, [
-                'notnull' => true,
-                'default' => 'CURRENT_TIMESTAMP',
-            ]);
+			$table->addColumn('updated_at', Types::DATETIME, [
+				'notnull' => true,
+				'default' => 'CURRENT_TIMESTAMP',
+			]);
 
-            $table->setPrimaryKey(['user_id']);
-            $table->addIndex(['session_token'], 'bdgt_auth_sess_idx');
-        }
+			$table->setPrimaryKey(['user_id']);
+			$table->addIndex(['session_token'], 'bdgt_auth_sess_idx');
+		}
 
-        return $schema;
-    }
+		return $schema;
+	}
 }

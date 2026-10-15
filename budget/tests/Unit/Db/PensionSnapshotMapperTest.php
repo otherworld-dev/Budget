@@ -31,9 +31,9 @@ class PensionSnapshotMapperTest extends TestCase {
 		$this->qb->method('getSQL')->willReturn('');
 		$this->qb->method('createNamedParameter')->willReturn(':param');
 
-		foreach (['select', 'from', 'where', 'andWhere', 'orderBy',
-				   'insert', 'delete', 'update', 'set', 'setValue',
-				   'setMaxResults'] as $method) {
+		foreach (['select', 'from', 'where', 'andWhere', 'orderBy', 'addOrderBy',
+			'insert', 'delete', 'update', 'set', 'setValue',
+			'setMaxResults'] as $method) {
 			$this->qb->method($method)->willReturnSelf();
 		}
 

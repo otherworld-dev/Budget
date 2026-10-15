@@ -18,11 +18,11 @@ use OCP\Migration\IOutput;
  */
 class MigrationStepRunner {
 
-    public function execute(string $version, IOutput $output): void {
-        /** @psalm-suppress UndefinedClass */
-        $connection = \OCP\Server::get(\OC\DB\Connection::class);
-        /** @psalm-suppress UndefinedClass */
-        $service = new \OC\DB\MigrationService(Application::APP_ID, $connection, $output);
-        $service->executeStep($version, true);
-    }
+	public function execute(string $version, IOutput $output): void {
+		/** @psalm-suppress UndefinedClass */
+		$connection = \OCP\Server::get(\OC\DB\Connection::class);
+		/** @psalm-suppress UndefinedClass */
+		$service = new \OC\DB\MigrationService(Application::APP_ID, $connection, $output);
+		$service->executeStep($version, true);
+	}
 }

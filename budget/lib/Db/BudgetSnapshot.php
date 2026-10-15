@@ -22,28 +22,28 @@ use OCP\AppFramework\Db\Entity;
  * @method void setCreatedAt(string $createdAt)
  */
 class BudgetSnapshot extends Entity implements JsonSerializable {
-    protected $userId;
-    protected $categoryId;
-    protected $effectiveFrom;
-    protected $amount;
-    protected $period;
-    protected $createdAt;
+	protected $userId;
+	protected $categoryId;
+	protected $effectiveFrom;
+	protected $amount;
+	protected $period;
+	protected $createdAt;
 
-    public function __construct() {
-        $this->addType('id', 'integer');
-        $this->addType('categoryId', 'integer');
-        $this->addType('amount', 'float');
-    }
+	public function __construct() {
+		$this->addType('id', 'integer');
+		$this->addType('categoryId', 'integer');
+		$this->addType('amount', 'float');
+	}
 
-    public function jsonSerialize(): array {
-        return [
-            'id' => $this->getId(),
-            'userId' => $this->getUserId(),
-            'categoryId' => $this->getCategoryId(),
-            'effectiveFrom' => $this->getEffectiveFrom(),
-            'amount' => $this->getAmount(),
-            'period' => $this->getPeriod() ?? 'monthly',
-            'createdAt' => $this->getCreatedAt(),
-        ];
-    }
+	public function jsonSerialize(): array {
+		return [
+			'id' => $this->getId(),
+			'userId' => $this->getUserId(),
+			'categoryId' => $this->getCategoryId(),
+			'effectiveFrom' => $this->getEffectiveFrom(),
+			'amount' => $this->getAmount(),
+			'period' => $this->getPeriod() ?? 'monthly',
+			'createdAt' => $this->getCreatedAt(),
+		];
+	}
 }

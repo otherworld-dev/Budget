@@ -17,22 +17,22 @@ use OCP\Migration\SimpleMigrationStep;
  */
 class Version001000094Date20260819 extends SimpleMigrationStep {
 
-    public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
-        /** @var ISchemaWrapper $schema */
-        $schema = $schemaClosure();
+	public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
+		/** @var ISchemaWrapper $schema */
+		$schema = $schemaClosure();
 
-        if (!$schema->hasTable('budget_bills')) {
-            return null;
-        }
-        $table = $schema->getTable('budget_bills');
-        if ($table->hasColumn('amount_type')) {
-            return null;
-        }
-        $table->addColumn('amount_type', Types::STRING, [
-            'notnull' => false,
-            'length' => 20,
-            'default' => 'fixed',
-        ]);
-        return $schema;
-    }
+		if (!$schema->hasTable('budget_bills')) {
+			return null;
+		}
+		$table = $schema->getTable('budget_bills');
+		if ($table->hasColumn('amount_type')) {
+			return null;
+		}
+		$table->addColumn('amount_type', Types::STRING, [
+			'notnull' => false,
+			'length' => 20,
+			'default' => 'fixed',
+		]);
+		return $schema;
+	}
 }

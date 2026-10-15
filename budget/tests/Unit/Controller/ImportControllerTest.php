@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Tests\Unit\Controller;
 
 use OCA\Budget\Controller\ImportController;
+use OCA\Budget\Exception\ValidationException;
 use OCA\Budget\Service\AuditService;
 use OCA\Budget\Service\ImportService;
 use OCA\Budget\Service\ImportTemplateService;
@@ -402,26 +403,19 @@ class ImportControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 	}
 
-	// ── rollback ────────────────────────────────────────────────────
+	public function testUploadShowsASpreadsheetsOwnMessage(): void {
+		$this->request->method('getUploadedFile')->with('file')->willReturn([
+			'name' => 'estratto.xls',
+			'tmp_name' => '/tmp/estratto.xls',
+			'size' => 100,
+			'error' => UPLOAD_ERR_OK,
+		]);
+		$this->service->method('processUpload')->willThrowException(new ValidationException('This spreadsheet has no table of transactions to import.'));
+		$this->auditService->expects($this->once())->method('logImportFailed');
 
-	public function testRollbackReturnsData(): void {
-		$result = ['rolledBack' => 5];
-		$this->service->method('rollbackImport')
-			->with('user1', 1)
-			->willReturn($result);
-
-		$response = $this->controller->rollback(1);
-
-		$this->assertSame(Http::STATUS_OK, $response->getStatus());
-		$this->assertSame($result, $response->getData());
-	}
-
-	public function testRollbackHandlesError(): void {
-		$this->service->method('rollbackImport')
-			->willThrowException(new \RuntimeException('error'));
-
-		$response = $this->controller->rollback(999);
+		$response = $this->controller->upload();
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('This spreadsheet has no table of transactions to import.', $response->getData()['error']);
 	}
 }

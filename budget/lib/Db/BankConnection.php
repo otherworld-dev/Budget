@@ -35,40 +35,40 @@ use OCP\AppFramework\Db\Entity;
  * @method void setUpdatedAt(string $updatedAt)
  */
 class BankConnection extends Entity implements JsonSerializable {
-    protected $userId;
-    protected $provider;
-    protected $name;
+	protected $userId;
+	protected $provider;
+	protected $name;
 
-    #[Encrypted]
-    protected $credentials;
+	#[Encrypted]
+	protected $credentials;
 
-    protected $status;
-    protected $lastSyncAt;
-    protected $lastError;
-    protected $applyRules;
-    protected $includePending;
-    protected $createdAt;
-    protected $updatedAt;
+	protected $status;
+	protected $lastSyncAt;
+	protected $lastError;
+	protected $applyRules;
+	protected $includePending;
+	protected $createdAt;
+	protected $updatedAt;
 
-    public function __construct() {
-        $this->addType('id', 'integer');
-        $this->addType('applyRules', 'boolean');
-        $this->addType('includePending', 'boolean');
-    }
+	public function __construct() {
+		$this->addType('id', 'integer');
+		$this->addType('applyRules', 'boolean');
+		$this->addType('includePending', 'boolean');
+	}
 
-    public function jsonSerialize(): array {
-        // Never expose credentials in API responses
-        return [
-            'id' => $this->getId(),
-            'provider' => $this->getProvider(),
-            'name' => $this->getName(),
-            'status' => $this->getStatus(),
-            'lastSyncAt' => $this->getLastSyncAt(),
-            'lastError' => $this->getLastError(),
-            'applyRules' => $this->getApplyRules(),
-            'includePending' => $this->getIncludePending(),
-            'createdAt' => $this->getCreatedAt(),
-            'updatedAt' => $this->getUpdatedAt(),
-        ];
-    }
+	public function jsonSerialize(): array {
+		// Never expose credentials in API responses
+		return [
+			'id' => $this->getId(),
+			'provider' => $this->getProvider(),
+			'name' => $this->getName(),
+			'status' => $this->getStatus(),
+			'lastSyncAt' => $this->getLastSyncAt(),
+			'lastError' => $this->getLastError(),
+			'applyRules' => $this->getApplyRules(),
+			'includePending' => $this->getIncludePending(),
+			'createdAt' => $this->getCreatedAt(),
+			'updatedAt' => $this->getUpdatedAt(),
+		];
+	}
 }

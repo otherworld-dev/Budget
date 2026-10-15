@@ -18,22 +18,22 @@ use OCP\AppFramework\Db\Entity;
  * @method void setCreatedAt(string $createdAt)
  */
 class TransactionTag extends Entity implements JsonSerializable {
-    protected $transactionId;
-    protected $tagId;
-    protected $createdAt;
+	protected $transactionId;
+	protected $tagId;
+	protected $createdAt;
 
-    public function __construct() {
-        $this->addType('transactionId', 'integer');
-        $this->addType('tagId', 'integer');
-        $this->addType('createdAt', 'string');
-    }
+	public function __construct() {
+		$this->addType('transactionId', 'integer');
+		$this->addType('tagId', 'integer');
+		$this->addType('createdAt', 'string');
+	}
 
-    public function jsonSerialize(): array {
-        return [
-            'id' => $this->getId(),
-            'transactionId' => $this->getTransactionId(),
-            'tagId' => $this->getTagId(),
-            'createdAt' => $this->getCreatedAt(),
-        ];
-    }
+	public function jsonSerialize(): array {
+		return [
+			'id' => $this->getId(),
+			'transactionId' => $this->getTransactionId(),
+			'tagId' => $this->getTagId(),
+			'createdAt' => $this->getCreatedAt(),
+		];
+	}
 }

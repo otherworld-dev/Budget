@@ -456,6 +456,120 @@ class TransactionNormalizerTest extends TestCase {
 		$this->assertSame('credit', $result['type']);
 	}
 
+	public static function debitMarkers(): array {
+		return [
+			'suffix' => ['45.00 DR', 45.00],
+			'suffix, no space' => ['45.00DR', 45.00],
+			'lower case' => ['45.00 dr', 45.00],
+			'prefix' => ['DR 45.00', 45.00],
+			'European' => ['1.234,56 DR', 1234.56],
+			'with a currency' => ['£45.00 DR', 45.00],
+		];
+	}
+
+	/**
+	 * "45.00 DR" was read as income: the letters went with the currency
+	 * symbols and the sign with them (R5-8). Only the sign is taken from the
+	 * marker; the digits are read as before, so no import id changes.
+	 */
+	#[\PHPUnit\Framework\Attributes\DataProvider('debitMarkers')]
+	public function testParseAmountDrMarkerIsDebit(string $value, float $amount): void {
+		$row = ['2024-01-01', $value, 'Test'];
+		$mapping = ['date' => 0, 'amount' => 1, 'description' => 2];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+		$this->assertEqualsWithDelta($amount, $result['amount'], 0.001);
+		$this->assertSame('debit', $result['type']);
+	}
+
+	public function testParseAmountCrMarkerIsCredit(): void {
+		$row = ['2024-01-01', '45.00 CR', 'Test'];
+		$mapping = ['date' => 0, 'amount' => 1, 'description' => 2];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+		$this->assertEqualsWithDelta(45.00, $result['amount'], 0.001);
+		$this->assertSame('credit', $result['type']);
+	}
+
+	public function testParseAmountACurrencyEndingInDrIsNotADebitMarker(): void {
+		// Indonesian rupiah
+		$row = ['2024-01-01', '45000 IDR', 'Test'];
+		$mapping = ['date' => 0, 'amount' => 1, 'description' => 2];
+
+		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
+		$this->assertSame('credit', $result['type']);
+	}
+
+	public function testParseAmountDrMarkerKeepsTheImportId(): void {
+		// The id hashes the unsigned amount, which the marker must not change
+		$withMarker = $this->normalizer->mapRowToTransaction(['2024-01-01', '45.00 DR', 'Card payment'], ['date' => 0, 'amount' => 1, 'description' => 2]);
+		$plain = $this->normalizer->mapRowToTransaction(['2024-01-01', '45.00', 'Card payment'], ['date' => 0, 'amount' => 1, 'description' => 2]);
+
+		$this->assertSame(
+			$this->normalizer->generateImportId('f', 0, $plain),
+			$this->normalizer->generateImportId('f', 0, $withMarker)
+		);
+	}
+
+	public static function amountsThatCannotBeThousands(): array {
+		return [
+			'8 decimals (crypto)' => ['0.00012345', 0.00012345],
+			'8 decimals, trailing zeros' => ['117.50000000', 117.5],
+			'4 decimals' => ['12.3456', 12.3456],
+			'negative, 8 decimals' => ['-0.00150000', 0.0015],
+			'decimal comma, 8 decimals' => ['0,00012345', 0.00012345],
+			'decimal comma, 4 decimals' => ['12,3456', 12.3456],
+			'nothing before the point' => ['.123', 0.123],
+			'a zero before the point' => ['0.123', 0.123],
+			'a zero before the comma' => ['0,123', 0.123],
+			'four digits before the point' => ['1234.567', 1234.567],
+			'with a currency code' => ['0.00012345 BTC', 0.00012345],
+		];
+	}
+
+	/**
+	 * A lone separator was read as a thousands separator unless it sat in
+	 * the last 3 characters, so an exchange's 8-decimal amounts came in 10^8
+	 * times too big: "117.50000000" became 11,750,000,000 (V5-4). A number
+	 * written with thousands separators has exactly three digits after each
+	 * one and no leading zero, so anything else is a decimal.
+	 */
+	#[\PHPUnit\Framework\Attributes\DataProvider('amountsThatCannotBeThousands')]
+	public function testParseAmountReadsALoneSeparatorThatCannotGroupThousandsAsDecimal(string $value, float $amount): void {
+		$result = $this->normalizer->mapRowToTransaction(['2024-01-01', $value, 'Test'], ['date' => 0, 'amount' => 1, 'description' => 2]);
+
+		$this->assertEqualsWithDelta($amount, $result['amount'], 1e-9);
+	}
+
+	public static function amountsThatReadAsBefore(): array {
+		return [
+			// Ambiguous: three digits after a lone separator stay thousands
+			'1.234' => ['1.234', 1234.0],
+			'12,345' => ['12,345', 12345.0],
+			'999.000' => ['999.000', 999000.0],
+			// Clearly grouped or clearly decimal, as always
+			'1.234.567' => ['1.234.567', 1234567.0],
+			'1,234,567' => ['1,234,567', 1234567.0],
+			'1,234.56' => ['1,234.56', 1234.56],
+			'1.234,56' => ['1.234,56', 1234.56],
+			'117.50' => ['117.50', 117.5],
+			'12,5' => ['12,5', 12.5],
+			'45.' => ['45.', 45.0],
+			'42' => ['42', 42.0],
+		];
+	}
+
+	/**
+	 * Every amount that could be a thousands-grouped number reads exactly as
+	 * it did, so the import id built from it doesn't change.
+	 */
+	#[\PHPUnit\Framework\Attributes\DataProvider('amountsThatReadAsBefore')]
+	public function testParseAmountReadsEverythingElseAsBefore(string $value, float $amount): void {
+		$result = $this->normalizer->mapRowToTransaction(['2024-01-01', $value, 'Test'], ['date' => 0, 'amount' => 1, 'description' => 2]);
+
+		$this->assertEqualsWithDelta($amount, $result['amount'], 1e-9);
+	}
+
 	public function testParseAmountTypeColumnStillWinsOverTrailingMinus(): void {
 		// #333's rule is unchanged: an explicit type column decides.
 		$row = ['2024-01-01', '91,29-', 'Income', 'Test'];
@@ -1045,6 +1159,22 @@ class TransactionNormalizerTest extends TestCase {
 		$this->assertNull($result['category']);
 	}
 
+	// ── isDate ──────────────────────────────────────────────────────
+
+	public function testIsDateTakesTheImportersOwnFormats(): void {
+		foreach (['2026-10-01', '01/10/2026', '10/31/2026', '31.12.2026', '31/12/26', '2026/10/01', ' 01-10-2026 '] as $date) {
+			$this->assertTrue($this->normalizer->isDate($date), $date);
+		}
+	}
+
+	public function testIsDateLeavesOutWhatOnlyTheFallbacksTake(): void {
+		// strtotime() takes a month name or a lone letter (a time zone), and
+		// the OFX form any long number; none of them is a column of dates
+		foreach (['', 'May', 'A', 'Coffee', '20261001', '12345678901', '-3.50', '2000.00', '1.234,56', '99/99/9999', '14:30:00', '2026-10-01 extra'] as $value) {
+			$this->assertFalse($this->normalizer->isDate($value), $value);
+		}
+	}
+
 	// ── detectDateFormat ────────────────────────────────────────────
 
 	public function testDetectDateFormatDDMMWhenDayAbove12(): void {
@@ -1535,5 +1665,18 @@ class TransactionNormalizerTest extends TestCase {
 		$result = $this->normalizer->mapRowToTransaction($row, $mapping);
 
 		$this->assertSame('Single Payee', $result['description']);
+	}
+
+	// App-export presets hash the date cell as the file wrote it, so a later
+	// export whose day/month order is detected differently keeps its IDs.
+	public function testGenerateImportIdPrefersTheFrozenRawDate(): void {
+		$tx = ['date' => '2024-02-01', 'amount' => 5.0, 'description' => 'Shop'];
+		$legacy = 'hash_' . md5('2024-02-01' . 5.0 . 'Shop' . '');
+		$this->assertSame($legacy, $this->normalizer->generateImportId('f', 0, $tx), 'Rows without _hashDate hash as before');
+
+		$a = $tx + ['_hashDate' => '02/01/2024'];
+		$b = ['date' => '2024-01-02'] + $a;
+		$this->assertSame('hash_' . md5('02/01/2024' . 5.0 . 'Shop' . ''), $this->normalizer->generateImportId('f', 0, $a));
+		$this->assertSame($this->normalizer->generateImportId('f', 0, $a), $this->normalizer->generateImportId('f', 0, $b));
 	}
 }

@@ -4,12 +4,36 @@
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
-import { showSuccess, showError } from '../../utils/notifications.js';
+import { showSuccess, showError, showUndoNotification } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue } from '../../utils/datepicker.js';
-import Chart from 'chart.js/auto';
-import { serverErrorMessage } from '../../utils/helpers.js';
+import Chart from '../../utils/chart.js';
+import { apiFetch } from '../../utils/api.js';
 import { openAccounts } from '../../utils/accounts.js';
+import { showLoading, showLoadError } from '../../utils/loading.js';
+
+/**
+ * What a scheduled contribution's row shows. A manual schedule whose date
+ * had passed looked exactly like one still to come, so a missed
+ * contribution went unnoticed.
+ *
+ * @param {object} schedule a recurring contribution
+ * @param {string} today Y-m-d, the user's local date
+ * @return {{status: string, statusText: string, canPost: boolean}}
+ */
+export function scheduleRowState(schedule, today) {
+    if (!(schedule.isActive ?? true)) {
+        return { status: 'paused', statusText: t('budget', 'Paused'), canPost: false };
+    }
+    const next = schedule.nextDueDate;
+    if (next && next < today) {
+        return { status: 'overdue', statusText: t('budget', 'Overdue'), canPost: true };
+    }
+    if (next === today) {
+        return { status: 'due', statusText: t('budget', 'Due today'), canPost: true };
+    }
+    return { status: 'upcoming', statusText: '', canPost: true };
+}
 
 export default class PensionsModule {
     constructor(app) {
@@ -25,38 +49,37 @@ export default class PensionsModule {
     get charts() { return this.app.charts; }
 
     async loadPensionsView() {
+        // Before any fetch, so a failed first load leaves working buttons.
+        this.setupPensionEventListeners();
+        showLoading('pensions-list');
         try {
             await this.loadPensions();
             this.renderPensions();
-            this.setupPensionEventListeners();
         } catch (error) {
             console.error('Failed to load pensions view:', error);
             showError(t('budget', 'Failed to load pensions'));
+            const emptyState = document.getElementById('empty-pensions');
+            if (emptyState) emptyState.style.display = 'none';
+            showLoadError('pensions-list', t('budget', 'Failed to load pensions'), () => this.loadPensionsView());
         }
     }
 
     async loadPensions() {
-        const response = await fetch(OC.generateUrl('/apps/budget/api/pensions'), {
-            headers: { 'requesttoken': OC.requestToken }
+        this.pensions = await apiFetch('/apps/budget/api/pensions', {
+            errorMessage: 'Failed to fetch pensions',
         });
-        if (!response.ok) throw new Error('Failed to fetch pensions');
-        this.pensions = await response.json();
     }
 
     async loadPensionSummary() {
-        const response = await fetch(OC.generateUrl('/apps/budget/api/pensions/summary'), {
-            headers: { 'requesttoken': OC.requestToken }
+        return await apiFetch('/apps/budget/api/pensions/summary', {
+            errorMessage: 'Failed to fetch pension summary',
         });
-        if (!response.ok) throw new Error('Failed to fetch pension summary');
-        return await response.json();
     }
 
     async loadPensionProjection() {
-        const response = await fetch(OC.generateUrl('/apps/budget/api/pensions/projection'), {
-            headers: { 'requesttoken': OC.requestToken }
+        return await apiFetch('/apps/budget/api/pensions/projection', {
+            errorMessage: 'Failed to fetch pension projection',
         });
-        if (!response.ok) throw new Error('Failed to fetch pension projection');
-        return await response.json();
     }
 
     renderPensions() {
@@ -103,7 +126,7 @@ export default class PensionsModule {
         }
 
         return `
-            <div class="pension-card" data-id="${pension.id}">
+            <div class="pension-card" data-id="${pension.id}" tabindex="0">
                 <div class="pension-card-header">
                     <h4 class="pension-name">${dom.escapeHtml(pension.name)}</h4>
                     <span class="pension-type-badge pension-type-${pension.type}">${typeLabel}</span>
@@ -114,13 +137,13 @@ export default class PensionsModule {
                     ${pension.monthlyContribution ? `<div class="pension-contribution">${t('budget', '{amount}/month', { amount: formatters.formatCurrency(pension.monthlyContribution, currency, this.settings) })}</div>` : ''}
                 </div>
                 <div class="pension-card-actions">
-                    <button class="pension-view-btn icon-button" title="${t('budget', 'View details')}" data-id="${pension.id}">
+                    <button class="pension-view-btn icon-button" title="${t('budget', 'View details')}" aria-label="${t('budget', 'View details')}" data-id="${pension.id}">
                         <span class="icon-info" aria-hidden="true"></span>
                     </button>
-                    <button class="pension-edit-btn icon-button" title="${t('budget', 'Edit')}" data-id="${pension.id}">
+                    <button class="pension-edit-btn icon-button" title="${t('budget', 'Edit')}" aria-label="${t('budget', 'Edit')}" data-id="${pension.id}">
                         <span class="icon-rename" aria-hidden="true"></span>
                     </button>
-                    <button class="pension-delete-btn icon-button" title="${t('budget', 'Delete')}" data-id="${pension.id}">
+                    <button class="pension-delete-btn icon-button" title="${t('budget', 'Delete')}" aria-label="${t('budget', 'Delete')}" data-id="${pension.id}">
                         <span class="icon-delete" aria-hidden="true"></span>
                     </button>
                 </div>
@@ -428,8 +451,32 @@ export default class PensionsModule {
         document.getElementById('pension-modal').style.display = 'none';
     }
 
-    async savePension() {
-        const form = document.getElementById('pension-form');
+    /**
+     * Run a form's save once at a time: a double click or a second Enter
+     * while the first save is still on its way used to create the entry
+     * twice (two schedules, two contributions, each with its own bank leg).
+     */
+    async _guardedSubmit(formId, save) {
+        const form = document.getElementById(formId);
+        if (!form || form.dataset.saving === '1') {
+            return;
+        }
+        form.dataset.saving = '1';
+        const submit = form.querySelector('[type="submit"]');
+        if (submit) submit.disabled = true;
+        try {
+            await save(form);
+        } finally {
+            delete form.dataset.saving;
+            if (submit) submit.disabled = false;
+        }
+    }
+
+    savePension() {
+        return this._guardedSubmit('pension-form', form => this._savePension(form));
+    }
+
+    async _savePension(form) {
         const formData = new FormData(form);
         const pensionId = formData.get('id');
 
@@ -459,22 +506,14 @@ export default class PensionsModule {
 
         try {
             const url = pensionId
-                ? OC.generateUrl(`/apps/budget/api/pensions/${pensionId}`)
-                : OC.generateUrl('/apps/budget/api/pensions');
+                ? `/apps/budget/api/pensions/${pensionId}`
+                : '/apps/budget/api/pensions';
 
-            const response = await fetch(url, {
+            await apiFetch(url, {
                 method: pensionId ? 'PUT' : 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify(data)
+                body: data,
+                errorMessage: t('budget', 'Failed to save pension'),
             });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to save pension')));
-            }
 
             this.closePensionModal();
             await this.loadPensions();
@@ -486,20 +525,17 @@ export default class PensionsModule {
     }
 
     async deletePension(pensionId) {
-        if (!await confirmDialog(t('budget', 'Are you sure you want to delete this pension? This action cannot be undone.'), { destructive: true })) {
+        const message = t('budget', 'Are you sure you want to delete this pension? This action cannot be undone.')
+            + '\n\n' + t('budget', 'Its balance updates, contributions and schedules are deleted with it. Any bank transactions that paid into or out of it stay in your accounts, and still count as money moved to or from a pension rather than spending or income.');
+        if (!await confirmDialog(message, { destructive: true })) {
             return;
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/pensions/${pensionId}`), {
+            await apiFetch(`/apps/budget/api/pensions/${pensionId}`, {
                 method: 'DELETE',
-                headers: { 'requesttoken': OC.requestToken }
+                errorMessage: t('budget', 'Failed to delete pension'),
             });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to delete pension')));
-            }
 
             await this.loadPensions();
             this.renderPensions();
@@ -557,16 +593,12 @@ export default class PensionsModule {
         // Withdrawals only make sense for DC pensions (they have a pot).
         const withdrawalBtn = document.getElementById('record-withdrawal-btn');
         if (withdrawalBtn) withdrawalBtn.style.display = pension.isDefinedContribution ? '' : 'none';
-        const recurringSection = document.getElementById('pension-recurring-section');
-        if (recurringSection) recurringSection.style.display = pension.isDefinedContribution ? '' : 'none';
 
         // Load charts, activity and schedules
         await this.loadPensionBalanceChart(pensionId);
         await this.loadPensionProjectionChart(pensionId);
         await this.loadPensionActivity(pensionId);
-        if (pension.isDefinedContribution) {
-            await this.loadPensionRecurring(pensionId);
-        }
+        await this.loadPensionRecurring(pensionId, pension.isDefinedContribution);
     }
 
     closePensionDetails() {
@@ -590,16 +622,12 @@ export default class PensionsModule {
 
     async loadPensionBalanceChart(pensionId) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/pensions/${pensionId}/balance-history`), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) {
+            const data = await apiFetch(`/apps/budget/api/pensions/${pensionId}/balance-history`).catch(() => null);
+            if (!data) {
                 this._setChartHint('pension-balance-chart', 'pension-balance-hint', t('budget', 'Balance history is unavailable.'));
                 return;
             }
 
-            const data = await response.json();
             if (!data.values || data.values.length < 2) {
                 this._setChartHint('pension-balance-chart', 'pension-balance-hint', t('budget', 'Add at least two balance updates to see history.'));
                 return;
@@ -617,7 +645,8 @@ export default class PensionsModule {
             this.charts.pensionBalance = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: data.labels,
+                    // Snapshot dates (Y-m-d), shown in the user's date format
+                    labels: data.labels.map(date => formatters.formatDate(date, this.settings)),
                     datasets: [{
                         label: t('budget', 'Balance'),
                         data: data.values,
@@ -650,16 +679,12 @@ export default class PensionsModule {
 
     async loadPensionProjectionChart(pensionId) {
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/pensions/${pensionId}/projection`), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) {
+            const data = await apiFetch(`/apps/budget/api/pensions/${pensionId}/projection`).catch(() => null);
+            if (!data) {
                 this._setChartHint('pension-projection-chart', 'pension-projection-hint', t('budget', 'Projection is unavailable.'));
                 return;
             }
 
-            const data = await response.json();
             this.currentProjection = data;
             this.renderProjectionSummary(data);
 
@@ -754,17 +779,15 @@ export default class PensionsModule {
         const container = document.getElementById('pension-activity-list');
         if (!container) return;
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/pensions/${pensionId}/activity`), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) {
+            let data;
+            try {
+                data = await apiFetch(`/apps/budget/api/pensions/${pensionId}/activity`);
+            } catch (e) {
                 container.innerHTML = `<div class="no-data">${t('budget', 'Activity is unavailable.')}</div>`;
                 return;
             }
 
-            const data = await response.json();
-
+            this.pensionActivity = data || [];
             if (!data || data.length === 0) {
                 container.innerHTML = `<div class="no-data">${t('budget', 'No activity yet')}</div>`;
                 return;
@@ -817,8 +840,8 @@ export default class PensionsModule {
                 // contributions/withdrawals get a delete affordance.
                 const deletable = activity.type !== 'snapshot';
                 const deleteBtn = deletable
-                    ? `<button class="icon-button activity-delete-btn" data-type="contribution" data-id="${activity.id}" title="${t('budget', 'Delete')}"><span class="icon-delete" aria-hidden="true"></span></button>`
-                    : `<button class="icon-button activity-delete-btn" data-type="snapshot" data-id="${activity.id}" title="${t('budget', 'Delete')}"><span class="icon-delete" aria-hidden="true"></span></button>`;
+                    ? `<button class="icon-button activity-delete-btn" data-type="contribution" data-id="${activity.id}" title="${t('budget', 'Delete')}" aria-label="${t('budget', 'Delete')}"><span class="icon-delete" aria-hidden="true"></span></button>`
+                    : `<button class="icon-button activity-delete-btn" data-type="snapshot" data-id="${activity.id}" title="${t('budget', 'Delete')}" aria-label="${t('budget', 'Delete')}"><span class="icon-delete" aria-hidden="true"></span></button>`;
 
                 return `
                     <div class="activity-item">
@@ -842,24 +865,24 @@ export default class PensionsModule {
     /** Delete a contribution/withdrawal or snapshot from the activity list. */
     async deleteActivityItem(type, id) {
         const isSnapshot = type === 'snapshot';
-        const message = isSnapshot
+        let message = isSnapshot
             ? t('budget', 'Delete this balance update?')
-            : t('budget', 'Delete this entry? If it is linked to a bank transaction, that transaction will be removed too.');
+            : t('budget', 'Delete this entry? A bank transaction the app booked for it is removed too; one that came from a statement import or bank sync stays in its account.');
+        const entry = isSnapshot ? null : (this.pensionActivity || []).find(a => a.type !== 'snapshot' && a.id === id);
+        if (entry?.reconciled) {
+            message += '\n\n' + t('budget', 'Its bank transaction was reconciled against a bank statement. Deleting it will make past reconciliations no longer match.');
+        }
         if (!await confirmDialog(message, { destructive: true })) return;
 
         const url = isSnapshot
-            ? OC.generateUrl(`/apps/budget/api/pensions/snapshots/${id}`)
-            : OC.generateUrl(`/apps/budget/api/pensions/contributions/${id}`);
+            ? `/apps/budget/api/pensions/snapshots/${id}`
+            : `/apps/budget/api/pensions/contributions/${id}`;
 
         try {
-            const response = await fetch(url, {
+            await apiFetch(url, {
                 method: 'DELETE',
-                headers: { 'requesttoken': OC.requestToken }
+                errorMessage: t('budget', 'Failed to delete'),
             });
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to delete')));
-            }
             await this.loadPensions();
             this.renderPensions();
             if (this.currentPension) {
@@ -891,28 +914,23 @@ export default class PensionsModule {
         document.getElementById('pension-balance-modal').style.display = 'none';
     }
 
-    async saveSnapshot() {
-        const form = document.getElementById('pension-balance-form');
+    saveSnapshot() {
+        return this._guardedSubmit('pension-balance-form', form => this._saveSnapshot(form));
+    }
+
+    async _saveSnapshot(form) {
         const formData = new FormData(form);
         const pensionId = formData.get('pensionId');
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/pensions/${pensionId}/snapshots`), {
+            await apiFetch(`/apps/budget/api/pensions/${pensionId}/snapshots`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({
+                body: {
                     balance: parseFloat(formData.get('balance')),
                     date: formData.get('date')
-                })
+                },
+                errorMessage: t('budget', 'Failed to update balance'),
             });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to update balance')));
-            }
 
             this.closeBalanceModal();
             await this.loadPensions();
@@ -927,11 +945,14 @@ export default class PensionsModule {
     /**
      * Populate a <select> with the user's accounts. The first option is a
      * blank "no account" choice (for the optional source-account selectors).
+     * An account shared read-only is left out: money can't be moved
+     * through it, so a contribution from it could only be refused.
      */
     _populateAccountSelect(selectId, blankLabel) {
         const select = document.getElementById(selectId);
         if (!select) return;
-        const accounts = openAccounts(this.app.accounts); // closed ones take nothing new (#372)
+        const accounts = openAccounts(this.app.accounts) // closed ones take nothing new (#372)
+            .filter(a => !a._shared || a._canWrite === true);
         const opts = [`<option value="">${dom.escapeHtml(blankLabel)}</option>`];
         accounts.forEach(a => {
             opts.push(`<option value="${a.id}">${dom.escapeHtml(a.name)}</option>`);
@@ -955,31 +976,26 @@ export default class PensionsModule {
         document.getElementById('pension-contribution-modal').style.display = 'none';
     }
 
-    async saveContribution() {
-        const form = document.getElementById('pension-contribution-form');
+    saveContribution() {
+        return this._guardedSubmit('pension-contribution-form', form => this._saveContribution(form));
+    }
+
+    async _saveContribution(form) {
         const formData = new FormData(form);
         const pensionId = formData.get('pensionId');
         const sourceAccountId = formData.get('sourceAccountId');
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/pensions/${pensionId}/contributions`), {
+            await apiFetch(`/apps/budget/api/pensions/${pensionId}/contributions`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({
+                body: {
                     amount: parseFloat(formData.get('amount')),
                     date: formData.get('date'),
                     note: formData.get('note') || null,
                     sourceAccountId: sourceAccountId ? parseInt(sourceAccountId, 10) : null
-                })
+                },
+                errorMessage: t('budget', 'Failed to log contribution'),
             });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to log contribution')));
-            }
 
             this.closeContributionModal();
             await this.loadPensions();
@@ -1009,28 +1025,26 @@ export default class PensionsModule {
         document.getElementById('pension-withdrawal-modal').style.display = 'none';
     }
 
-    async saveWithdrawal() {
-        const form = document.getElementById('pension-withdrawal-form');
+    saveWithdrawal() {
+        return this._guardedSubmit('pension-withdrawal-form', form => this._saveWithdrawal(form));
+    }
+
+    async _saveWithdrawal(form) {
         const formData = new FormData(form);
         const pensionId = formData.get('pensionId');
         const destAccountId = formData.get('destAccountId');
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/pensions/${pensionId}/withdrawals`), {
+            await apiFetch(`/apps/budget/api/pensions/${pensionId}/withdrawals`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                body: JSON.stringify({
+                body: {
                     amount: parseFloat(formData.get('amount')),
                     date: formData.get('date'),
                     note: formData.get('note') || null,
                     destAccountId: destAccountId ? parseInt(destAccountId, 10) : null
-                })
+                },
+                errorMessage: t('budget', 'Failed to record withdrawal'),
             });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to record withdrawal')));
-            }
 
             this.closeWithdrawalModal();
             await this.loadPensions();
@@ -1045,18 +1059,27 @@ export default class PensionsModule {
 
     // ===== Recurring contributions (#251) =====
 
-    async loadPensionRecurring(pensionId) {
+    /**
+     * Only a pension with a pot takes new schedules, but any schedules a
+     * pension has are listed: one left on a pension changed to defined
+     * benefit or state was hidden while it went on posting.
+     */
+    async loadPensionRecurring(pensionId, isDefinedContribution = this.currentPension?.isDefinedContribution ?? true) {
         const container = document.getElementById('pension-recurring-list');
         if (!container) return;
+        const section = document.getElementById('pension-recurring-section');
+        const addButton = document.getElementById('add-recurring-btn');
+        if (addButton) addButton.style.display = isDefinedContribution ? '' : 'none';
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/pensions/${pensionId}/recurring`), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) {
+            let schedules;
+            try {
+                schedules = await apiFetch(`/apps/budget/api/pensions/${pensionId}/recurring`);
+            } catch (e) {
                 container.innerHTML = '';
                 return;
             }
-            const schedules = await response.json();
+            this.recurringSchedules = schedules || [];
+            if (section) section.style.display = (isDefinedContribution || this.recurringSchedules.length > 0) ? '' : 'none';
             this.renderPensionRecurring(schedules);
         } catch (error) {
             console.error('Failed to load recurring contributions:', error);
@@ -1076,20 +1099,33 @@ export default class PensionsModule {
             quarterly: t('budget', 'Quarterly'),
             yearly: t('budget', 'Yearly'),
         };
+        const today = formatters.getTodayDateString();
         container.innerHTML = schedules.map(s => {
+            const state = scheduleRowState(s, today);
             const freq = freqLabels[s.frequency] || s.frequency;
             const amount = formatters.formatCurrency(s.amount, currency, this.settings);
             const next = formatters.formatDate(s.nextDueDate, this.settings);
             const auto = s.autoPostEnabled ? t('budget', 'auto') : t('budget', 'manual');
+            const account = s.sourceAccountId
+                ? (this.app.accounts || []).find(a => a.id === s.sourceAccountId)
+                : null;
+            // t() escapes the account name itself.
+            const from = account ? ` · ${t('budget', 'from {account}', { account: account.name })}` : '';
+            const status = state.statusText
+                ? ` <span class="recurring-status recurring-status-${state.status}">${dom.escapeHtml(state.statusText)}</span>`
+                : '';
+            const postButton = state.canPost
+                ? `<button class="icon-button recurring-post-btn" data-id="${s.id}" title="${t('budget', 'Post now')}" aria-label="${t('budget', 'Post now')}"><span class="icon-confirm" aria-hidden="true"></span></button>`
+                : '';
             return `
-                <div class="recurring-item" data-id="${s.id}">
+                <div class="recurring-item ${state.status}" data-id="${s.id}">
                     <div class="recurring-details">
-                        <div class="recurring-main">${amount} · ${freq} <span class="recurring-badge">${auto}</span></div>
+                        <div class="recurring-main">${amount} · ${freq}${from} <span class="recurring-badge">${auto}</span>${status}</div>
                         <div class="recurring-sub">${t('budget', 'Next: {date}', { date: next })}</div>
                     </div>
                     <div class="recurring-actions">
-                        <button class="icon-button recurring-post-btn" data-id="${s.id}" title="${t('budget', 'Post now')}"><span class="icon-confirm" aria-hidden="true"></span></button>
-                        <button class="icon-button recurring-delete-btn" data-id="${s.id}" title="${t('budget', 'Delete')}"><span class="icon-delete" aria-hidden="true"></span></button>
+                        ${postButton}
+                        <button class="icon-button recurring-delete-btn" data-id="${s.id}" title="${t('budget', 'Delete')}" aria-label="${t('budget', 'Delete')}"><span class="icon-delete" aria-hidden="true"></span></button>
                     </div>
                 </div>
             `;
@@ -1110,29 +1146,28 @@ export default class PensionsModule {
         document.getElementById('pension-recurring-modal').style.display = 'none';
     }
 
-    async saveRecurring() {
-        const form = document.getElementById('pension-recurring-form');
+    saveRecurring() {
+        return this._guardedSubmit('pension-recurring-form', form => this._saveRecurring(form));
+    }
+
+    async _saveRecurring(form) {
         const formData = new FormData(form);
         const pensionId = formData.get('pensionId');
         const sourceAccountId = formData.get('sourceAccountId');
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/pensions/${pensionId}/recurring`), {
+            await apiFetch(`/apps/budget/api/pensions/${pensionId}/recurring`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken },
-                body: JSON.stringify({
+                body: {
                     amount: parseFloat(formData.get('amount')),
                     frequency: formData.get('frequency'),
                     nextDueDate: formData.get('nextDueDate'),
                     sourceAccountId: sourceAccountId ? parseInt(sourceAccountId, 10) : null,
                     autoPostEnabled: !!form.querySelector('[name="autoPostEnabled"]')?.checked,
                     note: formData.get('note') || null
-                })
+                },
+                errorMessage: t('budget', 'Failed to save recurring contribution'),
             });
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to save recurring contribution')));
-            }
             this.closeRecurringModal();
             await this.loadPensionRecurring(parseInt(pensionId));
             showSuccess(t('budget', 'Recurring contribution saved'));
@@ -1144,11 +1179,10 @@ export default class PensionsModule {
     async deleteRecurring(recurId) {
         if (!await confirmDialog(t('budget', 'Delete this scheduled contribution?'), { destructive: true })) return;
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/pensions/recurring/${recurId}`), {
+            await apiFetch(`/apps/budget/api/pensions/recurring/${recurId}`, {
                 method: 'DELETE',
-                headers: { 'requesttoken': OC.requestToken }
+                errorMessage: t('budget', 'Failed to delete'),
             });
-            if (!response.ok) throw new Error(t('budget', 'Failed to delete'));
             if (this.currentPension) await this.loadPensionRecurring(this.currentPension.id);
             showSuccess(t('budget', 'Deleted'));
         } catch (error) {
@@ -1156,24 +1190,75 @@ export default class PensionsModule {
         }
     }
 
+    /**
+     * Post a schedule's next occurrence now. It asks first, as one click
+     * moves money, and names the occurrence the row showed so the server
+     * refuses one already posted; a click while a post is on its way is
+     * ignored. The toast's undo removes the contribution and its bank leg
+     * and puts the schedule's date back.
+     */
     async postRecurringNow(recurId) {
+        this._postingRecurring = this._postingRecurring || new Set();
+        if (this._postingRecurring.has(recurId)) {
+            return;
+        }
+        const schedule = (this.recurringSchedules || []).find(s => s.id === recurId);
+        if (!schedule) {
+            return;
+        }
+        this._postingRecurring.add(recurId);
+        const button = document.querySelector(`.recurring-post-btn[data-id="${recurId}"]`);
+        if (button) button.disabled = true;
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/pensions/recurring/${recurId}/post`), {
-                method: 'POST',
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to post contribution')));
+            const currency = this.currentPension?.currency || formatters.getPrimaryCurrency(this.app.accounts, this.settings);
+            const params = {
+                amount: formatters.formatCurrency(schedule.amount, currency, this.settings),
+                date: formatters.formatDate(schedule.nextDueDate, this.settings),
+            };
+            const account = schedule.sourceAccountId
+                ? (this.app.accounts || []).find(a => a.id === schedule.sourceAccountId)
+                : null;
+            const message = account
+                ? t('budget', 'Post the {date} contribution of {amount} from {account} now? It is recorded with today\'s date.', { ...params, account: account.name })
+                : t('budget', 'Post the {date} contribution of {amount} now? It is recorded with today\'s date.', params);
+            if (!await confirmDialog(message, { confirmLabel: t('budget', 'Post now') })) {
+                return;
             }
-            await this.loadPensions();
-            this.renderPensions();
-            if (this.currentPension) await this.showPensionDetails(this.currentPension.id);
-            if (this.app.loadAccounts) await this.app.loadAccounts();
-            showSuccess(t('budget', 'Contribution posted'));
+
+            await apiFetch(`/apps/budget/api/pensions/recurring/${recurId}/post`, {
+                method: 'POST',
+                body: { expectedDate: schedule.nextDueDate },
+                errorMessage: t('budget', 'Failed to post contribution'),
+            });
+            await this._reloadAfterPensionChange();
+            showUndoNotification(t('budget', 'Contribution posted'), () => this.undoRecurringPost(recurId));
+        } catch (error) {
+            showError(error.message);
+        } finally {
+            this._postingRecurring.delete(recurId);
+            if (button) button.disabled = false;
+        }
+    }
+
+    async undoRecurringPost(recurId) {
+        try {
+            await apiFetch(`/apps/budget/api/pensions/recurring/${recurId}/unpost`, {
+                method: 'POST',
+                errorMessage: t('budget', 'Failed to undo the contribution'),
+            });
+            await this._reloadAfterPensionChange();
+            showSuccess(t('budget', 'Contribution undone'));
         } catch (error) {
             showError(error.message);
         }
+    }
+
+    /** Pensions, the open pension and account balances, after money moved */
+    async _reloadAfterPensionChange() {
+        await this.loadPensions();
+        this.renderPensions();
+        if (this.currentPension) await this.showPensionDetails(this.currentPension.id);
+        if (this.app.loadAccounts) await this.app.loadAccounts();
     }
 
     async loadDashboardPensionSummary() {

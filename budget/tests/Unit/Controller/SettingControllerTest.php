@@ -8,6 +8,7 @@ use OCA\Budget\Controller\SettingController;
 use OCA\Budget\Db\Setting;
 use OCA\Budget\Db\SettingMapper;
 use OCA\Budget\Service\GranularShareService;
+use OCA\Budget\Service\ImportFolderService;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
 use OCP\IL10N;
@@ -20,6 +21,8 @@ class SettingControllerTest extends TestCase {
 	private SettingMapper $mapper;
 	private IRequest $request;
 	private LoggerInterface $logger;
+	/** @var ImportFolderService&\PHPUnit\Framework\MockObject\MockObject */
+	private $importFolders;
 
 	protected function setUp(): void {
 		$this->request = $this->createMock(IRequest::class);
@@ -33,13 +36,17 @@ class SettingControllerTest extends TestCase {
 		$granularShareService = $this->createMock(GranularShareService::class);
 		$granularShareService->method('canAccess')->willReturn(true);
 
+		$this->importFolders = $this->createMock(ImportFolderService::class);
+		$this->importFolders->method('mainFolderFor')->willReturn('Budget/Import');
+
 		$this->controller = new SettingController(
 			$this->request,
 			$this->mapper,
 			$granularShareService,
 			$l,
 			'user1',
-			$this->logger
+			$this->logger,
+			$this->importFolders
 		);
 	}
 
@@ -81,6 +88,17 @@ class SettingControllerTest extends TestCase {
 		$this->assertSame('GBP', $data['default_currency']);
 		$this->assertSame('Y-m-d', $data['date_format']);
 		$this->assertSame('true', $data['notification_budget_alert']);
+	}
+
+	/**
+	 * The "Skip Duplicate Transactions" switch did nothing: duplicates are
+	 * skipped unless the import screen's own box says otherwise. The switch
+	 * is gone and the app no longer offers the setting.
+	 */
+	public function testTheSkipDuplicatesSettingIsNoLongerOffered(): void {
+		$this->mapper->method('findAll')->willReturn([]);
+
+		$this->assertArrayNotHasKey('import_skip_duplicates', $this->controller->index()->getData());
 	}
 
 	public function testIndexHandlesException(): void {
@@ -157,7 +175,7 @@ class SettingControllerTest extends TestCase {
 
 	public function testUpdateCreatesNewSetting(): void {
 		$this->request->method('getParams')->willReturn([
-			'custom_key' => 'custom_value',
+			'transaction_columns_visible' => '{"vendor":false}',
 		]);
 		$this->mapper->method('findByKey')
 			->willThrowException(new DoesNotExistException(''));
@@ -167,7 +185,119 @@ class SettingControllerTest extends TestCase {
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 		$data = $response->getData();
-		$this->assertSame('custom_value', $data['settings']['custom_key']);
+		$this->assertSame('{"vendor":false}', $data['settings']['transaction_columns_visible']);
+	}
+
+	/**
+	 * Settings the app keeps for itself can't be written by the client. The
+	 * calendar feed token was settable: a chosen value hijacked the public
+	 * feed URL, and one already used by someone else broke their feed.
+	 */
+	public function testUpdateRefusesASettingTheAppKeepsForItself(): void {
+		$this->request->method('getParams')->willReturn([
+			'date_format' => 'd/m/Y',
+			'bills_feed_token' => str_repeat('a', 64),
+		]);
+		$this->mapper->expects($this->never())->method('insert');
+		$this->mapper->expects($this->never())->method('update');
+
+		$response = $this->controller->update();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame("This setting can't be changed: bills_feed_token", $response->getData()['error']);
+	}
+
+	public function testUpdateKeyRefusesASettingTheAppKeepsForItself(): void {
+		$this->request->method('getParam')->with('value')->willReturn('1');
+		$this->mapper->expects($this->never())->method('insert');
+		$this->mapper->expects($this->never())->method('update');
+
+		$response = $this->controller->updateKey('sample_data_loaded');
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	/** Every key the web app saves, so none of them stops saving */
+	#[\PHPUnit\Framework\Attributes\DataProvider('keysTheAppSaves')]
+	public function testUpdateAcceptsEveryKeyTheAppSaves(string $key): void {
+		$this->request->method('getParams')->willReturn([$key => 'x']);
+		$this->mapper->method('findByKey')->willThrowException(new DoesNotExistException(''));
+		$this->mapper->expects($this->once())->method('insert');
+
+		$this->assertSame(Http::STATUS_OK, $this->controller->update()->getStatus());
+	}
+
+	public static function keysTheAppSaves(): array {
+		$keys = [
+			// The Settings page
+			'anomaly_alerts_enabled', 'budget_alert_threshold', 'budget_period', 'budget_start_day', 'date_format',
+			'default_currency', 'digest_email_enabled', 'digest_enabled', 'digest_frequency', 'export_default_format',
+			'first_day_of_week', 'import_auto_apply_rules', 'import_folder', 'notification_budget_alert',
+			'notification_forecast_warning', 'number_format_decimal_sep', 'number_format_decimals',
+			'number_format_thousands_sep', 'receipt_folder', 'report_email_enabled', 'report_files_enabled',
+			// The dashboard
+			'budget_alert_scope', 'budget_alert_muted_categories', 'dashboard_hero_config', 'dashboard_widgets_config',
+			'dashboard_grid_columns', 'dashboard_locked',
+			// The transaction list's columns and the What's new dialog
+			'transaction_columns_visible', 'whats_new_seen',
+			// A Settings page loaded before the switch was removed
+			'import_skip_duplicates',
+		];
+		return array_combine($keys, array_map(static fn (string $key) => [$key], $keys));
+	}
+
+	public function testUpdateUpdatesRowAddedByAnOverlappingSave(): void {
+		// Two saves of a never-stored setting: both find nothing, the other
+		// one inserts first, and this insert hits the unique index.
+		$this->request->method('getParams')->willReturn(['date_format' => 'd/m/Y']);
+		$added = $this->makeSetting('date_format', 'Y-m-d');
+		$this->mapper->method('findByKey')
+			->willReturnOnConsecutiveCalls(
+				$this->throwException(new DoesNotExistException('')),
+				$added
+			);
+		$duplicate = $this->createMock(\OCP\DB\Exception::class);
+		$duplicate->method('getReason')->willReturn(\OCP\DB\Exception::REASON_UNIQUE_CONSTRAINT_VIOLATION);
+		$this->mapper->method('insert')->willThrowException($duplicate);
+		$this->mapper->expects($this->once())->method('update')->with($added)->willReturnArgument(0);
+
+		$response = $this->controller->update();
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame('d/m/Y', $added->getValue());
+		$this->assertSame('d/m/Y', $response->getData()['settings']['date_format']);
+	}
+
+	public function testUpdateStillFailsOnOtherDatabaseErrors(): void {
+		$this->request->method('getParams')->willReturn(['date_format' => 'd/m/Y']);
+		$this->mapper->method('findByKey')->willThrowException(new DoesNotExistException(''));
+		$other = $this->createMock(\OCP\DB\Exception::class);
+		$other->method('getReason')->willReturn(\OCP\DB\Exception::REASON_NOT_NULL_CONSTRAINT_VIOLATION);
+		$this->mapper->method('insert')->willThrowException($other);
+		$this->mapper->expects($this->never())->method('update');
+
+		$response = $this->controller->update();
+
+		$this->assertSame(Http::STATUS_INTERNAL_SERVER_ERROR, $response->getStatus());
+	}
+
+	public function testUpdateKeyUpdatesRowAddedByAnOverlappingSave(): void {
+		$this->request->method('getParam')->with('value')->willReturn('EUR');
+		$added = $this->makeSetting('default_currency', 'GBP');
+		$this->mapper->method('findByKey')
+			->willReturnOnConsecutiveCalls(
+				$this->throwException(new DoesNotExistException('')),
+				$added
+			);
+		$duplicate = $this->createMock(\OCP\DB\Exception::class);
+		$duplicate->method('getReason')->willReturn(\OCP\DB\Exception::REASON_UNIQUE_CONSTRAINT_VIOLATION);
+		$this->mapper->method('insert')->willThrowException($duplicate);
+		$this->mapper->expects($this->once())->method('update')->with($added)->willReturnArgument(0);
+
+		$response = $this->controller->updateKey('default_currency');
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame('EUR', $added->getValue());
 	}
 
 	public function testUpdateSkipsInternalParameters(): void {
@@ -221,7 +351,7 @@ class SettingControllerTest extends TestCase {
 			->willThrowException(new DoesNotExistException(''));
 		$this->mapper->expects($this->once())->method('insert');
 
-		$response = $this->controller->updateKey('new_key');
+		$response = $this->controller->updateKey('whats_new_seen');
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
@@ -371,5 +501,97 @@ class SettingControllerTest extends TestCase {
 		$response = $this->controller->update();
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	// ── import_folder validation (#425) ─────────────────────────────
+
+	public function testTheImportFolderIsNormalisedLikeTheReceiptsFolder(): void {
+		$this->request->method('getParams')->willReturn(['import_folder' => chr(92) . 'Bank' . chr(92) . 'Statements' . chr(92)]);
+		$this->mapper->method('findByKey')->willThrowException(new DoesNotExistException('none'));
+		$stored = null;
+		$this->mapper->method('insert')->willReturnCallback(function (Setting $s) use (&$stored) {
+			$stored = $s->getValue();
+			return $s;
+		});
+
+		$response = $this->controller->update();
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame('Bank/Statements', $stored);
+	}
+
+	public function testAnImportFolderOutsideFilesIsRefused(): void {
+		$this->request->method('getParams')->willReturn(['import_folder' => '../elsewhere']);
+		$this->mapper->expects($this->never())->method('insert');
+		$this->mapper->expects($this->never())->method('update');
+
+		$response = $this->controller->update();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertStringContainsString('Invalid import folder', $response->getData()['error']);
+	}
+
+	// ── moving the import folder leaves what is there alone ─────────
+
+	public function testMovingTheImportFolderLeavesTheFilesAlreadyThereAlone(): void {
+		$this->request->method('getParams')->willReturn(['import_folder' => '/Bank/']);
+		$this->mapper->method('findByKey')->willThrowException(new DoesNotExistException('none'));
+		$this->mapper->method('insert')->willReturnArgument(0);
+		$this->importFolders->expects($this->once())->method('leaveExistingAlone')->with('user1', 'Bank')->willReturn(['Conto' => 2]);
+
+		$response = $this->controller->update();
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame(['Conto' => 2], $response->getData()['importFolderLeftAlone']);
+	}
+
+	public function testSavingTheSameImportFolderAgainLooksAtNothing(): void {
+		$this->request->method('getParams')->willReturn(['import_folder' => '']);
+		$this->mapper->method('findByKey')->willThrowException(new DoesNotExistException('none'));
+		$this->mapper->method('insert')->willReturnArgument(0);
+		$this->importFolders->expects($this->never())->method('leaveExistingAlone');
+
+		$response = $this->controller->update();
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame([], $response->getData()['importFolderLeftAlone']);
+	}
+
+	public function testUpdateKeyNormalisesTheImportFolderAndLeavesWhatIsThereAlone(): void {
+		$this->request->method('getParam')->with('value')->willReturn('Bank//Statements/');
+		$this->mapper->method('findByKey')->willThrowException(new DoesNotExistException('none'));
+		$stored = null;
+		$this->mapper->method('insert')->willReturnCallback(function (Setting $s) use (&$stored) {
+			$stored = $s->getValue();
+			return $s;
+		});
+		$this->importFolders->expects($this->once())->method('leaveExistingAlone')->with('user1', 'Bank/Statements')->willReturn([]);
+
+		$response = $this->controller->updateKey('import_folder');
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame('Bank/Statements', $stored);
+	}
+
+	public function testUpdateKeyRefusesAnImportFolderOutsideFiles(): void {
+		$this->request->method('getParam')->with('value')->willReturn('../elsewhere');
+		$this->mapper->expects($this->never())->method('insert');
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $this->controller->updateKey('import_folder')->getStatus());
+	}
+
+	public function testResettingTheImportFolderLeavesWhatTheDefaultOneHoldsAlone(): void {
+		$importFolders = $this->createMock(ImportFolderService::class);
+		$importFolders->method('mainFolderFor')->willReturn('Bank');
+		$importFolders->expects($this->exactly(2))->method('leaveExistingAlone')->with('user1', 'Budget/Import')->willReturn([]);
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnArgument(0);
+		$granular = $this->createMock(GranularShareService::class);
+		$controller = new SettingController($this->request, $this->mapper, $granular, $l, 'user1', $this->logger, $importFolders);
+		$this->mapper->method('deleteByKey')->willReturn(1);
+		$this->mapper->method('deleteAll')->willReturn(3);
+
+		$controller->destroy('import_folder');
+		$controller->reset();
 	}
 }

@@ -40,7 +40,7 @@ class AssetController extends Controller {
 		GranularShareService $granularShareService,
 		IL10N $l,
 		?string $userId,
-		LoggerInterface $logger
+		LoggerInterface $logger,
 	) {
 		parent::__construct(Application::APP_ID, $request);
 		$this->service = $service;

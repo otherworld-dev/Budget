@@ -8,302 +8,460 @@ use OCA\Budget\Db\ImportRule;
 use OCA\Budget\Db\ImportRuleMapper;
 use OCA\Budget\Db\ShareItem;
 use OCA\Budget\Service\GranularShareService;
+use Psr\Log\LoggerInterface;
 
 /**
  * Applies import rules to automatically categorize and tag transactions during import.
  * Uses v2 schema: CriteriaEvaluator for matching and JSON actions for application.
  */
 class ImportRuleApplicator {
-    private ImportRuleMapper $importRuleMapper;
-    private CriteriaEvaluator $criteriaEvaluator;
-    private GranularShareService $granularShareService;
+	private ImportRuleMapper $importRuleMapper;
+	private CriteriaEvaluator $criteriaEvaluator;
+	private GranularShareService $granularShareService;
+	private ?LoggerInterface $logger;
 
-    public function __construct(
-        ImportRuleMapper $importRuleMapper,
-        CriteriaEvaluator $criteriaEvaluator,
-        GranularShareService $granularShareService
-    ) {
-        $this->importRuleMapper = $importRuleMapper;
-        $this->criteriaEvaluator = $criteriaEvaluator;
-        $this->granularShareService = $granularShareService;
-    }
+	public function __construct(
+		ImportRuleMapper $importRuleMapper,
+		CriteriaEvaluator $criteriaEvaluator,
+		GranularShareService $granularShareService,
+		?LoggerInterface $logger = null,
+	) {
+		$this->importRuleMapper = $importRuleMapper;
+		$this->criteriaEvaluator = $criteriaEvaluator;
+		$this->granularShareService = $granularShareService;
+		$this->logger = $logger;
+	}
 
-    /**
-     * Active rules that apply during a user's import: their own plus rules
-     * shared with them. Sorted by priority DESC.
-     *
-     * @return ImportRule[]
-     */
-    private function activeRulesFor(string $userId): array {
-        $own = $this->importRuleMapper->findActive($userId);
-        $sharedIds = $this->granularShareService->getSharedImportRuleIds($userId);
-        $shared = $this->importRuleMapper->findActiveByIds($sharedIds);
+	/**
+	 * Active rules that apply during a user's import: their own plus rules
+	 * shared with them. Sorted by priority DESC.
+	 *
+	 * @return ImportRule[]
+	 */
+	private function activeRulesFor(string $userId): array {
+		$own = $this->importRuleMapper->findActive($userId);
+		$sharedIds = $this->granularShareService->getSharedImportRuleIds($userId);
+		$shared = $this->importRuleMapper->findActiveByIds($sharedIds);
 
-        $all = array_merge($own, $shared);
-        usort($all, fn(ImportRule $a, ImportRule $b) => $b->getPriority() - $a->getPriority());
-        return $all;
-    }
+		$all = array_merge($own, $shared);
+		usort($all, fn (ImportRule $a, ImportRule $b) => $b->getPriority() - $a->getPriority());
+		return $all;
+	}
 
-    /**
-     * Apply matching rules to a single transaction.
-     *
-     * @param string $userId The user ID
-     * @param array $transaction Transaction data
-     * @return array Transaction data with rules applied
-     */
-    public function applyRules(string $userId, array $transaction): array {
-        $rules = $this->activeRulesFor($userId);
+	/**
+	 * The rules an import of $userId's runs, to load once and hand to
+	 * applyRules() for every row: loading them per row cost a query plus
+	 * hydrating and sorting every rule, for each row of the file (T6-4).
+	 *
+	 * @return ImportRule[]
+	 */
+	public function rulesFor(string $userId): array {
+		return $this->activeRulesFor($userId);
+	}
 
-        foreach ($rules as $rule) {
-            // Skip rules not meant for import
-            if ($rule->getApplyOnImport() === false) {
-                continue;
-            }
+	/**
+	 * Apply matching rules to a single transaction.
+	 *
+	 * @param string $userId The user ID
+	 * @param array $transaction Transaction data
+	 * @param ImportRule[]|null $rules From rulesFor(); loaded here when not given
+	 * @return array Transaction data with rules applied
+	 */
+	public function applyRules(string $userId, array $transaction, ?array $rules = null): array {
+		$rules ??= $this->activeRulesFor($userId);
 
-            // Match using CriteriaEvaluator
-            $criteria = $rule->getCriteria();
-            $schemaVersion = $rule->getSchemaVersion() ?? 2;
+		foreach ($rules as $rule) {
+			// Skip rules not meant for import
+			if ($rule->getApplyOnImport() === false) {
+				continue;
+			}
 
-            if (!$this->criteriaEvaluator->evaluate($criteria, $transaction, $schemaVersion)) {
-                continue;
-            }
+			if (!$this->ruleApplies($rule, $transaction, $userId)) {
+				continue;
+			}
 
-            // Apply v2 actions
-            $transaction = $this->applyActions($rule, $transaction, $userId);
+			// Apply v2 actions
+			$transaction = $this->applyActions($rule, $transaction, $userId);
 
-            // Track which rule was applied
-            $transaction['appliedRule'] = [
-                'id' => $rule->getId(),
-                'name' => $rule->getName(),
-            ];
+			// Track which rule was applied
+			$transaction['appliedRule'] = [
+				'id' => $rule->getId(),
+				'name' => $rule->getName(),
+			];
 
-            // Respect stopProcessing flag
-            if ($rule->getStopProcessing() ?? true) {
-                break;
-            }
-        }
+			// Respect stopProcessing flag
+			if ($rule->getStopProcessing() ?? true) {
+				break;
+			}
+		}
 
-        return $transaction;
-    }
+		return $transaction;
+	}
 
-    /**
-     * Apply rules to multiple transactions.
-     *
-     * @param string $userId The user ID
-     * @param array $transactions List of transactions
-     * @return array List of transactions with rules applied
-     */
-    public function applyRulesToMany(string $userId, array $transactions): array {
-        return array_map(
-            fn($transaction) => $this->applyRules($userId, $transaction),
-            $transactions
-        );
-    }
+	/**
+	 * Apply rules to multiple transactions.
+	 *
+	 * @param string $userId The user ID
+	 * @param array $transactions List of transactions
+	 * @return array List of transactions with rules applied
+	 */
+	public function applyRulesToMany(string $userId, array $transactions): array {
+		return array_map(
+			fn ($transaction) => $this->applyRules($userId, $transaction),
+			$transactions
+		);
+	}
 
-    /**
-     * Preview rule applications without modifying transactions.
-     *
-     * @param string $userId The user ID
-     * @param array $transactions List of transactions
-     * @return array List of rule matches with transaction indices
-     */
-    public function previewRuleApplications(string $userId, array $transactions): array {
-        $rules = $this->activeRulesFor($userId);
-        $previews = [];
+	/**
+	 * Preview rule applications without modifying transactions.
+	 *
+	 * @param string $userId The user ID
+	 * @param array $transactions List of transactions
+	 * @return array List of rule matches with transaction indices
+	 */
+	public function previewRuleApplications(string $userId, array $transactions): array {
+		$rules = $this->activeRulesFor($userId);
+		$previews = [];
 
-        foreach ($transactions as $index => $transaction) {
-            foreach ($rules as $rule) {
-                if ($rule->getApplyOnImport() === false) {
-                    continue;
-                }
+		foreach ($transactions as $index => $transaction) {
+			foreach ($rules as $rule) {
+				if ($rule->getApplyOnImport() === false) {
+					continue;
+				}
 
-                $criteria = $rule->getCriteria();
-                $schemaVersion = $rule->getSchemaVersion() ?? 2;
+				if ($this->ruleApplies($rule, $transaction, $userId)) {
+					$previews[] = [
+						'transactionIndex' => $index,
+						'transaction' => $transaction,
+						'rule' => [
+							'id' => $rule->getId(),
+							'name' => $rule->getName(),
+						],
+					];
+					break; // First matching rule per transaction
+				}
+			}
+		}
 
-                if ($this->criteriaEvaluator->evaluate($criteria, $transaction, $schemaVersion)) {
-                    $previews[] = [
-                        'transactionIndex' => $index,
-                        'transaction' => $transaction,
-                        'rule' => [
-                            'id' => $rule->getId(),
-                            'name' => $rule->getName(),
-                        ],
-                    ];
-                    break; // First matching rule per transaction
-                }
-            }
-        }
+		return $previews;
+	}
 
-        return $previews;
-    }
+	/**
+	 * Get statistics about rule matches for a set of transactions.
+	 *
+	 * @param string $userId The user ID
+	 * @param array $transactions List of transactions
+	 * @return array Statistics about rule matches
+	 */
+	public function getMatchStatistics(string $userId, array $transactions): array {
+		$rules = $this->activeRulesFor($userId);
+		$matched = 0;
+		$unmatched = 0;
+		$ruleUsage = [];
 
-    /**
-     * Get statistics about rule matches for a set of transactions.
-     *
-     * @param string $userId The user ID
-     * @param array $transactions List of transactions
-     * @return array Statistics about rule matches
-     */
-    public function getMatchStatistics(string $userId, array $transactions): array {
-        $rules = $this->activeRulesFor($userId);
-        $matched = 0;
-        $unmatched = 0;
-        $ruleUsage = [];
+		foreach ($transactions as $transaction) {
+			$found = false;
+			foreach ($rules as $rule) {
+				if ($rule->getApplyOnImport() === false) {
+					continue;
+				}
 
-        foreach ($transactions as $transaction) {
-            $found = false;
-            foreach ($rules as $rule) {
-                if ($rule->getApplyOnImport() === false) {
-                    continue;
-                }
+				if ($this->ruleApplies($rule, $transaction, $userId)) {
+					$matched++;
+					$ruleId = $rule->getId();
+					$ruleUsage[$ruleId] = ($ruleUsage[$ruleId] ?? 0) + 1;
+					$found = true;
+					break;
+				}
+			}
 
-                $criteria = $rule->getCriteria();
-                $schemaVersion = $rule->getSchemaVersion() ?? 2;
+			if (!$found) {
+				$unmatched++;
+			}
+		}
 
-                if ($this->criteriaEvaluator->evaluate($criteria, $transaction, $schemaVersion)) {
-                    $matched++;
-                    $ruleId = $rule->getId();
-                    $ruleUsage[$ruleId] = ($ruleUsage[$ruleId] ?? 0) + 1;
-                    $found = true;
-                    break;
-                }
-            }
+		return [
+			'total' => count($transactions),
+			'matched' => $matched,
+			'unmatched' => $unmatched,
+			'matchRate' => count($transactions) > 0 ? $matched / count($transactions) : 0,
+			'ruleUsage' => $ruleUsage,
+		];
+	}
 
-            if (!$found) {
-                $unmatched++;
-            }
-        }
+	/**
+	 * Whether a rule takes this row: it matches, and it has something it
+	 * can do to it (see hasSomethingToDo()). Only such a rule is applied,
+	 * shown as the row's rule, and can stop the rules after it.
+	 */
+	private function ruleApplies(ImportRule $rule, array $transaction, string $userId): bool {
+		return $this->ruleMatches($rule, $transaction) && $this->hasSomethingToDo($rule, $userId);
+	}
 
-        return [
-            'total' => count($transactions),
-            'matched' => $matched,
-            'unmatched' => $unmatched,
-            'matchRate' => count($transactions) > 0 ? $matched / count($transactions) : 0,
-            'ruleUsage' => $ruleUsage,
-        ];
-    }
+	/**
+	 * Whether a rule matches a transaction.
+	 *
+	 * A rule from before the rules engine (schema 1: a field, a pattern and
+	 * a match type, no criteria) is matched on those columns, as Run rules
+	 * matches it. Since 2.28.0 the import read only the criteria column,
+	 * which such a rule doesn't have, so every rule made before 2.28 and
+	 * never opened in the rule editor silently stopped working on import and
+	 * bank sync, while it still worked in Run rules.
+	 */
+	private function ruleMatches(ImportRule $rule, array $transaction): bool {
+		$schemaVersion = $rule->getSchemaVersion() ?? 2;
+		if ($schemaVersion === 1) {
+			return $this->criteriaEvaluator->evaluate([
+				'field' => $rule->getField(),
+				'pattern' => $rule->getPattern(),
+				'matchType' => $rule->getMatchType(),
+			], $transaction, 1);
+		}
 
-    /**
-     * Extract and apply v2 actions from a rule to a transaction array.
-     *
-     * @param string $userId The user performing the import (may differ from the
-     *                        rule owner when the rule was shared with them).
-     */
-    private function applyActions(ImportRule $rule, array $transaction, string $userId): array {
-        $actions = $rule->getParsedActions();
-        // A rule shared with the importer may set a category the importer can't
-        // see; such actions are skipped rather than stamping an inaccessible id.
-        $ruleShared = ($rule->getUserId() !== null && $rule->getUserId() !== $userId);
-        $actionList = [];
+		return $this->criteriaEvaluator->evaluate($rule->getCriteria(), $transaction, $schemaVersion);
+	}
 
-        if (isset($actions['version']) && $actions['version'] === 2) {
-            $actionList = $actions['actions'] ?? [];
-        } elseif (isset($actions['actions'])) {
-            $actionList = $actions['actions'];
-        }
+	/** Action types the import carries out besides Set Category, which is checked on its own (Set Account is the target's to decide) */
+	private const IMPORT_ACTION_TYPES = [
+		'set_vendor', 'set_description', 'set_notes', 'set_type', 'set_reference',
+		'regex_replace', 'change_case', 'replace_text', 'add_tags', 'link_transfer', 'set_forecast_exclude',
+	];
 
-        // Sort by priority (higher first)
-        usort($actionList, fn($a, $b) => ($b['priority'] ?? 50) - ($a['priority'] ?? 50));
+	/**
+	 * A rule's actions as one list: the current format as stored, or an
+	 * older rule's category and vendor, kept in its own columns (or in that
+	 * shape), converted as Run rules converts them.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function actionListOf(ImportRule $rule): array {
+		$actions = $rule->getParsedActions();
 
-        foreach ($actionList as $action) {
-            $type = $action['type'] ?? null;
-            $value = $action['value'] ?? null;
-            $behavior = $action['behavior'] ?? 'always';
+		if (isset($actions['version']) && $actions['version'] === 2) {
+			$list = $actions['actions'] ?? [];
+		} elseif (isset($actions['actions'])) {
+			$list = $actions['actions'];
+		} else {
+			$list = RuleActionApplicator::convertLegacyActions($actions);
+		}
 
-            if ($type === null) {
-                continue;
-            }
+		return is_array($list) ? array_values(array_filter($list, 'is_array')) : [];
+	}
 
-            switch ($type) {
-                case 'set_category':
-                    if ($this->shouldApply($behavior, $transaction['categoryId'] ?? null)) {
-                        // For a shared rule, only stamp the category if the importer
-                        // can actually see it (co-shared); otherwise skip it.
-                        if (!$ruleShared
-                            || $this->granularShareService->canAccess($userId, ShareItem::TYPE_CATEGORY, (int)$value)) {
-                            $transaction['categoryId'] = (int)$value;
-                        }
-                    }
-                    break;
+	/**
+	 * Whether a matching rule has anything it can do to this importer's row.
+	 *
+	 * A rule that can't do anything must not count as a match: a match stops
+	 * the rules after it, so a rule with no actions, or only a category the
+	 * importer can't use (a deleted one, say), or only Set Account (which an
+	 * import leaves to the chosen account) would keep the user's other rules
+	 * from running while changing nothing itself. That is how setup's empty
+	 * default rules, back from a pre-3.0 backup, blocked the user's own rules
+	 * once older rules matched at import again (V2-1). Such a rule is passed
+	 * over as if it didn't match.
+	 */
+	private function hasSomethingToDo(ImportRule $rule, string $userId): bool {
+		foreach ($this->actionListOf($rule) as $action) {
+			$type = $action['type'] ?? null;
+			if ($type === 'set_category') {
+				$value = $action['value'] ?? null;
+				if ($value !== null && $value !== ''
+					&& $this->granularShareService->canAccess($userId, ShareItem::TYPE_CATEGORY, (int)$value)) {
+					return true;
+				}
+				continue;
+			}
+			if (in_array($type, self::IMPORT_ACTION_TYPES, true)) {
+				return true;
+			}
+		}
+		return false;
+	}
 
-                case 'set_vendor':
-                    if ($this->shouldApply($behavior, $transaction['vendor'] ?? null)) {
-                        $transaction['vendor'] = $value;
-                    }
-                    break;
+	/**
+	 * Extract and apply v2 actions from a rule to a transaction array.
+	 *
+	 * @param string $userId The user performing the import (may differ from the
+	 *                       rule owner when the rule was shared with them).
+	 */
+	private function applyActions(ImportRule $rule, array $transaction, string $userId): array {
+		$actionList = $this->actionListOf($rule);
 
-                case 'set_description':
-                    if ($this->shouldApply($behavior, $transaction['description'] ?? null)) {
-                        $transaction['description'] = (string)$value;
-                    }
-                    break;
+		// Sort by priority (higher first)
+		usort($actionList, fn ($a, $b) => ($b['priority'] ?? 50) - ($a['priority'] ?? 50));
 
-                case 'set_notes':
-                    $existing = $transaction['notes'] ?? null;
-                    if ($behavior === 'append' && $existing) {
-                        $separator = $action['separator'] ?? ' ';
-                        $transaction['notes'] = $existing . $separator . $value;
-                    } elseif ($this->shouldApply($behavior, $existing)) {
-                        $transaction['notes'] = $value;
-                    }
-                    break;
+		foreach ($actionList as $action) {
+			$type = $action['type'] ?? null;
+			$value = $action['value'] ?? null;
+			$behavior = $action['behavior'] ?? 'always';
 
-                case 'set_type':
-                    // Map user-facing terms to internal DB values: income->credit, expense->debit
-                    $typeMap = ['income' => 'credit', 'expense' => 'debit'];
-                    if (isset($typeMap[$value])
-                        && $this->shouldApply($behavior, $transaction['type'] ?? null)) {
-                        $transaction['type'] = $typeMap[$value];
-                        // The rule answered what the type column couldn't, so
-                        // the preview shouldn't still flag this row (#333)
-                        unset($transaction['_typeUnresolved']);
-                    }
-                    break;
+			if ($type === null) {
+				continue;
+			}
 
-                case 'set_reference':
-                    if ($this->shouldApply($behavior, $transaction['reference'] ?? null)) {
-                        $transaction['reference'] = $value;
-                    }
-                    break;
+			switch ($type) {
+				case 'set_category':
+					if ($this->shouldApply($behavior, $transaction['categoryId'] ?? null)) {
+						// The row lands in the importer's ledger, so the category
+						// must be one they can use (own, or shared with them),
+						// whoever's rule it is: an unchecked id from an own rule
+						// put another user's category, and its name, on the row
+						// (R6-4). Otherwise the action is skipped.
+						if ($this->granularShareService->canAccess($userId, ShareItem::TYPE_CATEGORY, (int)$value)) {
+							$transaction['categoryId'] = (int)$value;
+						}
+					}
+					break;
 
-                case 'add_tags':
-                    // Store tag actions for deferred application after transaction is persisted
-                    if (!isset($transaction['_deferred_tags'])) {
-                        $transaction['_deferred_tags'] = [];
-                    }
-                    $transaction['_deferred_tags'][] = [
-                        'tagIds' => $value,
-                        'behavior' => $behavior,
-                    ];
-                    break;
+				case 'set_vendor':
+					if ($this->shouldApply($behavior, $transaction['vendor'] ?? null)) {
+						$transaction['vendor'] = $value;
+					}
+					break;
 
-                case 'link_transfer':
-                    // Flag for deferred transfer linking after all transactions are persisted
-                    $transaction['_deferred_link_transfer'] = true;
-                    break;
+				case 'set_description':
+					if ($this->shouldApply($behavior, $transaction['description'] ?? null)) {
+						$transaction['description'] = (string)$value;
+					}
+					break;
 
-                case 'set_forecast_exclude':
-                    // Mark extraordinary/one-time items so they don't skew the
-                    // forecast (#270). Value defaults to true when omitted.
-                    $transaction['excludedFromForecast'] = ($value === null)
-                        ? true
-                        : filter_var($value, FILTER_VALIDATE_BOOLEAN);
-                    break;
+				case 'set_notes':
+					$existing = $transaction['notes'] ?? null;
+					if ($behavior === 'append' && $existing) {
+						$separator = $action['separator'] ?? ' ';
+						$transaction['notes'] = $existing . $separator . $value;
+					} elseif ($this->shouldApply($behavior, $existing)) {
+						$transaction['notes'] = $value;
+					}
+					break;
 
-                // set_account: skip during import (account is set by the import target)
-            }
-        }
+				case 'set_type':
+					// Map user-facing terms to internal DB values: income->credit, expense->debit
+					$typeMap = ['income' => 'credit', 'expense' => 'debit'];
+					if (isset($typeMap[$value])
+						&& $this->shouldApply($behavior, $transaction['type'] ?? null)) {
+						$transaction['type'] = $typeMap[$value];
+						// The rule answered what the type column couldn't, so
+						// the preview shouldn't still flag this row (#333)
+						unset($transaction['_typeUnresolved']);
+					}
+					break;
 
-        return $transaction;
-    }
+				case 'set_reference':
+					if ($this->shouldApply($behavior, $transaction['reference'] ?? null)) {
+						$transaction['reference'] = $value;
+					}
+					break;
 
-    /**
-     * Check if an action should be applied based on its behavior.
-     */
-    private function shouldApply(string $behavior, $currentValue): bool {
-        if ($behavior === 'if_empty') {
-            return $currentValue === null || $currentValue === '';
-        }
-        return true;
-    }
+				case 'regex_replace':
+					$sourceField = $action['field'] ?? 'description';
+					$targetField = $action['target'] ?? $sourceField;
+					$pattern = $action['pattern'] ?? null;
+					$replacement = $action['replacement'] ?? '';
+					if (!in_array($sourceField, ['description', 'vendor', 'reference', 'notes'], true)
+						|| !in_array($targetField, ['description', 'vendor', 'reference', 'notes'], true)
+						|| !is_string($pattern) || !is_string($replacement)) {
+						break;
+					}
+					$current = $transaction[$sourceField] ?? null;
+					if ($pattern === '' || !is_string($current)) {
+						break;
+					}
+					$normalizedPattern = RegexPattern::forReplace($pattern);
+					if ($normalizedPattern === null) {
+						break;
+					}
+					$targetCurrent = $transaction[$targetField] ?? null;
+					if ($this->shouldApply($behavior, $targetCurrent)) {
+						$updated = @preg_replace($normalizedPattern, $replacement, $current, -1, $matchCount);
+						// No match means preg_replace handed back the source unchanged;
+						// writing that into a different target would copy it verbatim.
+						if ($updated === null || $matchCount === 0) {
+							break;
+						}
+						// Text that is not UTF-8 breaks every list it appears in
+						if (!mb_check_encoding($updated, 'UTF-8')) {
+							$this->logger?->warning('Regex replace skipped: the result is not valid UTF-8', [
+								'app' => 'budget',
+								'ruleId' => $rule->getId(),
+							]);
+							break;
+						}
+						$transaction[$targetField] = $updated;
+					}
+					break;
+
+				case 'change_case':
+					$field = $action['field'] ?? 'description';
+					$mode = $action['mode'] ?? 'upper';
+					$current = $transaction[$field] ?? null;
+					if (!in_array($field, ['description', 'vendor', 'reference', 'notes'], true)
+						|| ($current !== null && !is_string($current))
+						|| !in_array($mode, ['upper', 'lower', 'title', 'sentence'], true)) {
+						break;
+					}
+					$current ??= '';
+					$updated = match ($mode) {
+						'upper' => mb_strtoupper($current, 'UTF-8'),
+						'lower' => mb_strtolower($current, 'UTF-8'),
+						'title' => mb_convert_case($current, MB_CASE_TITLE, 'UTF-8'),
+						'sentence' => mb_strtoupper(mb_substr($current, 0, 1, 'UTF-8'), 'UTF-8') . mb_strtolower(mb_substr($current, 1, null, 'UTF-8'), 'UTF-8'),
+					};
+					$transaction[$field] = $updated;
+					break;
+
+				case 'replace_text':
+					$field = $action['field'] ?? 'description';
+					$find = $action['find'] ?? '';
+					$replace = $action['replace'] ?? '';
+					$current = $transaction[$field] ?? null;
+					if (!in_array($field, ['description', 'vendor', 'reference', 'notes'], true)
+						|| !is_string($find) || $find === '' || !is_string($replace)
+						|| ($current !== null && !is_string($current))) {
+						break;
+					}
+					$current ??= '';
+					$transaction[$field] = str_replace($find, $replace, $current);
+					break;
+
+				case 'add_tags':
+					// Store tag actions for deferred application after transaction is persisted
+					if (!isset($transaction['_deferred_tags'])) {
+						$transaction['_deferred_tags'] = [];
+					}
+					$transaction['_deferred_tags'][] = [
+						'tagIds' => $value,
+						'behavior' => $behavior,
+					];
+					break;
+
+				case 'link_transfer':
+					// Flag for deferred transfer linking after all transactions are persisted
+					$transaction['_deferred_link_transfer'] = true;
+					break;
+
+				case 'set_forecast_exclude':
+					// Mark extraordinary/one-time items so they don't skew the
+					// forecast (#270). Value defaults to true when omitted.
+					$transaction['excludedFromForecast'] = ($value === null)
+						? true
+						: filter_var($value, FILTER_VALIDATE_BOOLEAN);
+					break;
+
+					// set_account: skip during import (account is set by the import target)
+			}
+		}
+
+		return $transaction;
+	}
+
+	/**
+	 * Check if an action should be applied based on its behavior.
+	 */
+	private function shouldApply(string $behavior, $currentValue): bool {
+		if ($behavior === 'if_empty') {
+			return $currentValue === null || $currentValue === '';
+		}
+		return true;
+	}
 }

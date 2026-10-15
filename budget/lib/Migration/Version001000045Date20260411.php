@@ -16,21 +16,21 @@ use OCP\Migration\SimpleMigrationStep;
  */
 class Version001000045Date20260411 extends SimpleMigrationStep {
 
-    public function changeSchema(IOutput $output, \Closure $schemaClosure, array $options): ?ISchemaWrapper {
-        /** @var ISchemaWrapper $schema */
-        $schema = $schemaClosure();
+	public function changeSchema(IOutput $output, \Closure $schemaClosure, array $options): ?ISchemaWrapper {
+		/** @var ISchemaWrapper $schema */
+		$schema = $schemaClosure();
 
-        if ($schema->hasTable('budget_bills')) {
-            $table = $schema->getTable('budget_bills');
+		if ($schema->hasTable('budget_bills')) {
+			$table = $schema->getTable('budget_bills');
 
-            if (!$table->hasColumn('split_template')) {
-                $table->addColumn('split_template', Types::TEXT, [
-                    'notnull' => false,
-                    'default' => null,
-                ]);
-            }
-        }
+			if (!$table->hasColumn('split_template')) {
+				$table->addColumn('split_template', Types::TEXT, [
+					'notnull' => false,
+					'default' => null,
+				]);
+			}
+		}
 
-        return $schema;
-    }
+		return $schema;
+	}
 }

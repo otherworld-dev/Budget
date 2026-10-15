@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace OCA\Budget\BackgroundJob;
 
+use OCA\Budget\BackgroundJob\Support\JobUsers;
 use OCA\Budget\Service\Report\ScheduledReportService;
 use OCA\Budget\Service\SettingService;
+use OCA\Budget\Service\UserClock;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\TimedJob;
 use OCP\IDBConnection;
@@ -23,66 +25,61 @@ use Psr\Log\LoggerInterface;
  */
 class ScheduledReportJob extends TimedJob {
 
-    public function __construct(ITimeFactory $time) {
-        parent::__construct($time);
+	public function __construct(ITimeFactory $time) {
+		parent::__construct($time);
 
-        $this->setInterval(24 * 60 * 60);
-        $this->setTimeSensitivity(\OCP\BackgroundJob\IJob::TIME_INSENSITIVE);
-    }
+		$this->setInterval(24 * 60 * 60);
+		$this->setTimeSensitivity(\OCP\BackgroundJob\IJob::TIME_INSENSITIVE);
+	}
 
-    protected function run($argument): void {
-        $db = Server::get(IDBConnection::class);
-        $settingService = Server::get(SettingService::class);
-        $reportService = Server::get(ScheduledReportService::class);
-        $logger = Server::get(LoggerInterface::class);
+	protected function run($argument): void {
+		$db = Server::get(IDBConnection::class);
+		$settingService = Server::get(SettingService::class);
+		$reportService = Server::get(ScheduledReportService::class);
+		$logger = Server::get(LoggerInterface::class);
+		$clock = Server::get(UserClock::class);
 
-        $targetMonth = date('Y-m', strtotime('first day of last month'));
-        $delivered = 0;
+		$delivered = 0;
+		$deliveredMonths = [];
 
-        foreach ($this->getEligibleUserIds($db) as $userId) {
-            try {
-                if ($settingService->get($userId, 'report_last_month') === $targetMonth) {
-                    continue;
-                }
+		foreach ($this->getEligibleUserIds($db) as $userId) {
+			try {
+				// Last month on the user's calendar, not the server's: on the
+				// server's UTC date a user west of Greenwich got the month's
+				// report hours before the month had ended for them
+				$targetMonth = $clock->now($userId)->modify('first day of last month')->format('Y-m');
+				if ($settingService->get($userId, 'report_last_month') === $targetMonth) {
+					continue;
+				}
 
-                $toFiles = $settingService->get($userId, 'report_files_enabled') === 'true';
-                $toEmail = $settingService->get($userId, 'report_email_enabled') === 'true';
-                if (!$toFiles && !$toEmail) {
-                    continue;
-                }
+				$toFiles = $settingService->get($userId, 'report_files_enabled') === 'true';
+				$toEmail = $settingService->get($userId, 'report_email_enabled') === 'true';
+				if (!$toFiles && !$toEmail) {
+					continue;
+				}
 
-                if ($reportService->deliverMonthlyReport($userId, $targetMonth, $toFiles, $toEmail)) {
-                    $settingService->set($userId, 'report_last_month', $targetMonth);
-                    $delivered++;
-                } else {
-                    $logger->warning("Scheduled report for {$userId} failed on all channels — will retry tomorrow", ['app' => 'budget']);
-                }
-            } catch (\Exception $e) {
-                $logger->warning("Scheduled report failed for {$userId}: " . $e->getMessage(), ['app' => 'budget']);
-            }
-        }
+				if ($reportService->deliverMonthlyReport($userId, $targetMonth, $toFiles, $toEmail)) {
+					$settingService->set($userId, 'report_last_month', $targetMonth);
+					$delivered++;
+					$deliveredMonths[$targetMonth] = true;
+				} else {
+					$logger->warning("Scheduled report for {$userId} failed on all channels — will retry tomorrow", ['app' => 'budget']);
+				}
+			} catch (\Exception $e) {
+				$logger->warning("Scheduled report failed for {$userId}: " . $e->getMessage(), ['app' => 'budget']);
+			}
+		}
 
-        $logger->info("Scheduled report job completed: {$delivered} reports delivered for {$targetMonth}", ['app' => 'budget']);
-    }
+		$months = implode(', ', array_keys($deliveredMonths)) ?: 'no month';
+		$logger->info("Scheduled report job completed: {$delivered} reports delivered for {$months}", ['app' => 'budget']);
+	}
 
-    /**
-     * Users with at least one report channel enabled.
-     *
-     * @return string[]
-     */
-    private function getEligibleUserIds(IDBConnection $db): array {
-        $qb = $db->getQueryBuilder();
-        $qb->selectDistinct('user_id')
-            ->from('budget_settings')
-            ->where($qb->expr()->in('key', $qb->createNamedParameter(
-                ['report_files_enabled', 'report_email_enabled'],
-                \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_STR_ARRAY
-            )))
-            ->andWhere($qb->expr()->eq('value', $qb->createNamedParameter('true')));
-
-        $result = $qb->executeQuery();
-        $userIds = array_map(fn($row) => (string) $row['user_id'], $result->fetchAll());
-        $result->closeCursor();
-        return $userIds;
-    }
+	/**
+	 * Users who turned on delivery to Files or by email.
+	 *
+	 * @return string[]
+	 */
+	private function getEligibleUserIds(IDBConnection $db): array {
+		return (new JobUsers($db))->withSettingEnabled('report_files_enabled', 'report_email_enabled');
+	}
 }

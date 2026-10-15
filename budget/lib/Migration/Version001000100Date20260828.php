@@ -33,61 +33,61 @@ use OCP\Migration\SimpleMigrationStep;
  */
 class Version001000100Date20260828 extends SimpleMigrationStep {
 
-    public function __construct(
-        private IDBConnection $db,
-    ) {
-    }
+	public function __construct(
+		private IDBConnection $db,
+	) {
+	}
 
-    public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
-        return null;
-    }
+	public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
+		return null;
+	}
 
-    public function postSchemaChange(IOutput $output, Closure $schemaClosure, array $options): void {
-        /** @var ISchemaWrapper $schema */
-        $schema = $schemaClosure();
+	public function postSchemaChange(IOutput $output, Closure $schemaClosure, array $options): void {
+		/** @var ISchemaWrapper $schema */
+		$schema = $schemaClosure();
 
-        if (!$schema->hasTable('budget_transactions') || !$schema->hasTable('budget_tx_splits')) {
-            return;
-        }
+		if (!$schema->hasTable('budget_transactions') || !$schema->hasTable('budget_tx_splits')) {
+			return;
+		}
 
-        $resolved = $this->resolveFlag(true, nullOnly: true, mustHaveParts: true)
-            + $this->resolveFlag(false, nullOnly: true, mustHaveParts: false);
-        $cleared = $this->resolveFlag(false, nullOnly: false, mustHaveParts: false);
+		$resolved = $this->resolveFlag(true, nullOnly: true, mustHaveParts: true)
+			+ $this->resolveFlag(false, nullOnly: true, mustHaveParts: false);
+		$cleared = $this->resolveFlag(false, nullOnly: false, mustHaveParts: false);
 
-        if ($resolved > 0) {
-            $output->info("Resolved is_split from the parts table on {$resolved} transaction(s)");
-        }
-        if ($cleared > 0) {
-            $output->info("Cleared a split claim with no parts behind it on {$cleared} transaction(s)");
-        }
-    }
+		if ($resolved > 0) {
+			$output->info("Resolved is_split from the parts table on {$resolved} transaction(s)");
+		}
+		if ($cleared > 0) {
+			$output->info("Cleared a split claim with no parts behind it on {$cleared} transaction(s)");
+		}
+	}
 
-    /**
-     * One set-based UPDATE: rows in the targeted grey state (NULL flag, or a
-     * true claim when $nullOnly is false) whose parts existence matches
-     * $mustHaveParts get $newValue. The subquery reads only budget_tx_splits,
-     * so updating budget_transactions in the same statement is fine on
-     * SQLite, MySQL/MariaDB and PostgreSQL alike.
-     *
-     * @return int affected rows
-     */
-    private function resolveFlag(bool $newValue, bool $nullOnly, bool $mustHaveParts): int {
-        $qb = $this->db->getQueryBuilder();
+	/**
+	 * One set-based UPDATE: rows in the targeted grey state (NULL flag, or a
+	 * true claim when $nullOnly is false) whose parts existence matches
+	 * $mustHaveParts get $newValue. The subquery reads only budget_tx_splits,
+	 * so updating budget_transactions in the same statement is fine on
+	 * SQLite, MySQL/MariaDB and PostgreSQL alike.
+	 *
+	 * @return int affected rows
+	 */
+	private function resolveFlag(bool $newValue, bool $nullOnly, bool $mustHaveParts): int {
+		$qb = $this->db->getQueryBuilder();
 
-        $exists = 'EXISTS (SELECT 1 FROM ' . $qb->getTableName('budget_tx_splits') . ' bsx'
-            . ' WHERE bsx.transaction_id = ' . $qb->getTableName('budget_transactions') . '.id)';
+		$exists = 'EXISTS (SELECT 1 FROM ' . $qb->getTableName('budget_tx_splits') . ' bsx'
+			. ' WHERE bsx.transaction_id = ' . $qb->getTableName('budget_transactions') . '.id)';
 
-        $qb->update('budget_transactions')
-            ->set('is_split', $qb->createNamedParameter($newValue, IQueryBuilder::PARAM_BOOL));
+		$qb->update('budget_transactions')
+			->set('is_split', $qb->createNamedParameter($newValue, IQueryBuilder::PARAM_BOOL));
 
-        if ($nullOnly) {
-            $qb->where($qb->expr()->isNull('is_split'));
-        } else {
-            $qb->where($qb->expr()->eq('is_split', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)));
-        }
+		if ($nullOnly) {
+			$qb->where($qb->expr()->isNull('is_split'));
+		} else {
+			$qb->where($qb->expr()->eq('is_split', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)));
+		}
 
-        $qb->andWhere(($mustHaveParts ? '' : 'NOT ') . $exists);
+		$qb->andWhere(($mustHaveParts ? '' : 'NOT ') . $exists);
 
-        return $qb->executeStatement();
-    }
+		return $qb->executeStatement();
+	}
 }

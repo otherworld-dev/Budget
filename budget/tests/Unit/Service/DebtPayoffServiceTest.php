@@ -50,7 +50,7 @@ class DebtPayoffServiceTest extends TestCase {
 		$this->accountMapper->method('findAll')->with('user1')->willReturn($accounts);
 
 		$debts = $this->service->getDebts('user1');
-		$types = array_map(fn($d) => $d->getType(), array_values($debts));
+		$types = array_map(fn ($d) => $d->getType(), array_values($debts));
 
 		$this->assertCount(3, $debts);
 		$this->assertContains('credit_card', $types);
@@ -181,6 +181,24 @@ class DebtPayoffServiceTest extends TestCase {
 		$this->assertGreaterThan($withExtra['totalMonths'], $noExtra['totalMonths']);
 		// Extra payment should reduce total interest
 		$this->assertGreaterThan($withExtra['totalInterest'], $noExtra['totalInterest']);
+	}
+
+	public function testCalculatePayoffPlanReportsTheMinimumPaymentItAssumes(): void {
+		// The page's Monthly Payment adds these up; they were never sent, so
+		// it always read 0 while the plan paid 25 + 37.08 a month
+		$noMinimum = $this->makeAccount(['id' => 1, 'balance' => -1000, 'interestRate' => 0]);
+		$noMinimum->setMinimumPayment(null);
+		$this->accountMapper->method('findAll')->willReturn([
+			$noMinimum,
+			// 20% of 2,000 is 33.33 interest a month: the plan pays 10 more
+			$this->makeAccount(['id' => 2, 'name' => 'Loan', 'type' => 'loan', 'balance' => -2000, 'interestRate' => 20.0, 'minimumPayment' => 30]),
+		]);
+		$this->transactionMapper->method('getNetChangeAfterDateBatch')->willReturn([]);
+
+		$plan = $this->service->calculatePayoffPlan('user1', 'avalanche');
+
+		$byId = array_column($plan['debts'], 'minimumPayment', 'id');
+		$this->assertSame([1 => 25.0, 2 => 43.33], [1 => $byId[1], 2 => $byId[2]]);
 	}
 
 	public function testCalculatePayoffPlanSetsPayoffDate(): void {

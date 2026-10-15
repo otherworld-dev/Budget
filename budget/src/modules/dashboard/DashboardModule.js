@@ -11,13 +11,17 @@
 
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
-import Chart from 'chart.js/auto';
+import Chart from '../../utils/chart.js';
 import { DASHBOARD_WIDGETS } from '../../config/dashboardWidgets.js';
 import { showSuccess, showError } from '../../utils/notifications.js';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import { GridStack } from 'gridstack';
 import 'gridstack/dist/gridstack.min.css';
 import { groupProjects, progressFor } from '../projects/projectMath.js';
+import { progressBarAttrs, overBudgetText } from '../../utils/budgetProgress.js';
+import { apiFetch, ApiError } from '../../utils/api.js';
+import { hiddenCategoryBranch, withoutHiddenCategories, categoryPickerRows } from '../../utils/categoryVisibility.js';
+import { rowCategoryName } from '../transactions/transactionRow.js';
 
 const GRIDSTACK_SIZE_MAP = {
     xs: { w: 1, h: 1 },
@@ -73,18 +77,10 @@ export default class DashboardModule {
                 this._saveSettingsTimer = null;
 
                 try {
-                    const response = await fetch(OC.generateUrl('/apps/budget/api/settings'), {
+                    await apiFetch('/apps/budget/api/settings', {
                         method: 'PUT',
-                        headers: {
-                            'requesttoken': OC.requestToken,
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(toSave)
+                        body: toSave
                     });
-
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}`);
-                    }
 
                     // Update local settings cache
                     Object.assign(this.settings, toSave);
@@ -164,9 +160,6 @@ export default class DashboardModule {
         return formatters.formatDate(dateStr, this.settings);
     }
 
-    escapeHtml(text) {
-        return dom.escapeHtml(text);
-    }
 
     getPrimaryCurrency() {
         return this.app.getPrimaryCurrency();
@@ -200,61 +193,38 @@ export default class DashboardModule {
             // rejects, so a failure only leaves the tile out
             const projectsRequest = this.fetchProjectsForTile();
 
+            // A failed summary, trend or transactions request draws those
+            // tiles empty and still lets the rest of the dashboard set up
+            const orEmpty = (fallback) => (error) => {
+                if (error instanceof ApiError) return fallback;
+                throw error;
+            };
+
             // Load all dashboard data in parallel for better performance
-            const [summaryResponse, trendResponse, transResponse, billsResponse, budgetResponse, goalsResponse, pensionResponse, assetResponse, netWorthResponse, alertsResponse, debtResponse, assetHistoryResponse] = await Promise.all([
+            const [summary, trendData, transactions, billsRaw, budgetDataRaw, goalsRaw, pensionRaw, assetRaw, netWorthRaw, alertsRaw, debtSummary, assetValueHistory] = await Promise.all([
                 // Current budget cycle summary for hero stats
-                fetch(OC.generateUrl(`/apps/budget/api/reports/summary?startDate=${periodStart}&endDate=${periodEnd}&_=${cacheBuster}`), {
-                    headers: { 'requesttoken': OC.requestToken }
-                }),
+                apiFetch(`/apps/budget/api/reports/summary?startDate=${periodStart}&endDate=${periodEnd}&_=${cacheBuster}`).catch(orEmpty({})),
                 // 6-month summary for trend charts
-                fetch(OC.generateUrl(`/apps/budget/api/reports/summary?startDate=${sixMonthsAgo}&endDate=${endOfMonth}&_=${cacheBuster}`), {
-                    headers: { 'requesttoken': OC.requestToken }
-                }),
-                fetch(OC.generateUrl(`/apps/budget/api/transactions?limit=${this._recentTxLimit()}`), {
-                    headers: { 'requesttoken': OC.requestToken }
-                }),
-                fetch(OC.generateUrl('/apps/budget/api/bills/upcoming'), {
-                    headers: { 'requesttoken': OC.requestToken }
-                }).catch(() => ({ ok: false })),
-                fetch(OC.generateUrl(`/apps/budget/api/reports/budget?startDate=${periodStart}&endDate=${periodEnd}&snapshotMonth=${periodMonth}`), {
-                    headers: { 'requesttoken': OC.requestToken }
-                }).catch(() => ({ ok: false })),
-                fetch(OC.generateUrl('/apps/budget/api/savings-goals'), {
-                    headers: { 'requesttoken': OC.requestToken }
-                }).catch(() => ({ ok: false })),
-                fetch(OC.generateUrl('/apps/budget/api/pensions/summary'), {
-                    headers: { 'requesttoken': OC.requestToken }
-                }).catch(() => ({ ok: false })),
-                fetch(OC.generateUrl('/apps/budget/api/assets/summary'), {
-                    headers: { 'requesttoken': OC.requestToken }
-                }).catch(() => ({ ok: false })),
-                fetch(OC.generateUrl('/apps/budget/api/net-worth/snapshots?days=30'), {
-                    headers: { 'requesttoken': OC.requestToken }
-                }).catch(() => ({ ok: false })),
-                fetch(OC.generateUrl('/apps/budget/api/alerts'), {
-                    headers: { 'requesttoken': OC.requestToken }
-                }).catch(() => ({ ok: false })),
-                fetch(OC.generateUrl('/apps/budget/api/debts/summary'), {
-                    headers: { 'requesttoken': OC.requestToken }
-                }).catch(() => ({ ok: false })),
-                fetch(OC.generateUrl('/apps/budget/api/assets/value-history?days=30'), {
-                    headers: { 'requesttoken': OC.requestToken }
-                }).catch(() => ({ ok: false }))
+                apiFetch(`/apps/budget/api/reports/summary?startDate=${sixMonthsAgo}&endDate=${endOfMonth}&_=${cacheBuster}`).catch(orEmpty({})),
+                apiFetch(`/apps/budget/api/transactions?limit=${this._recentTxLimit()}`).catch(orEmpty([])),
+                apiFetch(this.upcomingBillsUrl()).catch(() => null),
+                apiFetch(`/apps/budget/api/reports/budget?startDate=${periodStart}&endDate=${periodEnd}&snapshotMonth=${periodMonth}`).catch(() => null),
+                apiFetch('/apps/budget/api/savings-goals').catch(() => null),
+                apiFetch('/apps/budget/api/pensions/summary').catch(() => null),
+                apiFetch('/apps/budget/api/assets/summary').catch(() => null),
+                apiFetch('/apps/budget/api/net-worth/snapshots?days=30').catch(() => null),
+                apiFetch('/apps/budget/api/alerts').catch(() => null),
+                apiFetch('/apps/budget/api/debts/summary').catch(() => null),
+                apiFetch('/apps/budget/api/assets/value-history?days=30').catch(() => null)
             ]);
 
-            const summary = await summaryResponse.json();
-            const trendData = await trendResponse.json();
-            const transactions = await transResponse.json();
-            const bills = billsResponse.ok ? await billsResponse.json() : [];
-            const budgetDataRaw = budgetResponse.ok ? await budgetResponse.json() : null;
+            const bills = billsRaw ?? [];
             const budgetData = budgetDataRaw && typeof budgetDataRaw === 'object' ? budgetDataRaw : { categories: [] };
-            const savingsGoals = goalsResponse.ok ? await goalsResponse.json() : [];
-            const pensionSummary = pensionResponse.ok ? await pensionResponse.json() : { totalPensionWorth: 0, pensionCount: 0 };
-            const assetSummary = assetResponse.ok ? await assetResponse.json() : { totalAssetWorth: 0, assetCount: 0 };
-            const netWorthSnapshots = netWorthResponse.ok ? await netWorthResponse.json() : [];
-            const budgetAlerts = alertsResponse.ok ? await alertsResponse.json() : [];
-            const debtSummary = debtResponse.ok ? await debtResponse.json() : null;
-            const assetValueHistory = assetHistoryResponse.ok ? await assetHistoryResponse.json() : null;
+            const savingsGoals = goalsRaw ?? [];
+            const pensionSummary = pensionRaw ?? { totalPensionWorth: 0, pensionCount: 0 };
+            const assetSummary = assetRaw ?? { totalAssetWorth: 0, assetCount: 0 };
+            const netWorthSnapshots = netWorthRaw ?? [];
+            const budgetAlerts = alertsRaw ?? [];
 
             // Update Hero Section (current month data)
             this.updateDashboardHero(summary, pensionSummary, assetSummary);
@@ -308,7 +278,7 @@ export default class DashboardModule {
             this.updateSavingsRateHero(summary);
             this.updateCashFlowHero(summary);
             this.updateBudgetRemainingHero(budgetData);
-            this.updateBudgetHealthHero(budgetAlerts);
+            this.updateBudgetHealthHero(budgetAlerts, budgetData);
 
             // Per-Account Hero Tiles
             this._lastSummary = summary;
@@ -386,7 +356,10 @@ export default class DashboardModule {
 
             // Remove tiles that ended up hidden — run after all async data loading settles
             // (some tiles get display:none set by lazy load callbacks)
-            setTimeout(() => this._removeHiddenTilesFromGrid(), 500);
+            setTimeout(() => {
+                this._removeHiddenTilesFromGrid();
+                this._compactEmptyTiles();
+            }, 500);
 
         } catch (error) {
             console.error('Failed to load dashboard:', error);
@@ -468,7 +441,7 @@ export default class DashboardModule {
             // Savings rate
             if (savingsRateEl && totals.totalIncome > 0) {
                 const savingsRate = (netSavings / totals.totalIncome * 100);
-                savingsRateEl.textContent = `${savingsRate >= 0 ? '' : '-'}${t('budget', '{percent}% savings rate', { percent: Math.abs(savingsRate).toFixed(1) })}`;
+                savingsRateEl.textContent = `${savingsRate >= 0 ? '' : '-'}${/* xgettext:no-javascript-format */ t('budget', '{percent}% savings rate', { percent: Math.abs(savingsRate).toFixed(1) })}`;
             }
         }
     }
@@ -611,6 +584,7 @@ export default class DashboardModule {
                 return this.refreshAssetValueChart(days);
             },
             topCategories: () => this.refreshTopCategoriesWidget('topCategories'),
+            budgetProgress: () => this.refreshBudgetProgressWidget('budgetProgress'),
         };
 
         for (const [widgetId, refreshFn] of Object.entries(widgetRefreshMap)) {
@@ -730,9 +704,64 @@ export default class DashboardModule {
         return `
                 <div class="form-group">
                     <label>${t('budget', 'Date Range')}</label>
-                    <select class="tile-setting-input" data-setting="dateRange">
+                    <select aria-label="${t('budget', 'Date Range')}" class="tile-setting-input" data-setting="dateRange">
                         ${markup}
                     </select>
+                </div>
+            `;
+    }
+
+    /**
+     * The Upcoming Bills tile's "Exclude shared bills" box. Offered when bills
+     * shared with the user are listed, or when it is already ticked so it can
+     * be unticked again.
+     *
+     * @param {object} schema - The tile's settingsSchema
+     * @param {object} currentSettings - The tile's saved settings
+     * @returns {string} Form-group markup, or '' when not offered
+     */
+    _excludeSharedBillsField(schema, currentSettings) {
+        if (!schema.excludeSharedBills) return '';
+        const checked = !!currentSettings.excludeSharedBills;
+        const hasShared = (this.widgetData?.upcomingBills || []).some(bill => bill?._shared);
+        if (!checked && !hasShared) return '';
+        return this._checkboxField('excludeSharedBills', t('budget', 'Exclude shared bills'), checked);
+    }
+
+    /**
+     * The Upcoming Bills tile's box for keeping bills that are more than a
+     * week overdue, which the tile otherwise drops. Off until the user
+     * turns it on.
+     *
+     * @param {object} schema - The tile's settingsSchema
+     * @param {object} currentSettings - The tile's saved settings
+     * @returns {string} Form-group markup, or '' when not offered
+     */
+    _showAllOverdueField(schema, currentSettings) {
+        if (!schema.showAllOverdue) return '';
+        return this._checkboxField(
+            'showAllOverdue',
+            t('budget', 'Show bills overdue for more than a week'),
+            !!currentSettings.showAllOverdue
+        );
+    }
+
+    /**
+     * A settings-modal checkbox.
+     *
+     * @param {string} setting - data-setting name the modal saves under
+     * @param {string} label - Label, already translated
+     * @param {boolean} checked - Current value
+     * @returns {string} Form-group markup
+     */
+    _checkboxField(setting, label, checked) {
+        return `
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
+                        <input type="checkbox" class="tile-setting-input" data-setting="${setting}"
+                            style="width: auto; min-height: auto;" ${checked ? 'checked' : ''}>
+                        ${label}
+                    </label>
                 </div>
             `;
     }
@@ -769,7 +798,7 @@ export default class DashboardModule {
         return `
                 <div class="form-group">
                     <label>${label}</label>
-                    <select class="tile-setting-input" data-setting="${setting}">
+                    <select class="tile-setting-input" data-setting="${setting}" aria-label="${label}">
                         ${markup}
                     </select>
                 </div>
@@ -916,10 +945,15 @@ export default class DashboardModule {
             return;
         }
 
-        const totalRemaining = budgetData.categories.reduce((sum, cat) => {
-            const budget = cat.budgeted || cat.budget || 0;
-            const spent = cat.spent || 0;
-            const remaining = budget - spent;
+        // Spending budgets only: an income target still to arrive is not
+        // money left to spend
+        const spending = budgetData.categories.filter(cat => cat.type !== 'income');
+        // A weekly, quarterly or yearly budget counts its share of the
+        // month, as the Budget page counts it; the budget report already
+        // sends it so for the month asked for
+        const monthsBudget = (cat) => cat.budgeted || cat.budget || 0;
+        const totalRemaining = spending.reduce((sum, cat) => {
+            const remaining = monthsBudget(cat) - (cat.spent || 0);
             return sum + (remaining > 0 ? remaining : 0);
         }, 0);
 
@@ -928,22 +962,24 @@ export default class DashboardModule {
 
         const changeEl = document.getElementById('hero-budget-remaining-change');
         if (changeEl) {
-            const categoryCount = budgetData.categories.filter(c => {
-                const budget = c.budgeted || c.budget || 0;
-                const spent = c.spent || 0;
-                return (budget - spent) > 0;
-            }).length;
+            const categoryCount = spending.filter(c => (monthsBudget(c) - (c.spent || 0)) > 0).length;
             changeEl.textContent = n('budget', '%n category under budget', '%n categories under budget', categoryCount);
         }
     }
 
-    updateBudgetHealthHero(budgetAlerts) {
+    /**
+     * Share of this month's spending budgets with no alert. Counted from the
+     * budget report: it counted the rows of an element that doesn't exist,
+     * so it always read "--". An income target isn't a spending budget, and
+     * the alerts leave it out too; an envelope overdrawn by its carried
+     * overspend still counts, as on the Budget Progress tile.
+     */
+    updateBudgetHealthHero(budgetAlerts, budgetData = null) {
         const el = document.getElementById('hero-budget-health-value');
         if (!el) return;
 
-        // Get total number of budget categories from the existing budget progress widget
-        const budgetProgressContainer = document.getElementById('budget-progress-categories');
-        const totalBudgets = budgetProgressContainer ? budgetProgressContainer.querySelectorAll('.budget-category-item').length : 0;
+        const totalBudgets = (budgetData?.categories || []).filter(c => c.type !== 'income'
+            && ((c.budgeted || c.budget || 0) > 0 || Math.abs(c.carried || 0) >= 0.005)).length;
 
         if (totalBudgets === 0) {
             el.textContent = '--';
@@ -985,11 +1021,11 @@ export default class DashboardModule {
         const msPerDay = 1000 * 60 * 60 * 24;
         const daysLeft = Math.max(0, Math.round((payoff - today) / msPerDay));
 
-        el.textContent = daysLeft.toLocaleString();
+        el.textContent = daysLeft.toLocaleString(formatters.userLocale());
 
         const changeEl = document.getElementById('hero-debt-free-change');
         if (changeEl) {
-            const payoffDisplay = payoff.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+            const payoffDisplay = payoff.toLocaleDateString(formatters.userLocale(), { month: 'short', year: 'numeric' });
             changeEl.textContent = t('budget', 'Debt free by {date}', { date: payoffDisplay });
         }
     }
@@ -1108,7 +1144,7 @@ export default class DashboardModule {
                     <div class="account-widget-info">
                         <div class="account-widget-icon">${icon}</div>
                         <div>
-                            <div class="account-widget-name">${this.escapeHtml(account.name)}</div>
+                            <div class="account-widget-name">${dom.escapeHtml(account.name)}</div>
                             <div class="account-widget-type">${accountTypeLabels[type] || type.replace('_', ' ')}</div>
                         </div>
                     </div>
@@ -1162,8 +1198,12 @@ export default class DashboardModule {
 
         listEl.innerHTML = sortedAccounts.map(account => `
             <div class="tile-config-item" draggable="true" data-account-id="${account.id}">
-                <span class="tile-config-drag-handle">&#x2630;</span>
-                <span class="tile-config-name">${this.escapeHtml(account.name)}</span>
+                <span class="tile-config-drag-handle" aria-hidden="true">&#x2630;</span>
+                <span class="tile-config-name">${dom.escapeHtml(account.name)}</span>
+                <span class="tile-config-move">
+                    <button type="button" class="tile-config-move-btn" data-direction="-1" title="${t('budget', 'Move up')}" aria-label="${t('budget', 'Move up')}">&#x2191;</button>
+                    <button type="button" class="tile-config-move-btn" data-direction="1" title="${t('budget', 'Move down')}" aria-label="${t('budget', 'Move down')}">&#x2193;</button>
+                </span>
                 <label class="tile-config-toggle">
                     <input type="checkbox" ${!hiddenIds.has(account.id) ? 'checked' : ''} data-account-id="${account.id}">
                 </label>
@@ -1208,6 +1248,24 @@ export default class DashboardModule {
                 } else {
                     listEl.insertBefore(dragItem, item.nextSibling);
                 }
+            });
+        });
+
+        // Up/down buttons: the keyboard and touch route to the same order,
+        // saved the same way as a drop.
+        listEl.querySelectorAll('.tile-config-move-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const item = btn.closest('.tile-config-item');
+                const dir = parseInt(btn.dataset.direction, 10);
+                const neighbour = dir < 0 ? item.previousElementSibling : item.nextElementSibling;
+                if (!neighbour) return;
+                listEl.insertBefore(item, dir < 0 ? neighbour : neighbour.nextSibling);
+                btn.focus();
+                const config = this.getAccountsTileConfig();
+                config.order = Array.from(listEl.querySelectorAll('.tile-config-item'))
+                    .map(el => parseInt(el.dataset.accountId));
+                await this.saveAccountsTileConfig(config);
+                this.updateAccountsWidget(this._allDashboardAccounts);
             });
         });
 
@@ -1259,7 +1317,7 @@ export default class DashboardModule {
     _recentTransactionCategoryCell(tx) {
         const uncategorized = t('budget', 'Uncategorized');
         const colorFor = (id) => this.categories?.find(c => c.id === id)?.color || '#999';
-        const dot = (color) => `<span class="recent-transaction-category-dot" style="background: ${color}"></span>`;
+        const dot = (color) => `<span class="recent-transaction-category-dot" style="background: ${dom.escapeHtml(color)}"></span>`;
         const cell = (dots, label, title) =>
             `<span class="recent-transaction-category"${title ? ` title="${title}"` : ''}>`
             + `${dots}<span class="recent-transaction-category-name">${label}</span></span>`;
@@ -1278,8 +1336,8 @@ export default class DashboardModule {
 
             return cell(
                 distinct.slice(0, MAX_SPLIT_CATEGORY_DOTS).map(part => dot(colorFor(part.categoryId))).join(''),
-                distinct.map(part => this.escapeHtml(part.categoryName || uncategorized)).join(' / '),
-                parts.map(part => this.escapeHtml(
+                distinct.map(part => dom.escapeHtml(part.categoryName || uncategorized)).join(' / '),
+                parts.map(part => dom.escapeHtml(
                     (part.categoryName || uncategorized) + ': ' + this.formatCurrency(part.amount)
                 )).join('&#10;')
             );
@@ -1288,13 +1346,15 @@ export default class DashboardModule {
         if (isSplit) {
             // Split, but this payload did not carry the parts. Naming it a
             // split is at least true, where "Uncategorized" is not.
-            return cell(dot('#999'), this.escapeHtml(t('budget', 'Split')), this.escapeHtml(t('budget', 'Split transaction')));
+            return cell(dot('#999'), dom.escapeHtml(t('budget', 'Split')), dom.escapeHtml(t('budget', 'Split transaction')));
         }
 
+        // A row in an account shared with you may be filed under an owner's
+        // category not shared with you: named as the row came (rowCategoryName)
         const category = this.categories?.find(c => c.id === tx.categoryId || c.id === tx.category_id);
         return cell(
             dot(category ? category.color : '#999'),
-            this.escapeHtml(category ? category.name : uncategorized),
+            dom.escapeHtml(rowCategoryName(tx, category) ?? uncategorized),
             ''
         );
     }
@@ -1315,7 +1375,8 @@ export default class DashboardModule {
         }
 
         const txSettings = this.dashboardConfig.widgets?.tileSettings?.[instanceId] || {};
-        const rowCount = txSettings.rowCount || 8;
+        // Same default as the tile settings dialog offers (config/dashboardWidgets.js).
+        const rowCount = txSettings.rowCount || 5;
         container.innerHTML = transactions.slice(0, rowCount).map(tx => {
             const isCredit = tx.type === 'credit';
             const amount = parseFloat(tx.amount) || 0;
@@ -1331,7 +1392,7 @@ export default class DashboardModule {
                             }
                         </div>
                         <div class="recent-transaction-details">
-                            <div class="recent-transaction-description">${this.escapeHtml(tx.description || tx.vendor || t('budget', 'Transaction'))}</div>
+                            <div class="recent-transaction-description">${dom.escapeHtml(tx.description || tx.vendor || t('budget', 'Transaction'))}</div>
                             <div class="recent-transaction-meta">
                                 <span class="recent-transaction-date">${date}</span>
                                 ${this._recentTransactionCategoryCell(tx)}
@@ -1410,16 +1471,16 @@ export default class DashboardModule {
             // "Over" only when the budget was actually exceeded (danger). Spending
             // that exactly meets the budget is "100% used", not "0% over" (#293).
             const percentDisplay = alert.severity === 'danger'
-                ? t('budget', '{percent}% over', { percent: Math.max(0, Math.round(alert.percentage - 100)) })
+                ? /* xgettext:no-javascript-format */ t('budget', '{percent}% over', { percent: Math.max(0, Math.round(alert.percentage - 100)) })
                 : t('budget', '{percent}% used', { percent: Math.round(alert.percentage) });
 
             return `
                 <div class="budget-alert-item ${severityClass}">
                     <div class="alert-icon">${severityIcon}</div>
                     <div class="alert-content">
-                        <div class="alert-category">${this.escapeHtml(alert.categoryName)}</div>
+                        <div class="alert-category">${dom.escapeHtml(alert.categoryName)}</div>
                         <div class="alert-progress">
-                            <div class="alert-progress-bar">
+                            <div class="alert-progress-bar" ${progressBarAttrs(alert.percentage, alert.categoryName)}>
                                 <div class="alert-progress-fill ${severityClass}" style="width: ${Math.min(100, alert.percentage)}%"></div>
                             </div>
                             <span class="alert-percent">${percentDisplay}</span>
@@ -1452,7 +1513,7 @@ export default class DashboardModule {
 
             return `
                 <div class="tile-config-item tile-config-item--static" data-category-id="${status.categoryId}">
-                    <span class="tile-config-name">${this.escapeHtml(status.categoryName)}${derived}</span>
+                    <span class="tile-config-name">${dom.escapeHtml(status.categoryName)}${derived}</span>
                     <span class="tile-config-meta">${this.formatCurrency(status.budgetAmount, currency)}</span>
                     <label class="tile-config-toggle">
                         <input type="checkbox" data-category-id="${status.categoryId}"
@@ -1474,12 +1535,10 @@ export default class DashboardModule {
 
         let statuses = [];
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/alerts/status'), {
-                headers: { 'requesttoken': OC.requestToken }
+            statuses = await apiFetch('/apps/budget/api/alerts/status').catch((e) => {
+                if (e instanceof ApiError) return [];
+                throw e;
             });
-            if (response.ok) {
-                statuses = await response.json();
-            }
         } catch (e) {
             console.error('Failed to load the categories that can alert', e);
         }
@@ -1538,13 +1597,76 @@ export default class DashboardModule {
      */
     async refreshBudgetAlertsWidget() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/alerts'), {
-                headers: { 'requesttoken': OC.requestToken }
+            const alerts = await apiFetch('/apps/budget/api/alerts').catch((e) => {
+                if (e instanceof ApiError) return [];
+                throw e;
             });
-            this.updateBudgetAlertsWidget(response.ok ? await response.json() : []);
+            this.updateBudgetAlertsWidget(alerts);
         } catch (e) {
             console.error('Failed to refresh the budget alerts tile', e);
         }
+    }
+
+    /**
+     * Fill the tile settings modal's list with a tick per expense category
+     * for a Spending by Category tile (#413). The tile saves the ones that
+     * are unticked, so a category made later shows without being ticked. A
+     * category hidden along with its parent is shown unticked and greyed out,
+     * keeping its own choice for when the parent is ticked again.
+     */
+    renderSpendingTileCategoryList(widgetId) {
+        const listEl = document.getElementById('tile-settings-modal-list');
+        if (!listEl) return;
+
+        const categories = this.app.categories || [];
+        const rows = categoryPickerRows(categories);
+        if (rows.length === 0) {
+            listEl.innerHTML = `<div class="empty-state-small">${t('budget', 'No categories yet')}</div>`;
+            return;
+        }
+
+        const saved = this.dashboardConfig.widgets?.tileSettings?.[widgetId]?.hiddenCategories || [];
+        const ownChoice = new Set(saved.map(id => parseInt(id, 10)));
+        const branch = hiddenCategoryBranch(saved, categories);
+
+        listEl.innerHTML = rows.map(row => {
+            const withParent = branch.has(row.id) && !ownChoice.has(row.id);
+            return `
+                <div class="tile-config-item tile-config-item--static" style="padding-left: ${8 + row.depth * 16}px;">
+                    <span class="tile-config-name">${dom.escapeHtml(row.name)}</span>
+                    <label class="tile-config-toggle">
+                        <input type="checkbox" data-category-id="${row.id}"
+                            aria-label="${dom.escapeHtml(row.name)}"
+                            ${branch.has(row.id) ? '' : 'checked'} ${withParent ? 'disabled' : ''}>
+                    </label>
+                </div>
+            `;
+        }).join('');
+
+        listEl.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            cb.addEventListener('change', () => {
+                this.saveSpendingTileCategory(widgetId, parseInt(cb.dataset.categoryId, 10), cb.checked);
+            });
+        });
+    }
+
+    /** Tick or untick one category on a Spending by Category tile and redraw it */
+    saveSpendingTileCategory(widgetId, categoryId, shown) {
+        const widgets = this.dashboardConfig.widgets;
+        if (!widgets.tileSettings) widgets.tileSettings = {};
+        if (!widgets.tileSettings[widgetId]) widgets.tileSettings[widgetId] = {};
+        const settings = widgets.tileSettings[widgetId];
+
+        const hidden = (settings.hiddenCategories || [])
+            .map(id => parseInt(id, 10))
+            .filter(id => id !== categoryId);
+        if (!shown) hidden.push(categoryId);
+        settings.hiddenCategories = hidden;
+
+        this.saveDashboardVisibility();
+        // Redraw the list so the categories under this one follow it
+        this.renderSpendingTileCategoryList(widgetId);
+        this.refreshTileAfterSettingsChange(widgetId, 'widgets');
     }
 
     updateDebtPayoffWidget(summary) {
@@ -1584,25 +1706,16 @@ export default class DashboardModule {
         try {
             // Try active scenario first, fall back to default plan
             let plan;
-            const scenariosRes = await fetch(OC.generateUrl('/apps/budget/api/debt-scenarios'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-            if (!scenariosRes.ok) return;
-            const scenarios = await scenariosRes.json();
+            const scenarios = await apiFetch('/apps/budget/api/debt-scenarios').catch(() => null);
+            if (!scenarios) return;
             const active = Array.isArray(scenarios) ? scenarios.find(s => s.isActive) : null;
 
             if (active) {
-                const res = await fetch(OC.generateUrl(`/apps/budget/api/debt-scenarios/${active.id}/calculate`), {
-                    headers: { 'requesttoken': OC.requestToken }
-                });
-                if (!res.ok) return;
-                plan = await res.json();
+                plan = await apiFetch(`/apps/budget/api/debt-scenarios/${active.id}/calculate`).catch(() => null);
+                if (!plan) return;
             } else {
-                const res = await fetch(OC.generateUrl('/apps/budget/api/debts/payoff-plan?strategy=avalanche'), {
-                    headers: { 'requesttoken': OC.requestToken }
-                });
-                if (!res.ok) return;
-                plan = await res.json();
+                plan = await apiFetch('/apps/budget/api/debts/payoff-plan?strategy=avalanche').catch(() => null);
+                if (!plan) return;
             }
 
             if (!plan || !plan.debts || plan.debts.length === 0) return;
@@ -1611,7 +1724,7 @@ export default class DashboardModule {
             const statsEl = document.getElementById('debt-chart-widget-stats');
             if (statsEl) {
                 const totalDebt = plan.debts.reduce((sum, d) => sum + (parseFloat(d.originalBalance) || 0), 0);
-                const payoffDate = plan.payoffDate ? new Date(plan.payoffDate).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : 'N/A';
+                const payoffDate = plan.payoffDate ? new Date(plan.payoffDate).toLocaleDateString(formatters.userLocale(), { month: 'short', year: 'numeric' }) : 'N/A';
                 statsEl.innerHTML = `
                     <div style="flex:1;"><div style="font-size:10px;color:var(--color-text-maxcontrast);">${t('budget', 'Total Debt')}</div><div style="font-size:14px;font-weight:bold;color:var(--color-error);">${this.formatCurrency(totalDebt)}</div></div>
                     <div style="flex:1;"><div style="font-size:10px;color:var(--color-text-maxcontrast);">${t('budget', 'Debt Free')}</div><div style="font-size:14px;font-weight:bold;color:var(--color-success);">${payoffDate}</div></div>
@@ -1621,7 +1734,7 @@ export default class DashboardModule {
             // End date label
             const endEl = document.getElementById('debt-chart-widget-end');
             if (endEl && plan.payoffDate) {
-                endEl.textContent = new Date(plan.payoffDate).toLocaleDateString(undefined, { year: 'numeric' });
+                endEl.textContent = new Date(plan.payoffDate).toLocaleDateString(formatters.userLocale(), { year: 'numeric' });
             }
 
             // Mini sparkline chart
@@ -1669,13 +1782,11 @@ export default class DashboardModule {
 
     async renderDebtProgressWidget() {
         try {
-            const [progressRes, summaryRes] = await Promise.all([
-                fetch(OC.generateUrl('/apps/budget/api/debts/progress'), { headers: { 'requesttoken': OC.requestToken } }),
-                fetch(OC.generateUrl('/apps/budget/api/debts/summary'), { headers: { 'requesttoken': OC.requestToken } }),
+            const [progress, summary] = await Promise.all([
+                apiFetch('/apps/budget/api/debts/progress').catch(() => null),
+                apiFetch('/apps/budget/api/debts/summary').catch(() => null),
             ]);
-            if (!progressRes.ok || !summaryRes.ok) return;
-            const progress = await progressRes.json();
-            const summary = await summaryRes.json();
+            if (!progress || !summary) return;
 
             if (summary.debtCount === 0) return;
 
@@ -1702,14 +1813,12 @@ export default class DashboardModule {
             // Next payoff & status
             if (progress.hasActiveScenario) {
                 // Get plan to find first unpaid debt
-                const scenariosRes = await fetch(OC.generateUrl('/apps/budget/api/debt-scenarios'), { headers: { 'requesttoken': OC.requestToken } });
-                if (!scenariosRes.ok) return;
-                const scenarios = await scenariosRes.json();
+                const scenarios = await apiFetch('/apps/budget/api/debt-scenarios').catch(() => null);
+                if (!scenarios) return;
                 const active = Array.isArray(scenarios) ? scenarios.find(s => s.isActive) : null;
                 if (active) {
-                    const planRes = await fetch(OC.generateUrl(`/apps/budget/api/debt-scenarios/${active.id}/calculate`), { headers: { 'requesttoken': OC.requestToken } });
-                    if (!planRes.ok) return;
-                    const plan = await planRes.json();
+                    const plan = await apiFetch(`/apps/budget/api/debt-scenarios/${active.id}/calculate`).catch(() => null);
+                    if (!plan) return;
                     const nextDebt = plan.debts?.find(d => d.payoffMonth);
                     const nextNameEl = document.getElementById('debt-progress-next-name');
                     const nextDateEl = document.getElementById('debt-progress-next-date');
@@ -1717,7 +1826,7 @@ export default class DashboardModule {
                         nextNameEl.textContent = nextDebt.name;
                         const payoffDate = new Date();
                         payoffDate.setMonth(payoffDate.getMonth() + nextDebt.payoffMonth);
-                        if (nextDateEl) nextDateEl.textContent = payoffDate.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+                        if (nextDateEl) nextDateEl.textContent = payoffDate.toLocaleDateString(formatters.userLocale(), { month: 'short', year: 'numeric' });
                     }
                 }
 
@@ -1743,6 +1852,38 @@ export default class DashboardModule {
         container.innerHTML = `<div class="empty-state-small">${message}</div>`;
     }
 
+    /**
+     * Upcoming Bills fetches as far ahead as its Look ahead setting can go
+     * and narrows at render time, so a settings change re-renders from
+     * cache. Without days the server's 30-day default applied, and a 60 or
+     * 90-day horizon showed nothing past 30 days.
+     */
+    upcomingBillsUrl() {
+        return `/apps/budget/api/bills/upcoming?days=${Math.max(...formatters.FORWARD_HORIZONS)}`;
+    }
+
+    /**
+     * A bills tile's Account and Rows settings: the bills paying from or
+     * into the account it is set to, as many as it is set to show. Both were
+     * offered and ignored, so the header named one account while the tile
+     * listed the first five bills of every account.
+     */
+    _tileBills(instanceId, bills) {
+        const settings = this.dashboardConfig?.widgets?.tileSettings?.[instanceId] || {};
+        const accountId = this._validAccountId(settings.accountId);
+        if (accountId) {
+            bills = bills.filter(bill => String(bill.accountId) === String(accountId)
+                || String(bill.destinationAccountId) === String(accountId));
+        }
+        return bills.slice(0, this._tileRowCount(instanceId));
+    }
+
+    /** A tile's Rows to show setting, five when unset. */
+    _tileRowCount(instanceId) {
+        const rowCount = parseInt(this.dashboardConfig?.widgets?.tileSettings?.[instanceId]?.rowCount, 10);
+        return rowCount > 0 ? rowCount : 5;
+    }
+
     updateUpcomingBillsWidget(bills) {
         const container = document.getElementById('upcoming-bills');
         if (!container) return;
@@ -1754,7 +1895,14 @@ export default class DashboardModule {
         }
 
         const horizon = this._tileNumberSetting('upcomingBills', 'forwardHorizon', formatters.FORWARD_HORIZONS, 30);
-        bills = this.filterBillsByHorizon(bills, horizon);
+        const tileSettings = this.dashboardConfig?.widgets?.tileSettings?.upcomingBills || {};
+        // Bills more than a week overdue drop off unless the tile is set to keep them
+        bills = this.filterBillsByHorizon(bills, horizon, null, { keepAllOverdue: !!tileSettings.showAllOverdue });
+        // Bills shared with the user are listed unless the tile leaves them out
+        if (tileSettings.excludeSharedBills) {
+            bills = bills.filter(bill => !bill._shared);
+        }
+        bills = this._tileBills('upcomingBills', bills);
         if (bills.length === 0) {
             this._emptyBillsState(container, t('budget', 'No upcoming bills'));
             return;
@@ -1762,7 +1910,7 @@ export default class DashboardModule {
 
         const todayStr = formatters.getTodayDateString();
 
-        container.innerHTML = bills.slice(0, 5).map(bill => {
+        container.innerHTML = bills.map(bill => {
             const dueDateStr = bill.nextDueDate || bill.next_due_date;
             const daysUntilDue = formatters.daysBetweenDates(todayStr, dueDateStr);
 
@@ -1779,13 +1927,13 @@ export default class DashboardModule {
                 statusClass = 'due-soon';
                 dueText = n('budget', 'Due in %n day', 'Due in %n days', daysUntilDue);
             } else {
-                dueText = t('budget', 'Due {date}', { date: formatters.parseLocalDate(dueDateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) });
+                dueText = t('budget', 'Due {date}', { date: formatters.parseLocalDate(dueDateStr).toLocaleDateString(formatters.userLocale(), { month: 'short', day: 'numeric' }) });
             }
 
             return `
                 <div class="bill-widget-item ${statusClass}">
                     <div class="bill-widget-info">
-                        <div class="bill-widget-name">${this.escapeHtml(bill.name)}</div>
+                        <div class="bill-widget-name">${dom.escapeHtml(bill.name)}</div>
                         <div class="bill-widget-due ${statusClass}">${dueText}</div>
                     </div>
                     <div class="bill-widget-amount">${this.formatCurrency(bill.amount, bill.currency)}</div>
@@ -1833,8 +1981,11 @@ export default class DashboardModule {
                 : (spent > 0 ? 100 : 0);
             const actualPercentage = budgeted > 0 ? (spent / budgeted) * 100 : 0;
 
+            // An income target is money to come in: reaching or passing it
+            // is on track, never over budget
             let statusClass = 'good';
-            if (actualPercentage > 100 || (budgeted <= 0 && spent > 0)) statusClass = 'over';
+            if (cat.type === 'income') statusClass = 'good';
+            else if (actualPercentage > 100 || (budgeted <= 0 && spent > 0)) statusClass = 'over';
             else if (actualPercentage > 80) statusClass = 'danger';
             else if (actualPercentage > 50) statusClass = 'warning';
 
@@ -1845,15 +1996,16 @@ export default class DashboardModule {
                     <div class="budget-widget-header">
                         <div class="budget-widget-name">
                             <span class="budget-widget-color" style="background: ${color}"></span>
-                            ${this.escapeHtml(cat.categoryName || cat.name)}
+                            ${dom.escapeHtml(cat.categoryName || cat.name)}
                         </div>
                         <div class="budget-widget-amounts">
                             ${this.formatCurrency(spent)} / ${this.formatCurrency(budgeted)}
                         </div>
                     </div>
-                    <div class="budget-progress-bar">
+                    <div class="budget-progress-bar" ${progressBarAttrs(budgeted > 0 ? actualPercentage : percentage, cat.categoryName || cat.name)}>
                         <div class="budget-progress-fill ${statusClass}" style="width: ${percentage}%"></div>
                     </div>
+                    ${overBudgetText(statusClass === 'over')}
                 </div>
             `;
         }).join('');
@@ -1874,12 +2026,7 @@ export default class DashboardModule {
             if (settings.excludeShared) {
                 url += '&excludeShared=1';
             }
-            const response = await fetch(
-                OC.generateUrl(url),
-                { headers: { 'requesttoken': OC.requestToken } }
-            );
-            if (!response.ok) throw new Error('Failed to fetch budget data');
-            const data = await response.json();
+            const data = await apiFetch(url, { errorMessage: 'Failed to fetch budget data' });
             this.updateBudgetProgressWidget(data.categories || []);
         } catch (error) {
             console.error('Failed to refresh budget progress:', error);
@@ -1898,16 +2045,20 @@ export default class DashboardModule {
             if (settings.excludeShared) {
                 url += '&excludeShared=1';
             }
-            const response = await fetch(
-                OC.generateUrl(url),
-                { headers: { 'requesttoken': OC.requestToken } }
-            );
-            if (!response.ok) throw new Error('Failed to fetch spending data');
-            const data = await response.json();
-            this.updateTopCategoriesWidget(data.data || []);
+            const data = await apiFetch(url, { errorMessage: 'Failed to fetch spending data' });
+            this.updateTopCategoriesWidget(this._categorySpendingRows(data.data || []));
         } catch (error) {
             console.error('Failed to refresh top categories:', error);
         }
+    }
+
+    /**
+     * The spending report's rows for a category tile. The report ends with a
+     * row for money with no category (for the Reports page); the tiles show
+     * categories only, as on their first draw from the dashboard summary.
+     */
+    _categorySpendingRows(rows) {
+        return Array.isArray(rows) ? rows.filter(row => !row.uncategorized) : rows;
     }
 
     updateSavingsGoalsWidget(goals) {
@@ -1930,7 +2081,7 @@ export default class DashboardModule {
             return `
                 <div class="savings-goal-item">
                     <div class="savings-goal-header">
-                        <div class="savings-goal-name">${this.escapeHtml(goal.name)}</div>
+                        <div class="savings-goal-name">${dom.escapeHtml(goal.name)}</div>
                         <div class="savings-goal-target">${t('budget', 'Target: {amount}', { amount: this.formatCurrency(target) })}</div>
                     </div>
                     <div class="savings-goal-progress">
@@ -1951,10 +2102,10 @@ export default class DashboardModule {
      */
     async fetchProjectsForTile() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/projects'), {
-                headers: { 'requesttoken': OC.requestToken }
+            return await apiFetch('/apps/budget/api/projects').catch((e) => {
+                if (e instanceof ApiError) return [];
+                throw e;
             });
-            return response.ok ? await response.json() : [];
         } catch (error) {
             console.error('Failed to load projects for the dashboard:', error);
             return [];
@@ -1995,10 +2146,11 @@ export default class DashboardModule {
             return `
                 <div class="project-tile-item">
                     <div class="project-tile-header">
-                        <span class="project-tile-name">${this.escapeHtml(project.name)}</span>
+                        <span class="project-tile-name">${dom.escapeHtml(project.name)}</span>
                         <span class="project-tile-percent">${bar.percent}%</span>
                     </div>
-                    <div class="budget-progress-bar"><div class="budget-progress-fill ${bar.status}" style="width: ${bar.width}%"></div></div>
+                    <div class="budget-progress-bar" ${progressBarAttrs(bar.percent, project.name)}><div class="budget-progress-fill ${bar.status}" style="width: ${bar.width}%"></div></div>
+                    ${overBudgetText(project.spent > project.totalAmount && project.totalAmount > 0)}
                     <div class="project-tile-footer">${t('budget', '{spent} of {total}', { spent: this.formatCurrency(project.spent), total: this.formatCurrency(project.totalAmount) })}</div>
                 </div>`;
         }).join('');
@@ -2020,7 +2172,10 @@ export default class DashboardModule {
             countEl.textContent = count;
         }
 
-        // Update dashboard hero card
+        // Update dashboard hero card. With no pensions at all it would only
+        // ever read 0, so it steps aside while the dashboard is locked.
+        document.querySelector('.hero-pension')?.classList.toggle(
+            'hero-card--empty', count === 0 && pensionWorth === 0 && projectedIncome === 0);
         const heroPensionValue = document.getElementById('hero-pension-value');
         const heroPensionCount = document.getElementById('hero-pension-count');
         const heroPensionLabel = document.querySelector('.hero-pension .hero-label');
@@ -2063,7 +2218,8 @@ export default class DashboardModule {
             countEl.textContent = count;
         }
 
-        // Update dashboard hero card
+        // Update dashboard hero card (hidden while there are no assets, as above)
+        document.querySelector('.hero-assets')?.classList.toggle('hero-card--empty', count === 0);
         const heroAssetsValue = document.getElementById('hero-assets-value');
         const heroAssetsCount = document.getElementById('hero-assets-count');
         const heroAssetsChange = document.getElementById('hero-assets-change');
@@ -2132,7 +2288,7 @@ export default class DashboardModule {
             return `
                 <div class="top-category-item">
                     <span class="category-dot" style="background: ${color}"></span>
-                    <span class="category-name">${this.escapeHtml(name)}</span>
+                    <span class="category-name">${dom.escapeHtml(name)}</span>
                     <span class="category-amount">${this.formatCurrency(Math.abs(amount))}</span>
                 </div>
             `;
@@ -2162,7 +2318,7 @@ export default class DashboardModule {
             const isPositive = change >= 0;
             return `
                 <div class="account-performance-item">
-                    <div class="account-name">${this.escapeHtml(account.name)}</div>
+                    <div class="account-name">${dom.escapeHtml(account.name)}</div>
                     <div class="account-balance">${this.formatCurrency(account.balance || 0)}</div>
                     <div class="account-change ${isPositive ? 'positive' : 'negative'}">
                         ${isPositive ? '↑' : '↓'} ${this.formatCurrency(Math.abs(change))}
@@ -2198,7 +2354,7 @@ export default class DashboardModule {
                         const remaining = budget - spent;
                         return `
                             <tr>
-                                <td>${this.escapeHtml(cat.name)}</td>
+                                <td>${dom.escapeHtml(cat.categoryName || cat.name)}</td>
                                 <td>${this.formatCurrency(budget)}</td>
                                 <td>${this.formatCurrency(spent)}</td>
                                 <td class="${remaining >= 0 ? 'positive' : 'negative'}">
@@ -2232,7 +2388,7 @@ export default class DashboardModule {
             return `
                 <div class="goal-summary-item">
                     <div class="goal-summary-header">
-                        <span class="goal-name">${this.escapeHtml(goal.name)}</span>
+                        <span class="goal-name">${dom.escapeHtml(goal.name)}</span>
                         <span class="goal-percentage">${percentage.toFixed(0)}%</span>
                     </div>
                     <div class="goal-summary-progress">
@@ -2311,7 +2467,7 @@ export default class DashboardModule {
 
         container.innerHTML = accountsToReconcile.slice(0, 5).map(account => `
             <div class="reconciliation-item">
-                <div class="reconciliation-name">${this.escapeHtml(account.name)}</div>
+                <div class="reconciliation-name">${dom.escapeHtml(account.name)}</div>
                 <div class="reconciliation-status">
                     <span class="reconciliation-badge">${t('budget', 'Up to date')}</span>
                 </div>
@@ -2348,7 +2504,7 @@ export default class DashboardModule {
         const expenseArrow = expenseChange >= 0 ? '↑' : '↓';
 
         container.innerHTML = `
-            ${data.periodLabel ? `<div class="comparison-period">${this.escapeHtml(data.periodLabel)}</div>` : ''}
+            ${data.periodLabel ? `<div class="comparison-period">${dom.escapeHtml(data.periodLabel)}</div>` : ''}
             <div class="comparison-row">
                 <span class="comparison-label">${t('budget', 'Income')}</span>
                 <span class="comparison-value">${this.formatCurrency(currentIncome)}</span>
@@ -2378,7 +2534,7 @@ export default class DashboardModule {
         container.innerHTML = sorted.slice(0, 5).map(tx => `
             <div class="widget-list-item">
                 <div class="widget-item-info">
-                    <div class="widget-item-name">${this.escapeHtml(tx.vendor || tx.description || t('budget', 'Unknown'))}</div>
+                    <div class="widget-item-name">${dom.escapeHtml(tx.vendor || tx.description || t('budget', 'Unknown'))}</div>
                     <div class="widget-item-meta">${formatters.formatDate(tx.date, this.settings)}</div>
                 </div>
                 <div class="widget-item-amount ${tx.type === 'credit' ? 'positive' : 'negative'}">${this.formatCurrency(tx.amount)}</div>
@@ -2407,7 +2563,7 @@ export default class DashboardModule {
         container.innerHTML = `
             <div class="widget-stat">
                 <div class="widget-stat-value">${this.formatCurrency(total)}</div>
-                <div class="widget-stat-label">${this.escapeHtml(spanLabel)}</div>
+                <div class="widget-stat-label">${dom.escapeHtml(spanLabel)}</div>
             </div>
             <div class="widget-stat">
                 <div class="widget-stat-value">${this.formatCurrency(avgDaily)}</div>
@@ -2456,7 +2612,7 @@ export default class DashboardModule {
         container.innerHTML = transactions.slice(0, 5).map(tx => `
             <div class="widget-list-item">
                 <div class="widget-item-info">
-                    <div class="widget-item-name">${this.escapeHtml(tx.vendor || tx.description || t('budget', 'Unknown'))}</div>
+                    <div class="widget-item-name">${dom.escapeHtml(tx.vendor || tx.description || t('budget', 'Unknown'))}</div>
                     <div class="widget-item-meta">${formatters.formatDate(tx.date, this.settings)} · ${this.formatCurrency(tx.amount)}</div>
                 </div>
             </div>
@@ -2483,7 +2639,7 @@ export default class DashboardModule {
                 <div class="widget-list-item">
                     <div class="widget-item-info">
                         <span class="category-color" style="background-color: ${cat.color || '#3b82f6'}; width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px;"></span>
-                        <div class="widget-item-name">${this.escapeHtml(cat.name)}</div>
+                        <div class="widget-item-name">${dom.escapeHtml(cat.name)}</div>
                     </div>
                     <div class="widget-item-amount">
                         ${this.formatCurrency(cat.currentTotal)}
@@ -2499,7 +2655,7 @@ export default class DashboardModule {
         if (!container) return;
 
         const horizon = this._tileNumberSetting('billsDueSoon', 'forwardHorizon', formatters.FORWARD_HORIZONS, 30);
-        const bills = this.filterBillsByHorizon(this.widgetData.billsDueSoon, horizon);
+        const bills = this._tileBills('billsDueSoon', this.filterBillsByHorizon(this.widgetData.billsDueSoon, horizon));
         if (bills.length === 0) {
             this._emptyBillsState(container, t('budget', 'No bills due soon'));
             return;
@@ -2507,7 +2663,7 @@ export default class DashboardModule {
 
         const todayStr = formatters.getTodayDateString();
 
-        container.innerHTML = bills.slice(0, 5).map(bill => {
+        container.innerHTML = bills.map(bill => {
             const dueDateStr = bill.nextDueDate || bill.next_due_date;
             const daysUntilDue = formatters.daysBetweenDates(todayStr, dueDateStr);
 
@@ -2527,10 +2683,10 @@ export default class DashboardModule {
             return `
                 <div class="bill-widget-item ${statusClass}">
                     <div class="bill-widget-info">
-                        <div class="bill-widget-name">${this.escapeHtml(bill.name)}</div>
+                        <div class="bill-widget-name">${dom.escapeHtml(bill.name)}</div>
                         <div class="bill-widget-due ${statusClass}">${dueText}</div>
                     </div>
-                    <div class="bill-widget-amount">${this.formatCurrency(bill.amount)}</div>
+                    <div class="bill-widget-amount">${this.formatCurrency(bill.amount, bill.currency)}</div>
                 </div>
             `;
         }).join('');
@@ -2546,9 +2702,12 @@ export default class DashboardModule {
      * @param {Array} bills - Bills as the API returns them
      * @param {number} horizonDays - How far ahead to look
      * @param {string} [todayStr] - YYYY-MM-DD, for testing
+     * @param {object} [options]
+     * @param {boolean} [options.keepAllOverdue=false] - Keep every overdue
+     *   bill, however late, for a tile set to show them all
      * @returns {Array} Matching bills, soonest first
      */
-    filterBillsByHorizon(bills, horizonDays, todayStr = null) {
+    filterBillsByHorizon(bills, horizonDays, todayStr = null, { keepAllOverdue = false } = {}) {
         const today = todayStr || formatters.getTodayDateString();
         const dueOf = (b) => b.nextDueDate || b.next_due_date;
         return (Array.isArray(bills) ? bills : [])
@@ -2556,36 +2715,54 @@ export default class DashboardModule {
                 const due = dueOf(b);
                 if (!due) return false;
                 const days = formatters.daysBetweenDates(today, due);
-                return days >= -7 && days <= horizonDays;
+                return (keepAllOverdue || days >= -7) && days <= horizonDays;
             })
             .sort((a, b) => (dueOf(a) || '').localeCompare(dueOf(b) || ''));
     }
 
+    /**
+     * Income Tracking: the monthly income rate in the base currency, how many
+     * of this month's payments have come in, and the next ones due, each in
+     * its account's currency. It was handed the summary endpoint and read it
+     * as a list, so it always said there was no recurring income.
+     */
     updateIncomeTrackingWidget() {
         const container = document.getElementById('income-tracking-content');
         if (!container) return;
 
-        const data = this.widgetData.incomeTracking;
-        if (!data || (!Array.isArray(data) && !data.incomes)) {
+        const { summary = null, incomes = [] } = this.widgetData.incomeTracking || {};
+        if (!summary || incomes.length === 0) {
             container.innerHTML = `<div class="empty-state-small">${t('budget', 'No recurring income set up')}</div>`;
             return;
         }
 
-        const incomes = Array.isArray(data) ? data : (data.incomes || []);
-        if (incomes.length === 0) {
-            container.innerHTML = `<div class="empty-state-small">${t('budget', 'No recurring income set up')}</div>`;
-            return;
-        }
+        // Payments due this month: those still to come plus those already in
+        const received = summary.receivedThisMonth || 0;
+        const due = received + (summary.expectedThisMonth || 0);
+        const percent = due > 0 ? Math.round(received / due * 100) : 0;
+        const upcoming = [...incomes]
+            .sort((a, b) => (a.nextExpectedDate || '9999-12-31').localeCompare(b.nextExpectedDate || '9999-12-31'))
+            .slice(0, 5);
 
-        container.innerHTML = incomes.slice(0, 5).map(income => `
+        container.innerHTML = `
             <div class="widget-list-item">
                 <div class="widget-item-info">
-                    <div class="widget-item-name">${this.escapeHtml(income.name)}</div>
-                    <div class="widget-item-meta">${income.frequency || 'monthly'}</div>
+                    <div class="widget-item-name">${t('budget', 'Monthly income')}</div>
+                    <div class="widget-item-meta">${t('budget', '{received} of {due} received this month', { received, due })}</div>
                 </div>
-                <div class="widget-item-amount positive">${this.formatCurrency(income.amount)}</div>
+                <div class="widget-item-amount positive">${this.formatCurrency(summary.monthlyTotal || 0, summary.baseCurrency || null)}</div>
             </div>
-        `).join('');
+            <div class="budget-progress-bar" ${progressBarAttrs(percent, t('budget', 'Income received this month'))}><div class="budget-progress-fill good" style="width: ${percent}%"></div></div>
+            ${upcoming.map(income => `
+                <div class="widget-list-item">
+                    <div class="widget-item-info">
+                        <div class="widget-item-name">${dom.escapeHtml(income.name)}</div>
+                        <div class="widget-item-meta">${income.nextExpectedDate ? dom.escapeHtml(formatters.formatDate(income.nextExpectedDate, this.settings)) : ''}</div>
+                    </div>
+                    <div class="widget-item-amount positive">${this.formatCurrency(income.amount, income.currency || null)}</div>
+                </div>
+            `).join('')}
+        `;
     }
 
     updateRecentImportsWidget() {
@@ -2606,7 +2783,7 @@ export default class DashboardModule {
             return `
                 <div class="widget-list-item">
                     <div class="widget-item-info">
-                        <div class="widget-item-name">${this.escapeHtml(accountName)}</div>
+                        <div class="widget-item-name">${dom.escapeHtml(accountName)}</div>
                         <div class="widget-item-meta">${n('budget', '%n transaction', '%n transactions', count)}${importedAt ? ` · ${importedAt}` : ''}</div>
                     </div>
                 </div>
@@ -2725,8 +2902,16 @@ export default class DashboardModule {
             return;
         }
 
-        // Aggregate to top-level categories if setting is enabled
+        // Leave out the categories unticked in the tile's settings, before the
+        // top-level rollup so a hidden subcategory doesn't come back inside
+        // its parent's slice (#413)
         const spendingSettings = this.dashboardConfig.widgets?.tileSettings?.[instanceId] || {};
+        const hiddenBranch = hiddenCategoryBranch(spendingSettings.hiddenCategories, this.app.categories || []);
+        const shownData = withoutHiddenCategories(spendingData, spendingSettings.hiddenCategories, this.app.categories || []);
+        const hiddenCount = spendingData.length - shownData.length;
+        spendingData = shownData;
+
+        // Aggregate to top-level categories if setting is enabled
         if (spendingSettings.topLevelOnly) {
             spendingData = this.aggregateToTopLevel(spendingData);
         }
@@ -2751,7 +2936,7 @@ export default class DashboardModule {
             if (!item) return;
             let catId = item.id ?? item.categoryId ?? null;
             if (catId && spendingSettings.topLevelOnly) {
-                catId = this.categoryWithDescendants(catId);
+                catId = this.categoryWithDescendants(catId).filter(id => !hiddenBranch.has(id));
             }
             this.app.openTransactionsForCategory(catId, {
                 dateFrom: range?.dateFrom || '',
@@ -2805,16 +2990,21 @@ export default class DashboardModule {
         if (legendContainer) {
             // Total across ALL categories, not just the top 10 shown in the chart,
             // so the header total and per-category percentages reflect real
-            // spending. spendingData still holds the full set here (slice copies).
+            // spending. spendingData still holds the full set here (slice copies),
+            // less any hidden categories, so the percentages add up to 100.
             const totalSpending = spendingData.reduce(
                 (sum, item) => sum + Math.abs(item.total || item.amount || 0), 0
             );
+            const hiddenNote = hiddenCount > 0
+                ? `<div class="spending-hidden-note">${n('budget', '%n category hidden', '%n categories hidden', hiddenCount)}</div>`
+                : '';
             legendContainer.innerHTML = `
                 <div class="spending-breakdown">
                     <div class="spending-breakdown-header">
                         <strong>${t('budget', 'Total Spending')}</strong>
                         <strong>${this.formatCurrency(totalSpending)}</strong>
                     </div>
+                    ${hiddenNote}
                     ${sortedData.map((item, index) => {
                         const amount = data[index];
                         const percentage = totalSpending > 0 ? ((amount / totalSpending) * 100).toFixed(1) : 0;
@@ -2822,7 +3012,7 @@ export default class DashboardModule {
                             <div class="spending-breakdown-item">
                                 <div class="spending-breakdown-label">
                                     <span class="spending-dot" style="background: ${colors[index]}"></span>
-                                    <span class="spending-category-name">${this.escapeHtml(labels[index])}</span>
+                                    <span class="spending-category-name">${dom.escapeHtml(labels[index])}</span>
                                 </div>
                                 <div class="spending-breakdown-values">
                                     <span class="spending-percentage">${percentage}%</span>
@@ -2857,10 +3047,25 @@ export default class DashboardModule {
         const trendChartType = trendSettings.chartType || 'line';
         const isBar = trendChartType === 'bar';
         const trendShowLegend = trendSettings.showLegend !== false;
+
+        // The month in progress is only part of a month, so its drop is not a
+        // real fall: draw the line into it dashed and say "so far" on hover.
+        // The server sends each month as Y-m (`months`), formatted here in the
+        // user's language; `labels` is its English "M Y", kept for older servers.
+        const months = Array.isArray(trends.months) && trends.months.length === trends.labels.length ? trends.months : null;
+        const labels = months ? months.map(m => formatters.formatYearMonth(m)) : trends.labels;
+        const now = new Date();
+        const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        const lastIndex = trends.labels.length - 1;
+        const partialIndex = months && months[lastIndex] === thisMonth ? lastIndex : -1;
+        const partialSegment = {
+            borderDash: (segCtx) => (partialIndex > 0 && segCtx.p1DataIndex === partialIndex ? [6, 4] : undefined),
+        };
+
         this.charts[instanceId] = new Chart(ctx, {
             type: isBar ? 'bar' : 'line',
             data: {
-                labels: trends.labels,
+                labels,
                 datasets: [
                     {
                         label: t('budget', 'Income'),
@@ -2868,7 +3073,8 @@ export default class DashboardModule {
                         borderColor: '#46ba61',
                         backgroundColor: isBar ? 'rgba(70, 186, 97, 0.6)' : 'rgba(70, 186, 97, 0.1)',
                         fill: !isBar,
-                        tension: isBar ? 0 : 0.3
+                        tension: isBar ? 0 : 0.3,
+                        segment: partialSegment,
                     },
                     {
                         label: t('budget', 'Expenses'),
@@ -2876,7 +3082,8 @@ export default class DashboardModule {
                         borderColor: '#e9322d',
                         backgroundColor: isBar ? 'rgba(233, 50, 45, 0.6)' : 'rgba(233, 50, 45, 0.1)',
                         fill: !isBar,
-                        tension: isBar ? 0 : 0.3
+                        tension: isBar ? 0 : 0.3,
+                        segment: partialSegment,
                     }
                 ]
             },
@@ -2888,12 +3095,18 @@ export default class DashboardModule {
                     legend: { display: trendShowLegend, position: 'top' },
                     tooltip: {
                         callbacks: {
+                            title: (items) => {
+                                const label = items[0]?.label || '';
+                                return items[0]?.dataIndex === partialIndex
+                                    ? t('budget', '{month} (so far)', { month: label })
+                                    : label;
+                            },
                             label: (context) => `${context.dataset.label}: ${this.formatCurrency(context.raw)}`
                         }
                     }
                 },
                 scales: {
-                    y: { ticks: { callback: (value) => this.formatCurrency(value) } }
+                    y: { ticks: { callback: (value) => formatters.formatCurrencyCompact(value, null, this.settings) } }
                 }
             }
         });
@@ -3002,7 +3215,7 @@ export default class DashboardModule {
                 scales: {
                     y: {
                         ticks: {
-                            callback: (value) => this.formatCurrency(value, currency)
+                            callback: (value) => formatters.formatCurrencyCompact(value, currency, this.settings)
                         }
                     },
                     x: {
@@ -3087,7 +3300,7 @@ export default class DashboardModule {
                 scales: {
                     y: {
                         ticks: {
-                            callback: (value) => this.formatCurrency(value, currency)
+                            callback: (value) => formatters.formatCurrencyCompact(value, currency, this.settings)
                         }
                     },
                     x: {
@@ -3102,12 +3315,9 @@ export default class DashboardModule {
 
     async refreshAssetValueChart(days, instanceId = 'assetValueHistory') {
         try {
-            const response = await fetch(
-                OC.generateUrl(`/apps/budget/api/assets/value-history?days=${days}`),
-                { headers: { 'requesttoken': OC.requestToken } }
-            );
-            if (!response.ok) throw new Error('Failed to fetch asset value history');
-            const data = await response.json();
+            const data = await apiFetch(`/apps/budget/api/assets/value-history?days=${days}`, {
+                errorMessage: 'Failed to fetch asset value history'
+            });
             this.updateAssetValueHistoryChart(data, instanceId);
         } catch (error) {
             console.error('Failed to refresh asset value chart:', error);
@@ -3153,7 +3363,9 @@ export default class DashboardModule {
         if (emptyState) emptyState.style.display = 'none';
 
         const currency = this.getPrimaryCurrency();
-        const labels = [t('budget', 'Now'), ...projections.map((p) => p.month)];
+        // `yearMonth` is formatted in the user's language; `month` is the
+        // English label a forecast cached before it existed still carries
+        const labels = [t('budget', 'Now'), ...projections.map((p) => (p.yearMonth ? formatters.formatYearMonth(p.yearMonth) : p.month))];
         const balances = [forecast.currentBalance ?? 0, ...projections.map((p) => p.balance)];
 
         this.charts[instanceId] = new Chart(canvas.getContext('2d'), {
@@ -3467,11 +3679,7 @@ export default class DashboardModule {
                 url += '&excludeShared=1';
             }
 
-            const response = await fetch(
-                OC.generateUrl(url),
-                { headers: { 'requesttoken': OC.requestToken } }
-            );
-            const data = await response.json();
+            const data = await apiFetch(url);
 
             if (data.trends) {
                 this.updateTrendChart(data.trends, instanceId);
@@ -3497,14 +3705,10 @@ export default class DashboardModule {
                 url += '&excludeShared=1';
             }
 
-            const response = await fetch(
-                OC.generateUrl(url),
-                { headers: { 'requesttoken': OC.requestToken } }
-            );
-            const data = await response.json();
+            const data = await apiFetch(url);
 
             if (data.data) {
-                this.updateSpendingChart(data.data, instanceId, { dateFrom: startStr, dateTo: endStr });
+                this.updateSpendingChart(this._categorySpendingRows(data.data), instanceId, { dateFrom: startStr, dateTo: endStr });
             }
         } catch (error) {
             console.error('Failed to refresh spending chart:', error);
@@ -3514,24 +3718,23 @@ export default class DashboardModule {
     async refreshNetWorthChart(days, accountId = null, instanceId = 'netWorthHistory') {
         try {
             if (accountId) {
-                const response = await fetch(
-                    OC.generateUrl(`/apps/budget/api/accounts/${accountId}/balance-history?days=${days}`),
-                    { headers: { 'requesttoken': OC.requestToken } }
-                );
-                if (response.status === 404) {
-                    // Saved account no longer exists — fall back to all accounts
-                    return this.refreshNetWorthChart(days, null, instanceId);
+                let history;
+                try {
+                    history = await apiFetch(`/apps/budget/api/accounts/${accountId}/balance-history?days=${days}`, {
+                        errorMessage: 'Failed to fetch balance history'
+                    });
+                } catch (error) {
+                    if (error instanceof ApiError && error.status === 404) {
+                        // Saved account no longer exists — fall back to all accounts
+                        return this.refreshNetWorthChart(days, null, instanceId);
+                    }
+                    throw error;
                 }
-                if (!response.ok) throw new Error('Failed to fetch balance history');
-                const history = await response.json();
                 this.updateNetWorthHistoryChart(history, accountId, instanceId);
             } else {
-                const response = await fetch(
-                    OC.generateUrl(`/apps/budget/api/net-worth/snapshots?days=${days}`),
-                    { headers: { 'requesttoken': OC.requestToken } }
-                );
-                if (!response.ok) throw new Error('Failed to fetch net worth snapshots');
-                const snapshots = await response.json();
+                const snapshots = await apiFetch(`/apps/budget/api/net-worth/snapshots?days=${days}`, {
+                    errorMessage: 'Failed to fetch net worth snapshots'
+                });
                 this.updateNetWorthHistoryChart(snapshots, null, instanceId);
             }
         } catch (error) {
@@ -3542,7 +3745,7 @@ export default class DashboardModule {
     /** Fetch limit for a Recent Transactions instance: the tile's saved rows-to-show setting */
     _recentTxLimit(instanceId = 'recentTransactions') {
         const rowCount = parseInt(this.dashboardConfig?.widgets?.tileSettings?.[instanceId]?.rowCount, 10);
-        return rowCount > 0 ? rowCount : 8;
+        return rowCount > 0 ? rowCount : 5;
     }
 
     async refreshRecentTransactions(accountId = null, instanceId = 'recentTransactions') {
@@ -3554,12 +3757,7 @@ export default class DashboardModule {
             if (this.dashboardConfig.widgets?.tileSettings?.[instanceId]?.excludeShared) {
                 url += '&excludeShared=1';
             }
-            const response = await fetch(
-                OC.generateUrl(url),
-                { headers: { 'requesttoken': OC.requestToken } }
-            );
-            if (!response.ok) throw new Error('Failed to fetch recent transactions');
-            const data = await response.json();
+            const data = await apiFetch(url, { errorMessage: 'Failed to fetch recent transactions' });
             this.updateRecentTransactions(data.transactions || data, instanceId);
         } catch (error) {
             console.error('Failed to refresh recent transactions:', error);
@@ -3595,17 +3793,10 @@ export default class DashboardModule {
 
     async recordNetWorthSnapshot() {
         try {
-            const response = await fetch(
-                OC.generateUrl('/apps/budget/api/net-worth/snapshots'),
-                {
-                    method: 'POST',
-                    headers: {
-                        'requesttoken': OC.requestToken,
-                        'Content-Type': 'application/json'
-                    }
-                }
-            );
-            if (!response.ok) throw new Error('Failed to record snapshot');
+            await apiFetch('/apps/budget/api/net-worth/snapshots', {
+                method: 'POST',
+                errorMessage: 'Failed to record snapshot'
+            });
 
             showSuccess(t('budget', 'Net worth snapshot recorded'));
 
@@ -4062,11 +4253,11 @@ export default class DashboardModule {
         this._wrapCardsForGridstack(gridEl);
         const positions = this._computeInitialPositions();
 
-        // Effective column count: collapse to 1 on narrow screens (#249).
-        const initialColumns = this._responsiveColumnCount();
-
+        // The saved layout is laid out at its full width first. A phone then
+        // collapses it to one column (#249, _setupResponsiveColumns below),
+        // so gridstack keeps the full layout to go back to.
         this.gridstack = GridStack.init({
-            column: initialColumns,
+            column: this.gridColumns || 3,
             cellHeight: 100,
             margin: 10,
             float: false,
@@ -4076,12 +4267,10 @@ export default class DashboardModule {
             staticGrid: false,
         }, gridEl);
 
-        // Re-flow to a single full-width column on phones and back on resize.
-        this._setupResponsiveColumns();
-
-        // Disable dragging if dashboard is locked (must be done after init
-        // so that drag handlers are created and can be toggled later)
-        if (this.dashboardLocked) {
+        // Disable dragging if dashboard is locked or on a touch screen (must
+        // be done after init so that drag handlers are created and can be
+        // toggled later)
+        if (!this._tilesDraggable()) {
             this.gridstack.disable();
         }
 
@@ -4107,11 +4296,17 @@ export default class DashboardModule {
             }
         });
 
+        // Re-flow to a single full-width column on phones and back on resize.
+        this._setupResponsiveColumns();
+
         // Listen for changes (drag end) — delay to avoid saving during initial layout
         this._gridstackReady = false;
         setTimeout(() => { this._gridstackReady = true; }, 500);
         this.gridstack.on('change', (_event, _changedItems) => {
-            if (this._gridstackReady) {
+            // Only the user's own rearranging is saved. Tiles shrinking or
+            // growing with their data, and the one-column reflow on a phone,
+            // are how the layout is shown, not a new layout.
+            if (this._gridstackReady && !this.dashboardLocked && !this._compactingTiles && !this._reflowingColumns) {
                 this._saveGridstackPositions();
             }
         });
@@ -4139,15 +4334,54 @@ export default class DashboardModule {
     _applyResponsiveColumns() {
         if (!this.gridstack) return;
         const target = this._responsiveColumnCount();
-        if (this.gridstack.getColumn() !== target) {
-            this.gridstack.column(target, 'moveScale');
+        const current = this.gridstack.getColumn();
+        if (current === target) return;
+        // Going to one column on a phone, and back, changes only how the
+        // layout is shown, so it isn't saved.
+        this._reflowingColumns = current === 1 || target === 1;
+        try {
+            const layout = target === 1
+                ? (_column, _oldColumn, newNodes, nodes) => this._stackInOrder(newNodes, nodes)
+                : 'moveScale';
+            this.gridstack.column(target, layout);
             this._updateFullWidthTiles(target);
+        } finally {
+            this._reflowingColumns = false;
         }
+    }
+
+    /**
+     * Gridstack layout for one column: each tile full width, one under
+     * another in the saved order. A phone keeps its own order this way,
+     * since rearranging there saves only the order (see
+     * _saveGridstackPositions).
+     */
+    _stackInOrder(newNodes, nodes) {
+        const order = this.dashboardConfig.widgets?.order || [];
+        const rank = node => {
+            const index = order.indexOf(node.el?.getAttribute('gs-id') ?? node.id);
+            return index === -1 ? order.length : index;
+        };
+        let y = 0;
+        [...nodes]
+            .sort((a, b) => rank(a) - rank(b) || a.y - b.y || a.x - b.x)
+            .forEach(node => {
+                node.x = 0;
+                node.w = 1;
+                node.y = y;
+                y += node.h;
+                newNodes.push(node);
+            });
+    }
+
+    /** The grid shows fewer columns than the saved layout has: a phone. */
+    _gridNarrowed() {
+        return !!this.gridstack && this.gridstack.getColumn() < (this.gridColumns || 3);
     }
 
     /** Apply responsive columns now and on viewport resize (debounced, bound once). */
     _setupResponsiveColumns() {
-        this._updateFullWidthTiles(this._responsiveColumnCount());
+        this._applyResponsiveColumns();
         if (this._responsiveColumnsBound) return;
         this._responsiveColumnsBound = true;
         let resizeTimer = null;
@@ -4179,6 +4413,60 @@ export default class DashboardModule {
         });
     }
 
+    /**
+     * A tile with nothing to show yet ("No upcoming bills", an empty chart)
+     * takes two grid rows instead of its full four while the dashboard is
+     * locked. It is a view-only change: the saved layout keeps each tile's
+     * real height (see _saveGridstackPositions), and unlocking or the data
+     * arriving puts the tile back to full size.
+     */
+    _compactEmptyTiles() {
+        if (!this.gridstack) return;
+        const COMPACT_H = 2;
+        this._compactingTiles = true;
+        try {
+            this.gridstack.batchUpdate();
+            this.gridstack.getGridItems().forEach(el => {
+                const node = el.gridstackNode;
+                const card = el.querySelector('.dashboard-card');
+                if (!node || !card) return;
+                const compact = !!this.dashboardLocked && this._isTileEmpty(card);
+                if (compact && !el.dataset.fullH && node.h > COMPACT_H) {
+                    el.dataset.fullH = String(node.h);
+                    this.gridstack.update(el, { h: COMPACT_H });
+                } else if (!compact && el.dataset.fullH) {
+                    this.gridstack.update(el, { h: parseInt(el.dataset.fullH, 10) });
+                    delete el.dataset.fullH;
+                }
+            });
+            this.gridstack.batchUpdate(false);
+        } finally {
+            this._compactingTiles = false;
+        }
+        requestAnimationFrame(() => this.resizeAllCharts());
+    }
+
+    /**
+     * True when everything a tile shows, apart from its header, is an empty
+     * state message: no chart, and no other visible text.
+     */
+    _isTileEmpty(card) {
+        const visible = el => el.getClientRects().length > 0;
+        const empties = [...card.querySelectorAll('.empty-state-small, .chart-empty-state')].filter(visible);
+        if (empties.length === 0) return false;
+        if ([...card.querySelectorAll('canvas')].some(visible)) return false;
+
+        const walker = document.createTreeWalker(card, NodeFilter.SHOW_TEXT);
+        for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+            if (!node.textContent.trim()) continue;
+            const el = node.parentElement;
+            if (!el || !visible(el)) continue;
+            if (el.closest('.card-header, .empty-state-small, .chart-empty-state, .widget-tile-controls')) continue;
+            return false;
+        }
+        return true;
+    }
+
     _saveGridstackPositions() {
         if (!this.gridstack) return;
         const positions = {};
@@ -4187,13 +4475,20 @@ export default class DashboardModule {
             if (id) {
                 const node = el.gridstackNode;
                 if (node) {
-                    positions[id] = { x: node.x, y: node.y, w: node.w, h: node.h };
+                    // A compacted empty tile is saved at its real height.
+                    const h = el.dataset.fullH ? parseInt(el.dataset.fullH, 10) : node.h;
+                    positions[id] = { x: node.x, y: node.y, w: node.w, h };
                 }
             }
         });
 
         if (!this.dashboardConfig.widgets) this.dashboardConfig.widgets = {};
-        this.dashboardConfig.widgets.positions = positions;
+        // On a phone these are one-column positions: saving them would put
+        // every tile in one narrow column on a wider screen. A move there
+        // changes the order only.
+        if (!this._gridNarrowed()) {
+            this.dashboardConfig.widgets.positions = positions;
+        }
 
         // Update order from sorted positions — but don't overwrite with empty
         // (preserves order for tiles temporarily hidden)
@@ -4284,6 +4579,56 @@ export default class DashboardModule {
         });
     }
 
+    /**
+     * Move a hero tile one place earlier (-1) or later (1) among the visible
+     * hero tiles, and save the order as a drop does.
+     *
+     * @returns {boolean} whether it moved
+     */
+    moveHeroTile(card, dir) {
+        const container = card?.parentElement;
+        if (!container) return false;
+        const visible = Array.from(container.querySelectorAll('[data-widget-category="hero"]'))
+            .filter(c => c.style.display !== 'none');
+        const index = visible.indexOf(card);
+        const neighbour = visible[index + dir];
+        if (index < 0 || !neighbour) return false;
+
+        if (dir < 0) {
+            container.insertBefore(card, neighbour);
+        } else {
+            container.insertBefore(card, neighbour.nextSibling);
+        }
+        this._saveHeroOrder();
+        return true;
+    }
+
+    /**
+     * Move a gridstack tile one place earlier (-1) or later (1) in reading
+     * order. Gridstack's own change event then saves the layout, exactly as
+     * after a drag.
+     *
+     * @returns {boolean} whether it moved
+     */
+    moveGridTile(card, dir) {
+        if (!this.gridstack) return false;
+        const item = card?.closest('.grid-stack-item');
+        if (!item?.gridstackNode) return false;
+        const items = this.gridstack.getGridItems()
+            .filter(el => el.gridstackNode)
+            .sort((a, b) => a.gridstackNode.y - b.gridstackNode.y || a.gridstackNode.x - b.gridstackNode.x);
+        const index = items.indexOf(item);
+        const neighbour = items[index + dir];
+        if (index < 0 || !neighbour) return false;
+
+        // Put the later of the two where the earlier one is; gridstack moves
+        // the other out of the way.
+        const [later, earlier] = dir < 0 ? [item, neighbour] : [neighbour, item];
+        const { x, y } = earlier.gridstackNode;
+        this.gridstack.update(later, { x, y });
+        return true;
+    }
+
     teardownHeroDragAndDrop() {
         const container = document.querySelector('.dashboard-hero');
         if (!container) return;
@@ -4299,8 +4644,12 @@ export default class DashboardModule {
         const container = document.querySelector('.dashboard-hero');
         if (!container) return;
 
-        const order = Array.from(container.querySelectorAll('[data-widget-category="hero"]'))
-            .map(card => card.dataset.widgetId);
+        const cards = Array.from(container.querySelectorAll('[data-widget-category="hero"]'));
+        const order = cards.map(card => card.dataset.widgetId);
+        // Below 1200px applyDashboardLayout pins each tile's place with a
+        // CSS order, which would keep showing the old order until a reload.
+        // The elements are in the new order now, so let that show.
+        cards.forEach(card => { card.style.order = ''; });
 
         if (!this.dashboardConfig.hero) this.dashboardConfig.hero = {};
         this.dashboardConfig.hero.order = order;
@@ -4425,11 +4774,7 @@ export default class DashboardModule {
         try {
             switch(widgetKey) {
                 case 'uncategorizedCount': {
-                    const uncatResp = await fetch(
-                        OC.generateUrl('/apps/budget/api/transactions/uncategorized?limit=100'),
-                        { headers: { 'requesttoken': OC.requestToken } }
-                    );
-                    this.widgetData.uncategorizedCount = await uncatResp.json();
+                    this.widgetData.uncategorizedCount = await apiFetch('/apps/budget/api/transactions/uncategorized?limit=100');
                     break;
                 }
 
@@ -4442,20 +4787,14 @@ export default class DashboardModule {
                     const lastMonth = formatters.budgetMonthRange(formatters.shiftMonth(mcMonth, -1), mcStartDay);
 
                     const mcScope = this._tileScopeParams('monthlyComparison');
-                    const [currentResp, previousResp] = await Promise.all([
-                        fetch(
-                            OC.generateUrl(`/apps/budget/api/reports/summary?startDate=${thisMonth.start}&endDate=${thisMonth.end}${mcScope}`),
-                            { headers: { 'requesttoken': OC.requestToken } }
-                        ),
-                        fetch(
-                            OC.generateUrl(`/apps/budget/api/reports/summary?startDate=${lastMonth.start}&endDate=${lastMonth.end}${mcScope}`),
-                            { headers: { 'requesttoken': OC.requestToken } }
-                        )
+                    const [current, previous] = await Promise.all([
+                        apiFetch(`/apps/budget/api/reports/summary?startDate=${thisMonth.start}&endDate=${thisMonth.end}${mcScope}`),
+                        apiFetch(`/apps/budget/api/reports/summary?startDate=${lastMonth.start}&endDate=${lastMonth.end}${mcScope}`)
                     ]);
 
                     this.widgetData.monthlyComparison = {
-                        current: await currentResp.json(),
-                        previous: await previousResp.json(),
+                        current,
+                        previous,
                         periodLabel: mcStartDay > 1 ? thisMonth.label : null,
                     };
                     break;
@@ -4463,20 +4802,15 @@ export default class DashboardModule {
 
                 case 'largeTransactions': {
                     const ltRange = this._tileRangeParams(widgetKey);
-                    const ltResp = await fetch(
-                        OC.generateUrl(`/apps/budget/api/transactions?limit=10&sort=amount&dateFrom=${ltRange.startDate}&dateTo=${ltRange.endDate}${this._tileScopeParams(widgetKey)}`),
-                        { headers: { 'requesttoken': OC.requestToken } }
-                    );
-                    this.widgetData.largeTransactions = await ltResp.json();
+                    this.widgetData.largeTransactions = await apiFetch(`/apps/budget/api/transactions?limit=10&sort=amount&dateFrom=${ltRange.startDate}&dateTo=${ltRange.endDate}${this._tileScopeParams(widgetKey)}`);
                     break;
                 }
 
                 case 'pensionProjection': {
-                    const pensionResp = await fetch(
-                        OC.generateUrl('/apps/budget/api/pensions/projection'),
-                        { headers: { 'requesttoken': OC.requestToken } }
-                    );
-                    this.widgetData.pensionProjection = pensionResp.ok ? await pensionResp.json() : null;
+                    this.widgetData.pensionProjection = await apiFetch('/apps/budget/api/pensions/projection').catch((e) => {
+                        if (e instanceof ApiError) return null;
+                        throw e;
+                    });
                     break;
                 }
 
@@ -4485,39 +4819,35 @@ export default class DashboardModule {
                     // The endpoint takes forecastMonths; the old days=90 was not a
                     // parameter it accepts and was silently ignored.
                     const cfMonths = this._tileNumberSetting(widgetKey, 'forecastMonths', formatters.FORECAST_MONTHS, 6);
-                    const cfResp = await fetch(
-                        OC.generateUrl(`/apps/budget/api/forecast/live?forecastMonths=${cfMonths}${this._tileScopeParams(widgetKey, { account: false })}`),
-                        { headers: { 'requesttoken': OC.requestToken } }
-                    );
-                    this.widgetData.cashFlowForecast = await cfResp.json();
+                    this.widgetData.cashFlowForecast = await apiFetch(`/apps/budget/api/forecast/live?forecastMonths=${cfMonths}${this._tileScopeParams(widgetKey, { account: false })}`);
                     break;
                 }
 
                 case 'yoyComparison': {
                     const yoyYears = this._tileNumberSetting(widgetKey, 'yearsToCompare', formatters.YEARS_TO_COMPARE, 2);
-                    const yoyResp = await fetch(
-                        OC.generateUrl(`/apps/budget/api/yoy/years?years=${yoyYears}${this._tileScopeParams(widgetKey)}`),
-                        { headers: { 'requesttoken': OC.requestToken } }
-                    );
-                    this.widgetData.yoyComparison = await yoyResp.json();
+                    this.widgetData.yoyComparison = await apiFetch(`/apps/budget/api/yoy/years?years=${yoyYears}${this._tileScopeParams(widgetKey)}`);
                     break;
                 }
 
                 case 'incomeTracking': {
-                    const incomeResp = await fetch(
-                        OC.generateUrl('/apps/budget/api/recurring-income/summary'),
-                        { headers: { 'requesttoken': OC.requestToken } }
-                    );
-                    this.widgetData.incomeTracking = await incomeResp.json();
+                    // The headline from the summary, the list from the
+                    // incomes themselves, both held to the tile's account
+                    const accountId = this._validAccountId(this.dashboardConfig?.widgets?.tileSettings?.incomeTracking?.accountId);
+                    const [summary, incomes] = await Promise.all([
+                        apiFetch(`/apps/budget/api/recurring-income/summary${accountId ? `?accountId=${accountId}` : ''}`),
+                        apiFetch('/apps/budget/api/recurring-income?activeOnly=true'),
+                    ]);
+                    this.widgetData.incomeTracking = {
+                        summary,
+                        incomes: (Array.isArray(incomes) ? incomes : [])
+                            .filter(income => income.isActive !== false)
+                            .filter(income => !accountId || String(income.accountId) === String(accountId)),
+                    };
                     break;
                 }
 
                 case 'daysUntilDebtFree': {
-                    const debtResp = await fetch(
-                        OC.generateUrl('/apps/budget/api/debts/payoff-plan?strategy=avalanche'),
-                        { headers: { 'requesttoken': OC.requestToken } }
-                    );
-                    this.widgetData.daysUntilDebtFree = await debtResp.json();
+                    this.widgetData.daysUntilDebtFree = await apiFetch('/apps/budget/api/debts/payoff-plan?strategy=avalanche');
                     break;
                 }
 
@@ -4532,30 +4862,21 @@ export default class DashboardModule {
                     break;
 
                 case 'recentImports': {
-                    const importsResp = await fetch(
-                        OC.generateUrl('/apps/budget/api/import/history?limit=5'),
-                        { headers: { 'requesttoken': OC.requestToken } }
-                    );
-                    this.widgetData.recentImports = importsResp.ok ? await importsResp.json() : [];
+                    this.widgetData.recentImports = await apiFetch('/apps/budget/api/import/history?limit=5').catch((e) => {
+                        if (e instanceof ApiError) return [];
+                        throw e;
+                    });
                     break;
                 }
 
                 case 'ruleEffectiveness': {
-                    const rulesResp = await fetch(
-                        OC.generateUrl('/apps/budget/api/import-rules'),
-                        { headers: { 'requesttoken': OC.requestToken } }
-                    );
-                    this.widgetData.ruleEffectiveness = await rulesResp.json();
+                    this.widgetData.ruleEffectiveness = await apiFetch('/apps/budget/api/import-rules');
                     break;
                 }
 
                 case 'weeklyTrend': {
                     const wtRange = this._tileRangeParams(widgetKey);
-                    const weekResp = await fetch(
-                        OC.generateUrl(`/apps/budget/api/reports/summary?startDate=${wtRange.startDate}&endDate=${wtRange.endDate}${this._tileScopeParams(widgetKey)}`),
-                        { headers: { 'requesttoken': OC.requestToken } }
-                    );
-                    const weekData = await weekResp.json();
+                    const weekData = await apiFetch(`/apps/budget/api/reports/summary?startDate=${wtRange.startDate}&endDate=${wtRange.endDate}${this._tileScopeParams(widgetKey)}`);
                     // Inclusive span, so the renderer's daily average matches the
                     // window the user picked rather than assuming a week.
                     const wtDays = formatters.daysBetweenDates(wtRange.startDate, wtRange.endDate) + 1;
@@ -4564,24 +4885,19 @@ export default class DashboardModule {
                 }
 
                 case 'unmatchedTransfers': {
-                    const unmatchedResp = await fetch(
-                        OC.generateUrl('/apps/budget/api/transactions?limit=10&unmatched=true'),
-                        { headers: { 'requesttoken': OC.requestToken } }
-                    );
-                    const unmatchedData = await unmatchedResp.json();
+                    const unmatchedData = await apiFetch('/apps/budget/api/transactions?limit=10&unmatched=true');
                     this.widgetData.unmatchedTransfers = Array.isArray(unmatchedData) ? unmatchedData : [];
                     break;
                 }
 
                 case 'billsDueSoon': {
-                    const billsResp = await fetch(
-                        OC.generateUrl('/apps/budget/api/bills?isTransfer=false'),
-                        { headers: { 'requesttoken': OC.requestToken } }
-                    );
                     // Cached unfiltered: the horizon is applied at render time in
                     // updateBillsDueSoonWidget, so a settings change can re-render
                     // from cache instead of forcing a refetch.
-                    this.widgetData.billsDueSoon = await billsResp.json();
+                    // Active bills and transfers, as Upcoming Bills and the
+                    // Nextcloud widget list them: it left transfers out and
+                    // kept inactive bills that still had a due date
+                    this.widgetData.billsDueSoon = await apiFetch('/apps/budget/api/bills?activeOnly=true');
                     break;
                 }
 
@@ -4592,13 +4908,10 @@ export default class DashboardModule {
 
                     // categories/spending only supports excludeShared (no accountId param)
                     const ctScope = this._tileScopeParams('categoryTrends', { account: false });
-                    const [ctCurrentResp, ctPrevResp] = await Promise.all([
-                        fetch(OC.generateUrl(`/apps/budget/api/categories/spending?startDate=${ctThisMonth.start}&endDate=${ctThisMonth.end}${ctScope}`), { headers: { 'requesttoken': OC.requestToken } }),
-                        fetch(OC.generateUrl(`/apps/budget/api/categories/spending?startDate=${ctLastMonth.start}&endDate=${ctLastMonth.end}${ctScope}`), { headers: { 'requesttoken': OC.requestToken } })
+                    const [ctCurrent, ctPrev] = await Promise.all([
+                        apiFetch(`/apps/budget/api/categories/spending?startDate=${ctThisMonth.start}&endDate=${ctThisMonth.end}${ctScope}`),
+                        apiFetch(`/apps/budget/api/categories/spending?startDate=${ctLastMonth.start}&endDate=${ctLastMonth.end}${ctScope}`)
                     ]);
-
-                    const ctCurrent = await ctCurrentResp.json();
-                    const ctPrev = await ctPrevResp.json();
 
                     // Build lookup for previous month
                     const prevMap = {};
@@ -4637,11 +4950,7 @@ export default class DashboardModule {
                     const svToday = formatters.formatDateForAPI(svNow);
                     const svDayOfMonth = svNow.getDate();
 
-                    const svResp = await fetch(
-                        OC.generateUrl(`/apps/budget/api/reports/summary?startDate=${svMonthStart}&endDate=${svToday}`),
-                        { headers: { 'requesttoken': OC.requestToken } }
-                    );
-                    const svData = await svResp.json();
+                    const svData = await apiFetch(`/apps/budget/api/reports/summary?startDate=${svMonthStart}&endDate=${svToday}`);
                     const totalSpent = parseFloat(svData.totalExpenses || 0);
                     this.widgetData.spendingVelocity = {
                         dailyRate: svDayOfMonth > 0 ? totalSpent / svDayOfMonth : 0,
@@ -4725,6 +5034,16 @@ export default class DashboardModule {
         });
     }
 
+    /**
+     * Whether tiles can be dragged right now. Never on a touch screen:
+     * gridstack takes a swipe anywhere on a tile as a drag, so the page
+     * would hardly scroll while unlocked. The toolbar's Move earlier / Move
+     * later buttons reorder tiles there instead.
+     */
+    _tilesDraggable() {
+        return !this.dashboardLocked && !window.matchMedia?.('(hover: none)').matches;
+    }
+
     async toggleDashboardLock() {
         this.app.dashboardLocked = !this.app.dashboardLocked;
 
@@ -4733,18 +5052,18 @@ export default class DashboardModule {
 
         // Update Gridstack static mode
         if (this.gridstack) {
-            if (this.app.dashboardLocked) {
-                this.gridstack.disable();
-            } else {
+            if (this._tilesDraggable()) {
                 this.gridstack.enable();
+            } else {
+                this.gridstack.disable();
             }
         }
 
         // Toggle hero tile drag-and-drop
-        if (this.app.dashboardLocked) {
-            this.teardownHeroDragAndDrop();
-        } else {
+        if (this._tilesDraggable()) {
             this.setupHeroDragAndDrop();
+        } else {
+            this.teardownHeroDragAndDrop();
         }
 
         // Save state to backend
@@ -4766,6 +5085,15 @@ export default class DashboardModule {
         const addTilesDropdown = document.getElementById('add-tiles-dropdown');
 
         if (!btn || !btnText || !hint) return;
+
+        document.getElementById('dashboard-view')?.classList.toggle('dashboard-locked', !!this.dashboardLocked);
+        // Locked is the everyday state, so it gets no banner: just the lock
+        // icon. The hint only shows while the tiles can be moved.
+        hint.style.display = this.dashboardLocked ? 'none' : '';
+        btnText.classList.toggle('visually-hidden', !!this.dashboardLocked);
+        const btnLabel = this.dashboardLocked ? t('budget', 'Unlock Dashboard') : t('budget', 'Lock Dashboard');
+        btn.setAttribute('aria-label', btnLabel);
+        btn.title = btnLabel;
 
         const lockedSvg = '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>';
         const unlockedSvg = '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 5-5 5 5 0 0 1 5 5"></path>';
@@ -4790,7 +5118,9 @@ export default class DashboardModule {
         } else {
             // Unlocked state
             btnText.textContent = t('budget', 'Lock Dashboard');
-            hint.querySelector('span:last-child').textContent = t('budget', 'Drag tiles to reorder your dashboard');
+            hint.querySelector('span:last-child').textContent = window.matchMedia?.('(hover: none)').matches
+                ? t('budget', 'Use the arrows on each tile to reorder your dashboard')
+                : t('budget', 'Drag tiles to reorder your dashboard');
             if (icon) icon.innerHTML = unlockedSvg;
             // Show Add Tiles button, column picker, and tile settings buttons
             if (addTilesDropdown) addTilesDropdown.style.display = 'block';
@@ -4804,6 +5134,9 @@ export default class DashboardModule {
 
         // Update Add Tiles dropdown content
         this.updateAddTilesMenu();
+
+        // Rearranging needs every tile at its real size; viewing doesn't.
+        this._compactEmptyTiles();
     }
 
     addTileControls() {
@@ -4831,12 +5164,24 @@ export default class DashboardModule {
                     btn.className = `size-btn ${size === currentSize ? 'active' : ''}`;
                     btn.dataset.size = size;
                     btn.textContent = size.toUpperCase();
-                    btn.title = { xs: 'Extra Small', s: 'Small', m: 'Medium', l: 'Large' }[size];
+                    btn.title = {
+                        xs: t('budget', 'Extra small'),
+                        s: t('budget', 'Small'),
+                        m: t('budget', 'Medium'),
+                        l: t('budget', 'Large'),
+                    }[size];
+                    // "XS", "M"... read as letters; the full size is the name.
+                    btn.setAttribute('aria-label', btn.title);
+                    btn.setAttribute('aria-pressed', size === currentSize ? 'true' : 'false');
                     btn.onclick = (e) => {
                         e.stopPropagation();
                         this.changeTileSize(widgetId, size, card);
-                        sizePicker.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
+                        sizePicker.querySelectorAll('.size-btn').forEach(b => {
+                            b.classList.remove('active');
+                            b.setAttribute('aria-pressed', 'false');
+                        });
                         btn.classList.add('active');
+                        btn.setAttribute('aria-pressed', 'true');
                     };
                     sizePicker.appendChild(btn);
                 });
@@ -4848,29 +5193,56 @@ export default class DashboardModule {
                 controls.appendChild(div1);
             }
 
+            // Move earlier / later: the keyboard and touch route to what
+            // dragging does, saved the same way a drag is.
+            [[-1, t('budget', 'Move earlier'), '\u2190'], [1, t('budget', 'Move later'), '\u2192']].forEach(([dir, label, arrow]) => {
+                const moveBtn = document.createElement('button');
+                moveBtn.type = 'button';
+                moveBtn.className = 'tile-move-btn';
+                moveBtn.dataset.direction = String(dir);
+                moveBtn.textContent = arrow;
+                moveBtn.title = label;
+                moveBtn.setAttribute('aria-label', label);
+                moveBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    if (category === 'hero') {
+                        this.moveHeroTile(card, dir);
+                    } else {
+                        this.moveGridTile(card, dir);
+                    }
+                    moveBtn.focus();
+                };
+                controls.appendChild(moveBtn);
+            });
+            const moveDivider = document.createElement('div');
+            moveDivider.className = 'tile-controls-divider';
+            controls.appendChild(moveDivider);
+
             // Gear icon (widgets only — hero tiles have no settings)
             if (category !== 'hero') {
                 const gearBtn = document.createElement('button');
                 gearBtn.className = 'tile-gear-btn';
                 gearBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>';
                 gearBtn.title = t('budget', 'Tile Settings');
+                gearBtn.setAttribute('aria-label', gearBtn.title);
                 gearBtn.onclick = (e) => {
                     e.stopPropagation();
                     this.openTileSettingsModal(widgetId, category);
                 };
                 controls.appendChild(gearBtn);
-            }
 
-            // Divider before remove
-            const div2 = document.createElement('div');
-            div2.className = 'tile-controls-divider';
-            controls.appendChild(div2);
+                // Divider before remove
+                const div2 = document.createElement('div');
+                div2.className = 'tile-controls-divider';
+                controls.appendChild(div2);
+            }
 
             // Remove button
             const removeBtn = document.createElement('button');
             removeBtn.className = 'widget-remove-btn';
             removeBtn.innerHTML = '&times;';
             removeBtn.title = this.isDuplicateInstance(widgetId) ? t('budget', 'Remove tile') : t('budget', 'Hide tile');
+            removeBtn.setAttribute('aria-label', removeBtn.title);
             removeBtn.onclick = (e) => {
                 e.stopPropagation();
                 if (this.isDuplicateInstance(widgetId)) {
@@ -4882,7 +5254,10 @@ export default class DashboardModule {
             controls.appendChild(removeBtn);
 
             card.style.position = 'relative';
-            card.appendChild(controls);
+            // First in the card: on a touch screen the CSS takes it out of
+            // its corner overlay and lays it above the header (it would
+            // otherwise sit on the title, as nothing hides it there)
+            card.prepend(controls);
         };
 
         document.querySelectorAll('.hero-card').forEach(card => addControls(card, 'hero'));
@@ -4914,6 +5289,13 @@ export default class DashboardModule {
             const wrapper = card.closest('.grid-stack-item');
             if (wrapper) {
                 this.gridstack.update(wrapper, { w, h: mapped.h });
+            }
+            // A phone shows every tile full width, so keep the new size in
+            // the saved layout for a wider screen.
+            const saved = this.dashboardConfig.widgets.positions?.[widgetId];
+            if (saved && this._gridNarrowed()) {
+                saved.w = w;
+                saved.h = mapped.h;
             }
         }
 
@@ -5018,13 +5400,13 @@ export default class DashboardModule {
             let options = `<option value="">${t('budget', 'All Accounts')}</option>`;
             if (this.accounts) {
                 this.accounts.forEach(acc => {
-                    options += `<option value="${acc.id}" ${currentAccount == acc.id ? 'selected' : ''}>${this.escapeHtml(acc.name)}</option>`;
+                    options += `<option value="${acc.id}" ${currentAccount == acc.id ? 'selected' : ''}>${dom.escapeHtml(acc.name)}</option>`;
                 });
             }
             fields.push(`
                 <div class="form-group">
                     <label>${t('budget', 'Account')}</label>
-                    <select class="tile-setting-input" data-setting="accountId">${options}</select>
+                    <select aria-label="${t('budget', 'Account')}" class="tile-setting-input" data-setting="accountId">${options}</select>
                 </div>
             `);
         }
@@ -5043,6 +5425,13 @@ export default class DashboardModule {
                     </label>
                 </div>
             `);
+        }
+
+        for (const field of [
+            this._excludeSharedBillsField(schema, currentSettings),
+            this._showAllOverdueField(schema, currentSettings),
+        ]) {
+            if (field) fields.push(field);
         }
 
         // Show legend (checkbox)
@@ -5084,7 +5473,7 @@ export default class DashboardModule {
             fields.push(`
                 <div class="form-group">
                     <label>${t('budget', 'Chart Type')}</label>
-                    <select class="tile-setting-input" data-setting="chartType">${options}</select>
+                    <select aria-label="${t('budget', 'Chart Type')}" class="tile-setting-input" data-setting="chartType">${options}</select>
                 </div>
             `);
         }
@@ -5095,7 +5484,7 @@ export default class DashboardModule {
             fields.push(`
                 <div class="form-group">
                     <label>${t('budget', 'Rows to show')}</label>
-                    <input type="number" class="tile-setting-input" data-setting="rowCount"
+                    <input aria-label="${t('budget', 'Rows to show')}" type="number" class="tile-setting-input" data-setting="rowCount"
                         value="${current}" min="${schema.rowCount.min || 3}" max="${schema.rowCount.max || 20}">
                 </div>
             `);
@@ -5111,7 +5500,7 @@ export default class DashboardModule {
             fields.push(`
                 <div class="form-group">
                     <label>${t('budget', 'Display Format')}</label>
-                    <select class="tile-setting-input" data-setting="displayFormat">${options}</select>
+                    <select aria-label="${t('budget', 'Display Format')}" class="tile-setting-input" data-setting="displayFormat">${options}</select>
                 </div>
             `);
         }
@@ -5177,6 +5566,20 @@ export default class DashboardModule {
                 }
             }
             this.renderBudgetAlertsTileConfigList();
+        }
+
+        // Spending by Category: which categories this tile shows (#413). A
+        // list of ticks rather than one field, so it's wired like the above.
+        if (schema.categoryPicker) {
+            if (specificSection) {
+                specificSection.innerHTML = `
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label>${t('budget', 'Categories to show')}</label>
+                        <p class="tile-config-hint" style="margin-bottom: 0;">${t('budget', 'Untick a category to leave it off this tile, along with its subcategories. Reports and totals still count it.')}</p>
+                    </div>
+                `;
+            }
+            this.renderSpendingTileCategoryList(widgetId);
         }
 
         // Wire change handlers (save immediately on change)
@@ -5260,7 +5663,8 @@ export default class DashboardModule {
             'weeklyTrend': () => this.loadWidgetData('weeklyTrend', true).then(() => this.updateWeeklyTrendWidget?.()),
             'categoryTrends': () => this.loadWidgetData('categoryTrends', true).then(() => this.updateCategoryTrendsWidget?.()),
             'billsDueSoon': () => this.updateBillsDueSoonWidget?.(),
-            'incomeTracking': () => this.updateIncomeTrackingWidget?.(),
+            // Its account is applied at fetch time
+            'incomeTracking': () => this.loadWidgetData('incomeTracking', true).then(() => this.updateIncomeTrackingWidget?.()),
             'cashFlowForecast': () => this.loadWidgetData('cashFlowForecast', true).then(() => this.updateCashFlowForecastWidget?.()),
             'yoyComparison': () => this.loadWidgetData('yoyComparison', true).then(() => this.updateYoyComparisonWidget?.()),
             // Hero widgets
@@ -5446,8 +5850,9 @@ export default class DashboardModule {
                         <span class="tile-name">${tile.name}</span>
                         ${sizeBadge}
                     </span>
-                    <button class="add-tile-btn" data-widget-id="${tile.key}" data-category="${tile.type}">
-                        <span class="icon-add"></span>
+                    <button class="add-tile-btn" data-widget-id="${tile.key}" data-category="${tile.type}"
+                            aria-label="${t('budget', 'Add {name}', { name: tile.name })}">
+                        <span class="icon-add" aria-hidden="true"></span>
                     </button>
                 `;
                 menuList.appendChild(item);
@@ -5479,8 +5884,9 @@ export default class DashboardModule {
                         <span class="tile-name">${tile.name}</span>
                         <span class="tile-size-badge">${this.countInstances(tile.key)}/${MAX_INSTANCES}</span>
                     </span>
-                    <button class="add-tile-btn add-another-btn" data-widget-type="${tile.key}">
-                        <span class="icon-add"></span>
+                    <button class="add-tile-btn add-another-btn" data-widget-type="${tile.key}"
+                            aria-label="${t('budget', 'Add {name}', { name: tile.name })}">
+                        <span class="icon-add" aria-hidden="true"></span>
                     </button>
                 `;
                 menuList.appendChild(item);

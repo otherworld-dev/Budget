@@ -22,24 +22,24 @@ use OCP\Migration\SimpleMigrationStep;
  */
 class Version001000096Date20260824 extends SimpleMigrationStep {
 
-    public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
-        /** @var ISchemaWrapper $schema */
-        $schema = $schemaClosure();
+	public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
+		/** @var ISchemaWrapper $schema */
+		$schema = $schemaClosure();
 
-        if (!$schema->hasTable('budget_accounts')) {
-            return null;
-        }
+		if (!$schema->hasTable('budget_accounts')) {
+			return null;
+		}
 
-        $table = $schema->getTable('budget_accounts');
-        if ($table->hasColumn('liability_in_credit')) {
-            return null;
-        }
+		$table = $schema->getTable('budget_accounts');
+		if ($table->hasColumn('liability_in_credit')) {
+			return null;
+		}
 
-        $table->addColumn('liability_in_credit', Types::BOOLEAN, [
-            'notnull' => false,
-            'default' => null,
-        ]);
+		$table->addColumn('liability_in_credit', Types::BOOLEAN, [
+			'notnull' => false,
+			'default' => null,
+		]);
 
-        return $schema;
-    }
+		return $schema;
+	}
 }

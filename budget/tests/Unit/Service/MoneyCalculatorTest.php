@@ -9,6 +9,26 @@ use PHPUnit\Framework\TestCase;
 
 class MoneyCalculatorTest extends TestCase {
 
+	// ── exponent form (crypto dust) ─────────────────────────────────
+
+	/**
+	 * (string)0.00001 is "1.0E-5", which bcmath throws a ValueError on;
+	 * a cast made upstream must not take a page down.
+	 */
+	public function testAStringInExponentFormIsAccepted(): void {
+		$this->assertSame('0.00001000', MoneyCalculator::add((string)0.00001, '0', 8));
+		$this->assertSame('-0.00001000', MoneyCalculator::subtract('0', '1.0E-5', 8));
+	}
+
+	public function testPlainWritesSmallFloatsWithoutAnExponent(): void {
+		$this->assertSame('0.00001', MoneyCalculator::plain(0.00001));
+		$this->assertSame('-0.00001', MoneyCalculator::plain(-0.00001));
+		$this->assertSame('0', MoneyCalculator::plain(0.1 + 0.2 - 0.3));
+		$this->assertSame('12.50', MoneyCalculator::plain('12.50'));
+		$this->assertSame('100', MoneyCalculator::plain(100.0));
+		$this->assertSame('0', MoneyCalculator::plain(null));
+	}
+
 	// ── add ──────────────────────────────────────────────────────────
 
 	public function testAddFloats(): void {

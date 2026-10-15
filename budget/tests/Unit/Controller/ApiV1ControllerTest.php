@@ -102,6 +102,16 @@ class ApiV1ControllerTest extends TestCase {
 		$this->assertSame([
 			'ocr_available' => true,
 			'splits_available' => true,
+			'check_available' => true,
+			'edit_available' => true,
+			'tags_available' => true,
+			'reconcile_available' => true,
+			'transfers_available' => true,
+			'tag_ids_available' => true,
+			'transaction_filters' => [
+				'accountId', 'categoryId', 'dateFrom', 'dateTo', 'search',
+				'type', 'status', 'reconciled', 'uncategorized', 'tagId', 'amountMin', 'amountMax',
+			],
 			'currency' => 'GBP',
 			'version' => '2.41.0',
 		], $data);
@@ -119,6 +129,59 @@ class ApiV1ControllerTest extends TestCase {
 		$this->assertTrue($data['splits_available']);
 		// Splits do not depend on OCR being set up — a user can split by hand.
 		$this->assertFalse($data['ocr_available']);
+	}
+
+	public function testCapabilitiesAnnounceTheCheckScreens(): void {
+		// Gates the phone's read-only screens (#767) the way splits_available
+		// gates its split editor; an older server omits it
+		$this->appManager->method('getAppVersion')->willReturn('2.41.0');
+
+		$this->assertTrue($this->controller->capabilities()->getData()['check_available']);
+	}
+
+	public function testCapabilitiesAnnounceEditAndDelete(): void {
+		// Gates the app's edit and delete actions (discussion 412); an older
+		// server omits it and a client reads false
+		$this->appManager->method('getAppVersion')->willReturn('2.41.0');
+
+		$this->assertTrue($this->controller->capabilities()->getData()['edit_available']);
+	}
+
+	public function testInfoListsEditAndDelete(): void {
+		$features = $this->controller->info()->getData()['features'];
+
+		$this->assertTrue($features['edit_transaction']);
+		$this->assertTrue($features['delete_transaction']);
+	}
+
+	public function testInfoListsTagsReconcilingAndTransfers(): void {
+		$features = $this->controller->info()->getData()['features'];
+
+		foreach (['tags', 'reconcile_transaction', 'create_transfer', 'set_tags'] as $feature) {
+			$this->assertTrue($features[$feature], $feature);
+		}
+	}
+
+	/**
+	 * The filters are named, not flagged: a server ignores one it does not
+	 * know and answers with everything, and a single "new filters" flag would
+	 * already say true when the next filter is added.
+	 */
+	public function testCapabilitiesNameEveryFilterTheListTakes(): void {
+		$this->appManager->method('getAppVersion')->willReturn('2.41.0');
+
+		$filters = $this->controller->capabilities()->getData()['transaction_filters'];
+
+		$this->assertSame(\OCA\Budget\Controller\ApiV1TransactionController::FILTERS, $filters);
+		$this->assertContains('tagId', $filters);
+		$this->assertContains('accountId', $filters);
+	}
+
+	public function testInfoListsTheCheckFeatures(): void {
+		$features = $this->controller->info()->getData()['features'];
+
+		$this->assertTrue($features['budget_status']);
+		$this->assertTrue($features['upcoming_bills']);
 	}
 
 	public function testUnauthenticatedConstructionDoesNotFatal(): void {

@@ -6,9 +6,13 @@ import { translate as t } from '@nextcloud/l10n';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
+import { once } from '../../utils/submitGuard.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue } from '../../utils/datepicker.js';
 import { groupProjects, progressFor, unallocated, subcategoriesOf, ownExpenseTree } from './projectMath.js';
+import { progressBarAttrs, overBudgetText } from '../../utils/budgetProgress.js';
+import { showLoading, showLoadError } from '../../utils/loading.js';
+import { apiFetch, ApiError } from '../../utils/api.js';
 
 export default class ProjectsModule {
     constructor(app) {
@@ -27,27 +31,17 @@ export default class ProjectsModule {
 
     async loadProjectsView() {
         this.ensureEventListeners();
+        showLoading('projects-list');
         try {
-            this.app.projects = await this.fetchJson('/apps/budget/api/projects');
+            this.app.projects = await apiFetch('/apps/budget/api/projects');
             this.renderProjects(this.app.projects);
         } catch (error) {
             console.error('Failed to load projects:', error);
             showError(t('budget', 'Failed to load projects'));
+            const emptyState = document.getElementById('empty-projects');
+            if (emptyState) emptyState.style.display = 'none';
+            showLoadError('projects-list', t('budget', 'Failed to load projects'), () => this.loadProjectsView());
         }
-    }
-
-    async fetchJson(url, options = {}) {
-        const response = await fetch(OC.generateUrl(url), {
-            ...options,
-            headers: { 'requesttoken': OC.requestToken, 'Content-Type': 'application/json' },
-        });
-        const data = await response.json().catch(() => null);
-        if (!response.ok) {
-            const error = new Error(data?.error || `HTTP ${response.status}`);
-            error.userMessage = data?.error || null;
-            throw error;
-        }
-        return data;
     }
 
     renderProjects(projects) {
@@ -66,11 +60,11 @@ export default class ProjectsModule {
         return `
             <div class="project-card" role="button" tabindex="0" data-project-id="${project.id}">
                 <div class="project-card-header">
-                    <span class="project-name">${this.escape(project.name)}</span>
+                    <span class="project-name">${dom.escapeHtml(project.name)}</span>
                     ${shared}
                     ${this.statusBadge(project.status)}
                 </div>
-                <div class="project-meta">${this.escape(project.categoryName || '')} · ${this.datesText(project)}</div>
+                <div class="project-meta">${dom.escapeHtml(project.categoryName || '')} · ${this.datesText(project)}</div>
                 ${this.summaryHtml(project)}
             </div>`;
     }
@@ -79,7 +73,8 @@ export default class ProjectsModule {
         const bar = progressFor(project.spent, project.totalAmount);
         const time = this.timeText(project);
         return `
-            <div class="budget-progress-bar"><div class="budget-progress-fill ${bar.status}" style="width: ${bar.width}%"></div></div>
+            <div class="budget-progress-bar" ${progressBarAttrs(bar.percent, project.name)}><div class="budget-progress-fill ${bar.status}" style="width: ${bar.width}%"></div></div>
+            ${overBudgetText(project.remaining < 0)}
             <div class="project-amounts">
                 <span>${t('budget', '{spent} of {total}', { spent: this.money(project.spent), total: this.money(project.totalAmount) })}</span>
                 <span class="${project.remaining < 0 ? 'negative' : ''}">${this.remainingText(project.remaining)}</span>
@@ -93,7 +88,7 @@ export default class ProjectsModule {
             active: t('budget', 'Active'),
             finished: t('budget', 'Finished'),
         };
-        return `<span class="project-status project-status-${this.escape(String(status))}">${labels[status] || this.escape(String(status))}</span>`;
+        return `<span class="project-status project-status-${dom.escapeHtml(String(status))}">${labels[status] || dom.escapeHtml(String(status))}</span>`;
     }
 
     datesText(project) {
@@ -121,7 +116,7 @@ export default class ProjectsModule {
         this.ensureEventListeners();
         let project;
         try {
-            project = await this.fetchJson(`/apps/budget/api/projects/${id}`);
+            project = await apiFetch(`/apps/budget/api/projects/${id}`);
         } catch (error) {
             console.error('Failed to load project:', error);
             showError(t('budget', 'Failed to load the project'));
@@ -132,11 +127,12 @@ export default class ProjectsModule {
 
         document.getElementById('project-details-title').textContent = project.name;
         document.getElementById('project-details-meta').innerHTML =
-            `<span>${this.escape(project.categoryName || '')} · ${this.datesText(project)}</span>${this.statusBadge(project.status)}`;
+            `<span>${dom.escapeHtml(project.categoryName || '')} · ${this.datesText(project)}</span>${this.statusBadge(project.status)}`;
         document.getElementById('project-details-summary').innerHTML = this.summaryHtml(project);
         document.getElementById('project-details-rows').innerHTML = this.breakdownHtml(project);
         document.getElementById('project-edit-btn').style.display = canWrite ? '' : 'none';
-        document.getElementById('project-delete-btn').style.display = project._shared ? 'none' : '';
+        // Deleting a shared project needs Full control from its owner
+        document.getElementById('project-delete-btn').style.display = project._shared && !project._canManage ? 'none' : '';
 
         const modal = document.getElementById('project-details-modal');
         modal.style.display = 'flex';
@@ -163,12 +159,12 @@ export default class ProjectsModule {
             return row(
                 entry.outsideProject ? ' outside' : '',
                 entry.depth,
-                `${this.escape(entry.name)}${note}`,
+                `${dom.escapeHtml(entry.name)}${note}`,
                 hasAmount ? this.money(entry.allocation) : '',
                 this.money(entry.spent),
                 hasAmount ? this.money(entry.remaining) : '',
                 hasAmount && entry.remaining < 0 ? ' negative' : '',
-                bar ? `<span class="budget-progress-bar"><span class="budget-progress-fill ${bar.status}" style="width: ${bar.width}%"></span></span>` : ''
+                bar ? `<span class="budget-progress-bar" ${progressBarAttrs(bar.percent, entry.name)}><span class="budget-progress-fill ${bar.status}" style="width: ${bar.width}%"></span></span>${overBudgetText(hasAmount && entry.remaining < 0)}` : ''
             );
         });
 
@@ -202,12 +198,15 @@ export default class ProjectsModule {
         const question = t('budget', 'Delete the project "{name}"? Its categories and transactions are not changed.', { name: project.name });
         if (!await confirmDialog(question, { destructive: true })) return;
         try {
-            await this.fetchJson(`/apps/budget/api/projects/${project.id}`, { method: 'DELETE' });
+            await apiFetch(`/apps/budget/api/projects/${project.id}`, {
+                method: 'DELETE',
+                errorMessage: t('budget', 'Failed to delete the project'),
+            });
             this.closeModal(document.getElementById('project-details-modal'));
             showSuccess(t('budget', 'Project deleted'));
             await this.loadProjectsView();
         } catch (error) {
-            showError(error.userMessage || t('budget', 'Failed to delete the project'));
+            showError(error instanceof ApiError ? error.message : t('budget', 'Failed to delete the project'));
         }
     }
 
@@ -269,7 +268,7 @@ export default class ProjectsModule {
                 + dom.buildCategoryOptionsHtml(ownExpenseTree(this.app.rawCategoryTree || []), { selectedId: project?.categoryId });
         } else {
             // A shared project stays on its owner's category, which the viewer's own picker cannot list
-            select.innerHTML = `<option value="${project.categoryId}" selected>${this.escape(project.categoryName || '')}</option>`;
+            select.innerHTML = `<option value="${project.categoryId}" selected>${dom.escapeHtml(project.categoryName || '')}</option>`;
         }
         select.disabled = !isOwner;
 
@@ -298,10 +297,10 @@ export default class ProjectsModule {
         document.getElementById('project-allocations-group').style.display = subcategories.length > 0 ? '' : 'none';
         document.getElementById('project-allocations').innerHTML = subcategories.map(sub => `
             <div class="project-alloc-row" style="--depth: ${sub.depth}">
-                <label for="project-alloc-${sub.id}">${this.escape(sub.name)}</label>
+                <label for="project-alloc-${sub.id}">${dom.escapeHtml(sub.name)}</label>
                 <input type="number" id="project-alloc-${sub.id}" class="project-alloc-input" data-category-id="${sub.id}"
                        step="0.01" min="0" inputmode="decimal" placeholder="${t('budget', 'No amount')}"
-                       value="${this.escape(this._allocationValues.get(sub.id) ?? '')}">
+                       value="${dom.escapeHtml(this._allocationValues.get(sub.id) ?? '')}">
             </div>`).join('');
         this.updateUnallocated();
     }
@@ -316,7 +315,12 @@ export default class ProjectsModule {
             : t('budget', 'Unallocated: {amount}', { amount: this.money(Math.max(result.cents, 0) / 100) });
     }
 
-    async saveProject() {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveProject() {
+        return once('project-save', document.querySelector('#project-form [type="submit"]'), () => this._saveProject());
+    }
+
+    async _saveProject() {
         const project = this._editing;
         const categoryId = parseInt(document.getElementById('project-category').value, 10);
         const inputs = [...document.querySelectorAll('#project-allocations .project-alloc-input')];
@@ -350,9 +354,10 @@ export default class ProjectsModule {
         }
 
         try {
-            await this.fetchJson(project ? `/apps/budget/api/projects/${project.id}` : '/apps/budget/api/projects', {
+            await apiFetch(project ? `/apps/budget/api/projects/${project.id}` : '/apps/budget/api/projects', {
                 method: project ? 'PUT' : 'POST',
-                body: JSON.stringify(body),
+                body,
+                errorMessage: t('budget', 'Failed to save the project'),
             });
             this.closeModal(document.getElementById('project-modal'));
             showSuccess(project ? t('budget', 'Project saved') : t('budget', 'Project created'));
@@ -362,7 +367,7 @@ export default class ProjectsModule {
             }
             await this.loadProjectsView();
         } catch (error) {
-            showError(error.userMessage || t('budget', 'Failed to save the project'));
+            showError(error instanceof ApiError ? error.message : t('budget', 'Failed to save the project'));
         }
     }
 
@@ -392,9 +397,6 @@ export default class ProjectsModule {
         return date ? formatters.formatDate(date, this.settings) : '';
     }
 
-    escape(text) {
-        return dom.escapeHtml(text);
-    }
 
     closeModal(modal) {
         return dom.closeModal(modal);

@@ -2,15 +2,21 @@
  * Transfers Module - Recurring transfer tracking between accounts
  */
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
+import { once } from '../../utils/submitGuard.js';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
-import { billRowDateText } from '../../utils/billDates.js';
+import { billRowState } from '../../utils/billDates.js';
+import { showMatchingTransactionDialog } from '../../utils/matchingDialog.js';
 import { showSuccess, showError, showWarning, showUndoNotification } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { initSingleDatePicker } from '../../utils/datepicker.js';
-import { serverErrorMessage, isoWeekday } from '../../utils/helpers.js';
+import { isoWeekday } from '../../utils/helpers.js';
+import { apiFetch } from '../../utils/api.js';
 import { offerableTags, offerableTagSets } from '../../utils/tags.js';
-import { openAccounts, pickableAccounts, accountOptionLabel } from '../../utils/accounts.js';
+import { showLoadError } from '../../utils/loading.js';
+import { openAccounts, pickableAccounts, accountOptionLabel, accountCurrency, linkableCandidates } from '../../utils/accounts.js';
+import { requestMarkUnpaid } from '../../utils/billUnpaid.js';
+import { selectPossiblyUnavailable, unavailableCategoryLabel } from '../../utils/formSelects.js';
 
 /**
  * The date to open the form on for a one-time transfer saved before the
@@ -42,24 +48,31 @@ export default class TransfersModule {
     }
 
     async loadTransfersView() {
-        await this.loadTransfers();
+        const loaded = await this.loadTransfers();
         this.render();
         this.renderTransfers();
         this.updateSummary();
+        if (!loaded) {
+            // Say it failed rather than showing "No recurring transfers yet"
+            const empty = document.getElementById('empty-transfers');
+            if (empty) empty.style.display = 'none';
+            showLoadError('transfers-list', t('budget', 'Failed to load transfers'), () => this.loadTransfersView());
+        }
     }
 
+    /**
+     * @returns {Promise<boolean>} false when the fetch failed
+     */
     async loadTransfers() {
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/bills?isTransfer=true'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            this.transfers = await response.json();
+            // Active transfers, plus ended ones that can still be reverted
+            // (#365); every ended transfer used to stay listed as paid
+            this.transfers = await apiFetch('/apps/budget/api/bills?isTransfer=true&revertibleToo=true');
+            return true;
         } catch (error) {
             console.error('Failed to load transfers:', error);
             showError(t('budget', 'Failed to load transfers'));
+            return false;
         }
     }
 
@@ -155,7 +168,7 @@ export default class TransfersModule {
                 <div class="detected-bills-panel" id="detected-transfers-panel" style="display: none;">
                     <div class="detected-bills-header">
                         <h3>${t('budget', 'Detected Recurring Transfers')}</h3>
-                        <button class="icon-close" id="close-detected-transfers-panel" title="${t('budget', 'Close')}"></button>
+                        <button class="icon-close" id="close-detected-transfers-panel" title="${t('budget', 'Close')}" aria-label="${t('budget', 'Close')}"></button>
                     </div>
                     <p class="detected-bills-description">${t('budget', 'These recurring transactions may be transfers between your accounts. Select the ones to add and choose the destination account.')}</p>
                     <div id="detected-transfers-list" class="detected-bills-list"></div>
@@ -289,33 +302,14 @@ export default class TransfersModule {
 
         emptyTransfers.style.display = 'none';
 
+        const today = formatters.getTodayDateString();
         transfersList.innerHTML = this.transfers.map(transfer => {
-            // A paid one-time transfer has no next occurrence, but it still
-            // has the date it was due - kept as its start date (#375, #395)
-            const dueDate = transfer.nextDueDate || transfer.next_due_date
-                || ((transfer.frequency || 'monthly') === 'one-time' ? (transfer.startDate || transfer.start_date || null) : null);
-            // An inactive transfer has no next occurrence: never offer an
-            // actionable Mark Paid on it — markPaid would still execute (#365)
-            const isActive = transfer.isActive ?? transfer.is_active ?? true;
-            const isPaid = !isActive || this.isTransferPaidThisMonth(transfer);
-            const isOverdue = !isPaid && dueDate && dueDate < formatters.getTodayDateString();
-            const isDueSoon = !isPaid && !isOverdue && dueDate && this.isDueSoon(dueDate);
-
-            let statusClass = '';
-            let statusText = '';
-            if (isPaid) {
-                statusClass = 'paid';
-                statusText = t('budget', 'Paid');
-            } else if (isOverdue) {
-                statusClass = 'overdue';
-                statusText = t('budget', 'Overdue');
-            } else if (isDueSoon) {
-                statusClass = 'due-soon';
-                statusText = t('budget', 'Due Soon');
-            } else {
-                statusClass = 'upcoming';
-                statusText = t('budget', 'Upcoming');
-            }
+            // Status, date and actions follow the transfer's next occurrence,
+            // not the calendar month (#399); an inactive transfer offers
+            // nothing to pay, which markPaid would still execute (#365)
+            const row = billRowState(transfer, today, this.settings, this.accounts);
+            const statusClass = row.status;
+            const statusText = row.statusText;
 
             const frequency = transfer.frequency || 'monthly';
             const frequencyLabels = {
@@ -340,44 +334,45 @@ export default class TransfersModule {
                             <h4 class="bill-name">${dom.escapeHtml(transfer.name)}</h4>
                             <span class="bill-frequency">${frequencyLabel}</span>
                         </div>
-                        <div class="bill-amount">${formatters.formatCurrency(transfer.amount, null, this.settings)}${this.amountTypeBadge(transfer.amountType)}</div>
+                        <div class="bill-amount">${formatters.formatCurrency(transfer.amount, transfer.currency || null, this.settings)}${this.amountTypeBadge(transfer.amountType)}</div>
                     </div>
                     <div class="bill-details">
                         <div class="bill-due-date">
                             <span class="icon-calendar" aria-hidden="true"></span>
-                            ${dom.escapeHtml(billRowDateText(transfer, dueDate, isPaid, this.settings))}
+                            ${dom.escapeHtml(row.dateText)}
                         </div>
                         <div class="bill-status ${statusClass}">
                             <span class="status-badge">${statusText}</span>
-                            ${autoPayEnabled ? `<span class="status-badge auto-pay" title="${t('budget', 'Auto-pay enabled')}" style="background: #007bff; margin-left: 5px;"><span class="icon-checkmark"></span> ${t('budget', 'Auto-pay')}</span>` : ''}
-                            ${autoPayFailed ? `<span class="status-badge auto-pay-failed" title="${t('budget', 'Auto-pay failed - disabled')}" style="background: #ffc107; color: #856404; margin-left: 5px;"><span class="icon-error"></span> ${t('budget', 'Auto-pay Failed')}</span>` : ''}
+                            ${autoPayEnabled ? `<span class="status-badge badge-extra auto-pay" title="${t('budget', 'Auto-pay enabled')}"><span class="icon-checkmark"></span> ${t('budget', 'Auto-pay')}</span>` : ''}
+                            ${autoPayFailed ? `<span class="status-badge badge-extra auto-pay-failed" title="${t('budget', 'Auto-pay failed - disabled')}"><span class="icon-error"></span> ${t('budget', 'Auto-pay Failed')}</span>` : ''}
                         </div>
                     </div>
+                    ${row.accountHint ? `<p class="bill-account-hint">${dom.escapeHtml(row.accountHint)}</p>` : ''}
                     <div class="bill-actions">
-                        ${!isPaid ? `
+                        ${row.canPay ? `
                             <button class="bill-action-btn transfer-paid-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Mark as paid')}">
                                 <span class="icon-checkmark" aria-hidden="true"></span>
                                 ${t('budget', 'Mark Paid')}
                             </button>
                         ` : ''}
-                        ${!isPaid && frequency !== 'one-time' ? `
+                        ${row.canSkip ? `
                             <button class="bill-action-btn transfer-skip-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Skip this payment')}">
                                 <span aria-hidden="true">&#x23ED;</span>
                                 ${t('budget', 'Skip')}
                             </button>
                         ` : ''}
-                        ${transfer.canMarkUnpaid ? `
+                        ${row.canUnpay ? `
                             <button class="bill-action-btn transfer-unpaid-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Revert the last payment')}">
                                 <span class="icon-history" aria-hidden="true"></span>
                                 ${t('budget', 'Mark Unpaid')}
                             </button>
                         ` : ''}
-                        <button class="bill-action-btn transfer-edit-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Edit transfer')}">
+                        ${row.canWrite ? `<button class="bill-action-btn transfer-edit-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Edit transfer')}" aria-label="${t('budget', 'Edit transfer')}">
                             <span class="icon-rename" aria-hidden="true"></span>
-                        </button>
-                        <button class="bill-action-btn transfer-delete-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Delete transfer')}">
+                        </button>` : ''}
+                        ${transfer._shared && !transfer._canManage ? '' : `<button class="bill-action-btn transfer-delete-btn" data-transfer-id="${transfer.id}" title="${t('budget', 'Delete transfer')}" aria-label="${t('budget', 'Delete transfer')}">
                             <span class="icon-delete" aria-hidden="true"></span>
-                        </button>
+                        </button>`}
                     </div>
                 </div>
             `;
@@ -385,66 +380,54 @@ export default class TransfersModule {
     }
 
     filterTransfers(filter) {
-        const transferItems = document.querySelectorAll('#transfers-list .bill-item');
-
-        transferItems.forEach(item => {
-            const transferId = parseInt(item.dataset.id);
-            const transfer = this.transfers.find(tx => tx.id === transferId);
-            if (!transfer) {
-                item.style.display = 'none';
-                return;
-            }
-
-            const dueDate = transfer.nextDueDate || transfer.next_due_date;
-            const isPaid = this.isTransferPaidThisMonth(transfer);
-            const isOverdue = !isPaid && dueDate && dueDate < formatters.getTodayDateString();
-            const isDueSoon = !isPaid && !isOverdue && dueDate && this.isDueSoon(dueDate);
-
-            let show = false;
-
-            switch (filter) {
-                case 'all':
-                    show = true;
-                    break;
-                case 'due':
-                    show = isDueSoon;
-                    break;
-                case 'overdue':
-                    show = isOverdue;
-                    break;
-                case 'completed':
-                    show = isPaid;
-                    break;
-            }
-
-            item.style.display = show ? '' : 'none';
+        // The cards carry their status. This looked for .bill-item cards with
+        // a data-id, which the list no longer renders, so no tab filtered
+        const shows = {
+            all: () => true,
+            due: (status) => status === 'due-soon',
+            overdue: (status) => status === 'overdue',
+            completed: (status) => status === 'paid',
+        };
+        const show = shows[filter] || shows.all;
+        document.querySelectorAll('#transfers-list .bill-card').forEach(card => {
+            card.style.display = show(card.dataset.status) ? '' : 'none';
         });
     }
 
-    updateSummary() {
+    async updateSummary() {
+        // Dates compared as Y-m-d text: parsed with new Date() they are UTC
+        // midnight, the evening before west of UTC, so a transfer due or
+        // paid on the 1st counted as last month's
+        const today = formatters.getTodayDateString();
+        const thisMonth = today.slice(0, 7);
         const activeCount = this.transfers.filter(tx => tx.isActive).length;
         const dueThisMonth = this.transfers.filter(tx => {
             if (!tx.isActive) return false;
             const dueDate = tx.nextDueDate || tx.next_due_date;
-            if (!dueDate) return false;
-            const due = new Date(dueDate);
-            const now = new Date();
-            return due.getMonth() === now.getMonth() && due.getFullYear() === now.getFullYear();
+            return !!dueDate && dueDate.slice(0, 7) === thisMonth;
         }).length;
 
         const completedThisMonth = this.transfers.filter(tx => {
-            return this.isTransferPaidThisMonth(tx);
+            const lastPaid = tx.lastPaidDate || tx.last_paid_date;
+            return !!lastPaid && lastPaid.slice(0, 7) === thisMonth;
         }).length;
-
-        const monthlyTotal = this.transfers
-            .filter(tx => tx.isActive)
-            .reduce((sum, tx) => sum + this.getMonthlyEquivalent(tx), 0);
 
         document.getElementById('transfers-active-count').textContent = activeCount;
         document.getElementById('transfers-due-count').textContent = dueThisMonth;
-        document.getElementById('transfers-monthly-total').textContent =
-            formatters.formatCurrency(monthlyTotal, null, this.settings);
         document.getElementById('transfers-completed-count').textContent = completedThisMonth;
+
+        // Monthly Total comes from the server, which converts each transfer
+        // from its account's currency to the base one. Adding the amounts
+        // here put euros and dollars into a pound total as they were.
+        try {
+            const summary = await apiFetch('/apps/budget/api/bills/summary?isTransfer=true');
+            const total = document.getElementById('transfers-monthly-total');
+            if (total) {
+                total.textContent = formatters.formatCurrency(summary.monthlyTotal || 0, summary.baseCurrency || null, this.settings);
+            }
+        } catch (error) {
+            console.error('Failed to load transfers summary:', error);
+        }
     }
 
     showTransferModal(transfer = null, prefill = null) {
@@ -456,7 +439,7 @@ export default class TransfersModule {
                 <div class="budget-modal modal-content">
                     <div class="budget-modal-header modal-head">
                         <h2>${title}</h2>
-                        <button class="close-btn" id="close-transfer-modal">×</button>
+                        <button class="close-btn" id="close-transfer-modal" aria-label="${t('budget', 'Close')}">×</button>
                     </div>
                     <form id="transfer-form" class="wide-form">
                         <div class="modal-scroll">
@@ -493,12 +476,15 @@ export default class TransfersModule {
                                 <label for="transfer-frequency">${t('budget', 'Frequency')} <span class="required">*</span></label>
                                 <select id="transfer-frequency" required>
                                 <option value="one-time" ${isEdit && transfer.frequency === 'one-time' ? 'selected' : ''}>${t('budget', 'One-Time')}</option>
+                                <option value="daily" ${isEdit && transfer.frequency === 'daily' ? 'selected' : ''}>${t('budget', 'Daily')}</option>
                                 <option value="weekly" ${isEdit && transfer.frequency === 'weekly' ? 'selected' : ''}>${t('budget', 'Weekly')}</option>
                                 <option value="biweekly" ${isEdit && transfer.frequency === 'biweekly' ? 'selected' : ''}>${t('budget', 'Bi-Weekly')}</option>
                                 <option value="semi-monthly" ${isEdit && transfer.frequency === 'semi-monthly' ? 'selected' : ''}>${t('budget', 'Semi-Monthly')}</option>
                                 <option value="monthly" ${!isEdit || transfer.frequency === 'monthly' ? 'selected' : ''}>${t('budget', 'Monthly')}</option>
                                 <option value="quarterly" ${isEdit && transfer.frequency === 'quarterly' ? 'selected' : ''}>${t('budget', 'Quarterly')}</option>
+                                <option value="semi-annually" ${isEdit && transfer.frequency === 'semi-annually' ? 'selected' : ''}>${t('budget', 'Semi-Annually')}</option>
                                 <option value="yearly" ${isEdit && transfer.frequency === 'yearly' ? 'selected' : ''}>${t('budget', 'Yearly')}</option>
+                                ${isEdit && transfer.frequency === 'custom' ? `<option value="custom" selected>${t('budget', 'Custom')}</option>` : ''}
                                 </select>
                                 </div>
 
@@ -532,6 +518,14 @@ export default class TransfersModule {
                                 min="1" max="31" placeholder="${t('budget', 'e.g., 15')}"
                                 value="${isEdit && transfer.dueDay ? transfer.dueDay : ''}">
                                 <small class="form-text" id="transfer-due-day-help"></small>
+                                </div>
+
+                                <div class="form-group" id="transfer-due-month-group" style="display: none;">
+                                <label for="transfer-due-month">${t('budget', 'Due Month')}</label>
+                                <select id="transfer-due-month">
+                                ${['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map((m, i) => `<option value="${i + 1}" ${isEdit && transfer.dueMonth === i + 1 ? 'selected' : ''}>${t('budget', m)}</option>`).join('')}
+                                </select>
+                                <small class="form-text">${t('budget', 'The month the cycle starts from')}</small>
                                 </div>
 
                                 <div class="form-group" id="transfer-start-date-group" style="display: none;">
@@ -617,6 +611,19 @@ export default class TransfersModule {
         // Add modal to body
         document.body.insertAdjacentHTML('beforeend', modalHtml);
 
+        // A transfer shared with you may use a category or account its owner
+        // didn't share with you, which the pickers can't list: the category
+        // read "No category" and saving cleared it off the owner's transfer,
+        // and a missing account stopped the form saving at all. They are kept
+        // selected and sent back unchanged (#370, as bills and income do).
+        // The category is named, as the transfer came; an account isn't.
+        if (isEdit) {
+            selectPossiblyUnavailable(document.getElementById('transfer-category'), transfer.categoryId ?? null,
+                transfer.categoryName ? unavailableCategoryLabel(transfer.categoryName) : null);
+            selectPossiblyUnavailable(document.getElementById('recurring-transfer-from-account'), transfer.accountId ?? null);
+            selectPossiblyUnavailable(document.getElementById('recurring-transfer-to-account'), transfer.destinationAccountId ?? null);
+        }
+
         // Initialize flatpickr on the transaction date input
         const transferDateInput = document.getElementById('transfer-transaction-date');
         if (transferDateInput) {
@@ -644,11 +651,11 @@ export default class TransfersModule {
             categorySelect.addEventListener('change', () => {
                 this.loadTransferTagSets(categorySelect.value || null, isEdit ? transfer : null);
             });
-            // Load tag sets for pre-selected category (edit mode)
-            if (categorySelect.value) {
-                this.loadTransferTagSets(categorySelect.value, isEdit ? transfer : null);
-            }
         }
+        // The picker always loads (global tags need no category): only
+        // loading it for a preselected category left a transfer without one
+        // with no boxes, and saving wiped its tags
+        this.loadTransferTagSets(categorySelect?.value || null, isEdit ? transfer : null);
 
         // Dynamic amount types: only offered for card-like destinations (#347)
         const toAccountSelect = document.getElementById('recurring-transfer-to-account');
@@ -663,7 +670,13 @@ export default class TransfersModule {
         };
         const updateAmountTypeVisibility = () => {
             const destination = this.accounts.find(a => a.id === parseInt(toAccountSelect.value));
-            const cardLike = !!destination && ['credit_card', 'line_of_credit'].includes(destination.type);
+            // A destination not shared with you can't be looked at, so the
+            // transfer keeps the amount type it has rather than dropping to
+            // fixed (the server refuses switching it to a dynamic one)
+            const hiddenDestination = !destination && toAccountSelect.selectedOptions[0]?.dataset.unavailable === '1';
+            const cardLike = hiddenDestination
+                ? isEdit && (transfer.amountType || 'fixed') !== 'fixed'
+                : !!destination && ['credit_card', 'line_of_credit'].includes(destination.type);
             if (!cardLike && amountTypeSelect.value !== 'fixed') {
                 amountTypeSelect.value = 'fixed';
             }
@@ -749,6 +762,13 @@ export default class TransfersModule {
         // on save (#395)
         const isOneTime = frequency === 'one-time';
         if (dueDayGroup) dueDayGroup.style.display = isOneTime ? 'none' : 'block';
+        // The month a yearly, half-yearly or quarterly transfer's cycle
+        // starts from. There was no field: every yearly transfer fell in
+        // January and quarterly ones on the January grid
+        const dueMonthGroup = document.getElementById('transfer-due-month-group');
+        if (dueMonthGroup) {
+            dueMonthGroup.style.display = ['yearly', 'semi-annually', 'quarterly'].includes(frequency) ? 'block' : 'none';
+        }
         if (startDateGroup) startDateGroup.style.display = 'block';
         if (startDateLabel) {
             startDateLabel.textContent = isOneTime ? t('budget', 'Due Date') : t('budget', 'Start Date');
@@ -791,7 +811,12 @@ export default class TransfersModule {
         }
     }
 
-    async saveTransfer(existingTransfer = null) {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    saveTransfer(existingTransfer = null) {
+        return once('transfer-save', document.querySelector('#transfer-form [type="submit"]'), () => this._saveTransfer(existingTransfer));
+    }
+
+    async _saveTransfer(existingTransfer = null) {
         const name = document.getElementById('transfer-name').value;
         const amountType = document.getElementById('transfer-amount-type')?.value || 'fixed';
         const amountValue = parseFloat(document.getElementById('transfer-amount').value);
@@ -817,6 +842,9 @@ export default class TransfersModule {
                 dueDay = day;
                 dueMonth = month;
             }
+        }
+        if (['yearly', 'semi-annually', 'quarterly'].includes(frequency)) {
+            dueMonth = parseInt(document.getElementById('transfer-due-month')?.value) || null;
         }
         const transferDescriptionPattern = document.getElementById('transfer-description-pattern').value || null;
         const categoryId = document.getElementById('transfer-category')?.value ? parseInt(document.getElementById('transfer-category').value) : null;
@@ -856,32 +884,29 @@ export default class TransfersModule {
             categoryId,
             tagIds,
             notes,
-            createTransaction,
-            transactionDate,
             autoPayEnabled,
             isTransfer: true
         };
+        // "Also create transactions now" only applies when adding one. On the
+        // server createTransaction is the pre-booking setting, so sending the
+        // unticked box with every edit switched a transfer's pre-booking off
+        if (!existingTransfer) {
+            data.createTransaction = createTransaction;
+            data.transactionDate = transactionDate;
+        }
 
         try {
             const url = existingTransfer ?
-                OC.generateUrl(`/apps/budget/api/bills/${existingTransfer.id}`) :
-                OC.generateUrl('/apps/budget/api/bills');
+                `/apps/budget/api/bills/${existingTransfer.id}` :
+                '/apps/budget/api/bills';
 
             const method = existingTransfer ? 'PUT' : 'POST';
 
-            const response = await fetch(url, {
+            await apiFetch(url, {
                 method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify(data)
+                body: data,
+                errorMessage: t('budget', 'Failed to save transfer'),
             });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to save transfer')));
-            }
 
             showSuccess(
                 existingTransfer ? t('budget', 'Transfer updated') : t('budget', 'Transfer added')
@@ -904,12 +929,10 @@ export default class TransfersModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${transferId}`), {
+            await apiFetch(`/apps/budget/api/bills/${transferId}`, {
                 method: 'DELETE',
-                headers: { 'requesttoken': OC.requestToken }
+                errorMessage: t('budget', 'Failed to delete transfer'),
             });
-
-            if (!response.ok) throw new Error(t('budget', 'Failed to delete transfer'));
 
             showSuccess(t('budget', 'Transfer deleted'));
 
@@ -927,18 +950,13 @@ export default class TransfersModule {
         if (!transfer) return;
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${transferId}`), {
+            await apiFetch(`/apps/budget/api/bills/${transferId}`, {
                 method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({
+                body: {
                     active: !transfer.isActive
-                })
+                },
+                errorMessage: t('budget', 'Failed to update transfer'),
             });
-
-            if (!response.ok) throw new Error(t('budget', 'Failed to update transfer'));
 
             showSuccess(
                 transfer.isActive ? t('budget', 'Transfer deactivated') : t('budget', 'Transfer activated')
@@ -958,33 +976,57 @@ export default class TransfersModule {
         if (!transfer) return;
 
         try {
-            const formattedDate = formatters.getTodayDateString();
+            // A withdrawal already in the source account (from a statement or
+            // bank sync) may be this transfer: offer to link it, as the Bills
+            // page does. Booking a new pair moved the money a second time.
+            let choice = { action: 'create' };
+            if (transfer.accountId || transfer.account_id) {
+                const found = await apiFetch(`/apps/budget/api/bills/${transferId}/matching-transactions`)
+                    .catch(() => null);
+                // Only rows the payment can be linked to
+                const candidates = found ? linkableCandidates(found, this.accounts) : null;
+                if (candidates && candidates.length > 0) {
+                    choice = await showMatchingTransactionDialog(transfer, candidates, this.settings);
+                    if (choice === null) {
+                        return; // cancelled
+                    }
+                }
+            }
 
             // Use the dedicated mark-paid endpoint so the paired transfer
             // transactions are actually created. A plain PUT of lastPaidDate
-            // records the date but creates no account entries (#291).
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${transferId}/paid`), {
+            // records the date but creates no account entries (#291). It
+            // names the occurrence the row showed, so a second click is
+            // refused rather than paid twice.
+            const body = {
+                recordPayment: choice.action === 'create',
+                dueDate: transfer.nextDueDate || transfer.next_due_date || null,
+            };
+            if (choice.action === 'link') {
+                body.existingTransactionId = choice.transactionId;
+            } else {
+                body.paidDate = formatters.getTodayDateString();
+            }
+            const result = await apiFetch(`/apps/budget/api/bills/${transferId}/paid`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({
-                    paidDate: formattedDate,
-                    createNextTransaction: true
-                })
+                body,
+                errorMessage: t('budget', 'Failed to mark transfer as paid'),
             });
 
-            if (!response.ok) throw new Error(t('budget', 'Failed to mark transfer as paid'));
-
-            showSuccess(t('budget', 'Transfer marked as paid'));
+            if (result && result.paymentTransactionRecorded === false) {
+                // Marked paid, but no money moved: say so rather than report
+                // a transfer that never reached either account
+                showWarning(t('budget', 'The transfer was marked as paid, but no transactions were recorded. Check both accounts, or add the transfer manually.'));
+            } else {
+                showSuccess(t('budget', 'Transfer marked as paid'));
+            }
 
             await this.loadTransfers();
             this.renderTransfers();
             this.updateSummary();
         } catch (error) {
             console.error('Failed to mark transfer as paid:', error);
-            showError(t('budget', 'Failed to mark transfer as paid'));
+            showError(error.message || t('budget', 'Failed to mark transfer as paid'));
         }
     }
 
@@ -1003,34 +1045,26 @@ export default class TransfersModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${transferId}/skip`), {
+            const result = await apiFetch(`/apps/budget/api/bills/${transferId}/skip`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                }
+                errorMessage: t('budget', 'Failed to skip transfer'),
             });
-
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to skip transfer')));
-            }
-
-            const result = await response.json();
-            this._undoData = {
+            const undoData = {
                 transferId,
                 previousNextDueDate: result.previousNextDueDate ?? null,
                 action: 'skip'
             };
+            this._undoData = undoData;
 
             await this.loadTransfers();
             this.renderTransfers();
             this.updateSummary();
 
+            // The toast undoes this skip, whatever was done since
             showUndoNotification(
                 t('budget', 'Payment skipped. Advanced to next due date.'),
-                () => this.undoSkipTransfer(),
-                () => { this._undoData = null; }
+                () => this.undoSkipTransfer(undoData),
+                () => this._dropUndo(undoData)
             );
         } catch (error) {
             console.error('Failed to skip transfer:', error);
@@ -1038,29 +1072,34 @@ export default class TransfersModule {
         }
     }
 
-    async undoSkipTransfer() {
-        if (!this._undoData || this._undoData.action !== 'skip') {
+    /**
+     * An undo toast ran out: its action can't be undone any more. A later
+     * action may have replaced the latest undo data; only drop our own.
+     */
+    _dropUndo(undoData) {
+        undoData.spent = true;
+        if (this._undoData === undoData) this._undoData = null;
+    }
+
+    /**
+     * @param {object} undoData - The skip to undo; each toast passes its own,
+     *   so an older toast never reverts a later action
+     */
+    async undoSkipTransfer(undoData = this._undoData) {
+        if (!undoData || undoData.spent || undoData.action !== 'skip') {
             return;
         }
+        undoData.spent = true;
 
         try {
-            const { transferId, previousNextDueDate } = this._undoData;
+            const { transferId, previousNextDueDate } = undoData;
 
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${transferId}/undo-skip`), {
+            await apiFetch(`/apps/budget/api/bills/${transferId}/undo-skip`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ previousNextDueDate })
+                body: { previousNextDueDate },
             });
 
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(error, `HTTP ${response.status}`));
-            }
-
-            this._undoData = null;
+            if (this._undoData === undoData) this._undoData = null;
             await this.loadTransfers();
             this.renderTransfers();
             this.updateSummary();
@@ -1089,17 +1128,9 @@ export default class TransfersModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl(`/apps/budget/api/bills/${transferId}/unpaid`), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                }
-            });
-
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(serverErrorMessage(error, t('budget', 'Failed to mark transfer as unpaid')));
+            // Asks again when the payment was reconciled against a statement
+            if (!await requestMarkUnpaid(transferId, t('budget', 'Failed to mark transfer as unpaid'))) {
+                return;
             }
 
             await this.loadTransfers();
@@ -1123,21 +1154,6 @@ export default class TransfersModule {
         return `<span class="statement-badge" title="${t('budget', 'Amount is resolved from the card at each payment')}">${labels[amountType]}</span>`;
     }
 
-    isTransferPaidThisMonth(transfer) {
-        const lastPaid = transfer.lastPaidDate || transfer.last_paid_date;
-        if (!lastPaid) return false;
-
-        const paidDate = new Date(lastPaid);
-        const now = new Date();
-        return paidDate.getMonth() === now.getMonth() &&
-               paidDate.getFullYear() === now.getFullYear();
-    }
-
-    isDueSoon(dueDate, days = 7) {
-        const diffDays = formatters.daysBetweenDates(formatters.getTodayDateString(), dueDate);
-        return diffDays >= 0 && diffDays <= days;
-    }
-
     formatFrequency(frequency) {
         const map = {
             'weekly': t('budget', 'Weekly'),
@@ -1157,10 +1173,12 @@ export default class TransfersModule {
         if (!container) return;
 
         try {
-            // Load global tags and category tag sets in parallel
+            // Load global tags and category tag sets in parallel; a category
+            // not shared with you has none you can read (the server says 400)
+            const listed = categoryId && (!this.categories?.length || this.categories.some(c => String(c.id) === String(categoryId)));
             const [globalTagsResponse, categoryTagSets] = await Promise.all([
-                fetch(OC.generateUrl('/apps/budget/api/tags/global'), { headers: { 'requesttoken': OC.requestToken } }).then(r => r.ok ? r.json() : []).catch(() => []),
-                categoryId ? fetch(OC.generateUrl(`/apps/budget/api/tag-sets?categoryId=${categoryId}`), { headers: { 'requesttoken': OC.requestToken } }).then(r => r.ok ? r.json() : []).catch(() => []) : Promise.resolve([])
+                apiFetch('/apps/budget/api/tags/global').catch(() => []),
+                listed ? apiFetch(`/apps/budget/api/tag-sets?categoryId=${categoryId}`).catch(() => []) : Promise.resolve([])
             ]);
 
             // Get existing tag IDs if editing
@@ -1255,30 +1273,6 @@ export default class TransfersModule {
             .map(cb => parseInt(cb.value));
     }
 
-    getMonthlyEquivalent(transfer) {
-        const amount = transfer.amount;
-        const frequency = transfer.frequency;
-
-        switch (frequency) {
-            case 'weekly':
-                return amount * 52 / 12;
-            case 'biweekly':
-                return amount * 26 / 12;
-            case 'semi-monthly':
-                return amount * 2;
-            case 'monthly':
-                return amount;
-            case 'quarterly':
-                return amount / 3;
-            case 'semi-annually':
-                return amount / 6;
-            case 'yearly':
-                return amount / 12;
-            default:
-                return amount;
-        }
-    }
-
     // ── Detect Transfers ────────────────────────────────────
 
     async detectTransfers() {
@@ -1288,13 +1282,9 @@ export default class TransfersModule {
         detectBtn.innerHTML = `<span class="icon-loading-small" aria-hidden="true"></span> ${t('budget', 'Detecting...')}`;
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/bills/detect?months=6'), {
-                headers: { 'requesttoken': OC.requestToken }
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            const detected = await response.json();
+            // Detect Bills leaves out debits linked to a transfer's other leg;
+            // here they are exactly what we're looking for
+            const detected = await apiFetch('/apps/budget/api/bills/detect?months=6&transfers=true');
 
             if (!detected || detected.length === 0) {
                 showWarning(t('budget', 'No recurring transactions detected'));
@@ -1334,14 +1324,14 @@ export default class TransfersModule {
                     <div class="detected-bill-info">
                         <label for="detected-transfer-${index}" class="detected-bill-name">${dom.escapeHtml(item.description || item.suggestedName)}</label>
                         <div class="detected-bill-meta">
-                            <span class="detected-amount">${formatters.formatCurrency(item.amount, null, this.settings)}</span>
+                            <span class="detected-amount">${formatters.formatCurrency(item.amount, accountCurrency(this.accounts, item.accountId), this.settings)}</span>
                             <span class="detected-frequency">${item.frequency}</span>
-                            <span class="detected-confidence ${confidenceClass}">${t('budget', '{percent}% confidence', { percent: confidencePercent })}</span>
+                            <span class="detected-confidence ${confidenceClass}">${/* xgettext:no-javascript-format */ t('budget', '{percent}% confidence', { percent: confidencePercent })}</span>
                             <span>${t('budget', 'From: {account}', { account: sourceName })}</span>
                         </div>
                         <div class="detected-transfer-dest" style="margin-top: 4px;">
                             <label style="font-size: 12px; margin-right: 4px;">${t('budget', 'To:')}</label>
-                            <select class="detected-dest-account" data-index="${index}" style="font-size: 12px; padding: 2px 4px;">
+                            <select class="detected-dest-account" data-index="${index}" style="font-size: 12px; padding: 2px 4px;" aria-label="${t('budget', 'To:')}">
                                 <option value="">${t('budget', '— Select destination —')}</option>
                                 ${accountOptions}
                             </select>
@@ -1351,10 +1341,24 @@ export default class TransfersModule {
             `;
         }).join('');
 
+        // Linked legs show where the money went: start with that account
+        detected.forEach((item, index) => {
+            const select = list.querySelector(`.detected-dest-account[data-index="${index}"]`);
+            const suggested = item.suggestedDestinationAccountId;
+            if (select && suggested && accounts.some(a => a.id === suggested)) {
+                select.value = String(suggested);
+            }
+        });
+
         this._detectedTransfers = detected;
     }
 
-    async addSelectedDetectedTransfers() {
+    /** One at a time: a double click created two (see utils/submitGuard.js) */
+    addSelectedDetectedTransfers() {
+        return once('transfers-add-detected', document.getElementById('add-detected-transfers-btn'), () => this._addSelectedDetectedTransfers());
+    }
+
+    async _addSelectedDetectedTransfers() {
         const checkboxes = document.querySelectorAll('#detected-transfers-list input[type="checkbox"]:checked');
         const selectedIndices = Array.from(checkboxes).map(cb => parseInt(cb.id.replace('detected-transfer-', '')));
 
@@ -1388,18 +1392,10 @@ export default class TransfersModule {
         }
 
         try {
-            const response = await fetch(OC.generateUrl('/apps/budget/api/bills/create-from-detected'), {
+            const result = await apiFetch('/apps/budget/api/bills/create-from-detected', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'requesttoken': OC.requestToken
-                },
-                body: JSON.stringify({ bills: transfersToAdd })
+                body: { bills: transfersToAdd },
             });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            const result = await response.json();
             document.getElementById('detected-transfers-panel').style.display = 'none';
             showSuccess(n('budget', '%n transfer added successfully', '%n transfers added successfully', result.created));
             await this.loadTransfersView();

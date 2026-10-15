@@ -28,34 +28,34 @@ use OCP\AppFramework\Db\Entity;
  * @method void setCurrency(?string $currency)
  */
 class ExpenseShare extends Entity implements JsonSerializable {
-    protected $userId;
-    protected $transactionId;
-    protected $contactId;
-    protected $amount;
-    protected $isSettled;
-    protected $notes;
-    protected $createdAt;
-    protected $currency;
+	protected $userId;
+	protected $transactionId;
+	protected $contactId;
+	protected $amount;
+	protected $isSettled;
+	protected $notes;
+	protected $createdAt;
+	protected $currency;
 
-    public function __construct() {
-        $this->addType('id', 'integer');
-        $this->addType('transactionId', 'integer');
-        $this->addType('contactId', 'integer');
-        $this->addType('amount', 'float');
-        $this->addType('isSettled', 'boolean');
-    }
+	public function __construct() {
+		$this->addType('id', 'integer');
+		$this->addType('transactionId', 'integer');
+		$this->addType('contactId', 'integer');
+		$this->addType('amount', 'float');
+		$this->addType('isSettled', 'boolean');
+	}
 
-    public function jsonSerialize(): array {
-        return [
-            'id' => $this->getId(),
-            'userId' => $this->getUserId(),
-            'transactionId' => $this->getTransactionId(),
-            'contactId' => $this->getContactId(),
-            'amount' => $this->getAmount(),
-            'isSettled' => $this->getIsSettled(),
-            'notes' => $this->getNotes(),
-            'createdAt' => $this->getCreatedAt(),
-            'currency' => $this->getCurrency(),
-        ];
-    }
+	public function jsonSerialize(): array {
+		return [
+			'id' => $this->getId(),
+			'userId' => $this->getUserId(),
+			'transactionId' => $this->getTransactionId(),
+			'contactId' => $this->getContactId(),
+			'amount' => $this->getAmount(),
+			'isSettled' => $this->getIsSettled(),
+			'notes' => $this->getNotes(),
+			'createdAt' => $this->getCreatedAt(),
+			'currency' => $this->getCurrency(),
+		];
+	}
 }

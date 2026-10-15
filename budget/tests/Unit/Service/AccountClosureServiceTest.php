@@ -21,6 +21,7 @@ use OCA\Budget\Db\RecurringIncome;
 use OCA\Budget\Db\RecurringIncomeMapper;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Service\AccountClosureService;
+use OCA\Budget\Service\GranularShareService;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\IL10N;
 use PHPUnit\Framework\TestCase;
@@ -35,301 +36,548 @@ use PHPUnit\Framework\TestCase;
  * it once, rather than discovering a stale bill months later.
  */
 class AccountClosureServiceTest extends TestCase {
-    private AccountClosureService $service;
-
-    // Seeded-map stubs: a per-test re-stub cannot override a setUp() stub, so
-    // every mapper reads from one of these arrays instead.
-    private bool $futureRows = false;
-    /** @var Bill[] */
-    private array $bills = [];
-    /** @var RecurringIncome[] */
-    private array $incomes = [];
-    /** @var PensionRecurringContribution[] */
-    private array $contributions = [];
-    /** @var array<int, PensionAccount> */
-    private array $pensions = [];
-    /** @var BankConnection[] */
-    private array $connections = [];
-    /** @var array<int, BankAccountMapping[]> */
-    private array $mappings = [];
-    /** @var ImportRule[] */
-    private array $rules = [];
-
-    protected function setUp(): void {
-        $transactionMapper = $this->createMock(TransactionMapper::class);
-        $transactionMapper->method('hasRowsAfterDate')->willReturnCallback(fn() => $this->futureRows);
-
-        $billMapper = $this->createMock(BillMapper::class);
-        $billMapper->method('findActive')->willReturnCallback(fn() => $this->bills);
-
-        $incomeMapper = $this->createMock(RecurringIncomeMapper::class);
-        $incomeMapper->method('findActive')->willReturnCallback(fn() => $this->incomes);
-
-        $contributionMapper = $this->createMock(PensionRecurringContributionMapper::class);
-        $contributionMapper->method('findActive')->willReturnCallback(fn() => $this->contributions);
-
-        $pensionMapper = $this->createMock(PensionAccountMapper::class);
-        $pensionMapper->method('find')->willReturnCallback(function (int $id) {
-            if (!isset($this->pensions[$id])) {
-                throw new DoesNotExistException('no pension');
-            }
-            return $this->pensions[$id];
-        });
-
-        $connectionMapper = $this->createMock(BankConnectionMapper::class);
-        $connectionMapper->method('findAll')->willReturnCallback(fn() => $this->connections);
-
-        $mappingMapper = $this->createMock(BankAccountMappingMapper::class);
-        $mappingMapper->method('findEnabledByConnection')
-            ->willReturnCallback(fn(int $connectionId) => $this->mappings[$connectionId] ?? []);
-
-        $ruleMapper = $this->createMock(ImportRuleMapper::class);
-        $ruleMapper->method('findActive')->willReturnCallback(fn() => $this->rules);
-
-        $l = $this->createMock(IL10N::class);
-        $l->method('t')->willReturnCallback(function (string $text, array $params = []) {
-            foreach ($params as $i => $param) {
-                $text = str_replace('%' . ($i + 1) . '$s', (string) $param, $text);
-            }
-            return $text;
-        });
-
-        $this->service = new AccountClosureService(
-            $transactionMapper,
-            $billMapper,
-            $incomeMapper,
-            $contributionMapper,
-            $pensionMapper,
-            $connectionMapper,
-            $mappingMapper,
-            $ruleMapper,
-            $l
-        );
-    }
-
-    // ── fixtures ────────────────────────────────────────────────────
-
-    private function account(float $balance = 0.0, string $currency = 'GBP'): Account {
-        $account = new Account();
-        $account->setId(7);
-        $account->setUserId('alice');
-        $account->setName('Old current');
-        $account->setType('checking');
-        $account->setBalance($balance);
-        $account->setCurrency($currency);
-        return $account;
-    }
-
-    private function bill(string $name, ?int $accountId, ?int $destinationId = null, bool $transfer = false): Bill {
-        $bill = new Bill();
-        $bill->setUserId('alice');
-        $bill->setName($name);
-        $bill->setAccountId($accountId);
-        $bill->setDestinationAccountId($destinationId);
-        $bill->setIsTransfer($transfer);
-        $bill->setIsActive(true);
-        return $bill;
-    }
-
-    private function income(string $name, ?int $accountId): RecurringIncome {
-        $income = new RecurringIncome();
-        $income->setUserId('alice');
-        $income->setName($name);
-        $income->setAccountId($accountId);
-        $income->setIsActive(true);
-        return $income;
-    }
-
-    private function contribution(int $pensionId, ?int $sourceAccountId): PensionRecurringContribution {
-        $c = new PensionRecurringContribution();
-        $c->setUserId('alice');
-        $c->setPensionId($pensionId);
-        $c->setSourceAccountId($sourceAccountId);
-        $c->setIsActive(true);
-        return $c;
-    }
-
-    private function pension(int $id, string $name): PensionAccount {
-        $p = new PensionAccount();
-        $p->setId($id);
-        $p->setName($name);
-        return $p;
-    }
-
-    private function connection(int $id): BankConnection {
-        $c = new BankConnection();
-        $c->setId($id);
-        return $c;
-    }
-
-    private function mapping(?int $budgetAccountId, string $externalName): BankAccountMapping {
-        $m = new BankAccountMapping();
-        $m->setBudgetAccountId($budgetAccountId);
-        $m->setExternalAccountName($externalName);
-        $m->setEnabled(true);
-        return $m;
-    }
-
-    private function rule(string $name, array $actions): ImportRule {
-        $rule = new ImportRule();
-        $rule->setUserId('alice');
-        $rule->setName($name);
-        $rule->setActive(true);
-        $rule->setActionsFromArray(['version' => 2, 'actions' => $actions]);
-        return $rule;
-    }
-
-    // ── the balance ─────────────────────────────────────────────────
-
-    public function testPassesAnEmptyZeroBalanceAccount(): void {
-        $this->expectNotToPerformAssertions();
-
-        $this->service->assertClosable($this->account(0.0));
-    }
-
-    public function testRefusesANonZeroBalanceAndNamesIt(): void {
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessageMatches('/12\.34/');
-
-        $this->service->assertClosable($this->account(12.34));
-    }
-
-    public function testRefusesANegativeBalanceToo(): void {
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessageMatches('/5\.00/');
-
-        $this->service->assertClosable($this->account(-5.0));
-    }
-
-    /** Dust below what the currency can express is nothing, not a balance. */
-    public function testIgnoresDustBelowTheCurrencyPrecision(): void {
-        $this->expectNotToPerformAssertions();
-
-        $this->service->assertClosable($this->account(0.004, 'USD'));
-    }
-
-    public function testChecksTheBalanceBeforeAnythingElse(): void {
-        $this->bills[] = $this->bill('Comcast', 7);
-
-        try {
-            $this->service->assertClosable($this->account(5.0));
-            $this->fail('expected a refusal');
-        } catch (\InvalidArgumentException $e) {
-            $this->assertStringContainsString('5.00', $e->getMessage());
-            $this->assertStringNotContainsString('Comcast', $e->getMessage());
-        }
-    }
-
-    // ── future-dated rows ───────────────────────────────────────────
-
-    public function testRefusesWhenTransactionsAreDatedAfterToday(): void {
-        $this->futureRows = true;
-
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessageMatches('/after today/');
-
-        $this->service->assertClosable($this->account());
-    }
-
-    // ── things that would post into the account ─────────────────────
-
-    public function testRefusesWhenAnActiveBillPaysFromIt(): void {
-        $this->bills[] = $this->bill('Comcast', 7);
-
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessageMatches('/Comcast/');
-
-        $this->service->assertClosable($this->account());
-    }
-
-    public function testRefusesWhenAnActiveTransferPaysIntoIt(): void {
-        $this->bills[] = $this->bill('Savings top-up', 3, 7, true);
-
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessageMatches('/Savings top-up/');
-
-        $this->service->assertClosable($this->account());
-    }
-
-    public function testIgnoresBillsOnOtherAccounts(): void {
-        $this->bills[] = $this->bill('Comcast', 3);
-        $this->bills[] = $this->bill('Elsewhere', 3, 4, true);
-
-        $this->expectNotToPerformAssertions();
-
-        $this->service->assertClosable($this->account());
-    }
-
-    public function testRefusesWhenRecurringIncomeIsPaidIntoIt(): void {
-        $this->incomes[] = $this->income('Salary', 7);
-
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessageMatches('/Salary/');
-
-        $this->service->assertClosable($this->account());
-    }
-
-    public function testRefusesWhenAPensionContributionDrawsFromItAndNamesThePension(): void {
-        $this->pensions[2] = $this->pension(2, 'Aviva workplace');
-        $this->contributions[] = $this->contribution(2, 7);
-
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessageMatches('/Aviva workplace/');
-
-        $this->service->assertClosable($this->account());
-    }
-
-    public function testStillRefusesWhenTheContributionsPensionCannotBeLoaded(): void {
-        $this->contributions[] = $this->contribution(99, 7);
-
-        $this->expectException(\InvalidArgumentException::class);
-
-        $this->service->assertClosable($this->account());
-    }
-
-    public function testRefusesWhenABankSyncMappingFeedsIt(): void {
-        $this->connections[] = $this->connection(5);
-        $this->mappings[5] = [$this->mapping(7, 'Main Current')];
-
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessageMatches('/Main Current/');
-
-        $this->service->assertClosable($this->account());
-    }
-
-    public function testRefusesWhenARuleRoutesTransactionsIntoIt(): void {
-        $this->rules[] = $this->rule('Route Amazon', [['type' => 'set_account', 'value' => 7]]);
-
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessageMatches('/Route Amazon/');
-
-        $this->service->assertClosable($this->account());
-    }
-
-    public function testIgnoresRulesRoutingElsewhere(): void {
-        $this->rules[] = $this->rule('Route Amazon', [['type' => 'set_account', 'value' => 3]]);
-        $this->rules[] = $this->rule('Just a category', [['type' => 'set_category', 'value' => 7]]);
-
-        $this->expectNotToPerformAssertions();
-
-        $this->service->assertClosable($this->account());
-    }
-
-    // ── the grouped listing ─────────────────────────────────────────
-
-    public function testFindOpenReferencesGroupsNamesByKindAndOmitsEmptyGroups(): void {
-        $this->bills[] = $this->bill('Comcast', 7);
-        $this->bills[] = $this->bill('Savings top-up', 3, 7, true);
-        $this->incomes[] = $this->income('Salary', 7);
-
-        $this->assertSame([
-            'bills' => ['Comcast'],
-            'transfers' => ['Savings top-up'],
-            'income' => ['Salary'],
-        ], $this->service->findOpenReferences($this->account()));
-    }
-
-    public function testFindOpenReferencesIsEmptyForAnUnusedAccount(): void {
-        $this->assertSame([], $this->service->findOpenReferences($this->account()));
-    }
+	private AccountClosureService $service;
+
+	// Seeded-map stubs: a per-test re-stub cannot override a setUp() stub, so
+	// every mapper reads from one of these arrays instead.
+	private bool $futureRows = false;
+	/** @var Bill[] */
+	private array $bills = [];
+	/** @var RecurringIncome[] */
+	private array $incomes = [];
+	/** @var PensionRecurringContribution[] */
+	private array $contributions = [];
+	/** @var array<int, PensionAccount> */
+	private array $pensions = [];
+	/** @var BankConnection[] */
+	private array $connections = [];
+	/** @var array<int, BankAccountMapping[]> */
+	private array $mappings = [];
+	/** @var ImportRule[] */
+	private array $rules = [];
+	/** @var \OCA\Budget\Db\ImportFolder[] */
+	private array $importFolders = [];
+	/** @var string[]|null who can write to the account; null = everyone */
+	private ?array $writers = null;
+	/** @var BillMapper&\PHPUnit\Framework\MockObject\MockObject */
+	private $billMapper;
+	/** @var RecurringIncomeMapper&\PHPUnit\Framework\MockObject\MockObject */
+	private $incomeMapper;
+	/** @var \OCA\Budget\Service\TransactionService&\PHPUnit\Framework\MockObject\MockObject */
+	private $transactionService;
+
+	protected function setUp(): void {
+		$transactionMapper = $this->createMock(TransactionMapper::class);
+		$transactionMapper->method('hasRowsAfterDate')->willReturnCallback(fn () => $this->futureRows);
+
+		// Both lookups behave like their queries: findActive() is one user's,
+		// findActiveByAccount() is everyone's that touch the account
+		$billMapper = $this->createMock(BillMapper::class);
+		$billMapper->method('findActive')->willReturnCallback(
+			fn (string $userId) => array_values(array_filter($this->bills, fn (Bill $b) => $b->getUserId() === $userId))
+		);
+		$billMapper->method('findActiveByAccount')->willReturnCallback(
+			fn (int $accountId) => array_values(array_filter($this->bills, fn (Bill $b) => $b->getIsActive()
+				&& ((int)$b->getAccountId() === $accountId || (int)$b->getDestinationAccountId() === $accountId)))
+		);
+		$this->billMapper = $billMapper;
+
+		$incomeMapper = $this->createMock(RecurringIncomeMapper::class);
+		$incomeMapper->method('findActive')->willReturnCallback(
+			fn (string $userId) => array_values(array_filter($this->incomes, fn (RecurringIncome $i) => $i->getUserId() === $userId))
+		);
+		$incomeMapper->method('findActiveByAccount')->willReturnCallback(
+			fn (int $accountId) => array_values(array_filter($this->incomes, fn (RecurringIncome $i) => $i->getIsActive()
+				&& (int)$i->getAccountId() === $accountId))
+		);
+		$this->incomeMapper = $incomeMapper;
+		$this->transactionService = $this->createMock(\OCA\Budget\Service\TransactionService::class);
+
+		$contributionMapper = $this->createMock(PensionRecurringContributionMapper::class);
+		$contributionMapper->method('findActive')->willReturnCallback(fn () => $this->contributions);
+
+		$pensionMapper = $this->createMock(PensionAccountMapper::class);
+		$pensionMapper->method('find')->willReturnCallback(function (int $id) {
+			if (!isset($this->pensions[$id])) {
+				throw new DoesNotExistException('no pension');
+			}
+			return $this->pensions[$id];
+		});
+
+		$connectionMapper = $this->createMock(BankConnectionMapper::class);
+		$connectionMapper->method('findAll')->willReturnCallback(fn () => $this->connections);
+
+		$mappingMapper = $this->createMock(BankAccountMappingMapper::class);
+		$mappingMapper->method('findEnabledByConnection')
+			->willReturnCallback(fn (int $connectionId) => $this->mappings[$connectionId] ?? []);
+
+		$ruleMapper = $this->createMock(ImportRuleMapper::class);
+		$ruleMapper->method('findActive')->willReturnCallback(fn () => $this->rules);
+
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnCallback(function (string $text, array $params = []) {
+			foreach ($params as $i => $param) {
+				$text = str_replace('%' . ($i + 1) . '$s', (string)$param, $text);
+			}
+			return $text;
+		});
+
+		$shares = $this->createMock(GranularShareService::class);
+		$shares->method('canWrite')->willReturnCallback(
+			fn (string $userId, string $type, int $id) => $this->writers === null || in_array($userId, $this->writers, true)
+		);
+
+		$importFolderMapper = $this->createMock(\OCA\Budget\Db\ImportFolderMapper::class);
+		$importFolderMapper->method('findEnabledByAccount')->willReturnCallback(
+			fn (int $accountId) => array_values(array_filter(
+				$this->importFolders,
+				fn (\OCA\Budget\Db\ImportFolder $f) => (int)$f->getAccountId() === $accountId && $f->isEnabled()
+			))
+		);
+
+		$this->service = new AccountClosureService(
+			$transactionMapper,
+			$billMapper,
+			$incomeMapper,
+			$contributionMapper,
+			$pensionMapper,
+			$connectionMapper,
+			$mappingMapper,
+			$ruleMapper,
+			$l,
+			$this->transactionService,
+			granularShareService: $shares,
+			importFolderMapper: $importFolderMapper,
+		);
+	}
+
+	// ── fixtures ────────────────────────────────────────────────────
+
+	private function account(float $balance = 0.0, string $currency = 'GBP'): Account {
+		$account = new Account();
+		$account->setId(7);
+		$account->setUserId('alice');
+		$account->setName('Old current');
+		$account->setType('checking');
+		$account->setBalance($balance);
+		$account->setCurrency($currency);
+		return $account;
+	}
+
+	private function bill(string $name, ?int $accountId, ?int $destinationId = null, bool $transfer = false): Bill {
+		$bill = new Bill();
+		$bill->setUserId('alice');
+		$bill->setName($name);
+		$bill->setAccountId($accountId);
+		$bill->setDestinationAccountId($destinationId);
+		$bill->setIsTransfer($transfer);
+		$bill->setIsActive(true);
+		return $bill;
+	}
+
+	private function income(string $name, ?int $accountId, string $owner = 'alice'): RecurringIncome {
+		$income = new RecurringIncome();
+		$income->setUserId($owner);
+		$income->setName($name);
+		$income->setAccountId($accountId);
+		$income->setIsActive(true);
+		return $income;
+	}
+
+	private function contribution(int $pensionId, ?int $sourceAccountId): PensionRecurringContribution {
+		$c = new PensionRecurringContribution();
+		$c->setUserId('alice');
+		$c->setPensionId($pensionId);
+		$c->setSourceAccountId($sourceAccountId);
+		$c->setIsActive(true);
+		return $c;
+	}
+
+	private function pension(int $id, string $name): PensionAccount {
+		$p = new PensionAccount();
+		$p->setId($id);
+		$p->setName($name);
+		return $p;
+	}
+
+	private function connection(int $id): BankConnection {
+		$c = new BankConnection();
+		$c->setId($id);
+		return $c;
+	}
+
+	private function mapping(?int $budgetAccountId, string $externalName): BankAccountMapping {
+		$m = new BankAccountMapping();
+		$m->setBudgetAccountId($budgetAccountId);
+		$m->setExternalAccountName($externalName);
+		$m->setEnabled(true);
+		return $m;
+	}
+
+	private function rule(string $name, array $actions): ImportRule {
+		$rule = new ImportRule();
+		$rule->setUserId('alice');
+		$rule->setName($name);
+		$rule->setActive(true);
+		$rule->setActionsFromArray(['version' => 2, 'actions' => $actions]);
+		return $rule;
+	}
+
+	// ── the balance ─────────────────────────────────────────────────
+
+	public function testPassesAnEmptyZeroBalanceAccount(): void {
+		$this->expectNotToPerformAssertions();
+
+		$this->service->assertClosable($this->account(0.0));
+	}
+
+	public function testRefusesANonZeroBalanceAndNamesIt(): void {
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessageMatches('/12\.34/');
+
+		$this->service->assertClosable($this->account(12.34));
+	}
+
+	public function testRefusesANegativeBalanceToo(): void {
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessageMatches('/5\.00/');
+
+		$this->service->assertClosable($this->account(-5.0));
+	}
+
+	/** Dust below what the currency can express is nothing, not a balance. */
+	public function testIgnoresDustBelowTheCurrencyPrecision(): void {
+		$this->expectNotToPerformAssertions();
+
+		$this->service->assertClosable($this->account(0.004, 'USD'));
+	}
+
+	public function testChecksTheBalanceBeforeAnythingElse(): void {
+		$this->bills[] = $this->bill('Comcast', 7);
+
+		try {
+			$this->service->assertClosable($this->account(5.0));
+			$this->fail('expected a refusal');
+		} catch (\InvalidArgumentException $e) {
+			$this->assertStringContainsString('5.00', $e->getMessage());
+			$this->assertStringNotContainsString('Comcast', $e->getMessage());
+		}
+	}
+
+	// ── future-dated rows ───────────────────────────────────────────
+
+	public function testRefusesWhenTransactionsAreDatedAfterToday(): void {
+		$this->futureRows = true;
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessageMatches('/after today/');
+
+		$this->service->assertClosable($this->account());
+	}
+
+	// ── things that would post into the account ─────────────────────
+
+	public function testRefusesWhenAnActiveBillPaysFromIt(): void {
+		$this->bills[] = $this->bill('Comcast', 7);
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessageMatches('/Comcast/');
+
+		$this->service->assertClosable($this->account());
+	}
+
+	public function testRefusesWhenAnActiveTransferPaysIntoIt(): void {
+		$this->bills[] = $this->bill('Savings top-up', 3, 7, true);
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessageMatches('/Savings top-up/');
+
+		$this->service->assertClosable($this->account());
+	}
+
+	/**
+	 * A bill or income someone the account is shared with set up posts into
+	 * it just the same, but only the owner's were looked at: a closed shared
+	 * account went on receiving their payments. It blocks the close without
+	 * being named: its name is someone else's text.
+	 */
+	public function testRefusesWhenSomeoneItIsSharedWithPaysFromIt(): void {
+		$bill = $this->bill('<b>Ask Bob</b> before closing', 7);
+		$bill->setUserId('bob');
+		$this->bills[] = $bill;
+
+		$message = $this->refusal();
+
+		$this->assertStringContainsString('Items other people set up still use this account', $message);
+		$this->assertStringNotContainsString('Ask Bob', $message);
+	}
+
+	public function testRefusesWhenSomeoneItIsSharedWithIsPaidIntoIt(): void {
+		$this->incomes[] = $this->income('Bob salary', 7, 'bob');
+
+		$message = $this->refusal();
+
+		$this->assertStringContainsString('Items other people set up still use this account', $message);
+		$this->assertStringNotContainsString('Bob salary', $message);
+	}
+
+	public function testNamesTheOwnersItemsAndCountsOthersApart(): void {
+		$this->bills[] = $this->bill('Comcast', 7);
+		$this->incomes[] = $this->income('Bob salary', 7, 'bob');
+
+		$message = $this->refusal();
+
+		$this->assertStringContainsString('Bills: Comcast', $message);
+		$this->assertStringContainsString('Items other people set up still use this account', $message);
+		$this->assertStringNotContainsString('Bob salary', $message);
+	}
+
+	/**
+	 * Someone who can no longer post into the account (the share ended, or
+	 * was cut to read-only) has a schedule that can never pay into it again.
+	 * It blocked the owner's close all the same, and only they could fix it.
+	 */
+	public function testIgnoresSchedulesOfPeopleWhoCanNoLongerWriteToIt(): void {
+		$this->writers = ['alice', 'bob'];
+		$bill = $this->bill('Rita gym', 7);
+		$bill->setUserId('rita');
+		$this->bills[] = $bill;
+		$this->incomes[] = $this->income('Walt pinned this', 7, 'walt');
+
+		$this->assertSame([], $this->service->findOpenReferences($this->account()));
+		$this->service->assertClosable($this->account());
+	}
+
+	public function testStillRefusesForSomeoneWhoCanWriteToIt(): void {
+		$this->writers = ['alice', 'bob'];
+		$this->incomes[] = $this->income('Bob salary', 7, 'bob');
+
+		$this->assertStringContainsString('Items other people set up still use this account', $this->refusal());
+	}
+
+	/** A write recipient closing the owner's account sees only her own items by name */
+	public function testARecipientClosingSeesOnlyHerOwnItemsByName(): void {
+		$this->writers = ['alice', 'rita'];
+		$rita = $this->bill('Rita gym', 7);
+		$rita->setUserId('rita');
+		$this->bills = [$this->bill('Rent', 7), $rita];
+		$this->pensions[2] = $this->pension(2, 'Aviva workplace');
+		$this->contributions[] = $this->contribution(2, 7);
+		$this->rules[] = $this->rule('Route Amazon', [['type' => 'set_account', 'value' => 7]]);
+
+		$message = $this->refusal('rita');
+
+		$this->assertStringContainsString('Bills: Rita gym', $message);
+		$this->assertStringContainsString('Items other people set up still use this account', $message);
+		foreach (['Rent', 'Aviva workplace', 'Route Amazon', 'Pension', 'Import rules'] as $hidden) {
+			$this->assertStringNotContainsString($hidden, $message);
+		}
+	}
+
+	public function testClosingLetsGoOfTheSchedulesThatCanNoLongerPostIntoIt(): void {
+		$this->writers = ['alice', 'bob'];
+		$own = $this->bill('Comcast', 7);
+		$own->setId(1);
+		$stale = $this->bill('Rita gym', 7);
+		$stale->setId(2);
+		$stale->setUserId('rita');
+		$stale->setAutoPayEnabled(true);
+		$staleTransfer = $this->bill('Rita into it', 3, 7, true);
+		$staleTransfer->setId(3);
+		$staleTransfer->setUserId('rita');
+		$live = $this->bill('Bob gym', 7);
+		$live->setId(4);
+		$live->setUserId('bob');
+		$this->bills = [$own, $stale, $staleTransfer, $live];
+		$staleIncome = $this->income('Walt pinned this', 7, 'walt');
+		$this->incomes[] = $staleIncome;
+
+		$cleared = [];
+		$this->transactionService->method('deleteScheduledBillTransactions')
+			->willReturnCallback(function (int $billId) use (&$cleared) {
+				$cleared[] = $billId;
+			});
+		$this->billMapper->method('update')->willReturnArgument(0);
+		$this->incomeMapper->method('update')->willReturnArgument(0);
+
+		$this->assertSame(3, $this->service->detachStaleSchedules($this->account()));
+
+		$this->assertSame([2, 3], $cleared);
+		$this->assertNull($stale->getAccountId());
+		$this->assertFalse($stale->getAutoPayEnabled());
+		$this->assertTrue($stale->getIsActive(), 'still theirs to point at another account');
+		$this->assertSame(3, $staleTransfer->getAccountId());
+		$this->assertNull($staleTransfer->getDestinationAccountId());
+		$this->assertNull($staleIncome->getAccountId());
+		$this->assertSame(7, $own->getAccountId());
+		$this->assertSame(7, $live->getAccountId());
+	}
+
+	/** The refusal message, as $viewer (the owner by default) would see it */
+	private function refusal(?string $viewer = null): string {
+		try {
+			$this->service->assertClosable($this->account(), $viewer);
+		} catch (\InvalidArgumentException $e) {
+			return $e->getMessage();
+		}
+		$this->fail('expected a refusal');
+	}
+
+	// -- deleting the account (it can't be refused like closing) --
+
+	/**
+	 * Deleting an account never looked at what used it: bills and transfers
+	 * stayed active on a deleted id, a card-statement transfer failed on
+	 * every Mark Paid and auto-pay, and the deposit leg it had pre-booked in
+	 * the other account stayed behind.
+	 */
+	public function testDeletingAnAccountStopsEverythingThatPaysIntoOrOutOfIt(): void {
+		$rent = $this->bill('Rent', 7);
+		$rent->setId(1);
+		$rent->setPaidUndoState('{"previousState":{}}');
+		$topUp = $this->bill('Card payment', 3, 7, true);
+		$topUp->setId(2);
+		$topUp->setUserId('bob');
+		$elsewhere = $this->bill('Water', 3);
+		$elsewhere->setId(3);
+		$this->bills = [$rent, $topUp, $elsewhere];
+		$salary = $this->income('Salary', 7);
+		$this->incomes[] = $salary;
+
+		$cleared = [];
+		$this->transactionService->method('deleteScheduledBillTransactions')
+			->willReturnCallback(function (int $billId) use (&$cleared) {
+				$cleared[] = $billId;
+			});
+		$this->billMapper->method('update')->willReturnArgument(0);
+		$this->incomeMapper->method('update')->willReturnArgument(0);
+
+		$stopped = $this->service->stopSchedulesFor($this->account());
+
+		$this->assertSame(['bills' => ['Rent'], 'transfers' => ['Card payment'], 'income' => ['Salary']], $stopped);
+		$this->assertSame([1, 2], $cleared, 'their pre-booked rows elsewhere go too');
+		$this->assertFalse($rent->getIsActive());
+		$this->assertNull($rent->getAccountId());
+		$this->assertNull($rent->getPaidUndoState(), 'nothing left to revert into');
+		$this->assertFalse($topUp->getIsActive());
+		$this->assertSame(3, $topUp->getAccountId(), 'the source account still exists');
+		$this->assertNull($topUp->getDestinationAccountId());
+		$this->assertTrue($elsewhere->getIsActive());
+		$this->assertFalse($salary->getIsActive());
+		$this->assertNull($salary->getAccountId());
+	}
+
+	public function testDeletingAnUnusedAccountStopsNothing(): void {
+		$this->bills[] = $this->bill('Water', 3);
+		$this->billMapper->expects($this->never())->method('update');
+
+		$this->assertSame([], $this->service->stopSchedulesFor($this->account()));
+	}
+
+	public function testIgnoresBillsOnOtherAccounts(): void {
+		$this->bills[] = $this->bill('Comcast', 3);
+		$this->bills[] = $this->bill('Elsewhere', 3, 4, true);
+
+		$this->expectNotToPerformAssertions();
+
+		$this->service->assertClosable($this->account());
+	}
+
+	public function testRefusesWhenRecurringIncomeIsPaidIntoIt(): void {
+		$this->incomes[] = $this->income('Salary', 7);
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessageMatches('/Salary/');
+
+		$this->service->assertClosable($this->account());
+	}
+
+	public function testRefusesWhenAPensionContributionDrawsFromItAndNamesThePension(): void {
+		$this->pensions[2] = $this->pension(2, 'Aviva workplace');
+		$this->contributions[] = $this->contribution(2, 7);
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessageMatches('/Aviva workplace/');
+
+		$this->service->assertClosable($this->account());
+	}
+
+	public function testStillRefusesWhenTheContributionsPensionCannotBeLoaded(): void {
+		$this->contributions[] = $this->contribution(99, 7);
+
+		$this->expectException(\InvalidArgumentException::class);
+
+		$this->service->assertClosable($this->account());
+	}
+
+	public function testRefusesWhenABankSyncMappingFeedsIt(): void {
+		$this->connections[] = $this->connection(5);
+		$this->mappings[5] = [$this->mapping(7, 'Main Current')];
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessageMatches('/Main Current/');
+
+		$this->service->assertClosable($this->account());
+	}
+
+	private function importFolder(string $name, bool $enabled): \OCA\Budget\Db\ImportFolder {
+		$folder = new \OCA\Budget\Db\ImportFolder();
+		$folder->setUserId('alice');
+		$folder->setName($name);
+		$folder->setAccountId(7);
+		$folder->setEnabled($enabled);
+		return $folder;
+	}
+
+	public function testRefusesWhenAnImportFolderPostsIntoIt(): void {
+		$this->importFolders[] = $this->importFolder('Conto Mario', true);
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessageMatches('/Import folders: Conto Mario/');
+
+		$this->service->assertClosable($this->account());
+	}
+
+	public function testASwitchedOffImportFolderDoesNotKeepItOpen(): void {
+		$this->importFolders[] = $this->importFolder('Conto Mario', false);
+
+		$this->service->assertClosable($this->account());
+		$this->assertTrue(true);
+	}
+
+	public function testRefusesWhenARuleRoutesTransactionsIntoIt(): void {
+		$this->rules[] = $this->rule('Route Amazon', [['type' => 'set_account', 'value' => 7]]);
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessageMatches('/Route Amazon/');
+
+		$this->service->assertClosable($this->account());
+	}
+
+	public function testIgnoresRulesRoutingElsewhere(): void {
+		$this->rules[] = $this->rule('Route Amazon', [['type' => 'set_account', 'value' => 3]]);
+		$this->rules[] = $this->rule('Just a category', [['type' => 'set_category', 'value' => 7]]);
+
+		$this->expectNotToPerformAssertions();
+
+		$this->service->assertClosable($this->account());
+	}
+
+	// ── the grouped listing ─────────────────────────────────────────
+
+	public function testFindOpenReferencesGroupsNamesByKindAndOmitsEmptyGroups(): void {
+		$this->bills[] = $this->bill('Comcast', 7);
+		$this->bills[] = $this->bill('Savings top-up', 3, 7, true);
+		$this->incomes[] = $this->income('Salary', 7);
+
+		$this->assertSame([
+			'bills' => ['Comcast'],
+			'transfers' => ['Savings top-up'],
+			'income' => ['Salary'],
+		], $this->service->findOpenReferences($this->account()));
+	}
+
+	public function testFindOpenReferencesIsEmptyForAnUnusedAccount(): void {
+		$this->assertSame([], $this->service->findOpenReferences($this->account()));
+	}
 }

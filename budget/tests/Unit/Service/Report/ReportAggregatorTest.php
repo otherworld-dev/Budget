@@ -9,6 +9,7 @@ use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\BudgetSnapshotMapper;
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Db\TransactionReportQueries;
 use OCA\Budget\Service\CurrencyConversionService;
 use OCA\Budget\Service\Report\ReportAggregator;
 use OCA\Budget\Service\Report\ReportCalculator;
@@ -18,6 +19,7 @@ class ReportAggregatorTest extends TestCase {
 	private ReportAggregator $aggregator;
 	private AccountMapper $accountMapper;
 	private TransactionMapper $transactionMapper;
+	private TransactionReportQueries $reportQueries;
 	private CategoryMapper $categoryMapper;
 	private ReportCalculator $calculator;
 	private CurrencyConversionService $conversionService;
@@ -25,13 +27,13 @@ class ReportAggregatorTest extends TestCase {
 	private $carryoverService;
 	private $recurringBudgetService;
 	private string $currentBudgetMonth;
-	private $splitMapper;
 	private $granularShareService;
 	private $categoryMuteMapper;
 
 	protected function setUp(): void {
 		$this->accountMapper = $this->createMock(AccountMapper::class);
 		$this->transactionMapper = $this->createMock(TransactionMapper::class);
+		$this->reportQueries = $this->createMock(TransactionReportQueries::class);
 		$this->categoryMapper = $this->createMock(CategoryMapper::class);
 		$this->calculator = $this->createMock(ReportCalculator::class);
 		$this->conversionService = $this->createMock(CurrencyConversionService::class);
@@ -44,9 +46,7 @@ class ReportAggregatorTest extends TestCase {
 		$this->currentBudgetMonth = date('Y-m');
 		$this->carryoverService = $this->createMock(\OCA\Budget\Service\BudgetCarryoverService::class);
 		$this->carryoverService->method('currentBudgetMonth')
-			->willReturnCallback(fn() => $this->currentBudgetMonth);
-
-		$this->splitMapper = $this->createMock(\OCA\Budget\Db\TransactionSplitMapper::class);
+			->willReturnCallback(fn () => $this->currentBudgetMonth);
 
 		// createMock auto-stubs array-returning methods to [], so shared/muted
 		// categories default to none; individual tests override as needed
@@ -62,7 +62,7 @@ class ReportAggregatorTest extends TestCase {
 			$this->conversionService,
 			$this->recurringBudgetService,
 			$this->carryoverService,
-			$this->splitMapper,
+			$this->reportQueries,
 			$this->granularShareService,
 			$this->categoryMuteMapper
 		);
@@ -81,7 +81,7 @@ class ReportAggregatorTest extends TestCase {
 	private function setupDefaultMocks(): void {
 		$this->transactionMapper->method('getNetChangeAfterDateBatch')->willReturn([]);
 		$this->transactionMapper->method('getSpendingSummary')->willReturn([]);
-		$this->transactionMapper->method('getMonthlyTrendData')->willReturn([]);
+		$this->reportQueries->method('getMonthlyTrendData')->willReturn([]);
 	}
 
 	// ===== Single currency (no conversion) =====
@@ -290,9 +290,9 @@ class ReportAggregatorTest extends TestCase {
 		$this->conversionService->method('getBaseCurrency')->willReturn('GBP');
 		$this->conversionService->method('needsConversion')->willReturn(true);
 		$this->conversionService->method('canConvert')
-			->willReturnCallback(fn($currency) => $currency !== 'XYZ');
+			->willReturnCallback(fn ($currency) => $currency !== 'XYZ');
 		$this->conversionService->method('getAccountCurrencyMap')->willReturn([1 => 'GBP', 2 => 'XYZ']);
-		$this->conversionService->method('convertToBaseFloat')->willReturnCallback(fn($a) => (float)$a);
+		$this->conversionService->method('convertToBaseFloat')->willReturnCallback(fn ($a) => (float)$a);
 
 		$this->transactionMapper->method('getTransferTotalsByAccount')->willReturn([]);
 
@@ -377,6 +377,42 @@ class ReportAggregatorTest extends TestCase {
 		$this->assertEqualsWithDelta(300.00, $result['totals']['totalExpenses'], 0.01);
 	}
 
+	/**
+	 * A tile showing a subset of accounts, or filtered by tag, built its
+	 * totals from those alone but had excluded-category money deducted from
+	 * every account (another user's too, through a shared category), so the
+	 * totals lost money they never counted and could go negative.
+	 */
+	public function testExcludedCategoryDeductionOnlyTouchesAccountsInView(): void {
+		$this->accountMapper->method('findByIds')->with([1])->willReturn([
+			$this->makeAccount(1, 'Checking', 'checking', 1000.00, 'GBP'),
+		]);
+		$this->transactionMapper->method('getAccountSummaries')->willReturn([
+			1 => ['income' => 100, 'expenses' => 80, 'count' => 5],
+		]);
+		$this->transactionMapper->method('getTransferTotals')->willReturn(['income' => 0, 'expenses' => 0]);
+		$this->setupDefaultMocks();
+		$this->conversionService->method('getBaseCurrency')->willReturn('GBP');
+		$this->conversionService->method('needsConversion')->willReturn(false);
+		$this->categoryMapper->method('findAll')->willReturn([
+			$this->makeCategory(7, 'Internal', 'expense', null, true),
+		]);
+
+		$this->transactionMapper->expects($this->once())
+			->method('getCategoryTotalsByAccount')
+			->with([7], '2026-01-01', '2026-01-31', null, true, $this->anything(), [1], [4], false)
+			// Account 2 is not on the tile: its row must be ignored even if returned
+			->willReturn([
+				1 => ['income' => 0, 'expenses' => 30],
+				2 => ['income' => 0, 'expenses' => 500],
+			]);
+
+		$result = $this->aggregator->generateSummary('user1', null, '2026-01-01', '2026-01-31', [4], false, [1]);
+
+		$this->assertEqualsWithDelta(100.00, $result['totals']['totalIncome'], 0.01);
+		$this->assertEqualsWithDelta(50.00, $result['totals']['totalExpenses'], 0.01);
+	}
+
 	public function testExcludedCategoryDeductionScopedToSelectedAccount(): void {
 		$account = $this->makeAccount(1, 'Checking', 'checking', 1000.00, 'EUR');
 
@@ -423,7 +459,7 @@ class ReportAggregatorTest extends TestCase {
 		$this->conversionService->method('getBaseCurrency')->willReturn('GBP');
 		$this->conversionService->method('needsConversion')->willReturn(true);
 		$this->conversionService->method('getAccountCurrencyMap')->willReturn([1 => 'GBP', 2 => 'EUR']);
-		$this->conversionService->method('convertToBaseFloat')->willReturnCallback(fn($a) => (float)$a);
+		$this->conversionService->method('convertToBaseFloat')->willReturnCallback(fn ($a) => (float)$a);
 		$this->transactionMapper->method('getTransferTotalsByAccount')->willReturn([]);
 
 		$result = $this->aggregator->generateSummary('user1', null, '2026-01-01', '2026-01-31');
@@ -455,6 +491,24 @@ class ReportAggregatorTest extends TestCase {
 		// Values should be in native EUR, not converted
 		$this->assertEquals(1000.00, $result['totals']['currentBalance']);
 		$this->assertFalse($result['currencyConverted']);
+	}
+
+	// ===== Trend months =====
+
+	public function testTrendDataCarriesYearMonthKeysAlongsideLabels(): void {
+		$account = $this->makeAccount(1, 'Current', 'checking', 1000.00, 'GBP');
+		$this->accountMapper->method('find')->willReturn($account);
+		$this->transactionMapper->method('getAccountSummaries')->willReturn([]);
+		$this->setupDefaultMocks();
+		$this->conversionService->method('getBaseCurrency')->willReturn('GBP');
+
+		$result = $this->aggregator->generateSummary('user1', 1, '2025-11-01', '2026-01-31');
+
+		// Y-m for the UI to format in the user's language; the English
+		// labels are kept for compatibility.
+		$this->assertSame(['2025-11', '2025-12', '2026-01'], $result['trends']['months']);
+		$this->assertSame(['Nov 2025', 'Dec 2025', 'Jan 2026'], $result['trends']['labels']);
+		$this->assertCount(3, $result['trends']['income']);
 	}
 
 	// ===== Metadata in response =====
@@ -573,6 +627,40 @@ class ReportAggregatorTest extends TestCase {
 		$this->assertSame(340.0, $result['categories'][0]['budgeted']);
 	}
 
+	/**
+	 * An income target was added into the spending totals, so a received
+	 * salary read as spending (3025 of 3165) and turned the report "danger".
+	 * Income rows stay listed, marked as income, out of the totals.
+	 */
+	public function testBudgetReportKeepsIncomeTargetsOutOfTheSpendingTotals(): void {
+		$groceries = new \OCA\Budget\Db\Category();
+		$groceries->setId(5);
+		$groceries->setName('Groceries');
+		$groceries->setType('expense');
+		$groceries->setBudgetAmount(165.0);
+		$groceries->setBudgetPeriod('monthly');
+		$salary = new \OCA\Budget\Db\Category();
+		$salary->setId(6);
+		$salary->setName('Salary');
+		$salary->setType('income');
+		$salary->setBudgetAmount(3000.0);
+		$salary->setBudgetPeriod('monthly');
+		$this->categoryMapper->method('findAll')->willReturn([$groceries, $salary]);
+		$this->budgetSnapshotMapper->method('findEffectiveBatch')->willReturn([]);
+		$this->transactionMapper->method('getCategorySpendingBatch')
+			->willReturnCallback(fn (array $ids, $from, $to, string $type) => $type === 'debit' ? [5 => 25.0] : [6 => 3000.0]);
+		$this->calculator->method('getBudgetStatus')->willReturnCallback(fn (float $pct) => $pct > 100 ? 'over' : ($pct > 80 ? 'danger' : 'good'));
+
+		$result = $this->aggregator->getBudgetReport('user1', '2026-09-01', '2026-09-30');
+
+		$this->assertSame(['budgeted' => 165.0, 'spent' => 25.0, 'remaining' => 140.0], $result['totals']);
+		$this->assertSame('good', $result['overallStatus']);
+		$rows = array_column($result['categories'], null, 'categoryId');
+		$this->assertSame('income', $rows[6]['type']);
+		$this->assertSame('good', $rows[6]['status'], 'all of the salary arriving is no danger');
+		$this->assertSame('expense', $rows[5]['type']);
+	}
+
 	public function testBudgetReportHoldsSpentToTheAccountsInView(): void {
 		// The carryover was scoped to the visible accounts and spent was not,
 		// so with shared accounts excluded the report still counted spending
@@ -633,6 +721,128 @@ class ReportAggregatorTest extends TestCase {
 		$this->assertSame([1, 2, 3, 4], $asked);
 	}
 
+	public function testBudgetReportSaysWhichPeriodEachBudgetIsFor(): void {
+		// Insurance is yearly; Transport is monthly but this month's
+		// adjustment made it weekly
+		$insurance = $this->makeCategory(1, 'Insurance', 'expense');
+		$insurance->setBudgetAmount(600.0);
+		$insurance->setBudgetPeriod('yearly');
+		$transport = $this->makeCategory(2, 'Transport', 'expense');
+		$transport->setBudgetAmount(200.0);
+		$this->categoryMapper->method('findAll')->willReturn([$insurance, $transport]);
+		$this->budgetSnapshotMapper->method('findEffectiveBatch')->willReturn([2 => ['amount' => 50.0, 'period' => 'weekly']]);
+		$this->transactionMapper->method('getCategorySpendingBatch')->willReturn([]);
+
+		$result = $this->aggregator->getBudgetReport('user1', '2026-09-01', '2026-09-30');
+
+		$this->assertSame(['yearly', 'weekly'], array_column($result['categories'], 'period'));
+		// Each as its share of the month: 600 / 12 and 50 x 52 / 12
+		$this->assertSame([50.0, 216.67], array_column($result['categories'], 'budgeted'));
+	}
+
+	/**
+	 * @return \OCA\Budget\Db\Category[] Gym weekly 20, Car yearly 1,200,
+	 *                                   Holiday quarterly 900, Groceries monthly 400
+	 */
+	private function budgetsOfEveryPeriod(): array {
+		$categories = [];
+		foreach ([[1, 'Gym', 20.0, 'weekly'], [2, 'Car', 1200.0, 'yearly'], [3, 'Holiday', 900.0, 'quarterly'], [4, 'Groceries', 400.0, 'monthly']] as [$id, $name, $amount, $period]) {
+			$category = $this->makeCategory($id, $name, 'expense');
+			$category->setBudgetAmount($amount);
+			$category->setBudgetPeriod($period);
+			$categories[] = $category;
+		}
+		$this->categoryMapper->method('findAll')->willReturn($categories);
+		$this->budgetSnapshotMapper->method('findEffectiveBatch')->willReturn([]);
+		$this->transactionMapper->method('getCategorySpendingBatch')
+			->willReturnCallback(static fn (array $ids, $from, $to, string $type) => $type === 'debit'
+				? array_intersect_key([1 => 10.0, 2 => 0.0, 3 => 300.0, 4 => 170.0], array_flip($ids))
+				: []);
+		return $categories;
+	}
+
+	/**
+	 * R7: the dashboard's Budget Progress tile showed a yearly Car of 1,200
+	 * against one month's spending, where the Budget page's row counts 100.
+	 * For one budget month every budget is its share of the month, as on
+	 * the page.
+	 */
+	public function testBudgetReportCountsEachBudgetAsItsShareOfTheMonth(): void {
+		$this->budgetsOfEveryPeriod();
+
+		$result = $this->aggregator->getBudgetReport('user1', '2026-10-01', '2026-10-31');
+
+		$rows = array_column($result['categories'], null, 'categoryId');
+		$this->assertSame([86.67, 100.0, 300.0, 400.0], array_column($result['categories'], 'budgeted'));
+		$this->assertSame(76.67, $rows[1]['remaining']);
+		$this->assertSame(100.0, $rows[2]['remaining']);
+		$this->assertSame(0.0, $rows[3]['remaining']);
+		$this->assertSame(230.0, $rows[4]['remaining']);
+		$this->assertEqualsWithDelta(886.67, $result['totals']['budgeted'], 0.001);
+		$this->assertEqualsWithDelta(406.67, $result['totals']['remaining'], 0.001);
+	}
+
+	public function testBudgetReportCountsEachBudgetOverTheMonthsOfALongerRange(): void {
+		$this->budgetsOfEveryPeriod();
+
+		$result = $this->aggregator->getBudgetReport('user1', '2026-08-01', '2026-10-31');
+
+		// Thirteen weeks of 20, a quarter of 1,200, one quarter, three months of 400
+		$this->assertSame([260.0, 300.0, 900.0, 1200.0], array_column($result['categories'], 'budgeted'));
+		$this->assertEqualsWithDelta(2660.0, $result['totals']['budgeted'], 0.001);
+	}
+
+	public function testBudgetReportCountsAPartMonthByItsDays(): void {
+		$this->budgetsOfEveryPeriod();
+
+		$result = $this->aggregator->getBudgetReport('user1', '2026-09-01', '2026-09-15');
+
+		// Half of September's 30 days
+		$this->assertSame([43.33, 50.0, 150.0, 200.0], array_column($result['categories'], 'budgeted'));
+	}
+
+	public function testBudgetReportCountsTheBudgetPeriodAsOneMonthWithAStartDay(): void {
+		$this->carryoverService->method('budgetStartDay')->willReturn(25);
+		$this->carryoverService->method('budgetMonthRange')->willReturn(['2026-09-25', '2026-10-24']);
+		$this->budgetsOfEveryPeriod();
+
+		$result = $this->aggregator->getBudgetReport('user1', '2026-09-25', '2026-10-24', null, null, '2026-10');
+
+		$this->assertSame([86.67, 100.0, 300.0, 400.0], array_column($result['categories'], 'budgeted'));
+	}
+
+	public function testBudgetReportKeepsACalendarMonthAsOneMonthWithAStartDay(): void {
+		// The calendar month counts as a month for the carry-over, so it
+		// counts as one for the budgets too rather than 24/30 + 7/31
+		$this->carryoverService->method('budgetStartDay')->willReturn(25);
+		$this->carryoverService->method('budgetMonthRange')->willReturn(['2026-09-25', '2026-10-24']);
+		$this->budgetsOfEveryPeriod();
+
+		$result = $this->aggregator->getBudgetReport('user1', '2026-10-01', '2026-10-31');
+
+		$this->assertSame([86.67, 100.0, 300.0, 400.0], array_column($result['categories'], 'budgeted'));
+	}
+
+	public function testBudgetReportLeavesOutABudgetUnderAParentKeptOutOfReports(): void {
+		// The Budget page drops Business and everything under it, so the
+		// dashboard's budget tiles must not count Travel's budget either
+		$business = $this->makeCategory(1, 'Business', 'expense', null, true);
+		$travel = $this->makeCategory(2, 'Travel', 'expense', 1);
+		$travel->setBudgetAmount(100.0);
+		$food = $this->makeCategory(3, 'Food', 'expense');
+		$food->setBudgetAmount(300.0);
+		$this->categoryMapper->method('findAll')->willReturn([$business, $travel, $food]);
+		$this->budgetSnapshotMapper->method('findEffectiveBatch')->willReturn([]);
+		$this->transactionMapper->method('getCategorySpendingBatch')
+			->willReturnCallback(static fn (array $ids) => array_intersect_key([2 => 150.0, 3 => 65.0], array_flip($ids)));
+
+		$result = $this->aggregator->getBudgetReport('user1', '2026-09-01', '2026-09-30');
+
+		$this->assertSame([3], array_column($result['categories'], 'categoryId'));
+		$this->assertEqualsWithDelta(300.0, $result['totals']['budgeted'], 0.001);
+		$this->assertEqualsWithDelta(65.0, $result['totals']['spent'], 0.001);
+	}
+
 	// ===== getCategoryMonthlyReport (#288) =====
 
 	private function makeCategory(int $id, string $name, string $type, ?int $parentId = null, bool $excluded = false): \OCA\Budget\Db\Category {
@@ -654,12 +864,11 @@ class ReportAggregatorTest extends TestCase {
 			$this->makeCategory(3, 'Rent', 'expense', 2),
 			$this->makeCategory(4, 'Utilities', 'expense', 2),
 		]);
-		$this->transactionMapper->method('getCategoryNetByMonthBatch')->willReturn([
+		$this->reportQueries->method('getCategoryNetByMonth')->willReturn([
 			1 => ['2026-01' => 3000.0, '2026-02' => 3000.0],
 			3 => ['2026-01' => -1000.0, '2026-02' => -1000.0],
 			4 => ['2026-01' => -100.0, '2026-02' => -150.0],
 		]);
-		$this->splitMapper->method('getCategoryNetByMonthBatch')->willReturn([]);
 	}
 
 	public function testCategoryMonthlyRollupAndAlphabeticalOrder(): void {
@@ -670,7 +879,7 @@ class ReportAggregatorTest extends TestCase {
 		$this->assertSame(['2026-01', '2026-02'], $r['period']['months']);
 
 		// Alphabetical roots: Housing before Salary; Housing's children indented under it
-		$names = array_map(fn($row) => $row['name'], $r['rows']);
+		$names = array_map(fn ($row) => $row['name'], $r['rows']);
 		$this->assertSame(['Housing', 'Rent', 'Utilities', 'Salary'], $names);
 
 		$housing = $r['rows'][0];
@@ -699,25 +908,98 @@ class ReportAggregatorTest extends TestCase {
 		$r = $this->aggregator->getCategoryMonthlyReport('user1', '2026-01-01', '2026-02-28', null, 'total');
 
 		// By |total| desc at root: Salary (6000) before Housing (2250); children by |total|: Rent (2000) before Utilities (250)
-		$names = array_map(fn($row) => $row['name'], $r['rows']);
+		$names = array_map(fn ($row) => $row['name'], $r['rows']);
 		$this->assertSame(['Salary', 'Housing', 'Rent', 'Utilities'], $names);
 		$this->assertSame('total', $r['sort']);
 	}
 
-	public function testCategoryMonthlyMergesSplitAllocations(): void {
+	public function testCategoryMonthlyAddsUncategorizedAsTheLastRowSoRowsAddUpToTheTotal(): void {
+		$this->conversionService->method('getBaseCurrency')->willReturn('USD');
+		$this->categoryMapper->method('findAll')->willReturn([
+			$this->makeCategory(1, 'Salary', 'income'),
+			$this->makeCategory(2, 'Rent', 'expense'),
+		]);
+		$this->reportQueries->method('getCategoryNetByMonth')->willReturn([
+			TransactionReportQueries::UNCATEGORIZED => ['2026-02' => -200.0],
+			1 => ['2026-01' => 3000.0],
+			2 => ['2026-01' => -1000.0],
+		]);
+
+		// Sorted by total, the uncategorised row still comes last
+		$r = $this->aggregator->getCategoryMonthlyReport('user1', '2026-01-01', '2026-02-28', null, 'total');
+
+		$this->assertSame(['Salary', 'Rent', null], array_column($r['rows'], 'name'));
+		$uncat = $r['rows'][2];
+		$this->assertTrue($uncat['uncategorized']);
+		$this->assertNull($uncat['categoryId']);
+		$this->assertSame(0, $uncat['depth']);
+		$this->assertSame(['2026-01' => 0.0, '2026-02' => -200.0], $uncat['monthly']);
+		$this->assertEqualsWithDelta(-200.0, $uncat['total'], 0.001);
+		$this->assertEqualsWithDelta(1800.0, $r['totals']['total'], 0.001);
+		$this->assertEqualsWithDelta(
+			$r['totals']['total'],
+			array_sum(array_column($r['rows'], 'total')),
+			0.001,
+			'With no parent rows, the rows must add up to the Net total'
+		);
+	}
+
+	/**
+	 * Money under a category shared with the viewer was counted in Net but
+	 * had no row, so the rows didn't add up. It now gets a row by name, and
+	 * money under a category the viewer can't see at all joins Uncategorized.
+	 */
+	public function testCategoryMonthlyRowsAddUpWithSharedAndUnknownCategories(): void {
+		$this->conversionService->method('getBaseCurrency')->willReturn('USD');
+		$this->categoryMapper->method('findAll')->willReturn([
+			$this->makeCategory(1, 'Salary', 'income'),
+		]);
+		$this->granularShareService->method('getSharedCategoryIds')->willReturn([1, 5]);
+		$this->categoryMapper->method('findByIdsUnscoped')->with([5])->willReturn([
+			$this->makeCategory(5, 'Joint groceries', 'expense'),
+		]);
+		$this->reportQueries->method('getCategoryNetByMonth')->willReturn([
+			1 => ['2026-01' => 3000.0],
+			5 => ['2026-01' => -400.0],
+			9 => ['2026-01' => -50.0],
+			TransactionReportQueries::UNCATEGORIZED => ['2026-01' => -25.0],
+		]);
+
+		$r = $this->aggregator->getCategoryMonthlyReport('user1', '2026-01-01', '2026-01-31');
+
+		$this->assertSame(['Joint groceries', 'Salary', null], array_column($r['rows'], 'name'));
+		$this->assertEqualsWithDelta(-75.0, $r['rows'][2]['total'], 0.001);
+		$this->assertEqualsWithDelta(2525.0, $r['totals']['total'], 0.001);
+		$this->assertEqualsWithDelta($r['totals']['total'], array_sum(array_column($r['rows'], 'total')), 0.001);
+	}
+
+	public function testCategoryMonthlyHasNoUncategorizedRowWhenItNetsToZero(): void {
+		$this->conversionService->method('getBaseCurrency')->willReturn('USD');
+		$this->categoryMapper->method('findAll')->willReturn([
+			$this->makeCategory(1, 'Salary', 'income'),
+		]);
+		$this->reportQueries->method('getCategoryNetByMonth')->willReturn([
+			TransactionReportQueries::UNCATEGORIZED => ['2026-01' => 0.0],
+			1 => ['2026-01' => 3000.0],
+		]);
+
+		$r = $this->aggregator->getCategoryMonthlyReport('user1', '2026-01-01', '2026-01-31');
+
+		$this->assertSame(['Salary'], array_column($r['rows'], 'name'));
+	}
+
+	public function testCategoryMonthlyTakesItsMoneyFromTheReportScopedQuery(): void {
 		$this->conversionService->method('getBaseCurrency')->willReturn('USD');
 		$this->categoryMapper->method('findAll')->willReturn([
 			$this->makeCategory(5, 'Groceries', 'expense'),
 		]);
-		// Direct -50 and a split allocation -30 in the same month should combine to -80
-		$this->transactionMapper->method('getCategoryNetByMonthBatch')->willReturn([
-			5 => ['2026-01' => -50.0],
-		]);
-		$this->splitMapper->method('getCategoryNetByMonthBatch')->willReturn([
-			5 => ['2026-01' => -30.0],
-		]);
+		// Direct and split halves are merged (and scoped) in SQL: the
+		// aggregator only shapes rows around what the query returns
+		$this->reportQueries->expects($this->once())->method('getCategoryNetByMonth')
+			->with('user1', '2026-01-01', '2026-01-31', 7, [7, 8])
+			->willReturn([5 => ['2026-01' => -80.0]]);
 
-		$r = $this->aggregator->getCategoryMonthlyReport('user1', '2026-01-01', '2026-01-31');
+		$r = $this->aggregator->getCategoryMonthlyReport('user1', '2026-01-01', '2026-01-31', 7, 'alpha', [7, 8]);
 
 		$this->assertEqualsWithDelta(-80.0, $r['rows'][0]['monthly']['2026-01'], 0.001);
 		$this->assertEqualsWithDelta(-80.0, $r['totals']['total'], 0.001);
@@ -733,22 +1015,42 @@ class ReportAggregatorTest extends TestCase {
 			$this->makeCategory(2, 'Housing', 'expense', null, true),
 			$this->makeCategory(3, 'Rent', 'expense', 2),
 		]);
-		$this->transactionMapper->method('getCategoryNetByMonthBatch')->willReturn([
+		// The query already dropped Housing's money (ReportScope); the
+		// aggregator must not show its row either
+		$this->reportQueries->method('getCategoryNetByMonth')->willReturn([
 			1 => ['2026-01' => 3000.0],
-			2 => ['2026-01' => -200.0], // excluded category's own spend — must be dropped
 			3 => ['2026-01' => -1000.0],
 		]);
-		$this->splitMapper->method('getCategoryNetByMonthBatch')->willReturn([]);
 
 		$r = $this->aggregator->getCategoryMonthlyReport('user1', '2026-01-01', '2026-01-31');
 
-		$names = array_map(fn($row) => $row['name'], $r['rows']);
+		$names = array_map(fn ($row) => $row['name'], $r['rows']);
 		$this->assertNotContains('Housing', $names);          // excluded row hidden
 		$this->assertContains('Rent', $names);                // child kept
 		$rent = $r['rows'][array_search('Rent', $names)];
 		$this->assertSame(0, $rent['depth']);                 // promoted to root
-		// Grand total excludes Housing's -200: 3000 + (-1000) = 2000
 		$this->assertEqualsWithDelta(2000.0, $r['totals']['total'], 0.001);
+	}
+
+	public function testCategoryMonthlyHidesTheViewersMutedCategories(): void {
+		$this->conversionService->method('getBaseCurrency')->willReturn('USD');
+		$this->accountMapper->method('findAll')->willReturn([]);
+		$this->categoryMapper->method('findAll')->willReturn([
+			$this->makeCategory(1, 'Salary', 'income'),
+			$this->makeCategory(2, 'Hobbies', 'expense'),
+			$this->makeCategory(3, 'Books', 'expense', 2),
+		]);
+		$this->categoryMuteMapper->method('findMutedCategoryIds')->willReturn([2]);
+		$this->reportQueries->method('getCategoryNetByMonth')->willReturn([
+			1 => ['2026-01' => 3000.0],
+			3 => ['2026-01' => -20.0],
+		]);
+
+		$r = $this->aggregator->getCategoryMonthlyReport('user1', '2026-01-01', '2026-01-31');
+
+		$names = array_map(fn ($row) => $row['name'], $r['rows']);
+		$this->assertSame(['Books', 'Salary'], $names);
+		$this->assertSame(0, $r['rows'][0]['depth']);
 	}
 
 	// ===== Liability balance sign (#353) =====
@@ -794,5 +1096,148 @@ class ReportAggregatorTest extends TestCase {
 		$this->assertEquals(1500.00, $result['totals']['currentBalance']);
 		$this->assertEquals(1500.00, $result['totals']['totalAssets']);
 		$this->assertEquals(0.0, $result['totals']['totalLiabilities']);
+	}
+
+	// ===== Money adds through MoneyCalculator (#274) =====
+
+	/**
+	 * The summary totals were float running totals: 0.10 + 0.20 of income
+	 * came back as 0.30000000000000004 and the net as a hair off zero.
+	 */
+	public function testSummaryTotalsAddWithoutFloatDrift(): void {
+		$this->accountMapper->method('findAll')->willReturn([
+			$this->makeAccount(1, 'A', 'checking', 0.10, 'GBP'),
+			$this->makeAccount(2, 'B', 'checking', 0.20, 'GBP'),
+		]);
+		$this->transactionMapper->method('getAccountSummaries')->willReturn([
+			1 => ['income' => 0.1, 'expenses' => 0.1, 'count' => 1],
+			2 => ['income' => 0.2, 'expenses' => 0.2, 'count' => 1],
+		]);
+		$this->transactionMapper->method('getTransferTotals')->willReturn(['income' => 0.0, 'expenses' => 0.0]);
+		$this->setupDefaultMocks();
+		$this->conversionService->method('getBaseCurrency')->willReturn('GBP');
+		$this->conversionService->method('needsConversion')->willReturn(false);
+
+		$result = $this->aggregator->generateSummary('user1', null, '2026-01-01', '2026-01-31');
+
+		$this->assertSame(0.3, $result['totals']['totalIncome']);
+		$this->assertSame(0.3, $result['totals']['totalExpenses']);
+		$this->assertSame(0.0, $result['totals']['netIncome']);
+		$this->assertSame(0.3, $result['totals']['currentBalance']);
+	}
+
+	/** Totals round to the currency they are in: a crypto total keeps its 8dp. */
+	public function testSummaryTotalsKeepTheCurrencysDecimals(): void {
+		$this->accountMapper->method('findAll')->willReturn([
+			$this->makeAccount(1, 'Wallet', 'crypto', 0.5, 'BTC'),
+		]);
+		$this->transactionMapper->method('getAccountSummaries')->willReturn([
+			1 => ['income' => 0.12345678, 'expenses' => 0.00000001, 'count' => 2],
+		]);
+		$this->transactionMapper->method('getTransferTotals')->willReturn(['income' => 0.0, 'expenses' => 0.0]);
+		$this->setupDefaultMocks();
+		$this->conversionService->method('getBaseCurrency')->willReturn('GBP');
+		$this->conversionService->method('needsConversion')->willReturn(false);
+
+		$result = $this->aggregator->generateSummary('user1', null, '2026-01-01', '2026-01-31');
+
+		$this->assertSame(0.12345678, $result['totals']['totalIncome']);
+		$this->assertSame(0.00000001, $result['totals']['totalExpenses']);
+		$this->assertSame(0.12345677, $result['totals']['netIncome']);
+	}
+
+	/**
+	 * Converted cash flow keeps each month's transaction count, as the
+	 * single-currency rows do (Year over Year reads it).
+	 */
+	public function testConvertedCashFlowKeepsTheTransactionCount(): void {
+		$this->accountMapper->method('findAll')->willReturn([
+			$this->makeAccount(1, 'GBP', 'checking', 0.0, 'GBP'),
+			$this->makeAccount(2, 'EUR', 'checking', 0.0, 'EUR'),
+		]);
+		$this->conversionService->method('needsConversion')->willReturn(true);
+		$this->conversionService->method('getBaseCurrency')->willReturn('GBP');
+		$this->conversionService->method('getAccountCurrencyMap')->willReturn([1 => 'GBP', 2 => 'EUR']);
+		$this->conversionService->method('convertToBaseFloat')
+			->willReturnCallback(fn ($amount, $currency) => $currency === 'EUR' ? (float)$amount * 0.5 : (float)$amount);
+		$this->reportQueries->method('getCashFlowByMonthByAccount')->willReturn([
+			['month' => '2026-01', 'account_id' => 1, 'income' => 100.0, 'expenses' => 10.0, 'net' => 90.0, 'count' => 2],
+			['month' => '2026-01', 'account_id' => 2, 'income' => 100.0, 'expenses' => 0.0, 'net' => 100.0, 'count' => 1],
+		]);
+
+		$row = $this->aggregator->getCashFlowReport('user1', null, '2026-01-01', '2026-01-31')['data'][0];
+
+		$this->assertSame(150.0, $row['income']);
+		$this->assertSame(3, $row['count']);
+	}
+
+	// ===== one account shared with the viewer in scope (T4-7) =====
+
+	public function testASummaryOfOneSharedAccountReadsIt(): void {
+		// Account 7 is someone else's, shared with user1: the owner-scoped
+		// find() threw, and the dashboard tiles set to it failed
+		$joint = $this->makeAccount(7, 'Joint', 'checking', 500.00, 'GBP');
+		$this->accountMapper->method('find')
+			->willThrowException(new \OCP\AppFramework\Db\DoesNotExistException(''));
+		$this->accountMapper->method('findById')->with(7)->willReturn($joint);
+		$this->transactionMapper->method('getAccountSummaries')->willReturn([
+			7 => ['income' => 300, 'expenses' => 100, 'count' => 5],
+		]);
+		$this->setupDefaultMocks();
+		$this->conversionService->method('getBaseCurrency')->willReturn('GBP');
+
+		$result = $this->aggregator->generateSummary('user1', 7, '2026-01-01', '2026-01-31', [], true, [1, 7]);
+
+		$this->assertSame('Joint', $result['accounts'][0]['name']);
+		$this->assertEquals(300, $result['totals']['totalIncome']);
+		$this->assertEquals(100, $result['totals']['totalExpenses']);
+	}
+
+	public function testASummaryOfAnAccountOutsideTheViewersAccountsIsRefused(): void {
+		$this->accountMapper->method('find')
+			->willThrowException(new \OCP\AppFramework\Db\DoesNotExistException(''));
+		$this->accountMapper->expects($this->never())->method('findById');
+
+		$this->expectException(\OCP\AppFramework\Db\DoesNotExistException::class);
+		$this->aggregator->generateSummary('user1', 9, '2026-01-01', '2026-01-31', [], true, [1, 7]);
+	}
+
+	public function testASingleSharedAccountsTrendKeepsTheViewersScope(): void {
+		$joint = $this->makeAccount(7, 'Joint', 'checking', 500.00, 'GBP');
+		$this->accountMapper->method('findById')->willReturn($joint);
+		$this->transactionMapper->method('getAccountSummaries')->willReturn([]);
+		$this->transactionMapper->method('getNetChangeAfterDateBatch')->willReturn([]);
+		$this->transactionMapper->method('getSpendingSummary')->willReturn([]);
+		$this->conversionService->method('getBaseCurrency')->willReturn('GBP');
+		$this->reportQueries->expects($this->once())->method('getMonthlyTrendData')
+			->with('user1', 7, '2026-01-01', '2026-01-31', [], true, false, [1, 7])
+			->willReturn([]);
+
+		$this->aggregator->generateSummary('user1', 7, '2026-01-01', '2026-01-31', [], true, [1, 7]);
+	}
+
+	public function testCashFlowOfOneSharedAccountKeepsTheViewersScope(): void {
+		// The single-account branch dropped the visible accounts, so the
+		// query fell back to the viewer's own and found nothing
+		$this->reportQueries->expects($this->once())->method('getCashFlowByMonth')
+			->with('user1', 7, '2026-01-01', '2026-01-31', [], true, false, [1, 7])
+			->willReturn([['month' => '2026-01', 'income' => 300.0, 'expenses' => 100.0, 'net' => 200.0, 'count' => 5]]);
+
+		$result = $this->aggregator->getCashFlowReport('user1', 7, '2026-01-01', '2026-01-31', [], true, [1, 7]);
+
+		$this->assertSame(300.0, $result['totals']['income']);
+	}
+
+	public function testCashFlowTotalsAddWithoutFloatDrift(): void {
+		$this->reportQueries->method('getCashFlowByMonth')->willReturn([
+			['month' => '2026-01', 'income' => 0.1, 'expenses' => 0.2, 'net' => -0.1, 'count' => 2],
+			['month' => '2026-02', 'income' => 0.2, 'expenses' => 0.1, 'net' => 0.1, 'count' => 2],
+		]);
+
+		$result = $this->aggregator->getCashFlowReport('user1', 5, '2026-01-01', '2026-02-28');
+
+		$this->assertSame(0.3, $result['totals']['income']);
+		$this->assertSame(0.3, $result['totals']['expenses']);
+		$this->assertSame(0.0, $result['totals']['net']);
 	}
 }

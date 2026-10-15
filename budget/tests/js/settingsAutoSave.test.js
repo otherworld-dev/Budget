@@ -1,0 +1,321 @@
+/**
+ * Settings save as they change (no Save button).
+ *
+ * The Settings page had one Save button above eleven sections, so a change
+ * near the bottom was easy to leave unsaved. Each control now saves itself on
+ * change: one PUT carrying just that setting, and on failure the control goes
+ * back to the stored value so the page never shows something that isn't saved.
+ */
+
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
+vi.mock('@nextcloud/l10n', () => ({
+    translate: (_app, text) => text,
+    translatePlural: (_app, singular, plural, count) => (count === 1 ? singular : plural),
+}));
+vi.mock('../../src/utils/notifications.js', () => ({
+    showSuccess: vi.fn(),
+    showError: vi.fn(),
+    showInfo: vi.fn(),
+}));
+vi.mock('../../src/utils/datepicker.js', () => ({ initDatePickers: vi.fn() }));
+
+import SettingsModule from '../../src/modules/settings/SettingsModule.js';
+import { showError, showInfo } from '../../src/utils/notifications.js';
+import { initDatePickers } from '../../src/utils/datepicker.js';
+
+const tick = () => new Promise(resolve => setTimeout(resolve, 0));
+
+function mount() {
+    document.body.innerHTML = `
+        <div id="settings-view">
+            <div class="setting-item">
+                <select id="setting-date-format" class="setting-input">
+                    <option value="Y-m-d">Y-m-d</option>
+                    <option value="d/m/Y">d/m/Y</option>
+                </select>
+            </div>
+            <div class="setting-item">
+                <input type="checkbox" id="setting-digest-enabled" class="setting-input">
+            </div>
+        </div>`;
+}
+
+function makeModule() {
+    const app = { settings: { date_format: 'Y-m-d', digest_enabled: 'false' } };
+    const mod = new SettingsModule(app);
+    mod.setupAutoSave();
+    return mod;
+}
+
+function change(el) {
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+beforeEach(() => {
+    globalThis.OC = { generateUrl: (p) => p, requestToken: 'token' };
+    mount();
+});
+
+afterEach(() => {
+    vi.clearAllMocks();
+    delete globalThis.fetch;
+    document.body.innerHTML = '';
+});
+
+describe('settings auto-save', () => {
+    it('saves only the setting that changed', async () => {
+        globalThis.fetch = vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({ settings: { date_format: 'd/m/Y' } }),
+        });
+        const mod = makeModule();
+        const select = document.getElementById('setting-date-format');
+
+        select.value = 'd/m/Y';
+        change(select);
+        await tick();
+
+        expect(globalThis.fetch).toHaveBeenCalledOnce();
+        const [, options] = globalThis.fetch.mock.calls[0];
+        expect(options.method).toBe('PUT');
+        expect(JSON.parse(options.body)).toEqual({ date_format: 'd/m/Y' });
+        expect(mod.settings.date_format).toBe('d/m/Y');
+        // Date pickers follow a new date format straight away.
+        expect(initDatePickers).toHaveBeenCalled();
+        expect(document.querySelector('.setting-saved').textContent).toBe('Saved');
+    });
+
+    it('sends checkboxes as "true"/"false"', async () => {
+        globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ settings: {} }) });
+        makeModule();
+        const box = document.getElementById('setting-digest-enabled');
+
+        box.checked = true;
+        change(box);
+        await tick();
+
+        expect(JSON.parse(globalThis.fetch.mock.calls[0][1].body)).toEqual({ digest_enabled: 'true' });
+    });
+
+    it('puts the control back when the save fails', async () => {
+        globalThis.fetch = vi.fn().mockResolvedValue({
+            ok: false,
+            json: async () => ({ error: 'Invalid value' }),
+        });
+        const mod = makeModule();
+        const select = document.getElementById('setting-date-format');
+
+        select.value = 'd/m/Y';
+        change(select);
+        await tick();
+        await tick();
+
+        expect(showError).toHaveBeenCalledWith('Invalid value');
+        expect(select.value).toBe('Y-m-d');
+        expect(mod.settings.date_format).toBe('Y-m-d');
+    });
+
+    it('redraws the number format preview when a format setting changes', async () => {
+        globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ settings: {} }) });
+        document.getElementById('settings-view').insertAdjacentHTML('beforeend', `
+            <div class="setting-item">
+                <select id="setting-number-format-decimal-sep" class="setting-input">
+                    <option value=".">.</option>
+                    <option value=",">,</option>
+                </select>
+                <select id="setting-number-format-thousands-sep" class="setting-input">
+                    <option value=",">,</option>
+                    <option value=".">.</option>
+                </select>
+                <select id="setting-default-currency" class="setting-input">
+                    <option value="GBP">GBP</option>
+                </select>
+            </div>
+            <span id="number-format-preview">£1,234.56</span>`);
+        makeModule();
+        const decimalSep = document.getElementById('setting-number-format-decimal-sep');
+        const thousandsSep = document.getElementById('setting-number-format-thousands-sep');
+
+        thousandsSep.value = '.';
+        decimalSep.value = ',';
+        change(decimalSep);
+
+        expect(document.getElementById('number-format-preview').textContent).toBe('£1.234,56');
+    });
+
+    it('keeps one save in flight per setting and sends the latest value after it', async () => {
+        const replies = [];
+        globalThis.fetch = vi.fn((_url, options) => new Promise(resolve => {
+            const body = JSON.parse(options.body);
+            replies.push(() => resolve({ ok: true, json: async () => ({ settings: body }) }));
+        }));
+        const mod = makeModule();
+        const select = document.getElementById('setting-date-format');
+        select.insertAdjacentHTML('beforeend', '<option value="m/d/Y">m/d/Y</option>');
+
+        select.value = 'd/m/Y';
+        change(select);
+        select.value = 'm/d/Y';
+        change(select);
+        select.value = 'Y-m-d';
+        change(select);
+        await tick();
+
+        // Only the first is on the wire.
+        expect(globalThis.fetch).toHaveBeenCalledOnce();
+
+        replies[0]();
+        await tick();
+        await tick();
+
+        // Then the latest value, once, and nothing for the one in between.
+        expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+        expect(JSON.parse(globalThis.fetch.mock.calls[1][1].body)).toEqual({ date_format: 'Y-m-d' });
+
+        replies[1]();
+        await tick();
+        await tick();
+
+        expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+        expect(mod.settings.date_format).toBe('Y-m-d');
+        expect(select.value).toBe('Y-m-d');
+    });
+
+    it('sends nothing more when the setting ends where the first save left it', async () => {
+        let release;
+        globalThis.fetch = vi.fn()
+            .mockImplementationOnce(() => new Promise(resolve => {
+                release = () => resolve({ ok: true, json: async () => ({ settings: { digest_enabled: 'true' } }) });
+            }));
+        const mod = makeModule();
+        const box = document.getElementById('setting-digest-enabled');
+
+        box.checked = true;
+        change(box);
+        box.checked = false;
+        change(box);
+        box.checked = true;
+        change(box);
+        await tick();
+
+        release();
+        await tick();
+        await tick();
+
+        expect(globalThis.fetch).toHaveBeenCalledOnce();
+        expect(mod.settings.digest_enabled).toBe('true');
+        expect(box.checked).toBe(true);
+    });
+
+    it('does not undo a newer change when an earlier save fails', async () => {
+        let fail;
+        globalThis.fetch = vi.fn()
+            .mockImplementationOnce(() => new Promise(resolve => {
+                fail = () => resolve({ ok: false, json: async () => ({ error: 'Busy' }) });
+            }))
+            .mockResolvedValueOnce({ ok: true, json: async () => ({ settings: { date_format: 'd/m/Y' } }) });
+        const mod = makeModule();
+        const select = document.getElementById('setting-date-format');
+
+        select.value = 'd/m/Y';
+        change(select);
+        select.value = 'Y-m-d';
+        change(select);
+        select.value = 'd/m/Y';
+        change(select);
+        await tick();
+
+        fail();
+        for (let i = 0; i < 5; i++) await tick();
+
+        expect(showError).toHaveBeenCalledWith('Busy');
+        expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+        expect(select.value).toBe('d/m/Y');
+        expect(mod.settings.date_format).toBe('d/m/Y');
+    });
+
+    it('ignores changes to controls that are not settings', async () => {
+        globalThis.fetch = vi.fn();
+        makeModule();
+        const other = document.createElement('input');
+        document.getElementById('settings-view').appendChild(other);
+
+        change(other);
+        await tick();
+
+        expect(globalThis.fetch).not.toHaveBeenCalled();
+    });
+});
+
+describe('admin settings', () => {
+    it('are not requested for a user who is not an admin', async () => {
+        globalThis.OC.isUserAdmin = () => false;
+        globalThis.fetch = vi.fn();
+
+        await makeModule().loadAdminSettings();
+
+        expect(globalThis.fetch).not.toHaveBeenCalled();
+    });
+
+    it('are requested and shown for an admin', async () => {
+        globalThis.OC.isUserAdmin = () => true;
+        document.body.insertAdjacentHTML('beforeend', '<div id="admin-settings-section" style="display:none"></div>');
+        globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ bankSyncEnabled: false }) });
+
+        await makeModule().loadAdminSettings();
+
+        expect(globalThis.fetch).toHaveBeenCalledOnce();
+        expect(globalThis.fetch.mock.calls[0][0]).toContain('/apps/budget/api/admin/settings');
+        expect(document.getElementById('admin-settings-section').style.display).toBe('block');
+    });
+
+    it('point the receipt scanning docs link at the published page', async () => {
+        globalThis.OC.isUserAdmin = () => true;
+        document.body.insertAdjacentHTML('beforeend', `
+            <select id="setting-ocr-provider"><option value="none">None</option></select>
+            <input id="setting-ocr-endpoint"><input id="setting-ocr-model"><input id="setting-ocr-api-key">
+            <button id="setting-ocr-clear-key"></button><button id="setting-ocr-save"></button>
+            <a id="setting-ocr-docs-link"></a>`);
+        globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ocr: {} }) });
+
+        await makeModule().loadAdminSettings();
+
+        expect(document.getElementById('setting-ocr-docs-link').getAttribute('href'))
+            .toBe('https://budget.otherworld.dev/docs/receipt-scanning.html');
+    });
+
+    it('says the files already in a moved import folder stay where they are', async () => {
+        document.getElementById('settings-view').insertAdjacentHTML('beforeend',
+            '<div class="setting-item"><input id="setting-import-folder" class="setting-input"></div>');
+        globalThis.fetch = vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({ settings: { import_folder: 'Bank' }, importFolderLeftAlone: { Conto: 2 } }),
+        });
+        makeModule();
+        const input = document.getElementById('setting-import-folder');
+
+        input.value = 'Bank';
+        change(input);
+        await tick();
+
+        expect(showInfo).toHaveBeenCalledWith('{folder} already holds %n files. They stay where they are: only files added from now on are imported.');
+    });
+
+    it('says nothing when the moved import folder held nothing', async () => {
+        document.getElementById('settings-view').insertAdjacentHTML('beforeend',
+            '<div class="setting-item"><input id="setting-import-folder" class="setting-input"></div>');
+        globalThis.fetch = vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({ settings: { import_folder: 'Bank' }, importFolderLeftAlone: [] }),
+        });
+        makeModule();
+        const input = document.getElementById('setting-import-folder');
+
+        input.value = 'Bank';
+        change(input);
+        await tick();
+
+        expect(showInfo).not.toHaveBeenCalled();
+    });
+});

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Tests\Unit\Service;
 
-use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Service\Report\ReportAggregator;
 use OCA\Budget\Service\Report\ReportCalculator;
 use OCA\Budget\Service\Report\ReportExporter;
@@ -13,202 +12,228 @@ use OCA\Budget\Service\ReportService;
 use PHPUnit\Framework\TestCase;
 
 class ReportServiceTest extends TestCase {
-    private ReportService $service;
-    private ReportCalculator $calculator;
-    private ReportAggregator $aggregator;
-    private ReportExporter $exporter;
-    private TagReportService $tagReportService;
-    private CategoryMapper $categoryMapper;
+	private ReportService $service;
+	private ReportCalculator $calculator;
+	private ReportAggregator $aggregator;
+	private ReportExporter $exporter;
+	private TagReportService $tagReportService;
 
-    protected function setUp(): void {
-        $this->calculator = $this->createMock(ReportCalculator::class);
-        $this->aggregator = $this->createMock(ReportAggregator::class);
-        $this->exporter = $this->createMock(ReportExporter::class);
-        $this->tagReportService = $this->createMock(TagReportService::class);
-        $this->categoryMapper = $this->createMock(CategoryMapper::class);
-        $this->categoryMapper->method('findAll')->willReturn([]);
+	protected function setUp(): void {
+		$this->calculator = $this->createMock(ReportCalculator::class);
+		$this->aggregator = $this->createMock(ReportAggregator::class);
+		$this->exporter = $this->createMock(ReportExporter::class);
+		$this->tagReportService = $this->createMock(TagReportService::class);
 
-        $this->service = new ReportService(
-            $this->calculator,
-            $this->aggregator,
-            $this->exporter,
-            $this->tagReportService,
-            $this->categoryMapper
-        );
-    }
+		$this->service = new ReportService(
+			$this->calculator,
+			$this->aggregator,
+			$this->exporter,
+			$this->tagReportService
+		);
+	}
 
-    // ===== generateSummary =====
+	// ===== one report scope for every grouping (#219) =====
 
-    public function testGenerateSummaryDelegatesToAggregator(): void {
-        $expected = ['totals' => ['totalIncome' => 5000.0]];
-        $this->aggregator->expects($this->once())->method('generateSummary')
-            ->with('user1', null, '2025-01-01', '2025-12-31', [], true)
-            ->willReturn($expected);
+	/**
+	 * Excluded categories are dropped by the mapper's SQL choke point for
+	 * every grouping; the service must pass the category rows through as
+	 * they come rather than filter them again in PHP (per-consumer filtering
+	 * is what drifted in #219).
+	 */
+	public function testSpendingByCategoryPassesTheMapperRowsThrough(): void {
+		$rows = [
+			['id' => 3, 'name' => 'Food', 'total' => 60.0, 'count' => 2],
+			['id' => 4, 'name' => 'Rent', 'total' => 800.0, 'count' => 1],
+		];
+		$this->calculator->method('getSpendingByCategory')->willReturn($rows);
+		$this->calculator->method('calculateTotals')->willReturn(['amount' => 860.0, 'transactions' => 3]);
 
-        $result = $this->service->generateSummary('user1', '2025-01-01', '2025-12-31');
-        $this->assertSame($expected, $result);
-    }
+		$report = $this->service->getSpendingReport('user1', '2026-01-01', '2026-01-31');
 
-    public function testGenerateSummaryWithFilters(): void {
-        $this->aggregator->expects($this->once())->method('generateSummary')
-            ->with('user1', 5, '2025-01-01', '2025-06-30', [1, 2], false);
+		$this->assertSame($rows, $report['data']);
+	}
 
-        $this->service->generateSummary('user1', '2025-01-01', '2025-06-30', 5, [1, 2], false);
-    }
+	public function testSpendingByAccountHonoursTheSelectedAccount(): void {
+		$this->calculator->expects($this->once())->method('getSpendingByAccount')
+			->with('user1', '2026-01-01', '2026-01-31', [5, 6], 5)
+			->willReturn([]);
+		$this->calculator->method('calculateTotals')->willReturn(['amount' => 0.0, 'transactions' => 0]);
 
-    // ===== generateSummaryWithComparison =====
+		$this->service->getSpendingReport('user1', '2026-01-01', '2026-01-31', 5, 'account', null, null, [5, 6]);
+	}
 
-    public function testGenerateSummaryWithComparisonDelegates(): void {
-        $this->aggregator->expects($this->once())->method('generateSummaryWithComparison')
-            ->with('user1', null, '2025-01-01', '2025-12-31', [], true);
+	// ===== generateSummary =====
 
-        $this->service->generateSummaryWithComparison('user1', '2025-01-01', '2025-12-31');
-    }
+	public function testGenerateSummaryDelegatesToAggregator(): void {
+		$expected = ['totals' => ['totalIncome' => 5000.0]];
+		$this->aggregator->expects($this->once())->method('generateSummary')
+			->with('user1', null, '2025-01-01', '2025-12-31', [], true)
+			->willReturn($expected);
 
-    // ===== getSpendingReport =====
+		$result = $this->service->generateSummary('user1', '2025-01-01', '2025-12-31');
+		$this->assertSame($expected, $result);
+	}
 
-    public function testGetSpendingReportByCategory(): void {
-        $data = [['name' => 'Food', 'total' => 500.0, 'count' => 20]];
-        $this->calculator->expects($this->once())->method('getSpendingByCategory')
-            ->with('user1', null, '2025-01-01', '2025-12-31')
-            ->willReturn($data);
-        $this->calculator->method('calculateTotals')->willReturn(['amount' => 500.0, 'transactions' => 20]);
+	public function testGenerateSummaryWithFilters(): void {
+		$this->aggregator->expects($this->once())->method('generateSummary')
+			->with('user1', 5, '2025-01-01', '2025-06-30', [1, 2], false);
 
-        $result = $this->service->getSpendingReport('user1', '2025-01-01', '2025-12-31');
+		$this->service->generateSummary('user1', '2025-01-01', '2025-06-30', 5, [1, 2], false);
+	}
 
-        $this->assertEquals('category', $result['groupBy']);
-        $this->assertCount(1, $result['data']);
-        $this->assertEquals(500.0, $result['totals']['amount']);
-    }
+	// ===== generateSummaryWithComparison =====
 
-    public function testGetSpendingReportByMonth(): void {
-        $this->calculator->expects($this->once())->method('getSpendingByMonth')
-            ->willReturn([]);
-        $this->calculator->method('calculateTotals')->willReturn(['amount' => 0, 'transactions' => 0]);
+	public function testGenerateSummaryWithComparisonDelegates(): void {
+		$this->aggregator->expects($this->once())->method('generateSummaryWithComparison')
+			->with('user1', null, '2025-01-01', '2025-12-31', [], true);
 
-        $result = $this->service->getSpendingReport('user1', '2025-01-01', '2025-12-31', null, 'month');
-        $this->assertEquals('month', $result['groupBy']);
-    }
+		$this->service->generateSummaryWithComparison('user1', '2025-01-01', '2025-12-31');
+	}
 
-    public function testGetSpendingReportByVendor(): void {
-        $this->calculator->expects($this->once())->method('getSpendingByVendor')->willReturn([]);
-        $this->calculator->method('calculateTotals')->willReturn(['amount' => 0, 'transactions' => 0]);
+	// ===== getSpendingReport =====
 
-        $this->service->getSpendingReport('user1', '2025-01-01', '2025-12-31', null, 'vendor');
-    }
+	public function testGetSpendingReportByCategory(): void {
+		$data = [['name' => 'Food', 'total' => 500.0, 'count' => 20]];
+		$this->calculator->expects($this->once())->method('getSpendingByCategory')
+			->with('user1', null, '2025-01-01', '2025-12-31')
+			->willReturn($data);
+		$this->calculator->method('calculateTotals')->willReturn(['amount' => 500.0, 'transactions' => 20]);
 
-    public function testGetSpendingReportByTag(): void {
-        $this->calculator->expects($this->once())->method('getSpendingByTag')
-            ->with('user1', 5, '2025-01-01', '2025-12-31', null, null)
-            ->willReturn([]);
-        $this->calculator->method('calculateTotals')->willReturn(['amount' => 0, 'transactions' => 0]);
+		$result = $this->service->getSpendingReport('user1', '2025-01-01', '2025-12-31');
 
-        $result = $this->service->getSpendingReport('user1', '2025-01-01', '2025-12-31', null, 'tag', 5);
-        $this->assertEquals(5, $result['tagSetId']);
-    }
+		$this->assertEquals('category', $result['groupBy']);
+		$this->assertCount(1, $result['data']);
+		$this->assertEquals(500.0, $result['totals']['amount']);
+	}
 
-    public function testGetSpendingReportByTagWithoutTagSetReturnsEmpty(): void {
-        $this->calculator->method('calculateTotals')->willReturn(['amount' => 0, 'transactions' => 0]);
+	public function testGetSpendingReportByMonth(): void {
+		$this->calculator->expects($this->once())->method('getSpendingByMonth')
+			->willReturn([]);
+		$this->calculator->method('calculateTotals')->willReturn(['amount' => 0, 'transactions' => 0]);
 
-        $result = $this->service->getSpendingReport('user1', '2025-01-01', '2025-12-31', null, 'tag', null);
-        $this->assertEmpty($result['data']);
-    }
+		$result = $this->service->getSpendingReport('user1', '2025-01-01', '2025-12-31', null, 'month');
+		$this->assertEquals('month', $result['groupBy']);
+	}
 
-    // ===== getIncomeReport =====
+	public function testGetSpendingReportByVendor(): void {
+		$this->calculator->expects($this->once())->method('getSpendingByVendor')->willReturn([]);
+		$this->calculator->method('calculateTotals')->willReturn(['amount' => 0, 'transactions' => 0]);
 
-    public function testGetIncomeReportByMonth(): void {
-        $this->calculator->expects($this->once())->method('getIncomeByMonth')->willReturn([]);
-        $this->calculator->method('calculateTotals')->willReturn(['amount' => 0, 'transactions' => 0]);
+		$this->service->getSpendingReport('user1', '2025-01-01', '2025-12-31', null, 'vendor');
+	}
 
-        $result = $this->service->getIncomeReport('user1', '2025-01-01', '2025-12-31');
-        $this->assertEquals('month', $result['groupBy']);
-    }
+	public function testGetSpendingReportByTag(): void {
+		$this->calculator->expects($this->once())->method('getSpendingByTag')
+			->with('user1', 5, '2025-01-01', '2025-12-31', null, null)
+			->willReturn([]);
+		$this->calculator->method('calculateTotals')->willReturn(['amount' => 0, 'transactions' => 0]);
 
-    public function testGetIncomeReportBySource(): void {
-        $this->calculator->expects($this->once())->method('getIncomeBySource')->willReturn([]);
-        $this->calculator->method('calculateTotals')->willReturn(['amount' => 0, 'transactions' => 0]);
+		$result = $this->service->getSpendingReport('user1', '2025-01-01', '2025-12-31', null, 'tag', 5);
+		$this->assertEquals(5, $result['tagSetId']);
+	}
 
-        $this->service->getIncomeReport('user1', '2025-01-01', '2025-12-31', null, 'source');
-    }
+	public function testGetSpendingReportByTagWithoutTagSetReturnsEmpty(): void {
+		$this->calculator->method('calculateTotals')->willReturn(['amount' => 0, 'transactions' => 0]);
 
-    // ===== getBudgetReport =====
+		$result = $this->service->getSpendingReport('user1', '2025-01-01', '2025-12-31', null, 'tag', null);
+		$this->assertEmpty($result['data']);
+	}
 
-    public function testGetBudgetReportDelegatesToAggregator(): void {
-        $expected = ['categories' => []];
-        $this->aggregator->expects($this->once())->method('getBudgetReport')
-            ->with('user1', '2025-01-01', '2025-12-31', null, null, '2025-12')
-            ->willReturn($expected);
+	// ===== getIncomeReport =====
 
-        $result = $this->service->getBudgetReport('user1', '2025-01-01', '2025-12-31', null, null, '2025-12');
-        $this->assertSame($expected, $result);
-    }
+	public function testGetIncomeReportByMonth(): void {
+		$this->calculator->expects($this->once())->method('getIncomeByMonth')->willReturn([]);
+		$this->calculator->method('calculateTotals')->willReturn(['amount' => 0, 'transactions' => 0]);
 
-    // ===== getCashFlowReport =====
+		$result = $this->service->getIncomeReport('user1', '2025-01-01', '2025-12-31');
+		$this->assertEquals('month', $result['groupBy']);
+	}
 
-    public function testGetCashFlowReportDelegates(): void {
-        $this->aggregator->expects($this->once())->method('getCashFlowReport')
-            ->with('user1', 3, '2025-01-01', '2025-12-31', [], true);
+	public function testGetIncomeReportBySource(): void {
+		$this->calculator->expects($this->once())->method('getIncomeBySource')->willReturn([]);
+		$this->calculator->method('calculateTotals')->willReturn(['amount' => 0, 'transactions' => 0]);
 
-        $this->service->getCashFlowReport('user1', '2025-01-01', '2025-12-31', 3);
-    }
+		$this->service->getIncomeReport('user1', '2025-01-01', '2025-12-31', null, 'source');
+	}
 
-    // ===== Tag report delegation =====
+	// ===== getBudgetReport =====
 
-    public function testGetTagCombinationReportDelegates(): void {
-        $this->tagReportService->expects($this->once())->method('getTagCombinationReport')
-            ->with('user1', '2025-01-01', '2025-12-31', null, null, 2, 50);
+	public function testGetBudgetReportDelegatesToAggregator(): void {
+		$expected = ['categories' => []];
+		$this->aggregator->expects($this->once())->method('getBudgetReport')
+			->with('user1', '2025-01-01', '2025-12-31', null, null, '2025-12')
+			->willReturn($expected);
 
-        $this->service->getTagCombinationReport('user1', '2025-01-01', '2025-12-31');
-    }
+		$result = $this->service->getBudgetReport('user1', '2025-01-01', '2025-12-31', null, null, '2025-12');
+		$this->assertSame($expected, $result);
+	}
 
-    public function testGetTagCrossTabDelegates(): void {
-        $this->tagReportService->expects($this->once())->method('getCrossTabulation')
-            ->with('user1', 1, 2, '2025-01-01', '2025-12-31', null, null);
+	// ===== getCashFlowReport =====
 
-        $this->service->getTagCrossTabulation('user1', 1, 2, '2025-01-01', '2025-12-31');
-    }
+	public function testGetCashFlowReportDelegates(): void {
+		$this->aggregator->expects($this->once())->method('getCashFlowReport')
+			->with('user1', 3, '2025-01-01', '2025-12-31', [], true);
 
-    public function testGetTagTrendReportDelegates(): void {
-        $this->tagReportService->expects($this->once())->method('getTagTrendReport')
-            ->with('user1', [1, 2], '2025-01-01', '2025-12-31', null);
+		$this->service->getCashFlowReport('user1', '2025-01-01', '2025-12-31', 3);
+	}
 
-        $this->service->getTagTrendReport('user1', [1, 2], '2025-01-01', '2025-12-31');
-    }
+	// ===== Tag report delegation =====
 
-    public function testGetTagSetBreakdownDelegates(): void {
-        $this->tagReportService->expects($this->once())->method('getTagSetBreakdown')
-            ->with('user1', 5, '2025-01-01', '2025-12-31', null, null);
+	public function testGetTagCombinationReportDelegates(): void {
+		$this->tagReportService->expects($this->once())->method('getTagCombinationReport')
+			->with('user1', '2025-01-01', '2025-12-31', null, null, 2, 50);
 
-        $this->service->getTagSetBreakdown('user1', 5, '2025-01-01', '2025-12-31');
-    }
+		$this->service->getTagCombinationReport('user1', '2025-01-01', '2025-12-31');
+	}
 
-    // ===== exportReport =====
+	public function testGetTagCrossTabDelegates(): void {
+		$this->tagReportService->expects($this->once())->method('getCrossTabulation')
+			->with('user1', 1, 2, '2025-01-01', '2025-12-31', null, null);
 
-    public function testExportReportGeneratesDataThenExports(): void {
-        $summaryData = ['totals' => ['totalIncome' => 5000.0]];
-        $this->aggregator->method('generateSummaryWithComparison')->willReturn($summaryData);
+		$this->service->getTagCrossTabulation('user1', 1, 2, '2025-01-01', '2025-12-31');
+	}
 
-        $this->exporter->expects($this->once())->method('export')
-            ->with($summaryData, 'summary', 'csv')
-            ->willReturn(['stream' => 'csv data', 'contentType' => 'text/csv', 'filename' => 'summary_report.csv']);
+	public function testGetTagTrendReportDelegates(): void {
+		$this->tagReportService->expects($this->once())->method('getTagTrendReport')
+			->with('user1', [1, 2], '2025-01-01', '2025-12-31', null);
 
-        $result = $this->service->exportReport('user1', 'summary', 'csv', '2025-01-01', '2025-12-31');
-        $this->assertEquals('text/csv', $result['contentType']);
-    }
+		$this->service->getTagTrendReport('user1', [1, 2], '2025-01-01', '2025-12-31');
+	}
 
-    public function testExportReportPassesTheLanguageToTheExporter(): void {
-        $summaryData = ['totals' => ['totalIncome' => 5000.0]];
-        $this->aggregator->method('generateSummaryWithComparison')->willReturn($summaryData);
+	public function testGetTagSetBreakdownDelegates(): void {
+		$this->tagReportService->expects($this->once())->method('getTagSetBreakdown')
+			->with('user1', 5, '2025-01-01', '2025-12-31', null, null);
 
-        $this->exporter->expects($this->once())->method('export')
-            ->with($summaryData, 'summary', 'pdf', 'de')
-            ->willReturn(['stream' => '%PDF', 'contentType' => 'application/pdf', 'filename' => 'summary_report.pdf']);
+		$this->service->getTagSetBreakdown('user1', 5, '2025-01-01', '2025-12-31');
+	}
 
-        $this->service->exportReport('user1', 'summary', 'pdf', '2025-01-01', '2025-12-31', lang: 'de');
-    }
+	// ===== exportReport =====
 
-    public function testExportReportUnknownTypeThrows(): void {
-        $this->expectException(\InvalidArgumentException::class);
-        $this->service->exportReport('user1', 'invalid', 'csv', '2025-01-01', '2025-12-31');
-    }
+	public function testExportReportGeneratesDataThenExports(): void {
+		$summaryData = ['totals' => ['totalIncome' => 5000.0]];
+		$this->aggregator->method('generateSummaryWithComparison')->willReturn($summaryData);
+
+		$this->exporter->expects($this->once())->method('export')
+			->with($summaryData, 'summary', 'csv')
+			->willReturn(['stream' => 'csv data', 'contentType' => 'text/csv', 'filename' => 'summary_report.csv']);
+
+		$result = $this->service->exportReport('user1', 'summary', 'csv', '2025-01-01', '2025-12-31');
+		$this->assertEquals('text/csv', $result['contentType']);
+	}
+
+	public function testExportReportPassesTheLanguageToTheExporter(): void {
+		$summaryData = ['totals' => ['totalIncome' => 5000.0]];
+		$this->aggregator->method('generateSummaryWithComparison')->willReturn($summaryData);
+
+		$this->exporter->expects($this->once())->method('export')
+			->with($summaryData, 'summary', 'pdf', 'de')
+			->willReturn(['stream' => '%PDF', 'contentType' => 'application/pdf', 'filename' => 'summary_report.pdf']);
+
+		$this->service->exportReport('user1', 'summary', 'pdf', '2025-01-01', '2025-12-31', lang: 'de');
+	}
+
+	public function testExportReportUnknownTypeThrows(): void {
+		$this->expectException(\InvalidArgumentException::class);
+		$this->service->exportReport('user1', 'invalid', 'csv', '2025-01-01', '2025-12-31');
+	}
 }

@@ -21,22 +21,22 @@ use OCP\AppFramework\Db\Entity;
  * @method void setCreatedAt(string $createdAt)
  */
 class IdempotencyKey extends Entity implements JsonSerializable {
-    protected $userId;
-    protected $idemKey;
-    protected $transactionId;
-    protected $createdAt;
+	protected $userId;
+	protected $idemKey;
+	protected $transactionId;
+	protected $createdAt;
 
-    public function __construct() {
-        $this->addType('transactionId', 'integer');
-    }
+	public function __construct() {
+		$this->addType('transactionId', 'integer');
+	}
 
-    public function jsonSerialize(): array {
-        return [
-            'id' => $this->getId(),
-            'userId' => $this->getUserId(),
-            'idemKey' => $this->getIdemKey(),
-            'transactionId' => $this->getTransactionId(),
-            'createdAt' => $this->getCreatedAt(),
-        ];
-    }
+	public function jsonSerialize(): array {
+		return [
+			'id' => $this->getId(),
+			'userId' => $this->getUserId(),
+			'idemKey' => $this->getIdemKey(),
+			'transactionId' => $this->getTransactionId(),
+			'createdAt' => $this->getCreatedAt(),
+		];
+	}
 }

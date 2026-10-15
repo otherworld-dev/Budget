@@ -10,11 +10,14 @@ use OCA\Budget\Db\ExpenseShare;
 use OCA\Budget\Db\Settlement;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\SharedExpenseService;
+use OCA\Budget\Service\ShareService;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
+use OCP\Collaboration\Collaborators\ISearch;
 use OCP\IL10N;
 use OCP\IRequest;
 use OCP\IUserManager;
+use OCP\Share\IShare;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -24,6 +27,9 @@ class SharedExpenseControllerTest extends TestCase {
 	private SharedExpenseService $service;
 	private IRequest $request;
 	private LoggerInterface $logger;
+	private ISearch $collaboratorSearch;
+	private IUserManager $userManager;
+	private ShareService $shareService;
 
 	protected function setUp(): void {
 		$this->request = $this->createMock(IRequest::class);
@@ -37,6 +43,9 @@ class SharedExpenseControllerTest extends TestCase {
 		$granularShareService = $this->createMock(GranularShareService::class);
 		$granularShareService->method('canAccess')->willReturn(true);
 		$userManager = $this->createMock(IUserManager::class);
+		$this->userManager = $userManager;
+		$this->collaboratorSearch = $this->createMock(ISearch::class);
+		$this->shareService = $this->createMock(ShareService::class);
 
 		$this->controller = new SharedExpenseController(
 			$this->request,
@@ -45,8 +54,58 @@ class SharedExpenseControllerTest extends TestCase {
 			$userManager,
 			$l,
 			'user1',
-			$this->logger
+			$this->logger,
+			$this->collaboratorSearch,
+			$this->shareService
 		);
+	}
+
+	// ── searchUsers ─────────────────────────────────────────────────
+
+	private static function sharee(string $uid, string $label): array {
+		return ['label' => $label, 'value' => ['shareType' => IShare::TYPE_USER, 'shareWith' => $uid]];
+	}
+
+	/**
+	 * The search goes through Nextcloud's sharee search, which applies the
+	 * admin's enumeration and group settings; '*' asks it for whoever those
+	 * settings allow (an empty search), never a raw user-manager listing.
+	 */
+	public function testSearchUsersUsesTheShareeSearchForAWildcard(): void {
+		$this->collaboratorSearch->expects($this->once())->method('search')
+			->with('', [IShare::TYPE_USER], false, 50, 0)
+			->willReturn([['exact' => ['users' => []], 'users' => [self::sharee('bob', 'Bob')]], false]);
+
+		$response = $this->controller->searchUsers('*');
+
+		$this->assertSame([['uid' => 'bob', 'displayName' => 'Bob']], $response->getData());
+	}
+
+	public function testSearchUsersMergesExactMatchesFirstAndDropsDuplicatesAndSelf(): void {
+		$this->collaboratorSearch->method('search')->willReturn([[
+			'exact' => ['users' => [self::sharee('alice', 'Alice')]],
+			'users' => [self::sharee('alice', 'Alice'), self::sharee('user1', 'Me'), self::sharee('alicia', 'Alicia')],
+		], false]);
+
+		$response = $this->controller->searchUsers('ali');
+
+		$this->assertSame([
+			['uid' => 'alice', 'displayName' => 'Alice'],
+			['uid' => 'alicia', 'displayName' => 'Alicia'],
+		], $response->getData());
+	}
+
+	/** With enumeration disabled core returns nothing for a partial query, and so do we. */
+	public function testSearchUsersReturnsWhatTheShareeSearchAllowsAndNothingMore(): void {
+		$this->collaboratorSearch->method('search')->willReturn([['exact' => ['users' => []], 'users' => []], false]);
+
+		$this->assertSame([], $this->controller->searchUsers('*')->getData());
+	}
+
+	public function testSearchUsersNeedsTwoCharactersUnlessWildcard(): void {
+		$this->collaboratorSearch->expects($this->never())->method('search');
+
+		$this->assertSame([], $this->controller->searchUsers('a')->getData());
 	}
 
 	private function makeContact(int $id = 1, string $name = 'Alice', ?string $email = null): Contact {
@@ -136,6 +195,64 @@ class SharedExpenseControllerTest extends TestCase {
 		$response = $this->controller->createContact('Alice', 'alice@example.com');
 
 		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+	}
+
+	private function givenUser(string $uid, string $displayName): void {
+		$user = $this->createMock(\OCP\IUser::class);
+		$user->method('getUID')->willReturn($uid);
+		$user->method('getDisplayName')->willReturn($displayName);
+		$this->userManager->method('get')->willReturnCallback(fn (string $id) => $id === $uid ? $user : null);
+	}
+
+	public function testLinkingAContactToAUserThePickerOffersFillsInTheirName(): void {
+		$this->givenUser('bob', 'Bob Smith');
+		$this->shareService->method('mayShareWith')->willReturn(true);
+		$this->collaboratorSearch->method('search')->with('bob', [IShare::TYPE_USER], false, 50, 0)
+			->willReturn([['exact' => ['users' => [self::sharee('bob', 'Bob Smith')]], 'users' => []], false]);
+		$this->request->method('getParams')->willReturn(['nextcloudUserId' => 'bob']);
+		$this->service->expects($this->once())->method('createContact')
+			->with('user1', 'Bob Smith', null, 'bob')
+			->willReturn($this->makeContact());
+
+		$response = $this->controller->createContact('bob');
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+	}
+
+	/**
+	 * "Only share with group members" applies to linking a contact, as it
+	 * does to sharing a budget.
+	 */
+	public function testLinkingAContactRespectsOnlyShareWithGroupMembers(): void {
+		$this->givenUser('bob', 'Bob Smith');
+		$this->shareService->method('mayShareWith')->willReturn(false);
+		$this->collaboratorSearch->method('search')
+			->willReturn([['exact' => ['users' => [self::sharee('bob', 'Bob Smith')]], 'users' => []], false]);
+		$this->request->method('getParams')->willReturn(['nextcloudUserId' => 'bob']);
+		$this->service->expects($this->never())->method('createContact');
+
+		$response = $this->controller->createContact('bob');
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Nextcloud user not found', $response->getData()['error']);
+	}
+
+	/**
+	 * With user enumeration off, a guessed user id the picker keeps hidden
+	 * answers like one that doesn't exist, and its display name never comes
+	 * back.
+	 */
+	public function testLinkingAContactToAUserThePickerHidesLooksLikeNoSuchUser(): void {
+		$this->givenUser('bob', 'Bob Smith');
+		$this->shareService->method('mayShareWith')->willReturn(true);
+		$this->collaboratorSearch->method('search')->willReturn([['exact' => ['users' => []], 'users' => []], false]);
+		$this->request->method('getParams')->willReturn(['nextcloudUserId' => 'bob']);
+		$this->service->expects($this->never())->method('createContact');
+
+		$response = $this->controller->createContact('bob');
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertStringNotContainsString('Bob Smith', json_encode($response->getData()));
 	}
 
 	public function testCreateContactHandlesError(): void {
@@ -661,6 +778,38 @@ class SharedExpenseControllerTest extends TestCase {
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 		$this->assertSame('deleted', $response->getData()['status']);
+	}
+
+	/**
+	 * Every lookup here is the user's own, so another user's id (or one that
+	 * is gone) is a 404 with nothing logged: it was a 500 and an error in
+	 * nextcloud.log.
+	 */
+	#[DataProvider('routesTakingIds')]
+	public function testSomeoneElsesIdIsNotFound(string $serviceMethod, \Closure $call): void {
+		$this->service->method($serviceMethod)->willThrowException(new DoesNotExistException('not yours'));
+		$this->logger->expects($this->never())->method('error');
+
+		$response = $call($this->controller);
+
+		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
+	}
+
+	public static function routesTakingIds(): array {
+		return [
+			'update contact' => ['updateContact', fn (SharedExpenseController $c) => $c->updateContact(9, 'Dora')],
+			'delete contact' => ['deleteContact', fn (SharedExpenseController $c) => $c->destroyContact(9)],
+			'contact details' => ['getContactDetails', fn (SharedExpenseController $c) => $c->contactDetails(9)],
+			'share an expense' => ['shareExpense', fn (SharedExpenseController $c) => $c->shareExpense(9, 9, 1.0)],
+			'split 50/50' => ['splitFiftyFifty', fn (SharedExpenseController $c) => $c->splitFiftyFifty(9, 9)],
+			'update a split' => ['updateExpenseShare', fn (SharedExpenseController $c) => $c->updateShare(9, 1.0)],
+			'mark a split settled' => ['markShareSettled', fn (SharedExpenseController $c) => $c->markSettled(9)],
+			'delete a split' => ['deleteExpenseShare', fn (SharedExpenseController $c) => $c->destroyShare(9)],
+			'settle selected' => ['settleSelectedShares', fn (SharedExpenseController $c) => $c->settleSelected([9], '2026-10-04')],
+			'record a settlement' => ['recordSettlement', fn (SharedExpenseController $c) => $c->recordSettlement(9, 1.0, '2026-10-04')],
+			'delete a settlement' => ['deleteSettlement', fn (SharedExpenseController $c) => $c->destroySettlement(9)],
+			'settle with a contact' => ['settleWithContact', fn (SharedExpenseController $c) => $c->settleWithContact(9, '2026-10-04')],
+		];
 	}
 
 	public function testDestroySettlementHandlesError(): void {

@@ -19,18 +19,18 @@ use OCP\Migration\SimpleMigrationStep;
  * spending the user tracks but does not want to budget against.
  */
 class Version001000092Date20260801 extends SimpleMigrationStep {
-    public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
-        /** @var ISchemaWrapper $schema */
-        $schema = $schemaClosure();
+	public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
+		/** @var ISchemaWrapper $schema */
+		$schema = $schemaClosure();
 
-        $table = $schema->getTable('budget_categories');
-        if (!$table->hasColumn('excluded_from_budget')) {
-            $table->addColumn('excluded_from_budget', Types::BOOLEAN, [
-                'notnull' => false,
-                'default' => false,
-            ]);
-        }
+		$table = $schema->getTable('budget_categories');
+		if (!$table->hasColumn('excluded_from_budget')) {
+			$table->addColumn('excluded_from_budget', Types::BOOLEAN, [
+				'notnull' => false,
+				'default' => false,
+			]);
+		}
 
-        return $schema;
-    }
+		return $schema;
+	}
 }
