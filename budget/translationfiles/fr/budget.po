@@ -8,8 +8,8 @@ msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-10-15 00:25+0000\n"
-"PO-Revision-Date: 2026-10-04 00:04+0000\n"
-"Last-Translator: Christophe <tophe.perso@gmail.com>\n"
+"PO-Revision-Date: 2026-10-16 19:51+0000\n"
+"Last-Translator: Christophe <capersys@users.noreply.hosted.weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/fr/>\n"
 "Language: fr\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n > 1;\n"
-"X-Generator: Weblate 2026.10.1.dev0\n"
+"X-Generator: Weblate 2026.11.dev0\n"
 
 #: /app/lib/Controller/AccountController.php:80
 #: /app/lib/Controller/ApiV1AccountController.php:57
@@ -361,7 +361,7 @@ msgstr "%1$s doit être un nombre"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:227
 msgid "Use either categoryId or uncategorized, not both"
-msgstr ""
+msgstr "Utilisez soit « categoryId », soit « uncategorized », mais pas les deux"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:240
 #: /app/lib/Controller/ApiV1TransactionController.php:536
@@ -379,7 +379,7 @@ msgstr "%1$s doit être un nombre"
 #: /app/lib/Controller/ApiV1TransactionController.php:300
 #, php-format
 msgid "tag_ids must be a list of at most %d tag ids"
-msgstr ""
+msgstr "tag_ids doit être une liste contenant au maximum %d ids d'étiquettes"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:384
 #: /app/lib/Controller/ApiV1TransactionController.php:404
@@ -394,6 +394,8 @@ msgstr "Le montant doit être un nombre"
 #: /app/lib/Controller/ApiV1TransactionController.php:559
 msgid "Amount cannot be negative. Use type to say which way the money went"
 msgstr ""
+"Le montant ne peut pas être négatif. Utilisez le champ « type » pour "
+"indiquer dans quel sens l'argent a été transféré"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:563
 msgid "An account is required"
@@ -450,22 +452,21 @@ msgid "Failed to create transaction"
 msgstr "Échec de la création de l'opération"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:829
-#, fuzzy
-#| msgid "Transfer requires a destination account"
 msgid "A transfer needs two different accounts"
-msgstr "Le transfert nécessite un compte de destination"
+msgstr "Un virement nécessite deux comptes distincts"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:839
-#, fuzzy
-#| msgid "Transfer value cannot be negative"
 msgid "A transfer cannot be split"
-msgstr "La valeur du transfert ne peut pas être négative"
+msgstr "Un virement ne peut pas être fractionné"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:865
 msgid ""
 "The two accounts are in different currencies. Record this transfer in the "
 "web UI, where each side has its own amount"
 msgstr ""
+"Les deux comptes sont libellés dans des devises différentes. Enregistrez ce "
+"virement dans l'interface Web, où chaque contre partie dispose de son propre "
+"montant"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:899
 msgid "This account is closed. Reopen it to record anything in it"
@@ -858,14 +859,14 @@ msgstr "Le paiement automatique nécessite qu’un compte soit configuré"
 #: /app/lib/Controller/BillController.php:726
 #: /app/lib/Service/BillService.php:668
 msgid "Transfer requires a destination account"
-msgstr "Le transfert nécessite un compte de destination"
+msgstr "Le virement nécessite un compte de destination"
 
 #: /app/lib/Controller/BillController.php:326
 #: /app/lib/Controller/BillController.php:754
 #: /app/lib/Service/BillService.php:673
 #: /app/src/modules/transfers/TransfersModule.js:869
 msgid "Cannot transfer to the same account"
-msgstr "Impossible d’effectuer un transfert vers le même compte"
+msgstr "Impossible d’effectuer un virement vers le même compte"
 
 #: /app/lib/Controller/BillController.php:349
 #: /app/lib/Controller/BillController.php:516
@@ -1965,7 +1966,7 @@ msgstr "Le revenu annuel ne peut pas être négatif"
 #: /app/lib/Controller/PensionController.php:179
 #: /app/lib/Controller/PensionController.php:277
 msgid "Transfer value cannot be negative"
-msgstr "La valeur du transfert ne peut pas être négative"
+msgstr "La valeur du virement ne peut pas être négative"
 
 #: /app/lib/Controller/PensionController.php:182
 msgid "Projection target cannot be negative"
@@ -5883,7 +5884,7 @@ msgstr "Cette page n'a pas pu être chargée. Actualisez la page pour réessayer
 #: /app/src/main.js:520 /app/src/modules/import/ImportModule.js:2093
 #: /app/src/modules/import/ImportModule.js:2133
 msgid "Duplicate"
-msgstr "Doublon"
+msgstr "Dupliquer"
 
 #: /app/src/main.js:522
 msgid "Share expense"
@@ -5891,11 +5892,11 @@ msgstr "Partager la dépense"
 
 #: /app/src/main.js:524
 msgid "Unlink transfer"
-msgstr "Dissocier le transfert"
+msgstr "Dissocier le virement"
 
 #: /app/src/main.js:526
 msgid "Match transfer"
-msgstr "Associer le transfert"
+msgstr "Associer le virement"
 
 #: /app/src/main.js:529 /app/src/main.js:2935
 #: /app/src/modules/accounts/AccountsModule.js:617
@@ -8239,8 +8240,6 @@ msgid "Total Spent"
 msgstr "Total dépensé"
 
 #: /app/src/modules/categories/CategoriesModule.js:800
-#, fuzzy
-#| msgid "Monthly income"
 msgid "Monthly Income"
 msgstr "Revenus mensuels"
 
@@ -9016,7 +9015,7 @@ msgstr "Revenu prévu / an"
 
 #: /app/src/modules/dashboard/DashboardModule.js:2608
 msgid "No unmatched transfers"
-msgstr "Aucun transfert sans correspondance"
+msgstr "Aucun virement sans correspondance"
 
 #: /app/src/modules/dashboard/DashboardModule.js:2628
 msgid "No category trends available"
@@ -10093,7 +10092,7 @@ msgstr "Catégories à créer :"
 
 #: /app/src/modules/import/ImportModule.js:1891
 msgid "{count} transfer rows will be skipped"
-msgstr "{count} lignes de transfert seront ignorées"
+msgstr "{count} lignes de virement seront ignorées"
 
 #: /app/src/modules/import/ImportModule.js:1892
 msgid ""
@@ -11188,7 +11187,7 @@ msgstr "À payer"
 #: /app/src/modules/transfers/TransfersModule.js:449
 #: /app/templates/index.php:5859 /app/templates/index.php:5865
 msgid "Transfer"
-msgstr "Transfert"
+msgstr "Virement"
 
 #: /app/src/modules/reports/ReportsModule.js:1944
 msgid "Monthly Totals"
@@ -12884,7 +12883,7 @@ msgstr ""
 
 #: /app/src/modules/sharing/SharingModule.js:275 /app/templates/index.php:2840
 msgid "Recurring Income"
-msgstr "Revenu récurrent"
+msgstr "Revenus récurrents"
 
 #: /app/src/modules/sharing/SharingModule.js:278 /app/templates/index.php:4816
 msgid "Import Rules"
@@ -14141,7 +14140,7 @@ msgstr "Cliquez pour afficher l'opération liée dans {account}"
 
 #: /app/src/modules/transactions/transactionRow.js:76
 msgid "Linked transfer"
-msgstr "Transfert lié"
+msgstr "Virement lié"
 
 #: /app/src/modules/transactions/transactionRow.js:89
 msgid "Shared expense - unsettled"
@@ -14238,7 +14237,7 @@ msgstr "Tous les virements"
 #: /app/src/modules/transfers/TransfersModule.js:144
 #: /app/src/utils/billDates.js:46 /app/templates/index.php:2697
 msgid "Due Soon"
-msgstr "Échue prochainement"
+msgstr "Échu(e)s prochainement"
 
 #: /app/src/modules/transfers/TransfersModule.js:146
 #: /app/src/utils/incomeStatus.js:53 /app/templates/index.php:1423
@@ -17713,8 +17712,8 @@ msgid ""
 "Goal pot value used for the projection progress bar (leave blank for the "
 "default)"
 msgstr ""
-"Valeur de la cagnotte cible utilisée pour la barre de progression (laisser "
-"vide pour la valeur par défaut)"
+"Valeur de la capitalisation cible utilisée pour la barre de progression "
+"(laisser vide pour la valeur par défaut)"
 
 #: /app/templates/index.php:5433
 msgid "Income Details"
@@ -19128,7 +19127,7 @@ msgstr "Vous devrez tout configurer à partir de zéro après cette opération."
 
 #: /app/templates/index.php:7461
 msgid "Type DELETE to confirm:"
-msgstr "Tapez SUPPRIMER pour confirmer :"
+msgstr "Tapez DELETE pour confirmer :"
 
 #: /app/templates/index.php:7466
 msgid "Type DELETE to confirm"
