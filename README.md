@@ -2,8 +2,6 @@
 
 # Nextcloud Budget
 
-> ⚠️ **Beta**: This app is under active development. While stable, please backup your data regularly and [report any issues](https://github.com/otherworld-dev/Budget/issues) you encounter.
-
 Budget is a personal finance app for Nextcloud. It keeps your bank accounts, credit cards, loans and pensions in one place, imports the statements your bank gives you, tracks spending against a budget and forecasts where your balances are heading, with all of the data staying on your own server.
 
 ![Dashboard Screenshot](screenshots/dashboard.png)
@@ -11,7 +9,8 @@ Budget is a personal finance app for Nextcloud. It keeps your bank accounts, cre
 ## What it does
 
 - Accounts and transactions in over 45 currencies, with splits, tags, transfers and statement reconciliation
-- Statement import from CSV, OFX, QIF and camt.053 XML, rules that categorise transactions for you, and bank sync through GoCardless or SimpleFIN
+- Statement import from CSV, Excel and LibreOffice spreadsheets, OFX, QIF and camt.053 XML, exports from Firefly III, YNAB, Actual Budget, Mint and Monarch Money, and an import folder that imports the statements you drop into your Files
+- Rules that categorise transactions for you, and bank sync through GoCardless or SimpleFIN (in beta)
 - Receipt photos attached to transactions, and receipt scanning (OCR) that reads the amount and items once an admin sets it up
 - Category budgets (including envelope budgets that roll over) with a "ready to assign" figure, project budgets for jobs that run over months, bills, recurring income and balance forecasts
 - Detection of payments that look recurring but are not tracked yet, so subscriptions become bills in one click
@@ -20,7 +19,8 @@ Budget is a personal finance app for Nextcloud. It keeps your bank accounts, cre
 - A weekly or monthly digest and alerts for unusual spending
 - Sharing accounts and budgets with other Nextcloud users, and splitting expenses with one or several people
 - Nextcloud dashboard widgets, unified search and a calendar feed for your bills
-- A Quick Add page for recording spending from your phone, and a [public API](https://budget.otherworld.dev/docs/api.html) for scripts and automation, which the Budget Companion Android app (in development) also uses
+- [Budget Companion](https://play.google.com/store/apps/details?id=dev.otherworld.budget), the Android app on Google Play, for photographing receipts and checking your balances, budget and bills from your phone
+- A Quick Add page for recording spending from any phone browser, and a [public API](https://budget.otherworld.dev/docs/api.html) for scripts and automation
 - A getting started checklist for new users, with sample data to try the app before adding your own
 
 Every feature is explained in the [documentation](https://budget.otherworld.dev/docs/), and the [changelog](budget/CHANGELOG.md) lists what has changed in each release.

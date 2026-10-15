@@ -5,23 +5,22 @@
     <name>Budget</name>
     <summary>Simple budget tracker and forecaster</summary>
     <description><![CDATA[
-**⚠️ Beta: This app is currently in testing. Data loss is possible. Please backup your data regularly and report any issues.**
-
 # Budget - Financial Tracking for Nextcloud
 
 Track your spending habits, manage savings, and forecast future account balances with intelligent analysis of your financial history.
 
 ## Features
 
-* **Import Bank Statements**: Support for CSV, OFX, QIF and ISO 20022 camt.053 XML formats
-* **Bank Sync**: Pull transactions in automatically through GoCardless (UK/EU) or SimpleFIN (US)
+* **Import Bank Statements**: Support for CSV, Excel and LibreOffice spreadsheets (.xls, .xlsx, .ods), OFX, QIF and ISO 20022 camt.053 XML formats, plus exports from Firefly III, YNAB, Actual Budget, Mint and Monarch Money
+* **Import Folder**: Drop a statement into a folder in your Files and it is imported in the background, or held for you to review first
+* **Bank Sync (beta)**: Pull transactions in automatically through GoCardless (UK/EU) or SimpleFIN (US)
 * **Smart Categorization**: Automatic vendor matching and transaction categorization
 * **Auto-Categorization Rules**: Apply rules to existing transactions anytime with preview
 * **Split Transactions**: Allocate single transactions across multiple categories
 * **Transfer Detection**: Automatic matching of transfers between accounts
 * **Statement Reconciliation**: Tick transactions off against a bank statement until the difference reaches zero
 * **Receipt Scanning**: Attach receipt photos to transactions and, once an admin sets it up, read the amount and items from them (OCR)
-* **Quick Add and a Public API**: A fast entry page for your phone, and a REST API for scripts, automation and the Budget Companion Android app (in development)
+* **Android App, Quick Add and a Public API**: Budget Companion for Android (on Google Play: https://play.google.com/store/apps/details?id=dev.otherworld.budget) to photograph receipts and check your balances, a fast entry page for your phone, and a REST API for scripts and automation
 * **Budget Tracking**: Set spending limits with alerts when approaching or exceeding budgets
 * **Rollover Budgets**: Envelope budgeting, where unspent money (or overspending) carries into the next month
 * **Project Budgets**: One budget for a job that runs over months, such as a renovation or a wedding
@@ -66,7 +65,7 @@ Full user documentation: https://budget.otherworld.dev/docs/
     <website>https://budget.otherworld.dev/</website>
     <bugs>https://github.com/otherworld-dev/budget/issues</bugs>
     <repository>https://github.com/otherworld-dev/budget</repository>
-    <screenshot small-thumbnail="https://raw.githubusercontent.com/otherworld-dev/Budget/master/screenshots/dashboard-thumb.png">https://raw.githubusercontent.com/otherworld-dev/Budget/master/screenshots/dashboard.png</screenshot>
+    <screenshot small-thumbnail="https://raw.githubusercontent.com/otherworld-dev/Budget/main/screenshots/dashboard-thumb.png">https://raw.githubusercontent.com/otherworld-dev/Budget/main/screenshots/dashboard.png</screenshot>
     <donation type="paypal" title="Donate via PayPal">https://www.paypal.com/donate/?hosted_button_id=MA56N6K8FSTQ2</donation>
     <donation type="other" title="Sponsor on GitHub">https://github.com/sponsors/otherworld-dev</donation>
     <dependencies>
