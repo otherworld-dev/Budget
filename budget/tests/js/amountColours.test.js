@@ -122,6 +122,21 @@ describe('buildStyleSheet', () => {
         expect(block).toContain('--budget-color-on-status: #ffffff;');
     });
 
+    it('beats an explicitly chosen Light theme on body-level elements', () => {
+        // Nextcloud injects [data-theme-light] { --color-error: ... } on <body>
+        // (0,1,0), which a plain `body` (0,0,1) loses to.
+        const block = css.split('}')[0];
+        expect(block).toMatch(/(^|,\n)body\[data-theme-light\](,|\s*\{)/);
+        expect(block).toMatch(/(^|,\n)body\[data-theme-light-highcontrast\](,|\s*\{)/);
+    });
+
+    it('puts the light rule before the dark ones so equal specificity favours dark', () => {
+        const lightRule = css.indexOf('body[data-theme-light]');
+        expect(lightRule).toBeGreaterThan(-1);
+        expect(lightRule).toBeLessThan(css.indexOf('body[data-theme-dark]'));
+        expect(lightRule).toBeLessThan(css.indexOf('@media (prefers-color-scheme: dark)'));
+    });
+
     it('sets a tint for every level, both directions', () => {
         for (const level of TINT_LEVELS) {
             expect(css).toContain(`--budget-tint-positive-${level}: color-mix(in srgb, #0b62a4 ${level}%, transparent);`);

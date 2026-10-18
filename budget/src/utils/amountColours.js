@@ -38,6 +38,13 @@ const LIGHT_TEXT = '#ffffff';
 // body, so modals and menus appended to <body> pick the scheme up too.
 const TARGETS = ['body', '#app-navigation', '#app-content', '#budget-toast-container'];
 
+// Nextcloud injects an explicitly chosen non-default theme as
+// `[data-theme-light] { --color-error: ... }` on <body> (0,1,0), which a plain
+// `body` (0,0,1) loses to. These carry the light rule at (0,1,1). The dark
+// rules have the same specificity and come later in the sheet, so they still
+// win whenever a dark theme is the one in use.
+const LIGHT_BODY_THEMES = ['body[data-theme-light]', 'body[data-theme-light-highcontrast]'];
+
 /** The resolved scheme currently applied, or null under Default. */
 let current = null;
 
@@ -158,7 +165,8 @@ function underPrefixes(prefixes) {
 }
 
 /**
- * CSS text overriding the variables for both themes. Light rules are plain;
+ * CSS text overriding the variables for both themes. Light rules are plain
+ * (plus Nextcloud's explicit light themes on body);
  * dark rules use the selectors style.css's own dark block uses (chosen dark
  * theme, or the default theme following the system).
  */
@@ -166,7 +174,7 @@ export function buildStyleSheet(resolved) {
     const light = declarations(resolved.light);
     const dark = declarations(resolved.dark);
     return [
-        rule(TARGETS, light),
+        rule([...TARGETS, ...LIGHT_BODY_THEMES], light),
         rule(underPrefixes(['body[data-theme-dark]', 'body[data-theme-dark-highcontrast]']), dark),
         '@media (prefers-color-scheme: dark) {\n'
             + rule(underPrefixes(['body[data-theme-default]']), dark, '    ')
