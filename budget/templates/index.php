@@ -293,7 +293,7 @@ style('budget', 'budget-app');
 
 <div id="nav-backdrop" class="nav-open-backdrop"></div>
 
-<div id="app-content" class="app-content" data-app-version="<?php p($_['appVersion'] ?? ''); ?>">
+<div id="app-content" class="app-content" data-app-version="<?php p($_['appVersion'] ?? ''); ?>" data-amount-color-scheme="<?php p($_['amountColorScheme'] ?? 'default'); ?>" data-amount-color-custom="<?php p($_['amountColorCustom'] ?? ''); ?>">
     <div id="app-content-wrapper">
 <?php if (!empty($_['schemaWarning'])) { ?>
 <div class="budget-schema-warning" role="alert">

@@ -7,10 +7,13 @@ namespace OCA\Budget\Controller;
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\CategoryMapper;
+use OCA\Budget\Db\SettingMapper;
+use OCA\Budget\Service\AmountColours;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\SchemaVersionService;
 use OCP\App\IAppManager;
 use OCP\AppFramework\Controller;
+use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http\JSONResponse;
 use OCP\AppFramework\Http\TemplateResponse;
 use OCP\Defaults;
@@ -22,6 +25,7 @@ use OCP\Util;
 class PageController extends Controller {
 	private AccountMapper $accountMapper;
 	private CategoryMapper $categoryMapper;
+	private SettingMapper $settingMapper;
 	private GranularShareService $granularShareService;
 	private SchemaVersionService $schemaVersionService;
 	private IAppManager $appManager;
@@ -34,6 +38,7 @@ class PageController extends Controller {
 		IRequest $request,
 		AccountMapper $accountMapper,
 		CategoryMapper $categoryMapper,
+		SettingMapper $settingMapper,
 		GranularShareService $granularShareService,
 		SchemaVersionService $schemaVersionService,
 		IAppManager $appManager,
@@ -48,6 +53,7 @@ class PageController extends Controller {
 		parent::__construct(Application::APP_ID, $request);
 		$this->accountMapper = $accountMapper;
 		$this->categoryMapper = $categoryMapper;
+		$this->settingMapper = $settingMapper;
 		$this->granularShareService = $granularShareService;
 		$this->schemaVersionService = $schemaVersionService;
 		$this->appManager = $appManager;
@@ -71,7 +77,7 @@ class PageController extends Controller {
 
 	/** @return array<string, mixed> */
 	private function indexParams(): array {
-		return [
+		return $this->amountColourParams() + [
 			'appName' => Application::APP_ID,
 			// An upgrade Nextcloud never ran leaves the database behind the
 			// code, and nothing notices until a save fails on a column that
@@ -81,6 +87,39 @@ class PageController extends Controller {
 			// whether this user has seen the notes for the installed version.
 			'appVersion' => $this->appManager->getAppVersion(Application::APP_ID),
 		];
+	}
+
+	/**
+	 * The user's money in / money out colour scheme, for the page to apply
+	 * before first paint (#432). Stored values are untrusted (an old or
+	 * tampered backup can leave anything), so a scheme that isn't one of ours
+	 * is Default and a custom palette that doesn't parse is blank.
+	 *
+	 * @return array{amountColorScheme: string, amountColorCustom: string}
+	 */
+	private function amountColourParams(): array {
+		$custom = '';
+		try {
+			$custom = AmountColours::validateCustom($this->readSetting(AmountColours::SETTING_CUSTOM) ?? '');
+		} catch (\InvalidArgumentException $e) {
+			// Blank: the frontend falls back to the preset's palette
+		}
+		return [
+			'amountColorScheme' => AmountColours::normalizeScheme($this->readSetting(AmountColours::SETTING_SCHEME)),
+			'amountColorCustom' => $custom,
+		];
+	}
+
+	/** A null user (not logged in) or an unset key reads as null: defaults. */
+	private function readSetting(string $key): ?string {
+		if ($this->userId === null) {
+			return null;
+		}
+		try {
+			return $this->settingMapper->findByKey($this->userId, $key)->getValue();
+		} catch (DoesNotExistException $e) {
+			return null;
+		}
 	}
 
 	/**

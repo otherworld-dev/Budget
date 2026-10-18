@@ -8,9 +8,12 @@ use OCA\Budget\Controller\PageController;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\Category;
 use OCA\Budget\Db\CategoryMapper;
+use OCA\Budget\Db\Setting;
+use OCA\Budget\Db\SettingMapper;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\SchemaVersionService;
 use OCP\App\IAppManager;
+use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\Defaults;
 use OCP\IL10N;
 use OCP\IRequest;
@@ -23,6 +26,8 @@ class PageControllerTest extends TestCase {
 	private CategoryMapper $categoryMapper;
 	private GranularShareService $granularShareService;
 	private AccountMapper $accountMapper;
+	/** @var array<string, string> the user's stored settings, key => value */
+	private array $storedSettings = [];
 
 	protected function setUp(): void {
 		$request = $this->createMock(IRequest::class);
@@ -31,6 +36,17 @@ class PageControllerTest extends TestCase {
 		$granularShareService = $this->granularShareService = $this->createMock(GranularShareService::class);
 		$schemaVersionService = $this->createMock(SchemaVersionService::class);
 		$this->appManager = $this->createMock(IAppManager::class);
+		$settingMapper = $this->createMock(SettingMapper::class);
+		$settingMapper->method('findByKey')->willReturnCallback(function (string $userId, string $key): Setting {
+			if (!array_key_exists($key, $this->storedSettings)) {
+				throw new DoesNotExistException('');
+			}
+			$setting = new Setting();
+			$setting->setUserId($userId);
+			$setting->setKey($key);
+			$setting->setValue($this->storedSettings[$key]);
+			return $setting;
+		});
 
 		$urlGenerator = $this->createMock(IURLGenerator::class);
 		$urlGenerator->method('imagePath')
@@ -44,6 +60,7 @@ class PageControllerTest extends TestCase {
 			$request,
 			$accountMapper,
 			$categoryMapper,
+			$settingMapper,
 			$granularShareService,
 			$schemaVersionService,
 			$this->appManager,
@@ -65,6 +82,7 @@ class PageControllerTest extends TestCase {
 			$this->createMock(IRequest::class),
 			$this->createMock(AccountMapper::class),
 			$this->createMock(CategoryMapper::class),
+			$this->createMock(SettingMapper::class),
 			$this->createMock(GranularShareService::class),
 			$this->createMock(SchemaVersionService::class),
 			$this->createMock(IAppManager::class),
@@ -84,6 +102,48 @@ class PageControllerTest extends TestCase {
 		$params = (new \ReflectionMethod(PageController::class, 'indexParams'))->invoke($this->controller);
 
 		$this->assertSame('2.54.0', $params['appVersion']);
+	}
+
+	/** @return array<string, mixed> */
+	private function indexParams(): array {
+		// index() itself calls Util::addScript, which needs a running server.
+		return (new \ReflectionMethod(PageController::class, 'indexParams'))->invoke($this->controller);
+	}
+
+	public function testIndexPassesColourScheme(): void {
+		$this->storedSettings = [
+			'amount_color_scheme' => 'custom',
+			'amount_color_custom' => '{"lightPositive":"#0B62A4","lightNegative":"#A84800","darkPositive":"#6CB4EE","darkNegative":"#F5A35C"}',
+		];
+
+		$params = $this->indexParams();
+
+		$this->assertSame('custom', $params['amountColorScheme']);
+		// The canonical form, not the stored string as it came
+		$this->assertSame(
+			'{"lightPositive":"#0b62a4","lightNegative":"#a84800","darkPositive":"#6cb4ee","darkNegative":"#f5a35c"}',
+			$params['amountColorCustom']
+		);
+	}
+
+	/** An old or tampered backup can leave anything in these settings; the page must still load. */
+	public function testIndexFallsBackOnBadStoredValues(): void {
+		$this->storedSettings = [
+			'amount_color_scheme' => 'pink',
+			'amount_color_custom' => '{"lightPositive":',
+		];
+
+		$params = $this->indexParams();
+
+		$this->assertSame('default', $params['amountColorScheme']);
+		$this->assertSame('', $params['amountColorCustom']);
+	}
+
+	public function testIndexWithNoColourSettings(): void {
+		$params = $this->indexParams();
+
+		$this->assertSame('default', $params['amountColorScheme']);
+		$this->assertSame('', $params['amountColorCustom']);
 	}
 
 	public function testQuickAddManifestOpensTheQuickAddPage(): void {
