@@ -3137,6 +3137,15 @@ button.danger:hover {
     background: var(--budget-scheme-warning-fill, var(--color-warning));
 }
 
+/* Nextcloud's own `#body-user .warning` outranks the rule above and turns the
+   dot into a faint 20% tint with extra margin, padding and square-ish corners. */
+#body-user .account-status-dot.warning {
+    margin: 0;
+    padding: 0;
+    border-radius: 50%;
+    background: var(--budget-scheme-warning-fill, var(--color-warning));
+}
+
 .account-status-dot.critical {
     background: var(--color-error);
 }
@@ -5241,6 +5250,15 @@ button.danger:hover {
 }
 
 .health-indicator.warning {
+    background: var(--budget-scheme-warning-fill, var(--color-warning));
+}
+
+/* Nextcloud's own `#body-user .warning` outranks the rule above and turns the
+   dot into a faint 20% tint with extra margin, padding and square-ish corners. */
+#body-user .health-indicator.warning {
+    margin: 0;
+    padding: 0;
+    border-radius: 50%;
     background: var(--budget-scheme-warning-fill, var(--color-warning));
 }
 

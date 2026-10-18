@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Colour settings for money in and money out.** Settings has a new Colours section with a colour-blind friendly preset (blue and orange) or your own colours, picked separately for the light and dark theme. They are used across amounts, budget bars, charts and PDF exports, and each person sets their own. Default keeps the colours as they are now. Reported by @trucks192 ([#432](https://github.com/otherworld-dev/Budget/issues/432))
 
+### Fixed
+- **The amber warning dot on accounts shows its colour.** A Nextcloud style overrode it, so the dot beside an account with a warning, and the one on the account's own page, came out as a faint tint and, on the account page, a rounded square. Both now show the full warning colour as a round dot.
+
 ## [3.0.0] - 2026-10-15
 
 The first release of Budget out of beta. Alongside the changes below there is now an Android app, Budget Companion, on [Google Play](https://play.google.com/store/apps/details?id=dev.otherworld.budget).
