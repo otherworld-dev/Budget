@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-10-15 00:25+0000\n"
-"PO-Revision-Date: 2026-10-16 19:51+0000\n"
+"PO-Revision-Date: 2026-10-19 19:51+0000\n"
 "Last-Translator: Christophe <capersys@users.noreply.hosted.weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/fr/>\n"
@@ -354,10 +354,9 @@ msgid "Invalid status. Must be cleared, scheduled or pending"
 msgstr "Statut invalide. Doit être réglé, planifié ou en attente"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:221
-#, fuzzy, php-format
-#| msgid "%1$s must be a number"
+#, php-format
 msgid "%s must be true or false"
-msgstr "%1$s doit être un nombre"
+msgstr "%s doit être « vrai » ou « faux »"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:227
 msgid "Use either categoryId or uncategorized, not both"
@@ -365,16 +364,14 @@ msgstr "Utilisez soit « categoryId », soit « uncategorized », mais pas les d
 
 #: /app/lib/Controller/ApiV1TransactionController.php:240
 #: /app/lib/Controller/ApiV1TransactionController.php:536
-#, fuzzy, php-format
-#| msgid "%1$s must be a number"
+#, php-format
 msgid "%s must be a whole number above zero"
-msgstr "%1$s doit être un nombre"
+msgstr "%s doit être un nombre entier positif"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:254
-#, fuzzy, php-format
-#| msgid "%1$s must be a number"
+#, php-format
 msgid "%s must be a number, zero or more"
-msgstr "%1$s doit être un nombre"
+msgstr "%s doit être un nombre, zéro ou plus"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:300
 #, php-format
@@ -440,10 +437,9 @@ msgid "The transaction was recorded, but it could not be split"
 msgstr "L'opération a été enregistrée, mais n'a pas pu être ventilée"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:785
-#, fuzzy
-#| msgid "The transaction was recorded, but it could not be split"
 msgid "The transaction was recorded, but its tags could not be set"
-msgstr "L'opération a été enregistrée, mais n'a pas pu être ventilée"
+msgstr ""
+"L'opération a été enregistrée, mais ses étiquettes n'ont pas pu être définies"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:800
 #: /app/lib/Controller/ApiV1TransactionController.php:870
@@ -470,7 +466,7 @@ msgstr ""
 
 #: /app/lib/Controller/ApiV1TransactionController.php:899
 msgid "This account is closed. Reopen it to record anything in it"
-msgstr ""
+msgstr "Ce compte est fermé. Rouvrez-le pour pouvoir y enregistrer des données"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:972
 msgid "This idempotency key was already used for a different transaction"
@@ -525,11 +521,15 @@ msgstr "Échec de la suppression de l'opération"
 msgid ""
 "A scheduled transaction cannot be reconciled, as it has not happened yet"
 msgstr ""
+"Une opération programmée ne peut pas être rapprochée, car elle n'a pas "
+"encore eu lieu"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:1517
 #: /app/lib/Controller/TransactionController.php:962
 msgid "Category not found. It must be one of the account owner's categories"
 msgstr ""
+"Catégorie introuvable. Il doit s'agir d'une des catégories du titulaire du "
+"compte"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:1541
 #, php-format
@@ -539,6 +539,8 @@ msgstr "%s ne peut pas être modifié via l'API"
 #: /app/lib/Controller/ApiV1TransactionController.php:1568
 msgid "Amount must be more than zero. Use type to say which way the money went"
 msgstr ""
+"Le montant doit être supérieur à zéro. Utilisez le type pour indiquer dans "
+"quel sens l'argent a été transféré"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:1630
 msgid ""
@@ -564,10 +566,9 @@ msgstr ""
 "« confirm_reconciled » pour poursuivre"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:1701
-#, fuzzy, php-format
-#| msgid "%1$s must be a number"
+#, php-format
 msgid "%s must be a single value"
-msgstr "%1$s doit être un nombre"
+msgstr "%s doit être une valeur unique"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:1715
 msgid "category_id must be a category id or null"
@@ -838,6 +839,8 @@ msgstr "%1$s introuvable"
 #: /app/lib/Controller/BillController.php:244
 msgid "The owner of this bill can't use that account. Choose another one."
 msgstr ""
+"Le titulaire de cette facture ne peut pas utiliser ce compte. Choisissez-en "
+"un autre."
 
 #: /app/lib/Controller/BillController.php:261
 #: /app/lib/Controller/BillController.php:707
@@ -931,6 +934,8 @@ msgid ""
 "This amount is read from an account that isn't shared with you. Choose a "
 "fixed amount."
 msgstr ""
+"Ce montant est prélevé sur un compte qui ne vous est pas commun. Choisissez "
+"un montant fixe."
 
 #: /app/lib/Controller/BillController.php:877
 msgid "Failed to update bill"
@@ -1125,34 +1130,22 @@ msgstr ""
 
 #: /app/lib/Controller/BillController.php:1627
 #: /app/lib/Controller/RecurringIncomeController.php:148
-#, fuzzy
-#| msgid ""
-#| "This account belongs to someone else, who cannot see one of the split "
-#| "categories. Split with categories shared with them, or pay from one of "
-#| "your own accounts."
 msgid ""
 "This account belongs to someone else, who cannot see this category. Choose a "
 "category shared with them, or no category."
 msgstr ""
-"Ce compte appartient à quelqu'un d'autre, qui ne peut pas voir l'une des "
-"catégories de partage. Effectuez le partage en utilisant des catégories "
-"qu'il partage avec vous, ou effectuez le paiement depuis l'un de vos propres "
-"comptes."
+"Ce compte appartient à quelqu'un d'autre, qui ne peut pas voir cette "
+"catégorie. Choisissez une catégorie qu'il peut voir, ou n'en sélectionnez "
+"aucune."
 
 #: /app/lib/Controller/BillController.php:1686
-#, fuzzy
-#| msgid ""
-#| "This account belongs to someone else, who cannot see one of the split "
-#| "categories. Split with categories shared with them, or pay from one of "
-#| "your own accounts."
 msgid ""
 "This account belongs to someone else, who cannot see one of the tags. Choose "
 "tags from a category shared with them, or no tags."
 msgstr ""
 "Ce compte appartient à quelqu'un d'autre, qui ne peut pas voir l'une des "
-"catégories de partage. Effectuez le partage en utilisant des catégories "
-"qu'il partage avec vous, ou effectuez le paiement depuis l'un de vos propres "
-"comptes."
+"étiquettes. Choisissez des étiquettes dans une catégorie que vous partagez "
+"avec cette personne, ou n'en sélectionnez aucun."
 
 #: /app/lib/Controller/BillController.php:1790
 msgid "Split template must have at least 2 splits"
@@ -1314,26 +1307,21 @@ msgid "Invalid position"
 msgstr "Position invalide"
 
 #: /app/lib/Controller/CategoryController.php:498
-#, fuzzy
-#| msgid ""
-#| "A category can only be moved under another category with the same owner"
 msgid ""
 "A category can only be moved next to another category with the same owner"
 msgstr ""
-"Une catégorie ne peut être déplacée que sous une autre catégorie appartenant "
-"au même propriétaire"
+"Une catégorie ne peut être déplacée qu'à côté d'une autre catégorie qui a le "
+"même propriétaire"
 
 #: /app/lib/Controller/CategoryController.php:515
 msgid "Shared categories cannot be nested"
 msgstr "Les catégories partagées ne peuvent pas être imbriquées"
 
 #: /app/lib/Controller/CategoryController.php:516
-#, fuzzy
-#| msgid "Only the owner can add subcategories to a shared category"
 msgid "Only the owner can move a shared category to another level"
 msgstr ""
-"Seul le propriétaire peut ajouter des sous-catégories à une catégorie "
-"partagée"
+"Seul le propriétaire peut déplacer une catégorie partagée vers un autre "
+"niveau"
 
 #: /app/lib/Controller/CategoryController.php:530
 #: /app/lib/Controller/CategoryController.php:536
@@ -1672,72 +1660,54 @@ msgid "Failed to execute import"
 msgstr "Impossible d’exécuter l’import"
 
 #: /app/lib/Controller/ImportFolderController.php:45
-#, fuzzy
-#| msgid "Failed to download import file"
 msgid "Failed to load the import folders"
-msgstr "Échec du téléchargement du fichier d'importation"
+msgstr "Impossible de charger les dossiers d'importation"
 
 #: /app/lib/Controller/ImportFolderController.php:62
 #: /app/src/modules/settings/ImportFolders.js:217
 #: /app/src/modules/settings/ImportFolders.js:227
-#, fuzzy
-#| msgid "Failed to create import rule"
 msgid "Failed to add the import folder"
-msgstr "Impossible de créer la règle d’import"
+msgstr "Impossible d'ajouter le dossier d'importation"
 
 #: /app/lib/Controller/ImportFolderController.php:77
 #: /app/lib/Controller/ImportFolderController.php:94
 #: /app/templates/index.php:4414 /app/templates/index.php:4642
 #: /app/templates/index.php:4646
-#, fuzzy
-#| msgid "Import failed"
 msgid "Import folder"
-msgstr "L'importation a échoué"
+msgstr "Dossier d'importation"
 
 #: /app/lib/Controller/ImportFolderController.php:81
 #: /app/src/modules/settings/ImportFolders.js:245
 #: /app/src/modules/settings/ImportFolders.js:249
-#, fuzzy
-#| msgid "Failed to update import rule"
 msgid "Failed to update the import folder"
-msgstr "Impossible de mettre à jour la règle d’import"
+msgstr "Échec de la mise à jour du dossier d'importation"
 
 #: /app/lib/Controller/ImportFolderController.php:108
 #: /app/src/modules/settings/ImportFolders.js:277
 #: /app/src/modules/settings/ImportFolders.js:284
-#, fuzzy
-#| msgid "Failed to create import rule"
 msgid "Failed to check the import folder"
-msgstr "Impossible de créer la règle d’import"
+msgstr "Impossible de vérifier le dossier d'importation"
 
 #: /app/lib/Controller/ImportFolderController.php:121
-#, fuzzy
-#| msgid "Failed to load the getting started checklist"
 msgid "Failed to load the files waiting for review"
-msgstr "Échec du chargement de la liste de contrôle « Pour bien démarrer »"
+msgstr "Impossible de charger les fichiers en attente de révision"
 
 #: /app/lib/Controller/ImportFolderController.php:135
 #: /app/lib/Controller/ImportFolderController.php:154
-#, fuzzy
-#| msgid "Validating file..."
 msgid "Waiting file"
-msgstr "Validation du fichier..."
+msgstr "Fichier d'attente"
 
 #: /app/lib/Controller/ImportFolderController.php:139
 #: /app/src/modules/import/ReviewQueue.js:112
 #: /app/src/modules/import/ReviewQueue.js:116
-#, fuzzy
-#| msgid "Failed to attach file"
 msgid "Failed to open the file"
-msgstr "Échec de la pièce jointe"
+msgstr "Impossible d'ouvrir le fichier"
 
 #: /app/lib/Controller/ImportFolderController.php:158
 #: /app/src/modules/import/ReviewQueue.js:141
 #: /app/src/modules/import/ReviewQueue.js:144
-#, fuzzy
-#| msgid "Failed to validate file"
 msgid "Failed to move the file"
-msgstr "Impossible de valider le fichier"
+msgstr "Échec du déplacement du fichier"
 
 #: /app/lib/Controller/ImportRuleController.php:71
 msgid "Failed to retrieve import rules"
@@ -2228,6 +2198,8 @@ msgstr "Revenus récurrents"
 #: /app/lib/Controller/RecurringIncomeController.php:166
 msgid "The owner of this income can't use that account. Choose another one."
 msgstr ""
+"Le titulaire de ce revenu ne peut pas utiliser ce compte. Choisissez-en un "
+"autre."
 
 #: /app/lib/Controller/RecurringIncomeController.php:224
 #: /app/lib/Controller/RecurringIncomeController.php:355
@@ -2358,7 +2330,7 @@ msgstr "Échec de la suppression du rapport enregistré"
 #: /app/lib/Controller/SettingController.php:93
 #, php-format
 msgid "This setting can't be changed: %1$s"
-msgstr ""
+msgstr "Ce paramètre ne peut pas être modifié : %1$s"
 
 #: /app/lib/Controller/SettingController.php:135
 msgid "Failed to retrieve settings"
@@ -2381,10 +2353,9 @@ msgstr "Dossier des reçus invalide : %1$s"
 
 #: /app/lib/Controller/SettingController.php:205
 #: /app/lib/Controller/SettingController.php:261
-#, fuzzy, php-format
-#| msgid "Invalid receipts folder: %1$s"
+#, php-format
 msgid "Invalid import folder: %1$s"
-msgstr "Dossier des reçus invalide : %1$s"
+msgstr "Dossier d'importation non valide : %1$s"
 
 #: /app/lib/Controller/SettingController.php:216
 msgid "Settings updated successfully"
@@ -2644,10 +2615,8 @@ msgstr "Échec de la création du contact"
 #: /app/lib/Controller/SharedExpenseController.php:257
 #: /app/lib/Controller/SharedExpenseController.php:607
 #: /app/lib/Controller/SharedExpenseController.php:634
-#, fuzzy
-#| msgid "Connection not found"
 msgid "Contact not found"
-msgstr "Connexion introuvable"
+msgstr "Contact introuvable"
 
 #: /app/lib/Controller/SharedExpenseController.php:216
 msgid "Failed to update contact"
@@ -2725,10 +2694,8 @@ msgstr "Échec de la récupération des partages"
 #: /app/lib/Controller/SharedExpenseController.php:511
 #: /app/lib/Controller/SharedExpenseController.php:535
 #: /app/lib/Controller/SharedExpenseController.php:570
-#, fuzzy
-#| msgid "Share not found"
 msgid "Shared expense not found"
-msgstr "Partage introuvable"
+msgstr "Dépense partagée introuvable"
 
 #: /app/lib/Controller/SharedExpenseController.php:494
 msgid "Failed to update share"
@@ -2766,10 +2733,8 @@ msgid "Failed to get settlements"
 msgstr "Échec de la récupération des règlements"
 
 #: /app/lib/Controller/SharedExpenseController.php:680
-#, fuzzy
-#| msgid "Setting not found"
 msgid "Settlement not found"
-msgstr "Paramètre introuvable"
+msgstr "Règlement introuvable"
 
 #: /app/lib/Controller/SharedExpenseController.php:687
 msgid "Failed to delete settlement"
@@ -3444,50 +3409,40 @@ msgid "Your projected balance falls to {balance} in {month}."
 msgstr "Votre solde prévisionnel s'établit à {balance} en {month}."
 
 #: /app/lib/Notification/Notifier.php:618
-#, fuzzy
-#| msgid "Paid into account"
 msgid "{file} imported into {account}"
-msgstr "Versé sur le compte"
+msgstr "Fichier {file} importé dans {account}"
 
 #: /app/lib/Notification/Notifier.php:625
-#, fuzzy
-#| msgid "No transactions to import"
 msgid "%n transaction imported"
 msgid_plural "%n transactions imported"
-msgstr[0] "Aucune opération à importer"
-msgstr[1] "Aucune opération à importer"
+msgstr[0] "%n opération importée"
+msgstr[1] "%n opérations importées"
 
 #: /app/lib/Notification/Notifier.php:627
 msgid "%n already there or skipped"
 msgid_plural "%n already there or skipped"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "%n existe déjà ou a été ignoré"
+msgstr[1] "%n existent déjà ou ont été ignorées"
 
 #: /app/lib/Notification/Notifier.php:630
-#, fuzzy
-#| msgid "The receipt could not be read"
 msgid "%n row could not be read"
 msgid_plural "%n rows could not be read"
-msgstr[0] "Le reçu n'a pas pu être lu"
-msgstr[1] "Le reçu n'a pas pu être lu"
+msgstr[0] "%n ligne n'a pu être lue"
+msgstr[1] "%n lignes n'ont pu être lues"
 
 #: /app/lib/Notification/Notifier.php:649
-#, fuzzy
-#| msgid "{file} was saved to your Files."
 msgid "{file} is ready to review"
-msgstr "{file} a été enregistré dans vos fichiers."
+msgstr "Le fichier {file} est prêt à être relu"
 
 #: /app/lib/Notification/Notifier.php:654
 #, php-format
 msgid "Open the Import page to check it and import it into %1$s."
 msgstr ""
+"Ouvrez la page « Importer » pour vérifier le fichier et l'importer dans %1$s."
 
 #: /app/lib/Notification/Notifier.php:669
-#, fuzzy
-#| msgid "%n row will not be imported"
-#| msgid_plural "%n rows will not be imported"
 msgid "{file} could not be imported"
-msgstr "%n ligne ne sera pas importée"
+msgstr "Impossible d'importer le fichier {file}"
 
 #: /app/lib/Notification/Notifier.php:674
 #: /app/lib/Service/ImportFolderService.php:770
