@@ -4572,23 +4572,23 @@ style('budget', 'budget-app');
                         <div class="setting-item" id="amount-color-custom-rows" hidden>
                             <div class="amount-color-row">
                                 <label for="amount-color-light-positive"><?php p($l->t('Money in, light theme')); ?></label>
-                                <input type="color" id="amount-color-light-positive" class="amount-color-picker">
-                                <span class="amount-color-contrast-warning" role="status" hidden><?php p($l->t('Hard to read on this background')); ?></span>
+                                <input type="color" id="amount-color-light-positive" class="amount-color-picker" aria-describedby="amount-color-light-positive-warning">
+                                <span class="amount-color-contrast-warning" id="amount-color-light-positive-warning" role="status" hidden><?php p($l->t('Hard to read on this background')); ?></span>
                             </div>
                             <div class="amount-color-row">
                                 <label for="amount-color-light-negative"><?php p($l->t('Money out, light theme')); ?></label>
-                                <input type="color" id="amount-color-light-negative" class="amount-color-picker">
-                                <span class="amount-color-contrast-warning" role="status" hidden><?php p($l->t('Hard to read on this background')); ?></span>
+                                <input type="color" id="amount-color-light-negative" class="amount-color-picker" aria-describedby="amount-color-light-negative-warning">
+                                <span class="amount-color-contrast-warning" id="amount-color-light-negative-warning" role="status" hidden><?php p($l->t('Hard to read on this background')); ?></span>
                             </div>
                             <div class="amount-color-row">
                                 <label for="amount-color-dark-positive"><?php p($l->t('Money in, dark theme')); ?></label>
-                                <input type="color" id="amount-color-dark-positive" class="amount-color-picker">
-                                <span class="amount-color-contrast-warning" role="status" hidden><?php p($l->t('Hard to read on this background')); ?></span>
+                                <input type="color" id="amount-color-dark-positive" class="amount-color-picker" aria-describedby="amount-color-dark-positive-warning">
+                                <span class="amount-color-contrast-warning" id="amount-color-dark-positive-warning" role="status" hidden><?php p($l->t('Hard to read on this background')); ?></span>
                             </div>
                             <div class="amount-color-row">
                                 <label for="amount-color-dark-negative"><?php p($l->t('Money out, dark theme')); ?></label>
-                                <input type="color" id="amount-color-dark-negative" class="amount-color-picker">
-                                <span class="amount-color-contrast-warning" role="status" hidden><?php p($l->t('Hard to read on this background')); ?></span>
+                                <input type="color" id="amount-color-dark-negative" class="amount-color-picker" aria-describedby="amount-color-dark-negative-warning">
+                                <span class="amount-color-contrast-warning" id="amount-color-dark-negative-warning" role="status" hidden><?php p($l->t('Hard to read on this background')); ?></span>
                             </div>
                         </div>
                     </div>
