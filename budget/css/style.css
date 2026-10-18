@@ -9054,7 +9054,9 @@ button.danger:hover {
     color: var(--budget-color-negative);
 }
 
-.amount-color-preview-bar {
+/* Two classes: a lone .amount-color-preview-bar loses to the later
+   .budget-progress-bar { flex: 1 }, which left the bar 0 px wide. */
+.amount-color-preview .amount-color-preview-bar {
     flex: 0 0 120px;
 }
 
