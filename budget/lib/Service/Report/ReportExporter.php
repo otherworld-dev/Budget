@@ -31,6 +31,12 @@ class ReportExporter {
 	/** The translator for the export in progress; set by export(). */
 	private IL10N $l;
 
+	/** What a PDF has always drawn negative amounts in. */
+	private const DEFAULT_NEGATIVE_RGB = [200, 0, 0];
+
+	/** The negative-amount colour for the export in progress; set by export(). */
+	private array $negativeRgb = self::DEFAULT_NEGATIVE_RGB;
+
 	public function __construct(IFactory $l10nFactory) {
 		$this->l10nFactory = $l10nFactory;
 	}
@@ -44,10 +50,14 @@ class ReportExporter {
 	 * @param string|null $lang Language for the labels; null resolves to the
 	 *                          session user's, which a background job does not
 	 *                          have — it passes the recipient's.
+	 * @param array{0: int, 1: int, 2: int}|null $negativeRgb The PDF's colour for
+	 *                          negative amounts, the user's colour setting (#432);
+	 *                          null is the old red, 200/0/0.
 	 * @return array{stream: string, contentType: string, filename: string}
 	 */
-	public function export(array $data, string $type, string $format, ?string $lang = null): array {
+	public function export(array $data, string $type, string $format, ?string $lang = null, ?array $negativeRgb = null): array {
 		$this->l = $this->l10nFactory->get(Application::APP_ID, $lang);
+		$this->negativeRgb = $negativeRgb ?? self::DEFAULT_NEGATIVE_RGB;
 
 		return match ($format) {
 			'csv' => $this->exportToCsv($data, $type),
@@ -754,11 +764,12 @@ class ReportExporter {
 	}
 
 	/**
-	 * Render one right-aligned amount cell, in red when negative.
+	 * Render one right-aligned amount cell, in the negative colour (red unless
+	 * the user chose another, #432) when negative.
 	 */
 	private function amountCell($pdf, float $width, float $value, bool $newline): void {
 		if ($value < 0) {
-			$pdf->SetTextColor(200, 0, 0);
+			$pdf->SetTextColor(...$this->negativeRgb);
 		}
 		$pdf->Cell($width, 5, $this->formatNumber($value), 1, $newline ? 1 : 0, 'R');
 		if ($value < 0) {
