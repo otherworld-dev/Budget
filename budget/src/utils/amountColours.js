@@ -252,7 +252,8 @@ export function semanticColour(kind, fallback, alpha = 1) {
  * Charts read their colours when they are built, so a scheme change has to
  * rebuild the page's charts. Reloading the current view does that: once when
  * the resolved scheme changes, and once when the system light/dark setting
- * flips while a scheme is active (under Default nothing depends on the mode).
+ * flips while a scheme is active and the Nextcloud theme follows the system
+ * (under Default, or with a pinned theme, nothing depends on the system mode).
  */
 export function setupAmountColourRedraw(app, win = window) {
     win.addEventListener(CHANGE_EVENT, () => {
@@ -264,7 +265,9 @@ export function setupAmountColourRedraw(app, win = window) {
     }
     const query = win.matchMedia('(prefers-color-scheme: dark)');
     query?.addEventListener?.('change', () => {
-        if (hasActiveScheme()) {
+        // Only the "system default" Nextcloud theme follows the system; a
+        // pinned Light or Dark theme doesn't change when the system flips.
+        if (hasActiveScheme() && win.document.body?.hasAttribute('data-theme-default')) {
             app.reloadCurrentView();
         }
     });

@@ -24,6 +24,7 @@ describe('setupAmountColourRedraw', () => {
     });
 
     afterEach(() => {
+        document.body.removeAttribute('data-theme-default');
         applyAmountColours('default', '');
         delete window.matchMedia;
         document.head.innerHTML = '';
@@ -45,7 +46,8 @@ describe('setupAmountColourRedraw', () => {
         expect(app.reloadCurrentView).not.toHaveBeenCalled();
     });
 
-    it('redraws charts on a colour-scheme flip when a scheme is active', () => {
+    it('redraws charts on a colour-scheme flip when a scheme is active and the theme follows the system', () => {
+        document.body.setAttribute('data-theme-default', '');
         applyAmountColours('colorblind', '');
         app.reloadCurrentView.mockClear();
 
@@ -55,7 +57,19 @@ describe('setupAmountColourRedraw', () => {
         expect(app.reloadCurrentView).toHaveBeenCalledTimes(1);
     });
 
+    it('ignores a colour-scheme flip when the Nextcloud theme is pinned', () => {
+        // No data-theme-default: the user chose Light or Dark, so the system flip changes nothing.
+        applyAmountColours('colorblind', '');
+        app.reloadCurrentView.mockClear();
+
+        mediaListeners[0]();
+
+        expect(app.reloadCurrentView).not.toHaveBeenCalled();
+    });
+
     it('ignores a colour-scheme flip under Default', () => {
+        document.body.setAttribute('data-theme-default', '');
+
         mediaListeners[0]();
 
         expect(app.reloadCurrentView).not.toHaveBeenCalled();
