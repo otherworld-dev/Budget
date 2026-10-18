@@ -75,6 +75,7 @@ import { showSuccess, showError, showWarning } from './utils/notifications.js';
 import { confirmDialog } from './utils/dialogs.js';
 import { initDatePickers } from './utils/datepicker.js';
 import { setupChartTheme } from './utils/chartTheme.js';
+import { applyAmountColours, readInitialAmountColours, setupAmountColourRedraw } from './utils/amountColours.js';
 import { setupHeaderMenus } from './utils/headerMenu.js';
 import { setupClickableCards } from './utils/clickableCards.js';
 import { transactionTotalsByCurrency } from './utils/helpers.js';
@@ -181,6 +182,8 @@ class BudgetApp {
 
         // Initialize core infrastructure
         this.router = new Router(this);
+        // Charts read their colours when drawn, so a scheme change rebuilds the view.
+        setupAmountColourRedraw(this);
         this.keyboardShortcuts = new KeyboardShortcuts(this);
 
         // Initialize modules
@@ -881,6 +884,7 @@ class BudgetApp {
             if (!(settingsData instanceof ApiError)) {
                 this.settings = settingsData;
                 this.settingsLoaded = true;
+                applyAmountColours(this.settings.amount_color_scheme, this.settings.amount_color_custom);
                 this.columnVisibility = this.parseColumnVisibility(this.settings.transaction_columns_visible);
                 this.syncColumnConfigUI();
 
@@ -4156,5 +4160,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Before any chart is drawn: axis labels, legends and grid lines follow
     // the Nextcloud theme instead of Chart.js's fixed grey.
     setupChartTheme(Chart);
+    // The per-user money-in/money-out colours, also before any chart is drawn.
+    const { scheme, custom } = readInitialAmountColours();
+    applyAmountColours(scheme, custom);
     window.budgetApp = new BudgetApp();
 });

@@ -17,6 +17,7 @@ import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue } from '../../utils/datepicker.js';
 import { downloadTransactionsCsv } from '../../utils/helpers.js';
 import { apiFetch, ApiError } from '../../utils/api.js';
+import { semanticColour } from '../../utils/amountColours.js';
 import { once } from '../../utils/submitGuard.js';
 import { selectPossiblyUnavailable, unavailableCategoryLabel } from '../../utils/formSelects.js';
 import { openAccounts, pickableAccounts, accountOptionLabel, selectAccountValue, usableCategories, categoryTreeOf, sharedAccountOwner, isReadOnlyShare } from '../../utils/accounts.js';
@@ -3393,7 +3394,7 @@ export default class TransactionsModule {
             // A readable green when balanced (the theme's success green was too
             // dark on the dark background), and the app's standard negative-amount
             // red while there's still an amount left to allocate.
-            el.style.color = balanced ? '#4caf50' : 'var(--budget-color-negative)';
+            el.style.color = balanced ? semanticColour('positive', '#4caf50') : 'var(--budget-color-negative)';
         }
     }
 

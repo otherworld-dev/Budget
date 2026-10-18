@@ -7,6 +7,7 @@ import Chart from '../../utils/chart.js';
 import { showError } from '../../utils/notifications.js';
 import { escapeHtml } from '../../utils/dom.js';
 import { apiFetch } from '../../utils/api.js';
+import { semanticColour } from '../../utils/amountColours.js';
 
 /**
  * A projection's month in the user's language. `yearMonth` (Y-m) is what the
@@ -278,7 +279,7 @@ export default class ForecastModule {
                     {
                         label: t('budget', 'Projected Income'),
                         data: incomeData,
-                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderColor: semanticColour('positive', 'rgba(75, 192, 192, 1)', 1),
                         backgroundColor: 'transparent',
                         borderDash: [5, 5],
                         tension: 0.3,
@@ -287,7 +288,7 @@ export default class ForecastModule {
                     {
                         label: t('budget', 'Projected Expenses'),
                         data: expenseData,
-                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderColor: semanticColour('negative', 'rgba(255, 99, 132, 1)', 1),
                         backgroundColor: 'transparent',
                         borderDash: [5, 5],
                         tension: 0.3,

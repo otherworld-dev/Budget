@@ -12,6 +12,7 @@ import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import MultiSelect from '../../utils/multiselect.js';
 import { buildMoneyFlows, CENTER_KEY } from './moneyFlow.js';
 import { apiFetch } from '../../utils/api.js';
+import { semanticColour } from '../../utils/amountColours.js';
 
 /**
  * A category row's label. The server flags the row for money with no
@@ -756,15 +757,15 @@ export default class ReportsModule {
                     {
                         label: t('budget', 'Income'),
                         data: trends.income || [],
-                        backgroundColor: 'rgba(46, 125, 50, 0.7)',
-                        borderColor: 'rgba(46, 125, 50, 1)',
+                        backgroundColor: semanticColour('positive', 'rgba(46, 125, 50, 0.7)', 0.7),
+                        borderColor: semanticColour('positive', 'rgba(46, 125, 50, 1)', 1),
                         borderWidth: 1
                     },
                     {
                         label: t('budget', 'Expenses'),
                         data: trends.expenses || [],
-                        backgroundColor: 'rgba(198, 40, 40, 0.7)',
-                        borderColor: 'rgba(198, 40, 40, 1)',
+                        backgroundColor: semanticColour('negative', 'rgba(198, 40, 40, 0.7)', 0.7),
+                        borderColor: semanticColour('negative', 'rgba(198, 40, 40, 1)', 1),
                         borderWidth: 1
                     }
                 ]
@@ -1150,16 +1151,16 @@ export default class ReportsModule {
                     {
                         label: t('budget', 'Income'),
                         data: data.map(d => d.income),
-                        backgroundColor: 'rgba(46, 125, 50, 0.7)',
-                        borderColor: 'rgba(46, 125, 50, 1)',
+                        backgroundColor: semanticColour('positive', 'rgba(46, 125, 50, 0.7)', 0.7),
+                        borderColor: semanticColour('positive', 'rgba(46, 125, 50, 1)', 1),
                         borderWidth: 1,
                         order: 2
                     },
                     {
                         label: t('budget', 'Expenses'),
                         data: data.map(d => d.expenses),
-                        backgroundColor: 'rgba(198, 40, 40, 0.7)',
-                        borderColor: 'rgba(198, 40, 40, 1)',
+                        backgroundColor: semanticColour('negative', 'rgba(198, 40, 40, 0.7)', 0.7),
+                        borderColor: semanticColour('negative', 'rgba(198, 40, 40, 1)', 1),
                         borderWidth: 1,
                         order: 2
                     },
@@ -1517,15 +1518,15 @@ export default class ReportsModule {
                     {
                         label: t('budget', 'Income'),
                         data: years.map(y => y.income),
-                        backgroundColor: 'rgba(46, 125, 50, 0.7)',
-                        borderColor: 'rgba(46, 125, 50, 1)',
+                        backgroundColor: semanticColour('positive', 'rgba(46, 125, 50, 0.7)', 0.7),
+                        borderColor: semanticColour('positive', 'rgba(46, 125, 50, 1)', 1),
                         borderWidth: 1
                     },
                     {
                         label: t('budget', 'Expenses'),
                         data: years.map(y => y.expenses),
-                        backgroundColor: 'rgba(198, 40, 40, 0.7)',
-                        borderColor: 'rgba(198, 40, 40, 1)',
+                        backgroundColor: semanticColour('negative', 'rgba(198, 40, 40, 0.7)', 0.7),
+                        borderColor: semanticColour('negative', 'rgba(198, 40, 40, 1)', 1),
                         borderWidth: 1
                     }
                 ]
@@ -1845,8 +1846,8 @@ export default class ReportsModule {
                 datasets: [{
                     label: t('budget', 'Total Bills'),
                     data: data,
-                    backgroundColor: 'rgba(198, 40, 40, 0.7)',
-                    borderColor: 'rgba(198, 40, 40, 1)',
+                    backgroundColor: semanticColour('negative', 'rgba(198, 40, 40, 0.7)', 0.7),
+                    borderColor: semanticColour('negative', 'rgba(198, 40, 40, 1)', 1),
                     borderWidth: 1
                 }]
             },

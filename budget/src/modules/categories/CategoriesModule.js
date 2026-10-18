@@ -14,6 +14,7 @@ import { showLoadError } from '../../utils/loading.js';
 import { nextCategoryColor, distinctCategoryColors } from '../../utils/colors.js';
 import { parentPickerTree } from './parentPicker.js';
 import { roundMoney } from '../../utils/money.js';
+import { semanticColour } from '../../utils/amountColours.js';
 
 export default class CategoriesModule {
     constructor(app) {
@@ -960,7 +961,7 @@ export default class CategoriesModule {
                 label: t('budget', 'Budget'),
                 data: Array(labels.length).fill(monthlyBudget),
                 type: 'line',
-                borderColor: '#e9322d',
+                borderColor: semanticColour('negative', '#e9322d'),
                 borderDash: [6, 3],
                 borderWidth: 2,
                 pointRadius: 0,

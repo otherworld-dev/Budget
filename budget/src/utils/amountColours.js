@@ -239,3 +239,25 @@ export function semanticColour(kind, fallback, alpha = 1) {
     const [r, g, b] = hexToRgb(current[isDarkTheme() ? 'dark' : 'light'][kind]);
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
+
+/**
+ * Charts read their colours when they are built, so a scheme change has to
+ * rebuild the page's charts. Reloading the current view does that: once when
+ * the resolved scheme changes, and once when the system light/dark setting
+ * flips while a scheme is active (under Default nothing depends on the mode).
+ */
+export function setupAmountColourRedraw(app, win = window) {
+    win.addEventListener(CHANGE_EVENT, () => {
+        app.reloadCurrentView();
+    });
+
+    if (typeof win.matchMedia !== 'function') {
+        return;
+    }
+    const query = win.matchMedia('(prefers-color-scheme: dark)');
+    query?.addEventListener?.('change', () => {
+        if (hasActiveScheme()) {
+            app.reloadCurrentView();
+        }
+    });
+}

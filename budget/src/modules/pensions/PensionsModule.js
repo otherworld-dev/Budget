@@ -11,6 +11,7 @@ import Chart from '../../utils/chart.js';
 import { apiFetch } from '../../utils/api.js';
 import { openAccounts } from '../../utils/accounts.js';
 import { showLoading, showLoadError } from '../../utils/loading.js';
+import { semanticColour } from '../../utils/amountColours.js';
 
 /**
  * What a scheduled contribution's row shows. A manual schedule whose date
@@ -716,8 +717,8 @@ export default class PensionsModule {
         const datasets = [{
             label: realTerms ? t('budget', "Projected value (today's money)") : t('budget', 'Projected value'),
             data: values,
-            borderColor: '#46ba61',
-            backgroundColor: 'rgba(70, 186, 97, 0.1)',
+            borderColor: semanticColour('positive', '#46ba61'),
+            backgroundColor: semanticColour('positive', 'rgba(70, 186, 97, 0.1)', 0.1),
             fill: true,
             tension: 0.4
         }];
