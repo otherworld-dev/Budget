@@ -4409,6 +4409,7 @@ style('budget', 'budget-app');
                 <button type="button" data-target="settings-general"><?php p($l->t('General Settings')); ?></button>
                 <button type="button" data-target="settings-display"><?php p($l->t('Display Settings')); ?></button>
                 <button type="button" data-target="settings-number-format"><?php p($l->t('Number Format')); ?></button>
+                <button type="button" data-target="settings-colours"><?php p($l->t('Colours')); ?></button>
                 <button type="button" data-target="settings-notifications"><?php p($l->t('Notifications')); ?></button>
                 <button type="button" data-target="settings-receipts"><?php p($l->t('Receipts')); ?></button>
                 <button type="button" data-target="settings-import-folder"><?php p($l->t('Import folder')); ?></button>
@@ -4547,6 +4548,58 @@ style('budget', 'budget-app');
                     <div class="setting-preview">
                         <strong><?php p($l->t('Preview:')); ?></strong>
                         <span id="number-format-preview">$1,234.56</span>
+                    </div>
+                </div>
+
+                <!-- Colours Settings Section (#432) -->
+                <div class="settings-section" id="settings-colours">
+                    <h3><?php p($l->t('Colours')); ?></h3>
+
+                    <div class="settings-group">
+                        <div class="setting-item">
+                            <label for="setting-amount-color-scheme">
+                                <strong><?php p($l->t('Money in and money out')); ?></strong>
+                                <small><?php p($l->t('The colours used for income and expenses, balances, budget bars and charts')); ?></small>
+                            </label>
+                            <select id="setting-amount-color-scheme" class="setting-input">
+                                <option value="default"><?php p($l->t('Default')); ?></option>
+                                <option value="colorblind"><?php p($l->t('Colour-blind friendly (blue and orange)')); ?></option>
+                                <option value="custom"><?php p($l->t('Custom')); ?></option>
+                            </select>
+                            <input type="hidden" id="setting-amount-color-custom" class="setting-input">
+                        </div>
+
+                        <div class="setting-item" id="amount-color-custom-rows" hidden>
+                            <div class="amount-color-row">
+                                <label for="amount-color-light-positive"><?php p($l->t('Money in, light theme')); ?></label>
+                                <input type="color" id="amount-color-light-positive" class="amount-color-picker">
+                                <span class="amount-color-contrast-warning" role="status" hidden><?php p($l->t('Hard to read on this background')); ?></span>
+                            </div>
+                            <div class="amount-color-row">
+                                <label for="amount-color-light-negative"><?php p($l->t('Money out, light theme')); ?></label>
+                                <input type="color" id="amount-color-light-negative" class="amount-color-picker">
+                                <span class="amount-color-contrast-warning" role="status" hidden><?php p($l->t('Hard to read on this background')); ?></span>
+                            </div>
+                            <div class="amount-color-row">
+                                <label for="amount-color-dark-positive"><?php p($l->t('Money in, dark theme')); ?></label>
+                                <input type="color" id="amount-color-dark-positive" class="amount-color-picker">
+                                <span class="amount-color-contrast-warning" role="status" hidden><?php p($l->t('Hard to read on this background')); ?></span>
+                            </div>
+                            <div class="amount-color-row">
+                                <label for="amount-color-dark-negative"><?php p($l->t('Money out, dark theme')); ?></label>
+                                <input type="color" id="amount-color-dark-negative" class="amount-color-picker">
+                                <span class="amount-color-contrast-warning" role="status" hidden><?php p($l->t('Hard to read on this background')); ?></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="setting-preview">
+                        <strong><?php p($l->t('Preview:')); ?></strong>
+                        <div id="amount-color-preview" class="amount-color-preview">
+                            <span class="amount-color-preview-positive">+$1,234.56</span>
+                            <span class="amount-color-preview-negative">-$567.89</span>
+                            <div class="budget-progress-bar amount-color-preview-bar"><div class="budget-progress-fill good" style="width: 60%"></div></div>
+                        </div>
                     </div>
                 </div>
 
