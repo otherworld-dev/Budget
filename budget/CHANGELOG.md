@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Colour settings for money in and money out.** Settings has a new Colours section with a colour-blind friendly preset (blue and orange) or your own colours, picked separately for the light and dark theme. They are used across amounts, budget bars, charts and PDF exports, and each person sets their own. Default keeps the colours as they are now. Reported by @trucks192 ([#432](https://github.com/otherworld-dev/Budget/issues/432))
+
 ## [3.0.0] - 2026-10-15
 
 The first release of Budget out of beta. Alongside the changes below there is now an Android app, Budget Companion, on [Google Play](https://play.google.com/store/apps/details?id=dev.otherworld.budget).
