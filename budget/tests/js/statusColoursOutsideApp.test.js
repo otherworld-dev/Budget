@@ -60,9 +60,11 @@ describe('status colours outside #app-content', () => {
             const rule = RULES.find(r => r.selectors.includes(selector));
             return /(?:^|[;\s])color:\s*([^;]+)/.exec(rule.body)[1].trim();
         };
-        expect(colour('.qa-error')).toMatch(/^var\(--color-error-text, var\(--budget-color-negative\)\)$/);
+        // The two message boxes sit on a good/bad tint, so a colour scheme (#432)
+        // takes over first; with none set, the theme text colour still applies.
+        expect(colour('.qa-error')).toMatch(/^var\(--budget-scheme-negative, var\(--color-error-text, var\(--budget-color-negative\)\)\)$/);
         expect(colour('.qa-receipt-note-error')).toMatch(/^var\(--color-error-text, var\(--budget-color-negative\)\)$/);
-        expect(colour('.qa-success')).toMatch(/^var\(--color-success-text, var\(--budget-color-positive\)\)$/);
+        expect(colour('.qa-success')).toMatch(/^var\(--budget-scheme-positive, var\(--color-success-text, var\(--budget-color-positive\)\)\)$/);
     });
 
     it('gives the toasts the app\'s own status shades, light and dark', () => {

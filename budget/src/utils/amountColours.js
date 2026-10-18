@@ -20,10 +20,11 @@ export const COLORBLIND = {
 
 /**
  * The alpha percentages style.css uses with its good/bad rgba families
- * (46,125,50 / 198,40,40 / 76,175,80 / 70,186,97 / 233,50,45). Each gets a
- * --budget-tint-{positive|negative}-NN variable.
+ * (46,125,50 / 76,175,80 / 70,186,97 / 56,142,60 and 198,40,40 / 183,28,28 /
+ * 233,50,45 / 244,67,54). Each gets a --budget-tint-{positive|negative}-NN
+ * variable.
  */
-export const TINT_LEVELS = [6, 8, 10, 15, 20, 30];
+export const TINT_LEVELS = [6, 8, 10, 12, 15, 20, 30];
 
 export const CHANGE_EVENT = 'budget:amount-colours-changed';
 

@@ -485,7 +485,7 @@
 }
 
 .hero-icon.income {
-    background: rgba(46, 125, 50, 0.1);
+    background: var(--budget-tint-positive-10, rgba(46, 125, 50, 0.1));
 }
 
 .hero-icon.income svg {
@@ -493,7 +493,7 @@
 }
 
 .hero-icon.expenses {
-    background: rgba(183, 28, 28, 0.1);
+    background: var(--budget-tint-negative-10, rgba(183, 28, 28, 0.1));
 }
 
 .hero-icon.expenses svg {
@@ -1213,7 +1213,7 @@
 }
 
 .bill-widget-item.overdue {
-    background: rgba(198, 40, 40, 0.08);
+    background: var(--budget-tint-negative-8, rgba(198, 40, 40, 0.08));
     border-left: 3px solid var(--color-error);
 }
 
@@ -1520,12 +1520,12 @@
 }
 
 .recent-transaction-icon.income {
-    background: rgba(46, 125, 50, 0.1);
+    background: var(--budget-tint-positive-10, rgba(46, 125, 50, 0.1));
     color: var(--budget-color-positive);
 }
 
 .recent-transaction-icon.expense {
-    background: rgba(183, 28, 28, 0.1);
+    background: var(--budget-tint-negative-10, rgba(183, 28, 28, 0.1));
     color: var(--budget-color-negative);
 }
 
@@ -1938,7 +1938,7 @@ button.secondary:focus {
 /* Success Button - Positive Actions */
 button.success {
     background: var(--color-success);
-    color: var(--budget-color-on-status, white);
+    color: var(--budget-color-on-success, var(--budget-color-on-status, white));
 }
 
 button.success:hover {
@@ -2114,7 +2114,7 @@ button.danger:hover {
 
 .account-actions .error {
     background-color: var(--color-error);
-    color: var(--budget-color-on-status, white);
+    color: var(--budget-color-on-error, var(--budget-color-on-status, white));
 }
 
 .account-actions .error:hover {
@@ -2628,12 +2628,12 @@ button.danger:hover {
 }
 
 .summary-card-assets .summary-icon {
-    background: rgba(46, 125, 50, 0.1);
+    background: var(--budget-tint-positive-10, rgba(46, 125, 50, 0.1));
     color: var(--budget-color-positive);
 }
 
 .summary-card-liabilities .summary-icon {
-    background: rgba(183, 28, 28, 0.1);
+    background: var(--budget-tint-negative-10, rgba(183, 28, 28, 0.1));
     color: var(--budget-color-negative);
 }
 
@@ -3177,7 +3177,7 @@ button.danger:hover {
 }
 
 .account-action-btn.delete-btn:hover {
-    background: rgba(183, 28, 28, 0.1);
+    background: var(--budget-tint-negative-10, rgba(183, 28, 28, 0.1));
     color: var(--budget-color-negative);
 }
 
@@ -3285,12 +3285,12 @@ button.danger:hover {
 
 .form-group input.error:focus,
 .form-group select.error:focus {
-    box-shadow: 0 0 0 2px rgba(244, 67, 54, 0.2);
+    box-shadow: 0 0 0 2px var(--budget-tint-negative-20, rgba(244, 67, 54, 0.2));
 }
 
 .form-group input.success:focus,
 .form-group select.success:focus {
-    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+    box-shadow: 0 0 0 2px var(--budget-tint-positive-20, rgba(76, 175, 80, 0.2));
 }
 
 /* Account List Layout */
@@ -5469,12 +5469,12 @@ button.danger:hover {
 
 .bank-connection-status.positive {
     color: var(--budget-color-positive);
-    background: rgba(46, 125, 50, 0.1);
+    background: var(--budget-tint-positive-10, rgba(46, 125, 50, 0.1));
 }
 
 .bank-connection-status.negative {
     color: var(--budget-color-negative);
-    background: rgba(183, 28, 28, 0.1);
+    background: var(--budget-tint-negative-10, rgba(183, 28, 28, 0.1));
 }
 
 .bank-connection-actions {
@@ -6077,7 +6077,7 @@ button.danger:hover {
 
 .category-delete-btn:hover {
     background: var(--color-error);
-    color: var(--budget-color-on-status, white);
+    color: var(--budget-color-on-error, var(--budget-color-on-status, white));
 }
 
 /* Per-viewer "hide from my reports" toggle on shared categories */
@@ -6826,7 +6826,7 @@ button.danger:hover {
 
 .wizard-step.completed .step-number {
     background: var(--color-success);
-    color: var(--budget-color-on-status, white);
+    color: var(--budget-color-on-success, var(--budget-color-on-status, white));
 }
 
 .step-label {
@@ -7473,12 +7473,12 @@ button.danger:hover {
 }
 
 .status-success {
-    background: rgba(46, 125, 50, 0.1);
+    background: var(--budget-tint-positive-10, rgba(46, 125, 50, 0.1));
     color: var(--color-success);
 }
 
 .status-error {
-    background: rgba(198, 40, 40, 0.15);
+    background: var(--budget-tint-negative-15, rgba(198, 40, 40, 0.15));
     color: var(--budget-color-negative);
 }
 
@@ -7862,7 +7862,7 @@ button.danger:hover {
 }
 
 .quality-indicator .quality-value.high {
-    background: rgba(76, 175, 80, 0.2);
+    background: var(--budget-tint-positive-20, rgba(76, 175, 80, 0.2));
     color: var(--color-success);
 }
 
@@ -7872,7 +7872,7 @@ button.danger:hover {
 }
 
 .quality-indicator .quality-value.low {
-    background: rgba(198, 40, 40, 0.2);
+    background: var(--budget-tint-negative-20, rgba(198, 40, 40, 0.2));
     color: var(--color-error);
 }
 
@@ -8529,12 +8529,12 @@ button.danger:hover {
     text-align: center;
 }
 .qa-success {
-    background: rgba(70, 186, 97, 0.15);
-    color: var(--color-success-text, var(--budget-color-positive));
+    background: var(--budget-tint-positive-15, rgba(70, 186, 97, 0.15));
+    color: var(--budget-scheme-positive, var(--color-success-text, var(--budget-color-positive)));
 }
 .qa-error {
-    background: rgba(233, 50, 45, 0.15);
-    color: var(--color-error-text, var(--budget-color-negative));
+    background: var(--budget-tint-negative-15, rgba(233, 50, 45, 0.15));
+    color: var(--budget-scheme-negative, var(--color-error-text, var(--budget-color-negative)));
 }
 
 .settings-section h3 {
@@ -8689,7 +8689,7 @@ button.danger:hover {
 /* Bank Sync Wizard Steps */
 .bank-sync-error {
     color: var(--color-error, #e9322d);
-    background: var(--color-error-hover, #fdd);
+    background: var(--budget-tint-negative-15, var(--color-error-hover, #fdd));
     padding: 8px 12px;
     border-radius: var(--border-radius-small, 4px);
     margin-top: 8px;
@@ -8697,7 +8697,7 @@ button.danger:hover {
 }
 .bank-sync-success {
     color: var(--color-success, #46ba61);
-    background: var(--color-success-hover, #dfd);
+    background: var(--budget-tint-positive-15, var(--color-success-hover, #dfd));
     padding: 8px 12px;
     border-radius: var(--border-radius-small, 4px);
     margin-top: 8px;
@@ -9348,7 +9348,7 @@ button.danger:hover {
 
 .bill-status.overdue .status-badge {
     background: var(--color-error);
-    color: var(--budget-color-on-status, #fff);
+    color: var(--budget-color-on-error, var(--budget-color-on-status, #fff));
 }
 
 .bill-status.due-soon .status-badge {
@@ -9358,7 +9358,7 @@ button.danger:hover {
 
 .bill-status.paid .status-badge {
     background: var(--color-success);
-    color: var(--budget-color-on-status, #fff);
+    color: var(--budget-color-on-success, var(--budget-color-on-status, #fff));
 }
 
 .bill-status.upcoming .status-badge {
@@ -9406,7 +9406,7 @@ button.danger:hover {
 .bill-action-btn.bill-paid-btn {
     background: var(--color-success);
     border-color: var(--color-success);
-    color: var(--budget-color-on-status, white);
+    color: var(--budget-color-on-success, var(--budget-color-on-status, white));
 }
 
 .bill-action-btn.bill-paid-btn:hover {
@@ -9656,7 +9656,7 @@ button.danger:hover {
     width: 40px;
     height: 40px;
     border-radius: 10px;
-    background: rgba(46, 125, 50, 0.1);
+    background: var(--budget-tint-positive-10, rgba(46, 125, 50, 0.1));
     display: flex;
     align-items: center;
     justify-content: center;
@@ -9970,7 +9970,7 @@ button.danger:hover {
 
 .income-status.received .status-badge {
     background: var(--color-success);
-    color: var(--budget-color-on-status, white);
+    color: var(--budget-color-on-success, var(--budget-color-on-status, white));
 }
 
 .income-status.expected-soon .status-badge {
@@ -10009,7 +10009,7 @@ button.danger:hover {
 .income-action-btn.income-received-btn {
     background: var(--budget-color-positive);
     border-color: var(--budget-color-positive);
-    color: white;
+    color: var(--budget-color-on-success, white);
 }
 
 .income-action-btn.income-received-btn:hover {
@@ -10153,7 +10153,7 @@ button.danger:hover {
 }
 
 .goal-card-actions button.delete-btn:hover {
-    background: rgba(183, 28, 28, 0.1);
+    background: var(--budget-tint-negative-10, rgba(183, 28, 28, 0.1));
     color: var(--budget-color-negative);
 }
 
@@ -10177,7 +10177,7 @@ button.danger:hover {
 }
 
 .goal-card.completed .goal-progress-fill {
-    background: linear-gradient(90deg, #2e7d32, #43a047);
+    background: linear-gradient(90deg, var(--budget-scheme-positive, #2e7d32), var(--budget-scheme-positive, #43a047));
 }
 
 .goal-amounts {
@@ -10245,7 +10245,7 @@ button.danger:hover {
     align-items: center;
     gap: 6px;
     padding: 6px 12px;
-    background: rgba(46, 125, 50, 0.1);
+    background: var(--budget-tint-positive-10, rgba(46, 125, 50, 0.1));
     color: var(--budget-color-positive);
     border-radius: 20px;
     font-size: 13px;
@@ -10391,7 +10391,7 @@ button.danger:hover {
 
 .detected-confidence.high {
     background: var(--color-success);
-    color: var(--budget-color-on-status, white);
+    color: var(--budget-color-on-success, var(--budget-color-on-status, white));
 }
 
 .detected-confidence.medium {
@@ -11871,12 +11871,12 @@ button.danger:hover {
 }
 
 .summary-card-income .summary-icon {
-    background: rgba(46, 125, 50, 0.1);
+    background: var(--budget-tint-positive-10, rgba(46, 125, 50, 0.1));
     color: var(--budget-color-positive);
 }
 
 .summary-card-expenses .summary-icon {
-    background: rgba(183, 28, 28, 0.1);
+    background: var(--budget-tint-negative-10, rgba(183, 28, 28, 0.1));
     color: var(--budget-color-negative);
 }
 
@@ -12682,7 +12682,7 @@ button.danger:hover {
 .unlink-btn {
     padding: 4px 8px;
     background: var(--color-error);
-    color: var(--budget-color-on-status, white);
+    color: var(--budget-color-on-error, var(--budget-color-on-status, white));
     border: none;
     border-radius: var(--border-radius-small, 4px);
     cursor: pointer;
@@ -13147,7 +13147,7 @@ tr.pending-transaction td:first-child {
     padding: 6px 12px;
     font-size: 12px;
     background: var(--color-error);
-    color: var(--budget-color-on-status, white);
+    color: var(--budget-color-on-error, var(--budget-color-on-status, white));
     border: none;
     border-radius: var(--border-radius-small, 4px);
     cursor: pointer;
@@ -13925,7 +13925,7 @@ tr.pending-transaction td:first-child {
 
 .recurring-status-overdue {
     background: var(--color-error);
-    color: var(--budget-color-on-status, white);
+    color: var(--budget-color-on-error, var(--budget-color-on-status, white));
 }
 
 .recurring-status-due {
@@ -13939,7 +13939,7 @@ tr.pending-transaction td:first-child {
 }
 
 .recurring-item.overdue .recurring-sub {
-    color: var(--color-error-text, var(--color-error));
+    color: var(--budget-scheme-negative, var(--color-error-text, var(--color-error)));
 }
 
 button.secondary.compact {
@@ -14241,7 +14241,7 @@ button.secondary.compact {
 }
 
 .asset-card-actions button.delete-btn:hover {
-    background: rgba(183, 28, 28, 0.1);
+    background: var(--budget-tint-negative-10, rgba(183, 28, 28, 0.1));
     color: var(--budget-color-negative);
 }
 
@@ -14280,12 +14280,12 @@ button.secondary.compact {
 }
 
 .asset-rate.positive {
-    background: rgba(46, 125, 50, 0.1);
+    background: var(--budget-tint-positive-10, rgba(46, 125, 50, 0.1));
     color: var(--budget-color-positive);
 }
 
 .asset-rate.negative {
-    background: rgba(183, 28, 28, 0.1);
+    background: var(--budget-tint-negative-10, rgba(183, 28, 28, 0.1));
     color: var(--budget-color-negative);
 }
 
@@ -14682,7 +14682,7 @@ button.secondary.compact {
 
 .split-remove-btn:hover {
     background: var(--color-error);
-    color: var(--budget-color-on-status, white);
+    color: var(--budget-color-on-error, var(--budget-color-on-status, white));
 }
 
 .split-remove-btn:disabled {
@@ -14870,11 +14870,11 @@ button.secondary.compact {
 }
 
 .settlement-total .positive {
-    color: var(--color-positive, #46ba61);
+    color: var(--budget-scheme-positive, var(--color-positive, #46ba61));
 }
 
 .settlement-total .negative {
-    color: var(--color-negative, #e9322d);
+    color: var(--budget-scheme-negative, var(--color-negative, #e9322d));
 }
 
 .settlement-contact-info .balance-amount {
@@ -14887,7 +14887,7 @@ button.secondary.compact {
     align-items: center;
     gap: 4px;
     padding: 2px 8px;
-    background: rgba(56, 142, 60, 0.12);
+    background: var(--budget-tint-positive-12, rgba(56, 142, 60, 0.12));
     color: var(--color-success);
     border-radius: 10px;
     font-size: 11px;
@@ -15167,7 +15167,7 @@ button.secondary.compact {
     overflow: hidden;
 }
 .debt-progress-bar-fill {
-    background: linear-gradient(90deg, var(--color-success), #27ae60);
+    background: linear-gradient(90deg, var(--color-success), var(--budget-scheme-positive, #27ae60));
     height: 100%;
     border-radius: 10px;
     transition: width 0.3s;
@@ -15737,6 +15737,10 @@ button.secondary.compact {
     font-weight: 600;
 }
 
+.shared-with-me-item .status-badge.badge-settled {
+    color: var(--budget-color-on-success, var(--budget-color-on-status, #fff));
+}
+
 /* Hover-reveal action buttons */
 .contact-actions-hover {
     position: absolute;
@@ -15775,7 +15779,7 @@ button.secondary.compact {
 .contact-actions-hover .delete-contact-btn:hover {
     color: var(--budget-color-negative, #e9322d);
     border-color: var(--budget-color-negative, #e9322d);
-    background: rgba(233, 50, 45, 0.06);
+    background: var(--budget-tint-negative-6, rgba(233, 50, 45, 0.06));
 }
 
 .contacts-list {
@@ -16885,7 +16889,7 @@ button.secondary.compact {
     padding: 8px 12px;
     border-radius: var(--border-radius, 6px);
     background: var(--color-error, #e9322d);
-    color: var(--budget-color-on-status, #fff);
+    color: var(--budget-color-on-error, var(--budget-color-on-status, #fff));
     font-size: 13px;
     white-space: pre-wrap;
 }
@@ -17481,7 +17485,7 @@ button.secondary.compact {
     transition: background 0.1s, color 0.1s;
 }
 .widget-remove-btn:hover {    background: var(--color-error);
-    color: var(--budget-color-on-status, white);
+    color: var(--budget-color-on-error, var(--budget-color-on-status, white));
 }
 
 .hero-card,
@@ -17491,7 +17495,7 @@ button.secondary.compact {
 
 /* Phase 1: New Hero Tile Styles */
 .hero-savings-rate .hero-icon {
-    background: rgba(76, 175, 80, 0.1);
+    background: var(--budget-tint-positive-10, rgba(76, 175, 80, 0.1));
     color: var(--color-success);
 }
 
@@ -17506,7 +17510,7 @@ button.secondary.compact {
 }
 
 .hero-budget-health .hero-icon {
-    background: rgba(76, 175, 80, 0.1);
+    background: var(--budget-tint-positive-10, rgba(76, 175, 80, 0.1));
     color: var(--color-success);
 }
 
@@ -17734,7 +17738,7 @@ button.secondary.compact {
     border-radius: var(--border-radius-container, 12px);
     font-size: 12px;
     font-weight: 500;
-    background: rgba(76, 175, 80, 0.1);
+    background: var(--budget-tint-positive-10, rgba(76, 175, 80, 0.1));
     color: var(--budget-color-positive);
 }
 
@@ -17745,7 +17749,7 @@ button.secondary.compact {
 }
 
 .hero-low-balance .hero-icon {
-    background: rgba(183, 28, 28, 0.1);
+    background: var(--budget-tint-negative-10, rgba(183, 28, 28, 0.1));
     color: var(--budget-color-negative);
 }
 
@@ -17794,7 +17798,7 @@ button.secondary.compact {
 }
 
 .hero-debt-free .hero-icon {
-    background: rgba(76, 175, 80, 0.1);
+    background: var(--budget-tint-positive-10, rgba(76, 175, 80, 0.1));
     color: var(--color-success);
 }
 
@@ -18031,15 +18035,15 @@ button.secondary.compact {
 }
 
 .quick-add-message.success {
-    background: rgba(76, 175, 80, 0.1);
+    background: var(--budget-tint-positive-10, rgba(76, 175, 80, 0.1));
     color: var(--budget-color-positive);
-    border: 1px solid rgba(76, 175, 80, 0.3);
+    border: 1px solid var(--budget-tint-positive-30, rgba(76, 175, 80, 0.3));
 }
 
 .quick-add-message.error {
-    background: rgba(183, 28, 28, 0.1);
+    background: var(--budget-tint-negative-10, rgba(183, 28, 28, 0.1));
     color: var(--budget-color-negative);
-    border: 1px solid rgba(198, 40, 40, 0.3);
+    border: 1px solid var(--budget-tint-negative-30, rgba(198, 40, 40, 0.3));
 }
 
 .quick-add-message.info {
@@ -18142,7 +18146,7 @@ button.secondary.compact {
 
 .danger-btn {
     background: var(--color-error, #e53935);
-    color: white;
+    color: var(--budget-color-on-error, white);
     border: none;
     padding: 10px 20px;
     border-radius: var(--border-radius-small, 4px);
@@ -18466,7 +18470,7 @@ button.secondary.compact {
 
 .budget-modal .error-message {
     background: var(--color-error);
-    color: var(--budget-color-on-status, white);
+    color: var(--budget-color-on-error, var(--budget-color-on-status, white));
     padding: 10px 12px;
     border-radius: var(--border-radius);
     margin-bottom: 16px;
@@ -18712,7 +18716,7 @@ button.secondary.compact {
 }
 
 .bills-calendar-table .month-cell.has-bill {
-    background-color: rgba(46, 125, 50, 0.08);
+    background-color: var(--budget-tint-positive-8, rgba(46, 125, 50, 0.08));
     color: var(--budget-color-positive);
     font-weight: 500;
 }
@@ -18732,7 +18736,7 @@ button.secondary.compact {
 .bills-calendar-table .total-cell {
     text-align: right;
     padding-right: 8px;
-    background-color: rgba(198, 40, 40, 0.1);
+    background-color: var(--budget-tint-negative-10, rgba(198, 40, 40, 0.1));
     font-weight: 600;
     font-size: 12px;
     color: var(--budget-color-negative);
@@ -18757,7 +18761,7 @@ button.secondary.compact {
 }
 
 .bills-calendar-table .balance-cell.negative {
-    background-color: rgba(198, 40, 40, 0.1);
+    background-color: var(--budget-tint-negative-10, rgba(198, 40, 40, 0.1));
     color: var(--budget-color-negative);
 }
 
@@ -18896,10 +18900,12 @@ button.secondary.compact {
 
 .budget-toast-success {
     background-color: var(--budget-color-positive);
+    color: var(--budget-color-on-success, var(--budget-color-on-status, #fff));
 }
 
 .budget-toast-error {
     background-color: var(--color-error, #e9322d);
+    color: var(--budget-color-on-error, var(--budget-color-on-status, #fff));
 }
 
 .budget-toast-warning {
@@ -19356,7 +19362,7 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
 
 .badge-accepted {
     background: var(--color-success, #46ba61);
-    color: white;
+    color: var(--budget-color-on-success, white);
 }
 
 .sharing-item-actions {
@@ -19614,7 +19620,7 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
     font-size: 11px;
     font-weight: 600;
     background: var(--color-success, #46ba61);
-    color: white;
+    color: var(--budget-color-on-success, white);
     padding: 2px 6px;
     border-radius: 3px;
     margin-top: 4px;
@@ -19658,7 +19664,7 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
 
 .repair-category-count {
     background: var(--color-error, #e9322d);
-    color: white;
+    color: var(--budget-color-on-error, white);
     font-size: 12px;
     font-weight: 600;
     padding: 2px 8px;
@@ -20328,7 +20334,7 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
 
 .project-amounts .negative,
 .project-row-remaining.negative {
-    color: var(--color-error-text, #8a0000);
+    color: var(--budget-scheme-negative, var(--color-error-text, #8a0000));
 }
 
 .project-status {

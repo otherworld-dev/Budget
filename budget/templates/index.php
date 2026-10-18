@@ -4062,7 +4062,7 @@ style('budget', 'budget-app');
                     <!-- Asset Metrics -->
                     <div class="asset-metrics-grid">
                         <div class="metric-card">
-                            <div class="metric-icon" style="background: rgba(46, 125, 50, 0.1); color: #2e7d32;">
+                            <div class="metric-icon" style="background: var(--budget-tint-positive-10, rgba(46, 125, 50, 0.1)); color: var(--budget-scheme-positive, #2e7d32);">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M16,6L18.29,8.29L13.41,13.17L9.41,9.17L2,16.59L3.41,18L9.41,12L13.41,16L19.71,9.71L22,12V6H16Z"/></svg>
                             </div>
                             <div class="metric-content">
