@@ -10,6 +10,7 @@ use OCA\Budget\Db\Category;
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\Setting;
 use OCA\Budget\Db\SettingMapper;
+use OCA\Budget\Service\AmountColours;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\SchemaVersionService;
 use OCP\App\IAppManager;
@@ -143,7 +144,17 @@ class PageControllerTest extends TestCase {
 		$params = $this->indexParams();
 
 		$this->assertSame('default', $params['amountColorScheme']);
-		$this->assertSame('', $params['amountColorCustom']);
+		$this->assertSame(AmountColours::DEFAULT_CUSTOM_JSON, $params['amountColorCustom']);
+	}
+
+	/** Picking Custom without touching a picker stores only the scheme; the page must paint the preset, as the settings API does. */
+	public function testIndexCustomSchemeWithNoSavedPaletteIsThePreset(): void {
+		$this->storedSettings = ['amount_color_scheme' => 'custom'];
+
+		$params = $this->indexParams();
+
+		$this->assertSame('custom', $params['amountColorScheme']);
+		$this->assertSame(AmountColours::DEFAULT_CUSTOM_JSON, $params['amountColorCustom']);
 	}
 
 	public function testQuickAddManifestOpensTheQuickAddPage(): void {

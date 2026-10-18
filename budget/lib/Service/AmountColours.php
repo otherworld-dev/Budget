@@ -127,7 +127,8 @@ class AmountColours {
 	public function pdfNegativeRgbForUser(string $userId): array {
 		return self::pdfNegativeRgb(
 			self::normalizeScheme($this->read($userId, self::SETTING_SCHEME)),
-			$this->read($userId, self::SETTING_CUSTOM),
+			// A palette that was never saved is the preset, as the settings API reports it
+			$this->read($userId, self::SETTING_CUSTOM) ?? self::DEFAULT_CUSTOM_JSON,
 		);
 	}
 

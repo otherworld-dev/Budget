@@ -93,14 +93,17 @@ class PageController extends Controller {
 	 * The user's money in / money out colour scheme, for the page to apply
 	 * before first paint (#432). Stored values are untrusted (an old or
 	 * tampered backup can leave anything), so a scheme that isn't one of ours
-	 * is Default and a custom palette that doesn't parse is blank.
+	 * is Default and a custom palette that doesn't parse is blank. A palette
+	 * that was never saved is the preset, the same as the settings API reports.
 	 *
 	 * @return array{amountColorScheme: string, amountColorCustom: string}
 	 */
 	private function amountColourParams(): array {
 		$custom = '';
 		try {
-			$custom = AmountColours::validateCustom($this->readSetting(AmountColours::SETTING_CUSTOM) ?? '');
+			$custom = AmountColours::validateCustom(
+				$this->readSetting(AmountColours::SETTING_CUSTOM) ?? AmountColours::DEFAULT_CUSTOM_JSON
+			);
 		} catch (\InvalidArgumentException $e) {
 			// Blank: the frontend falls back to the preset's palette
 		}

@@ -198,6 +198,18 @@ class AmountColoursTest extends TestCase {
 		$this->assertSame([168, 72, 0], (new AmountColours($mapper))->pdfNegativeRgbForUser('alice'));
 	}
 
+	/** Custom picked but no picker touched: only the scheme is stored, and the palette is the preset. */
+	public function testForUserCustomSchemeWithNoSavedPaletteIsThePreset(): void {
+		$mapper = $this->createMock(SettingMapper::class);
+		$mapper->method('findByKey')->willReturnCallback(
+			fn (string $userId, string $key) => match ($key) {
+				'amount_color_scheme' => $this->setting('custom'),
+				default => throw new DoesNotExistException('none'),
+			}
+		);
+		$this->assertSame([168, 72, 0], (new AmountColours($mapper))->pdfNegativeRgbForUser('alice'));
+	}
+
 	public function testForUserMissingSettingsIsDefault(): void {
 		$mapper = $this->createMock(SettingMapper::class);
 		$mapper->method('findByKey')->willThrowException(new DoesNotExistException('none'));
