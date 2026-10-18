@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {
     COLORBLIND,
+    COLORBLIND_WARNING_FILL,
     TINT_LEVELS,
     parseCustom,
     resolveScheme,
@@ -157,6 +158,21 @@ describe('buildStyleSheet', () => {
         const custom = buildStyleSheet(resolveScheme('custom', CUSTOM));
         expect(custom).not.toContain('--color-warning');
         expect(custom).not.toContain('--budget-color-on-status');
+        expect(custom).not.toContain('--budget-scheme-warning-fill');
+    });
+
+    it('gives near-limit bars a lighter fill than the warning text in light mode', () => {
+        // The light warning text (#8a6a00) sits too close to the orange
+        // over-budget fill for deuteranopes, so bars use a lighter yellow.
+        const lightBlock = css.split('}')[0];
+        expect(lightBlock).toContain(`--budget-scheme-warning-fill: ${COLORBLIND_WARNING_FILL.light};`);
+        expect(css).toContain(`--budget-scheme-warning-fill: ${COLORBLIND_WARNING_FILL.dark};`);
+    });
+
+    it('keeps the near-limit fill well apart from the over-budget fill in lightness', () => {
+        // Lightness is the cue red-green colour blindness leaves intact.
+        expect(contrastRatio(COLORBLIND_WARNING_FILL.light, COLORBLIND.light.negative)).toBeGreaterThanOrEqual(2);
+        expect(contrastRatio(COLORBLIND_WARNING_FILL.dark, COLORBLIND.dark.negative)).toBeGreaterThanOrEqual(1.3);
     });
 });
 

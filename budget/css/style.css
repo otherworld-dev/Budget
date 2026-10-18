@@ -3134,7 +3134,7 @@ button.danger:hover {
 }
 
 .account-status-dot.warning {
-    background: var(--color-warning);
+    background: var(--budget-scheme-warning-fill, var(--color-warning));
 }
 
 .account-status-dot.critical {
@@ -5241,7 +5241,7 @@ button.danger:hover {
 }
 
 .health-indicator.warning {
-    background: var(--color-warning);
+    background: var(--budget-scheme-warning-fill, var(--color-warning));
 }
 
 .health-indicator.error {
@@ -6354,7 +6354,7 @@ button.danger:hover {
 }
 
 .progress-fill.warning {
-    background: var(--color-warning);
+    background: var(--budget-scheme-warning-fill, var(--color-warning));
 }
 
 .progress-fill.over {
@@ -11556,7 +11556,7 @@ button.danger:hover {
 .budget-progress-fill.good {    background: var(--budget-color-positive);
 }
 
-.budget-progress-fill.warning {    background: var(--color-warning);
+.budget-progress-fill.warning {    background: var(--budget-scheme-warning-fill, var(--color-warning));
 }
 
 .budget-progress-fill.danger {    background: var(--budget-color-negative);
@@ -11572,7 +11572,7 @@ button.danger:hover {
     margin: 0;
     padding: 0;
     border-radius: var(--border-radius-small, 4px);
-    background: var(--color-warning);
+    background: var(--budget-scheme-warning-fill, var(--color-warning));
 }
 
 .budget-progress-text {
@@ -15088,7 +15088,7 @@ button.secondary.compact {
 }
 
 .alert-progress-fill.alert-warning {
-    background: var(--color-warning);
+    background: var(--budget-scheme-warning-fill, var(--color-warning));
 }
 
 .alert-progress-fill.alert-danger {
@@ -17917,7 +17917,7 @@ button.secondary.compact {
 }
 
 .income-progress-bar.warning {
-    background: var(--color-warning);
+    background: var(--budget-scheme-warning-fill, var(--color-warning));
 }
 
 .income-progress-bar.error {

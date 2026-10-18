@@ -19,6 +19,15 @@ export const COLORBLIND = {
 };
 
 /**
+ * Fill for near-limit bars and status dots under the preset. In light mode the
+ * warning text colour is too close to the orange over-budget fill for people
+ * with red-green colour blindness, so fills use a lighter yellow; text keeps
+ * the darker, readable one. Fills carry no text, so the 4.5:1 rule above does
+ * not apply. Browser only: the PDF has no warning colour.
+ */
+export const COLORBLIND_WARNING_FILL = { light: '#c9a000', dark: '#f0e442' };
+
+/**
  * The alpha percentages style.css uses with its good/bad rgba families
  * (46,125,50 / 76,175,80 / 70,186,97 / 56,142,60 and 198,40,40 / 183,28,28 /
  * 233,50,45 / 244,67,54). Each gets a --budget-tint-{positive|negative}-NN
@@ -129,7 +138,7 @@ export function onColour(fill) {
     return contrastRatio(fill, DARK_TEXT) >= contrastRatio(fill, LIGHT_TEXT) ? DARK_TEXT : LIGHT_TEXT;
 }
 
-function declarations(colours) {
+function declarations(colours, mode) {
     const { positive, negative, warning } = colours;
     const lines = [
         `--budget-color-positive: ${positive};`,
@@ -151,6 +160,7 @@ function declarations(colours) {
         lines.push(`--color-warning: ${warning};`);
         lines.push(`--budget-scheme-warning: ${warning};`);
         lines.push(`--budget-color-on-status: ${onColour(warning)};`);
+        lines.push(`--budget-scheme-warning-fill: ${COLORBLIND_WARNING_FILL[mode]};`);
     }
     return lines;
 }
@@ -171,8 +181,8 @@ function underPrefixes(prefixes) {
  * theme, or the default theme following the system).
  */
 export function buildStyleSheet(resolved) {
-    const light = declarations(resolved.light);
-    const dark = declarations(resolved.dark);
+    const light = declarations(resolved.light, 'light');
+    const dark = declarations(resolved.dark, 'dark');
     return [
         rule([...TARGETS, ...LIGHT_BODY_THEMES], light),
         rule(underPrefixes(['body[data-theme-dark]', 'body[data-theme-dark-highcontrast]']), dark),
