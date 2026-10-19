@@ -652,7 +652,8 @@ class BillServiceTest extends TestCase {
 	 * leg is the same money arriving, not a second payment.
 	 */
 	public function testAnnualOverviewDrawsCellsFromPaymentsAndKeepsPaidInactiveBills(): void {
-		$monthly = $this->makeBill(['id' => 1, 'name' => 'Netflix', 'amount' => 15.99]);
+		// Paid for January and February, so due again in March
+		$monthly = $this->makeBill(['id' => 1, 'name' => 'Netflix', 'amount' => 15.99, 'nextDueDate' => '2026-03-15']);
 		// Paid, so it has no next due date; from before one-time bills kept
 		// their date, so only its month says when it was due
 		$garage = $this->makeBill(['id' => 2, 'name' => 'Garage', 'amount' => 321.60, 'frequency' => 'one-time', 'dueMonth' => 8,
@@ -698,7 +699,7 @@ class BillServiceTest extends TestCase {
 		$this->assertSame([8], $byName['Garage']['paidMonths']);
 		$this->assertFalse($byName['Garage']['occurrences'][9]);
 
-		// Totals: paid amount where paid, expected amount otherwise
+		// Totals: paid amount where paid, what is still owed otherwise
 		$this->assertEqualsWithDelta(15.99, $result['monthlyTotals'][1], 0.001);
 		$this->assertEqualsWithDelta(17.99, $result['monthlyTotals'][2], 0.001);
 		$this->assertEqualsWithDelta(15.99, $result['monthlyTotals'][3], 0.001);

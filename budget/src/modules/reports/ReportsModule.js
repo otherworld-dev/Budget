@@ -13,6 +13,7 @@ import MultiSelect from '../../utils/multiselect.js';
 import { buildMoneyFlows, CENTER_KEY } from './moneyFlow.js';
 import { apiFetch } from '../../utils/api.js';
 import { semanticColour } from '../../utils/amountColours.js';
+import { calendarCell } from '../../utils/billsCalendarCell.js';
 
 /**
  * A category row's label. The server flags the row for money with no
@@ -1881,47 +1882,27 @@ export default class ReportsModule {
 
         const currency = this.getPrimaryCurrency();
 
+        // How each kind of cell is drawn: paid struck through, a month moved
+        // past with no payment recorded muted but never struck through, so it
+        // can't pass for a payment (#333, #399), still owed as due
+        const cellClasses = {
+            paid: 'has-bill paid',
+            owed: 'has-bill',
+            unrecorded: 'has-bill unrecorded',
+            expected: 'has-bill',
+            none: 'no-bill',
+        };
+
         // Render bills rows
         tbody.innerHTML = bills.map(bill => {
-            // Paid months come from the server, from the payments actually
-            // recorded against the bill. They used to be guessed here from
-            // lastPaidDate - every month up to it counted as paid - so a bill
-            // first paid in September showed January to August paid too (#375).
-            const paidMonths = new Set(bill.paidMonths || []);
-            const paidAmounts = bill.paidAmounts || {};
-            // Months the bill has moved past with nothing recorded against
-            // them - marked paid without a transaction, or skipped. Not owed,
-            // so not drawn as due; struck through like a paid month but the
-            // tooltip says no payment was recorded (#333)
-            const unrecordedMonths = new Set(bill.unrecordedMonths || []);
-            // Per-month expected amounts: one-time bills sharing a name arrive
-            // as one row, each month carrying its own invoice's amount (#375)
-            const expectedAmounts = bill.expectedAmounts || {};
-
+            // Each cell comes from what the server found recorded against the
+            // bill (#375), and lists the payments behind it (#399)
             const months = [];
             for (let month = 1; month <= 12; month++) {
-                const occurs = bill.occurrences[month];
-                const isPaid = occurs && paidMonths.has(month);
-                const isUnrecorded = occurs && !isPaid && unrecordedMonths.has(month);
-                // What was actually paid where there is a payment; the
-                // expected amount for the months still to come
-                const cellAmount = isPaid && paidAmounts[month] !== undefined
-                    ? paidAmounts[month]
-                    : (expectedAmounts[month] !== undefined ? expectedAmounts[month] : bill.amount);
-                const amount = occurs ? this.formatCurrency(cellAmount, bill.currency || currency) : '';
-                let cellClass = 'no-bill';
-                let title = '';
-                if (isPaid) {
-                    cellClass = 'has-bill paid';
-                    title = t('budget', 'Paid');
-                } else if (isUnrecorded) {
-                    cellClass = 'has-bill paid unrecorded';
-                    title = t('budget', 'No payment recorded - the bill has moved on from this date');
-                } else if (occurs) {
-                    cellClass = 'has-bill';
-                    title = t('budget', 'Due');
-                }
-                months.push(`<td class="month-cell ${cellClass}" title="${title}">${amount}</td>`);
+                const cell = calendarCell(bill, month, this.settings, currency);
+                const amount = cell.amount === null ? '' : dom.escapeHtml(this.formatCurrency(cell.amount, bill.currency || currency));
+                const marker = cell.marker ? `<span class="payments-marker">${cell.marker}</span> ` : '';
+                months.push(`<td class="month-cell ${cellClasses[cell.state]}" title="${dom.escapeHtml(cell.title)}">${marker}${amount}</td>`);
             }
 
             const transferBadge = bill.isTransfer ? ` <span class="transfer-badge">${t('budget', 'Transfer')}</span>` : '';
@@ -2030,7 +2011,11 @@ export default class ReportsModule {
 
         for (let month = 1; month <= 12; month++) {
             const total = monthlyTotals[month] || 0;
-            const billsThisMonth = bills.filter(b => b.occurrences[month]).length;
+            // The bills that make up the total: a month moved past with no
+            // payment recorded adds nothing to it, nor does a transfer into
+            // the picked account (#399)
+            const billsThisMonth = bills.filter(b => b.inTotals !== false
+                && !['none', 'unrecorded'].includes(calendarCell(b, month).state)).length;
             const intensity = maxTotal > 0 ? (total / maxTotal) : 0;
 
             // Color scale from light red to dark red
