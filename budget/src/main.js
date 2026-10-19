@@ -82,7 +82,7 @@ import { transactionTotalsByCurrency } from './utils/helpers.js';
 import { categoryOptionsHtml } from './utils/formSelects.js';
 import { apiFetch, ApiError } from './utils/api.js';
 import { openAccounts } from './utils/accounts.js';
-import { stuckIncomeItem } from './utils/repairFindings.js';
+import { duplicateNote, stuckIncomeItem } from './utils/repairFindings.js';
 
 // Configuration
 // Core
@@ -1770,12 +1770,7 @@ class BudgetApp {
             // it is deleted. Only pairs the scan is sure of come ticked.
             if (dupCount > 0) {
                 const dupItems = findings.duplicateTransactions.map(d => {
-                    let note = d.reason === 'same_occurrence'
-                        ? t('budget', 'Looks like a second payment for {occurrence} (other payment on {date})', { occurrence: d.occurrence, date: d.originalDate })
-                        : t('budget', 'Also recorded as {description} on {date}', { description: d.originalDescription || t('budget', '(unnamed)'), date: d.originalDate });
-                    if (d.originalReconciled) {
-                        note += ` (${t('budget', 'reconciled')})`;
-                    }
+                    const note = duplicateNote(d, formatCurrency);
                     return `<div class="repair-item">
                         <label class="repair-item-select">
                             <input type="checkbox" class="repair-dup-checkbox" data-transaction-id="${Number(d.duplicateId)}"${d.selected ? ' checked' : ''}>

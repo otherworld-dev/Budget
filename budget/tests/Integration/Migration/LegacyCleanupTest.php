@@ -15,7 +15,8 @@ use OCP\Migration\IOutput;
 /**
  * What older versions left that 3.x clears up (#399), against the real
  * database: incomes 2.54.0 left expected on a receipt it had already
- * booked, and references to deleted bills and transactions (migration 125).
+ * booked, references to deleted bills and transactions (migration 125), and
+ * the doubled transfer Repair Data now removes with both its sides.
  *
  * The migration is global (it has no user scope), so it also settles and
  * clears other users' rows on the server it runs on; the assertions are
@@ -153,6 +154,42 @@ class LegacyCleanupTest extends IntegrationTestCase {
 		$this->runMigration();
 
 		$this->assertSame('2026-10-29', $this->nextExpected($income));
+	}
+
+	/**
+	 * CSX in August: the old job cleared the pending pair on the 29th, Mark
+	 * Paid booked another on the 30th. Repair Data offers the job's pair and
+	 * removes both its sides.
+	 */
+	public function testRepairDataRemovesBothSidesOfADoubledTransfer(): void {
+		$account = $this->makeAccount(['name' => 'Lohnkonto'])->getId();
+		$card = $this->makeAccount(['name' => 'CSX Pro Credit Card', 'type' => 'credit_card'])->getId();
+		$bill = $this->insertRow('budget_bills', [
+			'user_id' => $this->userId, 'name' => 'CSX Pro Credit Cards', 'amount' => '50.00', 'frequency' => 'monthly',
+			'account_id' => $account, 'destination_account_id' => $card, 'is_transfer' => true, 'is_active' => true,
+			'due_day' => 28, 'last_paid_date' => '2026-08-30', 'next_due_date' => '2026-09-28', 'created_at' => '2026-04-15 19:36:17',
+		]);
+		[$jobOut, $jobIn] = $this->transferPair($account, $card, $bill, '2026-08-29', '2026-07-25 10:55:38', '2026-08-29 01:00:07');
+		[$paidOut, $paidIn] = $this->transferPair($account, $card, $bill, '2026-08-30', '2026-08-30 19:39:30');
+		$repair = $this->service(RepairService::class);
+
+		$found = array_values(array_filter(
+			$repair->diagnose($this->userId)['duplicateTransactions'],
+			fn (array $f) => $f['billId'] === $bill
+		));
+
+		$this->assertCount(1, $found);
+		$this->assertSame($jobOut, $found[0]['duplicateId']);
+		$this->assertSame($paidOut, $found[0]['originalId']);
+		$this->assertTrue($found[0]['transfer']);
+
+		$result = $repair->repair($this->userId, ['duplicateTransactions'], ['transactionIds' => [$jobOut]]);
+
+		$this->assertSame(1, $result['duplicateTransactions']['deleted']);
+		$this->assertNull($this->fetchRow('budget_transactions', $jobOut));
+		$this->assertNull($this->fetchRow('budget_transactions', $jobIn));
+		$this->assertNotNull($this->fetchRow('budget_transactions', $paidOut));
+		$this->assertNotNull($this->fetchRow('budget_transactions', $paidIn));
 	}
 
 	public function testRepairDataSettlesAStuckIncome(): void {

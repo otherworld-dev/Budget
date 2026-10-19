@@ -803,6 +803,8 @@ class RepairServiceTest extends TestCase {
 			'amount' => '250.00',
 		]);
 		$this->withActiveBills([$bill]);
+		// Its payment, recorded on its date
+		$this->withLedger([$this->billPayment(11, 10, 'Setup Fee', '2026-04-15', 250.0)]);
 
 		$result = $this->service->diagnose(self::USER_ID);
 
@@ -1067,6 +1069,7 @@ class RepairServiceTest extends TestCase {
 			'isActive' => true,
 		]);
 		$this->withActiveBills([$bill]);
+		$this->withLedger([$this->billPayment(11, 10, 'Setup Fee', '2026-04-14', 250.0)]);
 
 		$this->billMapper->method('find')
 			->with(10, self::USER_ID)
