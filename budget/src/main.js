@@ -528,6 +528,11 @@ class BudgetApp {
                     '<path d="M18.84 12.25l1.72-1.71a4 4 0 0 0-5.66-5.66l-1.71 1.72"/><path d="M5.17 11.75l-1.71 1.71a4 4 0 0 0 5.66 5.66l1.71-1.71"/><line x1="2" y1="2" x2="22" y2="22"/>'),
                 match: () => item('transaction-match-btn', t('budget', 'Match transfer'),
                     '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>'),
+                // File a payment under a bill, or take it out of one (#399)
+                linkBill: () => item('transaction-link-bill-btn', t('budget', 'Link to bill…'),
+                    '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>'),
+                unlinkBill: () => item('transaction-unlink-bill-btn', t('budget', 'Unlink from bill'),
+                    '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/>'),
                 delete: () => '<div class="action-menu-separator" role="separator"></div>'
                     + item('transaction-delete-btn action-menu-item--danger', t('budget', 'Delete'),
                         '<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>'),
@@ -611,6 +616,12 @@ class BudgetApp {
                 const button = e.target.classList.contains('transaction-unlink-btn') ? e.target : e.target.closest('.transaction-unlink-btn');
                 const transactionId = parseInt(button.getAttribute('data-transaction-id'));
                 this.handleUnlinkTransaction(transactionId);
+            } else if (e.target.closest('.transaction-link-bill-btn')) {
+                const transactionId = parseInt(e.target.closest('.transaction-link-bill-btn').getAttribute('data-transaction-id'));
+                this.transactionsModule.linkTransactionToBill(transactionId);
+            } else if (e.target.closest('.transaction-unlink-bill-btn')) {
+                const transactionId = parseInt(e.target.closest('.transaction-unlink-bill-btn').getAttribute('data-transaction-id'));
+                this.transactionsModule.unlinkTransactionFromBill(transactionId);
             } else if (e.target.closest('.linked-indicator')) {
                 const badge = e.target.closest('.linked-indicator');
                 const linkedId = parseInt(badge.getAttribute('data-linked-id'));

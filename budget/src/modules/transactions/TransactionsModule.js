@@ -22,6 +22,7 @@ import { once } from '../../utils/submitGuard.js';
 import { selectPossiblyUnavailable, unavailableCategoryLabel } from '../../utils/formSelects.js';
 import { openAccounts, pickableAccounts, accountOptionLabel, selectAccountValue, usableCategories, categoryTreeOf, sharedAccountOwner, isReadOnlyShare } from '../../utils/accounts.js';
 import { offerableTags } from '../../utils/tags.js';
+import { chooseBill, linkableBills } from '../../utils/billLinkDialog.js';
 import flatpickr from 'flatpickr';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 
@@ -3892,6 +3893,80 @@ export default class TransactionsModule {
         } catch (error) {
             showError(error.message || t('budget', 'Failed to unlink transaction'));
         }
+    }
+
+    /**
+     * Link to bill (#399): file the row under a bill paid from its account,
+     * as one of the bill's payments. Only the row changes; the bill keeps
+     * its due date (TransactionService::attachToBill()).
+     */
+    async linkTransactionToBill(transactionId) {
+        const transaction = this.transactions?.find(tx => tx.id === transactionId);
+        if (!transaction) {
+            showWarning(t('budget', 'Transaction not found'));
+            return;
+        }
+
+        await once(`transaction-bill-${transactionId}`, null, async () => {
+            let bills;
+            try {
+                bills = await apiFetch('/apps/budget/api/bills', { errorMessage: t('budget', 'Failed to load bills') });
+            } catch (error) {
+                showError(error.message);
+                return;
+            }
+
+            const billId = await chooseBill(linkableBills(bills, transaction), this.settings);
+            if (billId === null) {
+                return;
+            }
+
+            try {
+                await apiFetch(`/apps/budget/api/transactions/${transactionId}/bill`, {
+                    method: 'POST',
+                    body: { billId },
+                    errorMessage: t('budget', 'Failed to link the transaction to the bill'),
+                });
+            } catch (error) {
+                // A refusal says why: another bill's payment, another account
+                showError(error.message);
+                return;
+            }
+
+            const bill = (bills || []).find(b => b.id === billId);
+            showSuccess(t('budget', 'Transaction linked to {bill}', { bill: bill?.name ?? '' }));
+            await this.app.loadTransactions();
+        });
+    }
+
+    /**
+     * Unlink from bill (#399): take the row out of the bill it is filed
+     * under. It stays in its account; the bill stops counting it.
+     */
+    async unlinkTransactionFromBill(transactionId) {
+        if (!await confirmDialog(
+            t('budget', 'Unlink this transaction from its bill? It stays in the account, but the bill no longer counts it as a payment.'),
+            { confirmLabel: t('budget', 'Unlink from bill') }
+        )) {
+            return;
+        }
+
+        await once(`transaction-bill-${transactionId}`, null, async () => {
+            try {
+                await apiFetch(`/apps/budget/api/transactions/${transactionId}/bill`, {
+                    method: 'DELETE',
+                    errorMessage: t('budget', 'Failed to unlink the transaction from the bill'),
+                });
+            } catch (error) {
+                // The bill's latest payment is Mark Unpaid's to undo, and the
+                // server says so
+                showError(error.message);
+                return;
+            }
+
+            showSuccess(t('budget', 'Transaction unlinked from its bill'));
+            await this.app.loadTransactions();
+        });
     }
 
     // Transaction splits
