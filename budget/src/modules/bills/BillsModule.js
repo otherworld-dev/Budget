@@ -16,7 +16,7 @@ import { offerableTags, offerableTagSets } from '../../utils/tags.js';
 import { pickableAccounts, accountOptionLabel, selectAccountValue, accountCurrency, linkableCandidates, billAccountsWritable } from '../../utils/accounts.js';
 import { showLoadError } from '../../utils/loading.js';
 import { requestMarkUnpaid } from '../../utils/billUnpaid.js';
-import { sendPayment } from '../../utils/paymentRecordedDialog.js';
+import { sendPayment, askAboutRecordedPaymentFirst } from '../../utils/paymentRecordedDialog.js';
 import { unavailableCategoryLabel } from '../../utils/formSelects.js';
 import { isRepeatClick } from '../../utils/doubleClick.js';
 
@@ -1277,8 +1277,9 @@ export default class BillsModule {
 
     /**
      * Mark Paid. One action on a bill runs at a time, with its button
-     * disabled, from the look for rows already in the account to the payment
-     * itself: two clicks 150 ms apart both paid (#399).
+     * disabled, from the look for a payment already recorded and for rows
+     * already in the account to the payment itself: two clicks 150 ms apart
+     * both paid (#399).
      *
      * @param {number} billId
      * @param {HTMLElement|null} [button] the button clicked
@@ -1294,6 +1295,21 @@ export default class BillsModule {
                 throw new Error('Bill not found');
             }
 
+            // The payment the ledger already has for this occurrence comes
+            // first, before any row to link is offered (#399). "Record
+            // another payment" goes on to them, confirmed.
+            const recorded = await askAboutRecordedPaymentFirst(billId, bill.nextDueDate || bill.next_due_date || null, this.settings, {
+                currency: bill.currency || accountCurrency(this.accounts, bill.accountId ?? bill.account_id),
+            });
+            if (recorded === null) {
+                return; // left as it was
+            }
+            if (recorded.usePayment) {
+                await this._executeMarkPaid(billId, bill, { action: 'use', payment: recorded.usePayment });
+                return;
+            }
+            const { confirmSecondPayment } = recorded;
+
             // Check for existing matching transactions before creating a new one
             if (bill.accountId || bill.account_id) {
                 const found = await apiFetch(`/apps/budget/api/bills/${billId}/matching-transactions`)
@@ -1308,14 +1324,14 @@ export default class BillsModule {
                         if (choice === null) {
                             return; // User cancelled
                         }
-                        await this._executeMarkPaid(billId, bill, choice);
+                        await this._executeMarkPaid(billId, bill, choice, confirmSecondPayment);
                         return;
                     }
                 }
             }
 
             // No matches found — proceed with normal flow (create new transaction)
-            await this._executeMarkPaid(billId, bill, { action: 'create' });
+            await this._executeMarkPaid(billId, bill, { action: 'create' }, confirmSecondPayment);
 
         } catch (error) {
             console.error('Failed to mark bill as paid:', error);
@@ -1327,16 +1343,23 @@ export default class BillsModule {
      * Execute the mark paid API call with the user's choice.
      * @param {number} billId
      * @param {object} bill
-     * @param {object} choice - {action: 'create'|'link'|'skip', transactionId?: number}
+     * @param {object} choice - {action: 'create'|'link'|'skip'|'use', transactionId?: number, payment?: object}:
+     *   'use' pays the occurrence with the payment the ledger already has
+     * @param {boolean} [confirmSecondPayment] the user was told of the payment
+     *   already there and asked for another
      */
-    async _executeMarkPaid(billId, bill, choice) {
+    async _executeMarkPaid(billId, bill, choice, confirmSecondPayment = false) {
         const body = {};
 
         // recordPayment covers this payment only. Whether the ledger carries a
         // row for the next occurrence is the bill's own setting, on the server
         // side - it used to ride on this flag, so linking or skipping left the
         // bill with nothing upcoming at all (#376).
-        if (choice.action === 'link') {
+        if (choice.action === 'use') {
+            // Marked paid on that payment's date, with nothing booked
+            body.recordPayment = false;
+            body.paidDate = choice.payment.date;
+        } else if (choice.action === 'link') {
             body.existingTransactionId = choice.transactionId;
             body.recordPayment = false;
         } else if (choice.action === 'skip') {
@@ -1347,6 +1370,9 @@ export default class BillsModule {
         // The occurrence this row showed: a second click or a stale tab is
         // refused by the server instead of paying it twice
         body.dueDate = bill.nextDueDate || bill.next_due_date || null;
+        if (confirmSecondPayment) {
+            body.confirmSecondPayment = true;
+        }
 
         // When the ledger has this occurrence's payment already, the user
         // is asked before another is booked (#399)
@@ -1356,7 +1382,8 @@ export default class BillsModule {
         if (sent === null) {
             return; // left as it was
         }
-        const { result, usedPayment } = sent;
+        const { result } = sent;
+        const usedPayment = choice.action === 'use' ? choice.payment : sent.usedPayment;
 
         // Store undo data BEFORE reloading; the server keeps what to revert
         const undoData = { billId: billId, action: 'markPaid' };

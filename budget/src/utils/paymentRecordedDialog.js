@@ -3,7 +3,8 @@
  * payment for (#399). A bill made due again was paid a second time with one
  * click, so the server now books another only when asked to (409, code
  * payment_recorded or receipt_recorded, with the row it found) and the page
- * asks: use that payment, record another one, or leave it.
+ * asks: use that payment, record another one, or leave it. Mark Paid on a
+ * bill or a transfer looks the payment up and asks before anything else.
  */
 import { translate as t } from '@nextcloud/l10n';
 import * as formatters from './formatters.js';
@@ -98,6 +99,46 @@ export function askAboutRecordedPayment(existing, settings, { kind = 'bill', cur
         document.addEventListener('keydown', onKeydown, true);
         modal.querySelector('.confirm-btn').focus();
     });
+}
+
+/**
+ * Mark Paid on a bill or a transfer asks about the payment the occurrence
+ * already has before anything else (#399). The "Existing Transaction Found"
+ * dialog came first, listing unrelated rows and not the bill's own payment,
+ * and two of its choices never reached this question: linking one of its
+ * rows paid the bill a second time with it, and "just mark as paid" marked
+ * it paid today with a warning that nothing was recorded, though the
+ * payment was in the ledger.
+ *
+ * A lookup that fails changes nothing: Mark Paid carries on as it did, and
+ * the server still refuses to book a second payment it finds (see
+ * sendPayment()).
+ *
+ * @param {number} billId
+ * @param {string|null} dueDate the occurrence the row showed
+ * @param {object} settings user settings, for formatting
+ * @param {object} [options]
+ * @param {string} [options.currency] the bill's currency
+ * @return {Promise<{usePayment: {id: number, date: string, amount: number}|null, confirmSecondPayment: boolean}|null>}
+ *   null when the user left it. usePayment: pay the occurrence with that
+ *   payment and nothing else. confirmSecondPayment: the user asked for
+ *   another payment, to be sent with whatever Mark Paid goes on to send.
+ */
+export async function askAboutRecordedPaymentFirst(billId, dueDate, settings, { currency = '' } = {}) {
+    const query = dueDate ? `?dueDate=${encodeURIComponent(dueDate)}` : '';
+    const found = await apiFetch(`/apps/budget/api/bills/${billId}/recorded-payment${query}`).catch(() => null);
+    const existing = found?.existing;
+    if (!existing || typeof existing.date !== 'string') {
+        return { usePayment: null, confirmSecondPayment: false };
+    }
+
+    const answer = await askAboutRecordedPayment(existing, settings, { kind: 'bill', currency });
+    if (answer === null) {
+        return null;
+    }
+    return answer === 'use'
+        ? { usePayment: existing, confirmSecondPayment: false }
+        : { usePayment: null, confirmSecondPayment: true };
 }
 
 /**
