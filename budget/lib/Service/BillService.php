@@ -2799,16 +2799,17 @@ class BillService {
 				// row without losing each invoice's own amount (#375)
 				'expectedAmounts' => $expectedAmounts,
 				'owedAmounts' => $owedAmounts,
+				// A transfer into the picked account is money arriving, not a
+				// bill it pays: it stays in the table, but adding it to the
+				// monthly totals gave a savings account a bill the size of
+				// every transfer it receives. The projected balance counts it
+				// as money in.
+				'inTotals' => !($accountId !== null && ($bill->getIsTransfer() ?? false)
+					&& $bill->getDestinationAccountId() === $accountId && $bill->getAccountId() !== $accountId),
 			];
 
 			$billsData[] = $billData;
-
-			// A transfer into the picked account is money arriving, not a
-			// bill it pays: it stays in the table, but adding it to the
-			// monthly totals gave a savings account a bill the size of every
-			// transfer it receives. The projected balance counts it as money in.
-			if ($accountId !== null && ($bill->getIsTransfer() ?? false)
-				&& $bill->getDestinationAccountId() === $accountId && $bill->getAccountId() !== $accountId) {
+			if (!$billData['inTotals']) {
 				continue;
 			}
 
@@ -2938,6 +2939,7 @@ class BillService {
 			$index = $byName[$key];
 			$grouped[$index]['billIds'][] = $row['id'];
 			$grouped[$index]['isActive'] = $grouped[$index]['isActive'] || $row['isActive'];
+			$grouped[$index]['inTotals'] = ($grouped[$index]['inTotals'] ?? true) !== false || ($row['inTotals'] ?? true) !== false;
 			foreach ($row['occurrences'] as $month => $occurs) {
 				if ($occurs) {
 					$grouped[$index]['occurrences'][$month] = true;

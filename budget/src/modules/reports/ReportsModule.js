@@ -2012,8 +2012,10 @@ export default class ReportsModule {
         for (let month = 1; month <= 12; month++) {
             const total = monthlyTotals[month] || 0;
             // The bills that make up the total: a month moved past with no
-            // payment recorded adds nothing to it (#399)
-            const billsThisMonth = bills.filter(b => !['none', 'unrecorded'].includes(calendarCell(b, month).state)).length;
+            // payment recorded adds nothing to it, nor does a transfer into
+            // the picked account (#399)
+            const billsThisMonth = bills.filter(b => b.inTotals !== false
+                && !['none', 'unrecorded'].includes(calendarCell(b, month).state)).length;
             const intensity = maxTotal > 0 ? (total / maxTotal) : 0;
 
             // Color scale from light red to dark red

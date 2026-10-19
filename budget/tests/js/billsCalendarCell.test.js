@@ -225,6 +225,21 @@ describe('Bills Calendar heatmap', () => {
         expect(tiles[10].querySelector('.heatmap-month-count').textContent).toBe('%n bill');
         expect(tiles[0].querySelector('.heatmap-month-count').textContent).toBe('%n bills');
     });
+
+    it('leaves out a transfer into the picked account, which the totals leave out', () => {
+        document.body.innerHTML = '<div id="bills-calendar-heatmap"></div>';
+        const fee = {
+            name: 'Card fee', amount: 10, currency: 'CHF', frequency: 'monthly', inTotals: true,
+            occurrences: months([11]), paidMonths: [], paidAmounts: [], paidDetails: [], paidMoreThanOnce: [],
+            unrecordedMonths: [], expectedAmounts: { 11: 10 }, owedAmounts: { 11: 10 },
+        };
+
+        // CSX is a transfer into the account: November is owed, but not in the total
+        makeModule().renderBillsCalendarHeatmap([{ ...csx, inTotals: false }, fee], { 11: 10 });
+
+        const tiles = document.querySelectorAll('.heatmap-month');
+        expect(tiles[10].querySelector('.heatmap-month-count').textContent).toBe('%n bill');
+    });
 });
 
 describe('Bills Calendar table cells', () => {

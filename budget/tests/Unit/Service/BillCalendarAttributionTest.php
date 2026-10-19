@@ -292,6 +292,43 @@ class BillCalendarAttributionTest extends TestCase {
 	}
 
 	/**
+	 * With an account picked, a transfer into it is money arriving, not a
+	 * bill it pays: the row stays but adds nothing to the monthly totals.
+	 * The row now says so, so that the heatmap's count of the bills making
+	 * up a month's total leaves it out as well.
+	 */
+	public function testATransferIntoThePickedAccountSaysItIsOutOfTheTotals(): void {
+		$fee = $this->bill(['id' => 60, 'name' => 'Card fee', 'amount' => 10.0, 'dueDay' => 5, 'accountId' => 13,
+			'nextDueDate' => '2026-11-05', 'lastPaidDate' => '2026-10-05', 'createdAt' => '2026-09-01 10:00:00']);
+		$payments = array_merge($this->csxPayments(), $this->paymentsOn(60, ['2026-09-05', '2026-10-05'], 10.0));
+
+		$overview = $this->overview([$this->csx(), $fee], $payments, true, accountId: 13);
+
+		$this->assertFalse($this->row($overview, 'CSX Pro Credit Cards')['inTotals']);
+		$this->assertTrue($this->row($overview, 'Card fee')['inTotals']);
+		$this->assertEqualsWithDelta(10.0, $overview['monthlyTotals'][11], 0.001, 'November: the fee alone');
+		$this->assertEqualsWithDelta(10.0, $overview['monthlyTotals'][9], 0.001);
+	}
+
+	/** One-time rows sharing a name are in the totals when any of them is. */
+	public function testGroupedRowsAreInTheTotalsWhenAnyOfThemIs(): void {
+		$fields = ['name' => 'Top-up', 'frequency' => 'one-time', 'dueDay' => 20, 'isActive' => false];
+		$overview = $this->overview([
+			// A transfer into the picked account, and a payment out of it
+			$this->bill(['id' => 61, 'amount' => 50.0, 'dueMonth' => 3, 'startDate' => '2026-03-20', 'lastPaidDate' => '2026-03-20',
+				'isTransfer' => true, 'destinationAccountId' => 13, 'createdAt' => '2026-03-01 10:00:00'] + $fields),
+			$this->bill(['id' => 62, 'amount' => 20.0, 'dueMonth' => 5, 'startDate' => '2026-05-20', 'lastPaidDate' => '2026-05-20',
+				'accountId' => 13, 'createdAt' => '2026-05-01 10:00:00'] + $fields),
+		], [
+			$this->payment(610, 61, '2026-03-20', 50.0),
+			$this->payment(620, 62, '2026-05-20', 20.0),
+		], true, accountId: 13);
+
+		$this->assertCount(1, $overview['bills']);
+		$this->assertTrue($overview['bills'][0]['inTotals']);
+	}
+
+	/**
 	 * An invoice marked paid without a transaction left nothing for the
 	 * calendar to find, so Active Only dropped it although it was settled
 	 * this year. It stays, its month drawn as having no payment recorded.
