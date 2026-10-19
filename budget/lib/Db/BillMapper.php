@@ -254,7 +254,40 @@ class BillMapper extends QBMapper {
 		$qb->update($this->getTableName())
 			->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)))
 			->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+		$this->setColumns($qb, $fields);
 
+		$qb->executeStatement();
+	}
+
+	/**
+	 * Settle the occurrence due on $expectedDue, in one conditional write:
+	 * $fields are written only while the bill is still active and due on
+	 * that date (#399). Two requests for one occurrence (a double click,
+	 * two tabs, auto-pay and a click at once) each read it as due, and both
+	 * used to book it; now only the first moves the bill on and the other
+	 * finds nothing to claim. Nextcloud counts matched rows on MySQL too
+	 * (CLIENT_FOUND_ROWS), so the count answers which request it was.
+	 *
+	 * @param array<string, mixed> $fields column => value, as updateFields() takes them
+	 * @return bool whether this call claimed it
+	 */
+	public function claimOccurrence(int $id, string $userId, string $expectedDue, array $fields): bool {
+		$qb = $this->db->getQueryBuilder();
+		$qb->update($this->getTableName())
+			->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+			->andWhere($qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
+			->andWhere($qb->expr()->eq('next_due_date', $qb->createNamedParameter($expectedDue)));
+		$this->setColumns($qb, $fields);
+
+		return $qb->executeStatement() === 1;
+	}
+
+	/**
+	 * @param array<string, mixed> $fields column => value
+	 * @throws \InvalidArgumentException for a column that isn't updatable
+	 */
+	private function setColumns(IQueryBuilder $qb, array $fields): void {
 		foreach ($fields as $column => $value) {
 			if (!in_array($column, self::UPDATABLE_COLUMNS, true)) {
 				throw new \InvalidArgumentException("Column '$column' is not updatable");
@@ -268,8 +301,6 @@ class BillMapper extends QBMapper {
 				$qb->set($column, $qb->createNamedParameter($value, $type));
 			}
 		}
-
-		$qb->executeStatement();
 	}
 
 	/**

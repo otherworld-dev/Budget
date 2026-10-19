@@ -40,6 +40,7 @@ class BillAccountAccessTest extends TestCase {
 	protected function setUp(): void {
 		$this->mapper = $this->createMock(BillMapper::class);
 		$this->mapper->method('update')->willReturnArgument(0);
+		$this->mapper->method('claimOccurrence')->willReturn(true);
 		$this->transactionService = $this->createMock(TransactionService::class);
 		$this->shares = $this->createMock(GranularShareService::class);
 		$this->shares->method('canWrite')->willReturnCallback(

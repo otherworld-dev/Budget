@@ -219,11 +219,19 @@ class RecurringIncomeService extends AbstractCrudService {
 				&& $income->getNextExpectedDate() !== null
 				&& $income->getNextExpectedDate() <= $today) {
 				$date = $income->getNextExpectedDate();
-				$this->transactionService->createFromIncome($userId, $income, $date, 'cleared');
-				$this->settle($income, $date);
-				$income->setLastReceivedDate($date);
-				$income->setReceivedUndoState(null);
-				$income = $this->mapper->update($income);
+				$claimed = $this->claimPayment($income, $date, ['last_received_date' => $date, 'received_undo_state' => null]);
+				if ($claimed === null) {
+					// Received or skipped meanwhile, by a click or another run
+					break;
+				}
+				try {
+					$this->transactionService->createFromIncome($userId, $income, $date, 'cleared');
+				} catch (\Exception $e) {
+					// Nothing booked: the payment is expected again
+					$this->releasePayment($income, $claimed);
+					throw $e;
+				}
+				$this->takeClaimed($income, $claimed);
 				$booked++;
 			}
 		} catch (\Exception $e) {
@@ -278,9 +286,13 @@ class RecurringIncomeService extends AbstractCrudService {
 			'transactionIds' => [],
 		];
 
-		$this->settle($income, $income->getNextExpectedDate());
-		$income->setLastReceivedDate($received);
-		$income = $this->mapper->update($income);
+		// Claimed before the credit is booked (#399): of two Mark Received at
+		// once, or one and auto-create, only the first books the money
+		$claimed = $this->claimPayment($income, (string)$income->getNextExpectedDate(), ['last_received_date' => $received]);
+		if ($claimed === null) {
+			throw new \InvalidArgumentException($this->l->t('This payment was already recorded. Reload the page to see the next one.'));
+		}
+		$this->takeClaimed($income, $claimed);
 
 		if ($willBook) {
 			try {
@@ -369,6 +381,73 @@ class RecurringIncomeService extends AbstractCrudService {
 			true,
 			$income->getStartDate()
 		));
+	}
+
+	/**
+	 * Settle the payment expected on $occurrence for this request alone
+	 * (#399): one conditional write moves the income on, only while no other
+	 * request has (RecurringIncomeMapper::claimOccurrence()). Three Mark
+	 * Received at once booked three credits. The entity is left as it was.
+	 *
+	 * @param array<string, mixed> $also more columns the same write sets
+	 * @return array<string, mixed>|null the columns written, or null when another request claimed it first
+	 */
+	private function claimPayment(RecurringIncome $income, string $occurrence, array $also = []): ?array {
+		$settled = clone $income;
+		$this->settle($settled, $occurrence);
+		$fields = [
+			'next_expected_date' => $settled->getNextExpectedDate(),
+			'is_active' => (bool)$settled->getIsActive(),
+		] + $also;
+		if ($settled->getStartDate() !== $income->getStartDate()) {
+			$fields['start_date'] = $settled->getStartDate();
+		}
+		/** @var RecurringIncomeMapper $mapper */
+		$mapper = $this->mapper;
+		return $mapper->claimOccurrence((int)$income->getId(), (string)$income->getUserId(), $occurrence, $fields) ? $fields : null;
+	}
+
+	/**
+	 * Give the entity what a claim wrote, without counting it as changed:
+	 * written again with the undo snapshot, it could put an older state back
+	 * over a claim of the next payment made since.
+	 *
+	 * @param array<string, mixed> $claimed column => value
+	 */
+	private function takeClaimed(RecurringIncome $income, array $claimed): void {
+		foreach ($claimed as $column => $value) {
+			$income->{'set' . str_replace('_', '', ucwords($column, '_'))}($value);
+		}
+		$income->resetUpdatedFields();
+	}
+
+	/**
+	 * Hand back a payment whose credit couldn't be booked: the columns the
+	 * claim wrote get the entity's values again, while the income still
+	 * holds the claim (see BillService::releaseOccurrence()).
+	 *
+	 * @param array<string, mixed> $claimed column => value
+	 */
+	private function releasePayment(RecurringIncome $income, array $claimed): void {
+		$before = [];
+		foreach (array_keys($claimed) as $column) {
+			$before[$column] = $income->{'get' . str_replace('_', '', ucwords($column, '_'))}();
+		}
+		/** @var RecurringIncomeMapper $mapper */
+		$mapper = $this->mapper;
+		try {
+			if ($claimed['is_active'] && $claimed['next_expected_date'] !== null) {
+				$released = $mapper->claimOccurrence((int)$income->getId(), (string)$income->getUserId(), (string)$claimed['next_expected_date'], $before);
+			} else {
+				$mapper->updateFields((int)$income->getId(), (string)$income->getUserId(), $before);
+				$released = true;
+			}
+			if (!$released) {
+				$this->logger->warning("Income {$income->getId()} moved on before the payment of a failed credit could be handed back");
+			}
+		} catch (\Throwable $e) {
+			$this->logger->warning("Failed to hand back the payment of income {$income->getId()}: {$e->getMessage()}");
+		}
 	}
 
 	/** The first occurrence on or after $today, never before the start date */
@@ -465,9 +544,11 @@ class RecurringIncomeService extends AbstractCrudService {
 	 * receipt or creating a transaction (#396). The last received date is left
 	 * alone so the entry doesn't read as received.
 	 *
+	 * @param string|null $expectedDate The occurrence the page showed: a stale
+	 *                                  tab or a second click names one already settled and is refused (#399)
 	 * @return array{income: RecurringIncome, previousNextExpectedDate: string}
 	 */
-	public function skipPayment(int $id, string $userId): array {
+	public function skipPayment(int $id, string $userId, ?string $expectedDate = null): array {
 		$income = $this->find($id, $userId);
 
 		if ($income->getFrequency() === 'one-time') {
@@ -481,20 +562,18 @@ class RecurringIncomeService extends AbstractCrudService {
 		if ($previousNextExpectedDate === null) {
 			throw new \InvalidArgumentException($this->l->t('This income has no expected date to skip'));
 		}
+		if ($expectedDate !== null && $expectedDate !== '' && $expectedDate !== $previousNextExpectedDate) {
+			throw new \InvalidArgumentException($this->l->t('This payment was already recorded. Reload the page to see the next one.'));
+		}
 
-		$nextExpected = $this->frequencyCalculator->calculateNextDueDate(
-			$income->getFrequency(),
-			$income->getExpectedDay(),
-			$income->getExpectedMonth(),
-			$previousNextExpectedDate,
-			null,
-			true, // forceAdvance: always one cycle on, even if not yet due
-			$income->getStartDate()
-		);
-		$income->setNextExpectedDate($nextExpected);
-		// Undoing an earlier receipt now would bring back a pre-skip date
-		$income->setReceivedUndoState(null);
-		$income = $this->mapper->update($income);
+		// One cycle on, as a receipt moves it, and claimed like one: two skips
+		// of one payment both went through. Undoing an earlier receipt now
+		// would bring back a pre-skip date, so its snapshot goes in the same write.
+		$claimed = $this->claimPayment($income, $previousNextExpectedDate, ['received_undo_state' => null]);
+		if ($claimed === null) {
+			throw new \InvalidArgumentException($this->l->t('This payment was already recorded. Reload the page to see the next one.'));
+		}
+		$this->takeClaimed($income, $claimed);
 
 		return [
 			'income' => $income,

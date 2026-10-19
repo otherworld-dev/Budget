@@ -1,0 +1,359 @@
+<?php
+
+declare(strict_types=1);
+
+namespace OCA\Budget\Tests\Unit\Service;
+
+use OCA\Budget\Db\AccountMapper;
+use OCA\Budget\Db\Bill;
+use OCA\Budget\Db\BillMapper;
+use OCA\Budget\Db\DismissedSuggestionMapper;
+use OCA\Budget\Db\RecurringIncomeMapper;
+use OCA\Budget\Db\Transaction;
+use OCA\Budget\Service\Bill\FrequencyCalculator;
+use OCA\Budget\Service\Bill\RecurringBillDetector;
+use OCA\Budget\Service\BillService;
+use OCA\Budget\Service\CurrencyConversionService;
+use OCA\Budget\Service\TransactionService;
+use OCA\Budget\Service\TransactionSplitService;
+use OCA\Budget\Service\UserClock;
+use OCP\IL10N;
+use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
+
+/**
+ * Mark Paid, Skip and auto-pay settle each occurrence once (#399).
+ *
+ * Each read the bill, checked it was still due and then wrote it: two
+ * requests at once both passed the check, and both booked. Live, two or
+ * three simultaneous Mark Paid all succeeded and each booked a payment, a
+ * second Skip skipped the same month again, and a payment whose booking
+ * failed half way left the bill moved on. The occurrence is now claimed
+ * with one conditional write before anything is booked.
+ *
+ * The mapper here behaves as the real one does: claimOccurrence() writes
+ * only while the bill is active and due on the expected date, and update()
+ * writes only the fields the entity marks changed.
+ */
+class BillPayOnceTest extends TestCase {
+	private const TODAY = '2026-10-19';
+	private const ALREADY_RECORDED = 'This payment was already recorded. Reload the page to see the next one.';
+
+	private BillService $service;
+	private TransactionService $transactions;
+	private ?Bill $stored = null;
+	/** @var string[] what reached the ledger, in order */
+	private array $calls = [];
+	/** Runs once, just before the next claim: another request getting in first */
+	private ?\Closure $beforeClaim = null;
+	/** Runs as each row is booked, with its date (null for a pre-booked row) */
+	private ?\Closure $whileBooking = null;
+	/** Thrown when the bill's pre-booked rows are dropped */
+	private ?\Throwable $dropFails = null;
+
+	protected function setUp(): void {
+		$mapper = $this->createMock(BillMapper::class);
+		$mapper->method('find')->willReturnCallback(fn () => clone $this->stored);
+		$mapper->method('update')->willReturnCallback(function (Bill $bill) {
+			foreach (array_keys($bill->getUpdatedFields()) as $property) {
+				$this->stored->{'set' . ucfirst($property)}($bill->{'get' . ucfirst($property)}());
+			}
+			return $bill;
+		});
+		$mapper->method('updateFields')->willReturnCallback(fn (int $id, string $user, array $fields) => $this->write($fields));
+		$mapper->method('claimOccurrence')->willReturnCallback(function (int $id, string $user, string $expected, array $fields) {
+			if ($this->beforeClaim !== null) {
+				$other = $this->beforeClaim;
+				$this->beforeClaim = null;
+				$other();
+			}
+			if (!$this->stored->getIsActive() || $this->stored->getNextDueDate() !== $expected) {
+				return false;
+			}
+			$this->write($fields);
+			return true;
+		});
+
+		$this->transactions = $this->createMock(TransactionService::class);
+		$this->transactions->method('createFromBill')->willReturnCallback(function (string $user, Bill $bill, ?string $date = null) {
+			if ($this->whileBooking !== null) {
+				($this->whileBooking)($date);
+			}
+			$this->calls[] = $date === null ? 'pre-book:' . $bill->getNextDueDate() : 'pay:' . $date;
+			$tx = new Transaction();
+			$tx->setId(500 + count($this->calls));
+			return $tx;
+		});
+		$this->transactions->method('clearScheduledBillTransaction')->willReturnCallback(function () {
+			$this->calls[] = 'clear-pre-booked';
+			return null;
+		});
+		$this->transactions->method('deleteScheduledBillTransactions')->willReturnCallback(function () {
+			if ($this->dropFails !== null) {
+				throw $this->dropFails;
+			}
+			$this->calls[] = 'drop-pre-booked';
+		});
+
+		$clock = $this->createMock(UserClock::class);
+		$clock->method('today')->willReturn(self::TODAY);
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnArgument(0);
+
+		$this->service = new BillService(
+			$mapper,
+			new FrequencyCalculator(),
+			$this->createMock(RecurringBillDetector::class),
+			$this->transactions,
+			$l,
+			$this->createMock(AccountMapper::class),
+			$this->createMock(CurrencyConversionService::class),
+			$this->createMock(TransactionSplitService::class),
+			$this->createMock(LoggerInterface::class),
+			$this->createMock(DismissedSuggestionMapper::class),
+			null,
+			$this->createMock(RecurringIncomeMapper::class),
+			null,
+			$clock,
+		);
+	}
+
+	/** @param array<string, mixed> $fields column => value */
+	private function write(array $fields): void {
+		foreach ($fields as $column => $value) {
+			$this->stored->{'set' . str_replace('_', '', ucwords($column, '_'))}($value);
+		}
+	}
+
+	private function bill(array $fields = []): Bill {
+		$bill = new Bill();
+		$bill->setId(1);
+		$bill->setUserId('user1');
+		$bill->setName('Phone');
+		$bill->setAmount(30.0);
+		$bill->setFrequency($fields['frequency'] ?? 'monthly');
+		$bill->setDueDay(array_key_exists('dueDay', $fields) ? $fields['dueDay'] : 15);
+		$bill->setDueMonth(null);
+		$bill->setIsActive($fields['isActive'] ?? true);
+		$bill->setAccountId(3);
+		$bill->setNextDueDate(array_key_exists('nextDueDate', $fields) ? $fields['nextDueDate'] : '2026-10-15');
+		$bill->setLastPaidDate(array_key_exists('lastPaidDate', $fields) ? $fields['lastPaidDate'] : '2026-09-15');
+		$bill->setStartDate($fields['startDate'] ?? null);
+		$bill->setEndDate($fields['endDate'] ?? null);
+		$bill->setRemainingPayments($fields['remainingPayments'] ?? null);
+		$bill->setAutoPayEnabled($fields['autoPayEnabled'] ?? false);
+		$bill->setAutoPayFailed(false);
+		$bill->setIsTransfer(false);
+		$bill->setCreateTransaction($fields['createTransaction'] ?? true);
+		$bill->setPaidUndoState(null);
+		$bill->resetUpdatedFields();
+		$this->stored = $bill;
+		return $bill;
+	}
+
+	private function bankRow(int $id): Transaction {
+		$row = new Transaction();
+		$row->setId($id);
+		$row->setAccountId(3);
+		$row->setDate('2026-10-14');
+		$row->setAmount(30.0);
+		$row->setType('debit');
+		$row->setIsSplit(false);
+		return $row;
+	}
+
+	// ── Mark Paid ───────────────────────────────────────────────────
+
+	public function testAPaymentThatLosesTheClaimBooksNothing(): void {
+		// Another request paid October between this one's look and its write
+		$this->bill();
+		$this->beforeClaim = function () {
+			$this->stored->setNextDueDate('2026-11-15');
+			$this->stored->setLastPaidDate(self::TODAY);
+		};
+
+		try {
+			$this->service->markPaid(1, 'user1', self::TODAY, true, null, '2026-10-15');
+			$this->fail('October was paid a second time');
+		} catch (\InvalidArgumentException $e) {
+			$this->assertSame(self::ALREADY_RECORDED, $e->getMessage());
+		}
+
+		$this->assertSame([], $this->calls, 'Nothing is booked, cleared or dropped');
+	}
+
+	public function testTwoSimultaneousPaymentsOfAPreBookingBillBookOnce(): void {
+		// Both requests read October as due; the other one claims it first
+		$this->bill();
+		$this->beforeClaim = fn () => $this->service->markPaid(1, 'user1', self::TODAY, true, null, '2026-10-15');
+
+		try {
+			$this->service->markPaid(1, 'user1', self::TODAY, true, null, '2026-10-15');
+			$this->fail('The second payment of October went through');
+		} catch (\InvalidArgumentException $e) {
+			$this->assertSame(self::ALREADY_RECORDED, $e->getMessage());
+		}
+
+		$this->assertSame(['clear-pre-booked', 'pay:' . self::TODAY, 'pre-book:2026-11-15'], $this->calls, 'One payment and one row for November');
+		$this->assertSame('2026-11-15', $this->stored->getNextDueDate());
+	}
+
+	public function testTheClaimSettlesTheOccurrenceBeforeAnythingIsBooked(): void {
+		$this->bill(['remainingPayments' => 3]);
+		$seen = null;
+		$this->whileBooking = function (?string $date) use (&$seen) {
+			if ($date !== null) {
+				$seen = [$this->stored->getNextDueDate(), $this->stored->getRemainingPayments(), $this->stored->getLastPaidDate()];
+			}
+		};
+
+		$this->service->markPaid(1, 'user1', self::TODAY, true, null, '2026-10-15');
+
+		$this->assertSame(['2026-11-15', 2, self::TODAY], $seen, 'The bill had moved on while the payment booked');
+		$this->assertSame('2026-11-15', $this->stored->getNextDueDate());
+		$this->assertSame(self::TODAY, $this->stored->getLastPaidDate());
+	}
+
+	public function testThePaymentNeverWritesTheClaimedFieldsAgain(): void {
+		// Written again after booking, they would put back a bill another
+		// request had moved on in the meantime (paid November, say)
+		$this->bill();
+		$this->whileBooking = function (?string $date) {
+			if ($date === null) {
+				$this->stored->setNextDueDate('2026-12-15');
+			}
+		};
+
+		$this->service->markPaid(1, 'user1', self::TODAY, true, null, '2026-10-15');
+
+		$this->assertSame('2026-12-15', $this->stored->getNextDueDate());
+		$this->assertNotNull($this->stored->getPaidUndoState(), 'The snapshot is still written');
+	}
+
+	public function testALinkThatFailsAfterTheClaimHandsTheOccurrenceBack(): void {
+		$this->bill();
+		$this->transactions->method('findTransaction')->willReturn($this->bankRow(77));
+		$this->transactions->method('linkBillAsAccountOwner')->willThrowException(new \InvalidArgumentException('already linked'));
+
+		try {
+			$this->service->markPaid(1, 'user1', null, false, 77, '2026-10-15');
+			$this->fail('The failed link was swallowed');
+		} catch (\InvalidArgumentException $e) {
+			$this->assertSame('That transaction already pays another bill', $e->getMessage());
+		}
+
+		$this->assertTrue($this->stored->getIsActive());
+		$this->assertSame('2026-10-15', $this->stored->getNextDueDate());
+		$this->assertSame('2026-09-15', $this->stored->getLastPaidDate());
+		$this->assertSame([], $this->calls);
+	}
+
+	public function testAOneTimeBillWhoseLinkFailsIsDueAgain(): void {
+		// The claim switched it off with no date: it gets both back
+		$this->bill(['frequency' => 'one-time', 'dueDay' => 28, 'nextDueDate' => '2026-10-28', 'startDate' => '2026-10-28', 'lastPaidDate' => null]);
+		$this->transactions->method('findTransaction')->willReturn($this->bankRow(77));
+		$this->transactions->method('linkBillAsAccountOwner')->willThrowException(new \InvalidArgumentException('already linked'));
+
+		try {
+			$this->service->markPaid(1, 'user1', null, false, 77, '2026-10-28');
+			$this->fail('The failed link was swallowed');
+		} catch (\InvalidArgumentException $e) {
+		}
+
+		$this->assertTrue($this->stored->getIsActive());
+		$this->assertSame('2026-10-28', $this->stored->getNextDueDate());
+		$this->assertNull($this->stored->getLastPaidDate());
+	}
+
+	public function testABookingErrorAfterTheClaimHandsTheOccurrenceBackAndIsReported(): void {
+		$this->bill(['remainingPayments' => 3]);
+		$this->dropFails = new \RuntimeException('database gone');
+
+		try {
+			$this->service->markPaid(1, 'user1', self::TODAY, false, null, '2026-10-15');
+			$this->fail('The error was swallowed');
+		} catch (\RuntimeException $e) {
+			$this->assertSame('database gone', $e->getMessage());
+		}
+
+		$this->assertSame('2026-10-15', $this->stored->getNextDueDate());
+		$this->assertSame('2026-09-15', $this->stored->getLastPaidDate());
+		$this->assertSame(3, $this->stored->getRemainingPayments());
+	}
+
+	public function testAutoPayThatLosesTheClaimToAClickIsNotAFailure(): void {
+		// The owner pressed Mark Paid while the job was paying the bill
+		$this->bill(['autoPayEnabled' => true]);
+		$this->beforeClaim = function () {
+			$this->stored->setNextDueDate('2026-11-15');
+			$this->stored->setLastPaidDate(self::TODAY);
+		};
+
+		$result = $this->service->processAutoPay(1, 'user1');
+
+		$this->assertFalse($result['success']);
+		$this->assertFalse($result['disabled']);
+		$this->assertSame([], $this->calls);
+		$this->assertTrue($this->stored->getAutoPayEnabled());
+		$this->assertFalse($this->stored->getAutoPayFailed());
+	}
+
+	// ── Skip ────────────────────────────────────────────────────────
+
+	public function testASkipOfAnOccurrenceAlreadyMovedOnIsRefused(): void {
+		// A stale tab or a second click: November must not be skipped too
+		$this->bill(['nextDueDate' => '2026-11-15']);
+
+		try {
+			$this->service->skipPayment(1, 'user1', '2026-10-15');
+			$this->fail('The stale skip went through');
+		} catch (\InvalidArgumentException $e) {
+			$this->assertSame(self::ALREADY_RECORDED, $e->getMessage());
+		}
+
+		$this->assertSame('2026-11-15', $this->stored->getNextDueDate());
+		$this->assertSame([], $this->calls);
+	}
+
+	public function testTwoSkipsOfOneOccurrenceSkipItOnce(): void {
+		$this->bill();
+		$this->beforeClaim = fn () => $this->service->skipPayment(1, 'user1', '2026-10-15');
+
+		try {
+			$this->service->skipPayment(1, 'user1', '2026-10-15');
+			$this->fail('October was skipped twice');
+		} catch (\InvalidArgumentException $e) {
+			$this->assertSame(self::ALREADY_RECORDED, $e->getMessage());
+		}
+
+		$this->assertSame('2026-11-15', $this->stored->getNextDueDate());
+		$this->assertSame(['drop-pre-booked', 'pre-book:2026-11-15'], $this->calls);
+	}
+
+	public function testASkipThatLosesTheClaimLeavesThePreBookedRowAlone(): void {
+		// Dropped first, the row the other request just booked for the next
+		// occurrence went with it
+		$this->bill();
+		$this->beforeClaim = function () {
+			$this->stored->setNextDueDate('2026-11-15');
+		};
+
+		try {
+			$this->service->skipPayment(1, 'user1', '2026-10-15');
+			$this->fail('The skip went through');
+		} catch (\InvalidArgumentException $e) {
+		}
+
+		$this->assertSame([], $this->calls);
+	}
+
+	public function testASkipSpendsTheUndoSnapshotInItsClaim(): void {
+		$this->bill();
+		$this->stored->setPaidUndoState('{"paidDate":"2026-09-15"}');
+
+		$this->service->skipPayment(1, 'user1', '2026-10-15');
+
+		$this->assertNull($this->stored->getPaidUndoState());
+		$this->assertSame('2026-11-15', $this->stored->getNextDueDate());
+	}
+}

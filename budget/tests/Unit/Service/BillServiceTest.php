@@ -33,6 +33,8 @@ class BillServiceTest extends TestCase {
 
 	protected function setUp(): void {
 		$this->mapper = $this->createMock(BillMapper::class);
+		// Every payment and skip here is the only one of its occurrence (BillPayOnceTest races them)
+		$this->mapper->method('claimOccurrence')->willReturn(true);
 		$this->frequencyCalculator = $this->createMock(FrequencyCalculator::class);
 		$this->recurringDetector = $this->createMock(RecurringBillDetector::class);
 		$this->transactionService = $this->createMock(TransactionService::class);
@@ -3395,17 +3397,12 @@ class BillServiceTest extends TestCase {
 	}
 
 	public function testMarkPaidStillSucceedsWhenSnapshotPersistFails(): void {
-		// The payment is committed by the first mapper update; a DB error on
-		// the snapshot write may only cost the durable undo, never the payment.
+		// The payment is committed by the claim; a DB error on the snapshot
+		// write, the one update after it, may only cost the durable undo,
+		// never the payment.
 		$bill = $this->makeBill();
 		$this->mapper->method('find')->willReturn($bill);
-		$calls = 0;
-		$this->mapper->method('update')->willReturnCallback(function (Bill $b) use (&$calls) {
-			if (++$calls === 2) {
-				throw new \Exception('server has gone away');
-			}
-			return $b;
-		});
+		$this->mapper->method('update')->willThrowException(new \Exception('server has gone away'));
 		$this->frequencyCalculator->method('calculateNextDueDate')->willReturn('2099-07-15');
 
 		$result = $this->service->markPaid(1, 'user1');

@@ -1136,123 +1136,125 @@ class BillService {
 			}
 		}
 
-		// Handle transaction: either link existing or create new
-		if ($existingRow !== null) {
-			// A transfer's arrival is priced before anything changes: with no
-			// rate between its two currencies it can't be booked, and the
-			// withdrawal linked first left the bill half paid
-			$arrivalAmount = null;
-			if (($bill->getIsTransfer() ?? false) && $bill->getDestinationAccountId() !== null
-				&& $existingRow->getLinkedTransactionId() === null) {
-				$arrivalAmount = $this->transactionService->transferArrivalAmount($existingRow, $bill);
-			}
-			// Link first, and only then drop the pre-booked row: a failed
-			// link used to be logged and ignored, with the row already gone
-			// and the bill moved on. The link runs as the account's owner, so
-			// a row in an account shared with the bill's owner can be linked,
-			// and gives the row the bill's category, tags and splits.
-			try {
-				$linked = $this->transactionService->linkBillAsAccountOwner($existingRow->getId(), $bill, $linkCategory);
-			} catch (\InvalidArgumentException $e) {
-				throw new \InvalidArgumentException($this->l->t('That transaction already pays another bill'));
-			}
-			if (!$linked->getIsSplit()) {
-				$this->applySplitTemplate($bill, $linked, $userId);
-			}
-			$this->transactionService->deleteScheduledBillTransactions($bill->getId());
-			// A transfer's withdrawal needs its arrival: the bank's own credit
-			// in the destination, or a deposit booked for it (which a revert
-			// removes). Linking used to leave the destination uncredited.
-			if ($bill->getIsTransfer() ?? false) {
-				$deposit = $this->transactionService->completeTransferPayment($linked, $bill, $arrivalAmount);
-				if ($deposit !== null) {
-					$createdTransactionIds[] = $deposit;
-					// The destination's own credit may be in already (below)
-					$bookedDepositId = $deposit;
+		// A transfer's arrival is priced before anything changes: with no
+		// rate between its two currencies it can't be booked, and the
+		// withdrawal linked first left the bill half paid
+		$arrivalAmount = null;
+		if ($existingRow !== null && ($bill->getIsTransfer() ?? false) && $bill->getDestinationAccountId() !== null
+			&& $existingRow->getLinkedTransactionId() === null) {
+			$arrivalAmount = $this->transactionService->transferArrivalAmount($existingRow, $bill);
+		}
+
+		// The occurrence is claimed before anything is booked (#399). Two
+		// requests for it at once (a double click, two tabs, auto-pay and a
+		// click) both passed the checks above and both booked a payment;
+		// only one claim can move the bill on, and the other books nothing.
+		$settled = $this->scheduleAfterPayment($bill);
+		$claimed = [
+			'next_due_date' => $settled['nextDueDate'],
+			'is_active' => $settled['isActive'],
+			'remaining_payments' => $settled['remainingPayments'],
+			'last_paid_date' => $paidDate,
+		];
+		$before = [
+			'next_due_date' => $previousState['nextDueDate'],
+			'is_active' => true,
+			'remaining_payments' => $previousState['remainingPayments'],
+			'last_paid_date' => $previousState['lastPaidDate'],
+		];
+		// The rest the payment changes on the bill goes with it
+		if ($settled['startDate'] !== $previousState['startDate']) {
+			$claimed['start_date'] = $settled['startDate'];
+			$before['start_date'] = $previousState['startDate'];
+		}
+		if ($previousState['autoPayFailed']) {
+			$claimed['auto_pay_failed'] = false;
+			$before['auto_pay_failed'] = true;
+		}
+		if ($statementAmount !== null) {
+			$claimed['amount'] = $statementAmount;
+			$before['amount'] = $previousState['amount'];
+		}
+		if (!$this->mapper->claimOccurrence($id, $userId, (string)$previousState['nextDueDate'], $claimed)) {
+			throw new \InvalidArgumentException($this->l->t('This payment was already recorded. Reload the page to see the next one.'));
+		}
+
+		try {
+			// Handle transaction: either link existing or create new
+			if ($existingRow !== null) {
+				// Link first, and only then drop the pre-booked row: a failed
+				// link used to be logged and ignored, with the row already gone
+				// and the bill moved on. The link runs as the account's owner, so
+				// a row in an account shared with the bill's owner can be linked,
+				// and gives the row the bill's category, tags and splits.
+				try {
+					$linked = $this->transactionService->linkBillAsAccountOwner($existingRow->getId(), $bill, $linkCategory);
+				} catch (\InvalidArgumentException $e) {
+					throw new \InvalidArgumentException($this->l->t('That transaction already pays another bill'));
 				}
-			}
-			$linkedExistingTransaction = true;
-			$linkedTransactionId = $existingRow->getId();
-		} elseif ($recordPayment && $bill->getAccountId() !== null) {
-			try {
-				// Clear pre-existing scheduled transaction(s), or create new cleared one
-				$transaction = $this->transactionService->clearScheduledBillTransaction($userId, $bill->getId(), $paidDate, $statementAmount, (bool)($bill->getIsTransfer() ?? false), $bill);
-				if ($transaction) {
-					$hadScheduledTransaction = true;
-				} else {
-					$transaction = $this->transactionService->createFromBill($userId, $bill, $paidDate, 'cleared');
+				if (!$linked->getIsSplit()) {
+					$this->applySplitTemplate($bill, $linked, $userId);
 				}
-				$createdTransactionIds[] = $transaction->getId();
-				$paymentTransactionRecorded = true;
-				// For transfers, also track the linked deposit transaction
-				if ($transaction->getLinkedTransactionId()) {
-					$createdTransactionIds[] = $transaction->getLinkedTransactionId();
-					if ($bill->getIsTransfer() ?? false) {
-						$bookedDepositId = $transaction->getLinkedTransactionId();
+				$this->transactionService->deleteScheduledBillTransactions($bill->getId());
+				// A transfer's withdrawal needs its arrival: the bank's own credit
+				// in the destination, or a deposit booked for it (which a revert
+				// removes). Linking used to leave the destination uncredited.
+				if ($bill->getIsTransfer() ?? false) {
+					$deposit = $this->transactionService->completeTransferPayment($linked, $bill, $arrivalAmount);
+					if ($deposit !== null) {
+						$createdTransactionIds[] = $deposit;
+						// The destination's own credit may be in already (below)
+						$bookedDepositId = $deposit;
 					}
 				}
+				$linkedExistingTransaction = true;
+				$linkedTransactionId = $existingRow->getId();
+			} elseif ($recordPayment && $bill->getAccountId() !== null) {
+				try {
+					// Clear pre-existing scheduled transaction(s), or create new cleared one
+					$transaction = $this->transactionService->clearScheduledBillTransaction($userId, $bill->getId(), $paidDate, $statementAmount, (bool)($bill->getIsTransfer() ?? false), $bill);
+					if ($transaction) {
+						$hadScheduledTransaction = true;
+					} else {
+						$transaction = $this->transactionService->createFromBill($userId, $bill, $paidDate, 'cleared');
+					}
+					$createdTransactionIds[] = $transaction->getId();
+					$paymentTransactionRecorded = true;
+					// For transfers, also track the linked deposit transaction
+					if ($transaction->getLinkedTransactionId()) {
+						$createdTransactionIds[] = $transaction->getLinkedTransactionId();
+						if ($bill->getIsTransfer() ?? false) {
+							$bookedDepositId = $transaction->getLinkedTransactionId();
+						}
+					}
 
-				// Apply split template if defined
-				$this->applySplitTemplate($bill, $transaction, $userId);
-			} catch (\Exception $e) {
-				$this->logger->warning("Failed to create transaction for bill {$id}: {$e->getMessage()}");
-			}
-		} else {
-			// Nothing recorded this occurrence, so the placeholder standing in
-			// for it has to go: the payment happened, and a scheduled row for
-			// a paid occurrence goes on showing the bill as still due. The
-			// other two branches already clear it, one by clearing it into the
-			// payment and one by deleting it outright (#376).
-			$this->transactionService->deleteScheduledBillTransactions($bill->getId());
-		}
-
-		// Auto-deactivate one-time bills after payment
-		if ($bill->getFrequency() === 'one-time') {
-			// The date it was due is all a paid invoice has left to show, and
-			// clearing next_due_date threw it away: a bill created before the
-			// date field existed then read "No due date" in the list and
-			// opened with an empty Due Date (#333). It is kept as the start
-			// date, which is where a one-time bill's date lives (#375).
-			if (($bill->getStartDate() === null || $bill->getStartDate() === '') && $bill->getNextDueDate()) {
-				$bill->setStartDate($bill->getNextDueDate());
-			}
-			$bill->setIsActive(false);
-			$bill->setNextDueDate(null);
-		} else {
-			$nextDue = $this->frequencyCalculator->calculateNextDueDate(
-				$bill->getFrequency(),
-				$bill->getDueDay(),
-				$bill->getDueMonth(),
-				$bill->getNextDueDate(),
-				$bill->getCustomRecurrencePattern(),
-				true, // Always force advance — the bill was just paid
-				// The start date supplies the day and month the form left
-				// out, as at creation and in the calendar: without it a
-				// yearly bill due 14 March moved to 1 January
-				$bill->getStartDate()
-			);
-			$bill->setNextDueDate($nextDue);
-
-			// Decrement remaining payments if set
-			$remaining = $bill->getRemainingPayments();
-			if ($remaining !== null) {
-				$remaining--;
-				$bill->setRemainingPayments($remaining);
-				if ($remaining <= 0) {
-					$bill->setIsActive(false);
-					$bill->setNextDueDate(null);
+					// Apply split template if defined
+					$this->applySplitTemplate($bill, $transaction, $userId);
+				} catch (\Exception $e) {
+					$this->logger->warning("Failed to create transaction for bill {$id}: {$e->getMessage()}");
 				}
+			} else {
+				// Nothing recorded this occurrence, so the placeholder standing in
+				// for it has to go: the payment happened, and a scheduled row for
+				// a paid occurrence goes on showing the bill as still due. The
+				// other two branches already clear it, one by clearing it into the
+				// payment and one by deleting it outright (#376).
+				$this->transactionService->deleteScheduledBillTransactions($bill->getId());
 			}
-
-			// Deactivate if next due date exceeds end date
-			$endDate = $bill->getEndDate();
-			if ($endDate !== null && $bill->getNextDueDate() !== null && $bill->getNextDueDate() > $endDate) {
-				$bill->setIsActive(false);
-				$bill->setNextDueDate(null);
-			}
+		} catch (\Throwable $e) {
+			// The payment didn't go through: the occurrence is due again
+			$this->releaseOccurrence($id, $userId, $claimed, $before);
+			throw $e;
 		}
 
-		$bill = $this->mapper->update($bill);
+		// The claim wrote the bill's new state. The entity takes it without
+		// counting it as changed, so the snapshot written below can't put an
+		// older state back over a claim of the next occurrence made since.
+		$bill->setStartDate($settled['startDate']);
+		$bill->setIsActive($settled['isActive']);
+		$bill->setNextDueDate($settled['nextDueDate']);
+		$bill->setRemainingPayments($settled['remainingPayments']);
+		$bill->resetUpdatedFields();
 		$this->withdrawNotifications($bill);
 
 		// Auto-create transaction for next occurrence if bill has account
@@ -1327,6 +1329,89 @@ class BillService {
 			// this payment (#347)
 			'statementAmount' => $statementAmount,
 		];
+	}
+
+	/**
+	 * The bill's schedule once its pending occurrence is paid: the next
+	 * occurrence, or none when the payment uses the bill up (one-time, its
+	 * last payment, past its end date). Worked out before anything is
+	 * booked, so the occurrence can be claimed first.
+	 *
+	 * @return array{nextDueDate: ?string, isActive: bool, remainingPayments: ?int, startDate: ?string}
+	 */
+	private function scheduleAfterPayment(Bill $bill): array {
+		$startDate = $bill->getStartDate();
+		$remaining = $bill->getRemainingPayments();
+
+		if ($bill->getFrequency() === 'one-time') {
+			// The date it was due is all a paid invoice has left to show, and
+			// clearing next_due_date threw it away: a bill created before the
+			// date field existed then read "No due date" in the list and
+			// opened with an empty Due Date (#333). It is kept as the start
+			// date, which is where a one-time bill's date lives (#375).
+			if (($startDate === null || $startDate === '') && $bill->getNextDueDate()) {
+				$startDate = $bill->getNextDueDate();
+			}
+			return ['nextDueDate' => null, 'isActive' => false, 'remainingPayments' => $remaining, 'startDate' => $startDate];
+		}
+
+		$nextDue = $this->frequencyCalculator->calculateNextDueDate(
+			$bill->getFrequency(),
+			$bill->getDueDay(),
+			$bill->getDueMonth(),
+			$bill->getNextDueDate(),
+			$bill->getCustomRecurrencePattern(),
+			true, // Always force advance — the bill was just paid
+			// The start date supplies the day and month the form left
+			// out, as at creation and in the calendar: without it a
+			// yearly bill due 14 March moved to 1 January
+			$startDate
+		);
+		$active = true;
+
+		// Decrement remaining payments if set
+		if ($remaining !== null) {
+			$remaining--;
+			if ($remaining <= 0) {
+				$active = false;
+				$nextDue = null;
+			}
+		}
+
+		// Deactivate if next due date exceeds end date
+		$endDate = $bill->getEndDate();
+		if ($endDate !== null && $nextDue !== null && $nextDue > $endDate) {
+			$active = false;
+			$nextDue = null;
+		}
+
+		return ['nextDueDate' => $nextDue, 'isActive' => $active, 'remainingPayments' => $remaining, 'startDate' => $startDate];
+	}
+
+	/**
+	 * Hand back an occurrence whose payment or skip didn't go through: the
+	 * bill as it was before the claim. A claim that left the bill due on a
+	 * date is released the way it was taken, only while the bill still
+	 * holds it, so a payment of the next occurrence made meanwhile is never
+	 * undone. One that ended the bill left nothing for anyone to claim since.
+	 *
+	 * @param array<string, mixed> $claimed what claimOccurrence() wrote
+	 * @param array<string, mixed> $before the same columns as they were
+	 */
+	private function releaseOccurrence(int $id, string $userId, array $claimed, array $before): void {
+		try {
+			if ($claimed['is_active'] && $claimed['next_due_date'] !== null) {
+				$released = $this->mapper->claimOccurrence($id, $userId, (string)$claimed['next_due_date'], $before);
+			} else {
+				$this->mapper->updateFields($id, $userId, $before);
+				$released = true;
+			}
+			if (!$released) {
+				$this->logger->warning("Bill {$id} moved on before the occurrence of a failed payment could be handed back");
+			}
+		} catch (\Throwable $e) {
+			$this->logger->warning("Failed to hand back the occurrence of bill {$id}: {$e->getMessage()}");
+		}
 	}
 
 	/**
@@ -1483,9 +1568,12 @@ class BillService {
 	 *
 	 * @param int $id Bill ID
 	 * @param string $userId User ID
+	 * @param string|null $expectedDueDate The occurrence the page showed. A
+	 *                                     stale tab or a second click names one already settled and is refused,
+	 *                                     rather than skipping the next one too (#399).
 	 * @return Bill Updated bill
 	 */
-	public function skipPayment(int $id, string $userId): array {
+	public function skipPayment(int $id, string $userId, ?string $expectedDueDate = null): array {
 		$bill = $this->find($id, $userId);
 		$this->requireWritableAccounts($bill);
 
@@ -1498,33 +1586,59 @@ class BillService {
 		}
 
 		$previousNextDueDate = $bill->getNextDueDate();
-
-		// Delete any pre-existing scheduled transaction for the skipped occurrence
-		$this->transactionService->deleteScheduledBillTransactions($id);
+		if ($previousNextDueDate === null) {
+			throw new \InvalidArgumentException($this->l->t('This bill has nothing left to pay'));
+		}
+		if ($expectedDueDate !== null && $expectedDueDate !== '' && $expectedDueDate !== $previousNextDueDate) {
+			throw new \InvalidArgumentException($this->l->t('This payment was already recorded. Reload the page to see the next one.'));
+		}
 
 		$nextDue = $this->frequencyCalculator->calculateNextDueDate(
 			$bill->getFrequency(),
 			$bill->getDueDay(),
 			$bill->getDueMonth(),
-			$bill->getNextDueDate(),
+			$previousNextDueDate,
 			$bill->getCustomRecurrencePattern(),
 			true, // forceAdvance: always advance one cycle, even if not yet overdue
 			$bill->getStartDate() // the same anchor creation and the calendar use
 		);
-		$bill->setNextDueDate($nextDue);
+		$isActive = true;
 
 		// Deactivate if next due date exceeds end date
 		$endDate = $bill->getEndDate();
-		if ($endDate !== null && $bill->getNextDueDate() !== null && $bill->getNextDueDate() > $endDate) {
-			$bill->setIsActive(false);
-			$bill->setNextDueDate(null);
+		if ($endDate !== null && $nextDue !== null && $nextDue > $endDate) {
+			$isActive = false;
+			$nextDue = null;
 		}
 
-		// The skip moved next_due_date — a mark-unpaid snapshot restored
-		// after it would bring back a pre-skip date, so it is spent (#365 review)
-		$bill->setPaidUndoState(null);
+		// Claimed like a payment (#399): two skips of one occurrence both went
+		// through. The skip moves next_due_date, so a mark-unpaid snapshot
+		// restored after it would bring back a pre-skip date: it is spent in
+		// the same write (#365 review).
+		$claimed = ['next_due_date' => $nextDue, 'is_active' => $isActive, 'paid_undo_state' => null];
+		if (!$this->mapper->claimOccurrence($id, $userId, $previousNextDueDate, $claimed)) {
+			throw new \InvalidArgumentException($this->l->t('This payment was already recorded. Reload the page to see the next one.'));
+		}
 
-		$bill = $this->mapper->update($bill);
+		// Only now the skipped occurrence's pre-booked row goes: dropped
+		// before the claim, a skip that lost it took the row another request
+		// had just booked for the next occurrence
+		try {
+			$this->transactionService->deleteScheduledBillTransactions($id);
+		} catch (\Throwable $e) {
+			$this->releaseOccurrence($id, $userId, $claimed, [
+				'next_due_date' => $previousNextDueDate,
+				'is_active' => true,
+				'paid_undo_state' => $bill->getPaidUndoState(),
+			]);
+			throw $e;
+		}
+
+		// The claim wrote all of it (see markPaid())
+		$bill->setNextDueDate($nextDue);
+		$bill->setIsActive($isActive);
+		$bill->setPaidUndoState(null);
+		$bill->resetUpdatedFields();
 		$this->withdrawNotifications($bill);
 
 		// Create scheduled transaction for the new next occurrence,

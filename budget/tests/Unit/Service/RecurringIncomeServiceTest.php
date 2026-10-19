@@ -24,6 +24,8 @@ class RecurringIncomeServiceTest extends TestCase {
 
 	protected function setUp(): void {
 		$this->mapper = $this->createMock(RecurringIncomeMapper::class);
+		// Every receipt and skip here is the only one of its payment (IncomePayOnceTest races them)
+		$this->mapper->method('claimOccurrence')->willReturn(true);
 		$this->frequencyCalculator = $this->createMock(FrequencyCalculator::class);
 		// Monthly-equivalent math now delegates to the calculator — back the
 		// mock with the real (pure) implementation so summaries compute
@@ -226,18 +228,16 @@ class RecurringIncomeServiceTest extends TestCase {
 			->with('monthly', 25, null, '2026-04-25', null, true, null)
 			->willReturn('2026-05-25');
 
-		$this->mapper->expects($this->once())->method('update')
-			->willReturnCallback(function (RecurringIncome $i) {
-				$this->assertSame('2026-05-25', $i->getNextExpectedDate());
-				$this->assertSame('2026-03-25', $i->getLastReceivedDate());
-				return $i;
-			});
+		// Written in the skip's claim of 25 April, the last received date left out of it
+		$this->mapper->expects($this->once())->method('claimOccurrence')
+			->with(1, 'user1', '2026-04-25', ['next_expected_date' => '2026-05-25', 'is_active' => true, 'received_undo_state' => null]);
 		$this->transactionService->expects($this->never())->method('createFromIncome');
 
 		$result = $this->service->skipPayment(1, 'user1');
 
 		$this->assertSame('2026-04-25', $result['previousNextExpectedDate']);
 		$this->assertSame('2026-05-25', $result['income']->getNextExpectedDate());
+		$this->assertSame('2026-03-25', $result['income']->getLastReceivedDate());
 	}
 
 	public function testSkipPaymentKeepsTheStartDateAnchor(): void {
