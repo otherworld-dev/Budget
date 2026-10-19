@@ -148,6 +148,15 @@ class IncomeRecordedReceiptTest extends TestCase {
 		$this->assertNull($this->service->recordedReceiptForPendingOccurrence(1, 'user1'));
 	}
 
+	public function testALateReceiptInsideTheNextWindowIsStillThePreviousPayments(): void {
+		// September's, expected on the 29th, received on 16 October: inside
+		// October's window, and no snapshot left to name it
+		$this->income(['lastReceivedDate' => '2026-10-16', 'nextExpectedDate' => '2026-10-29']);
+		$this->credit(55, '2026-10-16');
+
+		$this->assertNull($this->service->recordedReceiptForPendingOccurrence(1, 'user1', '2026-10-29'));
+	}
+
 	public function testACreditTheLastReceiptBookedIsNotReported(): void {
 		// Received early on the 12th for the 29th, its credit moved to the
 		// 16th: it is October's, as the snapshot says

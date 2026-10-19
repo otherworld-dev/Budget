@@ -179,6 +179,16 @@ class BillRecordedPaymentTest extends TestCase {
 		$this->assertNull($this->service->recordedPaymentForPendingOccurrence(1, 'user1'));
 	}
 
+	public function testALatePaymentInsideTheNextWindowIsStillThePreviousOccurrences(): void {
+		// September's, due on the 28th, paid on 14 October: inside October's
+		// window, and no snapshot left to name it (an edit spent it). Taken
+		// for October's, "Use that payment" would leave October unpaid.
+		$this->bill(['lastPaidDate' => '2026-10-14', 'nextDueDate' => '2026-10-28']);
+		$this->row(500, '2026-10-14');
+
+		$this->assertNull($this->service->recordedPaymentForPendingOccurrence(1, 'user1', '2026-10-28'));
+	}
+
 	public function testAPaymentSinceTheLastOneNearTheDueDateIsReported(): void {
 		// October's payment, entered by hand and put on the bill
 		$this->bill(['lastPaidDate' => '2026-09-28', 'nextDueDate' => '2026-10-28']);
