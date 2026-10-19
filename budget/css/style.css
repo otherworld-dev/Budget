@@ -7071,7 +7071,10 @@ button.danger:hover {
     position: relative;
 }
 
-.required {
+/* The asterisk in a required field's label. Only inside a label: the import
+   mapping's 'mapping-field required' wrappers matched a bare .required, which
+   made their hints bold red like errors and set those fields 4px right (#399) */
+label .required {
     font-weight: 600;
     color: var(--color-error);
     margin-left: 4px;
