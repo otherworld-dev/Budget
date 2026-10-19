@@ -1307,11 +1307,14 @@ class TransactionService {
 	 *
 	 * Refused for the rows the bill's own actions look after: its pre-booked
 	 * row, which stands for the next occurrence until the bill is paid or
-	 * skipped, and the rows its latest payment booked or linked. Mark Unpaid
-	 * finds those by their bill, so one taken out here would stay behind in
-	 * the account when the payment was undone. A transfer's other side lets
-	 * go of the bill too, as when Mark Unpaid undoes a linked payment
-	 * (unlinkBillAsAccountOwner()).
+	 * skipped, and the rows its latest payment booked, linked or used. Mark
+	 * Unpaid finds the booked and linked ones by their bill, so one taken out
+	 * here would stay behind in the account when the payment was undone. A
+	 * used row ("Use that payment") is the only sign the payment is in the
+	 * ledger: taken out, the bill stayed paid with nothing behind it, and
+	 * the Bills page offered to record the payment a second time. A
+	 * transfer's other side lets go of the bill too, as when Mark Unpaid
+	 * undoes a linked payment (unlinkBillAsAccountOwner()).
 	 *
 	 * @param int[]|null $writableAccountIds see attachToBill()
 	 * @throws DoesNotExistException when the row isn't one the user can change
@@ -1386,10 +1389,12 @@ class TransactionService {
 	}
 
 	/**
-	 * The rows a bill's Mark Unpaid deletes or lets go of: the ones the
-	 * snapshot of its latest payment booked or linked (BillService::
-	 * markPaid()). The stored snapshot is what Mark Unpaid runs from,
-	 * whatever payment it describes.
+	 * The rows the snapshot of a bill's latest payment names (BillService::
+	 * markPaid()): the ones it booked or linked, which Mark Unpaid deletes or
+	 * lets go of, and the one it used, which Mark Unpaid leaves as it is but
+	 * which is that payment's record. The stored snapshot is what Mark Unpaid
+	 * runs from, whatever payment it describes, and it is spent once the
+	 * payment is undone.
 	 *
 	 * The next occurrence's pre-booked rows (scheduledTransactionIds) are
 	 * left out. Mark Unpaid deletes those only while they are still
@@ -1413,8 +1418,10 @@ class TransactionService {
 				$ids[] = (int)$id;
 			}
 		}
-		if (is_numeric($snapshot['linkedTransactionId'] ?? null)) {
-			$ids[] = (int)$snapshot['linkedTransactionId'];
+		foreach (['linkedTransactionId', 'usedTransactionId'] as $key) {
+			if (is_numeric($snapshot[$key] ?? null)) {
+				$ids[] = (int)$snapshot[$key];
+			}
 		}
 		return $ids;
 	}
