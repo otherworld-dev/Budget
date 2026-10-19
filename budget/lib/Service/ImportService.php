@@ -743,6 +743,14 @@ class ImportService {
 	 * that category on that day at that price is taken for it once this
 	 * mapping puts the category in the line's texts.
 	 *
+	 * A payee that is none of the line's cells passes when the user's import
+	 * rules give it to the line (a rule that names the shop after a word of
+	 * the description, say), whether or not this import applies them: the
+	 * rules ran when the row was stored. The two payees are then the same,
+	 * and the descriptions alone are compared. Rules are never read for a
+	 * description or a reference: a rule's text says nothing about which
+	 * line it came from.
+	 *
 	 * Each stored row stands for one line at most and each line for one
 	 * stored row, paired so that as many lines as can be are recognised: a
 	 * line that could be either of two stored rows leaves the one another
@@ -758,9 +766,10 @@ class ImportService {
 	 *
 	 * @param list<array{index: array-key, accountId: int, importId: string, transaction: array, cells: array}> $lines From scanFileRows()
 	 * @param array<string, true> $fileIds From fileImportIds()
+	 * @param \OCA\Budget\Db\ImportRule[]|null $rules The rules this import applies, null when it applies none (read here if a payee needs them)
 	 * @return array<array-key, true> The indexes of the rows recognised
 	 */
-	private function linesImportedBefore(array $lines, array $fileIds): array {
+	private function linesImportedBefore(array $lines, array $fileIds, string $userId, ?array $rules): array {
 		$stored = [];
 		$candidates = [];
 		$seen = [];
@@ -783,7 +792,7 @@ class ImportService {
 			}
 
 			$matches = [];
-			$cells = null;
+			$memo = [];
 			foreach ($stored[$month] as $i => $row) {
 				$storedId = $row['import_id'] ?? '';
 				if (!str_starts_with($storedId, 'hash_')
@@ -793,8 +802,7 @@ class ImportService {
 					|| MoneyCalculator::compare($row['amount'], (float)($transaction['amount'] ?? 0), 8) !== 0) {
 					continue;
 				}
-				$cells ??= self::cellWords($line['cells']);
-				if (self::couldHaveStored($row, $texts, $cells)) {
+				if ($this->couldHaveStored($row, $line, $texts, $memo, $userId, $rules)) {
 					$matches[] = $month . '|' . $i;
 				}
 			}
@@ -844,20 +852,84 @@ class ImportService {
 	 * mapping (see linesImportedBefore()).
 	 *
 	 * @param array<string, mixed> $row The stored row
+	 * @param array{index: array-key, accountId: int, importId: string, transaction: array, cells: array} $line From scanFileRows()
 	 * @param string[] $texts The line's description and payee as this import maps them, comparable
-	 * @param list<list<string>> $cells The line's cells, from cellWords()
+	 * @param array<string, mixed> $memo What was worked out about the line for an earlier stored row
+	 * @param \OCA\Budget\Db\ImportRule[]|null $rules The user's rules, read when first needed
 	 */
-	private static function couldHaveStored(array $row, array $texts, array $cells): bool {
-		$theirs = self::comparableTexts([$row['description'] ?? null, $row['vendor'] ?? null]);
-		if ($theirs === []) {
-			return false;
-		}
-		foreach ([...$theirs, ...self::comparableTexts([$row['reference'] ?? null])] as $text) {
+	private function couldHaveStored(array $row, array $line, array $texts, array &$memo, string $userId, ?array &$rules): bool {
+		/** @var list<list<string>> $cells */
+		$cells = $memo['cells'] ??= self::cellWords($line['cells']);
+		$description = $row['description'] ?? null;
+		$reference = $row['reference'] ?? null;
+		foreach (self::comparableTexts([$description, $reference]) as $text) {
 			if (!self::builtFromCells($text, $cells)) {
 				return false;
 			}
 		}
-		return self::allTextsFound($theirs, $texts) || self::allTextsFound($texts, $theirs);
+
+		$theirs = self::comparableTexts([$description]);
+		$payee = self::comparableTexts([$row['vendor'] ?? null]);
+		if ($payee !== [] && self::builtFromCells($payee[0], $cells)) {
+			$theirs[] = $payee[0];
+		} elseif ($payee !== []) {
+			if (!$this->rulesGivePayee($payee[0], $row, $line, $description, $reference, $userId, $rules)) {
+				return false;
+			}
+			// The payees are the same: the descriptions decide
+			$texts = self::comparableTexts([$line['transaction']['description'] ?? null]);
+		}
+		return $theirs !== [] && (self::allTextsFound($theirs, $texts) || self::allTextsFound($texts, $theirs));
+	}
+
+	/**
+	 * Whether the user's import rules give the line this payee, read the way
+	 * the import that stored the row read it: with that row's description,
+	 * reference and notes, and no payee or any one of the line's cells as
+	 * its payee. So a rule that names the shop after a word of the
+	 * description, one that matches the whole description an earlier mapping
+	 * read, one that fills in an empty payee and one that tidies a payee
+	 * column all give it again, whichever columns this import maps.
+	 *
+	 * A payee is no part of an import id: under one mapping, two lines that
+	 * differ only in their payee always counted as one row. Comparing payees
+	 * only keeps another mapping from taking one payee's line for another's,
+	 * and a payee the rules give this line is this line's.
+	 *
+	 * @param string $payee The stored row's payee, comparable
+	 * @param array<string, mixed> $row The stored row
+	 * @param array{index: array-key, accountId: int, importId: string, transaction: array, cells: array} $line From scanFileRows()
+	 * @param \OCA\Budget\Db\ImportRule[]|null $rules The user's rules, read here when null
+	 */
+	private function rulesGivePayee(string $payee, array $row, array $line, ?string $description, ?string $reference, string $userId, ?array &$rules): bool {
+		$rules ??= $this->ruleApplicator->rulesFor($userId);
+		if ($rules === []) {
+			return false;
+		}
+		$read = $this->withAccountContext(array_merge($line['transaction'], [
+			'description' => (string)$description,
+			'reference' => $reference,
+			'notes' => $row['notes'] ?? null,
+		]), $line['accountId'], $userId);
+		$payees = ['' => null];
+		foreach ($line['cells'] as $cell) {
+			$cell = is_scalar($cell) ? trim((string)$cell) : '';
+			if ($cell !== '') {
+				$payees[$cell] = $cell;
+			}
+		}
+		foreach ($payees as $candidate) {
+			$read['vendor'] = $candidate;
+			try {
+				$ruled = $this->ruleApplicator->applyRules($userId, $read, $rules);
+			} catch (\Exception $e) {
+				continue;
+			}
+			if (self::comparableTexts([$ruled['vendor'] ?? null]) === [$payee]) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -1223,7 +1295,7 @@ class ImportService {
 			return $accountIdsByName[$name];
 		});
 		$fileIds = self::fileImportIds($lines);
-		$importedBefore = $preset === null ? $this->linesImportedBefore($lines, $fileIds) : [];
+		$importedBefore = $preset === null ? $this->linesImportedBefore($lines, $fileIds, $userId, $applyRules ? $rules : null) : [];
 
 		foreach ($data as $index => $row) {
 			try {
@@ -1859,7 +1931,7 @@ class ImportService {
 				return $name === '' ? $accountId : ($resolvedAccounts[$name] ?? null);
 			});
 			$fileIds = self::fileImportIds($lines);
-			$importedBefore = $preset === null ? $this->linesImportedBefore($lines, $fileIds) : [];
+			$importedBefore = $preset === null ? $this->linesImportedBefore($lines, $fileIds, $userId, $applyRules ? $rules : null) : [];
 		}
 
 		foreach ($data as $index => $row) {
