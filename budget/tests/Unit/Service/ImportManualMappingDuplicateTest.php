@@ -46,10 +46,25 @@ class ImportManualMappingDuplicateTest extends TestCase {
 	private const FILE_ID = 'import_user1_0123456789abcdef0123456789abcdef.csv';
 	private const ACCOUNT = 1;
 
+	/*
+	 * The file's columns: 0 date, 1 product, 2 category, 3 amount, 4 shop,
+	 * 5 the bank's reference (and 6 the account, when it names one).
+	 */
+
 	/** The first import: the product as the description */
 	private const BY_PRODUCT = ['date' => 0, 'description' => 1, 'amount' => 3, 'skipFirstRow' => true];
 	/** The second: product and category joined, and the category in the notes */
 	private const WITH_CATEGORY = ['date' => 0, 'description' => [1, 2], 'notes' => 2, 'amount' => 3, 'skipFirstRow' => true];
+	/** His 11 Oct mapping: the category as the description, the product as payee and notes */
+	private const CATEGORY_FIRST = ['date' => 0, 'description' => 2, 'vendor' => 1, 'notes' => 1, 'amount' => 3, 'skipFirstRow' => true];
+	/** The category alone as the description, as most of his imports since February */
+	private const BY_CATEGORY = ['date' => 0, 'description' => 2, 'amount' => 3, 'skipFirstRow' => true];
+	/** A statement with a payee column */
+	private const WITH_SHOP = ['date' => 0, 'description' => 1, 'vendor' => 4, 'amount' => 3, 'skipFirstRow' => true];
+	private const WITH_SHOP_AND_CATEGORY = ['date' => 0, 'description' => [1, 2], 'vendor' => 4, 'amount' => 3, 'skipFirstRow' => true];
+	/** A statement with the bank's own reference for each line */
+	private const WITH_REFERENCE = ['date' => 0, 'description' => 1, 'reference' => 5, 'amount' => 3, 'skipFirstRow' => true];
+	private const WITH_REFERENCE_AND_CATEGORY = ['date' => 0, 'description' => [1, 2], 'reference' => 5, 'amount' => 3, 'skipFirstRow' => true];
 
 	/** Date, product, category, amount */
 	private const OCT_3 = [
@@ -78,6 +93,7 @@ class ImportManualMappingDuplicateTest extends TestCase {
 
 	/** @var array<int, array<string, mixed>> Stored transactions, by id */
 	private array $ledger = [];
+	private int $nextId = 1;
 
 	protected function setUp(): void {
 		$appData = $this->createMock(IAppData::class);
@@ -95,8 +111,8 @@ class ImportManualMappingDuplicateTest extends TestCase {
 				if ($importId !== null && in_array($importId, $this->importIds($accountId), true)) {
 					throw new \Exception('Transaction with this import ID already exists');
 				}
-				$id = count($this->ledger) + 1;
-				$this->ledger[$id] = compact('accountId', 'date', 'description', 'amount', 'type', 'vendor', 'notes', 'importId');
+				$id = $this->nextId++;
+				$this->ledger[$id] = compact('accountId', 'date', 'description', 'amount', 'type', 'vendor', 'reference', 'notes', 'importId');
 				$tx = new Transaction();
 				$tx->setId($id);
 				return $tx;
@@ -114,8 +130,8 @@ class ImportManualMappingDuplicateTest extends TestCase {
 				if ($row['accountId'] === $accountId && $row['date'] >= $from && $row['date'] <= $to) {
 					$rows[] = [
 						'id' => $id, 'date' => $row['date'], 'amount' => (string)$row['amount'], 'type' => $row['type'],
-						'description' => $row['description'], 'vendor' => $row['vendor'], 'notes' => $row['notes'],
-						'import_id' => $row['importId'],
+						'description' => $row['description'], 'vendor' => $row['vendor'], 'reference' => $row['reference'],
+						'notes' => $row['notes'], 'import_id' => $row['importId'],
 					];
 				}
 			}
@@ -186,10 +202,11 @@ class ImportManualMappingDuplicateTest extends TestCase {
 		return $ids;
 	}
 
-	/** @param array<int, array{0: string, 1: string, 2: string, 3: string}> $rows */
+	/** @param array<int, list<string>> $rows Date, product, category, amount and, if any, shop and reference */
 	private function csv(array $rows): string {
-		$lines = ['Datum,Produkt,Kategorie,Betrag' . ($this->accountColumn ? ',Konto' : '')];
+		$lines = ['Datum,Produkt,Kategorie,Betrag,Laden,Referenz' . ($this->accountColumn ? ',Konto' : '')];
 		foreach ($rows as $row) {
+			$row = array_pad($row, 6, '');
 			if ($this->accountColumn) {
 				$row[] = 'Lohnkonto';
 			}
@@ -200,7 +217,7 @@ class ImportManualMappingDuplicateTest extends TestCase {
 
 	/** @return array{0: array<string, mixed>, 1: ?int} The mapping and the account chosen for the import */
 	private function destination(array $mapping): array {
-		return $this->accountColumn ? [$mapping + ['account' => 4], null] : [$mapping, self::ACCOUNT];
+		return $this->accountColumn ? [$mapping + ['account' => 6], null] : [$mapping, self::ACCOUNT];
 	}
 
 	private function import(array $rows, array $mapping, bool $skipDuplicates = true): array {
@@ -217,10 +234,10 @@ class ImportManualMappingDuplicateTest extends TestCase {
 	}
 
 	/** A row that reached the account some other way than through an import of this file */
-	private function store(string $date, string $description, float $amount, ?string $importId): void {
-		$this->ledger[count($this->ledger) + 1] = [
+	private function store(string $date, string $description, float $amount, ?string $importId, ?string $vendor = null, ?string $notes = null): void {
+		$this->ledger[$this->nextId++] = [
 			'accountId' => self::ACCOUNT, 'date' => $date, 'description' => $description, 'amount' => $amount,
-			'type' => 'debit', 'vendor' => null, 'notes' => null, 'importId' => $importId,
+			'type' => 'debit', 'vendor' => $vendor, 'reference' => null, 'notes' => $notes, 'importId' => $importId,
 		];
 	}
 
@@ -230,6 +247,11 @@ class ImportManualMappingDuplicateTest extends TestCase {
 			$sum += $row['type'] === 'credit' ? $row['amount'] : -$row['amount'];
 		}
 		return round($sum, 2);
+	}
+
+	/** @return string[] */
+	private function descriptions(): array {
+		return array_values(array_column($this->ledger, 'description'));
 	}
 
 	/** @return string[] Descriptions of the previewed rows not flagged as duplicates */
@@ -295,31 +317,165 @@ class ImportManualMappingDuplicateTest extends TestCase {
 		);
 	}
 
+	/**
+	 * His whole evening: the 11 Oct rows already on the books (the category
+	 * as the description), the 25-line file imported by product, 17 of those
+	 * rows deleted by hand, then the same file again with the category
+	 * joined. The 8 rows he kept are recognised and the 17 come back.
+	 */
+	public function testHisWholeSequenceAddsBackOnlyTheRowsHeDeleted(): void {
+		$this->import(self::oct11Rows(), self::CATEGORY_FIRST);
+		$this->assertCount(11, $this->ledger);
+		$this->assertSame(25, $this->import(self::oct12File(), self::BY_PRODUCT)['imported']);
+		// He deleted file lines 3-7 and 9-20 (rows 1503-1507 and 1509-1520)
+		$batch = array_slice(array_keys($this->ledger), 11, 25);
+		foreach ([2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19] as $line) {
+			unset($this->ledger[$batch[$line]]);
+		}
+		$this->assertCount(11 + 8, $this->ledger);
+
+		$preview = $this->preview(self::oct12File(), self::WITH_CATEGORY);
+		$again = $this->import(self::oct12File(), self::WITH_CATEGORY);
+
+		$this->assertSame(8, $preview['duplicates']);
+		$this->assertSame(17, $again['imported']);
+		$this->assertSame(8, $again['skipped']);
+		$this->assertCount(11 + 25, $this->ledger);
+	}
+
 	public static function rowOrders(): array {
 		return ['new row first' => [true], 'old row first' => [false]];
 	}
 
 	/**
-	 * Another product of the same brand, on the same receipt at the same
-	 * price, is a purchase of its own, listed before or after the one
-	 * already imported.
+	 * A line of the stored receipt, and another purchase on that day at that
+	 * price that only the file has, under another mapping.
+	 *
+	 * @return array<string, array{0: array<string, mixed>, 1: list<string>, 2: array<string, mixed>, 3: list<string>, 4: string, 5: string}>
 	 */
-	#[DataProvider('rowOrders')]
-	public function testDifferentProductSameDaySameAmountStillImports(bool $newFirst): void {
-		$this->import([self::OCT_3[0]], self::BY_PRODUCT);
-		$other = ['03.10.2026', 'Wolfcraft Drahtbürste Messing 3tlg', 'Modellbau / Renovation', '-11.13'];
-		$rows = $newFirst ? [$other, self::OCT_3[0]] : [self::OCT_3[0], $other];
+	private static function otherPurchases(): array {
+		return [
+			'another product of the brand' => [
+				self::BY_PRODUCT, ['03.10.2026', 'Wolfcraft Stahldrahtbürsten-3tlgSet 2.35', 'Modellbau / Renovation', '-11.13'],
+				self::WITH_CATEGORY, ['03.10.2026', 'Wolfcraft Drahtbürste Messing 3tlg', 'Modellbau / Renovation', '-11.13'],
+				'Wolfcraft Stahldrahtbürsten-3tlgSet 2.35', 'Wolfcraft Drahtbürste Messing 3tlg, Modellbau / Renovation',
+			],
+			'another product from the same shop' => [
+				self::WITH_SHOP, ['12.10.2026', 'Brot', 'Lebensmittel', '-2.50', 'Coop'],
+				self::WITH_SHOP_AND_CATEGORY, ['12.10.2026', 'Eier', 'Lebensmittel', '-2.50', 'Coop'],
+				'Brot', 'Eier, Lebensmittel',
+			],
+			// The stored row's description is only a category, its product the payee
+			'another product of the category he stored as the description' => [
+				self::CATEGORY_FIRST, ['06.10.2026', 'Schöni Sauerkraut gekocht 500G', 'Lebensmittel', '-3.40'],
+				self::WITH_CATEGORY, ['06.10.2026', 'Kambly Bretzeli 100g', 'Lebensmittel', '-3.40'],
+				'Lebensmittel', 'Kambly Bretzeli 100g, Lebensmittel',
+			],
+			'a description holding the stored one' => [
+				self::BY_PRODUCT, ['14.10.2026', 'COOP', 'Lebensmittel', '-4.50'],
+				self::WITH_CATEGORY, ['14.10.2026', 'COOP PRONTO BAHNHOF', 'Lebensmittel', '-4.50'],
+				'COOP', 'COOP PRONTO BAHNHOF, Lebensmittel',
+			],
+		];
+	}
 
-		$preview = $this->preview($rows, self::WITH_CATEGORY);
-		$again = $this->import($rows, self::WITH_CATEGORY);
+	public static function otherPurchasesInEitherOrder(): array {
+		$sets = [];
+		foreach (self::otherPurchases() as $name => $case) {
+			$sets[$name . ', new row first'] = [...$case, true];
+			$sets[$name . ', old row first'] = [...$case, false];
+		}
+		return $sets;
+	}
+
+	/**
+	 * A genuinely different purchase on the same day at the same price, in a
+	 * re-import with another mapping, still imports, listed before or after
+	 * the line already imported, and the stored row stays the old line's:
+	 * the new purchase is not skipped in its place (Review Focus 4).
+	 */
+	#[DataProvider('otherPurchasesInEitherOrder')]
+	public function testDifferentProductSameDaySameAmountStillImports(array $firstMapping, array $old, array $secondMapping, array $other, string $stored, string $added, bool $newFirst): void {
+		$this->import([$old], $firstMapping);
+		$this->assertSame([$stored], $this->descriptions());
+		$rows = $newFirst ? [$other, $old] : [$old, $other];
+
+		$preview = $this->preview($rows, $secondMapping);
+		$again = $this->import($rows, $secondMapping);
 
 		$this->assertSame(1, $preview['duplicates']);
-		$this->assertSame(['Wolfcraft Drahtbürste Messing 3tlg, Modellbau / Renovation'], self::newRows($preview));
+		$this->assertSame([$added], self::newRows($preview));
 		$this->assertSame(1, $again['imported']);
-		$this->assertSame(
-			['Wolfcraft Stahldrahtbürsten-3tlgSet 2.35', 'Wolfcraft Drahtbürste Messing 3tlg, Modellbau / Renovation'],
-			array_column($this->ledger, 'description')
-		);
+		$this->assertSame([$stored, $added], $this->descriptions());
+	}
+
+	public static function onlyTheNewLine(): array {
+		$sets = [];
+		foreach (self::otherPurchases() as $name => [$firstMapping, $old, $secondMapping, $other]) {
+			$sets['another mapping, ' . $name] = [$firstMapping, $old, $secondMapping, $other];
+		}
+		return $sets + [
+			'the same mapping, another order from the same payee' => [
+				self::WITH_SHOP, ['14.10.2026', 'AMAZON MKTPLACE ORDER 111-555', 'Online', '-9.99', 'Amazon'],
+				self::WITH_SHOP, ['14.10.2026', 'AMAZON MKTPLACE ORDER 222-777', 'Online', '-9.99', 'Amazon'],
+			],
+			'the same mapping, a description holding the stored one' => [
+				self::BY_PRODUCT, ['14.10.2026', 'COOP', 'Lebensmittel', '-4.50'],
+				self::BY_PRODUCT, ['14.10.2026', 'COOP PRONTO BAHNHOF', 'Lebensmittel', '-4.50'],
+			],
+			'the same mapping, a description the stored one holds' => [
+				self::BY_PRODUCT, ['14.10.2026', 'COOP PRONTO BAHNHOF', 'Lebensmittel', '-4.50'],
+				self::BY_PRODUCT, ['14.10.2026', 'COOP', 'Lebensmittel', '-4.50'],
+			],
+			'the same mapping, another of the bank\'s references' => [
+				self::WITH_REFERENCE, ['14.10.2026', 'Kaffee', 'Lebensmittel', '-4.20', 'Café Zentral', 'R-1001'],
+				self::WITH_REFERENCE, ['14.10.2026', 'Kaffee', 'Lebensmittel', '-4.20', 'Café Zentral', 'R-1002'],
+			],
+		];
+	}
+
+	/**
+	 * A later file holding only a new purchase on a day and at a price the
+	 * account already has, under the same mapping (a statement for the next
+	 * days, the import folder) or another one. It imports, as it did before
+	 * any of this: nothing in the stored row says it was this line.
+	 */
+	#[DataProvider('onlyTheNewLine')]
+	public function testALaterFileWithOnlyTheNewPurchaseImportsIt(array $firstMapping, array $old, array $secondMapping, array $other): void {
+		$this->import([$old], $firstMapping);
+
+		$preview = $this->preview([$other], $secondMapping);
+		$again = $this->import([$other], $secondMapping);
+
+		$this->assertSame(0, $preview['duplicates']);
+		$this->assertSame(1, $again['imported']);
+		$this->assertCount(2, $this->ledger);
+	}
+
+	/**
+	 * A row stored with only its category as the description says no more
+	 * than that. A line of that category on that day at that price is taken
+	 * for it only when this mapping puts the category in the line's texts,
+	 * never through a cell this mapping leaves out.
+	 */
+	public function testACategoryAloneIsComparedOnlyWhenTheMappingReadsIt(): void {
+		$this->import([['13.10.2026', 'Milch', 'Lebensmittel', '-1.65']], self::BY_CATEGORY);
+		$bretzeli = [['13.10.2026', 'Kambly Bretzeli 100g', 'Lebensmittel', '-1.65']];
+
+		$this->assertSame(0, $this->preview($bretzeli, self::BY_PRODUCT)['duplicates']);
+		$this->assertSame(1, $this->preview($bretzeli, self::WITH_CATEGORY)['duplicates']);
+	}
+
+	/** The bank's reference does not stop the same line being recognised under another mapping */
+	public function testTheSameReferenceUnderAnotherMappingIsRecognised(): void {
+		$coffee = ['14.10.2026', 'Kaffee', 'Lebensmittel', '-4.20', 'Café Zentral', 'R-1001'];
+		$this->import([$coffee], self::WITH_REFERENCE);
+
+		$preview = $this->preview([$coffee], self::WITH_REFERENCE_AND_CATEGORY);
+		$again = $this->import([$coffee], self::WITH_REFERENCE_AND_CATEGORY);
+
+		$this->assertSame(1, $preview['duplicates']);
+		$this->assertSame(0, $again['imported']);
 	}
 
 	/**
@@ -333,7 +489,7 @@ class ImportManualMappingDuplicateTest extends TestCase {
 		$again = $this->import([$pack, $pack], self::WITH_CATEGORY);
 
 		$this->assertSame(1, $again['imported']);
-		$this->assertSame(['Parisienne Jaune B-PT', 'Parisienne Jaune B-PT, Zigaretten'], array_column($this->ledger, 'description'));
+		$this->assertSame(['Parisienne Jaune B-PT', 'Parisienne Jaune B-PT, Zigaretten'], $this->descriptions());
 	}
 
 	/**
@@ -357,6 +513,27 @@ class ImportManualMappingDuplicateTest extends TestCase {
 			['hash_adc398d013d262ca320a07367ad3caa2', 'hash_adc398d013d262ca320a07367ad3caa2_occ2'],
 			array_column($this->ledger, 'importId')
 		);
+	}
+
+	/**
+	 * Two packs on one receipt, imported by product, then with the category
+	 * joined (the first pack recognised, the second stored as new), then by
+	 * product again. The first pack's line is its stored row by import id
+	 * and takes no other, so the second pack's line is the row stored the
+	 * second time: nothing goes in a third time.
+	 */
+	public function testALineItsOwnImportIdRecognisesTakesNoOtherStoredRow(): void {
+		$pack = ['15.10.2026', 'Parisienne Jaune B-PT', 'Zigaretten', '-9.20'];
+		$this->import([$pack], self::BY_PRODUCT);
+		$this->assertSame(1, $this->import([$pack, $pack], self::WITH_CATEGORY)['imported']);
+		$this->assertSame(['Parisienne Jaune B-PT', 'Parisienne Jaune B-PT, Zigaretten'], $this->descriptions());
+
+		$preview = $this->preview([$pack, $pack], self::BY_PRODUCT);
+		$again = $this->import([$pack, $pack], self::BY_PRODUCT);
+
+		$this->assertSame(2, $preview['duplicates']);
+		$this->assertSame(0, $again['imported']);
+		$this->assertCount(2, $this->ledger);
 	}
 
 	public static function rowsFromElsewhere(): array {
@@ -408,5 +585,49 @@ class ImportManualMappingDuplicateTest extends TestCase {
 
 		$this->assertSame(11, $again['imported']);
 		$this->assertCount(19, $this->ledger);
+	}
+
+	/** His rows of 11 Oct dated 3 Oct: date, product, category, amount */
+	private static function oct11Rows(): array {
+		return [
+			['03.10.2026', 'Bier', 'Alkohol', '-13.80'],
+			['03.10.2026', 'Werners Mini Markt Magenbrot 120G', 'Lebensmittel', '-3.95'],
+			['03.10.2026', 'Werners Markt Magenbrot 250G', 'Lebensmittel', '-4.70'],
+			['03.10.2026', 'Coop IPS Vollmilch UHT 3.5% 1L', 'Lebensmittel', '-1.65'],
+			['03.10.2026', 'Mazot Raclette IPS classic Scheiben 400g', 'Lebensmittel', '-10.95'],
+			['03.10.2026', 'Naturaplan Bio Bratspeck ca.110g', 'Lebensmittel', '-4.25'],
+			['03.10.2026', 'Prix Garantie Knoblauch St', 'Lebensmittel', '-0.50'],
+			['03.10.2026', 'Bio Kartoffeln grün 1KG CH', 'Lebensmittel', '-2.85'],
+			['03.10.2026', 'Chirat Balsamico Zwiebeln 240g', 'Lebensmittel', '-4.50'],
+			['03.10.2026', 'Kühne Gewürzgurken185G', 'Lebensmittel', '-2.60'],
+			['03.10.2026', 'Alentejo Herdade Peso Reserva Jg 75CL', 'Alkohol', '-12.25'],
+		];
+	}
+
+	/** His file of 12 Oct, all 25 lines in its own order (rows 1543-1567 of his backup) */
+	private static function oct12File(): array {
+		return [
+			['12.10.2026', 'Wassertank Zubehör', 'Diverses', '-30.00'],
+			['12.10.2026', 'Thermometer für Wasserkanister', 'Diverses', '-20.90'],
+			['12.10.2026', 'Coop IPS Vollmilch UHT 3.5% 1L', 'Lebensmittel', '-1.65'],
+			['12.10.2026', 'Emmi Crisp Truffes 150G', 'Lebensmittel', '-3.45'],
+			['12.10.2026', 'Prix Garantie Feinkristall-Zucker 1KG', 'Lebensmittel', '-1.50'],
+			['12.10.2026', 'familia c.m. plus Waldbeeren 600G', 'Lebensmittel', '-15.90'],
+			['12.10.2026', 'Heineken Dose 6x50CL', 'Alkohol', '-13.80'],
+			['12.10.2026', 'Yara Bus', 'Diverses', '-5.00'],
+			['12.10.2026', 'Parisienne Jaune B-PT', 'Zigaretten', '-9.20'],
+			['12.10.2026', 'Parisienne Jaune B-PT', 'Zigaretten', '-9.20'],
+			['12.10.2026', 'Werners Nidletäfeli 150G', 'Lebensmittel', '-4.95'],
+			['12.10.2026', 'Buitoni Pizzateig eckig 2x570g', 'Lebensmittel', '-6.90'],
+			['12.10.2026', 'Galbani Mozzarella Grattugiata 150g', 'Lebensmittel', '-3.70'],
+			['12.10.2026', 'Bio Pizza-Mozzarella gerieben 200g', 'Lebensmittel', '-3.80'],
+			['12.10.2026', 'Naturafarm Hinterschinken 160G', 'Lebensmittel', '-5.10'],
+			['12.10.2026', 'ÜNIQUE Peperoni offen 528', 'Lebensmittel', '-0.45'],
+			['12.10.2026', 'Bio Champignons braun offen PLU 165', 'Lebensmittel', '-1.45'],
+			['12.10.2026', 'Findus Rahmspinat TK 240g', 'Lebensmittel', '-3.30'],
+			['12.10.2026', 'Mutti Pizzasauce Aromatica 210G', 'Lebensmittel', '-1.95'],
+			['12.10.2026', 'Oecoplan Papiertasche D', 'Haushalt', '-0.40'],
+			...self::OCT_3,
+		];
 	}
 }
