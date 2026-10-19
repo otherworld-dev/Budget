@@ -86,6 +86,8 @@ class ImportManualMappingDuplicateTest extends TestCase {
 		['12.10.2026', 'Parisienne Jaune B-PT', 'Zigaretten', '-9.20'],
 	];
 
+	private const MINT_HEADER = "\"Date\",\"Description\",\"Original Description\",\"Amount\",\"Transaction Type\",\"Category\",\"Account Name\",\"Labels\",\"Notes\"\n";
+
 	private ImportService $service;
 	private string $fileContent = '';
 	/** Name the account in a column of the file instead of choosing it */
@@ -582,6 +584,32 @@ class ImportManualMappingDuplicateTest extends TestCase {
 		$this->assertSame(0, $preview['duplicates']);
 		$this->assertSame(1, $again['imported']);
 		$this->assertCount(2, $this->ledger);
+	}
+
+	public static function rowsNoImportStored(): array {
+		return [
+			'typed in by hand' => ['Swisscom', null, null],
+			'booked by the app for a bill' => ['', 'Swisscom', 'Auto-generated from bill: Swisscom'],
+		];
+	}
+
+	/**
+	 * Only a manual mapping is limited to rows an import stored under a
+	 * content hash. An app export is still compared with every row of the
+	 * day (R5-4): a row typed in by hand, or booked for a bill under the
+	 * bill's name, is the export's row.
+	 */
+	#[DataProvider('rowsNoImportStored')]
+	public function testAnAppExportIsStillComparedWithEveryRow(string $description, ?string $vendor, ?string $notes): void {
+		$this->store('2026-10-03', $description, 49.90, null, $vendor, $notes);
+		$this->fileContent = self::MINT_HEADER . '"10/03/2026","Swisscom","SWISSCOM MOBILE 0815","49.90","debit","","Lohnkonto","",""' . "\n";
+
+		$preview = $this->service->previewImport('user1', self::FILE_ID, [], null, null, false, ',', 'mint');
+		$again = $this->service->processImport('user1', self::FILE_ID, [], null, null, true, true, ',', 'mint');
+
+		$this->assertSame(1, $preview['duplicates']);
+		$this->assertSame(0, $again['imported']);
+		$this->assertCount(1, $this->ledger);
 	}
 
 	/**
