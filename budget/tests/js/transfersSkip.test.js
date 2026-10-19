@@ -194,7 +194,7 @@ describe('skipTransfer', () => {
         expect(mod.loadTransfers).not.toHaveBeenCalled();
     });
 
-    it('reports a failure and leaves the list alone', async () => {
+    it('reports a failure and shows the transfer as the server has it', async () => {
         const mod = makeRefreshableModule([transfer({ id: 5 })]);
         global.fetch = vi.fn(async () => ({
             ok: false,
@@ -205,7 +205,9 @@ describe('skipTransfer', () => {
         await mod.skipTransfer(5);
 
         expect(showError).toHaveBeenCalledWith(expect.stringContaining('Cannot skip an inactive bill'));
-        expect(mod.loadTransfers).not.toHaveBeenCalled();
+        // Reloaded, not left offering the refused Skip (#399)
+        expect(mod.loadTransfers).toHaveBeenCalledTimes(1);
+        expect(mod.renderTransfers).toHaveBeenCalledTimes(1);
         expect(showUndoNotification).not.toHaveBeenCalled();
     });
 });

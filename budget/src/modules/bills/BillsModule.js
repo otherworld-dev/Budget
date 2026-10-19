@@ -9,7 +9,7 @@ import { billRowState, oneTimeDateUnconfirmed } from '../../utils/billDates.js';
 import { showSuccess, showError, showWarning, showInfo, showUndoNotification } from '../../utils/notifications.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
-import { apiFetch } from '../../utils/api.js';
+import { apiFetch, ApiError } from '../../utils/api.js';
 import { isoWeekday } from '../../utils/helpers.js';
 import { showMatchingTransactionDialog } from '../../utils/matchingDialog.js';
 import { offerableTags, offerableTagSets } from '../../utils/tags.js';
@@ -1336,6 +1336,22 @@ export default class BillsModule {
         } catch (error) {
             console.error('Failed to mark bill as paid:', error);
             showError(error.message || t('budget', 'Failed to mark bill as paid'));
+            await this._reloadAfterRefusal(error);
+        }
+    }
+
+    /**
+     * The server refused an action on a bill. The bill may have moved on in
+     * another tab or by a second request, and its row went on offering what
+     * was just refused until the page was reloaded by hand (#399). A request
+     * that never reached the server leaves the list alone: reloading it
+     * would fail the same way.
+     *
+     * @param {*} error what the action failed with
+     */
+    async _reloadAfterRefusal(error) {
+        if (error instanceof ApiError) {
+            await this.loadBillsView();
         }
     }
 
@@ -1517,6 +1533,7 @@ export default class BillsModule {
         } catch (error) {
             console.error('Failed to mark bill as unpaid:', error);
             showError(error.message || t('budget', 'Failed to mark bill as unpaid'));
+            await this._reloadAfterRefusal(error);
         }
     }
 
@@ -1567,6 +1584,7 @@ export default class BillsModule {
         } catch (error) {
             console.error('Failed to skip bill payment:', error);
             showError(error.message || t('budget', 'Failed to skip bill payment'));
+            await this._reloadAfterRefusal(error);
         }
     }
 

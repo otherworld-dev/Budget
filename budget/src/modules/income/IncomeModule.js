@@ -9,7 +9,7 @@ import { showSuccess, showError, showWarning, showInfo, showUndoNotification } f
 import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import { isoWeekday } from '../../utils/helpers.js';
-import { apiFetch } from '../../utils/api.js';
+import { apiFetch, ApiError } from '../../utils/api.js';
 import { pickableAccounts, accountOptionLabel, selectAccountValue, accountCurrency } from '../../utils/accounts.js';
 import { showLoadError } from '../../utils/loading.js';
 import { incomeRowState } from '../../utils/incomeStatus.js';
@@ -637,6 +637,22 @@ export default class IncomeModule {
         } catch (error) {
             console.error('Failed to mark income as received:', error);
             showError(error.message || t('budget', 'Failed to mark income as received'));
+            await this._reloadAfterRefusal(error);
+        }
+    }
+
+    /**
+     * The server refused an action on an income. It may have moved on in
+     * another tab or by a second request, and its row went on offering what
+     * was just refused until the page was reloaded by hand (#399). A request
+     * that never reached the server leaves the list alone: reloading it
+     * would fail the same way.
+     *
+     * @param {*} error what the action failed with
+     */
+    async _reloadAfterRefusal(error) {
+        if (error instanceof ApiError) {
+            await this.loadIncomeView();
         }
     }
 
@@ -730,6 +746,7 @@ export default class IncomeModule {
         } catch (error) {
             console.error('Failed to skip income:', error);
             showError(error.message || t('budget', 'Failed to skip income'));
+            await this._reloadAfterRefusal(error);
         }
     }
 

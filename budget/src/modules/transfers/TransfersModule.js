@@ -11,7 +11,7 @@ import { showSuccess, showError, showWarning, showUndoNotification } from '../..
 import { confirmDialog } from '../../utils/dialogs.js';
 import { initSingleDatePicker } from '../../utils/datepicker.js';
 import { isoWeekday } from '../../utils/helpers.js';
-import { apiFetch } from '../../utils/api.js';
+import { apiFetch, ApiError } from '../../utils/api.js';
 import { offerableTags, offerableTagSets } from '../../utils/tags.js';
 import { showLoadError } from '../../utils/loading.js';
 import { openAccounts, pickableAccounts, accountOptionLabel, accountCurrency, linkableCandidates } from '../../utils/accounts.js';
@@ -1074,6 +1074,24 @@ export default class TransfersModule {
         } catch (error) {
             console.error('Failed to mark transfer as paid:', error);
             showError(error.message || t('budget', 'Failed to mark transfer as paid'));
+            await this._reloadAfterRefusal(error);
+        }
+    }
+
+    /**
+     * The server refused an action on a transfer. It may have moved on in
+     * another tab or by a second request, and its row went on offering what
+     * was just refused until the page was reloaded by hand (#399). A request
+     * that never reached the server leaves the list alone: reloading it
+     * would fail the same way.
+     *
+     * @param {*} error what the action failed with
+     */
+    async _reloadAfterRefusal(error) {
+        if (error instanceof ApiError) {
+            await this.loadTransfers();
+            this.renderTransfers();
+            this.updateSummary();
         }
     }
 
@@ -1127,6 +1145,7 @@ export default class TransfersModule {
         } catch (error) {
             console.error('Failed to skip transfer:', error);
             showError(error.message || t('budget', 'Failed to skip transfer'));
+            await this._reloadAfterRefusal(error);
         }
     }
 
@@ -1206,6 +1225,7 @@ export default class TransfersModule {
         } catch (error) {
             console.error('Failed to mark transfer as unpaid:', error);
             showError(error.message || t('budget', 'Failed to mark transfer as unpaid'));
+            await this._reloadAfterRefusal(error);
         }
     }
 
