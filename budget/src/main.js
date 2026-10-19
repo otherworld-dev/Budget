@@ -82,6 +82,7 @@ import { transactionTotalsByCurrency } from './utils/helpers.js';
 import { categoryOptionsHtml } from './utils/formSelects.js';
 import { apiFetch, ApiError } from './utils/api.js';
 import { openAccounts } from './utils/accounts.js';
+import { stuckIncomeItem } from './utils/repairFindings.js';
 
 // Configuration
 // Core
@@ -1743,11 +1744,12 @@ class BudgetApp {
         const dupCount = findings.duplicateTransactions?.length || 0;
         const stuckCount = findings.stuckBills?.length || 0;
         const paidOneTimeCount = findings.paidOneTimeBills?.length || 0;
+        const stuckIncomeCount = findings.stuckIncome?.length || 0;
         const futureCount = findings.futureClearedTransactions?.length || 0;
         const driftCount = findings.balanceDrift?.length || 0;
         const signCount = findings.liabilitySignFlipped?.length || 0;
         const splitCatCount = findings.splitParentCategories?.length || 0;
-        const totalIssues = dupCount + stuckCount + paidOneTimeCount + futureCount + driftCount + signCount + splitCatCount;
+        const totalIssues = dupCount + stuckCount + paidOneTimeCount + stuckIncomeCount + futureCount + driftCount + signCount + splitCatCount;
 
         const modal = document.createElement('div');
         modal.id = 'repair-data-modal';
@@ -1761,7 +1763,7 @@ class BudgetApp {
         if (totalIssues === 0) {
             findingsHtml = `<div class="repair-summary"><p>${t('budget', 'No data integrity issues found. Everything looks good!')}</p></div>`;
         } else {
-            findingsHtml = `<div class="repair-summary"><p>${t('budget', 'Found {count} issue(s) across {categories} categories.', { count: totalIssues, categories: (dupCount > 0 ? 1 : 0) + (stuckCount > 0 ? 1 : 0) + (paidOneTimeCount > 0 ? 1 : 0) + (futureCount > 0 ? 1 : 0) + (driftCount > 0 ? 1 : 0) + (signCount > 0 ? 1 : 0) })}</p></div>`;
+            findingsHtml = `<div class="repair-summary"><p>${t('budget', 'Found {count} issue(s) across {categories} categories.', { count: totalIssues, categories: (dupCount > 0 ? 1 : 0) + (stuckCount > 0 ? 1 : 0) + (paidOneTimeCount > 0 ? 1 : 0) + (stuckIncomeCount > 0 ? 1 : 0) + (futureCount > 0 ? 1 : 0) + (driftCount > 0 ? 1 : 0) + (signCount > 0 ? 1 : 0) })}</p></div>`;
 
             // Duplicate transactions. A tick per row, because a payment that
             // only looks like a duplicate is a real payment lost for good when
@@ -1840,6 +1842,24 @@ class BudgetApp {
                             <span class="repair-category-count">${paidOneTimeCount}</span>
                         </div>
                         <div class="repair-category-details">${paidOneTimeItems}</div>
+                    </div>`;
+            }
+
+            // Income an older version left expected on a payment it had
+            // already recorded (#399): Mark Received would record it again
+            if (stuckIncomeCount > 0) {
+                const stuckIncomeItems = findings.stuckIncome.map(i => stuckIncomeItem(i, formatCurrency)).join('');
+
+                findingsHtml += `
+                    <div class="repair-category" data-category="stuckIncome">
+                        <div class="repair-category-header">
+                            <h4><input type="checkbox" class="repair-checkbox" checked> ${t('budget', 'Income Received Early but Still Expected')}</h4>
+                            <span class="repair-category-count">${stuckIncomeCount}</span>
+                        </div>
+                        <div class="repair-category-details">
+                            <p class="repair-category-help">${t('budget', 'An older version recorded these payments on their expected date but left the income waiting for them, so Mark Received would record them a second time. Repairing moves each one on to its next date. Nothing is added or deleted.')}</p>
+                            ${stuckIncomeItems}
+                        </div>
                     </div>`;
             }
 
@@ -2032,6 +2052,9 @@ class BudgetApp {
                     }
                     if (result.paidOneTimeBills) {
                         parts.push(t('budget', '{count} one-time bills deactivated', { count: result.paidOneTimeBills.fixed }));
+                    }
+                    if (result.stuckIncome) {
+                        parts.push(t('budget', '{count} incomes moved on to their next date', { count: result.stuckIncome.fixed }));
                     }
                     if (result.futureClearedTransactions) {
                         parts.push(t('budget', '{count} future transactions set to scheduled', { count: result.futureClearedTransactions.fixed }));

@@ -1,0 +1,203 @@
+<?php
+
+declare(strict_types=1);
+
+namespace OCA\Budget\Tests\Integration\Migration;
+
+use OCA\Budget\Db\DanglingLinks;
+use OCA\Budget\Db\LegacyIncomeRows;
+use OCA\Budget\Migration\Version001000125Date20261019;
+use OCA\Budget\Service\RepairService;
+use OCA\Budget\Tests\Integration\IntegrationTestCase;
+use OCP\DB\ISchemaWrapper;
+use OCP\Migration\IOutput;
+
+/**
+ * What older versions left that 3.x clears up (#399), against the real
+ * database: incomes 2.54.0 left expected on a receipt it had already
+ * booked, and references to deleted bills and transactions (migration 125).
+ *
+ * The migration is global (it has no user scope), so it also settles and
+ * clears other users' rows on the server it runs on; the assertions are
+ * about this test's own rows only.
+ */
+class LegacyCleanupTest extends IntegrationTestCase {
+	private const SBB = 'Gutschrift SBB Abo Leon';
+
+	/** The reporter's SBB Abo income: due the 29th, received on the 28th */
+	private function income(int $accountId, array $overrides = [], ?string $userId = null): int {
+		return $this->insertRow('budget_recurring_income', $overrides + [
+			'user_id' => $userId ?? $this->userId, 'name' => self::SBB, 'amount' => '100.00', 'frequency' => 'monthly',
+			'expected_day' => 29, 'account_id' => $accountId, 'is_active' => true,
+			'last_received_date' => '2026-09-28', 'next_expected_date' => '2026-09-29',
+			'created_at' => '2026-09-27 21:00:13',
+		]);
+	}
+
+	/** A credit the income booked: 2.54.0 dated it on the expected date */
+	private function credit(int $accountId, string $date, string $createdAt, array $overrides = []): int {
+		return $this->makeTransaction($accountId, $overrides + [
+			'date' => $date, 'amount' => '100.00', 'type' => 'credit', 'vendor' => self::SBB, 'description' => '',
+			'notes' => 'Auto-generated from income: ' . self::SBB, 'created_at' => $createdAt, 'updated_at' => $createdAt,
+		]);
+	}
+
+	private function nextExpected(int $incomeId): string {
+		return substr((string)$this->fetchRow('budget_recurring_income', $incomeId)['next_expected_date'], 0, 10);
+	}
+
+	public function testAnIncomeReceivedEarlyUnder254MovesOnToItsNextDate(): void {
+		$account = $this->makeAccount()->getId();
+		$income = $this->income($account);
+		$credit = $this->credit($account, '2026-09-29', '2026-09-28 18:43:15');
+
+		$this->runMigration();
+
+		$this->assertSame('2026-10-29', $this->nextExpected($income));
+		$row = $this->fetchRow('budget_recurring_income', $income);
+		$this->assertSame('2026-09-28', substr((string)$row['last_received_date'], 0, 10));
+		// Nothing booked or deleted
+		$this->assertNotNull($this->fetchRow('budget_transactions', $credit));
+		$this->assertSame(1, $this->countRows('budget_transactions', ['account_id' => $account]));
+	}
+
+	public function testOrdinaryReceiptsAreLeftAlone(): void {
+		$account = $this->makeAccount()->getId();
+		// Received on its date: 2.54.0 moved it on itself
+		$onTheDay = $this->income($account, ['name' => 'On the day']);
+		$this->credit($account, '2026-09-29', '2026-09-29 08:00:00', ['notes' => 'Auto-generated from income: On the day']);
+		// Moved on since (skipped or received again)
+		$movedOn = $this->income($account, ['name' => 'Moved on', 'next_expected_date' => '2026-10-29']);
+		$this->credit($account, '2026-09-29', '2026-09-28 18:00:00', ['notes' => 'Auto-generated from income: Moved on']);
+		// A credit another income booked
+		$other = $this->income($account, ['name' => 'Other']);
+		$this->credit($account, '2026-09-29', '2026-09-28 18:00:00', ['notes' => 'Auto-generated from income: Somebody else']);
+		// The bank's own row, imported
+		$imported = $this->income($account, ['name' => 'Imported']);
+		$this->credit($account, '2026-09-29', '2026-09-28 18:00:00', ['notes' => 'Auto-generated from income: Imported', 'import_id' => 'csv-1']);
+		// Switched off
+		$paused = $this->income($account, ['name' => 'Paused', 'is_active' => false]);
+		$this->credit($account, '2026-09-29', '2026-09-28 18:00:00', ['notes' => 'Auto-generated from income: Paused']);
+
+		$this->runMigration();
+
+		$this->assertSame('2026-09-29', $this->nextExpected($onTheDay));
+		$this->assertSame('2026-10-29', $this->nextExpected($movedOn));
+		$this->assertSame('2026-09-29', $this->nextExpected($other));
+		$this->assertSame('2026-09-29', $this->nextExpected($imported));
+		$this->assertSame('2026-09-29', $this->nextExpected($paused));
+	}
+
+	public function testStuckEarlyReceiptsReadsOneUsersIncomesOnly(): void {
+		$mine = $this->makeAccount()->getId();
+		$this->income($mine);
+		$this->credit($mine, '2026-09-29', '2026-09-28 18:43:15');
+		$someoneElse = $this->newUserId();
+		$theirs = $this->makeAccount([], $someoneElse)->getId();
+		$this->income($theirs, [], $someoneElse);
+		$this->credit($theirs, '2026-09-29', '2026-09-28 18:43:15');
+
+		$found = $this->service(LegacyIncomeRows::class)->stuckEarlyReceipts($this->userId);
+
+		$this->assertCount(1, $found);
+		$this->assertSame($this->userId, $found[0]['userId']);
+		$this->assertSame('2026-10-29', $found[0]['settledNextExpectedDate']);
+	}
+
+	public function testADeletedBillsPaymentsLetGoOfItsId(): void {
+		$account = $this->makeAccount()->getId();
+		$live = $this->insertRow('budget_bills', [
+			'user_id' => $this->userId, 'name' => 'KPT', 'amount' => '484.75', 'frequency' => 'monthly',
+			'account_id' => $account, 'is_active' => true, 'due_day' => 29, 'next_due_date' => '2026-10-29',
+			'created_at' => $this->now(),
+		]);
+		$gone = $this->insertRow('budget_bills', [
+			'user_id' => $this->userId, 'name' => 'Christian Uhrenschmuck24', 'amount' => '91.59', 'frequency' => 'monthly',
+			'account_id' => $account, 'is_active' => true, 'due_day' => 29, 'next_due_date' => '2026-09-29',
+			'created_at' => $this->now(),
+		]);
+		$livePayment = $this->makeTransaction($account, ['bill_id' => $live, 'date' => '2026-08-29']);
+		$deadPayment = $this->makeTransaction($account, ['bill_id' => $gone, 'date' => '2026-08-29']);
+		$deadPending = $this->makeTransaction($account, ['bill_id' => $gone, 'date' => '2026-09-29', 'status' => 'scheduled']);
+		$this->db()->executeStatement('DELETE FROM *PREFIX*budget_bills WHERE id = ?', [$gone]);
+
+		$this->runMigration();
+
+		$this->assertSame($live, (int)$this->fetchRow('budget_transactions', $livePayment)['bill_id']);
+		$this->assertNull($this->fetchRow('budget_transactions', $deadPayment)['bill_id']);
+		// Without its bill's id, the scheduled job would book it on its date
+		$this->assertSame($gone, (int)$this->fetchRow('budget_transactions', $deadPending)['bill_id']);
+	}
+
+	/** The reporter's July CSX payment: its deposit was deleted by a version before 2.41 */
+	public function testATransferSideWhoseOtherSideIsGoneLetsGoOfIt(): void {
+		$account = $this->makeAccount()->getId();
+		$card = $this->makeAccount(['name' => 'CSX Pro Credit Card', 'type' => 'credit_card'])->getId();
+		[$out, $in] = $this->transferPair($account, $card, null, '2026-06-28', '2026-06-28 12:12:34');
+		[$orphanOut, $deletedIn] = $this->transferPair($account, $card, null, '2026-07-25', '2026-06-28 12:12:34');
+		$this->db()->executeStatement('DELETE FROM *PREFIX*budget_transactions WHERE id = ?', [$deletedIn]);
+
+		$this->runMigration();
+
+		$this->assertNull($this->fetchRow('budget_transactions', $orphanOut)['linked_transaction_id']);
+		$this->assertSame($in, (int)$this->fetchRow('budget_transactions', $out)['linked_transaction_id']);
+		$this->assertSame($out, (int)$this->fetchRow('budget_transactions', $in)['linked_transaction_id']);
+	}
+
+	public function testRunningItTwiceChangesNothingMore(): void {
+		$account = $this->makeAccount()->getId();
+		$income = $this->income($account);
+		$this->credit($account, '2026-09-29', '2026-09-28 18:43:15');
+
+		$this->runMigration();
+		$this->runMigration();
+
+		$this->assertSame('2026-10-29', $this->nextExpected($income));
+	}
+
+	public function testRepairDataSettlesAStuckIncome(): void {
+		$account = $this->makeAccount()->getId();
+		$income = $this->income($account);
+		$this->credit($account, '2026-09-29', '2026-09-28 18:43:15');
+		$repair = $this->service(RepairService::class);
+
+		$this->assertSame([$income], array_column($repair->diagnose($this->userId)['stuckIncome'], 'incomeId'));
+
+		$result = $repair->repair($this->userId, ['stuckIncome']);
+
+		$this->assertSame(['fixed' => 1, 'found' => 1], $result['stuckIncome']);
+		$this->assertSame('2026-10-29', $this->nextExpected($income));
+		$this->assertSame([], $repair->diagnose($this->userId)['stuckIncome']);
+	}
+
+	/**
+	 * Both sides of a transfer a bill booked, linked to each other.
+	 *
+	 * @return array{0: int, 1: int} [withdrawal, deposit]
+	 */
+	private function transferPair(int $from, int $to, ?int $billId, string $date, string $createdAt, ?string $updatedAt = null): array {
+		$row = [
+			'bill_id' => $billId, 'date' => $date, 'amount' => '50.00', 'vendor' => 'CSX Pro Credit Cards', 'description' => '',
+			'notes' => 'Auto-generated transfer: CSX Pro Credit Cards', 'created_at' => $createdAt, 'updated_at' => $updatedAt ?? $createdAt,
+		];
+		$out = $this->makeTransaction($from, $row);
+		$in = $this->makeTransaction($to, $row + ['type' => 'credit', 'linked_transaction_id' => $out]);
+		$this->db()->executeStatement('UPDATE *PREFIX*budget_transactions SET linked_transaction_id = ? WHERE id = ?', [$in, $out]);
+		return [$out, $in];
+	}
+
+	private function runMigration(): void {
+		$schema = $this->createMock(ISchemaWrapper::class);
+		$schema->method('hasTable')->willReturn(true);
+		$schema->method('getTable')->willReturn(new class {
+			public function hasColumn(string $name): bool {
+				return true;
+			}
+		});
+		$migration = new Version001000125Date20261019(
+			$this->service(LegacyIncomeRows::class),
+			$this->service(DanglingLinks::class),
+		);
+		$migration->postSchemaChange($this->createMock(IOutput::class), static fn () => $schema, []);
+	}
+}
