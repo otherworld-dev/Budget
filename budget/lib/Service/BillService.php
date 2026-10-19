@@ -3186,8 +3186,14 @@ class BillService {
 			$owedAmounts = [];
 			$nextDue = $bill->getNextDueDate();
 			if ($bill->getIsActive() && $nextDue !== null && $nextDue !== '') {
+				// A one-time bill still due whose date a payment paid (one
+				// linked to it before Mark Paid) is paid, not owed as well: the
+				// month showed both, 200 for one 100 invoice (#399)
+				$paidDates = $bill->getFrequency() === 'one-time'
+					? array_column(array_merge(...array_values($paidDetails)), 'due')
+					: [];
 				foreach ($datesByMonth as $month => $dates) {
-					$owed = count(array_filter($dates, fn (string $d): bool => $d >= $nextDue));
+					$owed = count(array_filter($dates, fn (string $d): bool => $d >= $nextDue && !in_array($d, $paidDates, true)));
 					if ($owed > 0) {
 						$owedAmounts[$month] = $amount * $owed;
 					}
