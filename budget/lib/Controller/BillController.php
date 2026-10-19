@@ -980,8 +980,24 @@ class BillController extends Controller {
 			// The occurrence the page showed, so a second click or a stale
 			// tab is refused instead of paying it twice
 			$expectedDueDate = is_string($params['dueDate'] ?? null) ? $params['dueDate'] : null;
+			$owner = $this->billOwner($id);
 
-			$result = $this->service->markPaid($id, $this->billOwner($id), $paidDate, $recordPayment, $existingTransactionId, $expectedDueDate, $this->userId);
+			// The ledger may hold the occurrence's payment already: a bill
+			// made due again was paid a second time with one click (#399).
+			// Booking another then takes the user saying so; the page asks.
+			if ($recordPayment && $existingTransactionId === null
+				&& !filter_var($params['confirmSecondPayment'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+				$existing = $this->service->recordedPaymentForPendingOccurrence($id, $owner, $expectedDueDate);
+				if ($existing !== null) {
+					return new DataResponse([
+						'error' => $this->l->t('This bill already has a payment on %1$s.', [$existing['date']]),
+						'code' => 'payment_recorded',
+						'existing' => $existing,
+					], Http::STATUS_CONFLICT);
+				}
+			}
+
+			$result = $this->service->markPaid($id, $owner, $paidDate, $recordPayment, $existingTransactionId, $expectedDueDate, $this->userId);
 			return new DataResponse($result);
 		} catch (\InvalidArgumentException $e) {
 			// Service-only validation keeps its message (#362)

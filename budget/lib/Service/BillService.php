@@ -452,6 +452,12 @@ class BillService {
 			if ($snapshot['linkedTransactionId'] !== null) {
 				$ids[] = $snapshot['linkedTransactionId'];
 			}
+			// Paid with a row already there (#399). By date alone a re-opened
+			// one-time bill's row read as the earlier payment's: it was last
+			// paid on that same day.
+			if (isset($snapshot['usedTransactionId'])) {
+				$ids[] = $snapshot['usedTransactionId'];
+			}
 			$ids = array_map('intval', array_filter($ids, 'is_numeric'));
 			foreach ($rows as $tx) {
 				if (in_array($tx->getId(), $ids, true)) {
@@ -492,6 +498,90 @@ class BillService {
 			return null;
 		}
 		return $decoded;
+	}
+
+	/**
+	 * The payment already in the ledger for the occurrence the bill is due
+	 * on, if it has one (#399). Mark Paid only compared the page's due date
+	 * with the bill's, and the bill's own rows were never offered as the
+	 * payment: a bill made due again (switched to One-Time, its schedule
+	 * edited) was paid a second time with one click.
+	 *
+	 * @param string|null $expectedDueDate the occurrence the page showed;
+	 *                                     none to report once the bill has moved past it (Mark Paid then
+	 *                                     refuses it as already recorded)
+	 * @return array{id: int, date: string, amount: float}|null
+	 */
+	public function recordedPaymentForPendingOccurrence(int $id, string $userId, ?string $expectedDueDate = null): ?array {
+		$bill = $this->find($id, $userId);
+		if ($expectedDueDate !== null && $expectedDueDate !== '' && $expectedDueDate !== $bill->getNextDueDate()) {
+			return null;
+		}
+		$row = $this->recordedPaymentFor($bill);
+		return $row === null ? null : [
+			'id' => (int)$row->getId(),
+			'date' => substr((string)$row->getDate(), 0, 10),
+			'amount' => (float)$row->getAmount(),
+		];
+	}
+
+	/**
+	 * A row of the bill that already pays the occurrence it is due on. For
+	 * a one-time bill that is any it has. For a recurring one it is a row
+	 * dated after the last payment and no earlier than the due window
+	 * before the occurrence (a late payment of the previous occurrence is
+	 * that one's), which the last payment didn't book, link or use itself.
+	 * A pre-booked row is no payment. The bill's own account comes first (a
+	 * transfer's deposit carries the bill too), then the nearest the date.
+	 */
+	private function recordedPaymentFor(Bill $bill): ?\OCA\Budget\Db\Transaction {
+		$due = $bill->getNextDueDate();
+		if (!$bill->getIsActive() || $due === null || $due === '') {
+			return null;
+		}
+		$oneTime = $bill->getFrequency() === 'one-time';
+		$lastPaid = $bill->getLastPaidDate();
+		$from = (new \DateTimeImmutable($due))->modify('-' . $this->dueDateToleranceDays($bill->getFrequency()) . ' days')->format('Y-m-d');
+		$lastPayment = $this->lastPaymentRowIds($bill);
+
+		$best = null;
+		$rank = null;
+		foreach ($this->transactionService->findRecordedBillTransactions([(int)$bill->getId()]) as $row) {
+			$date = substr((string)$row->getDate(), 0, 10);
+			if (($row->getStatus() ?? 'cleared') === 'scheduled') {
+				continue;
+			}
+			if (!$oneTime && (($lastPaid !== null && $date <= $lastPaid) || $date < $from
+				|| in_array((int)$row->getId(), $lastPayment, true))) {
+				continue;
+			}
+			$thisRank = [(int)($row->getAccountId() !== $bill->getAccountId()), abs(strtotime($date) - strtotime($due)), (int)$row->getId()];
+			if ($rank === null || $thisRank < $rank) {
+				[$best, $rank] = [$row, $thisRank];
+			}
+		}
+		return $best;
+	}
+
+	/**
+	 * The rows the bill's latest snapshot says its payment booked, linked
+	 * or used, whichever payment it describes
+	 *
+	 * @return int[]
+	 */
+	private function lastPaymentRowIds(Bill $bill): array {
+		$raw = $bill->getPaidUndoState();
+		$decoded = ($raw !== null && $raw !== '') ? json_decode($raw, true) : null;
+		if (!is_array($decoded)) {
+			return [];
+		}
+		$ids = is_array($decoded['createdTransactionIds'] ?? null) ? $decoded['createdTransactionIds'] : [];
+		foreach (['linkedTransactionId', 'usedTransactionId'] as $key) {
+			if (isset($decoded[$key])) {
+				$ids[] = $decoded[$key];
+			}
+		}
+		return array_values(array_map('intval', array_filter($ids, 'is_numeric')));
 	}
 
 	/**
@@ -1145,6 +1235,13 @@ class BillService {
 			$arrivalAmount = $this->transactionService->transferArrivalAmount($existingRow, $bill);
 		}
 
+		// Paid with nothing booked or linked while the ledger already holds
+		// the occurrence's payment (the Mark Paid dialog's "Use that
+		// payment", #399): that row is the payment, and the snapshot says so
+		$usedPayment = ($existingRow === null && !($recordPayment && $bill->getAccountId() !== null))
+			? $this->recordedPaymentFor($bill)
+			: null;
+
 		// The occurrence is claimed before anything is booked (#399). Two
 		// requests for it at once (a double click, two tabs, auto-pay and a
 		// click) both passed the checks above and both booked a payment;
@@ -1284,6 +1381,10 @@ class BillService {
 			'createdTransactionIds' => $createdTransactionIds,
 			'scheduledTransactionIds' => $scheduledTransactionIds,
 			'linkedTransactionId' => $linkedTransactionId,
+			// A row the ledger already held that this payment stands for. It
+			// tells the unrecorded-payments card the payment is recorded, and
+			// Mark Unpaid leaves it as it was, neither deleted nor unlinked.
+			'usedTransactionId' => $usedPayment?->getId(),
 			'hadScheduledTransaction' => $hadScheduledTransaction,
 			'paidDate' => $paidDate,
 		]));
@@ -1321,10 +1422,10 @@ class BillService {
 			'linkedExistingTransaction' => $linkedExistingTransaction,
 			// False = the bill was marked paid but NO money movement was
 			// recorded (no account on the bill, creation failed, or the user
-			// neither created nor linked a transaction). The UI must surface
-			// this — silently recording nothing made app balances drift from
-			// real bank balances (#89, #274).
-			'paymentTransactionRecorded' => $paymentTransactionRecorded || $linkedExistingTransaction,
+			// neither created nor linked a transaction, and none was there
+			// already). The UI must surface this — silently recording nothing
+			// made app balances drift from real bank balances (#89, #274).
+			'paymentTransactionRecorded' => $paymentTransactionRecorded || $linkedExistingTransaction || $usedPayment !== null,
 			// Non-null only for statement bills: the amount resolved for
 			// this payment (#347)
 			'statementAmount' => $statementAmount,

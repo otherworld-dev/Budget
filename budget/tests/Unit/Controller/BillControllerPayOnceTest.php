@@ -52,6 +52,70 @@ class BillControllerPayOnceTest extends TestCase {
 		);
 	}
 
+	// ── Mark Paid ───────────────────────────────────────────────────
+
+	private const CEMBRAPAY = ['id' => 1350727, 'date' => '2026-09-27', 'amount' => 151.67];
+
+	public function testAPaymentTheLedgerAlreadyHasIsReportedNotBooked(): void {
+		// The re-opened CembraPay bill: one click paid it a second time
+		$this->params = ['recordPayment' => true, 'dueDate' => '2026-09-28'];
+		$this->service->method('recordedPaymentForPendingOccurrence')->with(1, 'user1', '2026-09-28')->willReturn(self::CEMBRAPAY);
+		$this->service->expects($this->never())->method('markPaid');
+
+		$response = $this->controller()->markPaid(1);
+
+		$this->assertSame(Http::STATUS_CONFLICT, $response->getStatus());
+		$this->assertSame('payment_recorded', $response->getData()['code']);
+		$this->assertSame(self::CEMBRAPAY, $response->getData()['existing']);
+		$this->assertSame('This bill already has a payment on 2026-09-27.', $response->getData()['error']);
+	}
+
+	public function testASecondPaymentIsBookedWhenConfirmed(): void {
+		$this->params = ['recordPayment' => true, 'dueDate' => '2026-09-28', 'confirmSecondPayment' => true];
+		$this->service->expects($this->never())->method('recordedPaymentForPendingOccurrence');
+		$this->service->expects($this->once())->method('markPaid')
+			->with(1, 'user1', null, true, null, '2026-09-28')
+			->willReturn(['bill' => new Bill()]);
+
+		$this->assertSame(Http::STATUS_OK, $this->controller()->markPaid(1)->getStatus());
+	}
+
+	public function testAConfirmationSentAsTextIsReadAsSuch(): void {
+		// filter_var, not a cast: (bool)"false" is true
+		$this->params = ['recordPayment' => 'true', 'dueDate' => '2026-09-28', 'confirmSecondPayment' => 'false'];
+		$this->service->method('recordedPaymentForPendingOccurrence')->willReturn(self::CEMBRAPAY);
+		$this->service->expects($this->never())->method('markPaid');
+
+		$this->assertSame(Http::STATUS_CONFLICT, $this->controller()->markPaid(1)->getStatus());
+	}
+
+	public function testUsingThePaymentAlreadyThereAsksNothing(): void {
+		// "Use that payment": marked paid on its date, nothing booked
+		$this->params = ['recordPayment' => false, 'dueDate' => '2026-09-28'];
+		$this->service->expects($this->never())->method('recordedPaymentForPendingOccurrence');
+		$this->service->expects($this->once())->method('markPaid')
+			->with(1, 'user1', '2026-09-27', false, null, '2026-09-28', 'user1')
+			->willReturn(['bill' => new Bill()]);
+
+		$this->assertSame(Http::STATUS_OK, $this->controller()->markPaid(1, '2026-09-27')->getStatus());
+	}
+
+	public function testLinkingARowAsksNothing(): void {
+		$this->params = ['recordPayment' => false, 'existingTransactionId' => 77, 'dueDate' => '2026-09-28'];
+		$this->service->expects($this->never())->method('recordedPaymentForPendingOccurrence');
+		$this->service->expects($this->once())->method('markPaid')->willReturn(['bill' => new Bill()]);
+
+		$this->assertSame(Http::STATUS_OK, $this->controller()->markPaid(1)->getStatus());
+	}
+
+	public function testABillWithNoPaymentInTheLedgerIsPaid(): void {
+		$this->params = ['recordPayment' => true, 'dueDate' => '2026-10-28'];
+		$this->service->method('recordedPaymentForPendingOccurrence')->willReturn(null);
+		$this->service->expects($this->once())->method('markPaid')->willReturn(['bill' => new Bill()]);
+
+		$this->assertSame(Http::STATUS_OK, $this->controller()->markPaid(1)->getStatus());
+	}
+
 	// ── Skip ────────────────────────────────────────────────────────
 
 	public function testSkipNamesTheOccurrenceThePageShowed(): void {

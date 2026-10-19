@@ -49,6 +49,45 @@ class RecurringIncomeControllerPayOnceTest extends TestCase {
 		);
 	}
 
+	// ── Mark Received ───────────────────────────────────────────────
+
+	private const SBB_CREDIT = ['id' => 1350741, 'date' => '2026-09-29', 'amount' => 100.0];
+
+	public function testACreditTheLedgerAlreadyHasIsReportedNotBooked(): void {
+		// The reporter's SBB Abo: one click booked another 100
+		$this->params = ['createTransaction' => true, 'expectedDate' => '2026-09-29'];
+		$this->service->method('recordedReceiptForPendingOccurrence')
+			->with(1, 'user1', '2026-09-29', 'user1')->willReturn(self::SBB_CREDIT);
+		$this->service->expects($this->never())->method('markReceived');
+
+		$response = $this->controller()->markReceived(1, '2026-10-19');
+
+		$this->assertSame(Http::STATUS_CONFLICT, $response->getStatus());
+		$this->assertSame('receipt_recorded', $response->getData()['code']);
+		$this->assertSame(self::SBB_CREDIT, $response->getData()['existing']);
+		$this->assertSame('This income already has a payment on 2026-09-29.', $response->getData()['error']);
+	}
+
+	public function testASecondCreditIsBookedWhenConfirmed(): void {
+		$this->params = ['createTransaction' => true, 'expectedDate' => '2026-09-29', 'confirmSecondPayment' => true];
+		$this->service->expects($this->never())->method('recordedReceiptForPendingOccurrence');
+		$this->service->expects($this->once())->method('markReceived')
+			->with(1, 'user1', '2026-10-19', true, '2026-09-29', 'user1')
+			->willReturn(new RecurringIncome());
+
+		$this->assertSame(Http::STATUS_OK, $this->controller()->markReceived(1, '2026-10-19')->getStatus());
+	}
+
+	public function testUsingTheCreditAlreadyThereAsksNothing(): void {
+		$this->params = ['createTransaction' => false, 'expectedDate' => '2026-09-29'];
+		$this->service->expects($this->never())->method('recordedReceiptForPendingOccurrence');
+		$this->service->expects($this->once())->method('markReceived')
+			->with(1, 'user1', '2026-09-29', false, '2026-09-29')
+			->willReturn(new RecurringIncome());
+
+		$this->assertSame(Http::STATUS_OK, $this->controller()->markReceived(1, '2026-09-29')->getStatus());
+	}
+
 	// ── Skip ────────────────────────────────────────────────────────
 
 	public function testSkipNamesThePaymentThePageShowed(): void {

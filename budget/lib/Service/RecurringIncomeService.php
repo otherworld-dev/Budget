@@ -308,6 +308,68 @@ class RecurringIncomeService extends AbstractCrudService {
 	}
 
 	/**
+	 * The credit already in the ledger for the payment the income is
+	 * expected on, if it has one (#399). Mark Received always booked a new
+	 * one: an income 2.54.0 left expecting a payment whose credit was in
+	 * already took a second one with one click. Only credits the app booked
+	 * for this income count, by their notes (the row has no column for it).
+	 * For a one-time income that is any it has; for a recurring one a credit
+	 * dated after the last receipt and no earlier than the expected window
+	 * before the date, which the last receipt didn't book itself.
+	 *
+	 * @param string|null $expectedDate the payment the page showed; none to
+	 *                                  report once the income has moved past it
+	 * @param string|null $actingUserId the person asking. Nothing is shown to
+	 *                                  someone Mark Received wouldn't let book into the income's account:
+	 *                                  the credit sits in a ledger they may not see.
+	 * @return array{id: int, date: string, amount: float}|null
+	 */
+	public function recordedReceiptForPendingOccurrence(int $id, string $userId, ?string $expectedDate = null, ?string $actingUserId = null): ?array {
+		$income = $this->find($id, $userId);
+		$due = $income->getNextExpectedDate();
+		if (!$income->getIsActive() || $due === null || $due === '' || $income->getAccountId() === null
+			|| ($expectedDate !== null && $expectedDate !== '' && $expectedDate !== $due)) {
+			return null;
+		}
+		try {
+			$this->requireWritableAccount($income);
+			$this->requireWritableByActingUser($income, $actingUserId);
+		} catch (\InvalidArgumentException|ReadOnlyShareException $e) {
+			return null;
+		}
+
+		$oneTime = $income->getFrequency() === 'one-time';
+		$window = self::expectedWindowDays($income->getFrequency());
+		$from = $oneTime ? '1970-01-01' : (new \DateTimeImmutable($due))->modify("-{$window} days")->format('Y-m-d');
+		$note = 'Auto-generated from income: ' . $income->getName();
+		$lastReceived = $income->getLastReceivedDate();
+		$raw = $income->getReceivedUndoState();
+		$snapshot = ($raw !== null && $raw !== '') ? json_decode($raw, true) : null;
+		$booked = is_array($snapshot) && is_array($snapshot['transactionIds'] ?? null) ? array_map('intval', $snapshot['transactionIds']) : [];
+
+		$best = null;
+		$rank = null;
+		foreach ($this->transactionService->findGeneratedIncomeCredits((int)$income->getAccountId(), $from, '9999-12-31') as $credit) {
+			$date = substr((string)$credit->getDate(), 0, 10);
+			if ((string)$credit->getNotes() !== $note || ($credit->getStatus() ?? 'cleared') === 'scheduled') {
+				continue;
+			}
+			if (!$oneTime && (($lastReceived !== null && $date <= $lastReceived) || in_array((int)$credit->getId(), $booked, true))) {
+				continue;
+			}
+			$thisRank = [abs(strtotime($date) - strtotime($due)), (int)$credit->getId()];
+			if ($rank === null || $thisRank < $rank) {
+				[$best, $rank] = [$credit, $thisRank];
+			}
+		}
+		return $best === null ? null : [
+			'id' => (int)$best->getId(),
+			'date' => substr((string)$best->getDate(), 0, 10),
+			'amount' => (float)$best->getAmount(),
+		];
+	}
+
+	/**
 	 * Revert the last Mark Received: the dates and active state go back and
 	 * the credit it booked is removed.
 	 *
