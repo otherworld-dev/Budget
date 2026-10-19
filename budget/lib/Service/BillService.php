@@ -510,14 +510,16 @@ class BillService {
 	 * @param string|null $expectedDueDate the occurrence the page showed;
 	 *                                     none to report once the bill has moved past it (Mark Paid then
 	 *                                     refuses it as already recorded)
+	 * @param string|null $actingUserId the person asking: only a row in an
+	 *                                  account they can write to is reported (see recordedPaymentFor())
 	 * @return array{id: int, date: string, amount: float}|null
 	 */
-	public function recordedPaymentForPendingOccurrence(int $id, string $userId, ?string $expectedDueDate = null): ?array {
+	public function recordedPaymentForPendingOccurrence(int $id, string $userId, ?string $expectedDueDate = null, ?string $actingUserId = null): ?array {
 		$bill = $this->find($id, $userId);
 		if ($expectedDueDate !== null && $expectedDueDate !== '' && $expectedDueDate !== $bill->getNextDueDate()) {
 			return null;
 		}
-		$row = $this->recordedPaymentFor($bill);
+		$row = $this->recordedPaymentFor($bill, $actingUserId);
 		return $row === null ? null : [
 			'id' => (int)$row->getId(),
 			'date' => substr((string)$row->getDate(), 0, 10),
@@ -536,11 +538,16 @@ class BillService {
 	 * re-opened was last paid by that very row. A recurring bill's must
 	 * also be dated after the last payment (a late payment of the previous
 	 * occurrence is that one's) and not be a row the last payment booked,
-	 * linked or used itself. A pre-booked row is no payment. The bill's own
-	 * account comes first (a transfer's deposit carries the bill too), then
-	 * the nearest the date.
+	 * linked or used itself. A pre-booked row is no payment, and nor is one
+	 * in an account the person asking can't write to: a bill with no
+	 * account pays from anyone's, and its date and amount were shown to
+	 * someone the bill alone was shared with. The bill's own account comes
+	 * first (a transfer's deposit carries the bill too), then the nearest
+	 * the date.
+	 *
+	 * @param string|null $actingUserId the person asking, when it is one
 	 */
-	private function recordedPaymentFor(Bill $bill): ?\OCA\Budget\Db\Transaction {
+	private function recordedPaymentFor(Bill $bill, ?string $actingUserId = null): ?\OCA\Budget\Db\Transaction {
 		$due = $bill->getNextDueDate();
 		if (!$bill->getIsActive() || $due === null || $due === '') {
 			return null;
@@ -562,6 +569,10 @@ class BillService {
 			}
 			if (!$oneTime && (($lastPaid !== null && $date <= $lastPaid)
 				|| in_array((int)$row->getId(), $lastPayment, true))) {
+				continue;
+			}
+			if ($actingUserId !== null && $this->granularShareService !== null
+				&& !$this->granularShareService->canWrite($actingUserId, ShareItem::TYPE_ACCOUNT, (int)$row->getAccountId())) {
 				continue;
 			}
 			$thisRank = [(int)($row->getAccountId() !== $bill->getAccountId()), abs(strtotime($date) - strtotime($due)), (int)$row->getId()];
@@ -1215,7 +1226,7 @@ class BillService {
 		// so. Looked for before the bill takes the payment's date: dated on
 		// it, the row of a recurring bill read as the last payment's.
 		$usedPayment = ($existingRow === null && !($recordPayment && $bill->getAccountId() !== null))
-			? $this->recordedPaymentFor($bill)
+			? $this->recordedPaymentFor($bill, $actingUserId)
 			: null;
 
 		// The payment's date:a linked row's own, else today so the payment

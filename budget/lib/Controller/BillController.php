@@ -985,9 +985,10 @@ class BillController extends Controller {
 			// The ledger may hold the occurrence's payment already: a bill
 			// made due again was paid a second time with one click (#399).
 			// Booking another then takes the user saying so; the page asks.
+			// Only a payment in an account the user can write to is named.
 			if ($recordPayment && $existingTransactionId === null
 				&& !filter_var($params['confirmSecondPayment'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
-				$existing = $this->service->recordedPaymentForPendingOccurrence($id, $owner, $expectedDueDate);
+				$existing = $this->service->recordedPaymentForPendingOccurrence($id, $owner, $expectedDueDate, $this->userId);
 				if ($existing !== null) {
 					return new DataResponse([
 						'error' => $this->l->t('This bill already has a payment on %1$s.', [$existing['date']]),

@@ -33,7 +33,8 @@ class BillControllerPayOnceTest extends TestCase {
 		$this->service = $this->createMock(BillService::class);
 	}
 
-	private function controller(?ValidationService $validation = null): BillController {
+	/** @param string $user the person acting; the bill is user1's */
+	private function controller(?ValidationService $validation = null, string $user = 'user1'): BillController {
 		$l = $this->createMock(IL10N::class);
 		$l->method('t')->willReturnCallback(fn (string $text, array $parameters = []) => vsprintf($text, $parameters));
 		$shares = $this->createMock(GranularShareService::class);
@@ -47,7 +48,7 @@ class BillControllerPayOnceTest extends TestCase {
 			$this->createMock(\OCA\Budget\Service\Bill\BillSuggestionService::class),
 			$this->createMock(\OCA\Budget\Service\UpcomingBillsService::class),
 			$l,
-			'user1',
+			$user,
 			$this->createMock(LoggerInterface::class),
 		);
 	}
@@ -68,6 +69,19 @@ class BillControllerPayOnceTest extends TestCase {
 		$this->assertSame('payment_recorded', $response->getData()['code']);
 		$this->assertSame(self::CEMBRAPAY, $response->getData()['existing']);
 		$this->assertSame('This bill already has a payment on 2026-09-27.', $response->getData()['error']);
+	}
+
+	public function testThePaymentIsLookedForAsThePersonPaying(): void {
+		// Someone the bill is shared with is only told of a payment in an
+		// account they can write to
+		$this->params = ['recordPayment' => true, 'dueDate' => '2026-09-28'];
+		$this->service->method('find')->willReturn(new Bill());
+		$this->service->expects($this->once())->method('recordedPaymentForPendingOccurrence')
+			->with(1, 'user1', '2026-09-28', 'bob')
+			->willReturn(null);
+		$this->service->method('markPaid')->willReturn(['bill' => new Bill()]);
+
+		$this->assertSame(Http::STATUS_OK, $this->controller(null, 'bob')->markPaid(1)->getStatus());
 	}
 
 	public function testASecondPaymentIsBookedWhenConfirmed(): void {

@@ -14,6 +14,7 @@ use OCA\Budget\Service\Bill\FrequencyCalculator;
 use OCA\Budget\Service\Bill\RecurringBillDetector;
 use OCA\Budget\Service\BillService;
 use OCA\Budget\Service\CurrencyConversionService;
+use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\TransactionService;
 use OCA\Budget\Service\TransactionSplitService;
 use OCA\Budget\Service\UserClock;
@@ -39,6 +40,8 @@ class BillRecordedPaymentTest extends TestCase {
 	private array $rows = [];
 	/** @var string[] payments booked */
 	private array $booked = [];
+	/** @var array<string, int[]> user => accounts they can't write to (every other one they can) */
+	private array $unwritable = [];
 
 	protected function setUp(): void {
 		$mapper = $this->createMock(BillMapper::class);
@@ -78,6 +81,10 @@ class BillRecordedPaymentTest extends TestCase {
 		$clock->method('today')->willReturn(self::TODAY);
 		$l = $this->createMock(IL10N::class);
 		$l->method('t')->willReturnArgument(0);
+		$shares = $this->createMock(GranularShareService::class);
+		$shares->method('canWrite')->willReturnCallback(
+			fn (string $user, string $type, int $id) => !in_array($id, $this->unwritable[$user] ?? [], true)
+		);
 
 		$this->service = new BillService(
 			$mapper,
@@ -92,7 +99,7 @@ class BillRecordedPaymentTest extends TestCase {
 			$this->createMock(DismissedSuggestionMapper::class),
 			null,
 			$this->createMock(RecurringIncomeMapper::class),
-			null,
+			$shares,
 			$clock,
 		);
 	}
@@ -107,7 +114,7 @@ class BillRecordedPaymentTest extends TestCase {
 		$bill->setDueDay($fields['dueDay'] ?? 28);
 		$bill->setDueMonth($fields['dueMonth'] ?? null);
 		$bill->setIsActive($fields['isActive'] ?? true);
-		$bill->setAccountId(3);
+		$bill->setAccountId(array_key_exists('accountId', $fields) ? $fields['accountId'] : 3);
 		$bill->setNextDueDate(array_key_exists('nextDueDate', $fields) ? $fields['nextDueDate'] : '2026-10-28');
 		$bill->setLastPaidDate(array_key_exists('lastPaidDate', $fields) ? $fields['lastPaidDate'] : '2026-09-28');
 		$bill->setStartDate($fields['startDate'] ?? null);
@@ -230,6 +237,18 @@ class BillRecordedPaymentTest extends TestCase {
 		$this->row(80, '2026-10-27', 100.0);
 
 		$this->assertSame(80, $this->service->recordedPaymentForPendingOccurrence(1, 'user1')['id']);
+	}
+
+	public function testOnlyARowThePersonAskingCanWriteToIsReported(): void {
+		// A bill with no account, shared with bob: its payment sits in an
+		// account of the owner's that bob was never given, and Mark Paid
+		// told him its date and amount. The owner is still told.
+		$this->bill(['accountId' => null]);
+		$this->row(500, '2026-10-20', 150.0, ['accountId' => 12]);
+		$this->unwritable = ['bob' => [12]];
+
+		$this->assertNull($this->service->recordedPaymentForPendingOccurrence(1, 'user1', '2026-10-28', 'bob'));
+		$this->assertSame(500, $this->service->recordedPaymentForPendingOccurrence(1, 'user1', '2026-10-28', 'user1')['id']);
 	}
 
 	public function testNothingIsReportedWhenNothingIsDue(): void {
