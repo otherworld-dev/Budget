@@ -161,9 +161,28 @@ class RecurringIncomeService extends AbstractCrudService {
 			// A settled income stays settled; an active one moves its pending
 			// occurrence within its own month (or week) under the new schedule
 			if ($income->getIsActive()) {
-				$income->setNextExpectedDate($this->rescheduled($before, $income, $this->today($userId)));
-				// Undoing an earlier receipt would restore a date of the old schedule
-				if ($income->canUndoReceived()) {
+				$next = $this->rescheduled($before, $income, $this->today($userId));
+				// ...unless it is a one-time date the income has already
+				// received. Switched to One-Time on the date it last arrived,
+				// it was expected again, and Mark Received offered to book the
+				// money a second time, as for bills (#399).
+				$settled = $income->getFrequency() === 'one-time' && $next !== null && $this->receivedCoversDate($before, $next);
+				if ($settled) {
+					$income->setIsActive(false);
+					$income->setNextExpectedDate(null);
+					$directDbUpdates['next_expected_date'] = null;
+				} else {
+					$income->setNextExpectedDate($next);
+				}
+				// Undoing the receipt that settled it reopens it on its new
+				// date. Undoing any other would restore a date of the old
+				// schedule.
+				$kept = $settled ? $this->snapshotReceiving($before, $next) : null;
+				if ($kept !== null) {
+					$kept['nextExpectedDate'] = $next;
+					$kept['startDate'] = $next;
+					$income->setReceivedUndoState(json_encode($kept));
+				} elseif ($income->canUndoReceived()) {
 					$income->setReceivedUndoState(null);
 					$directDbUpdates['received_undo_state'] = null;
 				}
@@ -402,6 +421,66 @@ class RecurringIncomeService extends AbstractCrudService {
 		];
 		return $this->frequencyCalculator->reschedule($schedule($before), $pending, $schedule($after))
 			?? $this->firstOccurrence($after, $today);
+	}
+
+	/**
+	 * Whether the income has already received an occurrence on $date
+	 * (#399): it was marked received, and that receipt, or a credit it
+	 * booked, is dated within the expected window of the date.
+	 */
+	private function receivedCoversDate(RecurringIncome $income, string $date): bool {
+		$lastReceived = $income->getLastReceivedDate();
+		if ($lastReceived === null || $lastReceived === '') {
+			return false;
+		}
+		return $this->withinExpectedWindow($income, $lastReceived, $date) || $this->creditsNear($income, $date) !== [];
+	}
+
+	/**
+	 * The credits the income booked (Mark Received, auto-create) dated
+	 * within its expected window of $date. The income has no column on the
+	 * row: its own are the ones whose notes name it.
+	 *
+	 * @return int[] their ids
+	 */
+	private function creditsNear(RecurringIncome $income, string $date): array {
+		if ($income->getAccountId() === null) {
+			return [];
+		}
+		$days = self::expectedWindowDays($income->getFrequency());
+		$on = new \DateTimeImmutable($date);
+		$credits = $this->transactionService->findGeneratedIncomeCredits(
+			(int)$income->getAccountId(),
+			$on->modify("-{$days} days")->format('Y-m-d'),
+			$on->modify("+{$days} days")->format('Y-m-d')
+		);
+		$ids = [];
+		foreach ($credits as $credit) {
+			if ((string)$credit->getNotes() === 'Auto-generated from income: ' . $income->getName()
+				&& ($credit->getStatus() ?? 'cleared') !== 'scheduled') {
+				$ids[] = $credit->getId();
+			}
+		}
+		return $ids;
+	}
+
+	/**
+	 * The undo snapshot of the income's last receipt, when that receipt is
+	 * the one that received $date: made, or its credit dated, within the
+	 * expected window of it
+	 */
+	private function snapshotReceiving(RecurringIncome $income, string $date): ?array {
+		$raw = $income->getReceivedUndoState();
+		$snapshot = ($raw !== null && $raw !== '') ? json_decode($raw, true) : null;
+		if (!is_array($snapshot) || !array_key_exists('nextExpectedDate', $snapshot)) {
+			return null;
+		}
+		if ($this->withinExpectedWindow($income, (string)$income->getLastReceivedDate(), $date)) {
+			return $snapshot;
+		}
+		$listed = $snapshot['transactionIds'] ?? null;
+		$ids = is_array($listed) ? array_map('intval', $listed) : [];
+		return array_intersect($ids, $this->creditsNear($income, $date)) !== [] ? $snapshot : null;
 	}
 
 	/**

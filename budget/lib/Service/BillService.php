@@ -826,8 +826,9 @@ class BillService {
 		// The schedule changed only if one of its fields did, not because the
 		// form sent them back unchanged: recalculating on every edit put a
 		// paid-ahead bill back on the occurrence already paid and undid skips
+		$scheduleKeys = ['frequency', 'dueDay', 'dueMonth', 'customRecurrencePattern', 'startDate'];
 		$scheduleChanged = false;
-		foreach (['frequency', 'dueDay', 'dueMonth', 'customRecurrencePattern', 'startDate'] as $key) {
+		foreach ($scheduleKeys as $key) {
 			$scheduleChanged = $scheduleChanged || $changed($key);
 		}
 
@@ -852,13 +853,23 @@ class BillService {
 		$extended = !$wasActive && $bill->getNextDueDate() === null && $edited->getFrequency() !== 'one-time'
 			&& ($changed('endDate') || $changed('remainingPayments') || $changed('frequency'));
 		$today = $this->today($userId);
+		// The one-time date the edit leaves the bill on, when it already paid it
+		$settledOn = null;
 
 		if ($edited->getIsActive() || $resuming || $extended) {
 			$next = $bill->getNextDueDate();
 			if ($scheduleChanged || $next === null || $edited->getFrequency() === 'one-time') {
 				$next = $this->rescheduledDue($bill, $edited, $today);
 			}
-			$ended = $next === null
+			// A one-time date the bill has already paid is settled, not owed.
+			// Switching a paid Custom or monthly bill to One-Time put the
+			// occurrence it had paid back on the list as due, and Mark Paid
+			// then paid it a second time (#399).
+			if ($edited->getFrequency() === 'one-time' && $next !== null && $this->paymentCoversDate($bill, $next)) {
+				$settledOn = $next;
+			}
+			$ended = $settledOn !== null
+				|| $next === null
 				|| ($edited->getEndDate() !== null && $edited->getEndDate() !== '' && $next > $edited->getEndDate())
 				|| ($edited->getRemainingPayments() !== null && $edited->getRemainingPayments() <= 0);
 			if ($ended) {
@@ -868,7 +879,9 @@ class BillService {
 				$edited->setIsActive(true);
 				$edited->setNextDueDate($next);
 			}
-			if ($edited->getIsActive() !== $bill->getIsActive()) {
+			// Asked to resume a bill with nothing left to pay, the request's
+			// "active" was written beside a cleared due date
+			if ($edited->getIsActive() !== $bill->getIsActive() || array_key_exists('isActive', $updates)) {
 				$updates['isActive'] = $edited->getIsActive();
 			}
 			if ($edited->getNextDueDate() !== $bill->getNextDueDate()) {
@@ -889,6 +902,13 @@ class BillService {
 		// the snapshot; name/notes/reminder-style edits keep it (#365 review).
 		$materialKeys = ['amount', 'amountType', 'frequency', 'dueDay', 'dueMonth',
 			'customRecurrencePattern', 'startDate', 'accountId', 'destinationAccountId', 'isTransfer'];
+		// A switch to One-Time that settles the bill on a date its last
+		// payment paid keeps that payment's snapshot: Mark Unpaid still takes
+		// the payment back, now reopening the bill on its new date (#399)
+		$keptSnapshot = ($settledOn !== null && $scheduleChanged) ? $this->snapshotSettling($bill, $settledOn) : null;
+		if ($keptSnapshot !== null) {
+			$materialKeys = array_diff($materialKeys, $scheduleKeys);
+		}
 		if ($bill->getPaidUndoState() !== null && $bill->getPaidUndoState() !== '') {
 			foreach ($materialKeys as $key) {
 				if (!array_key_exists($key, $updates)) {
@@ -906,6 +926,14 @@ class BillService {
 					break;
 				}
 			}
+		}
+		if ($keptSnapshot !== null && !array_key_exists('paid_undo_state', $dbUpdates)) {
+			// Rebased on the one-time date: restored as it was taken, it would
+			// put back the old schedule's due date and start date (often
+			// none), and the one-time bill would lose its date
+			$keptSnapshot['previousState']['nextDueDate'] = $settledOn;
+			$keptSnapshot['previousState']['startDate'] = $settledOn;
+			$dbUpdates['paid_undo_state'] = json_encode($keptSnapshot);
 		}
 
 		// The pre-booked row mirrors the bill: an edit to anything it carries
@@ -999,6 +1027,55 @@ class BillService {
 		];
 		return $this->frequencyCalculator->reschedule($schedule($before), $pending, $schedule($after))
 			?? $this->firstDue($after, $today);
+	}
+
+	/**
+	 * Whether the bill has already paid an occurrence on $date (#399): it
+	 * was marked paid, and that payment, or one recorded for the bill, is
+	 * dated within the due window of the date. Never because the next due
+	 * date has moved past it: a Skip moves that too, with nothing paid.
+	 */
+	private function paymentCoversDate(Bill $bill, string $date): bool {
+		$lastPaid = $bill->getLastPaidDate();
+		if ($lastPaid === null || $lastPaid === '') {
+			return false;
+		}
+		return $this->withinDueWindow($bill, $lastPaid, $date) || $this->paymentsNear($bill, $date) !== [];
+	}
+
+	/**
+	 * The bill's recorded payments dated within its due window of $date
+	 *
+	 * @return int[] their ids
+	 */
+	private function paymentsNear(Bill $bill, string $date): array {
+		$ids = [];
+		foreach ($this->transactionService->findRecordedBillTransactions([$bill->getId()]) as $row) {
+			if ($this->withinDueWindow($bill, $row->getDate(), $date)) {
+				$ids[] = $row->getId();
+			}
+		}
+		return $ids;
+	}
+
+	/**
+	 * The undo snapshot of the bill's last payment, when that payment is the
+	 * one that paid $date: made, or recorded, within the due window of it.
+	 * An older payment can pay the date while the snapshot is a later one's,
+	 * and undoing that later one would reopen a date already paid.
+	 */
+	private function snapshotSettling(Bill $bill, string $date): ?array {
+		$snapshot = $this->paymentSnapshot($bill);
+		if ($snapshot === null || !is_array($snapshot['previousState'] ?? null)) {
+			return null;
+		}
+		if ($this->withinDueWindow($bill, (string)$bill->getLastPaidDate(), $date)) {
+			return $snapshot;
+		}
+		$ids = is_array($snapshot['createdTransactionIds'] ?? null) ? $snapshot['createdTransactionIds'] : [];
+		$ids[] = $snapshot['linkedTransactionId'] ?? null;
+		$ids = array_map('intval', array_filter($ids, 'is_numeric'));
+		return array_intersect($ids, $this->paymentsNear($bill, $date)) !== [] ? $snapshot : null;
 	}
 
 	/** Today's date as the user's calendar shows it */
