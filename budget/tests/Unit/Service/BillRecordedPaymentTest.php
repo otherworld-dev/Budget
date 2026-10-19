@@ -264,6 +264,22 @@ class BillRecordedPaymentTest extends TestCase {
 		$this->assertSame([], $this->service->findUnrecordedPayments('user1'));
 	}
 
+	public function testUsingTheOccurrencesPaymentOnARecurringBillNamesIt(): void {
+		// October's payment, typed in and put on the bill. Marked paid on its
+		// date, it was taken for the payment before this one: the snapshot
+		// named nothing and the answer said no payment was recorded.
+		$this->bill(['lastPaidDate' => '2026-09-28', 'nextDueDate' => '2026-10-28']);
+		$this->row(500, '2026-09-28');
+		$this->row(501, '2026-10-20', 150.0);
+
+		$result = $this->service->markPaid(1, 'user1', '2026-10-20', false, null, '2026-10-28');
+
+		$this->assertSame([], $this->booked);
+		$this->assertTrue($result['paymentTransactionRecorded']);
+		$this->assertSame(501, json_decode((string)$this->stored->getPaidUndoState(), true)['usedTransactionId']);
+		$this->assertSame('2026-11-28', $this->stored->getNextDueDate());
+	}
+
 	public function testUndoingTheUseOfAPaymentLeavesThePaymentAlone(): void {
 		// The row was there before: Mark Unpaid neither deletes nor unlinks
 		// it, and the bill is due again

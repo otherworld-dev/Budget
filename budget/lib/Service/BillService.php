@@ -1209,7 +1209,16 @@ class BillService {
 			$linkCategory = $this->categoryUsableIn($bill->getCategoryId(), (int)$rowAccount);
 		}
 
-		// The payment's date: a linked row's own, else today so the payment
+		// Paid with nothing booked or linked while the ledger already holds
+		// the occurrence's payment (the Mark Paid dialog's "Use that
+		// payment", #399): that row is the payment, and the snapshot says
+		// so. Looked for before the bill takes the payment's date: dated on
+		// it, the row of a recurring bill read as the last payment's.
+		$usedPayment = ($existingRow === null && !($recordPayment && $bill->getAccountId() !== null))
+			? $this->recordedPaymentFor($bill)
+			: null;
+
+		// The payment's date:a linked row's own, else today so the payment
 		// appears in the account balance at once, regardless of when the bill
 		// was due. The user's today, not the server's: a payment marked in the
 		// evening west of UTC was filed under tomorrow. Dated the day of the
@@ -1243,13 +1252,6 @@ class BillService {
 			&& $existingRow->getLinkedTransactionId() === null) {
 			$arrivalAmount = $this->transactionService->transferArrivalAmount($existingRow, $bill);
 		}
-
-		// Paid with nothing booked or linked while the ledger already holds
-		// the occurrence's payment (the Mark Paid dialog's "Use that
-		// payment", #399): that row is the payment, and the snapshot says so
-		$usedPayment = ($existingRow === null && !($recordPayment && $bill->getAccountId() !== null))
-			? $this->recordedPaymentFor($bill)
-			: null;
 
 		// The occurrence is claimed before anything is booked (#399). Two
 		// requests for it at once (a double click, two tabs, auto-pay and a
