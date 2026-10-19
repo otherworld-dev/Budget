@@ -19745,6 +19745,32 @@ body[data-theme-dark-highcontrast] .matching-tx-badge {
     border-style: dashed;
 }
 
+/* Link to bill (billLinkDialog.js) lists every bill on the account, 61 of
+   them for the reporter (#399), and the dialog scrolled as one 5,000px box
+   with Cancel and Link below the last bill. The header and footer stay in
+   view and the list scrolls between them, as in the duplicates dialog. The
+   list keeps room for a bill or two, and the body scrolls once even that
+   doesn't fit. */
+#bill-link-modal .budget-modal {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#bill-link-modal .budget-modal-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+#bill-link-modal .matching-tx-list {
+    flex: 1 1 auto;
+    min-height: 6rem;
+    overflow-y: auto;
+}
+
 .budget-modal-footer {
     padding: 16px 24px;
     border-top: 1px solid var(--color-border);
