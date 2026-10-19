@@ -37,6 +37,7 @@ export function billRowState(bill, today, settings, accounts = undefined) {
         isActive,
         dueDate: isActive ? (bill.nextDueDate || bill.next_due_date || null) : null,
         lastDate: bill.lastPaidDate || bill.last_paid_date || null,
+        pattern: bill.customRecurrencePattern ?? bill.custom_recurrence_pattern ?? null,
     }, today);
 
     const key = { inactive: 'paid', settled: 'paid', overdue: 'overdue', soon: 'due-soon', upcoming: 'upcoming' }[status];
@@ -98,6 +99,9 @@ export function oneTimeDateUnconfirmed(bill) {
  * the Paid tab gave no way to tell which payments had been recorded when. A
  * paid row leads with the date the payment was recorded and keeps the next
  * due date after it; a row with nothing recorded shows the due date alone.
+ * A one-time bill has no next date: still owed, it shows its date alone
+ * (beside its Overdue badge it read "Paid 27 Sep, next due 28 Sep"), and
+ * once paid only when.
  *
  * @param {object} item bill or transfer
  * @param {string|null} dueDate the row's due date (Y-m-d)
@@ -107,9 +111,10 @@ export function oneTimeDateUnconfirmed(bill) {
  */
 export function billRowDateText(item, dueDate, isPaid, settings) {
     const lastPaid = item.lastPaidDate || item.last_paid_date || null;
-    if (isPaid && lastPaid) {
+    const isActive = item.isActive ?? item.is_active ?? true;
+    const oneTimeOwed = (item.frequency || 'monthly') === 'one-time' && isActive;
+    if (isPaid && lastPaid && !oneTimeOwed) {
         const paid = formatters.formatDate(lastPaid, settings);
-        const isActive = item.isActive ?? item.is_active ?? true;
         // An inactive row (a paid one-time bill, an ended schedule) has no
         // next occurrence: its due date is the one it was paid for
         if (isActive && dueDate) {
