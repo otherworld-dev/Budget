@@ -1103,6 +1103,13 @@ class BillController extends Controller {
 			if ($previousNextDueDate === null) {
 				return new DataResponse(['error' => $this->l->t('Missing previous due date')], Http::STATUS_BAD_REQUEST);
 			}
+			// Any string was stored as the due date, and a bad one made the
+			// annual overview fail for the whole user (#399)
+			$previousNextDueDate = is_string($previousNextDueDate) ? $previousNextDueDate : '';
+			$validation = $this->validationService->validateDate($previousNextDueDate, $this->l->t('Previous due date'), true);
+			if (!$validation['valid']) {
+				return new DataResponse(['error' => $validation['error']], Http::STATUS_BAD_REQUEST);
+			}
 
 			$bill = $this->service->undoSkip($id, $this->billOwner($id), $previousNextDueDate);
 			return new DataResponse($bill);

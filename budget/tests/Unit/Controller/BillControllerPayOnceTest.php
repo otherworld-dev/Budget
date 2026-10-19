@@ -147,4 +147,48 @@ class BillControllerPayOnceTest extends TestCase {
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 		$this->assertSame('This payment was already recorded. Reload the page to see the next one.', $response->getData()['error']);
 	}
+
+	// ── Undo skip ───────────────────────────────────────────────────
+
+	public function testUndoSkipRefusesSomethingThatIsNotADate(): void {
+		// It was stored as the due date as it came, and the annual overview
+		// then failed for the whole user
+		$this->params = ['previousNextDueDate' => 'not-a-date'];
+		$this->service->expects($this->never())->method('undoSkip');
+
+		$response = $this->controller()->undoSkip(1);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Previous due date must be in YYYY-MM-DD format', $response->getData()['error']);
+	}
+
+	public function testUndoSkipStillNeedsTheDate(): void {
+		$this->service->expects($this->never())->method('undoSkip');
+
+		$response = $this->controller()->undoSkip(1);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Missing previous due date', $response->getData()['error']);
+	}
+
+	public function testTheUndoSkipTheReporterWasGivenStillWorks(): void {
+		// CSX Pro, moved back from 28 November to 28 October (#399)
+		$this->params = ['previousNextDueDate' => '2026-10-28'];
+		$this->service->expects($this->once())->method('undoSkip')
+			->with(1, 'user1', '2026-10-28')
+			->willReturn(new Bill());
+
+		$this->assertSame(Http::STATUS_OK, $this->controller()->undoSkip(1)->getStatus());
+	}
+
+	public function testUndoSkipSaysWhyTheBillRefusedTheDate(): void {
+		$this->params = ['previousNextDueDate' => '2026-10-15'];
+		$this->service->method('undoSkip')
+			->willThrowException(new \InvalidArgumentException("That date isn't one of this bill's due dates"));
+
+		$response = $this->controller()->undoSkip(1);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame("That date isn't one of this bill's due dates", $response->getData()['error']);
+	}
 }

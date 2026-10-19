@@ -1766,17 +1766,38 @@ class BillService {
 	 * @param string $userId User ID
 	 * @param string $previousNextDueDate The due date to restore
 	 * @return Bill Updated bill
+	 * @throws \InvalidArgumentException when the bill wasn't due on that date before the one now due
 	 */
 	public function undoSkip(int $id, string $userId, string $previousNextDueDate): Bill {
 		$bill = $this->find($id, $userId);
 		$this->requireWritableAccounts($bill);
 
+		// Only a skipped occurrence goes back (#399): a date the bill's
+		// schedule falls on, no later than the one now due. Any date was
+		// stored, and any inactive bill switched back on, a paused one or one
+		// whose payments were used up.
+		if ($bill->getFrequency() === 'one-time') {
+			throw new \InvalidArgumentException($this->l->t('Cannot skip a one-time bill'));
+		}
+		$ended = !$bill->getIsActive() && $bill->getNextDueDate() === null;
+		if ($ended && $bill->getRemainingPayments() !== null && $bill->getRemainingPayments() <= 0) {
+			throw new \InvalidArgumentException($this->l->t('This bill has nothing left to pay'));
+		}
+		if ($bill->getNextDueDate() !== null && $previousNextDueDate > $bill->getNextDueDate()) {
+			throw new \InvalidArgumentException($this->l->t('That date is after the bill\'s next due date'));
+		}
+		$endDate = $bill->getEndDate();
+		if (!$this->fallsOnSchedule($bill, $previousNextDueDate)
+			|| ($endDate !== null && $endDate !== '' && $previousNextDueDate > $endDate)) {
+			throw new \InvalidArgumentException($this->l->t('That date isn\'t one of this bill\'s due dates'));
+		}
+
 		// Delete scheduled transaction for the advanced (wrong) date
 		$this->transactionService->deleteScheduledBillTransactions($id);
 
-		// Restore previous due date and reactivate if needed
+		// Restore the previous due date, and switch back on a bill the skip ended
 		$bill->setNextDueDate($previousNextDueDate);
-		if (!$bill->getIsActive() && $bill->getFrequency() !== 'one-time') {
+		if ($ended) {
 			$bill->setIsActive(true);
 		}
 
@@ -1795,6 +1816,23 @@ class BillService {
 		}
 
 		return $bill;
+	}
+
+	/**
+	 * Whether the bill's schedule falls on $date. A weekly or fortnightly
+	 * bill with no start date counts its weeks from the date now due, as
+	 * paying and skipping it do (FrequencyCalculator::calculateNextDueDate()).
+	 */
+	private function fallsOnSchedule(Bill $bill, string $date): bool {
+		$frequency = (string)$bill->getFrequency();
+		$anchor = $bill->getStartDate() ?: null;
+		$pending = $bill->getNextDueDate();
+		if ($anchor === null && $pending !== null && in_array($frequency, ['weekly', 'biweekly'], true)) {
+			return in_array($pending, $this->frequencyCalculator->occurrencesBetween($frequency, $bill->getDueDay(), null, $date, $pending, null, $date), true);
+		}
+		return $this->frequencyCalculator->occurrenceOnOrAfter(
+			$frequency, $bill->getDueDay(), $bill->getDueMonth(), $date, $bill->getCustomRecurrencePattern(), $anchor
+		) === $date;
 	}
 
 	/**

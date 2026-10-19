@@ -356,4 +356,103 @@ class BillPayOnceTest extends TestCase {
 		$this->assertNull($this->stored->getPaidUndoState());
 		$this->assertSame('2026-11-15', $this->stored->getNextDueDate());
 	}
+
+	// ── Undo skip ───────────────────────────────────────────────────
+
+	public function testUndoingASkipPutsTheOccurrenceBeforeTheNextOneBack(): void {
+		// What the reporter was told to run for CSX Pro (#399): monthly on
+		// the 28th, no pre-booked rows, due 28 November after a double payment
+		$this->bill(['dueDay' => 28, 'nextDueDate' => '2026-11-28', 'lastPaidDate' => '2026-09-30', 'createTransaction' => false]);
+
+		$bill = $this->service->undoSkip(1, 'user1', '2026-10-28');
+
+		$this->assertSame('2026-10-28', $bill->getNextDueDate());
+		$this->assertSame('2026-10-28', $this->stored->getNextDueDate());
+		$this->assertTrue($this->stored->getIsActive());
+		$this->assertSame([], array_filter($this->calls, fn (string $c) => !str_starts_with($c, 'drop')), 'Nothing is booked');
+	}
+
+	public function testUndoingASkipRefusesADayTheBillIsNeverDue(): void {
+		// Any string was stored as the due date: a bad one made the annual
+		// overview fail for the whole user
+		$this->bill(['dueDay' => 28, 'nextDueDate' => '2026-11-28']);
+
+		try {
+			$this->service->undoSkip(1, 'user1', '2026-10-15');
+			$this->fail('A day the bill is never due was stored');
+		} catch (\InvalidArgumentException $e) {
+		}
+
+		$this->assertSame('2026-11-28', $this->stored->getNextDueDate());
+		$this->assertSame([], $this->calls);
+	}
+
+	public function testUndoingASkipRefusesADateAfterTheNextDueDate(): void {
+		$this->bill(['dueDay' => 28, 'nextDueDate' => '2026-11-28']);
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->service->undoSkip(1, 'user1', '2026-12-28');
+	}
+
+	public function testUndoingASkipRefusesAOneTimeBill(): void {
+		// A one-time bill is never skipped: its date and state stay as they are
+		$this->bill(['frequency' => 'one-time', 'isActive' => false, 'nextDueDate' => null, 'startDate' => '2026-09-28', 'dueDay' => 28]);
+
+		try {
+			$this->service->undoSkip(1, 'user1', '2026-09-28');
+			$this->fail('A one-time bill took a skipped date');
+		} catch (\InvalidArgumentException $e) {
+		}
+
+		$this->assertNull($this->stored->getNextDueDate());
+		$this->assertFalse($this->stored->getIsActive());
+	}
+
+	public function testUndoingTheSkipThatEndedABillBringsItBack(): void {
+		// Skipping its last occurrence ended the bill; undoing it is still allowed
+		$this->bill(['dueDay' => 28, 'isActive' => false, 'nextDueDate' => null, 'endDate' => '2026-10-31']);
+
+		$bill = $this->service->undoSkip(1, 'user1', '2026-10-28');
+
+		$this->assertTrue($bill->getIsActive());
+		$this->assertSame('2026-10-28', $bill->getNextDueDate());
+	}
+
+	public function testUndoingASkipRefusesADateAfterTheEndOfAnEndedBill(): void {
+		$this->bill(['dueDay' => 28, 'isActive' => false, 'nextDueDate' => null, 'endDate' => '2026-10-31']);
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->service->undoSkip(1, 'user1', '2026-11-28');
+	}
+
+	public function testUndoingAWeeklySkipCountsTheWeeksFromTheNextDueDate(): void {
+		// With no start date a weekly bill counts on from its pending date,
+		// as paying and skipping do
+		$this->bill(['frequency' => 'weekly', 'dueDay' => 3, 'nextDueDate' => '2026-10-21', 'createTransaction' => false]);
+
+		$this->assertSame('2026-10-14', $this->service->undoSkip(1, 'user1', '2026-10-14')->getNextDueDate());
+
+		$this->bill(['frequency' => 'weekly', 'dueDay' => 3, 'nextDueDate' => '2026-10-21', 'createTransaction' => false]);
+		$this->expectException(\InvalidArgumentException::class);
+		$this->service->undoSkip(1, 'user1', '2026-10-15');
+	}
+
+	public function testUndoingASkipLeavesAPausedBillPaused(): void {
+		// Undo used to switch on any inactive bill it was given
+		$this->bill(['dueDay' => 28, 'isActive' => false, 'nextDueDate' => '2026-11-28']);
+
+		$bill = $this->service->undoSkip(1, 'user1', '2026-10-28');
+
+		$this->assertFalse($bill->getIsActive());
+		$this->assertSame('2026-10-28', $bill->getNextDueDate());
+		$this->assertSame(['drop-pre-booked'], $this->calls, 'Nothing is pre-booked for a paused bill');
+	}
+
+	public function testUndoingASkipRefusesABillWhosePaymentsAreUsedUp(): void {
+		// Ended by its last payment, not by a skip: nothing to put back
+		$this->bill(['dueDay' => 28, 'isActive' => false, 'nextDueDate' => null, 'remainingPayments' => 0]);
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->service->undoSkip(1, 'user1', '2026-10-28');
+	}
 }
