@@ -34,11 +34,16 @@ const BILLS = [
 
 const PAYMENT = { id: 1586, accountId: LOHNKONTO, type: 'debit', status: 'cleared', date: '2026-09-28', amount: 100, description: 'Monatsrechnung', billId: null, linkedTransactionId: null };
 
-const open = (bills) => {
-    const choice = chooseBill(bills, {});
+const open = (bills, transaction = undefined) => {
+    const choice = chooseBill(bills, {}, transaction);
     return { choice, modal: document.getElementById('bill-link-modal') };
 };
 const names = (modal) => [...modal.querySelectorAll('.matching-tx-desc')].map(el => el.textContent.trim());
+const ids = (modal) => [...modal.querySelectorAll('input[name="bill-link-choice"]')].map(el => Number(el.value));
+const statusOf = (modal, billId) => modal.querySelector(`input[value="${billId}"]`).closest('label')
+    .querySelector('.matching-tx-reasons')?.textContent.trim() ?? '';
+const badgeOf = (modal, billId) => modal.querySelector(`input[value="${billId}"]`).closest('label')
+    .querySelector('.matching-tx-badge')?.textContent.trim() ?? null;
 const pick = (modal, billId) => {
     const radio = modal.querySelector(`input[value="${billId}"]`);
     radio.checked = true;
@@ -70,6 +75,55 @@ describe('chooseBill', () => {
         expect(names(modal)).toEqual(['Corner Card SA', 'CSX Pro Credit Cards', 'Elektrizitätswerke']);
         expect(modal.querySelector('input[value="120"]').closest('label').textContent).toContain('Inactive');
         expect(modal.querySelector('input[value="92"]').closest('label').textContent).not.toContain('Inactive');
+    });
+
+    /**
+     * The reporter files each invoice as its own one-time bill, so 60 bills
+     * on Lohnkonto hold twins: Miele Geschirrspühler twice at 1,269.55, both
+     * paid. Each takes its payments into its own month in Bills by Month, so
+     * the dialog has to say which invoice is which.
+     */
+    it('tells bills of one name and amount apart by their dates, earliest first', () => {
+        const { modal } = open([
+            { id: 4600, name: 'Miele Geschirrspühler', frequency: 'one-time', accountId: LOHNKONTO, isActive: false, amount: 1269.55, startDate: '2026-06-25', nextDueDate: null, lastPaidDate: '2026-06-28' },
+            { id: 4599, name: 'Miele Geschirrspühler', frequency: 'one-time', accountId: LOHNKONTO, isActive: false, amount: 1269.55, startDate: '2026-05-27', nextDueDate: null, lastPaidDate: '2026-05-31' },
+        ]);
+
+        expect(ids(modal)).toEqual([4599, 4600]);
+        expect(statusOf(modal, 4599)).toBe('Due 2026-05-27 · Paid 2026-05-31 · Inactive');
+        expect(statusOf(modal, 4600)).toBe('Due 2026-06-25 · Paid 2026-06-28 · Inactive');
+    });
+
+    it('dates a recurring bill by its next due date, or once ended by its last payment', () => {
+        const { modal } = open([
+            { id: 4640, name: 'Elektrizitätswerke', frequency: 'custom', accountId: LOHNKONTO, isActive: true, amount: 190, nextDueDate: '2027-09-29', lastPaidDate: '2026-09-27' },
+            { id: 4612, name: 'Elektrizitätswerke', frequency: 'one-time', accountId: LOHNKONTO, isActive: false, amount: 190, startDate: '2026-09-30', nextDueDate: '2026-09-30', lastPaidDate: '2026-08-30' },
+            { id: 13, name: 'Elektrizitätswerke', frequency: 'monthly', accountId: LOHNKONTO, isActive: false, amount: 190, nextDueDate: null, lastPaidDate: '2026-03-28', endDate: '2026-03-31' },
+        ]);
+
+        expect(ids(modal)).toEqual([13, 4612, 4640]);
+        expect(statusOf(modal, 13)).toBe('Paid 2026-03-28 · Inactive');
+        expect(statusOf(modal, 4612)).toBe('Due 2026-09-30 · Paid 2026-08-30 · Inactive');
+        expect(statusOf(modal, 4640)).toBe('Due 2027-09-29 · Paid 2026-09-27');
+    });
+
+    it('puts the bills of the row\'s amount first and says so', () => {
+        const { modal } = open(linkableBills(BILLS, PAYMENT), { ...PAYMENT, amount: 80 });
+
+        expect(names(modal)).toEqual(['Elektrizitätswerke', 'Corner Card SA', 'CSX Pro Credit Cards']);
+        expect(badgeOf(modal, 92)).toBe('Exact amount');
+        expect(badgeOf(modal, 120)).toBeNull();
+        expect(badgeOf(modal, 47)).toBeNull();
+    });
+
+    it('matches the amount to the cent', () => {
+        const { modal } = open([
+            { id: 1, name: 'A', accountId: LOHNKONTO, isActive: true, amount: 100.01 },
+            { id: 2, name: 'B', accountId: LOHNKONTO, isActive: true, amount: '100.00' },
+        ], { ...PAYMENT, amount: 100 });
+
+        expect(ids(modal)).toEqual([2, 1]);
+        expect(badgeOf(modal, 1)).toBeNull();
     });
 
     it('escapes bill names', async () => {

@@ -11,6 +11,7 @@
 import { translate as t } from '@nextcloud/l10n';
 import * as formatters from './formatters.js';
 import * as dom from './dom.js';
+import { toCents } from './money.js';
 
 /**
  * The bills a transaction can be filed under: the user's own, paid from the
@@ -30,26 +31,70 @@ export function linkableBills(bills, transaction) {
 }
 
 /**
+ * The date a bill was or is due: a one-time bill's own date (kept as its
+ * start date once paid), a recurring bill's next due date, and none for a
+ * recurring bill that has ended.
+ *
+ * @param {object} bill
+ * @return {string|null} Y-m-d
+ */
+function dueDateOf(bill) {
+    if (bill.frequency === 'one-time') {
+        return bill.startDate || bill.nextDueDate || null;
+    }
+    return bill.isActive === false ? null : (bill.nextDueDate || null);
+}
+
+/** Two amounts the same to the cent, either sign */
+function sameAmount(a, b) {
+    const x = toCents(a);
+    const y = toCents(b);
+    return Number.isFinite(x) && Number.isFinite(y) && Math.abs(x) === Math.abs(y);
+}
+
+/**
  * Ask which bill a transaction paid.
+ *
+ * Bills of the row's amount come first, then the rest by name. The
+ * reporter files every invoice as a one-time bill of its own, so one
+ * account can hold 60 bills with twins among them (two Miele invoices of
+ * 1,269.55, both paid). A one-time bill takes its payments into its own
+ * month in the Bills Calendar, so picking the wrong twin moves the payment
+ * to the other invoice's month. Each bill therefore says when it was due
+ * and last paid, and bills of one name are listed by that date.
  *
  * @param {Array<object>} bills the bills to offer, see linkableBills()
  * @param {object} settings user settings, for formatting
+ * @param {object} [transaction] the row being filed, for its amount
  * @return {Promise<number|null>} the chosen bill's id, or null when cancelled
  */
-export function chooseBill(bills, settings) {
+export function chooseBill(bills, settings, transaction = undefined) {
     return new Promise((resolve) => {
         const existing = document.getElementById('bill-link-modal');
         if (existing) existing.remove();
 
-        const sorted = [...(bills || [])].sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? '')));
-        const options = sorted.map(bill => {
+        const entries = (bills || []).map(bill => ({
+            bill,
+            due: dueDateOf(bill),
+            exact: transaction != null && sameAmount(bill.amount, transaction.amount),
+        }));
+        // An undated bill goes last among those of its name
+        const dateOf = (entry) => entry.due || entry.bill.lastPaidDate || '9999-12-31';
+        entries.sort((a, b) => (Number(b.exact) - Number(a.exact))
+            || String(a.bill.name ?? '').localeCompare(String(b.bill.name ?? ''))
+            || dateOf(a).localeCompare(dateOf(b))
+            || (Number(a.bill.id) - Number(b.bill.id)));
+
+        const options = entries.map(({ bill, due, exact }) => {
             const currency = bill.currency || settings?.default_currency || '';
             // An inactive bill is a paid one-time bill or one that has ended,
             // and still takes payments of the occurrences it had. Markup
             // from t(), which escapes the date it is given.
-            const status = bill.isActive === false
-                ? t('budget', 'Inactive')
-                : (bill.nextDueDate ? t('budget', 'Due {date}', { date: formatters.formatDate(bill.nextDueDate, settings) }) : '');
+            const status = [
+                due ? t('budget', 'Due {date}', { date: formatters.formatDate(due, settings) }) : null,
+                bill.lastPaidDate ? t('budget', 'Paid {date}', { date: formatters.formatDate(bill.lastPaidDate, settings) }) : null,
+                bill.isActive === false ? t('budget', 'Inactive') : null,
+            ].filter(Boolean).join(' · ');
 
             return `
                 <label class="matching-tx-option">
@@ -60,12 +105,13 @@ export function chooseBill(bills, settings) {
                             <span class="matching-tx-amount">${dom.escapeHtml(formatters.formatCurrency(bill.amount, currency, settings))}</span>
                         </div>
                         ${status ? `<div class="matching-tx-reasons">${status}</div>` : ''}
+                        ${exact ? `<span class="matching-tx-badge">${t('budget', 'Exact amount')}</span>` : ''}
                     </div>
                 </label>
             `;
         }).join('');
 
-        const body = sorted.length > 0
+        const body = entries.length > 0
             ? `<p class="matching-tx-intro">${t('budget', 'Choose the bill this transaction paid. It then counts as one of the bill\'s payments, in the Bills Calendar too. The bill\'s due date doesn\'t change.')}</p>
                <div class="matching-tx-list">${options}</div>`
             : `<p class="matching-tx-intro">${t('budget', 'There are no bills on this account yet. Add the bill first, then link this payment to it.')}</p>`;
@@ -84,7 +130,7 @@ export function chooseBill(bills, settings) {
                 </div>
                 <div class="budget-modal-footer">
                     <button class="cancel-btn">${t('budget', 'Cancel')}</button>
-                    ${sorted.length > 0 ? `<button class="confirm-btn primary" disabled>${t('budget', 'Link')}</button>` : ''}
+                    ${entries.length > 0 ? `<button class="confirm-btn primary" disabled>${t('budget', 'Link')}</button>` : ''}
                 </div>
             </div>
         `;

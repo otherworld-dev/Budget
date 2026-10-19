@@ -3916,7 +3916,7 @@ export default class TransactionsModule {
                 return;
             }
 
-            const billId = await chooseBill(linkableBills(bills, transaction), this.settings);
+            const billId = await chooseBill(linkableBills(bills, transaction), this.settings, transaction);
             if (billId === null) {
                 return;
             }

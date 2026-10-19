@@ -77,7 +77,8 @@ describe('Link to bill', () => {
 
         await module.linkTransactionToBill(1586);
 
-        expect(chooseBill).toHaveBeenCalledWith([BILLS[0], BILLS[1]], module.app.settings);
+        // The row goes too, so bills of its amount can be put first
+        expect(chooseBill).toHaveBeenCalledWith([BILLS[0], BILLS[1]], module.app.settings, PAYMENT);
         expect(requests.at(-1)).toEqual({ url: '/apps/budget/api/transactions/1586/bill', method: 'POST', body: { billId: 120 } });
         expect(showSuccess).toHaveBeenCalledWith('Transaction linked to Corner Card SA');
         expect(module.app.loadTransactions).toHaveBeenCalled();
