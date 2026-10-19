@@ -26,13 +26,34 @@ import { isReadOnlyShare } from '../../utils/accounts.js';
  *
  * @param {object} tx - Transaction row as the API returns it
  * @param {object|undefined} account - The row's account
- * @returns {Array<'duplicate'|'share'|'match'|'unlink'|'delete'>}
+ * @returns {Array<'duplicate'|'share'|'match'|'unlink'|'linkBill'|'unlinkBill'|'delete'>}
  */
 export function transactionMenuActions(tx, account) {
     if (isReadOnlyShare(account)) {
         return ['share'];
     }
-    return ['duplicate', 'share', tx?.linkedTransactionId != null ? 'unlink' : 'match', 'delete'];
+    const bill = billMenuAction(tx);
+    return ['duplicate', 'share', tx?.linkedTransactionId != null ? 'unlink' : 'match', ...(bill ? [bill] : []), 'delete'];
+}
+
+/**
+ * The row's bill entry (#399): Link to bill on a payment no bill holds, or
+ * one whose bill was deleted (billDeleted), and Unlink from bill on one a
+ * bill still holds. Neither on money in, which no bill pays, nor on a
+ * scheduled row: money that hasn't moved, or a bill's upcoming payment,
+ * which stays with its bill.
+ *
+ * @param {object} tx - Transaction row as the API returns it
+ * @returns {'linkBill'|'unlinkBill'|null}
+ */
+function billMenuAction(tx) {
+    if (!tx || tx.status === 'scheduled') {
+        return null;
+    }
+    if (tx.billId != null && !tx.billDeleted) {
+        return 'unlinkBill';
+    }
+    return tx.type === 'debit' ? 'linkBill' : null;
 }
 
 /**

@@ -77,6 +77,9 @@ return [
 		['name' => 'transaction#getMatches', 'url' => '/api/transactions/{id}/matches', 'verb' => 'GET'],
 		['name' => 'transaction#link', 'url' => '/api/transactions/{id}/link/{targetId}', 'verb' => 'POST'],
 		['name' => 'transaction#unlink', 'url' => '/api/transactions/{id}/link', 'verb' => 'DELETE'],
+		// File a payment under a bill, or take it out again (#399)
+		['name' => 'transaction#linkBill', 'url' => '/api/transactions/{id}/bill', 'verb' => 'POST'],
+		['name' => 'transaction#unlinkBill', 'url' => '/api/transactions/{id}/bill', 'verb' => 'DELETE'],
 		['name' => 'transaction#convertToTransfer', 'url' => '/api/transactions/{id}/convert-to-transfer', 'verb' => 'POST'],
 		['name' => 'transaction#getSplits', 'url' => '/api/transactions/{id}/splits', 'verb' => 'GET'],
 		['name' => 'transaction#split', 'url' => '/api/transactions/{id}/splits', 'verb' => 'POST'],
