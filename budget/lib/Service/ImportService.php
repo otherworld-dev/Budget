@@ -743,11 +743,12 @@ class ImportService {
 	 * that category on that day at that price is taken for it once this
 	 * mapping puts the category in the line's texts.
 	 *
-	 * Each stored row stands for one line at most, the first in the file
-	 * that could be it, so a second identical purchase still imports. A
-	 * stored row whose import id a line of this file carries belongs to that
-	 * line (V2-2), and a line its own import id already recognises takes no
-	 * other.
+	 * Each stored row stands for one line at most and each line for one
+	 * stored row, paired so that as many lines as can be are recognised: a
+	 * line that could be either of two stored rows leaves the one another
+	 * line needs, wherever the two are in the file. A stored row whose import
+	 * id a line of this file carries belongs to that line (V2-2), and a line
+	 * its own import id already recognises takes no other.
 	 *
 	 * Only rows stored under a content hash are compared: a row typed in by
 	 * hand, synced from the bank or carrying the bank's own id (an OFX
@@ -802,18 +803,40 @@ class ImportService {
 			}
 		}
 
-		$taken = [];
+		$pairedWith = [];
+		foreach (array_keys($candidates) as $n) {
+			$tried = [];
+			self::pairLine($n, $candidates, $pairedWith, $tried);
+		}
+
 		$recognised = [];
-		foreach ($candidates as $n => $rows) {
-			foreach ($rows as $row) {
-				if (!isset($taken[$row])) {
-					$taken[$row] = true;
-					$recognised[$lines[$n]['index']] = true;
-					break;
-				}
-			}
+		foreach ($pairedWith as $n) {
+			$recognised[$lines[$n]['index']] = true;
 		}
 		return $recognised;
+	}
+
+	/**
+	 * Give line $n one of its stored rows, moving a line already paired to
+	 * another of its own stored rows when that frees one (an augmenting
+	 * path), so the pairing ends with as many lines recognised as can be.
+	 *
+	 * @param array<int, list<string>> $candidates Each line's stored rows, by line
+	 * @param array<string, int> $pairedWith The line each stored row is paired with
+	 * @param array<string, true> $tried The stored rows this step has looked at
+	 */
+	private static function pairLine(int $n, array $candidates, array &$pairedWith, array &$tried): bool {
+		foreach ($candidates[$n] as $row) {
+			if (isset($tried[$row])) {
+				continue;
+			}
+			$tried[$row] = true;
+			if (!isset($pairedWith[$row]) || self::pairLine($pairedWith[$row], $candidates, $pairedWith, $tried)) {
+				$pairedWith[$row] = $n;
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**

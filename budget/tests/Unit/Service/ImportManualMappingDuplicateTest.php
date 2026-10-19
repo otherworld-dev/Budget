@@ -478,6 +478,33 @@ class ImportManualMappingDuplicateTest extends TestCase {
 		$this->assertSame(0, $again['imported']);
 	}
 
+	public static function breadFirst(): array {
+		return ['the bread first' => [true], 'the milk first' => [false]];
+	}
+
+	/**
+	 * Two lines of one receipt at one price, both imported before under other
+	 * mappings: the milk by its category alone, the bread by its product. The
+	 * bread's line could be either stored row and the milk's only the first,
+	 * so the bread leaves that one to the milk, whichever is listed first.
+	 */
+	#[DataProvider('breadFirst')]
+	public function testALineThatCouldBeEitherStoredRowLeavesTheOneAnotherLineNeeds(bool $breadFirst): void {
+		$milk = ['13.10.2026', 'Milch', 'Lebensmittel', '-1.65'];
+		$bread = ['13.10.2026', 'Brot', 'Lebensmittel', '-1.65'];
+		$this->import([$milk], self::BY_CATEGORY);
+		$this->import([$bread], self::BY_PRODUCT);
+		$this->assertSame(['Lebensmittel', 'Brot'], $this->descriptions());
+		$rows = $breadFirst ? [$bread, $milk] : [$milk, $bread];
+
+		$preview = $this->preview($rows, self::WITH_CATEGORY);
+		$again = $this->import($rows, self::WITH_CATEGORY);
+
+		$this->assertSame(2, $preview['duplicates']);
+		$this->assertSame(0, $again['imported']);
+		$this->assertCount(2, $this->ledger);
+	}
+
 	/**
 	 * One pack imported earlier and two in the file, mapped the other way:
 	 * the stored row stands for one of them, so the second pack imports.
