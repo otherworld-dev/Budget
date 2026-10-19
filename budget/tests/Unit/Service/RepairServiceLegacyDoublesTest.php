@@ -333,6 +333,29 @@ class RepairServiceLegacyDoublesTest extends TestCase {
 		$this->assertSame([], $this->duplicates($this->serviceOn('2026-10-19')));
 	}
 
+	/**
+	 * A pending row Mark Paid took up on its due date looks like the old
+	 * job's: written before its date, changed on it. But taking it up booked
+	 * the next occurrence's pending row in the same moment, which the job
+	 * never did. Here 3.x took up the 10 October row (902), and two days
+	 * later a second, smaller payment was recorded on purpose: two payments,
+	 * not one booked twice.
+	 */
+	public function testAPendingRowMarkPaidTookUpIsNotTheOldJobsRow(): void {
+		$this->with([$this->bill([
+			'id' => 90, 'name' => 'Phone', 'amount' => 50.0, 'dueDay' => 10,
+			'lastPaidDate' => '2026-10-12', 'nextDueDate' => '2026-12-10',
+			'paidUndoState' => self::snapshot('2026-10-12', '2026-11-10', [903], [904]),
+		])], [
+			$this->row(901, 90, 'Phone', '2026-09-10', 50.0, '2026-08-10 12:00:00', '2026-09-10 12:00:00'),
+			$this->row(902, 90, 'Phone', '2026-10-10', 50.0, '2026-09-10 12:00:01', '2026-10-10 12:00:00'),
+			$this->row(903, 90, 'Phone', '2026-10-12', 30.0, '2026-10-10 12:00:01', '2026-10-12 12:00:00'),
+			$this->row(904, 90, 'Phone', '2026-12-10', 50.0, '2026-10-12 12:00:00', null, ['status' => 'scheduled']),
+		]);
+
+		$this->assertSame([], $this->duplicates($this->serviceOn('2026-10-19')));
+	}
+
 	// ---------------------------------------------------------------
 	// The first payment a day early
 	// ---------------------------------------------------------------

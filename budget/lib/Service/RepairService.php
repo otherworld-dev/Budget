@@ -64,6 +64,13 @@ class RepairService {
 	/** Furthest apart two payments of a deleted bill are taken for one paid twice */
 	private const DELETED_BILL_DOUBLE_DAYS = 3;
 
+	/**
+	 * Taking a bill's pending row up as its payment books the next
+	 * occurrence's pending row in the same request: within this many
+	 * seconds of the row's last change.
+	 */
+	private const TAKEN_UP_SECONDS = 2;
+
 	private TransactionMapper $transactionMapper;
 	private BillMapper $billMapper;
 	private AccountMapper $accountMapper;
@@ -389,7 +396,10 @@ class RepairService {
 		}
 
 		$rowsByBill = [];
+		// When each bill's rows were written, wherever they sit
+		$writtenAt = [];
 		foreach ($this->transactionMapper->findRecordedByBillIds(array_keys($billsById)) as $tx) {
+			$writtenAt[$tx->getBillId()][self::second($tx->getCreatedAt())] = true;
 			// Debits only: a transfer's deposit is the other half of its
 			// withdrawal, not a payment of its own
 			if (isset($accountNames[$tx->getAccountId()]) && $tx->getDate() <= $today && $tx->getType() === 'debit') {
@@ -416,7 +426,8 @@ class RepairService {
 					|| $surplus->getAccountId() !== $holder->getAccountId()) {
 					continue;
 				}
-				$byOldJob = array_values(array_filter([$surplus, $holder], fn (Transaction $tx) => self::clearedByTheOldJob($tx, $named)));
+				$byOldJob = array_values(array_filter([$surplus, $holder],
+					fn (Transaction $tx) => self::clearedByTheOldJob($tx, $named, $writtenAt[$billId] ?? [])));
 				if ($byOldJob === [] && abs((float)$surplus->getAmount() - (float)$holder->getAmount()) >= 0.005) {
 					continue;
 				}
@@ -528,6 +539,10 @@ class RepairService {
 		foreach ($byName as $key => $rows) {
 			usort($rows, fn (Transaction $a, Transaction $b) => [$a->getDate(), $a->getId()] <=> [$b->getDate(), $b->getId()]);
 			[, $billName] = explode("\n", $key, 2);
+			$writtenAt = [];
+			foreach ($rows as $tx) {
+				$writtenAt[self::second($tx->getCreatedAt())] = true;
+			}
 			$count = count($rows);
 			for ($i = 0; $i < $count; $i++) {
 				for ($j = $i + 1; $j < $count && self::daysApart($rows[$i]->getDate(), $rows[$j]->getDate()) <= self::DELETED_BILL_DOUBLE_DAYS; $j++) {
@@ -538,7 +553,7 @@ class RepairService {
 						continue;
 					}
 					$removable = array_values(array_filter([$later, $earlier], fn (Transaction $tx) => self::removable($tx)));
-					$byOldJob = array_values(array_filter($removable, fn (Transaction $tx) => self::clearedByTheOldJob($tx, [])));
+					$byOldJob = array_values(array_filter($removable, fn (Transaction $tx) => self::clearedByTheOldJob($tx, [], $writtenAt)));
 					$pick = $byOldJob[0] ?? $removable[0] ?? null;
 					if ($pick === null) {
 						continue;
@@ -561,16 +576,48 @@ class RepairService {
 	 * Such a row was written before its date (by the payment before it), last
 	 * changed on its date, and no payment of the bill names it.
 	 *
+	 * A pending row Mark Paid or auto-pay took up as the payment, on its due
+	 * date, looks the same. But taking it up booked the next occurrence's
+	 * pending row in the same moment, which the job never did, so a row of
+	 * the bill written just after it was last changed rules it out.
+	 *
 	 * @param int[] $named the rows the bill's undo snapshot names
+	 * @param array<string, true> $writtenAt the seconds the bill's rows were written in
 	 */
-	private static function clearedByTheOldJob(Transaction $tx, array $named): bool {
+	private static function clearedByTheOldJob(Transaction $tx, array $named, array $writtenAt): bool {
 		$date = substr((string)$tx->getDate(), 0, 10);
 		$written = substr((string)$tx->getCreatedAt(), 0, 10);
+		$changed = self::second($tx->getUpdatedAt());
 		return self::bookedForABill($tx)
 			&& ($tx->getStatus() ?? 'cleared') === 'cleared'
 			&& $written !== '' && $written < $date
-			&& substr((string)$tx->getUpdatedAt(), 0, 10) === $date
-			&& !in_array($tx->getId(), $named, true);
+			&& substr($changed, 0, 10) === $date
+			&& !in_array($tx->getId(), $named, true)
+			&& !self::writtenJustAfter($changed, $writtenAt);
+	}
+
+	/**
+	 * Whether one of the rows was written within TAKEN_UP_SECONDS after
+	 * $moment.
+	 *
+	 * @param array<string, true> $writtenAt the seconds the rows were written in
+	 */
+	private static function writtenJustAfter(string $moment, array $writtenAt): bool {
+		if (!preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $moment)) {
+			return false;
+		}
+		$at = new \DateTimeImmutable($moment, new \DateTimeZone('UTC'));
+		for ($second = 0; $second <= self::TAKEN_UP_SECONDS; $second++) {
+			if (isset($writtenAt[$at->modify("+{$second} seconds")->format('Y-m-d H:i:s')])) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/** A timestamp to the second, as the database keeps it */
+	private static function second(?string $timestamp): string {
+		return substr((string)$timestamp, 0, 19);
 	}
 
 	/** A bill's row the app generated, which no statement has checked */
