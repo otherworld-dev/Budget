@@ -152,15 +152,40 @@ describe('calendarCell', () => {
     });
 });
 
-describe('Bills Calendar table cells', () => {
-    function makeModule() {
-        const mod = Object.create(ReportsModule.prototype);
-        mod.app = { accounts: [], settings: {} };
-        mod.getPrimaryCurrency = () => 'CHF';
-        mod.formatCurrency = (v, c) => `${Number(v).toFixed(2)} ${c}`;
-        return mod;
-    }
+function makeModule() {
+    const mod = Object.create(ReportsModule.prototype);
+    mod.app = { accounts: [], settings: {} };
+    mod.getPrimaryCurrency = () => 'CHF';
+    mod.formatCurrency = (v, c) => `${Number(v).toFixed(2)} ${c}`;
+    return mod;
+}
 
+describe('Bills Calendar heatmap', () => {
+    afterEach(() => {
+        document.body.innerHTML = '';
+    });
+
+    it('counts only the bills that make up the month\'s total', () => {
+        document.body.innerHTML = '<div id="bills-calendar-heatmap"></div>';
+        const paidInApril = {
+            name: 'Dentist', amount: 166.70, currency: 'CHF', frequency: 'one-time', isActive: false,
+            occurrences: months([4]), paidMonths: [4], paidAmounts: { 4: 166.70 },
+            paidDetails: { 4: [{ date: '2026-04-26', amount: 166.70 }] }, occurrenceCounts: { 4: 1 },
+            unrecordedMonths: [], expectedAmounts: { 4: 166.70 }, owedAmounts: [],
+        };
+
+        // CSX moved past April with nothing recorded, so April is the dentist alone
+        makeModule().renderBillsCalendarHeatmap([csx, paidInApril], { 4: 166.70, 6: 50 });
+
+        const tiles = document.querySelectorAll('.heatmap-month');
+        expect(tiles[3].querySelector('.heatmap-month-count').textContent).toBe('%n bill');
+        expect(tiles[5].querySelector('.heatmap-month-count').textContent).toBe('%n bill');
+        expect(tiles[10].querySelector('.heatmap-month-count').textContent).toBe('%n bill');
+        expect(tiles[0].querySelector('.heatmap-month-count').textContent).toBe('%n bills');
+    });
+});
+
+describe('Bills Calendar table cells', () => {
     const cells = () => document.querySelectorAll('#bills-calendar-table-body tr')[0].querySelectorAll('td.month-cell');
 
     beforeEach(() => {
