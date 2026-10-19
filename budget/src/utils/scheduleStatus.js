@@ -20,6 +20,96 @@ const CYCLE_DAYS = {
 const SOON_DAYS = 7;
 
 /**
+ * The days a Custom schedule falls on each year, read as the server reads
+ * its pattern: its months on the due day, else its dates. Empty when it has
+ * no usable pattern; the server then runs it monthly.
+ *
+ * @param {string|object|null} pattern the custom recurrence pattern, as JSON or parsed
+ * @param {number} dueDay
+ * @return {Array<Array<number>>} [month, day] pairs
+ */
+function customDays(pattern, dueDay) {
+    let parsed = pattern;
+    if (typeof parsed === 'string') {
+        try {
+            parsed = JSON.parse(parsed);
+        } catch {
+            return [];
+        }
+    }
+    const month = value => Math.trunc(Number(value));
+    const inYear = value => month(value) >= 1 && month(value) <= 12;
+    if (Array.isArray(parsed?.months) && parsed.months.length > 0) {
+        return parsed.months.filter(inYear).map(value => [month(value), dueDay]);
+    }
+    if (Array.isArray(parsed?.dates) && parsed.dates.length > 0) {
+        return parsed.dates
+            .filter(date => inYear(date?.month) && date.day !== undefined && date.day !== null)
+            .map(date => [month(date.month), Math.trunc(Number(date.day))]);
+    }
+    return [];
+}
+
+/**
+ * $day of a month as Y-m-d, or the month's last day when it has fewer
+ *
+ * @param {number} year
+ * @param {number} month 1-12
+ * @param {number} day
+ * @return {string}
+ */
+function clampedDate(year, month, day) {
+    const last = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    const clamped = Math.max(1, Math.min(day || 1, last));
+    return `${year}-${String(month).padStart(2, '0')}-${String(clamped).padStart(2, '0')}`;
+}
+
+/**
+ * The last date a Custom schedule fell on before $date
+ *
+ * @param {Array<Array<number>>} days [month, day] pairs, not empty
+ * @param {string} date Y-m-d
+ * @return {string} Y-m-d
+ */
+function customOccurrenceBefore(days, date) {
+    const year = Number(date.slice(0, 4));
+    let before = days.map(([month, day]) => clampedDate(year, month, day)).filter(day => day < date);
+    if (before.length === 0) {
+        before = days.map(([month, day]) => clampedDate(year - 1, month, day));
+    }
+    return before.sort().pop();
+}
+
+/**
+ * Whether a Custom bill's last payment settled the occurrence before its
+ * next due date (#399): made on or after it, or nearer it than the
+ * occurrence before that, so a payment made early still counts. A year
+ * shared out evenly among an uneven pattern's dates held a January and
+ * February bill paid in February as paid only until August, and offered
+ * Mark Paid for next January from then on. Null when the pattern can't be
+ * read.
+ *
+ * @param {string|object|null} pattern
+ * @param {number|null} dueDay its due day, else the next due date's
+ * @param {string} dueDate the next occurrence, Y-m-d
+ * @param {string} lastDate the last payment, Y-m-d
+ * @return {boolean|null}
+ */
+function customSettled(pattern, dueDay, dueDate, lastDate) {
+    const days = customDays(pattern, Number(dueDay) || Number(dueDate.slice(8, 10)));
+    if (days.length === 0) {
+        return null;
+    }
+    const before = customOccurrenceBefore(days, dueDate);
+    const ahead = formatters.daysBetweenDates(lastDate, before);
+    if (ahead <= 0) {
+        return true;
+    }
+    const earlier = customOccurrenceBefore(days, before);
+    return ahead * 2 <= formatters.daysBetweenDates(earlier, before);
+}
+
+/**
  * "Paid (or received) sometime this calendar month" put a Paid badge beside
  * a date still to come, let a weekly bill be paid once a month, and read a
  * late payment for last month as this month's. The next occurrence decides:
@@ -31,6 +121,12 @@ const SOON_DAYS = 7;
  *    close yet, so there is nothing to act on
  *  - upcoming: anything further off
  *
+ * A Custom schedule's dates can be months apart and uneven, so its last
+ * payment is judged by the dates its pattern falls on (customSettled());
+ * one with no usable pattern runs monthly, as on the server. A one-time item
+ * has no cycle: while it is still owed, a payment beside it settles nothing
+ * (#399).
+ *
  * Dates are compared as Y-m-d strings: parsed with new Date() they are UTC
  * midnight, which west of UTC is the evening before.
  *
@@ -39,13 +135,16 @@ const SOON_DAYS = 7;
  * @param {boolean} item.isActive
  * @param {string|null} item.dueDate next occurrence, Y-m-d
  * @param {string|null} item.lastDate last payment or receipt, Y-m-d
+ * @param {string|object|null} [item.pattern] a Custom schedule's recurrence pattern
+ * @param {number|null} [item.dueDay] a Custom schedule's due day; read off dueDate when left out
  * @param {string} today the user's local date, Y-m-d
  * @return {{status: string, recentlySettled: boolean}}
  */
-export function scheduleState({ frequency, isActive, dueDate, lastDate }, today) {
+export function scheduleState({ frequency, isActive, dueDate, lastDate, pattern = null, dueDay = null }, today) {
     const sinceLast = lastDate ? formatters.daysBetweenDates(lastDate, today) : null;
-    const recentlySettled = sinceLast !== null && sinceLast >= 0
-        && sinceLast <= (CYCLE_DAYS[frequency] ?? 31);
+    const custom = frequency === 'custom' && dueDate && lastDate ? customSettled(pattern, dueDay, dueDate, lastDate) : null;
+    const recentlySettled = frequency !== 'one-time' && sinceLast !== null && sinceLast >= 0
+        && (custom ?? sinceLast <= (CYCLE_DAYS[frequency] ?? 31));
 
     if (!isActive || !dueDate) {
         return { status: 'inactive', recentlySettled };
