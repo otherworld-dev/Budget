@@ -13,10 +13,10 @@ import { escapeHtml } from './dom.js';
  * One row of "Duplicate Auto-Generated Transactions": its tick, the
  * payment's name, amount and date, and the note on what it repeats.
  *
- * The name is the payment's vendor. A payment with none (the 2.x job's
- * pending rows carried their bill's name in the description only) goes by
- * its bill's name, else by the name the other payment is recorded under:
- * the scan only pairs the two when that names the same bill (#399).
+ * The name is the payment's vendor. A payment with none (the reporter's
+ * 2.x pending row had its bill's name as its description only) goes by its
+ * bill's name, else by the name the other payment is recorded under: the
+ * scan only pairs the two when that names the same bill (#399).
  *
  * @param {object} finding one of the scan's duplicateTransactions
  * @param {function(number): string} formatAmount
