@@ -1229,7 +1229,7 @@ class BillService {
 			? $this->recordedPaymentFor($bill, $actingUserId)
 			: null;
 
-		// The payment's date:a linked row's own, else today so the payment
+		// The payment's date: a linked row's own, else today so the payment
 		// appears in the account balance at once, regardless of when the bill
 		// was due. The user's today, not the server's: a payment marked in the
 		// evening west of UTC was filed under tomorrow. Dated the day of the
