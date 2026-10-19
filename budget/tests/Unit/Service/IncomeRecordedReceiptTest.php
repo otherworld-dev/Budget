@@ -172,6 +172,15 @@ class IncomeRecordedReceiptTest extends TestCase {
 		$this->assertSame(1350741, $this->service->recordedReceiptForPendingOccurrence(1, 'user1')['id']);
 	}
 
+	public function testAMonthlyIncomeSwitchedToOneTimeForNextMonthIsNotFlagged(): void {
+		// Received on 19 October, then switched to One-Time on 20 November:
+		// October's credit isn't November's
+		$this->income(['frequency' => 'one-time', 'startDate' => '2026-11-20', 'lastReceivedDate' => '2026-10-19', 'nextExpectedDate' => '2026-11-20']);
+		$this->credit(1350741, '2026-10-19');
+
+		$this->assertNull($this->service->recordedReceiptForPendingOccurrence(1, 'user1', '2026-11-20'));
+	}
+
 	public function testNothingIsReportedForAStalePageOrAnIncomeNotExpected(): void {
 		$this->income();
 		$this->credit(1350741, '2026-09-29');

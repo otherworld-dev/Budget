@@ -312,10 +312,13 @@ class RecurringIncomeService extends AbstractCrudService {
 	 * expected on, if it has one (#399). Mark Received always booked a new
 	 * one: an income 2.54.0 left expecting a payment whose credit was in
 	 * already took a second one with one click. Only credits the app booked
-	 * for this income count, by their notes (the row has no column for it).
-	 * For a one-time income that is any it has; for a recurring one a credit
-	 * dated after the last receipt and no earlier than the expected window
-	 * before the date, which the last receipt didn't book itself.
+	 * for this income count, by their notes (the row has no column for it),
+	 * dated no earlier than the expected window before the date: an earlier
+	 * one is another payment's (a monthly income switched to One-Time for
+	 * its last payment was offered the one before). A one-time income's
+	 * credit may also come earlier in the month it is expected. A recurring
+	 * income's must also be dated after the last receipt and not be the one
+	 * the last receipt booked itself.
 	 *
 	 * @param string|null $expectedDate the payment the page showed; none to
 	 *                                  report once the income has moved past it
@@ -340,7 +343,10 @@ class RecurringIncomeService extends AbstractCrudService {
 
 		$oneTime = $income->getFrequency() === 'one-time';
 		$window = self::expectedWindowDays($income->getFrequency());
-		$from = $oneTime ? '1970-01-01' : (new \DateTimeImmutable($due))->modify("-{$window} days")->format('Y-m-d');
+		$from = (new \DateTimeImmutable($due))->modify("-{$window} days")->format('Y-m-d');
+		if ($oneTime) {
+			$from = min($from, substr($due, 0, 7) . '-01');
+		}
 		$note = 'Auto-generated from income: ' . $income->getName();
 		$lastReceived = $income->getLastReceivedDate();
 		$raw = $income->getReceivedUndoState();

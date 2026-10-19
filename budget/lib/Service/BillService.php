@@ -526,13 +526,19 @@ class BillService {
 	}
 
 	/**
-	 * A row of the bill that already pays the occurrence it is due on. For
-	 * a one-time bill that is any it has. For a recurring one it is a row
-	 * dated after the last payment and no earlier than the due window
-	 * before the occurrence (a late payment of the previous occurrence is
-	 * that one's), which the last payment didn't book, link or use itself.
-	 * A pre-booked row is no payment. The bill's own account comes first (a
-	 * transfer's deposit carries the bill too), then the nearest the date.
+	 * A row of the bill that already pays the occurrence it is due on: one
+	 * dated no earlier than the due window before the occurrence. A row
+	 * from before that is another occurrence's: a monthly bill paid in
+	 * October and switched to One-Time for November offered October's
+	 * payment as November's, and "Use that payment" left November unpaid.
+	 * A one-time bill's payment may also come earlier in the month it is
+	 * due (an invoice paid when it arrived), and is the one it has: a bill
+	 * re-opened was last paid by that very row. A recurring bill's must
+	 * also be dated after the last payment (a late payment of the previous
+	 * occurrence is that one's) and not be a row the last payment booked,
+	 * linked or used itself. A pre-booked row is no payment. The bill's own
+	 * account comes first (a transfer's deposit carries the bill too), then
+	 * the nearest the date.
 	 */
 	private function recordedPaymentFor(Bill $bill): ?\OCA\Budget\Db\Transaction {
 		$due = $bill->getNextDueDate();
@@ -542,16 +548,19 @@ class BillService {
 		$oneTime = $bill->getFrequency() === 'one-time';
 		$lastPaid = $bill->getLastPaidDate();
 		$from = (new \DateTimeImmutable($due))->modify('-' . $this->dueDateToleranceDays($bill->getFrequency()) . ' days')->format('Y-m-d');
+		if ($oneTime) {
+			$from = min($from, substr($due, 0, 7) . '-01');
+		}
 		$lastPayment = $this->lastPaymentRowIds($bill);
 
 		$best = null;
 		$rank = null;
 		foreach ($this->transactionService->findRecordedBillTransactions([(int)$bill->getId()]) as $row) {
 			$date = substr((string)$row->getDate(), 0, 10);
-			if (($row->getStatus() ?? 'cleared') === 'scheduled') {
+			if (($row->getStatus() ?? 'cleared') === 'scheduled' || $date < $from) {
 				continue;
 			}
-			if (!$oneTime && (($lastPaid !== null && $date <= $lastPaid) || $date < $from
+			if (!$oneTime && (($lastPaid !== null && $date <= $lastPaid)
 				|| in_array((int)$row->getId(), $lastPayment, true))) {
 				continue;
 			}

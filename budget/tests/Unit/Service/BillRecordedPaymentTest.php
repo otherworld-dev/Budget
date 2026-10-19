@@ -151,6 +151,25 @@ class BillRecordedPaymentTest extends TestCase {
 		);
 	}
 
+	public function testAMonthlyBillSwitchedToOneTimeForNextMonthIsNotFlagged(): void {
+		// Paid on 19 October, then switched to One-Time on 20 November for
+		// its last payment (the edit spent the snapshot). October's payment
+		// isn't November's: offered as "Use that payment", the last payment
+		// was never recorded.
+		$this->bill(['frequency' => 'one-time', 'dueDay' => 20, 'nextDueDate' => '2026-11-20', 'startDate' => '2026-11-20', 'lastPaidDate' => '2026-10-19']);
+		$this->row(500, '2026-10-19');
+
+		$this->assertNull($this->service->recordedPaymentForPendingOccurrence(1, 'user1', '2026-11-20'));
+	}
+
+	public function testAOneTimeBillPaidEarlyInItsMonthReportsThatPayment(): void {
+		// An invoice due on the 30th, paid when it arrived on the 2nd
+		$this->bill(['frequency' => 'one-time', 'dueDay' => 30, 'nextDueDate' => '2026-11-30', 'startDate' => '2026-11-30', 'lastPaidDate' => null]);
+		$this->row(500, '2026-11-02');
+
+		$this->assertSame(500, $this->service->recordedPaymentForPendingOccurrence(1, 'user1', '2026-11-30')['id']);
+	}
+
 	public function testLatePaymentOfThePreviousOccurrenceIsNotFlagged(): void {
 		// Due on the 28th, September paid on the 30th: that payment is
 		// September's, not October's
