@@ -36,6 +36,25 @@ class BillClaimOccurrenceTest extends IntegrationTestCase {
 		return $value === null ? null : substr($value, 0, 10);
 	}
 
+	/**
+	 * The real mapper, letting another request in just before the next
+	 * claim, once: two requests that both read the bill as due race for it
+	 */
+	private function racingMapper(): BillMapper {
+		return new class($this->db()) extends BillMapper {
+			public ?\Closure $beforeClaim = null;
+
+			public function claimOccurrence(int $id, string $userId, string $expectedDue, array $fields): bool {
+				if ($this->beforeClaim !== null) {
+					$other = $this->beforeClaim;
+					$this->beforeClaim = null;
+					$other();
+				}
+				return parent::claimOccurrence($id, $userId, $expectedDue, $fields);
+			}
+		};
+	}
+
 	public function testOnlyTheFirstClaimOfAnOccurrenceWins(): void {
 		$bill = $this->bill();
 		$mapper = $this->service(BillMapper::class);
@@ -74,22 +93,30 @@ class BillClaimOccurrenceTest extends IntegrationTestCase {
 	}
 
 	public function testConcurrentClaimsOnAPreBookingBillBookOnce(): void {
-		// Mark Paid twice, both naming 15 October: one payment, and one row
-		// pre-booked for November
+		// Two Mark Paid of 15 October at once. Both read the bill as due and
+		// pass every check; the other request then pays October between this
+		// one's checks and its claim. One payment, and one row pre-booked for
+		// November.
 		$bill = $this->bill();
 		$this->makeTransaction($this->account, [
 			'date' => '2026-10-15', 'amount' => '30.00', 'status' => 'scheduled', 'bill_id' => $bill,
 			'notes' => 'Auto-generated from bill: Phone', 'description' => '',
 		]);
-		$service = $this->service(BillService::class);
+		$mapper = $this->racingMapper();
+		$service = clone $this->service(BillService::class);
+		(new \ReflectionProperty(BillService::class, 'mapper'))->setValue($service, $mapper);
+		$other = null;
+		$mapper->beforeClaim = function () use ($service, $bill, &$other): void {
+			$other = $service->markPaid($bill, $this->userId, '2026-10-15', true, null, '2026-10-15');
+		};
 
-		$service->markPaid($bill, $this->userId, '2026-10-15', true, null, '2026-10-15');
 		try {
 			$service->markPaid($bill, $this->userId, '2026-10-15', true, null, '2026-10-15');
 			$this->fail('October was paid twice');
 		} catch (\InvalidArgumentException $e) {
 		}
 
+		$this->assertNotNull($other, 'The other request paid October first');
 		$qb = $this->db()->getQueryBuilder();
 		$qb->select('date', 'status')->from('budget_transactions')
 			->where($qb->expr()->eq('bill_id', $qb->createNamedParameter($bill)))
