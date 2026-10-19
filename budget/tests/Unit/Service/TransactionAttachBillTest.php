@@ -421,6 +421,28 @@ class TransactionAttachBillTest extends TestCase {
 		$this->assertSame([], $this->written);
 	}
 
+	/**
+	 * Mark Paid on September booked 1590 and pre-booked October's row 1800,
+	 * which has since gone through on its own (the 2.x job cleared
+	 * pre-booked rows on their date, a status edit through the v1 API does
+	 * it now). Mark Unpaid deletes the next occurrence's pre-booked row only
+	 * while it is still scheduled, so 1800 is no longer its to undo. Sent
+	 * there, the user would have reverted September's payment and still had
+	 * 1800 filed under the bill.
+	 */
+	public function testAPreBookedRowThatWentThroughCanBeUnlinked(): void {
+		$this->row(1590, ['date' => '2026-09-28', 'billId' => 120]);
+		$this->row(1800, ['date' => '2026-10-28', 'billId' => 120]);
+		$this->bill(120, ['lastPaidDate' => '2026-09-28', 'nextDueDate' => '2026-10-28', 'paidUndoState' => self::snapshot([1590], null, [1800])]);
+
+		$this->assertNull($this->service->detachFromBill(1800, self::USER)->getBillId());
+		$this->assertSame([[1800, null]], $this->written);
+
+		// September's payment is still Mark Unpaid's
+		$this->assertStringContainsString('Mark Unpaid', $this->refusal(fn () => $this->service->detachFromBill(1590, self::USER)));
+		$this->assertSame([[1800, null]], $this->written);
+	}
+
 	/** An earlier payment is no longer in the snapshot, so nothing else would undo it */
 	public function testAnEarlierPaymentCanBeUnlinked(): void {
 		$this->row(1225, ['date' => '2026-09-25', 'billId' => 120]);

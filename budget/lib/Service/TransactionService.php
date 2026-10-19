@@ -1386,9 +1386,16 @@ class TransactionService {
 
 	/**
 	 * The rows a bill's Mark Unpaid deletes or lets go of: the ones the
-	 * snapshot of its latest payment names (BillService::markPaid()). The
-	 * stored snapshot is what Mark Unpaid runs from, whatever payment it
-	 * describes.
+	 * snapshot of its latest payment booked or linked (BillService::
+	 * markPaid()). The stored snapshot is what Mark Unpaid runs from,
+	 * whatever payment it describes.
+	 *
+	 * The next occurrence's pre-booked rows (scheduledTransactionIds) are
+	 * left out. Mark Unpaid deletes those only while they are still
+	 * scheduled, and detachFromBill() already refuses a scheduled row. Once
+	 * one has gone through outside Mark Paid it is no longer Mark Unpaid's:
+	 * pointed there, the user reverted the payment before it and the row
+	 * stayed filed under the bill.
 	 *
 	 * @return int[]
 	 */
@@ -1400,11 +1407,9 @@ class TransactionService {
 		}
 
 		$ids = [];
-		foreach (['createdTransactionIds', 'scheduledTransactionIds'] as $key) {
-			foreach (is_array($snapshot[$key] ?? null) ? $snapshot[$key] : [] as $id) {
-				if (is_numeric($id)) {
-					$ids[] = (int)$id;
-				}
+		foreach (is_array($snapshot['createdTransactionIds'] ?? null) ? $snapshot['createdTransactionIds'] : [] as $id) {
+			if (is_numeric($id)) {
+				$ids[] = (int)$id;
 			}
 		}
 		if (is_numeric($snapshot['linkedTransactionId'] ?? null)) {
