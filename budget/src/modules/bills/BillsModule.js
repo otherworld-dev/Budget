@@ -18,6 +18,7 @@ import { showLoadError } from '../../utils/loading.js';
 import { requestMarkUnpaid } from '../../utils/billUnpaid.js';
 import { sendPayment } from '../../utils/paymentRecordedDialog.js';
 import { unavailableCategoryLabel } from '../../utils/formSelects.js';
+import { isRepeatClick } from '../../utils/doubleClick.js';
 
 export default class BillsModule {
     constructor(app) {
@@ -125,8 +126,14 @@ export default class BillsModule {
             `;
             }).join('');
 
+            // Not on the second click of a double click: the card re-renders
+            // as each payment leaves it, and that click acted on the next
+            // payment in the list, as the list's Mark Paid did (#399)
             list.querySelectorAll('.unrecorded-payment-record').forEach(btn => {
-                btn.addEventListener('click', (e) => this.recordMissedPayment(parseInt(e.currentTarget.dataset.billId)));
+                btn.addEventListener('click', (e) => {
+                    if (isRepeatClick(e)) return;
+                    this.recordMissedPayment(parseInt(e.currentTarget.dataset.billId));
+                });
             });
 
             // The bill may have been auto-deactivated (one-time bills leave the
@@ -140,10 +147,16 @@ export default class BillsModule {
             // payment never happened (revert it, same action as the list) or it
             // did but is not meant to be in the ledger (dismiss this one).
             list.querySelectorAll('.unrecorded-payment-unpaid').forEach(btn => {
-                btn.addEventListener('click', (e) => this.markBillUnpaid(parseInt(e.currentTarget.dataset.billId), e.currentTarget));
+                btn.addEventListener('click', (e) => {
+                    if (isRepeatClick(e)) return;
+                    this.markBillUnpaid(parseInt(e.currentTarget.dataset.billId), e.currentTarget);
+                });
             });
             list.querySelectorAll('.unrecorded-payment-dismiss').forEach(btn => {
-                btn.addEventListener('click', (e) => this.dismissUnrecordedPayment(parseInt(e.currentTarget.dataset.billId)));
+                btn.addEventListener('click', (e) => {
+                    if (isRepeatClick(e)) return;
+                    this.dismissUnrecordedPayment(parseInt(e.currentTarget.dataset.billId));
+                });
             });
 
             card.style.display = 'block';
@@ -600,14 +613,20 @@ export default class BillsModule {
                 const billId = parseInt(button.dataset.billId);
                 this.deleteBill(billId);
             } else if (e.target.classList.contains('bill-paid-btn') || e.target.closest('.bill-paid-btn')) {
+                // The second click of a double click is not one of its own:
+                // the list re-renders once a payment is made, and that click
+                // paid the bill whose button had slid under the cursor (#399)
+                if (isRepeatClick(e)) return;
                 const button = e.target.classList.contains('bill-paid-btn') ? e.target : e.target.closest('.bill-paid-btn');
                 const billId = parseInt(button.dataset.billId);
                 this.markBillPaid(billId, button);
             } else if (e.target.classList.contains('bill-skip-btn') || e.target.closest('.bill-skip-btn')) {
+                if (isRepeatClick(e)) return; // as for Mark Paid
                 const button = e.target.classList.contains('bill-skip-btn') ? e.target : e.target.closest('.bill-skip-btn');
                 const billId = parseInt(button.dataset.billId);
                 this.skipBillPayment(billId, button);
             } else if (e.target.classList.contains('bill-unpaid-btn') || e.target.closest('.bill-unpaid-btn')) {
+                if (isRepeatClick(e)) return; // as for Mark Paid
                 const button = e.target.classList.contains('bill-unpaid-btn') ? e.target : e.target.closest('.bill-unpaid-btn');
                 const billId = parseInt(button.dataset.billId);
                 this.markBillUnpaid(billId, button);

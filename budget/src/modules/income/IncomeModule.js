@@ -15,6 +15,7 @@ import { showLoadError } from '../../utils/loading.js';
 import { incomeRowState } from '../../utils/incomeStatus.js';
 import { sendPayment } from '../../utils/paymentRecordedDialog.js';
 import { selectPossiblyUnavailable, clearUnavailableOptions, unavailableCategoryLabel } from '../../utils/formSelects.js';
+import { isRepeatClick } from '../../utils/doubleClick.js';
 
 export default class IncomeModule {
     constructor(app) {
@@ -298,6 +299,14 @@ export default class IncomeModule {
                 if (deleteBtn) {
                     const incomeId = parseInt(deleteBtn.dataset.incomeId);
                     this.deleteIncome(incomeId);
+                }
+
+                // The second click of a double click is not one of its own:
+                // the list re-renders once a payment is received, and that
+                // click acted on the income whose button had slid under the
+                // cursor (#399)
+                if ((receivedBtn || skipBtn) && isRepeatClick(e)) {
+                    return;
                 }
 
                 if (receivedBtn) {

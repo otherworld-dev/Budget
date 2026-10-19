@@ -18,6 +18,7 @@ import { openAccounts, pickableAccounts, accountOptionLabel, accountCurrency, li
 import { requestMarkUnpaid } from '../../utils/billUnpaid.js';
 import { sendPayment } from '../../utils/paymentRecordedDialog.js';
 import { selectPossiblyUnavailable, unavailableCategoryLabel } from '../../utils/formSelects.js';
+import { isRepeatClick } from '../../utils/doubleClick.js';
 
 /**
  * The date to open the form on for a one-time transfer saved before the
@@ -223,6 +224,10 @@ export default class TransfersModule {
             const paidBtn = e.target.closest('.transfer-paid-btn');
             if (paidBtn) {
                 e.preventDefault();
+                // The second click of a double click is not one of its own:
+                // the list re-renders once a payment is made, and that click
+                // paid the transfer whose button had slid under the cursor (#399)
+                if (isRepeatClick(e)) return;
                 const transferId = parseInt(paidBtn.dataset.transferId);
                 this.markTransferPaid(transferId, paidBtn);
             }
@@ -233,6 +238,7 @@ export default class TransfersModule {
             const skipBtn = e.target.closest('.transfer-skip-btn');
             if (skipBtn) {
                 e.preventDefault();
+                if (isRepeatClick(e)) return; // as for Mark Paid
                 const transferId = parseInt(skipBtn.dataset.transferId);
                 this.skipTransfer(transferId, skipBtn);
             }
@@ -243,6 +249,7 @@ export default class TransfersModule {
             const unpaidBtn = e.target.closest('.transfer-unpaid-btn');
             if (unpaidBtn) {
                 e.preventDefault();
+                if (isRepeatClick(e)) return; // as for Mark Paid
                 const transferId = parseInt(unpaidBtn.dataset.transferId);
                 this.markTransferUnpaid(transferId, unpaidBtn);
             }
