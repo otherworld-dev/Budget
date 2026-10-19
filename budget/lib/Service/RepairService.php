@@ -656,14 +656,17 @@ class RepairService {
 		// It must not leave the last payment over where the other reading
 		// doesn't: that one paid the occurrence before the bill's due date, so
 		// a bill always paid a few days before its next due date is paid late,
-		// not early. A payment weeks late is still read as late.
+		// not early. And it must not leave any payment it matches later than
+		// the early window: a bill paid weeks late, with one payment on time,
+		// is paid late, and the on-time one is no double.
 		$ahead = $occurrences[$floor + 1] ?? null;
 		if ($ahead !== null && $occurrences[$floor] < $first && $ahead <= self::addDays($first, intdiv($early, 2))) {
 			$cycle = self::daysApart($occurrences[$floor], $ahead);
-			[$earlyPairs, $earlyLate] = self::matchPayments($rows, array_slice($occurrences, $floor + 1), $early);
+			[$earlyPairs, $earlyLate, $earlyLatest] = self::matchPayments($rows, array_slice($occurrences, $floor + 1), $early);
 			$last = end($rows);
 			$leavesLastOver = fn (array $found): bool => $found !== [] && end($found)[0] === $last;
-			if ($earlyLate + count($earlyPairs) * $cycle < $late + count($pairs) * $cycle
+			if ($earlyLatest <= $early
+				&& $earlyLate + count($earlyPairs) * $cycle < $late + count($pairs) * $cycle
 				&& !($leavesLastOver($earlyPairs) && !$leavesLastOver($pairs))) {
 				$pairs = $earlyPairs;
 			}
@@ -681,14 +684,18 @@ class RepairService {
 	 * an occurrence that was already paid, and is paired with the payment
 	 * holding it.
 	 *
+	 * Returns the pairs, the days the matched payments were late in all, and
+	 * the most days any one of them was late.
+	 *
 	 * @param Transaction[] $rows the payments, oldest first
 	 * @param string[] $occurrences from the one the first payment paid on
-	 * @return array{0: array<array{0: Transaction, 1: Transaction, 2: string}>, 1: int} the pairs, and the days the matched payments were late in all
+	 * @return array{0: array<array{0: Transaction, 1: Transaction, 2: string}>, 1: int, 2: int}
 	 */
 	private static function matchPayments(array $rows, array $occurrences, int $early): array {
 		$occurrences = array_values($occurrences);
 		$pairs = [];
 		$late = 0;
+		$latest = 0;
 		// The payment holding the latest occurrence taken, and that occurrence
 		$held = null;
 		$next = 0;
@@ -696,7 +703,9 @@ class RepairService {
 			if ($next < count($occurrences) && $occurrences[$next] <= self::addDays($row->getDate(), $early)) {
 				$held = [$row, $occurrences[$next]];
 				if ($row->getDate() > $occurrences[$next]) {
-					$late += self::daysApart($row->getDate(), $occurrences[$next]);
+					$days = self::daysApart($row->getDate(), $occurrences[$next]);
+					$late += $days;
+					$latest = max($latest, $days);
 				}
 				$next++;
 			} elseif ($held !== null) {
@@ -704,7 +713,7 @@ class RepairService {
 			}
 		}
 
-		return [$pairs, $late];
+		return [$pairs, $late, $latest];
 	}
 
 	private function duplicateFinding(Transaction $duplicate, Transaction $original, string $accountName, string $reason, bool $selected): array {

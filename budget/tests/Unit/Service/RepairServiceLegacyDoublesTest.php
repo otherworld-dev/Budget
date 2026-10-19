@@ -394,6 +394,22 @@ class RepairServiceLegacyDoublesTest extends TestCase {
 		return $rows;
 	}
 
+	/**
+	 * Paid about 25 days late each month, once on time (2 March). Read from
+	 * February on, the first payments come a few days early, 2 March is left
+	 * over as a second payment of March, and April's is still 25 days late.
+	 * A reading that leaves a payment weeks late is no reason to drop the
+	 * late one, where each payment has an occurrence of its own.
+	 */
+	public function testABillPaidLateWithOneOnTimePaymentHasNoDuplicates(): void {
+		$this->with([$this->bill([
+			'id' => 40, 'name' => 'Water', 'amount' => 40.0, 'dueDay' => 1,
+			'lastPaidDate' => '2026-04-26', 'nextDueDate' => '2026-05-01',
+		])], $this->paidOn(40, 'Water', ['2026-01-26', '2026-02-26', '2026-03-02', '2026-04-26']));
+
+		$this->assertSame([], $this->duplicates($this->serviceOn('2026-04-28')));
+	}
+
 	public function testABillAlwaysPaidThreeWeeksLateHasNoDuplicates(): void {
 		$this->with([$this->bill([
 			'id' => 31, 'name' => 'Gas', 'amount' => 40.0, 'dueDay' => 1,
