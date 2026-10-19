@@ -522,12 +522,15 @@ class TransactionController extends Controller {
 			}
 
 			// A description taken out leaves the vendor to name the row: the
-			// one sent with it, else the one it has
-			if (array_key_exists('description', $updates) && $this->unnamed(
-				$updates['description'],
-				array_key_exists('vendor', $updates) ? $updates['vendor'] : $existing->getVendor()
-			)) {
-				return $this->unnamedRefusal();
+			// one sent with it (cleared too), else the one it has
+			if (array_key_exists('description', $updates)) {
+				$vendorAfter = $existing->getVendor();
+				if (array_key_exists('vendor', $updates)) {
+					$vendorAfter = $updates['vendor'];
+				}
+				if ($this->unnamed($updates['description'], $vendorAfter)) {
+					return $this->unnamedRefusal();
+				}
 			}
 
 			if (array_key_exists('categoryId', $updates)) {
