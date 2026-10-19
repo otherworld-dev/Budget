@@ -580,12 +580,62 @@ class RepairServiceLegacyDoublesTest extends TestCase {
 		$this->assertSame([], $this->serviceOn('2026-10-20')->diagnose(self::USER_ID)['paidOneTimeBills']);
 	}
 
-	public function testAOneTimeBillMarkedPaidWithNoPaymentRecordedIsNotListed(): void {
+	/**
+	 * Marked paid on its date with no transaction recorded (#274): the paid
+	 * date alone says it was paid, as it does when the bill is edited. Left
+	 * active, it stays Overdue with Mark Paid, which is how a bill gets paid
+	 * twice.
+	 */
+	public function testAOneTimeBillMarkedPaidOnItsDateWithNoPaymentRecordedIsListed(): void {
 		$this->with([$this->bill([
 			'id' => 51, 'name' => 'Dentist', 'amount' => 120.0, 'frequency' => 'one-time', 'dueDay' => 5, 'dueMonth' => 10,
 			'startDate' => '2026-10-05', 'nextDueDate' => '2026-10-05', 'lastPaidDate' => '2026-10-05',
 		])], []);
 
-		$this->assertSame([], $this->serviceOn('2026-10-20')->diagnose(self::USER_ID)['paidOneTimeBills']);
+		$this->assertSame([51], array_column($this->serviceOn('2026-10-20')->diagnose(self::USER_ID)['paidOneTimeBills'], 'billId'));
+	}
+
+	/**
+	 * What #163 was about: paid, its date cleared, left active. Nothing is
+	 * left due on it whenever it was paid, so it is listed as before.
+	 */
+	public function testAOneTimeBillAnOlderVersionLeftActiveWithNoDueDateIsListed(): void {
+		$this->with([$this->bill([
+			'id' => 52, 'name' => 'Invoice', 'amount' => 90.0, 'frequency' => 'one-time', 'dueDay' => 3, 'dueMonth' => 3,
+			'startDate' => '2026-03-03', 'nextDueDate' => null, 'lastPaidDate' => '2026-05-20',
+		])], []);
+
+		$this->assertSame([52], array_column($this->serviceOn('2026-10-20')->diagnose(self::USER_ID)['paidOneTimeBills'], 'billId'));
+	}
+
+	public function testAOneTimeBillWithAPaymentRecordedByItsDateIsListedWhateverItsPaidDateSays(): void {
+		// Paid 19 October as a monthly bill, switched to One-Time on 20
+		// November, and the November payment linked to it since, which
+		// leaves the paid date as it was
+		$this->with([$this->bill([
+			'id' => 53, 'name' => 'Garage', 'amount' => 80.0, 'frequency' => 'one-time', 'dueDay' => 20, 'dueMonth' => 11,
+			'startDate' => '2026-11-20', 'nextDueDate' => '2026-11-20', 'lastPaidDate' => '2026-10-19',
+		])], [
+			$this->row(501, 53, 'Garage', '2026-10-19', 80.0, '2026-10-19 09:00:00'),
+			$this->row(502, 53, 'Garage', '2026-11-18', 80.0, '2026-11-18 09:00:00', null, ['notes' => null]),
+		]);
+
+		$this->assertSame([53], array_column($this->serviceOn('2026-11-25')->diagnose(self::USER_ID)['paidOneTimeBills'], 'billId'));
+	}
+
+	/**
+	 * Weekly, paid 1 October, switched to One-Time for an invoice due on the
+	 * 8th: a week is a payment of its own, not this one paid early. The
+	 * repair comes ticked, so a bill still owed must not be listed.
+	 */
+	public function testAOneTimeBillDueAWeekAfterItsLastPaymentIsStillDue(): void {
+		$this->with([$this->bill([
+			'id' => 54, 'name' => 'Cleaner', 'amount' => 60.0, 'frequency' => 'one-time', 'dueDay' => 8, 'dueMonth' => 10,
+			'startDate' => '2026-10-08', 'nextDueDate' => '2026-10-08', 'lastPaidDate' => '2026-10-01',
+		])], [
+			$this->row(601, 54, 'Cleaner', '2026-10-01', 60.0, '2026-10-01 09:00:00'),
+		]);
+
+		$this->assertSame([], $this->serviceOn('2026-10-09')->diagnose(self::USER_ID)['paidOneTimeBills']);
 	}
 }

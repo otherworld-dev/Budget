@@ -55,9 +55,11 @@ class RepairService {
 
 	/**
 	 * How far a payment may sit from a one-time bill's date and still be its
-	 * payment: BillService::dueDateToleranceDays() for a one-time bill.
+	 * payment, once the bill is one-time and its old schedule is gone: a
+	 * weekend or a bank holiday either side, as editing the bill judges it
+	 * (#399). A week off is a payment of its own.
 	 */
-	private const ONE_TIME_PAYMENT_DAYS = 15;
+	private const ONE_TIME_PAYMENT_DAYS = 3;
 
 	/** Furthest apart two payments of a deleted bill are taken for one paid twice */
 	private const DELETED_BILL_DOUBLE_DAYS = 3;
@@ -1387,31 +1389,45 @@ class RepairService {
 	/**
 	 * Find one-time bills that have been paid but are still active.
 	 *
-	 * Paid means a payment of the bill recorded near its date, not only a
-	 * paid date: a bill switched to one-time keeps the date it last paid an
-	 * occurrence of its old schedule, and is still due on its own date (#399).
+	 * Paid means paid by its date: the paid date, or a payment recorded for
+	 * the bill, within ONE_TIME_PAYMENT_DAYS of it, as editing the bill
+	 * judges it. A bill switched to one-time keeps the date it last paid an
+	 * occurrence of its old schedule, and is still due on its own date
+	 * (#399); the repair comes ticked, so a bill still owed must not be
+	 * listed. One with no due date left, as older versions left a paid one
+	 * (#163), has nothing left to pay, whenever it was paid.
 	 */
 	private function findPaidOneTimeBillsStillActive(string $userId): array {
 		$bills = array_values(array_filter(
 			$this->billMapper->findActive($userId),
 			fn (Bill $bill) => $bill->getFrequency() === 'one-time' && $bill->getLastPaidDate()
 		));
-		if ($bills === []) {
-			return [];
+		$near = fn (string $day, string $date): bool => self::daysApart($day, $date) <= self::ONE_TIME_PAYMENT_DAYS;
+		$paid = [];
+		$unsure = [];
+		foreach ($bills as $bill) {
+			$date = (string)$bill->getNextDueDate();
+			if ($date === '' || $near((string)$bill->getLastPaidDate(), $date)) {
+				$paid[$bill->getId()] = true;
+			} else {
+				$unsure[$bill->getId()] = $date;
+			}
 		}
-		$paymentDates = [];
-		foreach ($this->transactionMapper->findRecordedByBillIds(array_map(fn (Bill $bill) => $bill->getId(), $bills)) as $tx) {
-			$paymentDates[(int)$tx->getBillId()][] = $tx->getDate();
+		// The paid date can be an older payment's, such as the last one of
+		// the schedule the bill had before: a payment recorded for the bill
+		// by its date pays it all the same
+		if ($unsure !== []) {
+			foreach ($this->transactionMapper->findRecordedByBillIds(array_keys($unsure)) as $tx) {
+				$date = $unsure[(int)$tx->getBillId()] ?? null;
+				if ($date !== null && $near((string)$tx->getDate(), $date)) {
+					$paid[(int)$tx->getBillId()] = true;
+				}
+			}
 		}
 		$found = [];
 
 		foreach ($bills as $bill) {
-			$date = $bill->getNextDueDate() ?: $bill->getStartDate();
-			$paidNearIt = $date !== null && $date !== '' && array_filter(
-				$paymentDates[$bill->getId()] ?? [],
-				fn (string $paid) => self::daysApart($paid, $date) <= self::ONE_TIME_PAYMENT_DAYS
-			) !== [];
-			if (!$paidNearIt) {
+			if (!isset($paid[$bill->getId()])) {
 				continue;
 			}
 			// Paid, and still active: should be completed
