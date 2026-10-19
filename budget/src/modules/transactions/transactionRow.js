@@ -185,6 +185,20 @@ export function rowCategoryName(tx, category) {
 }
 
 /**
+ * A title attribute with a text in full, for a cell that cuts it to one line
+ * (#399): the two copies of a receipt line imported twice, 'Wassertank
+ * Zubehör' and 'Wassertank Zubehör, Diverses', both read 'Wassertank …'.
+ * None for an empty text, which the cell spells out in full.
+ *
+ * @param {string|null|undefined} text
+ * @returns {string} ' title="…"', or empty
+ */
+function fullTextTitle(text) {
+    const value = text == null ? '' : String(text);
+    return value.trim() === '' ? '' : ` title="${escapeHtml(value)}"`;
+}
+
+/**
  * A scheduled row's balance is where the balance will be once it and the
  * scheduled rows before it go through, so it is marked as projected (#414).
  */
@@ -259,8 +273,8 @@ export function renderTransactionRow(tx, ctx) {
                 </td>
                 <td class="description-column">
                     <div class="transaction-description">
-                        <span class="description-main">${escapeHtml(tx.description) || noDescription}</span>
-                        ${tx.reference ? `<span class="secondary-text">${escapeHtml(tx.reference)}</span>` : ''}
+                        <span class="description-main"${fullTextTitle(tx.description)}>${escapeHtml(tx.description) || noDescription}</span>
+                        ${tx.reference ? `<span class="secondary-text"${fullTextTitle(tx.reference)}>${escapeHtml(tx.reference)}</span>` : ''}
                         ${badges}
                     </div>
                 </td>
@@ -313,8 +327,8 @@ export function renderTransactionRow(tx, ctx) {
                 data-value="${escapeHtml(tx.description)}"
                 data-transaction-id="${tx.id}">
                 <div class="transaction-description">
-                    <span class="primary-text cell-display">${escapeHtml(tx.description) || noDescription}</span>
-                    ${tx.reference ? `<span class="secondary-text">${escapeHtml(tx.reference)}</span>` : ''}
+                    <span class="primary-text cell-display"${fullTextTitle(tx.description)}>${escapeHtml(tx.description) || noDescription}</span>
+                    ${tx.reference ? `<span class="secondary-text"${fullTextTitle(tx.reference)}>${escapeHtml(tx.reference)}</span>` : ''}
                     ${badges}
                 </div>
             </td>
