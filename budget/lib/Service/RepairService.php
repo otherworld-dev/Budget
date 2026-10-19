@@ -14,6 +14,7 @@ use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Enum\AccountType;
 use OCA\Budget\Service\Bill\FrequencyCalculator;
+use OCA\Budget\Service\Bill\OneTimeSettlement;
 
 /**
  * Diagnoses and repairs data integrity issues.
@@ -53,14 +54,6 @@ class RepairService {
 		'yearly' => 180,
 		'one-time' => 30,
 	];
-
-	/**
-	 * How far a payment may sit from a one-time bill's date and still be its
-	 * payment, once the bill is one-time and its old schedule is gone: a
-	 * weekend or a bank holiday either side, as editing the bill judges it
-	 * (#399). A week off is a payment of its own.
-	 */
-	private const ONE_TIME_PAYMENT_DAYS = 3;
 
 	/** Furthest apart two payments of a deleted bill are taken for one paid twice */
 	private const DELETED_BILL_DOUBLE_DAYS = 3;
@@ -1540,8 +1533,8 @@ class RepairService {
 	 * Find one-time bills that have been paid but are still active.
 	 *
 	 * Paid means paid by its date: the paid date, or a payment recorded for
-	 * the bill, within ONE_TIME_PAYMENT_DAYS of it, as editing the bill
-	 * judges it. A bill switched to one-time keeps the date it last paid an
+	 * the bill, within OneTimeSettlement::BESIDE_DAYS of it, the days editing
+	 * the bill judges it by. A bill switched to one-time keeps the date it last paid an
 	 * occurrence of its old schedule, and is still due on its own date
 	 * (#399); the repair comes ticked, so a bill still owed must not be
 	 * listed. One with no due date left, as older versions left a paid one
@@ -1552,7 +1545,7 @@ class RepairService {
 			$this->billMapper->findActive($userId),
 			fn (Bill $bill) => $bill->getFrequency() === 'one-time' && $bill->getLastPaidDate()
 		));
-		$near = fn (string $day, string $date): bool => self::daysApart($day, $date) <= self::ONE_TIME_PAYMENT_DAYS;
+		$near = fn (string $day, string $date): bool => self::daysApart($day, $date) <= OneTimeSettlement::BESIDE_DAYS;
 		$paid = [];
 		$unsure = [];
 		foreach ($bills as $bill) {
