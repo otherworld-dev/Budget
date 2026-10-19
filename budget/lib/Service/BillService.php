@@ -1828,8 +1828,9 @@ class BillService {
 		if ($previousNextDueDate === null) {
 			throw new \InvalidArgumentException($this->l->t('This bill has nothing left to pay'));
 		}
+		// Not "already recorded": the date may have been skipped, with nothing paid (#399)
 		if ($expectedDueDate !== null && $expectedDueDate !== '' && $expectedDueDate !== $previousNextDueDate) {
-			throw new \InvalidArgumentException($this->l->t('This payment was already recorded. Reload the page to see the next one.'));
+			throw new \InvalidArgumentException($this->l->t('This date was already paid or skipped. Reload the page to see the next one.'));
 		}
 
 		$nextDue = $this->frequencyCalculator->calculateNextDueDate(
@@ -1856,7 +1857,7 @@ class BillService {
 		// the same write (#365 review).
 		$claimed = ['next_due_date' => $nextDue, 'is_active' => $isActive, 'paid_undo_state' => null];
 		if (!$this->mapper->claimOccurrence($id, $userId, $previousNextDueDate, $claimed)) {
-			throw new \InvalidArgumentException($this->l->t('This payment was already recorded. Reload the page to see the next one.'));
+			throw new \InvalidArgumentException($this->l->t('This date was already paid or skipped. Reload the page to see the next one.'));
 		}
 
 		// Only now the skipped occurrence's pre-booked row goes: dropped

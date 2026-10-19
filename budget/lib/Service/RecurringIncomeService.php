@@ -749,8 +749,9 @@ class RecurringIncomeService extends AbstractCrudService {
 		if ($previousNextExpectedDate === null) {
 			throw new \InvalidArgumentException($this->l->t('This income has no expected date to skip'));
 		}
+		// Not "already recorded": the date may have been skipped, with nothing received (#399)
 		if ($expectedDate !== null && $expectedDate !== '' && $expectedDate !== $previousNextExpectedDate) {
-			throw new \InvalidArgumentException($this->l->t('This payment was already recorded. Reload the page to see the next one.'));
+			throw new \InvalidArgumentException($this->l->t('This date was already paid or skipped. Reload the page to see the next one.'));
 		}
 
 		// One cycle on, as a receipt moves it, and claimed like one: two skips
@@ -758,7 +759,7 @@ class RecurringIncomeService extends AbstractCrudService {
 		// would bring back a pre-skip date, so its snapshot goes in the same write.
 		$claimed = $this->claimPayment($income, $previousNextExpectedDate, ['received_undo_state' => null]);
 		if ($claimed === null) {
-			throw new \InvalidArgumentException($this->l->t('This payment was already recorded. Reload the page to see the next one.'));
+			throw new \InvalidArgumentException($this->l->t('This date was already paid or skipped. Reload the page to see the next one.'));
 		}
 		$this->takeClaimed($income, $claimed);
 
