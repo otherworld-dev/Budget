@@ -8,6 +8,7 @@
 import { translate as t } from '@nextcloud/l10n';
 import * as formatters from './formatters.js';
 import { apiFetch, ApiError } from './api.js';
+import { isOpeningClick } from './doubleClick.js';
 
 /** The 409 code each page's action answers with */
 const CODES = { bill: 'payment_recorded', income: 'receipt_recorded' };
@@ -64,6 +65,7 @@ export function askAboutRecordedPayment(existing, settings, { kind = 'bill', cur
         `;
         modal.querySelector('.matching-tx-intro').textContent = message;
         document.body.appendChild(modal);
+        const openedAt = Date.now();
 
         const close = (answer) => {
             if (closeOpenDialog === close) {
@@ -86,8 +88,10 @@ export function askAboutRecordedPayment(existing, settings, { kind = 'bill', cur
         modal.querySelector('.cancel-btn').addEventListener('click', () => close(null));
         modal.querySelector('.another-btn').addEventListener('click', () => close('another'));
         modal.querySelector('.confirm-btn').addEventListener('click', () => close('use'));
+        // Not on the second click of the double click on Mark Paid that
+        // opened it, which lands on the backdrop (see utils/doubleClick.js)
         modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
+            if (e.target === modal && !isOpeningClick(e, openedAt)) {
                 close(null);
             }
         });

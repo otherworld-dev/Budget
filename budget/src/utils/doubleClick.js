@@ -20,3 +20,23 @@
 export function isRepeatClick(event) {
     return (event?.detail ?? 0) > 1;
 }
+
+/** How long after a dialog appears a click on its backdrop is still taken for the one that opened it */
+export const OPENING_CLICK_MS = 400;
+
+/**
+ * Whether a click on a dialog's backdrop came with the click that opened
+ * the dialog rather than to dismiss it: the second click of that double
+ * click, or a click too soon after the dialog appeared to have been meant
+ * for it (the pointer moved between the two, so the browser counted a
+ * single click). A click with no pointer behind it (detail 0) is always
+ * meant.
+ *
+ * @param {MouseEvent} event
+ * @param {number} openedAt Date.now() when the dialog appeared
+ * @return {boolean}
+ */
+export function isOpeningClick(event, openedAt) {
+    return isRepeatClick(event)
+        || ((event?.detail ?? 0) === 1 && Date.now() - openedAt < OPENING_CLICK_MS);
+}
