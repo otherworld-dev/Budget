@@ -65,6 +65,11 @@ class RepairServiceLegacyDoublesTest extends TestCase {
 		);
 	}
 
+	/** @return array<array{0: int, 1: int}> each finding as [the row offered, the row it repeats] */
+	private static function pairs(array $found): array {
+		return array_map(fn (array $f) => [$f['duplicateId'], $f['originalId']], $found);
+	}
+
 	private function account(int $id, string $name, string $type): Account {
 		$account = new Account();
 		$account->setId($id);
@@ -527,6 +532,68 @@ class RepairServiceLegacyDoublesTest extends TestCase {
 		$this->otherUsersBills = [$this->bill(['id' => 65, 'name' => 'Christian Uhrenschmuck24', 'amount' => 91.59,
 			'dueDay' => 29, 'userId' => 'leon', 'lastPaidDate' => '2026-08-30', 'nextDueDate' => '2026-09-29'])];
 		$this->with([], $this->christianRows());
+
+		$this->assertSame([], $this->duplicates($this->serviceOn('2026-10-19')));
+	}
+
+	/**
+	 * Name, amount and a few days apart are what any bill's payments share
+	 * when two occurrences are caught up together, or one is paid late and
+	 * the next on time. Without its schedule, nothing tells those from a
+	 * double, so only a pair that shows one is listed.
+	 */
+	public function testTwoOverdueOccurrencesOfADeletedBillPaidOnOneDayAreNotPaired(): void {
+		$this->with([], [
+			$this->row(500, 77, 'Rent', '2026-06-01', 900.0, '2026-06-01 10:00:00'),
+			$this->row(501, 77, 'Rent', '2026-08-20', 900.0, '2026-08-20 10:00:00'),
+			$this->row(502, 77, 'Rent', '2026-08-20', 900.0, '2026-08-20 10:00:05'),
+			$this->row(503, 77, 'Rent', '2026-09-01', 900.0, '2026-09-01 10:00:00'),
+		]);
+
+		$this->assertSame([], $this->duplicates($this->serviceOn('2026-10-19')));
+	}
+
+	public function testADeletedWeeklyBillPaidLateOnFridayAndOnTimeOnMondayIsNotPaired(): void {
+		$this->with([], [
+			$this->row(600, 78, 'Cleaner', '2026-09-07', 60.0, '2026-09-07 09:00:00'),
+			$this->row(601, 78, 'Cleaner', '2026-09-18', 60.0, '2026-09-18 09:00:00'),
+			$this->row(602, 78, 'Cleaner', '2026-09-21', 60.0, '2026-09-21 09:00:00'),
+			$this->row(603, 78, 'Cleaner', '2026-09-28', 60.0, '2026-09-28 09:00:00'),
+		]);
+
+		$this->assertSame([], $this->duplicates($this->serviceOn('2026-10-19')));
+	}
+
+	public function testADeletedDailyBillIsNotPaired(): void {
+		$rows = [];
+		foreach (['2026-09-01', '2026-09-02', '2026-09-03', '2026-09-04'] as $i => $date) {
+			$rows[] = $this->row(700 + $i, 79, 'Parking', $date, 5.0, "{$date} 08:00:00");
+		}
+		$this->with([], $rows);
+
+		$this->assertSame([], $this->duplicates($this->serviceOn('2026-10-19')));
+	}
+
+	/** Two clicks on 2.54.0: one payment booked twice in the same second */
+	public function testADeletedBillsPaymentBookedTwiceInOneSecondIsPaired(): void {
+		$name = 'Christian Uhrenschmuck24';
+		$this->with([], [
+			$this->row(1102, 65, $name, '2026-08-30', 91.59, '2026-08-30 19:37:54'),
+			$this->row(1103, 65, $name, '2026-08-30', 91.59, '2026-08-30 19:37:54'),
+		]);
+
+		$this->assertSame([[1103, 1102]], self::pairs($this->duplicates($this->serviceOn('2026-10-19'))));
+	}
+
+	/**
+	 * Rows that let go of a bill the user still has (Unlink from bill) carry
+	 * its name: they are that bill's payments, not a deleted one's.
+	 */
+	public function testPaymentsNamedAfterALiveBillAreNotADeletedBills(): void {
+		$this->with([$this->bill([
+			'id' => 99, 'name' => 'Christian Uhrenschmuck24', 'amount' => 91.59, 'dueDay' => 29,
+			'lastPaidDate' => '2026-09-27', 'nextDueDate' => '2026-10-29',
+		])], $this->christianRows(null));
 
 		$this->assertSame([], $this->duplicates($this->serviceOn('2026-10-19')));
 	}
