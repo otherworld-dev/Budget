@@ -10,6 +10,8 @@
  * - Dates broke after their hyphens ('2026-10-' / '15') and amounts at the
  *   space, as the long note beside them took the row's width.
  * - A payment with no vendor was listed as '(unnamed)', though it has a name.
+ * - The new message after a repair, '1 incomes moved on to their next date',
+ *   had no singular.
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
@@ -29,7 +31,7 @@ vi.mock('@nextcloud/l10n', () => {
     };
 });
 
-import { duplicateItem, stuckIncomeItem } from '../../src/utils/repairFindings.js';
+import { duplicateItem, repairResultMessage, stuckIncomeItem } from '../../src/utils/repairFindings.js';
 import { RULES, rulesMatching, declarationsFor } from './helpers/stylesheet.js';
 
 const chf = (amount) => `${Number(amount).toFixed(2)} CHF`;
@@ -118,6 +120,27 @@ describe('a duplicate payment row', () => {
         expect(row.querySelector('.repair-item-note').textContent)
             .toBe('Looks like a second payment for 2026-09-28 (other payment on 2026-09-27)');
         expect(inModal(duplicateItem(cembra(), chf)).querySelector('.repair-dup-checkbox').checked).toBe(false);
+    });
+});
+
+describe('the message after a repair', () => {
+    it('says one income moved on in the singular', () => {
+        const message = repairResultMessage({ duplicateTransactions: { deleted: 1, found: 14 }, stuckIncome: { fixed: 1, found: 1 } });
+
+        expect(message).toMatch(/^Repair complete: /);
+        expect(message).toContain('1 income moved on to its next date');
+    });
+
+    it('says several incomes moved on in the plural', () => {
+        expect(repairResultMessage({ stuckIncome: { fixed: 2, found: 2 } }))
+            .toBe('Repair complete: 2 incomes moved on to their next date');
+    });
+
+    it('lists each repaired category in turn', () => {
+        expect(repairResultMessage({
+            duplicateTransactions: { deleted: 2, found: 12 },
+            paidOneTimeBills: { fixed: 2, found: 2 },
+        })).toBe('Repair complete: 2 duplicate transactions removed, 2 one-time bills deactivated');
     });
 });
 

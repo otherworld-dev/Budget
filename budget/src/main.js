@@ -82,7 +82,7 @@ import { transactionTotalsByCurrency } from './utils/helpers.js';
 import { categoryOptionsHtml } from './utils/formSelects.js';
 import { apiFetch, ApiError } from './utils/api.js';
 import { openAccounts } from './utils/accounts.js';
-import { duplicateItem, stuckIncomeItem } from './utils/repairFindings.js';
+import { duplicateItem, repairResultMessage, stuckIncomeItem } from './utils/repairFindings.js';
 
 // Configuration
 // Core
@@ -2037,37 +2037,7 @@ class BudgetApp {
 
                     cleanup();
 
-                    // Build result summary
-                    const parts = [];
-                    if (result.duplicateTransactions) {
-                        parts.push(t('budget', '{count} duplicate transactions removed', { count: result.duplicateTransactions.deleted }));
-                    }
-                    if (result.stuckBills) {
-                        parts.push(t('budget', '{count} bill due dates fixed', { count: result.stuckBills.fixed }));
-                    }
-                    if (result.paidOneTimeBills) {
-                        parts.push(t('budget', '{count} one-time bills deactivated', { count: result.paidOneTimeBills.fixed }));
-                    }
-                    if (result.stuckIncome) {
-                        parts.push(t('budget', '{count} incomes moved on to their next date', { count: result.stuckIncome.fixed }));
-                    }
-                    if (result.futureClearedTransactions) {
-                        parts.push(t('budget', '{count} future transactions set to scheduled', { count: result.futureClearedTransactions.fixed }));
-                    }
-                    if (result.splitParentCategories) {
-                        parts.push(t('budget', '{count} split transactions had a stray category removed', { count: result.splitParentCategories.fixed }));
-                    }
-                    if (result.liabilitySignFlipped) {
-                        parts.push(t('budget', '{count} debts re-recorded as owed', { count: result.liabilitySignFlipped.fixed }));
-                        if (result.liabilitySignFlipped.confirmed > 0) {
-                            parts.push(t('budget', '{count} confirmed as genuine credits', { count: result.liabilitySignFlipped.confirmed }));
-                        }
-                    }
-                    if (result.balanceDrift) {
-                        parts.push(t('budget', '{count} account balances corrected', { count: result.balanceDrift.updated }));
-                    }
-
-                    showSuccess(t('budget', 'Repair complete: {details}', { details: parts.join(', ') }));
+                    showSuccess(repairResultMessage(result));
 
                     // Reload app data
                     this.loadAccounts();

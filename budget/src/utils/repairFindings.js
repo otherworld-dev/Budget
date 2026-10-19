@@ -1,11 +1,12 @@
 /**
- * What Settings > Repair Data shows for the findings of a scan.
+ * What Settings > Repair Data shows for the findings of a scan, and the
+ * message after a repair.
  *
  * Amounts and dates go in spans of their own (repair-item-amount,
  * repair-item-date) that the stylesheet keeps whole: beside a long note,
  * Chrome broke a date after its hyphens ('2026-10-' / '15').
  */
-import { translate as t } from '@nextcloud/l10n';
+import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import { escapeHtml } from './dom.js';
 
 /**
@@ -110,4 +111,46 @@ export function stuckIncomeItem(income, formatAmount) {
         <span class="repair-item-date">${t('budget', 'Received {date}', { date: income.lastReceivedDate })}</span>
         <span class="repair-item-note">${t('budget', 'Moves on to {date}', { date: income.settledNextExpectedDate })}</span>
     </div>`;
+}
+
+/**
+ * The message after a repair: what each repaired category changed.
+ *
+ * The incomes line came with #399 and has its singular and plural. The
+ * older lines keep their {count} wording, which is already translated.
+ *
+ * @param {object} result the repair endpoint's response
+ * @return {string}
+ */
+export function repairResultMessage(result) {
+    const parts = [];
+    if (result.duplicateTransactions) {
+        parts.push(t('budget', '{count} duplicate transactions removed', { count: result.duplicateTransactions.deleted }));
+    }
+    if (result.stuckBills) {
+        parts.push(t('budget', '{count} bill due dates fixed', { count: result.stuckBills.fixed }));
+    }
+    if (result.paidOneTimeBills) {
+        parts.push(t('budget', '{count} one-time bills deactivated', { count: result.paidOneTimeBills.fixed }));
+    }
+    if (result.stuckIncome) {
+        parts.push(n('budget', '%n income moved on to its next date', '%n incomes moved on to their next date', result.stuckIncome.fixed));
+    }
+    if (result.futureClearedTransactions) {
+        parts.push(t('budget', '{count} future transactions set to scheduled', { count: result.futureClearedTransactions.fixed }));
+    }
+    if (result.splitParentCategories) {
+        parts.push(t('budget', '{count} split transactions had a stray category removed', { count: result.splitParentCategories.fixed }));
+    }
+    if (result.liabilitySignFlipped) {
+        parts.push(t('budget', '{count} debts re-recorded as owed', { count: result.liabilitySignFlipped.fixed }));
+        if (result.liabilitySignFlipped.confirmed > 0) {
+            parts.push(t('budget', '{count} confirmed as genuine credits', { count: result.liabilitySignFlipped.confirmed }));
+        }
+    }
+    if (result.balanceDrift) {
+        parts.push(t('budget', '{count} account balances corrected', { count: result.balanceDrift.updated }));
+    }
+
+    return t('budget', 'Repair complete: {details}', { details: parts.join(', ') });
 }
