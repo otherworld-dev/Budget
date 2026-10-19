@@ -37,70 +37,40 @@ class DanglingLinks {
 	 * @return int how many references were cleared
 	 */
 	public function clear(): int {
-		$bills = $this->references('bill_id', true);
-		$cleared = $this->setNull('bill_id', array_keys(self::dangling($bills, $this->existingIds('budget_bills', $bills))));
-
-		$links = $this->references('linked_transaction_id', false);
-		$cleared += $this->setNull('linked_transaction_id', array_keys(self::dangling($links, $this->existingIds('budget_transactions', $links))));
+		$cleared = $this->setNull('bill_id', $this->danglingRows('bill_id', 'budget_bills', true));
+		$cleared += $this->setNull('linked_transaction_id', $this->danglingRows('linked_transaction_id', 'budget_transactions', false));
 
 		return $cleared;
 	}
 
 	/**
-	 * The references whose target is not among the ids that exist.
+	 * The transactions whose $column names a row $table doesn't have. The
+	 * database matches each reference to the row it names, so only the few
+	 * left dangling are read, not every reference on the server.
 	 *
-	 * @param array<int, int> $references row id => the id it references
-	 * @param int[] $existing the referenced ids that exist
-	 * @return array<int, int> row id => the id it references, for the dangling ones
+	 * @param bool $recordedOnly leave pending rows out
+	 * @return int[] transaction ids
 	 */
-	public static function dangling(array $references, array $existing): array {
-		$exists = array_flip($existing);
-		return array_filter($references, fn (int $target): bool => !isset($exists[$target]));
-	}
-
-	/**
-	 * @return array<int, int> transaction id => the id in $column
-	 */
-	private function references(string $column, bool $recordedOnly): array {
+	private function danglingRows(string $column, string $table, bool $recordedOnly): array {
 		$qb = $this->db->getQueryBuilder();
-		$qb->select('id', $column)
-			->from('budget_transactions')
-			->where($qb->expr()->isNotNull($column));
+		$qb->select('t.id')
+			->from('budget_transactions', 't')
+			->leftJoin('t', $table, 'r', $qb->expr()->eq('r.id', 't.' . $column))
+			->where($qb->expr()->isNotNull('t.' . $column))
+			->andWhere($qb->expr()->isNull('r.id'));
 		if ($recordedOnly) {
 			$qb->andWhere($qb->expr()->orX(
-				$qb->expr()->isNull('status'),
-				$qb->expr()->neq('status', $qb->createNamedParameter('scheduled'))
+				$qb->expr()->isNull('t.status'),
+				$qb->expr()->neq('t.status', $qb->createNamedParameter('scheduled'))
 			));
 		}
 		$result = $qb->executeQuery();
-		$references = [];
+		$ids = [];
 		while ($row = $result->fetch()) {
-			$references[(int)$row['id']] = (int)$row[$column];
+			$ids[] = (int)$row['id'];
 		}
 		$result->closeCursor();
-		return $references;
-	}
-
-	/**
-	 * Which of the ids the references name exist in $table.
-	 *
-	 * @param array<int, int> $references
-	 * @return int[]
-	 */
-	private function existingIds(string $table, array $references): array {
-		$existing = [];
-		foreach (array_chunk(array_values(array_unique($references)), self::CHUNK) as $chunk) {
-			$qb = $this->db->getQueryBuilder();
-			$qb->select('id')
-				->from($table)
-				->where($qb->expr()->in('id', $qb->createNamedParameter($chunk, IQueryBuilder::PARAM_INT_ARRAY)));
-			$result = $qb->executeQuery();
-			while ($row = $result->fetch()) {
-				$existing[] = (int)$row['id'];
-			}
-			$result->closeCursor();
-		}
-		return $existing;
+		return $ids;
 	}
 
 	/**

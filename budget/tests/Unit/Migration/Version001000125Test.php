@@ -14,7 +14,7 @@ use PHPUnit\Framework\TestCase;
 /**
  * Migration 125 clears up two things older versions left (#399): incomes
  * 2.54.0 left due on a receipt it had already booked, and references to
- * bills and transactions that no longer exist.
+ * bills and transactions that no longer exist (DanglingLinksTest).
  */
 class Version001000125Test extends TestCase {
 	/** @var string[] lines written to the migration output */
@@ -105,26 +105,5 @@ class Version001000125Test extends TestCase {
 		(new Version001000125Date20261019($legacy, $links))->postSchemaChange($this->migrationOutput(), $this->schema([]), []);
 
 		$this->assertSame([], $this->info);
-	}
-
-	/**
-	 * The reporter's July CSX payment: the withdrawal 911 still names the
-	 * deposit 912, which a version before 2.41 deleted without letting go of
-	 * it. Only references whose target is gone are cleared.
-	 */
-	public function testOnlyReferencesWhoseTargetIsGoneAreDangling(): void {
-		$links = [911 => 912, 1014 => 1015, 1015 => 1014, 909 => 910, 910 => 909];
-		$existing = [909, 910, 911, 1014, 1015];
-
-		$this->assertSame([911 => 912], DanglingLinks::dangling($links, $existing));
-	}
-
-	public function testAPaymentOfADeletedBillLetsGoOfItsIdAndALiveBillsKeepTheirs(): void {
-		// Christian Uhrenschmuck24 (65) was deleted; KPT (4) and CSX (47) live
-		$billRefs = [1012 => 65, 1102 => 65, 1007 => 4, 1100 => 4, 1014 => 47];
-
-		$this->assertSame([1012 => 65, 1102 => 65], DanglingLinks::dangling($billRefs, [4, 47]));
-		$this->assertSame([], DanglingLinks::dangling($billRefs, [4, 47, 65]));
-		$this->assertSame([], DanglingLinks::dangling([], [4]));
 	}
 }
