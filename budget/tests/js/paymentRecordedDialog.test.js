@@ -93,6 +93,22 @@ describe('askAboutRecordedPayment', () => {
 
         expect(document.querySelectorAll('#payment-recorded-modal')).toHaveLength(1);
     });
+
+    it('answers the dialog it replaces with null and leaves no key listener of it behind', async () => {
+        // The replaced dialog's bill waits on its answer, holding that bill's
+        // lock: unanswered, its buttons did nothing until the page reloaded
+        const first = askAboutRecordedPayment(EXISTING, {});
+        const second = askAboutRecordedPayment(EXISTING, {});
+        const pending = new Promise((resolve) => setTimeout(() => resolve('still pending'), 50));
+
+        expect(await Promise.race([first, pending])).toBeNull();
+        click('.confirm-btn');
+        expect(await second).toBe('use');
+
+        const escape = new KeyboardEvent('keydown', { key: 'Escape', cancelable: true });
+        document.dispatchEvent(escape);
+        expect(escape.defaultPrevented).toBe(false);
+    });
 });
 
 describe('sendPayment', () => {

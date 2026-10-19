@@ -12,6 +12,9 @@ import { apiFetch, ApiError } from './api.js';
 /** The 409 code each page's action answers with */
 const CODES = { bill: 'payment_recorded', income: 'receipt_recorded' };
 
+/** Closes the dialog on screen, if there is one */
+let closeOpenDialog = null;
+
 /**
  * Ask what to do about the payment the occurrence already has.
  *
@@ -24,6 +27,10 @@ const CODES = { bill: 'payment_recorded', income: 'receipt_recorded' };
  */
 export function askAboutRecordedPayment(existing, settings, { kind = 'bill', currency = '' } = {}) {
     return new Promise((resolve) => {
+        // One at a time. A dialog still open for another bill is answered
+        // as left: its action ends and lets go of that bill's lock, which
+        // otherwise held its buttons until the page was reloaded.
+        closeOpenDialog?.(null);
         document.getElementById('payment-recorded-modal')?.remove();
 
         const params = {
@@ -59,10 +66,14 @@ export function askAboutRecordedPayment(existing, settings, { kind = 'bill', cur
         document.body.appendChild(modal);
 
         const close = (answer) => {
+            if (closeOpenDialog === close) {
+                closeOpenDialog = null;
+            }
             document.removeEventListener('keydown', onKeydown, true);
             modal.remove();
             resolve(answer);
         };
+        closeOpenDialog = close;
         const onKeydown = (e) => {
             if (e.key === 'Escape') {
                 e.preventDefault();
