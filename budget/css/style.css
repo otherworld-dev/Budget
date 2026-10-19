@@ -9966,7 +9966,17 @@ button.danger:hover {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.income-card.received {
+/* Each status styled like its counterpart on Bills (#399): Overdue like
+   Overdue; Received, Completed (a one-time income that arrived) and Inactive
+   like Paid */
+.income-card.overdue {
+    border-left: 4px solid var(--color-error);
+    background: rgba(var(--color-error-rgb), 0.05);
+}
+
+.income-card.received,
+.income-card.completed,
+.income-card.inactive {
     border-left: 4px solid var(--color-success);
     opacity: 0.8;
 }
@@ -10047,7 +10057,14 @@ button.danger:hover {
     font-weight: 500;
 }
 
-.income-status.received .status-badge {
+.income-status.overdue .status-badge {
+    background: var(--color-error);
+    color: var(--budget-color-on-error, var(--budget-color-on-status, white));
+}
+
+.income-status.received .status-badge,
+.income-status.completed .status-badge,
+.income-status.inactive .status-badge {
     background: var(--color-success);
     color: var(--budget-color-on-success, var(--budget-color-on-status, white));
 }
