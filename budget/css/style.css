@@ -18807,9 +18807,27 @@ button.secondary.compact {
     text-decoration: line-through;
 }
 
-/* Moved past without a recorded payment: struck through, but visibly not a payment (#333) */
-.bills-calendar-table .month-cell.has-bill.paid.unrecorded {
-    text-decoration-style: dashed;
+/* Moved past without a recorded payment: muted and never struck through, so
+   it can't pass for a payment, and left out of Monthly Totals (#333, #399) */
+.bills-calendar-table .month-cell.has-bill.unrecorded {
+    background-color: rgba(0, 0, 0, 0.02);
+    color: var(--color-text-maxcontrast);
+    font-weight: 400;
+    font-style: italic;
+}
+
+/* A cell holding more payments than the bill fell due that month (#399).
+   Inline-block keeps a paid cell's line-through off it. */
+.bills-calendar-table .month-cell .payments-marker {
+    display: inline-block;
+    padding: 0 4px;
+    border-radius: 8px;
+    background: var(--color-warning);
+    color: var(--budget-color-on-status, #fff);
+    font-size: 10px;
+    font-style: normal;
+    font-weight: 600;
+    line-height: 16px;
 }
 
 .bills-calendar-table .total-cell {

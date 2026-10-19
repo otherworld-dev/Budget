@@ -1,0 +1,209 @@
+/**
+ * A Bills by Month cell, from the row the server sends (#399). Two payments
+ * for one invoice read as one large paid amount, with nothing to say the
+ * cell held two, and a month the bill moved past with no payment recorded
+ * was struck through like a payment, with a dashed line nobody could tell
+ * apart. A cell now says what it holds: each payment and its date in the
+ * tooltip, a count when it holds more payments than the bill falls due
+ * that month, and an unrecorded month drawn muted, never struck through.
+ */
+
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
+vi.mock('@nextcloud/l10n', () => ({
+    translate: (_app, text, params = {}) =>
+        String(text).replace(/\{(\w+)\}/g, (m, k) => (k in params ? params[k] : m)),
+    translatePlural: (_app, singular, plural, count) => (count === 1 ? singular : plural),
+}));
+
+import { calendarCell } from '../../src/utils/billsCalendarCell.js';
+import ReportsModule from '../../src/modules/reports/ReportsModule.js';
+
+const months = (list) => Object.fromEntries(Array.from({ length: 12 }, (_, i) => [i + 1, list.includes(i + 1)]));
+
+// The reporter's CembraPay invoice, paid on 27 September and again on 15 October
+const cembraPay = {
+    name: 'CembraPay Temu', amount: 151.67, currency: 'CHF', frequency: 'one-time',
+    occurrences: months([9]),
+    paidMonths: [9],
+    paidAmounts: { 9: 303.34 },
+    paidDetails: { 9: [{ date: '2026-09-27', amount: 151.67 }, { date: '2026-10-15', amount: 151.67 }] },
+    occurrenceCounts: { 9: 1 },
+    unrecordedMonths: [],
+    expectedAmounts: { 9: 151.67 },
+    owedAmounts: [],
+};
+
+// CSX Pro: April and May moved past with nothing recorded, November still owed
+const csx = {
+    name: 'CSX Pro Credit Cards', amount: 100, currency: 'CHF', frequency: 'monthly', isTransfer: true,
+    occurrences: months([4, 5, 6, 7, 8, 9, 10, 11, 12]),
+    paidMonths: [6, 7, 8, 9, 10],
+    paidAmounts: { 6: 50, 7: 50, 8: 100, 9: 100, 10: 100 },
+    paidDetails: {
+        6: [{ date: '2026-06-28', amount: 50 }],
+        7: [{ date: '2026-07-25', amount: 50 }],
+        8: [{ date: '2026-08-29', amount: 50 }, { date: '2026-08-30', amount: 50 }],
+        9: [{ date: '2026-09-30', amount: 100 }],
+        10: [{ date: '2026-09-30', amount: 100 }],
+    },
+    occurrenceCounts: { 4: 1, 5: 1, 6: 1, 7: 1, 8: 1, 9: 1, 10: 1, 11: 1, 12: 1 },
+    unrecordedMonths: [4, 5],
+    expectedAmounts: { 4: 100, 5: 100, 6: 100, 7: 100, 8: 100, 9: 100, 10: 100, 11: 100, 12: 100 },
+    owedAmounts: { 11: 100, 12: 100 },
+};
+
+describe('calendarCell', () => {
+    it('a cell with two payments is paid, counts them and lists both dates', () => {
+        const cell = calendarCell(cembraPay, 9);
+
+        expect(cell.state).toBe('paid');
+        expect(cell.amount).toBeCloseTo(303.34);
+        expect(cell.payments).toBe(2);
+        expect(cell.marker).toBe('2×');
+        expect(cell.title).toContain('2026-09-27');
+        expect(cell.title).toContain('2026-10-15');
+        expect(cell.title.split('\n')).toHaveLength(2);
+    });
+
+    it('a month moved past with no payment recorded shows its amount and says so', () => {
+        const cell = calendarCell(csx, 4);
+
+        expect(cell.state).toBe('unrecorded');
+        expect(cell.amount).toBe(100);
+        expect(cell.payments).toBe(0);
+        expect(cell.marker).toBeNull();
+        expect(cell.title).toContain('No payment recorded');
+    });
+
+    it('a month still to pay is owed', () => {
+        const cell = calendarCell(csx, 11);
+
+        expect(cell.state).toBe('owed');
+        expect(cell.amount).toBe(100);
+        expect(cell.title).toBe('Due');
+    });
+
+    it('one payment in a month is paid without a count', () => {
+        const cell = calendarCell(csx, 6);
+
+        expect(cell.state).toBe('paid');
+        expect(cell.amount).toBe(50);
+        expect(cell.payments).toBe(1);
+        expect(cell.marker).toBeNull();
+        expect(cell.title).toContain('2026-06-28');
+    });
+
+    it('counts payments against how often the bill falls due that month', () => {
+        // Two invoices of one name due in the same month, each paid once
+        const twoInvoices = {
+            ...cembraPay,
+            paidAmounts: { 9: 156.39 },
+            paidDetails: { 9: [{ date: '2026-09-27', amount: 151.67 }, { date: '2026-09-27', amount: 4.72 }] },
+            occurrenceCounts: { 9: 2 },
+        };
+        expect(calendarCell(twoInvoices, 9).marker).toBeNull();
+
+        const weekly = {
+            name: 'Cleaner', amount: 10, currency: 'CHF', frequency: 'weekly',
+            occurrences: months([1]), paidMonths: [1], paidAmounts: { 1: 50 },
+            paidDetails: { 1: ['02', '09', '16', '23', '30'].map(day => ({ date: `2026-01-${day}`, amount: 10 })) },
+            occurrenceCounts: { 1: 5 }, unrecordedMonths: [], expectedAmounts: { 1: 50 }, owedAmounts: [],
+        };
+        expect(calendarCell(weekly, 1).marker).toBeNull();
+        expect(calendarCell(weekly, 1).payments).toBe(5);
+    });
+
+    it('a month part paid and part still owed comes to both, and is still due', () => {
+        const weekly = {
+            name: 'Cleaner', amount: 10, currency: 'CHF', frequency: 'weekly',
+            occurrences: months([2]), paidMonths: [2], paidAmounts: { 2: 20 },
+            paidDetails: { 2: [{ date: '2026-02-06', amount: 10 }, { date: '2026-02-13', amount: 10 }] },
+            occurrenceCounts: { 2: 4 }, unrecordedMonths: [], expectedAmounts: { 2: 40 }, owedAmounts: { 2: 20 },
+        };
+
+        const cell = calendarCell(weekly, 2);
+
+        expect(cell.state).toBe('owed');
+        expect(cell.amount).toBe(40);
+        expect(cell.payments).toBe(2);
+        expect(cell.title.split('\n')).toHaveLength(3);
+        expect(cell.title).toContain('still due');
+        expect(cell.title).toContain('2026-02-13');
+    });
+
+    it('a row that says nothing about payments shows its amount as due', () => {
+        const cell = calendarCell({ name: 'Rent', amount: 1200, occurrences: months([3]) }, 3);
+
+        expect(cell.state).toBe('expected');
+        expect(cell.amount).toBe(1200);
+        expect(cell.title).toBe('Due');
+    });
+
+    it('a month the bill does not fall in is empty', () => {
+        expect(calendarCell(csx, 2)).toEqual({ state: 'none', amount: null, payments: 0, title: '', marker: null });
+    });
+
+    it('dates and amounts follow the user settings', () => {
+        const cell = calendarCell(cembraPay, 9, { date_format: 'd.m.Y', number_format_decimal_sep: ',', number_format_thousands_sep: '.' });
+
+        expect(cell.title).toContain('27.09.2026');
+        expect(cell.title).toContain('151,67');
+    });
+});
+
+describe('Bills Calendar table cells', () => {
+    function makeModule() {
+        const mod = Object.create(ReportsModule.prototype);
+        mod.app = { accounts: [], settings: {} };
+        mod.getPrimaryCurrency = () => 'CHF';
+        mod.formatCurrency = (v, c) => `${Number(v).toFixed(2)} ${c}`;
+        return mod;
+    }
+
+    const cells = () => document.querySelectorAll('#bills-calendar-table-body tr')[0].querySelectorAll('td.month-cell');
+
+    beforeEach(() => {
+        document.body.innerHTML = `
+            <table>
+                <tbody id="bills-calendar-table-body"></tbody>
+                <tfoot id="bills-calendar-table-footer"></tfoot>
+            </table>
+        `;
+    });
+
+    afterEach(() => {
+        document.body.innerHTML = '';
+    });
+
+    it('draws paid, unrecorded and owed months apart, and counts a double payment', () => {
+        makeModule().renderBillsCalendarTable([csx], {}, null, null, null);
+
+        const april = cells()[3];
+        expect(april.classList.contains('unrecorded')).toBe(true);
+        expect(april.classList.contains('paid')).toBe(false);
+        expect(april.textContent).toContain('100.00 CHF');
+
+        const august = cells()[7];
+        expect(august.classList.contains('paid')).toBe(true);
+        expect(august.querySelector('.payments-marker').textContent).toBe('2×');
+        expect(august.getAttribute('title')).toContain('2026-08-29');
+        expect(august.getAttribute('title')).toContain('2026-08-30');
+
+        const november = cells()[10];
+        expect(november.classList.contains('has-bill')).toBe(true);
+        expect(november.classList.contains('paid')).toBe(false);
+        expect(november.classList.contains('unrecorded')).toBe(false);
+
+        expect(cells()[0].classList.contains('no-bill')).toBe(true);
+    });
+
+    it('escapes the tooltip', () => {
+        const odd = { ...cembraPay, currency: '"><img src=x>' };
+
+        makeModule().renderBillsCalendarTable([odd], {}, null, null, null);
+
+        expect(document.querySelector('#bills-calendar-table-body img')).toBeNull();
+        expect(cells()[8].getAttribute('title')).toContain('"><img src=x>');
+    });
+});
