@@ -65,6 +65,8 @@ class ImportManualMappingRuleDuplicateTest extends TestCase {
 	private const WITH_CATEGORY = ['date' => 0, 'description' => [1, 3], 'amount' => 2, 'skipFirstRow' => true];
 	/** The reporter's own 12 Oct 20:45 mapping: joined, and the category in the notes */
 	private const CATEGORY_IN_NOTES = ['date' => 0, 'description' => [1, 3], 'notes' => 3, 'amount' => 2, 'skipFirstRow' => true];
+	/** Three columns joined into the description */
+	private const WITH_CATEGORY_AND_SHOP = ['date' => 0, 'description' => [1, 3, 4], 'amount' => 2, 'skipFirstRow' => true];
 	private const WITH_SHOP = ['date' => 0, 'description' => 1, 'vendor' => 4, 'amount' => 2, 'skipFirstRow' => true];
 	private const WITH_SHOP_AND_CATEGORY = ['date' => 0, 'description' => [1, 3], 'vendor' => 4, 'amount' => 2, 'skipFirstRow' => true];
 	private const WITH_REFERENCE = ['date' => 0, 'description' => 1, 'reference' => 5, 'amount' => 2, 'skipFirstRow' => true];
@@ -263,7 +265,7 @@ class ImportManualMappingRuleDuplicateTest extends TestCase {
 		return array_values(array_column(array_filter($preview['transactions'], fn (array $row) => $row['isDuplicate']), 'rowIndex'));
 	}
 
-	/** @return array<string, mixed> The stored row the first import made of the line */
+	/** @return array<string, mixed> A stored row, by id (the first import's rows come first) */
 	private function storedRow(int $id): array {
 		return $this->ledger[$id];
 	}
@@ -409,7 +411,7 @@ class ImportManualMappingRuleDuplicateTest extends TestCase {
 		$this->assertSame('Costa', $this->storedRow(2)['vendor']);
 	}
 
-	/** Another product of the brand on that day at that price is not the stored one because the rule names the brand */
+	/** Another product of the brand on that day at that price is not taken for the stored one because the rule gives both the brand as payee */
 	public function testAnotherProductOfTheBrandStillImports(): void {
 		$this->rules = [self::rule('description', 'contains', 'Wolfcraft', 'set_vendor', 'Wolfcraft')];
 		$this->import([self::WOLFCRAFT], self::BY_PRODUCT);
@@ -417,5 +419,164 @@ class ImportManualMappingRuleDuplicateTest extends TestCase {
 
 		$this->assertSame(0, $this->preview($other, self::WITH_CATEGORY)['duplicates']);
 		$this->assertSame(1, $this->import($other, self::WITH_CATEGORY)['imported']);
+	}
+
+	/**
+	 * Rules that changed what the first import read into the description or
+	 * the reference, with the description and reference they left on the
+	 * first line's row.
+	 *
+	 * @return array<string, array{0: list<ImportRule>, 1: array<string, mixed>, 2: array<string, mixed>, 3: list<list<string>>, 4: array{0: string, 1: ?string}}>
+	 */
+	public static function textRules(): array {
+		$rewrite = self::rule('description', 'contains', 'Drahtbürste', 'replace_text', '');
+		$rewrite->setActions((string)json_encode(['version' => 2, 'actions' => [
+			['type' => 'replace_text', 'field' => 'description', 'find' => 'Drahtbürste', 'replace' => 'Bürste'],
+		]]));
+		return [
+			// A tidy-up of the bank's text, as many users write
+			'a description tidied up' => [
+				[self::rule('description', 'contains', 'AMZN', 'set_description', 'Amazon')],
+				self::BY_PRODUCT, self::WITH_CATEGORY, [self::AMAZON_ORDER], ['Amazon', null],
+			],
+			// The id hashes the description trimmed
+			'a padded description tidied up' => [
+				[self::rule('description', 'contains', 'AMZN', 'set_description', 'Amazon')],
+				self::BY_PRODUCT, self::WITH_CATEGORY, [['2026-10-14', '  AMZN Mktp DE*2X4F5G6H7 ', '-9.99', 'Online']], ['Amazon', null],
+			],
+			'a description of two columns tidied up' => [
+				[self::rule('description', 'contains', 'AMZN', 'set_description', 'Amazon')],
+				self::WITH_CATEGORY, self::BY_PRODUCT, [self::AMAZON_ORDER], ['Amazon', null],
+			],
+			'a description of three columns tidied up' => [
+				[self::rule('description', 'contains', 'AMZN', 'set_description', 'Amazon')],
+				self::WITH_CATEGORY_AND_SHOP, self::WITH_CATEGORY, [[...self::AMAZON_ORDER, 'Amazon EU']], ['Amazon', null],
+			],
+			'a description named after the payee' => [
+				[self::rule('vendor', 'equals', 'Coop', 'set_description', 'Einkauf Coop')],
+				self::WITH_SHOP, self::WITH_SHOP_AND_CATEGORY, [self::BROT], ['Einkauf Coop', null],
+			],
+			'a description rewritten in place' => [
+				[$rewrite], self::BY_PRODUCT, self::WITH_CATEGORY, [self::WOLFCRAFT, self::DREMEL], ['Wolfcraft Bürste Messing 3tlg', null],
+			],
+			'a reference set' => [
+				[self::rule('description', 'contains', 'Wolfcraft', 'set_reference', 'Baumarkt-Beleg')],
+				self::BY_PRODUCT, self::WITH_CATEGORY, [self::WOLFCRAFT, self::DREMEL], ['Wolfcraft Drahtbürste Messing 3tlg', 'Baumarkt-Beleg'],
+			],
+			'the bank\'s reference replaced' => [
+				[self::rule('description', 'equals', 'Kaffee', 'set_reference', 'Kaffeekasse')],
+				self::WITH_REFERENCE, self::WITH_REFERENCE_AND_CATEGORY, [self::COFFEE], ['Kaffee', 'Kaffeekasse'],
+			],
+			// The id hashes the reference as the cell reads, padding and all (#340)
+			'the bank\'s padded reference replaced' => [
+				[self::rule('description', 'equals', 'Kaffee', 'set_reference', 'Kaffeekasse')],
+				self::WITH_REFERENCE, self::WITH_REFERENCE_AND_CATEGORY,
+				[['2026-10-14', 'Kaffee', '-4.20', 'Lebensmittel', 'Café Zentral', ' R-1001 ']], ['Kaffee', 'Kaffeekasse'],
+			],
+		];
+	}
+
+	/**
+	 * A row whose description or reference a rule changed is recognised under
+	 * another mapping: its import id still holds the texts the first import
+	 * read from the line, before any rule ran.
+	 */
+	#[DataProvider('textRules')]
+	public function testARowWhoseTextARuleChangedIsRecognisedUnderAnotherMapping(array $rules, array $firstMapping, array $secondMapping, array $file, array $storedTexts): void {
+		$this->rules = $rules;
+		$this->assertSame(count($file), $this->import($file, $firstMapping)['imported']);
+		$this->assertSame($storedTexts, [$this->storedRow(1)['description'], $this->storedRow(1)['reference']]);
+
+		$preview = $this->preview($file, $secondMapping);
+		$again = $this->import($file, $secondMapping);
+
+		$this->assertSame(count($file), $preview['duplicates']);
+		$this->assertSame(0, $again['imported']);
+		$this->assertCount(count($file), $this->ledger);
+	}
+
+	/** A description edited by hand after the import, the same way */
+	public function testARowWhoseDescriptionWasEditedByHandIsRecognised(): void {
+		$this->import([self::WOLFCRAFT, self::DREMEL], self::BY_PRODUCT);
+		$this->ledger[1]['description'] = 'Drahtbürste für die Garage';
+
+		$this->assertSame(2, $this->preview([self::WOLFCRAFT, self::DREMEL], self::WITH_CATEGORY)['duplicates']);
+		$this->assertSame(0, $this->import([self::WOLFCRAFT, self::DREMEL], self::WITH_CATEGORY)['imported']);
+	}
+
+	/** Two identical orders a rule tidied: the second's id carries _occ2, and both are recognised */
+	public function testTwoIdenticalLinesARuleChangedAreBothRecognised(): void {
+		$this->rules = [self::rule('description', 'contains', 'AMZN', 'set_description', 'Amazon')];
+		$this->import([self::AMAZON_ORDER, self::AMAZON_ORDER], self::BY_PRODUCT);
+		$this->assertStringEndsWith('_occ2', (string)$this->storedRow(2)['importId']);
+
+		$this->assertSame(2, $this->preview([self::AMAZON_ORDER, self::AMAZON_ORDER], self::WITH_CATEGORY)['duplicates']);
+		$this->assertSame(0, $this->import([self::AMAZON_ORDER, self::AMAZON_ORDER], self::WITH_CATEGORY)['imported']);
+	}
+
+	/**
+	 * A genuinely new line that the same rule rewrites the same way, on that
+	 * day at that price, in a later file under the same mapping or another.
+	 *
+	 * @return array<string, array{0: list<ImportRule>, 1: array<string, mixed>, 2: list<string>, 3: array<string, mixed>, 4: list<string>}>
+	 */
+	public static function newLinesARuleMakesAlike(): array {
+		$amazon = self::rule('description', 'contains', 'AMZN', 'set_description', 'Amazon');
+		$coop = self::rule('vendor', 'equals', 'Coop', 'set_description', 'Einkauf Coop');
+		$kaffeekasse = self::rule('description', 'equals', 'Kaffee', 'set_reference', 'Kaffeekasse');
+		$sets = [];
+		foreach (['the same mapping' => false, 'another mapping' => true] as $how => $another) {
+			$sets[$how . ', another order the rule tidies'] = [[$amazon], self::BY_PRODUCT, self::AMAZON_ORDER, $another ? self::WITH_CATEGORY : self::BY_PRODUCT, self::AMAZON_NEXT_ORDER];
+			$sets[$how . ', another product from the shop the rule names'] = [[$coop], self::WITH_SHOP, self::BROT, $another ? self::WITH_SHOP_AND_CATEGORY : self::WITH_SHOP, self::EIER];
+			$sets[$how . ', another coffee whose reference the rule replaced'] = [[$kaffeekasse], self::WITH_REFERENCE, self::COFFEE, $another ? self::WITH_REFERENCE_AND_CATEGORY : self::WITH_REFERENCE, self::NEXT_COFFEE];
+		}
+		// The stored row's description is only the rule's: the line it came from had none
+		$sets['the same mapping, a line that had no description'] = [
+			[self::rule('vendor', 'equals', 'Coop', 'set_description', 'Einkauf', 'if_empty')],
+			self::WITH_SHOP, ['2026-10-12', '', '-2.50', 'Lebensmittel', 'Coop'], self::WITH_SHOP, self::EIER,
+		];
+		return $sets;
+	}
+
+	/**
+	 * Such a line imports, as it does without the rule: the rule's text says
+	 * nothing about which line it came from, so a stored row is never taken
+	 * for a line on the strength of it. Under the same mapping this is the
+	 * next statement or receipt, and nothing in it was imported before.
+	 */
+	#[DataProvider('newLinesARuleMakesAlike')]
+	public function testANewLineARuleMakesAlikeStillImports(array $rules, array $firstMapping, array $old, array $secondMapping, array $new): void {
+		$this->rules = $rules;
+		$this->import([$old], $firstMapping);
+		$this->assertCount(1, $this->ledger);
+
+		$preview = $this->preview([$new], $secondMapping);
+		$again = $this->import([$new], $secondMapping);
+
+		$this->assertSame(0, $preview['duplicates']);
+		$this->assertSame(1, $again['imported']);
+		$this->assertCount(2, $this->ledger);
+	}
+
+	public static function amazonOrders(): array {
+		return ['the new order first' => [true], 'the stored order first' => [false]];
+	}
+
+	/** With both orders in the file under another mapping, the stored order's line is the one recognised */
+	#[DataProvider('amazonOrders')]
+	public function testTheStoredOrderIsTheOneRecognised(bool $newFirst): void {
+		$this->rules = [self::rule('description', 'contains', 'AMZN', 'set_description', 'Amazon')];
+		$this->import([self::AMAZON_ORDER], self::BY_PRODUCT);
+		$rows = $newFirst ? [self::AMAZON_NEXT_ORDER, self::AMAZON_ORDER] : [self::AMAZON_ORDER, self::AMAZON_NEXT_ORDER];
+
+		$preview = $this->preview($rows, self::WITH_CATEGORY);
+		$again = $this->import($rows, self::WITH_CATEGORY);
+
+		$this->assertSame([$newFirst ? 1 : 0], self::flagged($preview));
+		$this->assertSame(1, $again['imported']);
+		$this->assertSame(
+			'hash_' . md5('2026-10-14' . '9.99' . 'AMZN Mktp DE*9Z8Y7X6W5, Online'),
+			$this->storedRow(2)['importId']
+		);
 	}
 }
