@@ -2286,7 +2286,7 @@ class MigrationService {
 					$billData['paidUndoState'],
 					'previousState',
 					['createdTransactionIds', 'scheduledTransactionIds'],
-					['linkedTransactionId'],
+					['linkedTransactionId', 'usedTransactionId'],
 					!$lostAccount,
 					$sharedAccount && isset($billData['id'])
 						? fn (int $id): bool => $this->crossUserLinks->keepsSnapshotTransaction(ShareItem::TYPE_BILL, (int)$billData['id'], $billData['name'] ?? null, $billData['createdAt'] ?? null, $id)

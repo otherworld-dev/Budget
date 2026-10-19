@@ -980,8 +980,25 @@ class BillController extends Controller {
 			// The occurrence the page showed, so a second click or a stale
 			// tab is refused instead of paying it twice
 			$expectedDueDate = is_string($params['dueDate'] ?? null) ? $params['dueDate'] : null;
+			$owner = $this->billOwner($id);
 
-			$result = $this->service->markPaid($id, $this->billOwner($id), $paidDate, $recordPayment, $existingTransactionId, $expectedDueDate, $this->userId);
+			// The ledger may hold the occurrence's payment already: a bill
+			// made due again was paid a second time with one click (#399).
+			// Booking another then takes the user saying so; the page asks.
+			// Only a payment in an account the user can write to is named.
+			if ($recordPayment && $existingTransactionId === null
+				&& !filter_var($params['confirmSecondPayment'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+				$existing = $this->service->recordedPaymentForPendingOccurrence($id, $owner, $expectedDueDate, $this->userId);
+				if ($existing !== null) {
+					return new DataResponse([
+						'error' => $this->l->t('This bill already has a payment on %1$s.', [$existing['date']]),
+						'code' => 'payment_recorded',
+						'existing' => $existing,
+					], Http::STATUS_CONFLICT);
+				}
+			}
+
+			$result = $this->service->markPaid($id, $owner, $paidDate, $recordPayment, $existingTransactionId, $expectedDueDate, $this->userId);
 			return new DataResponse($result);
 		} catch (\InvalidArgumentException $e) {
 			// Service-only validation keeps its message (#362)
@@ -1060,7 +1077,10 @@ class BillController extends Controller {
 		try {
 			$this->requireWriteAccess('bill', $id);
 			$this->requireBillAccountsWritable($id);
-			$result = $this->service->skipPayment($id, $this->billOwner($id));
+			// The occurrence the page showed, so a second click or a stale
+			// tab is refused instead of skipping the next one too (#399)
+			$dueDate = $this->request->getParams()['dueDate'] ?? null;
+			$result = $this->service->skipPayment($id, $this->billOwner($id), is_string($dueDate) ? $dueDate : null);
 			return new DataResponse($result);
 		} catch (\InvalidArgumentException $e) {
 			return $this->handleError($e, $e->getMessage(), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
@@ -1083,6 +1103,13 @@ class BillController extends Controller {
 
 			if ($previousNextDueDate === null) {
 				return new DataResponse(['error' => $this->l->t('Missing previous due date')], Http::STATUS_BAD_REQUEST);
+			}
+			// Any string was stored as the due date, and a bad one made the
+			// annual overview fail for the whole user (#399)
+			$previousNextDueDate = is_string($previousNextDueDate) ? $previousNextDueDate : '';
+			$validation = $this->validationService->validateDate($previousNextDueDate, $this->l->t('Previous due date'), true);
+			if (!$validation['valid']) {
+				return new DataResponse(['error' => $validation['error']], Http::STATUS_BAD_REQUEST);
 			}
 
 			$bill = $this->service->undoSkip($id, $this->billOwner($id), $previousNextDueDate);

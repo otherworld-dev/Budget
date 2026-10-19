@@ -491,8 +491,22 @@ class RecurringIncomeController extends Controller {
 			// The occurrence the page showed, so a second click or a stale tab
 			// is refused instead of booking the money twice
 			$expectedDate = is_string($params['expectedDate'] ?? null) ? $params['expectedDate'] : null;
+			$owner = $this->incomeOwner($id);
 
-			$income = $this->service->markReceived($id, $this->incomeOwner($id), $receivedDate, $createTransaction, $expectedDate, $this->userId);
+			// The ledger may hold the payment's credit already (#399): another
+			// is booked only when the user says so, after the page asks
+			if ($createTransaction && !filter_var($params['confirmSecondPayment'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+				$existing = $this->service->recordedReceiptForPendingOccurrence($id, $owner, $expectedDate, $this->userId);
+				if ($existing !== null) {
+					return new DataResponse([
+						'error' => $this->l->t('This income already has a payment on %1$s.', [$existing['date']]),
+						'code' => 'receipt_recorded',
+						'existing' => $existing,
+					], Http::STATUS_CONFLICT);
+				}
+			}
+
+			$income = $this->service->markReceived($id, $owner, $receivedDate, $createTransaction, $expectedDate, $this->userId);
 			return new DataResponse($income);
 		} catch (\InvalidArgumentException $e) {
 			return $this->handleError($e, $e->getMessage(), Http::STATUS_BAD_REQUEST, ['incomeId' => $id]);
@@ -526,7 +540,10 @@ class RecurringIncomeController extends Controller {
 	public function skipPayment(int $id): DataResponse {
 		try {
 			$this->requireWriteAccess('recurring_income', $id);
-			$result = $this->service->skipPayment($id, $this->incomeOwner($id));
+			// The payment the page showed, so a second click or a stale tab is
+			// refused instead of skipping the next one too (#399)
+			$expectedDate = $this->request->getParams()['expectedDate'] ?? null;
+			$result = $this->service->skipPayment($id, $this->incomeOwner($id), is_string($expectedDate) ? $expectedDate : null);
 			return new DataResponse($result);
 		} catch (\InvalidArgumentException $e) {
 			return $this->handleError($e, $e->getMessage(), Http::STATUS_BAD_REQUEST, ['incomeId' => $id]);

@@ -76,7 +76,7 @@ class CrossUserLinks {
 
 	/** Undo snapshots: table => [column, keys holding transaction ids] */
 	private const SNAPSHOTS = [
-		'budget_bills' => ['paid_undo_state', ['createdTransactionIds', 'scheduledTransactionIds', 'linkedTransactionId']],
+		'budget_bills' => ['paid_undo_state', ['createdTransactionIds', 'scheduledTransactionIds', 'linkedTransactionId', 'usedTransactionId']],
 		'budget_recurring_income' => ['received_undo_state', ['transactionIds']],
 	];
 

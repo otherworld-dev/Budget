@@ -190,7 +190,38 @@ class RecurringIncomeMapper extends QBMapper {
 		$qb->update($this->getTableName())
 			->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)))
 			->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+		$this->setColumns($qb, $fields);
 
+		$qb->executeStatement();
+	}
+
+	/**
+	 * Settle the occurrence expected on $expectedDate, in one conditional
+	 * write: $fields are written only while the income is still active and
+	 * expected on that date (#399), so of two Mark Received (or a click and
+	 * auto-create) for one payment only the first books it. See
+	 * BillMapper::claimOccurrence().
+	 *
+	 * @param array<string, mixed> $fields column => value, as updateFields() takes them
+	 * @return bool whether this call claimed it
+	 */
+	public function claimOccurrence(int $id, string $userId, string $expectedDate, array $fields): bool {
+		$qb = $this->db->getQueryBuilder();
+		$qb->update($this->getTableName())
+			->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+			->andWhere($qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
+			->andWhere($qb->expr()->eq('next_expected_date', $qb->createNamedParameter($expectedDate)));
+		$this->setColumns($qb, $fields);
+
+		return $qb->executeStatement() === 1;
+	}
+
+	/**
+	 * @param array<string, mixed> $fields column => value
+	 * @throws \InvalidArgumentException for a column that isn't updatable
+	 */
+	private function setColumns(IQueryBuilder $qb, array $fields): void {
 		foreach ($fields as $column => $value) {
 			if (!in_array($column, self::UPDATABLE_COLUMNS, true)) {
 				throw new \InvalidArgumentException("Column '$column' is not updatable");
@@ -204,8 +235,6 @@ class RecurringIncomeMapper extends QBMapper {
 				$qb->set($column, $qb->createNamedParameter($value, $type));
 			}
 		}
-
-		$qb->executeStatement();
 	}
 
 	/**

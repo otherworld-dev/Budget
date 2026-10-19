@@ -64,6 +64,16 @@ class BillLifecycleTest extends TestCase {
 				$this->stored->{'set' . str_replace('_', '', ucwords($column, '_'))}($value);
 			}
 		});
+		// Written only while the bill is still due on the date claimed, as the real one does
+		$this->mapper->method('claimOccurrence')->willReturnCallback(function (int $id, string $user, string $expected, array $fields) {
+			if (!$this->stored->getIsActive() || $this->stored->getNextDueDate() !== $expected) {
+				return false;
+			}
+			foreach ($fields as $column => $value) {
+				$this->stored->{'set' . str_replace('_', '', ucwords($column, '_'))}($value);
+			}
+			return true;
+		});
 
 		$this->transactions = $this->createMock(TransactionService::class);
 		$this->transactions->method('createFromBill')->willReturnCallback(function (string $user, Bill $bill, ?string $date = null) {

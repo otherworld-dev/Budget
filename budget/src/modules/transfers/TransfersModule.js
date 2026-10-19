@@ -16,6 +16,7 @@ import { offerableTags, offerableTagSets } from '../../utils/tags.js';
 import { showLoadError } from '../../utils/loading.js';
 import { openAccounts, pickableAccounts, accountOptionLabel, accountCurrency, linkableCandidates } from '../../utils/accounts.js';
 import { requestMarkUnpaid } from '../../utils/billUnpaid.js';
+import { sendPayment } from '../../utils/paymentRecordedDialog.js';
 import { selectPossiblyUnavailable, unavailableCategoryLabel } from '../../utils/formSelects.js';
 
 /**
@@ -223,7 +224,7 @@ export default class TransfersModule {
             if (paidBtn) {
                 e.preventDefault();
                 const transferId = parseInt(paidBtn.dataset.transferId);
-                this.markTransferPaid(transferId);
+                this.markTransferPaid(transferId, paidBtn);
             }
         });
 
@@ -233,7 +234,7 @@ export default class TransfersModule {
             if (skipBtn) {
                 e.preventDefault();
                 const transferId = parseInt(skipBtn.dataset.transferId);
-                this.skipTransfer(transferId);
+                this.skipTransfer(transferId, skipBtn);
             }
         });
 
@@ -243,7 +244,7 @@ export default class TransfersModule {
             if (unpaidBtn) {
                 e.preventDefault();
                 const transferId = parseInt(unpaidBtn.dataset.transferId);
-                this.markTransferUnpaid(transferId);
+                this.markTransferUnpaid(transferId, unpaidBtn);
             }
         });
 
@@ -971,7 +972,19 @@ export default class TransfersModule {
         }
     }
 
-    async markTransferPaid(transferId) {
+    /**
+     * Mark Paid. One action on a transfer runs at a time, with its button
+     * disabled, from the look for rows already in the account to the payment
+     * itself: two clicks at once both paid (#399).
+     *
+     * @param {number} transferId
+     * @param {HTMLElement|null} [button] the button clicked
+     */
+    markTransferPaid(transferId, button = null) {
+        return once(`bill-paid-${transferId}`, button, () => this._markTransferPaid(transferId));
+    }
+
+    async _markTransferPaid(transferId) {
         const transfer = this.transfers.find(tx => tx.id === transferId);
         if (!transfer) return;
 
@@ -1007,13 +1020,20 @@ export default class TransfersModule {
             } else {
                 body.paidDate = formatters.getTodayDateString();
             }
-            const result = await apiFetch(`/apps/budget/api/bills/${transferId}/paid`, {
-                method: 'POST',
-                body,
+            // When the ledger has this occurrence's payment already, the
+            // user is asked before another is booked (#399)
+            const sent = await sendPayment(`/apps/budget/api/bills/${transferId}/paid`, body, this.settings, {
+                currency: transfer.currency || accountCurrency(this.accounts, transfer.accountId ?? transfer.account_id),
                 errorMessage: t('budget', 'Failed to mark transfer as paid'),
             });
+            if (sent === null) {
+                return; // left as it was
+            }
+            const { result, usedPayment } = sent;
 
-            if (result && result.paymentTransactionRecorded === false) {
+            if (usedPayment) {
+                showSuccess(t('budget', 'Marked as paid with the payment of {date}', { date: formatters.formatDate(usedPayment.date, this.settings) }));
+            } else if (result && result.paymentTransactionRecorded === false) {
                 // Marked paid, but no money moved: say so rather than report
                 // a transfer that never reached either account
                 showWarning(t('budget', 'The transfer was marked as paid, but no transactions were recorded. Check both accounts, or add the transfer manually.'));
@@ -1035,8 +1055,16 @@ export default class TransfersModule {
      * already handles a transfer - both pre-booked legs for the skipped date
      * go, and the next pair is pre-booked - so this is the bills list's Skip
      * with the same confirm and the same short-lived undo.
+     *
+     * @param {number} transferId
+     * @param {HTMLElement|null} [button] the button clicked: one action on a
+     *   transfer at a time, as for Mark Paid
      */
-    async skipTransfer(transferId) {
+    skipTransfer(transferId, button = null) {
+        return once(`bill-paid-${transferId}`, button, () => this._skipTransfer(transferId));
+    }
+
+    async _skipTransfer(transferId) {
         const transfer = this.transfers.find(tx => tx.id === transferId);
         if (!transfer) return;
 
@@ -1047,6 +1075,9 @@ export default class TransfersModule {
         try {
             const result = await apiFetch(`/apps/budget/api/bills/${transferId}/skip`, {
                 method: 'POST',
+                // The occurrence this row showed: a second click or a stale
+                // tab is refused instead of skipping the next one too (#399)
+                body: { dueDate: transfer.nextDueDate || transfer.next_due_date || null },
                 errorMessage: t('budget', 'Failed to skip transfer'),
             });
             const undoData = {
@@ -1115,8 +1146,16 @@ export default class TransfersModule {
      * Durable "mark as unpaid" for transfer bills (#365): the same snapshot
      * revert as the bills list — including the #347 statement-amount card
      * payments the snapshot restore exists for — with the same confirm copy.
+     *
+     * @param {number} transferId
+     * @param {HTMLElement|null} [button] the button clicked: one action on a
+     *   transfer at a time, as for Mark Paid
      */
-    async markTransferUnpaid(transferId) {
+    markTransferUnpaid(transferId, button = null) {
+        return once(`bill-paid-${transferId}`, button, () => this._markTransferUnpaid(transferId));
+    }
+
+    async _markTransferUnpaid(transferId) {
         const transfer = this.transfers.find(tx => tx.id === transferId);
         let message = t('budget', 'Mark this bill as unpaid? Transactions created for the payment will be deleted, a linked imported transaction will be unlinked, and the bill schedule rolled back.');
         const autoPayEnabled = transfer ? (transfer.autoPayEnabled ?? transfer.auto_pay_enabled ?? false) : false;
