@@ -1796,7 +1796,7 @@ class BillService {
 			throw new \InvalidArgumentException($this->l->t('That date is after the bill\'s next due date'));
 		}
 		$endDate = $bill->getEndDate();
-		if (!$this->fallsOnSchedule($bill, $previousNextDueDate)
+		if ((!$this->fallsOnSchedule($bill, $previousNextDueDate) && !$this->skippedFromStoredDate($bill, $previousNextDueDate))
 			|| ($endDate !== null && $endDate !== '' && $previousNextDueDate > $endDate)) {
 			throw new \InvalidArgumentException($this->l->t('That date isn\'t one of this bill\'s due dates'));
 		}
@@ -1842,6 +1842,45 @@ class BillService {
 		return $this->frequencyCalculator->occurrenceOnOrAfter(
 			$frequency, $bill->getDueDay(), $bill->getDueMonth(), $date, $bill->getCustomRecurrencePattern(), $anchor
 		) === $date;
+	}
+
+	/**
+	 * Whether the bill was due on $date before a skip moved it on, though
+	 * its schedule doesn't fall there. The toast's Undo was refused for two
+	 * kinds of date (#399). One 2.x stored: a schedule with no day fell on
+	 * the 1st, one with no month in January, and a semi-monthly second date
+	 * stopped at the 28th (FrequencyCalculator::storedOccurrence()). And the
+	 * last date of an ended weekly bill with no start date, which counted
+	 * its weeks from that date, so only its weekday is left to go by. Either
+	 * has to be the skip's exact inverse: skipped again, it lands where the
+	 * bill is now, so no other date off the schedule gets in.
+	 */
+	private function skippedFromStoredDate(Bill $bill, string $date): bool {
+		$frequency = (string)$bill->getFrequency();
+		$calculator = $this->frequencyCalculator;
+		if (in_array($frequency, ['weekly', 'biweekly'], true)) {
+			$stored = !$bill->getStartDate() && $bill->getNextDueDate() === null
+				&& $calculator->occurrenceOnOrAfter('weekly', $bill->getDueDay(), null, $date) === $date;
+		} else {
+			// The schedule with no start date to take a day or month from
+			$following = $calculator->occurrenceOnOrAfter($frequency, $bill->getDueDay(), $bill->getDueMonth(), $date, $bill->getCustomRecurrencePattern());
+			$stored = $following === $date
+				|| ($frequency === 'semi-monthly' && substr($date, 8, 2) === '28'
+					&& $following !== null && substr($following, 0, 7) === substr($date, 0, 7));
+		}
+		if (!$stored) {
+			return false;
+		}
+
+		// Where skipPayment() takes the bill from $date
+		$next = $calculator->calculateNextDueDate(
+			$frequency, $bill->getDueDay(), $bill->getDueMonth(), $date, $bill->getCustomRecurrencePattern(), true, $bill->getStartDate()
+		);
+		$endDate = $bill->getEndDate();
+		if ($endDate !== null && $next > $endDate) {
+			return $bill->getNextDueDate() === null;
+		}
+		return $next === $bill->getNextDueDate();
 	}
 
 	/**

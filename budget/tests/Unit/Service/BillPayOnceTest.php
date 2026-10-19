@@ -18,6 +18,7 @@ use OCA\Budget\Service\TransactionService;
 use OCA\Budget\Service\TransactionSplitService;
 use OCA\Budget\Service\UserClock;
 use OCP\IL10N;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
@@ -454,5 +455,64 @@ class BillPayOnceTest extends TestCase {
 
 		$this->expectException(\InvalidArgumentException::class);
 		$this->service->undoSkip(1, 'user1', '2026-10-28');
+	}
+
+	/**
+	 * Due dates 2.x stored that the schedule no longer falls on: no day fell
+	 * on the 1st, no month in January (the first month of each calendar
+	 * quarter), and a semi-monthly second date stopped at the 28th
+	 *
+	 * @return array<string, array{0: array<string, mixed>, 1: string}>
+	 */
+	public static function datesTwoXStored(): array {
+		return [
+			'monthly with no day, on the 1st' => [['frequency' => 'monthly', 'dueDay' => null, 'startDate' => '2026-01-20'], '2026-11-01'],
+			'quarterly with no month, in October' => [['frequency' => 'quarterly', 'dueDay' => 10, 'startDate' => '2026-02-10'], '2026-10-10'],
+			'semi-monthly, stopped at the 28th' => [['frequency' => 'semi-monthly', 'dueDay' => 15], '2026-10-28'],
+			'yearly with no month, in January' => [['frequency' => 'yearly', 'dueDay' => 14, 'startDate' => '2025-03-14'], '2027-01-14'],
+		];
+	}
+
+	#[DataProvider('datesTwoXStored')]
+	public function testTheUndoOfASkipPutsBackADateTwoXStored(array $schedule, string $stored): void {
+		// The toast's Undo, right after the Skip: refused, the user lost the
+		// occurrence with no way back
+		$this->bill($schedule + ['nextDueDate' => $stored, 'createTransaction' => false]);
+		$skipped = $this->service->skipPayment(1, 'user1', $stored);
+
+		$this->service->undoSkip(1, 'user1', $skipped['previousNextDueDate']);
+
+		$this->assertSame($stored, $this->stored->getNextDueDate());
+		$this->assertTrue($this->stored->getIsActive());
+	}
+
+	public function testOnlyTheDateASkipLeftFromIsPutBackOffTheSchedule(): void {
+		// Due 20 December after skipping 1 November: an earlier 1st is no
+		// date the bill was due on
+		$this->bill(['dueDay' => null, 'startDate' => '2026-01-20', 'nextDueDate' => '2026-12-20']);
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->service->undoSkip(1, 'user1', '2026-10-01');
+	}
+
+	public function testTheUndoOfTheSkipThatEndedAFortnightlyBillWithNoStartDateBringsItBack(): void {
+		// It counted its fortnights from the date it was due, and the skip
+		// ended it: its weekday is all that is left to go by
+		$this->bill(['frequency' => 'biweekly', 'dueDay' => 2, 'endDate' => '2026-10-25', 'nextDueDate' => '2026-10-20', 'createTransaction' => false]);
+		$this->service->skipPayment(1, 'user1', '2026-10-20');
+		$this->assertFalse($this->stored->getIsActive());
+
+		$this->service->undoSkip(1, 'user1', '2026-10-20');
+
+		$this->assertTrue($this->stored->getIsActive());
+		$this->assertSame('2026-10-20', $this->stored->getNextDueDate());
+	}
+
+	public function testAnEndedFortnightlyBillTakesBackNoDayOfAnotherWeekday(): void {
+		// Due on Tuesdays: a Wednesday was never one of its dates
+		$this->bill(['frequency' => 'biweekly', 'dueDay' => 2, 'isActive' => false, 'nextDueDate' => null, 'endDate' => '2026-10-25']);
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->service->undoSkip(1, 'user1', '2026-10-21');
 	}
 }
