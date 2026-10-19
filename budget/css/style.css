@@ -18816,8 +18816,8 @@ button.secondary.compact {
     font-style: italic;
 }
 
-/* A cell holding more payments than the bill fell due that month (#399).
-   Inline-block keeps a paid cell's line-through off it. */
+/* A cell with a date paid more than once (#399). Inline-block keeps a paid
+   cell's line-through off it. */
 .bills-calendar-table .month-cell .payments-marker {
     display: inline-block;
     padding: 0 4px;

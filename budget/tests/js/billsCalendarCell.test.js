@@ -4,8 +4,8 @@
  * cell held two, and a month the bill moved past with no payment recorded
  * was struck through like a payment, with a dashed line nobody could tell
  * apart. A cell now says what it holds: each payment and its date in the
- * tooltip, a count when it holds more payments than the bill falls due
- * that month, and an unrecorded month drawn muted, never struck through.
+ * tooltip, a count when one of its dates was paid more than once, and an
+ * unrecorded month drawn muted, never struck through.
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -27,30 +27,51 @@ const cembraPay = {
     occurrences: months([9]),
     paidMonths: [9],
     paidAmounts: { 9: 303.34 },
-    paidDetails: { 9: [{ date: '2026-09-27', amount: 151.67 }, { date: '2026-10-15', amount: 151.67 }] },
-    occurrenceCounts: { 9: 1 },
+    paidDetails: { 9: [
+        { date: '2026-09-27', amount: 151.67, due: '2026-09-28' },
+        { date: '2026-10-15', amount: 151.67, due: '2026-09-28' },
+    ] },
+    paidMoreThanOnce: { 9: 2 },
     unrecordedMonths: [],
     expectedAmounts: { 9: 151.67 },
     owedAmounts: [],
 };
 
-// CSX Pro: April and May moved past with nothing recorded, November still owed
+// CSX Pro: April and May moved past with nothing recorded, 28 August paid
+// twice, November still owed
 const csx = {
     name: 'CSX Pro Credit Cards', amount: 100, currency: 'CHF', frequency: 'monthly', isTransfer: true,
     occurrences: months([4, 5, 6, 7, 8, 9, 10, 11, 12]),
     paidMonths: [6, 7, 8, 9, 10],
     paidAmounts: { 6: 50, 7: 50, 8: 100, 9: 100, 10: 100 },
     paidDetails: {
-        6: [{ date: '2026-06-28', amount: 50 }],
-        7: [{ date: '2026-07-25', amount: 50 }],
-        8: [{ date: '2026-08-29', amount: 50 }, { date: '2026-08-30', amount: 50 }],
-        9: [{ date: '2026-09-30', amount: 100 }],
-        10: [{ date: '2026-09-30', amount: 100 }],
+        6: [{ date: '2026-06-28', amount: 50, due: '2026-06-28' }],
+        7: [{ date: '2026-07-25', amount: 50, due: '2026-07-28' }],
+        8: [{ date: '2026-08-29', amount: 50, due: '2026-08-28' }, { date: '2026-08-30', amount: 50, due: '2026-08-28' }],
+        9: [{ date: '2026-09-30', amount: 100, due: '2026-09-28' }],
+        10: [{ date: '2026-09-30', amount: 100, due: '2026-10-28' }],
     },
-    occurrenceCounts: { 4: 1, 5: 1, 6: 1, 7: 1, 8: 1, 9: 1, 10: 1, 11: 1, 12: 1 },
+    paidMoreThanOnce: { 8: 2 },
     unrecordedMonths: [4, 5],
     expectedAmounts: { 4: 100, 5: 100, 6: 100, 7: 100, 8: 100, 9: 100, 10: 100, 11: 100, 12: 100 },
     owedAmounts: { 11: 100, 12: 100 },
+};
+
+// Due on the 28th and paid a few days late: December's payment went out on
+// 3 January, so January holds it as well as January's own
+const latePayer = {
+    name: 'Phone', amount: 80, currency: 'CHF', frequency: 'monthly',
+    occurrences: months([1]),
+    paidMonths: [1],
+    paidAmounts: { 1: 160 },
+    paidDetails: { 1: [
+        { date: '2026-01-03', amount: 80, due: '2025-12-28' },
+        { date: '2026-02-02', amount: 80, due: '2026-01-28' },
+    ] },
+    paidMoreThanOnce: [],
+    unrecordedMonths: [],
+    expectedAmounts: { 1: 80 },
+    owedAmounts: [],
 };
 
 describe('calendarCell', () => {
@@ -94,32 +115,53 @@ describe('calendarCell', () => {
         expect(cell.title).toContain('2026-06-28');
     });
 
-    it('counts payments against how often the bill falls due that month', () => {
+    it('counts the payments of a date paid more than once, and nothing else', () => {
         // Two invoices of one name due in the same month, each paid once
         const twoInvoices = {
             ...cembraPay,
             paidAmounts: { 9: 156.39 },
-            paidDetails: { 9: [{ date: '2026-09-27', amount: 151.67 }, { date: '2026-09-27', amount: 4.72 }] },
-            occurrenceCounts: { 9: 2 },
+            paidDetails: { 9: [
+                { date: '2026-09-27', amount: 151.67, due: '2026-09-28' },
+                { date: '2026-09-27', amount: 4.72, due: '2026-09-28' },
+            ] },
+            paidMoreThanOnce: [],
         };
         expect(calendarCell(twoInvoices, 9).marker).toBeNull();
 
         const weekly = {
             name: 'Cleaner', amount: 10, currency: 'CHF', frequency: 'weekly',
-            occurrences: months([1]), paidMonths: [1], paidAmounts: { 1: 50 },
-            paidDetails: { 1: ['02', '09', '16', '23', '30'].map(day => ({ date: `2026-01-${day}`, amount: 10 })) },
-            occurrenceCounts: { 1: 5 }, unrecordedMonths: [], expectedAmounts: { 1: 50 }, owedAmounts: [],
+            occurrences: months([1]), paidMonths: [1], paidAmounts: { 1: 60 },
+            paidDetails: { 1: ['02', '09', '16', '16', '23', '30'].map(day => ({ date: `2026-01-${day}`, amount: 10, due: `2026-01-${day}` })) },
+            paidMoreThanOnce: [], unrecordedMonths: [], expectedAmounts: { 1: 50 }, owedAmounts: [],
         };
         expect(calendarCell(weekly, 1).marker).toBeNull();
-        expect(calendarCell(weekly, 1).payments).toBe(5);
+        expect(calendarCell(weekly, 1).payments).toBe(6);
+
+        // One week paid twice: the count is how often that date was paid
+        expect(calendarCell({ ...weekly, paidMoreThanOnce: { 1: 2 } }, 1).marker).toBe('2×');
+        expect(calendarCell({ ...cembraPay, paidMoreThanOnce: { 9: 3 } }, 9).marker).toBe('3×');
+    });
+
+    it('a payment for a date of another year is no second payment, and says which date it paid', () => {
+        const cell = calendarCell(latePayer, 1);
+
+        expect(cell.state).toBe('paid');
+        expect(cell.amount).toBe(160);
+        expect(cell.payments).toBe(2);
+        expect(cell.marker).toBeNull();
+        const [december, january] = cell.title.split('\n');
+        expect(december).toContain('2026-01-03');
+        expect(december).toContain('for 2025-12-28');
+        expect(january).toContain('2026-02-02');
+        expect(january).not.toContain('for');
     });
 
     it('a month part paid and part still owed comes to both, and is still due', () => {
         const weekly = {
             name: 'Cleaner', amount: 10, currency: 'CHF', frequency: 'weekly',
             occurrences: months([2]), paidMonths: [2], paidAmounts: { 2: 20 },
-            paidDetails: { 2: [{ date: '2026-02-06', amount: 10 }, { date: '2026-02-13', amount: 10 }] },
-            occurrenceCounts: { 2: 4 }, unrecordedMonths: [], expectedAmounts: { 2: 40 }, owedAmounts: { 2: 20 },
+            paidDetails: { 2: [{ date: '2026-02-06', amount: 10, due: '2026-02-06' }, { date: '2026-02-13', amount: 10, due: '2026-02-13' }] },
+            paidMoreThanOnce: [], unrecordedMonths: [], expectedAmounts: { 2: 40 }, owedAmounts: { 2: 20 },
         };
 
         const cell = calendarCell(weekly, 2);
@@ -170,7 +212,7 @@ describe('Bills Calendar heatmap', () => {
         const paidInApril = {
             name: 'Dentist', amount: 166.70, currency: 'CHF', frequency: 'one-time', isActive: false,
             occurrences: months([4]), paidMonths: [4], paidAmounts: { 4: 166.70 },
-            paidDetails: { 4: [{ date: '2026-04-26', amount: 166.70 }] }, occurrenceCounts: { 4: 1 },
+            paidDetails: { 4: [{ date: '2026-04-26', amount: 166.70, due: '2026-04-27' }] }, paidMoreThanOnce: [],
             unrecordedMonths: [], expectedAmounts: { 4: 166.70 }, owedAmounts: [],
         };
 

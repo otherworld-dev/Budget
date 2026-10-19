@@ -23,9 +23,11 @@ import { roundMoney } from './money.js';
  *  - expected: it falls in the month and the row says nothing more
  *  - none: the bill doesn't fall in the month
  *
- * marker counts the payments when there are more than the times the bill
- * falls due that month: two for a monthly bill is a payment made twice,
- * four for a weekly one in a four-week month is not.
+ * marker says how many times a date was paid when one of the month's was
+ * paid more than once: a weekly bill's four payments in a four-week month
+ * are no double payment, nor is December's paid late on 3 January. A
+ * payment for a date in another month, the year before's or after's, says
+ * which in the tooltip.
  *
  * @param {object} row calendar row
  * @param {number} month 1..12
@@ -41,15 +43,23 @@ export function calendarCell(row, month, settings = {}, currency = null) {
     const code = row.currency || currency;
     const money = amount => formatters.formatCurrency(amount, code, settings);
     const details = row.paidDetails?.[month] || [];
-    const paidLines = details.map(payment => t('budget', 'Paid {amount} on {date}', {
-        amount: money(payment.amount),
-        date: formatters.formatDate(payment.date, settings),
-    }));
+    const paidLines = details.map(payment => {
+        const params = {
+            amount: money(payment.amount),
+            date: formatters.formatDate(payment.date, settings),
+        };
+        if (payment.due && Number(payment.due.slice(5, 7)) !== month) {
+            // TRANSLATORS: {amount}, {date} and {due} are placeholders, do NOT translate them. {due} is the date the bill was due that the payment was for.
+            return t('budget', 'Paid {amount} on {date} for {due}', { ...params, due: formatters.formatDate(payment.due, settings) });
+        }
+        return t('budget', 'Paid {amount} on {date}', params);
+    });
     const paid = row.paidAmounts?.[month] ?? null;
     const owed = row.owedAmounts?.[month] ?? null;
     const expected = row.expectedAmounts?.[month] ?? row.amount;
     const isPaid = paid !== null || (row.paidMonths || []).includes(month);
-    const marker = details.length > (row.occurrenceCounts?.[month] ?? 1) ? `${details.length}×` : null;
+    const times = row.paidMoreThanOnce?.[month] ?? 0;
+    const marker = times > 1 ? `${times}×` : null;
     const cell = (state, amount, title) => ({ state, amount: Number(amount), payments: details.length, title, marker });
 
     if (owed !== null) {

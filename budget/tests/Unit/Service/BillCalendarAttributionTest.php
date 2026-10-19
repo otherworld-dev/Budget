@@ -65,14 +65,14 @@ class BillCalendarAttributionTest extends TestCase {
 		$bill->setDueDay($fields['dueDay'] ?? null);
 		$bill->setDueMonth($fields['dueMonth'] ?? null);
 		$bill->setStartDate($fields['startDate'] ?? null);
-		$bill->setEndDate(null);
+		$bill->setEndDate($fields['endDate'] ?? null);
 		$bill->setNextDueDate($fields['nextDueDate'] ?? null);
 		$bill->setLastPaidDate($fields['lastPaidDate'] ?? null);
 		$bill->setIsActive($fields['isActive'] ?? true);
 		$bill->setIsTransfer($fields['isTransfer'] ?? false);
-		$bill->setAccountId(1);
+		$bill->setAccountId($fields['accountId'] ?? 1);
 		$bill->setDestinationAccountId($fields['destinationAccountId'] ?? null);
-		$bill->setRemainingPayments(null);
+		$bill->setRemainingPayments($fields['remainingPayments'] ?? null);
 		$bill->setCustomRecurrencePattern(null);
 		$bill->setCreatedAt($fields['createdAt']);
 		return $bill;
@@ -93,10 +93,15 @@ class BillCalendarAttributionTest extends TestCase {
 	 * @param Bill[] $bills
 	 * @param Transaction[] $payments in date order, as the mapper returns them
 	 */
-	private function overview(array $bills, array $payments, bool $includeTransfers = false, string $status = 'active'): array {
+	private function overview(array $bills, array $payments, bool $includeTransfers = false, string $status = 'active', int $year = 2026, ?int $accountId = null): array {
 		$this->bills->method('findByType')->willReturn($bills);
 		$this->transactions->method('findBillPaymentsInYear')->willReturn($payments);
-		return $this->service->getAnnualOverview('t399', 2026, $includeTransfers, $status);
+		return $this->service->getAnnualOverview('t399', $year, $includeTransfers, $status, $accountId);
+	}
+
+	/** @return Transaction[] one payment of $amount on each date */
+	private function paymentsOn(int $billId, array $dates, float $amount): array {
+		return array_map(fn (int $i, string $date) => $this->payment($billId * 100 + $i, $billId, $date, $amount), array_keys($dates), $dates);
 	}
 
 	private function row(array $overview, string $name): array {
@@ -183,20 +188,24 @@ class BillCalendarAttributionTest extends TestCase {
 		$this->assertSame([2], $kpt['unrecordedMonths'], 'February: nothing recorded');
 	}
 
-	/** The payments behind each cell, in date order, so the calendar can say what a cell holds and when it was paid. */
+	/**
+	 * The payments behind each cell, in date order, each with the date it
+	 * paid, so the calendar can say what a cell holds, when it was paid and
+	 * whether a date was paid twice.
+	 */
 	public function testPaidDetailsListEachPaymentBehindACell(): void {
 		$kpt = $this->row($this->overview([$this->kpt()], $this->kptPayments()), 'KPT Prämienrechnung');
 
 		$this->assertSame([3, 4, 5, 6, 7, 8, 9], array_keys($kpt['paidDetails']));
 		$this->assertSame([
-			['date' => '2026-08-29', 'amount' => 484.75],
-			['date' => '2026-08-30', 'amount' => 484.75],
+			['date' => '2026-08-29', 'amount' => 484.75, 'due' => '2026-08-29'],
+			['date' => '2026-08-30', 'amount' => 484.75, 'due' => '2026-08-29'],
 		], $kpt['paidDetails'][8]);
-		$this->assertSame([['date' => '2026-09-27', 'amount' => 484.75]], $kpt['paidDetails'][9]);
+		$this->assertSame([['date' => '2026-09-27', 'amount' => 484.75, 'due' => '2026-09-29']], $kpt['paidDetails'][9]);
 		foreach ($kpt['paidDetails'] as $month => $payments) {
 			$this->assertEqualsWithDelta($kpt['paidAmounts'][$month], array_sum(array_column($payments, 'amount')), 0.001, "month $month");
 		}
-		$this->assertSame(array_fill(2, 11, 1), $kpt['occurrenceCounts'], 'one due date a month, February to December');
+		$this->assertSame([8 => 2], $kpt['paidMoreThanOnce'], '29 August was paid twice');
 	}
 
 	/**
@@ -218,14 +227,14 @@ class BillCalendarAttributionTest extends TestCase {
 		$this->assertSame([9], $row['paidMonths']);
 		$this->assertSame([9 => 303.34], $this->rounded($row['paidAmounts']));
 		$this->assertSame([
-			['date' => '2026-09-27', 'amount' => 151.67],
-			['date' => '2026-10-15', 'amount' => 151.67],
+			['date' => '2026-09-27', 'amount' => 151.67, 'due' => '2026-09-28'],
+			['date' => '2026-10-15', 'amount' => 151.67, 'due' => '2026-09-28'],
 		], $row['paidDetails'][9]);
-		$this->assertSame([9 => 1], $row['occurrenceCounts']);
+		$this->assertSame([9 => 2], $row['paidMoreThanOnce']);
 		$this->assertFalse($row['occurrences'][10], 'no October cell is made up for the second payment');
 	}
 
-	/** Two one-time invoices of one name share a row; the cell's payments and due dates add up. */
+	/** Two one-time invoices of one name share a row; the cell lists both invoices' payments. */
 	public function testOneTimeBillsSharingANameMergeTheirPayments(): void {
 		$fields = ['name' => 'CembraPay Temu', 'frequency' => 'one-time', 'dueDay' => 28, 'dueMonth' => 9,
 			'startDate' => '2026-09-28', 'lastPaidDate' => '2026-10-15', 'isActive' => false];
@@ -245,7 +254,22 @@ class BillCalendarAttributionTest extends TestCase {
 		$this->assertSame([9 => 312.78], $this->rounded($row['paidAmounts']));
 		$this->assertSame(['2026-09-27', '2026-09-27', '2026-10-15', '2026-10-15'], array_column($row['paidDetails'][9], 'date'));
 		$this->assertEqualsWithDelta(312.78, array_sum(array_column($row['paidDetails'][9], 'amount')), 0.001);
-		$this->assertSame([9 => 2], $row['occurrenceCounts'], 'two invoices due in September');
+		$this->assertSame([9 => 2], $row['paidMoreThanOnce'], 'each invoice was paid twice');
+	}
+
+	/** Two invoices due in one month, each paid once, are no double payment. */
+	public function testTwoInvoicesPaidOnceEachAreNoDoublePayment(): void {
+		$fields = ['name' => 'EKZ Ratenrechnung', 'frequency' => 'one-time', 'dueDay' => 28, 'dueMonth' => 4,
+			'startDate' => '2026-04-28', 'lastPaidDate' => '2026-04-26', 'isActive' => false];
+		$overview = $this->overview([
+			$this->bill(['id' => 51, 'amount' => 166.70, 'createdAt' => '2026-03-14 20:04:30'] + $fields),
+			$this->bill(['id' => 52, 'amount' => 166.70, 'createdAt' => '2026-03-14 20:05:17'] + $fields),
+		], [
+			$this->payment(510, 51, '2026-04-26', 166.70),
+			$this->payment(520, 52, '2026-04-26', 166.70),
+		]);
+
+		$this->assertSame([], $overview['bills'][0]['paidMoreThanOnce']);
 	}
 
 	/**
@@ -323,11 +347,66 @@ class BillCalendarAttributionTest extends TestCase {
 
 		$this->assertSame([1 => 50.0, 2 => 20.0], $this->rounded($row['paidAmounts']));
 		$this->assertSame(['2026-01-02', '2026-01-09', '2026-01-16', '2026-01-23', '2026-01-30'], array_column($row['paidDetails'][1], 'date'));
-		$this->assertSame(5, $row['occurrenceCounts'][1]);
-		$this->assertSame(4, $row['occurrenceCounts'][2]);
+		$this->assertSame(array_column($row['paidDetails'][1], 'date'), array_column($row['paidDetails'][1], 'due'), 'each paid its own week');
+		$this->assertSame([], $row['paidMoreThanOnce'], 'five payments for five dates');
 		$this->assertSame([], $row['unrecordedMonths']);
 		// February: two paid, two still to come
 		$this->assertEqualsWithDelta(40.0, $overview['monthlyTotals'][2], 0.001);
 		$this->assertEqualsWithDelta(50.0, $overview['monthlyTotals'][1], 0.001);
+	}
+
+	/**
+	 * Due on the 28th and always paid a few days late, so December's payment
+	 * goes out on 3 January. That payment is for last year's date: it stays
+	 * in January, where the money left the account, but it is not a second
+	 * payment for January's date. With no date before 1 January to pair with,
+	 * it joined January's and the "paid twice" marker fired every January.
+	 */
+	public function testAPaymentForLastYearsDateIsNoSecondPayment(): void {
+		$bill = $this->bill(['id' => 1, 'name' => 'Phone', 'amount' => 80.0, 'dueDay' => 28,
+			'nextDueDate' => '2026-10-28', 'lastPaidDate' => '2026-10-03', 'createdAt' => '2025-01-01 00:00:00']);
+		$payments = $this->paymentsOn(1, ['2026-01-03', '2026-02-02', '2026-03-03', '2026-04-02', '2026-05-03',
+			'2026-06-02', '2026-07-03', '2026-08-02', '2026-09-03', '2026-10-03'], 80.0);
+
+		$row = $this->row($this->overview([$bill], $payments), 'Phone');
+
+		$this->assertSame([], $row['paidMoreThanOnce'], 'no date was paid twice');
+		$this->assertSame([
+			['date' => '2026-01-03', 'amount' => 80.0, 'due' => '2025-12-28'],
+			['date' => '2026-02-02', 'amount' => 80.0, 'due' => '2026-01-28'],
+		], $row['paidDetails'][1]);
+		$this->assertSame([['date' => '2026-10-03', 'amount' => 80.0, 'due' => '2026-09-28']], $row['paidDetails'][9]);
+		$this->assertSame([1 => 160.0, 2 => 80.0, 3 => 80.0, 4 => 80.0, 5 => 80.0, 6 => 80.0, 7 => 80.0, 8 => 80.0, 9 => 80.0],
+			$this->rounded($row['paidAmounts']));
+		$this->assertSame([], $row['unrecordedMonths']);
+	}
+
+	/** Paid a few days early: the 29 December payment is for 1 January, next year's date. */
+	public function testAPaymentForNextYearsDateIsNoSecondPayment(): void {
+		$bill = $this->bill(['id' => 2, 'name' => 'Gym', 'amount' => 60.0, 'dueDay' => 1,
+			'nextDueDate' => '2026-11-01', 'lastPaidDate' => '2026-10-29', 'createdAt' => '2024-06-01 00:00:00']);
+		$payments = $this->paymentsOn(2, ['2025-01-29', '2025-02-26', '2025-03-29', '2025-04-28', '2025-05-29', '2025-06-28',
+			'2025-07-29', '2025-08-29', '2025-09-28', '2025-10-29', '2025-11-28', '2025-12-29'], 60.0);
+
+		$row = $this->row($this->overview([$bill], $payments, year: 2025), 'Gym');
+
+		$this->assertSame([], $row['paidMoreThanOnce']);
+		$this->assertSame([
+			['date' => '2025-11-28', 'amount' => 60.0, 'due' => '2025-12-01'],
+			['date' => '2025-12-29', 'amount' => 60.0, 'due' => '2026-01-01'],
+		], $row['paidDetails'][12]);
+		$this->assertEqualsWithDelta(120.0, $row['paidAmounts'][12], 0.001);
+	}
+
+	/** A date of last year paid twice is still a double payment, shown in the month the money went out. */
+	public function testLastYearsDatePaidTwiceIsStillADoublePayment(): void {
+		$bill = $this->bill(['id' => 1, 'name' => 'Phone', 'amount' => 80.0, 'dueDay' => 28,
+			'nextDueDate' => '2026-03-28', 'lastPaidDate' => '2026-03-02', 'createdAt' => '2025-01-01 00:00:00']);
+		$payments = $this->paymentsOn(1, ['2026-01-02', '2026-01-03', '2026-02-02', '2026-03-02'], 80.0);
+
+		$row = $this->row($this->overview([$bill], $payments), 'Phone');
+
+		$this->assertSame([1 => 2], $row['paidMoreThanOnce']);
+		$this->assertSame(['2025-12-28', '2025-12-28', '2026-01-28'], array_column($row['paidDetails'][1], 'due'));
 	}
 }
