@@ -3059,6 +3059,9 @@ class BillService {
 		if ($after !== []) {
 			$slots[] = [null, $after[0], $dayOf($after[0])];
 		}
+		// A recurring schedule that began this year had nothing due before
+		// its first date
+		$begins = ($before === [] && $own !== [] && $bill->getFrequency() !== 'one-time') ? $slots[$own[0]][1] : null;
 
 		// Occurrences the bill itself still counts as owed are never paid
 		// targets. An inactive bill (ended, or a one-time bill after its
@@ -3138,15 +3141,21 @@ class BillService {
 				continue;
 			}
 			// Paid twice: with the nearest closed occurrence. A bill with a
-			// single occurrence takes any payment, whenever it was made.
-			$slot = $nearest($payment, $closedSlots, self::PAYMENT_MATCH_WINDOW_DAYS)
-				?? (count($own) === 1 ? $own[0] : null);
-			if ($slot !== null) {
-				$slotOf[$payment] = $slot;
-				continue;
+			// single occurrence takes any payment, whenever it was made. A
+			// payment from before the schedule began paid none of its dates
+			// (one linked from an earlier bill for the same thing), so it is
+			// no second payment for the first of them (#399).
+			if ($begins === null || $date->format('Y-m-d') >= $begins) {
+				$slot = $nearest($payment, $closedSlots, self::PAYMENT_MATCH_WINDOW_DAYS)
+					?? (count($own) === 1 ? $own[0] : null);
+				if ($slot !== null) {
+					$slotOf[$payment] = $slot;
+					continue;
+				}
 			}
-			// Real money with no occurrence near it: its own month, as long
-			// as the bill does not still count that month as owed
+			// Real money with no occurrence near it, or from before the
+			// schedule began: its own month, as long as the bill does not
+			// still count that month as owed
 			$month = (int)$date->format('n');
 			if ($boundary === null || $this->occurrenceDate($bill, $year, $month) < $boundary) {
 				$monthOf[$payment] = $month;

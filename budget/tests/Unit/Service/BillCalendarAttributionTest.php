@@ -398,6 +398,47 @@ class BillCalendarAttributionTest extends TestCase {
 		$this->assertEqualsWithDelta(120.0, $row['paidAmounts'][12], 0.001);
 	}
 
+	/**
+	 * The reporter's Alimente, set up again on 27 September (bill 4621, due
+	 * on the 29th, no start date), with the old bill's payments linked to it
+	 * as "Link to bill" allows. Nothing of it was due before 29 September,
+	 * so each earlier payment keeps its own month. August's, 33 days before
+	 * the first date, was taken as a second payment for September (#399).
+	 */
+	public function testPaymentsFromBeforeTheScheduleBeganKeepTheirOwnMonth(): void {
+		$alimente = $this->bill(['id' => 4621, 'name' => 'Alimente', 'amount' => 1365.0, 'dueDay' => 29,
+			'nextDueDate' => '2026-10-29', 'lastPaidDate' => '2026-09-27', 'createdAt' => '2026-09-27 18:17:38']);
+		$payments = [];
+		foreach (['2026-02-27' => 1180.0, '2026-03-27' => 1027.75, '2026-04-27' => 1330.6, '2026-05-25' => 1400.0,
+			'2026-06-25' => 1400.0, '2026-07-25' => 1400.0, '2026-08-27' => 1368.35, '2026-09-27' => 1400.0] as $date => $amount) {
+			$payments[] = $this->payment(700 + count($payments), 4621, $date, $amount);
+		}
+
+		$overview = $this->overview([$alimente], $payments);
+		$row = $this->row($overview, 'Alimente');
+
+		$this->assertSame(
+			[2 => 1180.0, 3 => 1027.75, 4 => 1330.6, 5 => 1400.0, 6 => 1400.0, 7 => 1400.0, 8 => 1368.35, 9 => 1400.0],
+			$this->rounded($row['paidAmounts'])
+		);
+		$this->assertSame([], $row['paidMoreThanOnce']);
+		$this->assertSame([['date' => '2026-08-27', 'amount' => 1368.35, 'due' => null]], $row['paidDetails'][8]);
+		$this->assertSame([['date' => '2026-09-27', 'amount' => 1400.0, 'due' => '2026-09-29']], $row['paidDetails'][9]);
+		$this->assertEqualsWithDelta(1368.35, $overview['monthlyTotals'][8], 0.001);
+		$this->assertEqualsWithDelta(1400.0, $overview['monthlyTotals'][9], 0.001);
+	}
+
+	/** A payment a few days before the first date is still the first date's. */
+	public function testAnEarlyPaymentForTheFirstDateStillPaysIt(): void {
+		$alimente = $this->bill(['id' => 4621, 'name' => 'Alimente', 'amount' => 1365.0, 'dueDay' => 29,
+			'nextDueDate' => '2026-10-29', 'lastPaidDate' => '2026-09-27', 'createdAt' => '2026-09-27 18:17:38']);
+
+		$row = $this->row($this->overview([$alimente], [$this->payment(711, 4621, '2026-09-27', 1400.0)]), 'Alimente');
+
+		$this->assertSame([9 => 1400.0], $this->rounded($row['paidAmounts']));
+		$this->assertSame([], $row['unrecordedMonths']);
+	}
+
 	/** A date of last year paid twice is still a double payment, shown in the month the money went out. */
 	public function testLastYearsDatePaidTwiceIsStillADoublePayment(): void {
 		$bill = $this->bill(['id' => 1, 'name' => 'Phone', 'amount' => 80.0, 'dueDay' => 28,
