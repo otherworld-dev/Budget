@@ -17,8 +17,9 @@ import { escapeHtml } from './dom.js';
  *   few days apart (#399).
  * - otherwise: a payment the app booked that an imported row records too.
  *
- * A transfer's withdrawal goes with its deposit, which the note says, as
- * that row sits in another account.
+ * When removing a transfer's withdrawal takes the deposit the app booked
+ * for it (removesDeposit), the note says so, as that row sits in another
+ * account. A withdrawal with no deposit left goes on its own.
  *
  * @param {object} finding one of the scan's duplicateTransactions
  * @param {function(number): string} formatAmount
@@ -51,7 +52,7 @@ export function duplicateNote(finding, formatAmount) {
     if (finding.originalReconciled) {
         note += ` (${t('budget', 'reconciled')})`;
     }
-    if (finding.transfer) {
+    if (finding.removesDeposit) {
         note += ` ${t('budget', 'The other side of the transfer is removed with it.')}`;
     }
     return note;

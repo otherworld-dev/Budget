@@ -33,7 +33,7 @@ const sameOccurrence = (overrides = {}) => ({
     date: '2026-08-29', originalDate: '2026-08-30', vendor: 'KPT Prämienrechnung',
     originalDescription: 'KPT Prämienrechnung', originalReconciled: false,
     reason: 'same_occurrence', occurrence: '2026-08-29', billName: 'KPT Prämienrechnung',
-    transfer: false, selected: false,
+    transfer: false, removesDeposit: false, selected: false,
     ...overrides,
 });
 
@@ -50,10 +50,21 @@ describe('duplicateNote', () => {
     });
 
     it('says a transfer goes with its deposit', () => {
-        const note = duplicateNote(sameOccurrence({ amount: 50, originalAmount: 50, transfer: true, occurrence: '2026-08-28' }), chf);
+        const note = duplicateNote(sameOccurrence({
+            amount: 50, originalAmount: 50, transfer: true, removesDeposit: true, occurrence: '2026-08-28',
+        }), chf);
 
         expect(note).toBe('Looks like a second payment for 2026-08-28 (other payment on 2026-08-30)'
             + ' The other side of the transfer is removed with it.');
+    });
+
+    it('says nothing of a deposit a transfer goes without', () => {
+        // Its deposit long gone (#399's July CSX payment)
+        const note = duplicateNote(sameOccurrence({
+            amount: 50, originalAmount: 50, transfer: true, removesDeposit: false, occurrence: '2026-08-28',
+        }), chf);
+
+        expect(note).toBe('Looks like a second payment for 2026-08-28 (other payment on 2026-08-30)');
     });
 
     it('names a deleted bill by the name its payments carry, as text', () => {

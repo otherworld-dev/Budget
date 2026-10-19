@@ -182,6 +182,7 @@ class LegacyCleanupTest extends IntegrationTestCase {
 		$this->assertSame($jobOut, $found[0]['duplicateId']);
 		$this->assertSame($paidOut, $found[0]['originalId']);
 		$this->assertTrue($found[0]['transfer']);
+		$this->assertTrue($found[0]['removesDeposit']);
 
 		$result = $repair->repair($this->userId, ['duplicateTransactions'], ['transactionIds' => [$jobOut]]);
 
@@ -190,6 +191,76 @@ class LegacyCleanupTest extends IntegrationTestCase {
 		$this->assertNull($this->fetchRow('budget_transactions', $jobIn));
 		$this->assertNotNull($this->fetchRow('budget_transactions', $paidOut));
 		$this->assertNotNull($this->fetchRow('budget_transactions', $paidIn));
+	}
+
+	/**
+	 * The user's transfer bill pays into Leon's card, which Leon shares with
+	 * the user read-only. Removing the doubled withdrawal would delete its
+	 * deposit in Leon's ledger, which Mark Unpaid refuses to do, so Repair
+	 * Data neither lists the pair nor removes it when asked to.
+	 */
+	public function testRepairDataLeavesATransferIntoAnAccountSharedReadOnlyAlone(): void {
+		[$bill, $rows] = $this->doubledTransferIntoLeonsCard('read');
+		$repair = $this->service(RepairService::class);
+
+		$this->assertSame([], $this->findingsFor($repair, $bill));
+
+		$result = $repair->repair($this->userId, ['duplicateTransactions'], ['transactionIds' => [$rows[0]]]);
+
+		$this->assertSame(0, $result['duplicateTransactions']['deleted']);
+		foreach ($rows as $id) {
+			$this->assertNotNull($this->fetchRow('budget_transactions', $id));
+		}
+	}
+
+	public function testRepairDataRemovesBothSidesOfADoubledTransferIntoAnAccountSharedWithWriteAccess(): void {
+		[$bill, [$jobOut, $jobIn, $paidOut, $paidIn]] = $this->doubledTransferIntoLeonsCard('write');
+		$repair = $this->service(RepairService::class);
+
+		$this->assertSame([$jobOut], array_column($this->findingsFor($repair, $bill), 'duplicateId'));
+
+		$result = $repair->repair($this->userId, ['duplicateTransactions'], ['transactionIds' => [$jobOut]]);
+
+		$this->assertSame(1, $result['duplicateTransactions']['deleted']);
+		$this->assertNull($this->fetchRow('budget_transactions', $jobOut));
+		$this->assertNull($this->fetchRow('budget_transactions', $jobIn));
+		$this->assertNotNull($this->fetchRow('budget_transactions', $paidOut));
+		$this->assertNotNull($this->fetchRow('budget_transactions', $paidIn));
+	}
+
+	/**
+	 * CSX's doubled August payment, but paying into a card of Leon's that he
+	 * shares with the user at $permission.
+	 *
+	 * @return array{0: int, 1: int[]} the bill, and [job's withdrawal, its deposit, Mark Paid's withdrawal, its deposit]
+	 */
+	private function doubledTransferIntoLeonsCard(string $permission): array {
+		$leon = $this->newUserId();
+		$account = $this->makeAccount(['name' => 'Lohnkonto'])->getId();
+		$card = $this->makeAccount(['name' => 'Leon CSX', 'type' => 'credit_card'], $leon)->getId();
+		$share = $this->insertRow('budget_shares', [
+			'owner_user_id' => $leon, 'shared_with_user_id' => $this->userId, 'status' => 'accepted',
+			'created_at' => $this->now(), 'updated_at' => $this->now(),
+		]);
+		$this->insertRow('budget_share_items', [
+			'share_id' => $share, 'entity_type' => 'account', 'entity_id' => $card,
+			'permission' => $permission, 'created_at' => $this->now(), 'updated_at' => $this->now(),
+		]);
+		$bill = $this->insertRow('budget_bills', [
+			'user_id' => $this->userId, 'name' => 'CSX Pro Credit Cards', 'amount' => '50.00', 'frequency' => 'monthly',
+			'account_id' => $account, 'destination_account_id' => $card, 'is_transfer' => true, 'is_active' => true,
+			'due_day' => 28, 'last_paid_date' => '2026-08-30', 'next_due_date' => '2026-09-28', 'created_at' => '2026-04-15 19:36:17',
+		]);
+		$job = $this->transferPair($account, $card, $bill, '2026-08-29', '2026-07-25 10:55:38', '2026-08-29 01:00:07');
+		$paid = $this->transferPair($account, $card, $bill, '2026-08-30', '2026-08-30 19:39:30');
+		return [$bill, [...$job, ...$paid]];
+	}
+
+	private function findingsFor(RepairService $repair, int $billId): array {
+		return array_values(array_filter(
+			$repair->diagnose($this->userId)['duplicateTransactions'],
+			fn (array $f) => $f['billId'] === $billId
+		));
 	}
 
 	public function testRepairDataSettlesAStuckIncome(): void {

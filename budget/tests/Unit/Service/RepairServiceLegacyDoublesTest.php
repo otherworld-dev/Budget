@@ -8,10 +8,12 @@ use OCA\Budget\Db\Account;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\Bill;
 use OCA\Budget\Db\BillMapper;
+use OCA\Budget\Db\ShareItem;
 use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Service\AccountService;
 use OCA\Budget\Service\Bill\FrequencyCalculator;
+use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\RepairService;
 use OCA\Budget\Service\TransactionService;
 use OCA\Budget\Service\UserClock;
@@ -50,7 +52,7 @@ class RepairServiceLegacyDoublesTest extends TestCase {
 		]);
 	}
 
-	private function serviceOn(string $today): RepairService {
+	private function serviceOn(string $today, ?GranularShareService $shares = null): RepairService {
 		$clock = $this->createMock(UserClock::class);
 		$clock->method('today')->willReturn($today);
 		$clock->method('isFutureDate')->willReturnCallback(fn (string $date) => $date > $today);
@@ -61,7 +63,9 @@ class RepairServiceLegacyDoublesTest extends TestCase {
 			new FrequencyCalculator(),
 			$this->createMock(AccountService::class),
 			$this->transactionService,
-			$clock
+			$clock,
+			null,
+			$shares
 		);
 	}
 
@@ -216,6 +220,7 @@ class RepairServiceLegacyDoublesTest extends TestCase {
 		$this->assertSame('same_occurrence', $found[0]['reason']);
 		$this->assertSame('2026-08-28', $found[0]['occurrence']);
 		$this->assertTrue($found[0]['transfer']);
+		$this->assertTrue($found[0]['removesDeposit']);
 		$this->assertFalse($found[0]['selected']);
 
 		// Deleted as the bill's row, so the service takes the deposit (1015)
@@ -279,6 +284,121 @@ class RepairServiceLegacyDoublesTest extends TestCase {
 
 		$this->assertSame([1014], array_column($found, 'duplicateId'));
 		$this->assertSame([1104], array_column($found, 'originalId'));
+	}
+
+	/** @return Transaction[] CSX's two August pairs: the job's (1014/1015) and Mark Paid's (1104/1105) */
+	private function augustPairs(): array {
+		return array_merge(
+			$this->transferLegs(1014, 47, 'CSX Pro Credit Cards', '2026-08-29', 50.0, '2026-07-25 10:55:38', '2026-08-29 01:00:07'),
+			$this->transferLegs(1104, 47, 'CSX Pro Credit Cards', '2026-08-30', 50.0, '2026-08-30 19:39:30'),
+		);
+	}
+
+	/** The same pairs paying into Leon's account 50, which he shares with the user */
+	private function augustPairsIntoLeonsAccount(): array {
+		$august = $this->augustPairs();
+		$august[1]->setAccountId(50);
+		$august[3]->setAccountId(50);
+		return $august;
+	}
+
+	/** What GranularShareService says about the user and Leon's account 50 */
+	private function shareOfLeonsAccount(bool $writable): GranularShareService {
+		$shares = $this->createMock(GranularShareService::class);
+		$shares->method('canWrite')->willReturnCallback(
+			fn (string $userId, string $type, int $id) => $writable && $userId === self::USER_ID && $type === ShareItem::TYPE_ACCOUNT && $id === 50
+		);
+		return $shares;
+	}
+
+	/**
+	 * Leon cut the share of his account to read-only. The bill still names
+	 * it and the paid legs stay linked, but removing the withdrawal would
+	 * delete the deposit in his ledger, which Mark Unpaid refuses to do.
+	 */
+	public function testATransferIntoAnAccountSharedReadOnlyIsNotOffered(): void {
+		$this->with([$this->csx(['destinationAccountId' => 50])], $this->augustPairsIntoLeonsAccount());
+		$service = $this->serviceOn('2026-09-05', $this->shareOfLeonsAccount(false));
+
+		$this->assertSame([], $this->duplicates($service));
+
+		// Not even when the request names the row
+		$this->transactionService->expects($this->never())->method('deleteAsAccountOwner');
+		$result = $service->repair(self::USER_ID, ['duplicateTransactions'], ['transactionIds' => [1014]]);
+		$this->assertSame(0, $result['duplicateTransactions']['deleted']);
+	}
+
+	public function testATransferIntoAnAccountSharedWithWriteAccessIsOffered(): void {
+		$this->with([$this->csx(['destinationAccountId' => 50])], $this->augustPairsIntoLeonsAccount());
+
+		$found = $this->duplicates($this->serviceOn('2026-09-05', $this->shareOfLeonsAccount(true)));
+
+		$this->assertSame([[1014, 1104]], self::pairs($found));
+		$this->assertTrue($found[0]['removesDeposit']);
+	}
+
+	public function testWithNoShareToGoByOnlyTheUsersOwnAccountsAreWritable(): void {
+		$this->with([$this->csx(['destinationAccountId' => 50])], $this->augustPairsIntoLeonsAccount());
+
+		$this->assertSame([], $this->duplicates($this->serviceOn('2026-09-05')));
+	}
+
+	/**
+	 * Leon stopped sharing his account: the bill let go of its destination
+	 * (CrossUserLinks), the legs it paid stay linked. Mark Unpaid refuses a
+	 * transfer with no destination, and so does the repair.
+	 */
+	public function testATransferThatLostItsDestinationIsNotOffered(): void {
+		$this->with([$this->csx(['destinationAccountId' => null])], $this->augustPairsIntoLeonsAccount());
+		$service = $this->serviceOn('2026-09-05', $this->shareOfLeonsAccount(false));
+
+		$this->assertSame([], $this->duplicates($service));
+
+		$this->transactionService->expects($this->never())->method('deleteAsAccountOwner');
+		$service->repair(self::USER_ID, ['duplicateTransactions'], ['transactionIds' => [1014]]);
+	}
+
+	/**
+	 * The card's own statement line took the place of the job's deposit
+	 * (adoptArrival()). Removing the job's withdrawal would only let go of
+	 * that line, leaving the card credited twice, so the withdrawal whose
+	 * deposit the app booked is offered, and both its sides go.
+	 */
+	public function testTheWithdrawalWhoseDepositTheAppBookedIsTheOneOffered(): void {
+		$august = $this->augustPairs();
+		$august[1]->setImportId('csx-statement-2026-08-29');
+		$august[1]->setNotes('GUTSCHRIFT LOHNKONTO');
+		$this->with([$this->csx()], $august);
+
+		$found = $this->duplicates($this->serviceOn('2026-09-05'));
+
+		$this->assertSame([[1104, 1014]], self::pairs($found));
+		$this->assertTrue($found[0]['removesDeposit']);
+	}
+
+	public function testATransferWhoseTwoArrivalsAreTheCardsOwnLinesIsNotOffered(): void {
+		$august = $this->augustPairs();
+		foreach ([1, 3] as $i) {
+			$august[$i]->setImportId('csx-statement-' . $august[$i]->getDate());
+			$august[$i]->setNotes(null);
+		}
+		$this->with([$this->csx()], $august);
+
+		$this->assertSame([], $this->duplicates($this->serviceOn('2026-09-05')));
+	}
+
+	/** A withdrawal whose deposit is long gone (911) takes nothing with it, and the note says nothing of one */
+	public function testAWithdrawalWithNoDepositLeftGoesOnItsOwn(): void {
+		$august = $this->augustPairs();
+		$august[0]->setLinkedTransactionId(null);
+		unset($august[1]);
+		$this->with([$this->csx()], array_values($august));
+
+		$found = $this->duplicates($this->serviceOn('2026-09-05'));
+
+		$this->assertSame([[1014, 1104]], self::pairs($found));
+		$this->assertTrue($found[0]['transfer']);
+		$this->assertFalse($found[0]['removesDeposit']);
 	}
 
 	// ---------------------------------------------------------------

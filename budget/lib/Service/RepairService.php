@@ -9,6 +9,7 @@ use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\Bill;
 use OCA\Budget\Db\BillMapper;
 use OCA\Budget\Db\LegacyIncomeRows;
+use OCA\Budget\Db\ShareItem;
 use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Enum\AccountType;
@@ -80,6 +81,7 @@ class RepairService {
 	private AccountBalanceCalculator $balanceCalculator;
 	private ?UserClock $userClock;
 	private ?LegacyIncomeRows $legacyIncomeRows;
+	private ?GranularShareService $granularShareService;
 
 	public function __construct(
 		TransactionMapper $transactionMapper,
@@ -90,6 +92,7 @@ class RepairService {
 		TransactionService $transactionService,
 		?UserClock $userClock = null,
 		?LegacyIncomeRows $legacyIncomeRows = null,
+		?GranularShareService $granularShareService = null,
 	) {
 		$this->transactionMapper = $transactionMapper;
 		$this->billMapper = $billMapper;
@@ -99,6 +102,7 @@ class RepairService {
 		$this->transactionService = $transactionService;
 		$this->userClock = $userClock;
 		$this->legacyIncomeRows = $legacyIncomeRows;
+		$this->granularShareService = $granularShareService;
 		$this->balanceCalculator = new AccountBalanceCalculator($accountMapper, $transactionMapper);
 	}
 
@@ -258,7 +262,7 @@ class RepairService {
 		}
 
 		$bills = $this->billMapper->findAll($userId);
-		$this->findSameOccurrencePayments($bills, $accounts, $today, $duplicates);
+		$this->findSameOccurrencePayments($userId, $bills, $accounts, $today, $duplicates);
 		$this->findDeletedBillPayments($bills, $accounts, $generated, $duplicates);
 
 		return $duplicates;
@@ -375,15 +379,15 @@ class RepairService {
 	 * payment by payment. Nothing here is certain, so nothing is pre-selected.
 	 *
 	 * A transfer's payment is its withdrawal, and removing it takes the
-	 * deposit with it. Two payments of different amounts are two payments,
-	 * unless one is a pending row the old scheduled job booked
-	 * (clearedByTheOldJob()): paying the bill then booked the occurrence again,
-	 * at whatever the bill's amount was by then.
+	 * deposit the app booked with it (depositGoingWith()). Two payments of
+	 * different amounts are two payments, unless one is a pending row the old
+	 * scheduled job booked (clearedByTheOldJob()): paying the bill then booked
+	 * the occurrence again, at whatever the bill's amount was by then.
 	 *
 	 * @param Bill[] $bills
 	 * @param Account[] $accounts
 	 */
-	private function findSameOccurrencePayments(array $bills, array $accounts, string $today, array &$duplicates): void {
+	private function findSameOccurrencePayments(string $userId, array $bills, array $accounts, string $today, array &$duplicates): void {
 		$accountNames = [];
 		foreach ($accounts as $account) {
 			$accountNames[$account->getId()] = $account->getName();
@@ -415,6 +419,13 @@ class RepairService {
 				continue;
 			}
 			$bill = $billsById[$billId];
+			$isTransfer = (bool)($bill->getIsTransfer() ?? false);
+			// A transfer that lost its destination (a share of that account
+			// ended, or it was closed) posts into an account the user may no
+			// longer change. Mark Unpaid refuses it, and so does this.
+			if ($isTransfer && $bill->getDestinationAccountId() === null) {
+				continue;
+			}
 			$pairs = $this->paymentsSharingAnOccurrence($bill, $rows);
 			if (count($pairs) * 2 > count($rows)) {
 				continue;
@@ -432,10 +443,17 @@ class RepairService {
 				if ($byOldJob === [] && abs((float)$surplus->getAmount() - (float)$holder->getAmount()) >= 0.005) {
 					continue;
 				}
-				// A transfer goes with its deposit, so a deposit checked
-				// against a statement keeps its withdrawal too
-				$removable = array_values(array_filter([$surplus, $holder], fn (Transaction $tx) => self::removable($tx)
-					&& !(($bill->getIsTransfer() ?? false) && $this->depositReconciled($tx))));
+				// What removing each row takes with it, for the rows that may go
+				$takesDeposit = [];
+				foreach ([$surplus, $holder] as $tx) {
+					$goes = self::removable($tx)
+						? ($isTransfer ? $this->depositGoingWith($tx, $bill, $userId, $accountNames) : false)
+						: null;
+					if ($goes !== null) {
+						$takesDeposit[$tx->getId()] = $goes;
+					}
+				}
+				$removable = array_values(array_filter([$surplus, $holder], fn (Transaction $tx) => isset($takesDeposit[$tx->getId()])));
 				$pick = self::rowToOffer($bill, $surplus, $removable, $byOldJob, $written);
 				if ($pick === null) {
 					continue;
@@ -443,8 +461,12 @@ class RepairService {
 				$original = $pick === $surplus ? $holder : $surplus;
 				$flagged[$pick->getId()] = true;
 				$flagged[$original->getId()] = true;
-				$finding = $this->duplicateFinding($pick, $original, $accountNames[$pick->getAccountId()], 'same_occurrence', false)
-					+ ['occurrence' => $occurrence, 'billName' => $bill->getName(), 'transfer' => (bool)($bill->getIsTransfer() ?? false)];
+				$finding = $this->duplicateFinding($pick, $original, $accountNames[$pick->getAccountId()], 'same_occurrence', false) + [
+					'occurrence' => $occurrence,
+					'billName' => $bill->getName(),
+					'transfer' => $isTransfer,
+					'removesDeposit' => $takesDeposit[$pick->getId()],
+				];
 				// The older payment is the one-time bill's own: removing the
 				// newer leaves the bill paid by it
 				if ($pick === $surplus && $bill->getFrequency() === 'one-time' && in_array($pick->getId(), $written, true)) {
@@ -453,6 +475,50 @@ class RepairService {
 				$duplicates[] = $finding;
 			}
 		}
+	}
+
+	/**
+	 * What removing a transfer's withdrawal takes with it: its deposit
+	 * (true), or nothing, as it has none left (false). Null when it may not
+	 * go at all.
+	 *
+	 * deleteAsAccountOwner() deletes the other side along with it when that
+	 * side carries the bill and the app booked it. Any other row there, such
+	 * as the destination's own statement line taken as the arrival, only
+	 * lets go of the bill and stays, recording money that arrived with
+	 * nothing paying it. A deposit checked against a statement keeps its
+	 * withdrawal too, and so does one in an account the user can't change:
+	 * cutting a share back to read-only, or ending it, leaves the legs a
+	 * transfer paid linked, and Mark Unpaid refuses to delete them
+	 * (BillService::accountsWritable()).
+	 *
+	 * @param array<int, string> $ownAccounts the user's own accounts, by id
+	 */
+	private function depositGoingWith(Transaction $withdrawal, Bill $bill, string $userId, array $ownAccounts): ?bool {
+		$depositId = $withdrawal->getLinkedTransactionId();
+		$deposit = $depositId !== null ? $this->transactionMapper->findById($depositId) : null;
+		if ($deposit === null) {
+			return false;
+		}
+		if ($deposit->getBillId() !== $bill->getId() || !TransactionService::bookedByApp($deposit)
+			|| $deposit->getReconciled()
+			|| !$this->canWriteAccount($userId, $deposit->getAccountId(), $ownAccounts)) {
+			return null;
+		}
+		return true;
+	}
+
+	/**
+	 * Whether the user can change an account's rows: one of their own, or
+	 * one shared with them to write. With nothing to ask about shares, only
+	 * their own.
+	 *
+	 * @param array<int, string> $ownAccounts the user's own accounts, by id
+	 */
+	private function canWriteAccount(string $userId, int $accountId, array $ownAccounts): bool {
+		return isset($ownAccounts[$accountId])
+			|| ($this->granularShareService !== null
+				&& $this->granularShareService->canWrite($userId, ShareItem::TYPE_ACCOUNT, $accountId));
 	}
 
 	/**
@@ -643,13 +709,6 @@ class RepairService {
 	/** A bill's row the app generated, which no statement has checked */
 	private static function removable(Transaction $tx): bool {
 		return !$tx->getReconciled() && self::bookedForABill($tx);
-	}
-
-	/** Whether the other side of a transfer's withdrawal was checked against a statement */
-	private function depositReconciled(Transaction $withdrawal): bool {
-		$depositId = $withdrawal->getLinkedTransactionId();
-		$deposit = $depositId !== null ? $this->transactionMapper->findById($depositId) : null;
-		return $deposit !== null && (bool)$deposit->getReconciled();
 	}
 
 	private static function bookedForABill(Transaction $tx): bool {

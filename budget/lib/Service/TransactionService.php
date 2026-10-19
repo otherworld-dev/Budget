@@ -850,9 +850,10 @@ class TransactionService {
 	/**
 	 * Whether the app booked this row for a bill, rather than an import or
 	 * bank sync bringing it in or the user entering it. Only such a row may
-	 * go with a bill's revert as the other side of one it deletes.
+	 * go with a bill's revert as the other side of one it deletes; Repair
+	 * Data asks the same before offering a transfer's withdrawal.
 	 */
-	private function bookedByApp(Transaction $row): bool {
+	public static function bookedByApp(Transaction $row): bool {
 		if (($row->getImportId() ?? '') !== '') {
 			return false;
 		}
