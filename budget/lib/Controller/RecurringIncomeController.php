@@ -526,7 +526,10 @@ class RecurringIncomeController extends Controller {
 	public function skipPayment(int $id): DataResponse {
 		try {
 			$this->requireWriteAccess('recurring_income', $id);
-			$result = $this->service->skipPayment($id, $this->incomeOwner($id));
+			// The payment the page showed, so a second click or a stale tab is
+			// refused instead of skipping the next one too (#399)
+			$expectedDate = $this->request->getParams()['expectedDate'] ?? null;
+			$result = $this->service->skipPayment($id, $this->incomeOwner($id), is_string($expectedDate) ? $expectedDate : null);
 			return new DataResponse($result);
 		} catch (\InvalidArgumentException $e) {
 			return $this->handleError($e, $e->getMessage(), Http::STATUS_BAD_REQUEST, ['incomeId' => $id]);

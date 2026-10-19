@@ -1060,7 +1060,10 @@ class BillController extends Controller {
 		try {
 			$this->requireWriteAccess('bill', $id);
 			$this->requireBillAccountsWritable($id);
-			$result = $this->service->skipPayment($id, $this->billOwner($id));
+			// The occurrence the page showed, so a second click or a stale
+			// tab is refused instead of skipping the next one too (#399)
+			$dueDate = $this->request->getParams()['dueDate'] ?? null;
+			$result = $this->service->skipPayment($id, $this->billOwner($id), is_string($dueDate) ? $dueDate : null);
 			return new DataResponse($result);
 		} catch (\InvalidArgumentException $e) {
 			return $this->handleError($e, $e->getMessage(), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
