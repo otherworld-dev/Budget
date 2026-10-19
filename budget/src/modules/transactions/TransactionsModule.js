@@ -2173,6 +2173,9 @@ export default class TransactionsModule {
             // Set up inline split toggle
             this.setupInlineSplitToggle();
 
+            // Description is needed only while no vendor names the transaction
+            this._bindDescriptionRule();
+
             // "More options" starts open when this transaction already uses
             // something in it; receipt scanning opens it too (setupReceiptScan).
             const extras = document.getElementById('transaction-extras');
@@ -2187,6 +2190,35 @@ export default class TransactionsModule {
             modal.style.display = 'flex';
             this._keepKeyboardDownWhenViewing(transaction);
         }
+    }
+
+    /**
+     * Keep the form's Description required only while its Vendor is empty
+     * (#399). Mark Paid and Mark Received book their rows with the bill's
+     * or income's name as the vendor and no description, and the edit form
+     * wouldn't save one of them, not even a new date, until a description
+     * was made up for it. The server takes either (TransactionController).
+     * Bound to the vendor field once; 'change' too, which a receipt scan
+     * fires when it fills the field in.
+     */
+    _bindDescriptionRule() {
+        const vendor = document.getElementById('transaction-vendor');
+        if (vendor && !vendor.dataset.descriptionRule) {
+            vendor.dataset.descriptionRule = '1';
+            vendor.addEventListener('input', () => this._syncDescriptionRequired());
+            vendor.addEventListener('change', () => this._syncDescriptionRequired());
+        }
+        this._syncDescriptionRequired();
+    }
+
+    /** Description's required flag and its asterisk, from the vendor as it stands */
+    _syncDescriptionRequired() {
+        const description = document.getElementById('transaction-description');
+        if (!description) return;
+        const required = (document.getElementById('transaction-vendor')?.value ?? '').trim() === '';
+        description.required = required;
+        const marker = document.querySelector('label[for="transaction-description"] .required');
+        if (marker) marker.hidden = !required;
     }
 
     /** The account picked in the transaction form, if any. */
