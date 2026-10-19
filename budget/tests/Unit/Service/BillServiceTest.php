@@ -381,11 +381,15 @@ class BillServiceTest extends TestCase {
 		$this->assertSame([2, 3], $paid);
 	}
 
-	/** A one-time bill has one occurrence; whenever it was paid, that is the one. */
+	/**
+	 * A one-time bill has one occurrence; whenever it was paid, that is the
+	 * one. Paid, that is: one still due takes only a payment near its date
+	 * (#399), so the bill here is the paid one the payment made it.
+	 */
 	public function testASingleOccurrenceTakesAnyPayment(): void {
 		[$occ, $paid, $amounts] = $this->attribute($this->monthly([8]), [
 			['date' => '2026-11-20', 'amount' => 321.60],
-		], ['frequency' => 'one-time', 'dueMonth' => 8]);
+		], ['frequency' => 'one-time', 'dueMonth' => 8, 'isActive' => false, 'nextDueDate' => null, 'lastPaidDate' => '2026-11-20']);
 
 		$this->assertSame([8], $paid);
 		$this->assertSame([8 => 321.60], $amounts);

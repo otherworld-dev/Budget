@@ -3436,8 +3436,20 @@ class BillService {
 	 * occurrence, so it shows as the larger amount rather than as a month that
 	 * was never paid; a payment with no closed occurrence anywhere near it
 	 * becomes an extra paid month, provided that month is itself before the
-	 * next due date. A bill with a single occurrence takes any payment,
-	 * whenever it was made.
+	 * next due date.
+	 *
+	 * A bill with a single date in the year (one-time, yearly) used to take
+	 * every payment, whenever it was made (#375). A monthly bill switched to
+	 * One-Time then put its whole history into the one-time month, drawn as
+	 * September paid nine times, and an invoice paid a second time weeks
+	 * later read as paid twice (#399). Its date now takes the payments made
+	 * within its due window (dueDateToleranceDays()), a double payment
+	 * included. With none that close, a bill that has moved past the date
+	 * takes the nearest one, however late or early it was; one still due
+	 * takes none, so a final invoice switched to One-Time stays due and the
+	 * old schedule's payments stay put. Every other payment is a paid month
+	 * of its own, the month it was made, and paid no date: never a second
+	 * payment of anything.
 	 *
 	 * The year's dates have neighbours outside it. A payment nearer the
 	 * bill's last date of the year before, or its first of the year after,
@@ -3507,7 +3519,8 @@ class BillService {
 		// nothing; an active one-time bill owes its only occurrence, and an
 		// active recurring bill owes everything from next_due_date on. Kept
 		// apart from $closedSlots, which is deliberately wider for an active
-		// one-time bill so that its payment can land whenever it was made.
+		// one-time bill so that a payment made for it before it was marked
+		// paid (one linked to it) still lands on its date.
 		if (!$bill->getIsActive()) {
 			$settledSlots = $own;
 		} elseif ($boundary === null) {
@@ -3532,6 +3545,7 @@ class BillService {
 
 		$slotOf = [];   // payment => slot it paid
 		$monthOf = [];  // payment => an extra month of its own
+		$alone = [];    // payment => paid no date of a single-date bill: never a second payment
 
 		// Paid late for the year before's last date, or early for the year
 		// after's first: nearer that date than to any of this year's
@@ -3542,12 +3556,45 @@ class BillService {
 			}
 		}
 
+		// A single date in the year: it takes the payments within its due
+		// window, or with none that close and the date behind the bill, the
+		// nearest one; on a tie the earlier. The rest are months of their own.
+		$single = (count($own) === 1 && $isClosed($own[0])) ? $own[0] : null;
+		if ($single !== null) {
+			$open = array_values(array_filter(array_keys($payments), fn (int $payment): bool => !isset($slotOf[$payment])));
+			$apart = fn (int $payment): int => abs($paidDay[$payment] - $slots[$single][2]);
+			$window = $this->dueDateToleranceDays($bill->getFrequency());
+			$onDate = array_values(array_filter($open, fn (int $payment): bool => $apart($payment) <= $window));
+			if ($onDate === [] && $open !== [] && in_array($single, $settledSlots, true)) {
+				$best = $open[0];
+				foreach ($open as $payment) {
+					if ($apart($payment) < $apart($best)) {
+						$best = $payment;
+					}
+				}
+				$onDate = [$best];
+			}
+			foreach ($open as $payment) {
+				$month = (int)$paidOn[$payment]->format('n');
+				if (in_array($payment, $onDate, true)) {
+					$slotOf[$payment] = $single;
+				} elseif ($boundary === null || $this->occurrenceDate($bill, $year, $month) < $boundary) {
+					$monthOf[$payment] = $month;
+					$alone[$payment] = true;
+					$occurrences[$month] = true;
+				} else {
+					// A month the bill still owes can't hold it: it stays with the date
+					$slotOf[$payment] = $single;
+				}
+			}
+		}
+
 		// Every closed occurrence and payment within reach of each other,
 		// nearest first; on a tie the earlier occurrence, then the earlier
 		// payment. Each pairing claims both.
 		$pairs = [];
 		foreach (array_keys($payments) as $payment) {
-			if (isset($slotOf[$payment])) {
+			if (isset($slotOf[$payment]) || isset($monthOf[$payment])) {
 				continue;
 			}
 			foreach ($closedSlots as $slot) {
@@ -3567,12 +3614,12 @@ class BillService {
 		}
 
 		foreach ($paidOn as $payment => $date) {
-			if (isset($slotOf[$payment])) {
+			if (isset($slotOf[$payment]) || isset($monthOf[$payment])) {
 				continue;
 			}
-			// Paid twice: with the nearest closed occurrence. A bill with a
-			// single occurrence takes any payment, whenever it was made. A
-			// payment from before the schedule began paid none of its dates
+			// Paid twice: with the nearest closed occurrence. A bill whose
+			// single date this year it still owes takes any payment (#375).
+			// A payment from before the schedule began paid none of its dates
 			// (one linked from an earlier bill for the same thing), so it is
 			// no second payment for the first of them (#399).
 			if ($begins === null || $date->format('Y-m-d') >= $begins) {
@@ -3610,7 +3657,9 @@ class BillService {
 					$occurrences[$month] = true;
 				}
 			} elseif (isset($monthOf[$payment])) {
-				[$month, $due, $key] = [$monthOf[$payment], null, 'month'];
+				// Payments of a month with no date in it share one, except
+				// those of a single-date bill, which paid nothing twice
+				[$month, $due, $key] = [$monthOf[$payment], null, isset($alone[$payment]) ? 'alone' . $payment : 'month'];
 			} else {
 				continue;
 			}

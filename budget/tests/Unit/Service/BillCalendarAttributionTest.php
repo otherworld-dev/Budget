@@ -209,12 +209,13 @@ class BillCalendarAttributionTest extends TestCase {
 	}
 
 	/**
-	 * A one-time bill has one occurrence, and it takes every payment made
-	 * for it whenever it was made (#375): both CembraPay payments, the one
-	 * of 27 September and the second of 15 October, are September's. The
-	 * cell lists both, so it can show it holds two payments for one invoice.
+	 * A one-time bill has one occurrence. It took every payment made for it
+	 * whenever it was made (#375), so CembraPay's second payment, 17 days
+	 * after the date, read as September paid twice. Its date takes the
+	 * payments within its due window; the second one is October's, a month
+	 * of its own (#399; BillCalendarSingleDateTest has the rest).
 	 */
-	public function testASingleOccurrenceTakesEveryPaymentAndListsThem(): void {
+	public function testASingleOccurrenceTakesThePaymentsNearItsDate(): void {
 		$cembra = $this->bill(['id' => 93, 'name' => 'CembraPay Temu', 'amount' => 151.67, 'frequency' => 'one-time',
 			'dueDay' => 28, 'dueMonth' => 9, 'startDate' => '2026-09-28', 'lastPaidDate' => '2026-10-15', 'isActive' => false,
 			'createdAt' => '2026-09-27 18:33:03']);
@@ -224,14 +225,12 @@ class BillCalendarAttributionTest extends TestCase {
 			$this->payment(1585, 93, '2026-10-15', 151.67),
 		]), 'CembraPay Temu');
 
-		$this->assertSame([9], $row['paidMonths']);
-		$this->assertSame([9 => 303.34], $this->rounded($row['paidAmounts']));
-		$this->assertSame([
-			['date' => '2026-09-27', 'amount' => 151.67, 'due' => '2026-09-28'],
-			['date' => '2026-10-15', 'amount' => 151.67, 'due' => '2026-09-28'],
-		], $row['paidDetails'][9]);
-		$this->assertSame([9 => 2], $row['paidMoreThanOnce']);
-		$this->assertFalse($row['occurrences'][10], 'no October cell is made up for the second payment');
+		$this->assertSame([9, 10], $row['paidMonths']);
+		$this->assertSame([9 => 151.67, 10 => 151.67], $this->rounded($row['paidAmounts']));
+		$this->assertSame([['date' => '2026-09-27', 'amount' => 151.67, 'due' => '2026-09-28']], $row['paidDetails'][9]);
+		$this->assertSame([['date' => '2026-10-15', 'amount' => 151.67, 'due' => null]], $row['paidDetails'][10]);
+		$this->assertSame([], $row['paidMoreThanOnce']);
+		$this->assertTrue($row['occurrences'][10], 'October holds the payment made in it');
 	}
 
 	/** Two one-time invoices of one name share a row; the cell lists both invoices' payments. */
@@ -251,10 +250,12 @@ class BillCalendarAttributionTest extends TestCase {
 		$this->assertCount(1, $overview['bills']);
 		$row = $overview['bills'][0];
 		$this->assertSame([93, 94], $row['billIds']);
-		$this->assertSame([9 => 312.78], $this->rounded($row['paidAmounts']));
-		$this->assertSame(['2026-09-27', '2026-09-27', '2026-10-15', '2026-10-15'], array_column($row['paidDetails'][9], 'date'));
-		$this->assertEqualsWithDelta(312.78, array_sum(array_column($row['paidDetails'][9], 'amount')), 0.001);
-		$this->assertSame([9 => 2], $row['paidMoreThanOnce'], 'each invoice was paid twice');
+		// Each invoice's 15 October payment is October's, not a second one for 28 September (#399)
+		$this->assertSame([9 => 156.39, 10 => 156.39], $this->rounded($row['paidAmounts']));
+		$this->assertSame(['2026-09-27', '2026-09-27'], array_column($row['paidDetails'][9], 'date'));
+		$this->assertSame(['2026-10-15', '2026-10-15'], array_column($row['paidDetails'][10], 'date'));
+		$this->assertEqualsWithDelta(156.39, array_sum(array_column($row['paidDetails'][9], 'amount')), 0.001);
+		$this->assertSame([], $row['paidMoreThanOnce'], 'each invoice was paid once in each month');
 	}
 
 	/** Two invoices due in one month, each paid once, are no double payment. */
