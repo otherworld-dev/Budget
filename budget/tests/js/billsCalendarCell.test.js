@@ -153,7 +153,8 @@ describe('calendarCell', () => {
         expect(december).toContain('2026-01-03');
         expect(december).toContain('for 2025-12-28');
         expect(january).toContain('2026-02-02');
-        expect(january).not.toContain('for');
+        // Paid on 2 February for 28 January: another day, so it says so (#399)
+        expect(january).toContain('for 2026-01-28');
     });
 
     it('a month part paid and part still owed comes to both, and is still due', () => {

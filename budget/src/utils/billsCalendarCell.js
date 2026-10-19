@@ -26,8 +26,9 @@ import { roundMoney } from './money.js';
  * marker says how many times a date was paid when one of the month's was
  * paid more than once: a weekly bill's four payments in a four-week month
  * are no double payment, nor is December's paid late on 3 January. A
- * payment for a date in another month, the year before's or after's, says
- * which in the tooltip.
+ * payment made on another day than the date it paid names that date in
+ * the tooltip. It used to only for a date in another month, so October
+ * paid on 30 September for 28 October never said what it was for (#399).
  *
  * @param {object} row calendar row
  * @param {number} month 1..12
@@ -48,7 +49,7 @@ export function calendarCell(row, month, settings = {}, currency = null) {
             amount: money(payment.amount),
             date: formatters.formatDate(payment.date, settings),
         };
-        if (payment.due && Number(payment.due.slice(5, 7)) !== month) {
+        if (payment.due && String(payment.due).slice(0, 10) !== String(payment.date).slice(0, 10)) {
             // TRANSLATORS: {amount}, {date} and {due} are placeholders, do NOT translate them. {due} is the date the bill was due that the payment was for.
             return t('budget', 'Paid {amount} on {date} for {due}', { ...params, due: formatters.formatDate(payment.due, settings) });
         }
