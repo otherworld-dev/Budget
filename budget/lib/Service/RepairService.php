@@ -486,7 +486,9 @@ class RepairService {
 	 * user to check, offering the old job's row, else the later one.
 	 *
 	 * A row naming a bill of someone else's, booked into an account they
-	 * share with the user, is not a deleted bill's.
+	 * share with the user, is not a deleted bill's. A deleted transfer's
+	 * sides aren't paired: once its bill is gone, removing one side would
+	 * leave the other behind.
 	 *
 	 * @param Bill[] $bills the user's bills
 	 * @param Account[] $accounts
@@ -523,7 +525,7 @@ class RepairService {
 		$flagged = self::flaggedRows($duplicates);
 		foreach ($byName as $key => $rows) {
 			usort($rows, fn (Transaction $a, Transaction $b) => [$a->getDate(), $a->getId()] <=> [$b->getDate(), $b->getId()]);
-			$billName = substr($key, strpos($key, "\n") + 1);
+			[, $billName] = explode("\n", $key, 2);
 			$count = count($rows);
 			for ($i = 0; $i < $count; $i++) {
 				for ($j = $i + 1; $j < $count && self::daysApart($rows[$i]->getDate(), $rows[$j]->getDate()) <= self::DELETED_BILL_DOUBLE_DAYS; $j++) {
@@ -623,7 +625,7 @@ class RepairService {
 			$until = min($until, self::addDays($nextDue, -1));
 		}
 
-		$occurrences = $this->frequencyCalculator->occurrencesBetween(
+		$occurrences = array_values($this->frequencyCalculator->occurrencesBetween(
 			$bill->getFrequency(),
 			$bill->getDueDay(),
 			$bill->getDueMonth(),
@@ -631,7 +633,7 @@ class RepairService {
 			$until,
 			$bill->getCustomRecurrencePattern(),
 			$bill->getStartDate()
-		);
+		));
 		// The first payment paid the last occurrence due by its date, or a
 		// later one; none before it
 		$floor = 0;
@@ -657,8 +659,8 @@ class RepairService {
 		if ($ahead !== null && $occurrences[$floor] < $first && $ahead <= self::addDays($first, intdiv($early, 2))) {
 			$cycle = self::daysApart($occurrences[$floor], $ahead);
 			[$earlyPairs, $earlyLate] = self::matchPayments($rows, array_slice($occurrences, $floor + 1), $early);
-			$last = $rows[count($rows) - 1];
-			$leavesLastOver = fn (array $found): bool => $found !== [] && $found[count($found) - 1][0] === $last;
+			$last = end($rows);
+			$leavesLastOver = fn (array $found): bool => $found !== [] && end($found)[0] === $last;
 			if ($earlyLate + count($earlyPairs) * $cycle < $late + count($pairs) * $cycle
 				&& !($leavesLastOver($earlyPairs) && !$leavesLastOver($pairs))) {
 				$pairs = $earlyPairs;
@@ -1399,7 +1401,7 @@ class RepairService {
 		}
 		$paymentDates = [];
 		foreach ($this->transactionMapper->findRecordedByBillIds(array_map(fn (Bill $bill) => $bill->getId(), $bills)) as $tx) {
-			$paymentDates[$tx->getBillId()][] = $tx->getDate();
+			$paymentDates[(int)$tx->getBillId()][] = $tx->getDate();
 		}
 		$found = [];
 

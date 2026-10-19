@@ -119,7 +119,8 @@ class LegacyIncomeRows {
 	 * the date it was found on, so a second run, or a receipt or skip in
 	 * between, leaves it as it is.
 	 *
-	 * @param array{incomeId: int, userId: string, nextExpectedDate: string, settledNextExpectedDate: string} $stuck
+	 * @param array{incomeId: int, userId: string, name: string, accountId: int, transactionId: int,
+	 *              amount: float, lastReceivedDate: string, nextExpectedDate: string, settledNextExpectedDate: string} $stuck
 	 * @return bool whether the income moved
 	 */
 	public function settle(array $stuck): bool {
