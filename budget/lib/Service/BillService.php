@@ -2836,27 +2836,25 @@ class BillService {
 	}
 
 	/**
-	 * Whether an inactive bill went through one of this year's occurrences:
-	 * it was marked paid, and the year has a date of it up to today that the
-	 * payment can be for. Marked paid without a transaction, it left nothing
-	 * for the calendar to find, so Active Only dropped an invoice settled
-	 * this year (#399). A recurring bill's schedule runs on past the day it
-	 * stopped, so only its dates up to its last payment count; a bill never
-	 * paid, or last paid in an earlier year, has none.
+	 * Whether an inactive bill went through one of this year's dates by
+	 * today. Marked paid without a transaction, it left nothing for the
+	 * calendar to find, so Active Only dropped an invoice settled this year
+	 * (#399). A bill never marked paid went through none. A recurring bill
+	 * last paid before the year began had stopped by then, whatever its
+	 * schedule says; its dates this year run only as far as it went
+	 * (stoppedOn()). A one-time bill belongs to the year of its date,
+	 * whenever it was paid.
 	 */
 	private function settledInYear(Bill $bill, int $year, string $today): bool {
 		$lastPaid = $bill->getLastPaidDate();
 		if ($lastPaid === null || $lastPaid === '') {
 			return false;
 		}
-		$until = $today;
-		if ($bill->getFrequency() !== 'one-time') {
-			// A payment can come a little before its date
-			$until = min($until, (new \DateTimeImmutable($lastPaid))
-				->add(new \DateInterval('P' . $this->dueDateToleranceDays($bill->getFrequency()) . 'D'))->format('Y-m-d'));
+		if ($bill->getFrequency() !== 'one-time' && $lastPaid < sprintf('%04d-01-01', $year)) {
+			return false;
 		}
 		$dates = array_merge(...array_values($this->occurrencesInYear($bill, $year)));
-		return $dates !== [] && $dates[0] <= $until;
+		return $dates !== [] && $dates[0] <= $today;
 	}
 
 	/** @param Account[] $accounts */
@@ -3241,6 +3239,7 @@ class BillService {
 	 *
 	 *  - Nothing occurs before the start date or, without one, before the
 	 *    bill existed (#333); nothing after the end date.
+	 *  - Nothing occurs after an inactive bill stopped (stoppedOn()).
 	 *  - Remaining payments cap what is still to come from the next due date.
 	 *  - A quarterly, half-yearly or yearly bill with no month stored takes
 	 *    it from its next due date; a weekly one with no start date takes its
@@ -3282,6 +3281,10 @@ class BillService {
 		$endDate = $bill->getEndDate() ?: null;
 		if ($endDate !== null) {
 			$to = min($to, $endDate);
+		}
+		$stopped = $this->stoppedOn($bill);
+		if ($stopped !== null) {
+			$to = min($to, $stopped);
 		}
 		if ($from > $to) {
 			return [];
@@ -3326,6 +3329,38 @@ class BillService {
 			$byMonth[(int)substr($date, 5, 2)][] = $date;
 		}
 		return $byMonth;
+	}
+
+	/**
+	 * The last date an inactive recurring bill went through, or null when
+	 * nothing but its schedule says where it ends. Its schedule runs on past
+	 * the day it stopped, and a bill switched off after its March payment
+	 * was drawn April to December as months it had moved past with no
+	 * payment recorded (#399).
+	 *
+	 * Switched off by hand, or with its account closed, a bill keeps its
+	 * next due date and never came to it: it went through every date before
+	 * that one, skipped ones included. Out of payments, it stopped with its
+	 * last one, which can come a little before its date. A bill past its end
+	 * date stops there already.
+	 */
+	private function stoppedOn(Bill $bill): ?string {
+		if ($bill->getIsActive() || $bill->getFrequency() === 'one-time') {
+			return null;
+		}
+		$nextDue = $bill->getNextDueDate();
+		if ($nextDue !== null && $nextDue !== '') {
+			return (new \DateTimeImmutable($nextDue))->sub(new \DateInterval('P1D'))->format('Y-m-d');
+		}
+		$lastPaid = $bill->getLastPaidDate();
+		$endDate = $bill->getEndDate();
+		$remaining = $bill->getRemainingPayments();
+		$ranOut = $remaining !== null && $remaining <= 0;
+		if ($lastPaid === null || $lastPaid === '' || ($endDate !== null && $endDate !== '' && !$ranOut)) {
+			return null;
+		}
+		return (new \DateTimeImmutable($lastPaid))
+			->add(new \DateInterval('P' . $this->dueDateToleranceDays($bill->getFrequency()) . 'D'))->format('Y-m-d');
 	}
 
 	/**

@@ -327,6 +327,67 @@ class BillCalendarAttributionTest extends TestCase {
 	}
 
 	/**
+	 * Switched off after it was marked paid for March, without transactions,
+	 * a bill went through January to March only. Those months have no
+	 * payment recorded; April to December never came, and drawing them as
+	 * well put a whole year of them into Active Only (#399).
+	 */
+	public function testAnInactiveBillIsDrawnOnlyAsFarAsItWent(): void {
+		$stopped = $this->bill(['id' => 5, 'name' => 'Gym', 'amount' => 45.0, 'dueDay' => 15, 'isActive' => false,
+			'lastPaidDate' => '2026-03-15', 'createdAt' => '2025-01-01 00:00:00']);
+
+		$row = $this->row($this->overview([$stopped], []), 'Gym');
+
+		$this->assertSame([1, 2, 3], array_keys(array_filter($row['occurrences'])));
+		$this->assertSame([1, 2, 3], $row['unrecordedMonths']);
+	}
+
+	/** Last paid at the end of the year before and stopped: none of it is this year's. */
+	public function testActiveOnlyLeavesOutABillLastPaidTheYearBefore(): void {
+		$cancelled = $this->bill(['id' => 6, 'name' => 'Streaming', 'amount' => 12.0, 'dueDay' => 1, 'isActive' => false,
+			'lastPaidDate' => '2025-12-28', 'createdAt' => '2024-01-01 00:00:00']);
+
+		$this->assertSame([], $this->overview([$cancelled], [])['bills']);
+	}
+
+	/** Switched off by hand, a bill keeps its next due date: it went through every date before it, skipped ones too. */
+	public function testABillSwitchedOffStopsBeforeItsNextDueDate(): void {
+		$paused = $this->bill(['id' => 8, 'name' => 'Cleaner', 'amount' => 120.0, 'dueDay' => 10, 'isActive' => false,
+			'nextDueDate' => '2026-06-10', 'lastPaidDate' => '2026-05-08', 'createdAt' => '2025-01-01 00:00:00']);
+		// April skipped
+		$payments = $this->paymentsOn(8, ['2026-01-09', '2026-02-10', '2026-03-10', '2026-05-08'], 120.0);
+
+		$row = $this->row($this->overview([$paused], $payments), 'Cleaner');
+
+		$this->assertSame([1, 2, 3, 4, 5], array_keys(array_filter($row['occurrences'])));
+		$this->assertSame([4], $row['unrecordedMonths']);
+	}
+
+	/** Out of payments, a bill stopped with its last one. */
+	public function testABillOutOfPaymentsStopsWithItsLast(): void {
+		$loan = $this->bill(['id' => 9, 'name' => 'Loan', 'amount' => 250.0, 'dueDay' => 15, 'isActive' => false,
+			'remainingPayments' => 0, 'lastPaidDate' => '2026-06-15', 'createdAt' => '2025-01-01 00:00:00']);
+		$payments = $this->paymentsOn(9, ['2026-01-15', '2026-02-15', '2026-03-16', '2026-04-15', '2026-05-15', '2026-06-15'], 250.0);
+
+		$row = $this->row($this->overview([$loan], $payments), 'Loan');
+
+		$this->assertSame([1, 2, 3, 4, 5, 6], array_keys(array_filter($row['occurrences'])));
+		$this->assertSame([], $row['unrecordedMonths']);
+	}
+
+	/** Past its end date, a bill's schedule runs to that date, its skipped dates included. */
+	public function testABillPastItsEndDateKeepsItsSkippedDates(): void {
+		$ended = $this->bill(['id' => 10, 'name' => 'Lease', 'amount' => 300.0, 'dueDay' => 15, 'isActive' => false,
+			'endDate' => '2026-09-30', 'lastPaidDate' => '2026-07-14', 'createdAt' => '2025-01-01 00:00:00']);
+		$payments = $this->paymentsOn(10, ['2026-01-15', '2026-02-15', '2026-03-15', '2026-04-15', '2026-05-15', '2026-06-15', '2026-07-14'], 300.0);
+
+		$row = $this->row($this->overview([$ended], $payments), 'Lease');
+
+		$this->assertSame(range(1, 9), array_keys(array_filter($row['occurrences'])));
+		$this->assertSame([8, 9], $row['unrecordedMonths'], 'August and September were skipped');
+	}
+
+	/**
 	 * A weekly bill's payments belong to the weeks they paid. Matched month
 	 * by month, the payments at the end of January were nearer February's
 	 * first date than January's and moved into February. The month the
