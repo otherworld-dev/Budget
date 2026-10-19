@@ -856,6 +856,8 @@ class BillService {
 		$today = $this->today($userId);
 		// The one-time date the edit leaves the bill on, when it already paid it
 		$settledOn = null;
+		// Whether the edit leaves a bill that owed something with nothing to pay
+		$ends = false;
 
 		if ($edited->getIsActive() || $resuming || $extended) {
 			$next = $bill->getNextDueDate();
@@ -873,6 +875,7 @@ class BillService {
 				|| $next === null
 				|| ($edited->getEndDate() !== null && $edited->getEndDate() !== '' && $next > $edited->getEndDate())
 				|| ($edited->getRemainingPayments() !== null && $edited->getRemainingPayments() <= 0);
+			$ends = $ended && $wasActive;
 			if ($ended) {
 				$edited->setIsActive(false);
 				$edited->setNextDueDate(null);
@@ -959,7 +962,13 @@ class BillService {
 		}
 
 		// Reload from database to ensure we return the actual saved state
-		return $this->find($id, $userId);
+		$saved = $this->find($id, $userId);
+		// Nothing left to pay takes its reminder and overdue notices down, as
+		// paying does: a one-time bill an edit settled stayed Overdue there
+		if ($ends) {
+			$this->withdrawNotifications($saved);
+		}
+		return $saved;
 	}
 
 	/**

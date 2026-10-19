@@ -18,6 +18,8 @@ use OCA\Budget\Service\TransactionService;
 use OCA\Budget\Service\TransactionSplitService;
 use OCA\Budget\Service\UserClock;
 use OCP\IL10N;
+use OCP\Notification\IManager as INotificationManager;
+use OCP\Notification\INotification;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
@@ -47,6 +49,8 @@ class BillOneTimeSwitchTest extends TestCase {
 	private array $calls = [];
 	/** @var int[] rows Mark Unpaid deleted */
 	private array $deleted = [];
+	/** How many times the bill's reminder and overdue notices were taken down */
+	private int $withdrawn = 0;
 
 	protected function setUp(): void {
 		$mapper = $this->createMock(BillMapper::class);
@@ -82,6 +86,11 @@ class BillOneTimeSwitchTest extends TestCase {
 		$clock->method('today')->willReturn(self::TODAY);
 		$l = $this->createMock(IL10N::class);
 		$l->method('t')->willReturnArgument(0);
+		$notifications = $this->createMock(INotificationManager::class);
+		$notifications->method('createNotification')->willReturnCallback(fn () => $this->createMock(INotification::class));
+		$notifications->method('markProcessed')->willReturnCallback(function () {
+			$this->withdrawn++;
+		});
 
 		$this->service = new BillService(
 			$mapper,
@@ -98,6 +107,7 @@ class BillOneTimeSwitchTest extends TestCase {
 			$this->createMock(RecurringIncomeMapper::class),
 			null,
 			$clock,
+			$notifications,
 		);
 	}
 
@@ -574,5 +584,34 @@ class BillOneTimeSwitchTest extends TestCase {
 
 		$this->assertTrue($bill->getIsActive());
 		$this->assertSame('2026-09-28', $bill->getNextDueDate());
+	}
+
+	// ── reminders ───────────────────────────────────────────────────
+
+	public function testAnEditThatSettlesABillTakesItsNoticesDown(): void {
+		// The reopened CembraPay bills sat Overdue for weeks, and their
+		// overdue notices stayed up once an edit had settled them
+		$this->reopenedOneTimeBill();
+
+		$this->service->update(1, 'user1', ['name' => 'CembraPay Temu September']);
+
+		$this->assertSame(1, $this->withdrawn);
+	}
+
+	public function testAnEditThatEndsABillTakesItsNoticesDown(): void {
+		$this->bill(['nextDueDate' => '2026-11-20', 'lastPaidDate' => '2026-10-19']);
+
+		$bill = $this->service->update(1, 'user1', ['endDate' => '2026-10-31']);
+
+		$this->assertFalse($bill->getIsActive());
+		$this->assertSame(1, $this->withdrawn);
+	}
+
+	public function testAnEditThatLeavesABillDueKeepsItsNotices(): void {
+		$this->bill(['nextDueDate' => '2026-11-20', 'lastPaidDate' => '2026-10-19']);
+
+		$this->service->update(1, 'user1', ['name' => 'Renamed', 'amount' => 160.0]);
+
+		$this->assertSame(0, $this->withdrawn);
 	}
 }
