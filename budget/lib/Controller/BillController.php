@@ -1411,22 +1411,12 @@ class BillController extends Controller {
 
 		// Bill rows
 		foreach ($data['bills'] ?? [] as $bill) {
-			$row = [
-				$bill['name'] ?? '',
-				$bill['amount'] ?? 0,
-				$bill['frequency'] ?? '',
-			];
-
-			$annualTotal = 0;
-			for ($m = 1; $m <= 12; $m++) {
-				$occurs = !empty($bill['occurrences'][$m]);
-				$row[] = $occurs ? number_format((float)($bill['amount'] ?? 0), 2) : '';
-				if ($occurs) {
-					$annualTotal += (float)($bill['amount'] ?? 0);
-				}
-			}
-			$row[] = number_format($annualTotal, 2);
-			CsvSafe::put($csv, $row);
+			[$months, $annualTotal] = $this->calendarExportCells($bill);
+			CsvSafe::put($csv, array_merge(
+				[$bill['name'] ?? '', $bill['amount'] ?? 0, $bill['frequency'] ?? ''],
+				$months,
+				[$annualTotal]
+			));
 		}
 
 		// Monthly totals row
@@ -1454,6 +1444,50 @@ class BillController extends Controller {
 			'contentType' => 'text/csv',
 			'filename' => "bills_calendar_{$year}_" . date('Y-m-d') . '.csv',
 		];
+	}
+
+	/**
+	 * A calendar row's twelve months as an export prints them, and the year
+	 * added up from what is printed. Every month the bill fell in printed
+	 * the bill's amount, whatever was paid (#399), so four invoices folded
+	 * into one row printed the first one's amount four times.
+	 *
+	 * @return array{0: string[], 1: string} the months January to December, the annual total
+	 */
+	private function calendarExportCells(array $bill): array {
+		$months = [];
+		$annual = '0';
+		for ($m = 1; $m <= 12; $m++) {
+			$amount = $this->calendarCellAmount($bill, $m);
+			$months[] = $amount === null ? '' : number_format($amount, 2);
+			if ($amount !== null) {
+				$annual = MoneyCalculator::add($annual, round($amount, 2), 2);
+			}
+		}
+		return [$months, number_format(MoneyCalculator::toFloat($annual), 2)];
+	}
+
+	/**
+	 * What one month of a calendar row comes to, as the Bills Calendar shows
+	 * it (calendarCell() in src/utils/billsCalendarCell.js): what was paid in
+	 * it plus what is still owed, which is also what the month adds to the
+	 * monthly totals. A month the bill moved past with no payment recorded
+	 * comes to nothing, as does one it doesn't fall in. A row that says
+	 * nothing about payments comes to its expected amount.
+	 */
+	private function calendarCellAmount(array $bill, int $month): ?float {
+		if (empty($bill['occurrences'][$month])) {
+			return null;
+		}
+		$paid = $bill['paidAmounts'][$month] ?? null;
+		$owed = $bill['owedAmounts'][$month] ?? null;
+		if ($paid !== null || $owed !== null) {
+			return MoneyCalculator::toFloat(MoneyCalculator::add((float)($paid ?? 0), (float)($owed ?? 0), 8));
+		}
+		if (in_array($month, $bill['unrecordedMonths'] ?? [], true)) {
+			return null;
+		}
+		return (float)($bill['expectedAmounts'][$month] ?? $bill['amount'] ?? 0);
 	}
 
 	/**
@@ -1521,15 +1555,11 @@ class BillController extends Controller {
 			$pdf->Cell($nameW, 5, $bill['name'] ?? '', 1, 0, 'L');
 			$pdf->Cell($amtW, 5, number_format((float)($bill['amount'] ?? 0), 2), 1, 0, 'R');
 
-			$annualTotal = 0;
-			for ($m = 1; $m <= 12; $m++) {
-				$occurs = !empty($bill['occurrences'][$m]);
-				$pdf->Cell($monthW, 5, $occurs ? number_format((float)($bill['amount'] ?? 0), 2) : '', 1, 0, 'R');
-				if ($occurs) {
-					$annualTotal += (float)($bill['amount'] ?? 0);
-				}
+			[$months, $annualTotal] = $this->calendarExportCells($bill);
+			foreach ($months as $month) {
+				$pdf->Cell($monthW, 5, $month, 1, 0, 'R');
 			}
-			$pdf->Cell($totalW, 5, number_format($annualTotal, 2), 1, 1, 'R');
+			$pdf->Cell($totalW, 5, $annualTotal, 1, 1, 'R');
 		}
 
 		// Totals row
