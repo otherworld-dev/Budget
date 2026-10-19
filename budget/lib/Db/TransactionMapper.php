@@ -1339,7 +1339,8 @@ class TransactionMapper extends QBMapper {
 
 	/**
 	 * The names the transactions list shows beside each row: its account,
-	 * its category, and the account a transfer's other side is in.
+	 * its category, and the account a transfer's other side is in. Also
+	 * whether the row's bill still exists.
 	 */
 	private function joinListColumns(IQueryBuilder $qb): void {
 		// Also select account name and currency
@@ -1353,6 +1354,12 @@ class TransactionMapper extends QBMapper {
 		$qb->leftJoin('t', $this->getTableName(), 'lt', $qb->expr()->eq('t.linked_transaction_id', 'lt.id'));
 		$qb->leftJoin('lt', 'budget_accounts', 'la', $qb->expr()->eq('lt.account_id', 'la.id'));
 		$qb->addSelect('la.id as linked_account_id', 'la.name as linked_account_name');
+
+		// Payments of a bill deleted by an older version still carry its
+		// id. The row menu offers Link to bill for those, and Unlink from
+		// bill only while the bill is there (#399).
+		$qb->leftJoin('t', 'budget_bills', 'lb', $qb->expr()->eq('t.bill_id', 'lb.id'));
+		$qb->addSelect('lb.id as live_bill_id');
 	}
 
 	/**
@@ -1384,6 +1391,8 @@ class TransactionMapper extends QBMapper {
 			// came back" apart from "the export said this wasn't a split".
 			'isSplit' => isset($row['is_split']) ? (bool)$row['is_split'] : null,
 			'billId' => ($row['bill_id'] ?? null) ? (int)$row['bill_id'] : null,
+			// The row names a bill that no longer exists (joinListColumns())
+			'billDeleted' => ($row['bill_id'] ?? null) && array_key_exists('live_bill_id', $row) && $row['live_bill_id'] === null,
 			'status' => $row['status'] ?? 'cleared',
 			'excludedFromForecast' => (bool)($row['excluded_from_forecast'] ?? false),
 			'pensionContribId' => ($row['pension_contrib_id'] ?? null) ? (int)$row['pension_contrib_id'] : null,

@@ -761,6 +761,65 @@ class TransactionController extends Controller {
 	}
 
 	/**
+	 * File a transaction under one of the user's bills as a payment of it
+	 * (#399). TransactionService::attachToBill() has the rules.
+	 *
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function linkBill(int $id, int $billId): DataResponse {
+		try {
+			$this->requireWritableRow($id);
+			return new DataResponse($this->service->attachToBill($id, $billId, $this->userId, $this->getWritableAccountIds()));
+		} catch (ReadOnlyShareException $e) {
+			return $this->handleError($e);
+		} catch (DoesNotExistException $e) {
+			return $this->handleNotFoundError($e, $this->l->t('Transaction'), ['transactionId' => $id]);
+		} catch (\InvalidArgumentException $e) {
+			// A refusal says why (another bill's payment, another account)
+			return $this->handleValidationError($e);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to link the transaction to the bill'), Http::STATUS_BAD_REQUEST, ['transactionId' => $id]);
+		}
+	}
+
+	/**
+	 * Take a transaction out of the bill it is filed under (#399).
+	 * TransactionService::detachFromBill() has the rules.
+	 *
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function unlinkBill(int $id): DataResponse {
+		try {
+			$this->requireWritableRow($id);
+			return new DataResponse($this->service->detachFromBill($id, $this->userId, $this->getWritableAccountIds()));
+		} catch (ReadOnlyShareException $e) {
+			return $this->handleError($e);
+		} catch (DoesNotExistException $e) {
+			return $this->handleNotFoundError($e, $this->l->t('Transaction'), ['transactionId' => $id]);
+		} catch (\InvalidArgumentException $e) {
+			// A refusal says why (the bill's latest payment, its next one)
+			return $this->handleValidationError($e);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to unlink the transaction from the bill'), Http::STATUS_BAD_REQUEST, ['transactionId' => $id]);
+		}
+	}
+
+	/**
+	 * A row this user can see and change. It may sit in an account shared
+	 * with them, and one shared read-only is refused with that reason rather
+	 * than as not found, as Link transfer does (#368).
+	 *
+	 * @throws DoesNotExistException when the user can't see the row
+	 * @throws ReadOnlyShareException when its account is shared read-only
+	 */
+	private function requireWritableRow(int $id): void {
+		$transaction = $this->service->findForAccounts($id, $this->getVisibleAccountIds());
+		$this->requireWriteAccess('account', $transaction->getAccountId());
+	}
+
+	/**
 	 * Bulk find and match transactions
 	 * Auto-links single matches, returns multiple matches for manual review
 	 *

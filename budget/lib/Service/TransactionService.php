@@ -7,6 +7,7 @@ namespace OCA\Budget\Service;
 use OCA\Budget\Db\Account;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\Bill;
+use OCA\Budget\Db\BillMapper;
 use OCA\Budget\Db\DismissedImportMapper;
 use OCA\Budget\Db\ExpenseShareMapper;
 use OCA\Budget\Db\QueryFilterBuilder;
@@ -47,6 +48,9 @@ class TransactionService {
 		private ?CurrencyConversionService $currencyConversion = null,
 		private ?IDBConnection $db = null,
 		private ?IL10N $l = null,
+		// Link to bill and Unlink from bill (#399); last, as the tests build
+		// this service by position
+		private ?BillMapper $billMapper = null,
 	) {
 		$this->mapper = $mapper;
 		$this->accountMapper = $accountMapper;
@@ -1219,6 +1223,202 @@ class TransactionService {
 		}
 
 		return $linked;
+	}
+
+	/**
+	 * File a transaction under one of the user's bills as a payment of it,
+	 * from the transaction's row menu (#399).
+	 *
+	 * Bills by Month reads a bill's payments from the rows that carry its
+	 * id, and only Mark Paid gave a row one, for the occurrence due now. A
+	 * payment typed in by hand, or one of a bill deleted and set up again,
+	 * showed under no bill at all. This sets the row's bill and nothing
+	 * else: the bill's schedule, last paid date and Mark Unpaid snapshot
+	 * stay as they are, and so do the row's category and tags, which
+	 * linkBillAsAccountOwner() fills in from the bill.
+	 *
+	 * The row has to be money out of the bill's account (for a transfer,
+	 * the withdrawal from its source) that has gone through, and free: no
+	 * bill, or one that no longer exists. A transfer's arrival in its
+	 * destination goes with the withdrawal when it is free too, as when Mark
+	 * Paid links a bank row (completeTransferPayment()).
+	 *
+	 * @param int[]|null $writableAccountIds the accounts the user may write
+	 *                                       to, where the row and its other
+	 *                                       side are looked for; null keeps
+	 *                                       both to the user's own accounts
+	 * @throws DoesNotExistException when the row isn't one the user can change
+	 * @throws \InvalidArgumentException when the row can't be the bill's payment
+	 */
+	public function attachToBill(int $transactionId, int $billId, string $userId, ?array $writableAccountIds = null): Transaction {
+		$transaction = $this->findScoped($transactionId, $userId, $writableAccountIds);
+		try {
+			// The user's own bills only, as the plain find scopes them
+			$bill = $this->bills()->find($billId, $userId);
+		} catch (DoesNotExistException $e) {
+			throw new \InvalidArgumentException($this->l !== null
+				? $this->l->t('%1$s not found', [$this->l->t('Bill')])
+				: 'Bill not found', 0, $e);
+		}
+
+		// A second click, or a stale page
+		if ((int)($transaction->getBillId() ?? 0) === $billId) {
+			return $transaction;
+		}
+		if (($transaction->getStatus() ?? 'cleared') === 'scheduled') {
+			throw new \InvalidArgumentException($this->l !== null
+				? $this->l->t('This transaction is still scheduled, so it can\'t be a bill\'s payment yet')
+				: 'This transaction is still scheduled, so it can\'t be a bill\'s payment yet');
+		}
+		if ($this->paysLiveBill($transaction)) {
+			throw new \InvalidArgumentException($this->l !== null
+				? $this->l->t('That transaction already pays another bill')
+				: 'That transaction already pays another bill');
+		}
+		// Bills by Month counts debits only, so a credit filed under a bill
+		// would never show; a transfer's arrival is its destination's side
+		if ($bill->getAccountId() === null || $bill->getAccountId() !== $transaction->getAccountId()
+			|| $transaction->getType() !== 'debit') {
+			throw new \InvalidArgumentException($this->l !== null
+				? $this->l->t('That transaction can\'t pay this bill')
+				: 'That transaction can\'t pay this bill');
+		}
+
+		$attached = $this->update($transactionId, $this->ownerOf($transaction), ['billId' => $billId], $userId);
+
+		if (($bill->getIsTransfer() ?? false) && $transaction->getLinkedTransactionId() !== null) {
+			$arrival = $this->mapper->findById($transaction->getLinkedTransactionId());
+			if ($arrival !== null && $arrival->getAccountId() === $bill->getDestinationAccountId()
+				&& !$this->paysLiveBill($arrival) && $this->withinScope($arrival, $userId, $writableAccountIds)) {
+				$this->update($arrival->getId(), $this->ownerOf($arrival), ['billId' => $billId], $userId);
+			}
+		}
+
+		return $attached;
+	}
+
+	/**
+	 * Take a transaction out of the bill it is filed under, from the row
+	 * menu (#399): a payment filed under the wrong bill, by Link to bill or
+	 * by Mark Paid. The row stays in its account and the bill is left as it
+	 * is.
+	 *
+	 * Refused for the rows the bill's own actions look after: its pre-booked
+	 * row, which stands for the next occurrence until the bill is paid or
+	 * skipped, and the rows its latest payment booked or linked. Mark Unpaid
+	 * finds those by their bill, so one taken out here would stay behind in
+	 * the account when the payment was undone. A transfer's other side lets
+	 * go of the bill too, as when Mark Unpaid undoes a linked payment
+	 * (unlinkBillAsAccountOwner()).
+	 *
+	 * @param int[]|null $writableAccountIds see attachToBill()
+	 * @throws DoesNotExistException when the row isn't one the user can change
+	 * @throws \InvalidArgumentException when the row isn't one to take out
+	 */
+	public function detachFromBill(int $transactionId, string $userId, ?array $writableAccountIds = null): Transaction {
+		$transaction = $this->findScoped($transactionId, $userId, $writableAccountIds);
+		$billId = (int)($transaction->getBillId() ?? 0);
+		if ($billId === 0) {
+			throw new \InvalidArgumentException($this->l !== null
+				? $this->l->t('This transaction isn\'t linked to a bill')
+				: 'This transaction isn\'t linked to a bill');
+		}
+		if (($transaction->getStatus() ?? 'cleared') === 'scheduled') {
+			throw new \InvalidArgumentException($this->l !== null
+				? $this->l->t('This is the upcoming payment of a bill, so it stays linked to it. Edit or skip the bill instead.')
+				: 'This is the upcoming payment of a bill, so it stays linked to it. Edit or skip the bill instead.');
+		}
+
+		$otherSide = $transaction->getLinkedTransactionId() !== null
+			? $this->mapper->findById($transaction->getLinkedTransactionId())
+			: null;
+		if ($otherSide !== null && (int)($otherSide->getBillId() ?? 0) !== $billId) {
+			$otherSide = null;
+		}
+
+		// A deleted bill has no payment left for Mark Unpaid to undo
+		$bill = $this->bills()->findByIds([$billId])[0] ?? null;
+		if ($bill !== null) {
+			$snapshotRows = self::rowsInPaymentSnapshot($bill);
+			if (in_array($transaction->getId(), $snapshotRows, true)
+				|| ($otherSide !== null && in_array($otherSide->getId(), $snapshotRows, true))) {
+				throw new \InvalidArgumentException($this->l !== null
+					? $this->l->t('This is the bill\'s latest payment. Use Mark Unpaid on the bill to undo it.')
+					: 'This is the bill\'s latest payment. Use Mark Unpaid on the bill to undo it.');
+			}
+		}
+
+		$detached = $this->update($transactionId, $this->ownerOf($transaction), ['billId' => null], $userId);
+		if ($otherSide !== null && $this->withinScope($otherSide, $userId, $writableAccountIds)) {
+			$this->update($otherSide->getId(), $this->ownerOf($otherSide), ['billId' => null], $userId);
+		}
+
+		return $detached;
+	}
+
+	/**
+	 * Whether a row pays a bill that still exists. Payments of a bill
+	 * deleted by an older version still carry its id (deleting a bill lets
+	 * go of them now, detachBillPayments()), and an id of 0 is no bill, as
+	 * Mark Paid's candidate search reads them.
+	 */
+	private function paysLiveBill(Transaction $row): bool {
+		$billId = (int)($row->getBillId() ?? 0);
+		return $billId !== 0 && $this->bills()->findByIds([$billId]) !== [];
+	}
+
+	/**
+	 * Whether a row sits where findScoped() would look for it: in one of
+	 * $accountIds, or with none given in one of the user's own accounts.
+	 *
+	 * @param int[]|null $accountIds
+	 */
+	private function withinScope(Transaction $row, string $userId, ?array $accountIds): bool {
+		if ($accountIds !== null) {
+			return in_array($row->getAccountId(), array_map('intval', $accountIds), true);
+		}
+		try {
+			return $this->ownerOf($row) === $userId;
+		} catch (DoesNotExistException $e) {
+			return false;
+		}
+	}
+
+	/**
+	 * The rows a bill's Mark Unpaid deletes or lets go of: the ones the
+	 * snapshot of its latest payment names (BillService::markPaid()). The
+	 * stored snapshot is what Mark Unpaid runs from, whatever payment it
+	 * describes.
+	 *
+	 * @return int[]
+	 */
+	private static function rowsInPaymentSnapshot(Bill $bill): array {
+		$raw = $bill->getPaidUndoState();
+		$snapshot = ($raw !== null && $raw !== '') ? json_decode($raw, true) : null;
+		if (!is_array($snapshot)) {
+			return [];
+		}
+
+		$ids = [];
+		foreach (['createdTransactionIds', 'scheduledTransactionIds'] as $key) {
+			foreach (is_array($snapshot[$key] ?? null) ? $snapshot[$key] : [] as $id) {
+				if (is_numeric($id)) {
+					$ids[] = (int)$id;
+				}
+			}
+		}
+		if (is_numeric($snapshot['linkedTransactionId'] ?? null)) {
+			$ids[] = (int)$snapshot['linkedTransactionId'];
+		}
+		return $ids;
+	}
+
+	/** The bill mapper, which only a service built by hand in a test lacks */
+	private function bills(): BillMapper {
+		if ($this->billMapper === null) {
+			throw new \LogicException('TransactionService was built without a BillMapper');
+		}
+		return $this->billMapper;
 	}
 
 	/**
