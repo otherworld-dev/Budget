@@ -15,6 +15,7 @@ use OCA\Budget\Enum\Currency;
 use OCA\Budget\Exception\ReconciledPaymentException;
 use OCA\Budget\Service\Bill\BalanceProjector;
 use OCA\Budget\Service\Bill\FrequencyCalculator;
+use OCA\Budget\Service\Bill\OneTimeSettlement;
 use OCA\Budget\Service\Bill\RecurringBillDetector;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\IL10N;
@@ -1030,52 +1031,81 @@ class BillService {
 	}
 
 	/**
-	 * Whether the bill has already paid an occurrence on $date (#399): it
-	 * was marked paid, and that payment, or one recorded for the bill, is
-	 * dated within the due window of the date. Never because the next due
-	 * date has moved past it: a Skip moves that too, with nothing paid.
+	 * Whether the bill, as stored, has already paid the one-time date an
+	 * edit puts it on (#399): its last payment, a payment recorded for it,
+	 * or the occurrence its undo snapshot says the last payment settled is
+	 * close enough to the date by the rules of OneTimeSettlement. Never
+	 * because the next due date has moved past the date: a Skip moves that
+	 * too, with nothing paid.
 	 */
 	private function paymentCoversDate(Bill $bill, string $date): bool {
-		$lastPaid = $bill->getLastPaidDate();
-		if ($lastPaid === null || $lastPaid === '') {
+		$lastPaid = (string)$bill->getLastPaidDate();
+		if ($lastPaid === '') {
 			return false;
 		}
-		return $this->withinDueWindow($bill, $lastPaid, $date) || $this->paymentsNear($bill, $date) !== [];
-	}
-
-	/**
-	 * The bill's recorded payments dated within its due window of $date
-	 *
-	 * @return int[] their ids
-	 */
-	private function paymentsNear(Bill $bill, string $date): array {
-		$ids = [];
-		foreach ($this->transactionService->findRecordedBillTransactions([$bill->getId()]) as $row) {
-			if ($this->withinDueWindow($bill, $row->getDate(), $date)) {
-				$ids[] = $row->getId();
-			}
-		}
-		return $ids;
+		return $this->paysOneTimeDate($bill, $date, [$lastPaid, ...array_values($this->recordedPaymentDates($bill))]);
 	}
 
 	/**
 	 * The undo snapshot of the bill's last payment, when that payment is the
-	 * one that paid $date: made, or recorded, within the due window of it.
-	 * An older payment can pay the date while the snapshot is a later one's,
-	 * and undoing that later one would reopen a date already paid.
+	 * one that paid $date: made, or recorded, close enough to it. An older
+	 * payment can pay the date while the snapshot is a later one's, and
+	 * undoing that later one would reopen a date already paid.
 	 */
 	private function snapshotSettling(Bill $bill, string $date): ?array {
 		$snapshot = $this->paymentSnapshot($bill);
 		if ($snapshot === null || !is_array($snapshot['previousState'] ?? null)) {
 			return null;
 		}
-		if ($this->withinDueWindow($bill, (string)$bill->getLastPaidDate(), $date)) {
-			return $snapshot;
-		}
 		$ids = is_array($snapshot['createdTransactionIds'] ?? null) ? $snapshot['createdTransactionIds'] : [];
 		$ids[] = $snapshot['linkedTransactionId'] ?? null;
 		$ids = array_map('intval', array_filter($ids, 'is_numeric'));
-		return array_intersect($ids, $this->paymentsNear($bill, $date)) !== [] ? $snapshot : null;
+		// That payment: the day it was made, and the rows it recorded
+		$payments = [(string)$bill->getLastPaidDate()];
+		foreach ($this->recordedPaymentDates($bill) as $rowId => $day) {
+			if (in_array($rowId, $ids, true)) {
+				$payments[] = $day;
+			}
+		}
+		return $this->paysOneTimeDate($bill, $date, $payments) ? $snapshot : null;
+	}
+
+	/**
+	 * OneTimeSettlement::covers() for payments of the bill as stored: the
+	 * occurrence its last payment settled, and its schedule's due window,
+	 * unless it is one-time already
+	 *
+	 * @param string[] $payments the days the payments were made or recorded on
+	 */
+	private function paysOneTimeDate(Bill $bill, string $date, array $payments): bool {
+		$snapshot = $this->paymentSnapshot($bill);
+		$settled = $snapshot['previousState']['nextDueDate'] ?? null;
+		$frequency = $bill->getFrequency();
+		$pending = $bill->getNextDueDate();
+		$before = ($pending === null || $pending === '') ? null : OneTimeSettlement::occurrenceBefore(
+			$this->frequencyCalculator, $frequency, $bill->getDueDay(), $bill->getDueMonth(),
+			$bill->getCustomRecurrencePattern(), $bill->getStartDate(), $pending
+		);
+		return OneTimeSettlement::covers(
+			$date,
+			$payments,
+			is_string($settled) && $settled !== '' ? $settled : null,
+			$before,
+			$frequency === 'one-time' ? null : $this->dueDateToleranceDays($frequency)
+		);
+	}
+
+	/**
+	 * The bill's recorded (not pre-booked) payments
+	 *
+	 * @return array<int, string> transaction id => date
+	 */
+	private function recordedPaymentDates(Bill $bill): array {
+		$dates = [];
+		foreach ($this->transactionService->findRecordedBillTransactions([$bill->getId()]) as $row) {
+			$dates[$row->getId()] = $row->getDate();
+		}
+		return $dates;
 	}
 
 	/** Today's date as the user's calendar shows it */

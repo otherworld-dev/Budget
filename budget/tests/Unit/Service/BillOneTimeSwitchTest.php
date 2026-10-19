@@ -28,9 +28,12 @@ use Psr\Log\LoggerInterface;
  * on that date as owed whatever had been paid: two CembraPay bills, Custom
  * September and paid on 27 September, were switched to One-Time 28 September,
  * came back Overdue with Mark Paid, and were paid a second time on 15 October.
- * A date the bill has already paid, by its last payment or a payment
- * recorded for it within the due window, is now settled; an unpaid or
- * skipped one stays due.
+ * A date the bill has already paid is now settled (see OneTimeSettlement):
+ * its last payment, a payment recorded for it or the occurrence its last
+ * payment settled is within three days of the date, or within the old
+ * schedule's due window and not after that occurrence. An unpaid or skipped
+ * date, or one after the occurrence paid, stays due, and later edits leave
+ * it due.
  */
 class BillOneTimeSwitchTest extends TestCase {
 	private const TODAY = '2026-10-19';
@@ -71,6 +74,7 @@ class BillOneTimeSwitchTest extends TestCase {
 		});
 		$this->transactions->method('deleteAsAccountOwner')->willReturnCallback(function (int $id) {
 			$this->deleted[] = $id;
+			$this->rows = array_values(array_filter($this->rows, fn (Transaction $row) => $row->getId() !== $id));
 			return true;
 		});
 
@@ -313,6 +317,130 @@ class BillOneTimeSwitchTest extends TestCase {
 		$this->assertFalse($bill->canMarkUnpaid());
 	}
 
+	// ── the occurrence the last payment settled ─────────────────────
+
+	public function testAnOccurrencePaidEarlySwitchedToOneTimeIsCompleted(): void {
+		// Due on the 20th, marked paid on the 1st, the day it was entered.
+		// Nineteen days is outside the window, but the payment's snapshot
+		// says it paid 20 October.
+		$bill = $this->bill(['nextDueDate' => '2026-11-20', 'lastPaidDate' => '2026-10-01']);
+		$this->payment(906, '2026-10-01');
+		$bill->setPaidUndoState($this->paidSnapshot('2026-10-01', '2026-10-20', [906]));
+
+		$bill = $this->service->update(1, 'user1', $this->oneTime('2026-10-20'));
+
+		$this->assertFalse($bill->getIsActive());
+		$this->assertNull($bill->getNextDueDate());
+		$this->assertTrue($bill->canMarkUnpaid(), 'Mark Unpaid still takes that payment back');
+	}
+
+	public function testACustomBillPaidEarlySwitchedToOneTimeIsCompleted(): void {
+		// Custom September, paid on 1 September for the 28th
+		$bill = $this->bill([
+			'frequency' => 'custom', 'pattern' => '{"months":[9]}', 'dueDay' => 28,
+			'nextDueDate' => '2027-09-28', 'lastPaidDate' => '2026-09-01',
+		]);
+		$this->payment(907, '2026-09-01');
+		$bill->setPaidUndoState($this->paidSnapshot('2026-09-01', '2026-09-28', [907]));
+
+		$bill = $this->service->update(1, 'user1', $this->oneTime('2026-09-28'));
+
+		$this->assertFalse($bill->getIsActive());
+		$this->assertNull($bill->getNextDueDate());
+	}
+
+	public function testAFinalInvoiceAfterThePaidOccurrenceStaysDue(): void {
+		// October paid on the 19th, then cancelled. The final invoice, due 2
+		// November, is a payment of its own, though October's is near it.
+		$bill = $this->bill(['nextDueDate' => '2026-11-20', 'lastPaidDate' => '2026-10-19']);
+		$this->payment(908, '2026-10-19');
+		$bill->setPaidUndoState($this->paidSnapshot('2026-10-19', '2026-10-20', [908]));
+
+		$bill = $this->service->update(1, 'user1', $this->oneTime('2026-11-02'));
+
+		$this->assertTrue($bill->getIsActive());
+		$this->assertSame('2026-11-02', $bill->getNextDueDate());
+	}
+
+	public function testAFinalInvoiceAfterThePaidOccurrenceStaysDueWithNoSnapshot(): void {
+		// Without a snapshot the occurrence October's payment settled is the
+		// one before the next due date
+		$this->bill(['nextDueDate' => '2026-11-20', 'lastPaidDate' => '2026-10-19']);
+		$this->payment(908, '2026-10-19');
+
+		$bill = $this->service->update(1, 'user1', $this->oneTime('2026-11-02'));
+
+		$this->assertTrue($bill->getIsActive());
+		$this->assertSame('2026-11-02', $bill->getNextDueDate());
+	}
+
+	public function testADateADayAfterThePaidOccurrenceIsStillPaid(): void {
+		// Paid on its due date, 20 October; the invoice says the 21st
+		$bill = $this->bill(['nextDueDate' => '2026-11-20', 'lastPaidDate' => '2026-10-20']);
+		$this->payment(909, '2026-10-20');
+		$bill->setPaidUndoState($this->paidSnapshot('2026-10-20', '2026-10-20', [909]));
+
+		$bill = $this->service->update(1, 'user1', $this->oneTime('2026-10-21'));
+
+		$this->assertFalse($bill->getIsActive());
+		$this->assertTrue($bill->canMarkUnpaid());
+	}
+
+	// ── a bill the switch left due ──────────────────────────────────
+
+	public function testAWeeklyBillTheSwitchLeftDueStaysDueWhenRenamed(): void {
+		// Paid on the 12th for the 13th. A one-off invoice on the 20th is
+		// owed, and stays owed when a later edit judges it again: once it is
+		// one-time, a payment a week off no longer counts.
+		$this->bill(['frequency' => 'weekly', 'dueDay' => 2, 'startDate' => '2026-09-01', 'nextDueDate' => '2026-10-20', 'lastPaidDate' => '2026-10-12']);
+		$this->payment(910, '2026-10-12');
+
+		$bill = $this->service->update(1, 'user1', $this->oneTime('2026-10-20'));
+		$this->assertTrue($bill->getIsActive());
+		$this->assertSame('2026-10-20', $bill->getNextDueDate());
+
+		$bill = $this->service->update(1, 'user1', ['name' => 'Final cleaning invoice']);
+
+		$this->assertTrue($bill->getIsActive(), 'A rename marked the invoice paid');
+		$this->assertSame('2026-10-20', $bill->getNextDueDate());
+	}
+
+	public function testABiweeklyBillTheSwitchLeftDueStaysDueWhenItsAmountChanges(): void {
+		$this->bill(['frequency' => 'biweekly', 'dueDay' => 4, 'startDate' => '2026-09-10', 'nextDueDate' => '2026-10-22', 'lastPaidDate' => '2026-10-08']);
+		$this->payment(911, '2026-10-08');
+
+		$bill = $this->service->update(1, 'user1', $this->oneTime('2026-10-20'));
+		$this->assertTrue($bill->getIsActive());
+
+		$bill = $this->service->update(1, 'user1', ['amount' => 120.0]);
+
+		$this->assertTrue($bill->getIsActive(), 'An amount edit marked the invoice paid');
+		$this->assertSame('2026-10-20', $bill->getNextDueDate());
+	}
+
+	public function testABillMarkUnpaidReopenedAfterTheSwitchStaysDueWhenEdited(): void {
+		// Weekly, paid on the 5th and the 12th, switched to One-Time on the
+		// 13th, which the 12th paid. Mark Unpaid takes that payment back; the
+		// 5th, a week before, doesn't pay the 13th on the next edit.
+		$bill = $this->bill(['frequency' => 'weekly', 'dueDay' => 2, 'startDate' => '2026-09-01', 'nextDueDate' => '2026-10-20', 'lastPaidDate' => '2026-10-12']);
+		$this->payment(912, '2026-10-05');
+		$this->payment(913, '2026-10-12');
+		$snapshot = json_decode($this->paidSnapshot('2026-10-12', '2026-10-13', [913]), true);
+		$snapshot['previousState']['lastPaidDate'] = '2026-10-05';
+		$bill->setPaidUndoState(json_encode($snapshot));
+		$bill = $this->service->update(1, 'user1', $this->oneTime('2026-10-13'));
+		$this->assertFalse($bill->getIsActive(), 'The 12th paid the 13th');
+		$bill = $this->service->markUnpaid(1, 'user1');
+		$this->assertSame([913], $this->deleted);
+		$this->assertSame('2026-10-13', $bill->getNextDueDate());
+
+		$bill = $this->service->update(1, 'user1', ['name' => 'Cleaning, last week']);
+
+		$this->assertTrue($bill->getIsActive());
+		$this->assertSame('2026-10-13', $bill->getNextDueDate());
+		$this->assertSame('2026-10-05', $bill->getLastPaidDate());
+	}
+
 	// ── a one-time bill the switch already reopened ─────────────────
 
 	/** The CembraPay bill as the switch left it on dev: One-Time, due again on the date it paid */
@@ -378,6 +506,50 @@ class BillOneTimeSwitchTest extends TestCase {
 		$this->assertNull($bill->getNextDueDate());
 		$this->assertSame('2026-09-27', $bill->getLastPaidDate());
 		$this->assertTrue($bill->canMarkUnpaid(), 'The same date is no change');
+	}
+
+	/** The reporter's Dentakont 4584: due 27 June, paid on 26 May, a month early */
+	private function oneTimeBillPaidAMonthEarly(): Bill {
+		$bill = $this->bill([
+			'frequency' => 'one-time', 'dueDay' => 27, 'dueMonth' => 6, 'startDate' => '2026-06-27',
+			'isActive' => false, 'nextDueDate' => null, 'lastPaidDate' => '2026-05-26',
+		]);
+		$this->payment(920, '2026-05-26');
+		$bill->setPaidUndoState($this->paidSnapshot('2026-05-26', '2026-06-27', [920], '2026-06-27'));
+		return $bill;
+	}
+
+	public function testOtherEditsOfAOneTimeBillPaidAMonthEarlyKeepItPaid(): void {
+		// Its payment is nowhere near its date: an edit that judged the date
+		// again would reopen it. Amount and account edits keep the payment
+		// and the paid state, and spend Mark Unpaid, which would put the old
+		// amount back (#365 review).
+		foreach ([['amount' => 151.67], ['accountId' => 4]] as $edit) {
+			$this->oneTimeBillPaidAMonthEarly();
+			$bill = $this->service->update(1, 'user1', $edit);
+			$this->assertFalse($bill->getIsActive(), json_encode($edit));
+			$this->assertNull($bill->getNextDueDate());
+			$this->assertSame('2026-05-26', $bill->getLastPaidDate());
+			$this->assertFalse($bill->canMarkUnpaid(), json_encode($edit));
+		}
+
+		$this->oneTimeBillPaidAMonthEarly();
+		$bill = $this->service->update(1, 'user1', $this->oneTime('2026-06-27'));
+		$this->assertFalse($bill->getIsActive());
+		$this->assertNull($bill->getNextDueDate());
+		$this->assertSame('2026-05-26', $bill->getLastPaidDate());
+		$this->assertTrue($bill->canMarkUnpaid(), 'The same date is no change');
+	}
+
+	public function testSwitchingOnAOneTimeBillPaidAMonthEarlyKeepsItPaid(): void {
+		// Its snapshot says the payment paid 27 June, however early it was
+		$this->oneTimeBillPaidAMonthEarly();
+
+		$bill = $this->service->update(1, 'user1', ['isActive' => true]);
+
+		$this->assertFalse($bill->getIsActive());
+		$this->assertNull($bill->getNextDueDate());
+		$this->assertTrue($bill->canMarkUnpaid());
 	}
 
 	public function testSwitchingOnAPaidOneTimeBillKeepsItPaid(): void {

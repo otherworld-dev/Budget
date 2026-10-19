@@ -10,6 +10,7 @@ use OCA\Budget\Db\RecurringIncomeMapper;
 use OCA\Budget\Db\ShareItem;
 use OCA\Budget\Exception\ReadOnlyShareException;
 use OCA\Budget\Service\Bill\FrequencyCalculator;
+use OCA\Budget\Service\Bill\OneTimeSettlement;
 use OCA\Budget\Service\Income\RecurringIncomeDetector;
 use OCP\IL10N;
 use Psr\Log\LoggerInterface;
@@ -424,63 +425,98 @@ class RecurringIncomeService extends AbstractCrudService {
 	}
 
 	/**
-	 * Whether the income has already received an occurrence on $date
-	 * (#399): it was marked received, and that receipt, or a credit it
-	 * booked, is dated within the expected window of the date.
+	 * Whether the income, as stored, has already received the one-time date
+	 * an edit puts it on (#399): its last receipt, a credit it booked, or
+	 * the occurrence its undo snapshot says the last receipt settled is
+	 * close enough to the date by the rules of OneTimeSettlement.
 	 */
 	private function receivedCoversDate(RecurringIncome $income, string $date): bool {
-		$lastReceived = $income->getLastReceivedDate();
-		if ($lastReceived === null || $lastReceived === '') {
+		$lastReceived = (string)$income->getLastReceivedDate();
+		if ($lastReceived === '') {
 			return false;
 		}
-		return $this->withinExpectedWindow($income, $lastReceived, $date) || $this->creditsNear($income, $date) !== [];
+		return $this->receivesOneTimeDate($income, $date, [$lastReceived, ...array_values($this->creditsNear($income, $date))]);
+	}
+
+	/**
+	 * The undo snapshot of the income's last receipt, when that receipt is
+	 * the one that received $date: marked, or its credit dated, close enough
+	 * to it
+	 */
+	private function snapshotReceiving(RecurringIncome $income, string $date): ?array {
+		$snapshot = $this->receiptSnapshot($income);
+		if ($snapshot === null) {
+			return null;
+		}
+		$listed = $snapshot['transactionIds'] ?? null;
+		$ids = is_array($listed) ? array_map('intval', $listed) : [];
+		// That receipt: the day it was marked, and the credit it booked
+		$receipts = [(string)$income->getLastReceivedDate()];
+		foreach ($this->creditsNear($income, $date) as $creditId => $day) {
+			if (in_array($creditId, $ids, true)) {
+				$receipts[] = $day;
+			}
+		}
+		return $this->receivesOneTimeDate($income, $date, $receipts) ? $snapshot : null;
+	}
+
+	/**
+	 * OneTimeSettlement::covers() for receipts of the income as stored: the
+	 * occurrence its last receipt settled, and its schedule's window,
+	 * unless it is one-time already
+	 *
+	 * @param string[] $receipts the days the receipts were marked or their credits dated
+	 */
+	private function receivesOneTimeDate(RecurringIncome $income, string $date, array $receipts): bool {
+		$settled = $this->receiptSnapshot($income)['nextExpectedDate'] ?? null;
+		$frequency = $income->getFrequency();
+		$pending = $income->getNextExpectedDate();
+		$before = ($pending === null || $pending === '') ? null : OneTimeSettlement::occurrenceBefore(
+			$this->frequencyCalculator, $frequency, $income->getExpectedDay(), $income->getExpectedMonth(),
+			null, $income->getStartDate(), $pending
+		);
+		return OneTimeSettlement::covers(
+			$date,
+			$receipts,
+			is_string($settled) && $settled !== '' ? $settled : null,
+			$before,
+			$frequency === 'one-time' ? null : self::expectedWindowDays($frequency)
+		);
 	}
 
 	/**
 	 * The credits the income booked (Mark Received, auto-create) dated
-	 * within its expected window of $date. The income has no column on the
-	 * row: its own are the ones whose notes name it.
+	 * around $date, as far off as OneTimeSettlement reads them. The income
+	 * has no column on the row: its own are the ones whose notes name it.
 	 *
-	 * @return int[] their ids
+	 * @return array<int, string> transaction id => date
 	 */
 	private function creditsNear(RecurringIncome $income, string $date): array {
 		if ($income->getAccountId() === null) {
 			return [];
 		}
-		$days = self::expectedWindowDays($income->getFrequency());
+		$days = max(OneTimeSettlement::BESIDE_DAYS, self::expectedWindowDays($income->getFrequency()));
 		$on = new \DateTimeImmutable($date);
 		$credits = $this->transactionService->findGeneratedIncomeCredits(
 			(int)$income->getAccountId(),
 			$on->modify("-{$days} days")->format('Y-m-d'),
 			$on->modify("+{$days} days")->format('Y-m-d')
 		);
-		$ids = [];
+		$dates = [];
 		foreach ($credits as $credit) {
 			if ((string)$credit->getNotes() === 'Auto-generated from income: ' . $income->getName()
 				&& ($credit->getStatus() ?? 'cleared') !== 'scheduled') {
-				$ids[] = $credit->getId();
+				$dates[$credit->getId()] = $credit->getDate();
 			}
 		}
-		return $ids;
+		return $dates;
 	}
 
-	/**
-	 * The undo snapshot of the income's last receipt, when that receipt is
-	 * the one that received $date: made, or its credit dated, within the
-	 * expected window of it
-	 */
-	private function snapshotReceiving(RecurringIncome $income, string $date): ?array {
+	/** The undo snapshot Mark Received left on the income, or null */
+	private function receiptSnapshot(RecurringIncome $income): ?array {
 		$raw = $income->getReceivedUndoState();
 		$snapshot = ($raw !== null && $raw !== '') ? json_decode($raw, true) : null;
-		if (!is_array($snapshot) || !array_key_exists('nextExpectedDate', $snapshot)) {
-			return null;
-		}
-		if ($this->withinExpectedWindow($income, (string)$income->getLastReceivedDate(), $date)) {
-			return $snapshot;
-		}
-		$listed = $snapshot['transactionIds'] ?? null;
-		$ids = is_array($listed) ? array_map('intval', $listed) : [];
-		return array_intersect($ids, $this->creditsNear($income, $date)) !== [] ? $snapshot : null;
+		return is_array($snapshot) && array_key_exists('nextExpectedDate', $snapshot) ? $snapshot : null;
 	}
 
 	/**

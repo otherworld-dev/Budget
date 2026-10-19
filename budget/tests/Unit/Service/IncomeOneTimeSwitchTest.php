@@ -20,9 +20,9 @@ use Psr\Log\LoggerInterface;
  * Switching a received income to One-Time keeps it received (#399), as for
  * bills: the switch put the income on its new date as expected whatever had
  * arrived, and Mark Received then booked the money a second time. A date the
- * income has already received, by its last receipt or a credit it booked
- * within the expected window, is now settled; one still to come stays
- * expected.
+ * income has already received is now settled by the same rules as a bill's
+ * (see OneTimeSettlement); one still to come stays expected, and later edits
+ * leave it expected.
  */
 class IncomeOneTimeSwitchTest extends TestCase {
 	private const TODAY = '2026-10-19';
@@ -196,6 +196,59 @@ class IncomeOneTimeSwitchTest extends TestCase {
 
 		$this->assertTrue($income->getIsActive());
 		$this->assertSame('2026-10-03', $income->getNextExpectedDate());
+	}
+
+	public function testAnOccurrenceReceivedEarlySwitchedToOneTimeIsCompleted(): void {
+		// Expected on the 20th, October's money arrived, and was marked, on
+		// the 1st: outside the window, but the receipt's snapshot says it
+		// received 20 October
+		$income = $this->income(['lastReceivedDate' => '2026-10-01', 'nextExpectedDate' => '2026-11-20']);
+		$this->credit(304, '2026-10-01');
+		$income->setReceivedUndoState($this->receivedSnapshot('2026-10-20', [304]));
+
+		$income = $this->service->update(1, 'user1', $this->oneTime('2026-10-20'));
+
+		$this->assertFalse($income->getIsActive());
+		$this->assertNull($income->getNextExpectedDate());
+		$this->assertTrue($income->canUndoReceived());
+	}
+
+	public function testAFinalPaymentAfterTheReceivedOccurrenceStaysExpected(): void {
+		// October's arrived on the 19th; a last payment on 2 November is one
+		// of its own, though October's is near it
+		$this->receivedInOctober();
+
+		$income = $this->service->update(1, 'user1', $this->oneTime('2026-11-02'));
+
+		$this->assertTrue($income->getIsActive());
+		$this->assertSame('2026-11-02', $income->getNextExpectedDate());
+	}
+
+	public function testAFinalPaymentAfterTheReceivedOccurrenceStaysExpectedWithNoSnapshot(): void {
+		$this->income(['lastReceivedDate' => '2026-10-19', 'nextExpectedDate' => '2026-11-20']);
+		$this->credit(305, '2026-10-19');
+
+		$income = $this->service->update(1, 'user1', $this->oneTime('2026-11-02'));
+
+		$this->assertTrue($income->getIsActive());
+		$this->assertSame('2026-11-02', $income->getNextExpectedDate());
+	}
+
+	public function testAWeeklyIncomeTheSwitchLeftExpectedStaysExpectedWhenMovedADay(): void {
+		// Received on the 12th; a one-off on the 20th is still to come, and
+		// stays so when its date moves: once it is one-time, a receipt a
+		// week off no longer counts
+		$this->income(['frequency' => 'weekly', 'expectedDay' => 1, 'startDate' => '2026-09-07',
+			'lastReceivedDate' => '2026-10-12', 'nextExpectedDate' => '2026-10-19']);
+		$this->credit(306, '2026-10-12');
+
+		$income = $this->service->update(1, 'user1', ['frequency' => 'one-time', 'startDate' => '2026-10-20']);
+		$this->assertTrue($income->getIsActive());
+
+		$income = $this->service->update(1, 'user1', ['startDate' => '2026-10-21']);
+
+		$this->assertTrue($income->getIsActive(), 'Moving the date a day marked it received');
+		$this->assertSame('2026-10-21', $income->getNextExpectedDate());
 	}
 
 	public function testUndoAfterTheSwitchReopensTheIncomeOnItsNewDate(): void {
