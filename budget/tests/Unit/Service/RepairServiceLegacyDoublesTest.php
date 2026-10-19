@@ -777,6 +777,35 @@ class RepairServiceLegacyDoublesTest extends TestCase {
 		$this->serviceOn('2026-10-19')->repair(self::USER_ID, ['duplicateTransactions'], ['transactionIds' => [1585]]);
 	}
 
+	/**
+	 * An edit since used up the snapshot of the second payment. The bill
+	 * still says it was paid on the 15th, the newer payment's date, so it
+	 * takes the older one's date once that payment is gone, rather than
+	 * reading "Paid 2026-10-15" with nothing paid that day.
+	 */
+	public function testAOneTimeBillPaidAgainWithItsSnapshotSpentIsStillLeftPaidByTheOlderPayment(): void {
+		$this->with([$this->cembraPay(['paidUndoState' => null])], [
+			$this->row(1277, 93, 'CembraPay Temu', '2026-09-27', 151.67, '2026-09-27 18:38:36'),
+			$this->row(1585, 93, 'CembraPay Temu', '2026-10-15', 151.67, '2026-10-15 19:47:21'),
+		]);
+		$service = $this->serviceOn('2026-10-19');
+
+		$found = $this->duplicates($service);
+
+		$this->assertSame([[1585, 1277]], self::pairs($found));
+		$this->assertSame('2026-09-27', $found[0]['paidDateAfterRepair']);
+
+		$this->transactionService->expects($this->once())->method('deleteAsAccountOwner')->with(1585)->willReturn(true);
+		$this->billMapper->expects($this->once())->method('updateFields')->with(93, self::USER_ID, [
+			'last_paid_date' => '2026-09-27',
+			'is_active' => false,
+			'next_due_date' => null,
+			'paid_undo_state' => null,
+		]);
+
+		$service->repair(self::USER_ID, ['duplicateTransactions'], ['transactionIds' => [1585]]);
+	}
+
 	// ---------------------------------------------------------------
 	// Paid One-Time Bills Still Active
 	// ---------------------------------------------------------------

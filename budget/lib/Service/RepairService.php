@@ -469,7 +469,7 @@ class RepairService {
 				];
 				// The older payment is the one-time bill's own: removing the
 				// newer leaves the bill paid by it
-				if ($pick === $surplus && $bill->getFrequency() === 'one-time' && in_array($pick->getId(), $written, true)) {
+				if ($pick === $surplus && self::paidLastBy($bill, $surplus, $written)) {
 					$finding['paidDateAfterRepair'] = $holder->getDate();
 				}
 				$duplicates[] = $finding;
@@ -522,12 +522,27 @@ class RepairService {
 	}
 
 	/**
+	 * Whether a one-time bill's last payment is this row: the bill's last
+	 * snapshot names it, or, with no snapshot of that payment left (an edit
+	 * used it up), the bill was last paid on the row's date.
+	 *
+	 * @param int[] $written the rows the last payment wrote
+	 */
+	private static function paidLastBy(Bill $bill, Transaction $tx, array $written): bool {
+		if ($bill->getFrequency() !== 'one-time') {
+			return false;
+		}
+		return in_array($tx->getId(), $written, true)
+			|| ($written === [] && substr((string)$tx->getDate(), 0, 10) === substr((string)$bill->getLastPaidDate(), 0, 10));
+	}
+
+	/**
 	 * Which row of a pair to offer for removal, if any.
 	 *
 	 *  - The old job's pending row: the one that should never have been
 	 *    booked.
-	 *  - For a one-time bill paid again, the newer payment. The last
-	 *    snapshot names it, but the older one paid the bill's date, and
+	 *  - For a one-time bill paid again, the newer payment, when it is the
+	 *    bill's last (paidLastBy()). The older one paid the bill's date, and
 	 *    Mark Unpaid would re-open a bill already paid. Offering the older
 	 *    one deleted the payment dated right.
 	 *  - Otherwise a row the last payment didn't write, as Mark Unpaid takes
@@ -543,7 +558,7 @@ class RepairService {
 				return $row;
 			}
 		}
-		if ($bill->getFrequency() === 'one-time' && in_array($surplus, $removable, true) && in_array($surplus->getId(), $written, true)) {
+		if (in_array($surplus, $removable, true) && self::paidLastBy($bill, $surplus, $written)) {
 			return $surplus;
 		}
 		foreach ($removable as $row) {
