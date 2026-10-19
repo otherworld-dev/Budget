@@ -251,6 +251,29 @@ class IncomeOneTimeSwitchTest extends TestCase {
 		$this->assertSame('2026-10-21', $income->getNextExpectedDate());
 	}
 
+	public function testAReopenedOneTimeIncomeIsSettledByAnyEdit(): void {
+		// The state the switch used to leave: one-time, expected again on
+		// the date it was received. An edit settles it, as it does a bill.
+		$this->income(['frequency' => 'one-time', 'startDate' => '2026-10-20',
+			'lastReceivedDate' => '2026-10-19', 'nextExpectedDate' => '2026-10-20']);
+		$this->credit(307, '2026-10-19');
+
+		$income = $this->service->update(1, 'user1', ['amount' => 15.90]);
+
+		$this->assertFalse($income->getIsActive());
+		$this->assertNull($income->getNextExpectedDate());
+		$this->assertSame('2026-10-19', $income->getLastReceivedDate());
+	}
+
+	public function testAOneTimeIncomeStillToComeStaysExpectedWhenEdited(): void {
+		$this->income(['frequency' => 'one-time', 'startDate' => '2026-11-20', 'nextExpectedDate' => '2026-11-20']);
+
+		$income = $this->service->update(1, 'user1', ['amount' => 15.90]);
+
+		$this->assertTrue($income->getIsActive());
+		$this->assertSame('2026-11-20', $income->getNextExpectedDate());
+	}
+
 	public function testUndoAfterTheSwitchReopensTheIncomeOnItsNewDate(): void {
 		// The snapshot was taken under the monthly schedule, which had no
 		// start date: restored as it was, the one-time income lost its date

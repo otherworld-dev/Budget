@@ -159,22 +159,26 @@ class RecurringIncomeService extends AbstractCrudService {
 
 		if ($scheduleChanged) {
 			$this->validateSchedule($income->getFrequency(), $income->getStartDate());
-			// A settled income stays settled; an active one moves its pending
-			// occurrence within its own month (or week) under the new schedule
-			if ($income->getIsActive()) {
-				$next = $this->rescheduled($before, $income, $this->today($userId));
-				// ...unless it is a one-time date the income has already
-				// received. Switched to One-Time on the date it last arrived,
-				// it was expected again, and Mark Received offered to book the
-				// money a second time, as for bills (#399).
-				$settled = $income->getFrequency() === 'one-time' && $next !== null && $this->receivedCoversDate($before, $next);
-				if ($settled) {
-					$income->setIsActive(false);
-					$income->setNextExpectedDate(null);
-					$directDbUpdates['next_expected_date'] = null;
-				} else {
-					$income->setNextExpectedDate($next);
-				}
+		}
+		// A settled income stays settled; an active one moves its pending
+		// occurrence within its own month (or week) under the new schedule.
+		// An active one-time one is judged on every edit, as a bill is: one
+		// the switch used to put back on the date it was received is settled.
+		if ($income->getIsActive() && ($scheduleChanged || $income->getFrequency() === 'one-time')) {
+			$next = $scheduleChanged ? $this->rescheduled($before, $income, $this->today($userId)) : $income->getNextExpectedDate();
+			// ...unless it is a one-time date the income has already
+			// received. Switched to One-Time on the date it last arrived,
+			// it was expected again, and Mark Received offered to book the
+			// money a second time, as for bills (#399).
+			$settled = $income->getFrequency() === 'one-time' && $next !== null && $this->receivedCoversDate($before, $next);
+			if ($settled) {
+				$income->setIsActive(false);
+				$income->setNextExpectedDate(null);
+				$directDbUpdates['next_expected_date'] = null;
+			} elseif ($scheduleChanged) {
+				$income->setNextExpectedDate($next);
+			}
+			if ($scheduleChanged) {
 				// Undoing the receipt that settled it reopens it on its new
 				// date. Undoing any other would restore a date of the old
 				// schedule.
