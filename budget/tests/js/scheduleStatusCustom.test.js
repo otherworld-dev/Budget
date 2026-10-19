@@ -3,8 +3,8 @@
  * a month: a Custom bill due once a year turned Upcoming with Mark Paid 31
  * days after it was paid (one click paid next year's), and a one-time bill
  * an edit had put back on the date it paid read "Paid 27 Sep, next due
- * 28 Sep" beside its Overdue badge. A Custom schedule's cycle is now a year
- * shared out among the dates it falls on; a one-time item has none.
+ * 28 Sep" beside its Overdue badge. A Custom bill's last payment is now
+ * judged by the dates its pattern falls on; a one-time item has no cycle.
  */
 
 import { describe, it, expect, vi } from 'vitest';
@@ -75,6 +75,48 @@ describe('a Custom row', () => {
         expect(row.status).toBe('paid');
     });
 
+    it('paid early for its one month stays paid', () => {
+        // Paid on 1 September for the 28th
+        const row = billRowState(custom([9], { nextDueDate: '2027-09-28', lastPaidDate: '2026-09-01' }), '2027-01-10', settings);
+
+        expect(row.status).toBe('paid');
+        expect(row.canPay).toBe(false);
+    });
+
+    it('with an uneven pattern stays paid through its long gap', () => {
+        // January and February: after February's payment nothing is due
+        // until next January, and a year shared out evenly offered Mark Paid
+        // for it from August
+        const row = billRowState(custom([1, 2], { nextDueDate: '2027-01-28', lastPaidDate: '2026-02-27' }), '2026-09-15', settings);
+
+        expect(row.status).toBe('paid');
+        expect(row.canPay).toBe(false);
+        expect(row.dateText).toBe('Paid 2026-02-27, next due 2027-01-28');
+    });
+
+    it('with the reporter\'s instalments stays paid from December to July', () => {
+        // Staats und Gemeindesteuer: July, August, October, November, December
+        const months = [7, 8, 10, 11, 12];
+        const afterDecember = billRowState(custom(months, { nextDueDate: '2027-07-28', lastPaidDate: '2026-12-27' }), '2027-03-15', settings);
+        expect(afterDecember.status).toBe('paid');
+        expect(afterDecember.canPay).toBe(false);
+
+        // August paid, October not yet due, then October overdue
+        const afterAugust = custom(months, { nextDueDate: '2026-10-28', lastPaidDate: '2026-08-30' });
+        expect(billRowState(afterAugust, '2026-10-19', settings).status).toBe('paid');
+        expect(billRowState(afterAugust, '2026-10-24', settings).status).toBe('due-soon');
+        expect(billRowState(afterAugust, '2026-11-05', settings).status).toBe('overdue');
+    });
+
+    it('with a day past a month\'s end reads its months\' last days', () => {
+        const row = billRowState(
+            custom([2, 3], { dueDay: 31, nextDueDate: '2027-02-28', lastPaidDate: '2026-03-30' }),
+            '2026-12-01', settings
+        );
+
+        expect(row.status).toBe('paid');
+    });
+
     it('with no usable pattern runs monthly, as the server schedules it', () => {
         for (const pattern of [null, '', 'not json', '{}', '{"months":[]}']) {
             const row = billRowState(
@@ -87,21 +129,34 @@ describe('a Custom row', () => {
 });
 
 describe('scheduleState', () => {
-    it('shares a year out among the dates a Custom pattern falls on', () => {
-        const state = (pattern, lastDate, today) => scheduleState(
-            { frequency: 'custom', isActive: true, dueDate: '2027-09-28', lastDate, pattern }, today
+    it('judges a Custom payment by the dates its pattern falls on', () => {
+        const state = (pattern, dueDate, lastDate, today) => scheduleState(
+            { frequency: 'custom', isActive: true, dueDate, lastDate, pattern, dueDay: 28 }, today
+        );
+        const quarters = '{"months":[3,6,9,12]}';
+
+        // Paid on or after the occurrence before the next one
+        expect(state(quarters, '2026-12-28', '2026-09-27', '2026-11-15').recentlySettled).toBe(true);
+        // ...or nearer it than the one before that: September paid in August
+        expect(state(quarters, '2026-12-28', '2026-08-15', '2026-11-15').recentlySettled).toBe(true);
+        // A payment for June settles nothing since: September was skipped
+        expect(state(quarters, '2026-12-28', '2026-06-27', '2026-11-15').recentlySettled).toBe(false);
+        // A month listed twice falls once, and one stored as text is read
+        expect(state('{"months":[9,9]}', '2027-09-28', '2026-09-27', '2027-09-20').recentlySettled).toBe(true);
+        expect(state('{"months":["9"]}', '2027-09-28', '2026-09-27', '2027-09-20').recentlySettled).toBe(true);
+        // Dates rather than months
+        const dates = { dates: [{ month: 3, day: 1 }, { month: 9, day: 15 }] };
+        expect(state(dates, '2027-03-01', '2026-09-14', '2027-01-20').recentlySettled).toBe(true);
+        expect(state(dates, '2027-03-01', '2026-03-01', '2026-10-20').recentlySettled).toBe(false);
+    });
+
+    it('reads a Custom pattern\'s day off its next due date when not told it', () => {
+        const state = scheduleState(
+            { frequency: 'custom', isActive: true, dueDate: '2027-09-28', lastDate: '2026-09-27', pattern: '{"months":[9]}' },
+            '2027-03-01'
         );
 
-        // One month: a year
-        expect(state('{"months":[9]}', '2026-09-27', '2027-09-20').recentlySettled).toBe(true);
-        // Four months: 92 days
-        expect(state('{"months":[3,6,9,12]}', '2026-09-27', '2026-12-27').recentlySettled).toBe(true);
-        expect(state('{"months":[3,6,9,12]}', '2026-09-27', '2026-12-29').recentlySettled).toBe(false);
-        // A month listed twice falls once
-        expect(state('{"months":[9,9]}', '2026-09-27', '2027-09-20').recentlySettled).toBe(true);
-        // Dates rather than months
-        expect(state({ dates: [{ month: 3, day: 1 }, { month: 9, day: 15 }] }, '2026-09-27', '2027-03-20').recentlySettled).toBe(true);
-        expect(state({ dates: [{ month: 3, day: 1 }, { month: 9, day: 15 }] }, '2026-09-27', '2027-03-30').recentlySettled).toBe(false);
+        expect(state.recentlySettled).toBe(true);
     });
 
     it('gives a one-time item no cycle: a payment beside it never settles its date', () => {

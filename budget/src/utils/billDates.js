@@ -38,6 +38,7 @@ export function billRowState(bill, today, settings, accounts = undefined) {
         dueDate: isActive ? (bill.nextDueDate || bill.next_due_date || null) : null,
         lastDate: bill.lastPaidDate || bill.last_paid_date || null,
         pattern: bill.customRecurrencePattern ?? bill.custom_recurrence_pattern ?? null,
+        dueDay: bill.dueDay ?? bill.due_day ?? null,
     }, today);
 
     const key = { inactive: 'paid', settled: 'paid', overdue: 'overdue', soon: 'due-soon', upcoming: 'upcoming' }[status];

@@ -20,49 +20,93 @@ const CYCLE_DAYS = {
 const SOON_DAYS = 7;
 
 /**
- * How many times a year a Custom schedule falls, read as the server reads
- * it: its months, else its dates. 0 when it has no usable pattern.
+ * The days a Custom schedule falls on each year, read as the server reads
+ * its pattern: its months on the due day, else its dates. Empty when it has
+ * no usable pattern; the server then runs it monthly.
  *
  * @param {string|object|null} pattern the custom recurrence pattern, as JSON or parsed
- * @return {number}
+ * @param {number} dueDay
+ * @return {Array<Array<number>>} [month, day] pairs
  */
-function customOccurrencesPerYear(pattern) {
+function customDays(pattern, dueDay) {
     let parsed = pattern;
     if (typeof parsed === 'string') {
         try {
             parsed = JSON.parse(parsed);
         } catch {
-            return 0;
+            return [];
         }
     }
-    if (!parsed || typeof parsed !== 'object') {
-        return 0;
+    const month = value => Math.trunc(Number(value));
+    const inYear = value => month(value) >= 1 && month(value) <= 12;
+    if (Array.isArray(parsed?.months) && parsed.months.length > 0) {
+        return parsed.months.filter(inYear).map(value => [month(value), dueDay]);
     }
-    if (Array.isArray(parsed.months) && parsed.months.length > 0) {
-        return new Set(parsed.months.map(Number)).size;
+    if (Array.isArray(parsed?.dates) && parsed.dates.length > 0) {
+        return parsed.dates
+            .filter(date => inYear(date?.month) && date.day !== undefined && date.day !== null)
+            .map(date => [month(date.month), Math.trunc(Number(date.day))]);
     }
-    if (Array.isArray(parsed.dates) && parsed.dates.length > 0) {
-        return new Set(parsed.dates.map(date => `${date?.month}-${date?.day}`)).size;
-    }
-    return 0;
+    return [];
 }
 
 /**
- * Roughly one interval of a schedule, in days. A Custom one shares a year
- * out among the dates it falls on (#399): it fell back to a month, so a bill
- * due once a year turned Upcoming with Mark Paid 31 days after it was paid.
- * Without a usable pattern it runs monthly, as on the server.
+ * $day of a month as Y-m-d, or the month's last day when it has fewer
  *
- * @param {string} frequency
- * @param {string|object|null} pattern
- * @return {number}
+ * @param {number} year
+ * @param {number} month 1-12
+ * @param {number} day
+ * @return {string}
  */
-function cycleDays(frequency, pattern) {
-    if (frequency === 'custom') {
-        const perYear = customOccurrencesPerYear(pattern);
-        return perYear > 0 ? Math.ceil(366 / perYear) : CYCLE_DAYS.monthly;
+function clampedDate(year, month, day) {
+    const last = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    const clamped = Math.max(1, Math.min(day || 1, last));
+    return `${year}-${String(month).padStart(2, '0')}-${String(clamped).padStart(2, '0')}`;
+}
+
+/**
+ * The last date a Custom schedule fell on before $date
+ *
+ * @param {Array<Array<number>>} days [month, day] pairs, not empty
+ * @param {string} date Y-m-d
+ * @return {string} Y-m-d
+ */
+function customOccurrenceBefore(days, date) {
+    const year = Number(date.slice(0, 4));
+    let before = days.map(([month, day]) => clampedDate(year, month, day)).filter(day => day < date);
+    if (before.length === 0) {
+        before = days.map(([month, day]) => clampedDate(year - 1, month, day));
     }
-    return CYCLE_DAYS[frequency] ?? 31;
+    return before.sort().pop();
+}
+
+/**
+ * Whether a Custom bill's last payment settled the occurrence before its
+ * next due date (#399): made on or after it, or nearer it than the
+ * occurrence before that, so a payment made early still counts. A year
+ * shared out evenly among an uneven pattern's dates held a January and
+ * February bill paid in February as paid only until August, and offered
+ * Mark Paid for next January from then on. Null when the pattern can't be
+ * read.
+ *
+ * @param {string|object|null} pattern
+ * @param {number|null} dueDay its due day, else the next due date's
+ * @param {string} dueDate the next occurrence, Y-m-d
+ * @param {string} lastDate the last payment, Y-m-d
+ * @return {boolean|null}
+ */
+function customSettled(pattern, dueDay, dueDate, lastDate) {
+    const days = customDays(pattern, Number(dueDay) || Number(dueDate.slice(8, 10)));
+    if (days.length === 0) {
+        return null;
+    }
+    const before = customOccurrenceBefore(days, dueDate);
+    const ahead = formatters.daysBetweenDates(lastDate, before);
+    if (ahead <= 0) {
+        return true;
+    }
+    const earlier = customOccurrenceBefore(days, before);
+    return ahead * 2 <= formatters.daysBetweenDates(earlier, before);
 }
 
 /**
@@ -77,8 +121,11 @@ function cycleDays(frequency, pattern) {
  *    close yet, so there is nothing to act on
  *  - upcoming: anything further off
  *
- * A one-time item has no cycle: while it is still owed, a payment beside it
- * settles nothing (#399).
+ * A Custom schedule's dates can be months apart and uneven, so its last
+ * payment is judged by the dates its pattern falls on (customSettled());
+ * one with no usable pattern runs monthly, as on the server. A one-time item
+ * has no cycle: while it is still owed, a payment beside it settles nothing
+ * (#399).
  *
  * Dates are compared as Y-m-d strings: parsed with new Date() they are UTC
  * midnight, which west of UTC is the evening before.
@@ -89,13 +136,15 @@ function cycleDays(frequency, pattern) {
  * @param {string|null} item.dueDate next occurrence, Y-m-d
  * @param {string|null} item.lastDate last payment or receipt, Y-m-d
  * @param {string|object|null} [item.pattern] a Custom schedule's recurrence pattern
+ * @param {number|null} [item.dueDay] a Custom schedule's due day; read off dueDate when left out
  * @param {string} today the user's local date, Y-m-d
  * @return {{status: string, recentlySettled: boolean}}
  */
-export function scheduleState({ frequency, isActive, dueDate, lastDate, pattern = null }, today) {
+export function scheduleState({ frequency, isActive, dueDate, lastDate, pattern = null, dueDay = null }, today) {
     const sinceLast = lastDate ? formatters.daysBetweenDates(lastDate, today) : null;
+    const custom = frequency === 'custom' && dueDate && lastDate ? customSettled(pattern, dueDay, dueDate, lastDate) : null;
     const recentlySettled = frequency !== 'one-time' && sinceLast !== null && sinceLast >= 0
-        && sinceLast <= cycleDays(frequency, pattern);
+        && (custom ?? sinceLast <= (CYCLE_DAYS[frequency] ?? 31));
 
     if (!isActive || !dueDate) {
         return { status: 'inactive', recentlySettled };
