@@ -1262,7 +1262,7 @@ class TransactionService {
 		}
 
 		// A second click, or a stale page
-		if ((int)($transaction->getBillId() ?? 0) === $billId) {
+		if (($transaction->getBillId() ?? 0) === $billId) {
 			return $transaction;
 		}
 		if (($transaction->getStatus() ?? 'cleared') === 'scheduled') {
@@ -1286,8 +1286,9 @@ class TransactionService {
 
 		$attached = $this->update($transactionId, $this->ownerOf($transaction), ['billId' => $billId], $userId);
 
-		if (($bill->getIsTransfer() ?? false) && $transaction->getLinkedTransactionId() !== null) {
-			$arrival = $this->mapper->findById($transaction->getLinkedTransactionId());
+		$arrivalId = $transaction->getLinkedTransactionId();
+		if ($bill->getIsTransfer() && $arrivalId !== null) {
+			$arrival = $this->mapper->findById($arrivalId);
 			if ($arrival !== null && $arrival->getAccountId() === $bill->getDestinationAccountId()
 				&& !$this->paysLiveBill($arrival) && $this->withinScope($arrival, $userId, $writableAccountIds)) {
 				$this->update($arrival->getId(), $this->ownerOf($arrival), ['billId' => $billId], $userId);
@@ -1317,7 +1318,7 @@ class TransactionService {
 	 */
 	public function detachFromBill(int $transactionId, string $userId, ?array $writableAccountIds = null): Transaction {
 		$transaction = $this->findScoped($transactionId, $userId, $writableAccountIds);
-		$billId = (int)($transaction->getBillId() ?? 0);
+		$billId = $transaction->getBillId() ?? 0;
 		if ($billId === 0) {
 			throw new \InvalidArgumentException($this->l !== null
 				? $this->l->t('This transaction isn\'t linked to a bill')
@@ -1329,10 +1330,9 @@ class TransactionService {
 				: 'This is the upcoming payment of a bill, so it stays linked to it. Edit or skip the bill instead.');
 		}
 
-		$otherSide = $transaction->getLinkedTransactionId() !== null
-			? $this->mapper->findById($transaction->getLinkedTransactionId())
-			: null;
-		if ($otherSide !== null && (int)($otherSide->getBillId() ?? 0) !== $billId) {
+		$otherSideId = $transaction->getLinkedTransactionId();
+		$otherSide = $otherSideId !== null ? $this->mapper->findById($otherSideId) : null;
+		if ($otherSide !== null && ($otherSide->getBillId() ?? 0) !== $billId) {
 			$otherSide = null;
 		}
 
@@ -1363,7 +1363,7 @@ class TransactionService {
 	 * Mark Paid's candidate search reads them.
 	 */
 	private function paysLiveBill(Transaction $row): bool {
-		$billId = (int)($row->getBillId() ?? 0);
+		$billId = $row->getBillId() ?? 0;
 		return $billId !== 0 && $this->bills()->findByIds([$billId]) !== [];
 	}
 

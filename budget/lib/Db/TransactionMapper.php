@@ -1392,7 +1392,7 @@ class TransactionMapper extends QBMapper {
 			'isSplit' => isset($row['is_split']) ? (bool)$row['is_split'] : null,
 			'billId' => ($row['bill_id'] ?? null) ? (int)$row['bill_id'] : null,
 			// The row names a bill that no longer exists (joinListColumns())
-			'billDeleted' => ($row['bill_id'] ?? null) && array_key_exists('live_bill_id', $row) && $row['live_bill_id'] === null,
+			'billDeleted' => (int)($row['bill_id'] ?? 0) !== 0 && array_key_exists('live_bill_id', $row) && $row['live_bill_id'] === null,
 			'status' => $row['status'] ?? 'cleared',
 			'excludedFromForecast' => (bool)($row['excluded_from_forecast'] ?? false),
 			'pensionContribId' => ($row['pension_contrib_id'] ?? null) ? (int)$row['pension_contrib_id'] : null,
