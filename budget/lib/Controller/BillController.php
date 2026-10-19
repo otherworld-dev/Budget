@@ -911,6 +911,42 @@ class BillController extends Controller {
 	}
 
 	/**
+	 * The payment the ledger already holds for the occurrence the page
+	 * shows, if it has one (#399): {existing: {id, date, amount}|null}.
+	 *
+	 * Mark Paid asks about it before rows to link are offered. The
+	 * "Existing Transaction Found" dialog came first, and two of its
+	 * choices never reached the question: a re-opened bill got an unrelated
+	 * row linked as a second payment, or was marked paid today with a
+	 * warning that nothing was recorded. Checked as Mark Paid is, and
+	 * looked for as the person paying: only a row in an account they can
+	 * write to is named, the one Mark Paid itself would refuse over.
+	 *
+	 * The query's dueDate is the occurrence the page showed; once the bill
+	 * has moved past it nothing is named, and Mark Paid then refuses it as
+	 * already recorded.
+	 * @NoAdminRequired
+	 */
+	public function recordedPayment(int $id): DataResponse {
+		try {
+			$this->requireWriteAccess('bill', $id);
+			$this->requireBillAccountsWritable($id);
+			$dueDate = $this->request->getParams()['dueDate'] ?? null;
+			$existing = $this->service->recordedPaymentForPendingOccurrence(
+				$id,
+				$this->billOwner($id),
+				is_string($dueDate) ? $dueDate : null,
+				$this->userId
+			);
+			return new DataResponse(['existing' => $existing]);
+		} catch (DoesNotExistException $e) {
+			return $this->handleNotFoundError($e, $this->l->t('Bill'), ['billId' => $id]);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to mark bill as paid'), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
+		}
+	}
+
+	/**
 	 * Bills recently marked paid without a recorded transaction (#274)
 	 * @NoAdminRequired
 	 */
