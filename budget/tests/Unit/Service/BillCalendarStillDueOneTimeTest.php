@@ -159,14 +159,33 @@ class BillCalendarStillDueOneTimeTest extends TestCase {
 	}
 
 	/**
-	 * A payment nowhere near the date paid something else: it shows in the
-	 * month it was made and the invoice is still owed, as the bill says.
+	 * Paid three weeks early and linked: outside the date's due window, but
+	 * the only payment the invoice has, so it paid it. September held it and
+	 * the 100 still owed, 200 again.
 	 */
-	public function testAPaymentFarFromTheDateLeavesItOwed(): void {
-		$overview = $this->overview([$this->stillDue()], [$this->payment(1500, 14219, '2026-07-20', 100.0)]);
+	public function testAPaymentMadeWeeksBeforeTheDatePaysIt(): void {
+		$overview = $this->overview([$this->stillDue()], [$this->payment(1500, 14219, '2026-09-05', 100.0)]);
 
 		$row = $overview['bills'][0];
-		$this->assertSame([7 => 100.0], $this->rounded($row['paidAmounts']));
+		$this->assertSame([9 => 100.0], $this->rounded($row['paidAmounts']));
+		$this->assertSame([['date' => '2026-09-05', 'amount' => 100.0, 'due' => '2026-09-28']], $row['paidDetails'][9]);
+		$this->assertSame([], $row['owedAmounts']);
+		$this->assertEqualsWithDelta(100.0, $overview['monthlyTotals'][9], 0.001);
+	}
+
+	/**
+	 * A payment from before the bill was last marked paid paid an earlier
+	 * date (a monthly bill switched to One-Time for its final invoice): it
+	 * stays in its month and the invoice is still owed.
+	 */
+	public function testAPaymentFromBeforeItWasLastMarkedPaidLeavesItOwed(): void {
+		$bill = $this->cornerCard(14219, 100.0, '2026-09-28', [
+			'isActive' => true, 'nextDueDate' => '2026-09-28', 'lastPaidDate' => '2026-08-27',
+		]);
+
+		$row = $this->overview([$bill], [$this->payment(1500, 14219, '2026-08-27', 100.0)])['bills'][0];
+
+		$this->assertSame([8 => 100.0], $this->rounded($row['paidAmounts']));
 		$this->assertSame([9 => 100.0], $this->rounded($row['owedAmounts']));
 		$this->assertSame([], $row['paidMoreThanOnce']);
 	}

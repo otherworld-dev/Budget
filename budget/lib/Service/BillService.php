@@ -3450,12 +3450,14 @@ class BillService {
 	 * September paid nine times, and an invoice paid a second time weeks
 	 * later read as paid twice (#399). Its date now takes the payments made
 	 * within its due window (dueDateToleranceDays()), a double payment
-	 * included. With none that close, a bill that has moved past the date
-	 * takes the nearest one, however late or early it was; one still due
-	 * takes none, so a final invoice switched to One-Time stays due and the
-	 * old schedule's payments stay put. Every other payment is a paid month
-	 * of its own, the month it was made, and paid no date: never a second
-	 * payment of anything.
+	 * included. With none that close it takes the nearest payment that can
+	 * have paid it, however early or late: any, once the bill has moved past
+	 * the date; for a one-time bill still due, one made since it was last
+	 * marked paid. So a final invoice switched to One-Time stays due, the
+	 * old schedule's payments staying put, while an invoice paid weeks early
+	 * and linked to it is paid. Every other payment is a paid month of its
+	 * own, the month it was made, and paid no date: never a second payment
+	 * of anything.
 	 *
 	 * The year's dates have neighbours outside it. A payment nearer the
 	 * bill's last date of the year before, or its first of the year after,
@@ -3563,17 +3565,25 @@ class BillService {
 		}
 
 		// A single date in the year: it takes the payments within its due
-		// window, or with none that close and the date behind the bill, the
-		// nearest one; on a tie the earlier. The rest are months of their own.
+		// window, or with none that close the nearest one that can have paid
+		// it, on a tie the earlier. The rest are months of their own.
 		$single = (count($own) === 1 && $isClosed($own[0])) ? $own[0] : null;
 		if ($single !== null) {
 			$open = array_values(array_filter(array_keys($payments), fn (int $payment): bool => !isset($slotOf[$payment])));
 			$apart = fn (int $payment): int => abs($paidDay[$payment] - $slots[$single][2]);
 			$window = $this->dueDateToleranceDays($bill->getFrequency());
 			$onDate = array_values(array_filter($open, fn (int $payment): bool => $apart($payment) <= $window));
-			if ($onDate === [] && $open !== [] && in_array($single, $settledSlots, true)) {
-				$best = $open[0];
-				foreach ($open as $payment) {
+			// Any payment, once the bill has moved past the date. A one-time
+			// bill still due can only have been paid by one made since it was
+			// last marked paid: those from before paid its old schedule.
+			$lastPaid = $bill->getLastPaidDate();
+			$since = ($lastPaid === null || $lastPaid === '') ? null : substr($lastPaid, 0, 10);
+			$candidates = (in_array($single, $settledSlots, true) || $since === null)
+				? $open
+				: array_values(array_filter($open, fn (int $payment): bool => $paidOn[$payment]->format('Y-m-d') > $since));
+			if ($onDate === [] && $candidates !== []) {
+				$best = $candidates[0];
+				foreach ($candidates as $payment) {
 					if ($apart($payment) < $apart($best)) {
 						$best = $payment;
 					}

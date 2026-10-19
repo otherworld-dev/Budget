@@ -29,9 +29,10 @@ use Psr\Log\LoggerInterface;
  * ("9× 292.70" in September, February to August blank), and an invoice
  * paid twice weeks apart read as paid twice in its own month. Its date now
  * takes the payments made within the due window (dueDateToleranceDays());
- * with none that close, a bill that has moved past its date takes the
- * nearest one. Every other payment is a paid month of its own, the month it
- * was made, and never a second payment of the date.
+ * with none that close, the nearest one that can have paid it (for a
+ * one-time bill still due, one made since it was last marked paid). Every
+ * other payment is a paid month of its own, the month it was made, and
+ * never a second payment of the date.
  */
 class BillCalendarSingleDateTest extends TestCase {
 	private const TODAY = '2026-10-19';
@@ -183,9 +184,10 @@ class BillCalendarSingleDateTest extends TestCase {
 	/**
 	 * The reporter's 0794880254, switched to One-Time on 29 November for its
 	 * final invoice, which is still due. None of its payments is anywhere
-	 * near that date: they paid the monthly schedule, so they keep their
-	 * months, and November is still owed. Taking the nearest payment would
-	 * have moved September's onto the unpaid invoice.
+	 * near that date, and all were made by the time it was last marked paid:
+	 * they paid the monthly schedule, so they keep their months, and
+	 * November is still owed. Taking the nearest payment would have moved
+	 * September's onto the unpaid invoice.
 	 */
 	public function testAFinalInvoiceSwitchedToOneTimeStaysDue(): void {
 		$bill = $this->oneTime(14068, '0794880254', 35.90, '2026-11-29', [
