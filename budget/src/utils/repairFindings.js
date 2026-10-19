@@ -1,8 +1,38 @@
 /**
  * What Settings > Repair Data shows for the findings of a scan.
+ *
+ * Amounts and dates go in spans of their own (repair-item-amount,
+ * repair-item-date) that the stylesheet keeps whole: beside a long note,
+ * Chrome broke a date after its hyphens ('2026-10-' / '15').
  */
 import { translate as t } from '@nextcloud/l10n';
 import { escapeHtml } from './dom.js';
+
+/**
+ * One row of "Duplicate Auto-Generated Transactions": its tick, the
+ * payment's name, amount and date, and the note on what it repeats.
+ *
+ * The name is the payment's vendor. A payment with none (the 2.x job's
+ * pending rows carried their bill's name in the description only) goes by
+ * its bill's name, else by the name the other payment is recorded under:
+ * the scan only pairs the two when that names the same bill (#399).
+ *
+ * @param {object} finding one of the scan's duplicateTransactions
+ * @param {function(number): string} formatAmount
+ * @return {string} HTML
+ */
+export function duplicateItem(finding, formatAmount) {
+    const name = finding.vendor || finding.billName || finding.originalDescription;
+    return `<div class="repair-item">
+        <label class="repair-item-select">
+            <input type="checkbox" class="repair-dup-checkbox" data-transaction-id="${Number(finding.duplicateId)}"${finding.selected ? ' checked' : ''}>
+            <span>${name ? escapeHtml(name) : t('budget', '(unnamed)')}</span>
+        </label>
+        <span class="repair-item-amount">${formatAmount(finding.amount)}</span>
+        <span class="repair-item-date">${escapeHtml(finding.date)}</span>
+        <span class="repair-item-note">${duplicateNote(finding, formatAmount)}</span>
+    </div>`;
+}
 
 /**
  * The note beside a duplicate payment: the payment it repeats, and what
@@ -76,8 +106,8 @@ function amountsDiffer(finding) {
 export function stuckIncomeItem(income, formatAmount) {
     return `<div class="repair-item">
         <span>${escapeHtml(income.name) || t('budget', '(unnamed)')}</span>
-        <span>${formatAmount(income.amount)}</span>
-        <span>${t('budget', 'Received {date}', { date: income.lastReceivedDate })}</span>
+        <span class="repair-item-amount">${formatAmount(income.amount)}</span>
+        <span class="repair-item-date">${t('budget', 'Received {date}', { date: income.lastReceivedDate })}</span>
         <span class="repair-item-note">${t('budget', 'Moves on to {date}', { date: income.settledNextExpectedDate })}</span>
     </div>`;
 }

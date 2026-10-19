@@ -82,7 +82,7 @@ import { transactionTotalsByCurrency } from './utils/helpers.js';
 import { categoryOptionsHtml } from './utils/formSelects.js';
 import { apiFetch, ApiError } from './utils/api.js';
 import { openAccounts } from './utils/accounts.js';
-import { duplicateNote, stuckIncomeItem } from './utils/repairFindings.js';
+import { duplicateItem, stuckIncomeItem } from './utils/repairFindings.js';
 
 // Configuration
 // Core
@@ -1780,18 +1780,7 @@ class BudgetApp {
             // only looks like a duplicate is a real payment lost for good when
             // it is deleted. Only pairs the scan is sure of come ticked.
             if (dupCount > 0) {
-                const dupItems = findings.duplicateTransactions.map(d => {
-                    const note = duplicateNote(d, formatCurrency);
-                    return `<div class="repair-item">
-                        <label class="repair-item-select">
-                            <input type="checkbox" class="repair-dup-checkbox" data-transaction-id="${Number(d.duplicateId)}"${d.selected ? ' checked' : ''}>
-                            <span>${dom.escapeHtml(d.vendor) || t('budget', '(unnamed)')}</span>
-                        </label>
-                        <span>${formatCurrency(d.amount)}</span>
-                        <span>${dom.escapeHtml(d.date)}</span>
-                        <span class="repair-item-note">${note}</span>
-                    </div>`;
-                }).join('');
+                const dupItems = findings.duplicateTransactions.map(d => duplicateItem(d, formatCurrency)).join('');
 
                 findingsHtml += `
                     <div class="repair-category" data-category="duplicateTransactions">
@@ -1812,8 +1801,8 @@ class BudgetApp {
                 const stuckItems = findings.stuckBills.map(b =>
                     `<div class="repair-item">
                         <span>${dom.escapeHtml(b.name)}</span>
-                        <span>${t('budget', 'Due: {date}', { date: b.nextDueDate })}</span>
-                        <span>${t('budget', 'Paid: {date}', { date: b.lastPaidDate })}</span>
+                        <span class="repair-item-date">${t('budget', 'Due: {date}', { date: b.nextDueDate })}</span>
+                        <span class="repair-item-date">${t('budget', 'Paid: {date}', { date: b.lastPaidDate })}</span>
                         ${b.fixable ? '' : `<span class="repair-item-note">${t('budget', 'Check: not changed')}</span>`}
                     </div>`
                 ).join('');
@@ -1836,8 +1825,8 @@ class BudgetApp {
                 const paidOneTimeItems = findings.paidOneTimeBills.map(b =>
                     `<div class="repair-item">
                         <span>${dom.escapeHtml(b.name)}</span>
-                        <span>${formatCurrency(b.amount)}</span>
-                        <span>${t('budget', 'Paid: {date}', { date: b.lastPaidDate })}</span>
+                        <span class="repair-item-amount">${formatCurrency(b.amount)}</span>
+                        <span class="repair-item-date">${t('budget', 'Paid: {date}', { date: b.lastPaidDate })}</span>
                     </div>`
                 ).join('');
 
@@ -1874,8 +1863,8 @@ class BudgetApp {
                 const futureItems = findings.futureClearedTransactions.slice(0, 20).map(f =>
                     `<div class="repair-item">
                         <span>${dom.escapeHtml(f.description) || t('budget', '(unnamed)')}</span>
-                        <span>${formatCurrency(f.amount)}</span>
-                        <span>${dom.escapeHtml(f.date)}</span>
+                        <span class="repair-item-amount">${formatCurrency(f.amount)}</span>
+                        <span class="repair-item-date">${dom.escapeHtml(f.date)}</span>
                         <span class="repair-item-note">${dom.escapeHtml(f.accountName)}${f.review ? ` · ${t('budget', 'Check: not changed')}` : ''}</span>
                     </div>`
                 ).join('');
@@ -1905,8 +1894,8 @@ class BudgetApp {
                             <input type="checkbox" class="repair-account-checkbox" data-account-id="${a.accountId}" checked>
                             <span>${dom.escapeHtml(a.accountName)}</span>
                         </label>
-                        <span>${t('budget', 'Now: {amount} in credit', { amount: formatCurrency(Math.abs(a.currentBalance)) })}</span>
-                        <span>${t('budget', 'After repair: {amount} owed', { amount: formatCurrency(Math.abs(a.repairedBalance)) })}</span>
+                        <span class="repair-item-amount">${t('budget', 'Now: {amount} in credit', { amount: formatCurrency(Math.abs(a.currentBalance)) })}</span>
+                        <span class="repair-item-amount">${t('budget', 'After repair: {amount} owed', { amount: formatCurrency(Math.abs(a.repairedBalance)) })}</span>
                     </div>`
                 ).join('');
 
@@ -1929,7 +1918,7 @@ class BudgetApp {
                     const category = this.categories?.find(c => c.id === tx.categoryId);
                     return `<div class="repair-item">
                         <span>${dom.escapeHtml(tx.description || tx.vendor || t('budget', 'Transaction'))}</span>
-                        <span>${dom.escapeHtml(this.formatDate(tx.date))}</span>
+                        <span class="repair-item-date">${dom.escapeHtml(this.formatDate(tx.date))}</span>
                         <span>${t('budget', 'Listed under {category}', { category: dom.escapeHtml(category ? category.name : t('budget', 'Uncategorized')) }, undefined, { escape: false })}</span>
                     </div>`;
                 }).join('');
@@ -1952,8 +1941,8 @@ class BudgetApp {
                 const driftItems = findings.balanceDrift.map(a =>
                     `<div class="repair-item">
                         <span>${dom.escapeHtml(a.accountName)}</span>
-                        <span>${t('budget', 'Stored: {amount}', { amount: formatCurrency(a.storedBalance) })}</span>
-                        <span>${t('budget', 'Expected: {amount}', { amount: formatCurrency(a.expectedBalance) })}</span>
+                        <span class="repair-item-amount">${t('budget', 'Stored: {amount}', { amount: formatCurrency(a.storedBalance) })}</span>
+                        <span class="repair-item-amount">${t('budget', 'Expected: {amount}', { amount: formatCurrency(a.expectedBalance) })}</span>
                         <span class="repair-item-note">${t('budget', 'Diff: {amount}', { amount: formatCurrency(a.difference) })}</span>
                     </div>`
                 ).join('');
