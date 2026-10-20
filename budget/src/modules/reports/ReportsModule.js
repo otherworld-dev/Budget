@@ -1751,17 +1751,15 @@ export default class ReportsModule {
         if (statusSelect) statusSelect.addEventListener('change', () => this.generateBillsCalendar());
         if (transfersCheckbox) transfersCheckbox.addEventListener('change', () => this.generateBillsCalendar());
 
+        // Switching the view only swapped the containers, and the heatmap
+        // stayed empty until Generate was pressed (#399): draw the chosen
+        // view from the report already loaded, or load it
         if (viewSelect) {
-            viewSelect.addEventListener('change', (e) => {
-                const tableContainer = document.getElementById('bills-calendar-table-container');
-                const heatmapContainer = document.getElementById('bills-calendar-heatmap-container');
-
-                if (e.target.value === 'table') {
-                    if (tableContainer) tableContainer.style.display = '';
-                    if (heatmapContainer) heatmapContainer.style.display = 'none';
+            viewSelect.addEventListener('change', () => {
+                if (this.billsCalendarData) {
+                    this.renderBillsCalendarView(this.billsCalendarData);
                 } else {
-                    if (tableContainer) tableContainer.style.display = 'none';
-                    if (heatmapContainer) heatmapContainer.style.display = '';
+                    this.generateBillsCalendar();
                 }
             });
         }
@@ -1806,36 +1804,34 @@ export default class ReportsModule {
             });
 
             const data = await apiFetch(`/apps/budget/api/bills/annual-overview?${params}`);
+            this.billsCalendarData = data;
 
             // Render monthly totals chart
             this.renderBillsCalendarChart(data.monthlyTotals);
-
-            // Get current view
-            const view = document.getElementById('bills-calendar-view')?.value || 'table';
-
-            if (view === 'table') {
-                this.renderBillsCalendarTable(data.bills, data.monthlyTotals, data.account || null, data.projectedBalance || null, data.projectedFlows || null);
-            } else {
-                this.renderBillsCalendarHeatmap(data.bills, data.monthlyTotals);
-            }
-
-            // Show appropriate containers
             document.getElementById('bills-calendar-chart-container').style.display = '';
 
-            if (view === 'table') {
-                document.getElementById('bills-calendar-table-container').style.display = '';
-                document.getElementById('bills-calendar-heatmap-container').style.display = 'none';
-            } else {
-                document.getElementById('bills-calendar-table-container').style.display = 'none';
-                document.getElementById('bills-calendar-heatmap-container').style.display = '';
-            }
-
+            this.renderBillsCalendarView(data);
         } catch (error) {
             console.error('Failed to generate bills calendar:', error);
             showError(t('budget', 'Failed to generate bills calendar'));
         } finally {
             if (loadingEl) loadingEl.style.display = 'none';
         }
+    }
+
+    /** The table or the heatmap, whichever View is set to, and only that one shown. */
+    renderBillsCalendarView(data) {
+        const view = document.getElementById('bills-calendar-view')?.value || 'table';
+        const tableContainer = document.getElementById('bills-calendar-table-container');
+        const heatmapContainer = document.getElementById('bills-calendar-heatmap-container');
+
+        if (view === 'table') {
+            this.renderBillsCalendarTable(data.bills, data.monthlyTotals, data.account || null, data.projectedBalance || null, data.projectedFlows || null);
+        } else {
+            this.renderBillsCalendarHeatmap(data.bills, data.monthlyTotals);
+        }
+        if (tableContainer) tableContainer.style.display = view === 'table' ? '' : 'none';
+        if (heatmapContainer) heatmapContainer.style.display = view === 'table' ? 'none' : '';
     }
 
     renderBillsCalendarChart(monthlyTotals) {
@@ -2038,15 +2034,12 @@ export default class ReportsModule {
             // the picked account (#399)
             const billsThisMonth = bills.filter(b => b.inTotals !== false
                 && !['none', 'unrecorded'].includes(calendarCell(b, month).state)).length;
-            const intensity = maxTotal > 0 ? (total / maxTotal) : 0;
-
-            // Color scale from light red to dark red
-            const red = Math.round(198 * (0.3 + 0.7 * intensity));
-            const green = Math.round(40 * (1 - 0.5 * intensity));
-            const blue = Math.round(40 * (1 - 0.5 * intensity));
+            // How deep the box's tint is (css/style.css). The text on the
+            // old red fill was barely readable on the busiest months (#399).
+            const heat = maxTotal > 0 ? Math.max(0, Math.min(1, total / maxTotal)) : 0;
 
             html += `
-                <div class="heatmap-month" style="background-color: rgba(${red}, ${green}, ${blue}, ${0.2 + 0.6 * intensity});" title="${months[month - 1]}: ${n('budget', '%n bill', '%n bills', billsThisMonth)}, ${this.formatCurrency(total, currency)}">
+                <div class="heatmap-month" style="--heat: ${Number(heat.toFixed(3))};" title="${months[month - 1]}: ${n('budget', '%n bill', '%n bills', billsThisMonth)}, ${this.formatCurrency(total, currency)}">
                     <div class="heatmap-month-name">${months[month - 1]}</div>
                     <div class="heatmap-month-count">${n('budget', '%n bill', '%n bills', billsThisMonth)}</div>
                     <div class="heatmap-month-total">${this.formatCurrency(total, currency)}</div>

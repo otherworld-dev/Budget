@@ -18955,10 +18955,15 @@ button.secondary.compact {
     gap: 16px;
 }
 
+/* A tint of the app's red over the page, deeper the more the month costs
+   (--heat, 0 to 1, set by the script). It was the red itself at up to 80%,
+   with grey text barely readable on the busiest months (#399). At most 45%,
+   the page's own text colour stays above 6:1 in both themes. */
 .heatmap-month {
     padding: 20px;
     border-radius: var(--border-radius-element, 8px);
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--color-border);
+    background-color: color-mix(in srgb, var(--budget-color-negative) calc(var(--heat, 0) * 45%), var(--color-main-background));
     text-align: center;
     transition: transform 0.2s, box-shadow 0.2s;
 }
@@ -18977,14 +18982,14 @@ button.secondary.compact {
 
 .heatmap-month-count {
     font-size: 14px;
-    color: var(--color-text-lighter);
+    color: var(--color-main-text);
     margin-bottom: 8px;
 }
 
 .heatmap-month-total {
     font-size: 18px;
     font-weight: 700;
-    color: var(--budget-color-negative);
+    color: var(--color-main-text);
 }
 
 @media (max-width: 1200px) {
