@@ -197,7 +197,7 @@ class BillCalendarPaidAgainTest extends TestCase {
 		}
 		$this->assertSame([null, null], array_column($row['paidDetails'][8], 'due'));
 		$this->assertSame([['date' => '2026-09-27', 'amount' => 41.7, 'due' => '2026-09-30']], $row['paidDetails'][9]);
-		$this->assertSame([], $row['paidMoreThanOnce']);
+		$this->assertSame([8 => 2], $row['paidMoreThanOnce'], 'undated, but August still reads as paid twice');
 	}
 
 	/** A yearly bill's payment months after its date is a month of its own, and names no date. */

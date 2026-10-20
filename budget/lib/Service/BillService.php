@@ -3529,7 +3529,11 @@ class BillService {
 	 * It paid no date, except a one-time bill's made after the date: the
 	 * invoice paid again, which the tooltip names (#399). One made before
 	 * it paid another schedule (a monthly bill switched to One-Time), and a
-	 * yearly bill's date has its own year to be paid in.
+	 * yearly bill's date has its own year to be paid in. That schedule
+	 * isn't stored, so payments before the date made in one month within
+	 * OneTimeSettlement::BESIDE_DAYS of each other count as one of its dates
+	 * paid twice: the switch lost the marker of an August paid on the 29th
+	 * and the 30th (#399). Instalments a week or more apart stay apart.
 	 *
 	 * A recurring bill's single date that it still owes takes no payment but
 	 * Mark Paid's. It took every payment (#375), so a yearly premium paid
@@ -3782,6 +3786,28 @@ class BillService {
 			// else nothing the bill counts as paid to put it on
 		}
 
+		// A single-date bill's payments from before its date that paid no
+		// date, made in one month within a few days of the first of them:
+		// one date of a schedule the bill no longer has, paid twice. A
+		// monthly bill switched to One-Time lost the marker of a month it
+		// had paid twice (#399). Instalments a week apart stay apart.
+		$besideKey = []; // payment => the key it shares with those beside it
+		$singleDate = count($own) === 1 ? $slots[$own[0]][1] : null;
+		if ($singleDate !== null) {
+			$first = null;
+			foreach (array_keys($payments) as $payment) {
+				if (!isset($monthOf[$payment]) || !array_key_exists($payment, $alone) || $alone[$payment] !== null
+					|| $paidOn[$payment]->format('Y-m-d') >= $singleDate) {
+					continue;
+				}
+				if ($first === null || $monthOf[$first] !== $monthOf[$payment]
+					|| $paidDay[$payment] - $paidDay[$first] > OneTimeSettlement::BESIDE_DAYS) {
+					$first = $payment;
+				}
+				$besideKey[$payment] = 'beside' . $first;
+			}
+		}
+
 		$paidAmounts = [];
 		$paidDetails = [];
 		$perDate = []; // month => what each date shown in it was paid, by how many payments
@@ -3797,12 +3823,13 @@ class BillService {
 				}
 			} elseif (isset($monthOf[$payment])) {
 				// Payments of a month with no date in it share one, except
-				// those of a single-date bill, which paid nothing twice. One
+				// those of a single-date bill, which paid nothing twice
+				// unless they were made beside each other ($besideKey). One
 				// that paid a one-time invoice again in the invoice's own
 				// month counts with the date there, so the month reads as
 				// paid twice.
 				[$month, $due, $key] = array_key_exists($payment, $alone)
-					? [$monthOf[$payment], $alone[$payment], 'alone' . $payment]
+					? [$monthOf[$payment], $alone[$payment], $besideKey[$payment] ?? ('alone' . $payment)]
 					: [$monthOf[$payment], null, 'month'];
 				if ($due !== null && $single !== null && $slots[$single][0] === $month) {
 					$key = $single;

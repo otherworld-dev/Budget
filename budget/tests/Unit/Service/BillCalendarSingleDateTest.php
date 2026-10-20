@@ -161,7 +161,7 @@ class BillCalendarSingleDateTest extends TestCase {
 		// The earlier payments paid no date the bill still has
 		$this->assertSame([['date' => '2026-02-28', 'amount' => 29.9, 'due' => null]], $row['paidDetails'][2]);
 		$this->assertSame([null, null], array_column($row['paidDetails'][8], 'due'));
-		$this->assertSame([], $row['paidMoreThanOnce'], 'no month reads as paid twice, August included');
+		$this->assertSame([8 => 2], $row['paidMoreThanOnce'], 'August was paid twice, two days apart (BillCalendarBesideDaysTest)');
 		$this->assertSame([], $row['unrecordedMonths']);
 		$this->assertEqualsWithDelta(41.7, $overview['monthlyTotals'][9], 0.001);
 		$this->assertEqualsWithDelta(71.6, $overview['monthlyTotals'][8], 0.001);
@@ -178,7 +178,7 @@ class BillCalendarSingleDateTest extends TestCase {
 
 		$this->assertSame([2, 3, 4, 5, 6, 7, 8, 9], $row['paidMonths']);
 		$this->assertEqualsWithDelta(41.7, $row['paidAmounts'][9], 0.001);
-		$this->assertSame([], $row['paidMoreThanOnce']);
+		$this->assertSame([8 => 2], $row['paidMoreThanOnce']);
 	}
 
 	/**
@@ -206,7 +206,7 @@ class BillCalendarSingleDateTest extends TestCase {
 			$this->rounded($row['paidAmounts'])
 		);
 		$this->assertSame([11 => 35.9], $this->rounded($row['owedAmounts']), 'the final invoice is still owed');
-		$this->assertSame([], $row['paidMoreThanOnce']);
+		$this->assertSame([8 => 2], $row['paidMoreThanOnce'], 'August paid twice, two days apart');
 		$this->assertEqualsWithDelta(35.9, $overview['monthlyTotals'][11], 0.001);
 		$this->assertEqualsWithDelta(35.9, $overview['monthlyTotals'][9], 0.001);
 	}
