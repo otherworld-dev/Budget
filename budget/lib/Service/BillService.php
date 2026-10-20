@@ -3390,6 +3390,10 @@ class BillService {
 	 * counts as paid more than once only when one of them was. Recurring
 	 * bills are left alone.
 	 *
+	 * The row keeps the first invoice's amount, and says with mixedAmounts
+	 * when the others' differ: the export printed that one amount for all of
+	 * them (#399).
+	 *
 	 * @param array<int, array<string, mixed>> $rows
 	 * @return array<int, array<string, mixed>>
 	 */
@@ -3413,6 +3417,9 @@ class BillService {
 			}
 			$index = $byName[$key];
 			$grouped[$index]['billIds'][] = $row['id'];
+			if (MoneyCalculator::compare((float)$grouped[$index]['amount'], (float)$row['amount'], Currency::decimalsFor($row['currency'] ?? null)) !== 0) {
+				$grouped[$index]['mixedAmounts'] = true;
+			}
 			$grouped[$index]['isActive'] = $grouped[$index]['isActive'] || $row['isActive'];
 			$grouped[$index]['inTotals'] = ($grouped[$index]['inTotals'] ?? true) !== false || ($row['inTotals'] ?? true) !== false;
 			foreach ($row['occurrences'] as $month => $occurs) {

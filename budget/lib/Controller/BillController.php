@@ -6,6 +6,7 @@ namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Db\Bill;
+use OCA\Budget\Enum\Currency;
 use OCA\Budget\Exception\ReconciledPaymentException;
 use OCA\Budget\Service\BillService;
 use OCA\Budget\Service\Export\CsvSafe;
@@ -1477,21 +1478,14 @@ class BillController extends Controller {
 		foreach ($data['bills'] ?? [] as $bill) {
 			[$months, $annualTotal] = $this->calendarExportCells($bill);
 			CsvSafe::put($csv, array_merge(
-				[$bill['name'] ?? '', $bill['amount'] ?? 0, $bill['frequency'] ?? ''],
+				[$bill['name'] ?? '', $this->calendarExportAmount($bill), $bill['frequency'] ?? ''],
 				$months,
 				[$annualTotal]
 			));
 		}
 
 		// Monthly totals row
-		$totalsRow = [$this->l->t('Total'), '', ''];
-		$grandTotal = 0;
-		for ($m = 1; $m <= 12; $m++) {
-			$total = $data['monthlyTotals'][$m] ?? 0;
-			$totalsRow[] = number_format($total, 2);
-			$grandTotal += $total;
-		}
-		$totalsRow[] = number_format($grandTotal, 2);
+		$totalsRow = array_merge([$this->l->t('Total'), '', ''], $this->calendarExportTotals($data));
 		CsvSafe::put($csv, $totalsRow);
 
 		$balanceRow = $this->projectedBalanceRow($data);
@@ -1519,16 +1513,49 @@ class BillController extends Controller {
 	 * @return array{0: string[], 1: string} the months January to December, the annual total
 	 */
 	private function calendarExportCells(array $bill): array {
+		$decimals = Currency::decimalsFor($bill['currency'] ?? null);
 		$months = [];
 		$annual = '0';
 		for ($m = 1; $m <= 12; $m++) {
 			$amount = $this->calendarCellAmount($bill, $m);
-			$months[] = $amount === null ? '' : number_format($amount, 2);
+			$months[] = $amount === null ? '' : number_format($amount, $decimals);
 			if ($amount !== null) {
-				$annual = MoneyCalculator::add($annual, round($amount, 2), 2);
+				$annual = MoneyCalculator::add($annual, round($amount, $decimals), $decimals);
 			}
 		}
-		return [$months, number_format(MoneyCalculator::toFloat($annual), 2)];
+		return [$months, number_format(MoneyCalculator::toFloat($annual), $decimals)];
+	}
+
+	/**
+	 * A calendar row's Amount column, written as its months are. It was the
+	 * raw number ('1013.1', '630'), and a row folding one-time invoices of
+	 * one name printed the first invoice's amount for all of them; a row
+	 * whose invoices' amounts differ leaves it blank (#399).
+	 */
+	private function calendarExportAmount(array $bill): string {
+		if (!empty($bill['mixedAmounts'])) {
+			return '';
+		}
+		return number_format((float)($bill['amount'] ?? 0), Currency::decimalsFor($bill['currency'] ?? null));
+	}
+
+	/**
+	 * The Monthly Totals row's twelve months and the year, in the base
+	 * currency the totals are converted to.
+	 *
+	 * @return string[]
+	 */
+	private function calendarExportTotals(array $data): array {
+		$decimals = Currency::decimalsFor($data['baseCurrency'] ?? null);
+		$row = [];
+		$grandTotal = '0';
+		for ($m = 1; $m <= 12; $m++) {
+			$total = (float)($data['monthlyTotals'][$m] ?? 0);
+			$row[] = number_format($total, $decimals);
+			$grandTotal = MoneyCalculator::add($grandTotal, $total, $decimals);
+		}
+		$row[] = number_format(MoneyCalculator::toFloat($grandTotal), $decimals);
+		return $row;
 	}
 
 	/**
@@ -1568,10 +1595,11 @@ class BillController extends Controller {
 		if (empty($data['account']) || !is_array($data['projectedBalance'] ?? null)) {
 			return null;
 		}
-		$row = [$this->l->t('Projected balance'), number_format((float)$data['account']['balance'], 2), ''];
+		$decimals = Currency::decimalsFor($data['account']['currency'] ?? null);
+		$row = [$this->l->t('Projected balance'), number_format((float)$data['account']['balance'], $decimals), ''];
 		for ($m = 1; $m <= 12; $m++) {
 			$left = $data['projectedBalance'][$m] ?? null;
-			$row[] = $left === null ? '' : number_format((float)$left, 2);
+			$row[] = $left === null ? '' : number_format((float)$left, $decimals);
 		}
 		$row[] = '';
 		return $row;
@@ -1613,30 +1641,35 @@ class BillController extends Controller {
 		}
 		$pdf->Cell($totalW, 5, $this->l->t('Annual'), 1, 1, 'R');
 
-		// Data rows
+		// Data rows. A long name wraps inside its column, and the row grows
+		// to fit it; written on one line it ran on into the Amount (#399).
 		$pdf->SetFont('dejavusans', '', 7);
 		foreach ($data['bills'] ?? [] as $bill) {
-			$pdf->Cell($nameW, 5, $bill['name'] ?? '', 1, 0, 'L');
-			$pdf->Cell($amtW, 5, number_format((float)($bill['amount'] ?? 0), 2), 1, 0, 'R');
+			$name = (string)($bill['name'] ?? '');
+			// A millimetre's room keeps the last line inside the cell's limit
+			$height = max(5, $pdf->getStringHeight($nameW, $name) + 1);
+			if ($pdf->GetY() + $height > $pdf->getPageHeight() - $pdf->getBreakMargin()) {
+				$pdf->AddPage();
+			}
+			$pdf->MultiCell($nameW, $height, $name, 1, 'L', false, 0, null, null, true, 0, false, true, $height, 'M');
+			$pdf->Cell($amtW, $height, $this->calendarExportAmount($bill), 1, 0, 'R');
 
 			[$months, $annualTotal] = $this->calendarExportCells($bill);
 			foreach ($months as $month) {
-				$pdf->Cell($monthW, 5, $month, 1, 0, 'R');
+				$pdf->Cell($monthW, $height, $month, 1, 0, 'R');
 			}
-			$pdf->Cell($totalW, 5, $annualTotal, 1, 1, 'R');
+			$pdf->Cell($totalW, $height, $annualTotal, 1, 1, 'R');
 		}
 
 		// Totals row
 		$pdf->SetFont('dejavusans', 'B', 7);
 		$pdf->Cell($nameW, 5, $this->l->t('Total'), 1, 0, 'L');
 		$pdf->Cell($amtW, 5, '', 1, 0, 'R');
-		$grandTotal = 0;
+		$totals = $this->calendarExportTotals($data);
 		for ($m = 1; $m <= 12; $m++) {
-			$total = $data['monthlyTotals'][$m] ?? 0;
-			$pdf->Cell($monthW, 5, number_format($total, 2), 1, 0, 'R');
-			$grandTotal += $total;
+			$pdf->Cell($monthW, 5, $totals[$m - 1], 1, 0, 'R');
 		}
-		$pdf->Cell($totalW, 5, number_format($grandTotal, 2), 1, 1, 'R');
+		$pdf->Cell($totalW, 5, $totals[12], 1, 1, 'R');
 
 		$balanceRow = $this->projectedBalanceRow($data);
 		if ($balanceRow !== null) {

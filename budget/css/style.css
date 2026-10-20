@@ -11759,6 +11759,13 @@ label .required {
     gap: 4px;
 }
 
+/* Period, the account checklist and the tag filter don't scope the Bills
+   Calendar, which has its own Year and Account (#399). Important, as the
+   script sets the custom range's and the shared toggle's display inline. */
+.reports-controls[data-report-type="bills-calendar"] .report-scope-control {
+    display: none !important;
+}
+
 .reports-controls .control-group label {
     font-size: 12px;
     font-weight: 500;
@@ -18835,6 +18842,32 @@ button.secondary.compact {
     font-weight: 500;
 }
 
+/* The table is wider than its card at 1440px and at 800px, and scrolling it
+   sideways took the bill names with it (#399). The names stay on the left,
+   on a solid background so the months pass under them; the inset shadows
+   stand in for the borders, which a collapsed table leaves behind. */
+.bills-calendar-table .bill-name-col {
+    position: sticky;
+    inset-inline-start: 0;
+    z-index: 1;
+    background-color: var(--color-main-background);
+    box-shadow: inset -1px 0 0 var(--color-border), inset 0 -1px 0 var(--color-border);
+}
+
+.bills-calendar-table thead .bill-name-col {
+    z-index: 2;
+    background-color: var(--color-background-hover);
+}
+
+.bills-calendar-table tbody tr:hover .bill-name-col {
+    background-color: var(--color-background-hover);
+}
+
+/* The totals rows' 5% black, made solid */
+.bills-calendar-table .totals-row .bill-name-col {
+    background-color: color-mix(in srgb, var(--color-main-background), black 5%);
+}
+
 .bills-calendar-table .month-cell {
     text-align: right;
     padding-right: 8px;
@@ -18948,10 +18981,15 @@ button.secondary.compact {
     gap: 16px;
 }
 
+/* A tint of the app's red over the page, deeper the more the month costs
+   (--heat, 0 to 1, set by the script). It was the red itself at up to 80%,
+   with grey text barely readable on the busiest months (#399). At most 45%,
+   the page's own text colour stays above 6:1 in both themes. */
 .heatmap-month {
     padding: 20px;
     border-radius: var(--border-radius-element, 8px);
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--color-border);
+    background-color: color-mix(in srgb, var(--budget-color-negative) calc(var(--heat, 0) * 45%), var(--color-main-background));
     text-align: center;
     transition: transform 0.2s, box-shadow 0.2s;
 }
@@ -18970,14 +19008,14 @@ button.secondary.compact {
 
 .heatmap-month-count {
     font-size: 14px;
-    color: var(--color-text-lighter);
+    color: var(--color-main-text);
     margin-bottom: 8px;
 }
 
 .heatmap-month-total {
     font-size: 18px;
     font-weight: 700;
-    color: var(--budget-color-negative);
+    color: var(--color-main-text);
 }
 
 @media (max-width: 1200px) {
