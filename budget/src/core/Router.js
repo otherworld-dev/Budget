@@ -2,6 +2,7 @@
  * Router - Client-side navigation and view management
  */
 import { closeAllModals } from '../utils/modals.js';
+import { hideNavToggleOnScroll } from '../utils/navToggleOnScroll.js';
 
 export default class Router {
     constructor(app) {
@@ -69,6 +70,11 @@ export default class Router {
             backdrop.addEventListener('click', () => {
                 this.closeMobileNavigation();
             });
+        }
+
+        const wrapper = document.getElementById('budget-nav-toggle-wrapper');
+        if (wrapper) {
+            hideNavToggleOnScroll(wrapper);
         }
     }
 

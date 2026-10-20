@@ -327,11 +327,20 @@
         top: calc(var(--header-height, 50px) + 4px);
         left: 4px;
         z-index: 1900;
-        transition: left 250ms ease-in-out;
+        transition: left 250ms ease-in-out, opacity 200ms ease-in-out, transform 200ms ease-in-out;
     }
 
     #budget-nav-toggle-wrapper.nav-open {
         left: 300px;
+    }
+
+    /* Out of the way while the view scrolls down, as it covered whatever
+       passed under it (see utils/navToggleOnScroll.js). Keyboard focus
+       brings it back. */
+    #budget-nav-toggle-wrapper.scrolled-away:not(.nav-open):not(:focus-within) {
+        opacity: 0;
+        transform: translateY(-12px);
+        pointer-events: none;
     }
 
     #budget-nav-toggle {
