@@ -1920,8 +1920,12 @@ export default class ReportsModule {
                     // pill and the amount are hidden from screen readers and
                     // one sentence out of sight stands in for both.
                     const times = bill.paidMoreThanOnce?.[month] ?? 0;
-                    // TRANSLATORS: {amount} is a placeholder, do NOT translate it. It is what was paid in the month, all payments together.
-                    const spoken = n('budget', 'Paid once, {amount} in all', 'Paid %n times, {amount} in all', times, { amount: formatted }, { escape: false, sanitize: false });
+                    // The amount is what the cell holds, this month's money:
+                    // one of the payments counted can be in another year (a
+                    // date paid either side of New Year), so "in all" read
+                    // as less than was paid
+                    // TRANSLATORS: {amount} is a placeholder, do NOT translate it. It is what was paid in this month of the calendar.
+                    const spoken = n('budget', 'Paid once, {amount} this month', 'Paid %n times, {amount} this month', times, { amount: formatted }, { escape: false, sanitize: false });
                     content = `<span class="visually-hidden">${dom.escapeHtml(spoken)}</span><span aria-hidden="true"><span class="payments-marker">${cell.marker}</span>${content}</span>`;
                 }
                 months.push(`<td class="month-cell ${cellClasses[cell.state]}" title="${dom.escapeHtml(cell.title)}">${content}</td>`);
