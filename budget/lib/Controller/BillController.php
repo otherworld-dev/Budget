@@ -1541,7 +1541,10 @@ class BillController extends Controller {
 
 	/**
 	 * The Monthly Totals row's twelve months and the year, in the base
-	 * currency the totals are converted to.
+	 * currency the totals are converted to. A converted total carries more
+	 * decimals than it prints, and bcadd at the currency's scale truncates
+	 * them, so each month is rounded as printed before the year adds it up
+	 * (twelve months of 100.006 printed 100.01 and came to 1,200.00).
 	 *
 	 * @return string[]
 	 */
@@ -1550,7 +1553,7 @@ class BillController extends Controller {
 		$row = [];
 		$grandTotal = '0';
 		for ($m = 1; $m <= 12; $m++) {
-			$total = (float)($data['monthlyTotals'][$m] ?? 0);
+			$total = round((float)($data['monthlyTotals'][$m] ?? 0), $decimals);
 			$row[] = number_format($total, $decimals);
 			$grandTotal = MoneyCalculator::add($grandTotal, $total, $decimals);
 		}

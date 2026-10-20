@@ -66,13 +66,41 @@ class BillCalendarExportAmountTest extends TestCase {
 	}
 
 	private function export(string $format, array ...$rows): string {
+		return $this->exportWithTotals($format, array_fill(1, 12, 0.0), ...$rows);
+	}
+
+	private function exportWithTotals(string $format, array $monthlyTotals, array ...$rows): string {
 		$this->service->method('getAnnualOverview')->willReturn([
 			'year' => 2026,
 			'bills' => $rows,
-			'monthlyTotals' => array_fill(1, 12, 0.0),
+			'monthlyTotals' => $monthlyTotals,
 			'baseCurrency' => 'CHF',
 		]);
 		return $this->controller->exportCalendar($format, 2026)->render();
+	}
+
+	/**
+	 * Monthly Totals converted from another currency carry more decimals
+	 * than they print. The year was added up at two decimals by truncating
+	 * each month, so twelve months printed as 100.01 came to 1,200.00. Each
+	 * month is rounded as printed first, and the year is what the row shows.
+	 */
+	public function testTheYearAddsUpTheMonthsAsPrinted(): void {
+		$csv = $this->exportWithTotals('csv', array_fill(1, 12, 100.006));
+
+		$this->assertStringContainsString(
+			'Total,,,' . implode(',', array_fill(0, 12, '100.01')) . ',"1,200.12"' . '
+',
+			$csv
+		);
+	}
+
+	public function testThePdfYearAddsUpTheSame(): void {
+		$this->requireTcpdf();
+
+		$text = $this->pdfText($this->exportWithTotals('pdf', array_fill(1, 12, 100.006)));
+
+		$this->assertStringContainsString('(1,200.12)', $text);
 	}
 
 	public function testTheAmountIsWrittenAsTheMonthsAre(): void {
