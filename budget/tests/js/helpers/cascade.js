@@ -96,8 +96,9 @@ export function specificity(selector) {
     return ids * 10000 + classes * 100 + types;
 }
 
-function inEffect(rule, theme) {
-    return rule.media === null || (theme === 'system dark' && DARK_MEDIA.test(rule.media));
+function inEffect(rule, theme, media = []) {
+    return rule.media === null || (theme === 'system dark' && DARK_MEDIA.test(rule.media))
+        || media.some(query => rule.media.replace(/\s+/g, ' ') === `@media ${query}`);
 }
 
 function matchingSpecificity(el, rule) {
@@ -118,12 +119,14 @@ function matchingSpecificity(el, rule) {
  * What style.css's rules declare for `el` in `theme`, as the cascade picks
  * them: by specificity, then source order, !important first. With `hover`,
  * the rules for `el:hover` take part too, which jsdom can't match itself.
- * Pseudo-elements are left out.
+ * `media` lists other media queries to count as in effect, written as in
+ * the stylesheet after '@media ' (e.g. '(min-width: 641px)'), for a window
+ * that wide. Pseudo-elements are left out.
  */
-export function cascadedDeclarations(el, theme, { hover = false } = {}) {
+export function cascadedDeclarations(el, theme, { hover = false, media = [] } = {}) {
     const hits = [];
     RULES.forEach((rule, order) => {
-        if (!inEffect(rule, theme)) return;
+        if (!inEffect(rule, theme, media)) return;
         let best = null;
         for (const selector of rule.selectors) {
             if (selector.includes('::') || (!hover && selector.includes(':hover'))) continue;

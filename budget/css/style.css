@@ -4154,6 +4154,52 @@ button.danger:hover {
     }
 }
 
+/* When the table scrolls sideways, Actions stays at the container's right
+   edge, so edit and the ⋮ menu are never off-screen (#399: Balance shown at
+   1440 px and below). The cells take an opaque fill that follows the row's
+   own (hover, keyboard cursor, linked), and a scheduled row fades the
+   buttons rather than the cell, or the scrolled columns would show through.
+   transactionActionsSticky.test.js. */
+@media (min-width: 641px) {
+    #transactions-table th.actions-column {
+        right: 0;
+        z-index: 26;
+    }
+
+    #transactions-table td.actions-column {
+        position: sticky;
+        right: 0;
+        z-index: 1;
+        background: var(--color-main-background);
+        box-shadow: inset 1px 0 0 var(--color-border);
+    }
+
+    #transactions-table tr.transaction-row:hover > td.actions-column,
+    #transactions-table tr.transaction-row.kbd-cursor > td.actions-column {
+        background: var(--color-background-hover);
+    }
+
+    #transactions-table tr.transaction-row.is-linked > td.actions-column {
+        background: var(--color-primary-element-light);
+    }
+
+    #transactions-table tr.transaction-row.is-linked:hover > td.actions-column {
+        background: linear-gradient(var(--color-primary-element-lighter, rgba(0, 130, 201, 0.15)), var(--color-primary-element-lighter, rgba(0, 130, 201, 0.15))), var(--color-main-background);
+    }
+
+    #transactions-table tr.scheduled-transaction > td.actions-column {
+        opacity: 1;
+    }
+
+    #transactions-table tr.scheduled-transaction > td.actions-column > .transaction-actions {
+        opacity: 0.65;
+    }
+
+    #transactions-table tr.scheduled-transaction:hover > td.actions-column > .transaction-actions {
+        opacity: 0.85;
+    }
+}
+
 /* Truncate cell content within fixed-layout table columns */
 .transactions-table.enhanced .cell-display {
     display: block;
