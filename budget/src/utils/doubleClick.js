@@ -42,6 +42,24 @@ export function isOpeningClick(event, openedAt) {
 }
 
 /**
+ * Let the press of a backdrop click that isOpeningClick() ignores leave the
+ * focus where it is. A press on something that can't take the focus moves
+ * it to the page: the second press of the double click that opened a
+ * destructive confirm took it off Cancel, and Enter then confirmed (#399).
+ * A mousedown is numbered as its click is.
+ *
+ * @param {HTMLElement} backdrop
+ * @param {number} openedAt Date.now() when the dialog appeared
+ */
+export function keepFocusOnOpeningPress(backdrop, openedAt) {
+    backdrop.addEventListener('mousedown', (e) => {
+        if (e.target === backdrop && isOpeningClick(e, openedAt)) {
+            e.preventDefault();
+        }
+    });
+}
+
+/**
  * Let no click that isOpeningClick() takes for the opening one pick an
  * option of the dialog. The second click of a double click on Mark Paid
  * landed on an option of the dialog the first had opened, and the browser

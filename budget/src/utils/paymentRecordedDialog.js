@@ -9,7 +9,7 @@
 import { translate as t } from '@nextcloud/l10n';
 import * as formatters from './formatters.js';
 import { apiFetch, ApiError } from './api.js';
-import { isOpeningClick, isRepeatClick } from './doubleClick.js';
+import { isOpeningClick, isRepeatClick, keepFocusOnOpeningPress } from './doubleClick.js';
 
 /** The 409 code each page's action answers with */
 const CODES = { bill: 'payment_recorded', income: 'receipt_recorded' };
@@ -96,12 +96,14 @@ export function askAboutRecordedPayment(existing, settings, { kind = 'bill', cur
         modal.querySelector('.another-btn').addEventListener('click', answer('another'));
         modal.querySelector('.confirm-btn').addEventListener('click', answer('use'));
         // Not on the second click of the double click on Mark Paid that
-        // opened it, which lands on the backdrop (see utils/doubleClick.js)
+        // opened it, which lands on the backdrop (see utils/doubleClick.js),
+        // and its press leaves the focus on Use that payment
         modal.addEventListener('click', (e) => {
             if (e.target === modal && !isOpeningClick(e, openedAt)) {
                 close(null);
             }
         });
+        keepFocusOnOpeningPress(modal, openedAt);
         document.addEventListener('keydown', onKeydown, true);
         modal.querySelector('.confirm-btn').focus();
     });

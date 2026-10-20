@@ -6,7 +6,7 @@
 import { translate as t } from '@nextcloud/l10n';
 import * as formatters from './formatters.js';
 import * as dom from './dom.js';
-import { ignoreOpeningClickOnOptions, isOpeningClick, isRepeatClick } from './doubleClick.js';
+import { ignoreOpeningClickOnOptions, isOpeningClick, isRepeatClick, keepFocusOnOpeningPress } from './doubleClick.js';
 
 /**
  * @param {object} bill the bill or transfer being paid
@@ -127,6 +127,8 @@ export function showMatchingTransactionDialog(bill, candidates, settings) {
                 resolve(null);
             }
         });
+        // ...and the press of that click on the backdrop moves no focus
+        keepFocusOnOpeningPress(modal, openedAt);
 
         modal.querySelector('.confirm-btn').addEventListener('click', (e) => {
             if (isRepeatClick(e)) return;
