@@ -9,12 +9,13 @@ import { showSuccess, showError, showWarning, showInfo, showUndoNotification } f
 import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import { isoWeekday } from '../../utils/helpers.js';
-import { apiFetch } from '../../utils/api.js';
+import { apiFetch, ApiError } from '../../utils/api.js';
 import { pickableAccounts, accountOptionLabel, selectAccountValue, accountCurrency } from '../../utils/accounts.js';
 import { showLoadError } from '../../utils/loading.js';
 import { incomeRowState } from '../../utils/incomeStatus.js';
 import { sendPayment } from '../../utils/paymentRecordedDialog.js';
 import { selectPossiblyUnavailable, clearUnavailableOptions, unavailableCategoryLabel } from '../../utils/formSelects.js';
+import { isRepeatClick } from '../../utils/doubleClick.js';
 
 export default class IncomeModule {
     constructor(app) {
@@ -298,6 +299,14 @@ export default class IncomeModule {
                 if (deleteBtn) {
                     const incomeId = parseInt(deleteBtn.dataset.incomeId);
                     this.deleteIncome(incomeId);
+                }
+
+                // The second click of a double click is not one of its own:
+                // the list re-renders once a payment is received, and that
+                // click acted on the income whose button had slid under the
+                // cursor (#399)
+                if ((receivedBtn || skipBtn) && isRepeatClick(e)) {
+                    return;
                 }
 
                 if (receivedBtn) {
@@ -628,6 +637,22 @@ export default class IncomeModule {
         } catch (error) {
             console.error('Failed to mark income as received:', error);
             showError(error.message || t('budget', 'Failed to mark income as received'));
+            await this._reloadAfterRefusal(error);
+        }
+    }
+
+    /**
+     * The server refused an action on an income. It may have moved on in
+     * another tab or by a second request, and its row went on offering what
+     * was just refused until the page was reloaded by hand (#399). A request
+     * that never reached the server leaves the list alone: reloading it
+     * would fail the same way.
+     *
+     * @param {*} error what the action failed with
+     */
+    async _reloadAfterRefusal(error) {
+        if (error instanceof ApiError) {
+            await this.loadIncomeView();
         }
     }
 
@@ -721,6 +746,7 @@ export default class IncomeModule {
         } catch (error) {
             console.error('Failed to skip income:', error);
             showError(error.message || t('budget', 'Failed to skip income'));
+            await this._reloadAfterRefusal(error);
         }
     }
 

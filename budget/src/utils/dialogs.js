@@ -21,6 +21,7 @@
 
 import { translate as t } from '@nextcloud/l10n';
 import { plainText } from './helpers.js';
+import { isOpeningClick } from './doubleClick.js';
 
 /** The dialog currently on screen, or null. */
 let active = null;
@@ -158,15 +159,22 @@ function render(spec) {
     }
     // Only a click on the backdrop itself — one that started and ended outside
     // the panel — dismisses. A drag that ends on the backdrop (selecting the
-    // message text, say) must not count as a cancel.
+    // message text, say) must not count as a cancel. Nor must the second
+    // click of a double click on the button that opened the dialog: it lands
+    // on the backdrop a moment after the dialog appears, and Skip and Mark
+    // Unpaid looked dead to anyone who double-clicks buttons (#399). Each
+    // click answers for its own press only.
+    const openedAt = Date.now(); // it appears below, in this same run
+    let pressedBackdrop = false;
     backdrop.addEventListener('mousedown', (e) => {
-        if (e.target === backdrop) {
-            backdrop.dataset.pressedBackdrop = 'true';
-        }
+        pressedBackdrop = e.target === backdrop;
     });
     backdrop.addEventListener('click', (e) => {
+        const pressed = pressedBackdrop;
+        pressedBackdrop = false;
         if (e.target !== backdrop) return;
-        if (backdrop.dataset.pressedBackdrop === undefined && e.detail !== 0) return;
+        if (!pressed && e.detail !== 0) return;
+        if (isOpeningClick(e, openedAt)) return;
         close(spec.cancelAnswer);
     });
     document.addEventListener('keydown', onKeydown, true);

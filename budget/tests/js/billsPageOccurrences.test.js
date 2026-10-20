@@ -125,7 +125,7 @@ describe('Mark Paid', () => {
 
         await mod.markBillPaid(5);
 
-        const [, init] = global.fetch.mock.calls[0];
+        const [, init] = global.fetch.mock.calls.find(([url]) => url.endsWith('/paid'));
         expect(JSON.parse(init.body).dueDate).toBe('2026-10-15');
     });
 

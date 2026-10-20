@@ -222,6 +222,8 @@ return [
 		['name' => 'bill#update', 'url' => '/api/bills/{id}', 'verb' => 'PUT'],
 		['name' => 'bill#destroy', 'url' => '/api/bills/{id}', 'verb' => 'DELETE'],
 		['name' => 'bill#findMatchingTransactions', 'url' => '/api/bills/{id}/matching-transactions', 'verb' => 'GET'],
+		// The payment already recorded for the occurrence Mark Paid is about to pay (#399)
+		['name' => 'bill#recordedPayment', 'url' => '/api/bills/{id}/recorded-payment', 'verb' => 'GET'],
 		['name' => 'bill#markPaid', 'url' => '/api/bills/{id}/paid', 'verb' => 'POST'],
 		['name' => 'bill#recordMissedPayment', 'url' => '/api/bills/{id}/record-payment', 'verb' => 'POST'],
 		['name' => 'bill#dismissUnrecordedPayment', 'url' => '/api/bills/{id}/dismiss-unrecorded', 'verb' => 'POST'],
