@@ -1258,9 +1258,11 @@ class BillService {
 	 *                            just paid stayed behind, still scheduled, still looking due (#376).
 	 * @param int|null $existingTransactionId Link an existing transaction instead of creating a new one
 	 * @param string|null $actingUserId The user paying, when it is a person (the bill may be shared with them)
+	 * @param bool $secondPayment The user said this is a payment of its own, beside the one the ledger already
+	 *                            holds for the occurrence ("Record another payment"), so that one isn't used
 	 * @return array Updated bill with undo data
 	 */
-	public function markPaid(int $id, string $userId, ?string $paidDate = null, bool $recordPayment = true, ?int $existingTransactionId = null, ?string $expectedDueDate = null, ?string $actingUserId = null): array {
+	public function markPaid(int $id, string $userId, ?string $paidDate = null, bool $recordPayment = true, ?int $existingTransactionId = null, ?string $expectedDueDate = null, ?string $actingUserId = null, bool $secondPayment = false): array {
 		$bill = $this->find($id, $userId);
 
 		// A paid one-time bill, an ended or paused one: a second click
@@ -1340,8 +1342,11 @@ class BillService {
 		// the occurrence's payment (the Mark Paid dialog's "Use that
 		// payment", #399): that row is the payment, and the snapshot says
 		// so. Looked for before the bill takes the payment's date: dated on
-		// it, the row of a recurring bill read as the last payment's.
-		$usedPayment = ($existingRow === null && !($recordPayment && $bill->getAccountId() !== null))
+		// it, the row of a recurring bill read as the last payment's. Not
+		// when the user said this payment is another one: choosing "Record
+		// another payment" and then recording nothing used the payment just
+		// declined and dated the bill today.
+		$usedPayment = (!$secondPayment && $existingRow === null && !($recordPayment && $bill->getAccountId() !== null))
 			? $this->recordedPaymentFor($bill, $actingUserId)
 			: null;
 

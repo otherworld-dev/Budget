@@ -94,6 +94,16 @@ class BillControllerPayOnceTest extends TestCase {
 		$this->assertSame(Http::STATUS_OK, $this->controller()->markPaid(1)->getStatus());
 	}
 
+	public function testRecordingNothingAfterChoosingAnotherPaymentTellsTheService(): void {
+		// "Record another payment", then "Don't create any transaction"
+		$this->params = ['recordPayment' => false, 'dueDate' => '2026-09-28', 'confirmSecondPayment' => true];
+		$this->service->expects($this->once())->method('markPaid')
+			->with(1, 'user1', null, false, null, '2026-09-28', 'user1', true)
+			->willReturn(['bill' => new Bill()]);
+
+		$this->assertSame(Http::STATUS_OK, $this->controller()->markPaid(1)->getStatus());
+	}
+
 	public function testAConfirmationSentAsTextIsReadAsSuch(): void {
 		// filter_var, not a cast: (bool)"false" is true
 		$this->params = ['recordPayment' => 'true', 'dueDate' => '2026-09-28', 'confirmSecondPayment' => 'false'];

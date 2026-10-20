@@ -1017,13 +1017,14 @@ class BillController extends Controller {
 			// tab is refused instead of paying it twice
 			$expectedDueDate = is_string($params['dueDate'] ?? null) ? $params['dueDate'] : null;
 			$owner = $this->billOwner($id);
+			// The user answered "Record another payment" to the page's question
+			$secondPayment = filter_var($params['confirmSecondPayment'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
 			// The ledger may hold the occurrence's payment already: a bill
 			// made due again was paid a second time with one click (#399).
 			// Booking another then takes the user saying so; the page asks.
 			// Only a payment in an account the user can write to is named.
-			if ($recordPayment && $existingTransactionId === null
-				&& !filter_var($params['confirmSecondPayment'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+			if ($recordPayment && $existingTransactionId === null && !$secondPayment) {
 				$existing = $this->service->recordedPaymentForPendingOccurrence($id, $owner, $expectedDueDate, $this->userId);
 				if ($existing !== null) {
 					return new DataResponse([
@@ -1034,7 +1035,7 @@ class BillController extends Controller {
 				}
 			}
 
-			$result = $this->service->markPaid($id, $owner, $paidDate, $recordPayment, $existingTransactionId, $expectedDueDate, $this->userId);
+			$result = $this->service->markPaid($id, $owner, $paidDate, $recordPayment, $existingTransactionId, $expectedDueDate, $this->userId, $secondPayment);
 			return new DataResponse($result);
 		} catch (\InvalidArgumentException $e) {
 			// Service-only validation keeps its message (#362)

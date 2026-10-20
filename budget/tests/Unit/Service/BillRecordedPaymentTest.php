@@ -299,6 +299,18 @@ class BillRecordedPaymentTest extends TestCase {
 		$this->assertSame('2026-11-28', $this->stored->getNextDueDate());
 	}
 
+	public function testRecordingNothingAfterChoosingAnotherPaymentLeavesTheOldPaymentAlone(): void {
+		// "Record another payment", then "Don't create any transaction" in the
+		// candidate dialog: the payment the user just declined is not used
+		$this->reopenedOneTimeBill();
+
+		$result = $this->service->markPaid(1, 'user1', null, false, null, '2026-09-28', null, true);
+
+		$this->assertSame([], $this->booked);
+		$this->assertFalse($result['paymentTransactionRecorded']);
+		$this->assertNull(json_decode((string)$this->stored->getPaidUndoState(), true)['usedTransactionId'] ?? null);
+	}
+
 	public function testUndoingTheUseOfAPaymentLeavesThePaymentAlone(): void {
 		// The row was there before: Mark Unpaid neither deletes nor unlinks
 		// it, and the bill is due again
