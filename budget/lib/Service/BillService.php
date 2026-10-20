@@ -3501,8 +3501,11 @@ class BillService {
 	 * marked paid. So a final invoice switched to One-Time stays due, the
 	 * old schedule's payments staying put, while an invoice paid weeks early
 	 * and linked to it is paid. Every other payment is a paid month of its
-	 * own, the month it was made, and paid no date: never a second payment
-	 * of anything.
+	 * own, the month it was made, and never a second payment of anything.
+	 * It paid no date, except a one-time bill's made after the date: the
+	 * invoice paid again, which the tooltip names (#399). One made before
+	 * it paid another schedule (a monthly bill switched to One-Time), and a
+	 * yearly bill's date has its own year to be paid in.
 	 *
 	 * A recurring bill's single date that it still owes takes no payment but
 	 * Mark Paid's. It took every payment (#375), so a yearly premium paid
@@ -3529,7 +3532,7 @@ class BillService {
 	 * Returns the occurrences (with the extra months), the paid months, the
 	 * amount paid in each, the months the bill has moved past with no payment
 	 * recorded, the payments behind each paid month in date order with the
-	 * date each one paid (null for one with no date near it), and for each
+	 * date each one paid (null for one that paid none), and for each
 	 * month with a date paid more than once, the most payments one date got.
 	 *
 	 * @param array<int, bool> $occurrences month => occurs, 1..12
@@ -3625,7 +3628,9 @@ class BillService {
 
 		$slotOf = [];   // payment => slot it paid
 		$monthOf = [];  // payment => an extra month of its own
-		$alone = [];    // payment => paid no date of a single-date bill: never a second payment
+		// payment => the date of a single-date bill it didn't pay, so never a
+		// second payment: null, or the one-time date it was made after (#399)
+		$alone = [];
 		if ($pendingSlot !== null) {
 			$slotOf[$pending] = $pendingSlot;
 		}
@@ -3674,13 +3679,17 @@ class BillService {
 				}
 				$onDate = [$best];
 			}
+			// A one-time invoice paid again after its date: the payment stays
+			// in its month, but names the date it paid a second time. Its
+			// tooltip read like an ordinary payment of that month (#399).
+			$againAfter = $bill->getFrequency() === 'one-time' ? $slots[$single][1] : null;
 			foreach ($open as $payment) {
 				$month = (int)$paidOn[$payment]->format('n');
 				if (in_array($payment, $onDate, true)) {
 					$slotOf[$payment] = $single;
 				} elseif ($boundary === null || $this->occurrenceDate($bill, $year, $month) < $boundary) {
 					$monthOf[$payment] = $month;
-					$alone[$payment] = true;
+					$alone[$payment] = ($againAfter !== null && $paidOn[$payment]->format('Y-m-d') > $againAfter) ? $againAfter : null;
 					$occurrences[$month] = true;
 				} else {
 					// A month the bill still owes can't hold it: it stays with the date
@@ -3738,7 +3747,7 @@ class BillService {
 			$month = (int)$date->format('n');
 			if ($owedSingle) {
 				$monthOf[$payment] = $month;
-				$alone[$payment] = true;
+				$alone[$payment] = null;
 				$occurrences[$month] = true;
 			} elseif ($boundary === null || $this->occurrenceDate($bill, $year, $month) < $boundary) {
 				$monthOf[$payment] = $month;
@@ -3765,7 +3774,9 @@ class BillService {
 			} elseif (isset($monthOf[$payment])) {
 				// Payments of a month with no date in it share one, except
 				// those of a single-date bill, which paid nothing twice
-				[$month, $due, $key] = [$monthOf[$payment], null, isset($alone[$payment]) ? 'alone' . $payment : 'month'];
+				[$month, $due, $key] = array_key_exists($payment, $alone)
+					? [$monthOf[$payment], $alone[$payment], 'alone' . $payment]
+					: [$monthOf[$payment], null, 'month'];
 			} else {
 				continue;
 			}

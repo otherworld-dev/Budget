@@ -215,7 +215,7 @@ class BillCalendarSingleDateTest extends TestCase {
 	 * The reporter's two CembraPay invoices (one row, one name), due on
 	 * 28 September, paid on 27 September and again on 15 October. The second
 	 * payments are 17 days after the date: October's, not a second payment
-	 * for September.
+	 * for September, though each names the invoice it paid again.
 	 */
 	public function testEachCembraPayPaymentStaysInTheMonthItWasMade(): void {
 		$fields = ['lastPaidDate' => '2026-10-15', 'createdAt' => '2026-09-27 18:33:03'];
@@ -234,7 +234,7 @@ class BillCalendarSingleDateTest extends TestCase {
 		$this->assertSame(['2026-09-27', '2026-09-27'], array_column($row['paidDetails'][9], 'date'));
 		$this->assertSame(['2026-09-28', '2026-09-28'], array_column($row['paidDetails'][9], 'due'));
 		$this->assertSame(['2026-10-15', '2026-10-15'], array_column($row['paidDetails'][10], 'date'));
-		$this->assertSame([null, null], array_column($row['paidDetails'][10], 'due'));
+		$this->assertSame(['2026-09-28', '2026-09-28'], array_column($row['paidDetails'][10], 'due'));
 		$this->assertSame([], $row['paidMoreThanOnce'], 'each invoice was paid once in each month');
 		$this->assertTrue($row['occurrences'][10]);
 		$this->assertEqualsWithDelta(156.39, $overview['monthlyTotals'][10], 0.001);
