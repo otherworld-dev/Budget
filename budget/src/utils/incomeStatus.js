@@ -37,7 +37,9 @@ export function incomeRowState(income, today, settings, accounts = undefined) {
     const startDate = income.startDate || income.start_date || null;
     const fmt = (date) => formatters.formatDate(date, settings);
 
-    const { status, recentlySettled } = scheduleState({ frequency, isActive, dueDate: next, lastDate: lastReceived }, today);
+    // A skipped date wasn't received (#399)
+    const skipped = !!(income.lastOccurrenceSkipped ?? false);
+    const { status, recentlySettled } = scheduleState({ frequency, isActive, dueDate: next, lastDate: lastReceived, skipped }, today);
 
     if (status === 'inactive') {
         let dateText;

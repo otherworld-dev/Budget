@@ -12,54 +12,56 @@ namespace OCA\Budget\Db;
  * and a skip used to spend the snapshot. Undoing the skip then put the
  * skipped date back, but the payment could no longer be taken back. A skip
  * now leaves the snapshot in place and lists the date it skipped in it:
- * while any is listed the snapshot can't be used, and undoing the last skip
- * takes its date off the list again. The snapshot keeps its other keys
+ * while any is listed the snapshot can't be used, and undoing the skip
+ * takes the date off the list again. The snapshot keeps its other keys
  * where they were, so whatever keeps its transaction ids right (a backup
  * restore, a bank row taking a booked row's place) keeps them right while
  * it is set aside.
+ *
+ * The list is also how the page tells a skipped date from a payment made
+ * early (lastOccurrenceSkipped): the dates alone look the same. So a skip
+ * with no snapshot to set aside leaves one holding only the dates, which
+ * nothing can revert from: it has no previousState (nextExpectedDate on
+ * income), names no transaction and isn't carried by a backup.
  */
 final class UndoSnapshotSkips {
 	/** The dates skipped since the payment, oldest first */
 	public const KEY = 'skippedDates';
 
-	/** Whether a skip has set the snapshot aside */
+	/** Whether a skip has set the snapshot aside: the occurrence before the next one was skipped */
 	public static function setAside(?string $raw): bool {
-		$snapshot = self::decode($raw);
-		return $snapshot !== null && is_array($snapshot[self::KEY] ?? null) && $snapshot[self::KEY] !== [];
+		return self::skipped(self::decode($raw)) !== [];
 	}
 
-	/**
-	 * The snapshot with $date skipped, or null when there is no snapshot to
-	 * keep
-	 */
-	public static function skip(?string $raw, string $date): ?string {
-		$snapshot = self::decode($raw);
-		if ($snapshot === null) {
-			return null;
-		}
+	/** The snapshot with $date skipped; one holding only the date when there was none */
+	public static function skip(?string $raw, string $date): string {
+		$snapshot = self::decode($raw) ?? [];
 		$skipped = self::skipped($snapshot);
 		$skipped[] = $date;
 		$snapshot[self::KEY] = $skipped;
-		return json_encode($snapshot);
+		return (string)json_encode($snapshot);
 	}
 
 	/**
-	 * The snapshot once the skip of $date is undone: back in use when it was
-	 * the only one. Unchanged when $date wasn't the last date skipped.
+	 * The snapshot once the skip of $date is undone. Putting the bill back on
+	 * $date undoes every skip from it on, so the dates from $date on come off
+	 * the list, whichever toast's Undo came first. Back in use once none is
+	 * left, and null when the dates were all it held. Unchanged when no date
+	 * listed is $date or later.
 	 */
 	public static function unskip(?string $raw, string $date): ?string {
 		$snapshot = self::decode($raw);
 		$skipped = self::skipped($snapshot);
-		if ($snapshot === null || $skipped === [] || $skipped[count($skipped) - 1] !== $date) {
+		$kept = array_values(array_filter($skipped, fn (string $day): bool => $day < $date));
+		if ($snapshot === null || count($kept) === count($skipped)) {
 			return $raw;
 		}
-		array_pop($skipped);
-		if ($skipped === []) {
+		if ($kept === []) {
 			unset($snapshot[self::KEY]);
 		} else {
-			$snapshot[self::KEY] = $skipped;
+			$snapshot[self::KEY] = $kept;
 		}
-		return json_encode($snapshot);
+		return $snapshot === [] ? null : (string)json_encode($snapshot);
 	}
 
 	/** @return list<string> */

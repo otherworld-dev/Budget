@@ -111,6 +111,8 @@ class RecurringIncome extends Entity implements JsonSerializable {
 			'createdAt' => $this->getCreatedAt(),
 			'excludedFromForecast' => $this->getExcludedFromForecast() ?? false,
 			'canUndoReceived' => $this->canUndoReceived(),
+			// The date before the next one was skipped, not received (#399)
+			'lastOccurrenceSkipped' => UndoSnapshotSkips::setAside($this->getReceivedUndoState()),
 			'currency' => $this->getCurrency(),
 		];
 	}

@@ -228,9 +228,10 @@ class RecurringIncomeServiceTest extends TestCase {
 			->with('monthly', 25, null, '2026-04-25', null, true, null)
 			->willReturn('2026-05-25');
 
-		// Written in the skip's claim of 25 April, the last received date left out of it
+		// Written in the skip's claim of 25 April, the last received date left
+		// out of it; the snapshot lists the skipped date (#399)
 		$this->mapper->expects($this->once())->method('claimOccurrence')
-			->with(1, 'user1', '2026-04-25', ['next_expected_date' => '2026-05-25', 'is_active' => true, 'received_undo_state' => null]);
+			->with(1, 'user1', '2026-04-25', ['next_expected_date' => '2026-05-25', 'is_active' => true, 'received_undo_state' => '{"skippedDates":["2026-04-25"]}']);
 		$this->transactionService->expects($this->never())->method('createFromIncome');
 
 		$result = $this->service->skipPayment(1, 'user1');
