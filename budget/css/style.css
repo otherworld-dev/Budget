@@ -9810,6 +9810,28 @@ body[data-theme-dark-highcontrast] .bill-status.due-soon .status-badge:not(.badg
     color: var(--budget-color-on-success, var(--budget-color-on-status, white));
 }
 
+/* The checkmark in the label's colour. Nextcloud draws it as an image in a
+   fixed colour, white in the dark theme, where these buttons are a pale
+   green with a dark label (#399). The same shape as a mask over the text
+   colour follows the label in every theme and colour scheme. */
+.bill-action-btn.bill-paid-btn .icon-checkmark,
+.income-action-btn.income-received-btn .icon-checkmark {
+    display: inline-block;
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    background-image: none;
+    background-color: currentColor;
+    -webkit-mask-image: var(--icon-checkmark-dark);
+    mask-image: var(--icon-checkmark-dark);
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-size: 16px 16px;
+    mask-size: 16px 16px;
+}
+
 /* ==========================================
    Exchange Rates View Styles
    ========================================== */
