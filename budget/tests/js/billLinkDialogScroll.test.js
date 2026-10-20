@@ -104,8 +104,9 @@ describe('Link to bill with 61 bills', () => {
     });
 
     it('leaves the other dialogs that share the markup alone', () => {
-        // Mark Paid's dialog uses the same list class and scrolls as before
+        // Mark Paid's dialog uses the same list class; its list doesn't
+        // scroll on its own (its body does, matchingDialogFooterInView.test.js)
         expect(style('.matching-tx-list')['overflow-y']).toBeUndefined();
-        expect(style('#matching-tx-modal .budget-modal')).toEqual({});
+        expect(style('#matching-tx-modal .matching-tx-list')).toEqual({});
     });
 });

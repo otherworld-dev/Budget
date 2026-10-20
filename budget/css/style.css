@@ -20233,6 +20233,26 @@ body[data-theme-dark-highcontrast] .matching-tx-badge {
     overflow-y: auto;
 }
 
+/* Existing Transaction Found (matchingDialog.js) with five candidates put
+   Cancel and Confirm below the fold at 1440x900 (#399). The header and
+   footer stay in view and the body scrolls between them. */
+#matching-tx-modal .budget-modal {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#matching-tx-modal .budget-modal-header,
+#matching-tx-modal .budget-modal-footer {
+    flex: 0 0 auto;
+}
+
+#matching-tx-modal .budget-modal-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+}
+
 .budget-modal-footer {
     padding: 16px 24px;
     border-top: 1px solid var(--color-border);
