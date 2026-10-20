@@ -4692,6 +4692,26 @@ button.danger:hover {
     z-index: 1000;
 }
 
+/* The list's inline category and tag pickers: fixed to the window and
+   placed from the cell (utils/cellPopup.js), as the table's scrolling box
+   cut them off in a short list's last rows (#399). As wide as the cell,
+   250 px at least, as they were inside it. Above the cell when there's no
+   room below, closed off at the top instead. inlineEditorPopups.test.js. */
+.category-autocomplete-dropdown.cell-popup,
+.tags-autocomplete-dropdown.cell-popup {
+    position: fixed;
+    width: var(--cell-popup-width, 250px);
+    box-sizing: border-box;
+}
+
+.category-autocomplete-dropdown.cell-popup--above,
+.tags-autocomplete-dropdown.cell-popup--above {
+    border-top: 1px solid var(--color-border);
+    border-bottom: none;
+    border-radius: 3px 3px 0 0;
+    box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.15);
+}
+
 .tags-group-header {
     padding: 6px 12px;
     background: var(--color-background-dark);
@@ -13258,6 +13278,14 @@ tr.scheduled-transaction > td:not(.balance-column) {
 
 tr.scheduled-transaction:hover > td:not(.balance-column) {
     opacity: 0.85;
+}
+
+/* Not the cell being edited: its picker is inside it, and a faded cell
+   showed the rows through the picker and kept it under the sticky Actions
+   column (#399). inlineEditorPopups.test.js. */
+tr.scheduled-transaction > td.editable-cell.editing,
+tr.scheduled-transaction:hover > td.editable-cell.editing {
+    opacity: 1;
 }
 
 .scheduled-badge {

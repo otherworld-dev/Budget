@@ -23,6 +23,7 @@ import { selectPossiblyUnavailable, unavailableCategoryLabel } from '../../utils
 import { openAccounts, pickableAccounts, accountOptionLabel, selectAccountValue, usableCategories, categoryTreeOf, sharedAccountOwner, isReadOnlyShare } from '../../utils/accounts.js';
 import { offerableTags } from '../../utils/tags.js';
 import { chooseBill, linkableBills } from '../../utils/billLinkDialog.js';
+import { floatCellPopup } from '../../utils/cellPopup.js';
 import flatpickr from 'flatpickr';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 
@@ -4958,6 +4959,8 @@ export default class TransactionsModule {
 
         container.appendChild(input);
         container.appendChild(dropdown);
+        // Fixed to the window, so the table's scrolling box can't cut it off (#399)
+        const placeDropdown = floatCellPopup(dropdown, container);
 
         const showDropdown = (filter = '') => {
             const filtered = filter
@@ -4986,6 +4989,7 @@ export default class TransactionsModule {
             ` + dropdown.innerHTML;
 
             dropdown.style.display = 'block';
+            placeDropdown();
         };
 
         input.addEventListener('focus', () => showDropdown(input.value));
@@ -5147,6 +5151,8 @@ export default class TransactionsModule {
 
             container.appendChild(input);
             container.appendChild(dropdown);
+            // Fixed to the window, so the table's scrolling box can't cut it off (#399)
+            const placeDropdown = floatCellPopup(dropdown, container);
 
             const allTags = [];
 
@@ -5216,6 +5222,7 @@ export default class TransactionsModule {
 
                 dropdown.innerHTML = html || `<div class="tags-autocomplete-empty">${t('budget', 'No tags found')}</div>`;
                 dropdown.style.display = 'block';
+                placeDropdown();
             };
 
             input.addEventListener('focus', () => renderDropdown(input.value));
