@@ -89,7 +89,7 @@ class BillCalendarExportTest extends TestCase {
 		$csv = $this->export('csv', $this->cornerCard());
 
 		$this->assertStringContainsString(
-			'"Corner Card SA",1013.1,one-time,,,,,0.20,50.00,"1,013.10",500.00,,,,,"1,563.30"' . "\n",
+			'"Corner Card SA","1,013.10",one-time,,,,,0.20,50.00,"1,013.10",500.00,,,,,"1,563.30"' . "\n",
 			$csv
 		);
 	}
@@ -99,7 +99,7 @@ class BillCalendarExportTest extends TestCase {
 		$csv = $this->export('csv', $this->csx());
 
 		$this->assertStringContainsString(
-			'"CSX Pro Credit Cards",100,monthly,,,,,,50.00,50.00,100.00,100.00,100.00,100.00,100.00,600.00' . "\n",
+			'"CSX Pro Credit Cards",100.00,monthly,,,,,,50.00,50.00,100.00,100.00,100.00,100.00,100.00,600.00' . "\n",
 			$csv
 		);
 	}
@@ -111,7 +111,7 @@ class BillCalendarExportTest extends TestCase {
 		]);
 
 		$this->assertStringContainsString(
-			'Rent,1200,monthly,' . implode(',', array_fill(0, 12, '"1,200.00"')) . ',"14,400.00"' . "\n",
+			'Rent,"1,200.00",monthly,' . implode(',', array_fill(0, 12, '"1,200.00"')) . ',"14,400.00"' . "\n",
 			$csv
 		);
 	}
