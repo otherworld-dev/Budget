@@ -185,17 +185,24 @@ export function rowCategoryName(tx, category) {
 }
 
 /**
- * A title attribute with a text in full, for a cell that cuts it to one line
- * (#399): the two copies of a receipt line imported twice, 'Wassertank
- * Zubehör' and 'Wassertank Zubehör, Diverses', both read 'Wassertank …'.
- * None for an empty text, which the cell spells out in full.
+ * A title attribute with texts in full, one to a line, for a cell that cuts
+ * them to one line (#399): the two copies of a receipt line imported twice,
+ * 'Wassertank Zubehör' and 'Wassertank Zubehör, Diverses', both read
+ * 'Wassertank …'. An empty text adds nothing: a row with no description
+ * shows a placeholder, not text of its own.
  *
- * @param {string|null|undefined} text
+ * In the main list the title goes on the cell itself. Its editable cells
+ * lie under an invisible overlay that takes the clicks
+ * ('.editable-cell::after' in style.css), so the pointer never reaches the
+ * text inside, and a title there never showed. The register has no
+ * overlay, and its titles stay on the texts.
+ *
+ * @param {...(string|null|undefined)} texts
  * @returns {string} ' title="…"', or empty
  */
-function fullTextTitle(text) {
-    const value = text == null ? '' : String(text);
-    return value.trim() === '' ? '' : ` title="${escapeHtml(value)}"`;
+function fullTextTitle(...texts) {
+    const lines = texts.map(text => (text == null ? '' : String(text))).filter(text => text.trim() !== '');
+    return lines.length ? ` title="${lines.map(line => escapeHtml(line)).join('&#10;')}"` : '';
 }
 
 /**
@@ -325,17 +332,17 @@ export function renderTransactionRow(tx, ctx) {
             <td class="description-column ${editable}"
                 data-field="description"
                 data-value="${escapeHtml(tx.description)}"
-                data-transaction-id="${tx.id}">
+                data-transaction-id="${tx.id}"${fullTextTitle(tx.description, tx.reference)}>
                 <div class="transaction-description">
-                    <span class="primary-text cell-display"${fullTextTitle(tx.description)}>${escapeHtml(tx.description) || noDescription}</span>
-                    ${tx.reference ? `<span class="secondary-text"${fullTextTitle(tx.reference)}>${escapeHtml(tx.reference)}</span>` : ''}
+                    <span class="primary-text cell-display">${escapeHtml(tx.description) || noDescription}</span>
+                    ${tx.reference ? `<span class="secondary-text">${escapeHtml(tx.reference)}</span>` : ''}
                     ${badges}
                 </div>
             </td>
             <td class="vendor-column ${editable}"
                 data-field="vendor"
                 data-value="${escapeHtml(tx.vendor || '')}"
-                data-transaction-id="${tx.id}">
+                data-transaction-id="${tx.id}"${fullTextTitle(tx.vendor)}>
                 <span class="cell-display">${escapeHtml(tx.vendor) || '-'}</span>
             </td>
             <td class="category-column ${isSplit ? '' : editable}"

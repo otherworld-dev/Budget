@@ -6,8 +6,12 @@
  * imported twice on 12 Oct, 'Wassertank Zubehör' and 'Wassertank Zubehör,
  * Diverses', both read 'Wassertank …', same category, same amount, and the
  * reply asked them to delete one of each. The cell now carries its full
- * text as a tooltip, in the main list and an account's register alike (the
- * same row markup), and so does the reference under it.
+ * text as a tooltip, and so does the reference under it.
+ *
+ * These are an account's register, where the texts carry the titles. The
+ * main list's cells lie under the inline editor's click overlay, which no
+ * pointer gets past, so there the titles sit on the cells themselves
+ * (transactionListCellTitles.test.js).
  */
 
 import { describe, it, expect, vi } from 'vitest';
@@ -34,9 +38,9 @@ function row(tx, variant) {
 }
 
 const LINE = { id: 1501, accountId: 3, date: '2026-10-12', type: 'debit', amount: 30, categoryId: 7, description: 'Wassertank Zubehör' };
-const text = (tr, variant) => tr.querySelector(variant === 'ledger' ? '.description-column .primary-text' : '.description-column .description-main');
+const text = (tr) => tr.querySelector('.description-column .description-main');
 
-describe.each(['ledger', 'register'])('%s: the description cell', (variant) => {
+describe.each(['register'])('%s: the description cell', (variant) => {
     it('tells the two copies of a doubled line apart on hover', () => {
         const plain = text(row(LINE, variant), variant);
         const copy = text(row({ ...LINE, id: 1555, description: 'Wassertank Zubehör, Diverses' }, variant), variant);
