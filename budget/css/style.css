@@ -316,11 +316,15 @@
 }
 
 /* Navigation toggle — matches NcAppNavigationToggle from @nextcloud/vue. */
+/* Below 1024 px only, where Nextcloud hides the navigation (core's own
+   (width < 1024px)). From max-width: 1024px it sat over the docked
+   navigation's search box at exactly 1024 px (#399).
+   navToggleBreakpoint.test.js. */
 #budget-nav-toggle-wrapper {
     display: none;
 }
 
-@media (max-width: 1024px) {
+@media (width < 1024px) {
     #budget-nav-toggle-wrapper {
         display: block;
         position: fixed;
@@ -421,7 +425,7 @@
 /* Mobile Navigation - matches NcAppNavigation behavior.
  * Nextcloud's mobile.css hides #app-navigation:not(.vue) with translateX(-300px).
  * We override with our own open class and add a backdrop overlay. */
-@media (max-width: 1024px) {
+@media (width < 1024px) {
     #app-navigation:not(.vue) {
         transition: transform 250ms ease-in-out;
     }
@@ -3756,6 +3760,12 @@ button.danger:hover {
 }
 
 /* Enhanced Transaction Table */
+/* The box ends at its content. It used to fill the view's height (#280),
+   to give the column menu and the inline pickers room below a short
+   table, but the view is a stretched flex item, so with the filters open
+   it ran on past the paging, an empty bordered area (#399). Neither needs
+   the room now: the menu is outside .table-scroll and the pickers are
+   fixed to the window (utils/cellPopup.js). transactionListBar.test.js. */
 .table-container {
     width: 100%;
     background: var(--color-main-background);
@@ -3770,13 +3780,6 @@ button.danger:hover {
    wrapper's right edge. transactionListBar.test.js. */
 .table-scroll {
     overflow-x: auto;
-}
-
-/* Fill the available height so the table area is tall even with few rows.
-   This gives the in-cell editors and the column-config menu room to open
-   instead of being clipped against a short container (#280). */
-#transactions-view .table-container {
-    height: 100%;
 }
 
 .table-header {
@@ -4742,6 +4745,13 @@ button.danger:hover {
 
 .tags-autocomplete-item.selected {
     background: var(--color-primary-element-light);
+}
+
+/* Where the arrow keys are in the list's inline tag picker (#399): a ring,
+   as a ticked tag already has the fill. inlinePickerKeys.test.js. */
+.tags-autocomplete-item.highlighted {
+    outline: 2px solid var(--color-primary-element);
+    outline-offset: -2px;
 }
 
 .tags-autocomplete-item .tag-check {

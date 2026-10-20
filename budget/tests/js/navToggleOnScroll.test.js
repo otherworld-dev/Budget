@@ -67,7 +67,7 @@ describe('the navigation button', () => {
     });
 
     it('is hidden by the stylesheet only while out of the way, closed and without keyboard focus', () => {
-        // Narrow screens only: the rule sits in the stylesheet's max-width: 1024px block
+        // Narrow screens only: the rule sits in the stylesheet's width < 1024px block
         const hiding = RULES.filter(rule => rule.declarations.opacity === '0'
             && rule.selectors.some(s => s.startsWith('#budget-nav-toggle-wrapper.' + SCROLLED_AWAY_CLASS)));
         expect(hiding.length).toBeGreaterThan(0);

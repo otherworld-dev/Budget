@@ -4995,6 +4995,18 @@ export default class TransactionsModule {
         input.addEventListener('focus', () => showDropdown(input.value));
         input.addEventListener('input', () => showDropdown(input.value));
 
+        // One way out per edit, whichever comes first: a pick, Enter, Escape,
+        // or the blur that follows a click outside. Escape drew the table
+        // again but left the old cell marked as editing, so the blur 200 ms
+        // later saved a category the arrow keys had moved to (#399).
+        let finished = false;
+        const finish = (action) => {
+            if (finished) return;
+            finished = true;
+            dropdown.style.display = 'none';
+            action();
+        };
+
         // Handle category selection on mousedown for Safari/WebKit compatibility
         dropdown.addEventListener('mousedown', (e) => {
             e.preventDefault();
@@ -5004,8 +5016,7 @@ export default class TransactionsModule {
             if (item) {
                 input.dataset.categoryId = item.dataset.categoryId;
                 input.value = item.dataset.categoryName;
-                dropdown.style.display = 'none';
-                this.saveInlineEdit(cell, 'categoryId', item.dataset.categoryId);
+                finish(() => this.saveInlineEdit(cell, 'categoryId', item.dataset.categoryId));
             }
         });
 
@@ -5016,26 +5027,27 @@ export default class TransactionsModule {
 
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
-                this.cancelInlineEdit(cell);
+                finish(() => this.cancelInlineEdit(cell));
             } else if (e.key === 'Enter') {
                 e.preventDefault();
-                dropdown.style.display = 'none';
-                this.saveInlineEdit(cell, 'categoryId', input.dataset.categoryId);
+                finish(() => this.saveInlineEdit(cell, 'categoryId', input.dataset.categoryId));
             } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
                 e.preventDefault();
                 this.navigateCategoryDropdown(dropdown, e.key === 'ArrowDown' ? 1 : -1, input);
             }
         });
 
+        // A click outside keeps what was picked, as the other inline editors do
         input.addEventListener('blur', () => {
             setTimeout(() => {
                 if (!container.contains(document.activeElement)) {
-                    dropdown.style.display = 'none';
-                    if (input.dataset.categoryId !== (currentCategoryId || '')) {
-                        this.saveInlineEdit(cell, 'categoryId', input.dataset.categoryId);
-                    } else {
-                        this.cancelInlineEdit(cell);
-                    }
+                    finish(() => {
+                        if (input.dataset.categoryId !== (currentCategoryId || '')) {
+                            this.saveInlineEdit(cell, 'categoryId', input.dataset.categoryId);
+                        } else {
+                            this.cancelInlineEdit(cell);
+                        }
+                    });
                 }
             }, 200);
         });
@@ -5136,6 +5148,11 @@ export default class TransactionsModule {
 
             const currentTagIds = this.app.getTransactionTagIds(transaction.id);
             const selectedTags = new Set(currentTagIds);
+            const initialTags = new Set(currentTagIds);
+            // The tag the arrow keys are on, and whether it has been ticked
+            // or unticked since they got there
+            let highlightedTagId = null;
+            let highlightTouched = false;
 
             const container = document.createElement('div');
             container.className = 'tags-autocomplete';
@@ -5206,8 +5223,9 @@ export default class TransactionsModule {
                     html += `<div class="tags-group-header">${dom.escapeHtml(group.name)}</div>`;
                     group.tags.forEach(tag => {
                         const isSelected = selectedTags.has(tag.id);
+                        const isHighlighted = tag.id === highlightedTagId;
                         html += `
-                            <div class="tags-autocomplete-item ${isSelected ? 'selected' : ''}"
+                            <div class="tags-autocomplete-item ${isSelected ? 'selected' : ''} ${isHighlighted ? 'highlighted' : ''}"
                                  data-tag-id="${tag.id}">
                                 <span class="tag-chip"
                                       style="display: inline-flex; align-items: center; background-color: ${dom.escapeHtml(tag.color)}; color: white;
@@ -5228,6 +5246,67 @@ export default class TransactionsModule {
             input.addEventListener('focus', () => renderDropdown(input.value));
             input.addEventListener('input', () => renderDropdown(input.value));
 
+            // Tick or untick a tag; a category's tag set takes one tag at most
+            const toggleTag = (tagId) => {
+                const clickedTag = allTags.find(tg => tg.id === tagId);
+                if (!clickedTag) return;
+
+                // Single-selection per category tag set (not for global tags)
+                if (clickedTag.tagSetId !== 'global') {
+                    const tagsFromSameSet = allTags.filter(tg => tg.tagSetId === clickedTag.tagSetId);
+                    tagsFromSameSet.forEach(tg => {
+                        if (tg.id !== tagId) {
+                            selectedTags.delete(tg.id);
+                        }
+                    });
+                }
+
+                if (selectedTags.has(tagId)) {
+                    selectedTags.delete(tagId);
+                } else {
+                    selectedTags.add(tagId);
+                }
+                if (tagId === highlightedTagId) highlightTouched = true;
+            };
+
+            /** The highlighted tag's row, if the filter still shows it */
+            const highlightedItem = () => (highlightedTagId === null
+                ? null
+                : dropdown.querySelector(`.tags-autocomplete-item[data-tag-id="${highlightedTagId}"]`));
+
+            const moveHighlight = (direction) => {
+                const items = [...dropdown.querySelectorAll('.tags-autocomplete-item')];
+                if (items.length === 0) return;
+                const at = items.indexOf(highlightedItem());
+                const next = at < 0
+                    ? (direction === 1 ? 0 : items.length - 1)
+                    : (at + direction + items.length) % items.length;
+                items.forEach(el => el.classList.remove('highlighted'));
+                items[next].classList.add('highlighted');
+                items[next].scrollIntoView({ block: 'nearest' });
+                highlightedTagId = parseInt(items[next].dataset.tagId, 10);
+                highlightTouched = false;
+            };
+
+            // One way out per edit, whichever comes first: Enter, Escape, or
+            // the blur that follows a click outside, and at most one save.
+            // Escape drew the table again but left the old cell marked as
+            // editing, so the blur 200 ms later saved the ticked tags anyway,
+            // and Enter or a click outside sent them twice (#399).
+            const unchanged = () => selectedTags.size === initialTags.size
+                && [...selectedTags].every(id => initialTags.has(id));
+            let finished = false;
+            const finish = (save) => {
+                if (finished) return;
+                finished = true;
+                dropdown.style.display = 'none';
+                if (save && !unchanged()) {
+                    this.saveTagsFromEditor(cell, selectedTags, transaction.id);
+                } else {
+                    this.cancelInlineEdit(cell);
+                }
+            };
+
             // Handle tag selection on mousedown for Safari/WebKit compatibility
             dropdown.addEventListener('mousedown', (e) => {
                 e.preventDefault();
@@ -5235,26 +5314,7 @@ export default class TransactionsModule {
 
                 const item = e.target.closest('.tags-autocomplete-item');
                 if (item) {
-                    const tagId = parseInt(item.dataset.tagId);
-                    const clickedTag = allTags.find(tg => tg.id === tagId);
-                    if (!clickedTag) return;
-
-                    // Single-selection per category tag set (not for global tags)
-                    if (clickedTag.tagSetId !== 'global') {
-                        const tagsFromSameSet = allTags.filter(tg => tg.tagSetId === clickedTag.tagSetId);
-                        tagsFromSameSet.forEach(tg => {
-                            if (tg.id !== tagId) {
-                                selectedTags.delete(tg.id);
-                            }
-                        });
-                    }
-
-                    if (selectedTags.has(tagId)) {
-                        selectedTags.delete(tagId);
-                    } else {
-                        selectedTags.add(tagId);
-                    }
-
+                    toggleTag(parseInt(item.dataset.tagId, 10));
                     renderDropdown(input.value);
                 }
             });
@@ -5264,21 +5324,32 @@ export default class TransactionsModule {
                 e.stopPropagation();
             });
 
+            // The arrow keys move through the tags; Space ticks or unticks the
+            // highlighted one and stays open; Enter ticks a highlighted tag
+            // that Space hasn't touched, as the category picker takes its
+            // highlighted category, and saves.
             input.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape') {
-                    this.cancelInlineEdit(cell);
+                    finish(false);
                 } else if (e.key === 'Enter') {
                     e.preventDefault();
-                    this.saveTagsFromEditor(cell, selectedTags, transaction.id);
+                    if (highlightedItem() && !highlightTouched && !selectedTags.has(highlightedTagId)) {
+                        toggleTag(highlightedTagId);
+                    }
+                    finish(true);
+                } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    moveHighlight(e.key === 'ArrowDown' ? 1 : -1);
+                } else if (e.key === ' ' && highlightedItem()) {
+                    e.preventDefault();
+                    toggleTag(highlightedTagId);
+                    renderDropdown(input.value);
                 }
             });
 
+            // A click outside keeps what was ticked, as the other inline editors do
             input.addEventListener('blur', () => {
-                setTimeout(() => {
-                    if (cell.classList.contains('editing')) {
-                        this.saveTagsFromEditor(cell, selectedTags, transaction.id);
-                    }
-                }, 200);
+                setTimeout(() => finish(true), 200);
             });
 
             cell.innerHTML = '';
