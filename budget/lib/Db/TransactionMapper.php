@@ -2308,9 +2308,11 @@ class TransactionMapper extends QBMapper {
 	 * transaction (#274) — scheduled placeholders don't count as payments.
 	 *
 	 * @param int[] $billIds
+	 * @param string|null $from only those dated on or after it, Y-m-d: Bills
+	 *                          by Month reads from where Mark Paid starts looking, not years of history (#399)
 	 * @return Transaction[]
 	 */
-	public function findRecordedByBillIds(array $billIds): array {
+	public function findRecordedByBillIds(array $billIds, ?string $from = null): array {
 		if (empty($billIds)) {
 			return [];
 		}
@@ -2325,6 +2327,9 @@ class TransactionMapper extends QBMapper {
 					$qb->expr()->isNull('status')
 				)
 			);
+		if ($from !== null) {
+			$qb->andWhere($qb->expr()->gte('date', $qb->createNamedParameter($from)));
+		}
 
 		return $this->findEntities($qb);
 	}

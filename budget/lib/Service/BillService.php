@@ -577,7 +577,7 @@ class BillService {
 		}
 		$oneTime = $bill->getFrequency() === 'one-time';
 		$lastPaid = $bill->getLastPaidDate();
-		$from = (new \DateTimeImmutable($due))->modify('-' . $this->dueDateToleranceDays($bill->getFrequency()) . ' days')->format('Y-m-d');
+		$from = $this->dueWindowStart($bill);
 		if ($oneTime) {
 			$from = min($from, substr($due, 0, 7) . '-01');
 		}
@@ -3087,7 +3087,8 @@ class BillService {
 		$currencyMap = $this->currencyMapFor($accounts);
 		$baseCurrency = $this->currencyConversion->getBaseCurrency($userId);
 
-		[$billsData, $monthlyTotals] = $this->calendarRows($userId, $year, $includeTransfers, $billStatus, $accountId, $currencyMap, $baseCurrency);
+		$everyRow = [];
+		[$billsData, $monthlyTotals] = $this->calendarRows($userId, $year, $includeTransfers, $billStatus, $accountId, $currencyMap, $baseCurrency, $everyRow);
 
 		// With an account picked: its balance carried through the rest of
 		// this year, from today's (#393). Another year has no today to start
@@ -3110,7 +3111,7 @@ class BillService {
 				// projected from every bill that is still live
 				$projectionRows = ($includeTransfers && $billStatus !== 'inactive')
 					? $billsData
-					: $this->calendarRows($userId, $year, true, 'active', $accountId, $currencyMap, $baseCurrency)[0];
+					: $this->calendarRows($userId, $year, true, 'active', $accountId, $currencyMap, $baseCurrency, $everyRow)[0];
 				$projection = $this->projectBalance($userId, $projectionRows, $account, $balance);
 			}
 		}
@@ -3131,9 +3132,11 @@ class BillService {
 	 * each month comes to in the base currency.
 	 *
 	 * @param array<int, string|null> $currencyMap account id => currency code
+	 * @param array<int, \OCA\Budget\Db\Transaction[]> $everyRow bill id => the rows read beyond the year so
+	 *                                                           far, from where Mark Paid looks; kept between the passes over the bills
 	 * @return array{0: array[], 1: array<int, float>} ungrouped rows, monthly totals
 	 */
-	private function calendarRows(string $userId, int $year, bool $includeTransfers, string $billStatus, ?int $accountId, array $currencyMap, string $baseCurrency): array {
+	private function calendarRows(string $userId, int $year, bool $includeTransfers, string $billStatus, ?int $accountId, array $currencyMap, string $baseCurrency, array &$everyRow = []): array {
 		// Determine which bills to fetch based on status
 		$bills = [];
 		if ($billStatus === 'active') {
@@ -3195,17 +3198,27 @@ class BillService {
 		}
 		$currencyMap = $this->withAccountsOf($currencyMap, array_map(fn (Bill $bill) => $bill->getAccountId(), $bills));
 
-		// Every row of the bills due around the year, one query for them all:
+		// The rows of the bills due around the year, one query for them all:
 		// the payment Mark Paid would use for the date such a bill is due on
-		// can be the other year's (see dueAroundYear())
-		$everyRow = [];
+		// can be the other year's (see dueAroundYear()). Only from where Mark
+		// Paid starts looking, the earliest of them: every row of every bill
+		// was years of history read to find one payment. Read once for both
+		// passes over the bills (the projection's is the second).
+		$unread = [];
+		$from = null;
 		foreach ($bills as $bill) {
-			if ($this->dueAroundYear($bill, $year)) {
-				$everyRow[(int)$bill->getId()] = [];
+			$billId = (int)$bill->getId();
+			if ($this->dueAroundYear($bill, $year) && !array_key_exists($billId, $everyRow)) {
+				$unread[] = $billId;
+				$since = $this->pendingRowsFrom($bill);
+				$from = ($from === null || $since < $from) ? $since : $from;
 			}
 		}
-		if ($everyRow !== []) {
-			foreach ($this->transactionService->findRecordedBillTransactions(array_keys($everyRow)) as $row) {
+		if ($unread !== []) {
+			foreach ($unread as $billId) {
+				$everyRow[$billId] = [];
+			}
+			foreach ($this->transactionService->findRecordedBillTransactions($unread, $from) as $row) {
 				$everyRow[(int)$row->getBillId()][] = $row;
 			}
 		}
@@ -3227,7 +3240,7 @@ class BillService {
 			$nextDue = $bill->getNextDueDate();
 			if ($bill->getFrequency() !== 'one-time') {
 				$billId = (int)$bill->getId();
-				$row = $this->pendingPaymentAmong($bill, $everyRow[$billId] ?? $rowsByBill[$billId] ?? []);
+				$row = $this->pendingPaymentAmong($bill, $this->dueAroundYear($bill, $year) ? ($everyRow[$billId] ?? []) : ($rowsByBill[$billId] ?? []));
 				foreach ($paymentRowsByBill[$billId] ?? [] as $index => $payment) {
 					if ($row !== null && (int)$payment->getId() === (int)$row->getId()) {
 						$pending = $index;
@@ -3402,6 +3415,27 @@ class BillService {
 			return false;
 		}
 		return abs((int)substr($due, 0, 4) - $year) <= 1;
+	}
+
+	/** The start of the due window before the date the bill is due on (pendingPaymentAmong()) */
+	private function dueWindowStart(Bill $bill): string {
+		return (new \DateTimeImmutable((string)$bill->getNextDueDate()))
+			->modify('-' . $this->dueDateToleranceDays($bill->getFrequency()) . ' days')->format('Y-m-d');
+	}
+
+	/**
+	 * The first day a row of a recurring bill can be the payment Mark Paid
+	 * would use for the date it is due on: the due window's start, or the
+	 * day after it was last paid if later (pendingPaymentAmong())
+	 */
+	private function pendingRowsFrom(Bill $bill): string {
+		$from = $this->dueWindowStart($bill);
+		$lastPaid = $bill->getLastPaidDate();
+		if ($lastPaid !== null && $lastPaid !== '') {
+			$after = (new \DateTimeImmutable(substr($lastPaid, 0, 10)))->modify('+1 day')->format('Y-m-d');
+			$from = max($from, $after);
+		}
+		return $from;
 	}
 
 	/** @param Account[] $accounts */
@@ -3662,6 +3696,19 @@ class BillService {
 		$boundary = ($bill->getIsActive() && $nextDue !== null && $nextDue !== '' && $bill->getFrequency() !== 'one-time')
 			? (new \DateTimeImmutable($nextDue))->format('Y-m-d')
 			: null;
+		// Due on an earlier date of the other year than its neighbour here,
+		// and paid with a payment of this year: that date has no slot, and the
+		// payment was in neither year (12 December paid on 2 January, with 19
+		// and 26 December still owed, #399). It gets one, in date order.
+		if ($boundary !== null && $pending !== null && isset($payments[$pending])
+			&& (int)substr($boundary, 0, 4) !== $year && !in_array($boundary, array_column($slots, 1), true)) {
+			$at = 0;
+			while ($at < count($slots) && $slots[$at][1] < $boundary) {
+				$at++;
+			}
+			array_splice($slots, $at, 0, [[null, $boundary, $dayOf($boundary)]]);
+			$own = array_map(fn (int $slot): int => $slot >= $at ? $slot + 1 : $slot, $own);
+		}
 		$isClosed = fn (int $slot): bool => $boundary === null || $slots[$slot][1] < $boundary;
 		$closedSlots = array_values(array_filter($own, $isClosed));
 
@@ -3778,7 +3825,11 @@ class BillService {
 				$month = (int)$paidOn[$payment]->format('n');
 				if (in_array($payment, $onDate, true)) {
 					$slotOf[$payment] = $single;
-				} elseif ($boundary === null || $this->occurrenceDate($bill, $year, $month) < $boundary) {
+				} elseif ($single === $pendingSlot || $boundary === null || $this->occurrenceDate($bill, $year, $month) < $boundary) {
+					// The date Mark Paid's payment pays, in this year or the
+					// other, owes nothing more: a payment outside its due
+					// window is a month of its own. March's went to a January
+					// paid in December as its second payment (#399).
 					$monthOf[$payment] = $month;
 					$alone[$payment] = ($againAfter !== null && $paidOn[$payment]->format('Y-m-d') > $againAfter) ? $againAfter : null;
 					$occurrences[$month] = true;
