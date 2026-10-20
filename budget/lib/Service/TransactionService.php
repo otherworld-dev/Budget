@@ -410,10 +410,13 @@ class TransactionService {
 	 * Used to detect bill payments that were never recorded (#274).
 	 *
 	 * @param int[] $billIds
+	 * @param string|null $from only those dated on or after it, Y-m-d
 	 * @return Transaction[]
 	 */
-	public function findRecordedBillTransactions(array $billIds): array {
-		return $this->mapper->findRecordedByBillIds($billIds);
+	public function findRecordedBillTransactions(array $billIds, ?string $from = null): array {
+		return $from === null
+			? $this->mapper->findRecordedByBillIds($billIds)
+			: $this->mapper->findRecordedByBillIds($billIds, $from);
 	}
 
 	/**
