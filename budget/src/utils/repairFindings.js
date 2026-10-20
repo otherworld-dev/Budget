@@ -1,8 +1,39 @@
 /**
- * What Settings > Repair Data shows for the findings of a scan.
+ * What Settings > Repair Data shows for the findings of a scan, and the
+ * message after a repair.
+ *
+ * Amounts and dates go in spans of their own (repair-item-amount,
+ * repair-item-date) that the stylesheet keeps whole: beside a long note,
+ * Chrome broke a date after its hyphens ('2026-10-' / '15').
  */
-import { translate as t } from '@nextcloud/l10n';
+import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import { escapeHtml } from './dom.js';
+
+/**
+ * One row of "Duplicate Auto-Generated Transactions": its tick, the
+ * payment's name, amount and date, and the note on what it repeats.
+ *
+ * The name is the payment's vendor. A payment with none (the reporter's
+ * 2.x pending row had its bill's name as its description only) goes by its
+ * bill's name, else by the name the other payment is recorded under: the
+ * scan only pairs the two when that names the same bill (#399).
+ *
+ * @param {object} finding one of the scan's duplicateTransactions
+ * @param {function(number): string} formatAmount
+ * @return {string} HTML
+ */
+export function duplicateItem(finding, formatAmount) {
+    const name = finding.vendor || finding.billName || finding.originalDescription;
+    return `<div class="repair-item">
+        <label class="repair-item-select">
+            <input type="checkbox" class="repair-dup-checkbox" data-transaction-id="${Number(finding.duplicateId)}"${finding.selected ? ' checked' : ''}>
+            <span>${name ? escapeHtml(name) : t('budget', '(unnamed)')}</span>
+        </label>
+        <span class="repair-item-amount">${formatAmount(finding.amount)}</span>
+        <span class="repair-item-date">${escapeHtml(finding.date)}</span>
+        <span class="repair-item-note">${duplicateNote(finding, formatAmount)}</span>
+    </div>`;
+}
 
 /**
  * The note beside a duplicate payment: the payment it repeats, and what
@@ -76,8 +107,50 @@ function amountsDiffer(finding) {
 export function stuckIncomeItem(income, formatAmount) {
     return `<div class="repair-item">
         <span>${escapeHtml(income.name) || t('budget', '(unnamed)')}</span>
-        <span>${formatAmount(income.amount)}</span>
-        <span>${t('budget', 'Received {date}', { date: income.lastReceivedDate })}</span>
+        <span class="repair-item-amount">${formatAmount(income.amount)}</span>
+        <span class="repair-item-date">${t('budget', 'Received {date}', { date: income.lastReceivedDate })}</span>
         <span class="repair-item-note">${t('budget', 'Moves on to {date}', { date: income.settledNextExpectedDate })}</span>
     </div>`;
+}
+
+/**
+ * The message after a repair: what each repaired category changed.
+ *
+ * The incomes line came with #399 and has its singular and plural. The
+ * older lines keep their {count} wording, which is already translated.
+ *
+ * @param {object} result the repair endpoint's response
+ * @return {string}
+ */
+export function repairResultMessage(result) {
+    const parts = [];
+    if (result.duplicateTransactions) {
+        parts.push(t('budget', '{count} duplicate transactions removed', { count: result.duplicateTransactions.deleted }));
+    }
+    if (result.stuckBills) {
+        parts.push(t('budget', '{count} bill due dates fixed', { count: result.stuckBills.fixed }));
+    }
+    if (result.paidOneTimeBills) {
+        parts.push(t('budget', '{count} one-time bills deactivated', { count: result.paidOneTimeBills.fixed }));
+    }
+    if (result.stuckIncome) {
+        parts.push(n('budget', '%n income moved on to its next date', '%n incomes moved on to their next date', result.stuckIncome.fixed));
+    }
+    if (result.futureClearedTransactions) {
+        parts.push(t('budget', '{count} future transactions set to scheduled', { count: result.futureClearedTransactions.fixed }));
+    }
+    if (result.splitParentCategories) {
+        parts.push(t('budget', '{count} split transactions had a stray category removed', { count: result.splitParentCategories.fixed }));
+    }
+    if (result.liabilitySignFlipped) {
+        parts.push(t('budget', '{count} debts re-recorded as owed', { count: result.liabilitySignFlipped.fixed }));
+        if (result.liabilitySignFlipped.confirmed > 0) {
+            parts.push(t('budget', '{count} confirmed as genuine credits', { count: result.liabilitySignFlipped.confirmed }));
+        }
+    }
+    if (result.balanceDrift) {
+        parts.push(t('budget', '{count} account balances corrected', { count: result.balanceDrift.updated }));
+    }
+
+    return t('budget', 'Repair complete: {details}', { details: parts.join(', ') });
 }
