@@ -105,7 +105,7 @@ import HelpModule, { HELP_TOPICS, helpDocUrl, SUPPORT_LINKS } from './modules/he
 import OnboardingModule from './modules/onboarding/OnboardingModule.js';
 import { renderTransactionRow, transactionMenuActions } from './modules/transactions/transactionRow.js';
 import { refreshBankSyncNav } from './modules/bank-sync/bankSyncStatus.js';
-import { applyTransactionColumnVisibility } from './utils/transactionColumns.js';
+import { applyTransactionColumnVisibility, wireTransactionColumnToggles } from './utils/transactionColumns.js';
 // The rule editor's styles ship in budget-app.css with the rest, rather than
 // as a stylesheet of their own fetched when the Rules view first opens
 import './modules/rules/components/CriteriaBuilder.css';
@@ -477,14 +477,7 @@ class BudgetApp {
             });
 
             // Column visibility toggles
-            ['date', 'description', 'vendor', 'category', 'tags', 'amount', 'account'].forEach(col => {
-                const checkbox = document.getElementById(`col-toggle-${col}`);
-                if (checkbox) {
-                    checkbox.addEventListener('change', () => {
-                        this.toggleColumnVisibility(col, checkbox.checked);
-                    });
-                }
-            });
+            wireTransactionColumnToggles(document, (col, shown) => this.toggleColumnVisibility(col, shown));
         }
 
         // More-actions menu: a labelled dropdown under the row's ⋮ button, fixed
