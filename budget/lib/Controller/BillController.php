@@ -1566,8 +1566,9 @@ class BillController extends Controller {
 	 * it (calendarCell() in src/utils/billsCalendarCell.js): what was paid in
 	 * it plus what is still owed, which is also what the month adds to the
 	 * monthly totals. A month the bill moved past with no payment recorded
-	 * comes to nothing, as does one it doesn't fall in. A row that says
-	 * nothing about payments comes to its expected amount.
+	 * comes to nothing, as does one it doesn't fall in, and one whose date
+	 * was paid in the other year (paidElsewhere, counted there). A row that
+	 * says nothing about payments comes to its expected amount.
 	 */
 	private function calendarCellAmount(array $bill, int $month): ?float {
 		if (empty($bill['occurrences'][$month])) {
@@ -1578,7 +1579,7 @@ class BillController extends Controller {
 		if ($paid !== null || $owed !== null) {
 			return MoneyCalculator::toFloat(MoneyCalculator::add((float)($paid ?? 0), (float)($owed ?? 0), 8));
 		}
-		if (in_array($month, $bill['unrecordedMonths'] ?? [], true)) {
+		if (in_array($month, $bill['unrecordedMonths'] ?? [], true) || !empty($bill['paidElsewhere'][$month])) {
 			return null;
 		}
 		return (float)($bill['expectedAmounts'][$month] ?? $bill['amount'] ?? 0);

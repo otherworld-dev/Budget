@@ -19,7 +19,10 @@ import { roundMoney } from './money.js';
  *    is part way through (a weekly bill) adds what was paid so far
  *  - unrecorded: moved past with no payment recorded (marked paid without
  *    a transaction, or skipped): neither paid nor owed (#333). The amount
- *    is what it was expected to cost, for reference
+ *    is what it was expected to cost, for reference. So is a date paid by
+ *    a payment of the other year (paidElsewhere: 5 January paid on
+ *    28 December), counted where the money went out; its tooltip names
+ *    that payment (#399)
  *  - expected: it falls in the month and the row says nothing more
  *  - none: the bill doesn't fall in the month
  *
@@ -44,7 +47,7 @@ export function calendarCell(row, month, settings = {}, currency = null) {
     const code = row.currency || currency;
     const money = amount => formatters.formatCurrency(amount, code, settings);
     const details = row.paidDetails?.[month] || [];
-    const paidLines = details.map(payment => {
+    const line = payment => {
         const params = {
             amount: money(payment.amount),
             date: formatters.formatDate(payment.date, settings),
@@ -54,7 +57,11 @@ export function calendarCell(row, month, settings = {}, currency = null) {
             return t('budget', 'Paid {amount} on {date} for {due}', { ...params, due: formatters.formatDate(payment.due, settings) });
         }
         return t('budget', 'Paid {amount} on {date}', params);
-    });
+    };
+    // A date of the month paid in the other year is listed with the month's own payments, in date order
+    const paidLines = [...details, ...(row.paidElsewhere?.[month] || [])]
+        .sort((a, b) => String(a.date).localeCompare(String(b.date)))
+        .map(line);
     const paid = row.paidAmounts?.[month] ?? null;
     const owed = row.owedAmounts?.[month] ?? null;
     const expected = row.expectedAmounts?.[month] ?? row.amount;
@@ -72,6 +79,9 @@ export function calendarCell(row, month, settings = {}, currency = null) {
     }
     if (isPaid) {
         return cell('paid', paid ?? expected, paidLines.length > 0 ? paidLines.join('\n') : t('budget', 'Paid'));
+    }
+    if (paidLines.length > 0) {
+        return cell('unrecorded', expected, paidLines.join('\n'));
     }
     if ((row.unrecordedMonths || []).includes(month)) {
         return cell('unrecorded', expected, t('budget', 'No payment recorded - the bill has moved on from this date'));
