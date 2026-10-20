@@ -47,14 +47,6 @@ function today() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-// A month after today: the occurrence a payment made today settled was the
-// one before it (#399; a payment years before the next date settles nothing)
-function aMonthOn() {
-    const d = new Date();
-    const next = new Date(d.getFullYear(), d.getMonth() + 1, Math.min(d.getDate(), 28));
-    return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`;
-}
-
 function makeModule(items = []) {
     const mod = Object.create(IncomeModule.prototype);
     mod.app = { settings: {}, recurringIncome: items };
@@ -101,7 +93,7 @@ describe('income list Skip action', () => {
     it('is not offered on income already received this month', () => {
         const mod = makeModule();
 
-        mod.renderRecurringIncome([income({ lastReceivedDate: today(), nextExpectedDate: aMonthOn() })]);
+        mod.renderRecurringIncome([income({ lastReceivedDate: today() })]);
 
         expect(document.querySelectorAll('.income-skip-btn')).toHaveLength(0);
     });

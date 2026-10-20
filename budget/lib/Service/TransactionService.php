@@ -919,11 +919,17 @@ class TransactionService {
 	 * (#334). Used when reverting a payment that LINKED a pre-existing
 	 * (imported) transaction: the row predates the payment and must survive
 	 * the revert — only the bill linkage is undone. A row that no longer
-	 * exists is ignored.
+	 * exists is ignored, and so is one no longer filed under $onlyForBillId:
+	 * a bill's payment can be unlinked while a skip stands and filed under
+	 * another bill, and undoing the skip brings back the snapshot naming it
+	 * (#399).
 	 */
-	public function unlinkBillAsAccountOwner(int $id): void {
+	public function unlinkBillAsAccountOwner(int $id, ?int $onlyForBillId = null): void {
 		$transaction = $this->mapper->findById($id);
 		if ($transaction === null) {
+			return;
+		}
+		if ($onlyForBillId !== null && $transaction->getBillId() !== $onlyForBillId) {
 			return;
 		}
 		$billId = $transaction->getBillId();

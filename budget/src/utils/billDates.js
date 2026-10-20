@@ -39,6 +39,8 @@ export function billRowState(bill, today, settings, accounts = undefined) {
         lastDate: bill.lastPaidDate || bill.last_paid_date || null,
         pattern: bill.customRecurrencePattern ?? bill.custom_recurrence_pattern ?? null,
         dueDay: bill.dueDay ?? bill.due_day ?? null,
+        // Its last date was skipped, not paid (#399)
+        skipped: !!(bill.lastOccurrenceSkipped ?? false),
     }, today);
 
     const key = { inactive: 'paid', settled: 'paid', overdue: 'overdue', soon: 'due-soon', upcoming: 'upcoming' }[status];

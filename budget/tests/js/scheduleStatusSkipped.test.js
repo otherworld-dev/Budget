@@ -1,10 +1,14 @@
 /**
- * A skipped occurrence is not a payment (#399). "Settled" meant "the last
+ * A skipped occurrence is not a payment (#399). "Settled" means "the last
  * payment was within the past cycle", so skipping the next date of a bill
  * paid a month ago gave "Paid 24 Sep, next due 24 Nov" with a green Paid
- * badge and no buttons, while October had been skipped, not paid. A row is
- * settled only when its last payment paid the occurrence just before its
- * next due date.
+ * badge and no buttons, while October had been skipped, not paid.
+ *
+ * Dates alone can't tell that from a bill paid early: a monthly bill due on
+ * the 28th and paid on the 5th looks just the same, and read as not settled
+ * Mark Paid paid it a second time with no question asked. So the dates keep
+ * their old rule, and the server says when the occurrence before the next
+ * one was skipped (lastOccurrenceSkipped); only then is the row not settled.
  */
 
 import { describe, it, expect, vi } from 'vitest';
@@ -26,7 +30,7 @@ describe('a row whose occurrence before the next was skipped', () => {
     it('is upcoming on Bills, with nothing claiming it was paid', () => {
         // Claude by Anthropic: paid 24 Sep, October skipped
         const row = billRowState(
-            { frequency: 'monthly', isActive: true, dueDay: 24, lastPaidDate: '2026-09-24', nextDueDate: '2026-11-24' },
+            { frequency: 'monthly', isActive: true, dueDay: 24, lastPaidDate: '2026-09-24', nextDueDate: '2026-11-24', lastOccurrenceSkipped: true },
             TODAY, settings
         );
 
@@ -39,7 +43,7 @@ describe('a row whose occurrence before the next was skipped', () => {
 
     it('is upcoming on Transfers too', () => {
         const row = billRowState(
-            { frequency: 'monthly', isActive: true, lastPaidDate: '2026-09-26', nextDueDate: '2026-11-26', destinationAccountId: 2 },
+            { frequency: 'monthly', isActive: true, lastPaidDate: '2026-09-26', nextDueDate: '2026-11-26', destinationAccountId: 2, lastOccurrenceSkipped: true },
             TODAY, settings
         );
 
@@ -50,7 +54,7 @@ describe('a row whose occurrence before the next was skipped', () => {
     it('is upcoming on Income, not received', () => {
         // Gutschrift SBB Abo Leon: received 28 Sep, the 29 Oct skipped
         const row = incomeRowState(
-            { frequency: 'monthly', isActive: true, lastReceivedDate: '2026-09-28', nextExpectedDate: '2026-11-29' },
+            { frequency: 'monthly', isActive: true, lastReceivedDate: '2026-09-28', nextExpectedDate: '2026-11-29', lastOccurrenceSkipped: true },
             TODAY, settings
         );
 
@@ -60,52 +64,60 @@ describe('a row whose occurrence before the next was skipped', () => {
         expect(row.canReceive).toBe(true);
     });
 
-    it('works for weekly and yearly schedules', () => {
-        expect(scheduleState({ frequency: 'weekly', isActive: true, lastDate: '2026-10-07', dueDate: '2026-10-28' }, TODAY).status)
-            .toBe('upcoming');
-        expect(scheduleState({ frequency: 'yearly', isActive: true, lastDate: '2025-11-30', dueDate: '2027-11-30' }, TODAY).status)
-            .toBe('upcoming');
+    it('is still due soon or overdue as its date comes', () => {
+        const flagged = { frequency: 'monthly', isActive: true, lastDate: '2026-09-24', skipped: true };
+
+        expect(scheduleState({ ...flagged, dueDate: '2026-10-24' }, TODAY).status).toBe('soon');
+        expect(scheduleState({ ...flagged, dueDate: '2026-10-18' }, TODAY).status).toBe('overdue');
+    });
+
+    it('reads as settled without the flag, as before', () => {
+        const row = billRowState(
+            { frequency: 'monthly', isActive: true, dueDay: 24, lastPaidDate: '2026-09-24', nextDueDate: '2026-11-24' },
+            TODAY, settings
+        );
+
+        expect(row.status).toBe('paid');
     });
 });
 
-describe('a row whose last payment paid the occurrence before the next', () => {
-    it('is still settled when paid on the day', () => {
-        const state = scheduleState({ frequency: 'monthly', isActive: true, lastDate: '2026-10-05', dueDate: '2026-11-05' }, TODAY);
+describe('a row paid early', () => {
+    // The reviewer's cases: each must stay settled, with no Mark Paid
+    const EARLY = [
+        ['monthly, due the 28th, paid on the 5th', { frequency: 'monthly', dueDay: 28, lastPaidDate: '2026-10-05', nextDueDate: '2026-11-28' }, '2026-10-05'],
+        ['monthly, paid 18 days early', { frequency: 'monthly', dueDay: 20, lastPaidDate: '2026-10-02', nextDueDate: '2026-11-20' }, '2026-10-03'],
+        ['weekly, paid 5 days early', { frequency: 'weekly', lastPaidDate: '2026-10-19', nextDueDate: '2026-10-31' }, '2026-10-19'],
+        ['bi-weekly, paid 10 days early', { frequency: 'biweekly', lastPaidDate: '2026-10-14', nextDueDate: '2026-11-07' }, '2026-10-14'],
+        ['quarterly, paid 50 days early', { frequency: 'quarterly', dueDay: 30, lastPaidDate: '2026-10-11', nextDueDate: '2027-02-28' }, '2026-10-11'],
+        ['semi-monthly, paid 8 days early', { frequency: 'semi-monthly', dueDay: 1, lastPaidDate: '2026-10-08', nextDueDate: '2026-11-01' }, '2026-10-08'],
+    ];
 
-        expect(state).toEqual({ status: 'settled', recentlySettled: true });
+    it.each(EARLY)('stays paid on Bills and Transfers: %s', (_name, fields, today) => {
+        for (const extra of [{}, { isTransfer: true, destinationAccountId: 2 }]) {
+            const row = billRowState({ isActive: true, canMarkUnpaid: true, ...fields, ...extra }, today, settings);
+
+            expect(row.status).toBe('paid');
+            expect(row.canPay).toBe(false);
+            expect(row.canSkip).toBe(false);
+            expect(row.canUnpay).toBe(true);
+        }
     });
 
-    it('is still settled when paid late', () => {
-        // Due 5 October, paid on the 12th
-        const state = scheduleState({ frequency: 'monthly', isActive: true, lastDate: '2026-10-12', dueDate: '2026-11-05' }, TODAY);
+    it.each(EARLY.filter(([name]) => !name.startsWith('semi')))('stays received on Income: %s', (_name, fields, today) => {
+        const row = incomeRowState({
+            frequency: fields.frequency, isActive: true,
+            lastReceivedDate: fields.lastPaidDate, nextExpectedDate: fields.nextDueDate,
+        }, today, settings);
 
-        expect(state.status).toBe('settled');
+        expect(row.status).toBe('received');
+        expect(row.canReceive).toBe(false);
     });
 
-    it('is still settled when paid early, within half a cycle', () => {
-        // Due 15 October, paid on 2 October; a yearly bill a month early
-        expect(scheduleState({ frequency: 'monthly', isActive: true, lastDate: '2026-10-02', dueDate: '2026-11-15' }, '2026-10-08').status)
-            .toBe('settled');
-        expect(scheduleState({ frequency: 'yearly', isActive: true, lastDate: '2026-09-01', dueDate: '2027-10-01' }, TODAY).status)
-            .toBe('settled');
-    });
+    it('leaves a bill paid on time as it was', () => {
+        const row = billRowState({ frequency: 'monthly', isActive: true, dueDay: 5, lastPaidDate: '2026-10-05', nextDueDate: '2026-11-05' }, '2026-10-06', settings);
 
-    it('reads a month that has fewer days than the due day', () => {
-        // Due on the 31st: February's occurrence is the 28th
-        const state = scheduleState(
-            { frequency: 'monthly', isActive: true, dueDay: 31, lastDate: '2027-02-28', dueDate: '2027-03-31' },
-            '2027-03-10'
-        );
-
-        expect(state.status).toBe('settled');
-    });
-
-    it('handles a semi-monthly schedule', () => {
-        // On the 1st and the 16th: paid on the 16th, next the 1st
-        expect(scheduleState({ frequency: 'semi-monthly', isActive: true, dueDay: 1, lastDate: '2026-10-16', dueDate: '2026-11-01' }, '2026-10-17').status)
-            .toBe('settled');
-        // Paid on the 1st, the 16th skipped
-        expect(scheduleState({ frequency: 'semi-monthly', isActive: true, dueDay: 1, lastDate: '2026-10-01', dueDate: '2026-11-01' }, '2026-10-17').status)
-            .toBe('upcoming');
+        expect(row.status).toBe('paid');
+        expect(row.dateText).toBe('Paid 2026-10-05, next due 2026-11-05');
+        expect(row.canPay).toBe(false);
     });
 });

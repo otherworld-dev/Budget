@@ -262,6 +262,9 @@ class Bill extends Entity implements JsonSerializable {
 			'canMarkUnpaid' => $this->canMarkUnpaid(),
 			// Mark Unpaid keeps a row the payment used, and its question says so (#399)
 			'lastPaymentUsedExisting' => $this->lastPaymentUsedExisting(),
+			// The date before the next one was skipped, not paid: the page
+			// can't tell that from a payment made early by the dates (#399)
+			'lastOccurrenceSkipped' => UndoSnapshotSkips::setAside($this->getPaidUndoState()),
 			'currency' => $this->getCurrency(),
 		];
 	}

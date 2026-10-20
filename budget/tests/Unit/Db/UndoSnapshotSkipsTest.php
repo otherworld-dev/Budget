@@ -24,10 +24,14 @@ class UndoSnapshotSkipsTest extends TestCase {
 		$this->assertFalse(UndoSnapshotSkips::setAside(self::SNAPSHOT));
 	}
 
-	public function testThereIsNothingToSetAsideWithoutASnapshot(): void {
-		$this->assertNull(UndoSnapshotSkips::skip(null, '2026-10-24'));
-		$this->assertNull(UndoSnapshotSkips::skip('', '2026-10-24'));
-		$this->assertNull(UndoSnapshotSkips::skip('not json', '2026-10-24'));
+	public function testASkipWithoutASnapshotLeavesOneHoldingOnlyTheDate(): void {
+		// So the page still learns the date was skipped (#399 review)
+		foreach ([null, '', 'not json'] as $raw) {
+			$skipped = UndoSnapshotSkips::skip($raw, '2026-10-24');
+			$this->assertSame([UndoSnapshotSkips::KEY => ['2026-10-24']], json_decode($skipped, true));
+			$this->assertTrue(UndoSnapshotSkips::setAside($skipped));
+			$this->assertNull(UndoSnapshotSkips::unskip($skipped, '2026-10-24'), 'nothing is left once it is undone');
+		}
 		$this->assertFalse(UndoSnapshotSkips::setAside(null));
 	}
 
@@ -37,13 +41,20 @@ class UndoSnapshotSkipsTest extends TestCase {
 		$this->assertSame(json_decode(self::SNAPSHOT, true), json_decode((string)UndoSnapshotSkips::unskip($skipped, '2026-10-24'), true));
 	}
 
-	public function testOnlyTheLastSkipCanBeUndone(): void {
+	public function testTwoSkipsAreUndoneInOrder(): void {
 		$twice = UndoSnapshotSkips::skip(UndoSnapshotSkips::skip(self::SNAPSHOT, '2026-10-24'), '2026-11-24');
 
-		$this->assertSame($twice, UndoSnapshotSkips::unskip($twice, '2026-10-24'), 'November is still skipped');
 		$once = UndoSnapshotSkips::unskip($twice, '2026-11-24');
-		$this->assertTrue(UndoSnapshotSkips::setAside($once));
+		$this->assertTrue(UndoSnapshotSkips::setAside($once), 'October is still skipped');
 		$this->assertFalse(UndoSnapshotSkips::setAside(UndoSnapshotSkips::unskip($once, '2026-10-24')));
+	}
+
+	public function testUndoingTheFirstOfTwoSkipsUndoesBoth(): void {
+		// The first toast's Undo puts the bill back on October: November's
+		// skip is gone with it, and nothing is left set aside
+		$twice = UndoSnapshotSkips::skip(UndoSnapshotSkips::skip(self::SNAPSHOT, '2026-10-24'), '2026-11-24');
+
+		$this->assertSame(json_decode(self::SNAPSHOT, true), json_decode((string)UndoSnapshotSkips::unskip($twice, '2026-10-24'), true));
 	}
 
 	public function testUndoingASkipLeavesASnapshotInUseAlone(): void {
