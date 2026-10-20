@@ -3237,6 +3237,7 @@ class BillService {
 			// due on, from the same rows: the owner's view, so anyone's account
 			$pending = null;
 			$paidElsewhere = [];
+			$outOfSight = false;
 			$nextDue = $bill->getNextDueDate();
 			if ($bill->getFrequency() !== 'one-time') {
 				$billId = (int)$bill->getId();
@@ -3252,8 +3253,11 @@ class BillService {
 				// in January as well, and counted in both years (#399). Its
 				// cell names the payment. The date is taken all the same, so
 				// a row of this year near it is its second payment.
+				// Whichever year the date is in, a payment of this year can be
+				// its second, and must find it (#399)
+				$outOfSight = $row !== null && $pending === null && (int)substr((string)$row->getDate(), 0, 4) !== $year;
 				$month = ($nextDue === null || $nextDue === '') ? 0 : (int)substr($nextDue, 5, 2);
-				if ($row !== null && $pending === null && (int)substr((string)$row->getDate(), 0, 4) !== $year
+				if ($outOfSight
 					&& (int)substr((string)$nextDue, 0, 4) === $year
 					&& in_array(substr((string)$nextDue, 0, 10), $datesByMonth[$month] ?? [], true)) {
 					$paidElsewhere[$month][] = ['date' => $row->getDate(), 'amount' => (float)$row->getAmount(), 'due' => substr((string)$nextDue, 0, 10)];
@@ -3265,7 +3269,7 @@ class BillService {
 				$paymentsByBill[$bill->getId()] ?? [],
 				$year,
 				$pending,
-				$paidElsewhere !== []
+				$outOfSight
 			);
 
 			// A bill with nothing in this year - created after its only date
@@ -3658,7 +3662,7 @@ class BillService {
 	 * @param array<int, bool> $occurrences month => occurs, 1..12
 	 * @param array<int, array{date: string, amount: float}> $payments in date order
 	 * @param int|null $pending the payment (key in $payments) Mark Paid would use for the date the bill is due on
-	 * @param bool $paidElsewhere whether that payment is the other year's, so not among $payments
+	 * @param bool $paidElsewhere whether Mark Paid's payment for that date is the other year's, so not among $payments
 	 * @return array{0: array<int, bool>, 1: int[], 2: array<int, float>, 3: int[], 4: array<int, list<array{date: string, amount: float, due: ?string}>>, 5: array<int, int>}
 	 */
 	private function attributePayments(array $occurrences, Bill $bill, array $payments, int $year, ?int $pending = null, bool $paidElsewhere = false): array {
@@ -3697,10 +3701,10 @@ class BillService {
 			? (new \DateTimeImmutable($nextDue))->format('Y-m-d')
 			: null;
 		// Due on an earlier date of the other year than its neighbour here,
-		// and paid with a payment of this year: that date has no slot, and the
-		// payment was in neither year (12 December paid on 2 January, with 19
-		// and 26 December still owed, #399). It gets one, in date order.
-		if ($boundary !== null && $pending !== null && isset($payments[$pending])
+		// and paid: that date has no slot, and a payment of this year for it
+		// was in neither year (12 December paid on 2 January, with 19 and
+		// 26 December still owed, #399). It gets one, in date order.
+		if ($boundary !== null && (($pending !== null && isset($payments[$pending])) || $paidElsewhere)
 			&& (int)substr($boundary, 0, 4) !== $year && !in_array($boundary, array_column($slots, 1), true)) {
 			$at = 0;
 			while ($at < count($slots) && $slots[$at][1] < $boundary) {
@@ -3867,6 +3871,13 @@ class BillService {
 		// A recurring bill's only date this year, still owed and with no
 		// payment Mark Paid would use: no payment pays it
 		$owedSingle = count($own) === 1 && !$isClosed($own[0]);
+		// What a payment left over can be the second payment of: the dates
+		// closed this year, and the date the bill is due on when that is the
+		// other year's. A second payment in January of a December date paid
+		// in December had none, and was in neither year (#399).
+		$doubleTargets = ($pendingSlot !== null && !in_array($pendingSlot, $closedSlots, true))
+			? [...$closedSlots, $pendingSlot]
+			: $closedSlots;
 		foreach ($paidOn as $payment => $date) {
 			if (isset($slotOf[$payment]) || isset($monthOf[$payment])) {
 				continue;
@@ -3876,7 +3887,7 @@ class BillService {
 			// from an earlier bill for the same thing), so it is no second
 			// payment for the first of them (#399).
 			if ($begins === null || $date->format('Y-m-d') >= $begins) {
-				$slot = $nearest($payment, $closedSlots, self::PAYMENT_MATCH_WINDOW_DAYS);
+				$slot = $nearest($payment, $doubleTargets, self::PAYMENT_MATCH_WINDOW_DAYS);
 				if ($slot !== null) {
 					$slotOf[$payment] = $slot;
 					continue;
@@ -3894,7 +3905,7 @@ class BillService {
 			} elseif ($boundary === null || $this->occurrenceDate($bill, $year, $month) < $boundary) {
 				$monthOf[$payment] = $month;
 				$occurrences[$month] = true;
-			} elseif (($slot = $nearest($payment, $closedSlots, null)) !== null) {
+			} elseif (($slot = $nearest($payment, $doubleTargets, null)) !== null) {
 				$slotOf[$payment] = $slot;
 			}
 			// else nothing the bill counts as paid to put it on
