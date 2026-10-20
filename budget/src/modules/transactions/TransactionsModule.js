@@ -4789,6 +4789,9 @@ export default class TransactionsModule {
         }
 
         cell.classList.add('editing');
+        // The cell's full-text tooltip would sit over the editor; the table
+        // is drawn again when the edit ends, with the new text
+        cell.removeAttribute('title');
         this.currentEditingCell = cell;
         this.originalValue = value;
 

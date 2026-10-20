@@ -160,6 +160,17 @@ describe('Link to bill', () => {
         await expect(choice).resolves.toBe(120);
     });
 
+    it('stays open for the second click when it lands on the backdrop', () => {
+        chooseBill(BILLS, {});
+        now = OPENED + 200;
+        click(modal(), 2);
+        expect(modal()).not.toBeNull();
+
+        now = OPENED + 1500;
+        click(modal(), 1);
+        expect(modal()).toBeNull();
+    });
+
     it('picks the bill from the keyboard however soon', () => {
         chooseBill(BILLS, {});
         now = OPENED + 5;

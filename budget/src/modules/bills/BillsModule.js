@@ -1034,7 +1034,7 @@ export default class BillsModule {
         removeBtn.textContent = '\u00d7';
         removeBtn.title = t('budget', 'Remove split');
         removeBtn.setAttribute('aria-label', removeBtn.title);
-        removeBtn.style.cssText = 'width: 28px; height: 28px; padding: 0; border: none; background: var(--color-error); color: white; border-radius: 50%; cursor: pointer; font-size: 16px; flex-shrink: 0;';
+        removeBtn.style.cssText = 'width: 28px; height: 28px; padding: 0; border: none; background: var(--color-error); color: var(--budget-color-on-error, var(--budget-color-on-status, white)); border-radius: 50%; cursor: pointer; font-size: 16px; flex-shrink: 0;';
         removeBtn.addEventListener('click', () => {
             row.remove();
             this.updateBillSplitRemaining();

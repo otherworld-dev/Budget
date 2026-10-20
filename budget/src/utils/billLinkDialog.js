@@ -12,7 +12,7 @@ import { translate as t } from '@nextcloud/l10n';
 import * as formatters from './formatters.js';
 import * as dom from './dom.js';
 import { toCents } from './money.js';
-import { ignoreOpeningClickOnOptions } from './doubleClick.js';
+import { ignoreOpeningClickOnOptions, isOpeningClick, keepFocusOnOpeningPress } from './doubleClick.js';
 
 /**
  * The bills a transaction can be filed under: the user's own, paid from the
@@ -137,8 +137,11 @@ export function chooseBill(bills, settings, transaction = undefined) {
         `;
         document.body.appendChild(modal);
         // A double click on the menu item that opened it picks no bill with
-        // its second click (see utils/doubleClick.js, #399)
-        ignoreOpeningClickOnOptions(modal, '.matching-tx-option', Date.now());
+        // its second click, nor closes the dialog from its backdrop (see
+        // utils/doubleClick.js, #399)
+        const openedAt = Date.now();
+        ignoreOpeningClickOnOptions(modal, '.matching-tx-option', openedAt);
+        keepFocusOnOpeningPress(modal, openedAt);
 
         const finish = (billId) => {
             document.removeEventListener('keydown', onKeydown, true);
@@ -157,7 +160,7 @@ export function chooseBill(bills, settings, transaction = undefined) {
         modal.querySelector('.close-btn').addEventListener('click', () => finish(null));
         modal.querySelector('.cancel-btn').addEventListener('click', () => finish(null));
         modal.addEventListener('click', (e) => {
-            if (e.target === modal) finish(null);
+            if (e.target === modal && !isOpeningClick(e, openedAt)) finish(null);
         });
 
         const confirm = modal.querySelector('.confirm-btn');
