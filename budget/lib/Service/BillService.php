@@ -1271,10 +1271,10 @@ class BillService {
 			throw new \InvalidArgumentException($this->l->t('This bill has nothing left to pay'));
 		}
 		// The page names the occurrence it showed. A stale tab or a double
-		// submit names one already settled, and is refused rather than paid
-		// a second time.
+		// submit names one already settled, paid or skipped, and is refused
+		// rather than paid a second time (#399).
 		if ($expectedDueDate !== null && $expectedDueDate !== '' && $expectedDueDate !== $bill->getNextDueDate()) {
-			throw new \InvalidArgumentException($this->l->t('This payment was already recorded. Reload the page to see the next one.'));
+			throw new \InvalidArgumentException($this->l->t('This date was already paid or skipped. Reload the page to see the next one.'));
 		}
 		$this->requireWritableAccounts($bill);
 
@@ -1416,7 +1416,8 @@ class BillService {
 			$before['amount'] = $previousState['amount'];
 		}
 		if (!$this->mapper->claimOccurrence($id, $userId, (string)$previousState['nextDueDate'], $claimed)) {
-			throw new \InvalidArgumentException($this->l->t('This payment was already recorded. Reload the page to see the next one.'));
+			// Paid or skipped by the request that got there first
+			throw new \InvalidArgumentException($this->l->t('This date was already paid or skipped. Reload the page to see the next one.'));
 		}
 
 		try {

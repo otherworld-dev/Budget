@@ -755,12 +755,12 @@ class RecurringIncomeControllerTest extends TestCase {
 
 	public function testMarkReceivedShowsWhyItWasRefused(): void {
 		$this->request->method('getParams')->willReturn([]);
-		$this->service->method('markReceived')->willThrowException(new \InvalidArgumentException('This payment was already recorded'));
+		$this->service->method('markReceived')->willThrowException(new \InvalidArgumentException('This date was already paid or skipped. Reload the page to see the next one.'));
 
 		$response = $this->controllerOwnedBy('owner1')->markReceived(7);
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
-		$this->assertSame('This payment was already recorded', $response->getData()['error']);
+		$this->assertSame('This date was already paid or skipped. Reload the page to see the next one.', $response->getData()['error']);
 	}
 
 	public function testMarkUnreceivedRevertsTheLastReceipt(): void {

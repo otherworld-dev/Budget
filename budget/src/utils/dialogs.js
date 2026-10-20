@@ -21,7 +21,7 @@
 
 import { translate as t } from '@nextcloud/l10n';
 import { plainText } from './helpers.js';
-import { isOpeningClick, isRepeatClick } from './doubleClick.js';
+import { isOpeningClick, isRepeatClick, keepFocusOnOpeningPress } from './doubleClick.js';
 
 /** The dialog currently on screen, or null. */
 let active = null;
@@ -111,6 +111,10 @@ function buildDialog(spec) {
 function render(spec) {
     const { backdrop, panel, input, cancel, confirm } = buildDialog(spec);
     const previousFocus = document.activeElement;
+    // A destructive confirm starts on Cancel, so the keystroke that arrives
+    // before the user has read the question cannot be the one that deletes
+    // something. Anything else starts on its confirm button.
+    const startButton = spec.destructive && cancel ? cancel : confirm;
 
     const close = (answer) => {
         if (active !== state) return;
@@ -128,6 +132,17 @@ function render(spec) {
         showNext();
     };
 
+    // The button Enter stands for: the focused one, the confirm button from
+    // a prompt's field, and from anywhere else the one the dialog started
+    // on. A press on the message or the backdrop takes the focus off the
+    // buttons, and a destructive confirm then deleted on Enter (#399).
+    const enterButton = () => {
+        const focused = document.activeElement;
+        if (focused && (focused === cancel || focused === confirm)) return focused;
+        if (focused && focused === input) return confirm;
+        return startButton;
+    };
+
     const onKeydown = (e) => {
         if (e.key === 'Escape') {
             e.preventDefault();
@@ -138,9 +153,7 @@ function render(spec) {
             if (document.activeElement && document.activeElement.tagName === 'A') return;
             e.preventDefault();
             e.stopPropagation();
-            // Enter activates whatever is focused, so on a destructive dialog
-            // — which opens on Cancel — it dismisses rather than deletes.
-            if (cancel && document.activeElement === cancel) {
+            if (enterButton() === cancel) {
                 close(spec.cancelAnswer);
             } else {
                 close(spec.confirmAnswer(input));
@@ -175,6 +188,9 @@ function render(spec) {
     backdrop.addEventListener('mousedown', (e) => {
         pressedBackdrop = e.target === backdrop;
     });
+    // The press of a click it ignores below moves no focus either: the
+    // focus stays where the dialog put it
+    keepFocusOnOpeningPress(backdrop, openedAt);
     backdrop.addEventListener('click', (e) => {
         const pressed = pressedBackdrop;
         pressedBackdrop = false;
@@ -191,10 +207,8 @@ function render(spec) {
     // which is the same "nothing happens" failure this whole change removes.
     document.body.appendChild(backdrop);
 
-    // A prompt starts in its field; a destructive confirm starts on Cancel, so
-    // the keystroke that arrives before the user has read the question cannot
-    // be the one that deletes something.
-    const initial = input || (spec.destructive && cancel ? cancel : confirm);
+    // A prompt starts in its field, anything else on its start button
+    const initial = input || startButton;
     initial.focus();
     if (input) input.select();
 }

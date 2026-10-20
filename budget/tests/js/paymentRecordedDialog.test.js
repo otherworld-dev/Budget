@@ -188,10 +188,10 @@ describe('sendPayment', () => {
     });
 
     it('passes any other refusal on', async () => {
-        serve([400, { error: 'This payment was already recorded. Reload the page to see the next one.' }]);
+        serve([400, { error: 'This date was already paid or skipped. Reload the page to see the next one.' }]);
 
         await expect(sendPayment('/apps/budget/api/bills/5/paid', { recordPayment: true }, {}))
-            .rejects.toThrow('This payment was already recorded. Reload the page to see the next one.');
+            .rejects.toThrow('This date was already paid or skipped. Reload the page to see the next one.');
         expect(modal()).toBeNull();
     });
 

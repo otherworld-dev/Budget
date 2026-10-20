@@ -26,8 +26,7 @@ use Psr\Log\LoggerInterface;
  */
 class IncomePayOnceTest extends TestCase {
 	private const TODAY = '2026-10-19';
-	private const ALREADY_RECORDED = 'This payment was already recorded. Reload the page to see the next one.';
-	private const ALREADY_SKIPPED = 'This date was already paid or skipped. Reload the page to see the next one.';
+	private const ALREADY_SETTLED = 'This date was already paid or skipped. Reload the page to see the next one.';
 
 	private RecurringIncomeService $service;
 	private ?RecurringIncome $stored = null;
@@ -133,7 +132,7 @@ class IncomePayOnceTest extends TestCase {
 			$this->service->markReceived(1, 'user1', self::TODAY, true, '2026-09-29');
 			$this->fail('September was received a second time');
 		} catch (\InvalidArgumentException $e) {
-			$this->assertSame(self::ALREADY_RECORDED, $e->getMessage());
+			$this->assertSame(self::ALREADY_SETTLED, $e->getMessage());
 		}
 
 		$this->assertSame([], $this->booked);
@@ -189,7 +188,7 @@ class IncomePayOnceTest extends TestCase {
 			$this->service->skipPayment(1, 'user1', '2026-09-29');
 			$this->fail('The stale skip went through');
 		} catch (\InvalidArgumentException $e) {
-			$this->assertSame(self::ALREADY_SKIPPED, $e->getMessage());
+			$this->assertSame(self::ALREADY_SETTLED, $e->getMessage());
 		}
 
 		$this->assertSame('2026-10-29', $this->stored->getNextExpectedDate());
@@ -203,7 +202,7 @@ class IncomePayOnceTest extends TestCase {
 			$this->service->skipPayment(1, 'user1', '2026-09-29');
 			$this->fail('September was skipped twice');
 		} catch (\InvalidArgumentException $e) {
-			$this->assertSame(self::ALREADY_SKIPPED, $e->getMessage());
+			$this->assertSame(self::ALREADY_SETTLED, $e->getMessage());
 		}
 
 		$this->assertSame('2026-10-29', $this->stored->getNextExpectedDate());

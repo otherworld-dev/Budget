@@ -292,8 +292,9 @@ class RecurringIncomeService extends AbstractCrudService {
 		if (!$income->getIsActive() || $income->getNextExpectedDate() === null) {
 			throw new \InvalidArgumentException($this->l->t('This income has no payment to receive'));
 		}
+		// Settled already, received or skipped (#399)
 		if ($expectedDate !== null && $expectedDate !== '' && $expectedDate !== $income->getNextExpectedDate()) {
-			throw new \InvalidArgumentException($this->l->t('This payment was already recorded. Reload the page to see the next one.'));
+			throw new \InvalidArgumentException($this->l->t('This date was already paid or skipped. Reload the page to see the next one.'));
 		}
 		$willBook = $createTransaction && $income->getAccountId() !== null;
 		if ($willBook) {
@@ -314,7 +315,8 @@ class RecurringIncomeService extends AbstractCrudService {
 		// once, or one and auto-create, only the first books the money
 		$claimed = $this->claimPayment($income, (string)$income->getNextExpectedDate(), ['last_received_date' => $received]);
 		if ($claimed === null) {
-			throw new \InvalidArgumentException($this->l->t('This payment was already recorded. Reload the page to see the next one.'));
+			// Received or skipped by the request that got there first
+			throw new \InvalidArgumentException($this->l->t('This date was already paid or skipped. Reload the page to see the next one.'));
 		}
 		$this->takeClaimed($income, $claimed);
 
