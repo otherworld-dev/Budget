@@ -367,7 +367,7 @@ export default class BillsModule {
                     </div>
                     <div class="bill-details">
                         <div class="bill-due-date">
-                            <span class="icon-calendar" aria-hidden="true"></span>
+                            <span class="icon-calendar-dark" aria-hidden="true"></span>
                             ${dom.escapeHtml(row.dateText)}
                         </div>
                         <div class="bill-status ${statusClass}">

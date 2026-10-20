@@ -162,7 +162,7 @@ export default class SavingsModule {
                     </div>
 
                     <div class="goal-footer">
-                        ${targetDateText ? `<span class="goal-target-date"><span class="icon-calendar"></span> ${targetDateText}</span>` : '<span></span>'}
+                        ${targetDateText ? `<span class="goal-target-date"><span class="icon-calendar-dark"></span> ${targetDateText}</span>` : '<span></span>'}
                         ${footerAction}
                     </div>
                 </div>

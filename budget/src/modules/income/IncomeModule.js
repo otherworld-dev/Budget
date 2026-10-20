@@ -123,7 +123,7 @@ export default class IncomeModule {
                     </div>
                     <div class="income-details">
                         <div class="income-next-date">
-                            <span class="icon-calendar" aria-hidden="true"></span>
+                            <span class="icon-calendar-dark" aria-hidden="true"></span>
                             ${dom.escapeHtml(row.dateText)}
                         </div>
                         <div class="income-status ${statusClass}">
