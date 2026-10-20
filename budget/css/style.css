@@ -5906,6 +5906,20 @@ button.danger:hover {
         top: 0;
         z-index: 2;
     }
+
+    /* The page scrolls down to the register, and where its rows start
+       scrolling depends on where the pointer is, so when they reached the
+       end the paging could still be under the window's edge (8 px at
+       1280 x 800). It sticks to the bottom of the view instead, on screen
+       whenever the register is, over the rows it covers until the page
+       scrolls on. transactionHeaderSticky.test.js. */
+    #account-transactions-pagination {
+        position: sticky;
+        bottom: 0;
+        z-index: 3;
+        background: var(--color-main-background);
+        padding: 8px 0;
+    }
 }
 
 /* The reference on its own muted line under the description, as in the

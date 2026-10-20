@@ -199,3 +199,36 @@ describe.each(TABLES)('%s on a phone', (_label, id) => {
         expect(['visible', undefined]).toContain(declared['overflow-y']);
     });
 });
+
+describe('an account\'s register paging', () => {
+    // The register sits under the account's details, so the page scrolls to
+    // it, and where the box's rows start scrolling depends on where the
+    // pointer was. When they reached the end the paging could still be
+    // under the window's edge (8 px at 1280 x 800, more with the pointer
+    // lower down). It sticks to the bottom of the page's view instead, so
+    // it's on screen whenever the register is, and moves on with the page.
+    const paging = () => document.getElementById('account-transactions-pagination');
+
+    it('sticks to the bottom of the view above phone width, outside the rows\' box', () => {
+        const declared = cascadedDeclarations(paging(), 'light', WIDE);
+
+        expect(declared).toMatchObject({ position: 'sticky', bottom: '0' });
+        // Nothing round it scrolls short of the page, so the page's view is what it sticks to
+        expect(scroller(paging(), WIDE)).toBeNull();
+    });
+
+    for (const theme of THEMES) {
+        it(`has an opaque fill in ${theme}, above the rows and the header row it can cover`, () => {
+            useTheme(theme);
+            const declared = cascadedDeclarations(paging(), theme, WIDE);
+            const th = cascadedDeclarations(document.querySelector('#account-transactions-table th'), theme, WIDE);
+
+            expect(declared.background).toBe('var(--color-main-background)');
+            expect(Number(declared['z-index'])).toBeGreaterThan(Number(th['z-index']));
+        });
+    }
+
+    it('is left as it was on a phone', () => {
+        expect(cascadedDeclarations(paging(), 'light', PHONE).position ?? 'static').toBe('static');
+    });
+});
