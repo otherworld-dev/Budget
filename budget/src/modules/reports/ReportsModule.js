@@ -1901,7 +1901,9 @@ export default class ReportsModule {
             for (let month = 1; month <= 12; month++) {
                 const cell = calendarCell(bill, month, this.settings, currency);
                 const amount = cell.amount === null ? '' : dom.escapeHtml(this.formatCurrency(cell.amount, bill.currency || currency));
-                const marker = cell.marker ? `<span class="payments-marker">${cell.marker}</span> ` : '';
+                // No space after the pill: a paid cell's line-through ran
+                // under it, reading "2× -969.50" (#399). Its margin spaces it.
+                const marker = cell.marker ? `<span class="payments-marker">${cell.marker}</span>` : '';
                 months.push(`<td class="month-cell ${cellClasses[cell.state]}" title="${dom.escapeHtml(cell.title)}">${marker}${amount}</td>`);
             }
 

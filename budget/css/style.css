@@ -18817,12 +18817,17 @@ button.secondary.compact {
 }
 
 /* A cell with a date paid more than once (#399). Inline-block keeps a paid
-   cell's line-through off it. */
+   cell's line-through off it, and the margin stands in for a space, which
+   the line-through ran under ("2× -969.50"). White text on the light
+   theme's warning orange came to 3.79:1, under the 4.5:1 small text needs;
+   darkened by a fifth it is 5.5:1, and the dark theme's dark text on its
+   darkened amber 6.6:1. */
 .bills-calendar-table .month-cell .payments-marker {
     display: inline-block;
+    margin-inline-end: 4px;
     padding: 0 4px;
     border-radius: 8px;
-    background: var(--color-warning);
+    background: color-mix(in srgb, var(--color-warning), black 20%);
     color: var(--budget-color-on-status, #fff);
     font-size: 10px;
     font-style: normal;
