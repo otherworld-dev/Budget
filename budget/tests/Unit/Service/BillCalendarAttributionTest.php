@@ -213,7 +213,8 @@ class BillCalendarAttributionTest extends TestCase {
 	 * whenever it was made (#375), so CembraPay's second payment, 17 days
 	 * after the date, read as September paid twice. Its date takes the
 	 * payments within its due window; the second one is October's, a month
-	 * of its own (#399; BillCalendarSingleDateTest has the rest).
+	 * of its own, which names the date it paid again (#399;
+	 * BillCalendarSingleDateTest and BillCalendarPaidAgainTest have the rest).
 	 */
 	public function testASingleOccurrenceTakesThePaymentsNearItsDate(): void {
 		$cembra = $this->bill(['id' => 93, 'name' => 'CembraPay Temu', 'amount' => 151.67, 'frequency' => 'one-time',
@@ -228,7 +229,7 @@ class BillCalendarAttributionTest extends TestCase {
 		$this->assertSame([9, 10], $row['paidMonths']);
 		$this->assertSame([9 => 151.67, 10 => 151.67], $this->rounded($row['paidAmounts']));
 		$this->assertSame([['date' => '2026-09-27', 'amount' => 151.67, 'due' => '2026-09-28']], $row['paidDetails'][9]);
-		$this->assertSame([['date' => '2026-10-15', 'amount' => 151.67, 'due' => null]], $row['paidDetails'][10]);
+		$this->assertSame([['date' => '2026-10-15', 'amount' => 151.67, 'due' => '2026-09-28']], $row['paidDetails'][10]);
 		$this->assertSame([], $row['paidMoreThanOnce']);
 		$this->assertTrue($row['occurrences'][10], 'October holds the payment made in it');
 	}
