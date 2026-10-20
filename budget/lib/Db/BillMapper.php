@@ -158,7 +158,13 @@ class BillMapper extends QBMapper {
 
 		ScheduleOrder::byNextDate($qb, 'next_due_date');
 
-		return $this->findEntities($qb);
+		$bills = $this->findEntities($qb);
+		if ($isActive === null && $activeOrRevertible) {
+			// A snapshot a skip set aside can't be reverted from, so a bill
+			// paused since is nothing to list (#399)
+			$bills = array_values(array_filter($bills, fn (Bill $bill): bool => $bill->getIsActive() || $bill->canMarkUnpaid()));
+		}
+		return $bills;
 	}
 
 	/**
