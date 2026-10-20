@@ -859,6 +859,7 @@ class RepairService {
 			'date' => $duplicate->getDate(),
 			'originalDate' => $original->getDate(),
 			'vendor' => $duplicate->getVendor() ?: $original->getVendor(),
+			'description' => $duplicate->getDescription() ?: '',
 			'originalDescription' => $original->getVendor() ?: ($original->getDescription() ?: ''),
 			'originalReconciled' => (bool)$original->getReconciled(),
 			'accountId' => $duplicate->getAccountId(),

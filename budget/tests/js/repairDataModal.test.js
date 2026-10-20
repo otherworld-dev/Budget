@@ -94,8 +94,13 @@ describe('a duplicate payment row', () => {
         expect(label(christian())).toBe('Christian Uhrenschmuck24');
     });
 
-    it('with no vendor, goes by its bill\'s name first', () => {
-        expect(label(cembra({ vendor: null, billName: 'CembraPay Temu', originalDescription: 'TEMU.COM 123' }))).toBe('CembraPay Temu');
+    it('with no vendor, goes by its own description first', () => {
+        expect(label(christian({ description: 'Uhrenschmuck24 Rechnung 0326' }))).toBe('Uhrenschmuck24 Rechnung 0326');
+        expect(label(cembra({ vendor: null, description: 'CembraPay Temu 09/26', originalDescription: 'TEMU.COM 123' }))).toBe('CembraPay Temu 09/26');
+    });
+
+    it('with no vendor or description, goes by its bill\'s name', () => {
+        expect(label(cembra({ vendor: null, description: '', billName: 'CembraPay Temu', originalDescription: 'TEMU.COM 123' }))).toBe('CembraPay Temu');
     });
 
     it('is unnamed only when nothing names it', () => {
@@ -226,6 +231,14 @@ describe('the Repair Data modal', () => {
         expect(declarationsFor(title)).toMatchObject({ display: 'flex', 'align-items': 'center' });
         expect(declarationsFor(tick)).toMatchObject({ height: 'auto', 'min-height': '0', margin: '0' });
         // Over Nextcloud's own input rule, input:not([type="range"], .input-field__input, …): 0-1-1
+        const sizing = rulesMatching(tick).filter(r => r.declarations['min-height'] === '0');
+        expect(Math.max(...sizing.flatMap(r => r.selectors.filter(s => tick.matches(s)).map(specificity)))).toBeGreaterThan(101);
+    });
+
+    it('keeps each row\'s tick at a tick\'s size', () => {
+        const tick = inModal(duplicateItem(cembra(), chf)).querySelector('.repair-dup-checkbox');
+
+        expect(declarationsFor(tick)).toMatchObject({ height: 'auto', 'min-height': '0', margin: '0' });
         const sizing = rulesMatching(tick).filter(r => r.declarations['min-height'] === '0');
         expect(Math.max(...sizing.flatMap(r => r.selectors.filter(s => tick.matches(s)).map(specificity)))).toBeGreaterThan(101);
     });

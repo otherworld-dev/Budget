@@ -20184,9 +20184,13 @@ body[data-theme-dark-highcontrast] .matching-tx-badge {
     margin: 0;
 }
 
+/* Nextcloud's input sizing would stretch the row's tick too, as it did
+   the category's (above) */
 .repair-item-select input[type="checkbox"] {
     margin: 0;
     flex-shrink: 0;
+    height: auto;
+    min-height: 0;
 }
 
 .repair-category-help {
