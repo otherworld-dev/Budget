@@ -17,7 +17,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { declarationsFor, rulesMatching } from './helpers/stylesheet.js';
+import { declarationsFor } from './helpers/stylesheet.js';
+import { cascadedDeclarations } from './helpers/cascade.js';
 
 const TEMPLATE = fs.readFileSync(
     path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../templates/index.php'),
@@ -87,33 +88,32 @@ describe('Map Columns controls', () => {
     });
 });
 
-describe('the import template dialogs', () => {
-    it.each(['import-save-template-modal', 'import-templates-modal'])('%s puts the title and its x on one row', (id) => {
-        const header = document.querySelector(`#${id} .modal-header`);
-        const title = header.querySelector('h3');
-        const close = header.querySelector('.modal-close');
+describe('the dialogs with a title row', () => {
+    const ids = () => [...document.querySelectorAll('.modal > .modal-content > .modal-header')]
+        .map(header => header.closest('.modal').id);
 
-        expect(declarationsFor(header)).toMatchObject({ display: 'flex', 'justify-content': 'space-between', 'align-items': 'center' });
-        expect(declarationsFor(title).margin).toBe('0');
-        expect(declarationsFor(close)).toMatchObject({ background: 'none', border: 'none', 'flex-shrink': '0' });
-        // Colours from Nextcloud's theme variables, so both themes follow
-        expect(declarationsFor(close).color).toBe('var(--color-text-maxcontrast)');
-        // The title comes first, so the x sits at the right
-        expect(header.firstElementChild).toBe(title);
-        expect(header.lastElementChild).toBe(close);
+    it('are the import template dialogs and the others built the same way', () => {
+        expect(ids()).toEqual(expect.arrayContaining(['import-save-template-modal', 'import-templates-modal', 'add-to-goal-modal', 'pension-balance-modal']));
     });
 
-    it('leave the other dialogs\' headers as they were', () => {
-        const others = [...document.querySelectorAll('.modal-header')]
-            .filter(header => !header.closest('#import-save-template-modal, #import-templates-modal'));
-
-        expect(others.length).toBeGreaterThan(3);
-        for (const header of others) {
-            expect(rulesMatching(header)).toEqual([]);
+    it('put the title and its x on one row', () => {
+        for (const id of ids()) {
+            const header = document.querySelector(`#${id} .modal-header`);
+            const title = header.querySelector('h3');
             const close = header.querySelector('.modal-close');
-            if (close) {
-                expect(rulesMatching(close).flatMap(r => r.selectors).filter(s => s.includes('modal-close'))).toEqual([]);
+
+            expect(declarationsFor(header), id).toMatchObject({ display: 'flex', 'justify-content': 'space-between', 'align-items': 'center' });
+            expect(declarationsFor(title).margin, id).toBe('0');
+            if (!close) {
+                continue; // a title row with no x (Add Tag)
             }
+            // Most of them also carry .cancel-btn, whose boxed look this beats
+            expect(cascadedDeclarations(close, 'light'), id).toMatchObject({ background: 'none', border: 'none', 'flex-shrink': '0', 'min-height': '0', padding: '0' });
+            // Colours from Nextcloud's theme variables, so both themes follow
+            expect(cascadedDeclarations(close, 'light').color, id).toBe('var(--color-text-maxcontrast)');
+            // The title comes first, so the x sits at the right
+            expect(header.firstElementChild, id).toBe(title);
+            expect(header.lastElementChild, id).toBe(close);
         }
     });
 });

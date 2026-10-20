@@ -1861,11 +1861,11 @@
     color: var(--color-main-text);
 }
 
-/* The import template dialogs: the title and its x on one row, the x in the
-   top right corner. Unstyled, the header was a block and the x a boxed
-   button on its own row under the title (#399). */
-#import-save-template-modal .modal-header,
-#import-templates-modal .modal-header {
+/* The app's dialogs with a title row (the import templates, Add to Goal,
+   the pension balance and the rest): the title and its x on one row, the x
+   in the top right corner. Unstyled, the header was a block and the x a
+   boxed button on its own row under the title (#399). */
+.modal > .modal-content > .modal-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -1873,14 +1873,13 @@
     margin-bottom: 20px;
 }
 
-#import-save-template-modal .modal-header h3,
-#import-templates-modal .modal-header h3 {
+.modal > .modal-content > .modal-header h3 {
     margin: 0;
     min-width: 0;
 }
 
-#import-save-template-modal .modal-close,
-#import-templates-modal .modal-close {
+/* Most of these also carry .cancel-btn, whose boxed button this outranks */
+.modal > .modal-content > .modal-header .modal-close {
     flex-shrink: 0;
     display: flex;
     align-items: center;
@@ -1900,10 +1899,8 @@
     cursor: pointer;
 }
 
-#import-save-template-modal .modal-close:hover,
-#import-save-template-modal .modal-close:focus-visible,
-#import-templates-modal .modal-close:hover,
-#import-templates-modal .modal-close:focus-visible {
+.modal > .modal-content > .modal-header .modal-close:hover,
+.modal > .modal-content > .modal-header .modal-close:focus-visible {
     background-color: var(--color-background-hover);
     color: var(--color-main-text);
 }
