@@ -191,10 +191,38 @@ export default class ImportModule {
         if (!transaction.categoryId && transaction._categoryName) {
             return transaction._categoryName;
         }
-        if (transaction.appliedRule?.name) {
+        // Only a rule that did set a category names itself here, when that
+        // category isn't loaded. A rule that only rewrote the description
+        // leaves the row uncategorized, and it is stored that way (#399).
+        if (transaction.categoryId && transaction.appliedRule?.name) {
             return t('budget', 'Rule: {name}', { name: transaction.appliedRule.name });
         }
         return t('budget', 'Uncategorized');
+    }
+
+    /**
+     * Whether the import files a row under a category, by the same test as
+     * the server's Auto-categorized counter: a rule's category or a column
+     * mapped to Category.
+     */
+    previewRowCategorized(transaction) {
+        return !!(transaction.categoryId || transaction._categoryName);
+    }
+
+    /**
+     * The toast after an import. Each count gets its own plural, since
+     * languages agree "skipped" with its number too.
+     */
+    importResultMessage(result) {
+        const imported = Number(result?.imported) || 0;
+        const skipped = Number(result?.skipped) || 0;
+        if (skipped <= 0) {
+            return n('budget', 'Successfully imported %n transaction', 'Successfully imported %n transactions', imported);
+        }
+        // TRANSLATORS: {skipped} is "%n skipped", translated on its own
+        return n('budget', 'Successfully imported %n transaction ({skipped})', 'Successfully imported %n transactions ({skipped})', imported, {
+            skipped: n('budget', '%n skipped', '%n skipped', skipped),
+        });
     }
 
     // ============================================
@@ -2072,10 +2100,16 @@ export default class ImportModule {
         const showNotes = rows.some(transaction => (transaction.notes ?? '') !== '');
         const notesHeader = document.getElementById('preview-th-notes');
         if (notesHeader) notesHeader.style.display = showNotes ? '' : 'none';
+        // The same for the payee: with Description mapped to a category
+        // column, the payee is the only text that tells the rows apart (#399).
+        const showPayee = rows.some(transaction => (transaction.vendor ?? '') !== '');
+        const payeeHeader = document.getElementById('preview-th-payee');
+        if (payeeHeader) payeeHeader.style.display = showPayee ? '' : 'none';
 
         if (!transactions || transactions.length === 0) {
             const row = document.createElement('tr');
-            row.innerHTML = `<td colspan="6" style="text-align: center; padding: 20px;">${t('budget', 'No transactions to import')}</td>`;
+            row.className = 'preview-empty';
+            row.innerHTML = `<td colspan="7" style="text-align: center; padding: 20px;">${t('budget', 'No transactions to import')}</td>`;
             tbody.appendChild(row);
             document.getElementById('preview-info').textContent = t('budget', 'No transactions found');
             return;
@@ -2094,14 +2128,16 @@ export default class ImportModule {
                 : `<span class="status-badge status-success">${t('budget', 'New')}</span>`;
 
             const notes = transaction.notes ?? '';
+            const payee = transaction.vendor ?? '';
             row.innerHTML = `
                 <td>${dom.escapeHtml(transaction.date || '')}</td>
                 <td>${dom.escapeHtml(transaction.description || '')}</td>
+                <td class="preview-payee" data-preview-cell="payee"${showPayee ? '' : ' style="display: none;"'} title="${dom.escapeHtml(payee)}">${dom.escapeHtml(payee)}</td>
                 <td class="preview-notes"${showNotes ? '' : ' style="display: none;"'} title="${dom.escapeHtml(notes)}">${dom.escapeHtml(notes)}</td>
                 <td class="${amount < 0 ? 'negative' : 'positive'}">
                     ${this.formatCurrency(amount, this.previewRowCurrency(transaction, context))}
                 </td>
-                <td data-preview-cell="category">${dom.escapeHtml(this.getCategoryLabel(transaction))}</td>
+                <td data-preview-cell="category" data-categorized="${this.previewRowCategorized(transaction) ? '1' : '0'}">${dom.escapeHtml(this.getCategoryLabel(transaction))}</td>
                 <td>
                     ${statusBadge}
                 </td>
@@ -2122,16 +2158,21 @@ export default class ImportModule {
 
         if (!tbody) return;
 
+        // The "No transactions to import" row is not a transaction, and the
+        // message above it stays as showTransactionPreview() wrote it
+        if (tbody.querySelector('tr.preview-empty')) return;
+
         const rows = tbody.querySelectorAll('tr');
         let visibleCount = 0;
 
         rows.forEach(row => {
             const statusBadge = row.querySelector('.status-badge');
             // By cell name, not position: the notes column shifts the indexes.
-            const category = row.querySelector('[data-preview-cell="category"]')?.textContent?.trim();
+            // Whether a category was set, not what the label says: a rule that
+            // set none read "Rule: <name>" and stayed visible (#399).
+            const isUncategorized = row.querySelector('[data-preview-cell="category"]')?.dataset.categorized === '0';
 
             const isDuplicate = statusBadge?.textContent?.trim() === t('budget', 'Duplicate');
-            const isUncategorized = category === t('budget', 'Uncategorized');
 
             let shouldShow = true;
 
@@ -2151,8 +2192,10 @@ export default class ImportModule {
             }
         });
 
-        // Update the preview info text
-        const totalCount = rows.length;
+        // The rows left visible out of the 50-row sample, of the whole file:
+        // counted against the sample alone, a 1000-line file read
+        // "Showing 50 of 50" under a Total of 1000 (#399)
+        const totalCount = Math.max(this.previewTotalValid || 0, rows.length);
         document.getElementById('preview-info').textContent =
             t('budget', 'Showing {shown} of {total}', { shown: visibleCount, total: totalCount });
     }
@@ -2585,7 +2628,7 @@ export default class ImportModule {
                 throw new Error(t('budget', 'Server error ({status}): Invalid response', { status: response.status }));
             }
 
-            showSuccess(t('budget', 'Successfully imported {imported} transactions ({skipped} skipped)', { imported: result.imported, skipped: result.skipped }));
+            showSuccess(this.importResultMessage(result));
             if (result.billsMarkedPaid > 0) {
                 showSuccess(n(
                     'budget',
