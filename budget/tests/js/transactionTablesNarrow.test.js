@@ -152,7 +152,9 @@ describe('the Transactions list', () => {
     });
 
     it('scrolls sideways inside its container', () => {
-        expect(table().parentElement.classList.contains('table-container')).toBe(true);
+        // In a wrapper of its own, so the bars round it stay put (transactionListBar.test.js)
+        expect(table().parentElement.classList.contains('table-scroll')).toBe(true);
+        expect(table().parentElement.parentElement.classList.contains('table-container')).toBe(true);
         expect(declarationsFor(table().parentElement)['overflow-x']).toBe('auto');
     });
 });
@@ -168,7 +170,8 @@ describe('the account register', () => {
     it('scrolls sideways inside its container instead of running past it', () => {
         const container = table().parentElement;
 
-        expect(container.classList.contains('transactions-container')).toBe(true);
+        expect(container.classList.contains('table-scroll')).toBe(true);
+        expect(container.parentElement.classList.contains('transactions-container')).toBe(true);
         expect(declarationsFor(container)['overflow-x']).toBe('auto');
     });
 
