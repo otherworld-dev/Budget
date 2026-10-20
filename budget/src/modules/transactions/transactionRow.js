@@ -285,7 +285,7 @@ export function renderTransactionRow(tx, ctx) {
                         ${badges}
                     </div>
                 </td>
-                <td class="vendor-column">${escapeHtml(tx.vendor || '')}</td>
+                <td class="vendor-column"${fullTextTitle(tx.vendor)}>${escapeHtml(tx.vendor || '')}</td>
                 <td class="category-column">
                     ${categoryContent}
                     <div class="transaction-tags-display" data-transaction-id="${tx.id}" style="margin-top: 4px;"></div>

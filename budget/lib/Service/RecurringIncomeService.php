@@ -412,9 +412,13 @@ class RecurringIncomeService extends AbstractCrudService {
 		$income = $this->find($id, $userId);
 		$raw = $income->getReceivedUndoState();
 		$snapshot = ($raw !== null && $raw !== '') ? json_decode($raw, true) : null;
-		// Set aside by a skip, it would bring back a date from before the skip (#399)
-		if (!is_array($snapshot) || !array_key_exists('nextExpectedDate', $snapshot) || UndoSnapshotSkips::setAside($raw)) {
+		if (!is_array($snapshot) || !array_key_exists('nextExpectedDate', $snapshot)) {
 			throw new \InvalidArgumentException($this->l->t('This income has no recorded receipt to undo'));
+		}
+		// Set aside by a skip, it would bring back a date from before the
+		// skip (#399); the receipt is there, so say what is in the way
+		if (UndoSnapshotSkips::setAside($raw)) {
+			throw new \InvalidArgumentException($this->l->t('Undo the skip first: a later date has been skipped since this receipt.'));
 		}
 
 		$ids = is_array($snapshot['transactionIds'] ?? null) ? $snapshot['transactionIds'] : [];

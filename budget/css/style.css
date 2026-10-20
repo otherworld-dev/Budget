@@ -336,11 +336,22 @@
 
     /* Out of the way while the view scrolls down, as it covered whatever
        passed under it (see utils/navToggleOnScroll.js). Keyboard focus
-       brings it back. */
-    #budget-nav-toggle-wrapper.scrolled-away:not(.nav-open):not(:focus-within) {
+       brings it back; the focus a mouse click leaves on it doesn't, or a
+       clicked button stayed over the content (#399). */
+    #budget-nav-toggle-wrapper.scrolled-away:not(.nav-open):not(:has(:focus-visible)) {
         opacity: 0;
         transform: translateY(-12px);
         pointer-events: none;
+    }
+
+    /* A browser without :has() drops the rule above: it hides the button
+       as before, whatever focused it */
+    @supports not selector(:has(*)) {
+        #budget-nav-toggle-wrapper.scrolled-away:not(.nav-open):not(:focus-within) {
+            opacity: 0;
+            transform: translateY(-12px);
+            pointer-events: none;
+        }
     }
 
     #budget-nav-toggle {
@@ -3953,6 +3964,17 @@ button.danger:hover {
     cursor: pointer;
 }
 
+/* No ring from Nextcloud's input rule round a clicked checkbox, as the
+   import's filters below (#399). Its height stays, as it spaces the rows. */
+#column-config-dropdown input[type="checkbox"] {
+    box-shadow: none;
+}
+
+#column-config-dropdown input[type="checkbox"]:focus-visible {
+    outline: 2px solid var(--color-main-text);
+    outline-offset: 2px;
+}
+
 .pagination-controls.pagination-bottom {
     margin-top: 16px;
     justify-content: center;
@@ -4151,6 +4173,52 @@ button.danger:hover {
 @media (min-width: 641px) {
     #transactions-table {
         min-width: calc(var(--tx-col-select) + var(--tx-col-date) + var(--tx-col-description) + var(--tx-col-vendor) + var(--tx-col-category) + var(--tx-col-tags) + var(--tx-col-amount) + var(--tx-col-balance) + var(--tx-col-account) + var(--tx-col-actions));
+    }
+}
+
+/* When the table scrolls sideways, Actions stays at the container's right
+   edge, so edit and the ⋮ menu are never off-screen (#399: Balance shown at
+   1440 px and below). The cells take an opaque fill that follows the row's
+   own (hover, keyboard cursor, linked), and a scheduled row fades the
+   buttons rather than the cell, or the scrolled columns would show through.
+   transactionActionsSticky.test.js. */
+@media (min-width: 641px) {
+    #transactions-table th.actions-column {
+        right: 0;
+        z-index: 26;
+    }
+
+    #transactions-table td.actions-column {
+        position: sticky;
+        right: 0;
+        z-index: 1;
+        background: var(--color-main-background);
+        box-shadow: inset 1px 0 0 var(--color-border);
+    }
+
+    #transactions-table tr.transaction-row:hover > td.actions-column,
+    #transactions-table tr.transaction-row.kbd-cursor > td.actions-column {
+        background: var(--color-background-hover);
+    }
+
+    #transactions-table tr.transaction-row.is-linked > td.actions-column {
+        background: var(--color-primary-element-light);
+    }
+
+    #transactions-table tr.transaction-row.is-linked:hover > td.actions-column {
+        background: linear-gradient(var(--color-primary-element-lighter, rgba(0, 130, 201, 0.15)), var(--color-primary-element-lighter, rgba(0, 130, 201, 0.15))), var(--color-main-background);
+    }
+
+    #transactions-table tr.scheduled-transaction > td.actions-column {
+        opacity: 1;
+    }
+
+    #transactions-table tr.scheduled-transaction > td.actions-column > .transaction-actions {
+        opacity: 0.65;
+    }
+
+    #transactions-table tr.scheduled-transaction:hover > td.actions-column > .transaction-actions {
+        opacity: 0.85;
     }
 }
 
@@ -7534,6 +7602,26 @@ label .required {
     color: var(--color-main-text);
 }
 
+/* A checkbox's own size and no ring. Nextcloud's input rule makes every
+   input 36px high and, on hover, focus and press, puts a 2px ring in the
+   page colour round it: a clicked filter stood in a tall white frame on
+   the grey bar, a black one in the dark theme (#399, as 15d0d5d2 for the
+   dialogs' radios). The step's id puts this over that rule in every state
+   (0-3-1 with :hover). Keyboard focus gets an outline of its own, as
+   Nextcloud takes the browser's off. */
+#import-step-3 .filter-options input[type="checkbox"] {
+    flex-shrink: 0;
+    height: auto;
+    min-height: 0;
+    margin: 0;
+    box-shadow: none;
+}
+
+#import-step-3 .filter-options input[type="checkbox"]:focus-visible {
+    outline: 2px solid var(--color-main-text);
+    outline-offset: 2px;
+}
+
 .preview-pagination {
     color: var(--color-text-maxcontrast);
     font-size: 14px;
@@ -9620,6 +9708,9 @@ label .required {
     gap: 6px;
     font-size: 14px;
     color: var(--color-text-maxcontrast);
+    /* A date that has to wrap ('Received …, next expected …' beside the
+       buttons at 1440px, #399) breaks between its halves, not after 'next' */
+    text-wrap: balance;
 }
 
 .bill-due-date span {
@@ -9647,13 +9738,15 @@ label .required {
     color: var(--budget-color-on-status, #fff);
 }
 
-body[data-theme-dark] .bill-status.due-soon .status-badge,
-body[data-theme-dark-highcontrast] .bill-status.due-soon .status-badge {
+/* The status pill only: the badges beside it (Auto-pay) keep their own
+   fill, which these outranked (#399) */
+body[data-theme-dark] .bill-status.due-soon .status-badge:not(.badge-extra),
+body[data-theme-dark-highcontrast] .bill-status.due-soon .status-badge:not(.badge-extra) {
     background: var(--color-warning);
 }
 
 @media (prefers-color-scheme: dark) {
-    body[data-theme-default] .bill-status.due-soon .status-badge {
+    body[data-theme-default] .bill-status.due-soon .status-badge:not(.badge-extra) {
         background: var(--color-warning);
     }
 }
@@ -9718,6 +9811,28 @@ body[data-theme-dark-highcontrast] .bill-status.due-soon .status-badge {
 .bill-action-btn.bill-paid-btn:hover {
     background: color-mix(in srgb, var(--color-success), black 15%);
     color: var(--budget-color-on-success, var(--budget-color-on-status, white));
+}
+
+/* The checkmark in the label's colour. Nextcloud draws it as an image in a
+   fixed colour, white in the dark theme, where these buttons are a pale
+   green with a dark label (#399). The same shape as a mask over the text
+   colour follows the label in every theme and colour scheme. */
+.bill-action-btn.bill-paid-btn .icon-checkmark,
+.income-action-btn.income-received-btn .icon-checkmark {
+    display: inline-block;
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    background-image: none;
+    background-color: currentColor;
+    -webkit-mask-image: var(--icon-checkmark-dark);
+    mask-image: var(--icon-checkmark-dark);
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-size: 16px 16px;
+    mask-size: 16px 16px;
 }
 
 /* ==========================================
@@ -10286,6 +10401,9 @@ body[data-theme-dark-highcontrast] .bill-status.due-soon .status-badge {
     gap: 6px;
     font-size: 14px;
     color: var(--color-text-maxcontrast);
+    /* A date that has to wrap ('Received …, next expected …' beside the
+       buttons at 1440px, #399) breaks between its halves, not after 'next' */
+    text-wrap: balance;
 }
 
 .income-next-date span {
@@ -10357,13 +10475,14 @@ body[data-theme-dark-highcontrast] .bill-status.due-soon .status-badge {
     color: var(--budget-color-on-status, white);
 }
 
-body[data-theme-dark] .income-status.expected-soon .status-badge,
-body[data-theme-dark-highcontrast] .income-status.expected-soon .status-badge {
+/* The pill only, not Auto-create beside it (#399) */
+body[data-theme-dark] .income-status.expected-soon .status-badge:not(.badge-extra),
+body[data-theme-dark-highcontrast] .income-status.expected-soon .status-badge:not(.badge-extra) {
     background: var(--color-warning);
 }
 
 @media (prefers-color-scheme: dark) {
-    body[data-theme-default] .income-status.expected-soon .status-badge {
+    body[data-theme-default] .income-status.expected-soon .status-badge:not(.badge-extra) {
         background: var(--color-warning);
     }
 }
@@ -20053,6 +20172,15 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
     outline-offset: 2px;
 }
 
+/* The second press of a double click selected the word under it ('CHF',
+   a date) on the option it landed on (#399). The options are choices, not
+   text to copy; the rest of the dialog stays selectable. */
+#matching-tx-modal .matching-tx-option,
+#bill-link-modal .matching-tx-option {
+    -webkit-user-select: none;
+    user-select: none;
+}
+
 .matching-tx-details {
     flex: 1;
     min-width: 0;
@@ -20153,6 +20281,26 @@ body[data-theme-dark-highcontrast] .matching-tx-badge {
 #bill-link-modal .matching-tx-list {
     flex: 1 1 auto;
     min-height: 6rem;
+    overflow-y: auto;
+}
+
+/* Existing Transaction Found (matchingDialog.js) with five candidates put
+   Cancel and Confirm below the fold at 1440x900 (#399). The header and
+   footer stay in view and the body scrolls between them. */
+#matching-tx-modal .budget-modal {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#matching-tx-modal .budget-modal-header,
+#matching-tx-modal .budget-modal-footer {
+    flex: 0 0 auto;
+}
+
+#matching-tx-modal .budget-modal-body {
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto;
 }
 

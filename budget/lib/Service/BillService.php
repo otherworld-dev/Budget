@@ -1788,9 +1788,14 @@ class BillService {
 
 		$raw = $bill->getPaidUndoState();
 		$decoded = ($raw !== null && $raw !== '') ? json_decode($raw, true) : null;
-		// Set aside by a skip, it would bring back a date from before the skip (#399)
-		if (!is_array($decoded) || !is_array($decoded['previousState'] ?? null) || UndoSnapshotSkips::setAside($raw)) {
+		if (!is_array($decoded) || !is_array($decoded['previousState'] ?? null)) {
 			throw new \InvalidArgumentException($this->l->t('This bill has no recorded payment to undo'));
+		}
+		// Set aside by a skip, it would bring back a date from before the
+		// skip (#399). The payment is there, so the refusal says what is in
+		// the way rather than that there is none.
+		if (UndoSnapshotSkips::setAside($raw)) {
+			throw new \InvalidArgumentException($this->l->t('Undo the skip first: a later date has been skipped since this payment.'));
 		}
 
 		// A corrupt blob must fail exactly like a missing snapshot — the

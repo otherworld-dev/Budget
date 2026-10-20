@@ -7,6 +7,7 @@ import { keepRowFocus } from '../../utils/rowFocus.js';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning, showInfo, showUndoNotification } from '../../utils/notifications.js';
+import { trackSkipUndo, settleSkipUndos, forgetSkipUndo } from '../../utils/skipUndos.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import { isoWeekday } from '../../utils/helpers.js';
@@ -741,11 +742,15 @@ export default class IncomeModule {
 
             await this.loadIncomeView();
 
-            showUndoNotification(
+            const toast = showUndoNotification(
                 t('budget', 'Payment skipped. Advanced to next expected date.'),
                 () => this.undoSkipIncome(undoData),
-                () => this._dropUndo(undoData)
+                () => {
+                    forgetSkipUndo(undoData);
+                    this._dropUndo(undoData);
+                }
             );
+            trackSkipUndo(undoData, `income-${incomeId}`, undoData.previousNextExpectedDate, toast);
         } catch (error) {
             console.error('Failed to skip income:', error);
             showError(error.message || t('budget', 'Failed to skip income'));
@@ -767,12 +772,15 @@ export default class IncomeModule {
                 method: 'POST',
                 body: { previousNextExpectedDate },
             });
+            // Back on that date, the later skips of this income are undone too
+            settleSkipUndos(undoData);
 
             if (this._undoData === undoData) this._undoData = null;
             await this.loadIncomeView();
 
             showSuccess(t('budget', 'Action undone'));
         } catch (error) {
+            forgetSkipUndo(undoData);
             console.error('Failed to undo skip:', error);
             showError(t('budget', 'Failed to undo action: {message}', { message: error.message }));
         }

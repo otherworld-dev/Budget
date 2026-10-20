@@ -41,3 +41,18 @@ export function applyTransactionColumnVisibility(table, visibility, { hasBalance
         table.classList.toggle(`hides-${key}`, !isVisible);
     });
 }
+
+/**
+ * Wire Configure columns' checkboxes (`#col-toggle-<key>`), one per key of
+ * the setting, so a column can't be left without a handler (Balance was).
+ *
+ * @param {Document|HTMLElement} root
+ * @param {(key: string, shown: boolean) => void} onToggle
+ */
+export function wireTransactionColumnToggles(root, onToggle) {
+    Object.keys(TRANSACTION_COLUMN_CLASSES).forEach(key => {
+        const checkbox = root.querySelector(`#col-toggle-${key}`);
+        if (!checkbox) return;
+        checkbox.addEventListener('change', () => onToggle(key, checkbox.checked));
+    });
+}
