@@ -50,6 +50,8 @@ use OCP\AppFramework\Db\Entity;
  * @method void setReconSessionId(?int $reconSessionId)
  * @method int|null getPensionContribId()
  * @method void setPensionContribId(?int $pensionContribId)
+ * @method string|null getImportVendor()
+ * @method void setImportVendor(?string $importVendor)
  */
 class Transaction extends Entity implements JsonSerializable {
 	protected $accountId;
@@ -72,6 +74,11 @@ class Transaction extends Entity implements JsonSerializable {
 	protected $excludedFromForecast;
 	protected $reconSessionId;   // reconciliation session this row was ticked into
 	protected $pensionContribId; // pension contribution this bank leg funds (#304); excluded from spending
+	// The payee as the file import stored it, '' for none, NULL when not
+	// known (typed in, bank sync, or imported before #399). Never changed by
+	// an edit: a re-import under another mapping compares the line with it.
+	// Not serialized: it is the import's own record, not something to show.
+	protected $importVendor;
 
 	public function __construct() {
 		$this->addType('id', 'integer');

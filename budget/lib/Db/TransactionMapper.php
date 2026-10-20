@@ -1079,13 +1079,14 @@ class TransactionMapper extends QBMapper {
 	/**
 	 * An account's rows dated within [$from, $to], as plain arrays, for an
 	 * import to compare a file's rows against. Scheduled placeholders are left
-	 * out: a row read from a statement or an export is never one.
+	 * out: a row read from a statement or an export is never one. import_vendor
+	 * is the payee the import stored, NULL when not known (#399).
 	 *
-	 * @return array<int, array{id: int, date: string, amount: string, type: string, description: ?string, vendor: ?string, reference: ?string, notes: ?string, import_id: ?string}>
+	 * @return array<int, array{id: int, date: string, amount: string, type: string, description: ?string, vendor: ?string, reference: ?string, notes: ?string, import_id: ?string, import_vendor: ?string}>
 	 */
 	public function findImportComparables(int $accountId, string $from, string $to): array {
 		$qb = $this->db->getQueryBuilder();
-		$qb->select('id', 'date', 'amount', 'type', 'description', 'vendor', 'reference', 'notes', 'import_id')
+		$qb->select('id', 'date', 'amount', 'type', 'description', 'vendor', 'reference', 'notes', 'import_id', 'import_vendor')
 			->from($this->getTableName())
 			->where($qb->expr()->eq('account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
 			->andWhere($qb->expr()->gte('date', $qb->createNamedParameter($from)))
@@ -1109,6 +1110,7 @@ class TransactionMapper extends QBMapper {
 				'reference' => $row['reference'] ?? null,
 				'notes' => $row['notes'] ?? null,
 				'import_id' => $row['import_id'] ?? null,
+				'import_vendor' => $row['import_vendor'] ?? null,
 			];
 		}
 		$result->closeCursor();

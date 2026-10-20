@@ -687,7 +687,8 @@ class ImportService {
 	 * wherever it is in the file: taken by an earlier new row it hid a real
 	 * transaction (V2-2). The text compared is the description and the
 	 * payee only: two payees sharing a memo ("Subscription") are not the
-	 * same row. Import ids are not touched.
+	 * same row. The payee is the one the import stored, not one edited by
+	 * hand since (storedPayee()). Import ids are not touched.
 	 *
 	 * @param array<string, array<int, array<string, mixed>>> $stored Per-import cache of the rows compared against, by account and month
 	 * @param array<string, true> $fileIds "accountId|importId" of every row in the file, from fileImportIds()
@@ -715,7 +716,7 @@ class ImportService {
 				|| MoneyCalculator::compare((string)$row['amount'], (float)($transaction['amount'] ?? 0), 8) !== 0) {
 				continue;
 			}
-			if (self::textsMatch($texts, self::comparableTexts([$row['description'], $row['vendor']]))) {
+			if (self::textsMatch($texts, self::comparableTexts([$row['description'], self::storedPayee($row)]))) {
 				$stored[$key][$i]['claimed'] = true;
 				return true;
 			}
@@ -769,6 +770,12 @@ class ImportService {
 	 * its category, a payee the rules give every product of a brand stands
 	 * for any product of that brand. Under the mapping that stored the row
 	 * such lines carry one import id anyway: a payee is no part of it.
+	 *
+	 * The payee compared is the one the import stored (import_vendor), never
+	 * one edited by hand since: from the file alone a payee typed in cannot
+	 * be told from one read out of a column this line does not have, so the
+	 * row is compared as it was imported, edited or not. A row stored before
+	 * the import kept its payee is compared by its payee now, as before.
 	 *
 	 * Each stored row stands for one line at most and each line for one
 	 * stored row, paired so that as many lines as can be are recognised: a
@@ -894,7 +901,7 @@ class ImportService {
 		}
 
 		$theirs = self::comparableTexts([$description]);
-		$payee = self::comparableTexts([$row['vendor'] ?? null]);
+		$payee = self::comparableTexts([self::storedPayee($row)]);
 		if ($payee === [] || self::builtFromCells($payee[0], $cells)) {
 			return self::foundEitherWay([...$theirs, ...$payee], $texts);
 		}
@@ -1236,6 +1243,29 @@ class ImportService {
 			$ids[$line['accountId'] . '|' . $line['importId']] = true;
 		}
 		return $ids;
+	}
+
+	/**
+	 * The payee an import stores beside the row (import_vendor), as the row
+	 * gets it: '' for none.
+	 *
+	 * @param array<string, mixed> $transaction The row as it is about to be stored, after the rules
+	 */
+	private static function importVendor(array $transaction): string {
+		$vendor = $transaction['vendor'] ?? null;
+		return is_scalar($vendor) ? (string)$vendor : '';
+	}
+
+	/**
+	 * A stored row's payee as the import that stored it wrote it, so a payee
+	 * edited by hand since is not taken for one of the line's columns (#399).
+	 * A row with none recorded (imported before import_vendor existed, typed
+	 * in, synced from the bank) is compared by its payee now, as before.
+	 *
+	 * @param array<string, mixed> $row From TransactionMapper::findImportComparables()
+	 */
+	private static function storedPayee(array $row): mixed {
+		return $row['import_vendor'] ?? $row['vendor'] ?? null;
 	}
 
 	/**
@@ -1925,7 +1955,8 @@ class ImportService {
 							$transaction['notes'] ?? null,
 							$importId,
 							excludedFromForecast: !empty($transaction['excludedFromForecast']),
-							deferBalanceUpdate: true
+							deferBalanceUpdate: true,
+							importVendor: self::importVendor($transaction)
 						);
 						$touchedAccounts[(int)$destAccountId] = true;
 						$this->duplicateDetector->remember((int)$destAccountId, $importId);
@@ -2221,7 +2252,8 @@ class ImportService {
 					$transaction['notes'] ?? null,
 					$importId,
 					excludedFromForecast: !empty($transaction['excludedFromForecast']),
-					deferBalanceUpdate: true
+					deferBalanceUpdate: true,
+					importVendor: self::importVendor($transaction)
 				);
 				$touchedAccounts[$txAccountId] = true;
 				$this->duplicateDetector->remember($txAccountId, $importId);

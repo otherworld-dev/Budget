@@ -699,8 +699,8 @@ class MigrationServiceTest extends TestCase {
 		$transactions = json_decode($archive['transactions.json'], true);
 		$this->assertCount($total, $transactions);
 		$this->assertSame(range(1, $total), array_column($transactions, 'id'));
-		// The same shape the archive always had
-		$this->assertSame(array_keys((new Transaction())->jsonSerialize()), array_keys($transactions[0]));
+		// The same shape the archive always had, plus the payee an import stored (#399)
+		$this->assertSame([...array_keys((new Transaction())->jsonSerialize()), 'importVendor'], array_keys($transactions[0]));
 		$this->assertSame(1.5, $transactions[0]['amount']);
 		$this->assertSame(7, $transactions[0]['accountId']);
 		$this->assertSame($total, json_decode($archive['manifest.json'], true)['counts']['transactions']);
