@@ -271,7 +271,7 @@ export function renderTransactionRow(tx, ctx) {
             ? `<span class="category-name split-category" title="${split.title}">${split.label}</span>`
             : isSplit
                 ? `<span class="category-name split-category">${t('budget', 'Split')}</span>`
-                : `<span class="category-name ${categoryName !== null ? '' : 'uncategorized'}">${categoryName !== null ? escapeHtml(categoryName) : t('budget', 'Uncategorized')}</span>`;
+                : `<span class="category-name ${categoryName !== null ? '' : 'uncategorized'}"${fullTextTitle(categoryName)}>${categoryName !== null ? escapeHtml(categoryName) : t('budget', 'Uncategorized')}</span>`;
 
         return `
             <tr class="${rowClasses.join(' ')}" data-transaction-id="${tx.id}"${readOnlyAttr}>
