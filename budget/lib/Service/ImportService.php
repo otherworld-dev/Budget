@@ -50,6 +50,9 @@ class ImportService {
 	/** The most cells a line can have for cellJoins() to join three of them */
 	private const MAX_CELLS_JOINED_BY_THREE = 15;
 
+	/** The most ways cellsReadAs() gives of reading a text as cells (several only when cells repeat) */
+	private const MAX_CELL_READINGS = 8;
+
 	public function __construct(
 		IAppData $appData,
 		TransactionService $transactionService,
@@ -770,6 +773,18 @@ class ImportService {
 	 * for any product of that brand. Under the mapping that stored the row
 	 * such lines carry one import id anyway: a payee is no part of it.
 	 *
+	 * Any other payee (one edited by hand) passes only when the row's import
+	 * id names this very line: it is the line's content hash under some
+	 * mapping, and every cell of the line that holds text went into that
+	 * hash or into the row's notes, but for the date, amount, direction,
+	 * account and currency this import reads (importIdNamesLine()). No other
+	 * line gives that id, so the payee needs no say. When a text cell went
+	 * into neither (a shop column read as the payee, or a column left out),
+	 * another line could give the id with something else in that cell, as
+	 * Costa's coffee gives the id of Starbucks' stored under its product,
+	 * and only the payee told the two apart: such a row stays with the
+	 * payee checks above, so the line imports.
+	 *
 	 * Each stored row stands for one line at most and each line for one
 	 * stored row, paired so that as many lines as can be are recognised: a
 	 * line that could be either of two stored rows leaves the one another
@@ -786,9 +801,11 @@ class ImportService {
 	 * @param list<array{index: array-key, accountId: int, importId: string, transaction: array, cells: array}> $lines From scanFileRows()
 	 * @param array<string, true> $fileIds From fileImportIds()
 	 * @param \OCA\Budget\Db\ImportRule[]|null $rules The rules this import applies, null when it applies none (read here if a payee needs them)
+	 * @param array<string, mixed> $mapping The mapping this import reads the file with
 	 * @return array<array-key, true> The indexes of the rows recognised
 	 */
-	private function linesImportedBefore(array $lines, array $fileIds, string $userId, ?array $rules): array {
+	private function linesImportedBefore(array $lines, array $fileIds, string $userId, ?array $rules, array $mapping): array {
+		$fixed = self::fixedColumns($mapping);
 		$stored = [];
 		$candidates = [];
 		$seen = [];
@@ -821,7 +838,7 @@ class ImportService {
 					|| MoneyCalculator::compare($row['amount'], (float)($transaction['amount'] ?? 0), 8) !== 0) {
 					continue;
 				}
-				if ($this->couldHaveStored($row, $line, $texts, $memo, $userId, $rules)) {
+				if ($this->couldHaveStored($row, $line, $texts, $fixed, $memo, $userId, $rules)) {
 					$matches[] = $month . '|' . $i;
 				}
 			}
@@ -873,10 +890,11 @@ class ImportService {
 	 * @param array<string, mixed> $row The stored row
 	 * @param array{index: array-key, accountId: int, importId: string, transaction: array, cells: array} $line From scanFileRows()
 	 * @param string[] $texts The line's description and payee as this import maps them, comparable
+	 * @param array<string, true> $fixed From fixedColumns()
 	 * @param array<string, mixed> $memo What was worked out about the line for an earlier stored row
 	 * @param \OCA\Budget\Db\ImportRule[]|null $rules The user's rules, read when first needed
 	 */
-	private function couldHaveStored(array $row, array $line, array $texts, array &$memo, string $userId, ?array &$rules): bool {
+	private function couldHaveStored(array $row, array $line, array $texts, array $fixed, array &$memo, string $userId, ?array &$rules): bool {
 		/** @var list<list<string>> $cells */
 		$cells = $memo['cells'] ??= self::cellWords($line['cells']);
 		$description = $row['description'] ?? null;
@@ -905,6 +923,133 @@ class ImportService {
 		foreach ($given as $payeeRead) {
 			if (self::foundEitherWay([...$theirs, ...self::comparableTexts([$payeeRead])], $texts)
 				&& $this->rulesGivePayee($payee[0], $payeeRead, $row, $line, $description, $reference, $userId, $rules)) {
+				return true;
+			}
+		}
+		// Any other payee (edited by hand) when the import id names this line
+		return $this->importIdNamesLine($row, $line, $fixed, $memo);
+	}
+
+	/**
+	 * Whether the row's import id says it came from this very line, whatever
+	 * its payee: the id is the line's content hash under some mapping
+	 * (hashedTexts()), and every cell of the line that holds text is one the
+	 * hashed description or reference was read from, one the row's notes
+	 * still hold as the line's cells read, or one this import reads the
+	 * date, the amount, the direction, the account or the currency from. A
+	 * line giving that id that is not this one differs from it in some
+	 * cell, and the hash holds all of them but those, so no such line
+	 * exists. A cell none of these account for (a shop column the import
+	 * that stored the row read as the payee, or left out) may be where
+	 * another line differs, its payee the only text that told the two apart.
+	 *
+	 * @param array<string, mixed> $row The stored row
+	 * @param array{index: array-key, accountId: int, importId: string, transaction: array, cells: array} $line From scanFileRows()
+	 * @param array<string, true> $fixed The columns this import reads the date, amount, direction, account and currency from
+	 * @param array<string, mixed> $memo What was worked out about the line for an earlier stored row
+	 */
+	private function importIdNamesLine(array $row, array $line, array $fixed, array &$memo): bool {
+		$read = $this->hashedTexts($row, $line, $memo);
+		if ($read === null) {
+			return false;
+		}
+		/** @var array<string, list<string>> $cells */
+		$cells = $memo['keyed'] ??= self::keyedCellWords($line['cells']);
+		$options = [];
+		foreach (self::comparableTexts([$read[0], $read[1], $row['notes'] ?? null]) as $text) {
+			$readings = self::cellsReadAs($text, $cells);
+			if ($readings !== []) {
+				$options[] = $readings;
+			}
+		}
+		$need = array_values(array_filter(array_keys($cells), fn (string $key) => !isset($fixed[$key])));
+		return self::someReadingsCover($options, $need, []);
+	}
+
+	/**
+	 * The columns a mapping reads the date, the amount, the direction, the
+	 * account and the currency from, by key as a string.
+	 *
+	 * @param array<string, mixed> $mapping
+	 * @return array<string, true>
+	 */
+	private static function fixedColumns(array $mapping): array {
+		$mapping = TransactionNormalizer::normalizeMapping($mapping);
+		$fixed = [];
+		foreach (['date', 'amount', 'incomeColumn', 'expenseColumn', 'type', 'account', 'currency'] as $field) {
+			$column = $mapping[$field] ?? null;
+			if (is_int($column) || (is_string($column) && $column !== '')) {
+				$fixed[(string)$column] = true;
+			}
+		}
+		return $fixed;
+	}
+
+	/**
+	 * A line's cells as their comparable words, by key as a string, blanks
+	 * left out, in column order.
+	 *
+	 * @param array<array-key, mixed> $cells
+	 * @return array<string, list<string>>
+	 */
+	private static function keyedCellWords(array $cells): array {
+		$words = [];
+		foreach ($cells as $key => $cell) {
+			$text = self::comparableTexts([$cell]);
+			if ($text !== []) {
+				$words[(string)$key] = explode(' ', $text[0]);
+			}
+		}
+		return $words;
+	}
+
+	/**
+	 * Every way a comparable text is one or more of the line's cells joined
+	 * in column order, each once (as builtFromCells()), as the keys of the
+	 * cells it takes; the first MAX_CELL_READINGS of them.
+	 *
+	 * @param array<string, list<string>> $cells From keyedCellWords()
+	 * @return list<list<string>>
+	 */
+	private static function cellsReadAs(string $text, array $cells): array {
+		$words = explode(' ', $text);
+		$end = count($words);
+		// The word positions cells taken in column order reach, with the cells taken
+		$paths = [[0, []]];
+		$readings = [];
+		foreach ($cells as $key => $cell) {
+			$length = count($cell);
+			foreach ($paths as [$at, $taken]) {
+				if ($at + $length > $end || array_slice($words, $at, $length) !== $cell) {
+					continue;
+				}
+				if ($at + $length === $end) {
+					$readings[] = [...$taken, (string)$key];
+					if (count($readings) >= self::MAX_CELL_READINGS) {
+						return $readings;
+					}
+				} else {
+					$paths[] = [$at + $length, [...$taken, (string)$key]];
+				}
+			}
+		}
+		return $readings;
+	}
+
+	/**
+	 * Whether taking one reading of each text covers every needed cell.
+	 *
+	 * @param list<list<list<string>>> $options Each text's readings, from cellsReadAs()
+	 * @param list<string> $need
+	 * @param list<string> $taken
+	 */
+	private static function someReadingsCover(array $options, array $need, array $taken): bool {
+		if ($options === []) {
+			return array_diff($need, $taken) === [];
+		}
+		$readings = array_shift($options);
+		foreach ($readings as $keys) {
+			if (self::someReadingsCover($options, $need, [...$taken, ...$keys])) {
 				return true;
 			}
 		}
@@ -1477,7 +1622,7 @@ class ImportService {
 			return $accountIdsByName[$name];
 		});
 		$fileIds = self::fileImportIds($lines);
-		$importedBefore = $preset === null ? $this->linesImportedBefore($lines, $fileIds, $userId, $applyRules ? $rules : null) : [];
+		$importedBefore = $preset === null ? $this->linesImportedBefore($lines, $fileIds, $userId, $applyRules ? $rules : null, $mapping) : [];
 
 		foreach ($data as $index => $row) {
 			try {
@@ -2113,7 +2258,7 @@ class ImportService {
 				return $name === '' ? $accountId : ($resolvedAccounts[$name] ?? null);
 			});
 			$fileIds = self::fileImportIds($lines);
-			$importedBefore = $preset === null ? $this->linesImportedBefore($lines, $fileIds, $userId, $applyRules ? $rules : null) : [];
+			$importedBefore = $preset === null ? $this->linesImportedBefore($lines, $fileIds, $userId, $applyRules ? $rules : null, $mapping) : [];
 		}
 
 		foreach ($data as $index => $row) {
