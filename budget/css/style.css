@@ -10109,6 +10109,45 @@ body[data-theme-dark-highcontrast] .bill-status.due-soon .status-badge {
     font-size: 14px;
 }
 
+/* The name and the amount (#399). The header took what the date and the
+   buttons left, so a long name wrapped beside empty space and each card's
+   amount sat somewhere else. Below 1200px the header has the card's first
+   line to itself, its amount at the right edge; from 1200px the name gets
+   a column of its own and the amount a right-aligned one, the same width
+   on every card, and a long date wraps instead of the name. */
+.income-header {
+    flex: 1 1 100%;
+}
+
+@media (min-width: 1200px) {
+    .income-header {
+        flex: 0 0 auto;
+    }
+
+    .income-info {
+        width: 16rem;
+    }
+
+    .income-amount {
+        min-width: 8.5rem;
+        text-align: right;
+    }
+
+    .income-details {
+        flex: 1 1 14rem;
+        flex-wrap: nowrap;
+        min-width: 0;
+    }
+
+    .income-next-date {
+        min-width: 0;
+    }
+
+    .income-next-date > [class^="icon-"] {
+        flex-shrink: 0;
+    }
+}
+
 .income-status .status-badge {
     display: inline-block;
     padding: 4px 10px;
