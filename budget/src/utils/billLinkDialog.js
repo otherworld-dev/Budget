@@ -12,6 +12,7 @@ import { translate as t } from '@nextcloud/l10n';
 import * as formatters from './formatters.js';
 import * as dom from './dom.js';
 import { toCents } from './money.js';
+import { ignoreOpeningClickOnOptions } from './doubleClick.js';
 
 /**
  * The bills a transaction can be filed under: the user's own, paid from the
@@ -135,6 +136,9 @@ export function chooseBill(bills, settings, transaction = undefined) {
             </div>
         `;
         document.body.appendChild(modal);
+        // A double click on the menu item that opened it picks no bill with
+        // its second click (see utils/doubleClick.js, #399)
+        ignoreOpeningClickOnOptions(modal, '.matching-tx-option', Date.now());
 
         const finish = (billId) => {
             document.removeEventListener('keydown', onKeydown, true);

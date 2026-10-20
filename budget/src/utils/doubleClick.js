@@ -40,3 +40,25 @@ export function isOpeningClick(event, openedAt) {
     return isRepeatClick(event)
         || ((event?.detail ?? 0) === 1 && Date.now() - openedAt < OPENING_CLICK_MS);
 }
+
+/**
+ * Let no click that isOpeningClick() takes for the opening one pick an
+ * option of the dialog. The second click of a double click on Mark Paid
+ * landed on an option of the dialog the first had opened, and the browser
+ * passed it on to the option's radio: an unrelated transaction was picked
+ * over the safe default (#274), and Confirm linked it as the bill's payment.
+ * Such a click is cancelled on its way in (the capture phase), before the
+ * option's label or radio acts on it. A click of its own, or a key, still
+ * picks.
+ *
+ * @param {HTMLElement} dialog
+ * @param {string} options selector of its options: labels holding a radio
+ * @param {number} openedAt Date.now() when the dialog appeared
+ */
+export function ignoreOpeningClickOnOptions(dialog, options, openedAt) {
+    dialog.addEventListener('click', (e) => {
+        if (e.target.closest?.(options) && isOpeningClick(e, openedAt)) {
+            e.preventDefault();
+        }
+    }, true);
+}

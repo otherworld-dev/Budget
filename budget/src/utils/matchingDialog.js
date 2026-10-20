@@ -6,7 +6,7 @@
 import { translate as t } from '@nextcloud/l10n';
 import * as formatters from './formatters.js';
 import * as dom from './dom.js';
-import { isOpeningClick, isRepeatClick } from './doubleClick.js';
+import { ignoreOpeningClickOnOptions, isOpeningClick, isRepeatClick } from './doubleClick.js';
 
 /**
  * @param {object} bill the bill or transfer being paid
@@ -107,8 +107,10 @@ export function showMatchingTransactionDialog(bill, candidates, settings) {
 
         // The second click of the double click on Mark Paid that opened the
         // dialog lands on whatever is under the pointer now: on a phone that
-        // can be a button, and on a wide screen the backdrop. It answers
-        // nothing (see utils/doubleClick.js, #399).
+        // can be a button, on a wide screen the backdrop, and in between one
+        // of the options. It answers nothing and picks nothing (see
+        // utils/doubleClick.js, #399).
+        ignoreOpeningClickOnOptions(modal, '.matching-tx-option', openedAt);
         modal.querySelector('.close-btn').addEventListener('click', (e) => {
             if (isRepeatClick(e)) return;
             cleanup();
