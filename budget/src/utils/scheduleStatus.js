@@ -80,32 +80,84 @@ function customOccurrenceBefore(days, date) {
     return before.sort().pop();
 }
 
+/** Months between two occurrences of the calendar schedules */
+const STEP_MONTHS = {
+    monthly: 1,
+    quarterly: 3,
+    'semi-annually': 6,
+    yearly: 12,
+};
+
+/** Days between two occurrences of the schedules that run on a fixed step */
+const STEP_DAYS = {
+    daily: 1,
+    weekly: 7,
+    biweekly: 14,
+};
+
 /**
- * Whether a Custom bill's last payment settled the occurrence before its
- * next due date (#399): made on or after it, or nearer it than the
- * occurrence before that, so a payment made early still counts. A year
- * shared out evenly among an uneven pattern's dates held a January and
- * February bill paid in February as paid only until August, and offered
- * Mark Paid for next January from then on. Null when the pattern can't be
- * read.
+ * The occurrence a schedule fell on before $date, as the server counts
+ * them: the due day in the month(s) before, clamped to shorter months; a
+ * semi-monthly schedule on its day and fifteen days on; a Custom one on its
+ * pattern's dates, else monthly.
  *
- * @param {string|object|null} pattern
+ * @param {string} frequency
+ * @param {number} dueDay the due day
+ * @param {Array<Array<number>>} days a Custom schedule's [month, day] pairs, possibly empty
+ * @param {string} date Y-m-d
+ * @return {string} Y-m-d
+ */
+function occurrenceBefore(frequency, dueDay, days, date) {
+    if (frequency === 'custom' && days.length > 0) {
+        return customOccurrenceBefore(days, date);
+    }
+    if (STEP_DAYS[frequency]) {
+        const [y, m, d] = date.split('-').map(Number);
+        return new Date(Date.UTC(y, m - 1, d - STEP_DAYS[frequency])).toISOString().slice(0, 10);
+    }
+    const year = Number(date.slice(0, 4));
+    const month = Number(date.slice(5, 7));
+    const inMonth = (back, day) => {
+        const index = year * 12 + (month - 1) - back;
+        return clampedDate(Math.floor(index / 12), (index % 12) + 1, day);
+    };
+    if (frequency === 'semi-monthly') {
+        const pair = dueDay <= 15 ? [dueDay, dueDay + 15] : [dueDay - 15, dueDay];
+        return [0, 1].flatMap(back => pair.map(day => inMonth(back, day)))
+            .filter(day => day < date)
+            .sort()
+            .pop();
+    }
+    return inMonth(STEP_MONTHS[frequency] ?? 1, dueDay);
+}
+
+/**
+ * Whether the last payment settled the occurrence before the next due date
+ * (#399): made on or after it, or nearer it than the occurrence before
+ * that, so a payment made early still counts. Anything else is an older
+ * payment, and the occurrence in between was skipped: "paid within the past
+ * cycle" put a Paid badge, and no buttons, on a bill whose October was
+ * skipped a month after September was paid. A Custom schedule is read off
+ * its pattern: a year shared out evenly among an uneven pattern's dates
+ * held a January and February bill paid in February as paid only until
+ * August, and offered Mark Paid for next January from then on.
+ *
+ * @param {string} frequency
+ * @param {string|object|null} pattern a Custom schedule's recurrence pattern
  * @param {number|null} dueDay its due day, else the next due date's
  * @param {string} dueDate the next occurrence, Y-m-d
  * @param {string} lastDate the last payment, Y-m-d
- * @return {boolean|null}
+ * @return {boolean}
  */
-function customSettled(pattern, dueDay, dueDate, lastDate) {
-    const days = customDays(pattern, Number(dueDay) || Number(dueDate.slice(8, 10)));
-    if (days.length === 0) {
-        return null;
-    }
-    const before = customOccurrenceBefore(days, dueDate);
+function settledBefore(frequency, pattern, dueDay, dueDate, lastDate) {
+    const day = Number(dueDay) || Number(dueDate.slice(8, 10));
+    const days = frequency === 'custom' ? customDays(pattern, day) : [];
+    const before = occurrenceBefore(frequency, day, days, dueDate);
     const ahead = formatters.daysBetweenDates(lastDate, before);
     if (ahead <= 0) {
         return true;
     }
-    const earlier = customOccurrenceBefore(days, before);
+    const earlier = occurrenceBefore(frequency, day, days, before);
     return ahead * 2 <= formatters.daysBetweenDates(earlier, before);
 }
 
@@ -117,13 +169,14 @@ function customSettled(pattern, dueDay, dueDate, lastDate) {
  *  - inactive: nothing left to pay or receive
  *  - overdue: its date has passed
  *  - soon: due today or within a week
- *  - settled: the last one was within the past cycle and the next isn't
- *    close yet, so there is nothing to act on
+ *  - settled: the last payment paid the occurrence before the next one
+ *    (settledBefore()) and the next isn't close yet, so there is nothing
+ *    to act on. A skipped occurrence paid nothing, so it doesn't count
  *  - upcoming: anything further off
  *
  * A Custom schedule's dates can be months apart and uneven, so its last
- * payment is judged by the dates its pattern falls on (customSettled());
- * one with no usable pattern runs monthly, as on the server. A one-time item
+ * payment is judged by the dates its pattern falls on; one with no usable
+ * pattern runs monthly, as on the server. A one-time item
  * has no cycle: while it is still owed, a payment beside it settles nothing
  * (#399).
  *
@@ -142,9 +195,8 @@ function customSettled(pattern, dueDay, dueDate, lastDate) {
  */
 export function scheduleState({ frequency, isActive, dueDate, lastDate, pattern = null, dueDay = null }, today) {
     const sinceLast = lastDate ? formatters.daysBetweenDates(lastDate, today) : null;
-    const custom = frequency === 'custom' && dueDate && lastDate ? customSettled(pattern, dueDay, dueDate, lastDate) : null;
     const recentlySettled = frequency !== 'one-time' && sinceLast !== null && sinceLast >= 0
-        && (custom ?? sinceLast <= (CYCLE_DAYS[frequency] ?? 31));
+        && (dueDate ? settledBefore(frequency, pattern, dueDay, dueDate, lastDate) : sinceLast <= (CYCLE_DAYS[frequency] ?? 31));
 
     if (!isActive || !dueDate) {
         return { status: 'inactive', recentlySettled };
