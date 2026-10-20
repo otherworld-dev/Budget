@@ -298,6 +298,50 @@ class BillCalendarPendingPaymentTest extends TestCase {
 	}
 
 	/**
+	 * Paid for October twice, once from another account: Mark Paid takes the
+	 * one in the bill's own account, though the other is nearer the date,
+	 * and the other is that date's second payment. It was another second
+	 * payment for September.
+	 */
+	public function testASecondPaymentForTheDateTheBillIsDueOnIsItsDouble(): void {
+		$this->kpt();
+		$this->kptPayments();
+		$this->payment(1601, 4, '2026-10-20', 484.75);
+		$this->payment(1602, 4, '2026-10-27', 484.75, ['accountId' => 9]);
+
+		$overview = $this->overview();
+		$kpt = $this->calendarRow($overview, 'KPT Prämienrechnung');
+
+		$this->assertSame(1601, $this->markPaidWouldUse(4));
+		$this->assertSame([['date' => '2026-09-27', 'amount' => 484.75, 'due' => '2026-09-29']], $kpt['paidDetails'][9]);
+		$this->assertSame(['2026-10-20', '2026-10-27'], array_column($kpt['paidDetails'][10], 'date'));
+		$this->assertSame(['2026-10-29', '2026-10-29'], array_column($kpt['paidDetails'][10], 'due'));
+		$this->assertSame([8 => 2, 10 => 2], $kpt['paidMoreThanOnce']);
+		$this->assertArrayNotHasKey(10, $kpt['owedAmounts']);
+		$this->assertEqualsWithDelta(969.5, $overview['monthlyTotals'][10], 0.001, 'both payments went out');
+	}
+
+	/**
+	 * Still due on last year's 5 December, and paid on 2 January: the
+	 * payment pays that date. It shows in January, where the money went
+	 * out, beside January's own date, which is still owed. It had no date
+	 * this year to go to, and was left out of the calendar altogether.
+	 */
+	public function testAPaymentForLastYearsDueDateShowsWhereTheMoneyWentOut(): void {
+		$this->bill(['id' => 9, 'name' => 'Parkplatz', 'amount' => 150.0, 'dueDay' => 5,
+			'nextDueDate' => '2025-12-05', 'lastPaidDate' => '2025-11-04', 'createdAt' => '2025-01-01 10:00:00']);
+		$this->payment(901, 9, '2026-01-02', 150.0);
+
+		$overview = $this->overview();
+		$row = $this->calendarRow($overview, 'Parkplatz');
+
+		$this->assertSame(901, $this->markPaidWouldUse(9));
+		$this->assertSame([['date' => '2026-01-02', 'amount' => 150.0, 'due' => '2025-12-05']], $row['paidDetails'][1]);
+		$this->assertEqualsWithDelta(150.0, $row['owedAmounts'][1], 0.001, '5 January is still owed');
+		$this->assertEqualsWithDelta(300.0, $overview['monthlyTotals'][1], 0.001);
+	}
+
+	/**
 	 * Both legs of a transfer carry the bill, and Mark Paid takes the one
 	 * in the bill's own account: the withdrawal, though its deposit has the
 	 * lower id. So does the calendar, where only the withdrawal is a
