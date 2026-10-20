@@ -1852,6 +1852,53 @@
     color: var(--color-main-text);
 }
 
+/* The import template dialogs: the title and its x on one row, the x in the
+   top right corner. Unstyled, the header was a block and the x a boxed
+   button on its own row under the title (#399). */
+#import-save-template-modal .modal-header,
+#import-templates-modal .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+#import-save-template-modal .modal-header h3,
+#import-templates-modal .modal-header h3 {
+    margin: 0;
+    min-width: 0;
+}
+
+#import-save-template-modal .modal-close,
+#import-templates-modal .modal-close {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--default-clickable-area, 34px);
+    height: var(--default-clickable-area, 34px);
+    min-width: 0;
+    min-height: 0;
+    margin: -6px -10px 0 0;
+    padding: 0;
+    background: none;
+    border: none;
+    border-radius: var(--border-radius, 4px);
+    color: var(--color-text-maxcontrast);
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+#import-save-template-modal .modal-close:hover,
+#import-save-template-modal .modal-close:focus-visible,
+#import-templates-modal .modal-close:hover,
+#import-templates-modal .modal-close:focus-visible {
+    background-color: var(--color-background-hover);
+    color: var(--color-main-text);
+}
+
 /* Form Styles - Nextcloud Pattern */
 
 .form-group label {
@@ -7106,6 +7153,31 @@ label .required {
 .mapping-field select:focus {
     outline: none;
     border-color: var(--color-primary);
+}
+
+/* The hints under the import's fields and CSV options, in the app's hint
+   style (.form-text). Unstyled they were 15px main-colour text flush on the
+   next field's label, so each read as belonging to the field below (#399). */
+.mapping-field .hint,
+.mapping-field-group > .hint,
+#import-save-template-modal .form-group .hint {
+    display: block;
+    margin: 5px 0 0;
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--color-text-maxcontrast);
+}
+
+.csv-options {
+    margin-bottom: 15px;
+}
+
+/* Nextcloud gives selects and buttons a 3px end margin. The selects
+   stretched to 297px while the checklists' toggles, at width 100%, were
+   300px: both now run the full column (#399). */
+.mapping-field select,
+.mapping-field .custom-multiselect-toggle {
+    margin-inline-end: 0;
 }
 
 .preview-data h4 {
