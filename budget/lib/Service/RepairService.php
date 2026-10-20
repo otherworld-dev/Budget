@@ -12,6 +12,7 @@ use OCA\Budget\Db\LegacyIncomeRows;
 use OCA\Budget\Db\ShareItem;
 use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Db\UndoSnapshotSkips;
 use OCA\Budget\Enum\AccountType;
 use OCA\Budget\Service\Bill\FrequencyCalculator;
 use OCA\Budget\Service\Bill\OneTimeSettlement;
@@ -931,8 +932,15 @@ class RepairService {
 		return $decoded;
 	}
 
-	/** The occurrence the bill's last payment settled, when its snapshot says */
+	/**
+	 * The occurrence the bill's last payment settled, when its snapshot says.
+	 * Not while a skip has set the snapshot aside: the skip settled a later
+	 * one, and moving on from the payment's would make it owed again (#399).
+	 */
 	private function settledOccurrence(Bill $bill): ?string {
+		if (UndoSnapshotSkips::setAside($bill->getPaidUndoState())) {
+			return null;
+		}
 		$previous = $this->paymentSnapshot($bill)['previousState'] ?? null;
 		$occurrence = is_array($previous) ? ($previous['nextDueDate'] ?? null) : null;
 		return is_string($occurrence) && $occurrence !== '' ? $occurrence : null;
