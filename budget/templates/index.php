@@ -5524,11 +5524,11 @@ style('budget', 'budget-app');
         </div>
         <form id="pension-balance-form" class="modal-form">
             <div class="form-group">
-                <label for="snapshot-balance"><?php p($l->t('Current Balance')); ?> *</label>
+                <label for="snapshot-balance"><?php p($l->t('Current Balance')); ?> <span class="required">*</span></label>
                 <input type="number" id="snapshot-balance" name="balance" min="0" step="0.01" required placeholder="0.00">
             </div>
             <div class="form-group">
-                <label for="snapshot-date"><?php p($l->t('Date')); ?> *</label>
+                <label for="snapshot-date"><?php p($l->t('Date')); ?> <span class="required">*</span></label>
                 <input type="date" id="snapshot-date" name="date" required>
             </div>
             <input type="hidden" id="snapshot-pension-id" name="pensionId" value="">
@@ -5549,11 +5549,11 @@ style('budget', 'budget-app');
         </div>
         <form id="pension-contribution-form" class="modal-form">
             <div class="form-group">
-                <label for="contribution-amount"><?php p($l->t('Amount')); ?> *</label>
+                <label for="contribution-amount"><?php p($l->t('Amount')); ?> <span class="required">*</span></label>
                 <input type="number" id="contribution-amount" name="amount" min="0.01" step="0.01" required placeholder="0.00">
             </div>
             <div class="form-group">
-                <label for="contribution-date"><?php p($l->t('Date')); ?> *</label>
+                <label for="contribution-date"><?php p($l->t('Date')); ?> <span class="required">*</span></label>
                 <input type="date" id="contribution-date" name="date" required>
             </div>
             <div class="form-group">
@@ -5585,11 +5585,11 @@ style('budget', 'budget-app');
         </div>
         <form id="pension-withdrawal-form" class="modal-form">
             <div class="form-group">
-                <label for="withdrawal-amount"><?php p($l->t('Amount')); ?> *</label>
+                <label for="withdrawal-amount"><?php p($l->t('Amount')); ?> <span class="required">*</span></label>
                 <input type="number" id="withdrawal-amount" name="amount" min="0.01" step="0.01" required placeholder="0.00">
             </div>
             <div class="form-group">
-                <label for="withdrawal-date"><?php p($l->t('Date')); ?> *</label>
+                <label for="withdrawal-date"><?php p($l->t('Date')); ?> <span class="required">*</span></label>
                 <input type="date" id="withdrawal-date" name="date" required>
             </div>
             <div class="form-group">
@@ -5621,11 +5621,11 @@ style('budget', 'budget-app');
         </div>
         <form id="pension-recurring-form" class="modal-form">
             <div class="form-group">
-                <label for="recurring-amount"><?php p($l->t('Amount')); ?> *</label>
+                <label for="recurring-amount"><?php p($l->t('Amount')); ?> <span class="required">*</span></label>
                 <input type="number" id="recurring-amount" name="amount" min="0.01" step="0.01" required placeholder="0.00">
             </div>
             <div class="form-group">
-                <label for="recurring-frequency"><?php p($l->t('Frequency')); ?> *</label>
+                <label for="recurring-frequency"><?php p($l->t('Frequency')); ?> <span class="required">*</span></label>
                 <select id="recurring-frequency" name="frequency" required>
                     <option value="monthly"><?php p($l->t('Monthly')); ?></option>
                     <option value="quarterly"><?php p($l->t('Quarterly')); ?></option>
@@ -5633,7 +5633,7 @@ style('budget', 'budget-app');
                 </select>
             </div>
             <div class="form-group">
-                <label for="recurring-next-date"><?php p($l->t('Next Date')); ?> *</label>
+                <label for="recurring-next-date"><?php p($l->t('Next Date')); ?> <span class="required">*</span></label>
                 <input type="date" id="recurring-next-date" name="nextDueDate" required>
             </div>
             <div class="form-group">
