@@ -850,6 +850,13 @@ class RepairService {
 		return [$pairs, $late, $latest];
 	}
 
+	/**
+	 * A pair as Repair Data lists it: the row it offers to remove, named by
+	 * its own vendor, else its own description, and the row it repeats,
+	 * named in the note (originalDescription). The other row's vendor never
+	 * stands in for this one's: a row with none read as the other row,
+	 * twice, with its own description shown nowhere (#399).
+	 */
 	private function duplicateFinding(Transaction $duplicate, Transaction $original, string $accountName, string $reason, bool $selected): array {
 		return [
 			'duplicateId' => $duplicate->getId(),
@@ -858,7 +865,7 @@ class RepairService {
 			'originalAmount' => (float)$original->getAmount(),
 			'date' => $duplicate->getDate(),
 			'originalDate' => $original->getDate(),
-			'vendor' => $duplicate->getVendor() ?: $original->getVendor(),
+			'vendor' => $duplicate->getVendor() ?: null,
 			'description' => $duplicate->getDescription() ?: '',
 			'originalDescription' => $original->getVendor() ?: ($original->getDescription() ?: ''),
 			'originalReconciled' => (bool)$original->getReconciled(),
