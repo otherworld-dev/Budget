@@ -19857,6 +19857,27 @@ body[data-theme-dark-highcontrast] .matching-tx-badge {
 
 /* Repair Data Styles */
 
+/* The report scrolled as one box with its footer inside, so at 1440x900
+   Close and Fix Selected Issues sat below the fold, and scrolling to them
+   took the title away (#399). The header and footer stay in view and the
+   body scrolls between them, as in the Link to bill dialog. */
+#repair-data-modal .budget-modal {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#repair-data-modal .budget-modal-header,
+#repair-data-modal .budget-modal-footer {
+    flex: 0 0 auto;
+}
+
+#repair-data-modal .budget-modal-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+}
+
 .repair-category {
     border: 1px solid var(--color-border);
     border-radius: var(--border-radius);
