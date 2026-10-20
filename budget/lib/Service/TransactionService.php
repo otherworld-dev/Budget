@@ -17,6 +17,7 @@ use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\TransactionSplitMapper;
 use OCA\Budget\Db\TransactionTag;
 use OCA\Budget\Db\TransactionTagMapper;
+use OCA\Budget\Db\UndoSnapshotSkips;
 use OCA\Budget\Enum\Currency;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\IDBConnection;
@@ -1408,7 +1409,8 @@ class TransactionService {
 	private static function rowsInPaymentSnapshot(Bill $bill): array {
 		$raw = $bill->getPaidUndoState();
 		$snapshot = ($raw !== null && $raw !== '') ? json_decode($raw, true) : null;
-		if (!is_array($snapshot)) {
+		// While a skip has set it aside Mark Unpaid can't run from it (#399)
+		if (!is_array($snapshot) || UndoSnapshotSkips::setAside($raw)) {
 			return [];
 		}
 

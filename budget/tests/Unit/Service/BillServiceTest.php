@@ -3241,7 +3241,8 @@ class BillServiceTest extends TestCase {
 
 		$result = $this->service->skipPayment(1, 'user1');
 
-		$this->assertNull($result['bill']->getPaidUndoState());
+		// Set aside until the skip is undone, no longer spent (#399)
+		$this->assertFalse($result['bill']->canMarkUnpaid());
 	}
 
 	public function testMarkUnpaidDeletesThePlaceholderOnlyWhileStillScheduled(): void {

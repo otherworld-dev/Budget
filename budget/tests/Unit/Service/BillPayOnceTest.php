@@ -354,7 +354,8 @@ class BillPayOnceTest extends TestCase {
 
 		$this->service->skipPayment(1, 'user1', '2026-10-15');
 
-		$this->assertNull($this->stored->getPaidUndoState());
+		// Set aside until the skip is undone, no longer spent (#399)
+		$this->assertFalse($this->stored->canMarkUnpaid());
 		$this->assertSame('2026-11-15', $this->stored->getNextDueDate());
 	}
 

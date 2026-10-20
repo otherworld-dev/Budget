@@ -265,9 +265,11 @@ class Bill extends Entity implements JsonSerializable {
 	}
 
 	/**
-	 * Whether the last payment can be reverted: it left a snapshot behind (#365).
+	 * Whether the last payment can be reverted: it left a snapshot behind
+	 * (#365), and no skip since has set it aside (#399)
 	 */
 	public function canMarkUnpaid(): bool {
-		return $this->getPaidUndoState() !== null && $this->getPaidUndoState() !== '';
+		return $this->getPaidUndoState() !== null && $this->getPaidUndoState() !== ''
+			&& !UndoSnapshotSkips::setAside($this->getPaidUndoState());
 	}
 }

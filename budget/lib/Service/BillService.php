@@ -11,6 +11,7 @@ use OCA\Budget\Db\BillMapper;
 use OCA\Budget\Db\DismissedSuggestionMapper;
 use OCA\Budget\Db\RecurringIncomeMapper;
 use OCA\Budget\Db\ShareItem;
+use OCA\Budget\Db\UndoSnapshotSkips;
 use OCA\Budget\Enum\Currency;
 use OCA\Budget\Exception\ReconciledPaymentException;
 use OCA\Budget\Service\Bill\BalanceProjector;
@@ -1192,7 +1193,7 @@ class BillService {
 	 */
 	private function snapshotSettling(Bill $bill, string $date): ?array {
 		$snapshot = $this->paymentSnapshot($bill);
-		if ($snapshot === null || !is_array($snapshot['previousState'] ?? null)) {
+		if ($snapshot === null || !is_array($snapshot['previousState'] ?? null) || UndoSnapshotSkips::setAside($bill->getPaidUndoState())) {
 			return null;
 		}
 		$ids = is_array($snapshot['createdTransactionIds'] ?? null) ? $snapshot['createdTransactionIds'] : [];
@@ -1216,7 +1217,8 @@ class BillService {
 	 * @param string[] $payments the days the payments were made or recorded on
 	 */
 	private function paysOneTimeDate(Bill $bill, string $date, array $payments): bool {
-		$snapshot = $this->paymentSnapshot($bill);
+		// A skip since settled a later occurrence than the snapshot's (#399)
+		$snapshot = UndoSnapshotSkips::setAside($bill->getPaidUndoState()) ? null : $this->paymentSnapshot($bill);
 		$settled = $snapshot['previousState']['nextDueDate'] ?? null;
 		$frequency = $bill->getFrequency();
 		$pending = $bill->getNextDueDate();
@@ -1786,7 +1788,8 @@ class BillService {
 
 		$raw = $bill->getPaidUndoState();
 		$decoded = ($raw !== null && $raw !== '') ? json_decode($raw, true) : null;
-		if (!is_array($decoded) || !is_array($decoded['previousState'] ?? null)) {
+		// Set aside by a skip, it would bring back a date from before the skip (#399)
+		if (!is_array($decoded) || !is_array($decoded['previousState'] ?? null) || UndoSnapshotSkips::setAside($raw)) {
 			throw new \InvalidArgumentException($this->l->t('This bill has no recorded payment to undo'));
 		}
 
@@ -1878,9 +1881,11 @@ class BillService {
 
 		// Claimed like a payment (#399): two skips of one occurrence both went
 		// through. The skip moves next_due_date, so a mark-unpaid snapshot
-		// restored after it would bring back a pre-skip date: it is spent in
-		// the same write (#365 review).
-		$claimed = ['next_due_date' => $nextDue, 'is_active' => $isActive, 'paid_undo_state' => null];
+		// restored after it would bring back a pre-skip date (#365 review):
+		// the same write sets it aside until the skip is undone, so Undo
+		// brings Mark Unpaid back (#399). A skip that ends the bill spends it.
+		$snapshot = $isActive ? UndoSnapshotSkips::skip($bill->getPaidUndoState(), $previousNextDueDate) : null;
+		$claimed = ['next_due_date' => $nextDue, 'is_active' => $isActive, 'paid_undo_state' => $snapshot];
 		if (!$this->mapper->claimOccurrence($id, $userId, $previousNextDueDate, $claimed)) {
 			throw new \InvalidArgumentException($this->l->t('This date was already paid or skipped. Reload the page to see the next one.'));
 		}
@@ -1902,7 +1907,7 @@ class BillService {
 		// The claim wrote all of it (see markPaid())
 		$bill->setNextDueDate($nextDue);
 		$bill->setIsActive($isActive);
-		$bill->setPaidUndoState(null);
+		$bill->setPaidUndoState($snapshot);
 		$bill->resetUpdatedFields();
 		$this->withdrawNotifications($bill);
 
@@ -1963,6 +1968,11 @@ class BillService {
 		$bill->setNextDueDate($previousNextDueDate);
 		if ($ended) {
 			$bill->setIsActive(true);
+		}
+		// The payment before the skip can be marked unpaid again (#399)
+		$snapshot = UndoSnapshotSkips::unskip($bill->getPaidUndoState(), $previousNextDueDate);
+		if ($snapshot !== $bill->getPaidUndoState()) {
+			$bill->setPaidUndoState($snapshot);
 		}
 
 		$bill = $this->mapper->update($bill);
@@ -2457,7 +2467,7 @@ class BillService {
 		$raw = $bill->getPaidUndoState();
 		$snapshot = ($raw !== null && $raw !== '') ? json_decode($raw, true) : null;
 		if (!is_array($snapshot) || !is_numeric($snapshot['linkedTransactionId'] ?? null)
-			|| (int)$snapshot['linkedTransactionId'] !== $transactionId) {
+			|| (int)$snapshot['linkedTransactionId'] !== $transactionId || UndoSnapshotSkips::setAside($raw)) {
 			return false;
 		}
 

@@ -216,7 +216,8 @@ class IncomePayOnceTest extends TestCase {
 
 		$this->assertSame('2026-09-29', $result['previousNextExpectedDate']);
 		$this->assertSame('2026-10-29', $this->stored->getNextExpectedDate());
-		$this->assertNull($this->stored->getReceivedUndoState());
+		// Set aside until the skip is undone, no longer spent (#399)
+		$this->assertFalse($this->stored->canUndoReceived());
 	}
 
 	// ── auto-create ─────────────────────────────────────────────────

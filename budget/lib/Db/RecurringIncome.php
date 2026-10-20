@@ -123,8 +123,12 @@ class RecurringIncome extends Entity implements JsonSerializable {
 		$this->currency = $currency;
 	}
 
-	/** Whether the last receipt can be reverted: it left a snapshot behind */
+	/**
+	 * Whether the last receipt can be reverted: it left a snapshot behind,
+	 * and no skip since has set it aside (#399)
+	 */
 	public function canUndoReceived(): bool {
-		return $this->getReceivedUndoState() !== null && $this->getReceivedUndoState() !== '';
+		return $this->getReceivedUndoState() !== null && $this->getReceivedUndoState() !== ''
+			&& !UndoSnapshotSkips::setAside($this->getReceivedUndoState());
 	}
 }
