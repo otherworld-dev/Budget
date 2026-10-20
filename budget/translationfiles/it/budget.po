@@ -8,8 +8,8 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-10-15 00:25+0000\n"
-"PO-Revision-Date: 2026-10-05 20:34+0000\n"
-"Last-Translator: belze-bu <belzebu87@gmail.com>\n"
+"PO-Revision-Date: 2026-10-21 10:51+0000\n"
+"Last-Translator: belze-bu <belze-bu@users.noreply.hosted.weblate.org>\n"
 "Language-Team: Italian <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/it/>\n"
 "Language: it\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 2026.10.1.dev0\n"
+"X-Generator: Weblate 2026.11.dev0\n"
 
 #: /app/lib/Controller/AccountController.php:80
 #: /app/lib/Controller/ApiV1AccountController.php:57
@@ -128,7 +128,7 @@ msgstr "Codice SWIFT/BIC non valido: %1$s"
 
 #: /app/lib/Controller/AccountController.php:278
 msgid "Failed to create account"
-msgstr ""
+msgstr "Creazione dell'account fallita"
 
 #: /app/lib/Controller/AccountController.php:294
 #: /app/lib/Controller/BillController.php:1219
@@ -154,55 +154,55 @@ msgstr ""
 #: /app/lib/Controller/TransactionController.php:501
 #: /app/lib/Service/CategoryService.php:840
 msgid "No valid fields to update"
-msgstr ""
+msgstr "Nessun campo valido da aggiornare"
 
 #: /app/lib/Controller/AccountController.php:513
 msgid "Failed to update account"
-msgstr ""
+msgstr "Aggiornamento dell'account fallito"
 
 #: /app/lib/Controller/AccountController.php:532
 msgid "No account IDs provided"
-msgstr ""
+msgstr "Non è stato fornito alcun ID per l'account"
 
 #: /app/lib/Controller/AccountController.php:567
 #: /app/src/modules/accounts/AccountsModule.js:704
 msgid "Failed to delete accounts"
-msgstr ""
+msgstr "Rimozione degli account fallita"
 
 #: /app/lib/Controller/AccountController.php:602
 msgid "Only the account owner can delete an account"
-msgstr ""
+msgstr "Solo il proprietario è autorizzato ad eliminare il proprio account"
 
 #: /app/lib/Controller/AccountController.php:664
 #: /app/src/modules/accounts/AccountsModule.js:3078
 msgid "Failed to delete account"
-msgstr ""
+msgstr "Rimozione dell'account fallita"
 
 #: /app/lib/Controller/AccountController.php:688
 msgid "This account has no sensitive banking data to reveal"
-msgstr ""
+msgstr "Questo account non ha dati bancari sensibili da rivelare"
 
 #: /app/lib/Controller/AccountController.php:714
 msgid "Failed to retrieve account summary"
-msgstr ""
+msgstr "Fallito il processo di recupero informazioni per l'account"
 
 #: /app/lib/Controller/AccountController.php:821
 msgid "Failed to reconcile account"
-msgstr ""
+msgstr "Fallita riconciliazione per l'account"
 
 #: /app/lib/Controller/AccountController.php:836
 msgid "Too many transactions (max 500)"
-msgstr ""
+msgstr "Troppe transazioni (max 500)"
 
 #: /app/lib/Controller/AccountController.php:845
 #: /app/lib/Controller/ReconciliationController.php:169
 #: /app/src/modules/transactions/TransactionsModule.js:1905
 msgid "Failed to complete reconciliation"
-msgstr ""
+msgstr "Riconciliazione fallita"
 
 #: /app/lib/Controller/AccountController.php:895
 msgid "Interest rate must be between 0 and 999.9999"
-msgstr ""
+msgstr "Il tasso di interesse deve essere un valore compreso tra 0 e 999999"
 
 #: /app/lib/Controller/AccountController.php:900
 #: /app/src/modules/accounts/AccountsModule.js:1443
@@ -211,56 +211,58 @@ msgstr ""
 
 #: /app/lib/Controller/AccountController.php:904
 msgid "Invalid date format. Use YYYY-MM-DD"
-msgstr ""
+msgstr "Formato data non valido. Usare AAAA-MM-GG"
 
 #: /app/lib/Controller/AccountController.php:912
 msgid "Failed to add interest rate"
-msgstr ""
+msgstr "Inserimento del tasso di interesse fallito"
 
 #: /app/lib/Controller/AccountController.php:931 /app/src/main.js:2892
 #: /app/src/main.js:2990
 msgid "Interest Rate"
-msgstr ""
+msgstr "Tasso di interesse"
 
 #: /app/lib/Controller/AccountController.php:940
 msgid "Failed to delete interest rate"
-msgstr ""
+msgstr "Rimozione del tasso di interesse fallito"
 
 #: /app/lib/Controller/AdminSettingController.php:45
 msgid "Receipt scanning is not using the Otherworld relay."
-msgstr ""
+msgstr "La scansione dello scontrino non sta usando il relay Otherworld."
 
 #: /app/lib/Controller/AdminSettingController.php:49
 msgid "No license key is saved yet."
-msgstr ""
+msgstr "Nessuna chiave di licenza salvata al momento."
 
 #: /app/lib/Controller/AdminSettingController.php:53
 msgid ""
 "This license has no subscription behind it — it was issued directly, so "
 "there is nothing to manage."
 msgstr ""
+"La chiave di licenza non copre una sottoscrizione - è stata emessa "
+"direttamente, nulla da gestire."
 
 #: /app/lib/Controller/AdminSettingController.php:57
 #: /app/src/modules/settings/SettingsModule.js:152
 msgid "The billing portal could not be opened. Try again shortly."
-msgstr ""
+msgstr "Il portale di fatturazione non può essere aperto. Riprovare più tardi."
 
 #: /app/lib/Controller/AlertController.php:51
 msgid "Failed to retrieve budget alerts"
-msgstr ""
+msgstr "Recupero degli avvisi budget fallito"
 
 #: /app/lib/Controller/AlertController.php:64
 msgid "Failed to retrieve budget status"
-msgstr ""
+msgstr "Recupero dello stato dei badget fallito"
 
 #: /app/lib/Controller/AlertController.php:77
 msgid "Failed to retrieve budget summary"
-msgstr ""
+msgstr "Recupero del sommario dei budget fallito"
 
 #: /app/lib/Controller/ApiV1BillController.php:62
 #: /app/lib/Controller/BillController.php:1107
 msgid "Failed to retrieve upcoming bills"
-msgstr ""
+msgstr "Recupero delle prossime bollette fallito"
 
 #: /app/lib/Controller/ApiV1BudgetController.php:59
 #: /app/lib/Controller/BillController.php:1169
@@ -271,23 +273,23 @@ msgstr ""
 #: /app/lib/Controller/CategoryController.php:808
 #: /app/lib/Controller/CategoryController.php:825
 msgid "Invalid month format. Use YYYY-MM"
-msgstr ""
+msgstr "Formato data non valido. Usare AAAA-MM"
 
 #: /app/lib/Controller/ApiV1BudgetController.php:71
 #: /app/lib/Controller/CategoryController.php:793
 msgid "Failed to retrieve effective budgets"
-msgstr ""
+msgstr "Recupero dei budget effettivi fallito"
 
 #: /app/lib/Controller/ApiV1CategoryController.php:62
 #: /app/lib/Controller/CategoryController.php:188
 #: /app/lib/Controller/CategoryController.php:280
 msgid "Invalid category type. Must be income or expense"
-msgstr ""
+msgstr "Tipo categoria non valido. Deve essere \"ingressi\" o \"uscite\""
 
 #: /app/lib/Controller/ApiV1CategoryController.php:81
 #: /app/lib/Controller/CategoryController.php:97
 msgid "Failed to retrieve categories"
-msgstr ""
+msgstr "Recupero elenco delle categorie fallito"
 
 #: /app/lib/Controller/ApiV1ReceiptController.php:73
 #: /app/lib/Controller/ApiV1TransactionController.php:1258
@@ -297,43 +299,47 @@ msgstr ""
 #: /app/lib/Controller/MigrationController.php:136
 #: /app/lib/Controller/ReceiptScanController.php:81
 msgid "No file uploaded"
-msgstr ""
+msgstr "Nessun file caricato"
 
 #: /app/lib/Controller/ApiV1ReceiptController.php:84
 msgid ""
 "No total could be read from this receipt. Enter the transaction manually"
 msgstr ""
+"Il totale di questa ricevuta non può essere letto. Inserire la transazione "
+"manualmente"
 
 #: /app/lib/Controller/ApiV1ReceiptController.php:92
 #: /app/lib/Controller/ReceiptScanController.php:99
 msgid "Receipt scanning is not set up on this server"
-msgstr ""
+msgstr "Nessun servizio di scansione ricevute configurato su questo server"
 
 #: /app/lib/Controller/ApiV1ReceiptController.php:97
 msgid "The OCR provider's quota is used up. Try again later"
-msgstr ""
+msgstr "Esaurita quota OCR assegnata dal provider. Riprovare più tardi"
 
 #: /app/lib/Controller/ApiV1ReceiptController.php:102
 msgid ""
 "The receipt could not be read — the OCR provider failed. Try again, or enter "
 "the transaction manually"
 msgstr ""
+"La ricevuta non può essere letta - fallimento lato provider OCR. Riprovare "
+"più tardi, oppure inserire la transazione manualmente"
 
 #: /app/lib/Controller/ApiV1TagController.php:58
 #: /app/lib/Controller/TagSetController.php:220
 msgid "Failed to retrieve tags"
-msgstr ""
+msgstr "Recupero tag fallito"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:113
 msgid "Invalid date. Use the YYYY-MM-DD format"
-msgstr ""
+msgstr "Data non valida. Usare il formato AAAA-MM-GG"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:154
 #: /app/lib/Controller/ApiV1TransactionController.php:370
 #: /app/lib/Controller/TransactionController.php:134
 #: /app/lib/Controller/TransactionController.php:189
 msgid "Failed to retrieve transactions"
-msgstr ""
+msgstr "Recupero transazioni fallito"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:203
 #: /app/lib/Controller/ApiV1TransactionController.php:588
@@ -341,7 +347,7 @@ msgstr ""
 #: /app/lib/Controller/TransactionController.php:331
 #: /app/lib/Controller/TransactionController.php:443
 msgid "Invalid transaction type. Must be credit or debit"
-msgstr ""
+msgstr "Tipo di transazione non valido. Deve essere \"credito\" o \"debito\""
 
 #: /app/lib/Controller/ApiV1TransactionController.php:210
 #: /app/lib/Controller/TransactionController.php:495
@@ -351,7 +357,7 @@ msgstr ""
 #: /app/lib/Controller/ApiV1TransactionController.php:221
 #, php-format
 msgid "%s must be true or false"
-msgstr ""
+msgstr "%s deve essere vero o falso"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:227
 msgid "Use either categoryId or uncategorized, not both"
@@ -361,12 +367,12 @@ msgstr ""
 #: /app/lib/Controller/ApiV1TransactionController.php:536
 #, php-format
 msgid "%s must be a whole number above zero"
-msgstr ""
+msgstr "%s deve essere un numero intero superiore a zero"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:254
 #, php-format
 msgid "%s must be a number, zero or more"
-msgstr ""
+msgstr "%s deve essere un numero, maggiore o uguale a zero"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:300
 #, php-format
@@ -376,20 +382,23 @@ msgstr ""
 #: /app/lib/Controller/ApiV1TransactionController.php:384
 #: /app/lib/Controller/ApiV1TransactionController.php:404
 msgid "Failed to retrieve transaction"
-msgstr ""
+msgstr "Recupero della transazione fallito"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:553
 #: /app/lib/Controller/ApiV1TransactionController.php:1561
 msgid "Amount must be a number"
-msgstr ""
+msgstr "L'ammontare deve essere un numero"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:559
+#, fuzzy
 msgid "Amount cannot be negative. Use type to say which way the money went"
 msgstr ""
+"L'ammontare non può essere negativo. Usare il tipo di movimento per indicare "
+"il flusso"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:563
 msgid "An account is required"
-msgstr ""
+msgstr "Un account è richiesto"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:568
 #: /app/lib/Controller/ApiV1TransactionController.php:1551
@@ -413,7 +422,7 @@ msgstr ""
 #: /app/templates/index.php:6566 /app/templates/index.php:7375
 #: /app/templates/quick-add.php:34
 msgid "Date"
-msgstr ""
+msgstr "Data"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:600
 msgid "Idempotency key too long (64 characters maximum)"
@@ -422,39 +431,44 @@ msgstr ""
 #: /app/lib/Controller/ApiV1TransactionController.php:727
 #: /app/lib/Controller/ApiV1TransactionController.php:1080
 msgid "The transaction was recorded, but the photo could not be attached"
-msgstr ""
+msgstr "Transazione registrata, ma la foto non è stata allegata"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:762
 msgid "The transaction was recorded, but it could not be split"
 msgstr ""
+"La transazione è stata registrata, ma non è stato possibile fare la divisione"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:785
+#, fuzzy
 msgid "The transaction was recorded, but its tags could not be set"
-msgstr ""
+msgstr "La transazione è stata registrata, ma non è stata applicata alcuna tag"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:800
 #: /app/lib/Controller/ApiV1TransactionController.php:870
 #: /app/lib/Controller/TransactionController.php:394
 msgid "Failed to create transaction"
-msgstr ""
+msgstr "Creazione transazione fallita"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:829
 msgid "A transfer needs two different accounts"
-msgstr ""
+msgstr "Un trasferimento richiede due account differenti"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:839
 msgid "A transfer cannot be split"
-msgstr ""
+msgstr "Un trasferimento non può essere diviso"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:865
+#, fuzzy
 msgid ""
 "The two accounts are in different currencies. Record this transfer in the "
 "web UI, where each side has its own amount"
 msgstr ""
+"I due account operano con valute differenti. Registrare la transazione via "
+"web, dove ogni lato ha il proprio ammontare"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:899
 msgid "This account is closed. Reopen it to record anything in it"
-msgstr ""
+msgstr "L'account è chiuso. Riaprirlo per registrare ancora"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:972
 msgid "This idempotency key was already used for a different transaction"
@@ -462,11 +476,11 @@ msgstr ""
 
 #: /app/lib/Controller/ApiV1TransactionController.php:981
 msgid "This request is still being processed. Try again shortly"
-msgstr ""
+msgstr "La richiesta è ancora in elaborazione. Riprovare più tardi"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:1157
 msgid "Failed to split the transaction"
-msgstr ""
+msgstr "Divisione della transazione fallita"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:1225
 msgid ""
@@ -479,14 +493,14 @@ msgstr ""
 #: /app/lib/Controller/AttachmentController.php:59
 #: /app/src/modules/transactions/TransactionsModule.js:2896
 msgid "Failed to load attachments"
-msgstr ""
+msgstr "Caricamento degli allegati fallito"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:1270
 #: /app/lib/Controller/AttachmentController.php:101
 #: /app/src/modules/transactions/TransactionsModule.js:2907
 #: /app/src/modules/transactions/TransactionsModule.js:2912
 msgid "Failed to upload receipt"
-msgstr ""
+msgstr "Caricamento della ricevuta fallito"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:1350
 #: /app/lib/Controller/ApiV1TransactionController.php:1414
@@ -494,28 +508,31 @@ msgstr ""
 #: /app/lib/Controller/TransactionController.php:543
 #: /app/src/modules/transactions/TransactionsModule.js:5320
 msgid "Failed to update transaction"
-msgstr ""
+msgstr "Caricamento della transazione fallito"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:1380
 #: /app/src/modules/transactions/TransactionsModule.js:3600
 #: /app/src/modules/transactions/TransactionsModule.js:3623
 msgid "Failed to delete transaction"
-msgstr ""
+msgstr "Cancellazione transazione fallita"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:1448
 msgid ""
 "A scheduled transaction cannot be reconciled, as it has not happened yet"
 msgstr ""
+"La riconciliazione programmata di una transazione è fallita, non è ancora "
+"avvenuta"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:1517
 #: /app/lib/Controller/TransactionController.php:962
 msgid "Category not found. It must be one of the account owner's categories"
 msgstr ""
+"Categoria non trovata. Deve essere una categoria creata dal proprietario"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:1541
 #, php-format
 msgid "%s cannot be changed through the API"
-msgstr ""
+msgstr "%s non può essere cambiato tramite API"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:1568
 msgid "Amount must be more than zero. Use type to say which way the money went"
@@ -526,6 +543,8 @@ msgid ""
 "This transaction is one side of a transfer, so its amount, type and date "
 "cannot be changed on their own"
 msgstr ""
+"Questa transazione è un lato di un trasferimento, quindi la sua quantità, il "
+"tipo e la data non possono essere modificati da soli"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:1647
 msgid ""
@@ -541,11 +560,11 @@ msgstr ""
 #: /app/lib/Controller/ApiV1TransactionController.php:1701
 #, php-format
 msgid "%s must be a single value"
-msgstr ""
+msgstr "%s deve essere un unico valore"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:1715
 msgid "category_id must be a category id or null"
-msgstr ""
+msgstr "category_id deve essere una categoria id o null"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:1722
 #: /app/lib/Controller/AttachmentController.php:57
@@ -555,15 +574,15 @@ msgstr ""
 #: /app/src/modules/transactions/TransactionsModule.js:3792
 #: /app/src/modules/transactions/TransactionsModule.js:3900
 msgid "Transaction not found"
-msgstr ""
+msgstr "Transazione non trovata"
 
 #: /app/lib/Controller/AssetController.php:78
 msgid "Failed to retrieve assets"
-msgstr ""
+msgstr "Recupero assets fallito"
 
 #: /app/lib/Controller/AssetController.php:90
 msgid "Asset"
-msgstr ""
+msgstr "Asset"
 
 #: /app/lib/Controller/AssetController.php:103
 #: /app/lib/Controller/AssetController.php:193
@@ -574,91 +593,93 @@ msgstr ""
 #: /app/lib/Controller/PensionController.php:409
 #: /app/lib/Controller/TransactionController.php:1247
 msgid "Invalid JSON data"
-msgstr ""
+msgstr "Dati JSON non validi"
 
 #: /app/lib/Controller/AssetController.php:117
 #: /app/lib/Controller/PensionController.php:131
 msgid "Name and type are required"
-msgstr ""
+msgstr "Nome e tipo sono richiesti"
 
 #: /app/lib/Controller/AssetController.php:130
 #: /app/lib/Controller/AssetController.php:217
 #, php-format
 msgid "Invalid asset type. Must be one of: %1$s"
-msgstr ""
+msgstr "Tipo di asset non valido. Deve essere uno di: %1$s"
 
 #: /app/lib/Controller/AssetController.php:145
 #: /app/lib/Controller/AssetController.php:232
 #: /app/lib/Controller/PensionController.php:159
 #: /app/lib/Controller/PensionController.php:257
 msgid "Currency must be a 3-letter code"
-msgstr ""
+msgstr "La valuta deve essere un codice a 3 lettere"
 
 #: /app/lib/Controller/AssetController.php:150
 #: /app/lib/Controller/AssetController.php:237
 msgid "Current value cannot be negative"
-msgstr ""
+msgstr "Il valore attuale non può essere negativo"
 
 #: /app/lib/Controller/AssetController.php:153
 #: /app/lib/Controller/AssetController.php:240
 msgid "Purchase price cannot be negative"
-msgstr ""
+msgstr "Il prezzo di acquisto non può essere negativo"
 
 #: /app/lib/Controller/AssetController.php:156
 #: /app/lib/Controller/AssetController.php:243
 #, php-format
 msgid "Annual change rate must be between -1 and 1 (e.g., 0.03 for 3%%)"
 msgstr ""
+"Il tasso di cambio annuale deve essere compreso tra -1 e 1 (ad esempio 0,03 "
+"per 3%%)"
 
 #: /app/lib/Controller/AssetController.php:161
 #: /app/lib/Controller/AssetController.php:248
 msgid "Purchase date"
-msgstr ""
+msgstr "Data di acquisto"
 
 #: /app/lib/Controller/AssetController.php:180
 msgid "Failed to create asset"
-msgstr ""
+msgstr "Creazione asset fallito"
 
 #: /app/lib/Controller/AssetController.php:268
 msgid "Failed to update asset"
-msgstr ""
+msgstr "Aggiornamento asset fallito"
 
 #: /app/lib/Controller/AssetController.php:279
 msgid "Asset deleted successfully"
-msgstr ""
+msgstr "Cancellazione asset completato"
 
 #: /app/lib/Controller/AssetController.php:281
 #: /app/src/modules/assets/AssetsModule.js:409
 msgid "Failed to delete asset"
-msgstr ""
+msgstr "Cancellazione asset fallita"
 
 #: /app/lib/Controller/AssetController.php:297
 #: /app/lib/Controller/PensionController.php:328
 msgid "Failed to retrieve snapshots"
-msgstr ""
+msgstr "Recupero snapshots fallito"
 
 #: /app/lib/Controller/AssetController.php:317
 msgid "Value and date are required"
-msgstr ""
+msgstr "Valore e data sono richiesti"
 
 #: /app/lib/Controller/AssetController.php:322
 msgid "Value cannot be negative"
-msgstr ""
+msgstr "Il valore non può essere negativo"
 
 #: /app/lib/Controller/AssetController.php:334
 #: /app/lib/Controller/PensionController.php:366
 msgid "Failed to create snapshot"
-msgstr ""
+msgstr "Creazione snapshot fallita"
 
 #: /app/lib/Controller/AssetController.php:345
 #: /app/lib/Controller/PensionController.php:377
 msgid "Snapshot deleted successfully"
-msgstr ""
+msgstr "Snapshot cancellato con successo"
 
 #: /app/lib/Controller/AssetController.php:347
 #: /app/lib/Controller/PensionController.php:379
 msgid "Failed to delete snapshot"
-msgstr ""
+msgstr "Eliminazione snapshot fallita"
 
 #: /app/lib/Controller/AssetController.php:363
 msgid "Failed to retrieve asset summary"
@@ -666,116 +687,116 @@ msgstr ""
 
 #: /app/lib/Controller/AssetController.php:375
 msgid "Failed to retrieve asset projection"
-msgstr ""
+msgstr "Recupero della proiezine dell'asset fallito"
 
 #: /app/lib/Controller/AssetController.php:387
 msgid "Failed to retrieve combined asset projection"
-msgstr ""
+msgstr "Recupero della proiezione combinata degli asset fallito"
 
 #: /app/lib/Controller/AssetController.php:407
 msgid "Failed to retrieve asset value history"
-msgstr ""
+msgstr "Recupero dello storico del valore degli asset fallito"
 
 #: /app/lib/Controller/AttachmentController.php:76
 msgid "File not found"
-msgstr ""
+msgstr "File non trovato"
 
 #: /app/lib/Controller/AttachmentController.php:78
 #: /app/src/modules/transactions/TransactionsModule.js:2922
 #: /app/src/modules/transactions/TransactionsModule.js:2927
 msgid "Failed to attach file"
-msgstr ""
+msgstr "Non è possibile collegare il file"
 
 #: /app/lib/Controller/AttachmentController.php:112
 msgid "Attachment removed"
-msgstr ""
+msgstr "Allegato rimosso"
 
 #: /app/lib/Controller/AttachmentController.php:114
 msgid "Attachment not found"
-msgstr ""
+msgstr "Allegato non trovato"
 
 #: /app/lib/Controller/AttachmentController.php:118
 #: /app/src/modules/transactions/TransactionsModule.js:2937
 msgid "Failed to remove attachment"
-msgstr ""
+msgstr "Rimozione dell'allegato fallita"
 
 #: /app/lib/Controller/BankSyncController.php:40
 msgid "Bank sync is disabled by the administrator"
-msgstr ""
+msgstr "La sincronizzazione della banca è disabilitata dall'amministratore"
 
 #: /app/lib/Controller/BankSyncController.php:85
 msgid "This provider does not support institution listing"
-msgstr ""
+msgstr "Questo fornitore non supporta l'elenco delle istituzioni"
 
 #: /app/lib/Controller/BankSyncController.php:91
 msgid "Invalid country code"
-msgstr ""
+msgstr "Codice paese non valido"
 
 #: /app/lib/Controller/BankSyncController.php:97
 msgid "API credentials required"
-msgstr ""
+msgstr "Credenziali API richieste"
 
 #: /app/lib/Controller/BankSyncController.php:106
 msgid "Failed to fetch institutions"
-msgstr ""
+msgstr "Recupero delle istituzioni fallito"
 
 #: /app/lib/Controller/BankSyncController.php:137
 msgid "Provider and name are required"
-msgstr ""
+msgstr "Fornitore e nome sono richiesti"
 
 #: /app/lib/Controller/BankSyncController.php:142
 msgid "Connection name must be between 1 and 255 characters"
-msgstr ""
+msgstr "Il nome di connessione deve essere tra 1 e 255 caratteri"
 
 #: /app/lib/Controller/BankSyncController.php:147
 msgid "Invalid provider"
-msgstr ""
+msgstr "Fornitore non valido"
 
 #: /app/lib/Controller/BankSyncController.php:171
 msgid "Failed to connect bank"
-msgstr ""
+msgstr "Connessione alla banca fallita"
 
 #: /app/lib/Controller/BankSyncController.php:189
 #: /app/src/modules/bank-sync/BankSyncModule.js:699
 msgid "Failed to disconnect bank"
-msgstr ""
+msgstr "Disconnessione della banca fallita"
 
 #: /app/lib/Controller/BankSyncController.php:220
 msgid "Failed to update connection"
-msgstr ""
+msgstr "Aggiornamento della connessione fallito"
 
 #: /app/lib/Controller/BankSyncController.php:238
 msgid "Failed to sync bank data"
-msgstr ""
+msgstr "Sincronizzazione dei dati bancari fallita"
 
 #: /app/lib/Controller/BankSyncController.php:265
 msgid "Connection not found"
-msgstr ""
+msgstr "Connessione non trovata"
 
 #: /app/lib/Controller/BankSyncController.php:270
 msgid "Failed to fetch mappings"
-msgstr ""
+msgstr "Recupero delle mappature fallito"
 
 #: /app/lib/Controller/BankSyncController.php:294
 #: /app/src/modules/bank-sync/BankSyncModule.js:804
 msgid "Failed to update mapping"
-msgstr ""
+msgstr "Aggiornamento delle mappature fallito"
 
 #: /app/lib/Controller/BankSyncController.php:312
 msgid "Failed to refresh accounts"
-msgstr ""
+msgstr "Aggiornamento degli account fallito"
 
 #: /app/lib/Controller/BankSyncController.php:332
 msgid "Institution ID is required"
-msgstr ""
+msgstr "Istituzione ID è richiesto"
 
 #: /app/lib/Controller/BankSyncController.php:345
 msgid "Failed to re-authorize"
-msgstr ""
+msgstr "Re-autorizzazione fallita"
 
 #: /app/lib/Controller/BillController.php:108
 msgid "Failed to retrieve bills"
-msgstr ""
+msgstr "Recupero delle bollette fallito"
 
 #: /app/lib/Controller/BillController.php:149
 #: /app/lib/Controller/BillController.php:167
@@ -784,7 +805,7 @@ msgstr ""
 #: /app/lib/Controller/BillController.php:1511 /app/templates/index.php:3658
 #: /app/templates/index.php:6213
 msgid "Bill"
-msgstr ""
+msgstr "Bolletta"
 
 #: /app/lib/Controller/BillController.php:149
 #: /app/lib/Controller/CategoryController.php:426
@@ -804,61 +825,63 @@ msgstr ""
 #: /app/lib/Traits/ApiErrorHandlerTrait.php:218
 #, php-format
 msgid "%1$s not found"
-msgstr ""
+msgstr "%1$s non trovato"
 
 #: /app/lib/Controller/BillController.php:244
 msgid "The owner of this bill can't use that account. Choose another one."
 msgstr ""
+"Il proprietario di questa bolletta non può usare quell'account. Scegline un "
+"altro."
 
 #: /app/lib/Controller/BillController.php:261
 #: /app/lib/Controller/BillController.php:707
 #: /app/lib/Service/BillService.php:186
 msgid "Invalid amount type"
-msgstr ""
+msgstr "Tipo di importo non valido"
 
 #: /app/lib/Controller/BillController.php:266
 msgid "Name and amount are required"
-msgstr ""
+msgstr "Nome e importo sono richiesti"
 
 #: /app/lib/Controller/BillController.php:310
 #: /app/lib/Controller/BillController.php:792
 #: /app/lib/Service/BillService.php:663 /app/lib/Service/BillService.php:789
 msgid "Auto-pay requires an account to be set"
-msgstr ""
+msgstr "Auto-pay richiede un account impostato"
 
 #: /app/lib/Controller/BillController.php:318
 #: /app/lib/Controller/BillController.php:726
 #: /app/lib/Service/BillService.php:668
 msgid "Transfer requires a destination account"
-msgstr ""
+msgstr "Il trasferimento richiede un account di destinazione"
 
 #: /app/lib/Controller/BillController.php:326
 #: /app/lib/Controller/BillController.php:754
 #: /app/lib/Service/BillService.php:673
 #: /app/src/modules/transfers/TransfersModule.js:869
 msgid "Cannot transfer to the same account"
-msgstr ""
+msgstr "Non è possibile trasferire allo stesso account"
 
 #: /app/lib/Controller/BillController.php:349
 #: /app/lib/Controller/BillController.php:516
 #: /app/lib/Controller/BillController.php:1305
 msgid "Due day must be between 1 and 31"
-msgstr ""
+msgstr "Il giorno di pagamento deve essere compreso tra 1 e 31"
 
 #: /app/lib/Controller/BillController.php:354
 #: /app/lib/Controller/BillController.php:528
 #: /app/lib/Controller/BillController.php:1308
 msgid "Due month must be between 1 and 12"
-msgstr ""
+msgstr "Il mese di pagamento deve essere compreso tra 1 e 12"
 
 #: /app/lib/Controller/BillController.php:377
 #: /app/lib/Controller/BillController.php:582
 msgid "Reminder days must be between 0 and 30"
-msgstr ""
+msgstr "I giorni di promemoria devono essere compresi tra 0 e 30"
 
 #: /app/lib/Controller/BillController.php:390
 msgid "Transaction date"
-msgstr ""
+msgstr "Data di transazione"
 
 #: /app/lib/Controller/BillController.php:398
 #: /app/lib/Controller/BillController.php:624
@@ -868,26 +891,26 @@ msgstr ""
 #: /app/lib/Controller/RecurringIncomeController.php:663
 #: /app/templates/index.php:3217 /app/templates/index.php:5218
 msgid "Start date"
-msgstr ""
+msgstr "Data di inizio"
 
 #: /app/lib/Controller/BillController.php:408
 #: /app/lib/Controller/BillController.php:635 /app/templates/index.php:3219
 msgid "End date"
-msgstr ""
+msgstr "Data di fine"
 
 #: /app/lib/Controller/BillController.php:418
 msgid "Start date must be before the end date"
-msgstr ""
+msgstr "La data di inizio deve essere prima della data di fine"
 
 #: /app/lib/Controller/BillController.php:423
 #: /app/lib/Controller/BillController.php:648
 msgid "Remaining payments must be at least 1"
-msgstr ""
+msgstr "I pagamenti restanti devono essere almeno 1"
 
 #: /app/lib/Controller/BillController.php:476
 #: /app/src/modules/bills/BillsModule.js:251
 msgid "Failed to create bill"
-msgstr ""
+msgstr "Creazione bolletta fallita"
 
 #: /app/lib/Controller/BillController.php:687
 msgid ""
@@ -900,10 +923,12 @@ msgid ""
 "This amount is read from an account that isn't shared with you. Choose a "
 "fixed amount."
 msgstr ""
+"Questo importo viene letto da un account che non è condiviso con te. Scegli "
+"un importo fisso."
 
 #: /app/lib/Controller/BillController.php:877
 msgid "Failed to update bill"
-msgstr ""
+msgstr "Non è riuscito ad aggiornare la bolletta"
 
 #: /app/lib/Controller/BillController.php:891
 #: /app/lib/Controller/GoalsController.php:389
@@ -911,19 +936,21 @@ msgstr ""
 #: /app/lib/Controller/RecurringIncomeController.php:432
 msgid "Deleting a shared item needs Full control from its owner"
 msgstr ""
+"Per cancellare un oggetto condiviso è necessario ottenere il controllo "
+"completo dal suo proprietario"
 
 #: /app/lib/Controller/BillController.php:909
 msgid "Failed to find matching transactions"
-msgstr ""
+msgstr "Individuazione transazioni coerenti fallita"
 
 #: /app/lib/Controller/BillController.php:922
 msgid "Failed to check for unrecorded payments"
-msgstr ""
+msgstr "Controllo di pagamenti non registrati fallito"
 
 #: /app/lib/Controller/BillController.php:940
 #: /app/src/modules/bills/BillsModule.js:176
 msgid "Failed to record the payment"
-msgstr ""
+msgstr "Registrazione pagamento fallita"
 
 #: /app/lib/Controller/BillController.php:959
 #: /app/src/modules/bills/BillsModule.js:165
@@ -933,17 +960,17 @@ msgstr ""
 #: /app/lib/Controller/BillController.php:990
 #: /app/src/modules/bills/BillsModule.js:1290
 msgid "Failed to mark bill as paid"
-msgstr ""
+msgstr "Marcatura bolletta come pagata non riuscita"
 
 #: /app/lib/Controller/BillController.php:1017
 msgid "Failed to undo mark as paid"
-msgstr ""
+msgstr "Annullamento marcatura bolletta pagata fallito"
 
 #: /app/lib/Controller/BillController.php:1039
 #: /app/src/modules/bills/BillsModule.js:1436
 #: /app/src/modules/bills/BillsModule.js:1444
 msgid "Failed to mark bill as unpaid"
-msgstr ""
+msgstr "Marcatura bolletta come non pagata non riuscita"
 
 #: /app/lib/Controller/BillController.php:1068
 #: /app/src/modules/bills/BillsModule.js:1479
@@ -960,24 +987,24 @@ msgstr ""
 
 #: /app/lib/Controller/BillController.php:1121
 msgid "Failed to retrieve bills due this month"
-msgstr ""
+msgstr "Recupero bollete da pagare nel mese fallito"
 
 #: /app/lib/Controller/BillController.php:1135
 msgid "Failed to retrieve overdue bills"
-msgstr ""
+msgstr "Recupero bollette in ritardo fallito"
 
 #: /app/lib/Controller/BillController.php:1154
 msgid "Failed to retrieve bill summary"
-msgstr ""
+msgstr "Recupero sommario bollette fallito"
 
 #: /app/lib/Controller/BillController.php:1178
 msgid "Failed to retrieve bill status"
-msgstr ""
+msgstr "Recupero dello statp delle bollette fallito"
 
 #: /app/lib/Controller/BillController.php:1193
 #: /app/src/modules/bills/BillsModule.js:1525
 msgid "Failed to detect recurring bills"
-msgstr ""
+msgstr "Recupero delle bollette ricorrenti fallito"
 
 #: /app/lib/Controller/BillController.php:1207
 msgid "Failed to load bill suggestions"
@@ -990,20 +1017,20 @@ msgstr ""
 
 #: /app/lib/Controller/BillController.php:1273
 msgid "Failed to create bills from detected patterns"
-msgstr ""
+msgstr "Creazione di bollette dagli schemi rilevati fallita"
 
 #: /app/lib/Controller/BillController.php:1340
 #: /app/lib/Controller/BillController.php:1373
 msgid "Invalid year"
-msgstr ""
+msgstr "Anno non valido"
 
 #: /app/lib/Controller/BillController.php:1355
 msgid "Failed to generate annual overview"
-msgstr ""
+msgstr "Generazione del sommario annuale fallita"
 
 #: /app/lib/Controller/BillController.php:1396
 msgid "Failed to export bills calendar"
-msgstr ""
+msgstr "Esportazione calendario delle bollette fallita"
 
 #: /app/lib/Controller/BillController.php:1405
 #: /app/lib/Controller/BillController.php:1512
@@ -1037,18 +1064,18 @@ msgstr ""
 #: /app/templates/index.php:6568 /app/templates/index.php:7167
 #: /app/templates/quick-add.php:57
 msgid "Amount"
-msgstr ""
+msgstr "Importo"
 
 #: /app/lib/Controller/BillController.php:1405
 #: /app/src/modules/transfers/TransfersModule.js:476
 #: /app/templates/index.php:5574 /app/templates/index.php:6233
 #: /app/templates/index.php:6724
 msgid "Frequency"
-msgstr ""
+msgstr "Frequenza"
 
 #: /app/lib/Controller/BillController.php:1409
 msgid "Annual Total"
-msgstr ""
+msgstr "Totale annuo"
 
 #: /app/lib/Controller/BillController.php:1433
 #: /app/lib/Controller/BillController.php:1537
@@ -1061,23 +1088,23 @@ msgstr ""
 #: /app/src/modules/categories/CategoriesModule.js:2460
 #: /app/src/modules/reports/ReportsModule.js:1860 /app/templates/index.php:7369
 msgid "Total"
-msgstr ""
+msgstr "Totale"
 
 #: /app/lib/Controller/BillController.php:1473
 #: /app/src/modules/dashboard/DashboardModule.js:3376
 #: /app/src/modules/reports/ReportsModule.js:2012
 #: /app/src/modules/transactions/transactionRow.js:172
 msgid "Projected balance"
-msgstr ""
+msgstr "Bilancio previsto"
 
 #: /app/lib/Controller/BillController.php:1488
 #, php-format
 msgid "Bills Calendar %s"
-msgstr ""
+msgstr "Calendario Bollette %s"
 
 #: /app/lib/Controller/BillController.php:1516
 msgid "Annual"
-msgstr ""
+msgstr "Annuale"
 
 #: /app/lib/Controller/BillController.php:1599
 msgid ""
@@ -1085,6 +1112,9 @@ msgid ""
 "categories. Split with categories shared with them, or pay from one of your "
 "own accounts."
 msgstr ""
+"Questo account appartiene a qualcun altro, che non può vedere una delle "
+"categorie divise. Dividi con le categorie condivise con loro, o paga da uno "
+"di questi conti."
 
 #: /app/lib/Controller/BillController.php:1627
 #: /app/lib/Controller/RecurringIncomeController.php:148
@@ -1092,86 +1122,91 @@ msgid ""
 "This account belongs to someone else, who cannot see this category. Choose a "
 "category shared with them, or no category."
 msgstr ""
+"Questo account appartiene a qualcun altro, che non può vedere questa "
+"categoria. Scegli una categoria condivisa, o nessuna categoria."
 
 #: /app/lib/Controller/BillController.php:1686
 msgid ""
 "This account belongs to someone else, who cannot see one of the tags. Choose "
 "tags from a category shared with them, or no tags."
 msgstr ""
+"Questo account appartiene a qualcun altro, che non può vedere uno dei tag. "
+"Scegliere tag da una categoria condivisa, o senza tag."
 
 #: /app/lib/Controller/BillController.php:1790
 msgid "Split template must have at least 2 splits"
-msgstr ""
+msgstr "Modello diviso deve avere almeno 2 divisioni"
 
 #: /app/lib/Controller/BillController.php:1798
 msgid "Each split must have a positive amount"
-msgstr ""
+msgstr "Ogni divisione deve avere un importo positivo"
 
 #: /app/lib/Controller/BillController.php:1804
 msgid "Split amounts must equal the bill amount"
-msgstr ""
+msgstr "Gli importi divisi devono essere pari all'importo totale"
 
 #: /app/lib/Controller/BillController.php:1816
 msgid "Invalid JSON in custom recurrence pattern"
-msgstr ""
+msgstr "JSON non valido nello schema personalizzato delle ricorrenze"
 
 #: /app/lib/Controller/BillController.php:1823
 msgid "Custom recurrence pattern must be a JSON object"
-msgstr ""
+msgstr "Lo schema di ricorrenza personalizzato deve essere un oggetto JSON"
 
 #: /app/lib/Controller/BillController.php:1832
 msgid "Months must be an array"
-msgstr ""
+msgstr "I mesi devono essere una serie"
 
 #: /app/lib/Controller/BillController.php:1839
 msgid "At least one month must be specified"
-msgstr ""
+msgstr "Almeno un mese deve essere specificato"
 
 #: /app/lib/Controller/BillController.php:1847
 msgid "Each month must be a number between 1 and 12"
-msgstr ""
+msgstr "Ogni mese deve essere un numero tra 1 e 12"
 
 #: /app/lib/Controller/BillController.php:1860
 msgid "Dates must be an array"
-msgstr ""
+msgstr "Le date devono essere una serie"
 
 #: /app/lib/Controller/BillController.php:1867
 msgid "At least one date must be specified"
-msgstr ""
+msgstr "Almeno una data deve essere specificata"
 
 #: /app/lib/Controller/BillController.php:1875
 msgid "Each date must have \"month\" and \"day\" fields"
-msgstr ""
+msgstr "Ogni data deve avere campi \"mese\" e \"giorno\""
 
 #: /app/lib/Controller/BillController.php:1882
 msgid "Month must be a number between 1 and 12"
-msgstr ""
+msgstr "Mese deve essere un numero tra 1 e 12"
 
 #: /app/lib/Controller/BillController.php:1889
 msgid "Day must be a number between 1 and 31"
-msgstr ""
+msgstr "Il giorno deve essere un numero tra 1 e 31"
 
 #: /app/lib/Controller/BillController.php:1899
 msgid "Custom pattern must contain either \"months\" or \"dates\" field"
 msgstr ""
+"Il modello personalizzato deve contenere sia il campo \"mesi\" o \"data\""
 
 #: /app/lib/Controller/CalendarFeedController.php:97
 #: /app/src/modules/bills/BillsModule.js:1204
 msgid "Failed to get calendar feed"
-msgstr ""
+msgstr "Feed del caledario non trovato"
 
 #: /app/lib/Controller/CalendarFeedController.php:111
 #: /app/src/modules/bills/BillsModule.js:1250
 msgid "Failed to regenerate calendar feed token"
-msgstr ""
+msgstr "Generazione token del feed del calendario fallita"
 
 #: /app/lib/Controller/CategoryController.php:134
 msgid "Failed to retrieve category tree"
-msgstr ""
+msgstr "Recupero dell'albero delle categorie fallito"
 
 #: /app/lib/Controller/CategoryController.php:146
 msgid "Failed to retrieve transaction counts"
-msgstr ""
+msgstr "Recupero del conteggio delle transazioni fallito"
 
 #: /app/lib/Controller/CategoryController.php:158
 #: /app/lib/Controller/CategoryController.php:426
@@ -1212,135 +1247,145 @@ msgstr ""
 #: /app/templates/index.php:6771 /app/templates/index.php:7166
 #: /app/templates/index.php:7207 /app/templates/quick-add.php:72
 msgid "Category"
-msgstr ""
+msgstr "Categoria"
 
 #: /app/lib/Controller/CategoryController.php:307
 msgid "Invalid budget period. Must be monthly, weekly, yearly, or quarterly"
 msgstr ""
+"Periodo di bilancio non valido. Deve essere mensile, settimanale, annuale, o "
+"trimestrale"
 
 #: /app/lib/Controller/CategoryController.php:360
 #: /app/src/modules/categories/CategoriesModule.js:1437
 msgid "Failed to update category"
-msgstr ""
+msgstr "Aggiornamento categoria fallito"
 
 #: /app/lib/Controller/CategoryController.php:382
 #: /app/lib/Service/CategoryService.php:242
 msgid "Parent category not found"
-msgstr ""
+msgstr "Categoria principale non trovata"
 
 #: /app/lib/Controller/CategoryController.php:390
 msgid "A category can only be moved under another category with the same owner"
 msgstr ""
+"Una categoria può essere spostata solo in un'altra categoria con lo stesso "
+"proprietario"
 
 #: /app/lib/Controller/CategoryController.php:399
 msgid "Only the owner can add subcategories to a shared category"
 msgstr ""
+"Solo il proprietario può aggiungere sottocategorie a una categoria condivisa"
 
 #: /app/lib/Controller/CategoryController.php:420
 #: /app/lib/Controller/CategoryController.php:831
 msgid "Invalid budget period"
-msgstr ""
+msgstr "Periodo di bilancio non valido"
 
 #: /app/lib/Controller/CategoryController.php:433
 #: /app/src/modules/categories/CategoriesModule.js:2486
 msgid "Only the owner can change the budget of a shared category"
 msgstr ""
+"Solo il proprietario può cambiare il bilancio di una categoria condivisa"
 
 #: /app/lib/Controller/CategoryController.php:480
 msgid "Invalid position"
-msgstr ""
+msgstr "Posizione non valida"
 
 #: /app/lib/Controller/CategoryController.php:498
 msgid ""
 "A category can only be moved next to another category with the same owner"
 msgstr ""
+"Una categoria può essere spostata solo in un'altra categoria con lo stesso "
+"proprietario"
 
 #: /app/lib/Controller/CategoryController.php:515
 msgid "Shared categories cannot be nested"
-msgstr ""
+msgstr "Le categorie condivise non possono essere nidificate"
 
 #: /app/lib/Controller/CategoryController.php:516
 msgid "Only the owner can move a shared category to another level"
 msgstr ""
+"Solo il proprietario può spostare una categoria condivisa in un altro livello"
 
 #: /app/lib/Controller/CategoryController.php:530
 #: /app/lib/Controller/CategoryController.php:536
 #: /app/src/modules/categories/CategoriesModule.js:635
 #: /app/src/modules/categories/CategoriesModule.js:644
 msgid "Failed to reorder category"
-msgstr ""
+msgstr "Riordino delle categorie fallito"
 
 #: /app/lib/Controller/CategoryController.php:568
 #: /app/lib/Service/CategoryService.php:367
 msgid "Only the category owner can delete it"
-msgstr ""
+msgstr "Solo il proprietario della categoria può cancellarla"
 
 #: /app/lib/Controller/CategoryController.php:602
 msgid "Failed to load report preferences"
-msgstr ""
+msgstr "Caricamento delle preferenze del report fallito"
 
 #: /app/lib/Controller/CategoryController.php:618
 #: /app/lib/Service/GranularShareService.php:151
 #: /app/lib/Service/GranularShareService.php:179
 msgid "Category not found"
-msgstr ""
+msgstr "Categoria non trovata"
 
 #: /app/lib/Controller/CategoryController.php:623
 #: /app/src/modules/categories/CategoriesModule.js:446
 msgid "Failed to update report preference"
-msgstr ""
+msgstr "Aggiornamento delle preferenze del report fallito"
 
 #: /app/lib/Controller/CategoryController.php:640
 #: /app/lib/Controller/CategoryController.php:658
 msgid "Failed to retrieve category spending"
-msgstr ""
+msgstr "Recupero delle categorie di spesa fallito"
 
 #: /app/lib/Controller/CategoryController.php:745
 msgid "Failed to delete budget snapshot"
-msgstr ""
+msgstr "Cancellazione dello snapshot del budget fallito"
 
 #: /app/lib/Controller/CategoryController.php:758
 msgid "Failed to retrieve snapshot months"
-msgstr ""
+msgstr "Recupero dello snapshot dei mesi fallito"
 
 #: /app/lib/Controller/CategoryController.php:813
+#, fuzzy
 msgid "Failed to retrieve recurring budgets"
-msgstr ""
+msgstr "Recupero dei budget ricorrenti fallito"
 
 #: /app/lib/Controller/CategoryTransferController.php:64
 #: /app/src/modules/categories/CategoriesModule.js:1658
 #: /app/src/modules/categories/CategoriesModule.js:1670
 msgid "Failed to export categories"
-msgstr ""
+msgstr "Esportazione categorie non riuscito"
 
 #: /app/lib/Controller/CategoryTransferController.php:89
 #: /app/src/modules/categories/CategoriesModule.js:1694
 #: /app/src/modules/categories/CategoriesModule.js:1700
 msgid "Failed to read the category file"
-msgstr ""
+msgstr "Lettura del file delle categorie fallito"
 
 #: /app/lib/Controller/CategoryTransferController.php:109
 #: /app/src/modules/categories/CategoriesModule.js:1768
 #: /app/src/modules/categories/CategoriesModule.js:1776
 msgid "Failed to import categories"
-msgstr ""
+msgstr "Importazione delle categorie non riuscito"
 
 #: /app/lib/Controller/DebtController.php:58
 msgid "Failed to retrieve debts"
-msgstr ""
+msgstr "Recupero debiti non riuscito"
 
 #: /app/lib/Controller/DebtController.php:79
 msgid "Failed to retrieve debt summary"
-msgstr ""
+msgstr "Recupero del sommario dei debiti fallito"
 
 #: /app/lib/Controller/DebtController.php:96
 msgid "Invalid strategy. Must be \"avalanche\" or \"snowball\""
-msgstr ""
+msgstr "Strategia non valida. Deve essere \"avalanche\" o \"snowball\""
 
 #: /app/lib/Controller/DebtController.php:104
 #: /app/lib/Controller/DebtController.php:153
 msgid "Extra payment cannot be negative"
-msgstr ""
+msgstr "Il pagamento extra non può essere negativo"
 
 #: /app/lib/Controller/DebtController.php:118
 msgid "Failed to calculate payoff plan"
@@ -1348,32 +1393,32 @@ msgstr ""
 
 #: /app/lib/Controller/DebtController.php:136
 msgid "Failed to get debt progress"
-msgstr ""
+msgstr "Recupero progressi del debito fallito"
 
 #: /app/lib/Controller/DebtController.php:166 /app/src/main.js:3112
 #: /app/src/main.js:3117
 msgid "Failed to compare strategies"
-msgstr ""
+msgstr "Comparazione strategie non riuscita"
 
 #: /app/lib/Controller/DebtScenarioController.php:59
 msgid "Failed to retrieve debt scenarios"
-msgstr ""
+msgstr "Ottenimento scenari del debito non riuscito"
 
 #: /app/lib/Controller/DebtScenarioController.php:80
 #: /app/lib/Controller/DebtScenarioController.php:131
 msgid "Scenario name is required"
-msgstr ""
+msgstr "Il nome dello scenario è richiesto"
 
 #: /app/lib/Controller/DebtScenarioController.php:83
 #: /app/lib/Controller/DebtScenarioController.php:134
 msgid "Invalid strategy"
-msgstr ""
+msgstr "Strategia non valida"
 
 #: /app/lib/Controller/DebtScenarioController.php:86
 #: /app/lib/Controller/DebtScenarioController.php:137
 #: /app/lib/Controller/DebtScenarioController.php:140
 msgid "Payment amounts cannot be negative"
-msgstr ""
+msgstr "Gli importi di pagamento non possono essere negativi"
 
 #: /app/lib/Controller/DebtScenarioController.php:89
 #: /app/lib/Controller/DebtScenarioController.php:143
@@ -1382,106 +1427,106 @@ msgstr ""
 
 #: /app/lib/Controller/DebtScenarioController.php:109
 msgid "Failed to create debt scenario"
-msgstr ""
+msgstr "Creazione scenario del debito fallita"
 
 #: /app/lib/Controller/DebtScenarioController.php:174
 #: /app/lib/Controller/DebtScenarioController.php:201
 #: /app/lib/Controller/DebtScenarioController.php:228
 #: /app/lib/Controller/DebtScenarioController.php:256
 msgid "Scenario not found"
-msgstr ""
+msgstr "Scenario non trovato"
 
 #: /app/lib/Controller/DebtScenarioController.php:184
 msgid "Failed to update debt scenario"
-msgstr ""
+msgstr "Aggiornamento dello scenario del debito fallito"
 
 #: /app/lib/Controller/DebtScenarioController.php:211
 msgid "Failed to delete debt scenario"
-msgstr ""
+msgstr "Cancellazione scenario del debito fallita"
 
 #: /app/lib/Controller/DebtScenarioController.php:238
 msgid "Failed to activate debt scenario"
-msgstr ""
+msgstr "Attivazione dello scenario del debito fallita"
 
 #: /app/lib/Controller/DebtScenarioController.php:266
 msgid "Failed to calculate debt scenario plan"
-msgstr ""
+msgstr "Calcolo del piano dello scenario del debito fallito"
 
 #: /app/lib/Controller/DebtScenarioController.php:284
 msgid "No scenario IDs provided"
-msgstr ""
+msgstr "Nessun ID scenario fornito"
 
 #: /app/lib/Controller/DebtScenarioController.php:298
 msgid "Failed to compare debt scenarios"
-msgstr ""
+msgstr "Comparazione degli scenari del debito fallita"
 
 #: /app/lib/Controller/ExchangeRateController.php:112
 #: /app/src/modules/exchange-rates/ExchangeRatesModule.js:38
 #: /app/src/modules/exchange-rates/ExchangeRatesModule.js:39
 msgid "Failed to load exchange rates"
-msgstr ""
+msgstr "Caricamento dei tassi di cambio fallito"
 
 #: /app/lib/Controller/ExchangeRateController.php:128
 msgid "Failed to get base currency"
-msgstr ""
+msgstr "Ottenimento della valuta di base fallito"
 
 #: /app/lib/Controller/ExchangeRateController.php:163
 msgid "Failed to convert currency"
-msgstr ""
+msgstr "Conversione della valuta fallita"
 
 #: /app/lib/Controller/ExchangeRateController.php:180
 msgid "Exchange rates refreshed successfully"
-msgstr ""
+msgstr "Aggiornamento dei tassi di cambio con successo"
 
 #: /app/lib/Controller/ExchangeRateController.php:183
 #: /app/src/modules/exchange-rates/ExchangeRatesModule.js:351
 msgid "Failed to refresh exchange rates"
-msgstr ""
+msgstr "Aggiornamento dei tassi di cambio fallito"
 
 #: /app/lib/Controller/ExchangeRateController.php:199
 msgid "Currency and rate are required"
-msgstr ""
+msgstr "Valuta e tasso sono richiesti"
 
 #: /app/lib/Controller/ExchangeRateController.php:209
 msgid "Failed to set manual rate"
-msgstr ""
+msgstr "Impostazione del tasso manale non riuscita"
 
 #: /app/lib/Controller/ExchangeRateController.php:223
 #: /app/src/modules/exchange-rates/ExchangeRatesModule.js:334
 msgid "Failed to remove manual rate"
-msgstr ""
+msgstr "Rimozione del tasso manuale non riuscita"
 
 #: /app/lib/Controller/ForecastController.php:61
 msgid "Failed to generate forecast"
-msgstr ""
+msgstr "Generazione delle previsioni non riuscita"
 
 #: /app/lib/Controller/ForecastController.php:90
 msgid "Failed to generate cash flow forecast"
-msgstr ""
+msgstr "Generazione della previsione del movimento di cassa non riuscito"
 
 #: /app/lib/Controller/ForecastController.php:110
 msgid "Failed to retrieve spending trends"
-msgstr ""
+msgstr "Recupero delle tendenze di spesa non riuscito"
 
 #: /app/lib/Controller/ForecastController.php:130
 msgid "Failed to run forecast scenarios"
-msgstr ""
+msgstr "Esecuzione degli scenari di previsioni non riuscita"
 
 #: /app/lib/Controller/ForecastController.php:154
 msgid "Failed to generate enhanced forecast"
-msgstr ""
+msgstr "Generazione delle previsioni migliorate non riuscita"
 
 #: /app/lib/Controller/ForecastController.php:171
 msgid "Failed to retrieve live forecast"
-msgstr ""
+msgstr "Recupero delle previsioni dal vivo non riuscito"
 
 #: /app/lib/Controller/ForecastController.php:189
 msgid "Failed to export forecast"
-msgstr ""
+msgstr "Esportazione delle previsioni non riuscito"
 
 #: /app/lib/Controller/GoalsController.php:80
 msgid "Failed to retrieve goals"
-msgstr ""
+msgstr "Recupero degli obiettivi non riuscito"
 
 #: /app/lib/Controller/GoalsController.php:92
 #: /app/lib/Controller/GoalsController.php:105
@@ -1490,17 +1535,17 @@ msgstr ""
 #: /app/lib/Controller/GoalsController.php:428 /app/templates/index.php:5256
 #: /app/templates/index.php:5328
 msgid "Goal"
-msgstr ""
+msgstr "Obiettivo"
 
 #: /app/lib/Controller/GoalsController.php:143
 #: /app/lib/Controller/GoalsController.php:272
 msgid "Target date"
-msgstr ""
+msgstr "Data di destinazione"
 
 #: /app/lib/Controller/GoalsController.php:153
 #: /app/lib/Controller/GoalsController.php:280
 msgid "Target amount must be greater than zero"
-msgstr ""
+msgstr "L'importo dell'obiettivo deve essere maggiore di zero"
 
 #: /app/lib/Controller/GoalsController.php:158
 #: /app/lib/Controller/GoalsController.php:285
@@ -1510,163 +1555,163 @@ msgstr ""
 #: /app/lib/Controller/GoalsController.php:163
 #: /app/lib/Controller/GoalsController.php:290
 msgid "Current amount cannot be negative"
-msgstr ""
+msgstr "L'importo corrente non può essere negativo"
 
 #: /app/lib/Controller/GoalsController.php:168
 #: /app/lib/Controller/GoalsController.php:295
 #: /app/lib/Service/GranularShareService.php:241
 msgid "Invalid tag ID"
-msgstr ""
+msgstr "Tag ID non valido"
 
 #: /app/lib/Controller/GoalsController.php:173
 #: /app/lib/Controller/GoalsController.php:227
 #: /app/lib/Controller/GoalsController.php:300
 msgid "Invalid account ID"
-msgstr ""
+msgstr "ID account non valido"
 
 #: /app/lib/Controller/GoalsController.php:203
 msgid "Failed to create goal"
-msgstr ""
+msgstr "Creazione obiettivo non riuscita"
 
 #: /app/lib/Controller/GoalsController.php:367
 msgid "Failed to update goal"
-msgstr ""
+msgstr "Aggiornamento obiettivo non riuscito"
 
 #: /app/lib/Controller/GoalsController.php:395
 msgid "Goal deleted successfully"
-msgstr ""
+msgstr "Obiettivo eliminato con successo"
 
 #: /app/lib/Controller/GoalsController.php:397
 #: /app/src/modules/savings/SavingsModule.js:470
 msgid "Failed to delete goal"
-msgstr ""
+msgstr "Rimozione obiettivo non riuscita"
 
 #: /app/lib/Controller/GoalsController.php:416
 msgid "Failed to retrieve goal progress"
-msgstr ""
+msgstr "Recupero progressi dell'obiettivo non riuscito"
 
 #: /app/lib/Controller/GoalsController.php:435
 msgid "Failed to retrieve goal forecast"
-msgstr ""
+msgstr "Recupero delle previsioni dell'obiettivo non riuscito"
 
 #: /app/lib/Controller/ImportController.php:116
 #: /app/lib/Controller/MigrationController.php:106
 #: /app/lib/Controller/MigrationController.php:143
 msgid "File upload failed"
-msgstr ""
+msgstr "Caricamento del file non riuscito"
 
 #: /app/lib/Controller/ImportController.php:144
 #: /app/src/modules/import/ImportModule.js:260
 msgid "Failed to upload file"
-msgstr ""
+msgstr "Caricamento del file non riuscito"
 
 #: /app/lib/Controller/ImportController.php:190
 #: /app/lib/Controller/MigrationController.php:120
 msgid "Failed to preview import"
-msgstr ""
+msgstr "Anteprima dell'importazione non riuscita"
 
 #: /app/lib/Controller/ImportController.php:253
 msgid "Failed to process import"
-msgstr ""
+msgstr "Processo di importazione non riuscito"
 
 #: /app/lib/Controller/ImportController.php:277
 msgid "CSV delimiter must be a single character"
-msgstr ""
+msgstr "Il delimitatore CSV deve essere un singolo carattere"
 
 #: /app/lib/Controller/ImportController.php:284
 msgid "Unsupported character encoding"
-msgstr ""
+msgstr "Codifica del carattere non supportato"
 
 #: /app/lib/Controller/ImportController.php:299
 #: /app/src/modules/import/ImportModule.js:1270
 msgid "Failed to refresh the data preview"
-msgstr ""
+msgstr "Aggiornamento dell'anteprima dei dati non riuscito"
 
 #: /app/lib/Controller/ImportController.php:329
 #: /app/lib/Controller/ImportTemplateController.php:51
 msgid "Failed to retrieve import templates"
-msgstr ""
+msgstr "Recupero dei modelli di importazione non riuscito"
 
 #: /app/lib/Controller/ImportController.php:341
 msgid "Failed to retrieve import history"
-msgstr ""
+msgstr "Recupero dello storico delle importazioni non riuscito"
 
 #: /app/lib/Controller/ImportController.php:353
 msgid "Failed to validate file"
-msgstr ""
+msgstr "Validazione file non riuscita"
 
 #: /app/lib/Controller/ImportController.php:375
 msgid "Failed to execute import"
-msgstr ""
+msgstr "Importazione non riuscita"
 
 #: /app/lib/Controller/ImportFolderController.php:45
 msgid "Failed to load the import folders"
-msgstr ""
+msgstr "Caricamento delle cartelle di importazione non riuscito"
 
 #: /app/lib/Controller/ImportFolderController.php:62
 #: /app/src/modules/settings/ImportFolders.js:217
 #: /app/src/modules/settings/ImportFolders.js:227
 msgid "Failed to add the import folder"
-msgstr ""
+msgstr "Aggiunta della cartella di importazione non riuscita"
 
 #: /app/lib/Controller/ImportFolderController.php:77
 #: /app/lib/Controller/ImportFolderController.php:94
 #: /app/templates/index.php:4414 /app/templates/index.php:4642
 #: /app/templates/index.php:4646
 msgid "Import folder"
-msgstr ""
+msgstr "Importa cartella"
 
 #: /app/lib/Controller/ImportFolderController.php:81
 #: /app/src/modules/settings/ImportFolders.js:245
 #: /app/src/modules/settings/ImportFolders.js:249
 msgid "Failed to update the import folder"
-msgstr ""
+msgstr "Aggiornamento della cartella di importazione non riuscito"
 
 #: /app/lib/Controller/ImportFolderController.php:108
 #: /app/src/modules/settings/ImportFolders.js:277
 #: /app/src/modules/settings/ImportFolders.js:284
 msgid "Failed to check the import folder"
-msgstr ""
+msgstr "Controllo della cartella di importazione non riuscito"
 
 #: /app/lib/Controller/ImportFolderController.php:121
 msgid "Failed to load the files waiting for review"
-msgstr ""
+msgstr "Caricamento dei file in attesa di revisione non riuscito"
 
 #: /app/lib/Controller/ImportFolderController.php:135
 #: /app/lib/Controller/ImportFolderController.php:154
 msgid "Waiting file"
-msgstr ""
+msgstr "File in attesa"
 
 #: /app/lib/Controller/ImportFolderController.php:139
 #: /app/src/modules/import/ReviewQueue.js:112
 #: /app/src/modules/import/ReviewQueue.js:116
 msgid "Failed to open the file"
-msgstr ""
+msgstr "Apertura del file non riuscita"
 
 #: /app/lib/Controller/ImportFolderController.php:158
 #: /app/src/modules/import/ReviewQueue.js:141
 #: /app/src/modules/import/ReviewQueue.js:144
 msgid "Failed to move the file"
-msgstr ""
+msgstr "Spostamento del file non riuscito"
 
 #: /app/lib/Controller/ImportRuleController.php:71
 msgid "Failed to retrieve import rules"
-msgstr ""
+msgstr "Recupero delle regole di importazione non riuscito"
 
 #: /app/lib/Controller/ImportRuleController.php:83
 msgid "Failed to retrieve rule groups"
-msgstr ""
+msgstr "Recupero delle regole di gruppo non riuscito"
 
 #: /app/lib/Controller/ImportRuleController.php:95
 #: /app/lib/Controller/ImportRuleController.php:108
 #: /app/lib/Controller/ImportRuleController.php:475
 #: /app/lib/Controller/ImportRuleController.php:491
 msgid "Import rule"
-msgstr ""
+msgstr "Importa regole"
 
 #: /app/lib/Controller/ImportRuleController.php:143
 msgid "Criteria required for v2 rules"
-msgstr ""
+msgstr "Criteri richiesti per le regole v2"
 
 #: /app/lib/Controller/ImportRuleController.php:149
 msgid "Pattern, field, and matchType required for v1 rules"
@@ -1676,7 +1721,7 @@ msgstr ""
 #: /app/lib/Controller/ImportRuleController.php:271
 #, php-format
 msgid "Invalid field. Must be one of: %1$s"
-msgstr ""
+msgstr "Campo non valido. Deve essere uno di: %1$s"
 
 #: /app/lib/Controller/ImportRuleController.php:166
 #: /app/lib/Controller/ImportRuleController.php:279
@@ -1687,80 +1732,82 @@ msgstr ""
 #: /app/lib/Controller/ImportRuleController.php:173
 #: /app/lib/Controller/ImportRuleController.php:288
 msgid "Invalid regex pattern"
-msgstr ""
+msgstr "Modello regex non valido"
 
 #: /app/lib/Controller/ImportRuleController.php:219
 msgid "Failed to create import rule"
-msgstr ""
+msgstr "Creazione regole di importazione non riuscita"
 
 #: /app/lib/Controller/ImportRuleController.php:361
 msgid "Failed to update import rule"
-msgstr ""
+msgstr "Aggiornamento regole di importazione non riuscita"
 
 #: /app/lib/Controller/ImportRuleController.php:483
 msgid "Only the rule owner can delete it"
-msgstr ""
+msgstr "Solo il proprietario della regola può cancellarlo"
 
 #: /app/lib/Controller/ImportRuleController.php:503
 msgid "Failed to test import rules"
-msgstr ""
+msgstr "Test delle regole di importazione non riuscito"
 
 #: /app/lib/Controller/ImportRuleController.php:533
 msgid "Failed to preview rule application"
-msgstr ""
+msgstr "Anteprima dell'applicazione delle regole non riuscita"
 
 #: /app/lib/Controller/ImportRuleController.php:561
 msgid "Failed to test rule against transactions"
-msgstr ""
+msgstr "Test di applicazione delle regole alle transazioni non riuscito"
 
 #: /app/lib/Controller/ImportRuleController.php:592
 msgid "Failed to apply rules to transactions"
-msgstr ""
+msgstr "Applicazione regole alle transazioni non riuscita"
 
 #: /app/lib/Controller/ImportRuleController.php:627
 msgid "Failed to migrate import rule"
-msgstr ""
+msgstr "Migrazione regola di importazione non riuscita"
 
 #: /app/lib/Controller/ImportRuleController.php:644
 msgid "Failed to migrate import rules"
-msgstr ""
+msgstr "Migrazione regole di importazione non riuscita"
 
 #: /app/lib/Controller/ImportRuleController.php:660
 #: /app/lib/Traits/InputValidationTrait.php:108
 msgid "Validation failed"
-msgstr ""
+msgstr "Validazione non riuscita"
 
 #: /app/lib/Controller/ImportTemplateController.php:63
 #: /app/lib/Controller/ImportTemplateController.php:173
 #: /app/templates/index.php:4662 /app/templates/index.php:4674
 msgid "Import template"
-msgstr ""
+msgstr "Importa modello"
 
 #: /app/lib/Controller/ImportTemplateController.php:101
 msgid "Failed to create import template"
-msgstr ""
+msgstr "Creazione del modello di importazione non riuscita"
 
 #: /app/lib/Controller/ImportTemplateController.php:160
 msgid "Failed to update import template"
-msgstr ""
+msgstr "Aggiornamento del modello di importazione non riuscito"
 
 #: /app/lib/Controller/MigrationController.php:66
 msgid "Failed to export data"
-msgstr ""
+msgstr "Esportazione dati non riuscita"
 
 #: /app/lib/Controller/MigrationController.php:152
 msgid ""
 "Import not confirmed. This operation will replace ALL existing data. Pass "
 "confirmed=true to proceed."
 msgstr ""
+"Importazione non confermata. Questa operazione sostituirà TUTTI i dati "
+"esistenti. Inserire confirmed=true di procedere."
 
 #: /app/lib/Controller/MigrationController.php:197
 msgid "Failed to import data"
-msgstr ""
+msgstr "Importazione dati non riuscita"
 
 #: /app/lib/Controller/NetWorthController.php:64
 msgid "Failed to calculate net worth"
-msgstr ""
+msgstr "Calcolo del valore netto non riuscito"
 
 #: /app/lib/Controller/NetWorthController.php:79
 msgid "Failed to retrieve net worth snapshots"
@@ -11458,10 +11505,8 @@ msgid "None (OFX, QIF and camt files only)"
 msgstr ""
 
 #: /app/src/modules/settings/ImportFolders.js:137
-#, fuzzy
-#| msgid "Account not found"
 msgid "Account for {folder}"
-msgstr "Conto bancario non trovato"
+msgstr "Conto bancario non trovato per {folder}"
 
 #: /app/src/modules/settings/ImportFolders.js:142
 msgid "Import template for {folder}"
