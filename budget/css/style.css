@@ -3953,6 +3953,17 @@ button.danger:hover {
     cursor: pointer;
 }
 
+/* No ring from Nextcloud's input rule round a clicked checkbox, as the
+   import's filters below (#399). Its height stays, as it spaces the rows. */
+#column-config-dropdown input[type="checkbox"] {
+    box-shadow: none;
+}
+
+#column-config-dropdown input[type="checkbox"]:focus-visible {
+    outline: 2px solid var(--color-main-text);
+    outline-offset: 2px;
+}
+
 .pagination-controls.pagination-bottom {
     margin-top: 16px;
     justify-content: center;
@@ -7578,6 +7589,26 @@ label .required {
     gap: 8px;
     cursor: pointer;
     color: var(--color-main-text);
+}
+
+/* A checkbox's own size and no ring. Nextcloud's input rule makes every
+   input 36px high and, on hover, focus and press, puts a 2px ring in the
+   page colour round it: a clicked filter stood in a tall white frame on
+   the grey bar, a black one in the dark theme (#399, as 15d0d5d2 for the
+   dialogs' radios). The step's id puts this over that rule in every state
+   (0-3-1 with :hover). Keyboard focus gets an outline of its own, as
+   Nextcloud takes the browser's off. */
+#import-step-3 .filter-options input[type="checkbox"] {
+    flex-shrink: 0;
+    height: auto;
+    min-height: 0;
+    margin: 0;
+    box-shadow: none;
+}
+
+#import-step-3 .filter-options input[type="checkbox"]:focus-visible {
+    outline: 2px solid var(--color-main-text);
+    outline-offset: 2px;
 }
 
 .preview-pagination {
