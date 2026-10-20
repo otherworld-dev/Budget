@@ -756,10 +756,19 @@ class ImportService {
 	 * rule tidies would be taken for the one stored.
 	 *
 	 * A payee that is none of the line's cells passes when the user's import
-	 * rules give it to the line (a rule that names the shop after a word of
-	 * the description, say), whether or not this import applies them: the
-	 * rules ran when the row was stored. The two payees are then the same,
-	 * and the descriptions alone are compared.
+	 * rules give it to the line as the import that stored the row read it,
+	 * with no payee or one of its cells as the payee (a rule that names the
+	 * shop after a word of the description, or tidies the shop's own column),
+	 * whether or not this import applies them: the rules ran when the row was
+	 * stored. The row is then compared as if it carried the payee the rules
+	 * were given, so a rule changes nothing: a payee column it tidied is
+	 * looked for in what this import reads, as an untidied one is. What the
+	 * rules make alike, the row cannot tell apart, as with a category alone:
+	 * a payee a rule fills in while it is empty stands for any line that
+	 * gives the stored description, and on a row whose description is only
+	 * its category, a payee the rules give every product of a brand stands
+	 * for any product of that brand. Under the mapping that stored the row
+	 * such lines carry one import id anyway: a payee is no part of it.
 	 *
 	 * Each stored row stands for one line at most and each line for one
 	 * stored row, paired so that as many lines as can be are recognised: a
@@ -886,66 +895,83 @@ class ImportService {
 
 		$theirs = self::comparableTexts([$description]);
 		$payee = self::comparableTexts([$row['vendor'] ?? null]);
-		if ($payee !== [] && self::builtFromCells($payee[0], $cells)) {
-			$theirs[] = $payee[0];
-		} elseif ($payee !== []) {
-			if (!$this->rulesGivePayee($payee[0], $row, $line, $description, $reference, $userId, $rules)) {
-				return false;
-			}
-			// The payees are the same: the descriptions decide
-			$texts = self::comparableTexts([$line['transaction']['description'] ?? null]);
+		if ($payee === [] || self::builtFromCells($payee[0], $cells)) {
+			return self::foundEitherWay([...$theirs, ...$payee], $texts);
 		}
+		// A payee the user's rules gave the row stands for the one they were
+		// given: no payee, or one of the line's cells
+		/** @var list<?string> $given */
+		$given = $memo['payees'] ??= self::payeesRead($line['cells']);
+		foreach ($given as $payeeRead) {
+			if (self::foundEitherWay([...$theirs, ...self::comparableTexts([$payeeRead])], $texts)
+				&& $this->rulesGivePayee($payee[0], $payeeRead, $row, $line, $description, $reference, $userId, $rules)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Whether every text of the stored row is found in the line's texts, or
+	 * every text of the line in the stored row's (see allTextsFound()).
+	 *
+	 * @param string[] $theirs The stored row's texts, comparable
+	 * @param string[] $texts The line's texts as this import maps them, comparable
+	 */
+	private static function foundEitherWay(array $theirs, array $texts): bool {
 		return $theirs !== [] && (self::allTextsFound($theirs, $texts) || self::allTextsFound($texts, $theirs));
 	}
 
 	/**
-	 * Whether the user's import rules give the line this payee, read the way
-	 * the import that stored the row read it: with that row's description,
-	 * reference and notes, and no payee or any one of the line's cells as
-	 * its payee. So a rule that names the shop after a word of the
-	 * description, one that matches the whole description an earlier mapping
-	 * read, one that fills in an empty payee and one that tidies a payee
-	 * column all give it again, whichever columns this import maps.
+	 * The payees an import could have read from a line: none first, then
+	 * each of its cells, trimmed, once.
 	 *
-	 * A payee is no part of an import id: under one mapping, two lines that
-	 * differ only in their payee always counted as one row. Comparing payees
-	 * only keeps another mapping from taking one payee's line for another's,
-	 * and a payee the rules give this line is this line's.
-	 *
-	 * @param string $payee The stored row's payee, comparable
-	 * @param array<string, mixed> $row The stored row
-	 * @param array{index: array-key, accountId: int, importId: string, transaction: array, cells: array} $line From scanFileRows()
-	 * @param \OCA\Budget\Db\ImportRule[]|null $rules The user's rules, read here when null
+	 * @param array<array-key, mixed> $cells The line's cells
+	 * @return list<?string>
 	 */
-	private function rulesGivePayee(string $payee, array $row, array $line, ?string $description, ?string $reference, string $userId, ?array &$rules): bool {
-		$rules ??= $this->ruleApplicator->rulesFor($userId);
-		if ($rules === []) {
-			return false;
-		}
-		$read = $this->withAccountContext(array_merge($line['transaction'], [
-			'description' => (string)$description,
-			'reference' => $reference,
-			'notes' => $row['notes'] ?? null,
-		]), $line['accountId'], $userId);
+	private static function payeesRead(array $cells): array {
 		$payees = ['' => null];
-		foreach ($line['cells'] as $cell) {
+		foreach ($cells as $cell) {
 			$cell = is_scalar($cell) ? trim((string)$cell) : '';
 			if ($cell !== '') {
 				$payees[$cell] = $cell;
 			}
 		}
-		foreach ($payees as $candidate) {
-			$read['vendor'] = $candidate;
-			try {
-				$ruled = $this->ruleApplicator->applyRules($userId, $read, $rules);
-			} catch (\Exception $e) {
-				continue;
-			}
-			if (self::comparableTexts([$ruled['vendor'] ?? null]) === [$payee]) {
-				return true;
-			}
+		return array_values($payees);
+	}
+
+	/**
+	 * Whether the user's import rules turn this payee into the stored row's,
+	 * on the line as the import that stored the row read it: with that row's
+	 * description, reference and notes. So a rule that names the shop after a
+	 * word of the description, one that matches the whole description an
+	 * earlier mapping read, one that fills in an empty payee and one that
+	 * tidies a payee column all give it again, whichever columns this import
+	 * maps.
+	 *
+	 * @param string $payee The stored row's payee, comparable
+	 * @param ?string $read The payee that import read: none, or one of the line's cells
+	 * @param array<string, mixed> $row The stored row
+	 * @param array{index: array-key, accountId: int, importId: string, transaction: array, cells: array} $line From scanFileRows()
+	 * @param \OCA\Budget\Db\ImportRule[]|null $rules The user's rules, read here when null
+	 */
+	private function rulesGivePayee(string $payee, ?string $read, array $row, array $line, ?string $description, ?string $reference, string $userId, ?array &$rules): bool {
+		$rules ??= $this->ruleApplicator->rulesFor($userId);
+		if ($rules === []) {
+			return false;
 		}
-		return false;
+		$transaction = $this->withAccountContext(array_merge($line['transaction'], [
+			'description' => (string)$description,
+			'reference' => $reference,
+			'notes' => $row['notes'] ?? null,
+			'vendor' => $read,
+		]), $line['accountId'], $userId);
+		try {
+			$ruled = $this->ruleApplicator->applyRules($userId, $transaction, $rules);
+		} catch (\Exception $e) {
+			return false;
+		}
+		return self::comparableTexts([$ruled['vendor'] ?? null]) === [$payee];
 	}
 
 	/**

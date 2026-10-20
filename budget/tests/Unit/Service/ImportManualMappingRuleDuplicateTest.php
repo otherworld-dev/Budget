@@ -71,6 +71,10 @@ class ImportManualMappingRuleDuplicateTest extends TestCase {
 	private const WITH_SHOP_AND_CATEGORY = ['date' => 0, 'description' => [1, 3], 'vendor' => 4, 'amount' => 2, 'skipFirstRow' => true];
 	private const WITH_REFERENCE = ['date' => 0, 'description' => 1, 'reference' => 5, 'amount' => 2, 'skipFirstRow' => true];
 	private const WITH_REFERENCE_AND_CATEGORY = ['date' => 0, 'description' => [1, 3], 'reference' => 5, 'amount' => 2, 'skipFirstRow' => true];
+	/** The reporter's own 11 Oct mapping: the category as the description, the product as the payee and in the notes */
+	private const CATEGORY_FIRST = ['date' => 0, 'description' => 3, 'vendor' => 1, 'notes' => 1, 'amount' => 2, 'skipFirstRow' => true];
+	/** The same without the notes */
+	private const PRODUCT_AS_PAYEE = ['date' => 0, 'description' => 3, 'vendor' => 1, 'amount' => 2, 'skipFirstRow' => true];
 
 	/** The browser run's receipt5.csv */
 	private const WOLFCRAFT = ['2026-10-05', 'Wolfcraft Drahtbürste Messing 3tlg', '-9.95', 'Modellbau / Renovation'];
@@ -283,6 +287,14 @@ class ImportManualMappingRuleDuplicateTest extends TestCase {
 			'description contains a word, category added' => [[$wolfcraft], self::BY_PRODUCT, self::WITH_CATEGORY, [self::WOLFCRAFT, self::DREMEL], 'Wolfcraft'],
 			'description contains a word, his own 20:45 mapping' => [[$wolfcraft], self::BY_PRODUCT, self::CATEGORY_IN_NOTES, [self::WOLFCRAFT, self::DREMEL], 'Wolfcraft'],
 			'description contains a word, category left out' => [[$wolfcraft], self::WITH_CATEGORY, self::BY_PRODUCT, [self::WOLFCRAFT, self::DREMEL], 'Wolfcraft'],
+			// His 11 Oct mapping the second time: the product is read as the payee
+			'description contains a word, his 11 Oct mapping' => [[$wolfcraft], self::BY_PRODUCT, self::CATEGORY_FIRST, [self::WOLFCRAFT, self::DREMEL], 'Wolfcraft'],
+			'description contains a word, the product as the payee' => [[$wolfcraft], self::BY_PRODUCT, self::PRODUCT_AS_PAYEE, [self::WOLFCRAFT, self::DREMEL], 'Wolfcraft'],
+			// His 11 Oct mapping the first time, the product it read as the payee tidied
+			'a tidied product payee, his 11 Oct mapping first' => [
+				[self::rule('vendor', 'contains', 'Wolfcraft', 'set_vendor', 'Wolfcraft')],
+				self::CATEGORY_FIRST, self::WITH_CATEGORY, [self::WOLFCRAFT, self::DREMEL], 'Wolfcraft',
+			],
 			// Only the first import's description equals it
 			'the whole description' => [
 				[self::rule('description', 'equals', 'Wolfcraft Drahtbürste Messing 3tlg', 'set_vendor', 'Wolfcraft')],
@@ -298,8 +310,11 @@ class ImportManualMappingRuleDuplicateTest extends TestCase {
 				[self::rule('description', 'contains', 'Wolfcraft', 'set_vendor', 'Wolfcraft', 'if_empty')],
 				self::BY_PRODUCT, self::WITH_SHOP_AND_CATEGORY, [[...self::WOLFCRAFT, 'Hornbach'], [...self::DREMEL, 'Hornbach']], 'Wolfcraft',
 			],
-			// The payee column the first import read, tidied by the rule, is left out the second time
-			'a tidied payee column, left out' => [
+			// The rule tidies the payee column the first import read, and the
+			// product holds its pattern too: read as a payee, the product gives
+			// the stored payee, and this import reads the product. (A pattern
+			// only the column holds: testAPayeeARuleTidiedIsComparedAsTheColumnItTidied.)
+			'a payee rule the product matches too, payee column left out' => [
 				[self::rule('vendor', 'contains', 'WOLFCRAFT', 'set_vendor', 'Wolfcraft')],
 				self::WITH_SHOP, self::WITH_CATEGORY, [[...self::WOLFCRAFT, 'WOLFCRAFT-CH 0815'], self::DREMEL], 'Wolfcraft',
 			],
@@ -421,6 +436,32 @@ class ImportManualMappingRuleDuplicateTest extends TestCase {
 		$this->assertSame(1, $this->import($other, self::WITH_CATEGORY)['imported']);
 	}
 
+	public static function tidiedPayeeColumns(): array {
+		return [
+			'the column read again, category added' => [self::WITH_SHOP, self::WITH_SHOP_AND_CATEGORY, [0, 1]],
+			'the column read again, category left out' => [self::WITH_SHOP_AND_CATEGORY, self::WITH_SHOP, [0, 1]],
+			// The stored payee is in nothing this import reads, and the line's
+			// description holds more than the stored one
+			'the column left out, category added' => [self::WITH_SHOP, self::WITH_CATEGORY, []],
+		];
+	}
+
+	/**
+	 * A payee column the first import read and a rule tidied is compared as
+	 * that column, so the rule changes nothing: the tidied line is recognised
+	 * exactly when the line next to it, whose payee no rule touched, is.
+	 */
+	#[DataProvider('tidiedPayeeColumns')]
+	public function testAPayeeARuleTidiedIsComparedAsTheColumnItTidied(array $firstMapping, array $secondMapping, array $recognised): void {
+		$this->rules = [self::rule('vendor', 'contains', 'WOLFCRAFT-CH', 'set_vendor', 'Wolfcraft')];
+		$file = [[...self::WOLFCRAFT, 'WOLFCRAFT-CH 0815'], [...self::DREMEL, 'DREMEL-CH 77']];
+		$this->import($file, $firstMapping);
+		$this->assertSame(['Wolfcraft', 'DREMEL-CH 77'], array_column($this->ledger, 'vendor'));
+
+		$this->assertSame($recognised, self::flagged($this->preview($file, $secondMapping)));
+		$this->assertSame(2 - count($recognised), $this->import($file, $secondMapping)['imported']);
+	}
+
 	/**
 	 * Rules that changed what the first import read into the description or
 	 * the reference, with the description and reference they left on the
@@ -535,6 +576,19 @@ class ImportManualMappingRuleDuplicateTest extends TestCase {
 			[self::rule('vendor', 'equals', 'Coop', 'set_description', 'Einkauf', 'if_empty')],
 			self::WITH_SHOP, ['2026-10-12', '', '-2.50', 'Lebensmittel', 'Coop'], self::WITH_SHOP, self::EIER,
 		];
+		// A payee the rule filled in while it was empty, and this import reads
+		// another payee where the stored row's description has none
+		$sets['another mapping, another payee\'s coffee where the rule filled one in'] = [
+			[self::rule('description', 'contains', 'Kaffee', 'set_vendor', 'Starbucks', 'if_empty')],
+			self::WITH_CATEGORY, self::STARBUCKS, self::WITH_SHOP, self::COSTA,
+		];
+		// The rule makes every branch of the chain one payee, and this import
+		// leaves the payee column out
+		$sets['another mapping, a coffee at another branch the rule names alike'] = [
+			[self::rule('vendor', 'contains', 'STARBUCKS', 'set_vendor', 'Starbucks')],
+			self::WITH_SHOP, ['2026-10-14', 'Kaffee', '-4.20', 'Lebensmittel', 'STARBUCKS 123'],
+			self::WITH_CATEGORY, ['2026-10-14', 'Kaffee', '-4.20', 'Lebensmittel', 'STARBUCKS 456'],
+		];
 		return $sets;
 	}
 
@@ -578,5 +632,43 @@ class ImportManualMappingRuleDuplicateTest extends TestCase {
 			'hash_' . md5('2026-10-14' . '9.99' . 'AMZN Mktp DE*9Z8Y7X6W5, Online'),
 			$this->storedRow(2)['importId']
 		);
+	}
+
+	/**
+	 * Stored rows that another line on that day at that price could have
+	 * given just as well, with the payee the rules give.
+	 *
+	 * @return array<string, array{0: list<ImportRule>, 1: array<string, mixed>, 2: list<string>, 3: array<string, mixed>, 4: list<string>}>
+	 */
+	public static function storedRowsThatCannotTellLinesApart(): array {
+		return [
+			// Costa's line, imported without its shop, gets Starbucks from the rule
+			'a payee a rule fills in while it is empty' => [
+				[self::rule('description', 'contains', 'Kaffee', 'set_vendor', 'Starbucks', 'if_empty')],
+				self::WITH_SHOP, self::STARBUCKS, self::WITH_SHOP_AND_CATEGORY, self::COSTA,
+			],
+			// Every product of the brand, imported his 11 Oct way, gets the stored row's texts
+			'the category as the description, a payee the rules give the whole brand' => [
+				[self::rule('vendor', 'contains', 'Wolfcraft', 'set_vendor', 'Wolfcraft')],
+				self::CATEGORY_FIRST, self::WOLFCRAFT, self::WITH_CATEGORY, ['2026-10-05', 'Wolfcraft Stahlbürste', '-9.95', 'Modellbau / Renovation'],
+			],
+		];
+	}
+
+	/**
+	 * The limit of recognising a row through the user's rules, kept on
+	 * purpose: a stored row that another line could have given just as well
+	 * says no more than that. Such a line is taken for it once this mapping
+	 * reads the texts the two share, as a line is for a row stored with no
+	 * payee, or with only its category as the description, without any rule.
+	 * Under the mapping that stored the row the two lines carry one import id
+	 * anyway.
+	 */
+	#[DataProvider('storedRowsThatCannotTellLinesApart')]
+	public function testALineTheStoredRowCannotTellFromItsOwnIsTakenForIt(array $rules, array $firstMapping, array $old, array $secondMapping, array $new): void {
+		$this->rules = $rules;
+		$this->import([$old], $firstMapping);
+
+		$this->assertSame(1, $this->preview([$new], $secondMapping)['duplicates']);
 	}
 }
