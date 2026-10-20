@@ -749,8 +749,8 @@ class ImportService {
 	 * A description or reference that is none of the line's cells (a rule
 	 * tidied or replaced it, or it was edited by hand) passes when the stored
 	 * row's import id says this line gave it: the id is the line's content
-	 * hash under some mapping, and the text that mapping read takes the
-	 * stored text's place (see hashedTexts()). Neither is ever matched
+	 * hash under some mapping, and the texts that mapping read take the
+	 * stored ones' place (see hashedTexts()). Neither is ever matched
 	 * against what a rule would write: a rule's text says nothing about
 	 * which line it came from, so the next order from a shop whose text a
 	 * rule tidies would be taken for the one stored.
@@ -978,10 +978,12 @@ class ImportService {
 	 * The description and reference the import that stored the row read from
 	 * this line, before any rule ran: the row's import id is the line's
 	 * content hash under some mapping (TransactionNormalizer::generateImportId(),
-	 * less the _occN/_dupN an import adds), its description one to three of
-	 * the line's cells joined in column order (cellJoins()) and its reference
-	 * blank or one of its cells. Null when no such mapping gives that id,
-	 * which is so for every other line whose texts a rule makes alike.
+	 * less the _occN/_dupN an import adds). A description the row still holds
+	 * as the line's cells read is the one read, and one a rule or a hand edit
+	 * changed was one to three of the line's cells joined in column order
+	 * (cellJoins()). The reference is the one from referencesRead(). Null when
+	 * no such mapping gives that id, which is so for every other line whose
+	 * texts a rule makes alike.
 	 *
 	 * @param array<string, mixed> $row The stored row
 	 * @param array{index: array-key, accountId: int, importId: string, transaction: array, cells: array} $line From scanFileRows()
@@ -990,55 +992,99 @@ class ImportService {
 	 */
 	private function hashedTexts(array $row, array $line, array &$memo): ?array {
 		$id = (string)preg_replace('/(?:_(?:occ|dup)\d+)+$/', '', (string)($row['import_id'] ?? ''));
-		// A row stored with no reference was hashed with none, or a blank cell
-		$blankReference = trim((string)($row['reference'] ?? '')) === '';
-		$key = $blankReference ? 'hashes:blank' : 'hashes:any';
-		/** @var array<string, array{0: string, 1: ?string}> $hashes */
-		$hashes = $memo[$key] ??= $this->contentHashes($line, $blankReference);
-		return $hashes[$id] ?? null;
+		/** @var list<list<string>> $cells */
+		$cells = $memo['cells'];
+		$description = trim((string)($row['description'] ?? ''));
+		$comparable = self::comparableTexts([$description]);
+		$unchanged = $comparable !== [] && self::builtFromCells($comparable[0], $cells);
+
+		foreach (self::referencesRead($row['reference'] ?? null, $line['cells'], $cells) as $reference) {
+			if ($unchanged) {
+				$read = $this->contentHash($line, $description, $reference) === $id ? $description : null;
+			} else {
+				// Every join of the line's cells, hashed once per line and reference
+				/** @var array<string, array<string, string>> $joins */
+				$joins = $memo['joins'] ?? [];
+				$joins[$reference] ??= $this->joinHashes($line, $reference);
+				$memo['joins'] = $joins;
+				$read = $joins[$reference][$id] ?? null;
+			}
+			if ($read !== null) {
+				// As the import read it before any rule ran: trimmed, blank as none
+				return [$read, trim($reference) === '' ? null : trim($reference)];
+			}
+		}
+		return null;
 	}
 
 	/**
-	 * Every content hash a mapping can give the line, with the description
-	 * and reference behind each (see hashedTexts()).
+	 * The references the import that stored the row could have read from the
+	 * line, as their cells read, untrimmed (#340). A row stored with none was
+	 * hashed with none, or a blank cell. One the row still holds as the
+	 * line's cells read was read as it is stored (a join of several columns)
+	 * or as a cell that reads the same, which are tried first, or none if a
+	 * rule set it to that. One a rule or a hand edit changed could have been
+	 * none, or any cell.
 	 *
-	 * @param array{index: array-key, accountId: int, importId: string, transaction: array, cells: array} $line From scanFileRows()
-	 * @param bool $blankReference Only the hashes of no reference, or a blank cell
-	 * @return array<string, array{0: string, 1: ?string}>
+	 * @param mixed $stored The stored row's reference
+	 * @param array<array-key, mixed> $raw The line's cells
+	 * @param list<list<string>> $cells The line's cells, from cellWords()
+	 * @return list<string>
 	 */
-	private function contentHashes(array $line, bool $blankReference): array {
-		$parts = [];
-		$references = [''];
-		foreach ($line['cells'] as $cell) {
-			if (!is_scalar($cell)) {
+	private static function referencesRead(mixed $stored, array $raw, array $cells): array {
+		$stored = is_scalar($stored) ? trim((string)$stored) : '';
+		$comparable = self::comparableTexts([$stored]);
+		$unchanged = $comparable !== [] && self::builtFromCells($comparable[0], $cells);
+		$references = $unchanged ? [$stored => true] : ['' => true];
+		foreach ($raw as $cell) {
+			if (!is_scalar($cell) || (string)$cell === '') {
 				continue;
 			}
 			$cell = (string)$cell;
 			$trimmed = trim($cell);
-			if ($trimmed !== '') {
-				$parts[] = $trimmed;
-			}
-			// A reference is hashed as its cell reads, untrimmed
-			if ($cell !== '' && (!$blankReference || $trimmed === '')) {
-				$references[] = $cell;
+			if ($stored === '' ? $trimmed === '' : (!$unchanged || self::comparableTexts([$trimmed]) === $comparable)) {
+				$references[$cell] = true;
 			}
 		}
+		$references[''] = true;
+		return array_map('strval', array_keys($references));
+	}
 
-		$references = array_unique($references);
+	/**
+	 * The content hash of every description one to three of the line's cells
+	 * give (cellJoins()), with this reference.
+	 *
+	 * @param array{index: array-key, accountId: int, importId: string, transaction: array, cells: array} $line From scanFileRows()
+	 * @return array<string, string> The description behind each hash, by hash
+	 */
+	private function joinHashes(array $line, string $reference): array {
+		$parts = [];
+		foreach ($line['cells'] as $cell) {
+			$cell = is_scalar($cell) ? trim((string)$cell) : '';
+			if ($cell !== '') {
+				$parts[] = $cell;
+			}
+		}
 		$hashes = [];
 		foreach (self::cellJoins($parts) as $description) {
-			foreach ($references as $reference) {
-				$id = $this->normalizer->generateImportId('scan', 0, [
-					'date' => $line['transaction']['date'] ?? '',
-					'amount' => $line['transaction']['amount'] ?? '',
-					'_hashDescription' => $description,
-					'_hashReference' => $reference,
-				]);
-				// As the import read it before any rule ran: trimmed, blank as none
-				$hashes[$id] = [$description, trim($reference) === '' ? null : trim($reference)];
-			}
+			$hashes[$this->contentHash($line, $description, $reference)] = $description;
 		}
 		return $hashes;
+	}
+
+	/**
+	 * The import id a mapping that read this description and reference gives
+	 * the line (TransactionNormalizer::generateImportId()).
+	 *
+	 * @param array{index: array-key, accountId: int, importId: string, transaction: array, cells: array} $line From scanFileRows()
+	 */
+	private function contentHash(array $line, string $description, string $reference): string {
+		return $this->normalizer->generateImportId('scan', 0, [
+			'date' => $line['transaction']['date'] ?? '',
+			'amount' => $line['transaction']['amount'] ?? '',
+			'_hashDescription' => $description,
+			'_hashReference' => $reference,
+		]);
 	}
 
 	/**

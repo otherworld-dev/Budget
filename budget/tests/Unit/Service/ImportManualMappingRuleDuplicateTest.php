@@ -71,6 +71,9 @@ class ImportManualMappingRuleDuplicateTest extends TestCase {
 	private const WITH_SHOP_AND_CATEGORY = ['date' => 0, 'description' => [1, 3], 'vendor' => 4, 'amount' => 2, 'skipFirstRow' => true];
 	private const WITH_REFERENCE = ['date' => 0, 'description' => 1, 'reference' => 5, 'amount' => 2, 'skipFirstRow' => true];
 	private const WITH_REFERENCE_AND_CATEGORY = ['date' => 0, 'description' => [1, 3], 'reference' => 5, 'amount' => 2, 'skipFirstRow' => true];
+	/** The shop and the bank's reference joined into the reference */
+	private const WITH_TWO_COLUMN_REFERENCE = ['date' => 0, 'description' => 1, 'reference' => [4, 5], 'amount' => 2, 'skipFirstRow' => true];
+	private const WITH_TWO_COLUMN_REFERENCE_AND_CATEGORY = ['date' => 0, 'description' => [1, 3], 'reference' => [4, 5], 'amount' => 2, 'skipFirstRow' => true];
 	/** The reporter's own 11 Oct mapping: the category as the description, the product as the payee and in the notes */
 	private const CATEGORY_FIRST = ['date' => 0, 'description' => 3, 'vendor' => 1, 'notes' => 1, 'amount' => 2, 'skipFirstRow' => true];
 	/** The same without the notes */
@@ -474,6 +477,11 @@ class ImportManualMappingRuleDuplicateTest extends TestCase {
 		$rewrite->setActions((string)json_encode(['version' => 2, 'actions' => [
 			['type' => 'replace_text', 'field' => 'description', 'find' => 'Drahtbürste', 'replace' => 'Bürste'],
 		]]));
+		$tidyAndLabel = self::rule('description', 'contains', 'AMZN', 'set_description', 'Amazon');
+		$tidyAndLabel->setActions((string)json_encode(['version' => 2, 'actions' => [
+			['type' => 'set_description', 'value' => 'Amazon', 'behavior' => 'always'],
+			['type' => 'set_reference', 'value' => 'Online', 'behavior' => 'always'],
+		]]));
 		return [
 			// A tidy-up of the bank's text, as many users write
 			'a description tidied up' => [
@@ -513,6 +521,24 @@ class ImportManualMappingRuleDuplicateTest extends TestCase {
 				[self::rule('description', 'equals', 'Kaffee', 'set_reference', 'Kaffeekasse')],
 				self::WITH_REFERENCE, self::WITH_REFERENCE_AND_CATEGORY,
 				[['2026-10-14', 'Kaffee', '-4.20', 'Lebensmittel', 'Café Zentral', ' R-1001 ']], ['Kaffee', 'Kaffeekasse'],
+			],
+			// A reference no rule touched is the one the id hashes, as its cell reads
+			'a description tidied up, the bank\'s reference kept' => [
+				[self::rule('description', 'contains', 'AMZN', 'set_description', 'Amazon')],
+				self::WITH_REFERENCE, self::WITH_REFERENCE_AND_CATEGORY, [[...self::AMAZON_ORDER, 'Amazon EU', 'R-1001']], ['Amazon', 'R-1001'],
+			],
+			'a description tidied up, the bank\'s padded reference kept' => [
+				[self::rule('description', 'contains', 'AMZN', 'set_description', 'Amazon')],
+				self::WITH_REFERENCE, self::WITH_REFERENCE_AND_CATEGORY, [[...self::AMAZON_ORDER, 'Amazon EU', ' R-1001 ']], ['Amazon', 'R-1001'],
+			],
+			'a description tidied up, a reference of two columns kept' => [
+				[self::rule('description', 'contains', 'AMZN', 'set_description', 'Amazon')],
+				self::WITH_TWO_COLUMN_REFERENCE, self::WITH_TWO_COLUMN_REFERENCE_AND_CATEGORY,
+				[[...self::AMAZON_ORDER, 'Amazon EU', 'R-1001']], ['Amazon', 'Amazon EU, R-1001'],
+			],
+			// The reference the rule set reads as one of the line's cells, but the id hashed none
+			'a description tidied up, a reference set to what a cell holds' => [
+				[$tidyAndLabel], self::BY_PRODUCT, self::WITH_CATEGORY, [self::AMAZON_ORDER], ['Amazon', 'Online'],
 			],
 		];
 	}
