@@ -122,9 +122,13 @@ export default class TransactionsModule {
         filterControls.forEach(controlId => {
             const control = document.getElementById(controlId);
             if (control) {
-                const eventType = control.type === 'text' || control.type === 'number' ? 'input' : 'change';
+                // Typed controls filter as you type, debounced. The search box
+                // is type="search", and left out of this it only applied on
+                // Enter or blur (#399).
+                const typed = ['text', 'number', 'search'].includes(control.type);
+                const eventType = typed ? 'input' : 'change';
                 control.addEventListener(eventType, () => {
-                    if (control.type === 'text' || control.type === 'number') {
+                    if (typed) {
                         // Debounce text/number inputs
                         clearTimeout(this.filterTimeout);
                         this.filterTimeout = setTimeout(() => {
