@@ -189,8 +189,12 @@ class BillCalendarYearBoundaryTest extends TestCase {
 
 	/**
 	 * Rows on 28 December and 3 January: Mark Paid takes 3 January, the
-	 * nearer, and so do both years. In 2026, 28 December stays a second
-	 * payment for 5 December, the nearest date the bill has moved past.
+	 * nearer, and so do both years. In 2026, 28 December is 5 January's
+	 * second payment, shown in December where the money went out: the date
+	 * is paid, if out of sight, and is nearer than 5 December. It was 5
+	 * December's, until a second payment in January of a December date
+	 * paid in December turned out to have no date at all (#399). December
+	 * counts the same either way.
 	 */
 	public function testBothYearsTakeThePaymentMarkPaidWould(): void {
 		$this->garage();
@@ -202,8 +206,8 @@ class BillCalendarYearBoundaryTest extends TestCase {
 		$view2026 = $this->overview(2026);
 		$row2026 = $this->calendarRow($view2026, 'Garage Miete');
 		$this->assertSame(['2026-12-04', '2026-12-28'], array_column($row2026['paidDetails'][12], 'date'));
-		$this->assertSame(['2026-12-05', '2026-12-05'], array_column($row2026['paidDetails'][12], 'due'), 'not 5 January');
-		$this->assertSame([12 => 2], $row2026['paidMoreThanOnce']);
+		$this->assertSame(['2026-12-05', '2027-01-05'], array_column($row2026['paidDetails'][12], 'due'));
+		$this->assertSame([], $row2026['paidMoreThanOnce'], "5 January's own payment is 2027's");
 		$this->assertSame([], $row2026['paidElsewhere'], '5 January is no date of 2026');
 		$this->assertEqualsWithDelta(300.0, $view2026['monthlyTotals'][12], 0.001);
 
