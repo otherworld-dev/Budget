@@ -1911,16 +1911,20 @@ export default class ReportsModule {
             const months = [];
             for (let month = 1; month <= 12; month++) {
                 const cell = calendarCell(bill, month, this.settings, currency);
-                const amount = cell.amount === null ? '' : dom.escapeHtml(this.formatCurrency(cell.amount, bill.currency || currency));
-                // No space after the pill: a paid cell's line-through ran
-                // under it, reading "2× -969.50" (#399). Its margin spaces it.
-                // Read out, "2×969.50" was two times 969.50, so the pill is
-                // hidden from screen readers and the words stand in for it.
-                const times = bill.paidMoreThanOnce?.[month] ?? 0;
-                const marker = cell.marker
-                    ? `<span class="visually-hidden">${dom.escapeHtml(n('budget', 'Paid %n time', 'Paid %n times', times))}</span><span class="payments-marker" aria-hidden="true">${cell.marker}</span>`
-                    : '';
-                months.push(`<td class="month-cell ${cellClasses[cell.state]}" title="${dom.escapeHtml(cell.title)}">${marker}${amount}</td>`);
+                const formatted = cell.amount === null ? '' : this.formatCurrency(cell.amount, bill.currency || currency);
+                let content = dom.escapeHtml(formatted);
+                if (cell.marker) {
+                    // No space after the pill: a paid cell's line-through ran
+                    // under it, reading "2× -969.50" (#399). Its margin spaces
+                    // it. Read out, "2×969.50" was two times 969.50, so the
+                    // pill and the amount are hidden from screen readers and
+                    // one sentence out of sight stands in for both.
+                    const times = bill.paidMoreThanOnce?.[month] ?? 0;
+                    // TRANSLATORS: {amount} is a placeholder, do NOT translate it. It is what was paid in the month, all payments together.
+                    const spoken = n('budget', 'Paid once, {amount} in all', 'Paid %n times, {amount} in all', times, { amount: formatted }, { escape: false, sanitize: false });
+                    content = `<span class="visually-hidden">${dom.escapeHtml(spoken)}</span><span aria-hidden="true"><span class="payments-marker">${cell.marker}</span>${content}</span>`;
+                }
+                months.push(`<td class="month-cell ${cellClasses[cell.state]}" title="${dom.escapeHtml(cell.title)}">${content}</td>`);
             }
 
             const transferBadge = bill.isTransfer ? ` <span class="transfer-badge">${t('budget', 'Transfer')}</span>` : '';
