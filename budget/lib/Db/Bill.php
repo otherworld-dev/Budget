@@ -260,8 +260,21 @@ class Bill extends Entity implements JsonSerializable {
 			'createTransaction' => $this->getCreateTransaction() ?? true,
 			// Derived hint only — the raw undo blob stays server-side (#365)
 			'canMarkUnpaid' => $this->canMarkUnpaid(),
+			// Mark Unpaid keeps a row the payment used, and its question says so (#399)
+			'lastPaymentUsedExisting' => $this->lastPaymentUsedExisting(),
 			'currency' => $this->getCurrency(),
 		];
+	}
+
+	/**
+	 * Whether the last payment was a row already in the ledger, chosen with
+	 * "Use that payment" (#399). Mark Unpaid leaves that row as it was,
+	 * neither deleted nor unlinked.
+	 */
+	public function lastPaymentUsedExisting(): bool {
+		$raw = $this->getPaidUndoState();
+		$snapshot = ($raw !== null && $raw !== '') ? json_decode($raw, true) : null;
+		return is_array($snapshot) && is_numeric($snapshot['usedTransactionId'] ?? null);
 	}
 
 	/**

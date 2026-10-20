@@ -16,7 +16,7 @@ import { showMatchingTransactionDialog } from '../../utils/matchingDialog.js';
 import { offerableTags, offerableTagSets } from '../../utils/tags.js';
 import { pickableAccounts, accountOptionLabel, selectAccountValue, accountCurrency, linkableCandidates, billAccountsWritable } from '../../utils/accounts.js';
 import { showLoadError } from '../../utils/loading.js';
-import { requestMarkUnpaid } from '../../utils/billUnpaid.js';
+import { requestMarkUnpaid, markUnpaidQuestion } from '../../utils/billUnpaid.js';
 import { sendPayment, askAboutRecordedPaymentFirst } from '../../utils/paymentRecordedDialog.js';
 import { unavailableCategoryLabel } from '../../utils/formSelects.js';
 import { isRepeatClick } from '../../utils/doubleClick.js';
@@ -1512,9 +1512,9 @@ export default class BillsModule {
     async _markBillUnpaid(billId) {
         const bill = (this.bills || []).find(b => b.id === billId);
         // Created transactions are deleted; a payment recorded by linking an
-        // imported transaction is only unlinked — the copy must not claim a
-        // deletion that will not happen.
-        let message = t('budget', 'Mark this bill as unpaid? Transactions created for the payment will be deleted, a linked imported transaction will be unlinked, and the bill schedule rolled back.');
+        // imported transaction is only unlinked, and one it used is kept —
+        // the copy must not claim a deletion that will not happen.
+        let message = markUnpaidQuestion(bill);
         const autoPayEnabled = bill ? (bill.autoPayEnabled ?? bill.auto_pay_enabled ?? false) : false;
         if (autoPayEnabled) {
             // Reverting does not touch auto-pay — warn instead of silently
