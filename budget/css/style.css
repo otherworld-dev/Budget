@@ -9,15 +9,27 @@
     --budget-color-split: #6f42c1;
 }
 
-/* Repair Data's report is appended to <body> too, outside #app-content: its
-   count badges were white on Nextcloud's own pale #FFE7E7 (#399) */
+/* The app's dialogs sit outside #app-content too: those in index.php in
+   #content beside it, and those the scripts build (Repair Data's report,
+   Add Transfer, Mark Paid's) on <body>. With Nextcloud's own pale shades
+   there, Repair Data's count badges were white on #FFE7E7 and the required
+   fields' asterisks #FFE7E7 on white (#399).
+
+   A money colour scheme (#432, utils/amountColours.js) sets these, and the
+   text that goes on them, on <body> and the first three here, and leaves
+   the dialogs to inherit from <body>. So these are the scheme's colours
+   (--budget-scheme-*) whenever one is in use, and a fill and the text on
+   it come from the same place: Repair Data's badges, on the app's red with
+   a scheme's text, were 2.7:1 (#399). */
 #app-navigation,
 #app-content,
 #budget-toast-container,
-#repair-data-modal {
-    --color-success: #2e7d32;
-    --color-error: #b71c1c;
-    --color-warning: #e65100;
+#repair-data-modal,
+#content.app-budget > .modal,
+.budget-modal-overlay {
+    --color-success: var(--budget-scheme-positive, #2e7d32);
+    --color-error: var(--budget-scheme-negative, #b71c1c);
+    --color-warning: var(--budget-scheme-warning, #e65100);
     /* Text on a success/error/warning fill. White on these dark shades; the
        dark theme swaps both the fills and this (see the end of the file). */
     --budget-color-on-status: white;
@@ -18246,9 +18258,13 @@ button.secondary.compact {
     max-width: 600px;
 }
 
+/* The factory reset dialog is out in #content too, and takes the app's
+   status shades (top of the file): white on the dark theme's light red was
+   2.4:1, so the text comes from the same place as the fill, as on every
+   other status fill (#399) */
 .danger-btn {
     background: var(--color-error, #e53935);
-    color: var(--budget-color-on-error, white);
+    color: var(--budget-color-on-error, var(--budget-color-on-status, white));
     border: none;
     padding: 10px 20px;
     border-radius: var(--border-radius-small, 4px);
@@ -18261,8 +18277,11 @@ button.secondary.compact {
     transition: background 0.2s ease;
 }
 
+/* A darker shade of the button's own red. Nextcloud's --color-error-hover
+   is a pale tint (#ffc3c3) under the white text, and a dark red under the
+   dark theme's dark text */
 .danger-btn:hover {
-    background: var(--color-error-hover, #c62828);
+    background: color-mix(in srgb, var(--color-error), black 15%);
 }
 
 .danger-btn:disabled {
@@ -20882,21 +20901,26 @@ body[data-theme-dark-highcontrast] {
 }
 
 /* The error/success/warning overrides at the top of this file are set on
-   #app-navigation / #app-content, so they need redefining at the same level.
-   The light shades measured 2.7:1 (error) and 3.5:1 (success) on the dark
-   background; these are all above 6:1 on #171717 and #292929 (WCAG AA).
-   Being light, they take dark text when used as a fill. */
+   #app-navigation / #app-content and the dialogs, so they need redefining
+   at the same level, a colour scheme's still first. The light shades
+   measured 2.7:1 (error) and 3.5:1 (success) on the dark background; these
+   are all above 6:1 on #171717 and #292929 (WCAG AA). Being light, they
+   take dark text when used as a fill. */
 body[data-theme-dark] #app-navigation,
 body[data-theme-dark] #app-content,
 body[data-theme-dark] #budget-toast-container,
 body[data-theme-dark] #repair-data-modal,
+body[data-theme-dark] #content.app-budget > .modal,
+body[data-theme-dark] .budget-modal-overlay,
 body[data-theme-dark-highcontrast] #app-navigation,
 body[data-theme-dark-highcontrast] #app-content,
 body[data-theme-dark-highcontrast] #budget-toast-container,
-body[data-theme-dark-highcontrast] #repair-data-modal {
-    --color-success: #81c995;
-    --color-error: #f28b82;
-    --color-warning: #ffb74d;
+body[data-theme-dark-highcontrast] #repair-data-modal,
+body[data-theme-dark-highcontrast] #content.app-budget > .modal,
+body[data-theme-dark-highcontrast] .budget-modal-overlay {
+    --color-success: var(--budget-scheme-positive, #81c995);
+    --color-error: var(--budget-scheme-negative, #f28b82);
+    --color-warning: var(--budget-scheme-warning, #ffb74d);
     --budget-color-on-status: #171717;
 }
 
@@ -20904,10 +20928,12 @@ body[data-theme-dark-highcontrast] #repair-data-modal {
     body[data-theme-default] #app-navigation,
     body[data-theme-default] #app-content,
     body[data-theme-default] #budget-toast-container,
-    body[data-theme-default] #repair-data-modal {
-        --color-success: #81c995;
-        --color-error: #f28b82;
-        --color-warning: #ffb74d;
+    body[data-theme-default] #repair-data-modal,
+    body[data-theme-default] #content.app-budget > .modal,
+    body[data-theme-default] .budget-modal-overlay {
+        --color-success: var(--budget-scheme-positive, #81c995);
+        --color-error: var(--budget-scheme-negative, #f28b82);
+        --color-warning: var(--budget-scheme-warning, #ffb74d);
         --budget-color-on-status: #171717;
     }
 }
