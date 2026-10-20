@@ -3785,6 +3785,27 @@ button.danger:hover {
     overflow-x: auto;
 }
 
+/* Above phone width the wrapper scrolls the rows too, and the header row
+   sticks to its top. A sticky cell sticks to its nearest scrolling box, and
+   while this one only scrolled sideways the header row went off the top
+   with the page (since #280). The wrapper is at most what's left of the
+   window under Nextcloud's top bar once the view's title (83 px), the list's
+   bar (52 px) and the paging (56 px) are taken off, so on the Transactions
+   list a long page fits the window as it opens and the wheel scrolls only
+   the rows; where more sits above it (the filters, an account's details)
+   the page scrolls first and then the whole box, the paging included, is
+   in view. A short list ends at its last row as before. scroll-padding-top
+   keeps a row the keyboard moves to (KeyboardShortcuts, 'nearest') from
+   ending up under the header row. Phones show the rows as cards and keep
+   the rule above. transactionHeaderSticky.test.js. */
+@media (min-width: 641px) {
+    .table-scroll {
+        overflow-y: auto;
+        max-height: max(240px, calc(100vh - var(--header-height, 50px) - var(--body-container-margin, 8px) - 200px));
+        scroll-padding-top: 52px;
+    }
+}
+
 .table-header {
     display: flex;
     justify-content: space-between;
@@ -4008,7 +4029,11 @@ button.danger:hover {
     padding: 2px 4px;
     font-weight: 600;
     color: var(--color-main-text);
-    border-bottom: 2px solid var(--color-border);
+    /* The line under the header row is a shadow inside the cells, not a
+       border: the table's borders are collapsed, and a collapsed border
+       stays put when the row sticks (.table-scroll), the rows showing
+       through the gap under it */
+    box-shadow: inset 0 -2px 0 var(--color-border);
     position: sticky;
     top: 0;
     z-index: 25;
@@ -5871,6 +5896,29 @@ button.danger:hover {
 @media (min-width: 641px) {
     #account-transactions-table {
         min-width: calc(var(--register-col-date) + var(--register-col-description) + var(--register-col-vendor) + var(--register-col-category) + var(--register-col-amount) + var(--register-col-balance) + var(--register-col-actions));
+    }
+
+    /* The header row stays at the top of the wrapper while the rows scroll
+       under it, as in the Transactions list (.table-scroll, #399), on the
+       header's own opaque fill */
+    #account-transactions-table th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+    }
+
+    /* The page scrolls down to the register, and where its rows start
+       scrolling depends on where the pointer is, so when they reached the
+       end the paging could still be under the window's edge (8 px at
+       1280 x 800). It sticks to the bottom of the view instead, on screen
+       whenever the register is, over the rows it covers until the page
+       scrolls on. transactionHeaderSticky.test.js. */
+    #account-transactions-pagination {
+        position: sticky;
+        bottom: 0;
+        z-index: 3;
+        background: var(--color-main-background);
+        padding: 8px 0;
     }
 }
 
