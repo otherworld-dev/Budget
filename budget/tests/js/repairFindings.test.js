@@ -28,6 +28,17 @@ import { duplicateNote, stuckIncomeItem } from '../../src/utils/repairFindings.j
 
 const chf = (amount) => `CHF ${Number(amount).toFixed(2)}`;
 
+/**
+ * A note as it reads on the page. Its dates and amounts sit in spans of
+ * their own, which keep them on one line (repairNoteValuesWhole.test.js).
+ */
+function rendered(html) {
+    const el = document.createElement('div');
+    el.innerHTML = html;
+    return el;
+}
+const text = (html) => rendered(html).textContent;
+
 const sameOccurrence = (overrides = {}) => ({
     duplicateId: 1007, originalId: 1100, amount: 484.75, originalAmount: 484.75,
     date: '2026-08-29', originalDate: '2026-08-30', vendor: 'KPT Prämienrechnung',
@@ -39,14 +50,14 @@ const sameOccurrence = (overrides = {}) => ({
 
 describe('duplicateNote', () => {
     it('names the occurrence and the other payment', () => {
-        expect(duplicateNote(sameOccurrence(), chf))
+        expect(text(duplicateNote(sameOccurrence(), chf)))
             .toBe('Looks like a second payment for 2026-08-29 (other payment on 2026-08-30)');
     });
 
     it('shows the other amount when the two differ', () => {
         const note = duplicateNote(sameOccurrence({ amount: 161.25, originalAmount: 155.25, occurrence: '2026-08-31' }), chf);
 
-        expect(note).toBe('Looks like a second payment for 2026-08-31 (other payment of CHF 155.25 on 2026-08-30)');
+        expect(text(note)).toBe('Looks like a second payment for 2026-08-31 (other payment of CHF 155.25 on 2026-08-30)');
     });
 
     it('says a transfer goes with its deposit', () => {
@@ -54,7 +65,7 @@ describe('duplicateNote', () => {
             amount: 50, originalAmount: 50, transfer: true, removesDeposit: true, occurrence: '2026-08-28',
         }), chf);
 
-        expect(note).toBe('Looks like a second payment for 2026-08-28 (other payment on 2026-08-30)'
+        expect(text(note)).toBe('Looks like a second payment for 2026-08-28 (other payment on 2026-08-30)'
             + ' The other side of the transfer is removed with it.');
     });
 
@@ -64,15 +75,16 @@ describe('duplicateNote', () => {
             amount: 50, originalAmount: 50, transfer: true, removesDeposit: false, occurrence: '2026-08-28',
         }), chf);
 
-        expect(note).toBe('Looks like a second payment for 2026-08-28 (other payment on 2026-08-30)');
+        expect(text(note)).toBe('Looks like a second payment for 2026-08-28 (other payment on 2026-08-30)');
     });
 
     it('names a deleted bill by the name its payments carry, as text', () => {
-        const note = duplicateNote(sameOccurrence({
+        const note = rendered(duplicateNote(sameOccurrence({
             reason: 'deleted_bill', occurrence: undefined, billName: 'Christian <b>Uhren</b> & Co',
-        }), chf);
+        }), chf));
 
-        expect(note).toBe('Looks like a second payment of Christian &lt;b&gt;Uhren&lt;/b&gt; &amp; Co (other payment on 2026-08-30)');
+        expect(note.querySelector('b')).toBeNull();
+        expect(note.textContent).toBe('Looks like a second payment of Christian <b>Uhren</b> & Co (other payment on 2026-08-30)');
     });
 
     it('keeps the note for a payment an imported row records too', () => {
@@ -80,14 +92,14 @@ describe('duplicateNote', () => {
             reason: 'auto_gen_duplicates_manual', originalDescription: 'NETFLIX.COM', originalReconciled: true,
         }), chf);
 
-        expect(note).toBe('Also recorded as NETFLIX.COM on 2026-08-30 (reconciled)');
+        expect(text(note)).toBe('Also recorded as NETFLIX.COM on 2026-08-30 (reconciled)');
     });
 
     it('reads a finding without the other amount as one of equal amounts', () => {
         const finding = sameOccurrence();
         delete finding.originalAmount;
 
-        expect(duplicateNote(finding, chf)).toBe('Looks like a second payment for 2026-08-29 (other payment on 2026-08-30)');
+        expect(text(duplicateNote(finding, chf))).toBe('Looks like a second payment for 2026-08-29 (other payment on 2026-08-30)');
     });
 });
 
@@ -100,7 +112,7 @@ describe('stuckIncomeItem', () => {
         const row = document.createElement('div');
         row.innerHTML = html;
 
-        expect([...row.querySelectorAll('span')].map(s => s.textContent)).toEqual([
+        expect([...row.querySelectorAll('.repair-item > span')].map(s => s.textContent)).toEqual([
             'Gutschrift SBB Abo Leon', 'CHF 100.00', 'Received 2026-09-28', 'Moves on to 2026-10-29',
         ]);
     });

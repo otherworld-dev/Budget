@@ -19877,9 +19877,11 @@ body[data-theme-dark-highcontrast] .matching-tx-badge {
 }
 
 /* Kept whole: beside a long note, a date broke after its hyphens
-   ('2026-10-' / '15') and an amount at its space (#399) */
+   ('2026-10-' / '15') and an amount at its space (#399). So did the dates
+   and amounts in the note itself, which wraps ('on 2026-' / '03-28'). */
 .repair-item-amount,
-.repair-item-date {
+.repair-item-date,
+.repair-note-value {
     white-space: nowrap;
 }
 
