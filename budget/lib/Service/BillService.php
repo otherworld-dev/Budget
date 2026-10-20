@@ -3775,10 +3775,16 @@ class BillService {
 				}
 			} elseif (isset($monthOf[$payment])) {
 				// Payments of a month with no date in it share one, except
-				// those of a single-date bill, which paid nothing twice
+				// those of a single-date bill, which paid nothing twice. One
+				// that paid a one-time invoice again in the invoice's own
+				// month counts with the date there, so the month reads as
+				// paid twice.
 				[$month, $due, $key] = array_key_exists($payment, $alone)
 					? [$monthOf[$payment], $alone[$payment], 'alone' . $payment]
 					: [$monthOf[$payment], null, 'month'];
+				if ($due !== null && $single !== null && $slots[$single][0] === $month) {
+					$key = $single;
+				}
 			} else {
 				continue;
 			}

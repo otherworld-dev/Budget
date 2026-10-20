@@ -167,6 +167,20 @@ class BillCalendarPaidAgainTest extends TestCase {
 	}
 
 	/**
+	 * Paid again later in the same month as its date: the month holds two
+	 * payments for that one date, so it reads as paid twice
+	 */
+	public function testAnInvoicePaidAgainInItsOwnMonthShowsTheMarker(): void {
+		$row = $this->overview(
+			[$this->oneTime(95, 'Garage', 220.00, '2026-09-05', ['lastPaidDate' => '2026-09-25'])],
+			$this->payments(95, [['2026-09-04', 220.00], ['2026-09-25', 220.00]]),
+		)['bills'][0];
+
+		$this->assertSame(['2026-09-05', '2026-09-05'], array_column($row['paidDetails'][9], 'due'));
+		$this->assertSame([9 => 2], $row['paidMoreThanOnce']);
+	}
+
+	/**
 	 * The reporter's 0795700582, monthly until it was switched to One-Time
 	 * on 30 September: its earlier payments paid the old schedule, not that
 	 * date, and still name no date.
