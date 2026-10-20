@@ -563,9 +563,9 @@ class BillService {
 	 *
 	 * Mark Paid asks it of every row the bill has; Bills by Month of the
 	 * year's, as the owner, so that the payment it draws for the date the
-	 * bill is due on is the one Mark Paid would use (#399). Near the turn
-	 * of the year it asks of every row too, as the payment may be dated in
-	 * the other year (dueNearTurnOfYear()).
+	 * bill is due on is the one Mark Paid would use (#399). For a bill due
+	 * around the year it asks of every row too, as the payment may be dated
+	 * in another year (dueAroundYear()).
 	 *
 	 * @param iterable<\OCA\Budget\Db\Transaction> $rows the bill's rows
 	 * @param string|null $actingUserId the person asking, when it is one
@@ -3195,18 +3195,18 @@ class BillService {
 		}
 		$currencyMap = $this->withAccountsOf($currencyMap, array_map(fn (Bill $bill) => $bill->getAccountId(), $bills));
 
-		// Every row of the bills due near the turn of the year, one query for
-		// them all: the payment Mark Paid would use for the date such a bill
-		// is due on can be the other year's (see dueNearTurnOfYear())
-		$nearTurn = [];
+		// Every row of the bills due around the year, one query for them all:
+		// the payment Mark Paid would use for the date such a bill is due on
+		// can be the other year's (see dueAroundYear())
+		$everyRow = [];
 		foreach ($bills as $bill) {
-			if ($this->dueNearTurnOfYear($bill, $year)) {
-				$nearTurn[(int)$bill->getId()] = [];
+			if ($this->dueAroundYear($bill, $year)) {
+				$everyRow[(int)$bill->getId()] = [];
 			}
 		}
-		if ($nearTurn !== []) {
-			foreach ($this->transactionService->findRecordedBillTransactions(array_keys($nearTurn)) as $row) {
-				$nearTurn[(int)$row->getBillId()][] = $row;
+		if ($everyRow !== []) {
+			foreach ($this->transactionService->findRecordedBillTransactions(array_keys($everyRow)) as $row) {
+				$everyRow[(int)$row->getBillId()][] = $row;
 			}
 		}
 
@@ -3227,7 +3227,7 @@ class BillService {
 			$nextDue = $bill->getNextDueDate();
 			if ($bill->getFrequency() !== 'one-time') {
 				$billId = (int)$bill->getId();
-				$row = $this->pendingPaymentAmong($bill, $nearTurn[$billId] ?? $rowsByBill[$billId] ?? []);
+				$row = $this->pendingPaymentAmong($bill, $everyRow[$billId] ?? $rowsByBill[$billId] ?? []);
 				foreach ($paymentRowsByBill[$billId] ?? [] as $index => $payment) {
 					if ($row !== null && (int)$payment->getId() === (int)$row->getId()) {
 						$pending = $index;
@@ -3237,8 +3237,8 @@ class BillService {
 				// Paid in the other year, a date of this one is neither owed
 				// nor counted again: 5 January paid on 28 December was owed
 				// in January as well, and counted in both years (#399). Its
-				// cell names the payment. A row of this year near it stays
-				// what it was, a second payment of the nearest date.
+				// cell names the payment. The date is taken all the same, so
+				// a row of this year near it is its second payment.
 				$month = ($nextDue === null || $nextDue === '') ? 0 : (int)substr($nextDue, 5, 2);
 				if ($row !== null && $pending === null && (int)substr((string)$row->getDate(), 0, 4) !== $year
 					&& (int)substr((string)$nextDue, 0, 4) === $year
@@ -3251,7 +3251,8 @@ class BillService {
 				$bill,
 				$paymentsByBill[$bill->getId()] ?? [],
 				$year,
-				$pending
+				$pending,
+				$paidElsewhere !== []
 			);
 
 			// A bill with nothing in this year - created after its only date
@@ -3387,25 +3388,20 @@ class BillService {
 	}
 
 	/**
-	 * Whether the date an active recurring bill is due on is within its due
-	 * window of the start of the year or of the next. The payment Mark Paid
-	 * would use for it may then be dated in the other year, out of sight of
-	 * the year's rows: a bill due on 5 January and paid on 28 December was
-	 * still owed in January's calendar (#399).
+	 * Whether an active recurring bill is due in the year, the one before or
+	 * the one after. The payment Mark Paid would use for that date may be
+	 * dated in another year than the date, out of sight of the year's rows:
+	 * a bill due on 5 January and paid on 28 December was still owed in
+	 * January's calendar, and one due on 10 December and paid on 5 January
+	 * was owed in December's (#399). Mark Paid puts no bound on how late
+	 * the payment may be, so neither can a window around 1 January.
 	 */
-	private function dueNearTurnOfYear(Bill $bill, int $year): bool {
+	private function dueAroundYear(Bill $bill, int $year): bool {
 		$due = $bill->getNextDueDate();
 		if (!$bill->getIsActive() || $due === null || $due === '' || $bill->getFrequency() === 'one-time') {
 			return false;
 		}
-		$window = $this->dueDateToleranceDays($bill->getFrequency());
-		$day = new \DateTimeImmutable(substr($due, 0, 10));
-		foreach ([$year, $year + 1] as $turn) {
-			if ($day->diff(new \DateTimeImmutable(sprintf('%04d-01-01', $turn)))->days <= $window) {
-				return true;
-			}
-		}
-		return false;
+		return abs((int)substr($due, 0, 4) - $year) <= 1;
 	}
 
 	/** @param Account[] $accounts */
@@ -3557,7 +3553,9 @@ class BillService {
 	 * became a second payment of the date before, while the date it paid
 	 * stayed owed and Monthly Totals counted it twice (#399). The date is
 	 * then closed like the rest, so another payment near it is its double,
-	 * never its payment.
+	 * never its payment. So it is when that payment is the other year's
+	 * ($paidElsewhere): it is out of sight, but the date is paid all the
+	 * same.
 	 *
 	 * Within the closed occurrences each one first takes the payment nearest
 	 * its own date, the closest pairs first, so a payment only goes to an
@@ -3626,9 +3624,10 @@ class BillService {
 	 * @param array<int, bool> $occurrences month => occurs, 1..12
 	 * @param array<int, array{date: string, amount: float}> $payments in date order
 	 * @param int|null $pending the payment (key in $payments) Mark Paid would use for the date the bill is due on
+	 * @param bool $paidElsewhere whether that payment is the other year's, so not among $payments
 	 * @return array{0: array<int, bool>, 1: int[], 2: array<int, float>, 3: int[], 4: array<int, list<array{date: string, amount: float, due: ?string}>>, 5: array<int, int>}
 	 */
-	private function attributePayments(array $occurrences, Bill $bill, array $payments, int $year, ?int $pending = null): array {
+	private function attributePayments(array $occurrences, Bill $bill, array $payments, int $year, ?int $pending = null, bool $paidElsewhere = false): array {
 		$dayOf = fn (string $date): int => intdiv((new \DateTimeImmutable($date, new \DateTimeZone('UTC')))->getTimestamp(), 86400);
 
 		// Each date the bill falls on in an occurring month, as [month, date,
@@ -3683,8 +3682,12 @@ class BillService {
 		// The date the bill is due on takes the payment Mark Paid would use
 		// for it, whichever year's that date is (a January date paid in
 		// December). Paid, it is closed to the rest like any date before it.
+		// Paid in the other year ($paidElsewhere), it is taken just the same,
+		// by a payment out of sight: one made near it in this year is its
+		// double. Left open, such a payment had no date to go to and was in
+		// neither year's totals (#399).
 		$pendingSlot = null;
-		if ($pending !== null && $boundary !== null && isset($payments[$pending])) {
+		if ((($pending !== null && isset($payments[$pending])) || $paidElsewhere) && $boundary !== null) {
 			foreach ($slots as $slot => [, $date]) {
 				if ($date === $boundary) {
 					$pendingSlot = $slot;
@@ -3871,6 +3874,10 @@ class BillService {
 		$paidAmounts = [];
 		$paidDetails = [];
 		$perDate = []; // month => what each date shown in it was paid, by how many payments
+		// The other year's payment of the date counts towards it being paid twice
+		if ($paidElsewhere && $pendingSlot !== null && $slots[$pendingSlot][0] !== null) {
+			$perDate[$slots[$pendingSlot][0]][$pendingSlot] = 1;
+		}
 		$paidMoreThanOnce = [];
 		foreach ($payments as $payment => $paid) {
 			if (isset($slotOf[$payment])) {

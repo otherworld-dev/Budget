@@ -247,9 +247,11 @@ class BillCalendarYearBoundaryTest extends TestCase {
 	}
 
 	/**
-	 * A December row the 2026 view used to take for 30 December stays a
-	 * second payment of the nearest date the bill has moved past, as for any
-	 * payment Mark Paid wouldn't use: Mark Paid takes 2 January.
+	 * A December row the 2026 view used to take for 30 December is that
+	 * date's second payment: Mark Paid takes 2 January, so 30 December is
+	 * paid, and December reads as paid twice with 2 January named beside
+	 * the December payment. December counts only the money that went out in
+	 * it.
 	 */
 	public function testAnInYearRowMarkPaidWouldNotUseIsASecondPayment(): void {
 		$this->bill(['id' => 9, 'name' => 'Parkplatz', 'amount' => 80.0, 'dueDay' => 30,
@@ -264,15 +266,17 @@ class BillCalendarYearBoundaryTest extends TestCase {
 
 		$view2026 = $this->overview(2026);
 		$row2026 = $this->calendarRow($view2026, 'Parkplatz');
-		$this->assertSame(['2026-11-30', '2026-11-30'], array_column($row2026['paidDetails'][11], 'due'));
+		$this->assertSame([['date' => '2026-11-29', 'amount' => 80.0, 'due' => '2026-11-30']], $row2026['paidDetails'][11]);
+		$this->assertSame([['date' => '2026-12-20', 'amount' => 80.0, 'due' => '2026-12-30']], $row2026['paidDetails'][12]);
 		$this->assertSame([12 => [['date' => '2027-01-02', 'amount' => 80.0, 'due' => '2026-12-30']]], $row2026['paidElsewhere']);
+		$this->assertSame([12 => 2], $row2026['paidMoreThanOnce']);
 		$this->assertSame([], $row2026['owedAmounts']);
-		$this->assertEqualsWithDelta(160.0, $view2026['monthlyTotals'][11], 0.001);
-		$this->assertEqualsWithDelta(0.0, $view2026['monthlyTotals'][12], 0.001);
+		$this->assertEqualsWithDelta(80.0, $view2026['monthlyTotals'][11], 0.001);
+		$this->assertEqualsWithDelta(80.0, $view2026['monthlyTotals'][12], 0.001);
 	}
 
-	/** An ordinary bill due mid-year is drawn as before, with no query beyond the year's rows. */
-	public function testAMidYearBillNeedsNoExtraQuery(): void {
+	/** An ordinary bill due mid-year is drawn as before, its rows read in the one query for the bills due around the year. */
+	public function testAMidYearBillIsDrawnAsBefore(): void {
 		$this->bill(['id' => 4, 'name' => 'KPT Prämienrechnung', 'amount' => 484.75, 'dueDay' => 29,
 			'nextDueDate' => '2026-10-29', 'lastPaidDate' => '2026-09-27', 'createdAt' => '2026-02-01 17:26:05']);
 		foreach ([394 => '2026-03-28', 558 => '2026-04-28', 776 => '2026-05-31', 902 => '2026-06-28', 903 => '2026-07-25',
@@ -283,7 +287,7 @@ class BillCalendarYearBoundaryTest extends TestCase {
 		$overview = $this->overview(2026);
 		$kpt = $this->calendarRow($overview, 'KPT Prämienrechnung');
 
-		$this->assertSame([], $this->allRowQueries);
+		$this->assertSame([[4]], $this->allRowQueries);
 		$this->assertSame([['date' => '2026-10-15', 'amount' => 484.75, 'due' => '2026-10-29']], $kpt['paidDetails'][10]);
 		$this->assertSame([11 => 484.75, 12 => 484.75], $this->rounded($kpt['owedAmounts']));
 		$this->assertSame([], $kpt['paidElsewhere']);
