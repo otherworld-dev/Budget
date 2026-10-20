@@ -64,7 +64,8 @@ describe('Bills by Month payments marker', () => {
         expect(marker.textContent).toBe('2×');
         expect(marker.nextSibling.nodeType).toBe(Node.TEXT_NODE);
         expect(marker.nextSibling.textContent).toBe('969.50 CHF');
-        expect(august.textContent).toBe('2×969.50 CHF');
+        // After the out-of-sight words for screen readers (billsCalendarMarkerLabel.test.js)
+        expect(august.textContent.endsWith('2×969.50 CHF')).toBe(true);
     });
 
     it('leaves a cell without one as the amount alone', () => {

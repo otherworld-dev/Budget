@@ -1903,7 +1903,12 @@ export default class ReportsModule {
                 const amount = cell.amount === null ? '' : dom.escapeHtml(this.formatCurrency(cell.amount, bill.currency || currency));
                 // No space after the pill: a paid cell's line-through ran
                 // under it, reading "2× -969.50" (#399). Its margin spaces it.
-                const marker = cell.marker ? `<span class="payments-marker">${cell.marker}</span>` : '';
+                // Read out, "2×969.50" was two times 969.50, so the pill is
+                // hidden from screen readers and the words stand in for it.
+                const times = bill.paidMoreThanOnce?.[month] ?? 0;
+                const marker = cell.marker
+                    ? `<span class="visually-hidden">${dom.escapeHtml(n('budget', 'Paid %n time', 'Paid %n times', times))}</span><span class="payments-marker" aria-hidden="true">${cell.marker}</span>`
+                    : '';
                 months.push(`<td class="month-cell ${cellClasses[cell.state]}" title="${dom.escapeHtml(cell.title)}">${marker}${amount}</td>`);
             }
 
