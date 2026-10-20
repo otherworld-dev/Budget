@@ -521,14 +521,14 @@ class TransactionController extends Controller {
 				}
 			}
 
-			// A description taken out leaves the vendor to name the row: the
-			// one sent with it (cleared too), else the one it has
-			if (array_key_exists('description', $updates)) {
-				$vendorAfter = $existing->getVendor();
-				if (array_key_exists('vendor', $updates)) {
-					$vendorAfter = $updates['vendor'];
-				}
-				if ($this->unnamed($updates['description'], $vendorAfter)) {
+			// A description or a vendor has to name the row once the edit is
+			// made: taking one out leaves the other, as sent or as it was. The
+			// list edits the vendor cell on its own, so clearing the vendor of
+			// a row the app booked with no description is refused too.
+			if (array_key_exists('description', $updates) || array_key_exists('vendor', $updates)) {
+				$descriptionAfter = array_key_exists('description', $updates) ? $updates['description'] : $existing->getDescription();
+				$vendorAfter = array_key_exists('vendor', $updates) ? $updates['vendor'] : $existing->getVendor();
+				if ($this->unnamed($descriptionAfter, $vendorAfter)) {
 					return $this->unnamedRefusal();
 				}
 			}

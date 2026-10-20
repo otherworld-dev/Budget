@@ -157,6 +157,26 @@ class TransactionControllerNoDescriptionTest extends TestCase {
 		$this->assertSame([], $this->saved);
 	}
 
+	/** The list edits the vendor cell on its own, with no description sent */
+	public function testClearingTheVendorOfARowWithNoDescriptionIsRefused(): void {
+		$this->swisscomCredit();
+
+		foreach (['', '   ', null] as $vendor) {
+			$response = $this->put(1700, ['vendor' => $vendor]);
+
+			$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+			$this->assertSame('Description is required', $response->getData()['error']);
+		}
+		$this->assertSame([], $this->saved);
+	}
+
+	public function testTheVendorOfARowWithADescriptionCanBeCleared(): void {
+		$this->swisscomCredit()->setDescription('Gutschrift Swisscom');
+
+		$this->assertSame(Http::STATUS_OK, $this->put(1700, ['vendor' => ''])->getStatus());
+		$this->assertCount(1, $this->saved);
+	}
+
 	/** An edit that leaves the description alone is never held up by it */
 	public function testAnEditWithoutTheDescriptionIsUnchanged(): void {
 		$this->swisscomCredit(null);

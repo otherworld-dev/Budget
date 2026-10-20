@@ -5412,7 +5412,8 @@ export default class TransactionsModule {
         try {
             const result = await apiFetch(`/apps/budget/api/transactions/${transactionId}`, {
                 method: 'PUT',
-                body: updateData
+                body: updateData,
+                errorMessage: t('budget', 'Failed to update transaction')
             });
             Object.assign(transaction, result);
 
@@ -5425,7 +5426,8 @@ export default class TransactionsModule {
             showSuccess(t('budget', 'Transaction updated'));
         } catch (error) {
             console.error('Failed to save inline edit:', error);
-            showError(t('budget', 'Failed to update transaction'));
+            // The server says why, e.g. a vendor cleared off a row with no description
+            showError(error.message || t('budget', 'Failed to update transaction'));
             this.cancelInlineEdit(cell);
         }
     }
