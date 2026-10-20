@@ -62,7 +62,7 @@ export function showInfo(message) {
 /**
  * A short-lived toast with an Undo button. The undo callback fires at most
  * once; onExpire fires instead when the toast times out without it, so the
- * caller can drop whatever state the undo needed.
+ * caller can drop whatever state the undo needed. Returns {dismiss()}.
  */
 export function showUndoNotification(message, undoCallback, onExpire) {
     const notification = document.createElement('div');
@@ -126,4 +126,12 @@ export function showUndoNotification(message, undoCallback, onExpire) {
             }
         }, 300);
     }, 5000);
+
+    // Closes the toast early, once its action can't be undone any more
+    return {
+        dismiss() {
+            expired = true;
+            notification.remove();
+        },
+    };
 }

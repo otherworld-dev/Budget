@@ -9,6 +9,7 @@ import * as dom from '../../utils/dom.js';
 import { billRowState } from '../../utils/billDates.js';
 import { showMatchingTransactionDialog } from '../../utils/matchingDialog.js';
 import { showSuccess, showError, showWarning, showUndoNotification } from '../../utils/notifications.js';
+import { trackSkipUndo, settleSkipUndos, forgetSkipUndo } from '../../utils/skipUndos.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { initSingleDatePicker } from '../../utils/datepicker.js';
 import { isoWeekday } from '../../utils/helpers.js';
@@ -1141,11 +1142,15 @@ export default class TransfersModule {
             this.updateSummary();
 
             // The toast undoes this skip, whatever was done since
-            showUndoNotification(
+            const toast = showUndoNotification(
                 t('budget', 'Payment skipped. Advanced to next due date.'),
                 () => this.undoSkipTransfer(undoData),
-                () => this._dropUndo(undoData)
+                () => {
+                    forgetSkipUndo(undoData);
+                    this._dropUndo(undoData);
+                }
             );
+            trackSkipUndo(undoData, `transfer-${transferId}`, undoData.previousNextDueDate, toast);
         } catch (error) {
             console.error('Failed to skip transfer:', error);
             showError(error.message || t('budget', 'Failed to skip transfer'));
@@ -1179,6 +1184,8 @@ export default class TransfersModule {
                 method: 'POST',
                 body: { previousNextDueDate },
             });
+            // Back on that date, the later skips of this transfer are undone too
+            settleSkipUndos(undoData);
 
             if (this._undoData === undoData) this._undoData = null;
             await this.loadTransfers();
@@ -1187,6 +1194,7 @@ export default class TransfersModule {
 
             showSuccess(t('budget', 'Action undone'));
         } catch (error) {
+            forgetSkipUndo(undoData);
             console.error('Failed to undo skip:', error);
             showError(t('budget', 'Failed to undo action: {message}', { message: error.message }));
         }

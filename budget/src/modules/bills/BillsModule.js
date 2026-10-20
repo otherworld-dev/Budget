@@ -8,6 +8,7 @@ import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { billRowState, oneTimeDateUnconfirmed } from '../../utils/billDates.js';
 import { showSuccess, showError, showWarning, showInfo, showUndoNotification } from '../../utils/notifications.js';
+import { trackSkipUndo, settleSkipUndos, forgetSkipUndo } from '../../utils/skipUndos.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import { apiFetch, ApiError } from '../../utils/api.js';
@@ -1578,11 +1579,15 @@ export default class BillsModule {
 
             await this.loadBillsView();
 
-            showUndoNotification(
+            const toast = showUndoNotification(
                 t('budget', 'Payment skipped. Advanced to next due date.'),
                 () => this.undoSkipPayment(undoData),
-                () => this._dropUndo(undoData)
+                () => {
+                    forgetSkipUndo(undoData);
+                    this._dropUndo(undoData);
+                }
             );
+            trackSkipUndo(undoData, `bill-${billId}`, previousNextDueDate, toast);
 
         } catch (error) {
             console.error('Failed to skip bill payment:', error);
@@ -1605,12 +1610,15 @@ export default class BillsModule {
                 method: 'POST',
                 body: { previousNextDueDate: previousNextDueDate },
             });
+            // Back on that date, the later skips of this bill are undone too
+            settleSkipUndos(undoData);
 
             if (this._undoData === undoData) this._undoData = null;
             await this.loadBillsView();
 
             showSuccess(t('budget', 'Action undone'));
         } catch (error) {
+            forgetSkipUndo(undoData);
             console.error('Failed to undo skip:', error);
             showError(t('budget', 'Failed to undo action: {message}', { message: error.message }));
         }
