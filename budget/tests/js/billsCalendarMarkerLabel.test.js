@@ -74,10 +74,10 @@ describe('the Bills by Month payments marker for screen readers', () => {
         document.body.innerHTML = '';
     });
 
-    it('reads as one sentence: how many times, and what was paid in all', () => {
+    it('reads as one sentence: how many times, and what was paid this month', () => {
         const august = render([kpt])[7];
 
-        expect(spokenText(august)).toBe('Paid 2 times, 969.50 CHF in all');
+        expect(spokenText(august)).toBe('Paid 2 times, 969.50 CHF this month');
     });
 
     it('hides the pill and the amount it sits against from screen readers', () => {
@@ -92,7 +92,7 @@ describe('the Bills by Month payments marker for screen readers', () => {
         const august = render([kpt])[7];
         const label = august.querySelector('.visually-hidden');
 
-        expect(label.textContent).toBe('Paid 2 times, 969.50 CHF in all');
+        expect(label.textContent).toBe('Paid 2 times, 969.50 CHF this month');
         expect(label.closest('[aria-hidden="true"]')).toBeNull();
     });
 
