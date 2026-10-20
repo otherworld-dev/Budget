@@ -37,7 +37,7 @@ final class UndoSnapshotSkips {
 		if ($snapshot === null) {
 			return null;
 		}
-		$skipped = is_array($snapshot[self::KEY] ?? null) ? array_values($snapshot[self::KEY]) : [];
+		$skipped = self::skipped($snapshot);
 		$skipped[] = $date;
 		$snapshot[self::KEY] = $skipped;
 		return json_encode($snapshot);
@@ -49,8 +49,8 @@ final class UndoSnapshotSkips {
 	 */
 	public static function unskip(?string $raw, string $date): ?string {
 		$snapshot = self::decode($raw);
-		$skipped = $snapshot !== null && is_array($snapshot[self::KEY] ?? null) ? array_values($snapshot[self::KEY]) : [];
-		if ($skipped === [] || end($skipped) !== $date) {
+		$skipped = self::skipped($snapshot);
+		if ($snapshot === null || $skipped === [] || $skipped[count($skipped) - 1] !== $date) {
 			return $raw;
 		}
 		array_pop($skipped);
@@ -60,6 +60,12 @@ final class UndoSnapshotSkips {
 			$snapshot[self::KEY] = $skipped;
 		}
 		return json_encode($snapshot);
+	}
+
+	/** @return list<string> */
+	private static function skipped(?array $snapshot): array {
+		$listed = $snapshot[self::KEY] ?? null;
+		return is_array($listed) ? array_values(array_filter($listed, 'is_string')) : [];
 	}
 
 	private static function decode(?string $raw): ?array {
