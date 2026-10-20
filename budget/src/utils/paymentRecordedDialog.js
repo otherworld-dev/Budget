@@ -51,7 +51,7 @@ export function askAboutRecordedPayment(existing, settings, { kind = 'bill', cur
         modal.innerHTML = `
             <div class="budget-modal" style="max-width: 480px;" role="dialog" aria-modal="true" aria-labelledby="payment-recorded-title">
                 <div class="budget-modal-header">
-                    <h2 id="payment-recorded-title">${t('budget', 'Existing Transaction Found')}</h2>
+                    <h2 id="payment-recorded-title">${t('budget', 'Payment already recorded')}</h2>
                     <button class="close-btn" title="${t('budget', 'Close')}" aria-label="${t('budget', 'Close')}">&times;</button>
                 </div>
                 <div class="budget-modal-body">

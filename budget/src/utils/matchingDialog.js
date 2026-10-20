@@ -65,6 +65,11 @@ export function showMatchingTransactionDialog(bill, candidates, settings) {
             `;
         }).join('');
 
+        // A one-time bill has no next due date to move on to
+        const outcome = bill.frequency === 'one-time'
+            ? t('budget', 'Whichever you choose, the bill is marked as paid.')
+            : t('budget', 'Whichever you choose, the bill is marked as paid and moves on to its next due date.');
+
         const modal = document.createElement('div');
         modal.id = 'matching-tx-modal';
         modal.className = 'budget-modal-overlay';
@@ -76,7 +81,7 @@ export function showMatchingTransactionDialog(bill, candidates, settings) {
                 </div>
                 <div class="budget-modal-body">
                     <p class="matching-tx-intro">${t('budget', 'We found existing transactions that may already represent this bill payment ({billName}, {amount}). Would you like to link one instead of creating a new transaction?', { billName: dom.escapeHtml(bill.name), amount: dom.escapeHtml(formatAmount(bill.amount)) }, undefined, { escape: false })}</p>
-                    <p class="matching-tx-intro">${t('budget', 'Whichever you choose, the bill is marked as paid and moves on to its next due date.')}</p>
+                    <p class="matching-tx-intro">${outcome}</p>
                     <div class="matching-tx-list">
                         ${candidateRows}
                     </div>
