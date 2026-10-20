@@ -45,6 +45,18 @@ describe('Bills by Month: a date paid in the other year', () => {
         expect(calendarCell(garage2027(), 2).state).toBe('owed');
     });
 
+    it('is named in a month whose other dates are still owed (a weekly bill due on 1 January)', () => {
+        const cell = calendarCell(garage2027({
+            frequency: 'weekly', amount: 40,
+            paidElsewhere: { 1: [{ date: '2026-12-30', amount: 40, due: '2027-01-01' }] },
+            owedAmounts: { 1: 160 },
+        }), 1);
+
+        expect(cell.state).toBe('owed');
+        expect(cell.amount).toBe(160);
+        expect(cell.title.split('\n')).toEqual(['Due', expect.stringMatching(/on 2026-12-30 for 2027-01-01$/)]);
+    });
+
     it('is listed beside the payments of a month that has them', () => {
         const cell = calendarCell(garage2027({
             paidMonths: [1],

@@ -72,7 +72,8 @@ export function calendarCell(row, month, settings = {}, currency = null) {
 
     if (owed !== null) {
         if (paid === null) {
-            return cell('owed', owed, t('budget', 'Due'));
+            // A weekly bill's other dates still owed beside one paid in the other year
+            return cell('owed', owed, [t('budget', 'Due'), ...paidLines].join('\n'));
         }
         const total = roundMoney(Number(paid) + Number(owed), formatters.currencyDecimals(code, settings));
         return cell('owed', total, [t('budget', '{amount} still due', { amount: money(owed) }), ...paidLines].join('\n'));
