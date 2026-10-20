@@ -316,11 +316,15 @@
 }
 
 /* Navigation toggle — matches NcAppNavigationToggle from @nextcloud/vue. */
+/* Below 1024 px only, where Nextcloud hides the navigation (core's own
+   (width < 1024px)). From max-width: 1024px it sat over the docked
+   navigation's search box at exactly 1024 px (#399).
+   navToggleBreakpoint.test.js. */
 #budget-nav-toggle-wrapper {
     display: none;
 }
 
-@media (max-width: 1024px) {
+@media (width < 1024px) {
     #budget-nav-toggle-wrapper {
         display: block;
         position: fixed;
@@ -421,7 +425,7 @@
 /* Mobile Navigation - matches NcAppNavigation behavior.
  * Nextcloud's mobile.css hides #app-navigation:not(.vue) with translateX(-300px).
  * We override with our own open class and add a backdrop overlay. */
-@media (max-width: 1024px) {
+@media (width < 1024px) {
     #app-navigation:not(.vue) {
         transition: transform 250ms ease-in-out;
     }

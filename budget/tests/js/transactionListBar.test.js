@@ -23,7 +23,7 @@ const TEMPLATE = fs.readFileSync(
     .replace(/<\?php[\s\S]*?\?>/g, '');
 
 const WIDE = { media: ['(min-width: 641px)'] };
-const PHONE = { media: ['(max-width: 640px)', '(max-width: 768px)', '(max-width: 1024px)'] };
+const PHONE = { media: ['(max-width: 640px)', '(max-width: 768px)', '(max-width: 1024px)', '(width < 1024px)'] };
 
 /** Whether the stylesheet makes `el` scroll (or clip) sideways at this width */
 function scrollsSideways(el, options) {
