@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-10-15 00:25+0000\n"
-"PO-Revision-Date: 2026-10-19 19:51+0000\n"
+"PO-Revision-Date: 2026-10-21 10:51+0000\n"
 "Last-Translator: Christophe <capersys@users.noreply.hosted.weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/fr/>\n"
@@ -3446,39 +3446,41 @@ msgstr "Impossible d'importer le fichier {file}"
 
 #: /app/lib/Notification/Notifier.php:674
 #: /app/lib/Service/ImportFolderService.php:770
-#, fuzzy
-#| msgid "%n row will not be imported"
-#| msgid_plural "%n rows will not be imported"
 msgid "This type of file cannot be imported."
-msgstr "%n ligne ne sera pas importée"
+msgstr "Ce type de fichier ne peut pas être importé."
 
 #: /app/lib/Notification/Notifier.php:675
 #: /app/lib/Service/ImportFolderService.php:771
-#, fuzzy
-#| msgid "The file holds more than %1$d categories"
 msgid "The file is larger than 10 MB."
-msgstr "Le fichier contient plus de %1$d catégories"
+msgstr "La taille du fichier dépasse 10 Mo."
 
 #: /app/lib/Notification/Notifier.php:676
 msgid "The account this folder imports into has been closed or deleted."
-msgstr ""
+msgstr "Le compte dans lequel ce dossier est importé a été fermé ou supprimé."
 
 #: /app/lib/Notification/Notifier.php:677
 msgid ""
 "CSV and spreadsheet files need an import template, and this folder has none "
 "for them. Choose one in Budget's settings."
 msgstr ""
+"Les fichiers CSV et les feuilles de calcul nécessitent un modèle "
+"d'importation, et ce dossier n'en contient aucun. Choisissez-en un dans les "
+"paramètres de Budget."
 
 #: /app/lib/Notification/Notifier.php:678
 #, php-format
 msgid "These columns from the folder's template are not in the file: %1$s."
 msgstr ""
+"Ces colonnes, qui figurent dans le modèle du dossier, ne se trouvent pas "
+"dans le fichier : %1$s."
 
 #: /app/lib/Notification/Notifier.php:679
 msgid ""
 "No transaction could be read from it. The folder's template may not fit this "
 "file."
 msgstr ""
+"Aucune opération n'a pu être lue à partir de ce fichier. Il se peut que le "
+"modèle du dossier ne corresponde pas à ce fichier."
 
 #: /app/lib/Notification/Notifier.php:680
 msgid ""
@@ -3486,19 +3488,23 @@ msgid ""
 "reverse), which usually means the wrong template. Import it from the Import "
 "page, where you can check it first."
 msgstr ""
+"Presque toutes les lignes seraient inversées (les revenus apparaissent comme "
+"des dépenses, ou inversement), ce qui signifie généralement que le modèle "
+"utilisé n'est pas le bon. Importez-le depuis la page « Importation », où "
+"vous pourrez d'abord le vérifier."
 
 #: /app/lib/Notification/Notifier.php:681
 #: /app/lib/Service/ImportFolderService.php:772
-#, fuzzy
-#| msgid "The file is empty"
 msgid "The file is empty."
-msgstr "Le fichier est vide"
+msgstr "Le fichier est vide."
 
 #: /app/lib/Notification/Notifier.php:682
 msgid ""
 "This file holds several accounts. Import it from the Import page, where you "
 "can choose an account for each."
 msgstr ""
+"Ce fichier contient plusieurs comptes. Importez-le depuis la page « Importer "
+"», où vous pourrez choisir un compte pour chacun d'entre eux."
 
 #: /app/lib/Notification/Notifier.php:683
 #, php-format
@@ -3506,6 +3512,9 @@ msgid ""
 "The file is in %1$s and the account this folder imports into is in %2$s. "
 "Import it from the Import page, where you can choose the account."
 msgstr ""
+"Le fichier se trouve dans %1$s et le compte dans lequel ce dossier sera "
+"importé se trouve dans %2$s. Importez-le depuis la page « Importation », où "
+"vous pourrez choisir le compte."
 
 #: /app/lib/Notification/Notifier.php:685
 msgid ""
@@ -3513,6 +3522,9 @@ msgid ""
 "folder has been switched off. Move the file yourself, then switch the folder "
 "back on in Budget's settings."
 msgstr ""
+"Il a été importé, mais n'a pas pu être déplacé hors du dossier "
+"d'importation ; ce dossier a donc été désactivé. Déplacez le fichier vous-"
+"même, puis réactivez le dossier dans les paramètres de Budget."
 
 #: /app/lib/Notification/Notifier.php:686
 msgid ""
@@ -3520,6 +3532,9 @@ msgid ""
 "been switched off. Move the file yourself, then switch the folder back on in "
 "Budget's settings."
 msgstr ""
+"Il n'était pas non plus possible de le déplacer hors du dossier « Import », "
+"c'est pourquoi ce dossier a été désactivé. Déplacez le fichier vous-même, "
+"puis réactivez le dossier dans les paramètres de Budget."
 
 #: /app/lib/Notification/Notifier.php:687
 msgid ""
@@ -3527,15 +3542,20 @@ msgid ""
 "read again. Try it on the Import page, or download the statement from your "
 "bank again."
 msgstr ""
+"Budget s'est bloqué lors de la lecture de ce fichier ; celui-ci a donc été "
+"mis de côté et ne sera plus relu. Essayez à nouveau sur la page « "
+"Importation » ou téléchargez à nouveau le relevé depuis votre banque."
 
 #: /app/lib/Notification/Notifier.php:689
 msgid ""
 "Something went wrong while importing it. The server log has the details."
 msgstr ""
+"Une erreur s'est produite lors de l'importation. Vous trouverez plus de "
+"détails dans le journal du serveur."
 
 #: /app/lib/Notification/Notifier.php:692
 msgid "It is in the Failed folder."
-msgstr ""
+msgstr "Il se trouve dans le dossier « Failed »."
 
 #: /app/lib/Search/TransactionSearchProvider.php:39
 msgid "Budget transactions"
@@ -3588,10 +3608,8 @@ msgid "Import rules"
 msgstr "Règles d’import"
 
 #: /app/lib/Service/AccountClosureService.php:99
-#, fuzzy
-#| msgid "Import rules"
 msgid "Import folders"
-msgstr "Règles d’import"
+msgstr "Dossiers Import"
 
 #: /app/lib/Service/AccountClosureService.php:109
 #, php-format
@@ -3607,6 +3625,9 @@ msgid ""
 "Items other people set up still use this account. They need to move or "
 "deactivate them before it can be closed."
 msgstr ""
+"Les éléments créés par d'autres personnes sont toujours associés à ce "
+"compte. Il faut les déplacer ou les désactiver avant de pouvoir fermer ce "
+"compte."
 
 #: /app/lib/Service/AccountClosureService.php:318
 #, php-format
@@ -4148,51 +4169,64 @@ msgid ""
 "This spreadsheet is too big to import in one go. Split it into smaller files "
 "and import them one at a time."
 msgstr ""
+"Cette feuille de calcul est trop volumineuse pour être importée en une seule "
+"fois. Divisez-la en plusieurs fichiers plus petits et importez-les un par un."
 
 #: /app/lib/Service/Import/Spreadsheet/SpreadsheetConverter.php:88
 msgid ""
 "This spreadsheet could not be read. If it is password-protected, remove the "
 "password, or save it as CSV and import that."
 msgstr ""
+"Cette feuille de calcul n'a pas pu être lue. Si elle est protégée par un mot "
+"de passe, supprimez-le ou enregistrez-la au format CSV, puis importez-la."
 
 #: /app/lib/Service/Import/Spreadsheet/SpreadsheetConverter.php:93
 msgid "This spreadsheet has no table of transactions to import."
 msgstr ""
+"Cette feuille de calcul ne contient aucune liste d'opérations à importer."
 
 #: /app/lib/Service/ImportFolderService.php:177
 #, php-format
 msgid "You already have an import folder called %1$s."
-msgstr ""
+msgstr "Vous disposez déjà d'un dossier d'importation nommé %1$s."
 
 #: /app/lib/Service/ImportFolderService.php:193
 msgid "The folder could not be created in your Files. Try another name."
 msgstr ""
+"Impossible de créer le dossier dans votre dossier « Files». Essayez un autre "
+"nom."
 
 #: /app/lib/Service/ImportFolderService.php:760
 msgid ""
 "Budget stopped while reading this file last time, so it has been moved to "
 "the Failed folder. Try downloading the statement from your bank again."
 msgstr ""
+"Budget s'est bloqué lors de la lecture de ce fichier la dernière fois ; "
+"celui-ci a donc été déplacé vers le dossier « Failed ». Essayez de "
+"télécharger à nouveau le relevé de votre banque."
 
 #: /app/lib/Service/ImportFolderService.php:761
 msgid ""
 "Budget stopped while reading this file last time. Move it out of the Review "
 "folder, and try downloading the statement from your bank again."
 msgstr ""
+"Budget s'est bloqué lors de la lecture de ce fichier la dernière fois. "
+"Déplacez-le hors du dossier « Review » et réessayez de télécharger le relevé "
+"de votre banque."
 
 #: /app/lib/Service/ImportFolderService.php:773
-#, fuzzy
-#| msgid "The receipt could not be read"
 msgid "The file could not be read."
-msgstr "Le reçu n'a pas pu être lu"
+msgstr "Impossible de lire le fichier."
 
 #: /app/lib/Service/ImportFolderService.php:803
 msgid "A waiting file is either imported or skipped."
-msgstr ""
+msgstr "Un fichier en attente est soit importé, soit ignoré."
 
 #: /app/lib/Service/ImportFolderService.php:808
 msgid "The file could not be moved. Move it out of the Review folder yourself."
 msgstr ""
+"Le fichier n'a pas pu être déplacé. Veuillez le déplacer vous-même hors du "
+"dossier « Review »."
 
 #: /app/lib/Service/ImportFolderService.php:1227
 #: /app/src/modules/import/ImportModule.js:50
@@ -4202,35 +4236,35 @@ msgstr "Colonne : {number}"
 #: /app/lib/Service/ImportFolderService.php:1342
 msgid "A folder's files are either imported automatically or held for review."
 msgstr ""
+"Les fichiers d'un dossier sont soit importés automatiquement, soit mis en "
+"attente pour être vérifiés."
 
 #: /app/lib/Service/ImportFolderService.php:1350
 msgid "The folder name must be 1 to 100 characters, with no slashes."
 msgstr ""
+"Le nom du dossier doit comporter entre 1 et 100 caractères et ne doit pas "
+"contenir de barres obliques."
 
 #: /app/lib/Service/ImportFolderService.php:1357
 msgid "An import folder needs one of your own open accounts."
-msgstr ""
+msgstr "Un dossier d'importation nécessite l'un de vos comptes ouverts."
 
 #: /app/lib/Service/ImportFolderService.php:1372
 msgid "That import template no longer exists."
-msgstr ""
+msgstr "Ce modèle d'importation n'existe plus."
 
 #: /app/lib/Service/ImportFolderService.php:1414
-#, fuzzy
-#| msgid ""
-#| "The projected balance is only shown for your own accounts, not ones "
-#| "shared with you."
 msgid ""
 "The import folder has to be in your own Files, not in a folder someone "
 "shared with you."
 msgstr ""
-"Le solde prévisionnel n'apparaît que pour vos propres comptes, et non pour "
-"ceux que vous partagez avec d'autres personnes."
+"Le dossier d'importation doit se trouver dans votre propre « Files », et non "
+"dans un dossier que quelqu'un a partagé avec vous."
 
 #: /app/lib/Service/ImportFolderService.php:1455
 #, php-format
 msgid "%1$s is a file, so it cannot be used as a folder."
-msgstr ""
+msgstr "%1$s est un fichier ; il ne peut donc pas être utilisé comme dossier."
 
 #: /app/lib/Service/ImportService.php:154
 #, php-format
@@ -4313,6 +4347,9 @@ msgid ""
 "switched off. When you switch one back on, the files already in it will be "
 "imported."
 msgstr ""
+"Vos dossiers d'importation n'ont pas pu être lus après la restauration ; ils "
+"ont donc été désactivés. Lorsque vous réactiverez l'un d'entre eux, les "
+"fichiers qui s'y trouvent déjà seront importés."
 
 #: /app/lib/Service/MigrationService.php:593
 msgid ""
@@ -4322,7 +4359,12 @@ msgid_plural ""
 "%n files already in your import folders were left as they are. Only files "
 "added from now on are imported."
 msgstr[0] ""
+"%n fichier déjà présent dans vos dossiers d'importation a été conservé tel "
+"quel. Seuls les fichiers ajoutés à partir de maintenant seront importés."
 msgstr[1] ""
+"%n fichiers déjà présents dans vos dossiers d'importation ont été conservés "
+"tels quels. Seuls les fichiers ajoutés à partir de maintenant seront "
+"importés."
 
 #: /app/lib/Service/MigrationService.php:747
 msgid ""
@@ -4384,7 +4426,12 @@ msgid_plural ""
 "%n contacts were linked to Nextcloud users you can't share with on this "
 "server, so the links were removed."
 msgstr[0] ""
+"%n contact était associé à un utilisateur Nextcloud avec lequel vous ne "
+"pouvez pas partager de contenu sur ce serveur ; le lien a donc été supprimé."
 msgstr[1] ""
+"%n contacts étaient associés à des utilisateurs Nextcloud avec lesquels vous "
+"ne pouvez pas partager de contenu sur ce serveur ; les liens ont donc été "
+"supprimés."
 
 #: /app/lib/Service/MigrationService.php:776
 msgid ""
@@ -4395,7 +4442,13 @@ msgid_plural ""
 "Bank Sync no longer imports into them. Choose the accounts again in Bank "
 "Sync."
 msgstr[0] ""
+"%n lien vers le compte bancaire n'a pas pu être associé à un compte de cette "
+"sauvegarde ; par conséquent, Bank Sync n'importe plus de données vers ce "
+"compte. Sélectionnez à nouveau le compte dans Bank Sync."
 msgstr[1] ""
+"%n liens vers le compte bancaire n'ont pas pu être associés à des comptes de "
+"cette sauvegarde ; par conséquent, Bank Sync n'importe plus de données vers "
+"ces comptes. Sélectionnez à nouveau les comptes dans Bank Sync."
 
 #: /app/lib/Service/MigrationService.php:798
 #, php-format
@@ -4404,6 +4457,10 @@ msgid ""
 "server reads up to %2$s). Some of its data may not be restored. Update "
 "Budget first if you can."
 msgstr ""
+"Cette sauvegarde a été effectuée à l'aide d'une version plus récente de "
+"Budget (format de sauvegarde %1$s ; ce serveur prend en charge une version "
+"jusqu'à %2$s). Il est possible que certaines données ne puissent pas être "
+"restaurées. Si possible, mettez d'abord à jour Budget."
 
 #: /app/lib/Service/MigrationService.php:1030
 #, php-format
@@ -4423,13 +4480,10 @@ msgstr ""
 "fichiers occupent plus de %1$s Mo"
 
 #: /app/lib/Service/MigrationService.php:1120
-#, fuzzy, php-format
-#| msgid ""
-#| "This backup cannot be imported: %1$s is larger than %2$s MB when unpacked"
+#, php-format
 msgid "This backup cannot be imported: %1$s is not in the expected format"
 msgstr ""
-"Cette sauvegarde ne peut pas être importée : %1$s occupe plus de %2$s Mo une "
-"fois décompressée"
+"Cette sauvegarde ne peut pas être importée : %1$s n'est pas au format attendu"
 
 #: /app/lib/Service/PensionRecurringService.php:239
 msgid "This scheduled contribution is paused"
@@ -4451,6 +4505,8 @@ msgid ""
 "This post can no longer be undone, as the contribution it recorded was not "
 "found. Check the pension's contributions."
 msgstr ""
+"Cette opération ne peut plus être annulée, car la cotisation qu'elle "
+"concernait est introuvable. Vérifiez les cotisations de la retraite."
 
 #: /app/lib/Service/PensionRecurringService.php:389
 #, php-format
@@ -5044,24 +5100,25 @@ msgstr "Dépense partagée"
 #: /app/lib/Service/TransactionService.php:2107
 msgid "The account this would transfer to is closed. Reopen it first"
 msgstr ""
+"Le compte vers lequel ce virement devait être effectué est fermé. Veuillez "
+"d'abord le rouvrir"
 
 #: /app/lib/Service/TransactionTagService.php:252
 #: /app/lib/Service/TransactionTagService.php:549
 msgid "One or more tags do not exist"
-msgstr ""
+msgstr "Une ou plusieurs étiquettes n'existent pas"
 
 #: /app/lib/Service/TransactionTagService.php:556
 #: /app/lib/Service/TransactionTagService.php:577
-#, fuzzy
-#| msgid "No settings available for this tile."
 msgid "One or more tags are not available for this transaction"
-msgstr "Aucun paramètre disponible pour cette tuile."
+msgstr ""
+"Une ou plusieurs étiquettes ne sont pas disponibles pour cette opération."
 
 #: /app/lib/Service/TransactionTagService.php:561
-#, fuzzy
-#| msgid "Only apply to uncategorized transactions"
 msgid "Category tags cannot be applied to uncategorized transactions"
-msgstr "Appliquer uniquement aux opérations non catégorisées"
+msgstr ""
+"Les étiquettes de catégorie ne peuvent pas être appliquées aux opérations "
+"non catégorisées"
 
 #: /app/lib/Service/ValidationService.php:85
 #, php-format
@@ -5190,84 +5247,6 @@ msgid "Simple budget tracker and forecaster"
 msgstr "Outil simple de suivi et de prévision budgétaire"
 
 #: /app/specialAppInfoFakeDummyForL10nScript.php:4
-#, fuzzy
-#| msgid ""
-#| "**⚠️ Beta: This app is currently in testing. Data loss is possible. Please "
-#| "backup your data regularly and report any issues.**\n"
-#| "\n"
-#| "# Budget - Financial Tracking for Nextcloud\n"
-#| "\n"
-#| "Track your spending habits, manage savings, and forecast future account "
-#| "balances with intelligent analysis of your financial history.\n"
-#| "\n"
-#| "## Features\n"
-#| "\n"
-#| "* **Import Bank Statements**: Support for CSV, OFX, QIF and ISO 20022 "
-#| "camt.053 XML formats\n"
-#| "* **Bank Sync**: Pull transactions in automatically through GoCardless "
-#| "(UK/EU) or SimpleFIN (US)\n"
-#| "* **Smart Categorization**: Automatic vendor matching and transaction "
-#| "categorization\n"
-#| "* **Auto-Categorization Rules**: Apply rules to existing transactions "
-#| "anytime with preview\n"
-#| "* **Split Transactions**: Allocate single transactions across multiple "
-#| "categories\n"
-#| "* **Transfer Detection**: Automatic matching of transfers between "
-#| "accounts\n"
-#| "* **Statement Reconciliation**: Tick transactions off against a bank "
-#| "statement until the difference reaches zero\n"
-#| "* **Receipt Scanning**: Attach receipt photos to transactions and, once "
-#| "an admin sets it up, read the amount and items from them (OCR)\n"
-#| "* **Quick Add and a Public API**: A fast entry page for your phone, and a "
-#| "REST API for scripts, automation and the Budget Companion Android app (in "
-#| "development)\n"
-#| "* **Budget Tracking**: Set spending limits with alerts when approaching "
-#| "or exceeding budgets\n"
-#| "* **Rollover Budgets**: Envelope budgeting, where unspent money (or "
-#| "overspending) carries into the next month\n"
-#| "* **Project Budgets**: One budget for a job that runs over months, such "
-#| "as a renovation or a wedding\n"
-#| "* **Balance Forecasting**: Predict future balances based on historical "
-#| "data\n"
-#| "* **Recurring Bills**: Track bills with due date monitoring and Nextcloud "
-#| "notifications\n"
-#| "* **Subscription Detection**: Spots payments that look recurring but are "
-#| "not tracked yet, and turns them into bills in one click\n"
-#| "* **Recurring Income**: Track expected income sources with receipt "
-#| "tracking\n"
-#| "* **Split Expenses**: Share expenses with one or several people and track "
-#| "who owes whom\n"
-#| "* **Debt Payoff Planner**: Plan repayment using avalanche or snowball "
-#| "strategies\n"
-#| "* **Savings Goals**: Set targets with progress tracking and achievement "
-#| "forecasting\n"
-#| "* **Pension Tracker**: Track retirement accounts with growth projections\n"
-#| "* **Net Worth History**: Track assets and liabilities over time\n"
-#| "* **Year-over-Year Reports**: Compare spending across multiple years\n"
-#| "* **Money Flow Report**: A Sankey diagram of where a period's money came "
-#| "from and went\n"
-#| "* **Digest and Unusual Spending Alerts**: An optional weekly or monthly "
-#| "summary, and a notification when a category runs well above its usual "
-#| "level\n"
-#| "* **Scheduled PDF Reports**: Last month's report saved to your Files or "
-#| "emailed to you automatically\n"
-#| "* **Multi-Account Support**: Manage multiple bank accounts and "
-#| "currencies\n"
-#| "* **Custom Categories**: Create your own category hierarchy\n"
-#| "* **Reports & Charts**: Visualize your financial data with interactive "
-#| "charts\n"
-#| "* **Getting Started Checklist**: A first-run checklist, with sample data "
-#| "to explore before adding your own\n"
-#| "\n"
-#| "## Documentation\n"
-#| "\n"
-#| "Full user documentation: https://budget.otherworld.dev/docs/\n"
-#| "\n"
-#| "## Requirements\n"
-#| "\n"
-#| "* Nextcloud 30 or higher\n"
-#| "* PHP 8.1 or higher\n"
-#| "* PHP BCMath extension (`php-bcmath`)"
 msgid ""
 "# Budget - Financial Tracking for Nextcloud\n"
 "\n"
@@ -5343,10 +5322,6 @@ msgid ""
 "* PHP 8.1 or higher\n"
 "* PHP BCMath extension (`php-bcmath`)"
 msgstr ""
-"**⚠️ Bêta : Cette application est actuellement en phase de test. Une perte de "
-"données est possible. Veuillez sauvegarder régulièrement vos données et "
-"signaler tout problème.**\n"
-"\n"
 "# Budget - Suivi financier pour Nextcloud\n"
 "\n"
 "Suivez vos habitudes de dépenses, gérez vos économies et prévoyez les soldes "
@@ -6787,16 +6762,12 @@ msgid "Never"
 msgstr "Jamais"
 
 #: /app/src/modules/accounts/AccountsModule.js:1327
-#, fuzzy
-#| msgid "Show legend"
 msgid "Show fewer"
-msgstr "Afficher la légende"
+msgstr "Afficher moins"
 
 #: /app/src/modules/accounts/AccountsModule.js:1328
-#, fuzzy
-#| msgid "Total: {amount}"
 msgid "Show all ({count})"
-msgstr "Total : {amount}"
+msgstr "Tout afficher ({count})"
 
 #: /app/src/modules/accounts/AccountsModule.js:1378
 #: /app/src/modules/transfers/TransfersModule.js:479
@@ -8513,22 +8484,16 @@ msgid "Failed to remove budget adjustment"
 msgstr "Échec de la suppression de l'ajustement budgétaire"
 
 #: /app/src/modules/categories/CategoriesModule.js:2457
-#, fuzzy
-#| msgid "{amount}/month"
 msgid "{amount} a month"
-msgstr "{amount}/mois"
+msgstr "{amount} par mois"
 
 #: /app/src/modules/categories/CategoriesModule.js:2472
-#, fuzzy
-#| msgid "{spent} of {total}"
 msgid "{spent} of {budget} this year"
-msgstr "{spent} de {total}"
+msgstr "{spent} sur {budget} cette année"
 
 #: /app/src/modules/categories/CategoriesModule.js:2473
-#, fuzzy
-#| msgid "{spent} of {total}"
 msgid "{spent} of {budget} this quarter"
-msgstr "{spent} de {total}"
+msgstr "{spent} sur {budget} ce trimestre"
 
 #: /app/src/modules/categories/CategoriesModule.js:2497
 msgid ""
@@ -10300,28 +10265,26 @@ msgid "GB"
 msgstr "Go"
 
 #: /app/src/modules/import/ReviewQueue.js:61
-#, fuzzy
-#| msgid "Paid into account"
 msgid "{folder}, into {account}"
-msgstr "Versé sur le compte"
+msgstr "{folder}, dans {account}"
 
 #: /app/src/modules/import/ReviewQueue.js:76
-#, fuzzy
-#| msgid "Preview:"
 msgid "Review"
-msgstr "Aperçu :"
+msgstr "Revue"
 
 #: /app/src/modules/import/ReviewQueue.js:77
 msgid "Review {file}"
-msgstr ""
+msgstr "Revue {file}"
 
 #: /app/src/modules/import/ReviewQueue.js:84
 msgid "Skip {file}"
-msgstr ""
+msgstr "Ignorer {file}"
 
 #: /app/src/modules/import/ReviewQueue.js:126
 msgid "Skip {file}? It is moved to the Skipped folder and not imported."
 msgstr ""
+"Ignorer {file} ? Il est déplacé vers le dossier « Ignorés » et n'est pas "
+"importé."
 
 #: /app/src/modules/income/IncomeModule.js:54
 #: /app/src/modules/income/IncomeModule.js:57
@@ -12283,59 +12246,51 @@ msgid_plural ""
 "{folder} already holds %n files. They stay where they are: only files added "
 "from now on are imported."
 msgstr[0] ""
+"{folder} contient déjà un fichier. Celui-ci reste à sa place : seuls les "
+"fichiers ajoutés à partir de maintenant seront importés."
 msgstr[1] ""
+"{folder} contient déjà %n fichiers. Ceux-ci restent à leur emplacement actuel"
+" : seuls les fichiers ajoutés à partir de maintenant seront importés."
 
 #: /app/src/modules/settings/ImportFolders.js:39
 msgid ""
 "Files already in {folders} stay where they are: only files added from now on "
 "are imported."
 msgstr ""
+"Les fichiers qui se trouvent déjà dans {folders} restent à leur place : "
+"seuls les fichiers ajoutés à partir de maintenant seront importés."
 
 #: /app/src/modules/settings/ImportFolders.js:95 /app/templates/index.php:4676
-#, fuzzy
-#| msgid "Detect automatically"
 msgid "Import automatically"
-msgstr "Détecter automatiquement"
+msgstr "Importer automatiquement"
 
 #: /app/src/modules/settings/ImportFolders.js:96 /app/templates/index.php:4677
-#, fuzzy
-#| msgid "Import Preview"
 msgid "Hold for review"
-msgstr "Aperçu de l'importation"
+msgstr "Mettre en attente pour révision"
 
 #: /app/src/modules/settings/ImportFolders.js:103
 msgid "None (OFX, QIF and camt files only)"
-msgstr ""
+msgstr "Aucun (fichiers OFX, QIF et fichiers camt uniquement)"
 
 #: /app/src/modules/settings/ImportFolders.js:137
-#, fuzzy
-#| msgid "Amount for {name}"
 msgid "Account for {folder}"
-msgstr "Montant pour {name}"
+msgstr "Compte pour {folder}"
 
 #: /app/src/modules/settings/ImportFolders.js:142
-#, fuzzy
-#| msgid "Import template renamed"
 msgid "Import template for {folder}"
-msgstr "Modèle d'importation renommé"
+msgstr "Importer un modèle pour {folder}"
 
 #: /app/src/modules/settings/ImportFolders.js:147
-#, fuzzy
-#| msgid "Import file not found"
 msgid "When a file arrives in {folder}"
-msgstr "Fichier d'importation introuvable"
+msgstr "Lorsqu'un fichier arrive dans {folder}"
 
 #: /app/src/modules/settings/ImportFolders.js:154
-#, fuzzy
-#| msgid "Import file not found"
 msgid "Import files dropped into {folder}"
-msgstr "Fichier d'importation introuvable"
+msgstr "Importer les fichiers déposés dans {folder}"
 
 #: /app/src/modules/settings/ImportFolders.js:159
-#, fuzzy
-#| msgid "Remove tile"
 msgid "Remove {folder}"
-msgstr "Retirer la tuile"
+msgstr "Supprimer {folder}"
 
 #: /app/src/modules/settings/ImportFolders.js:160
 #: /app/src/modules/transactions/TransactionsModule.js:3353
@@ -12347,51 +12302,41 @@ msgid ""
 "Stop importing from {folder}? The folder stays in your Files, with "
 "everything in it."
 msgstr ""
+"Arrêter l'importation depuis {folder} ? Le dossier reste dans « Files », "
+"avec tout ce qu'il contient."
 
 #: /app/src/modules/settings/ImportFolders.js:263
 #: /app/src/modules/settings/ImportFolders.js:267
-#, fuzzy
-#| msgid "Failed to create import rule"
 msgid "Failed to remove the import folder"
-msgstr "Impossible de créer la règle d’import"
+msgstr "Impossible de supprimer le dossier « import »"
 
 #: /app/src/modules/settings/ImportFolders.js:275
-#, fuzzy
-#| msgid "Checking"
 msgid "Checking…"
-msgstr "Vérification"
+msgstr "Vérification…"
 
 #: /app/src/modules/settings/ImportFolders.js:292
-#, fuzzy
-#| msgid "%n row will not be imported"
-#| msgid_plural "%n rows will not be imported"
 msgid "%n file imported"
 msgid_plural "%n files imported"
-msgstr[0] "%n ligne ne sera pas importée"
-msgstr[1] "%n lignes ne seront pas importées"
+msgstr[0] "%n fichier importé"
+msgstr[1] "%n fichiers importés"
 
 #: /app/src/modules/settings/ImportFolders.js:293
-#, fuzzy
-#| msgid "Rule editor view"
 msgid "%n file ready to review"
 msgid_plural "%n files ready to review"
-msgstr[0] "Vue de l'éditeur de règles"
-msgstr[1] "Vue de l'éditeur de règles"
+msgstr[0] "%n fichier prêt à être relu"
+msgstr[1] "%n fichiers prêts à être relus"
 
 #: /app/src/modules/settings/ImportFolders.js:294
-#, fuzzy
-#| msgid "%n row will not be imported"
-#| msgid_plural "%n rows will not be imported"
 msgid "%n file could not be imported"
 msgid_plural "%n files could not be imported"
-msgstr[0] "%n ligne ne sera pas importée"
-msgstr[1] "%n lignes ne seront pas importées"
+msgstr[0] "%n fichier ne peut être importé"
+msgstr[1] "%n fichiers ne peuvent être importés"
 
 #: /app/src/modules/settings/ImportFolders.js:295
 msgid "%n file still uploading or waiting its turn"
 msgid_plural "%n files still uploading or waiting their turn"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "%n fichier toujours en cours de téléchargement ou attend son tour"
+msgstr[1] "%n fichiers toujours en cours de téléchargement ou attendent leur tour"
 
 #: /app/src/modules/settings/SettingsModule.js:38
 msgid "Failed to load settings"
@@ -12486,10 +12431,8 @@ msgid "Select receipts folder"
 msgstr "Sélectionner le dossier des reçus"
 
 #: /app/src/modules/settings/SettingsModule.js:324
-#, fuzzy
-#| msgid "Select receipts folder"
 msgid "Select import folder"
-msgstr "Sélectionner le dossier des reçus"
+msgstr "Sélectionner le dossier d'importation"
 
 #: /app/src/modules/settings/SettingsModule.js:428
 #: /app/src/modules/settings/SettingsModule.js:444
