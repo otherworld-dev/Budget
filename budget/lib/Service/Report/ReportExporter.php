@@ -51,8 +51,8 @@ class ReportExporter {
 	 *                          session user's, which a background job does not
 	 *                          have — it passes the recipient's.
 	 * @param array{0: int, 1: int, 2: int}|null $negativeRgb The PDF's colour for
-	 *                          negative amounts, the user's colour setting (#432);
-	 *                          null is the old red, 200/0/0.
+	 *                                                        negative amounts, the user's colour setting (#432);
+	 *                                                        null is the old red, 200/0/0.
 	 * @return array{stream: string, contentType: string, filename: string}
 	 */
 	public function export(array $data, string $type, string $format, ?string $lang = null, ?array $negativeRgb = null): array {
