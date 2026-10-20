@@ -1528,26 +1528,28 @@ style('budget', 'budget-app');
 
                     <!-- Account Transactions Table -->
                     <div class="transactions-container">
-                        <table id="account-transactions-table" class="transactions-table">
-                            <thead>
-                                <tr>
-                                    <th scope="col" class="date-column sortable" data-sort="date">
-                                        <?php p($l->t('Date')); ?> <span class="sort-indicator"></span>
-                                    </th>
-                                    <th scope="col" class="description-column sortable" data-sort="description">
-                                        <?php p($l->t('Description')); ?> <span class="sort-indicator"></span>
-                                    </th>
-                                    <th scope="col" class="vendor-column"><?php p($l->t('Vendor')); ?></th>
-                                    <th scope="col" class="category-column"><?php p($l->t('Category')); ?></th>
-                                    <th scope="col" class="amount-column sortable" data-sort="amount">
-                                        <?php p($l->t('Amount')); ?> <span class="sort-indicator"></span>
-                                    </th>
-                                    <th scope="col" class="balance-column"><?php p($l->t('Balance')); ?></th>
-                                    <th scope="col" class="actions-column"><?php p($l->t('Actions')); ?></th>
-                                </tr>
-                            </thead>
-                            <tbody id="account-transactions-body"></tbody>
-                        </table>
+                        <div class="table-scroll">
+                            <table id="account-transactions-table" class="transactions-table">
+                                <thead>
+                                    <tr>
+                                        <th scope="col" class="date-column sortable" data-sort="date">
+                                            <?php p($l->t('Date')); ?> <span class="sort-indicator"></span>
+                                        </th>
+                                        <th scope="col" class="description-column sortable" data-sort="description">
+                                            <?php p($l->t('Description')); ?> <span class="sort-indicator"></span>
+                                        </th>
+                                        <th scope="col" class="vendor-column"><?php p($l->t('Vendor')); ?></th>
+                                        <th scope="col" class="category-column"><?php p($l->t('Category')); ?></th>
+                                        <th scope="col" class="amount-column sortable" data-sort="amount">
+                                            <?php p($l->t('Amount')); ?> <span class="sort-indicator"></span>
+                                        </th>
+                                        <th scope="col" class="balance-column"><?php p($l->t('Balance')); ?></th>
+                                        <th scope="col" class="actions-column"><?php p($l->t('Actions')); ?></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="account-transactions-body"></tbody>
+                            </table>
+                        </div>
 
                         <!-- Pagination -->
                         <div id="account-transactions-pagination" class="pagination">
@@ -1819,45 +1821,47 @@ style('budget', 'budget-app');
                     </div>
                 </div>
 
-                <table id="transactions-table" class="transactions-table enhanced">
-                    <thead>
-                        <tr>
-                            <th scope="col" class="select-column">
-                                <input type="checkbox" id="select-all-transactions" title="<?php p($l->t('Select all')); ?>" aria-label="<?php p($l->t('Select all')); ?>">
-                            </th>
-                            <th scope="col" tabindex="0" aria-sort="none" class="sortable date-column" data-sort="date">
-                                <?php p($l->t('Date')); ?>
-                                <span class="sort-indicator" aria-hidden="true"></span>
-                            </th>
-                            <th scope="col" tabindex="0" aria-sort="none" class="sortable description-column" data-sort="description">
-                                <?php p($l->t('Description')); ?>
-                                <span class="sort-indicator" aria-hidden="true"></span>
-                            </th>
-                            <th scope="col" tabindex="0" aria-sort="none" class="sortable vendor-column" data-sort="vendor">
-                                <?php p($l->t('Vendor')); ?>
-                                <span class="sort-indicator" aria-hidden="true"></span>
-                            </th>
-                            <th scope="col" tabindex="0" aria-sort="none" class="sortable category-column" data-sort="category">
-                                <?php p($l->t('Category')); ?>
-                                <span class="sort-indicator" aria-hidden="true"></span>
-                            </th>
-                            <th scope="col" class="tags-column">
-                                <?php p($l->t('Tags')); ?>
-                            </th>
-                            <th scope="col" tabindex="0" aria-sort="none" class="sortable amount-column" data-sort="amount">
-                                <?php p($l->t('Amount')); ?>
-                                <span class="sort-indicator" aria-hidden="true"></span>
-                            </th>
-                            <th scope="col" class="balance-column"><?php p($l->t('Balance')); ?></th>
-                            <th scope="col" tabindex="0" aria-sort="none" class="sortable account-column" data-sort="account">
-                                <?php p($l->t('Account')); ?>
-                                <span class="sort-indicator" aria-hidden="true"></span>
-                            </th>
-                            <th scope="col" class="actions-column"><?php p($l->t('Actions')); ?></th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
+                <div class="table-scroll">
+                    <table id="transactions-table" class="transactions-table enhanced">
+                        <thead>
+                            <tr>
+                                <th scope="col" class="select-column">
+                                    <input type="checkbox" id="select-all-transactions" title="<?php p($l->t('Select all')); ?>" aria-label="<?php p($l->t('Select all')); ?>">
+                                </th>
+                                <th scope="col" tabindex="0" aria-sort="none" class="sortable date-column" data-sort="date">
+                                    <?php p($l->t('Date')); ?>
+                                    <span class="sort-indicator" aria-hidden="true"></span>
+                                </th>
+                                <th scope="col" tabindex="0" aria-sort="none" class="sortable description-column" data-sort="description">
+                                    <?php p($l->t('Description')); ?>
+                                    <span class="sort-indicator" aria-hidden="true"></span>
+                                </th>
+                                <th scope="col" tabindex="0" aria-sort="none" class="sortable vendor-column" data-sort="vendor">
+                                    <?php p($l->t('Vendor')); ?>
+                                    <span class="sort-indicator" aria-hidden="true"></span>
+                                </th>
+                                <th scope="col" tabindex="0" aria-sort="none" class="sortable category-column" data-sort="category">
+                                    <?php p($l->t('Category')); ?>
+                                    <span class="sort-indicator" aria-hidden="true"></span>
+                                </th>
+                                <th scope="col" class="tags-column">
+                                    <?php p($l->t('Tags')); ?>
+                                </th>
+                                <th scope="col" tabindex="0" aria-sort="none" class="sortable amount-column" data-sort="amount">
+                                    <?php p($l->t('Amount')); ?>
+                                    <span class="sort-indicator" aria-hidden="true"></span>
+                                </th>
+                                <th scope="col" class="balance-column"><?php p($l->t('Balance')); ?></th>
+                                <th scope="col" tabindex="0" aria-sort="none" class="sortable account-column" data-sort="account">
+                                    <?php p($l->t('Account')); ?>
+                                    <span class="sort-indicator" aria-hidden="true"></span>
+                                </th>
+                                <th scope="col" class="actions-column"><?php p($l->t('Actions')); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
 
                 <div class="pagination-controls pagination-bottom">
                     <button id="prev-page-btn-bottom" class="secondary" disabled aria-label="<?php p($l->t('Previous')); ?>" title="<?php p($l->t('Previous')); ?>">←</button>

@@ -15,7 +15,7 @@ const WIDE = { media: ['(min-width: 641px)'] };
 
 beforeEach(() => {
     document.body.innerHTML = `
-        <div id="transactions-view"><div class="table-container">
+        <div id="transactions-view"><div class="table-container"><div class="table-scroll">
             <table id="transactions-table" class="transactions-table enhanced">
                 <thead><tr><th class="description-column"></th><th class="actions-column"></th></tr></thead>
                 <tbody>
@@ -25,7 +25,7 @@ beforeEach(() => {
                     <tr class="transaction-row kbd-cursor" id="cursor"><td class="description-column"></td><td class="actions-column"></td></tr>
                 </tbody>
             </table>
-        </div></div>`;
+        </div></div></div>`;
 });
 
 afterEach(() => {
