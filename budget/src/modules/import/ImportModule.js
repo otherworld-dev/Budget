@@ -2134,7 +2134,7 @@ export default class ImportModule {
                 <td>${dom.escapeHtml(transaction.description || '')}</td>
                 <td class="preview-payee" data-preview-cell="payee"${showPayee ? '' : ' style="display: none;"'} title="${dom.escapeHtml(payee)}">${dom.escapeHtml(payee)}</td>
                 <td class="preview-notes"${showNotes ? '' : ' style="display: none;"'} title="${dom.escapeHtml(notes)}">${dom.escapeHtml(notes)}</td>
-                <td class="${amount < 0 ? 'negative' : 'positive'}">
+                <td data-preview-cell="amount" class="${amount < 0 ? 'negative' : 'positive'}">
                     ${this.formatCurrency(amount, this.previewRowCurrency(transaction, context))}
                 </td>
                 <td data-preview-cell="category" data-categorized="${this.previewRowCategorized(transaction) ? '1' : '0'}">${dom.escapeHtml(this.getCategoryLabel(transaction))}</td>

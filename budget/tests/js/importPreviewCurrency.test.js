@@ -49,7 +49,7 @@ const row = (amount, type, extra = {}) => ({ date: '2026-10-01', description: 'R
 
 function amounts() {
     return Array.from(document.querySelectorAll('#preview-table tbody tr'))
-        .map(tr => tr.querySelectorAll('td')[3].textContent.trim());
+        .map(tr => tr.querySelector('[data-preview-cell="amount"]').textContent.trim());
 }
 
 beforeEach(() => {
