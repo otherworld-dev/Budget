@@ -47,6 +47,9 @@ class ImportService {
 	/** @var array<int,string> Cache of destination account id => type for the account/account_type rule fields */
 	private array $ruleAccountTypeCache = [];
 
+	/** The most cells a line can have for cellJoins() to join three of them */
+	private const MAX_CELLS_JOINED_BY_THREE = 15;
+
 	public function __construct(
 		IAppData $appData,
 		TransactionService $transactionService,
@@ -743,6 +746,30 @@ class ImportService {
 	 * that category on that day at that price is taken for it once this
 	 * mapping puts the category in the line's texts.
 	 *
+	 * A description or reference that is none of the line's cells (a rule
+	 * tidied or replaced it, or it was edited by hand) passes when the stored
+	 * row's import id says this line gave it: the id is the line's content
+	 * hash under some mapping, and the texts that mapping read take the
+	 * stored ones' place (see hashedTexts()). Neither is ever matched
+	 * against what a rule would write: a rule's text says nothing about
+	 * which line it came from, so the next order from a shop whose text a
+	 * rule tidies would be taken for the one stored.
+	 *
+	 * A payee that is none of the line's cells passes when the user's import
+	 * rules give it to the line as the import that stored the row read it,
+	 * with no payee or one of its cells as the payee (a rule that names the
+	 * shop after a word of the description, or tidies the shop's own column),
+	 * whether or not this import applies them: the rules ran when the row was
+	 * stored. The row is then compared as if it carried the payee the rules
+	 * were given, so a rule changes nothing: a payee column it tidied is
+	 * looked for in what this import reads, as an untidied one is. What the
+	 * rules make alike, the row cannot tell apart, as with a category alone:
+	 * a payee a rule fills in while it is empty stands for any line that
+	 * gives the stored description, and on a row whose description is only
+	 * its category, a payee the rules give every product of a brand stands
+	 * for any product of that brand. Under the mapping that stored the row
+	 * such lines carry one import id anyway: a payee is no part of it.
+	 *
 	 * Each stored row stands for one line at most and each line for one
 	 * stored row, paired so that as many lines as can be are recognised: a
 	 * line that could be either of two stored rows leaves the one another
@@ -758,9 +785,10 @@ class ImportService {
 	 *
 	 * @param list<array{index: array-key, accountId: int, importId: string, transaction: array, cells: array}> $lines From scanFileRows()
 	 * @param array<string, true> $fileIds From fileImportIds()
+	 * @param \OCA\Budget\Db\ImportRule[]|null $rules The rules this import applies, null when it applies none (read here if a payee needs them)
 	 * @return array<array-key, true> The indexes of the rows recognised
 	 */
-	private function linesImportedBefore(array $lines, array $fileIds): array {
+	private function linesImportedBefore(array $lines, array $fileIds, string $userId, ?array $rules): array {
 		$stored = [];
 		$candidates = [];
 		$seen = [];
@@ -783,7 +811,7 @@ class ImportService {
 			}
 
 			$matches = [];
-			$cells = null;
+			$memo = [];
 			foreach ($stored[$month] as $i => $row) {
 				$storedId = $row['import_id'] ?? '';
 				if (!str_starts_with($storedId, 'hash_')
@@ -793,8 +821,7 @@ class ImportService {
 					|| MoneyCalculator::compare($row['amount'], (float)($transaction['amount'] ?? 0), 8) !== 0) {
 					continue;
 				}
-				$cells ??= self::cellWords($line['cells']);
-				if (self::couldHaveStored($row, $texts, $cells)) {
+				if ($this->couldHaveStored($row, $line, $texts, $memo, $userId, $rules)) {
 					$matches[] = $month . '|' . $i;
 				}
 			}
@@ -844,20 +871,247 @@ class ImportService {
 	 * mapping (see linesImportedBefore()).
 	 *
 	 * @param array<string, mixed> $row The stored row
+	 * @param array{index: array-key, accountId: int, importId: string, transaction: array, cells: array} $line From scanFileRows()
 	 * @param string[] $texts The line's description and payee as this import maps them, comparable
-	 * @param list<list<string>> $cells The line's cells, from cellWords()
+	 * @param array<string, mixed> $memo What was worked out about the line for an earlier stored row
+	 * @param \OCA\Budget\Db\ImportRule[]|null $rules The user's rules, read when first needed
 	 */
-	private static function couldHaveStored(array $row, array $texts, array $cells): bool {
-		$theirs = self::comparableTexts([$row['description'] ?? null, $row['vendor'] ?? null]);
-		if ($theirs === []) {
-			return false;
-		}
-		foreach ([...$theirs, ...self::comparableTexts([$row['reference'] ?? null])] as $text) {
+	private function couldHaveStored(array $row, array $line, array $texts, array &$memo, string $userId, ?array &$rules): bool {
+		/** @var list<list<string>> $cells */
+		$cells = $memo['cells'] ??= self::cellWords($line['cells']);
+		$description = $row['description'] ?? null;
+		$reference = $row['reference'] ?? null;
+		foreach (self::comparableTexts([$description, $reference]) as $text) {
 			if (!self::builtFromCells($text, $cells)) {
-				return false;
+				// Changed since it was imported: its import id still holds what that import read
+				$read = $this->hashedTexts($row, $line, $memo);
+				if ($read === null) {
+					return false;
+				}
+				[$description, $reference] = $read;
+				break;
 			}
 		}
-		return self::allTextsFound($theirs, $texts) || self::allTextsFound($texts, $theirs);
+
+		$theirs = self::comparableTexts([$description]);
+		$payee = self::comparableTexts([$row['vendor'] ?? null]);
+		if ($payee === [] || self::builtFromCells($payee[0], $cells)) {
+			return self::foundEitherWay([...$theirs, ...$payee], $texts);
+		}
+		// A payee the user's rules gave the row stands for the one they were
+		// given: no payee, or one of the line's cells
+		/** @var list<?string> $given */
+		$given = $memo['payees'] ??= self::payeesRead($line['cells']);
+		foreach ($given as $payeeRead) {
+			if (self::foundEitherWay([...$theirs, ...self::comparableTexts([$payeeRead])], $texts)
+				&& $this->rulesGivePayee($payee[0], $payeeRead, $row, $line, $description, $reference, $userId, $rules)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Whether every text of the stored row is found in the line's texts, or
+	 * every text of the line in the stored row's (see allTextsFound()).
+	 *
+	 * @param string[] $theirs The stored row's texts, comparable
+	 * @param string[] $texts The line's texts as this import maps them, comparable
+	 */
+	private static function foundEitherWay(array $theirs, array $texts): bool {
+		return $theirs !== [] && (self::allTextsFound($theirs, $texts) || self::allTextsFound($texts, $theirs));
+	}
+
+	/**
+	 * The payees an import could have read from a line: none first, then
+	 * each of its cells, trimmed, once.
+	 *
+	 * @param array<array-key, mixed> $cells The line's cells
+	 * @return list<?string>
+	 */
+	private static function payeesRead(array $cells): array {
+		$payees = ['' => null];
+		foreach ($cells as $cell) {
+			$cell = is_scalar($cell) ? trim((string)$cell) : '';
+			if ($cell !== '') {
+				$payees[$cell] = $cell;
+			}
+		}
+		return array_values($payees);
+	}
+
+	/**
+	 * Whether the user's import rules turn this payee into the stored row's,
+	 * on the line as the import that stored the row read it: with that row's
+	 * description, reference and notes. So a rule that names the shop after a
+	 * word of the description, one that matches the whole description an
+	 * earlier mapping read, one that fills in an empty payee and one that
+	 * tidies a payee column all give it again, whichever columns this import
+	 * maps.
+	 *
+	 * @param string $payee The stored row's payee, comparable
+	 * @param ?string $read The payee that import read: none, or one of the line's cells
+	 * @param array<string, mixed> $row The stored row
+	 * @param array{index: array-key, accountId: int, importId: string, transaction: array, cells: array} $line From scanFileRows()
+	 * @param \OCA\Budget\Db\ImportRule[]|null $rules The user's rules, read here when null
+	 */
+	private function rulesGivePayee(string $payee, ?string $read, array $row, array $line, ?string $description, ?string $reference, string $userId, ?array &$rules): bool {
+		$rules ??= $this->ruleApplicator->rulesFor($userId);
+		if ($rules === []) {
+			return false;
+		}
+		$transaction = $this->withAccountContext(array_merge($line['transaction'], [
+			'description' => (string)$description,
+			'reference' => $reference,
+			'notes' => $row['notes'] ?? null,
+			'vendor' => $read,
+		]), $line['accountId'], $userId);
+		try {
+			$ruled = $this->ruleApplicator->applyRules($userId, $transaction, $rules);
+		} catch (\Exception $e) {
+			return false;
+		}
+		return self::comparableTexts([$ruled['vendor'] ?? null]) === [$payee];
+	}
+
+	/**
+	 * The description and reference the import that stored the row read from
+	 * this line, before any rule ran: the row's import id is the line's
+	 * content hash under some mapping (TransactionNormalizer::generateImportId(),
+	 * less the _occN/_dupN an import adds). A description the row still holds
+	 * as the line's cells read is the one read, and one a rule or a hand edit
+	 * changed was one to three of the line's cells joined in column order
+	 * (cellJoins()). The reference is the one from referencesRead(). Null when
+	 * no such mapping gives that id, which is so for every other line whose
+	 * texts a rule makes alike.
+	 *
+	 * @param array<string, mixed> $row The stored row
+	 * @param array{index: array-key, accountId: int, importId: string, transaction: array, cells: array} $line From scanFileRows()
+	 * @param array<string, mixed> $memo What was worked out about the line for an earlier stored row
+	 * @return array{0: string, 1: ?string}|null
+	 */
+	private function hashedTexts(array $row, array $line, array &$memo): ?array {
+		$id = (string)preg_replace('/(?:_(?:occ|dup)\d+)+$/', '', (string)($row['import_id'] ?? ''));
+		/** @var list<list<string>> $cells */
+		$cells = $memo['cells'];
+		$description = trim((string)($row['description'] ?? ''));
+		$comparable = self::comparableTexts([$description]);
+		$unchanged = $comparable !== [] && self::builtFromCells($comparable[0], $cells);
+
+		foreach (self::referencesRead($row['reference'] ?? null, $line['cells'], $cells) as $reference) {
+			if ($unchanged) {
+				$read = $this->contentHash($line, $description, $reference) === $id ? $description : null;
+			} else {
+				// Every join of the line's cells, hashed once per line and reference
+				/** @var array<string, array<string, string>> $joins */
+				$joins = $memo['joins'] ?? [];
+				$joins[$reference] ??= $this->joinHashes($line, $reference);
+				$memo['joins'] = $joins;
+				$read = $joins[$reference][$id] ?? null;
+			}
+			if ($read !== null) {
+				// As the import read it before any rule ran: trimmed, blank as none
+				return [$read, trim($reference) === '' ? null : trim($reference)];
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * The references the import that stored the row could have read from the
+	 * line, as their cells read, untrimmed (#340). A row stored with none was
+	 * hashed with none, or a blank cell. One the row still holds as the
+	 * line's cells read was read as it is stored (a join of several columns)
+	 * or as a cell that reads the same, which are tried first, or none if a
+	 * rule set it to that. One a rule or a hand edit changed could have been
+	 * none, or any cell.
+	 *
+	 * @param mixed $stored The stored row's reference
+	 * @param array<array-key, mixed> $raw The line's cells
+	 * @param list<list<string>> $cells The line's cells, from cellWords()
+	 * @return list<string>
+	 */
+	private static function referencesRead(mixed $stored, array $raw, array $cells): array {
+		$stored = is_scalar($stored) ? trim((string)$stored) : '';
+		$comparable = self::comparableTexts([$stored]);
+		$unchanged = $comparable !== [] && self::builtFromCells($comparable[0], $cells);
+		$references = $unchanged ? [$stored => true] : ['' => true];
+		foreach ($raw as $cell) {
+			if (!is_scalar($cell) || (string)$cell === '') {
+				continue;
+			}
+			$cell = (string)$cell;
+			$trimmed = trim($cell);
+			if ($stored === '' ? $trimmed === '' : (!$unchanged || self::comparableTexts([$trimmed]) === $comparable)) {
+				$references[$cell] = true;
+			}
+		}
+		$references[''] = true;
+		return array_map('strval', array_keys($references));
+	}
+
+	/**
+	 * The content hash of every description one to three of the line's cells
+	 * give (cellJoins()), with this reference.
+	 *
+	 * @param array{index: array-key, accountId: int, importId: string, transaction: array, cells: array} $line From scanFileRows()
+	 * @return array<string, string> The description behind each hash, by hash
+	 */
+	private function joinHashes(array $line, string $reference): array {
+		$parts = [];
+		foreach ($line['cells'] as $cell) {
+			$cell = is_scalar($cell) ? trim((string)$cell) : '';
+			if ($cell !== '') {
+				$parts[] = $cell;
+			}
+		}
+		$hashes = [];
+		foreach (self::cellJoins($parts) as $description) {
+			$hashes[$this->contentHash($line, $description, $reference)] = $description;
+		}
+		return $hashes;
+	}
+
+	/**
+	 * The import id a mapping that read this description and reference gives
+	 * the line (TransactionNormalizer::generateImportId()).
+	 *
+	 * @param array{index: array-key, accountId: int, importId: string, transaction: array, cells: array} $line From scanFileRows()
+	 */
+	private function contentHash(array $line, string $description, string $reference): string {
+		return $this->normalizer->generateImportId('scan', 0, [
+			'date' => $line['transaction']['date'] ?? '',
+			'amount' => $line['transaction']['amount'] ?? '',
+			'_hashDescription' => $description,
+			'_hashReference' => $reference,
+		]);
+	}
+
+	/**
+	 * Every text one to three of a line's cells give, joined in column order
+	 * the way a mapping joins the columns it maps
+	 * (TransactionNormalizer::joinMappedColumns()). On a line of more than
+	 * MAX_CELLS_JOINED_BY_THREE cells, one or two: three of thirty cells are
+	 * four thousand texts to hash for every such line.
+	 *
+	 * @param list<string> $parts The line's non-blank cells, trimmed, in column order
+	 * @return list<string>
+	 */
+	private static function cellJoins(array $parts): array {
+		$glue = TransactionNormalizer::TEXT_JOIN_SEPARATOR;
+		$joins = [];
+		$count = count($parts);
+		$byThree = $count <= self::MAX_CELLS_JOINED_BY_THREE;
+		for ($a = 0; $a < $count; $a++) {
+			$joins[$parts[$a]] = true;
+			for ($b = $a + 1; $b < $count; $b++) {
+				$joins[$parts[$a] . $glue . $parts[$b]] = true;
+				for ($c = $b + 1; $byThree && $c < $count; $c++) {
+					$joins[$parts[$a] . $glue . $parts[$b] . $glue . $parts[$c]] = true;
+				}
+			}
+		}
+		return array_map('strval', array_keys($joins));
 	}
 
 	/**
@@ -1223,7 +1477,7 @@ class ImportService {
 			return $accountIdsByName[$name];
 		});
 		$fileIds = self::fileImportIds($lines);
-		$importedBefore = $preset === null ? $this->linesImportedBefore($lines, $fileIds) : [];
+		$importedBefore = $preset === null ? $this->linesImportedBefore($lines, $fileIds, $userId, $applyRules ? $rules : null) : [];
 
 		foreach ($data as $index => $row) {
 			try {
@@ -1859,7 +2113,7 @@ class ImportService {
 				return $name === '' ? $accountId : ($resolvedAccounts[$name] ?? null);
 			});
 			$fileIds = self::fileImportIds($lines);
-			$importedBefore = $preset === null ? $this->linesImportedBefore($lines, $fileIds) : [];
+			$importedBefore = $preset === null ? $this->linesImportedBefore($lines, $fileIds, $userId, $applyRules ? $rules : null) : [];
 		}
 
 		foreach ($data as $index => $row) {
