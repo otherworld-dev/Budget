@@ -164,3 +164,32 @@ describe.each([
         }
     });
 });
+
+describe('the Transactions list\'s bordered box, from top to bottom', () => {
+    // It took the whole view's height (#280), to give the column menu and the
+    // inline pickers room below a short table. The view is a stretched flex
+    // item, so with the filters open the box ran on past the paging by their
+    // height, an empty bordered area (#399, browser round 6). The menu is
+    // outside the scrolling box now, and the pickers are fixed to the window
+    // (inlineEditorPopups.test.js), so the box ends at its content.
+    it.each([
+        ['above phone width', WIDE],
+        ['on a phone', PHONE],
+    ])('ends at its content %s', (_label, options) => {
+        const container = document.querySelector('#transactions-view .table-container');
+        const declared = cascadedDeclarations(container, 'light', options);
+
+        expect(declared.height ?? 'auto').toBe('auto');
+        expect(declared['min-height'] ?? '0').toMatch(/^(0|auto)$/);
+        expect(declared.flex ?? '').not.toMatch(/^1/);
+    });
+
+    it('leaves the column menu outside anything that scrolls, so a short table doesn\'t cut it off', () => {
+        const menu = document.getElementById('column-config-dropdown');
+        for (const options of [WIDE, PHONE]) {
+            for (let node = menu.parentElement; node && node.id !== 'app-content'; node = node.parentElement) {
+                expect(scrollsSideways(node, options)).toBe(false);
+            }
+        }
+    });
+});

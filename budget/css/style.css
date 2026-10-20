@@ -3756,6 +3756,12 @@ button.danger:hover {
 }
 
 /* Enhanced Transaction Table */
+/* The box ends at its content. It used to fill the view's height (#280),
+   to give the column menu and the inline pickers room below a short
+   table, but the view is a stretched flex item, so with the filters open
+   it ran on past the paging, an empty bordered area (#399). Neither needs
+   the room now: the menu is outside .table-scroll and the pickers are
+   fixed to the window (utils/cellPopup.js). transactionListBar.test.js. */
 .table-container {
     width: 100%;
     background: var(--color-main-background);
@@ -3770,13 +3776,6 @@ button.danger:hover {
    wrapper's right edge. transactionListBar.test.js. */
 .table-scroll {
     overflow-x: auto;
-}
-
-/* Fill the available height so the table area is tall even with few rows.
-   This gives the in-cell editors and the column-config menu room to open
-   instead of being clipped against a short container (#280). */
-#transactions-view .table-container {
-    height: 100%;
 }
 
 .table-header {
