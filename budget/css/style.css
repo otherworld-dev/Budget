@@ -9708,6 +9708,9 @@ label .required {
     gap: 6px;
     font-size: 14px;
     color: var(--color-text-maxcontrast);
+    /* A date that has to wrap ('Received …, next expected …' beside the
+       buttons at 1440px, #399) breaks between its halves, not after 'next' */
+    text-wrap: balance;
 }
 
 .bill-due-date span {
@@ -10398,6 +10401,9 @@ body[data-theme-dark-highcontrast] .bill-status.due-soon .status-badge:not(.badg
     gap: 6px;
     font-size: 14px;
     color: var(--color-text-maxcontrast);
+    /* A date that has to wrap ('Received …, next expected …' beside the
+       buttons at 1440px, #399) breaks between its halves, not after 'next' */
+    text-wrap: balance;
 }
 
 .income-next-date span {
