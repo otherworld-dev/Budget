@@ -18842,6 +18842,32 @@ button.secondary.compact {
     font-weight: 500;
 }
 
+/* The table is wider than its card at 1440px and at 800px, and scrolling it
+   sideways took the bill names with it (#399). The names stay on the left,
+   on a solid background so the months pass under them; the inset shadows
+   stand in for the borders, which a collapsed table leaves behind. */
+.bills-calendar-table .bill-name-col {
+    position: sticky;
+    inset-inline-start: 0;
+    z-index: 1;
+    background-color: var(--color-main-background);
+    box-shadow: inset -1px 0 0 var(--color-border), inset 0 -1px 0 var(--color-border);
+}
+
+.bills-calendar-table thead .bill-name-col {
+    z-index: 2;
+    background-color: var(--color-background-hover);
+}
+
+.bills-calendar-table tbody tr:hover .bill-name-col {
+    background-color: var(--color-background-hover);
+}
+
+/* The totals rows' 5% black, made solid */
+.bills-calendar-table .totals-row .bill-name-col {
+    background-color: color-mix(in srgb, var(--color-main-background), black 5%);
+}
+
 .bills-calendar-table .month-cell {
     text-align: right;
     padding-right: 8px;
