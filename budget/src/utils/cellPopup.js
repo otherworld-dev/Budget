@@ -39,20 +39,57 @@ export function placeCellPopup(popup, anchor) {
 }
 
 /**
+ * Whether `anchor` has scrolled right out of the list's box (.table-scroll)
+ * round it: past its top, under the header row stuck there, or past its
+ * bottom or sides. The page scrolling the whole box along doesn't count,
+ * nor does a box that isn't laid out (a phone's cards scroll with the page).
+ */
+export function scrolledOutOfBox(anchor) {
+    const box = anchor.closest('.table-scroll');
+    if (!box) return false;
+    const area = box.getBoundingClientRect();
+    if (!area.height || !area.width) return false;
+
+    let top = area.top;
+    const th = [...box.querySelectorAll('thead th')].find(el => el.getBoundingClientRect().height > 0);
+    if (th) {
+        // The header row is stuck at the top of the box above phone width
+        const head = th.getBoundingClientRect();
+        if (head.top >= area.top - 1 && head.bottom > top) top = head.bottom;
+    }
+
+    const cell = anchor.getBoundingClientRect();
+    return cell.bottom <= top || cell.top >= area.bottom
+        || cell.right <= area.left || cell.left >= area.right;
+}
+
+/**
  * Fix `popup` to the window next to `anchor`, and keep it there while
  * anything scrolls (the page, the table's box) or the window is resized.
  * It lets go of those events once the popup has left the page, which it
  * does when the table is drawn again at the end of the edit.
  *
+ * Once the rows scroll the anchor right out of the list's box, `onHidden`
+ * is called, once, instead: the editors close without saving, as Escape
+ * does, rather than leave the popup over the bar, the header row or the
+ * paging (#399).
+ *
  * @returns {() => void} places the popup again, for after its content changes
  */
-export function floatCellPopup(popup, anchor) {
+export function floatCellPopup(popup, anchor, { onHidden = null } = {}) {
     popup.classList.add('cell-popup');
 
+    let hidden = false;
     const follow = () => {
-        if (!popup.isConnected) {
+        if (!popup.isConnected || hidden) {
             window.removeEventListener('scroll', follow, true);
             window.removeEventListener('resize', follow);
+            return;
+        }
+        if (onHidden && scrolledOutOfBox(anchor)) {
+            hidden = true;
+            popup.style.display = 'none';
+            onHidden();
             return;
         }
         if (popup.style.display !== 'none') placeCellPopup(popup, anchor);

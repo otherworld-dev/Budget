@@ -255,3 +255,118 @@ describe('the popup\'s look', () => {
         expect(cascadedDeclarations(cell('cat3'), 'light', { ...WIDE, hover: true }).opacity).toBe('1');
     });
 });
+
+describe('a popup whose cell scrolls out of the list\'s box (#399, round 7)', () => {
+    // Above phone width the box scrolls the rows too, with the header row
+    // stuck to its top. A popup following its cell out past the box's
+    // edge hung over the bar, the header row or the paging, so it closes
+    // without saving, as Escape does, once the cell is out of sight.
+    const BOX = { top: 180, left: 317, width: 946, height: 548 };
+    let popup;
+    let anchor;
+    let onHidden;
+
+    const scrollBox = () => document.querySelector('.table-scroll').dispatchEvent(new Event('scroll'));
+
+    beforeEach(() => {
+        rects.set(document.querySelector('.table-scroll'), BOX);
+        anchor = cell('cat1');
+        popup = document.createElement('div');
+        popup.className = 'category-autocomplete-dropdown';
+        anchor.appendChild(popup);
+        onHidden = vi.fn();
+        rects.set(anchor, { top: 400, left: 500, width: 120, height: 49 });
+        floatCellPopup(popup, anchor, { onHidden });
+    });
+
+    it('keeps following the cell while any of it is in the box', () => {
+        rects.set(anchor, { top: 150, left: 500, width: 120, height: 49 });
+        scrollBox();
+        expect(onHidden).not.toHaveBeenCalled();
+        expect(px(popup.style.top)).toBe(199);
+
+        rects.set(anchor, { top: 700, left: 500, width: 120, height: 49 });
+        scrollBox();
+        expect(onHidden).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ['off the top', { top: 120, left: 500, width: 120, height: 49 }],
+        ['off the bottom', { top: 730, left: 500, width: 120, height: 49 }],
+        ['off the left, scrolled sideways', { top: 400, left: 180, width: 120, height: 49 }],
+    ])('closes it, once, when the cell has gone %s', (_label, rect) => {
+        rects.set(anchor, rect);
+        scrollBox();
+        scrollBox();
+
+        expect(onHidden).toHaveBeenCalledTimes(1);
+    });
+
+    it('counts the cell as gone once it is under the stuck header row', () => {
+        const head = document.createElement('thead');
+        head.innerHTML = '<tr><th class="date-column"></th></tr>';
+        document.getElementById('transactions-table').prepend(head);
+        rects.set(head.querySelector('th'), { top: 180, left: 317, width: 90, height: 49 });
+
+        rects.set(anchor, { top: 190, left: 500, width: 120, height: 49 });
+        scrollBox();
+        expect(onHidden).not.toHaveBeenCalled();
+
+        rects.set(anchor, { top: 175, left: 500, width: 120, height: 49 });
+        scrollBox();
+        expect(onHidden).toHaveBeenCalledTimes(1);
+    });
+
+    it('leaves a cell alone when the page scrolls it out of the window, not the box', () => {
+        // The page scrolls the whole box with it; only the box clips the cell
+        rects.set(document.querySelector('.table-scroll'), { ...BOX, top: -600 });
+        rects.set(anchor, { top: -300, left: 500, width: 120, height: 49 });
+        window.dispatchEvent(new Event('scroll'));
+
+        expect(onHidden).not.toHaveBeenCalled();
+    });
+});
+
+describe('the inline pickers when their cell scrolls out of the list\'s box', () => {
+    beforeEach(() => {
+        rects.set(document.querySelector('.table-scroll'), { top: 180, left: 317, width: 946, height: 548 });
+    });
+
+    it('closes the category picker without saving, even after the arrow keys moved', () => {
+        rects.set(cell('cat1'), { top: 400, left: 500, width: 120, height: 49 });
+        const mod = makeModule();
+        mod.createCategoryEditor(cell('cat1'), '20', TX);
+        const input = cell('cat1').querySelector('.category-autocomplete-input');
+        Element.prototype.scrollIntoView = vi.fn();
+        input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+        delete Element.prototype.scrollIntoView;
+
+        rects.set(cell('cat1'), { top: 760, left: 500, width: 120, height: 49 });
+        document.querySelector('.table-scroll').dispatchEvent(new Event('scroll'));
+
+        expect(mod.cancelInlineEdit).toHaveBeenCalledWith(cell('cat1'));
+        expect(mod.saveInlineEdit).not.toHaveBeenCalled();
+        expect(cell('cat1').querySelector('.category-autocomplete-dropdown').style.display).toBe('none');
+
+        // and a late Enter doesn't save it either
+        input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+        expect(mod.saveInlineEdit).not.toHaveBeenCalled();
+    });
+
+    it('closes the tag picker without saving the ticked tags', async () => {
+        rects.set(cell('tags1'), { top: 400, left: 640, width: 100, height: 49 });
+        const mod = makeModule();
+        mod.saveTagsFromEditor = vi.fn();
+        await mod.createTagsEditor(cell('tags1'), TX);
+        cell('tags1').querySelector('.tags-autocomplete-item').dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+
+        rects.set(cell('tags1'), { top: 100, left: 640, width: 100, height: 49 });
+        document.querySelector('.table-scroll').dispatchEvent(new Event('scroll'));
+
+        expect(mod.cancelInlineEdit).toHaveBeenCalledWith(cell('tags1'));
+        expect(mod.saveTagsFromEditor).not.toHaveBeenCalled();
+
+        cell('tags1').querySelector('.tags-autocomplete-input').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+        expect(mod.saveTagsFromEditor).not.toHaveBeenCalled();
+    });
+});

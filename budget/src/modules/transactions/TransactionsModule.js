@@ -4959,8 +4959,12 @@ export default class TransactionsModule {
 
         container.appendChild(input);
         container.appendChild(dropdown);
-        // Fixed to the window, so the table's scrolling box can't cut it off (#399)
-        const placeDropdown = floatCellPopup(dropdown, container);
+        // Fixed to the window, so the table's scrolling box can't cut it off,
+        // and closed as Escape closes it once the rows scroll the cell out of
+        // the box (#399)
+        const placeDropdown = floatCellPopup(dropdown, container, {
+            onHidden: () => finish(() => this.cancelInlineEdit(cell)),
+        });
 
         const showDropdown = (filter = '') => {
             const filtered = filter
@@ -5168,8 +5172,12 @@ export default class TransactionsModule {
 
             container.appendChild(input);
             container.appendChild(dropdown);
-            // Fixed to the window, so the table's scrolling box can't cut it off (#399)
-            const placeDropdown = floatCellPopup(dropdown, container);
+            // Fixed to the window, so the table's scrolling box can't cut it
+            // off, and closed as Escape closes it once the rows scroll the
+            // cell out of the box (#399)
+            const placeDropdown = floatCellPopup(dropdown, container, {
+                onHidden: () => finish(false),
+            });
 
             const allTags = [];
 
