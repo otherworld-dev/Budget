@@ -607,6 +607,12 @@ export default class ReportsModule {
         if (csvBtn) csvBtn.style.display = exportable ? '' : 'none';
         if (pdfBtn) pdfBtn.style.display = exportable ? '' : 'none';
 
+        // The Bills Calendar has its own Year and Account: Period, the
+        // account checklist and the tag filter did nothing for it, yet stayed
+        // on screen (#399). css/style.css hides them for it by this attribute.
+        const controls = document.querySelector('.reports-controls');
+        if (controls) controls.dataset.reportType = reportType;
+
         // Keep the date range in step with the period selector so the report
         // always matches the shown period (the selector persists the user's last
         // choice on reopen); a custom range keeps its own dates (#300).
@@ -1705,6 +1711,9 @@ export default class ReportsModule {
         const dropdown = document.getElementById('bills-calendar-account');
         if (!dropdown) return;
 
+        // Rebuilt each time the report is shown, for accounts added since;
+        // the account the user picked stays picked (#399)
+        const picked = dropdown.value;
         dropdown.innerHTML = '';
         const allOption = document.createElement('option');
         allOption.value = '';
@@ -1718,6 +1727,9 @@ export default class ReportsModule {
                 option.textContent = account.name;
                 dropdown.appendChild(option);
             });
+        }
+        if ([...dropdown.options].some(o => o.value === picked)) {
+            dropdown.value = picked;
         }
     }
 
@@ -1760,6 +1772,9 @@ export default class ReportsModule {
         if (!yearSelect) return;
 
         const currentYear = new Date().getFullYear();
+        // Generate Report shows the calendar again, and put a user looking
+        // at another year back on this one (#399)
+        const picked = Number(yearSelect.value) || currentYear;
         yearSelect.innerHTML = '';
 
         // Add 5 years: 2 past, current, 2 future
@@ -1767,9 +1782,9 @@ export default class ReportsModule {
             const option = document.createElement('option');
             option.value = year;
             option.textContent = year;
-            if (year === currentYear) option.selected = true;
             yearSelect.appendChild(option);
         }
+        yearSelect.value = String(picked >= currentYear - 2 && picked <= currentYear + 2 ? picked : currentYear);
     }
 
     async generateBillsCalendar() {

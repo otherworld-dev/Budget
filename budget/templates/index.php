@@ -3200,7 +3200,7 @@ style('budget', 'budget-app');
                     </select>
                 </div>
 
-                <div class="control-group">
+                <div class="control-group report-scope-control">
                     <label for="report-period-preset"><?php p($l->t('Period')); ?></label>
                     <select id="report-period-preset" class="report-select">
                         <option value="this-month"><?php p($l->t('This Month')); ?></option>
@@ -3211,7 +3211,7 @@ style('budget', 'budget-app');
                     </select>
                 </div>
 
-                <div id="custom-date-range" class="control-group custom-range" style="display: none;">
+                <div id="custom-date-range" class="control-group custom-range report-scope-control" style="display: none;">
                     <label><?php p($l->t('Custom Range')); ?></label>
                     <div class="date-range-inputs">
                         <input type="date" id="report-start-date" aria-label="<?php p($l->t('Start date')); ?>">
@@ -3220,26 +3220,26 @@ style('budget', 'budget-app');
                     </div>
                 </div>
 
-                <div class="control-group">
+                <div class="control-group report-scope-control">
                     <label id="report-account-label"><?php p($l->t('Account')); ?></label>
                     <div id="report-account-multiselect" class="custom-multiselect"></div>
                 </div>
 
-                <div class="control-group" id="report-exclude-shared-wrap" style="display: none;">
+                <div class="control-group report-scope-control" id="report-exclude-shared-wrap" style="display: none;">
                     <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                         <input type="checkbox" id="report-exclude-shared">
                         <span><?php p($l->t('Exclude shared accounts')); ?></span>
                     </label>
                 </div>
 
-                <div class="control-group">
+                <div class="control-group report-scope-control">
                     <label for="report-tags-input"><?php p($l->t('Filter by Tags')); ?></label>
                     <div id="report-tags-filter" class="tags-autocomplete">
                         <!-- Populated by JavaScript -->
                     </div>
                 </div>
 
-                <div class="control-group">
+                <div class="control-group report-scope-control">
                     <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                         <input type="checkbox" id="report-include-untagged">
                         <span><?php p($l->t('Include untagged transactions')); ?></span>

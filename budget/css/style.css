@@ -11759,6 +11759,13 @@ label .required {
     gap: 4px;
 }
 
+/* Period, the account checklist and the tag filter don't scope the Bills
+   Calendar, which has its own Year and Account (#399). Important, as the
+   script sets the custom range's and the shared toggle's display inline. */
+.reports-controls[data-report-type="bills-calendar"] .report-scope-control {
+    display: none !important;
+}
+
 .reports-controls .control-group label {
     font-size: 12px;
     font-weight: 500;
