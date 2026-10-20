@@ -37,9 +37,8 @@ class BillMapper extends QBMapper {
 		$qb = $this->db->getQueryBuilder();
 		$qb->select('*')
 			->from($this->getTableName())
-			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-			->orderBy('next_due_date', 'ASC')
-			->addOrderBy('name', 'ASC');
+			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+		ScheduleOrder::byNextDate($qb, 'next_due_date');
 
 		return $this->findEntities($qb);
 	}
@@ -72,9 +71,8 @@ class BillMapper extends QBMapper {
 		$qb->select('*')
 			->from($this->getTableName())
 			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-			->andWhere($qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
-			->orderBy('next_due_date', 'ASC')
-			->addOrderBy('name', 'ASC');
+			->andWhere($qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)));
+		ScheduleOrder::byNextDate($qb, 'next_due_date');
 
 		return $this->findEntities($qb);
 	}
@@ -158,8 +156,7 @@ class BillMapper extends QBMapper {
 			));
 		}
 
-		$qb->orderBy('next_due_date', 'ASC')
-			->addOrderBy('name', 'ASC');
+		ScheduleOrder::byNextDate($qb, 'next_due_date');
 
 		return $this->findEntities($qb);
 	}

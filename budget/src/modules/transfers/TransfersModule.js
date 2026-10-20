@@ -3,6 +3,7 @@
  */
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import { once } from '../../utils/submitGuard.js';
+import { keepRowFocus } from '../../utils/rowFocus.js';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { billRowState } from '../../utils/billDates.js';
@@ -15,7 +16,7 @@ import { apiFetch, ApiError } from '../../utils/api.js';
 import { offerableTags, offerableTagSets } from '../../utils/tags.js';
 import { showLoadError } from '../../utils/loading.js';
 import { openAccounts, pickableAccounts, accountOptionLabel, accountCurrency, linkableCandidates } from '../../utils/accounts.js';
-import { requestMarkUnpaid } from '../../utils/billUnpaid.js';
+import { requestMarkUnpaid, markUnpaidQuestion } from '../../utils/billUnpaid.js';
 import { sendPayment, askAboutRecordedPaymentFirst } from '../../utils/paymentRecordedDialog.js';
 import { selectPossiblyUnavailable, unavailableCategoryLabel } from '../../utils/formSelects.js';
 import { isRepeatClick } from '../../utils/doubleClick.js';
@@ -219,6 +220,9 @@ export default class TransfersModule {
             }
         });
 
+        // Pressed from the keyboard, a payment action gives focus back to its row (#399)
+        const transferRow = (transferId) => `#transfers-list .bill-card[data-bill-id="${transferId}"]`;
+
         // Mark transfer as paid
         document.addEventListener('click', (e) => {
             const paidBtn = e.target.closest('.transfer-paid-btn');
@@ -229,7 +233,7 @@ export default class TransfersModule {
                 // paid the transfer whose button had slid under the cursor (#399)
                 if (isRepeatClick(e)) return;
                 const transferId = parseInt(paidBtn.dataset.transferId);
-                this.markTransferPaid(transferId, paidBtn);
+                keepRowFocus(e, transferRow(transferId), '.transfer-paid-btn', () => this.markTransferPaid(transferId, paidBtn));
             }
         });
 
@@ -240,7 +244,7 @@ export default class TransfersModule {
                 e.preventDefault();
                 if (isRepeatClick(e)) return; // as for Mark Paid
                 const transferId = parseInt(skipBtn.dataset.transferId);
-                this.skipTransfer(transferId, skipBtn);
+                keepRowFocus(e, transferRow(transferId), '.transfer-skip-btn', () => this.skipTransfer(transferId, skipBtn));
             }
         });
 
@@ -251,7 +255,7 @@ export default class TransfersModule {
                 e.preventDefault();
                 if (isRepeatClick(e)) return; // as for Mark Paid
                 const transferId = parseInt(unpaidBtn.dataset.transferId);
-                this.markTransferUnpaid(transferId, unpaidBtn);
+                keepRowFocus(e, transferRow(transferId), '.transfer-unpaid-btn', () => this.markTransferUnpaid(transferId, unpaidBtn));
             }
         });
 
@@ -346,7 +350,7 @@ export default class TransfersModule {
                     </div>
                     <div class="bill-details">
                         <div class="bill-due-date">
-                            <span class="icon-calendar" aria-hidden="true"></span>
+                            <span class="icon-calendar-dark" aria-hidden="true"></span>
                             ${dom.escapeHtml(row.dateText)}
                         </div>
                         <div class="bill-status ${statusClass}">
@@ -1203,7 +1207,7 @@ export default class TransfersModule {
 
     async _markTransferUnpaid(transferId) {
         const transfer = this.transfers.find(tx => tx.id === transferId);
-        let message = t('budget', 'Mark this bill as unpaid? Transactions created for the payment will be deleted, a linked imported transaction will be unlinked, and the bill schedule rolled back.');
+        let message = markUnpaidQuestion(transfer);
         const autoPayEnabled = transfer ? (transfer.autoPayEnabled ?? transfer.auto_pay_enabled ?? false) : false;
         if (autoPayEnabled) {
             message += '\n\n' + t('budget', 'Auto-pay is on for this bill — it may pay it again on the next run. Disable auto-pay first if the payment should not recur.');

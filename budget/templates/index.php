@@ -2656,7 +2656,7 @@ style('budget', 'budget-app');
             <div class="bills-summary">
                 <div class="summary-card">
                     <div class="summary-icon">
-                        <span class="icon-calendar" aria-hidden="true"></span>
+                        <span class="icon-calendar-dark" aria-hidden="true"></span>
                     </div>
                     <div class="summary-content">
                         <div class="summary-value" id="bills-due-count">0</div>
@@ -2708,7 +2708,7 @@ style('budget', 'budget-app');
 
                 <div class="empty-bills" id="empty-bills" style="display: none;">
                     <div class="empty-content">
-                        <span class="icon-calendar" aria-hidden="true"></span>
+                        <span class="icon-calendar-dark" aria-hidden="true"></span>
                         <h3><?php p($l->t('No bills yet')); ?></h3>
                         <p><?php p($l->t('Add your recurring bills to track due dates and never miss a payment.')); ?></p>
                         <button class="primary" id="empty-bills-add-btn">
@@ -2855,7 +2855,7 @@ style('budget', 'budget-app');
             <div class="income-summary">
                 <div class="summary-card">
                     <div class="summary-icon">
-                        <span class="icon-calendar" aria-hidden="true"></span>
+                        <span class="icon-calendar-dark" aria-hidden="true"></span>
                     </div>
                     <div class="summary-content">
                         <div class="summary-value" id="income-expected-count">0</div>

@@ -17,6 +17,7 @@ use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\TransactionSplitMapper;
 use OCA\Budget\Db\TransactionTag;
 use OCA\Budget\Db\TransactionTagMapper;
+use OCA\Budget\Db\UndoSnapshotSkips;
 use OCA\Budget\Enum\Currency;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\IDBConnection;
@@ -1408,7 +1409,8 @@ class TransactionService {
 	private static function rowsInPaymentSnapshot(Bill $bill): array {
 		$raw = $bill->getPaidUndoState();
 		$snapshot = ($raw !== null && $raw !== '') ? json_decode($raw, true) : null;
-		if (!is_array($snapshot)) {
+		// While a skip has set it aside Mark Unpaid can't run from it (#399)
+		if (!is_array($snapshot) || UndoSnapshotSkips::setAside($raw)) {
 			return [];
 		}
 
@@ -1805,8 +1807,50 @@ class TransactionService {
 		}
 
 		$result['transactions'] = $this->attachSplitDetails($result['transactions'], $filters);
+		$result['transactions'] = $this->flagLatestBillPayments($result['transactions']);
 
 		return $result;
+	}
+
+	/**
+	 * Say which rows are a bill's latest payment (billLatestPayment), on
+	 * every row a bill still holds (#399). Unlink from bill refuses those
+	 * (detachFromBill()), and the row menu offered it all the same, asked
+	 * for a confirmation, and only then reported the refusal. The same rule
+	 * as the refusal: the row, or its other side, is in the bill's payment
+	 * snapshot. One query for the page's bills.
+	 *
+	 * @param array<int, array<string, mixed>> $rows findWithFilters() rows
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function flagLatestBillPayments(array $rows): array {
+		if ($this->billMapper === null) {
+			return $rows;
+		}
+		$billIds = [];
+		foreach ($rows as $row) {
+			if (($row['billId'] ?? null) !== null && empty($row['billDeleted'])) {
+				$billIds[(int)$row['billId']] = true;
+			}
+		}
+		if ($billIds === []) {
+			return $rows;
+		}
+		$latest = [];
+		foreach ($this->billMapper->findByIds(array_keys($billIds)) as $bill) {
+			$latest[$bill->getId()] = array_flip(self::rowsInPaymentSnapshot($bill));
+		}
+		foreach ($rows as &$row) {
+			if (($row['billId'] ?? null) === null || !empty($row['billDeleted'])) {
+				continue;
+			}
+			$snapshotRows = $latest[(int)$row['billId']] ?? [];
+			$otherSide = $row['linkedTransactionId'] ?? null;
+			$row['billLatestPayment'] = isset($snapshotRows[(int)$row['id']])
+				|| ($otherSide !== null && isset($snapshotRows[(int)$otherSide]));
+		}
+		unset($row);
+		return $rows;
 	}
 
 	/**

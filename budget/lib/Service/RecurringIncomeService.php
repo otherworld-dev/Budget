@@ -8,6 +8,7 @@ use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\RecurringIncome;
 use OCA\Budget\Db\RecurringIncomeMapper;
 use OCA\Budget\Db\ShareItem;
+use OCA\Budget\Db\UndoSnapshotSkips;
 use OCA\Budget\Exception\ReadOnlyShareException;
 use OCA\Budget\Service\Bill\FrequencyCalculator;
 use OCA\Budget\Service\Bill\OneTimeSettlement;
@@ -187,7 +188,7 @@ class RecurringIncomeService extends AbstractCrudService {
 					$kept['nextExpectedDate'] = $next;
 					$kept['startDate'] = $next;
 					$income->setReceivedUndoState(json_encode($kept));
-				} elseif ($income->canUndoReceived()) {
+				} elseif ($income->getReceivedUndoState() !== null && $income->getReceivedUndoState() !== '') {
 					$income->setReceivedUndoState(null);
 					$directDbUpdates['received_undo_state'] = null;
 				}
@@ -411,7 +412,8 @@ class RecurringIncomeService extends AbstractCrudService {
 		$income = $this->find($id, $userId);
 		$raw = $income->getReceivedUndoState();
 		$snapshot = ($raw !== null && $raw !== '') ? json_decode($raw, true) : null;
-		if (!is_array($snapshot) || !array_key_exists('nextExpectedDate', $snapshot)) {
+		// Set aside by a skip, it would bring back a date from before the skip (#399)
+		if (!is_array($snapshot) || !array_key_exists('nextExpectedDate', $snapshot) || UndoSnapshotSkips::setAside($raw)) {
 			throw new \InvalidArgumentException($this->l->t('This income has no recorded receipt to undo'));
 		}
 
@@ -665,11 +667,14 @@ class RecurringIncomeService extends AbstractCrudService {
 		return $dates;
 	}
 
-	/** The undo snapshot Mark Received left on the income, or null */
+	/**
+	 * The undo snapshot Mark Received left on the income, or null; null too
+	 * while a skip has set it aside, as the skip settled a later occurrence
+	 */
 	private function receiptSnapshot(RecurringIncome $income): ?array {
 		$raw = $income->getReceivedUndoState();
 		$snapshot = ($raw !== null && $raw !== '') ? json_decode($raw, true) : null;
-		return is_array($snapshot) && array_key_exists('nextExpectedDate', $snapshot) ? $snapshot : null;
+		return is_array($snapshot) && array_key_exists('nextExpectedDate', $snapshot) && !UndoSnapshotSkips::setAside($raw) ? $snapshot : null;
 	}
 
 	/**
@@ -758,8 +763,11 @@ class RecurringIncomeService extends AbstractCrudService {
 
 		// One cycle on, as a receipt moves it, and claimed like one: two skips
 		// of one payment both went through. Undoing an earlier receipt now
-		// would bring back a pre-skip date, so its snapshot goes in the same write.
-		$claimed = $this->claimPayment($income, $previousNextExpectedDate, ['received_undo_state' => null]);
+		// would bring back a pre-skip date, so the same write sets its
+		// snapshot aside until the skip is undone (#399)
+		$claimed = $this->claimPayment($income, $previousNextExpectedDate, [
+			'received_undo_state' => UndoSnapshotSkips::skip($income->getReceivedUndoState(), $previousNextExpectedDate),
+		]);
 		if ($claimed === null) {
 			throw new \InvalidArgumentException($this->l->t('This date was already paid or skipped. Reload the page to see the next one.'));
 		}
@@ -777,6 +785,11 @@ class RecurringIncomeService extends AbstractCrudService {
 	public function undoSkip(int $id, string $userId, string $previousNextExpectedDate): RecurringIncome {
 		$income = $this->find($id, $userId);
 		$income->setNextExpectedDate($previousNextExpectedDate);
+		// The receipt before the skip can be marked unreceived again (#399)
+		$snapshot = UndoSnapshotSkips::unskip($income->getReceivedUndoState(), $previousNextExpectedDate);
+		if ($snapshot !== $income->getReceivedUndoState()) {
+			$income->setReceivedUndoState($snapshot);
+		}
 		return $this->mapper->update($income);
 	}
 

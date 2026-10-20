@@ -3,6 +3,7 @@
  */
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import { once } from '../../utils/submitGuard.js';
+import { keepRowFocus } from '../../utils/rowFocus.js';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning, showInfo, showUndoNotification } from '../../utils/notifications.js';
@@ -122,7 +123,7 @@ export default class IncomeModule {
                     </div>
                     <div class="income-details">
                         <div class="income-next-date">
-                            <span class="icon-calendar" aria-hidden="true"></span>
+                            <span class="icon-calendar-dark" aria-hidden="true"></span>
                             ${dom.escapeHtml(row.dateText)}
                         </div>
                         <div class="income-status ${statusClass}">
@@ -309,14 +310,16 @@ export default class IncomeModule {
                     return;
                 }
 
+                // Pressed from the keyboard, they give focus back to the row (#399)
+                const incomeRow = (incomeId) => `#income-list .income-card[data-income-id="${incomeId}"]`;
                 if (receivedBtn) {
                     const incomeId = parseInt(receivedBtn.dataset.incomeId);
-                    this.markIncomeReceived(incomeId, receivedBtn);
+                    keepRowFocus(e, incomeRow(incomeId), '.income-received-btn', () => this.markIncomeReceived(incomeId, receivedBtn));
                 }
 
                 if (skipBtn) {
                     const incomeId = parseInt(skipBtn.dataset.incomeId);
-                    this.skipIncome(incomeId, skipBtn);
+                    keepRowFocus(e, incomeRow(incomeId), '.income-skip-btn', () => this.skipIncome(incomeId, skipBtn));
                 }
             });
         }

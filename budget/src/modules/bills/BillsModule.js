@@ -3,6 +3,7 @@
  */
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import { once } from '../../utils/submitGuard.js';
+import { keepRowFocus } from '../../utils/rowFocus.js';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { billRowState, oneTimeDateUnconfirmed } from '../../utils/billDates.js';
@@ -15,7 +16,7 @@ import { showMatchingTransactionDialog } from '../../utils/matchingDialog.js';
 import { offerableTags, offerableTagSets } from '../../utils/tags.js';
 import { pickableAccounts, accountOptionLabel, selectAccountValue, accountCurrency, linkableCandidates, billAccountsWritable } from '../../utils/accounts.js';
 import { showLoadError } from '../../utils/loading.js';
-import { requestMarkUnpaid } from '../../utils/billUnpaid.js';
+import { requestMarkUnpaid, markUnpaidQuestion } from '../../utils/billUnpaid.js';
 import { sendPayment, askAboutRecordedPaymentFirst } from '../../utils/paymentRecordedDialog.js';
 import { unavailableCategoryLabel } from '../../utils/formSelects.js';
 import { isRepeatClick } from '../../utils/doubleClick.js';
@@ -366,7 +367,7 @@ export default class BillsModule {
                     </div>
                     <div class="bill-details">
                         <div class="bill-due-date">
-                            <span class="icon-calendar" aria-hidden="true"></span>
+                            <span class="icon-calendar-dark" aria-hidden="true"></span>
                             ${dom.escapeHtml(row.dateText)}
                         </div>
                         <div class="bill-status ${statusClass}">
@@ -602,7 +603,9 @@ export default class BillsModule {
             });
         }
 
-        // Delegated event handlers for bill actions
+        // Delegated event handlers for bill actions. Pressed from the
+        // keyboard, a payment action gives focus back to its row (#399)
+        const billRow = (billId) => `#bills-list .bill-card[data-bill-id="${billId}"]`;
         document.addEventListener('click', (e) => {
             if (e.target.classList.contains('bill-edit-btn') || e.target.closest('.bill-edit-btn')) {
                 const button = e.target.classList.contains('bill-edit-btn') ? e.target : e.target.closest('.bill-edit-btn');
@@ -619,17 +622,17 @@ export default class BillsModule {
                 if (isRepeatClick(e)) return;
                 const button = e.target.classList.contains('bill-paid-btn') ? e.target : e.target.closest('.bill-paid-btn');
                 const billId = parseInt(button.dataset.billId);
-                this.markBillPaid(billId, button);
+                keepRowFocus(e, billRow(billId), '.bill-paid-btn', () => this.markBillPaid(billId, button));
             } else if (e.target.classList.contains('bill-skip-btn') || e.target.closest('.bill-skip-btn')) {
                 if (isRepeatClick(e)) return; // as for Mark Paid
                 const button = e.target.classList.contains('bill-skip-btn') ? e.target : e.target.closest('.bill-skip-btn');
                 const billId = parseInt(button.dataset.billId);
-                this.skipBillPayment(billId, button);
+                keepRowFocus(e, billRow(billId), '.bill-skip-btn', () => this.skipBillPayment(billId, button));
             } else if (e.target.classList.contains('bill-unpaid-btn') || e.target.closest('.bill-unpaid-btn')) {
                 if (isRepeatClick(e)) return; // as for Mark Paid
                 const button = e.target.classList.contains('bill-unpaid-btn') ? e.target : e.target.closest('.bill-unpaid-btn');
                 const billId = parseInt(button.dataset.billId);
-                this.markBillUnpaid(billId, button);
+                keepRowFocus(e, billRow(billId), '.bill-unpaid-btn', () => this.markBillUnpaid(billId, button));
             }
         });
     }
@@ -1509,9 +1512,9 @@ export default class BillsModule {
     async _markBillUnpaid(billId) {
         const bill = (this.bills || []).find(b => b.id === billId);
         // Created transactions are deleted; a payment recorded by linking an
-        // imported transaction is only unlinked — the copy must not claim a
-        // deletion that will not happen.
-        let message = t('budget', 'Mark this bill as unpaid? Transactions created for the payment will be deleted, a linked imported transaction will be unlinked, and the bill schedule rolled back.');
+        // imported transaction is only unlinked, and one it used is kept —
+        // the copy must not claim a deletion that will not happen.
+        let message = markUnpaidQuestion(bill);
         const autoPayEnabled = bill ? (bill.autoPayEnabled ?? bill.auto_pay_enabled ?? false) : false;
         if (autoPayEnabled) {
             // Reverting does not touch auto-pay — warn instead of silently

@@ -9497,6 +9497,14 @@ label .required {
 
 .bill-card.paid {
     border-left: 4px solid var(--color-success);
+}
+
+/* A paid card fades, but not its status pill: faded with the whole card,
+   white on green came out at 3.5:1 (#399) */
+.bill-card.paid .bill-header,
+.bill-card.paid .bill-due-date,
+.bill-card.paid .bill-account-hint,
+.bill-card.paid .bill-actions {
     opacity: 0.8;
 }
 
@@ -9631,9 +9639,23 @@ label .required {
     color: var(--budget-color-on-error, var(--budget-color-on-status, #fff));
 }
 
+/* White on the warning orange #e65100 is 3.79:1, so the light theme's pill
+   takes a darker orange, 5.6:1 (#399). The dark theme's warning shade and a
+   colour scheme's warning colour come with text that reads on them. */
 .bill-status.due-soon .status-badge {
-    background: var(--color-warning);
+    background: var(--budget-scheme-warning, #bf360c);
     color: var(--budget-color-on-status, #fff);
+}
+
+body[data-theme-dark] .bill-status.due-soon .status-badge,
+body[data-theme-dark-highcontrast] .bill-status.due-soon .status-badge {
+    background: var(--color-warning);
+}
+
+@media (prefers-color-scheme: dark) {
+    body[data-theme-default] .bill-status.due-soon .status-badge {
+        background: var(--color-warning);
+    }
 }
 
 .bill-status.paid .status-badge {
@@ -10184,6 +10206,21 @@ label .required {
 .income-card.completed,
 .income-card.inactive {
     border-left: 4px solid var(--color-success);
+}
+
+/* Faded like a paid bill, with the status pill left out (#399) */
+.income-card.received .income-header,
+.income-card.received .income-next-date,
+.income-card.received .bill-account-hint,
+.income-card.received .income-actions,
+.income-card.completed .income-header,
+.income-card.completed .income-next-date,
+.income-card.completed .bill-account-hint,
+.income-card.completed .income-actions,
+.income-card.inactive .income-header,
+.income-card.inactive .income-next-date,
+.income-card.inactive .bill-account-hint,
+.income-card.inactive .income-actions {
     opacity: 0.8;
 }
 
@@ -10255,6 +10292,45 @@ label .required {
     font-size: 14px;
 }
 
+/* The name and the amount (#399). The header took what the date and the
+   buttons left, so a long name wrapped beside empty space and each card's
+   amount sat somewhere else. Below 1200px the header has the card's first
+   line to itself, its amount at the right edge; from 1200px the name gets
+   a column of its own and the amount a right-aligned one, the same width
+   on every card, and a long date wraps instead of the name. */
+.income-header {
+    flex: 1 1 100%;
+}
+
+@media (min-width: 1200px) {
+    .income-header {
+        flex: 0 0 auto;
+    }
+
+    .income-info {
+        width: 16rem;
+    }
+
+    .income-amount {
+        min-width: 8.5rem;
+        text-align: right;
+    }
+
+    .income-details {
+        flex: 1 1 14rem;
+        flex-wrap: nowrap;
+        min-width: 0;
+    }
+
+    .income-next-date {
+        min-width: 0;
+    }
+
+    .income-next-date > [class^="icon-"] {
+        flex-shrink: 0;
+    }
+}
+
 .income-status .status-badge {
     display: inline-block;
     padding: 4px 10px;
@@ -10275,9 +10351,21 @@ label .required {
     color: var(--budget-color-on-success, var(--budget-color-on-status, white));
 }
 
+/* The darker orange of Bills' Due Soon pill (#399) */
 .income-status.expected-soon .status-badge {
-    background: var(--color-warning);
+    background: var(--budget-scheme-warning, #bf360c);
     color: var(--budget-color-on-status, white);
+}
+
+body[data-theme-dark] .income-status.expected-soon .status-badge,
+body[data-theme-dark-highcontrast] .income-status.expected-soon .status-badge {
+    background: var(--color-warning);
+}
+
+@media (prefers-color-scheme: dark) {
+    body[data-theme-default] .income-status.expected-soon .status-badge {
+        background: var(--color-warning);
+    }
 }
 
 .income-status.upcoming .status-badge {
@@ -20077,6 +20165,27 @@ body[data-theme-dark-highcontrast] .matching-tx-badge {
 }
 
 /* Repair Data Styles */
+
+/* The report scrolled as one box with its footer inside, so at 1440x900
+   Close and Fix Selected Issues sat below the fold, and scrolling to them
+   took the title away (#399). The header and footer stay in view and the
+   body scrolls between them, as in the Link to bill dialog. */
+#repair-data-modal .budget-modal {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#repair-data-modal .budget-modal-header,
+#repair-data-modal .budget-modal-footer {
+    flex: 0 0 auto;
+}
+
+#repair-data-modal .budget-modal-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+}
 
 .repair-category {
     border: 1px solid var(--color-border);
