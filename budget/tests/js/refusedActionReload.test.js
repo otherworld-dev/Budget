@@ -36,15 +36,14 @@ import { showError } from '../../src/utils/notifications.js';
 import { confirmDialog } from '../../src/utils/dialogs.js';
 
 const NOTHING_LEFT = 'This bill has nothing left to pay';
-const ALREADY_RECORDED = 'This payment was already recorded. Reload the page to see the next one.';
-const ALREADY_SKIPPED = 'This date was already paid or skipped. Reload the page to see the next one.';
+const ALREADY_SETTLED = 'This date was already paid or skipped. Reload the page to see the next one.';
 
 /** How each POST is answered: [status, body], or an Error to throw (no network) */
 let refusal;
 
 beforeEach(() => {
     globalThis.OC = { generateUrl: (u) => u, requestToken: 'tok' };
-    refusal = [400, { error: ALREADY_RECORDED }];
+    refusal = [400, { error: ALREADY_SETTLED }];
     globalThis.fetch = vi.fn(async (url, init = {}) => {
         if ((init.method || 'GET') === 'GET') {
             const data = url.includes('/recorded-payment') ? { existing: null } : [];
@@ -97,14 +96,14 @@ const reloaded = (mod) => (mod.loadBillsView ?? mod.loadIncomeView ?? mod.loadTr
 
 describe.each([
     ['Bills: Mark Paid', billsModule, (mod) => mod.markBillPaid(5), NOTHING_LEFT],
-    ['Bills: Mark Paid', billsModule, (mod) => mod.markBillPaid(5), ALREADY_RECORDED],
-    ['Bills: Skip', billsModule, (mod) => mod.skipBillPayment(5), ALREADY_SKIPPED],
+    ['Bills: Mark Paid', billsModule, (mod) => mod.markBillPaid(5), ALREADY_SETTLED],
+    ['Bills: Skip', billsModule, (mod) => mod.skipBillPayment(5), ALREADY_SETTLED],
     ['Bills: Mark Unpaid', billsModule, (mod) => mod.markBillUnpaid(5), 'This bill has no recorded payment to undo'],
-    ['Transfers: Mark Paid', transfersModule, (mod) => mod.markTransferPaid(7), ALREADY_RECORDED],
-    ['Transfers: Skip', transfersModule, (mod) => mod.skipTransfer(7), ALREADY_SKIPPED],
+    ['Transfers: Mark Paid', transfersModule, (mod) => mod.markTransferPaid(7), ALREADY_SETTLED],
+    ['Transfers: Skip', transfersModule, (mod) => mod.skipTransfer(7), ALREADY_SETTLED],
     ['Transfers: Mark Unpaid', transfersModule, (mod) => mod.markTransferUnpaid(7), 'This bill has no recorded payment to undo'],
-    ['Income: Mark Received', incomeModule, (mod) => mod.markIncomeReceived(9), ALREADY_RECORDED],
-    ['Income: Skip', incomeModule, (mod) => mod.skipIncome(9), ALREADY_SKIPPED],
+    ['Income: Mark Received', incomeModule, (mod) => mod.markIncomeReceived(9), ALREADY_SETTLED],
+    ['Income: Skip', incomeModule, (mod) => mod.skipIncome(9), ALREADY_SETTLED],
 ])('%s', (_name, makeModule, act, message) => {
     it(`reloads the list once refused with "${message}", after saying why`, async () => {
         refusal = [400, { error: message }];

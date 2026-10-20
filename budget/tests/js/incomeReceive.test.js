@@ -69,12 +69,12 @@ describe('markIncomeReceived', () => {
         global.fetch = vi.fn(async () => ({
             ok: false,
             status: 400,
-            json: async () => ({ error: 'This payment was already recorded. Reload the page to see the next one.' }),
+            json: async () => ({ error: 'This date was already paid or skipped. Reload the page to see the next one.' }),
         }));
 
         await mod.markIncomeReceived(5);
 
-        expect(showError).toHaveBeenCalledWith('This payment was already recorded. Reload the page to see the next one.');
+        expect(showError).toHaveBeenCalledWith('This date was already paid or skipped. Reload the page to see the next one.');
     });
 
     it('undoes through the server, which reverts the dates and the credit', async () => {

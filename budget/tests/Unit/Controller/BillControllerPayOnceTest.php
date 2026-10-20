@@ -164,12 +164,12 @@ class BillControllerPayOnceTest extends TestCase {
 	public function testARefusedSkipSaysWhy(): void {
 		$this->params = ['dueDate' => '2026-10-15'];
 		$this->service->method('skipPayment')
-			->willThrowException(new \InvalidArgumentException('This payment was already recorded. Reload the page to see the next one.'));
+			->willThrowException(new \InvalidArgumentException('This date was already paid or skipped. Reload the page to see the next one.'));
 
 		$response = $this->controller()->skipPayment(1);
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
-		$this->assertSame('This payment was already recorded. Reload the page to see the next one.', $response->getData()['error']);
+		$this->assertSame('This date was already paid or skipped. Reload the page to see the next one.', $response->getData()['error']);
 	}
 
 	// ── Undo skip ───────────────────────────────────────────────────

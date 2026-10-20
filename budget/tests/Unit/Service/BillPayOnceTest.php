@@ -38,8 +38,7 @@ use Psr\Log\LoggerInterface;
  */
 class BillPayOnceTest extends TestCase {
 	private const TODAY = '2026-10-19';
-	private const ALREADY_RECORDED = 'This payment was already recorded. Reload the page to see the next one.';
-	private const ALREADY_SKIPPED = 'This date was already paid or skipped. Reload the page to see the next one.';
+	private const ALREADY_SETTLED = 'This date was already paid or skipped. Reload the page to see the next one.';
 
 	private BillService $service;
 	private TransactionService $transactions;
@@ -178,7 +177,7 @@ class BillPayOnceTest extends TestCase {
 			$this->service->markPaid(1, 'user1', self::TODAY, true, null, '2026-10-15');
 			$this->fail('October was paid a second time');
 		} catch (\InvalidArgumentException $e) {
-			$this->assertSame(self::ALREADY_RECORDED, $e->getMessage());
+			$this->assertSame(self::ALREADY_SETTLED, $e->getMessage());
 		}
 
 		$this->assertSame([], $this->calls, 'Nothing is booked, cleared or dropped');
@@ -193,7 +192,7 @@ class BillPayOnceTest extends TestCase {
 			$this->service->markPaid(1, 'user1', self::TODAY, true, null, '2026-10-15');
 			$this->fail('The second payment of October went through');
 		} catch (\InvalidArgumentException $e) {
-			$this->assertSame(self::ALREADY_RECORDED, $e->getMessage());
+			$this->assertSame(self::ALREADY_SETTLED, $e->getMessage());
 		}
 
 		$this->assertSame(['clear-pre-booked', 'pay:' . self::TODAY, 'pre-book:2026-11-15'], $this->calls, 'One payment and one row for November');
@@ -310,7 +309,7 @@ class BillPayOnceTest extends TestCase {
 			$this->service->skipPayment(1, 'user1', '2026-10-15');
 			$this->fail('The stale skip went through');
 		} catch (\InvalidArgumentException $e) {
-			$this->assertSame(self::ALREADY_SKIPPED, $e->getMessage());
+			$this->assertSame(self::ALREADY_SETTLED, $e->getMessage());
 		}
 
 		$this->assertSame('2026-11-15', $this->stored->getNextDueDate());
@@ -325,7 +324,7 @@ class BillPayOnceTest extends TestCase {
 			$this->service->skipPayment(1, 'user1', '2026-10-15');
 			$this->fail('October was skipped twice');
 		} catch (\InvalidArgumentException $e) {
-			$this->assertSame(self::ALREADY_SKIPPED, $e->getMessage());
+			$this->assertSame(self::ALREADY_SETTLED, $e->getMessage());
 		}
 
 		$this->assertSame('2026-11-15', $this->stored->getNextDueDate());

@@ -30,13 +30,13 @@ use Psr\Log\LoggerInterface;
  * Two Skips of one occurrence (two tabs, or two requests at once) leave one
  * refused, and it said "This payment was already recorded" though nothing
  * had been paid: the occurrence had been skipped. A skip that comes too late
- * now says the date was already paid or skipped; Mark Paid and Mark Received
- * keep their own message. The mappers here claim as the real ones do (see
- * BillPayOnceTest): only while the row is still due on the date expected.
+ * now says the date was already paid or skipped, and so do Mark Paid and Mark
+ * Received, as their date may have been skipped too (see
+ * SettledOccurrenceRefusalTest). The mappers here claim as the real ones do
+ * (see BillPayOnceTest): only while the row is still due on the date expected.
  */
 class SkipRefusalMessageTest extends TestCase {
 	private const ALREADY_SKIPPED = 'This date was already paid or skipped. Reload the page to see the next one.';
-	private const ALREADY_RECORDED = 'This payment was already recorded. Reload the page to see the next one.';
 
 	private ?Bill $bill = null;
 	private ?RecurringIncome $income = null;
@@ -220,11 +220,11 @@ class SkipRefusalMessageTest extends TestCase {
 		$this->assertSame(self::ALREADY_SKIPPED, $this->refusal(fn () => $service->skipPayment(1, 'user1', '2026-10-29')));
 	}
 
-	public function testASecondPaymentOfABillStillSaysItWasAlreadyRecorded(): void {
+	public function testASecondPaymentOfABillSaysTheSame(): void {
 		$service = $this->bills();
 		$service->markPaid(1, 'user1', null, false, null, '2026-10-29');
 
-		$this->assertSame(self::ALREADY_RECORDED, $this->refusal(fn () => $service->markPaid(1, 'user1', null, false, null, '2026-10-29')));
+		$this->assertSame(self::ALREADY_SKIPPED, $this->refusal(fn () => $service->markPaid(1, 'user1', null, false, null, '2026-10-29')));
 	}
 
 	// ── Income ──────────────────────────────────────────────────────
@@ -245,10 +245,10 @@ class SkipRefusalMessageTest extends TestCase {
 		$this->assertSame('2026-10-29', $this->income->getNextExpectedDate());
 	}
 
-	public function testASecondReceiptOfAnIncomeStillSaysItWasAlreadyRecorded(): void {
+	public function testASecondReceiptOfAnIncomeSaysTheSame(): void {
 		$service = $this->incomes();
 		$service->markReceived(1, 'user1', '2026-09-29', false, '2026-09-29');
 
-		$this->assertSame(self::ALREADY_RECORDED, $this->refusal(fn () => $service->markReceived(1, 'user1', '2026-09-29', false, '2026-09-29')));
+		$this->assertSame(self::ALREADY_SKIPPED, $this->refusal(fn () => $service->markReceived(1, 'user1', '2026-09-29', false, '2026-09-29')));
 	}
 }

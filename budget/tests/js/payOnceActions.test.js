@@ -192,11 +192,11 @@ describe('bills', () => {
 
     it('says why a skip was refused', async () => {
         const mod = billsModule({ frequency: 'monthly' });
-        answers = [[400, { error: 'This payment was already recorded. Reload the page to see the next one.' }]];
+        answers = [[400, { error: 'This date was already paid or skipped. Reload the page to see the next one.' }]];
 
         await mod.skipBillPayment(5);
 
-        expect(showError).toHaveBeenCalledWith('This payment was already recorded. Reload the page to see the next one.');
+        expect(showError).toHaveBeenCalledWith('This date was already paid or skipped. Reload the page to see the next one.');
     });
 
     it('marks a bill unpaid once however often it is clicked', async () => {
