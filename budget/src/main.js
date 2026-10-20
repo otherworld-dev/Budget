@@ -105,6 +105,7 @@ import HelpModule, { HELP_TOPICS, helpDocUrl, SUPPORT_LINKS } from './modules/he
 import OnboardingModule from './modules/onboarding/OnboardingModule.js';
 import { renderTransactionRow, transactionMenuActions } from './modules/transactions/transactionRow.js';
 import { refreshBankSyncNav } from './modules/bank-sync/bankSyncStatus.js';
+import { applyTransactionColumnVisibility } from './utils/transactionColumns.js';
 // The rule editor's styles ship in budget-app.css with the rest, rather than
 // as a stylesheet of their own fetched when the Rules view first opens
 import './modules/rules/components/CriteriaBuilder.css';
@@ -3906,35 +3907,9 @@ class BudgetApp {
     // Duplicate parseDashboardConfig removed - using delegation to dashboardModule
 
     applyColumnVisibility() {
-        const table = document.getElementById('transactions-table');
-        if (!table) return;
-
-        const columnMap = {
-            date: 'date-column',
-            description: 'description-column',
-            vendor: 'vendor-column',
-            category: 'category-column',
-            tags: 'tags-column',
-            amount: 'amount-column',
-            balance: 'balance-column',
-            account: 'account-column'
-        };
-
-        Object.entries(this.columnVisibility).forEach(([key, visible]) => {
-            const className = columnMap[key];
-            if (!className) return;
-
-            // Balance column auto-hides when data isn't available
-            let isVisible = visible;
-            if (key === 'balance' && !this.runningBalances) {
-                isVisible = false;
-            }
-
-            // Apply to all cells with this class (header and body)
-            const cells = table.querySelectorAll(`th.${className}, td.${className}`);
-            cells.forEach(cell => {
-                cell.style.display = isVisible ? '' : 'none';
-            });
+        // Balance column auto-hides when data isn't available
+        applyTransactionColumnVisibility(document.getElementById('transactions-table'), this.columnVisibility, {
+            hasBalances: !!this.runningBalances,
         });
     }
 

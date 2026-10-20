@@ -2566,6 +2566,7 @@ style('budget', 'budget-app');
                                         <tr>
                                             <th scope="col"><?php p($l->t('Date')); ?></th>
                                             <th scope="col"><?php p($l->t('Description')); ?></th>
+                                            <th scope="col" id="preview-th-payee" style="display: none;"><?php p($l->t('Vendor/Payee')); ?></th>
                                             <th scope="col" id="preview-th-notes" style="display: none;"><?php p($l->t('Notes')); ?></th>
                                             <th scope="col" class="preview-col-amount"><?php p($l->t('Amount')); ?></th>
                                             <th scope="col"><?php p($l->t('Category')); ?></th>
