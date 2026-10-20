@@ -3157,12 +3157,13 @@ class BillService {
 		$rowsByBill = [];
 		$billIds = array_map(fn (Bill $bill) => $bill->getId(), $bills);
 		foreach ($this->transactionService->findBillPaymentsInYear($billIds, $year) as $payment) {
-			$rowsByBill[$payment->getBillId()][] = $payment;
+			$billId = (int)$payment->getBillId();
+			$rowsByBill[$billId][] = $payment;
 			if (($payment->getType() ?? 'debit') !== 'debit') {
 				continue;
 			}
-			$paymentRowsByBill[$payment->getBillId()][] = $payment;
-			$paymentsByBill[$payment->getBillId()][] = [
+			$paymentRowsByBill[$billId][] = $payment;
+			$paymentsByBill[$billId][] = [
 				'date' => $payment->getDate(),
 				'amount' => (float)$payment->getAmount(),
 			];
@@ -3631,7 +3632,7 @@ class BillService {
 		// payment => the date of a single-date bill it didn't pay, so never a
 		// second payment: null, or the one-time date it was made after (#399)
 		$alone = [];
-		if ($pendingSlot !== null) {
+		if ($pending !== null && $pendingSlot !== null) {
 			$slotOf[$pending] = $pendingSlot;
 		}
 
