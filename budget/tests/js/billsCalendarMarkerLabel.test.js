@@ -2,9 +2,10 @@
  * What a screen reader hears for the "2×" pill in Bills by Month (#399). The
  * pill sits right against the amount, so the cell's text read "2×969.50 CHF":
  * two times 969.50, which suggests 1,939.00 when 969.50 is what was paid in
- * all. The pill is hidden from assistive technology and the cell says in
- * words how many times the date was paid, out of sight. What the cell looks
- * like doesn't change.
+ * all. Words out of sight said "Paid 2 times" just before the amount, and
+ * read together that was still "Paid 2 times969.50 CHF". The pill and the
+ * amount are now hidden from assistive technology, and one sentence out of
+ * sight stands in for both. What the cell looks like doesn't change.
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -12,8 +13,9 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 vi.mock('@nextcloud/l10n', () => ({
     translate: (_app, text, params = {}) =>
         String(text).replace(/\{(\w+)\}/g, (m, k) => (k in params ? params[k] : m)),
-    translatePlural: (_app, singular, plural, count) =>
-        (count === 1 ? singular : plural).replace('%n', String(count)),
+    translatePlural: (_app, singular, plural, count, params = {}) =>
+        (count === 1 ? singular : plural).replace('%n', String(count))
+            .replace(/\{(\w+)\}/g, (m, k) => (k in params ? params[k] : m)),
 }));
 
 import ReportsModule from '../../src/modules/reports/ReportsModule.js';
@@ -72,21 +74,26 @@ describe('the Bills by Month payments marker for screen readers', () => {
         document.body.innerHTML = '';
     });
 
-    it('hides the pill and says how many times the date was paid', () => {
+    it('reads as one sentence: how many times, and what was paid in all', () => {
+        const august = render([kpt])[7];
+
+        expect(spokenText(august)).toBe('Paid 2 times, 969.50 CHF in all');
+    });
+
+    it('hides the pill and the amount it sits against from screen readers', () => {
         const august = render([kpt])[7];
         const marker = august.querySelector('.payments-marker');
 
-        expect(marker.getAttribute('aria-hidden')).toBe('true');
-        expect(spokenText(august)).not.toContain('2×');
-        expect(spokenText(august)).toContain('969.50 CHF');
-        expect(spokenText(august)).toContain('Paid 2 times');
+        expect(marker.closest('[aria-hidden="true"]')).not.toBeNull();
+        expect(marker.nextSibling.parentElement.closest('[aria-hidden="true"]')).not.toBeNull();
     });
 
     it('keeps the words out of sight', () => {
         const august = render([kpt])[7];
-        const label = [...august.querySelectorAll('span')].find(s => s.textContent.includes('Paid 2 times'));
+        const label = august.querySelector('.visually-hidden');
 
-        expect(label.classList.contains('visually-hidden')).toBe(true);
+        expect(label.textContent).toBe('Paid 2 times, 969.50 CHF in all');
+        expect(label.closest('[aria-hidden="true"]')).toBeNull();
     });
 
     it('still shows the pill right against the amount, with no space to strike through', () => {
@@ -103,5 +110,6 @@ describe('the Bills by Month payments marker for screen readers', () => {
 
         expect(september.querySelector('.visually-hidden')).toBeNull();
         expect(september.textContent).toBe('484.75 CHF');
+        expect(spokenText(september)).toBe('484.75 CHF');
     });
 });
