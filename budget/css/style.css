@@ -20141,6 +20141,15 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
     outline-offset: 2px;
 }
 
+/* The second press of a double click selected the word under it ('CHF',
+   a date) on the option it landed on (#399). The options are choices, not
+   text to copy; the rest of the dialog stays selectable. */
+#matching-tx-modal .matching-tx-option,
+#bill-link-modal .matching-tx-option {
+    -webkit-user-select: none;
+    user-select: none;
+}
+
 .matching-tx-details {
     flex: 1;
     min-width: 0;
