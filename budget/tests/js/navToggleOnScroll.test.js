@@ -66,11 +66,18 @@ describe('the navigation button', () => {
         expect(away()).toBe(false);
     });
 
-    it('is hidden by the stylesheet only while out of the way, closed and unfocused', () => {
+    it('is hidden by the stylesheet only while out of the way, closed and without keyboard focus', () => {
         // Narrow screens only: the rule sits in the stylesheet's max-width: 1024px block
         const hiding = RULES.filter(rule => rule.declarations.opacity === '0'
             && rule.selectors.some(s => s.startsWith('#budget-nav-toggle-wrapper.' + SCROLLED_AWAY_CLASS)));
         expect(hiding.length).toBeGreaterThan(0);
-        expect(hiding.every(rule => rule.selectors.some(s => s.includes(':not(.nav-open)') && s.includes(':not(:focus-within)')))).toBe(true);
+        expect(hiding.every(rule => rule.selectors.some(s => s.includes(':not(.nav-open)') && s.includes(':not(:has(:focus-visible))')))).toBe(true);
+    });
+
+    it('steps aside after a mouse click too, which leaves focus on it but not keyboard focus (#399)', () => {
+        // :focus-within kept a clicked button over the content until focus moved
+        const hiding = RULES.filter(rule => rule.declarations.opacity === '0'
+            && rule.selectors.some(s => s.startsWith('#budget-nav-toggle-wrapper.' + SCROLLED_AWAY_CLASS)));
+        expect(hiding.some(rule => rule.selectors.some(s => s.includes(':focus-within')))).toBe(false);
     });
 });

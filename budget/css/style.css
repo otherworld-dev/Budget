@@ -336,11 +336,22 @@
 
     /* Out of the way while the view scrolls down, as it covered whatever
        passed under it (see utils/navToggleOnScroll.js). Keyboard focus
-       brings it back. */
-    #budget-nav-toggle-wrapper.scrolled-away:not(.nav-open):not(:focus-within) {
+       brings it back; the focus a mouse click leaves on it doesn't, or a
+       clicked button stayed over the content (#399). */
+    #budget-nav-toggle-wrapper.scrolled-away:not(.nav-open):not(:has(:focus-visible)) {
         opacity: 0;
         transform: translateY(-12px);
         pointer-events: none;
+    }
+
+    /* A browser without :has() drops the rule above: it hides the button
+       as before, whatever focused it */
+    @supports not selector(:has(*)) {
+        #budget-nav-toggle-wrapper.scrolled-away:not(.nav-open):not(:focus-within) {
+            opacity: 0;
+            transform: translateY(-12px);
+            pointer-events: none;
+        }
     }
 
     #budget-nav-toggle {
