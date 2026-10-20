@@ -4744,6 +4744,13 @@ button.danger:hover {
     background: var(--color-primary-element-light);
 }
 
+/* Where the arrow keys are in the list's inline tag picker (#399): a ring,
+   as a ticked tag already has the fill. inlinePickerKeys.test.js. */
+.tags-autocomplete-item.highlighted {
+    outline: 2px solid var(--color-primary-element);
+    outline-offset: -2px;
+}
+
 .tags-autocomplete-item .tag-check {
     color: var(--color-success);
     font-weight: bold;
