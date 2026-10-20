@@ -3587,6 +3587,11 @@ class BillService {
 			$candidates = (in_array($single, $settledSlots, true) || $since === null)
 				? $open
 				: array_values(array_filter($open, fn (int $payment): bool => $paidOn[$payment]->format('Y-m-d') > $since));
+			// Nor one from before a schedule that began this year: it paid
+			// none of its dates (a payment linked from an earlier bill)
+			if ($begins !== null) {
+				$candidates = array_values(array_filter($candidates, fn (int $payment): bool => $paidOn[$payment]->format('Y-m-d') >= $begins));
+			}
 			if ($onDate === [] && $candidates !== []) {
 				$best = $candidates[0];
 				foreach ($candidates as $payment) {

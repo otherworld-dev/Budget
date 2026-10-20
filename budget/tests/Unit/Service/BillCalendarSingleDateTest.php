@@ -286,6 +286,24 @@ class BillCalendarSingleDateTest extends TestCase {
 		$this->assertSame([], $row['paidMoreThanOnce']);
 	}
 
+	/**
+	 * A yearly bill set up in June, marked paid in September without a
+	 * transaction, with a March payment of the bill it replaced linked to it.
+	 * That payment paid none of its dates: March keeps it and September has
+	 * no payment recorded, rather than March's payment moving onto September.
+	 */
+	public function testAPaymentFromBeforeASingleDateBillBeganKeepsItsMonth(): void {
+		$bill = $this->bill(['id' => 74, 'name' => 'EKZ', 'amount' => 190.0, 'frequency' => 'yearly',
+			'dueDay' => 29, 'dueMonth' => 9, 'isActive' => true, 'nextDueDate' => '2027-09-29', 'lastPaidDate' => '2026-09-29',
+			'createdAt' => '2026-06-01 10:00:00']);
+
+		$row = $this->row($this->overview([$bill], $this->payments(74, ['2026-03-27' => 190.0])), 'EKZ');
+
+		$this->assertSame([3 => 190.0], $this->rounded($row['paidAmounts']));
+		$this->assertSame([['date' => '2026-03-27', 'amount' => 190.0, 'due' => null]], $row['paidDetails'][3]);
+		$this->assertSame([9], $row['unrecordedMonths']);
+	}
+
 	private function payment(int $id, int $billId, string $date, float $amount): Transaction {
 		$tx = new Transaction();
 		$tx->setId($id);
