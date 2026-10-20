@@ -9735,13 +9735,15 @@ label .required {
     color: var(--budget-color-on-status, #fff);
 }
 
-body[data-theme-dark] .bill-status.due-soon .status-badge,
-body[data-theme-dark-highcontrast] .bill-status.due-soon .status-badge {
+/* The status pill only: the badges beside it (Auto-pay) keep their own
+   fill, which these outranked (#399) */
+body[data-theme-dark] .bill-status.due-soon .status-badge:not(.badge-extra),
+body[data-theme-dark-highcontrast] .bill-status.due-soon .status-badge:not(.badge-extra) {
     background: var(--color-warning);
 }
 
 @media (prefers-color-scheme: dark) {
-    body[data-theme-default] .bill-status.due-soon .status-badge {
+    body[data-theme-default] .bill-status.due-soon .status-badge:not(.badge-extra) {
         background: var(--color-warning);
     }
 }
@@ -10445,13 +10447,14 @@ body[data-theme-dark-highcontrast] .bill-status.due-soon .status-badge {
     color: var(--budget-color-on-status, white);
 }
 
-body[data-theme-dark] .income-status.expected-soon .status-badge,
-body[data-theme-dark-highcontrast] .income-status.expected-soon .status-badge {
+/* The pill only, not Auto-create beside it (#399) */
+body[data-theme-dark] .income-status.expected-soon .status-badge:not(.badge-extra),
+body[data-theme-dark-highcontrast] .income-status.expected-soon .status-badge:not(.badge-extra) {
     background: var(--color-warning);
 }
 
 @media (prefers-color-scheme: dark) {
-    body[data-theme-default] .income-status.expected-soon .status-badge {
+    body[data-theme-default] .income-status.expected-soon .status-badge:not(.badge-extra) {
         background: var(--color-warning);
     }
 }

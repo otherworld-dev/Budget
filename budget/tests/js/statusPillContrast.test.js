@@ -83,7 +83,8 @@ describe('a soon pill', () => {
     });
 
     it.each(SOON)('%s %s takes the theme\'s warning shade in the dark theme', (kind, status) => {
-        const selector = `.${kind}-status.${status} .status-badge`;
+        // The pill only, not the badges beside it (badgeExtrasDarkTheme.test.js)
+        const selector = `.${kind}-status.${status} .status-badge:not(.badge-extra)`;
         const dark = RULES.filter(rule => rule.selectors.some(s => s === `body[data-theme-dark] ${selector}`)
             || rule.selectors.some(s => s === `body[data-theme-default] ${selector}` && rule.media?.includes('dark')));
 
