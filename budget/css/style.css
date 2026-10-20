@@ -19720,9 +19720,28 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
     background-color: var(--color-primary-element-light, rgba(0, 130, 201, 0.05));
 }
 
-.matching-tx-option input[type="radio"] {
-    margin-top: 3px;
+/* A radio's own size. Nextcloud's input rule makes every input 36px high
+   with a margin, and on hover, focus and press puts a 2px ring in the page
+   colour round it: the ticked radio, focused by the click, stood in a
+   13x36 white frame on the grey option, a black one in the dark theme
+   (#399). The dialogs' ids put this over that rule in every state (0-3-1
+   with :hover). The margin sets a radio level with its option's first
+   line. */
+#matching-tx-modal .matching-tx-option input[type="radio"],
+#bill-link-modal .matching-tx-option input[type="radio"] {
     flex-shrink: 0;
+    height: auto;
+    min-height: 0;
+    margin: 5px 0 0;
+    box-shadow: none;
+}
+
+/* Nextcloud takes the browser's focus outline off inputs, which left the
+   ring as the only sign of keyboard focus */
+#matching-tx-modal .matching-tx-option input[type="radio"]:focus-visible,
+#bill-link-modal .matching-tx-option input[type="radio"]:focus-visible {
+    outline: 2px solid var(--color-main-text);
+    outline-offset: 2px;
 }
 
 .matching-tx-details {
@@ -20912,10 +20931,10 @@ body[data-theme-dark-highcontrast] {
 
 /* The error/success/warning overrides at the top of this file are set on
    #app-navigation / #app-content and the dialogs, so they need redefining
-   at the same level, a colour scheme's still first. The light shades
-   measured 2.7:1 (error) and 3.5:1 (success) on the dark background; these
-   are all above 6:1 on #171717 and #292929 (WCAG AA). Being light, they
-   take dark text when used as a fill. */
+   at the same level, with a colour scheme's colours still first. The light
+   shades measured 2.7:1 (error) and 3.5:1 (success) on the dark background;
+   these are all above 6:1 on #171717 and #292929 (WCAG AA). Being light,
+   they take dark text when used as a fill. */
 body[data-theme-dark] #app-navigation,
 body[data-theme-dark] #app-content,
 body[data-theme-dark] #budget-toast-container,
