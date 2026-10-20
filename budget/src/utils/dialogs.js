@@ -21,7 +21,7 @@
 
 import { translate as t } from '@nextcloud/l10n';
 import { plainText } from './helpers.js';
-import { isOpeningClick } from './doubleClick.js';
+import { isOpeningClick, isRepeatClick } from './doubleClick.js';
 
 /** The dialog currently on screen, or null. */
 let active = null;
@@ -153,9 +153,15 @@ function render(spec) {
     const state = { close };
     active = state;
 
-    confirm.addEventListener('click', () => close(spec.confirmAnswer(input)));
+    // The second click of a double click on the button that opened the
+    // dialog can land on these on a phone; it answers nothing (#399)
+    confirm.addEventListener('click', (e) => {
+        if (!isRepeatClick(e)) close(spec.confirmAnswer(input));
+    });
     if (cancel) {
-        cancel.addEventListener('click', () => close(spec.cancelAnswer));
+        cancel.addEventListener('click', (e) => {
+            if (!isRepeatClick(e)) close(spec.cancelAnswer);
+        });
     }
     // Only a click on the backdrop itself — one that started and ended outside
     // the panel — dismisses. A drag that ends on the backdrop (selecting the

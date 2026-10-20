@@ -6,6 +6,7 @@
 import { translate as t } from '@nextcloud/l10n';
 import * as formatters from './formatters.js';
 import * as dom from './dom.js';
+import { isOpeningClick, isRepeatClick } from './doubleClick.js';
 
 /**
  * @param {object} bill the bill or transfer being paid
@@ -100,25 +101,33 @@ export function showMatchingTransactionDialog(bill, candidates, settings) {
             </div>
         `;
         document.body.appendChild(modal);
+        const openedAt = Date.now();
 
         const cleanup = () => modal.remove();
 
-        modal.querySelector('.close-btn').addEventListener('click', () => {
+        // The second click of the double click on Mark Paid that opened the
+        // dialog lands on whatever is under the pointer now: on a phone that
+        // can be a button, and on a wide screen the backdrop. It answers
+        // nothing (see utils/doubleClick.js, #399).
+        modal.querySelector('.close-btn').addEventListener('click', (e) => {
+            if (isRepeatClick(e)) return;
             cleanup();
             resolve(null);
         });
-        modal.querySelector('.cancel-btn').addEventListener('click', () => {
+        modal.querySelector('.cancel-btn').addEventListener('click', (e) => {
+            if (isRepeatClick(e)) return;
             cleanup();
             resolve(null);
         });
         modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
+            if (e.target === modal && !isOpeningClick(e, openedAt)) {
                 cleanup();
                 resolve(null);
             }
         });
 
-        modal.querySelector('.confirm-btn').addEventListener('click', () => {
+        modal.querySelector('.confirm-btn').addEventListener('click', (e) => {
+            if (isRepeatClick(e)) return;
             const selected = modal.querySelector('input[name="matching-tx-choice"]:checked');
             if (!selected) {
                 cleanup();

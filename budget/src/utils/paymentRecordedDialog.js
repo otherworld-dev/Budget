@@ -9,7 +9,7 @@
 import { translate as t } from '@nextcloud/l10n';
 import * as formatters from './formatters.js';
 import { apiFetch, ApiError } from './api.js';
-import { isOpeningClick } from './doubleClick.js';
+import { isOpeningClick, isRepeatClick } from './doubleClick.js';
 
 /** The 409 code each page's action answers with */
 const CODES = { bill: 'payment_recorded', income: 'receipt_recorded' };
@@ -85,10 +85,16 @@ export function askAboutRecordedPayment(existing, settings, { kind = 'bill', cur
             }
         };
 
-        modal.querySelector('.close-btn').addEventListener('click', () => close(null));
-        modal.querySelector('.cancel-btn').addEventListener('click', () => close(null));
-        modal.querySelector('.another-btn').addEventListener('click', () => close('another'));
-        modal.querySelector('.confirm-btn').addEventListener('click', () => close('use'));
+        // On a phone the second tap of a double tap on Mark Paid can land on
+        // one of these buttons, and 'Record another payment' would then book
+        // the second payment the dialog is there to prevent
+        const answer = (value) => (e) => {
+            if (!isRepeatClick(e)) close(value);
+        };
+        modal.querySelector('.close-btn').addEventListener('click', answer(null));
+        modal.querySelector('.cancel-btn').addEventListener('click', answer(null));
+        modal.querySelector('.another-btn').addEventListener('click', answer('another'));
+        modal.querySelector('.confirm-btn').addEventListener('click', answer('use'));
         // Not on the second click of the double click on Mark Paid that
         // opened it, which lands on the backdrop (see utils/doubleClick.js)
         modal.addEventListener('click', (e) => {
