@@ -1807,8 +1807,50 @@ class TransactionService {
 		}
 
 		$result['transactions'] = $this->attachSplitDetails($result['transactions'], $filters);
+		$result['transactions'] = $this->flagLatestBillPayments($result['transactions']);
 
 		return $result;
+	}
+
+	/**
+	 * Say which rows are a bill's latest payment (billLatestPayment), on
+	 * every row a bill still holds (#399). Unlink from bill refuses those
+	 * (detachFromBill()), and the row menu offered it all the same, asked
+	 * for a confirmation, and only then reported the refusal. The same rule
+	 * as the refusal: the row, or its other side, is in the bill's payment
+	 * snapshot. One query for the page's bills.
+	 *
+	 * @param array<int, array<string, mixed>> $rows findWithFilters() rows
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function flagLatestBillPayments(array $rows): array {
+		if ($this->billMapper === null) {
+			return $rows;
+		}
+		$billIds = [];
+		foreach ($rows as $row) {
+			if (($row['billId'] ?? null) !== null && empty($row['billDeleted'])) {
+				$billIds[(int)$row['billId']] = true;
+			}
+		}
+		if ($billIds === []) {
+			return $rows;
+		}
+		$latest = [];
+		foreach ($this->billMapper->findByIds(array_keys($billIds)) as $bill) {
+			$latest[$bill->getId()] = array_flip(self::rowsInPaymentSnapshot($bill));
+		}
+		foreach ($rows as &$row) {
+			if (($row['billId'] ?? null) === null || !empty($row['billDeleted'])) {
+				continue;
+			}
+			$snapshotRows = $latest[(int)$row['billId']] ?? [];
+			$otherSide = $row['linkedTransactionId'] ?? null;
+			$row['billLatestPayment'] = isset($snapshotRows[(int)$row['id']])
+				|| ($otherSide !== null && isset($snapshotRows[(int)$otherSide]));
+		}
+		unset($row);
+		return $rows;
 	}
 
 	/**

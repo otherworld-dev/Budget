@@ -13,7 +13,7 @@
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
-import { confirmDialog } from '../../utils/dialogs.js';
+import { confirmDialog, alertDialog } from '../../utils/dialogs.js';
 import { setDateValue } from '../../utils/datepicker.js';
 import { downloadTransactionsCsv } from '../../utils/helpers.js';
 import { apiFetch, ApiError } from '../../utils/api.js';
@@ -3976,6 +3976,19 @@ export default class TransactionsModule {
      * under. It stays in its account; the bill stops counting it.
      */
     async unlinkTransactionFromBill(transactionId) {
+        // The bill's latest payment is Mark Unpaid's to undo, and the server
+        // refuses it: say so rather than ask for a confirmation it ignores.
+        // The list says which rows those are; the refusal below covers a
+        // list loaded before the payment.
+        const row = (this.transactions || []).find(tx => tx.id === transactionId);
+        if (row?.billLatestPayment) {
+            await alertDialog(
+                t('budget', 'This is the bill\'s latest payment. Use Mark Unpaid on the bill to undo it.'),
+                { title: t('budget', 'Unlink from bill') }
+            );
+            return;
+        }
+
         if (!await confirmDialog(
             t('budget', 'Unlink this transaction from its bill? It stays in the account, but the bill no longer counts it as a payment.'),
             { confirmLabel: t('budget', 'Unlink from bill') }
