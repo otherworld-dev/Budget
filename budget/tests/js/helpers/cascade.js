@@ -114,6 +114,47 @@ function matchingSpecificity(el, rule) {
     return best;
 }
 
+/**
+ * What style.css's rules declare for `el` in `theme`, as the cascade picks
+ * them: by specificity, then source order, !important first. With `hover`,
+ * the rules for `el:hover` take part too, which jsdom can't match itself.
+ * Pseudo-elements are left out.
+ */
+export function cascadedDeclarations(el, theme, { hover = false } = {}) {
+    const hits = [];
+    RULES.forEach((rule, order) => {
+        if (!inEffect(rule, theme)) return;
+        let best = null;
+        for (const selector of rule.selectors) {
+            if (selector.includes('::') || (!hover && selector.includes(':hover'))) continue;
+            let hit = false;
+            try {
+                hit = el.matches(selector.replace(/:hover/g, ''));
+            } catch {
+                hit = false;
+            }
+            if (hit) best = Math.max(best ?? 0, specificity(selector));
+        }
+        if (best !== null) hits.push({ rule, order, spec: best });
+    });
+    hits.sort((a, b) => a.spec - b.spec || a.order - b.order);
+
+    const normal = {};
+    const important = {};
+    for (const { rule } of hits) {
+        for (const [name, value] of Object.entries(rule.declarations)) {
+            // One name for the fill, whichever way a rule spells it
+            const key = name === 'background-color' ? 'background' : name;
+            if (/!important\s*$/.test(value)) {
+                important[key] = value.replace(/\s*!important\s*$/, '');
+            } else {
+                normal[key] = value;
+            }
+        }
+    }
+    return { ...normal, ...important };
+}
+
 /** A value with its var()s filled in from `vars`, innermost first */
 export function resolve(value, vars) {
     let out = String(value);

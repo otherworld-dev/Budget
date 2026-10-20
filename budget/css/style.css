@@ -9506,8 +9506,13 @@ label .required {
     color: var(--budget-color-on-success, var(--budget-color-on-status, white));
 }
 
+/* Under the pointer, a darker shade of the button's own green under the
+   same label. Nextcloud's --color-success-hover is a pale tint (#bdebc0)
+   that left the white label at 1.33:1, and in the dark theme a dark green
+   under the dark label (#399). */
 .bill-action-btn.bill-paid-btn:hover {
-    background: var(--color-success-hover, #1a9b4f);
+    background: color-mix(in srgb, var(--color-success), black 15%);
+    color: var(--budget-color-on-success, var(--budget-color-on-status, white));
 }
 
 /* ==========================================
@@ -10120,14 +10125,19 @@ label .required {
     background: var(--color-background-hover);
 }
 
+/* The label as Bills' Mark Paid has it: --budget-color-on-success is only
+   set by a colour scheme, and without one the dark theme's light green
+   took a white label, 1.96:1 (#399). The hover is a darker shade of the
+   button's own green, as on Mark Paid. */
 .income-action-btn.income-received-btn {
     background: var(--budget-color-positive);
     border-color: var(--budget-color-positive);
-    color: var(--budget-color-on-success, white);
+    color: var(--budget-color-on-success, var(--budget-color-on-status, white));
 }
 
 .income-action-btn.income-received-btn:hover {
-    background: var(--color-success-hover, #1a9b4f);
+    background: color-mix(in srgb, var(--budget-color-positive), black 15%);
+    color: var(--budget-color-on-success, var(--budget-color-on-status, white));
 }
 
 /* ============================================
