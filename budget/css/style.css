@@ -9,15 +9,27 @@
     --budget-color-split: #6f42c1;
 }
 
-/* Repair Data's report is appended to <body> too, outside #app-content: its
-   count badges were white on Nextcloud's own pale #FFE7E7 (#399) */
+/* The app's dialogs sit outside #app-content too: those in index.php in
+   #content beside it, and those the scripts build (Repair Data's report,
+   Add Transfer, Mark Paid's) on <body>. With Nextcloud's own pale shades
+   there, Repair Data's count badges were white on #FFE7E7 and the required
+   fields' asterisks #FFE7E7 on white (#399).
+
+   A money colour scheme (#432, utils/amountColours.js) sets these, and the
+   text that goes on them, on <body> and the first three here, and leaves
+   the dialogs to inherit from <body>. So these are the scheme's colours
+   (--budget-scheme-*) whenever one is in use, and a fill and the text on
+   it come from the same place: Repair Data's badges, on the app's red with
+   a scheme's text, were 2.7:1 (#399). */
 #app-navigation,
 #app-content,
 #budget-toast-container,
-#repair-data-modal {
-    --color-success: #2e7d32;
-    --color-error: #b71c1c;
-    --color-warning: #e65100;
+#repair-data-modal,
+#content.app-budget > .modal,
+.budget-modal-overlay {
+    --color-success: var(--budget-scheme-positive, #2e7d32);
+    --color-error: var(--budget-scheme-negative, #b71c1c);
+    --color-warning: var(--budget-scheme-warning, #e65100);
     /* Text on a success/error/warning fill. White on these dark shades; the
        dark theme swaps both the fills and this (see the end of the file). */
     --budget-color-on-status: white;
@@ -9494,8 +9506,13 @@ label .required {
     color: var(--budget-color-on-success, var(--budget-color-on-status, white));
 }
 
+/* Under the pointer, a darker shade of the button's own green under the
+   same label. Nextcloud's --color-success-hover is a pale tint (#bdebc0)
+   that left the white label at 1.33:1, and in the dark theme a dark green
+   under the dark label (#399). */
 .bill-action-btn.bill-paid-btn:hover {
-    background: var(--color-success-hover, #1a9b4f);
+    background: color-mix(in srgb, var(--color-success), black 15%);
+    color: var(--budget-color-on-success, var(--budget-color-on-status, white));
 }
 
 /* ==========================================
@@ -10108,14 +10125,19 @@ label .required {
     background: var(--color-background-hover);
 }
 
+/* The label as Bills' Mark Paid has it: --budget-color-on-success is only
+   set by a colour scheme, and without one the dark theme's light green
+   took a white label, 1.96:1 (#399). The hover is a darker shade of the
+   button's own green, as on Mark Paid. */
 .income-action-btn.income-received-btn {
     background: var(--budget-color-positive);
     border-color: var(--budget-color-positive);
-    color: var(--budget-color-on-success, white);
+    color: var(--budget-color-on-success, var(--budget-color-on-status, white));
 }
 
 .income-action-btn.income-received-btn:hover {
-    background: var(--color-success-hover, #1a9b4f);
+    background: color-mix(in srgb, var(--budget-color-positive), black 15%);
+    color: var(--budget-color-on-success, var(--budget-color-on-status, white));
 }
 
 /* ============================================
@@ -18246,9 +18268,13 @@ button.secondary.compact {
     max-width: 600px;
 }
 
+/* The factory reset dialog is out in #content too, and takes the app's
+   status shades (top of the file): white on the dark theme's light red was
+   2.4:1, so the text comes from the same place as the fill, as on every
+   other status fill (#399) */
 .danger-btn {
     background: var(--color-error, #e53935);
-    color: var(--budget-color-on-error, white);
+    color: var(--budget-color-on-error, var(--budget-color-on-status, white));
     border: none;
     padding: 10px 20px;
     border-radius: var(--border-radius-small, 4px);
@@ -18261,8 +18287,11 @@ button.secondary.compact {
     transition: background 0.2s ease;
 }
 
+/* A darker shade of the button's own red. Nextcloud's --color-error-hover
+   is a pale tint (#ffc3c3) under the white text, and a dark red under the
+   dark theme's dark text */
 .danger-btn:hover {
-    background: var(--color-error-hover, #c62828);
+    background: color-mix(in srgb, var(--color-error), black 15%);
 }
 
 .danger-btn:disabled {
@@ -19691,9 +19720,28 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
     background-color: var(--color-primary-element-light, rgba(0, 130, 201, 0.05));
 }
 
-.matching-tx-option input[type="radio"] {
-    margin-top: 3px;
+/* A radio's own size. Nextcloud's input rule makes every input 36px high
+   with a margin, and on hover, focus and press puts a 2px ring in the page
+   colour round it: the ticked radio, focused by the click, stood in a
+   13x36 white frame on the grey option, a black one in the dark theme
+   (#399). The dialogs' ids put this over that rule in every state (0-3-1
+   with :hover). The margin sets a radio level with its option's first
+   line. */
+#matching-tx-modal .matching-tx-option input[type="radio"],
+#bill-link-modal .matching-tx-option input[type="radio"] {
     flex-shrink: 0;
+    height: auto;
+    min-height: 0;
+    margin: 5px 0 0;
+    box-shadow: none;
+}
+
+/* Nextcloud takes the browser's focus outline off inputs, which left the
+   ring as the only sign of keyboard focus */
+#matching-tx-modal .matching-tx-option input[type="radio"]:focus-visible,
+#bill-link-modal .matching-tx-option input[type="radio"]:focus-visible {
+    outline: 2px solid var(--color-main-text);
+    outline-offset: 2px;
 }
 
 .matching-tx-details {
@@ -19877,9 +19925,11 @@ body[data-theme-dark-highcontrast] .matching-tx-badge {
 }
 
 /* Kept whole: beside a long note, a date broke after its hyphens
-   ('2026-10-' / '15') and an amount at its space (#399) */
+   ('2026-10-' / '15') and an amount at its space (#399). So did the dates
+   and amounts in the note itself, which wraps ('on 2026-' / '03-28'). */
 .repair-item-amount,
-.repair-item-date {
+.repair-item-date,
+.repair-note-value {
     white-space: nowrap;
 }
 
@@ -20880,21 +20930,26 @@ body[data-theme-dark-highcontrast] {
 }
 
 /* The error/success/warning overrides at the top of this file are set on
-   #app-navigation / #app-content, so they need redefining at the same level.
-   The light shades measured 2.7:1 (error) and 3.5:1 (success) on the dark
-   background; these are all above 6:1 on #171717 and #292929 (WCAG AA).
-   Being light, they take dark text when used as a fill. */
+   #app-navigation / #app-content and the dialogs, so they need redefining
+   at the same level, with a colour scheme's colours still first. The light
+   shades measured 2.7:1 (error) and 3.5:1 (success) on the dark background;
+   these are all above 6:1 on #171717 and #292929 (WCAG AA). Being light,
+   they take dark text when used as a fill. */
 body[data-theme-dark] #app-navigation,
 body[data-theme-dark] #app-content,
 body[data-theme-dark] #budget-toast-container,
 body[data-theme-dark] #repair-data-modal,
+body[data-theme-dark] #content.app-budget > .modal,
+body[data-theme-dark] .budget-modal-overlay,
 body[data-theme-dark-highcontrast] #app-navigation,
 body[data-theme-dark-highcontrast] #app-content,
 body[data-theme-dark-highcontrast] #budget-toast-container,
-body[data-theme-dark-highcontrast] #repair-data-modal {
-    --color-success: #81c995;
-    --color-error: #f28b82;
-    --color-warning: #ffb74d;
+body[data-theme-dark-highcontrast] #repair-data-modal,
+body[data-theme-dark-highcontrast] #content.app-budget > .modal,
+body[data-theme-dark-highcontrast] .budget-modal-overlay {
+    --color-success: var(--budget-scheme-positive, #81c995);
+    --color-error: var(--budget-scheme-negative, #f28b82);
+    --color-warning: var(--budget-scheme-warning, #ffb74d);
     --budget-color-on-status: #171717;
 }
 
@@ -20902,10 +20957,12 @@ body[data-theme-dark-highcontrast] #repair-data-modal {
     body[data-theme-default] #app-navigation,
     body[data-theme-default] #app-content,
     body[data-theme-default] #budget-toast-container,
-    body[data-theme-default] #repair-data-modal {
-        --color-success: #81c995;
-        --color-error: #f28b82;
-        --color-warning: #ffb74d;
+    body[data-theme-default] #repair-data-modal,
+    body[data-theme-default] #content.app-budget > .modal,
+    body[data-theme-default] .budget-modal-overlay {
+        --color-success: var(--budget-scheme-positive, #81c995);
+        --color-error: var(--budget-scheme-negative, #f28b82);
+        --color-warning: var(--budget-scheme-warning, #ffb74d);
         --budget-color-on-status: #171717;
     }
 }

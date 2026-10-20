@@ -4,10 +4,29 @@
  *
  * Amounts and dates go in spans of their own (repair-item-amount,
  * repair-item-date) that the stylesheet keeps whole: beside a long note,
- * Chrome broke a date after its hyphens ('2026-10-' / '15').
+ * Chrome broke a date after its hyphens ('2026-10-' / '15'). So do the
+ * dates and amounts inside a note (repair-note-value), as the note wraps.
  */
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import { escapeHtml } from './dom.js';
+
+/**
+ * A date or amount for a note, as HTML in a span the stylesheet keeps on
+ * one line: in the note's free text, Chrome broke 'on 2026-03-28' after
+ * '2026-' and '41.70 CHF' at its space (#399).
+ *
+ * @param {string} text
+ * @return {string} HTML
+ */
+function noteValue(text) {
+    return `<span class="repair-note-value">${escapeHtml(text)}</span>`;
+}
+
+/**
+ * t() with values that are HTML already: each is escaped where it is made
+ * (escapeHtml(), noteValue()), so t() must not escape it again.
+ */
+const HTML_VALUES = { escape: false };
 
 /**
  * One row of "Duplicate Auto-Generated Transactions": its tick, the
@@ -38,8 +57,8 @@ export function duplicateItem(finding, formatAmount) {
 
 /**
  * The note beside a duplicate payment: the payment it repeats, and what
- * removing it takes along. Values go in through t()'s placeholders, which
- * escape them.
+ * removing it takes along. Names go in escaped, and dates and amounts
+ * escaped and kept whole (noteValue()).
  *
  * - same_occurrence: two of a bill's payments settle one occurrence. When
  *   their amounts differ (an older version's pending row, booked at the
@@ -62,24 +81,24 @@ export function duplicateNote(finding, formatAmount) {
     if (finding.reason === 'same_occurrence') {
         note = amountsDiffer(finding)
             ? t('budget', 'Looks like a second payment for {occurrence} (other payment of {amount} on {date})', {
-                occurrence: finding.occurrence,
-                amount: formatAmount(finding.originalAmount),
-                date: finding.originalDate,
-            })
+                occurrence: noteValue(finding.occurrence),
+                amount: noteValue(formatAmount(finding.originalAmount)),
+                date: noteValue(finding.originalDate),
+            }, undefined, HTML_VALUES)
             : t('budget', 'Looks like a second payment for {occurrence} (other payment on {date})', {
-                occurrence: finding.occurrence,
-                date: finding.originalDate,
-            });
+                occurrence: noteValue(finding.occurrence),
+                date: noteValue(finding.originalDate),
+            }, undefined, HTML_VALUES);
     } else if (finding.reason === 'deleted_bill') {
         note = t('budget', 'Looks like a second payment of {bill} (other payment on {date})', {
-            bill: finding.billName || finding.vendor || t('budget', '(unnamed)'),
-            date: finding.originalDate,
-        });
+            bill: escapeHtml(finding.billName || finding.vendor || t('budget', '(unnamed)')),
+            date: noteValue(finding.originalDate),
+        }, undefined, HTML_VALUES);
     } else {
         note = t('budget', 'Also recorded as {description} on {date}', {
-            description: finding.originalDescription || t('budget', '(unnamed)'),
-            date: finding.originalDate,
-        });
+            description: escapeHtml(finding.originalDescription || t('budget', '(unnamed)')),
+            date: noteValue(finding.originalDate),
+        }, undefined, HTML_VALUES);
     }
     if (finding.originalReconciled) {
         note += ` (${t('budget', 'reconciled')})`;
@@ -110,7 +129,7 @@ export function stuckIncomeItem(income, formatAmount) {
         <span>${escapeHtml(income.name) || t('budget', '(unnamed)')}</span>
         <span class="repair-item-amount">${formatAmount(income.amount)}</span>
         <span class="repair-item-date">${t('budget', 'Received {date}', { date: income.lastReceivedDate })}</span>
-        <span class="repair-item-note">${t('budget', 'Moves on to {date}', { date: income.settledNextExpectedDate })}</span>
+        <span class="repair-item-note">${t('budget', 'Moves on to {date}', { date: noteValue(income.settledNextExpectedDate) }, undefined, HTML_VALUES)}</span>
     </div>`;
 }
 
