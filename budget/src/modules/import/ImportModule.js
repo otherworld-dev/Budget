@@ -2192,12 +2192,16 @@ export default class ImportModule {
             }
         });
 
-        // The rows left visible out of the 50-row sample, of the whole file:
-        // counted against the sample alone, a 1000-line file read
-        // "Showing 50 of 50" under a Total of 1000 (#399)
+        // Counted against the whole file: against the 50-row sample alone, a
+        // 1000-line file read "Showing 50 of 50" under a Total of 1000. But
+        // when a filter hides rows of a sample shorter than the file, the
+        // count names the sample, or "3 of 1000" reads as if only 3 of the
+        // 1000 lines pass (#399).
         const totalCount = Math.max(this.previewTotalValid || 0, rows.length);
-        document.getElementById('preview-info').textContent =
-            t('budget', 'Showing {shown} of {total}', { shown: visibleCount, total: totalCount });
+        const filtered = visibleCount < rows.length && rows.length < totalCount;
+        document.getElementById('preview-info').textContent = filtered
+            ? t('budget', 'Showing {shown} of the first {sample} of {total} rows', { shown: visibleCount, sample: rows.length, total: totalCount })
+            : t('budget', 'Showing {shown} of {total}', { shown: visibleCount, total: totalCount });
     }
 
     /**
