@@ -152,7 +152,7 @@ describe('how many rows the table shows', () => {
         mod.filterPreviewTransactions();
 
         expect(visibleRows()).toHaveLength(20);
-        expect(info()).toBe('Showing 20 of 1000');
+        expect(info()).toBe('Showing 20 of the first 50 of 1000 rows');
     });
 
     it('counts a small file against its own length', () => {
