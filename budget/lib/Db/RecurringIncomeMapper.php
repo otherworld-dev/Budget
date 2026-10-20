@@ -37,9 +37,8 @@ class RecurringIncomeMapper extends QBMapper {
 		$qb = $this->db->getQueryBuilder();
 		$qb->select('*')
 			->from($this->getTableName())
-			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-			->orderBy('next_expected_date', 'ASC')
-			->addOrderBy('name', 'ASC');
+			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)));
+		ScheduleOrder::byNextDate($qb, 'next_expected_date');
 
 		return $this->findEntities($qb);
 	}
@@ -72,9 +71,8 @@ class RecurringIncomeMapper extends QBMapper {
 		$qb->select('*')
 			->from($this->getTableName())
 			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-			->andWhere($qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
-			->orderBy('next_expected_date', 'ASC')
-			->addOrderBy('name', 'ASC');
+			->andWhere($qb->expr()->eq('is_active', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)));
+		ScheduleOrder::byNextDate($qb, 'next_expected_date');
 
 		return $this->findEntities($qb);
 	}
