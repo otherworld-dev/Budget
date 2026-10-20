@@ -1726,7 +1726,7 @@ class BillService {
 		// linkage is undone.
 		if ($linkedTransactionId !== null) {
 			try {
-				$this->transactionService->unlinkBillAsAccountOwner($linkedTransactionId);
+				$this->transactionService->unlinkBillAsAccountOwner($linkedTransactionId, $id);
 			} catch (\Exception $e) {
 				$this->logger->warning("Failed to unlink transaction {$linkedTransactionId} during undo-paid for bill {$id}: {$e->getMessage()}");
 			}
