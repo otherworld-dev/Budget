@@ -3598,9 +3598,12 @@ button.danger:hover {
     padding: 5px;
 }
 
+/* minmax(0, 1fr) and the controls' max-width: a select's longest option
+   set its column's minimum, so on a phone Category, Status and Search ran
+   past the panel's edge */
 .filters-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 12px;
     margin-bottom: 12px;
 }
@@ -4639,6 +4642,13 @@ button.danger:hover {
     background: var(--color-background-hover);
 }
 
+/* Where the arrow keys are: the same ring as the tag picker's, as the hover
+   fill alone was too faint to follow */
+.category-autocomplete-item.highlighted {
+    outline: 2px solid var(--color-primary-element);
+    outline-offset: -2px;
+}
+
 .category-autocomplete-item.selected {
     background: var(--color-primary-element-light);
 }
@@ -5113,7 +5123,12 @@ button.danger:hover {
 /* Mobile Responsive */
 @media (max-width: 768px) {
     .filters-grid {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .filters-grid select,
+    .filters-grid input {
+        max-width: 100%;
     }
 
     .table-header {
