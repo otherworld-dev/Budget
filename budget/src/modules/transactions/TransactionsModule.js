@@ -341,11 +341,12 @@ export default class TransactionsModule {
 
         // Table sorting and selection
         document.addEventListener('click', (e) => {
-            // Column sorting
-            if (e.target.closest('.sortable')) {
-                const header = e.target.closest('.sortable');
-                const field = header.getAttribute('data-sort');
-                this.sortTransactions(field);
+            // Column sorting, this list's own headings only: the account
+            // register and the rules table have sortable headings too, and
+            // a click on one of them re-sorted and reloaded this list
+            const header = e.target.closest('#transactions-table th.sortable');
+            if (header) {
+                this.sortTransactions(header.getAttribute('data-sort'));
             }
 
             // Select all checkbox
@@ -831,11 +832,11 @@ export default class TransactionsModule {
         }
 
         // Update sort indicators
-        document.querySelectorAll('.sort-indicator').forEach(indicator => {
+        document.querySelectorAll('#transactions-table .sort-indicator').forEach(indicator => {
             indicator.className = 'sort-indicator';
         });
 
-        const currentHeader = document.querySelector(`[data-sort="${field}"] .sort-indicator`);
+        const currentHeader = document.querySelector(`#transactions-table [data-sort="${field}"] .sort-indicator`);
         if (currentHeader) {
             currentHeader.className = `sort-indicator ${this.app.currentSort.direction}`;
         }

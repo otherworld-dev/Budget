@@ -1532,15 +1532,15 @@ style('budget', 'budget-app');
                             <table id="account-transactions-table" class="transactions-table">
                                 <thead>
                                     <tr>
-                                        <th scope="col" class="date-column sortable" data-sort="date">
+                                        <th scope="col" tabindex="0" aria-sort="none" class="date-column sortable" data-sort="date">
                                             <?php p($l->t('Date')); ?> <span class="sort-indicator"></span>
                                         </th>
-                                        <th scope="col" class="description-column sortable" data-sort="description">
+                                        <th scope="col" tabindex="0" aria-sort="none" class="description-column sortable" data-sort="description">
                                             <?php p($l->t('Description')); ?> <span class="sort-indicator"></span>
                                         </th>
                                         <th scope="col" class="vendor-column"><?php p($l->t('Vendor')); ?></th>
                                         <th scope="col" class="category-column"><?php p($l->t('Category')); ?></th>
-                                        <th scope="col" class="amount-column sortable" data-sort="amount">
+                                        <th scope="col" tabindex="0" aria-sort="none" class="amount-column sortable" data-sort="amount">
                                             <?php p($l->t('Amount')); ?> <span class="sort-indicator"></span>
                                         </th>
                                         <th scope="col" class="balance-column"><?php p($l->t('Balance')); ?></th>
