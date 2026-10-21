@@ -5,13 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [3.1.0] - 2026-10-21
 
 ### Added
 - **Colour settings for money in and money out.** Settings has a new Colours section with a colour-blind friendly preset (blue and orange) or your own colours, picked separately for the light and dark theme. They are used across amounts, budget bars, charts and PDF exports, and each person sets their own. Default keeps the colours as they are now. Reported by @trucks192 ([#432](https://github.com/otherworld-dev/Budget/issues/432))
 - **Link a transaction to a bill.** A transaction's menu has **Link to bill…**, which files it as one of the bill's payments without moving the bill's due date, so a payment you typed in yourself, or one left behind by a bill you deleted and set up again, shows in Bills by Month. Bills with the same name are listed with their dates, and the ones matching the amount come first. **Unlink from bill** takes it off again, apart from the bill's latest payment, which Mark Unpaid on the bill undoes. Only money going out of the bill's own account can be linked. Reported by @TerjeTM ([#399](https://github.com/otherworld-dev/Budget/issues/399))
 
 ### Changed
+- **Translations.** German and French have been updated from Weblate, and the Italian translation has grown from a handful of strings to about 300.
 - **A transfer whose other side was deleted counts as spending until it is linked again.** An older version could delete one side of a transfer and leave the other pointing at it. Updating lets go of the missing side, so the one left can be matched to its other side again, and until it is, reports count it like any other payment.
 
 ### Fixed
