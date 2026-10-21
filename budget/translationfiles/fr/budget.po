@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-10-15 00:25+0000\n"
-"PO-Revision-Date: 2026-10-21 10:51+0000\n"
+"PO-Revision-Date: 2026-10-21 13:19+0000\n"
 "Last-Translator: Christophe <capersys@users.noreply.hosted.weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/fr/>\n"
@@ -167,7 +167,7 @@ msgstr "Aucun identifiant de compte fourni"
 #: /app/lib/Controller/AccountController.php:567
 #: /app/src/modules/accounts/AccountsModule.js:704
 msgid "Failed to delete accounts"
-msgstr "La suppression des comptes à échoué"
+msgstr "Échec de la suppression des comptes"
 
 #: /app/lib/Controller/AccountController.php:602
 msgid "Only the account owner can delete an account"
@@ -396,7 +396,7 @@ msgstr ""
 
 #: /app/lib/Controller/ApiV1TransactionController.php:563
 msgid "An account is required"
-msgstr "Un compte est obligatoire"
+msgstr "Un compte est requis"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:568
 #: /app/lib/Controller/ApiV1TransactionController.php:1551
@@ -474,8 +474,7 @@ msgstr "Cette clé d'idempotence a déjà été utilisée pour une autre opérat
 
 #: /app/lib/Controller/ApiV1TransactionController.php:981
 msgid "This request is still being processed. Try again shortly"
-msgstr ""
-"Cette requête est toujours en cours de traitement. Réessayez dans un instant"
+msgstr "Cette demande est en cours de traitement. Réessayez dans un instant"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:1157
 msgid "Failed to split the transaction"
@@ -1371,13 +1370,13 @@ msgstr "Échec de la récupération des budgets récurrents"
 #: /app/src/modules/categories/CategoriesModule.js:1658
 #: /app/src/modules/categories/CategoriesModule.js:1670
 msgid "Failed to export categories"
-msgstr "Échec de l'export des catégories"
+msgstr "Échec de l'exportation des catégories"
 
 #: /app/lib/Controller/CategoryTransferController.php:89
 #: /app/src/modules/categories/CategoriesModule.js:1694
 #: /app/src/modules/categories/CategoriesModule.js:1700
 msgid "Failed to read the category file"
-msgstr "Échec de lecture du fichier de catégorie"
+msgstr "Échec de la lecture du fichier de catégories"
 
 #: /app/lib/Controller/CategoryTransferController.php:109
 #: /app/src/modules/categories/CategoriesModule.js:1768
@@ -1640,7 +1639,7 @@ msgstr "Encodage de caractères non pris en charge"
 #: /app/lib/Controller/ImportController.php:299
 #: /app/src/modules/import/ImportModule.js:1270
 msgid "Failed to refresh the data preview"
-msgstr "Impossible d’actualiser l'aperçu des données"
+msgstr "Échec de l'actualisation de l'aperçu des données"
 
 #: /app/lib/Controller/ImportController.php:329
 #: /app/lib/Controller/ImportTemplateController.php:51
@@ -2047,7 +2046,7 @@ msgstr "Impossible d'annuler la contribution"
 
 #: /app/lib/Controller/PensionController.php:706
 msgid "Failed to retrieve pension summary"
-msgstr "Impossible de récupérer le résumé de la pension"
+msgstr "Échec de la récupération du résumé de la pension"
 
 #: /app/lib/Controller/PensionController.php:719
 msgid "Failed to retrieve pension projection"
@@ -2144,7 +2143,7 @@ msgstr ""
 
 #: /app/lib/Controller/ReceiptScanController.php:104
 msgid "The receipt scanning quota is used up. Try again later"
-msgstr "Le quota de numérisation des reçus est épuisé. Réessayez plus tard"
+msgstr "Le quota de numérisation de reçus est épuisé. Réessayez plus tard"
 
 #: /app/lib/Controller/ReceiptScanController.php:109
 msgid ""
@@ -2265,7 +2264,7 @@ msgstr "Impossible de générer le rapport de revenus"
 
 #: /app/lib/Controller/ReportController.php:185
 msgid "Failed to generate income and expenses report"
-msgstr "Impossible de générer le rapport des revenus et dépenses"
+msgstr "Impossible de générer le rapport sur les revenus et les dépenses"
 
 #: /app/lib/Controller/ReportController.php:226
 #: /app/src/modules/reports/ReportsModule.js:1618
@@ -2819,7 +2818,7 @@ msgstr "Échec de la suppression de l'étiquette générale"
 #: /app/src/modules/accounts/AccountsModule.js:3548
 #: /app/src/modules/transactions/TransactionsModule.js:1004
 msgid "Failed to export transactions"
-msgstr "Échec de l'export des opérations"
+msgstr "Échec de l'exportation des opérations"
 
 #: /app/lib/Controller/TransactionController.php:294
 #: /app/lib/Controller/TransactionController.php:568
@@ -4145,8 +4144,8 @@ msgid ""
 "File does not appear to be a valid QIF file. Missing !Type: or !Account "
 "header."
 msgstr ""
-"Le fichier ne semble pas être un fichier QIF valide. En-tête « !Type: » ou "
-"« !Account » manquant."
+"Le fichier ne semble pas être un fichier QIF valide. En-tête « !Type : » ou «"
+" !Account » manquant."
 
 #: /app/lib/Service/Import/FileValidator.php:228
 msgid ""
@@ -5331,7 +5330,12 @@ msgstr ""
 "## Fonctionnalités\n"
 "\n"
 "* **Importation de relevés bancaires** : Prise en charge des formats CSV, "
-"OFX, QIF et ISO 20022 camt.053 XML\n"
+"Excel et Libreoffice (.xls, .xlsx, .ods),OFX, QIF et ISO 20022 camt.053 XML, "
+"plus des exports de Firefly III, YNAB, Actual Budget, Mint et Monarch "
+"Money,\n"
+"* **Dossier d'importation** : déposez une opération dans un dossier de vos « "
+"Files » et elle sera importée en arrière-plan, ou mise en attente pour que "
+"vous puissiez la vérifier au préalable\n"
 "* **Synchronisation bancaire** : récupérez automatiquement vos opérations "
 "via GoCardless (Royaume-Uni/UE) ou SimpleFIN (États-Unis)\n"
 "* **Catégorisation intelligente** : Association automatique aux commerçants "
@@ -5348,9 +5352,11 @@ msgstr ""
 "et, une fois que l'administrateur aura configuré cette fonctionnalité, le "
 "système pourra extraire le montant et les articles figurant sur ces reçus "
 "(OCR)\n"
-"* **Ajout rapide et API publique** : une page d'accès rapide depuis votre "
-"téléphone, ainsi qu'une API REST pour les scripts, l'automatisation et "
-"l'application Android « Budget Companion » (en cours de développement)\n"
+"* **Application Android, saisie rapide et API publique** : Budget Companion "
+"pour Android (sur Google Play : https://play.google.com/store/apps/"
+"details?id=dev.otherworld.budget) pour photographier vos reçus et consulter "
+"vos soldes, une page de saisie rapide sur votre téléphone, ainsi qu'une API "
+"REST pour les scripts et l'automatisation\n"
 "* **Suivi budgétaire** : définissez des limites de dépenses et recevez des "
 "alertes lorsque vous vous approchez de ces limites ou que vous les dépassez\n"
 "* **Budgets reportables** : système de budgétisation par enveloppes, dans "
@@ -5392,6 +5398,9 @@ msgstr ""
 "catégories\n"
 "* **Rapports et graphiques** : Visualisation de vos données financières via "
 "des graphiques interactifs\n"
+"* **Check-list pour démarrer** : une liste de contrôle pour la première "
+"utilisation, accompagnée d'exemples de données à explorer avant d'ajouter "
+"les vôtres\n"
 "\n"
 "## Documentation\n"
 "\n"
@@ -14513,10 +14522,8 @@ msgid "Got it"
 msgstr "D'accord"
 
 #: /app/src/utils/formSelects.js:20
-#, fuzzy
-#| msgid "Unavailable (not shared with you)"
 msgid "{category} (not shared with you)"
-msgstr "Indisponible (non partagé avec vous)"
+msgstr "{category} (non partagé avec vous)"
 
 #: /app/src/utils/formatters.js:272 /app/templates/index.php:6031
 msgid "Mortgage"
@@ -15383,27 +15390,25 @@ msgid "Step 1: Select File"
 msgstr "Étape 1 : Sélectionner un fichier"
 
 #: /app/templates/index.php:2290
-#, fuzzy
-#| msgid ""
-#| "Choose your bank statement file (CSV, OFX, QIF, or camt.053 XML format)"
 msgid ""
 "Choose your bank statement file (CSV, Excel, OFX, QIF, or camt.053 XML "
 "format)"
 msgstr ""
-"Choisissez votre fichier de relevé bancaire (format CSV, OFX, QIF ou XML "
-"camt.053)"
+"Sélectionnez votre fichier de relevé bancaire (format CSV, Excel, OFX, QIF "
+"ou XML camt.053)"
 
 #: /app/templates/index.php:2294
-#, fuzzy
-#| msgid "Data Preview"
 msgid "Waiting for review"
-msgstr "Aperçu des données"
+msgstr "En attente de validation"
 
 #: /app/templates/index.php:2295
 msgid ""
 "Statements dropped into an import folder that holds its files for review. "
 "Review one to check it and import it, or skip it."
 msgstr ""
+"Les relevés sont placés dans un dossier « import » qui contient les fichiers "
+"destinés à être vérifiés. Ouvrez-en un pour le vérifier et l'importer, ou "
+"ignorez-le."
 
 #: /app/templates/index.php:2301
 msgid "Drag and drop your bank statement here"
@@ -15481,7 +15486,7 @@ msgstr "Valeurs séparées par des virgules de n'importe quelle banque"
 
 #: /app/templates/index.php:2355
 msgid "Excel and LibreOffice spreadsheets, read like a CSV file"
-msgstr ""
+msgstr "Feuilles de calcul Excel et LibreOffice, lisibles comme un fichier CSV"
 
 #: /app/templates/index.php:2356
 msgid "Open Financial Exchange format"
@@ -15527,7 +15532,7 @@ msgstr "Virgule (,)"
 
 #: /app/templates/index.php:2393
 msgid "Semicolon (;)"
-msgstr "Point-virgule (;)"
+msgstr "Point-virgule ( ;)"
 
 #: /app/templates/index.php:2394
 msgid "Tab"
@@ -16838,54 +16843,57 @@ msgid ""
 "subfolder, the people you share it with can add statements to it, and so "
 "transactions to that account."
 msgstr ""
+"Un relevé déposé dans l'un des sous-dossiers ci-dessous est importé en "
+"arrière-plan, dans le compte, selon le modèle d'importation que vous avez "
+"choisi. Le fichier est ensuite déplacé vers un dossier « Imported » ou « "
+"Failed » situé à côté, et vous recevez une notification. Un sous-dossier "
+"configuré pour conserver les fichiers en attente de vérification les "
+"conserve jusqu'à ce que vous les ayez consultés sur la page « Importation ». "
+"Si vous partagez un sous-dossier, les personnes avec lesquelles vous le "
+"partagez peuvent y ajouter des relevés, et donc des transactions sur ce "
+"compte."
 
 #: /app/templates/index.php:4643
 msgid "How it works"
-msgstr ""
+msgstr "Comment ça marche"
 
 #: /app/templates/index.php:4654
 msgid ""
 "A path inside your Files. Leave empty for the default, Budget/Import. "
 "Changing it does not move subfolders you already have."
 msgstr ""
+"Un chemin d'accès à l'intérieur de votre dossier « Files ». Laissez ce champ "
+"vide pour conserver le chemin par défaut : « Budget/Import ». La "
+"modification de ce chemin n'entraîne pas le déplacement des sous-dossiers "
+"déjà présents."
 
 #: /app/templates/index.php:4660
-#, fuzzy
-#| msgid "Builder"
 msgid "Subfolder"
-msgstr "Constructeur"
+msgstr "Sous-dossier"
 
 #: /app/templates/index.php:4663 /app/templates/index.php:4675
 msgid "When a file arrives"
-msgstr ""
+msgstr "Lorsqu'un fichier arrive"
 
 #: /app/templates/index.php:4664
-#, fuzzy
-#| msgid "Open"
 msgid "On"
-msgstr "Ouvrir"
+msgstr "sur"
 
 #: /app/templates/index.php:4670
 msgid "No subfolders yet. Add the first one below."
-msgstr ""
+msgstr "Il n'y a pas encore de sous-dossiers. Ajoutez le premier ci-dessous."
 
 #: /app/templates/index.php:4672
-#, fuzzy
-#| msgid "Account holder name"
 msgid "Subfolder name"
-msgstr "Nom du titulaire"
+msgstr "Nom du sous-dossier"
 
 #: /app/templates/index.php:4679
-#, fuzzy
-#| msgid "Add Rule"
 msgid "Add subfolder"
-msgstr "Ajouter une règle"
+msgstr "Ajouter un sous-dossier"
 
 #: /app/templates/index.php:4682
-#, fuzzy
-#| msgid "Checking"
 msgid "Check now"
-msgstr "Vérification"
+msgstr "Vérifiez dès maintenant"
 
 #: /app/templates/index.php:4696
 msgid "Monthly Report to Files"
@@ -17898,18 +17906,15 @@ msgid "Reading the receipt…"
 msgstr "Lis le reçu…"
 
 #: /app/templates/index.php:5953
-#, fuzzy
-#| msgid ""
-#| "The photo is read on your server and fills in the form for you to check. "
-#| "It is attached to the transaction when you save."
 msgid ""
 "The photo is read by the receipt scanning set up in Budget's Admin Settings "
 "and fills in the form for you to check. It is attached to the transaction "
 "when you save."
 msgstr ""
-"La photo est lue sur votre serveur et le formulaire est rempli "
-"automatiquement pour que vous puissiez le vérifier. Elle est jointe à "
-"l'opérationlorsque vous l'enregistrez."
+"La photo est analysée par le système de numérisation des reçus, configuré "
+"dans les paramètres d'administration de Budget. Le système remplit "
+"automatiquement le formulaire pour que vous puissiez le vérifier. La photo "
+"est jointe à l'opération lorsque vous l'enregistrez."
 
 #: /app/templates/index.php:5960 /app/templates/quick-add.php:22
 msgid "Upload receipt"
@@ -19139,10 +19144,8 @@ msgid "click here to authorize"
 msgstr "cliquez ici pour autoriser"
 
 #: /app/templates/quick-add.php:27
-#, fuzzy
-#| msgid "Upload receipt"
 msgid "Read receipt"
-msgstr "Télécharger le reçu"
+msgstr "Lire le reçu"
 
 #: /app/templates/quick-add.php:63
 msgid "What was this for?"
@@ -19165,21 +19168,24 @@ msgid ""
 "Read receipt fills in the form from it for you to check, using the receipt "
 "scanning set up in Budget's Admin Settings."
 msgstr ""
+"Le système de lecture remplit automatiquement le formulaire correspondant "
+"pour que vous puissiez le vérifier, grâce à la fonctionnalité de "
+"numérisation des reçus configurée dans les paramètres d'administration de "
+"Budget."
 
 #: /app/templates/quick-add.php:110
 msgid "Receipts can only be attached to transactions in your own accounts."
 msgstr ""
+"Les justificatifs ne peuvent être joints qu'aux opérations effectuées sur "
+"vos propres comptes."
 
 #: /app/templates/quick-add.php:111
-#, fuzzy
-#| msgid ""
-#| "The transaction was saved, but {count} receipt(s) could not be attached"
 msgid ""
 "The transaction was saved, but the receipt could not be attached. Open it in "
 "Budget to add the receipt."
 msgstr ""
-"L'opération a été enregistrée, mais {count} reçu(s) n'a (ont) pas pu être "
-"joint(s)"
+"L'opération a été enregistrée, mais il n'a pas été possible de joindre le "
+"justificatif. Ouvrez-la dans Budget pour ajouter le justificatif."
 
 #~ msgid "Skip Duplicate Transactions"
 #~ msgstr "Ignorer les opérations en double"
