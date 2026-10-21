@@ -1387,6 +1387,32 @@ class MigrationService {
 	}
 
 	/**
+	 * The payee an archived transaction's import stored (#399). A backup made
+	 * since holds it, null included. One made before it existed doesn't: its
+	 * rows are restored as migration 126 left the rows in the database, a
+	 * file import's row (Version001000126Date20261021::FILE_IMPORT_ID_PREFIXES)
+	 * with its payee, '' for none, any other not known.
+	 *
+	 * @param array<string, mixed> $txnData
+	 */
+	private static function importVendorFor(array $txnData): ?string {
+		if (array_key_exists('importVendor', $txnData)) {
+			return is_string($txnData['importVendor']) ? $txnData['importVendor'] : null;
+		}
+		$importId = $txnData['importId'] ?? null;
+		if (!is_string($importId)) {
+			return null;
+		}
+		foreach (\OCA\Budget\Migration\Version001000126Date20261021::FILE_IMPORT_ID_PREFIXES as $prefix) {
+			if (str_starts_with($importId, $prefix)) {
+				$vendor = $txnData['vendor'] ?? null;
+				return is_scalar($vendor) ? (string)$vendor : '';
+			}
+		}
+		return null;
+	}
+
+	/**
 	 * A boolean from an archived entity. A backup can hold "false" or "0" as
 	 * strings, which a bare cast (or the entity's own settype) turns true -
 	 * how auto-pay came back switched on for restored bills (#335).
@@ -1550,9 +1576,7 @@ class MigrationService {
 			$transaction->setReference($txnData['reference'] ?? null);
 			$transaction->setNotes($txnData['notes'] ?? null);
 			$transaction->setImportId($txnData['importId'] ?? null);
-			// Absent from backups made before #399: not known, as for any
-			// row imported before then
-			$transaction->setImportVendor(is_string($txnData['importVendor'] ?? null) ? $txnData['importVendor'] : null);
+			$transaction->setImportVendor(self::importVendorFor($txnData));
 			$transaction->setReconciled(self::flag($txnData, 'reconciled', false));
 			// Restore status — dropping it turned scheduled transactions into
 			// cleared ones, silently corrupting balances after a migration (#274)

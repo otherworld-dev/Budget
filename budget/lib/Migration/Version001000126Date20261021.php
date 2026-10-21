@@ -26,10 +26,11 @@ use OCP\Migration\SimpleMigrationStep;
  * now, '' for none, so an edit made from here on is followed for them too.
  * An edit made before this ran can't be told from what the import stored,
  * so for those rows nothing changes. Only the import ids a file import
- * gives are filled: a content hash (CSV, spreadsheets, app exports, QIF)
- * and the bank's own id in an OFX or camt file. Both kinds of row are
- * compared with a new file's lines, the first by every import, the second
- * by an app export's (see ImportService::matchesStoredRow()). Bank sync's
+ * gives are filled: a content hash (hash_: CSV, spreadsheets, app exports)
+ * and an id of the file's own (ofx_fitid_: the bank's id in an OFX or camt
+ * file, or the one QifParser makes for a QIF row, ofx_fitid_qif_<md5>). The
+ * first kind is compared with a new file's lines by every import, the
+ * second by an app export's (see ImportService::matchesStoredRow()). Bank sync's
  * rows and rows typed in, which the imports never give one either, stay
  * NULL. (Oracle stores '' as NULL: there a row with no payee stays NULL and
  * is compared by its payee now, as before.)
