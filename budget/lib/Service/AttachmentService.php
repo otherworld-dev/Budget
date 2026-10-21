@@ -8,12 +8,14 @@ use OCA\Budget\Db\Attachment;
 use OCA\Budget\Db\AttachmentMapper;
 use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Exception\ReceiptUploadException;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\Files\File;
 use OCP\Files\IRootFolder;
 use OCP\Files\NotEnoughSpaceException;
 use OCP\Files\NotPermittedException;
 use OCP\IUserManager;
+use OCP\Lockdown\ILockdownManager;
 use OCP\Notification\IManager as INotificationManager;
 use Psr\Log\LoggerInterface;
 
@@ -44,6 +46,7 @@ class AttachmentService {
 		private ?SettingService $settings = null,
 		private ?INotificationManager $notificationManager = null,
 		private ?IUserManager $userManager = null,
+		private ?ILockdownManager $lockdownManager = null,
 	) {
 	}
 
@@ -163,17 +166,28 @@ class AttachmentService {
 		$transaction = $this->transactionMapper->find($transactionId, $userId); // ownership or 404
 
 		if (($uploadedFile['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
-			throw new \InvalidArgumentException('Upload failed');
+			throw new ReceiptUploadException(ReceiptUploadException::INVALID_FILE, 'Upload failed');
 		}
 		// The size on disk is the truth; the array's own figure is only used
 		// when the temp file cannot be read
 		$tmpName = (string)($uploadedFile['tmp_name'] ?? '');
 		$actualSize = ($tmpName !== '' && is_file($tmpName)) ? (int)filesize($tmpName) : 0;
 		if (max($actualSize, (int)($uploadedFile['size'] ?? 0)) > self::MAX_SIZE) {
-			throw new \InvalidArgumentException('File exceeds the 25 MB limit');
+			throw new ReceiptUploadException(ReceiptUploadException::INVALID_FILE, 'File exceeds the 25 MB limit');
 		}
 		$mime = mime_content_type($uploadedFile['tmp_name']) ?: ($uploadedFile['type'] ?? '');
 		$this->assertAllowedMime($mime);
+
+		// An app password with "Allow filesystem access" switched off sees a
+		// read-only, empty Files, so the folder walk below fails on its very
+		// first segment with "No create permission" (#437). Say so plainly:
+		// the fix is in the user's security settings, not in their folders.
+		if ($this->lockdownManager !== null && !$this->lockdownManager->canAccessFilesystem()) {
+			throw new ReceiptUploadException(
+				ReceiptUploadException::FILES_ACCESS_DENIED,
+				'This app password has no access to your Files. Allow filesystem access for it in your security settings'
+			);
+		}
 
 		$userFolder = $this->rootFolder->getUserFolder($userId);
 		// Year AND month: a year folder holding several hundred receipts is
@@ -181,19 +195,21 @@ class AttachmentService {
 		$date = (string)$transaction->getDate();
 		$year = substr($date, 0, 4) ?: date('Y');
 		$month = substr($date, 5, 2) ?: date('m');
-		$folder = $userFolder;
-		foreach ([...explode('/', $this->receiptsFolderFor($userId)), $year, $month] as $segment) {
-			$folder = $folder->nodeExists($segment) ? $folder->get($segment) : $folder->newFolder($segment);
-		}
-
-		$name = $this->uniqueName($folder, $this->receiptFileName($transaction, (string)($uploadedFile['name'] ?? ''), $mime));
 		try {
+			// Creating the folders is as much a write as the file: a parent
+			// the user can't write to refuses here, not at newFile
+			$folder = $userFolder;
+			foreach ([...explode('/', $this->receiptsFolderFor($userId)), $year, $month] as $segment) {
+				$folder = $folder->nodeExists($segment) ? $folder->get($segment) : $folder->newFolder($segment);
+			}
+
+			$name = $this->uniqueName($folder, $this->receiptFileName($transaction, (string)($uploadedFile['name'] ?? ''), $mime));
 			$stream = fopen($uploadedFile['tmp_name'], 'rb');
 			$node = $folder->newFile($name, $stream);
 		} catch (NotEnoughSpaceException $e) {
-			throw new \InvalidArgumentException('Not enough free space in your Files');
+			throw new ReceiptUploadException(ReceiptUploadException::NOT_ENOUGH_SPACE, 'Not enough free space in your Files');
 		} catch (NotPermittedException $e) {
-			throw new \InvalidArgumentException('You are not allowed to write to the receipts folder');
+			throw new ReceiptUploadException(ReceiptUploadException::FOLDER_NOT_WRITABLE, 'You are not allowed to write to the receipts folder');
 		}
 
 		$attachment = $this->createRow($transactionId, $userId, $node);
@@ -306,7 +322,7 @@ class AttachmentService {
 
 	private function assertAllowedMime(string $mime): void {
 		if (!in_array($mime, self::ALLOWED_MIMES, true)) {
-			throw new \InvalidArgumentException('File type not allowed — use an image or PDF');
+			throw new ReceiptUploadException(ReceiptUploadException::INVALID_FILE, 'File type not allowed — use an image or PDF');
 		}
 	}
 

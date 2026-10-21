@@ -11,6 +11,7 @@ use OCA\Budget\Db\IdempotencyKeyMapper;
 use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionSplit;
 use OCA\Budget\Exception\ReadOnlyShareException;
+use OCA\Budget\Exception\ReceiptUploadException;
 use OCA\Budget\Service\AttachmentService;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\MoneyCalculator;
@@ -725,7 +726,7 @@ class ApiV1TransactionController extends OCSController {
 					$this->logger?->warning('Receipt attach during create failed: ' . $e->getMessage(), [
 						'app' => Application::APP_ID,
 					]);
-					$out['photo_error'] = $this->l->t('The transaction was recorded, but the photo could not be attached');
+					$out = array_merge($out, $this->photoError($e));
 				}
 			}
 
@@ -1078,11 +1079,29 @@ class ApiV1TransactionController extends OCSController {
 				$this->logger?->warning('Receipt attach during replay failed: ' . $e->getMessage(), [
 					'app' => Application::APP_ID,
 				]);
-				$out['photo_error'] = $this->l->t('The transaction was recorded, but the photo could not be attached');
+				$out = array_merge($out, $this->photoError($e));
 			}
 		}
 
 		return $out;
+	}
+
+	/**
+	 * photo_error and photo_error_code for a receipt that didn't attach to a
+	 * recorded transaction (#437). The code lets a client tell a login that
+	 * can't reach Files (fixable only in the user's security settings) from
+	 * a full quota or a bad file; anything unforeseen is upload_failed.
+	 *
+	 * @return array{photo_error: string, photo_error_code: string}
+	 */
+	private function photoError(\Throwable $e): array {
+		$code = $e instanceof ReceiptUploadException ? $e->getErrorCode() : 'upload_failed';
+		return [
+			'photo_error' => $code === ReceiptUploadException::FILES_ACCESS_DENIED
+				? $this->l->t('The transaction was recorded, but the photo could not be attached: this app password has no access to your Files')
+				: $this->l->t('The transaction was recorded, but the photo could not be attached'),
+			'photo_error_code' => $code,
+		];
 	}
 
 	/** The account the other side of a transfer sits in, null when there is none. */
@@ -1307,6 +1326,14 @@ class ApiV1TransactionController extends OCSController {
 			return new DataResponse(ApiSerializer::attachment($attachment), Http::STATUS_CREATED);
 		} catch (DoesNotExistException $e) {
 			return $this->notFound();
+		} catch (ReceiptUploadException $e) {
+			// A refused write is the login's or the folder's permissions, not
+			// the request: 403, with the same codes create() gives photo_error
+			$code = $e->getErrorCode();
+			$status = in_array($code, [ReceiptUploadException::FILES_ACCESS_DENIED, ReceiptUploadException::FOLDER_NOT_WRITABLE], true)
+				? Http::STATUS_FORBIDDEN
+				: Http::STATUS_BAD_REQUEST;
+			return new DataResponse(['error' => $e->getMessage(), 'error_code' => $code], $status);
 		} catch (\InvalidArgumentException $e) {
 			return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
 		} catch (\Exception $e) {

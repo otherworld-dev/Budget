@@ -12,6 +12,7 @@ use OCA\Budget\Db\IdempotencyKeyMapper;
 use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionSplit;
 use OCA\Budget\Exception\ReadOnlyShareException;
+use OCA\Budget\Exception\ReceiptUploadException;
 use OCA\Budget\Service\AttachmentService;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\TransactionService;
@@ -667,6 +668,46 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
 		$this->assertSame(10, $response->getData()['id']);
 		$this->assertArrayHasKey('photo_error', $response->getData());
+		$this->assertSame('upload_failed', $response->getData()['photo_error_code']);
+	}
+
+	public function testAPhotoErrorCarriesTheReasonCode(): void {
+		// #437: a client can tell "this login can't reach Files" apart
+		$this->params = $this->captureParams();
+		$this->uploads['photo'] = ['name' => 'r.jpg', 'error' => UPLOAD_ERR_OK];
+		$this->service->method('create')->willReturn($this->transaction());
+		$this->attachmentService->method('upload')->willThrowException(
+			new ReceiptUploadException(ReceiptUploadException::FILES_ACCESS_DENIED, 'no files')
+		);
+
+		$response = $this->controller->create();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+		$this->assertSame('files_access_denied', $response->getData()['photo_error_code']);
+	}
+
+	public function testUploadReceiptRefusedByFilesIs403WithACode(): void {
+		$this->uploads['file'] = ['name' => 'r.jpg', 'error' => UPLOAD_ERR_OK];
+		$this->attachmentService->method('upload')->willThrowException(
+			new ReceiptUploadException(ReceiptUploadException::FOLDER_NOT_WRITABLE, 'nope')
+		);
+
+		$response = $this->controller->uploadReceipt(10);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+		$this->assertSame('receipt_folder_not_writable', $response->getData()['error_code']);
+	}
+
+	public function testUploadReceiptWithABadFileIs400WithACode(): void {
+		$this->uploads['file'] = ['name' => 'r.jpg', 'error' => UPLOAD_ERR_OK];
+		$this->attachmentService->method('upload')->willThrowException(
+			new ReceiptUploadException(ReceiptUploadException::INVALID_FILE, 'too big')
+		);
+
+		$response = $this->controller->uploadReceipt(10);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('invalid_file', $response->getData()['error_code']);
 	}
 
 	// ── create: idempotency ─────────────────────────────────────────
