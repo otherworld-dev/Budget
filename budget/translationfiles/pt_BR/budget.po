@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-10-21 00:40+0000\n"
+"POT-Creation-Date: 2026-10-21 21:43+0000\n"
 "PO-Revision-Date: 2026-09-17 01:43+0000\n"
 "Last-Translator: Alexandre Heuschkel <alexandre@heuschkel.online>\n"
 "Language-Team: Portuguese (Brazil) <https://hosted.weblate.org/projects/"
@@ -26,8 +26,8 @@ msgstr "Falha ao buscar as contas financeiras"
 
 #: /app/lib/Controller/AccountController.php:90
 #: /app/lib/Controller/AccountController.php:681
-#: /app/lib/Controller/ApiV1TransactionController.php:796
-#: /app/lib/Controller/ApiV1TransactionController.php:848
+#: /app/lib/Controller/ApiV1TransactionController.php:798
+#: /app/lib/Controller/ApiV1TransactionController.php:850
 #: /app/lib/Controller/CategoryController.php:678
 #: /app/lib/Controller/TransactionController.php:550
 msgid "Account not found"
@@ -88,7 +88,7 @@ msgid "Invalid currency: %1$s"
 msgstr "Tipo de moeda inválida: %1$s"
 
 #: /app/lib/Controller/AccountController.php:148
-#: /app/src/modules/accounts/AccountsModule.js:28 /app/templates/index.php:1107
+#: /app/src/modules/accounts/AccountsModule.js:29 /app/templates/index.php:1107
 #: /app/templates/index.php:6125
 msgid "Institution"
 msgstr "Instituição"
@@ -144,7 +144,7 @@ msgid "Invalid request data"
 msgstr "Pedido de dados inválido"
 
 #: /app/lib/Controller/AccountController.php:481
-#: /app/lib/Controller/ApiV1TransactionController.php:1309
+#: /app/lib/Controller/ApiV1TransactionController.php:1379
 #: /app/lib/Controller/BillController.php:834
 #: /app/lib/Controller/CategoryController.php:353
 #: /app/lib/Controller/CategoryController.php:451
@@ -169,7 +169,7 @@ msgid "No account IDs provided"
 msgstr "Nenhum token de sessão fornecido"
 
 #: /app/lib/Controller/AccountController.php:567
-#: /app/src/modules/accounts/AccountsModule.js:704
+#: /app/src/modules/accounts/AccountsModule.js:705
 #, fuzzy
 #| msgid "Failed to delete account"
 msgid "Failed to delete accounts"
@@ -182,7 +182,7 @@ msgid "Only the account owner can delete an account"
 msgstr "Somente o proprietário da meta pode excluí-la"
 
 #: /app/lib/Controller/AccountController.php:664
-#: /app/src/modules/accounts/AccountsModule.js:3078
+#: /app/src/modules/accounts/AccountsModule.js:3126
 msgid "Failed to delete account"
 msgstr "Falha ao excluir a conta"
 
@@ -204,7 +204,7 @@ msgstr "Limite de transações excedido (máx. 500)"
 
 #: /app/lib/Controller/AccountController.php:845
 #: /app/lib/Controller/ReconciliationController.php:169
-#: /app/src/modules/transactions/TransactionsModule.js:1912
+#: /app/src/modules/transactions/TransactionsModule.js:1913
 msgid "Failed to complete reconciliation"
 msgstr "Falha ao concluir a conciliação"
 
@@ -213,7 +213,7 @@ msgid "Interest rate must be between 0 and 999.9999"
 msgstr "A taxa de juros deve estar entre 0 e 999,9999"
 
 #: /app/lib/Controller/AccountController.php:900
-#: /app/src/modules/accounts/AccountsModule.js:1443
+#: /app/src/modules/accounts/AccountsModule.js:1445
 msgid "Invalid compounding frequency"
 msgstr "Frequência de capitalização inválida"
 
@@ -225,8 +225,8 @@ msgstr "Formato de data inválido. Use AAAA-MM-DD"
 msgid "Failed to add interest rate"
 msgstr "Falha ao adicionar a taxa de juros"
 
-#: /app/lib/Controller/AccountController.php:931 /app/src/main.js:2878
-#: /app/src/main.js:2976
+#: /app/lib/Controller/AccountController.php:931 /app/src/main.js:2883
+#: /app/src/main.js:2981
 msgid "Interest Rate"
 msgstr ""
 
@@ -304,7 +304,7 @@ msgid "Failed to retrieve categories"
 msgstr "Falha ao buscar as categorias"
 
 #: /app/lib/Controller/ApiV1ReceiptController.php:73
-#: /app/lib/Controller/ApiV1TransactionController.php:1258
+#: /app/lib/Controller/ApiV1TransactionController.php:1320
 #: /app/lib/Controller/AttachmentController.php:91
 #: /app/lib/Controller/ImportController.php:112
 #: /app/lib/Controller/MigrationController.php:99
@@ -340,93 +340,93 @@ msgstr ""
 msgid "Failed to retrieve tags"
 msgstr "Falha ao buscar as etiquetas"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:113
+#: /app/lib/Controller/ApiV1TransactionController.php:115
 #, fuzzy
 #| msgid "Invalid date format. Use YYYY-MM-DD"
 msgid "Invalid date. Use the YYYY-MM-DD format"
 msgstr "Formato de data inválido. Use AAAA-MM-DD"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:154
-#: /app/lib/Controller/ApiV1TransactionController.php:370
+#: /app/lib/Controller/ApiV1TransactionController.php:156
+#: /app/lib/Controller/ApiV1TransactionController.php:372
 #: /app/lib/Controller/TransactionController.php:134
 #: /app/lib/Controller/TransactionController.php:189
 msgid "Failed to retrieve transactions"
 msgstr "Falha ao buscar as transações"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:203
-#: /app/lib/Controller/ApiV1TransactionController.php:588
-#: /app/lib/Controller/ApiV1TransactionController.php:1576
+#: /app/lib/Controller/ApiV1TransactionController.php:205
+#: /app/lib/Controller/ApiV1TransactionController.php:590
+#: /app/lib/Controller/ApiV1TransactionController.php:1646
 #: /app/lib/Controller/TransactionController.php:332
 #: /app/lib/Controller/TransactionController.php:448
 msgid "Invalid transaction type. Must be credit or debit"
 msgstr "Tipo de transação inválido. Deve ser crédito ou débito"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:210
+#: /app/lib/Controller/ApiV1TransactionController.php:212
 #: /app/lib/Controller/TransactionController.php:500
 #, fuzzy
 #| msgid "Invalid strategy. Must be \"avalanche\" or \"snowball\""
 msgid "Invalid status. Must be cleared, scheduled or pending"
 msgstr "Estratégia inválida. Deve ser \"avalanche\" ou \"bola de neve\""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:221
+#: /app/lib/Controller/ApiV1TransactionController.php:223
 #, php-format
 msgid "%s must be true or false"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:227
+#: /app/lib/Controller/ApiV1TransactionController.php:229
 msgid "Use either categoryId or uncategorized, not both"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:240
-#: /app/lib/Controller/ApiV1TransactionController.php:536
+#: /app/lib/Controller/ApiV1TransactionController.php:242
+#: /app/lib/Controller/ApiV1TransactionController.php:538
 #, php-format
 msgid "%s must be a whole number above zero"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:254
+#: /app/lib/Controller/ApiV1TransactionController.php:256
 #, fuzzy, php-format
 #| msgid "Amount must be greater than zero"
 msgid "%s must be a number, zero or more"
 msgstr "O valor deve ser maior que zero"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:300
+#: /app/lib/Controller/ApiV1TransactionController.php:302
 #, php-format
 msgid "tag_ids must be a list of at most %d tag ids"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:384
-#: /app/lib/Controller/ApiV1TransactionController.php:404
+#: /app/lib/Controller/ApiV1TransactionController.php:386
+#: /app/lib/Controller/ApiV1TransactionController.php:406
 #, fuzzy
 #| msgid "Failed to retrieve transactions"
 msgid "Failed to retrieve transaction"
 msgstr "Falha ao buscar as transações"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:553
-#: /app/lib/Controller/ApiV1TransactionController.php:1561
+#: /app/lib/Controller/ApiV1TransactionController.php:555
+#: /app/lib/Controller/ApiV1TransactionController.php:1631
 #, fuzzy
 #| msgid "Amount must be greater than zero"
 msgid "Amount must be a number"
 msgstr "O valor deve ser maior que zero"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:559
+#: /app/lib/Controller/ApiV1TransactionController.php:561
 msgid "Amount cannot be negative. Use type to say which way the money went"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:563
+#: /app/lib/Controller/ApiV1TransactionController.php:565
 #, fuzzy
 #| msgid "Name is required"
 msgid "An account is required"
 msgstr "O preenchimento do nome é obrigatório"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:568
-#: /app/lib/Controller/ApiV1TransactionController.php:1551
+#: /app/lib/Controller/ApiV1TransactionController.php:570
+#: /app/lib/Controller/ApiV1TransactionController.php:1621
 #: /app/lib/Controller/AssetController.php:326
 #: /app/lib/Controller/PensionController.php:358
 #: /app/lib/Controller/PensionController.php:430
 #: /app/lib/Controller/PensionController.php:481
 #: /app/lib/Controller/TransactionController.php:324
 #: /app/lib/Controller/TransactionController.php:437
-#: /app/lib/Service/Export/TransactionCsvExporter.php:28 /app/src/main.js:3559
+#: /app/lib/Service/Export/TransactionCsvExporter.php:28 /app/src/main.js:3564
 #: /app/src/modules/income/IncomeModule.js:420
 #: /app/src/modules/rules/RulesModule.js:964
 #: /app/src/modules/rules/RulesModule.js:1166
@@ -442,155 +442,168 @@ msgstr "O preenchimento do nome é obrigatório"
 msgid "Date"
 msgstr "Data"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:600
+#: /app/lib/Controller/ApiV1TransactionController.php:602
 msgid "Idempotency key too long (64 characters maximum)"
 msgstr "Chave de idempotência muito grande (máximo de 64 caracteres)"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:727
-#: /app/lib/Controller/ApiV1TransactionController.php:1080
-msgid "The transaction was recorded, but the photo could not be attached"
-msgstr "A transação foi gavada, mas a foto não pôde ser anexada"
-
-#: /app/lib/Controller/ApiV1TransactionController.php:762
+#: /app/lib/Controller/ApiV1TransactionController.php:764
 msgid "The transaction was recorded, but it could not be split"
 msgstr "A transação foi gravada, mas não pôde ser dividida"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:785
+#: /app/lib/Controller/ApiV1TransactionController.php:787
 #, fuzzy
 #| msgid "The transaction was recorded, but it could not be split"
 msgid "The transaction was recorded, but its tags could not be set"
 msgstr "A transação foi gravada, mas não pôde ser dividida"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:800
-#: /app/lib/Controller/ApiV1TransactionController.php:870
+#: /app/lib/Controller/ApiV1TransactionController.php:802
+#: /app/lib/Controller/ApiV1TransactionController.php:872
 #: /app/lib/Controller/TransactionController.php:398
 msgid "Failed to create transaction"
 msgstr "Falha na criação da transação"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:829
+#: /app/lib/Controller/ApiV1TransactionController.php:831
 #, fuzzy
 #| msgid "Transfer requires a destination account"
 msgid "A transfer needs two different accounts"
 msgstr "Transferência requer uma conta de destino"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:839
+#: /app/lib/Controller/ApiV1TransactionController.php:841
 #, fuzzy
 #| msgid "Transfer value cannot be negative"
 msgid "A transfer cannot be split"
 msgstr "O valor de transferência não pode ser negativo"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:865
+#: /app/lib/Controller/ApiV1TransactionController.php:867
 msgid ""
 "The two accounts are in different currencies. Record this transfer in the "
 "web UI, where each side has its own amount"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:899
+#: /app/lib/Controller/ApiV1TransactionController.php:901
 msgid "This account is closed. Reopen it to record anything in it"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:972
+#: /app/lib/Controller/ApiV1TransactionController.php:974
 msgid "This idempotency key was already used for a different transaction"
 msgstr "A chave de idempotência já está em uso por outra transação"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:981
+#: /app/lib/Controller/ApiV1TransactionController.php:983
 msgid "This request is still being processed. Try again shortly"
 msgstr "Essa solicitação ainda está sendo processada. Tente novamente em breve"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1157
+#: /app/lib/Controller/ApiV1TransactionController.php:1101
+#, fuzzy
+#| msgid "The transaction was recorded, but the photo could not be attached"
+msgid ""
+"The transaction was recorded, but the photo could not be attached: this app "
+"password has no access to your Files"
+msgstr "A transação foi gavada, mas a foto não pôde ser anexada"
+
+#: /app/lib/Controller/ApiV1TransactionController.php:1102
+msgid "The transaction was recorded, but the photo could not be attached"
+msgstr "A transação foi gavada, mas a foto não pôde ser anexada"
+
+#: /app/lib/Controller/ApiV1TransactionController.php:1177
 #, fuzzy
 #| msgid "Failed to update transaction"
 msgid "Failed to split the transaction"
 msgstr "Falha na atualização da transação"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1225
+#: /app/lib/Controller/ApiV1TransactionController.php:1245
 msgid ""
 "splits must be an array of {\"amount\", \"category_id\", \"description\"} "
 "objects"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1244
+#: /app/lib/Controller/ApiV1TransactionController.php:1264
+#: /app/lib/Controller/ApiV1TransactionController.php:1286
 #: /app/lib/Controller/AttachmentController.php:46
 #: /app/lib/Controller/AttachmentController.php:59
-#: /app/src/modules/transactions/TransactionsModule.js:2935
+#: /app/src/modules/transactions/TransactionsModule.js:2936
 msgid "Failed to load attachments"
 msgstr "Falha ao carregar os anexos"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1270
+#: /app/lib/Controller/ApiV1TransactionController.php:1284
+#: /app/lib/Controller/AttachmentController.php:114
+msgid "Attachment not found"
+msgstr "Anexo não encontrado"
+
+#: /app/lib/Controller/ApiV1TransactionController.php:1340
 #: /app/lib/Controller/AttachmentController.php:101
-#: /app/src/modules/transactions/TransactionsModule.js:2946
-#: /app/src/modules/transactions/TransactionsModule.js:2951
+#: /app/src/modules/transactions/TransactionsModule.js:2947
+#: /app/src/modules/transactions/TransactionsModule.js:2952
 msgid "Failed to upload receipt"
 msgstr "Falha ao enviar o comprovante"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1350
-#: /app/lib/Controller/ApiV1TransactionController.php:1414
-#: /app/lib/Controller/ApiV1TransactionController.php:1461
+#: /app/lib/Controller/ApiV1TransactionController.php:1420
+#: /app/lib/Controller/ApiV1TransactionController.php:1484
+#: /app/lib/Controller/ApiV1TransactionController.php:1531
 #: /app/lib/Controller/TransactionController.php:560
-#: /app/src/modules/transactions/TransactionsModule.js:5522
-#: /app/src/modules/transactions/TransactionsModule.js:5536
+#: /app/src/modules/transactions/TransactionsModule.js:5523
+#: /app/src/modules/transactions/TransactionsModule.js:5537
 msgid "Failed to update transaction"
 msgstr "Falha na atualização da transação"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1380
-#: /app/src/modules/transactions/TransactionsModule.js:3639
-#: /app/src/modules/transactions/TransactionsModule.js:3662
+#: /app/lib/Controller/ApiV1TransactionController.php:1450
+#: /app/src/modules/transactions/TransactionsModule.js:3640
+#: /app/src/modules/transactions/TransactionsModule.js:3663
 msgid "Failed to delete transaction"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1448
+#: /app/lib/Controller/ApiV1TransactionController.php:1518
 msgid ""
 "A scheduled transaction cannot be reconciled, as it has not happened yet"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1517
+#: /app/lib/Controller/ApiV1TransactionController.php:1587
 #: /app/lib/Controller/TransactionController.php:1057
 msgid "Category not found. It must be one of the account owner's categories"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1541
+#: /app/lib/Controller/ApiV1TransactionController.php:1611
 #, php-format
 msgid "%s cannot be changed through the API"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1568
+#: /app/lib/Controller/ApiV1TransactionController.php:1638
 msgid "Amount must be more than zero. Use type to say which way the money went"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1630
+#: /app/lib/Controller/ApiV1TransactionController.php:1700
 msgid ""
 "This transaction is one side of a transfer, so its amount, type and date "
 "cannot be changed on their own"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1647
+#: /app/lib/Controller/ApiV1TransactionController.php:1717
 msgid ""
 "This transaction is split, so its categories are changed through its splits"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1662
+#: /app/lib/Controller/ApiV1TransactionController.php:1732
 msgid ""
 "This transaction has been reconciled against a statement. Send "
 "confirm_reconciled to go ahead"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1701
+#: /app/lib/Controller/ApiV1TransactionController.php:1771
 #, php-format
 msgid "%s must be a single value"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1715
+#: /app/lib/Controller/ApiV1TransactionController.php:1785
 msgid "category_id must be a category id or null"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1722
+#: /app/lib/Controller/ApiV1TransactionController.php:1792
 #: /app/lib/Controller/AttachmentController.php:57
 #: /app/lib/Controller/AttachmentController.php:72
-#: /app/lib/Controller/AttachmentController.php:97 /app/src/main.js:3296
-#: /app/src/main.js:3535
-#: /app/src/modules/transactions/TransactionsModule.js:3831
-#: /app/src/modules/transactions/TransactionsModule.js:3943
-#: /app/src/modules/transactions/TransactionsModule.js:4026
+#: /app/lib/Controller/AttachmentController.php:97 /app/src/main.js:3301
+#: /app/src/main.js:3540
+#: /app/src/modules/transactions/TransactionsModule.js:3832
+#: /app/src/modules/transactions/TransactionsModule.js:3944
+#: /app/src/modules/transactions/TransactionsModule.js:4027
 msgid "Transaction not found"
 msgstr "Transação não encontrada"
 
@@ -719,8 +732,8 @@ msgid "File not found"
 msgstr "Arquivo não encontrado"
 
 #: /app/lib/Controller/AttachmentController.php:78
-#: /app/src/modules/transactions/TransactionsModule.js:2961
-#: /app/src/modules/transactions/TransactionsModule.js:2966
+#: /app/src/modules/transactions/TransactionsModule.js:2962
+#: /app/src/modules/transactions/TransactionsModule.js:2967
 msgid "Failed to attach file"
 msgstr "Falha ao anexar o arquivo"
 
@@ -728,12 +741,8 @@ msgstr "Falha ao anexar o arquivo"
 msgid "Attachment removed"
 msgstr "Anexos removidos"
 
-#: /app/lib/Controller/AttachmentController.php:114
-msgid "Attachment not found"
-msgstr "Anexo não encontrado"
-
 #: /app/lib/Controller/AttachmentController.php:118
-#: /app/src/modules/transactions/TransactionsModule.js:2976
+#: /app/src/modules/transactions/TransactionsModule.js:2977
 msgid "Failed to remove attachment"
 msgstr "Falha ao remover o anexo"
 
@@ -1087,18 +1096,18 @@ msgstr "Falha ao exportar o calendário de contas"
 #: /app/lib/Service/Report/ReportExporter.php:392
 #: /app/lib/Service/Report/ReportExporter.php:509
 #: /app/lib/Service/Report/ReportExporter.php:586
-#: /app/lib/Service/Report/ReportExporter.php:629 /app/src/main.js:3627
-#: /app/src/main.js:3628 /app/src/modules/bills/BillsModule.js:1007
+#: /app/lib/Service/Report/ReportExporter.php:629 /app/src/main.js:3632
+#: /app/src/main.js:3633 /app/src/modules/bills/BillsModule.js:1007
 #: /app/src/modules/rules/RulesModule.js:966
 #: /app/src/modules/rules/RulesModule.js:1168
 #: /app/src/modules/rules/components/CriteriaBuilder.js:190
-#: /app/src/modules/transactions/TransactionsModule.js:2117
-#: /app/src/modules/transactions/TransactionsModule.js:3374
+#: /app/src/modules/transactions/TransactionsModule.js:2118
 #: /app/src/modules/transactions/TransactionsModule.js:3375
-#: /app/src/modules/transactions/TransactionsModule.js:3459
-#: /app/src/modules/transactions/TransactionsModule.js:3787
-#: /app/src/modules/transactions/TransactionsModule.js:4115
+#: /app/src/modules/transactions/TransactionsModule.js:3376
+#: /app/src/modules/transactions/TransactionsModule.js:3460
+#: /app/src/modules/transactions/TransactionsModule.js:3788
 #: /app/src/modules/transactions/TransactionsModule.js:4116
+#: /app/src/modules/transactions/TransactionsModule.js:4117
 #: /app/src/modules/transfers/TransfersModule.js:471
 #: /app/templates/index.php:1051 /app/templates/index.php:1544
 #: /app/templates/index.php:1797 /app/templates/index.php:1851
@@ -1276,14 +1285,14 @@ msgstr "Falha ao buscar as contagens de transações"
 #: /app/lib/Service/Report/ReportExporter.php:628
 #: /app/lib/Service/Report/ReportExporter.php:653
 #: /app/lib/Service/Report/ReportExporter.php:690
-#: /app/lib/Service/Report/ReportExporter.php:736 /app/src/main.js:3632
-#: /app/src/main.js:3633 /app/src/modules/dashboard/DashboardModule.js:2345
+#: /app/lib/Service/Report/ReportExporter.php:736 /app/src/main.js:3637
+#: /app/src/main.js:3638 /app/src/modules/dashboard/DashboardModule.js:2345
 #: /app/src/modules/reports/ReportsModule.js:1129
 #: /app/src/modules/reports/ReportsModule.js:1577
-#: /app/src/modules/transactions/TransactionsModule.js:3379
 #: /app/src/modules/transactions/TransactionsModule.js:3380
-#: /app/src/modules/transactions/TransactionsModule.js:4120
+#: /app/src/modules/transactions/TransactionsModule.js:3381
 #: /app/src/modules/transactions/TransactionsModule.js:4121
+#: /app/src/modules/transactions/TransactionsModule.js:4122
 #: /app/src/modules/transfers/TransfersModule.js:564
 #: /app/templates/index.php:1059 /app/templates/index.php:1463
 #: /app/templates/index.php:1542 /app/templates/index.php:1629
@@ -1471,8 +1480,8 @@ msgstr "Falha ao calcular o plano de pagamento"
 msgid "Failed to get debt progress"
 msgstr "Falha ao buscar o progresso da meta"
 
-#: /app/lib/Controller/DebtController.php:166 /app/src/main.js:3098
-#: /app/src/main.js:3103
+#: /app/lib/Controller/DebtController.php:166 /app/src/main.js:3103
+#: /app/src/main.js:3108
 msgid "Failed to compare strategies"
 msgstr "Falha ao comparar estratégias"
 
@@ -2305,7 +2314,7 @@ msgid "A reconciliation is already in progress for this account"
 msgstr "Uma reconcialiação já está em andamento para essa conta"
 
 #: /app/lib/Controller/ReconciliationController.php:117
-#: /app/src/modules/transactions/TransactionsModule.js:1574
+#: /app/src/modules/transactions/TransactionsModule.js:1575
 #, fuzzy
 #| msgid "Failed to reconcile account"
 msgid "Failed to start reconciliation"
@@ -2315,7 +2324,7 @@ msgstr "Falha ao tentar reconciliar a conta financeira"
 #: /app/lib/Controller/ReconciliationController.php:142
 #: /app/lib/Controller/ReconciliationController.php:156
 #: /app/lib/Controller/ReconciliationController.php:181
-#: /app/src/modules/transactions/TransactionsModule.js:1774
+#: /app/src/modules/transactions/TransactionsModule.js:1775
 #, fuzzy
 #| msgid "Failed to update reconcile status"
 msgid "Failed to update reconciliation"
@@ -2585,7 +2594,7 @@ msgid "Weekly"
 msgstr "Semanal"
 
 #: /app/lib/Controller/SettingController.php:455
-#: /app/src/modules/accounts/AccountsModule.js:1379
+#: /app/src/modules/accounts/AccountsModule.js:1381
 #: /app/src/modules/bills/BillsModule.js:346
 #: /app/src/modules/categories/CategoriesModule.js:2522
 #: /app/src/modules/income/IncomeModule.js:105
@@ -2613,7 +2622,7 @@ msgid "Quarterly"
 msgstr "Trismestral"
 
 #: /app/lib/Controller/SettingController.php:457
-#: /app/src/modules/accounts/AccountsModule.js:1380
+#: /app/src/modules/accounts/AccountsModule.js:1382
 #: /app/src/modules/bills/BillsModule.js:349
 #: /app/src/modules/categories/CategoriesModule.js:2525
 #: /app/src/modules/income/IncomeModule.js:108
@@ -2667,13 +2676,13 @@ msgstr ""
 "A restauração de fábrica requer confirmação com confirmed=true. Esta ação "
 "excluirá permanentemente TODOS os seus dados."
 
-#: /app/lib/Controller/SetupController.php:158 /app/src/main.js:2142
+#: /app/lib/Controller/SetupController.php:158 /app/src/main.js:2147
 #: /app/src/modules/settings/SettingsModule.js:822
 msgid "Factory reset completed successfully. All data has been deleted."
 msgstr ""
 "Restauração de fábrica concluída com sucesso. Todos os dados foram excluídos."
 
-#: /app/lib/Controller/SetupController.php:162 /app/src/main.js:2135
+#: /app/lib/Controller/SetupController.php:162 /app/src/main.js:2140
 #: /app/src/modules/settings/SettingsModule.js:815
 msgid "Factory reset failed"
 msgstr "Falha ao restaurar as configurações de fábrica"
@@ -2682,7 +2691,7 @@ msgstr "Falha ao restaurar as configurações de fábrica"
 msgid "Balance recalculation failed"
 msgstr ""
 
-#: /app/lib/Controller/SetupController.php:201 /app/src/main.js:1731
+#: /app/lib/Controller/SetupController.php:201 /app/src/main.js:1736
 msgid "Diagnosis failed"
 msgstr ""
 
@@ -2694,7 +2703,7 @@ msgstr ""
 msgid "No valid repair categories specified"
 msgstr ""
 
-#: /app/lib/Controller/SetupController.php:264 /app/src/main.js:2029
+#: /app/lib/Controller/SetupController.php:264 /app/src/main.js:2034
 #, fuzzy
 #| msgid "File upload failed"
 msgid "Repair failed"
@@ -3013,8 +3022,8 @@ msgid "Failed to delete global tag"
 msgstr "Falha ao excluir a etiqueta global"
 
 #: /app/lib/Controller/TransactionController.php:256
-#: /app/src/modules/accounts/AccountsModule.js:3548
-#: /app/src/modules/transactions/TransactionsModule.js:1011
+#: /app/src/modules/accounts/AccountsModule.js:3596
+#: /app/src/modules/transactions/TransactionsModule.js:1012
 #, fuzzy
 #| msgid "Failed to search transactions"
 msgid "Failed to export transactions"
@@ -3031,7 +3040,7 @@ msgstr "Falha ao pesquisar as transações"
 #: /app/lib/Controller/TransactionController.php:1253
 #: /app/lib/Controller/TransactionController.php:1304
 #: /app/lib/Controller/TransactionController.php:1327
-#: /app/lib/Controller/TransactionController.php:1390 /app/src/main.js:1914
+#: /app/lib/Controller/TransactionController.php:1390 /app/src/main.js:1919
 #: /app/src/modules/dashboard/DashboardModule.js:1396
 #: /app/templates/index.php:5908
 msgid "Transaction"
@@ -3049,20 +3058,20 @@ msgstr "Falha ao buscar as transações não categorizadas"
 msgid "Failed to categorize transactions"
 msgstr "Falha ao categorizar as transações"
 
-#: /app/lib/Controller/TransactionController.php:795 /app/src/main.js:3523
-#: /app/src/modules/transactions/TransactionsModule.js:3931
+#: /app/lib/Controller/TransactionController.php:795 /app/src/main.js:3528
+#: /app/src/modules/transactions/TransactionsModule.js:3932
 msgid "Failed to unlink transaction"
 msgstr "Falha ao desvincular a transação"
 
 #: /app/lib/Controller/TransactionController.php:818
-#: /app/src/modules/transactions/TransactionsModule.js:3965
+#: /app/src/modules/transactions/TransactionsModule.js:3966
 #, fuzzy
 #| msgid "Failed to update transaction"
 msgid "Failed to link the transaction to the bill"
 msgstr "Falha na atualização da transação"
 
 #: /app/lib/Controller/TransactionController.php:841
-#: /app/src/modules/transactions/TransactionsModule.js:4008
+#: /app/src/modules/transactions/TransactionsModule.js:4009
 #, fuzzy
 #| msgid "Failed to unlink transaction"
 msgid "Failed to unlink the transaction from the bill"
@@ -3098,7 +3107,7 @@ msgid "No transaction IDs provided"
 msgstr ""
 
 #: /app/lib/Controller/TransactionController.php:1081
-#: /app/src/modules/transactions/TransactionsModule.js:1146
+#: /app/src/modules/transactions/TransactionsModule.js:1147
 msgid "Failed to delete transactions"
 msgstr "Falha ao excluir as transações"
 
@@ -3158,7 +3167,7 @@ msgstr "A quantidade atual não pode ser negativa"
 #: /app/src/modules/bills/BillsModule.js:377
 #: /app/src/modules/dashboard/DashboardModule.js:1350
 #: /app/src/modules/rules/RulesModule.js:1015
-#: /app/src/modules/transactions/TransactionsModule.js:5689
+#: /app/src/modules/transactions/TransactionsModule.js:5690
 #: /app/src/modules/transactions/transactionRow.js:107
 #: /app/src/modules/transactions/transactionRow.js:273
 #: /app/src/modules/transactions/transactionRow.js:315
@@ -3204,7 +3213,7 @@ msgstr ""
 
 #: /app/lib/Controller/YearOverYearController.php:238
 #: /app/lib/Service/Report/ReportExporter.php:320
-#: /app/lib/Service/Report/ReportExporter.php:557 /app/src/main.js:2735
+#: /app/lib/Service/Report/ReportExporter.php:557 /app/src/main.js:2740
 #: /app/templates/index.php:3500 /app/templates/index.php:3549
 msgid "Month"
 msgstr ""
@@ -3323,16 +3332,16 @@ msgstr ""
 #: /app/lib/Controller/YearOverYearController.php:295
 #: /app/lib/Controller/YearOverYearController.php:403
 #: /app/lib/Service/Report/ReportExporter.php:235
-#: /app/lib/Service/Report/ReportExporter.php:243 /app/src/main.js:2302
-#: /app/src/main.js:2305 /app/src/main.js:3358
-#: /app/src/modules/accounts/AccountsModule.js:3445
+#: /app/lib/Service/Report/ReportExporter.php:243 /app/src/main.js:2307
+#: /app/src/main.js:2310 /app/src/main.js:3363
+#: /app/src/modules/accounts/AccountsModule.js:3493
 #: /app/src/modules/dashboard/DashboardModule.js:2538
 #: /app/src/modules/dashboard/DashboardModule.js:2616
 #: /app/src/modules/dashboard/DashboardModule.js:2780
 #: /app/src/modules/dashboard/DashboardModule.js:2927
 #: /app/src/modules/exchange-rates/ExchangeRatesModule.js:175
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:795
-#: /app/src/modules/transactions/TransactionsModule.js:3893
+#: /app/src/modules/transactions/TransactionsModule.js:3894
 #: /app/src/modules/transfers/TransfersModule.js:1415
 msgid "Unknown"
 msgstr "Desconhecido"
@@ -3987,7 +3996,7 @@ msgstr ""
 
 #: /app/lib/Service/BillService.php:2291
 #: /app/lib/Service/RecurringIncomeService.php:1000
-#: /app/src/modules/accounts/AccountsModule.js:26
+#: /app/src/modules/accounts/AccountsModule.js:27
 #: /app/src/modules/transfers/TransfersModule.js:464
 #: /app/templates/index.php:1104 /app/templates/index.php:2816
 #: /app/templates/index.php:5262 /app/templates/index.php:5688
@@ -4183,8 +4192,8 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/lib/Service/Export/TransactionCsvExporter.php:29 /app/src/main.js:3563
-#: /app/src/main.js:3639 /app/src/main.js:3640
+#: /app/lib/Service/Export/TransactionCsvExporter.php:29 /app/src/main.js:3568
+#: /app/src/main.js:3644 /app/src/main.js:3645
 #: /app/src/modules/rules/RulesModule.js:965
 #: /app/src/modules/rules/RulesModule.js:1167
 #: /app/src/modules/rules/components/ActionBuilder.js:200
@@ -4192,10 +4201,10 @@ msgstr[1] ""
 #: /app/src/modules/rules/components/ActionBuilder.js:232
 #: /app/src/modules/rules/components/ActionBuilder.js:256
 #: /app/src/modules/rules/components/CriteriaBuilder.js:188
-#: /app/src/modules/transactions/TransactionsModule.js:3386
 #: /app/src/modules/transactions/TransactionsModule.js:3387
-#: /app/src/modules/transactions/TransactionsModule.js:4127
+#: /app/src/modules/transactions/TransactionsModule.js:3388
 #: /app/src/modules/transactions/TransactionsModule.js:4128
+#: /app/src/modules/transactions/TransactionsModule.js:4129
 #: /app/templates/index.php:1055 /app/templates/index.php:1056
 #: /app/templates/index.php:1539 /app/templates/index.php:1781
 #: /app/templates/index.php:1836 /app/templates/index.php:2435
@@ -4931,19 +4940,19 @@ msgstr "Orçamento"
 
 #: /app/lib/Service/Report/ReportExporter.php:238
 #: /app/lib/Service/Report/ReportExporter.php:763
-#: /app/src/config/dashboardWidgets.js:26 /app/src/main.js:1916
-#: /app/src/main.js:3634 /app/src/modules/accounts/AccountsModule.js:1881
+#: /app/src/config/dashboardWidgets.js:26 /app/src/main.js:1921
+#: /app/src/main.js:3639 /app/src/modules/accounts/AccountsModule.js:1929
 #: /app/src/modules/categories/CategoriesModule.js:858
 #: /app/src/modules/dashboard/DashboardModule.js:1319
 #: /app/src/modules/import/ImportModule.js:200
 #: /app/src/modules/reports/ReportsModule.js:22
 #: /app/src/modules/rules/RulesModule.js:1020
-#: /app/src/modules/transactions/TransactionsModule.js:541
-#: /app/src/modules/transactions/TransactionsModule.js:1239
-#: /app/src/modules/transactions/TransactionsModule.js:2271
-#: /app/src/modules/transactions/TransactionsModule.js:3381
-#: /app/src/modules/transactions/TransactionsModule.js:4122
-#: /app/src/modules/transactions/TransactionsModule.js:4991
+#: /app/src/modules/transactions/TransactionsModule.js:542
+#: /app/src/modules/transactions/TransactionsModule.js:1240
+#: /app/src/modules/transactions/TransactionsModule.js:2272
+#: /app/src/modules/transactions/TransactionsModule.js:3382
+#: /app/src/modules/transactions/TransactionsModule.js:4123
+#: /app/src/modules/transactions/TransactionsModule.js:4992
 #: /app/src/modules/transactions/transactionRow.js:161
 #: /app/src/modules/transactions/transactionRow.js:274
 #: /app/src/modules/transactions/transactionRow.js:316
@@ -4985,7 +4994,7 @@ msgstr ""
 
 #: /app/lib/Service/Report/ReportExporter.php:255
 #: /app/lib/Service/Report/ReportExporter.php:453
-#: /app/src/modules/accounts/AccountsModule.js:2791
+#: /app/src/modules/accounts/AccountsModule.js:2839
 #: /app/templates/index.php:1259 /app/templates/index.php:3084
 #: /app/templates/index.php:3839 /app/templates/index.php:5461
 #: /app/templates/index.php:5531
@@ -4999,9 +5008,9 @@ msgstr ""
 
 #: /app/lib/Service/Report/ReportExporter.php:270
 #: /app/lib/Service/Report/ReportExporter.php:486
-#: /app/src/modules/accounts/AccountsModule.js:31
-#: /app/src/modules/accounts/AccountsModule.js:515
+#: /app/src/modules/accounts/AccountsModule.js:32
 #: /app/src/modules/accounts/AccountsModule.js:516
+#: /app/src/modules/accounts/AccountsModule.js:517
 #: /app/src/modules/dashboard/DashboardModule.js:3156
 #: /app/src/modules/dashboard/DashboardModule.js:3391
 #: /app/src/modules/forecast/ForecastModule.js:311
@@ -5249,7 +5258,7 @@ msgid ""
 msgstr ""
 
 #: /app/lib/Service/TransactionService.php:1364
-#: /app/src/modules/transactions/TransactionsModule.js:3991
+#: /app/src/modules/transactions/TransactionsModule.js:3992
 msgid ""
 "This is the bill's latest payment. Use Mark Unpaid on the bill to undo it."
 msgstr ""
@@ -5727,16 +5736,16 @@ msgid "Categories"
 msgstr "Categorias"
 
 #: /app/src/core/KeyboardShortcuts.js:352
-#: /app/src/modules/accounts/AccountsModule.js:1918
+#: /app/src/modules/accounts/AccountsModule.js:1966
 #: /app/src/modules/bills/BillsModule.js:1764
 #: /app/src/modules/help/HelpModule.js:31
 #: /app/src/modules/reports/ReportsModule.js:440
 #: /app/src/modules/rules/RulesModule.js:849
 #: /app/src/modules/savings/SavingsModule.js:301
 #: /app/src/modules/tagsets/TagSetsModule.js:613
-#: /app/src/modules/transactions/TransactionsModule.js:579
-#: /app/src/modules/transactions/TransactionsModule.js:1405
-#: /app/src/modules/transactions/TransactionsModule.js:5191
+#: /app/src/modules/transactions/TransactionsModule.js:580
+#: /app/src/modules/transactions/TransactionsModule.js:1406
+#: /app/src/modules/transactions/TransactionsModule.js:5192
 #: /app/src/modules/transfers/TransfersModule.js:1302
 #: /app/templates/index.php:83 /app/templates/index.php:1516
 #: /app/templates/index.php:1701 /app/templates/index.php:1793
@@ -5847,17 +5856,17 @@ msgid "Move a focused subcategory out one level"
 msgstr ""
 
 #: /app/src/core/KeyboardShortcuts.js:396
-#: /app/src/core/KeyboardShortcuts.js:416 /app/src/main.js:1041
+#: /app/src/core/KeyboardShortcuts.js:416 /app/src/main.js:1042
 msgid "Keyboard shortcuts"
 msgstr ""
 
-#: /app/src/core/KeyboardShortcuts.js:417 /app/src/main.js:1959
-#: /app/src/main.js:1966 /app/src/main.js:1970
+#: /app/src/core/KeyboardShortcuts.js:417 /app/src/main.js:1964
+#: /app/src/main.js:1971 /app/src/main.js:1975
 #: /app/src/modules/bills/BillsModule.js:1251
 #: /app/src/modules/import/ImportModule.js:2524
 #: /app/src/modules/import/ImportModule.js:2537
 #: /app/src/modules/sharing/SharingModule.js:126
-#: /app/src/modules/transactions/TransactionsModule.js:5587
+#: /app/src/modules/transactions/TransactionsModule.js:5588
 #: /app/src/modules/transfers/TransfersModule.js:175
 #: /app/src/modules/transfers/TransfersModule.js:455
 #: /app/src/utils/billLinkDialog.js:127 /app/src/utils/matchingDialog.js:80
@@ -5876,40 +5885,40 @@ msgstr ""
 msgid "Close"
 msgstr ""
 
-#: /app/src/main.js:231
+#: /app/src/main.js:232
 msgid "This page could not be loaded. Reload the page to try again."
 msgstr ""
 
-#: /app/src/main.js:518 /app/src/modules/import/ImportModule.js:2127
+#: /app/src/main.js:519 /app/src/modules/import/ImportModule.js:2127
 #: /app/src/modules/import/ImportModule.js:2175
 msgid "Duplicate"
 msgstr ""
 
-#: /app/src/main.js:520
+#: /app/src/main.js:521
 msgid "Share expense"
 msgstr "Compartilhar despesa"
 
-#: /app/src/main.js:522
+#: /app/src/main.js:523
 msgid "Unlink transfer"
 msgstr ""
 
-#: /app/src/main.js:524
+#: /app/src/main.js:525
 msgid "Match transfer"
 msgstr ""
 
-#: /app/src/main.js:527
+#: /app/src/main.js:528
 msgid "Link to bill…"
 msgstr ""
 
-#: /app/src/main.js:529
-#: /app/src/modules/transactions/TransactionsModule.js:3992
-#: /app/src/modules/transactions/TransactionsModule.js:3999
+#: /app/src/main.js:530
+#: /app/src/modules/transactions/TransactionsModule.js:3993
+#: /app/src/modules/transactions/TransactionsModule.js:4000
 msgid "Unlink from bill"
 msgstr ""
 
-#: /app/src/main.js:532 /app/src/main.js:2921
-#: /app/src/modules/accounts/AccountsModule.js:617
-#: /app/src/modules/accounts/AccountsModule.js:1394
+#: /app/src/main.js:533 /app/src/main.js:2926
+#: /app/src/modules/accounts/AccountsModule.js:618
+#: /app/src/modules/accounts/AccountsModule.js:1396
 #: /app/src/modules/assets/AssetsModule.js:171
 #: /app/src/modules/import/ImportModule.js:743
 #: /app/src/modules/pensions/PensionsModule.js:147
@@ -5924,158 +5933,158 @@ msgstr ""
 msgid "Delete"
 msgstr "Excluir"
 
-#: /app/src/main.js:944
+#: /app/src/main.js:945
 msgid "Failed to load data"
 msgstr "Falha no carregamento de dados"
 
-#: /app/src/main.js:962
+#: /app/src/main.js:963
 msgid ""
 "Your session has expired, so account names could not be loaded. Reload the "
 "page to restore them."
 msgstr ""
 
-#: /app/src/main.js:963
+#: /app/src/main.js:964
 msgid ""
 "Your session has expired, so categories could not be loaded. Reload the page "
 "to restore them."
 msgstr ""
 
-#: /app/src/main.js:968
+#: /app/src/main.js:969
 msgid ""
 "Accounts could not be loaded (error {status}). Transactions will show as "
 "\"Unknown Account\" until this is resolved."
 msgstr ""
 
-#: /app/src/main.js:969
+#: /app/src/main.js:970
 msgid ""
 "Categories could not be loaded (error {status}). Transactions will show as "
 "\"Uncategorized\" until this is resolved."
 msgstr ""
 
-#: /app/src/main.js:1037
+#: /app/src/main.js:1038
 msgid "Read full guide"
 msgstr ""
 
-#: /app/src/main.js:1042
+#: /app/src/main.js:1043
 msgid "Budget can be driven from the keyboard — press"
 msgstr ""
 
-#: /app/src/main.js:1042
+#: /app/src/main.js:1043
 msgid "anytime to see the full list."
 msgstr ""
 
-#: /app/src/main.js:1043
+#: /app/src/main.js:1044
 msgid "Show keyboard shortcuts"
 msgstr ""
 
-#: /app/src/main.js:1047
+#: /app/src/main.js:1048
 msgid "Quick Links"
 msgstr ""
 
-#: /app/src/main.js:1049
+#: /app/src/main.js:1050
 msgid "Getting Started Guide"
 msgstr ""
 
-#: /app/src/main.js:1050
+#: /app/src/main.js:1051
 msgid "Importing Bank Statements"
 msgstr ""
 
-#: /app/src/main.js:1051
+#: /app/src/main.js:1052
 msgid "Budget Tracking"
 msgstr ""
 
-#: /app/src/main.js:1052
+#: /app/src/main.js:1053
 msgid "Auto-Categorisation Rules"
 msgstr ""
 
-#: /app/src/main.js:1057 /app/templates/index.php:5094
+#: /app/src/main.js:1058 /app/templates/index.php:5094
 #, fuzzy
 #| msgid "Budget"
 msgid "Support Budget"
 msgstr "Orçamento"
 
-#: /app/src/main.js:1058
+#: /app/src/main.js:1059
 msgid "Free and open source. If Budget helps you, a donation keeps it going."
 msgstr ""
 
-#: /app/src/main.js:1060 /app/templates/index.php:5104
+#: /app/src/main.js:1061 /app/templates/index.php:5104
 msgid "Sponsor on GitHub"
 msgstr ""
 
-#: /app/src/main.js:1061 /app/templates/index.php:5107
+#: /app/src/main.js:1062 /app/templates/index.php:5107
 msgid "Donate via PayPal"
 msgstr ""
 
-#: /app/src/main.js:1521 /app/src/modules/accounts/AccountsModule.js:1573
+#: /app/src/main.js:1526 /app/src/modules/accounts/AccountsModule.js:1578
 msgid "Failed to load transactions"
 msgstr "Falha no carregamento de transações"
 
-#: /app/src/main.js:1567
+#: /app/src/main.js:1572
 msgid "{displayed} of {total} transactions"
 msgstr ""
 
-#: /app/src/main.js:1568 /app/src/modules/dashboard/DashboardModule.js:2788
+#: /app/src/main.js:1573 /app/src/modules/dashboard/DashboardModule.js:2788
 #: /app/src/modules/import/ImportModule.js:2322
 msgid "%n transaction"
 msgid_plural "%n transactions"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/main.js:1578
+#: /app/src/main.js:1583
 msgid "Total: {amount}"
 msgstr ""
 
-#: /app/src/main.js:1597 /app/src/modules/accounts/AccountsModule.js:1725
+#: /app/src/main.js:1602 /app/src/modules/accounts/AccountsModule.js:1730
 msgid "Page {current} of {total}"
 msgstr ""
 
-#: /app/src/main.js:1696
+#: /app/src/main.js:1701
 msgid "Recalculating..."
 msgstr "Recalculando..."
 
-#: /app/src/main.js:1701
+#: /app/src/main.js:1706
 msgid "Recalculation failed"
 msgstr ""
 
-#: /app/src/main.js:1705
+#: /app/src/main.js:1710
 msgid "Recalculated {updated} of {total} account balances"
 msgstr ""
 
-#: /app/src/main.js:1708
+#: /app/src/main.js:1713
 msgid "All account balances are correct"
 msgstr ""
 
-#: /app/src/main.js:1712
+#: /app/src/main.js:1717
 msgid "Failed to recalculate balances: {error}"
 msgstr "Falha ao recalcular os saldos: {error}"
 
-#: /app/src/main.js:1727
+#: /app/src/main.js:1732
 #, fuzzy
 #| msgid "Saving..."
 msgid "Scanning..."
 msgstr "Salvando..."
 
-#: /app/src/main.js:1737
+#: /app/src/main.js:1742
 #, fuzzy
 #| msgid "Failed to save rule: {error}"
 msgid "Failed to scan for issues: {error}"
 msgstr "Não foi possível salvar a regra: {error}"
 
-#: /app/src/main.js:1769
+#: /app/src/main.js:1774
 msgid "No data integrity issues found. Everything looks good!"
 msgstr ""
 
-#: /app/src/main.js:1771
+#: /app/src/main.js:1776
 msgid "Found {count} issue(s) across {categories} categories."
 msgstr ""
 
-#: /app/src/main.js:1782
+#: /app/src/main.js:1787
 #, fuzzy
 #| msgid "Failed to delete transactions"
 msgid "Duplicate Auto-Generated Transactions"
 msgstr "Falha ao excluir as transações"
 
-#: /app/src/main.js:1786
+#: /app/src/main.js:1791
 msgid ""
 "Only ticked rows are deleted. Rows that come ticked are bill payments the "
 "app recorded that an imported bank transaction records as well. The others "
@@ -6083,21 +6092,21 @@ msgid ""
 "account first, and tick only the ones you are sure about."
 msgstr ""
 
-#: /app/src/main.js:1798
+#: /app/src/main.js:1803
 msgid "Due: {date}"
 msgstr ""
 
-#: /app/src/main.js:1799 /app/src/main.js:1823
+#: /app/src/main.js:1804 /app/src/main.js:1828
 #, fuzzy
 #| msgid "End date"
 msgid "Paid: {date}"
 msgstr "Data final"
 
-#: /app/src/main.js:1800 /app/src/main.js:1862
+#: /app/src/main.js:1805 /app/src/main.js:1867
 msgid "Check: not changed"
 msgstr ""
 
-#: /app/src/main.js:1804
+#: /app/src/main.js:1809
 msgid ""
 "Repairing moves these bills on to their next due date, with their pending "
 "transaction. Bills marked Check are left as they are: their due date is "
@@ -6106,76 +6115,76 @@ msgid ""
 "page."
 msgstr ""
 
-#: /app/src/main.js:1810
+#: /app/src/main.js:1815
 msgid "Bills with Stuck Due Dates"
 msgstr ""
 
-#: /app/src/main.js:1830
+#: /app/src/main.js:1835
 msgid "Paid One-Time Bills Still Active"
 msgstr ""
 
-#: /app/src/main.js:1845
+#: /app/src/main.js:1850
 msgid "Income Received Early but Still Expected"
 msgstr ""
 
-#: /app/src/main.js:1849
+#: /app/src/main.js:1854
 msgid ""
 "An older version recorded these payments on their expected date but left the "
 "income waiting for them, so Mark Received would record them a second time. "
 "Repairing moves each one on to its next date. Nothing is added or deleted."
 msgstr ""
 
-#: /app/src/main.js:1859 /app/src/utils/repairFindings.js:50
+#: /app/src/main.js:1864 /app/src/utils/repairFindings.js:50
 #: /app/src/utils/repairFindings.js:94 /app/src/utils/repairFindings.js:99
 #: /app/src/utils/repairFindings.js:129
 msgid "(unnamed)"
 msgstr ""
 
-#: /app/src/main.js:1868
+#: /app/src/main.js:1873
 msgid ""
 "Repairing marks these as scheduled, so they count in the balance from their "
 "date. Bill payments and reconciled transactions marked Check are left as "
 "they are: check their dates on the Transactions page."
 msgstr ""
 
-#: /app/src/main.js:1874
+#: /app/src/main.js:1879
 msgid "Future Transactions Not Marked as Scheduled"
 msgstr ""
 
-#: /app/src/main.js:1877 /app/src/main.js:1928
+#: /app/src/main.js:1882 /app/src/main.js:1933
 msgid "and {more} more"
 msgstr ""
 
-#: /app/src/main.js:1891
+#: /app/src/main.js:1896
 msgid "Now: {amount} in credit"
 msgstr ""
 
-#: /app/src/main.js:1892
+#: /app/src/main.js:1897
 msgid "After repair: {amount} owed"
 msgstr ""
 
-#: /app/src/main.js:1899
+#: /app/src/main.js:1904
 msgid "Debts Recorded as Being in Credit"
 msgstr ""
 
-#: /app/src/main.js:1903
+#: /app/src/main.js:1908
 msgid ""
 "These debts hold a positive balance, so the app is counting them as money "
 "you have rather than money you owe. Untick any you really have overpaid — "
 "those are recorded as genuine credits and left out of future scans."
 msgstr ""
 
-#: /app/src/main.js:1916
+#: /app/src/main.js:1921
 #, fuzzy
 #| msgid "Failed to delete category"
 msgid "Listed under {category}"
 msgstr "Falha ao excluir a categoria"
 
-#: /app/src/main.js:1923
+#: /app/src/main.js:1928
 msgid "Split Transactions Carrying a Category"
 msgstr ""
 
-#: /app/src/main.js:1927
+#: /app/src/main.js:1932
 msgid ""
 "A split transaction keeps its categories on its individual parts, so it "
 "should not carry one of its own. These picked one up from an older version "
@@ -6184,205 +6193,205 @@ msgid ""
 "part of it, is left exactly as it is."
 msgstr ""
 
-#: /app/src/main.js:1938
+#: /app/src/main.js:1943
 msgid "Stored: {amount}"
 msgstr ""
 
-#: /app/src/main.js:1939
+#: /app/src/main.js:1944
 msgid "Expected: {amount}"
 msgstr ""
 
-#: /app/src/main.js:1940
+#: /app/src/main.js:1945
 msgid "Diff: {amount}"
 msgstr ""
 
-#: /app/src/main.js:1947
+#: /app/src/main.js:1952
 msgid "Account Balance Inconsistencies"
 msgstr ""
 
-#: /app/src/main.js:1958
+#: /app/src/main.js:1963
 msgid "Data Integrity Report"
 msgstr ""
 
-#: /app/src/main.js:1967 /app/src/main.js:2043
+#: /app/src/main.js:1972 /app/src/main.js:2048
 msgid "Fix Selected Issues"
 msgstr ""
 
-#: /app/src/main.js:2004
+#: /app/src/main.js:2009
 #, fuzzy
 #| msgid "categories"
 msgid "No categories selected"
 msgstr "categorias"
 
-#: /app/src/main.js:2023
+#: /app/src/main.js:2028
 #, fuzzy
 #| msgid "Exporting..."
 msgid "Repairing..."
 msgstr "Exportando..."
 
-#: /app/src/main.js:2041
+#: /app/src/main.js:2046
 #, fuzzy
 #| msgid "Failed to run rule: {error}"
 msgid "Repair failed: {error}"
 msgstr "Não foi possível executar a regra: {error}"
 
-#: /app/src/main.js:2127 /app/src/modules/settings/SettingsModule.js:809
-#: /app/src/modules/transactions/TransactionsModule.js:5750
+#: /app/src/main.js:2132 /app/src/modules/settings/SettingsModule.js:809
+#: /app/src/modules/transactions/TransactionsModule.js:5751
 msgid "Deleting..."
 msgstr "Excluindo..."
 
-#: /app/src/main.js:2156 /app/src/modules/settings/SettingsModule.js:836
+#: /app/src/main.js:2161 /app/src/modules/settings/SettingsModule.js:836
 #: /app/templates/index.php:7534
 msgid "Delete Everything"
 msgstr ""
 
-#: /app/src/main.js:2159 /app/src/modules/settings/SettingsModule.js:839
+#: /app/src/main.js:2164 /app/src/modules/settings/SettingsModule.js:839
 msgid "Failed to perform factory reset"
 msgstr ""
 
-#: /app/src/main.js:2232
+#: /app/src/main.js:2237
 msgid "Exporting..."
 msgstr "Exportando..."
 
-#: /app/src/main.js:2236
+#: /app/src/main.js:2241
 msgid "Export failed"
 msgstr ""
 
-#: /app/src/main.js:2260
+#: /app/src/main.js:2265
 msgid "Export completed successfully"
 msgstr ""
 
-#: /app/src/main.js:2263
+#: /app/src/main.js:2268
 msgid "Failed to export data: {error}"
 msgstr ""
 
-#: /app/src/main.js:2272
+#: /app/src/main.js:2277
 msgid "Please select a ZIP file"
 msgstr ""
 
-#: /app/src/main.js:2285
+#: /app/src/main.js:2290
 msgid "Validating file..."
 msgstr ""
 
-#: /app/src/main.js:2294 /app/src/main.js:2298
+#: /app/src/main.js:2299 /app/src/main.js:2303
 msgid "Invalid export file"
 msgstr ""
 
-#: /app/src/main.js:2329
+#: /app/src/main.js:2334
 msgid "Failed to preview file: {error}"
 msgstr ""
 
-#: /app/src/main.js:2341
+#: /app/src/main.js:2346
 msgid "No file selected"
 msgstr ""
 
-#: /app/src/main.js:2346
+#: /app/src/main.js:2351
 msgid ""
 "This will PERMANENTLY DELETE all your existing data and replace it with the "
 "imported data."
 msgstr ""
 
-#: /app/src/main.js:2346
+#: /app/src/main.js:2351
 msgid "Are you absolutely sure you want to continue?"
 msgstr ""
 
-#: /app/src/main.js:2356
+#: /app/src/main.js:2361
 msgid "Importing data... This may take a moment."
 msgstr ""
 
-#: /app/src/main.js:2366 /app/src/main.js:2372
+#: /app/src/main.js:2371 /app/src/main.js:2377
 #: /app/src/modules/import/ImportModule.js:2622
 msgid "Import failed"
 msgstr ""
 
-#: /app/src/main.js:2380
+#: /app/src/main.js:2385
 msgid "Import Successful!"
 msgstr ""
 
-#: /app/src/main.js:2381
+#: /app/src/main.js:2386
 msgid "Your data has been imported successfully."
 msgstr ""
 
-#: /app/src/main.js:2383
+#: /app/src/main.js:2388
 msgid "categories"
 msgstr "categorias"
 
-#: /app/src/main.js:2384
+#: /app/src/main.js:2389
 msgid "accounts"
 msgstr "contas financeiras"
 
-#: /app/src/main.js:2385
+#: /app/src/main.js:2390
 msgid "transactions"
 msgstr "transações"
 
-#: /app/src/main.js:2386
+#: /app/src/main.js:2391
 msgid "bills"
 msgstr "contas"
 
-#: /app/src/main.js:2387
+#: /app/src/main.js:2392
 msgid "import rules"
 msgstr ""
 
-#: /app/src/main.js:2388
+#: /app/src/main.js:2393
 msgid "settings"
 msgstr "configurações"
 
-#: /app/src/main.js:2400
+#: /app/src/main.js:2405
 msgid "Import completed successfully"
 msgstr ""
 
-#: /app/src/main.js:2408
+#: /app/src/main.js:2413
 msgid "Import Failed"
 msgstr ""
 
-#: /app/src/main.js:2410
+#: /app/src/main.js:2415
 msgid "Your existing data has not been modified."
 msgstr ""
 
-#: /app/src/main.js:2653
+#: /app/src/main.js:2658
 #, fuzzy
 #| msgid "Failed to calculate net worth"
 msgid "Failed to calculate scenario"
 msgstr "Falha ao calcular o patrimônio líquido"
 
-#: /app/src/main.js:2698 /app/src/modules/dashboard/DashboardModule.js:1016
+#: /app/src/main.js:2703 /app/src/modules/dashboard/DashboardModule.js:1016
 #: /app/src/modules/reports/ReportsModule.js:1585
 msgid "N/A"
 msgstr "N/D"
 
-#: /app/src/main.js:2879 /app/templates/index.php:1276
+#: /app/src/main.js:2884 /app/templates/index.php:1276
 msgid "Min Payment"
 msgstr ""
 
-#: /app/src/main.js:2880
+#: /app/src/main.js:2885
 msgid "Payoff"
 msgstr ""
 
-#: /app/src/main.js:2880
+#: /app/src/main.js:2885
 msgid "month {month}"
 msgstr ""
 
-#: /app/src/main.js:2881 /app/templates/index.php:4155
+#: /app/src/main.js:2886 /app/templates/index.php:4155
 msgid "Total Interest"
 msgstr ""
 
-#: /app/src/main.js:2904
+#: /app/src/main.js:2909
 #, fuzzy
 #| msgid "Failed to compare strategies"
 msgid "No scenarios yet. Create one to compare strategies."
 msgstr "Falha ao comparar estratégias"
 
-#: /app/src/main.js:2909 /app/src/main.js:3140
+#: /app/src/main.js:2914 /app/src/main.js:3145
 msgid "Snowball"
 msgstr ""
 
-#: /app/src/main.js:2909 /app/src/main.js:3129
+#: /app/src/main.js:2914 /app/src/main.js:3134
 #, fuzzy
 #| msgid "Balance"
 msgid "Avalanche"
 msgstr "Saldo"
 
-#: /app/src/main.js:2920 /app/src/modules/accounts/AccountsModule.js:614
+#: /app/src/main.js:2925 /app/src/modules/accounts/AccountsModule.js:615
 #: /app/src/modules/assets/AssetsModule.js:168
 #: /app/src/modules/pensions/PensionsModule.js:144
 #: /app/src/modules/savings/SavingsModule.js:144
@@ -6393,322 +6402,322 @@ msgstr "Saldo"
 msgid "Edit"
 msgstr "Editar"
 
-#: /app/src/main.js:2922
+#: /app/src/main.js:2927
 msgid "Set as active"
 msgstr ""
 
-#: /app/src/main.js:2936
+#: /app/src/main.js:2941
 msgid "Edit Scenario"
 msgstr ""
 
-#: /app/src/main.js:2936 /app/templates/index.php:4134
+#: /app/src/main.js:2941 /app/templates/index.php:4134
 #: /app/templates/index.php:4136 /app/templates/index.php:5794
 msgid "New Scenario"
 msgstr ""
 
-#: /app/src/main.js:2990
+#: /app/src/main.js:2995
 msgid "Please enter a scenario name"
 msgstr ""
 
-#: /app/src/main.js:3044
+#: /app/src/main.js:3049
 #, fuzzy
 #| msgid "Failed to save rule"
 msgid "Failed to save scenario"
 msgstr "Não foi possível salvar a regra"
 
-#: /app/src/main.js:3049
+#: /app/src/main.js:3054
 #, fuzzy
 #| msgid "Are you sure you want to delete this rule?"
 msgid "Are you sure you want to delete this scenario?"
 msgstr "Tem certeza que deseja excluir esta regra?"
 
-#: /app/src/main.js:3068
+#: /app/src/main.js:3073
 #, fuzzy
 #| msgid "Failed to delete pension"
 msgid "Failed to delete scenario"
 msgstr "Falha ao excluir o plano de previdência"
 
-#: /app/src/main.js:3084
+#: /app/src/main.js:3089
 #, fuzzy
 #| msgid "Failed to run forecast scenarios"
 msgid "Failed to activate scenario"
 msgstr "Falha ao executar os cenários de previsão"
 
-#: /app/src/main.js:3131 /app/src/main.js:3142
+#: /app/src/main.js:3136 /app/src/main.js:3147
 msgid "Months to payoff"
 msgstr ""
 
-#: /app/src/main.js:3135 /app/src/main.js:3146
+#: /app/src/main.js:3140 /app/src/main.js:3151
 #, fuzzy
 #| msgid "Total Bills"
 msgid "Total interest"
 msgstr "Total de Contas"
 
-#: /app/src/main.js:3164
+#: /app/src/main.js:3169
 msgid "Avalanche Recommended"
 msgstr ""
 
-#: /app/src/main.js:3165
+#: /app/src/main.js:3170
 msgid "Snowball Recommended"
 msgstr ""
 
-#: /app/src/main.js:3165
+#: /app/src/main.js:3170
 msgid "Either Works"
 msgstr ""
 
-#: /app/src/main.js:3168
+#: /app/src/main.js:3173
 msgid "Avalanche saves {amount} in interest"
 msgstr ""
 
-#: /app/src/main.js:3169
+#: /app/src/main.js:3174
 msgid "Snowball saves {amount} in interest"
 msgstr ""
 
-#: /app/src/main.js:3205
+#: /app/src/main.js:3210
 msgid "Hide"
 msgstr ""
 
-#: /app/src/main.js:3205
+#: /app/src/main.js:3210
 msgid "Show"
 msgstr ""
 
-#: /app/src/main.js:3315
-#: /app/src/modules/transactions/TransactionsModule.js:3850
+#: /app/src/main.js:3320
+#: /app/src/modules/transactions/TransactionsModule.js:3851
 #: /app/src/modules/transactions/transactionRow.js:378
 msgid "Unknown Account"
 msgstr ""
 
-#: /app/src/main.js:3360
-#: /app/src/modules/transactions/TransactionsModule.js:3895
+#: /app/src/main.js:3365
+#: /app/src/modules/transactions/TransactionsModule.js:3896
 msgid "Link as Transfer"
 msgstr ""
 
-#: /app/src/main.js:3369
-#: /app/src/modules/transactions/TransactionsModule.js:3904
+#: /app/src/main.js:3374
+#: /app/src/modules/transactions/TransactionsModule.js:3905
 msgid "Failed to search for matches. Please try again."
 msgstr ""
 
-#: /app/src/main.js:3379
-#: /app/src/modules/transactions/TransactionsModule.js:3911
+#: /app/src/main.js:3384
+#: /app/src/modules/transactions/TransactionsModule.js:3912
 msgid "Transactions linked as transfer"
 msgstr ""
 
-#: /app/src/main.js:3385
-#: /app/src/modules/transactions/TransactionsModule.js:3917
-#: /app/src/modules/transactions/TransactionsModule.js:4676
-#: /app/src/modules/transactions/TransactionsModule.js:4748
+#: /app/src/main.js:3390
+#: /app/src/modules/transactions/TransactionsModule.js:3918
+#: /app/src/modules/transactions/TransactionsModule.js:4677
+#: /app/src/modules/transactions/TransactionsModule.js:4749
 msgid "Failed to link transactions"
 msgstr ""
 
-#: /app/src/main.js:3409
+#: /app/src/main.js:3414
 msgid "Select an account for the other side of the transfer"
 msgstr ""
 
-#: /app/src/main.js:3414
+#: /app/src/main.js:3419
 msgid "Transfer created and linked"
 msgstr ""
 
-#: /app/src/main.js:3420
-#: /app/src/modules/transactions/TransactionsModule.js:3098
+#: /app/src/main.js:3425
+#: /app/src/modules/transactions/TransactionsModule.js:3099
 msgid "Failed to create transfer"
 msgstr ""
 
-#: /app/src/main.js:3439
+#: /app/src/main.js:3444
 msgid "Could not navigate to linked transaction"
 msgstr ""
 
-#: /app/src/main.js:3514
-#: /app/src/modules/transactions/TransactionsModule.js:3922
+#: /app/src/main.js:3519
+#: /app/src/modules/transactions/TransactionsModule.js:3923
 msgid ""
 "Are you sure you want to unlink this transaction from its transfer pair?"
 msgstr ""
 
-#: /app/src/main.js:3520
-#: /app/src/modules/transactions/TransactionsModule.js:3928
+#: /app/src/main.js:3525
+#: /app/src/modules/transactions/TransactionsModule.js:3929
 msgid "Transaction unlinked"
 msgstr ""
 
-#: /app/src/main.js:3551
-#: /app/src/modules/transactions/TransactionsModule.js:4042
+#: /app/src/main.js:3556
+#: /app/src/modules/transactions/TransactionsModule.js:4043
 msgid "Edit Transaction Splits"
 msgstr ""
 
-#: /app/src/main.js:3551
-#: /app/src/modules/transactions/TransactionsModule.js:4042
+#: /app/src/main.js:3556
+#: /app/src/modules/transactions/TransactionsModule.js:4043
 #: /app/templates/index.php:7204
 msgid "Split Transaction"
 msgstr ""
 
-#: /app/src/main.js:3567
+#: /app/src/main.js:3572
 msgid "Total Amount"
 msgstr ""
 
-#: /app/src/main.js:3641
-#: /app/src/modules/transactions/TransactionsModule.js:3387
-#: /app/src/modules/transactions/TransactionsModule.js:4129
+#: /app/src/main.js:3646
+#: /app/src/modules/transactions/TransactionsModule.js:3388
+#: /app/src/modules/transactions/TransactionsModule.js:4130
 #: /app/templates/index.php:5655
 msgid "Optional note"
 msgstr ""
 
-#: /app/src/main.js:3645 /app/src/modules/bills/BillsModule.js:1039
-#: /app/src/modules/transactions/TransactionsModule.js:4133
+#: /app/src/main.js:3650 /app/src/modules/bills/BillsModule.js:1039
+#: /app/src/modules/transactions/TransactionsModule.js:4134
 msgid "Remove split"
 msgstr ""
 
-#: /app/src/main.js:3756
-#: /app/src/modules/transactions/TransactionsModule.js:4201
+#: /app/src/main.js:3761
+#: /app/src/modules/transactions/TransactionsModule.js:4202
 msgid "A split transaction must have at least 2 parts"
 msgstr ""
 
-#: /app/src/main.js:3762
-#: /app/src/modules/transactions/TransactionsModule.js:4207
+#: /app/src/main.js:3767
+#: /app/src/modules/transactions/TransactionsModule.js:4208
 msgid ""
 "Split amounts ({splitTotal}) must equal transaction amount ({totalAmount})"
 msgstr ""
 
-#: /app/src/main.js:3773
-#: /app/src/modules/transactions/TransactionsModule.js:4218
+#: /app/src/main.js:3778
+#: /app/src/modules/transactions/TransactionsModule.js:4219
 msgid "Transaction split successfully"
 msgstr ""
 
-#: /app/src/main.js:3777
-#: /app/src/modules/transactions/TransactionsModule.js:4222
+#: /app/src/main.js:3782
+#: /app/src/modules/transactions/TransactionsModule.js:4223
 msgid "Failed to save splits"
 msgstr ""
 
-#: /app/src/main.js:3788
-#: /app/src/modules/transactions/TransactionsModule.js:4230
+#: /app/src/main.js:3793
+#: /app/src/modules/transactions/TransactionsModule.js:4231
 msgid ""
 "Are you sure you want to remove the split and revert to a single transaction?"
 msgstr ""
 
-#: /app/src/main.js:3796
-#: /app/src/modules/transactions/TransactionsModule.js:4238
+#: /app/src/main.js:3801
+#: /app/src/modules/transactions/TransactionsModule.js:4239
 msgid "Transaction unsplit successfully"
 msgstr ""
 
-#: /app/src/main.js:3800
-#: /app/src/modules/transactions/TransactionsModule.js:3146
-#: /app/src/modules/transactions/TransactionsModule.js:4242
+#: /app/src/main.js:3805
+#: /app/src/modules/transactions/TransactionsModule.js:3147
+#: /app/src/modules/transactions/TransactionsModule.js:4243
 msgid "Failed to unsplit transaction"
 msgstr ""
 
-#: /app/src/main.js:3913
+#: /app/src/main.js:3918
 msgid "At least one column must remain visible"
 msgstr ""
 
-#: /app/src/main.js:3933
+#: /app/src/main.js:3938
 msgid "Failed to save column visibility"
 msgstr ""
 
-#: /app/src/main.js:3940
+#: /app/src/main.js:3945
 msgid "Failed to save column preferences"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:27 /app/templates/index.php:1106
+#: /app/src/modules/accounts/AccountsModule.js:28 /app/templates/index.php:1106
 #, fuzzy
 #| msgid "Account"
 msgid "Account type"
 msgstr "Conta"
 
-#: /app/src/modules/accounts/AccountsModule.js:29
+#: /app/src/modules/accounts/AccountsModule.js:30
 #, fuzzy
 #| msgid "Account holder name"
 msgid "Account number"
 msgstr "Nome do titular da conta"
 
-#: /app/src/modules/accounts/AccountsModule.js:30 /app/templates/index.php:1108
+#: /app/src/modules/accounts/AccountsModule.js:31 /app/templates/index.php:1108
 msgid "Last reconciled"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:32
+#: /app/src/modules/accounts/AccountsModule.js:33
 #, fuzzy
 #| msgid "Balance"
 msgid "Converted balance"
 msgstr "Saldo"
 
-#: /app/src/modules/accounts/AccountsModule.js:33
+#: /app/src/modules/accounts/AccountsModule.js:34
 msgid "Balance trend (tiles only)"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:34
+#: /app/src/modules/accounts/AccountsModule.js:35
 msgid "Status (tiles only)"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:272
+#: /app/src/modules/accounts/AccountsModule.js:273
 msgid ""
 "Accounts in {currencies} are excluded from totals because exchange rates are "
 "unavailable. Add rates in Settings > Exchange Rates."
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:313
+#: /app/src/modules/accounts/AccountsModule.js:314
 msgid "No asset accounts yet"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:331
+#: /app/src/modules/accounts/AccountsModule.js:332
 msgid "Closed accounts ({count})"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:493
+#: /app/src/modules/accounts/AccountsModule.js:494
 msgid "Never reconciled"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:498
-#: /app/src/modules/accounts/AccountsModule.js:580
+#: /app/src/modules/accounts/AccountsModule.js:499
+#: /app/src/modules/accounts/AccountsModule.js:581
 msgid "Unnamed Account"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:515
+#: /app/src/modules/accounts/AccountsModule.js:516
 msgid "Owed"
 msgstr "Devido"
 
-#: /app/src/modules/accounts/AccountsModule.js:515
+#: /app/src/modules/accounts/AccountsModule.js:516
 msgid "Credit"
 msgstr "Crédito"
 
-#: /app/src/modules/accounts/AccountsModule.js:536
+#: /app/src/modules/accounts/AccountsModule.js:537
 #, fuzzy
 #| msgid "Failed to retrieve pension summary"
 msgid "Closed: history kept, no new activity"
 msgstr "Falha ao buscar o resumo dos planos de previdência"
 
-#: /app/src/modules/accounts/AccountsModule.js:536
-#: /app/src/modules/accounts/AccountsModule.js:595
+#: /app/src/modules/accounts/AccountsModule.js:537
+#: /app/src/modules/accounts/AccountsModule.js:596
 #: /app/templates/index.php:1247
 msgid "Closed"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:537
+#: /app/src/modules/accounts/AccountsModule.js:538
 msgid "Excluded from reports, dashboard & forecast"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:537
+#: /app/src/modules/accounts/AccountsModule.js:538
 msgid "Excluded"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:566
-#: /app/src/modules/accounts/AccountsModule.js:2720
+#: /app/src/modules/accounts/AccountsModule.js:567
+#: /app/src/modules/accounts/AccountsModule.js:2768
 msgid "Edit Account"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:569
+#: /app/src/modules/accounts/AccountsModule.js:570
 msgid "Delete Account"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:639
-#: /app/src/modules/accounts/AccountsModule.js:2428
+#: /app/src/modules/accounts/AccountsModule.js:640
+#: /app/src/modules/accounts/AccountsModule.js:2476
 #: /app/templates/index.php:1039
 msgid "Select account"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:683
+#: /app/src/modules/accounts/AccountsModule.js:684
 #: /app/src/modules/categories/CategoriesModule.js:1364
 msgid "%n selected"
 msgid_plural "%n selected"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/accounts/AccountsModule.js:714
+#: /app/src/modules/accounts/AccountsModule.js:715
 msgid ""
 "Delete %n account? Accounts that still have transactions are kept back and "
 "asked about separately."
@@ -6718,12 +6727,12 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/accounts/AccountsModule.js:717
+#: /app/src/modules/accounts/AccountsModule.js:718
 msgid ""
 "Any bills, transfers or recurring income that use them are switched off."
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:739
+#: /app/src/modules/accounts/AccountsModule.js:740
 msgid ""
 "%n account still has transactions: {names}. Delete it along with its {rows} "
 "transaction(s)? This cannot be undone."
@@ -6733,7 +6742,7 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/accounts/AccountsModule.js:757
+#: /app/src/modules/accounts/AccountsModule.js:758
 #, fuzzy
 #| msgid "%1$s duplicate categories removed"
 msgid "%n account and {count} transaction(s) deleted"
@@ -6741,7 +6750,7 @@ msgid_plural "%n accounts and {count} transaction(s) deleted"
 msgstr[0] "%1$s categorias duplicadas removidas"
 msgstr[1] "%1$s categorias duplicadas removidas"
 
-#: /app/src/modules/accounts/AccountsModule.js:760
+#: /app/src/modules/accounts/AccountsModule.js:761
 #, fuzzy
 #| msgid "{count} updated"
 msgid "%n account deleted"
@@ -6749,459 +6758,459 @@ msgid_plural "%n accounts deleted"
 msgstr[0] "{count} atualizado(s)"
 msgstr[1] "{count} atualizado(s)"
 
-#: /app/src/modules/accounts/AccountsModule.js:763
+#: /app/src/modules/accounts/AccountsModule.js:764
 #: /app/src/modules/categories/CategoriesModule.js:1404
 msgid "Failed to delete: {errors}"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:777
+#: /app/src/modules/accounts/AccountsModule.js:778
 #, fuzzy
 #| msgid "Failed to retrieve accounts"
 msgid "Failed to delete accounts: {error}"
 msgstr "Falha ao buscar as contas financeiras"
 
-#: /app/src/modules/accounts/AccountsModule.js:895
+#: /app/src/modules/accounts/AccountsModule.js:896
 msgid "Always shown"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:1091
+#: /app/src/modules/accounts/AccountsModule.js:1093
 msgid "Failed to load account details"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:1214
+#: /app/src/modules/accounts/AccountsModule.js:1216
 msgid "Day {day} each month"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:1269
-#: /app/src/modules/accounts/AccountsModule.js:1270
 #: /app/src/modules/accounts/AccountsModule.js:1271
 #: /app/src/modules/accounts/AccountsModule.js:1272
 #: /app/src/modules/accounts/AccountsModule.js:1273
+#: /app/src/modules/accounts/AccountsModule.js:1274
 #: /app/src/modules/accounts/AccountsModule.js:1275
+#: /app/src/modules/accounts/AccountsModule.js:1277
 #: /app/templates/index.php:1358 /app/templates/index.php:1362
 #: /app/templates/index.php:1366 /app/templates/index.php:1370
 #: /app/templates/index.php:1374 /app/templates/index.php:1382
 msgid "Not provided"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:1276
+#: /app/src/modules/accounts/AccountsModule.js:1278
 #: /app/templates/index.php:1386
 msgid "Never"
 msgstr "Nunca"
 
-#: /app/src/modules/accounts/AccountsModule.js:1327
+#: /app/src/modules/accounts/AccountsModule.js:1329
 msgid "Show fewer"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:1328
+#: /app/src/modules/accounts/AccountsModule.js:1330
 msgid "Show all ({count})"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:1378
+#: /app/src/modules/accounts/AccountsModule.js:1380
 #: /app/src/modules/transfers/TransfersModule.js:492
 #: /app/templates/index.php:6192
 msgid "Daily"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:1381
+#: /app/src/modules/accounts/AccountsModule.js:1383
 msgid "Simple"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:1410
-#: /app/src/modules/accounts/AccountsModule.js:1415
+#: /app/src/modules/accounts/AccountsModule.js:1412
+#: /app/src/modules/accounts/AccountsModule.js:1417
 #, fuzzy
 #| msgid "Failed to delete tag"
 msgid "Failed to delete rate change"
 msgstr "Falha ao excluir a etiqueta"
 
-#: /app/src/modules/accounts/AccountsModule.js:1412
+#: /app/src/modules/accounts/AccountsModule.js:1414
 #, fuzzy
 #| msgid "Recurring income deleted"
 msgid "Rate change deleted"
 msgstr "Renda recorrente excluída"
 
-#: /app/src/modules/accounts/AccountsModule.js:1429
+#: /app/src/modules/accounts/AccountsModule.js:1431
 msgid "Enter new annual interest rate (%)"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:1434
+#: /app/src/modules/accounts/AccountsModule.js:1436
 #, fuzzy
 #| msgid "Reminder days must be between 0 and 30"
 msgid "Invalid rate. Must be between 0 and 999.9999"
 msgstr "Os dias de lembrete devem ser entre 0 e 30"
 
-#: /app/src/modules/accounts/AccountsModule.js:1438
+#: /app/src/modules/accounts/AccountsModule.js:1440
 msgid "Effective date (YYYY-MM-DD)"
 msgstr "Data de vigência (AAAA-MM-DD)"
 
-#: /app/src/modules/accounts/AccountsModule.js:1441
+#: /app/src/modules/accounts/AccountsModule.js:1443
 msgid "Compounding frequency (daily, monthly, yearly, simple)"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:1455
-#: /app/src/modules/accounts/AccountsModule.js:1460
+#: /app/src/modules/accounts/AccountsModule.js:1457
+#: /app/src/modules/accounts/AccountsModule.js:1462
 #, fuzzy
 #| msgid "Failed to update share"
 msgid "Failed to add rate change"
 msgstr "Falha ao atualizar o compartilhamento"
 
-#: /app/src/modules/accounts/AccountsModule.js:1457
+#: /app/src/modules/accounts/AccountsModule.js:1459
 msgid "Rate change added"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:1509
+#: /app/src/modules/accounts/AccountsModule.js:1511
 msgid ""
 "Some historical exchange rates could not be found. P&L may be approximate."
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:1588
+#: /app/src/modules/accounts/AccountsModule.js:1593
 #: /app/src/modules/import/ImportModule.js:2114
 msgid "No transactions found"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:1589
+#: /app/src/modules/accounts/AccountsModule.js:1594
 msgid "This account doesn't have any transactions yet."
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:1756
+#: /app/src/modules/accounts/AccountsModule.js:1761
 #: /app/src/utils/billDates.js:131
 msgid "No due date"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:1758
+#: /app/src/modules/accounts/AccountsModule.js:1763
 #, fuzzy
 #| msgid "Failed to get balances"
 msgid "{date} (statement balance)"
 msgstr "Falha ao carregar os saldos"
 
-#: /app/src/modules/accounts/AccountsModule.js:1759
+#: /app/src/modules/accounts/AccountsModule.js:1764
 #, fuzzy
 #| msgid "Failed to get balances"
 msgid "{date} (current balance)"
 msgstr "Falha ao carregar os saldos"
 
-#: /app/src/modules/accounts/AccountsModule.js:1760
+#: /app/src/modules/accounts/AccountsModule.js:1765
 msgid "{date} (minimum payment)"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:1803
+#: /app/src/modules/accounts/AccountsModule.js:1851
 #, fuzzy
 #| msgid "{count} updated"
 msgid "{account} payment"
 msgstr "{count} atualizado(s)"
 
-#: /app/src/modules/accounts/AccountsModule.js:1881
-#: /app/src/modules/transactions/TransactionsModule.js:541
+#: /app/src/modules/accounts/AccountsModule.js:1929
+#: /app/src/modules/transactions/TransactionsModule.js:542
 #: /app/templates/index.php:1465 /app/templates/index.php:1631
 msgid "All Categories"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:1935
+#: /app/src/modules/accounts/AccountsModule.js:1983
 #: /app/src/modules/reports/ReportsModule.js:465
 #: /app/src/modules/tagsets/TagSetsModule.js:603
-#: /app/src/modules/transactions/TransactionsModule.js:596
-#: /app/src/modules/transactions/TransactionsModule.js:1380
+#: /app/src/modules/transactions/TransactionsModule.js:597
+#: /app/src/modules/transactions/TransactionsModule.js:1381
 msgid "No tags available"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:1946
+#: /app/src/modules/accounts/AccountsModule.js:1994
 #: /app/src/modules/reports/ReportsModule.js:477
-#: /app/src/modules/transactions/TransactionsModule.js:607
-#: /app/src/modules/transactions/TransactionsModule.js:5167
+#: /app/src/modules/transactions/TransactionsModule.js:608
+#: /app/src/modules/transactions/TransactionsModule.js:5168
 msgid "Type to filter tags..."
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2029
+#: /app/src/modules/accounts/AccountsModule.js:2077
 #: /app/src/modules/reports/ReportsModule.js:543
-#: /app/src/modules/transactions/TransactionsModule.js:691
-#: /app/src/modules/transactions/TransactionsModule.js:5249
+#: /app/src/modules/transactions/TransactionsModule.js:692
+#: /app/src/modules/transactions/TransactionsModule.js:5250
 msgid "No tags found"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2147
-#: /app/src/modules/transactions/TransactionsModule.js:551
+#: /app/src/modules/accounts/AccountsModule.js:2195
+#: /app/src/modules/transactions/TransactionsModule.js:552
 #: /app/templates/index.php:1743
 msgid "Select account to reconcile"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2227
-#: /app/src/modules/accounts/AccountsModule.js:2334
+#: /app/src/modules/accounts/AccountsModule.js:2275
+#: /app/src/modules/accounts/AccountsModule.js:2382
 msgid "No accounts available. Please create an account first."
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2230
-#: /app/src/modules/accounts/AccountsModule.js:2337
+#: /app/src/modules/accounts/AccountsModule.js:2278
+#: /app/src/modules/accounts/AccountsModule.js:2385
 #: /app/src/modules/import/ImportModule.js:2602
 msgid "Please select an account"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2234
-#: /app/src/modules/accounts/AccountsModule.js:2341
+#: /app/src/modules/accounts/AccountsModule.js:2282
+#: /app/src/modules/accounts/AccountsModule.js:2389
 msgid "Please enter a date"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2238
-#: /app/src/modules/accounts/AccountsModule.js:2345
+#: /app/src/modules/accounts/AccountsModule.js:2286
+#: /app/src/modules/accounts/AccountsModule.js:2393
 msgid "Please select a transaction type"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2242
-#: /app/src/modules/accounts/AccountsModule.js:2349
+#: /app/src/modules/accounts/AccountsModule.js:2290
+#: /app/src/modules/accounts/AccountsModule.js:2397
 #: /app/src/modules/savings/SavingsModule.js:503
 msgid "Please enter a valid amount"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2246
-#: /app/src/modules/accounts/AccountsModule.js:2353
+#: /app/src/modules/accounts/AccountsModule.js:2294
+#: /app/src/modules/accounts/AccountsModule.js:2401
 msgid "Please enter a description"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2274
-#: /app/src/modules/accounts/AccountsModule.js:2293
-#: /app/src/modules/transactions/TransactionsModule.js:3153
-#: /app/src/modules/transactions/TransactionsModule.js:3160
-#: /app/src/modules/transactions/TransactionsModule.js:3210
+#: /app/src/modules/accounts/AccountsModule.js:2322
+#: /app/src/modules/accounts/AccountsModule.js:2341
+#: /app/src/modules/transactions/TransactionsModule.js:3154
+#: /app/src/modules/transactions/TransactionsModule.js:3161
+#: /app/src/modules/transactions/TransactionsModule.js:3211
 #: /app/templates/quick-add.php:104
 msgid "Failed to save transaction"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2284
+#: /app/src/modules/accounts/AccountsModule.js:2332
 msgid "Transaction saved successfully"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2372
-#: /app/src/modules/accounts/AccountsModule.js:2387
+#: /app/src/modules/accounts/AccountsModule.js:2420
+#: /app/src/modules/accounts/AccountsModule.js:2435
 msgid "Failed to add transaction"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2375
+#: /app/src/modules/accounts/AccountsModule.js:2423
 msgid "Transaction added successfully!"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2446
+#: /app/src/modules/accounts/AccountsModule.js:2494
 #: /app/src/modules/bills/BillsModule.js:953
 #: /app/src/modules/bills/BillsModule.js:1017
 #: /app/src/modules/income/IncomeModule.js:478
-#: /app/src/modules/transactions/TransactionsModule.js:2031
-#: /app/src/modules/transactions/TransactionsModule.js:2256
+#: /app/src/modules/transactions/TransactionsModule.js:2032
+#: /app/src/modules/transactions/TransactionsModule.js:2257
 #: /app/src/modules/transfers/TransfersModule.js:566
 #: /app/templates/index.php:1061 /app/templates/index.php:5969
 #: /app/templates/index.php:6360 /app/templates/index.php:6831
 msgid "No category"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2476
+#: /app/src/modules/accounts/AccountsModule.js:2524
 msgid "Form error: Account name field not found"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2482
+#: /app/src/modules/accounts/AccountsModule.js:2530
 msgid "Form error: Account type field not found"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2536
-#: /app/src/modules/accounts/AccountsModule.js:2550
+#: /app/src/modules/accounts/AccountsModule.js:2584
+#: /app/src/modules/accounts/AccountsModule.js:2598
 msgid ""
 "Enter the amount owed as a positive number. Tick \"This account is in "
 "credit\" if the lender owes you instead."
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2587
+#: /app/src/modules/accounts/AccountsModule.js:2635
 msgid "Please enter an account name"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2594
+#: /app/src/modules/accounts/AccountsModule.js:2642
 msgid "Please select an account type"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2601
+#: /app/src/modules/accounts/AccountsModule.js:2649
 msgid "Account name is too long (maximum 255 characters)"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2608
+#: /app/src/modules/accounts/AccountsModule.js:2656
 msgid "Please enter a valid balance amount"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2628
+#: /app/src/modules/accounts/AccountsModule.js:2676
 msgid "Account saved successfully"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2651
+#: /app/src/modules/accounts/AccountsModule.js:2699
 msgid "Unknown error occurred"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2652
+#: /app/src/modules/accounts/AccountsModule.js:2700
 msgid "Failed to save account: {error}"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2682
+#: /app/src/modules/accounts/AccountsModule.js:2730
 msgid ""
 "This account has a balance of {balance}. It must be zero before it can be "
 "closed."
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2744
+#: /app/src/modules/accounts/AccountsModule.js:2792
 #: /app/templates/index.php:1122
 msgid "Add Account"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2787
+#: /app/src/modules/accounts/AccountsModule.js:2835
 msgid "Balance is calculated from transactions"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2795
+#: /app/src/modules/accounts/AccountsModule.js:2843
 #, fuzzy
 #| msgid "Failed to create transaction"
 msgid "Calculated from transactions"
 msgstr "Falha na criação da transação"
 
-#: /app/src/modules/accounts/AccountsModule.js:2863
+#: /app/src/modules/accounts/AccountsModule.js:2911
 msgid "••••••••  (leave blank to keep current)"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2887
+#: /app/src/modules/accounts/AccountsModule.js:2935
 msgid "Failed to load account data"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2965
-#: /app/src/modules/accounts/AccountsModule.js:2977
+#: /app/src/modules/accounts/AccountsModule.js:3013
+#: /app/src/modules/accounts/AccountsModule.js:3025
 #, fuzzy
 #| msgid "Account"
 msgid "Amount owed"
 msgstr "Conta"
 
-#: /app/src/modules/accounts/AccountsModule.js:2966
+#: /app/src/modules/accounts/AccountsModule.js:3014
 #: /app/templates/index.php:6097
 msgid "Opening Balance"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2971
+#: /app/src/modules/accounts/AccountsModule.js:3019
 msgid ""
 "Enter what you owe as a plain positive number — the app records it as a debt "
 "for you."
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2972
+#: /app/src/modules/accounts/AccountsModule.js:3020
 #: /app/templates/index.php:6099
 msgid "The starting balance when this account was created"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2978
-#: /app/src/modules/accounts/AccountsModule.js:3020
+#: /app/src/modules/accounts/AccountsModule.js:3026
+#: /app/src/modules/accounts/AccountsModule.js:3068
 #: /app/templates/index.php:6112
 msgid "Starting Balance"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2987
+#: /app/src/modules/accounts/AccountsModule.js:3035
 msgid ""
 "This account is currently recorded as being in credit — as if the lender "
 "owes you this money, which adds it to your net worth. If you actually owe "
 "it, untick the box above and save."
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3024
+#: /app/src/modules/accounts/AccountsModule.js:3072
 #: /app/templates/index.php:6114
 msgid "The balance this account starts with"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3084
+#: /app/src/modules/accounts/AccountsModule.js:3132
 msgid ""
 "Are you sure you want to delete this account? This action cannot be undone."
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3085
+#: /app/src/modules/accounts/AccountsModule.js:3133
 msgid "Any bills, transfers or recurring income that use it are switched off."
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3104
+#: /app/src/modules/accounts/AccountsModule.js:3152
 msgid ""
 "This account still has {count} transaction(s). Delete them along with the "
 "account? This cannot be undone."
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3105
+#: /app/src/modules/accounts/AccountsModule.js:3153
 msgid ""
 "This account still has transactions. Delete them along with the account? "
 "This cannot be undone."
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3113
+#: /app/src/modules/accounts/AccountsModule.js:3161
 #, fuzzy
 #| msgid "%1$s duplicate categories removed"
 msgid "Account and its {count} transaction(s) deleted"
 msgstr "%1$s categorias duplicadas removidas"
 
-#: /app/src/modules/accounts/AccountsModule.js:3114
+#: /app/src/modules/accounts/AccountsModule.js:3162
 msgid "Account deleted successfully"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3124
+#: /app/src/modules/accounts/AccountsModule.js:3172
 msgid "Failed to delete account: {error}"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3343
+#: /app/src/modules/accounts/AccountsModule.js:3391
 msgid "Valid"
 msgstr "Válido"
 
-#: /app/src/modules/accounts/AccountsModule.js:3408
+#: /app/src/modules/accounts/AccountsModule.js:3456
 #: /app/templates/index.php:6084
 msgid "Checking Account"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3413
+#: /app/src/modules/accounts/AccountsModule.js:3461
 #: /app/templates/index.php:6085
 msgid "Savings Account"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3418
+#: /app/src/modules/accounts/AccountsModule.js:3466
 #: /app/src/modules/dashboard/DashboardModule.js:1105
 #: /app/src/utils/formatters.js:268 /app/templates/index.php:6086
 msgid "Credit Card"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3423
+#: /app/src/modules/accounts/AccountsModule.js:3471
 #: /app/src/modules/dashboard/DashboardModule.js:1106
 #: /app/src/utils/formatters.js:269
 msgid "Investment"
 msgstr "Investimento"
 
-#: /app/src/modules/accounts/AccountsModule.js:3428
+#: /app/src/modules/accounts/AccountsModule.js:3476
 #: /app/src/modules/dashboard/DashboardModule.js:1108
 #: /app/src/utils/formatters.js:271
 msgid "Loan"
 msgstr "Empréstimo"
 
-#: /app/src/modules/accounts/AccountsModule.js:3433
+#: /app/src/modules/accounts/AccountsModule.js:3481
 #: /app/src/modules/dashboard/DashboardModule.js:1107
 #: /app/src/utils/formatters.js:270 /app/templates/index.php:6091
 msgid "Cash"
 msgstr "Espécie"
 
-#: /app/src/modules/accounts/AccountsModule.js:3438
+#: /app/src/modules/accounts/AccountsModule.js:3486
 #: /app/src/utils/formatters.js:274 /app/templates/index.php:6092
 msgid "Cryptocurrency"
 msgstr "Criptomoeda"
 
-#: /app/src/modules/accounts/AccountsModule.js:3460
+#: /app/src/modules/accounts/AccountsModule.js:3508
 msgid "Credit utilization very high"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3466
+#: /app/src/modules/accounts/AccountsModule.js:3514
 msgid "Credit utilization high"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3476
+#: /app/src/modules/accounts/AccountsModule.js:3524
 msgid "Negative balance"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3485
+#: /app/src/modules/accounts/AccountsModule.js:3533
 msgid "Exceeds overdraft limit"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3492
+#: /app/src/modules/accounts/AccountsModule.js:3540
 msgid "Account is in good standing"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3524
+#: /app/src/modules/accounts/AccountsModule.js:3572
 msgid "No transactions to export"
 msgstr ""
 
@@ -7598,7 +7607,7 @@ msgstr ""
 
 #: /app/src/modules/bills/BillsModule.js:73
 #: /app/src/modules/bills/BillsModule.js:76
-#: /app/src/modules/transactions/TransactionsModule.js:3950
+#: /app/src/modules/transactions/TransactionsModule.js:3951
 msgid "Failed to load bills"
 msgstr ""
 
@@ -7648,7 +7657,7 @@ msgstr ""
 
 #: /app/src/modules/bills/BillsModule.js:125
 #: /app/src/modules/bills/BillsModule.js:231
-#: /app/src/modules/transactions/TransactionsModule.js:1837
+#: /app/src/modules/transactions/TransactionsModule.js:1838
 msgid "Dismiss"
 msgstr ""
 
@@ -8199,7 +8208,7 @@ msgstr ""
 #: /app/src/modules/reports/ReportsModule.js:215
 #: /app/src/modules/reports/ReportsModule.js:217
 #: /app/src/modules/reports/ReportsModule.js:1720
-#: /app/src/modules/transactions/TransactionsModule.js:534
+#: /app/src/modules/transactions/TransactionsModule.js:535
 #: /app/templates/index.php:594 /app/templates/index.php:616
 #: /app/templates/index.php:634 /app/templates/index.php:685
 #: /app/templates/index.php:1624 /app/templates/index.php:2038
@@ -8512,8 +8521,8 @@ msgid "Budget adjustment created."
 msgstr ""
 
 #: /app/src/modules/categories/CategoriesModule.js:2071
-#: /app/src/modules/transactions/TransactionsModule.js:4505
-#: /app/src/modules/transactions/TransactionsModule.js:4660
+#: /app/src/modules/transactions/TransactionsModule.js:4506
+#: /app/src/modules/transactions/TransactionsModule.js:4661
 #: /app/src/utils/notifications.js:73
 msgid "Undo"
 msgstr ""
@@ -11138,7 +11147,7 @@ msgstr[0] "{count} atualizado(s)"
 msgstr[1] "{count} atualizado(s)"
 
 #: /app/src/modules/reports/ReportsModule.js:1934
-#: /app/src/modules/transactions/TransactionsModule.js:2065
+#: /app/src/modules/transactions/TransactionsModule.js:2066
 #: /app/src/modules/transactions/transactionRow.js:94
 #: /app/src/modules/transfers/TransfersModule.js:462
 #: /app/templates/index.php:5917 /app/templates/index.php:5923
@@ -11410,8 +11419,8 @@ msgstr "Critérios inválidos: {errors}"
 #: /app/src/modules/rules/RulesModule.js:924
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:514
 #: /app/src/modules/sharing/SharingModule.js:32
-#: /app/src/modules/transactions/TransactionsModule.js:1349
-#: /app/src/modules/transactions/TransactionsModule.js:5130
+#: /app/src/modules/transactions/TransactionsModule.js:1350
+#: /app/src/modules/transactions/TransactionsModule.js:5131
 #: /app/src/utils/loading.js:33 /app/templates/index.php:902
 #: /app/templates/index.php:912 /app/templates/index.php:921
 #: /app/templates/index.php:930 /app/templates/index.php:939
@@ -11877,7 +11886,7 @@ msgstr ""
 
 #: /app/src/modules/rules/components/ActionBuilder.js:314
 #: /app/src/modules/rules/components/ActionBuilder.js:315
-#: /app/src/modules/transactions/TransactionsModule.js:4054
+#: /app/src/modules/transactions/TransactionsModule.js:4055
 #: /app/templates/index.php:7209
 msgid "Description:"
 msgstr ""
@@ -12339,7 +12348,7 @@ msgid "Remove {folder}"
 msgstr ""
 
 #: /app/src/modules/settings/ImportFolders.js:160
-#: /app/src/modules/transactions/TransactionsModule.js:3392
+#: /app/src/modules/transactions/TransactionsModule.js:3393
 msgid "Remove"
 msgstr ""
 
@@ -12802,7 +12811,7 @@ msgid "Budgets shared with you by other users."
 msgstr ""
 
 #: /app/src/modules/sharing/SharingModule.js:155
-#: /app/src/modules/transactions/TransactionsModule.js:1683
+#: /app/src/modules/transactions/TransactionsModule.js:1684
 msgid "Leave"
 msgstr ""
 
@@ -12861,7 +12870,7 @@ msgid "Save Configuration"
 msgstr ""
 
 #: /app/src/modules/sharing/SharingModule.js:345
-#: /app/src/modules/transactions/TransactionsModule.js:5652
+#: /app/src/modules/transactions/TransactionsModule.js:5653
 msgid "Deselect All"
 msgstr ""
 
@@ -12989,10 +12998,10 @@ msgstr ""
 
 #: /app/src/modules/tagsets/TagSetsModule.js:317
 #: /app/src/modules/tagsets/TagSetsModule.js:326
-#: /app/src/modules/transactions/TransactionsModule.js:1471
-#: /app/src/modules/transactions/TransactionsModule.js:1495
-#: /app/src/modules/transactions/TransactionsModule.js:5382
-#: /app/src/modules/transactions/TransactionsModule.js:5395
+#: /app/src/modules/transactions/TransactionsModule.js:1472
+#: /app/src/modules/transactions/TransactionsModule.js:1496
+#: /app/src/modules/transactions/TransactionsModule.js:5383
+#: /app/src/modules/transactions/TransactionsModule.js:5396
 #, fuzzy
 #| msgid "Failed to update tag"
 msgid "Failed to update tags"
@@ -13120,45 +13129,45 @@ msgstr ""
 msgid "Tag updated successfully"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:374
+#: /app/src/modules/transactions/TransactionsModule.js:375
 msgid ""
 "This transaction is scheduled, so it is not on a statement yet and cannot be "
 "ticked."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:511
+#: /app/src/modules/transactions/TransactionsModule.js:512
 msgid "{category} + {count} subcategory"
 msgid_plural "{category} + {count} subcategories"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:991
+#: /app/src/modules/transactions/TransactionsModule.js:992
 #, fuzzy
 #| msgid "Failed to find matching transactions"
 msgid "Failed to select all matching transactions"
 msgstr "Falha ao localizar transações correspondentes"
 
-#: /app/src/modules/transactions/TransactionsModule.js:1038
+#: /app/src/modules/transactions/TransactionsModule.js:1039
 msgid "All {total} transactions matching the current filter are selected."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1039
+#: /app/src/modules/transactions/TransactionsModule.js:1040
 msgid "Clear selection"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1054
+#: /app/src/modules/transactions/TransactionsModule.js:1055
 msgid "All %n transaction on this page is selected."
 msgid_plural "All %n transactions on this page are selected."
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1055
+#: /app/src/modules/transactions/TransactionsModule.js:1056
 #, fuzzy
 #| msgid "Failed to find matching transactions"
 msgid "Select all {total} matching transactions"
 msgstr "Falha ao localizar transações correspondentes"
 
-#: /app/src/modules/transactions/TransactionsModule.js:1115
+#: /app/src/modules/transactions/TransactionsModule.js:1116
 msgid ""
 "Are you sure you want to delete %n transaction? This action cannot be undone."
 msgid_plural ""
@@ -13167,7 +13176,7 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1118
+#: /app/src/modules/transactions/TransactionsModule.js:1119
 msgid ""
 "%n of these was auto-generated from bill payments. Deleting real payments "
 "will cause your balance to diverge from your bank statement."
@@ -13177,95 +13186,95 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1134
+#: /app/src/modules/transactions/TransactionsModule.js:1135
 msgid "Successfully deleted %n transaction"
 msgid_plural "Successfully deleted %n transactions"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1142
-#: /app/src/modules/transactions/TransactionsModule.js:5787
+#: /app/src/modules/transactions/TransactionsModule.js:1143
+#: /app/src/modules/transactions/TransactionsModule.js:5788
 msgid "Failed to delete %n transaction"
 msgid_plural "Failed to delete %n transactions"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1155
+#: /app/src/modules/transactions/TransactionsModule.js:1156
 msgid "Are you sure you want to mark %n transaction as reconciled?"
 msgid_plural "Are you sure you want to mark %n transactions as reconciled?"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1169
+#: /app/src/modules/transactions/TransactionsModule.js:1170
 msgid "Successfully reconciled %n transaction"
 msgid_plural "Successfully reconciled %n transactions"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1177
+#: /app/src/modules/transactions/TransactionsModule.js:1178
 msgid "Failed to reconcile %n transaction"
 msgid_plural "Failed to reconcile %n transactions"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1181
+#: /app/src/modules/transactions/TransactionsModule.js:1182
 msgid "Failed to reconcile transactions"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1190
+#: /app/src/modules/transactions/TransactionsModule.js:1191
 msgid "Are you sure you want to mark %n transaction as unreconciled?"
 msgid_plural "Are you sure you want to mark %n transactions as unreconciled?"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1204
+#: /app/src/modules/transactions/TransactionsModule.js:1205
 msgid "Successfully unreconciled %n transaction"
 msgid_plural "Successfully unreconciled %n transactions"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1212
+#: /app/src/modules/transactions/TransactionsModule.js:1213
 msgid "Failed to unreconcile %n transaction"
 msgid_plural "Failed to unreconcile %n transactions"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1216
+#: /app/src/modules/transactions/TransactionsModule.js:1217
 msgid "Failed to unreconcile transactions"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1238
+#: /app/src/modules/transactions/TransactionsModule.js:1239
 #: /app/templates/index.php:7267
 msgid "Don't change"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1274
+#: /app/src/modules/transactions/TransactionsModule.js:1275
 msgid "Please fill in at least one field to update"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1278
+#: /app/src/modules/transactions/TransactionsModule.js:1279
 msgid "Are you sure you want to update %n transaction?"
 msgid_plural "Are you sure you want to update %n transactions?"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1292
+#: /app/src/modules/transactions/TransactionsModule.js:1293
 msgid "Successfully updated %n transaction"
 msgid_plural "Successfully updated %n transactions"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1303
+#: /app/src/modules/transactions/TransactionsModule.js:1304
 msgid "Failed to update %n transaction"
 msgid_plural "Failed to update %n transactions"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1307
+#: /app/src/modules/transactions/TransactionsModule.js:1308
 msgid "Failed to update transactions"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1343
+#: /app/src/modules/transactions/TransactionsModule.js:1344
 msgid ""
 "Add or remove tags on %n selected transaction. Tags you leave unchecked are "
 "not touched."
@@ -13275,22 +13284,22 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1409
+#: /app/src/modules/transactions/TransactionsModule.js:1410
 msgid "applies to {count} of {total}"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1425
+#: /app/src/modules/transactions/TransactionsModule.js:1426
 msgid "%n selected transaction is in a category these tags do not cover."
 msgid_plural ""
 "%n selected transactions are in categories these tags do not cover."
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1457
+#: /app/src/modules/transactions/TransactionsModule.js:1458
 msgid "Please select at least one tag to add or remove"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1491
+#: /app/src/modules/transactions/TransactionsModule.js:1492
 #, fuzzy
 #| msgid "Failed to update transaction"
 msgid "Failed to update tags on %n transaction"
@@ -13298,7 +13307,7 @@ msgid_plural "Failed to update tags on %n transactions"
 msgstr[0] "Falha na atualização da transação"
 msgstr[1] "Falha na atualização da transação"
 
-#: /app/src/modules/transactions/TransactionsModule.js:1509
+#: /app/src/modules/transactions/TransactionsModule.js:1510
 #, fuzzy
 #| msgid "Failed to unlink transaction"
 msgid "Updated tags on %n transaction"
@@ -13306,42 +13315,42 @@ msgid_plural "Updated tags on %n transactions"
 msgstr[0] "Falha ao desvincular a transação"
 msgstr[1] "Falha ao desvincular a transação"
 
-#: /app/src/modules/transactions/TransactionsModule.js:1517
+#: /app/src/modules/transactions/TransactionsModule.js:1518
 msgid "{tag} applied to {count} of them"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1550
+#: /app/src/modules/transactions/TransactionsModule.js:1551
 msgid "Server error ({status}) — check the Nextcloud logs"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1561
+#: /app/src/modules/transactions/TransactionsModule.js:1562
 msgid "Please fill in all reconciliation fields"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1578
+#: /app/src/modules/transactions/TransactionsModule.js:1579
 msgid "A reconciliation is already in progress for this account. Resume it?"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1587
+#: /app/src/modules/transactions/TransactionsModule.js:1588
 msgid "Failed to start reconciliation: {message}"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1635
+#: /app/src/modules/transactions/TransactionsModule.js:1636
 msgid "Reconciliation started — tick the transactions on your statement"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1663
+#: /app/src/modules/transactions/TransactionsModule.js:1664
 #: /app/src/modules/transfers/TransfersModule.js:481
 #, fuzzy
 #| msgid "Failed to get balances"
 msgid "Statement balance"
 msgstr "Falha ao carregar os saldos"
 
-#: /app/src/modules/transactions/TransactionsModule.js:1667
+#: /app/src/modules/transactions/TransactionsModule.js:1668
 msgid "Starting balance"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1668
+#: /app/src/modules/transactions/TransactionsModule.js:1669
 msgid ""
 "Where the account stood before this statement: the balance at your last "
 "reconciliation, or — the first time — the account’s opening balance plus "
@@ -13349,19 +13358,19 @@ msgid ""
 "opening balance."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1671
+#: /app/src/modules/transactions/TransactionsModule.js:1672
 msgid "Ticked ({count})"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1675
+#: /app/src/modules/transactions/TransactionsModule.js:1676
 msgid "Difference"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1680
+#: /app/src/modules/transactions/TransactionsModule.js:1681
 msgid "Finish"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1681
+#: /app/src/modules/transactions/TransactionsModule.js:1682
 #, fuzzy
 #| msgid "Rule applied: %n transaction updated"
 #| msgid_plural "Rule applied: %n transactions updated"
@@ -13370,630 +13379,630 @@ msgid_plural "Tick all %n transactions up to {date}"
 msgstr[0] "Regra aplicada: %n transação atualizada"
 msgstr[1] "Regra aplicada: %n transações atualizadas"
 
-#: /app/src/modules/transactions/TransactionsModule.js:1682
+#: /app/src/modules/transactions/TransactionsModule.js:1683
 msgid "Create {amount} adjustment"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1683
+#: /app/src/modules/transactions/TransactionsModule.js:1684
 msgid "Keep the session and come back later"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1684
+#: /app/src/modules/transactions/TransactionsModule.js:1685
 #, fuzzy
 #| msgid "Invalid session"
 msgid "Cancel session"
 msgstr "Sessão inválida"
 
-#: /app/src/modules/transactions/TransactionsModule.js:1713
+#: /app/src/modules/transactions/TransactionsModule.js:1714
 #, fuzzy
 #| msgid "Failed to unlink transaction"
 msgid "Failed to tick transactions"
 msgstr "Falha ao desvincular a transação"
 
-#: /app/src/modules/transactions/TransactionsModule.js:1723
+#: /app/src/modules/transactions/TransactionsModule.js:1724
 #, fuzzy
 #| msgid "Failed to set transaction tags"
 msgid "Failed to tick transactions: {message}"
 msgstr "Falha ao definir as etiquetas da transação"
 
-#: /app/src/modules/transactions/TransactionsModule.js:1785
+#: /app/src/modules/transactions/TransactionsModule.js:1786
 #, fuzzy
 #| msgid "Failed to update reconcile status"
 msgid "Failed to update reconciliation: {message}"
 msgstr "Falha ao atualizar o status de conciliação"
 
-#: /app/src/modules/transactions/TransactionsModule.js:1835
+#: /app/src/modules/transactions/TransactionsModule.js:1836
 msgid "A reconciliation is in progress for this account (statement of {date})"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1836
+#: /app/src/modules/transactions/TransactionsModule.js:1837
 msgid "Resume"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1882
+#: /app/src/modules/transactions/TransactionsModule.js:1883
 msgid ""
 "Cancel this reconciliation? Ticked transactions will be released (nothing is "
 "marked reconciled)."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1890
+#: /app/src/modules/transactions/TransactionsModule.js:1891
 #, fuzzy
 #| msgid "Failed to create bill"
 msgid "Failed to cancel"
 msgstr "Falha ao criar a conta"
 
-#: /app/src/modules/transactions/TransactionsModule.js:1893
+#: /app/src/modules/transactions/TransactionsModule.js:1894
 msgid "Reconciliation cancelled"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1895
+#: /app/src/modules/transactions/TransactionsModule.js:1896
 #, fuzzy
 #| msgid "Failed to update reconcile status"
 msgid "Failed to cancel reconciliation: {message}"
 msgstr "Falha ao atualizar o status de conciliação"
 
-#: /app/src/modules/transactions/TransactionsModule.js:1917
+#: /app/src/modules/transactions/TransactionsModule.js:1918
 msgid "Reconciliation completed — {count} transactions marked as reconciled"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1920
+#: /app/src/modules/transactions/TransactionsModule.js:1921
 msgid "%n older uncleared transaction was not ticked and remains unreconciled"
 msgid_plural ""
 "%n older uncleared transactions were not ticked and remain unreconciled"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1925
+#: /app/src/modules/transactions/TransactionsModule.js:1926
 #, fuzzy
 #| msgid "Failed to update rule: {error}"
 msgid "Failed to complete reconciliation: {error}"
 msgstr "Não foi possível atualizar a regra: {error}"
 
-#: /app/src/modules/transactions/TransactionsModule.js:1944
+#: /app/src/modules/transactions/TransactionsModule.js:1945
 msgid "Reconciliation Adjustment"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1945
+#: /app/src/modules/transactions/TransactionsModule.js:1946
 msgid "Adjustment to match statement balance of {amount}"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1947
+#: /app/src/modules/transactions/TransactionsModule.js:1948
 #, fuzzy
 #| msgid "Failed to create asset"
 msgid "Failed to create adjustment"
 msgstr "Falha na criação do ativo"
 
-#: /app/src/modules/transactions/TransactionsModule.js:1960
+#: /app/src/modules/transactions/TransactionsModule.js:1961
 msgid "Adjustment transaction created"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1965
+#: /app/src/modules/transactions/TransactionsModule.js:1966
 msgid "Failed to create adjustment: {message}"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:1989
+#: /app/src/modules/transactions/TransactionsModule.js:1990
 #: /app/templates/index.php:5938
 msgid "Choose an account"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:2010
+#: /app/src/modules/transactions/TransactionsModule.js:2011
 #: /app/src/modules/transfers/TransfersModule.js:507
 #: /app/src/modules/transfers/TransfersModule.js:519
 #: /app/templates/index.php:2532 /app/templates/quick-add.php:41
 msgid "Select account..."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:2051
+#: /app/src/modules/transactions/TransactionsModule.js:2052
 #: /app/src/modules/transactions/transactionRow.js:302
 #: /app/src/modules/transactions/transactionRow.js:384
 #: /app/src/modules/transactions/transactionRow.js:385
 msgid "Edit transaction"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:2052
+#: /app/src/modules/transactions/TransactionsModule.js:2053
 #: /app/templates/index.php:5899
 #, fuzzy
 #| msgid "transactions"
 msgid "New transaction"
 msgstr "transações"
 
-#: /app/src/modules/transactions/TransactionsModule.js:2382
-#: /app/src/modules/transactions/TransactionsModule.js:2404
+#: /app/src/modules/transactions/TransactionsModule.js:2383
+#: /app/src/modules/transactions/TransactionsModule.js:2405
 msgid "Failed to load transaction"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:2508
-#: /app/src/modules/transactions/TransactionsModule.js:2519
+#: /app/src/modules/transactions/TransactionsModule.js:2509
+#: /app/src/modules/transactions/TransactionsModule.js:2520
 #: /app/templates/quick-add.php:107
 msgid "The receipt could not be read"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:2549
+#: /app/src/modules/transactions/TransactionsModule.js:2550
 #: /app/templates/quick-add.php:112
 #, fuzzy
 #| msgid "End date"
 msgid "date"
 msgstr "Data final"
 
-#: /app/src/modules/transactions/TransactionsModule.js:2553
+#: /app/src/modules/transactions/TransactionsModule.js:2554
 #: /app/templates/quick-add.php:113
 #, fuzzy
 #| msgid "Amount"
 msgid "amount"
 msgstr "Quantidade"
 
-#: /app/src/modules/transactions/TransactionsModule.js:2556
+#: /app/src/modules/transactions/TransactionsModule.js:2557
 #: /app/templates/quick-add.php:114
 #, fuzzy
 #| msgid "Description"
 msgid "description"
 msgstr "Descrição"
 
-#: /app/src/modules/transactions/TransactionsModule.js:2557
+#: /app/src/modules/transactions/TransactionsModule.js:2558
 #: /app/templates/quick-add.php:115
 #, fuzzy
 #| msgid "Vendor:"
 msgid "vendor"
 msgstr "Fornecedor:"
 
-#: /app/src/modules/transactions/TransactionsModule.js:2563
+#: /app/src/modules/transactions/TransactionsModule.js:2564
 #: /app/templates/quick-add.php:116
 #, fuzzy
 #| msgid "Category"
 msgid "category"
 msgstr "Categoria"
 
-#: /app/src/modules/transactions/TransactionsModule.js:2658
+#: /app/src/modules/transactions/TransactionsModule.js:2659
 msgid "Savings / discount"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:2663
+#: /app/src/modules/transactions/TransactionsModule.js:2664
 msgid "VAT / tax"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:2702
+#: /app/src/modules/transactions/TransactionsModule.js:2703
 msgid "Split into {count} lines from the receipt. Set a category on each."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:2713
+#: /app/src/modules/transactions/TransactionsModule.js:2714
 #: /app/templates/quick-add.php:108
 msgid "Filled in: {fields}. Check them before saving."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:2714
+#: /app/src/modules/transactions/TransactionsModule.js:2715
 msgid ""
 "Nothing was filled in — the fields already had values. Clear one and scan "
 "again to use the receipt."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:2718
+#: /app/src/modules/transactions/TransactionsModule.js:2719
 msgid "Read {count} items from the receipt."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:2721
+#: /app/src/modules/transactions/TransactionsModule.js:2722
 msgid "The items do not add up to the total — worth a look."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:2724
+#: /app/src/modules/transactions/TransactionsModule.js:2725
 msgid "Receipt currency: {currency}."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:2726
+#: /app/src/modules/transactions/TransactionsModule.js:2727
 #: /app/templates/quick-add.php:109
 msgid "The photo will be attached when you save."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:2744
+#: /app/src/modules/transactions/TransactionsModule.js:2745
 msgid ""
 "These items cannot be split individually: they do not add up to the total, "
 "so the parts would not balance."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:2753
+#: /app/src/modules/transactions/TransactionsModule.js:2754
 msgid "Split into {count} lines"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:2755
+#: /app/src/modules/transactions/TransactionsModule.js:2756
 msgid "the savings as a negative line"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:2756
+#: /app/src/modules/transactions/TransactionsModule.js:2757
 msgid "the tax as its own line"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:2758
+#: /app/src/modules/transactions/TransactionsModule.js:2759
 msgid " and "
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:2758
+#: /app/src/modules/transactions/TransactionsModule.js:2759
 msgid "One line per item, plus {extras}"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:2759
+#: /app/src/modules/transactions/TransactionsModule.js:2760
 msgid "One line per item on the receipt"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:2820
+#: /app/src/modules/transactions/TransactionsModule.js:2821
 msgid "Select receipt"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:2858
+#: /app/src/modules/transactions/TransactionsModule.js:2859
 msgid "No receipts yet — they are attached when you save."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:2866
+#: /app/src/modules/transactions/TransactionsModule.js:2867
 msgid "on save"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:2867
-#: /app/src/modules/transactions/TransactionsModule.js:2923
+#: /app/src/modules/transactions/TransactionsModule.js:2868
+#: /app/src/modules/transactions/TransactionsModule.js:2924
 #: /app/templates/quick-add.php:28
 msgid "Remove attachment"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:2915
+#: /app/src/modules/transactions/TransactionsModule.js:2916
 #: /app/templates/quick-add.php:21
 msgid "Receipt"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:2917
+#: /app/src/modules/transactions/TransactionsModule.js:2918
 msgid "The file no longer exists in your Files"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:2925
+#: /app/src/modules/transactions/TransactionsModule.js:2926
 msgid "No receipts attached"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:3009
-#: /app/src/modules/transactions/TransactionsModule.js:5476
+#: /app/src/modules/transactions/TransactionsModule.js:3010
+#: /app/src/modules/transactions/TransactionsModule.js:5477
 msgid ""
 "This transaction was reconciled against a bank statement. Changing its "
 "amount, type, account or date will make past reconciliations no longer "
 "match. Continue?"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:3026
+#: /app/src/modules/transactions/TransactionsModule.js:3027
 msgid "Please select destination account"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:3030
+#: /app/src/modules/transactions/TransactionsModule.js:3031
 msgid "Cannot transfer to same account"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:3083
+#: /app/src/modules/transactions/TransactionsModule.js:3084
 msgid "Transfer created successfully"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:3192
+#: /app/src/modules/transactions/TransactionsModule.js:3193
 msgid "The transaction was saved, but {count} receipt(s) could not be attached"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:3196
-#: /app/src/modules/transactions/TransactionsModule.js:5532
+#: /app/src/modules/transactions/TransactionsModule.js:3197
+#: /app/src/modules/transactions/TransactionsModule.js:5533
 msgid "Transaction updated"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:3196
+#: /app/src/modules/transactions/TransactionsModule.js:3197
 msgid "Transaction created"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:3430
+#: /app/src/modules/transactions/TransactionsModule.js:3431
 msgid "Fully allocated"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:3431
+#: /app/src/modules/transactions/TransactionsModule.js:3432
 msgid "Remaining: {amount}"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:3456
+#: /app/src/modules/transactions/TransactionsModule.js:3457
 msgid "Auto-calculated from the transaction total minus the other splits"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:3459
+#: /app/src/modules/transactions/TransactionsModule.js:3460
 msgid "Amount (remaining)"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:3513
+#: /app/src/modules/transactions/TransactionsModule.js:3514
 msgid "A split needs at least two parts with an amount."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:3519
+#: /app/src/modules/transactions/TransactionsModule.js:3520
 msgid "Split amounts must add up to the transaction total ({total})."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:3590
+#: /app/src/modules/transactions/TransactionsModule.js:3591
 msgid "The transaction was saved, but not split: {reason}"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:3591
+#: /app/src/modules/transactions/TransactionsModule.js:3592
 msgid "The transaction was saved, but its splits could not be stored"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:3597
-#: /app/src/modules/transactions/TransactionsModule.js:3619
+#: /app/src/modules/transactions/TransactionsModule.js:3598
+#: /app/src/modules/transactions/TransactionsModule.js:3620
 msgid "Are you sure you want to delete this transaction?"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:3606
+#: /app/src/modules/transactions/TransactionsModule.js:3607
 msgid "This will decrease the account balance by {amount}."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:3607
+#: /app/src/modules/transactions/TransactionsModule.js:3608
 msgid "This will increase the account balance by {amount}."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:3614
+#: /app/src/modules/transactions/TransactionsModule.js:3615
 msgid ""
 "This is the upcoming payment of a bill, not money that has moved. Deleting "
 "it removes the scheduled entry until the bill is next paid; the bill itself "
 "stays, and the account balance does not change. Are you sure?"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:3615
+#: /app/src/modules/transactions/TransactionsModule.js:3616
 msgid ""
 "This transaction is scheduled and not in the account balance yet, so the "
 "balance does not change. Are you sure you want to delete it?"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:3617
+#: /app/src/modules/transactions/TransactionsModule.js:3618
 msgid "This transaction was auto-generated from a bill payment."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:3617
+#: /app/src/modules/transactions/TransactionsModule.js:3618
 msgid ""
 "If this is a real payment, deleting it will cause your balance to diverge "
 "from your bank statement. Are you sure?"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:3624
+#: /app/src/modules/transactions/TransactionsModule.js:3625
 msgid ""
 "This transaction was reconciled against a bank statement. Deleting it will "
 "make past reconciliations no longer match."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:3628
+#: /app/src/modules/transactions/TransactionsModule.js:3629
 msgid ""
 "This transaction funds a pension contribution. Deleting it will unlink it "
 "from that contribution (the contribution itself is kept)."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:3649
+#: /app/src/modules/transactions/TransactionsModule.js:3650
 msgid "Transaction deleted"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:3779
+#: /app/src/modules/transactions/TransactionsModule.js:3780
 msgid "Amount ({currency})"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:3780
+#: /app/src/modules/transactions/TransactionsModule.js:3781
 msgid "Destination Amount ({currency})"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:3974
+#: /app/src/modules/transactions/TransactionsModule.js:3975
 #, fuzzy
 #| msgid "Transaction date"
 msgid "Transaction linked to {bill}"
 msgstr "Data da transação"
 
-#: /app/src/modules/transactions/TransactionsModule.js:3998
+#: /app/src/modules/transactions/TransactionsModule.js:3999
 msgid ""
 "Unlink this transaction from its bill? It stays in the account, but the bill "
 "no longer counts it as a payment."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4017
+#: /app/src/modules/transactions/TransactionsModule.js:4018
 #, fuzzy
 #| msgid "This transaction is already shared with this contact"
 msgid "Transaction unlinked from its bill"
 msgstr "Essa transação já está compartilhada com este contato"
 
-#: /app/src/modules/transactions/TransactionsModule.js:4050
+#: /app/src/modules/transactions/TransactionsModule.js:4051
 #: /app/templates/index.php:7217
 msgid "Date:"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4058
+#: /app/src/modules/transactions/TransactionsModule.js:4059
 msgid "Total Amount:"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4288
+#: /app/src/modules/transactions/TransactionsModule.js:4289
 msgid "Date window (days):"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4293
+#: /app/src/modules/transactions/TransactionsModule.js:4294
 msgid ""
 "Matches must be within this many days of each other. Use 0 for exact date "
 "match."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4296
+#: /app/src/modules/transactions/TransactionsModule.js:4297
 msgid "Matching mode:"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4301
+#: /app/src/modules/transactions/TransactionsModule.js:4302
 msgid "Auto-link exact matches"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4302
+#: /app/src/modules/transactions/TransactionsModule.js:4303
 msgid "Single-match pairs linked automatically. Multi-match shown for review."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4308
+#: /app/src/modules/transactions/TransactionsModule.js:4309
 msgid "Review all matches"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4309
+#: /app/src/modules/transactions/TransactionsModule.js:4310
 msgid "All candidates shown for your confirmation before linking."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4341
+#: /app/src/modules/transactions/TransactionsModule.js:4342
 #: /app/templates/index.php:7155
 msgid "Scanning for matching transactions..."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4352
+#: /app/src/modules/transactions/TransactionsModule.js:4353
 #: /app/templates/index.php:7188
 msgid "No matching transactions found."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4367
+#: /app/src/modules/transactions/TransactionsModule.js:4368
 msgid "Failed to scan for matches. Please try again."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4387
+#: /app/src/modules/transactions/TransactionsModule.js:4388
 msgid "Linking %n exact match pair..."
 msgid_plural "Linking %n exact match pairs..."
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4455
+#: /app/src/modules/transactions/TransactionsModule.js:4456
 msgid "Exact Matches"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4456
+#: /app/src/modules/transactions/TransactionsModule.js:4457
 msgid ""
 "These transactions have exactly one match. Uncheck any you don't want to "
 "link."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4582
+#: /app/src/modules/transactions/TransactionsModule.js:4583
 msgid "Select a match (%n option):"
 msgid_plural "Select a match (%n options):"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4586
+#: /app/src/modules/transactions/TransactionsModule.js:4587
 msgid "Link Selected"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4614
+#: /app/src/modules/transactions/TransactionsModule.js:4615
 msgid "No matches selected"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4621
+#: /app/src/modules/transactions/TransactionsModule.js:4622
 msgid "Linking..."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4628
+#: /app/src/modules/transactions/TransactionsModule.js:4629
 msgid "Linked %n pair"
 msgid_plural "Linked %n pairs"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4630
+#: /app/src/modules/transactions/TransactionsModule.js:4631
 msgid "%n failed"
 msgid_plural "%n failed"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4642
+#: /app/src/modules/transactions/TransactionsModule.js:4643
 msgid "Linked Pairs"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4643
+#: /app/src/modules/transactions/TransactionsModule.js:4644
 msgid "These transactions have been linked. Click Undo to unlink a pair."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4680
+#: /app/src/modules/transactions/TransactionsModule.js:4681
 #: /app/templates/index.php:7195
 msgid "Confirm Selected"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4707
+#: /app/src/modules/transactions/TransactionsModule.js:4708
 msgid "Match undone"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4709
+#: /app/src/modules/transactions/TransactionsModule.js:4710
 msgid "Failed to undo match"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4718
+#: /app/src/modules/transactions/TransactionsModule.js:4719
 msgid "Please select a match first"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4746
+#: /app/src/modules/transactions/TransactionsModule.js:4747
 msgid "Transactions linked"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4893
+#: /app/src/modules/transactions/TransactionsModule.js:4894
 msgid "Enter description..."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4925
+#: /app/src/modules/transactions/TransactionsModule.js:4926
 #: /app/src/utils/userPicker.js:66 /app/templates/index.php:7337
 msgid "Type to search..."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:4975
+#: /app/src/modules/transactions/TransactionsModule.js:4976
 msgid "No categories found"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:5148
+#: /app/src/modules/transactions/TransactionsModule.js:5149
 msgid "No tags"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:5370
+#: /app/src/modules/transactions/TransactionsModule.js:5371
 msgid "Error loading tags"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:5586
+#: /app/src/modules/transactions/TransactionsModule.js:5587
 msgid "Find Duplicate Transactions"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:5592
+#: /app/src/modules/transactions/TransactionsModule.js:5593
 msgid "Scanning for duplicates..."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:5628
+#: /app/src/modules/transactions/TransactionsModule.js:5629
 msgid "No duplicate transactions found."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:5638
+#: /app/src/modules/transactions/TransactionsModule.js:5639
 msgid "Failed to scan for duplicates. Please try again."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:5647
+#: /app/src/modules/transactions/TransactionsModule.js:5648
 msgid ""
 "Found {groupCount} group(s) with {duplicateCount} suspected duplicate(s). "
 "The oldest transaction in each group is kept by default. Review and adjust "
 "the selection, then delete the checked items."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:5650
-#: /app/src/modules/transactions/TransactionsModule.js:5795
+#: /app/src/modules/transactions/TransactionsModule.js:5651
+#: /app/src/modules/transactions/TransactionsModule.js:5796
 #: /app/templates/index.php:1938
 msgid "Delete Selected"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:5665
+#: /app/src/modules/transactions/TransactionsModule.js:5666
 #: /app/src/utils/matchingDialog.js:49
 msgid "(no description)"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:5676
+#: /app/src/modules/transactions/TransactionsModule.js:5677
 msgid "keep"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:5677
+#: /app/src/modules/transactions/TransactionsModule.js:5678
 msgid "bill"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:5679
+#: /app/src/modules/transactions/TransactionsModule.js:5680
 msgid "scheduled"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:5680
+#: /app/src/modules/transactions/TransactionsModule.js:5681
 msgid "pending"
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:5741
+#: /app/src/modules/transactions/TransactionsModule.js:5742
 msgid "Delete %n suspected duplicate transaction? This cannot be undone."
 msgid_plural ""
 "Delete %n suspected duplicate transactions? This cannot be undone."
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:5743
+#: /app/src/modules/transactions/TransactionsModule.js:5744
 msgid ""
 "%n of these was generated from bill payments. Make sure they are truly "
 "duplicates before deleting."
@@ -14003,17 +14012,17 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:5759
+#: /app/src/modules/transactions/TransactionsModule.js:5760
 msgid "Deleted %n duplicate transaction"
 msgid_plural "Deleted %n duplicate transactions"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:5782
+#: /app/src/modules/transactions/TransactionsModule.js:5783
 msgid "All duplicates have been resolved."
 msgstr ""
 
-#: /app/src/modules/transactions/TransactionsModule.js:5791
+#: /app/src/modules/transactions/TransactionsModule.js:5792
 msgid "Failed to delete duplicates"
 msgstr ""
 
