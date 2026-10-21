@@ -532,6 +532,90 @@ class ImportStoredPayeeTest extends TestCase {
 		$this->assertSame([0, 1], self::flagged($this->preview([self::WOLFCRAFT, self::DREMEL, self::COSTA], self::WITH_SHOP)));
 	}
 
+	// ===== rows imported before the update, after migration 126 filled them in =====
+
+	/**
+	 * What Version001000126Date20261021::postSchemaChange() does to a row an
+	 * import stored before the update (ImportVendorBackfillTest runs the
+	 * statement itself): a file import's row with a payee keeps it, any other
+	 * stays NULL.
+	 */
+	private function backfilled(int $id): void {
+		$row = $this->ledger[$id];
+		$fromAFile = false;
+		foreach (\OCA\Budget\Migration\Version001000126Date20261021::FILE_IMPORT_ID_PREFIXES as $prefix) {
+			$fromAFile = $fromAFile || str_starts_with((string)$row['importId'], $prefix);
+		}
+		$this->ledger[$id]['importVendor'] = $row['importVendor'] ?? ($fromAFile && $row['vendor'] !== null ? $row['vendor'] : null);
+	}
+
+	private function importedBeforeTheUpdateThenMigrated(array $rows, array $mapping): void {
+		$this->import($rows, $mapping);
+		foreach (array_keys($this->ledger) as $id) {
+			$this->storedBeforeTheUpdate($id);
+			$this->backfilled($id);
+		}
+	}
+
+	/** A payee read from a column, edited after the update: followed */
+	public function testAnOldRowsPayeeEditedAfterTheUpdateIsFollowed(): void {
+		$this->importedBeforeTheUpdateThenMigrated([self::STARBUCKS], self::WITH_SHOP);
+		$this->assertSame('Starbucks', $this->ledger[1]['importVendor']);
+		$this->editPayee(1, 'Starbucks Zürich');
+
+		$this->assertSame([1], self::flagged($this->preview([self::COSTA, self::STARBUCKS], self::WITH_SHOP_AND_CATEGORY)));
+		$again = $this->import([self::COSTA, self::STARBUCKS], self::WITH_SHOP_AND_CATEGORY);
+		$this->assertSame(1, $again['imported']);
+		$this->assertSame('Costa', $this->ledger[2]['vendor']);
+	}
+
+	/** A payee a rule set, edited after the update: followed, rules on or off */
+	public function testAnOldRowsRulePayeeEditedAfterTheUpdateIsFollowed(): void {
+		$this->rules = [self::wolfcraftRule()];
+		$file = [self::WOLFCRAFT, self::DREMEL];
+		$this->importedBeforeTheUpdateThenMigrated($file, self::WITH_CATEGORY);
+		$this->editPayee(1, 'Hornbach');
+
+		foreach ([true, false] as $applyRules) {
+			$this->assertSame([0, 1], self::flagged($this->preview($file, self::BY_PRODUCT, $applyRules)));
+		}
+	}
+
+	/**
+	 * The browser run's Dremel row was imported with no payee, which the
+	 * migration has no way to record (NULL stays NULL): a payee typed on
+	 * such a row is still compared as it is now, as before.
+	 */
+	public function testAnOldRowImportedWithNoPayeeIsComparedByItsPayeeNow(): void {
+		$file = [self::WOLFCRAFT, self::DREMEL];
+		$this->importedBeforeTheUpdateThenMigrated($file, self::WITH_CATEGORY);
+		$this->assertNull($this->ledger[2]['importVendor']);
+		$this->editPayee(2, 'Dremel');
+
+		$this->assertSame([0], self::flagged($this->preview($file, self::BY_PRODUCT)));
+	}
+
+	/** A payee edited before the update is what the migration keeps: no change from before */
+	public function testAPayeeEditedBeforeTheUpdateIsNotFollowed(): void {
+		$this->import([self::STARBUCKS], self::WITH_SHOP);
+		$this->storedBeforeTheUpdate(1);
+		$this->editPayee(1, 'Starbucks Zürich');
+		$this->backfilled(1);
+
+		$this->assertSame('Starbucks Zürich', $this->ledger[1]['importVendor']);
+		$this->assertSame(0, $this->preview([self::STARBUCKS], self::WITH_SHOP_AND_CATEGORY)['duplicates']);
+	}
+
+	/** A row the migration leaves alone is not filled: typed in, bank sync */
+	public function testTheMigrationLeavesOtherRowsUnknown(): void {
+		$this->import([self::STARBUCKS], self::WITH_SHOP);
+		$this->storedBeforeTheUpdate(1);
+		$this->ledger[1]['importId'] = 'gocardless:abc';
+		$this->backfilled(1);
+
+		$this->assertNull($this->ledger[1]['importVendor']);
+	}
+
 	// ===== an app's export after a manual mapping of it (R5-4) =====
 
 	private const YNAB_HEADER = "\"Account\",\"Flag\",\"Date\",\"Payee\",\"Category Group/Category\",\"Category Group\",\"Category\",\"Memo\",\"Outflow\",\"Inflow\",\"Cleared\"\n";
