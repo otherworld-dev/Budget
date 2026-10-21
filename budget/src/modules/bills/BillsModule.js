@@ -3,20 +3,24 @@
  */
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import { once } from '../../utils/submitGuard.js';
+import { keepRowFocus } from '../../utils/rowFocus.js';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { billRowState, oneTimeDateUnconfirmed } from '../../utils/billDates.js';
 import { showSuccess, showError, showWarning, showInfo, showUndoNotification } from '../../utils/notifications.js';
+import { trackSkipUndo, settleSkipUndos, forgetSkipUndo } from '../../utils/skipUndos.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
-import { apiFetch } from '../../utils/api.js';
+import { apiFetch, ApiError } from '../../utils/api.js';
 import { isoWeekday } from '../../utils/helpers.js';
 import { showMatchingTransactionDialog } from '../../utils/matchingDialog.js';
 import { offerableTags, offerableTagSets } from '../../utils/tags.js';
 import { pickableAccounts, accountOptionLabel, selectAccountValue, accountCurrency, linkableCandidates, billAccountsWritable } from '../../utils/accounts.js';
 import { showLoadError } from '../../utils/loading.js';
-import { requestMarkUnpaid } from '../../utils/billUnpaid.js';
+import { requestMarkUnpaid, markUnpaidQuestion } from '../../utils/billUnpaid.js';
+import { sendPayment, askAboutRecordedPaymentFirst } from '../../utils/paymentRecordedDialog.js';
 import { unavailableCategoryLabel } from '../../utils/formSelects.js';
+import { isRepeatClick } from '../../utils/doubleClick.js';
 
 export default class BillsModule {
     constructor(app) {
@@ -124,8 +128,14 @@ export default class BillsModule {
             `;
             }).join('');
 
+            // Not on the second click of a double click: the card re-renders
+            // as each payment leaves it, and that click acted on the next
+            // payment in the list, as the list's Mark Paid did (#399)
             list.querySelectorAll('.unrecorded-payment-record').forEach(btn => {
-                btn.addEventListener('click', (e) => this.recordMissedPayment(parseInt(e.currentTarget.dataset.billId)));
+                btn.addEventListener('click', (e) => {
+                    if (isRepeatClick(e)) return;
+                    this.recordMissedPayment(parseInt(e.currentTarget.dataset.billId));
+                });
             });
 
             // The bill may have been auto-deactivated (one-time bills leave the
@@ -139,10 +149,16 @@ export default class BillsModule {
             // payment never happened (revert it, same action as the list) or it
             // did but is not meant to be in the ledger (dismiss this one).
             list.querySelectorAll('.unrecorded-payment-unpaid').forEach(btn => {
-                btn.addEventListener('click', (e) => this.markBillUnpaid(parseInt(e.currentTarget.dataset.billId)));
+                btn.addEventListener('click', (e) => {
+                    if (isRepeatClick(e)) return;
+                    this.markBillUnpaid(parseInt(e.currentTarget.dataset.billId), e.currentTarget);
+                });
             });
             list.querySelectorAll('.unrecorded-payment-dismiss').forEach(btn => {
-                btn.addEventListener('click', (e) => this.dismissUnrecordedPayment(parseInt(e.currentTarget.dataset.billId)));
+                btn.addEventListener('click', (e) => {
+                    if (isRepeatClick(e)) return;
+                    this.dismissUnrecordedPayment(parseInt(e.currentTarget.dataset.billId));
+                });
             });
 
             card.style.display = 'block';
@@ -352,7 +368,7 @@ export default class BillsModule {
                     </div>
                     <div class="bill-details">
                         <div class="bill-due-date">
-                            <span class="icon-calendar" aria-hidden="true"></span>
+                            <span class="icon-calendar-dark" aria-hidden="true"></span>
                             ${dom.escapeHtml(row.dateText)}
                         </div>
                         <div class="bill-status ${statusClass}">
@@ -588,7 +604,9 @@ export default class BillsModule {
             });
         }
 
-        // Delegated event handlers for bill actions
+        // Delegated event handlers for bill actions. Pressed from the
+        // keyboard, a payment action gives focus back to its row (#399)
+        const billRow = (billId) => `#bills-list .bill-card[data-bill-id="${billId}"]`;
         document.addEventListener('click', (e) => {
             if (e.target.classList.contains('bill-edit-btn') || e.target.closest('.bill-edit-btn')) {
                 const button = e.target.classList.contains('bill-edit-btn') ? e.target : e.target.closest('.bill-edit-btn');
@@ -599,17 +617,23 @@ export default class BillsModule {
                 const billId = parseInt(button.dataset.billId);
                 this.deleteBill(billId);
             } else if (e.target.classList.contains('bill-paid-btn') || e.target.closest('.bill-paid-btn')) {
+                // The second click of a double click is not one of its own:
+                // the list re-renders once a payment is made, and that click
+                // paid the bill whose button had slid under the cursor (#399)
+                if (isRepeatClick(e)) return;
                 const button = e.target.classList.contains('bill-paid-btn') ? e.target : e.target.closest('.bill-paid-btn');
                 const billId = parseInt(button.dataset.billId);
-                this.markBillPaid(billId);
+                keepRowFocus(e, billRow(billId), '.bill-paid-btn', () => this.markBillPaid(billId, button));
             } else if (e.target.classList.contains('bill-skip-btn') || e.target.closest('.bill-skip-btn')) {
+                if (isRepeatClick(e)) return; // as for Mark Paid
                 const button = e.target.classList.contains('bill-skip-btn') ? e.target : e.target.closest('.bill-skip-btn');
                 const billId = parseInt(button.dataset.billId);
-                this.skipBillPayment(billId);
+                keepRowFocus(e, billRow(billId), '.bill-skip-btn', () => this.skipBillPayment(billId, button));
             } else if (e.target.classList.contains('bill-unpaid-btn') || e.target.closest('.bill-unpaid-btn')) {
+                if (isRepeatClick(e)) return; // as for Mark Paid
                 const button = e.target.classList.contains('bill-unpaid-btn') ? e.target : e.target.closest('.bill-unpaid-btn');
                 const billId = parseInt(button.dataset.billId);
-                this.markBillUnpaid(billId);
+                keepRowFocus(e, billRow(billId), '.bill-unpaid-btn', () => this.markBillUnpaid(billId, button));
             }
         });
     }
@@ -1014,7 +1038,7 @@ export default class BillsModule {
         removeBtn.textContent = '\u00d7';
         removeBtn.title = t('budget', 'Remove split');
         removeBtn.setAttribute('aria-label', removeBtn.title);
-        removeBtn.style.cssText = 'width: 28px; height: 28px; padding: 0; border: none; background: var(--color-error); color: white; border-radius: 50%; cursor: pointer; font-size: 16px; flex-shrink: 0;';
+        removeBtn.style.cssText = 'width: 28px; height: 28px; padding: 0; border: none; background: var(--color-error); color: var(--budget-color-on-error, var(--budget-color-on-status, white)); border-radius: 50%; cursor: pointer; font-size: 16px; flex-shrink: 0;';
         removeBtn.addEventListener('click', () => {
             row.remove();
             this.updateBillSplitRemaining();
@@ -1255,12 +1279,40 @@ export default class BillsModule {
         modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
     }
 
-    async markBillPaid(billId) {
+    /**
+     * Mark Paid. One action on a bill runs at a time, with its button
+     * disabled, from the look for a payment already recorded and for rows
+     * already in the account to the payment itself: two clicks 150 ms apart
+     * both paid (#399).
+     *
+     * @param {number} billId
+     * @param {HTMLElement|null} [button] the button clicked
+     */
+    markBillPaid(billId, button = null) {
+        return once(`bill-paid-${billId}`, button, () => this._markBillPaid(billId));
+    }
+
+    async _markBillPaid(billId) {
         try {
             const bill = this.bills.find(b => b.id === billId);
             if (!bill) {
                 throw new Error('Bill not found');
             }
+
+            // The payment the ledger already has for this occurrence comes
+            // first, before any row to link is offered (#399). "Record
+            // another payment" goes on to them, confirmed.
+            const recorded = await askAboutRecordedPaymentFirst(billId, bill.nextDueDate || bill.next_due_date || null, this.settings, {
+                currency: bill.currency || accountCurrency(this.accounts, bill.accountId ?? bill.account_id),
+            });
+            if (recorded === null) {
+                return; // left as it was
+            }
+            if (recorded.usePayment) {
+                await this._executeMarkPaid(billId, bill, { action: 'use', payment: recorded.usePayment });
+                return;
+            }
+            const { confirmSecondPayment } = recorded;
 
             // Check for existing matching transactions before creating a new one
             if (bill.accountId || bill.account_id) {
@@ -1276,18 +1328,34 @@ export default class BillsModule {
                         if (choice === null) {
                             return; // User cancelled
                         }
-                        await this._executeMarkPaid(billId, bill, choice);
+                        await this._executeMarkPaid(billId, bill, choice, confirmSecondPayment);
                         return;
                     }
                 }
             }
 
             // No matches found — proceed with normal flow (create new transaction)
-            await this._executeMarkPaid(billId, bill, { action: 'create' });
+            await this._executeMarkPaid(billId, bill, { action: 'create' }, confirmSecondPayment);
 
         } catch (error) {
             console.error('Failed to mark bill as paid:', error);
             showError(error.message || t('budget', 'Failed to mark bill as paid'));
+            await this._reloadAfterRefusal(error);
+        }
+    }
+
+    /**
+     * The server refused an action on a bill. The bill may have moved on in
+     * another tab or by a second request, and its row went on offering what
+     * was just refused until the page was reloaded by hand (#399). A request
+     * that never reached the server leaves the list alone: reloading it
+     * would fail the same way.
+     *
+     * @param {*} error what the action failed with
+     */
+    async _reloadAfterRefusal(error) {
+        if (error instanceof ApiError) {
+            await this.loadBillsView();
         }
     }
 
@@ -1295,16 +1363,23 @@ export default class BillsModule {
      * Execute the mark paid API call with the user's choice.
      * @param {number} billId
      * @param {object} bill
-     * @param {object} choice - {action: 'create'|'link'|'skip', transactionId?: number}
+     * @param {object} choice - {action: 'create'|'link'|'skip'|'use', transactionId?: number, payment?: object}:
+     *   'use' pays the occurrence with the payment the ledger already has
+     * @param {boolean} [confirmSecondPayment] the user was told of the payment
+     *   already there and asked for another
      */
-    async _executeMarkPaid(billId, bill, choice) {
+    async _executeMarkPaid(billId, bill, choice, confirmSecondPayment = false) {
         const body = {};
 
         // recordPayment covers this payment only. Whether the ledger carries a
         // row for the next occurrence is the bill's own setting, on the server
         // side - it used to ride on this flag, so linking or skipping left the
         // bill with nothing upcoming at all (#376).
-        if (choice.action === 'link') {
+        if (choice.action === 'use') {
+            // Marked paid on that payment's date, with nothing booked
+            body.recordPayment = false;
+            body.paidDate = choice.payment.date;
+        } else if (choice.action === 'link') {
             body.existingTransactionId = choice.transactionId;
             body.recordPayment = false;
         } else if (choice.action === 'skip') {
@@ -1315,11 +1390,20 @@ export default class BillsModule {
         // The occurrence this row showed: a second click or a stale tab is
         // refused by the server instead of paying it twice
         body.dueDate = bill.nextDueDate || bill.next_due_date || null;
+        if (confirmSecondPayment) {
+            body.confirmSecondPayment = true;
+        }
 
-        const result = await apiFetch(`/apps/budget/api/bills/${billId}/paid`, {
-            method: 'POST',
-            body,
+        // When the ledger has this occurrence's payment already, the user
+        // is asked before another is booked (#399)
+        const sent = await sendPayment(`/apps/budget/api/bills/${billId}/paid`, body, this.settings, {
+            currency: bill.currency || accountCurrency(this.accounts, bill.accountId ?? bill.account_id),
         });
+        if (sent === null) {
+            return; // left as it was
+        }
+        const { result } = sent;
+        const usedPayment = choice.action === 'use' ? choice.payment : sent.usedPayment;
 
         // Store undo data BEFORE reloading; the server keeps what to revert
         const undoData = { billId: billId, action: 'markPaid' };
@@ -1328,7 +1412,10 @@ export default class BillsModule {
         await this.loadBillsView();
 
         let message;
-        if (choice.action === 'link' && result.paymentTransactionRecorded !== false) {
+        if (usedPayment) {
+            // Nothing booked, and nothing missing: the payment was there
+            message = t('budget', 'Marked as paid with the payment of {date}', { date: formatters.formatDate(usedPayment.date, this.settings) });
+        } else if (choice.action === 'link' && result.paymentTransactionRecorded !== false) {
             message = t('budget', 'Bill marked as paid. Linked to existing transaction.');
         } else if (choice.action === 'skip') {
             // The user opted out of recording the payment — still warn, because
@@ -1413,14 +1500,22 @@ export default class BillsModule {
      * Durable "mark as unpaid" (#365): reverts the last payment from the
      * snapshot the server persisted on markPaid. Unlike the undo toast, this
      * works after a reload — and for auto-paid or import-matched bills that
-     * never showed a toast at all.
+     * never showed a toast at all. One action on a bill at a time, as for
+     * Mark Paid.
+     *
+     * @param {number} billId
+     * @param {HTMLElement|null} [button] the button clicked
      */
-    async markBillUnpaid(billId) {
+    markBillUnpaid(billId, button = null) {
+        return once(`bill-paid-${billId}`, button, () => this._markBillUnpaid(billId));
+    }
+
+    async _markBillUnpaid(billId) {
         const bill = (this.bills || []).find(b => b.id === billId);
         // Created transactions are deleted; a payment recorded by linking an
-        // imported transaction is only unlinked — the copy must not claim a
-        // deletion that will not happen.
-        let message = t('budget', 'Mark this bill as unpaid? Transactions created for the payment will be deleted, a linked imported transaction will be unlinked, and the bill schedule rolled back.');
+        // imported transaction is only unlinked, and one it used is kept —
+        // the copy must not claim a deletion that will not happen.
+        let message = markUnpaidQuestion(bill);
         const autoPayEnabled = bill ? (bill.autoPayEnabled ?? bill.auto_pay_enabled ?? false) : false;
         if (autoPayEnabled) {
             // Reverting does not touch auto-pay — warn instead of silently
@@ -1442,10 +1537,20 @@ export default class BillsModule {
         } catch (error) {
             console.error('Failed to mark bill as unpaid:', error);
             showError(error.message || t('budget', 'Failed to mark bill as unpaid'));
+            await this._reloadAfterRefusal(error);
         }
     }
 
-    async skipBillPayment(billId) {
+    /**
+     * @param {number} billId
+     * @param {HTMLElement|null} [button] the button clicked: one action on a
+     *   bill at a time, as for Mark Paid
+     */
+    skipBillPayment(billId, button = null) {
+        return once(`bill-paid-${billId}`, button, () => this._skipBillPayment(billId));
+    }
+
+    async _skipBillPayment(billId) {
         try {
             const bill = this.bills.find(b => b.id === billId);
             if (!bill) {
@@ -1456,7 +1561,13 @@ export default class BillsModule {
                 return;
             }
 
-            const result = await apiFetch(`/apps/budget/api/bills/${billId}/skip`, { method: 'POST' });
+            // The occurrence this row showed: a second click or a stale tab
+            // is refused instead of skipping the next one too (#399)
+            const result = await apiFetch(`/apps/budget/api/bills/${billId}/skip`, {
+                method: 'POST',
+                body: { dueDate: bill.nextDueDate || bill.next_due_date || null },
+                errorMessage: t('budget', 'Failed to skip bill payment'),
+            });
             const previousNextDueDate = result.previousNextDueDate ?? null;
 
             const undoData = {
@@ -1468,15 +1579,20 @@ export default class BillsModule {
 
             await this.loadBillsView();
 
-            showUndoNotification(
+            const toast = showUndoNotification(
                 t('budget', 'Payment skipped. Advanced to next due date.'),
                 () => this.undoSkipPayment(undoData),
-                () => this._dropUndo(undoData)
+                () => {
+                    forgetSkipUndo(undoData);
+                    this._dropUndo(undoData);
+                }
             );
+            trackSkipUndo(undoData, `bill-${billId}`, previousNextDueDate, toast);
 
         } catch (error) {
             console.error('Failed to skip bill payment:', error);
-            showError(t('budget', 'Failed to skip bill payment'));
+            showError(error.message || t('budget', 'Failed to skip bill payment'));
+            await this._reloadAfterRefusal(error);
         }
     }
 
@@ -1494,12 +1610,15 @@ export default class BillsModule {
                 method: 'POST',
                 body: { previousNextDueDate: previousNextDueDate },
             });
+            // Back on that date, the later skips of this bill are undone too
+            settleSkipUndos(undoData);
 
             if (this._undoData === undoData) this._undoData = null;
             await this.loadBillsView();
 
             showSuccess(t('budget', 'Action undone'));
         } catch (error) {
+            forgetSkipUndo(undoData);
             console.error('Failed to undo skip:', error);
             showError(t('budget', 'Failed to undo action: {message}', { message: error.message }));
         }

@@ -14,15 +14,17 @@
  * and rendering the result.
  */
 import { translate as t } from '@nextcloud/l10n';
+import { semanticColour } from '../../utils/amountColours.js';
 
 export const CENTER_KEY = 'center';
 export const SURPLUS_KEY = 'surplus';
 export const DEFICIT_KEY = 'deficit';
 
-const DEFAULT_INCOME_COLOR = '#2e7d32';  // matches the green used for income elsewhere in Reports
-const DEFAULT_EXPENSE_COLOR = '#c62828'; // matches the red used for expenses elsewhere in Reports
-const SURPLUS_COLOR = '#2e7d32';
-const DEFICIT_COLOR = '#c62828';
+// Functions, not constants: the colour scheme can change after this module loads.
+const defaultIncomeColor = () => semanticColour('positive', '#2e7d32');  // matches the green used for income elsewhere in Reports
+const defaultExpenseColor = () => semanticColour('negative', '#c62828'); // matches the red used for expenses elsewhere in Reports
+const surplusColor = () => semanticColour('positive', '#2e7d32');
+const deficitColor = () => semanticColour('negative', '#c62828');
 const CENTER_COLOR = '#2196f3';          // matches the blue used for the net cash-flow line
 
 /**
@@ -104,7 +106,7 @@ export function buildMoneyFlows(incomeRows, expenseRows, categories) {
         const meta = incomeMeta.get(categoryId);
         flows.push({ from: key, to: CENTER_KEY, flow: amount });
         labels[key] = meta.name;
-        colors[key] = meta.color || DEFAULT_INCOME_COLOR;
+        colors[key] = meta.color || defaultIncomeColor();
         totalIncome += amount;
     });
 
@@ -148,14 +150,14 @@ export function buildMoneyFlows(incomeRows, expenseRows, categories) {
         const parentKey = `out:${parent.id}`;
         flows.push({ from: CENTER_KEY, to: parentKey, flow: parentTotal });
         labels[parentKey] = parent.name;
-        colors[parentKey] = parent.color || DEFAULT_EXPENSE_COLOR;
+        colors[parentKey] = parent.color || defaultExpenseColor();
         totalExpenses += parentTotal;
 
         spendingChildren.forEach(({ child, amount }) => {
             const childKey = `out:${child.id}`;
             flows.push({ from: parentKey, to: childKey, flow: amount });
             labels[childKey] = child.name;
-            colors[childKey] = child.color || DEFAULT_EXPENSE_COLOR;
+            colors[childKey] = child.color || defaultExpenseColor();
         });
     });
 
@@ -164,11 +166,11 @@ export function buildMoneyFlows(incomeRows, expenseRows, categories) {
     if (surplus > 0) {
         flows.push({ from: CENTER_KEY, to: SURPLUS_KEY, flow: surplus });
         labels[SURPLUS_KEY] = t('budget', 'Surplus');
-        colors[SURPLUS_KEY] = SURPLUS_COLOR;
+        colors[SURPLUS_KEY] = surplusColor();
     } else if (surplus < 0) {
         flows.push({ from: DEFICIT_KEY, to: CENTER_KEY, flow: -surplus });
         labels[DEFICIT_KEY] = t('budget', 'Deficit');
-        colors[DEFICIT_KEY] = DEFICIT_COLOR;
+        colors[DEFICIT_KEY] = deficitColor();
     }
 
     return {

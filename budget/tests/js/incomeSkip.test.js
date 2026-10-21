@@ -188,7 +188,7 @@ describe('skipIncome', () => {
         expect(mod.loadIncomeView).not.toHaveBeenCalled();
     });
 
-    it('reports a failure and leaves the list alone', async () => {
+    it('reports a failure and shows the income as the server has it', async () => {
         const mod = makeModule([income({ id: 5 })]);
         global.fetch = vi.fn(async () => ({
             ok: false,
@@ -199,7 +199,8 @@ describe('skipIncome', () => {
         await mod.skipIncome(5);
 
         expect(showError).toHaveBeenCalledWith(expect.stringContaining('Cannot skip an inactive income'));
-        expect(mod.loadIncomeView).not.toHaveBeenCalled();
+        // Reloaded, not left offering the refused Skip (#399)
+        expect(mod.loadIncomeView).toHaveBeenCalledTimes(1);
         expect(showUndoNotification).not.toHaveBeenCalled();
     });
 });

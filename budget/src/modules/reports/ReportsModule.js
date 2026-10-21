@@ -12,6 +12,8 @@ import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import MultiSelect from '../../utils/multiselect.js';
 import { buildMoneyFlows, CENTER_KEY } from './moneyFlow.js';
 import { apiFetch } from '../../utils/api.js';
+import { semanticColour } from '../../utils/amountColours.js';
+import { calendarCell } from '../../utils/billsCalendarCell.js';
 
 /**
  * A category row's label. The server flags the row for money with no
@@ -605,6 +607,12 @@ export default class ReportsModule {
         if (csvBtn) csvBtn.style.display = exportable ? '' : 'none';
         if (pdfBtn) pdfBtn.style.display = exportable ? '' : 'none';
 
+        // The Bills Calendar has its own Year and Account: Period, the
+        // account checklist and the tag filter did nothing for it, yet stayed
+        // on screen (#399). css/style.css hides them for it by this attribute.
+        const controls = document.querySelector('.reports-controls');
+        if (controls) controls.dataset.reportType = reportType;
+
         // Keep the date range in step with the period selector so the report
         // always matches the shown period (the selector persists the user's last
         // choice on reopen); a custom range keeps its own dates (#300).
@@ -756,15 +764,15 @@ export default class ReportsModule {
                     {
                         label: t('budget', 'Income'),
                         data: trends.income || [],
-                        backgroundColor: 'rgba(46, 125, 50, 0.7)',
-                        borderColor: 'rgba(46, 125, 50, 1)',
+                        backgroundColor: semanticColour('positive', 'rgba(46, 125, 50, 0.7)', 0.7),
+                        borderColor: semanticColour('positive', 'rgba(46, 125, 50, 1)', 1),
                         borderWidth: 1
                     },
                     {
                         label: t('budget', 'Expenses'),
                         data: trends.expenses || [],
-                        backgroundColor: 'rgba(198, 40, 40, 0.7)',
-                        borderColor: 'rgba(198, 40, 40, 1)',
+                        backgroundColor: semanticColour('negative', 'rgba(198, 40, 40, 0.7)', 0.7),
+                        borderColor: semanticColour('negative', 'rgba(198, 40, 40, 1)', 1),
                         borderWidth: 1
                     }
                 ]
@@ -1150,16 +1158,16 @@ export default class ReportsModule {
                     {
                         label: t('budget', 'Income'),
                         data: data.map(d => d.income),
-                        backgroundColor: 'rgba(46, 125, 50, 0.7)',
-                        borderColor: 'rgba(46, 125, 50, 1)',
+                        backgroundColor: semanticColour('positive', 'rgba(46, 125, 50, 0.7)', 0.7),
+                        borderColor: semanticColour('positive', 'rgba(46, 125, 50, 1)', 1),
                         borderWidth: 1,
                         order: 2
                     },
                     {
                         label: t('budget', 'Expenses'),
                         data: data.map(d => d.expenses),
-                        backgroundColor: 'rgba(198, 40, 40, 0.7)',
-                        borderColor: 'rgba(198, 40, 40, 1)',
+                        backgroundColor: semanticColour('negative', 'rgba(198, 40, 40, 0.7)', 0.7),
+                        borderColor: semanticColour('negative', 'rgba(198, 40, 40, 1)', 1),
                         borderWidth: 1,
                         order: 2
                     },
@@ -1517,15 +1525,15 @@ export default class ReportsModule {
                     {
                         label: t('budget', 'Income'),
                         data: years.map(y => y.income),
-                        backgroundColor: 'rgba(46, 125, 50, 0.7)',
-                        borderColor: 'rgba(46, 125, 50, 1)',
+                        backgroundColor: semanticColour('positive', 'rgba(46, 125, 50, 0.7)', 0.7),
+                        borderColor: semanticColour('positive', 'rgba(46, 125, 50, 1)', 1),
                         borderWidth: 1
                     },
                     {
                         label: t('budget', 'Expenses'),
                         data: years.map(y => y.expenses),
-                        backgroundColor: 'rgba(198, 40, 40, 0.7)',
-                        borderColor: 'rgba(198, 40, 40, 1)',
+                        backgroundColor: semanticColour('negative', 'rgba(198, 40, 40, 0.7)', 0.7),
+                        borderColor: semanticColour('negative', 'rgba(198, 40, 40, 1)', 1),
                         borderWidth: 1
                     }
                 ]
@@ -1703,6 +1711,9 @@ export default class ReportsModule {
         const dropdown = document.getElementById('bills-calendar-account');
         if (!dropdown) return;
 
+        // Rebuilt each time the report is shown, for accounts added since;
+        // the account the user picked stays picked (#399)
+        const picked = dropdown.value;
         dropdown.innerHTML = '';
         const allOption = document.createElement('option');
         allOption.value = '';
@@ -1716,6 +1727,9 @@ export default class ReportsModule {
                 option.textContent = account.name;
                 dropdown.appendChild(option);
             });
+        }
+        if ([...dropdown.options].some(o => o.value === picked)) {
+            dropdown.value = picked;
         }
     }
 
@@ -1737,17 +1751,15 @@ export default class ReportsModule {
         if (statusSelect) statusSelect.addEventListener('change', () => this.generateBillsCalendar());
         if (transfersCheckbox) transfersCheckbox.addEventListener('change', () => this.generateBillsCalendar());
 
+        // Switching the view only swapped the containers, and the heatmap
+        // stayed empty until Generate was pressed (#399): draw the chosen
+        // view from the report already loaded, or load it
         if (viewSelect) {
-            viewSelect.addEventListener('change', (e) => {
-                const tableContainer = document.getElementById('bills-calendar-table-container');
-                const heatmapContainer = document.getElementById('bills-calendar-heatmap-container');
-
-                if (e.target.value === 'table') {
-                    if (tableContainer) tableContainer.style.display = '';
-                    if (heatmapContainer) heatmapContainer.style.display = 'none';
+            viewSelect.addEventListener('change', () => {
+                if (this.billsCalendarData) {
+                    this.renderBillsCalendarView(this.billsCalendarData);
                 } else {
-                    if (tableContainer) tableContainer.style.display = 'none';
-                    if (heatmapContainer) heatmapContainer.style.display = '';
+                    this.generateBillsCalendar();
                 }
             });
         }
@@ -1758,6 +1770,9 @@ export default class ReportsModule {
         if (!yearSelect) return;
 
         const currentYear = new Date().getFullYear();
+        // Generate Report shows the calendar again, and put a user looking
+        // at another year back on this one (#399)
+        const picked = Number(yearSelect.value) || currentYear;
         yearSelect.innerHTML = '';
 
         // Add 5 years: 2 past, current, 2 future
@@ -1765,9 +1780,9 @@ export default class ReportsModule {
             const option = document.createElement('option');
             option.value = year;
             option.textContent = year;
-            if (year === currentYear) option.selected = true;
             yearSelect.appendChild(option);
         }
+        yearSelect.value = String(picked >= currentYear - 2 && picked <= currentYear + 2 ? picked : currentYear);
     }
 
     async generateBillsCalendar() {
@@ -1789,36 +1804,34 @@ export default class ReportsModule {
             });
 
             const data = await apiFetch(`/apps/budget/api/bills/annual-overview?${params}`);
+            this.billsCalendarData = data;
 
             // Render monthly totals chart
             this.renderBillsCalendarChart(data.monthlyTotals);
-
-            // Get current view
-            const view = document.getElementById('bills-calendar-view')?.value || 'table';
-
-            if (view === 'table') {
-                this.renderBillsCalendarTable(data.bills, data.monthlyTotals, data.account || null, data.projectedBalance || null, data.projectedFlows || null);
-            } else {
-                this.renderBillsCalendarHeatmap(data.bills, data.monthlyTotals);
-            }
-
-            // Show appropriate containers
             document.getElementById('bills-calendar-chart-container').style.display = '';
 
-            if (view === 'table') {
-                document.getElementById('bills-calendar-table-container').style.display = '';
-                document.getElementById('bills-calendar-heatmap-container').style.display = 'none';
-            } else {
-                document.getElementById('bills-calendar-table-container').style.display = 'none';
-                document.getElementById('bills-calendar-heatmap-container').style.display = '';
-            }
-
+            this.renderBillsCalendarView(data);
         } catch (error) {
             console.error('Failed to generate bills calendar:', error);
             showError(t('budget', 'Failed to generate bills calendar'));
         } finally {
             if (loadingEl) loadingEl.style.display = 'none';
         }
+    }
+
+    /** The table or the heatmap, whichever View is set to, and only that one shown. */
+    renderBillsCalendarView(data) {
+        const view = document.getElementById('bills-calendar-view')?.value || 'table';
+        const tableContainer = document.getElementById('bills-calendar-table-container');
+        const heatmapContainer = document.getElementById('bills-calendar-heatmap-container');
+
+        if (view === 'table') {
+            this.renderBillsCalendarTable(data.bills, data.monthlyTotals, data.account || null, data.projectedBalance || null, data.projectedFlows || null);
+        } else {
+            this.renderBillsCalendarHeatmap(data.bills, data.monthlyTotals);
+        }
+        if (tableContainer) tableContainer.style.display = view === 'table' ? '' : 'none';
+        if (heatmapContainer) heatmapContainer.style.display = view === 'table' ? 'none' : '';
     }
 
     renderBillsCalendarChart(monthlyTotals) {
@@ -1845,8 +1858,8 @@ export default class ReportsModule {
                 datasets: [{
                     label: t('budget', 'Total Bills'),
                     data: data,
-                    backgroundColor: 'rgba(198, 40, 40, 0.7)',
-                    borderColor: 'rgba(198, 40, 40, 1)',
+                    backgroundColor: semanticColour('negative', 'rgba(198, 40, 40, 0.7)', 0.7),
+                    borderColor: semanticColour('negative', 'rgba(198, 40, 40, 1)', 1),
                     borderWidth: 1
                 }]
             },
@@ -1880,47 +1893,42 @@ export default class ReportsModule {
 
         const currency = this.getPrimaryCurrency();
 
+        // How each kind of cell is drawn: paid struck through, a month moved
+        // past with no payment recorded muted but never struck through, so it
+        // can't pass for a payment (#333, #399), still owed as due
+        const cellClasses = {
+            paid: 'has-bill paid',
+            owed: 'has-bill',
+            unrecorded: 'has-bill unrecorded',
+            expected: 'has-bill',
+            none: 'no-bill',
+        };
+
         // Render bills rows
         tbody.innerHTML = bills.map(bill => {
-            // Paid months come from the server, from the payments actually
-            // recorded against the bill. They used to be guessed here from
-            // lastPaidDate - every month up to it counted as paid - so a bill
-            // first paid in September showed January to August paid too (#375).
-            const paidMonths = new Set(bill.paidMonths || []);
-            const paidAmounts = bill.paidAmounts || {};
-            // Months the bill has moved past with nothing recorded against
-            // them - marked paid without a transaction, or skipped. Not owed,
-            // so not drawn as due; struck through like a paid month but the
-            // tooltip says no payment was recorded (#333)
-            const unrecordedMonths = new Set(bill.unrecordedMonths || []);
-            // Per-month expected amounts: one-time bills sharing a name arrive
-            // as one row, each month carrying its own invoice's amount (#375)
-            const expectedAmounts = bill.expectedAmounts || {};
-
+            // Each cell comes from what the server found recorded against the
+            // bill (#375), and lists the payments behind it (#399)
             const months = [];
             for (let month = 1; month <= 12; month++) {
-                const occurs = bill.occurrences[month];
-                const isPaid = occurs && paidMonths.has(month);
-                const isUnrecorded = occurs && !isPaid && unrecordedMonths.has(month);
-                // What was actually paid where there is a payment; the
-                // expected amount for the months still to come
-                const cellAmount = isPaid && paidAmounts[month] !== undefined
-                    ? paidAmounts[month]
-                    : (expectedAmounts[month] !== undefined ? expectedAmounts[month] : bill.amount);
-                const amount = occurs ? this.formatCurrency(cellAmount, bill.currency || currency) : '';
-                let cellClass = 'no-bill';
-                let title = '';
-                if (isPaid) {
-                    cellClass = 'has-bill paid';
-                    title = t('budget', 'Paid');
-                } else if (isUnrecorded) {
-                    cellClass = 'has-bill paid unrecorded';
-                    title = t('budget', 'No payment recorded - the bill has moved on from this date');
-                } else if (occurs) {
-                    cellClass = 'has-bill';
-                    title = t('budget', 'Due');
+                const cell = calendarCell(bill, month, this.settings, currency);
+                const formatted = cell.amount === null ? '' : this.formatCurrency(cell.amount, bill.currency || currency);
+                let content = dom.escapeHtml(formatted);
+                if (cell.marker) {
+                    // No space after the pill: a paid cell's line-through ran
+                    // under it, reading "2× -969.50" (#399). Its margin spaces
+                    // it. Read out, "2×969.50" was two times 969.50, so the
+                    // pill and the amount are hidden from screen readers and
+                    // one sentence out of sight stands in for both.
+                    const times = bill.paidMoreThanOnce?.[month] ?? 0;
+                    // The amount is what the cell holds, this month's money:
+                    // one of the payments counted can be in another year (a
+                    // date paid either side of New Year), so "in all" read
+                    // as less than was paid
+                    // TRANSLATORS: {amount} is a placeholder, do NOT translate it. It is what was paid in this month of the calendar.
+                    const spoken = n('budget', 'Paid once, {amount} this month', 'Paid %n times, {amount} this month', times, { amount: formatted }, { escape: false, sanitize: false });
+                    content = `<span class="visually-hidden">${dom.escapeHtml(spoken)}</span><span aria-hidden="true"><span class="payments-marker">${cell.marker}</span>${content}</span>`;
                 }
-                months.push(`<td class="month-cell ${cellClass}" title="${title}">${amount}</td>`);
+                months.push(`<td class="month-cell ${cellClasses[cell.state]}" title="${dom.escapeHtml(cell.title)}">${content}</td>`);
             }
 
             const transferBadge = bill.isTransfer ? ` <span class="transfer-badge">${t('budget', 'Transfer')}</span>` : '';
@@ -2029,16 +2037,17 @@ export default class ReportsModule {
 
         for (let month = 1; month <= 12; month++) {
             const total = monthlyTotals[month] || 0;
-            const billsThisMonth = bills.filter(b => b.occurrences[month]).length;
-            const intensity = maxTotal > 0 ? (total / maxTotal) : 0;
-
-            // Color scale from light red to dark red
-            const red = Math.round(198 * (0.3 + 0.7 * intensity));
-            const green = Math.round(40 * (1 - 0.5 * intensity));
-            const blue = Math.round(40 * (1 - 0.5 * intensity));
+            // The bills that make up the total: a month moved past with no
+            // payment recorded adds nothing to it, nor does a transfer into
+            // the picked account (#399)
+            const billsThisMonth = bills.filter(b => b.inTotals !== false
+                && !['none', 'unrecorded'].includes(calendarCell(b, month).state)).length;
+            // How deep the box's tint is (css/style.css). The text on the
+            // old red fill was barely readable on the busiest months (#399).
+            const heat = maxTotal > 0 ? Math.max(0, Math.min(1, total / maxTotal)) : 0;
 
             html += `
-                <div class="heatmap-month" style="background-color: rgba(${red}, ${green}, ${blue}, ${0.2 + 0.6 * intensity});" title="${months[month - 1]}: ${n('budget', '%n bill', '%n bills', billsThisMonth)}, ${this.formatCurrency(total, currency)}">
+                <div class="heatmap-month" style="--heat: ${Number(heat.toFixed(3))};" title="${months[month - 1]}: ${n('budget', '%n bill', '%n bills', billsThisMonth)}, ${this.formatCurrency(total, currency)}">
                     <div class="heatmap-month-name">${months[month - 1]}</div>
                     <div class="heatmap-month-count">${n('budget', '%n bill', '%n bills', billsThisMonth)}</div>
                     <div class="heatmap-month-total">${this.formatCurrency(total, currency)}</div>

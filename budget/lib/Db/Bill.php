@@ -260,14 +260,32 @@ class Bill extends Entity implements JsonSerializable {
 			'createTransaction' => $this->getCreateTransaction() ?? true,
 			// Derived hint only — the raw undo blob stays server-side (#365)
 			'canMarkUnpaid' => $this->canMarkUnpaid(),
+			// Mark Unpaid keeps a row the payment used, and its question says so (#399)
+			'lastPaymentUsedExisting' => $this->lastPaymentUsedExisting(),
+			// The date before the next one was skipped, not paid: the page
+			// can't tell that from a payment made early by the dates (#399)
+			'lastOccurrenceSkipped' => UndoSnapshotSkips::setAside($this->getPaidUndoState()),
 			'currency' => $this->getCurrency(),
 		];
 	}
 
 	/**
-	 * Whether the last payment can be reverted: it left a snapshot behind (#365).
+	 * Whether the last payment was a row already in the ledger, chosen with
+	 * "Use that payment" (#399). Mark Unpaid leaves that row as it was,
+	 * neither deleted nor unlinked.
+	 */
+	public function lastPaymentUsedExisting(): bool {
+		$raw = $this->getPaidUndoState();
+		$snapshot = ($raw !== null && $raw !== '') ? json_decode($raw, true) : null;
+		return is_array($snapshot) && is_numeric($snapshot['usedTransactionId'] ?? null);
+	}
+
+	/**
+	 * Whether the last payment can be reverted: it left a snapshot behind
+	 * (#365), and no skip since has set it aside (#399)
 	 */
 	public function canMarkUnpaid(): bool {
-		return $this->getPaidUndoState() !== null && $this->getPaidUndoState() !== '';
+		return $this->getPaidUndoState() !== null && $this->getPaidUndoState() !== ''
+			&& !UndoSnapshotSkips::setAside($this->getPaidUndoState());
 	}
 }

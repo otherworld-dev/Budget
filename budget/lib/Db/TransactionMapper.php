@@ -1079,13 +1079,14 @@ class TransactionMapper extends QBMapper {
 	/**
 	 * An account's rows dated within [$from, $to], as plain arrays, for an
 	 * import to compare a file's rows against. Scheduled placeholders are left
-	 * out: a row read from a statement or an export is never one.
+	 * out: a row read from a statement or an export is never one. import_vendor
+	 * is the payee the import stored, NULL when not known (#399).
 	 *
-	 * @return array<int, array{id: int, date: string, amount: string, type: string, description: ?string, vendor: ?string, notes: ?string, import_id: ?string}>
+	 * @return array<int, array{id: int, date: string, amount: string, type: string, description: ?string, vendor: ?string, reference: ?string, notes: ?string, import_id: ?string, import_vendor: ?string}>
 	 */
 	public function findImportComparables(int $accountId, string $from, string $to): array {
 		$qb = $this->db->getQueryBuilder();
-		$qb->select('id', 'date', 'amount', 'type', 'description', 'vendor', 'notes', 'import_id')
+		$qb->select('id', 'date', 'amount', 'type', 'description', 'vendor', 'reference', 'notes', 'import_id', 'import_vendor')
 			->from($this->getTableName())
 			->where($qb->expr()->eq('account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
 			->andWhere($qb->expr()->gte('date', $qb->createNamedParameter($from)))
@@ -1106,8 +1107,10 @@ class TransactionMapper extends QBMapper {
 				'type' => (string)$row['type'],
 				'description' => $row['description'] ?? null,
 				'vendor' => $row['vendor'] ?? null,
+				'reference' => $row['reference'] ?? null,
 				'notes' => $row['notes'] ?? null,
 				'import_id' => $row['import_id'] ?? null,
+				'import_vendor' => $row['import_vendor'] ?? null,
 			];
 		}
 		$result->closeCursor();
@@ -1339,7 +1342,8 @@ class TransactionMapper extends QBMapper {
 
 	/**
 	 * The names the transactions list shows beside each row: its account,
-	 * its category, and the account a transfer's other side is in.
+	 * its category, and the account a transfer's other side is in. Also
+	 * whether the row's bill still exists.
 	 */
 	private function joinListColumns(IQueryBuilder $qb): void {
 		// Also select account name and currency
@@ -1353,6 +1357,12 @@ class TransactionMapper extends QBMapper {
 		$qb->leftJoin('t', $this->getTableName(), 'lt', $qb->expr()->eq('t.linked_transaction_id', 'lt.id'));
 		$qb->leftJoin('lt', 'budget_accounts', 'la', $qb->expr()->eq('lt.account_id', 'la.id'));
 		$qb->addSelect('la.id as linked_account_id', 'la.name as linked_account_name');
+
+		// Payments of a bill deleted by an older version still carry its
+		// id. The row menu offers Link to bill for those, and Unlink from
+		// bill only while the bill is there (#399).
+		$qb->leftJoin('t', 'budget_bills', 'lb', $qb->expr()->eq('t.bill_id', 'lb.id'));
+		$qb->addSelect('lb.id as live_bill_id');
 	}
 
 	/**
@@ -1384,6 +1394,8 @@ class TransactionMapper extends QBMapper {
 			// came back" apart from "the export said this wasn't a split".
 			'isSplit' => isset($row['is_split']) ? (bool)$row['is_split'] : null,
 			'billId' => ($row['bill_id'] ?? null) ? (int)$row['bill_id'] : null,
+			// The row names a bill that no longer exists (joinListColumns())
+			'billDeleted' => (int)($row['bill_id'] ?? 0) !== 0 && array_key_exists('live_bill_id', $row) && $row['live_bill_id'] === null,
 			'status' => $row['status'] ?? 'cleared',
 			'excludedFromForecast' => (bool)($row['excluded_from_forecast'] ?? false),
 			'pensionContribId' => ($row['pension_contrib_id'] ?? null) ? (int)$row['pension_contrib_id'] : null,
@@ -2298,9 +2310,11 @@ class TransactionMapper extends QBMapper {
 	 * transaction (#274) — scheduled placeholders don't count as payments.
 	 *
 	 * @param int[] $billIds
+	 * @param string|null $from only those dated on or after it, Y-m-d: Bills
+	 *                          by Month reads from where Mark Paid starts looking, not years of history (#399)
 	 * @return Transaction[]
 	 */
-	public function findRecordedByBillIds(array $billIds): array {
+	public function findRecordedByBillIds(array $billIds, ?string $from = null): array {
 		if (empty($billIds)) {
 			return [];
 		}
@@ -2315,6 +2329,9 @@ class TransactionMapper extends QBMapper {
 					$qb->expr()->isNull('status')
 				)
 			);
+		if ($from !== null) {
+			$qb->andWhere($qb->expr()->gte('date', $qb->createNamedParameter($from)));
+		}
 
 		return $this->findEntities($qb);
 	}
@@ -3146,6 +3163,9 @@ class TransactionMapper extends QBMapper {
 					$matchArrays[] = $matchArray;
 				}
 
+				// The row is read whole (t.*); the payee its import stored is
+				// the import's own record and shown nowhere (#399)
+				unset($tx['import_vendor']);
 				$transactionsWithMatches[] = [
 					'transaction' => $tx,
 					'matches' => $matchArrays,

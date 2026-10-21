@@ -3,17 +3,21 @@
  */
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import { once } from '../../utils/submitGuard.js';
+import { keepRowFocus } from '../../utils/rowFocus.js';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning, showInfo, showUndoNotification } from '../../utils/notifications.js';
+import { trackSkipUndo, settleSkipUndos, forgetSkipUndo } from '../../utils/skipUndos.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import { isoWeekday } from '../../utils/helpers.js';
-import { apiFetch } from '../../utils/api.js';
+import { apiFetch, ApiError } from '../../utils/api.js';
 import { pickableAccounts, accountOptionLabel, selectAccountValue, accountCurrency } from '../../utils/accounts.js';
 import { showLoadError } from '../../utils/loading.js';
 import { incomeRowState } from '../../utils/incomeStatus.js';
+import { sendPayment } from '../../utils/paymentRecordedDialog.js';
 import { selectPossiblyUnavailable, clearUnavailableOptions, unavailableCategoryLabel } from '../../utils/formSelects.js';
+import { isRepeatClick } from '../../utils/doubleClick.js';
 
 export default class IncomeModule {
     constructor(app) {
@@ -120,7 +124,7 @@ export default class IncomeModule {
                     </div>
                     <div class="income-details">
                         <div class="income-next-date">
-                            <span class="icon-calendar" aria-hidden="true"></span>
+                            <span class="icon-calendar-dark" aria-hidden="true"></span>
                             ${dom.escapeHtml(row.dateText)}
                         </div>
                         <div class="income-status ${statusClass}">
@@ -299,14 +303,24 @@ export default class IncomeModule {
                     this.deleteIncome(incomeId);
                 }
 
+                // The second click of a double click is not one of its own:
+                // the list re-renders once a payment is received, and that
+                // click acted on the income whose button had slid under the
+                // cursor (#399)
+                if ((receivedBtn || skipBtn) && isRepeatClick(e)) {
+                    return;
+                }
+
+                // Pressed from the keyboard, they give focus back to the row (#399)
+                const incomeRow = (incomeId) => `#income-list .income-card[data-income-id="${incomeId}"]`;
                 if (receivedBtn) {
                     const incomeId = parseInt(receivedBtn.dataset.incomeId);
-                    this.markIncomeReceived(incomeId);
+                    keepRowFocus(e, incomeRow(incomeId), '.income-received-btn', () => this.markIncomeReceived(incomeId, receivedBtn));
                 }
 
                 if (skipBtn) {
                     const incomeId = parseInt(skipBtn.dataset.incomeId);
-                    this.skipIncome(incomeId);
+                    keepRowFocus(e, incomeRow(incomeId), '.income-skip-btn', () => this.skipIncome(incomeId, skipBtn));
                 }
             });
         }
@@ -558,7 +572,18 @@ export default class IncomeModule {
         }
     }
 
-    async markIncomeReceived(incomeId) {
+    /**
+     * Mark Received. One action on an income runs at a time, with its button
+     * disabled: three clicks at once booked three credits (#399).
+     *
+     * @param {number} incomeId
+     * @param {HTMLElement|null} [button] the button clicked
+     */
+    markIncomeReceived(incomeId, button = null) {
+        return once(`income-received-${incomeId}`, button, () => this._markIncomeReceived(incomeId));
+    }
+
+    async _markIncomeReceived(incomeId) {
         try {
             // Find the income item to store its previous state
             const income = this.recurringIncome.find(i => i.id === incomeId);
@@ -570,15 +595,19 @@ export default class IncomeModule {
 
             // Mark as received on the server. It is told which occurrence the
             // row showed, so a second click or a stale tab is refused rather
-            // than booking the money twice.
-            await apiFetch(`/apps/budget/api/recurring-income/${incomeId}/received`, {
-                method: 'POST',
-                body: {
-                    receivedDate: currentDate,
-                    createTransaction: true,
-                    expectedDate: income.nextExpectedDate || income.next_expected_date || null,
-                },
+            // than booking the money twice. When the ledger has that
+            // payment's credit already, the user is asked first (#399).
+            const sent = await sendPayment(`/apps/budget/api/recurring-income/${incomeId}/received`, {
+                receivedDate: currentDate,
+                createTransaction: true,
+                expectedDate: income.nextExpectedDate || income.next_expected_date || null,
+            }, this.settings, {
+                kind: 'income',
+                currency: income.currency || accountCurrency(this.accounts, income.accountId),
             });
+            if (sent === null) {
+                return; // left as it was
+            }
 
             // Store undo data BEFORE reloading; the server keeps what to revert
             const undoData = { incomeId: incomeId, action: 'markReceived' };
@@ -593,9 +622,15 @@ export default class IncomeModule {
             }
 
             // Show notification with undo option
-            const message = income.accountId
-                ? t('budget', 'Income marked as received. Transaction created.')
-                : t('budget', 'Income marked as received.');
+            let message;
+            if (sent.usedPayment) {
+                // Nothing booked: the credit was there
+                message = t('budget', 'Marked as received with the payment of {date}', { date: formatters.formatDate(sent.usedPayment.date, this.settings) });
+            } else {
+                message = income.accountId
+                    ? t('budget', 'Income marked as received. Transaction created.')
+                    : t('budget', 'Income marked as received.');
+            }
             // The toast undoes this receipt, whatever was done since
             showUndoNotification(
                 message,
@@ -606,6 +641,22 @@ export default class IncomeModule {
         } catch (error) {
             console.error('Failed to mark income as received:', error);
             showError(error.message || t('budget', 'Failed to mark income as received'));
+            await this._reloadAfterRefusal(error);
+        }
+    }
+
+    /**
+     * The server refused an action on an income. It may have moved on in
+     * another tab or by a second request, and its row went on offering what
+     * was just refused until the page was reloaded by hand (#399). A request
+     * that never reached the server leaves the list alone: reloading it
+     * would fail the same way.
+     *
+     * @param {*} error what the action failed with
+     */
+    async _reloadAfterRefusal(error) {
+        if (error instanceof ApiError) {
+            await this.loadIncomeView();
         }
     }
 
@@ -653,8 +704,16 @@ export default class IncomeModule {
      * Skip the next expected payment (#396): the date moves on one cycle with
      * nothing recorded as received, same confirm and short-lived undo as the
      * bills and transfers lists.
+     *
+     * @param {number} incomeId
+     * @param {HTMLElement|null} [button] the button clicked: one action on an
+     *   income at a time, as for Mark Received
      */
-    async skipIncome(incomeId) {
+    skipIncome(incomeId, button = null) {
+        return once(`income-received-${incomeId}`, button, () => this._skipIncome(incomeId));
+    }
+
+    async _skipIncome(incomeId) {
         const income = this.recurringIncome.find(i => i.id === incomeId);
         if (!income) return;
 
@@ -665,6 +724,9 @@ export default class IncomeModule {
         try {
             const result = await apiFetch(`/apps/budget/api/recurring-income/${incomeId}/skip`, {
                 method: 'POST',
+                // The payment this row showed: a second click or a stale tab
+                // is refused instead of skipping the next one too (#399)
+                body: { expectedDate: income.nextExpectedDate || income.next_expected_date || null },
                 errorMessage: t('budget', 'Failed to skip income'),
             });
             if (this._undoTimer) {
@@ -680,14 +742,19 @@ export default class IncomeModule {
 
             await this.loadIncomeView();
 
-            showUndoNotification(
+            const toast = showUndoNotification(
                 t('budget', 'Payment skipped. Advanced to next expected date.'),
                 () => this.undoSkipIncome(undoData),
-                () => this._dropUndo(undoData)
+                () => {
+                    forgetSkipUndo(undoData);
+                    this._dropUndo(undoData);
+                }
             );
+            trackSkipUndo(undoData, `income-${incomeId}`, undoData.previousNextExpectedDate, toast);
         } catch (error) {
             console.error('Failed to skip income:', error);
             showError(error.message || t('budget', 'Failed to skip income'));
+            await this._reloadAfterRefusal(error);
         }
     }
 
@@ -705,12 +772,15 @@ export default class IncomeModule {
                 method: 'POST',
                 body: { previousNextExpectedDate },
             });
+            // Back on that date, the later skips of this income are undone too
+            settleSkipUndos(undoData);
 
             if (this._undoData === undoData) this._undoData = null;
             await this.loadIncomeView();
 
             showSuccess(t('budget', 'Action undone'));
         } catch (error) {
+            forgetSkipUndo(undoData);
             console.error('Failed to undo skip:', error);
             showError(t('budget', 'Failed to undo action: {message}', { message: error.message }));
         }

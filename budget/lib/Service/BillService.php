@@ -11,10 +11,12 @@ use OCA\Budget\Db\BillMapper;
 use OCA\Budget\Db\DismissedSuggestionMapper;
 use OCA\Budget\Db\RecurringIncomeMapper;
 use OCA\Budget\Db\ShareItem;
+use OCA\Budget\Db\UndoSnapshotSkips;
 use OCA\Budget\Enum\Currency;
 use OCA\Budget\Exception\ReconciledPaymentException;
 use OCA\Budget\Service\Bill\BalanceProjector;
 use OCA\Budget\Service\Bill\FrequencyCalculator;
+use OCA\Budget\Service\Bill\OneTimeSettlement;
 use OCA\Budget\Service\Bill\RecurringBillDetector;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\IL10N;
@@ -452,6 +454,12 @@ class BillService {
 			if ($snapshot['linkedTransactionId'] !== null) {
 				$ids[] = $snapshot['linkedTransactionId'];
 			}
+			// Paid with a row already there (#399). By date alone a re-opened
+			// one-time bill's row read as the earlier payment's: it was last
+			// paid on that same day.
+			if (isset($snapshot['usedTransactionId'])) {
+				$ids[] = $snapshot['usedTransactionId'];
+			}
 			$ids = array_map('intval', array_filter($ids, 'is_numeric'));
 			foreach ($rows as $tx) {
 				if (in_array($tx->getId(), $ids, true)) {
@@ -492,6 +500,131 @@ class BillService {
 			return null;
 		}
 		return $decoded;
+	}
+
+	/**
+	 * The payment already in the ledger for the occurrence the bill is due
+	 * on, if it has one (#399). Mark Paid only compared the page's due date
+	 * with the bill's, and the bill's own rows were never offered as the
+	 * payment: a bill made due again (switched to One-Time, its schedule
+	 * edited) was paid a second time with one click.
+	 *
+	 * @param string|null $expectedDueDate the occurrence the page showed;
+	 *                                     none to report once the bill has moved past it (Mark Paid then
+	 *                                     refuses it as already recorded)
+	 * @param string|null $actingUserId the person asking: only a row in an
+	 *                                  account they can write to is reported (see recordedPaymentFor())
+	 * @return array{id: int, date: string, amount: float}|null
+	 */
+	public function recordedPaymentForPendingOccurrence(int $id, string $userId, ?string $expectedDueDate = null, ?string $actingUserId = null): ?array {
+		$bill = $this->find($id, $userId);
+		if ($expectedDueDate !== null && $expectedDueDate !== '' && $expectedDueDate !== $bill->getNextDueDate()) {
+			return null;
+		}
+		$row = $this->recordedPaymentFor($bill, $actingUserId);
+		return $row === null ? null : [
+			'id' => (int)$row->getId(),
+			'date' => substr((string)$row->getDate(), 0, 10),
+			'amount' => (float)$row->getAmount(),
+		];
+	}
+
+	/**
+	 * The row of the bill in the ledger that already pays the occurrence it
+	 * is due on, if it has one (pendingPaymentAmong()).
+	 *
+	 * @param string|null $actingUserId the person asking, when it is one
+	 */
+	private function recordedPaymentFor(Bill $bill, ?string $actingUserId = null): ?\OCA\Budget\Db\Transaction {
+		$due = $bill->getNextDueDate();
+		if (!$bill->getIsActive() || $due === null || $due === '') {
+			return null;
+		}
+		return $this->pendingPaymentAmong($bill, $this->transactionService->findRecordedBillTransactions([(int)$bill->getId()]), $actingUserId);
+	}
+
+	/**
+	 * Which of the bill's rows already pays the occurrence it is due on:
+	 * one dated no earlier than the due window before the occurrence. A row
+	 * from before that is another occurrence's: a monthly bill paid in
+	 * October and switched to One-Time for November offered October's
+	 * payment as November's, and "Use that payment" left November unpaid.
+	 * A one-time bill's payment may also come earlier in the month it is
+	 * due (an invoice paid when it arrived), and is the one it has: a bill
+	 * re-opened was last paid by that very row. A recurring bill's must
+	 * also be dated after the last payment (a late payment of the previous
+	 * occurrence is that one's) and not be a row the last payment booked,
+	 * linked or used itself. A pre-booked row is no payment, and nor is one
+	 * in an account the person asking can't write to: a bill with no
+	 * account pays from anyone's, and its date and amount were shown to
+	 * someone the bill alone was shared with. The bill's own account comes
+	 * first (a transfer's deposit carries the bill too), then the nearest
+	 * the date.
+	 *
+	 * Mark Paid asks it of every row the bill has; Bills by Month of the
+	 * year's, as the owner, so that the payment it draws for the date the
+	 * bill is due on is the one Mark Paid would use (#399). For a bill due
+	 * around the year it asks of every row too, as the payment may be dated
+	 * in another year (dueAroundYear()).
+	 *
+	 * @param iterable<\OCA\Budget\Db\Transaction> $rows the bill's rows
+	 * @param string|null $actingUserId the person asking, when it is one
+	 */
+	private function pendingPaymentAmong(Bill $bill, iterable $rows, ?string $actingUserId = null): ?\OCA\Budget\Db\Transaction {
+		$due = $bill->getNextDueDate();
+		if (!$bill->getIsActive() || $due === null || $due === '') {
+			return null;
+		}
+		$oneTime = $bill->getFrequency() === 'one-time';
+		$lastPaid = $bill->getLastPaidDate();
+		$from = $this->dueWindowStart($bill);
+		if ($oneTime) {
+			$from = min($from, substr($due, 0, 7) . '-01');
+		}
+		$lastPayment = $this->lastPaymentRowIds($bill);
+
+		$best = null;
+		$rank = null;
+		foreach ($rows as $row) {
+			$date = substr((string)$row->getDate(), 0, 10);
+			if (($row->getStatus() ?? 'cleared') === 'scheduled' || $date < $from) {
+				continue;
+			}
+			if (!$oneTime && (($lastPaid !== null && $date <= $lastPaid)
+				|| in_array((int)$row->getId(), $lastPayment, true))) {
+				continue;
+			}
+			if ($actingUserId !== null && $this->granularShareService !== null
+				&& !$this->granularShareService->canWrite($actingUserId, ShareItem::TYPE_ACCOUNT, (int)$row->getAccountId())) {
+				continue;
+			}
+			$thisRank = [(int)($row->getAccountId() !== $bill->getAccountId()), abs(strtotime($date) - strtotime($due)), (int)$row->getId()];
+			if ($rank === null || $thisRank < $rank) {
+				[$best, $rank] = [$row, $thisRank];
+			}
+		}
+		return $best;
+	}
+
+	/**
+	 * The rows the bill's latest snapshot says its payment booked, linked
+	 * or used, whichever payment it describes
+	 *
+	 * @return int[]
+	 */
+	private function lastPaymentRowIds(Bill $bill): array {
+		$raw = $bill->getPaidUndoState();
+		$decoded = ($raw !== null && $raw !== '') ? json_decode($raw, true) : null;
+		if (!is_array($decoded)) {
+			return [];
+		}
+		$ids = is_array($decoded['createdTransactionIds'] ?? null) ? $decoded['createdTransactionIds'] : [];
+		foreach (['linkedTransactionId', 'usedTransactionId'] as $key) {
+			if (isset($decoded[$key])) {
+				$ids[] = $decoded[$key];
+			}
+		}
+		return array_values(array_map('intval', array_filter($ids, 'is_numeric')));
 	}
 
 	/**
@@ -826,8 +959,9 @@ class BillService {
 		// The schedule changed only if one of its fields did, not because the
 		// form sent them back unchanged: recalculating on every edit put a
 		// paid-ahead bill back on the occurrence already paid and undid skips
+		$scheduleKeys = ['frequency', 'dueDay', 'dueMonth', 'customRecurrencePattern', 'startDate'];
 		$scheduleChanged = false;
-		foreach (['frequency', 'dueDay', 'dueMonth', 'customRecurrencePattern', 'startDate'] as $key) {
+		foreach ($scheduleKeys as $key) {
 			$scheduleChanged = $scheduleChanged || $changed($key);
 		}
 
@@ -852,15 +986,28 @@ class BillService {
 		$extended = !$wasActive && $bill->getNextDueDate() === null && $edited->getFrequency() !== 'one-time'
 			&& ($changed('endDate') || $changed('remainingPayments') || $changed('frequency'));
 		$today = $this->today($userId);
+		// The one-time date the edit leaves the bill on, when it already paid it
+		$settledOn = null;
+		// Whether the edit leaves a bill that owed something with nothing to pay
+		$ends = false;
 
 		if ($edited->getIsActive() || $resuming || $extended) {
 			$next = $bill->getNextDueDate();
 			if ($scheduleChanged || $next === null || $edited->getFrequency() === 'one-time') {
 				$next = $this->rescheduledDue($bill, $edited, $today);
 			}
-			$ended = $next === null
+			// A one-time date the bill has already paid is settled, not owed.
+			// Switching a paid Custom or monthly bill to One-Time put the
+			// occurrence it had paid back on the list as due, and Mark Paid
+			// then paid it a second time (#399).
+			if ($edited->getFrequency() === 'one-time' && $next !== null && $this->paymentCoversDate($bill, $next)) {
+				$settledOn = $next;
+			}
+			$ended = $settledOn !== null
+				|| $next === null
 				|| ($edited->getEndDate() !== null && $edited->getEndDate() !== '' && $next > $edited->getEndDate())
 				|| ($edited->getRemainingPayments() !== null && $edited->getRemainingPayments() <= 0);
+			$ends = $ended && $wasActive;
 			if ($ended) {
 				$edited->setIsActive(false);
 				$edited->setNextDueDate(null);
@@ -868,7 +1015,9 @@ class BillService {
 				$edited->setIsActive(true);
 				$edited->setNextDueDate($next);
 			}
-			if ($edited->getIsActive() !== $bill->getIsActive()) {
+			// Asked to resume a bill with nothing left to pay, the request's
+			// "active" was written beside a cleared due date
+			if ($edited->getIsActive() !== $bill->getIsActive() || array_key_exists('isActive', $updates)) {
 				$updates['isActive'] = $edited->getIsActive();
 			}
 			if ($edited->getNextDueDate() !== $bill->getNextDueDate()) {
@@ -889,6 +1038,13 @@ class BillService {
 		// the snapshot; name/notes/reminder-style edits keep it (#365 review).
 		$materialKeys = ['amount', 'amountType', 'frequency', 'dueDay', 'dueMonth',
 			'customRecurrencePattern', 'startDate', 'accountId', 'destinationAccountId', 'isTransfer'];
+		// A switch to One-Time that settles the bill on a date its last
+		// payment paid keeps that payment's snapshot: Mark Unpaid still takes
+		// the payment back, now reopening the bill on its new date (#399)
+		$keptSnapshot = ($settledOn !== null && $scheduleChanged) ? $this->snapshotSettling($bill, $settledOn) : null;
+		if ($keptSnapshot !== null) {
+			$materialKeys = array_diff($materialKeys, $scheduleKeys);
+		}
 		if ($bill->getPaidUndoState() !== null && $bill->getPaidUndoState() !== '') {
 			foreach ($materialKeys as $key) {
 				if (!array_key_exists($key, $updates)) {
@@ -906,6 +1062,14 @@ class BillService {
 					break;
 				}
 			}
+		}
+		if ($keptSnapshot !== null && !array_key_exists('paid_undo_state', $dbUpdates)) {
+			// Rebased on the one-time date: restored as it was taken, it would
+			// put back the old schedule's due date and start date (often
+			// none), and the one-time bill would lose its date
+			$keptSnapshot['previousState']['nextDueDate'] = $settledOn;
+			$keptSnapshot['previousState']['startDate'] = $settledOn;
+			$dbUpdates['paid_undo_state'] = json_encode($keptSnapshot);
 		}
 
 		// The pre-booked row mirrors the bill: an edit to anything it carries
@@ -930,7 +1094,13 @@ class BillService {
 		}
 
 		// Reload from database to ensure we return the actual saved state
-		return $this->find($id, $userId);
+		$saved = $this->find($id, $userId);
+		// Nothing left to pay takes its reminder and overdue notices down, as
+		// paying does: a one-time bill an edit settled stayed Overdue there
+		if ($ends) {
+			$this->withdrawNotifications($saved);
+		}
+		return $saved;
 	}
 
 	/**
@@ -1001,6 +1171,85 @@ class BillService {
 			?? $this->firstDue($after, $today);
 	}
 
+	/**
+	 * Whether the bill, as stored, has already paid the one-time date an
+	 * edit puts it on (#399): its last payment, a payment recorded for it,
+	 * or the occurrence its undo snapshot says the last payment settled is
+	 * close enough to the date by the rules of OneTimeSettlement. Never
+	 * because the next due date has moved past the date: a Skip moves that
+	 * too, with nothing paid.
+	 */
+	private function paymentCoversDate(Bill $bill, string $date): bool {
+		$lastPaid = (string)$bill->getLastPaidDate();
+		if ($lastPaid === '') {
+			return false;
+		}
+		return $this->paysOneTimeDate($bill, $date, [$lastPaid, ...array_values($this->recordedPaymentDates($bill))]);
+	}
+
+	/**
+	 * The undo snapshot of the bill's last payment, when that payment is the
+	 * one that paid $date: made, or recorded, close enough to it. An older
+	 * payment can pay the date while the snapshot is a later one's, and
+	 * undoing that later one would reopen a date already paid.
+	 */
+	private function snapshotSettling(Bill $bill, string $date): ?array {
+		$snapshot = $this->paymentSnapshot($bill);
+		if ($snapshot === null || !is_array($snapshot['previousState'] ?? null) || UndoSnapshotSkips::setAside($bill->getPaidUndoState())) {
+			return null;
+		}
+		$ids = is_array($snapshot['createdTransactionIds'] ?? null) ? $snapshot['createdTransactionIds'] : [];
+		$ids[] = $snapshot['linkedTransactionId'] ?? null;
+		$ids = array_map('intval', array_filter($ids, 'is_numeric'));
+		// That payment: the day it was made, and the rows it recorded
+		$payments = [(string)$bill->getLastPaidDate()];
+		foreach ($this->recordedPaymentDates($bill) as $rowId => $day) {
+			if (in_array($rowId, $ids, true)) {
+				$payments[] = $day;
+			}
+		}
+		return $this->paysOneTimeDate($bill, $date, $payments) ? $snapshot : null;
+	}
+
+	/**
+	 * OneTimeSettlement::covers() for payments of the bill as stored: the
+	 * occurrence its last payment settled, and its schedule's due window,
+	 * unless it is one-time already
+	 *
+	 * @param string[] $payments the days the payments were made or recorded on
+	 */
+	private function paysOneTimeDate(Bill $bill, string $date, array $payments): bool {
+		// A skip since settled a later occurrence than the snapshot's (#399)
+		$snapshot = UndoSnapshotSkips::setAside($bill->getPaidUndoState()) ? null : $this->paymentSnapshot($bill);
+		$settled = $snapshot['previousState']['nextDueDate'] ?? null;
+		$frequency = $bill->getFrequency();
+		$pending = $bill->getNextDueDate();
+		$before = ($pending === null || $pending === '') ? null : OneTimeSettlement::occurrenceBefore(
+			$this->frequencyCalculator, $frequency, $bill->getDueDay(), $bill->getDueMonth(),
+			$bill->getCustomRecurrencePattern(), $bill->getStartDate(), $pending
+		);
+		return OneTimeSettlement::covers(
+			$date,
+			$payments,
+			is_string($settled) && $settled !== '' ? $settled : null,
+			$before,
+			$frequency === 'one-time' ? null : $this->dueDateToleranceDays($frequency)
+		);
+	}
+
+	/**
+	 * The bill's recorded (not pre-booked) payments
+	 *
+	 * @return array<int, string> transaction id => date
+	 */
+	private function recordedPaymentDates(Bill $bill): array {
+		$dates = [];
+		foreach ($this->transactionService->findRecordedBillTransactions([$bill->getId()]) as $row) {
+			$dates[$row->getId()] = $row->getDate();
+		}
+		return $dates;
+	}
+
 	/** Today's date as the user's calendar shows it */
 	private function today(string $userId): string {
 		return $this->userClock !== null ? $this->userClock->today($userId) : date('Y-m-d');
@@ -1032,9 +1281,11 @@ class BillService {
 	 *                            just paid stayed behind, still scheduled, still looking due (#376).
 	 * @param int|null $existingTransactionId Link an existing transaction instead of creating a new one
 	 * @param string|null $actingUserId The user paying, when it is a person (the bill may be shared with them)
+	 * @param bool $secondPayment The user said this is a payment of its own, beside the one the ledger already
+	 *                            holds for the occurrence ("Record another payment"), so that one isn't used
 	 * @return array Updated bill with undo data
 	 */
-	public function markPaid(int $id, string $userId, ?string $paidDate = null, bool $recordPayment = true, ?int $existingTransactionId = null, ?string $expectedDueDate = null, ?string $actingUserId = null): array {
+	public function markPaid(int $id, string $userId, ?string $paidDate = null, bool $recordPayment = true, ?int $existingTransactionId = null, ?string $expectedDueDate = null, ?string $actingUserId = null, bool $secondPayment = false): array {
 		$bill = $this->find($id, $userId);
 
 		// A paid one-time bill, an ended or paused one: a second click
@@ -1043,10 +1294,10 @@ class BillService {
 			throw new \InvalidArgumentException($this->l->t('This bill has nothing left to pay'));
 		}
 		// The page names the occurrence it showed. A stale tab or a double
-		// submit names one already settled, and is refused rather than paid
-		// a second time.
+		// submit names one already settled, paid or skipped, and is refused
+		// rather than paid a second time (#399).
 		if ($expectedDueDate !== null && $expectedDueDate !== '' && $expectedDueDate !== $bill->getNextDueDate()) {
-			throw new \InvalidArgumentException($this->l->t('This payment was already recorded. Reload the page to see the next one.'));
+			throw new \InvalidArgumentException($this->l->t('This date was already paid or skipped. Reload the page to see the next one.'));
 		}
 		$this->requireWritableAccounts($bill);
 
@@ -1110,6 +1361,18 @@ class BillService {
 			$linkCategory = $this->categoryUsableIn($bill->getCategoryId(), (int)$rowAccount);
 		}
 
+		// Paid with nothing booked or linked while the ledger already holds
+		// the occurrence's payment (the Mark Paid dialog's "Use that
+		// payment", #399): that row is the payment, and the snapshot says
+		// so. Looked for before the bill takes the payment's date: dated on
+		// it, the row of a recurring bill read as the last payment's. Not
+		// when the user said this payment is another one: choosing "Record
+		// another payment" and then recording nothing used the payment just
+		// declined and dated the bill today.
+		$usedPayment = (!$secondPayment && $existingRow === null && !($recordPayment && $bill->getAccountId() !== null))
+			? $this->recordedPaymentFor($bill, $actingUserId)
+			: null;
+
 		// The payment's date: a linked row's own, else today so the payment
 		// appears in the account balance at once, regardless of when the bill
 		// was due. The user's today, not the server's: a payment marked in the
@@ -1136,123 +1399,126 @@ class BillService {
 			}
 		}
 
-		// Handle transaction: either link existing or create new
-		if ($existingRow !== null) {
-			// A transfer's arrival is priced before anything changes: with no
-			// rate between its two currencies it can't be booked, and the
-			// withdrawal linked first left the bill half paid
-			$arrivalAmount = null;
-			if (($bill->getIsTransfer() ?? false) && $bill->getDestinationAccountId() !== null
-				&& $existingRow->getLinkedTransactionId() === null) {
-				$arrivalAmount = $this->transactionService->transferArrivalAmount($existingRow, $bill);
-			}
-			// Link first, and only then drop the pre-booked row: a failed
-			// link used to be logged and ignored, with the row already gone
-			// and the bill moved on. The link runs as the account's owner, so
-			// a row in an account shared with the bill's owner can be linked,
-			// and gives the row the bill's category, tags and splits.
-			try {
-				$linked = $this->transactionService->linkBillAsAccountOwner($existingRow->getId(), $bill, $linkCategory);
-			} catch (\InvalidArgumentException $e) {
-				throw new \InvalidArgumentException($this->l->t('That transaction already pays another bill'));
-			}
-			if (!$linked->getIsSplit()) {
-				$this->applySplitTemplate($bill, $linked, $userId);
-			}
-			$this->transactionService->deleteScheduledBillTransactions($bill->getId());
-			// A transfer's withdrawal needs its arrival: the bank's own credit
-			// in the destination, or a deposit booked for it (which a revert
-			// removes). Linking used to leave the destination uncredited.
-			if ($bill->getIsTransfer() ?? false) {
-				$deposit = $this->transactionService->completeTransferPayment($linked, $bill, $arrivalAmount);
-				if ($deposit !== null) {
-					$createdTransactionIds[] = $deposit;
-					// The destination's own credit may be in already (below)
-					$bookedDepositId = $deposit;
+		// A transfer's arrival is priced before anything changes: with no
+		// rate between its two currencies it can't be booked, and the
+		// withdrawal linked first left the bill half paid
+		$arrivalAmount = null;
+		if ($existingRow !== null && ($bill->getIsTransfer() ?? false) && $bill->getDestinationAccountId() !== null
+			&& $existingRow->getLinkedTransactionId() === null) {
+			$arrivalAmount = $this->transactionService->transferArrivalAmount($existingRow, $bill);
+		}
+
+		// The occurrence is claimed before anything is booked (#399). Two
+		// requests for it at once (a double click, two tabs, auto-pay and a
+		// click) both passed the checks above and both booked a payment;
+		// only one claim can move the bill on, and the other books nothing.
+		$settled = $this->scheduleAfterPayment($bill);
+		$claimed = [
+			'next_due_date' => $settled['nextDueDate'],
+			'is_active' => $settled['isActive'],
+			'remaining_payments' => $settled['remainingPayments'],
+			'last_paid_date' => $paidDate,
+		];
+		$before = [
+			'next_due_date' => $previousState['nextDueDate'],
+			'is_active' => true,
+			'remaining_payments' => $previousState['remainingPayments'],
+			'last_paid_date' => $previousState['lastPaidDate'],
+		];
+		// The rest the payment changes on the bill goes with it
+		if ($settled['startDate'] !== $previousState['startDate']) {
+			$claimed['start_date'] = $settled['startDate'];
+			$before['start_date'] = $previousState['startDate'];
+		}
+		if ($previousState['autoPayFailed']) {
+			$claimed['auto_pay_failed'] = false;
+			$before['auto_pay_failed'] = true;
+		}
+		if ($statementAmount !== null) {
+			$claimed['amount'] = $statementAmount;
+			$before['amount'] = $previousState['amount'];
+		}
+		if (!$this->mapper->claimOccurrence($id, $userId, (string)$previousState['nextDueDate'], $claimed)) {
+			// Paid or skipped by the request that got there first
+			throw new \InvalidArgumentException($this->l->t('This date was already paid or skipped. Reload the page to see the next one.'));
+		}
+
+		try {
+			// Handle transaction: either link existing or create new
+			if ($existingRow !== null) {
+				// Link first, and only then drop the pre-booked row: a failed
+				// link used to be logged and ignored, with the row already gone
+				// and the bill moved on. The link runs as the account's owner, so
+				// a row in an account shared with the bill's owner can be linked,
+				// and gives the row the bill's category, tags and splits.
+				try {
+					$linked = $this->transactionService->linkBillAsAccountOwner($existingRow->getId(), $bill, $linkCategory);
+				} catch (\InvalidArgumentException $e) {
+					throw new \InvalidArgumentException($this->l->t('That transaction already pays another bill'));
 				}
-			}
-			$linkedExistingTransaction = true;
-			$linkedTransactionId = $existingRow->getId();
-		} elseif ($recordPayment && $bill->getAccountId() !== null) {
-			try {
-				// Clear pre-existing scheduled transaction(s), or create new cleared one
-				$transaction = $this->transactionService->clearScheduledBillTransaction($userId, $bill->getId(), $paidDate, $statementAmount, (bool)($bill->getIsTransfer() ?? false), $bill);
-				if ($transaction) {
-					$hadScheduledTransaction = true;
-				} else {
-					$transaction = $this->transactionService->createFromBill($userId, $bill, $paidDate, 'cleared');
+				if (!$linked->getIsSplit()) {
+					$this->applySplitTemplate($bill, $linked, $userId);
 				}
-				$createdTransactionIds[] = $transaction->getId();
-				$paymentTransactionRecorded = true;
-				// For transfers, also track the linked deposit transaction
-				if ($transaction->getLinkedTransactionId()) {
-					$createdTransactionIds[] = $transaction->getLinkedTransactionId();
-					if ($bill->getIsTransfer() ?? false) {
-						$bookedDepositId = $transaction->getLinkedTransactionId();
+				$this->transactionService->deleteScheduledBillTransactions($bill->getId());
+				// A transfer's withdrawal needs its arrival: the bank's own credit
+				// in the destination, or a deposit booked for it (which a revert
+				// removes). Linking used to leave the destination uncredited.
+				if ($bill->getIsTransfer() ?? false) {
+					$deposit = $this->transactionService->completeTransferPayment($linked, $bill, $arrivalAmount);
+					if ($deposit !== null) {
+						$createdTransactionIds[] = $deposit;
+						// The destination's own credit may be in already (below)
+						$bookedDepositId = $deposit;
 					}
 				}
+				$linkedExistingTransaction = true;
+				$linkedTransactionId = $existingRow->getId();
+			} elseif ($recordPayment && $bill->getAccountId() !== null) {
+				try {
+					// Clear pre-existing scheduled transaction(s), or create new cleared one
+					$transaction = $this->transactionService->clearScheduledBillTransaction($userId, $bill->getId(), $paidDate, $statementAmount, (bool)($bill->getIsTransfer() ?? false), $bill);
+					if ($transaction) {
+						$hadScheduledTransaction = true;
+					} else {
+						$transaction = $this->transactionService->createFromBill($userId, $bill, $paidDate, 'cleared');
+					}
+					$createdTransactionIds[] = $transaction->getId();
+					$paymentTransactionRecorded = true;
+					// For transfers, also track the linked deposit transaction
+					if ($transaction->getLinkedTransactionId()) {
+						$createdTransactionIds[] = $transaction->getLinkedTransactionId();
+						if ($bill->getIsTransfer() ?? false) {
+							$bookedDepositId = $transaction->getLinkedTransactionId();
+						}
+					}
 
-				// Apply split template if defined
-				$this->applySplitTemplate($bill, $transaction, $userId);
-			} catch (\Exception $e) {
-				$this->logger->warning("Failed to create transaction for bill {$id}: {$e->getMessage()}");
-			}
-		} else {
-			// Nothing recorded this occurrence, so the placeholder standing in
-			// for it has to go: the payment happened, and a scheduled row for
-			// a paid occurrence goes on showing the bill as still due. The
-			// other two branches already clear it, one by clearing it into the
-			// payment and one by deleting it outright (#376).
-			$this->transactionService->deleteScheduledBillTransactions($bill->getId());
-		}
-
-		// Auto-deactivate one-time bills after payment
-		if ($bill->getFrequency() === 'one-time') {
-			// The date it was due is all a paid invoice has left to show, and
-			// clearing next_due_date threw it away: a bill created before the
-			// date field existed then read "No due date" in the list and
-			// opened with an empty Due Date (#333). It is kept as the start
-			// date, which is where a one-time bill's date lives (#375).
-			if (($bill->getStartDate() === null || $bill->getStartDate() === '') && $bill->getNextDueDate()) {
-				$bill->setStartDate($bill->getNextDueDate());
-			}
-			$bill->setIsActive(false);
-			$bill->setNextDueDate(null);
-		} else {
-			$nextDue = $this->frequencyCalculator->calculateNextDueDate(
-				$bill->getFrequency(),
-				$bill->getDueDay(),
-				$bill->getDueMonth(),
-				$bill->getNextDueDate(),
-				$bill->getCustomRecurrencePattern(),
-				true, // Always force advance — the bill was just paid
-				// The start date supplies the day and month the form left
-				// out, as at creation and in the calendar: without it a
-				// yearly bill due 14 March moved to 1 January
-				$bill->getStartDate()
-			);
-			$bill->setNextDueDate($nextDue);
-
-			// Decrement remaining payments if set
-			$remaining = $bill->getRemainingPayments();
-			if ($remaining !== null) {
-				$remaining--;
-				$bill->setRemainingPayments($remaining);
-				if ($remaining <= 0) {
-					$bill->setIsActive(false);
-					$bill->setNextDueDate(null);
+					// Apply split template if defined
+					$this->applySplitTemplate($bill, $transaction, $userId);
+				} catch (\Exception $e) {
+					$this->logger->warning("Failed to create transaction for bill {$id}: {$e->getMessage()}");
 				}
+			} else {
+				// Nothing recorded this occurrence, so the placeholder standing in
+				// for it has to go: the payment happened, and a scheduled row for
+				// a paid occurrence goes on showing the bill as still due. The
+				// other two branches already clear it, one by clearing it into the
+				// payment and one by deleting it outright (#376).
+				$this->transactionService->deleteScheduledBillTransactions($bill->getId());
 			}
-
-			// Deactivate if next due date exceeds end date
-			$endDate = $bill->getEndDate();
-			if ($endDate !== null && $bill->getNextDueDate() !== null && $bill->getNextDueDate() > $endDate) {
-				$bill->setIsActive(false);
-				$bill->setNextDueDate(null);
-			}
+		} catch (\Throwable $e) {
+			// The payment didn't go through: the occurrence is due again
+			$this->releaseOccurrence($id, $userId, $claimed, $before);
+			throw $e;
 		}
 
-		$bill = $this->mapper->update($bill);
+		// The claim wrote the bill's new state. The entity takes it without
+		// counting it as changed, so the snapshot written below can't put an
+		// older state back over a claim of the next occurrence made since.
+		$bill->setStartDate($settled['startDate']);
+		$bill->setIsActive($settled['isActive']);
+		$bill->setNextDueDate($settled['nextDueDate']);
+		$bill->setRemainingPayments($settled['remainingPayments']);
+		$bill->resetUpdatedFields();
 		$this->withdrawNotifications($bill);
 
 		// Auto-create transaction for next occurrence if bill has account
@@ -1282,6 +1548,10 @@ class BillService {
 			'createdTransactionIds' => $createdTransactionIds,
 			'scheduledTransactionIds' => $scheduledTransactionIds,
 			'linkedTransactionId' => $linkedTransactionId,
+			// A row the ledger already held that this payment stands for. It
+			// tells the unrecorded-payments card the payment is recorded, and
+			// Mark Unpaid leaves it as it was, neither deleted nor unlinked.
+			'usedTransactionId' => $usedPayment?->getId(),
 			'hadScheduledTransaction' => $hadScheduledTransaction,
 			'paidDate' => $paidDate,
 		]));
@@ -1319,14 +1589,97 @@ class BillService {
 			'linkedExistingTransaction' => $linkedExistingTransaction,
 			// False = the bill was marked paid but NO money movement was
 			// recorded (no account on the bill, creation failed, or the user
-			// neither created nor linked a transaction). The UI must surface
-			// this — silently recording nothing made app balances drift from
-			// real bank balances (#89, #274).
-			'paymentTransactionRecorded' => $paymentTransactionRecorded || $linkedExistingTransaction,
+			// neither created nor linked a transaction, and none was there
+			// already). The UI must surface this — silently recording nothing
+			// made app balances drift from real bank balances (#89, #274).
+			'paymentTransactionRecorded' => $paymentTransactionRecorded || $linkedExistingTransaction || $usedPayment !== null,
 			// Non-null only for statement bills: the amount resolved for
 			// this payment (#347)
 			'statementAmount' => $statementAmount,
 		];
+	}
+
+	/**
+	 * The bill's schedule once its pending occurrence is paid: the next
+	 * occurrence, or none when the payment uses the bill up (one-time, its
+	 * last payment, past its end date). Worked out before anything is
+	 * booked, so the occurrence can be claimed first.
+	 *
+	 * @return array{nextDueDate: ?string, isActive: bool, remainingPayments: ?int, startDate: ?string}
+	 */
+	private function scheduleAfterPayment(Bill $bill): array {
+		$startDate = $bill->getStartDate();
+		$remaining = $bill->getRemainingPayments();
+
+		if ($bill->getFrequency() === 'one-time') {
+			// The date it was due is all a paid invoice has left to show, and
+			// clearing next_due_date threw it away: a bill created before the
+			// date field existed then read "No due date" in the list and
+			// opened with an empty Due Date (#333). It is kept as the start
+			// date, which is where a one-time bill's date lives (#375).
+			if (($startDate === null || $startDate === '') && $bill->getNextDueDate()) {
+				$startDate = $bill->getNextDueDate();
+			}
+			return ['nextDueDate' => null, 'isActive' => false, 'remainingPayments' => $remaining, 'startDate' => $startDate];
+		}
+
+		$nextDue = $this->frequencyCalculator->calculateNextDueDate(
+			$bill->getFrequency(),
+			$bill->getDueDay(),
+			$bill->getDueMonth(),
+			$bill->getNextDueDate(),
+			$bill->getCustomRecurrencePattern(),
+			true, // Always force advance — the bill was just paid
+			// The start date supplies the day and month the form left
+			// out, as at creation and in the calendar: without it a
+			// yearly bill due 14 March moved to 1 January
+			$startDate
+		);
+		$active = true;
+
+		// Decrement remaining payments if set
+		if ($remaining !== null) {
+			$remaining--;
+			if ($remaining <= 0) {
+				$active = false;
+				$nextDue = null;
+			}
+		}
+
+		// Deactivate if next due date exceeds end date
+		$endDate = $bill->getEndDate();
+		if ($endDate !== null && $nextDue !== null && $nextDue > $endDate) {
+			$active = false;
+			$nextDue = null;
+		}
+
+		return ['nextDueDate' => $nextDue, 'isActive' => $active, 'remainingPayments' => $remaining, 'startDate' => $startDate];
+	}
+
+	/**
+	 * Hand back an occurrence whose payment or skip didn't go through: the
+	 * bill as it was before the claim. A claim that left the bill due on a
+	 * date is released the way it was taken, only while the bill still
+	 * holds it, so a payment of the next occurrence made meanwhile is never
+	 * undone. One that ended the bill left nothing for anyone to claim since.
+	 *
+	 * @param array<string, mixed> $claimed what claimOccurrence() wrote
+	 * @param array<string, mixed> $before the same columns as they were
+	 */
+	private function releaseOccurrence(int $id, string $userId, array $claimed, array $before): void {
+		try {
+			if ($claimed['is_active'] && $claimed['next_due_date'] !== null) {
+				$released = $this->mapper->claimOccurrence($id, $userId, (string)$claimed['next_due_date'], $before);
+			} else {
+				$this->mapper->updateFields($id, $userId, $before);
+				$released = true;
+			}
+			if (!$released) {
+				$this->logger->warning("Bill {$id} moved on before the occurrence of a failed payment could be handed back");
+			}
+		} catch (\Throwable $e) {
+			$this->logger->warning("Failed to hand back the occurrence of bill {$id}: {$e->getMessage()}");
+		}
 	}
 
 	/**
@@ -1375,7 +1728,7 @@ class BillService {
 		// linkage is undone.
 		if ($linkedTransactionId !== null) {
 			try {
-				$this->transactionService->unlinkBillAsAccountOwner($linkedTransactionId);
+				$this->transactionService->unlinkBillAsAccountOwner($linkedTransactionId, $id);
 			} catch (\Exception $e) {
 				$this->logger->warning("Failed to unlink transaction {$linkedTransactionId} during undo-paid for bill {$id}: {$e->getMessage()}");
 			}
@@ -1440,6 +1793,12 @@ class BillService {
 		if (!is_array($decoded) || !is_array($decoded['previousState'] ?? null)) {
 			throw new \InvalidArgumentException($this->l->t('This bill has no recorded payment to undo'));
 		}
+		// Set aside by a skip, it would bring back a date from before the
+		// skip (#399). The payment is there, so the refusal says what is in
+		// the way rather than that there is none.
+		if (UndoSnapshotSkips::setAside($raw)) {
+			throw new \InvalidArgumentException($this->l->t('Undo the skip first: a later date has been skipped since this payment.'));
+		}
 
 		// A corrupt blob must fail exactly like a missing snapshot — the
 		// controller's catches do not cover a TypeError from array_map (#365
@@ -1483,9 +1842,12 @@ class BillService {
 	 *
 	 * @param int $id Bill ID
 	 * @param string $userId User ID
+	 * @param string|null $expectedDueDate The occurrence the page showed. A
+	 *                                     stale tab or a second click names one already settled and is refused,
+	 *                                     rather than skipping the next one too (#399).
 	 * @return Bill Updated bill
 	 */
-	public function skipPayment(int $id, string $userId): array {
+	public function skipPayment(int $id, string $userId, ?string $expectedDueDate = null): array {
 		$bill = $this->find($id, $userId);
 		$this->requireWritableAccounts($bill);
 
@@ -1498,33 +1860,62 @@ class BillService {
 		}
 
 		$previousNextDueDate = $bill->getNextDueDate();
-
-		// Delete any pre-existing scheduled transaction for the skipped occurrence
-		$this->transactionService->deleteScheduledBillTransactions($id);
+		if ($previousNextDueDate === null) {
+			throw new \InvalidArgumentException($this->l->t('This bill has nothing left to pay'));
+		}
+		// Not "already recorded": the date may have been skipped, with nothing paid (#399)
+		if ($expectedDueDate !== null && $expectedDueDate !== '' && $expectedDueDate !== $previousNextDueDate) {
+			throw new \InvalidArgumentException($this->l->t('This date was already paid or skipped. Reload the page to see the next one.'));
+		}
 
 		$nextDue = $this->frequencyCalculator->calculateNextDueDate(
 			$bill->getFrequency(),
 			$bill->getDueDay(),
 			$bill->getDueMonth(),
-			$bill->getNextDueDate(),
+			$previousNextDueDate,
 			$bill->getCustomRecurrencePattern(),
 			true, // forceAdvance: always advance one cycle, even if not yet overdue
 			$bill->getStartDate() // the same anchor creation and the calendar use
 		);
-		$bill->setNextDueDate($nextDue);
+		$isActive = true;
 
 		// Deactivate if next due date exceeds end date
 		$endDate = $bill->getEndDate();
-		if ($endDate !== null && $bill->getNextDueDate() !== null && $bill->getNextDueDate() > $endDate) {
-			$bill->setIsActive(false);
-			$bill->setNextDueDate(null);
+		if ($endDate !== null && $nextDue !== null && $nextDue > $endDate) {
+			$isActive = false;
+			$nextDue = null;
 		}
 
-		// The skip moved next_due_date — a mark-unpaid snapshot restored
-		// after it would bring back a pre-skip date, so it is spent (#365 review)
-		$bill->setPaidUndoState(null);
+		// Claimed like a payment (#399): two skips of one occurrence both went
+		// through. The skip moves next_due_date, so a mark-unpaid snapshot
+		// restored after it would bring back a pre-skip date (#365 review):
+		// the same write sets it aside until the skip is undone, so Undo
+		// brings Mark Unpaid back (#399). A skip that ends the bill spends it.
+		$snapshot = $isActive ? UndoSnapshotSkips::skip($bill->getPaidUndoState(), $previousNextDueDate) : null;
+		$claimed = ['next_due_date' => $nextDue, 'is_active' => $isActive, 'paid_undo_state' => $snapshot];
+		if (!$this->mapper->claimOccurrence($id, $userId, $previousNextDueDate, $claimed)) {
+			throw new \InvalidArgumentException($this->l->t('This date was already paid or skipped. Reload the page to see the next one.'));
+		}
 
-		$bill = $this->mapper->update($bill);
+		// Only now the skipped occurrence's pre-booked row goes: dropped
+		// before the claim, a skip that lost it took the row another request
+		// had just booked for the next occurrence
+		try {
+			$this->transactionService->deleteScheduledBillTransactions($id);
+		} catch (\Throwable $e) {
+			$this->releaseOccurrence($id, $userId, $claimed, [
+				'next_due_date' => $previousNextDueDate,
+				'is_active' => true,
+				'paid_undo_state' => $bill->getPaidUndoState(),
+			]);
+			throw $e;
+		}
+
+		// The claim wrote all of it (see markPaid())
+		$bill->setNextDueDate($nextDue);
+		$bill->setIsActive($isActive);
+		$bill->setPaidUndoState($snapshot);
+		$bill->resetUpdatedFields();
 		$this->withdrawNotifications($bill);
 
 		// Create scheduled transaction for the new next occurrence,
@@ -1551,18 +1942,44 @@ class BillService {
 	 * @param string $userId User ID
 	 * @param string $previousNextDueDate The due date to restore
 	 * @return Bill Updated bill
+	 * @throws \InvalidArgumentException when the bill wasn't due on that date before the one now due
 	 */
 	public function undoSkip(int $id, string $userId, string $previousNextDueDate): Bill {
 		$bill = $this->find($id, $userId);
 		$this->requireWritableAccounts($bill);
 
+		// Only a skipped occurrence goes back (#399): a date the bill's
+		// schedule falls on, no later than the one now due. Any date was
+		// stored, and any inactive bill switched back on, a paused one or one
+		// whose payments were used up.
+		if ($bill->getFrequency() === 'one-time') {
+			throw new \InvalidArgumentException($this->l->t('Cannot skip a one-time bill'));
+		}
+		$ended = !$bill->getIsActive() && $bill->getNextDueDate() === null;
+		if ($ended && $bill->getRemainingPayments() !== null && $bill->getRemainingPayments() <= 0) {
+			throw new \InvalidArgumentException($this->l->t('This bill has nothing left to pay'));
+		}
+		if ($bill->getNextDueDate() !== null && $previousNextDueDate > $bill->getNextDueDate()) {
+			throw new \InvalidArgumentException($this->l->t('That date is after the bill\'s next due date'));
+		}
+		$endDate = $bill->getEndDate();
+		if ((!$this->fallsOnSchedule($bill, $previousNextDueDate) && !$this->skippedFromStoredDate($bill, $previousNextDueDate))
+			|| ($endDate !== null && $endDate !== '' && $previousNextDueDate > $endDate)) {
+			throw new \InvalidArgumentException($this->l->t('That date isn\'t one of this bill\'s due dates'));
+		}
+
 		// Delete scheduled transaction for the advanced (wrong) date
 		$this->transactionService->deleteScheduledBillTransactions($id);
 
-		// Restore previous due date and reactivate if needed
+		// Restore the previous due date, and switch back on a bill the skip ended
 		$bill->setNextDueDate($previousNextDueDate);
-		if (!$bill->getIsActive() && $bill->getFrequency() !== 'one-time') {
+		if ($ended) {
 			$bill->setIsActive(true);
+		}
+		// The payment before the skip can be marked unpaid again (#399)
+		$snapshot = UndoSnapshotSkips::unskip($bill->getPaidUndoState(), $previousNextDueDate);
+		if ($snapshot !== $bill->getPaidUndoState()) {
+			$bill->setPaidUndoState($snapshot);
 		}
 
 		$bill = $this->mapper->update($bill);
@@ -1580,6 +1997,62 @@ class BillService {
 		}
 
 		return $bill;
+	}
+
+	/**
+	 * Whether the bill's schedule falls on $date. A weekly or fortnightly
+	 * bill with no start date counts its weeks from the date now due, as
+	 * paying and skipping it do (FrequencyCalculator::calculateNextDueDate()).
+	 */
+	private function fallsOnSchedule(Bill $bill, string $date): bool {
+		$frequency = (string)$bill->getFrequency();
+		$anchor = $bill->getStartDate() ?: null;
+		$pending = $bill->getNextDueDate();
+		if ($anchor === null && $pending !== null && in_array($frequency, ['weekly', 'biweekly'], true)) {
+			return in_array($pending, $this->frequencyCalculator->occurrencesBetween($frequency, $bill->getDueDay(), null, $date, $pending, null, $date), true);
+		}
+		return $this->frequencyCalculator->occurrenceOnOrAfter(
+			$frequency, $bill->getDueDay(), $bill->getDueMonth(), $date, $bill->getCustomRecurrencePattern(), $anchor
+		) === $date;
+	}
+
+	/**
+	 * Whether the bill was due on $date before a skip moved it on, though
+	 * its schedule doesn't fall there. The toast's Undo was refused for two
+	 * kinds of date (#399). One 2.x stored: a schedule with no day fell on
+	 * the 1st, one with no month in January, and a semi-monthly second date
+	 * stopped at the 28th (FrequencyCalculator::storedOccurrence()). And the
+	 * last date of an ended weekly bill with no start date, which counted
+	 * its weeks from that date, so only its weekday is left to go by. Either
+	 * has to be the skip's exact inverse: skipped again, it lands where the
+	 * bill is now, so no other date off the schedule gets in.
+	 */
+	private function skippedFromStoredDate(Bill $bill, string $date): bool {
+		$frequency = (string)$bill->getFrequency();
+		$calculator = $this->frequencyCalculator;
+		if (in_array($frequency, ['weekly', 'biweekly'], true)) {
+			$stored = !$bill->getStartDate() && $bill->getNextDueDate() === null
+				&& $calculator->occurrenceOnOrAfter('weekly', $bill->getDueDay(), null, $date) === $date;
+		} else {
+			// The schedule with no start date to take a day or month from
+			$following = $calculator->occurrenceOnOrAfter($frequency, $bill->getDueDay(), $bill->getDueMonth(), $date, $bill->getCustomRecurrencePattern());
+			$stored = $following === $date
+				|| ($frequency === 'semi-monthly' && substr($date, 8, 2) === '28'
+					&& $following !== null && substr($following, 0, 7) === substr($date, 0, 7));
+		}
+		if (!$stored) {
+			return false;
+		}
+
+		// Where skipPayment() takes the bill from $date
+		$next = $calculator->calculateNextDueDate(
+			$frequency, $bill->getDueDay(), $bill->getDueMonth(), $date, $bill->getCustomRecurrencePattern(), true, $bill->getStartDate()
+		);
+		$endDate = $bill->getEndDate();
+		if ($endDate !== null && $next > $endDate) {
+			return $bill->getNextDueDate() === null;
+		}
+		return $next === $bill->getNextDueDate();
 	}
 
 	/**
@@ -2001,7 +2474,7 @@ class BillService {
 		$raw = $bill->getPaidUndoState();
 		$snapshot = ($raw !== null && $raw !== '') ? json_decode($raw, true) : null;
 		if (!is_array($snapshot) || !is_numeric($snapshot['linkedTransactionId'] ?? null)
-			|| (int)$snapshot['linkedTransactionId'] !== $transactionId) {
+			|| (int)$snapshot['linkedTransactionId'] !== $transactionId || UndoSnapshotSkips::setAside($raw)) {
 			return false;
 		}
 
@@ -2614,7 +3087,8 @@ class BillService {
 		$currencyMap = $this->currencyMapFor($accounts);
 		$baseCurrency = $this->currencyConversion->getBaseCurrency($userId);
 
-		[$billsData, $monthlyTotals] = $this->calendarRows($userId, $year, $includeTransfers, $billStatus, $accountId, $currencyMap, $baseCurrency);
+		$everyRow = [];
+		[$billsData, $monthlyTotals] = $this->calendarRows($userId, $year, $includeTransfers, $billStatus, $accountId, $currencyMap, $baseCurrency, $everyRow);
 
 		// With an account picked: its balance carried through the rest of
 		// this year, from today's (#393). Another year has no today to start
@@ -2637,7 +3111,7 @@ class BillService {
 				// projected from every bill that is still live
 				$projectionRows = ($includeTransfers && $billStatus !== 'inactive')
 					? $billsData
-					: $this->calendarRows($userId, $year, true, 'active', $accountId, $currencyMap, $baseCurrency)[0];
+					: $this->calendarRows($userId, $year, true, 'active', $accountId, $currencyMap, $baseCurrency, $everyRow)[0];
 				$projection = $this->projectBalance($userId, $projectionRows, $account, $balance);
 			}
 		}
@@ -2658,9 +3132,11 @@ class BillService {
 	 * each month comes to in the base currency.
 	 *
 	 * @param array<int, string|null> $currencyMap account id => currency code
+	 * @param array<int, \OCA\Budget\Db\Transaction[]> $everyRow bill id => the rows read beyond the year so
+	 *                                                           far, from where Mark Paid looks; kept between the passes over the bills
 	 * @return array{0: array[], 1: array<int, float>} ungrouped rows, monthly totals
 	 */
-	private function calendarRows(string $userId, int $year, bool $includeTransfers, string $billStatus, ?int $accountId, array $currencyMap, string $baseCurrency): array {
+	private function calendarRows(string $userId, int $year, bool $includeTransfers, string $billStatus, ?int $accountId, array $currencyMap, string $baseCurrency, array &$everyRow = []): array {
 		// Determine which bills to fetch based on status
 		$bills = [];
 		if ($billStatus === 'active') {
@@ -2695,23 +3171,57 @@ class BillService {
 		// so a bill first paid in September showed January to August paid
 		// too - and a one-time bill fell out of the calendar the moment it
 		// was paid (#375). Only the debit leg counts: a transfer bill's
-		// credit leg is the same payment arriving, not a second one.
+		// credit leg is the same payment arriving, not a second one. Every
+		// leg is kept for the bill's own rows, which Mark Paid looks among.
 		$paymentsByBill = [];
+		$paymentRowsByBill = [];
+		$rowsByBill = [];
 		$billIds = array_map(fn (Bill $bill) => $bill->getId(), $bills);
 		foreach ($this->transactionService->findBillPaymentsInYear($billIds, $year) as $payment) {
+			$billId = (int)$payment->getBillId();
+			$rowsByBill[$billId][] = $payment;
 			if (($payment->getType() ?? 'debit') !== 'debit') {
 				continue;
 			}
-			$paymentsByBill[$payment->getBillId()][] = [
+			$paymentRowsByBill[$billId][] = $payment;
+			$paymentsByBill[$billId][] = [
 				'date' => $payment->getDate(),
 				'amount' => (float)$payment->getAmount(),
 			];
 		}
 
 		if ($billStatus === 'active') {
-			$bills = array_filter($bills, fn (Bill $bill) => $bill->getIsActive() || isset($paymentsByBill[$bill->getId()]));
+			$today = $this->today($userId);
+			$bills = array_filter($bills, fn (Bill $bill) => $bill->getIsActive()
+				|| isset($paymentsByBill[$bill->getId()])
+				|| $this->settledInYear($bill, $year, $today));
 		}
 		$currencyMap = $this->withAccountsOf($currencyMap, array_map(fn (Bill $bill) => $bill->getAccountId(), $bills));
+
+		// The rows of the bills due around the year, one query for them all:
+		// the payment Mark Paid would use for the date such a bill is due on
+		// can be the other year's (see dueAroundYear()). Only from where Mark
+		// Paid starts looking, the earliest of them: every row of every bill
+		// was years of history read to find one payment. Read once for both
+		// passes over the bills (the projection's is the second).
+		$unread = [];
+		$from = null;
+		foreach ($bills as $bill) {
+			$billId = (int)$bill->getId();
+			if ($this->dueAroundYear($bill, $year) && !array_key_exists($billId, $everyRow)) {
+				$unread[] = $billId;
+				$since = $this->pendingRowsFrom($bill);
+				$from = ($from === null || $since < $from) ? $since : $from;
+			}
+		}
+		if ($unread !== []) {
+			foreach ($unread as $billId) {
+				$everyRow[$billId] = [];
+			}
+			foreach ($this->transactionService->findRecordedBillTransactions($unread, $from) as $row) {
+				$everyRow[(int)$row->getBillId()][] = $row;
+			}
+		}
 
 		// Calculate monthly occurrences for each bill
 		$billsData = [];
@@ -2723,11 +3233,43 @@ class BillService {
 			foreach (array_keys($datesByMonth) as $month) {
 				$occurrences[$month] = true;
 			}
-			[$occurrences, $paidMonths, $paidAmounts, $unrecordedMonths] = $this->attributePayments(
+			// The payment Mark Paid would use for the date a recurring bill is
+			// due on, from the same rows: the owner's view, so anyone's account
+			$pending = null;
+			$paidElsewhere = [];
+			$outOfSight = false;
+			$nextDue = $bill->getNextDueDate();
+			if ($bill->getFrequency() !== 'one-time') {
+				$billId = (int)$bill->getId();
+				$row = $this->pendingPaymentAmong($bill, $this->dueAroundYear($bill, $year) ? ($everyRow[$billId] ?? []) : ($rowsByBill[$billId] ?? []));
+				foreach ($paymentRowsByBill[$billId] ?? [] as $index => $payment) {
+					if ($row !== null && (int)$payment->getId() === (int)$row->getId()) {
+						$pending = $index;
+						break;
+					}
+				}
+				// Paid in the other year, a date of this one is neither owed
+				// nor counted again: 5 January paid on 28 December was owed
+				// in January as well, and counted in both years (#399). Its
+				// cell names the payment. The date is taken all the same, so
+				// a row of this year near it is its second payment.
+				// Whichever year the date is in, a payment of this year can be
+				// its second, and must find it (#399)
+				$outOfSight = $row !== null && $pending === null && (int)substr((string)$row->getDate(), 0, 4) !== $year;
+				$month = ($nextDue === null || $nextDue === '') ? 0 : (int)substr($nextDue, 5, 2);
+				if ($outOfSight
+					&& (int)substr((string)$nextDue, 0, 4) === $year
+					&& in_array(substr((string)$nextDue, 0, 10), $datesByMonth[$month] ?? [], true)) {
+					$paidElsewhere[$month][] = ['date' => $row->getDate(), 'amount' => (float)$row->getAmount(), 'due' => substr((string)$nextDue, 0, 10)];
+				}
+			}
+			[$occurrences, $paidMonths, $paidAmounts, $unrecordedMonths, $paidDetails, $paidMoreThanOnce] = $this->attributePayments(
 				$occurrences,
 				$bill,
 				$paymentsByBill[$bill->getId()] ?? [],
-				$year
+				$year,
+				$pending,
+				$outOfSight
 			);
 
 			// A bill with nothing in this year - created after its only date
@@ -2751,10 +3293,13 @@ class BillService {
 				$expectedAmounts[$month] = $amount * max(1, count($datesByMonth[$month] ?? []));
 			}
 			$owedAmounts = [];
-			$nextDue = $bill->getNextDueDate();
 			if ($bill->getIsActive() && $nextDue !== null && $nextDue !== '') {
+				// A date a payment paid is paid, not owed as well: one linked
+				// to the bill before Mark Paid showed as both, 200 for one 100
+				// invoice, or a monthly premium counted in two months (#399)
+				$paidDates = array_column(array_merge(...array_values($paidDetails), ...array_values($paidElsewhere)), 'due');
 				foreach ($datesByMonth as $month => $dates) {
-					$owed = count(array_filter($dates, fn (string $d): bool => $d >= $nextDue));
+					$owed = count(array_filter($dates, fn (string $d): bool => $d >= $nextDue && !in_array($d, $paidDates, true)));
 					if ($owed > 0) {
 						$owedAmounts[$month] = $amount * $owed;
 					}
@@ -2780,6 +3325,17 @@ class BillService {
 				// the months still to come (#375)
 				'paidMonths' => $paidMonths,
 				'paidAmounts' => $paidAmounts,
+				// The payments behind each paid month, each with the date it
+				// paid, so a cell can say what it holds: two payments for one
+				// invoice read as one large amount (#399)
+				'paidDetails' => $paidDetails,
+				// Months with a date paid more than once, and the most
+				// payments one of its dates got
+				'paidMoreThanOnce' => $paidMoreThanOnce,
+				// A date of the year paid by a payment of the other year, by
+				// month, as paidDetails lists payments: paid, so not owed, and
+				// counted where the money went out, not here
+				'paidElsewhere' => $paidElsewhere,
 				// Occurrences the bill has moved past without a recorded
 				// payment - marked paid with no transaction, or skipped. Not
 				// paid, but not owed either, so they must not read as due (#333)
@@ -2789,33 +3345,101 @@ class BillService {
 				// row without losing each invoice's own amount (#375)
 				'expectedAmounts' => $expectedAmounts,
 				'owedAmounts' => $owedAmounts,
+				// A transfer into the picked account is money arriving, not a
+				// bill it pays: it stays in the table, but adding it to the
+				// monthly totals gave a savings account a bill the size of
+				// every transfer it receives. The projected balance counts it
+				// as money in.
+				'inTotals' => !($accountId !== null && ($bill->getIsTransfer() ?? false)
+					&& $bill->getDestinationAccountId() === $accountId && $bill->getAccountId() !== $accountId),
 			];
 
 			$billsData[] = $billData;
-
-			// A transfer into the picked account is money arriving, not a
-			// bill it pays: it stays in the table, but adding it to the
-			// monthly totals gave a savings account a bill the size of every
-			// transfer it receives. The projected balance counts it as money in.
-			if ($accountId !== null && ($bill->getIsTransfer() ?? false)
-				&& $bill->getDestinationAccountId() === $accountId && $bill->getAccountId() !== $accountId) {
+			if (!$billData['inTotals']) {
 				continue;
 			}
 
-			// Monthly totals: what was paid plus what is still owed, or the
-			// expected amount for a month with neither
+			// Monthly totals: what was paid plus what is still owed. A month
+			// the bill moved past with nothing recorded is neither, and adding
+			// its amount counted money that never left the account (#399). A
+			// month with nothing known either way (an active bill with no
+			// next due date) counts what it is expected to cost.
 			foreach ($occurrences as $month => $occurs) {
 				if (!$occurs) {
 					continue;
 				}
-				$total = isset($paidAmounts[$month]) || isset($owedAmounts[$month])
-					? ($paidAmounts[$month] ?? 0.0) + ($owedAmounts[$month] ?? 0.0)
-					: ($expectedAmounts[$month] ?? $amount);
-				$monthlyTotals[$month] += $this->convertToBase($total, $billCurrency, $baseCurrency, $userId);
+				if (isset($paidAmounts[$month]) || isset($owedAmounts[$month])) {
+					$total = self::sumOf($paidAmounts[$month] ?? 0.0, $owedAmounts[$month] ?? 0.0);
+				} elseif (in_array($month, $unrecordedMonths, true) || isset($paidElsewhere[$month])) {
+					continue;
+				} else {
+					$total = $expectedAmounts[$month] ?? $amount;
+				}
+				$monthlyTotals[$month] = self::sumOf($monthlyTotals[$month], $this->convertToBase($total, $billCurrency, $baseCurrency, $userId));
 			}
 		}
 
 		return [$billsData, $monthlyTotals];
+	}
+
+	/**
+	 * Whether an inactive bill went through one of this year's dates by
+	 * today. Marked paid without a transaction, it left nothing for the
+	 * calendar to find, so Active Only dropped an invoice settled this year
+	 * (#399). A bill never marked paid went through none. A recurring bill
+	 * last paid before the year began had stopped by then, whatever its
+	 * schedule says; its dates this year run only as far as it went
+	 * (stoppedOn()). A one-time bill belongs to the year of its date,
+	 * whenever it was paid.
+	 */
+	private function settledInYear(Bill $bill, int $year, string $today): bool {
+		$lastPaid = $bill->getLastPaidDate();
+		if ($lastPaid === null || $lastPaid === '') {
+			return false;
+		}
+		if ($bill->getFrequency() !== 'one-time' && $lastPaid < sprintf('%04d-01-01', $year)) {
+			return false;
+		}
+		$dates = array_merge(...array_values($this->occurrencesInYear($bill, $year)));
+		return $dates !== [] && $dates[0] <= $today;
+	}
+
+	/**
+	 * Whether an active recurring bill is due in the year, the one before or
+	 * the one after. The payment Mark Paid would use for that date may be
+	 * dated in another year than the date, out of sight of the year's rows:
+	 * a bill due on 5 January and paid on 28 December was still owed in
+	 * January's calendar, and one due on 10 December and paid on 5 January
+	 * was owed in December's (#399). Mark Paid puts no bound on how late
+	 * the payment may be, so neither can a window around 1 January.
+	 */
+	private function dueAroundYear(Bill $bill, int $year): bool {
+		$due = $bill->getNextDueDate();
+		if (!$bill->getIsActive() || $due === null || $due === '' || $bill->getFrequency() === 'one-time') {
+			return false;
+		}
+		return abs((int)substr($due, 0, 4) - $year) <= 1;
+	}
+
+	/** The start of the due window before the date the bill is due on (pendingPaymentAmong()) */
+	private function dueWindowStart(Bill $bill): string {
+		return (new \DateTimeImmutable((string)$bill->getNextDueDate()))
+			->modify('-' . $this->dueDateToleranceDays($bill->getFrequency()) . ' days')->format('Y-m-d');
+	}
+
+	/**
+	 * The first day a row of a recurring bill can be the payment Mark Paid
+	 * would use for the date it is due on: the due window's start, or the
+	 * day after it was last paid if later (pendingPaymentAmong())
+	 */
+	private function pendingRowsFrom(Bill $bill): string {
+		$from = $this->dueWindowStart($bill);
+		$lastPaid = $bill->getLastPaidDate();
+		if ($lastPaid !== null && $lastPaid !== '') {
+			$after = (new \DateTimeImmutable(substr($lastPaid, 0, 10)))->modify('+1 day')->format('Y-m-d');
+			$from = max($from, $after);
+		}
+		return $from;
 	}
 
 	/** @param Account[] $accounts */
@@ -2871,7 +3495,13 @@ class BillService {
 	 * invoices showed as three rows with the same name, one cell each. One
 	 * row with a cell per invoice reads the way the recurring rows do. Each
 	 * month keeps its own expected and paid amount; two invoices in one
-	 * month add up. Recurring bills are left alone.
+	 * month add up and their payments are listed together, and the month
+	 * counts as paid more than once only when one of them was. Recurring
+	 * bills are left alone.
+	 *
+	 * The row keeps the first invoice's amount, and says with mixedAmounts
+	 * when the others' differ: the export printed that one amount for all of
+	 * them (#399).
 	 *
 	 * @param array<int, array<string, mixed>> $rows
 	 * @return array<int, array<string, mixed>>
@@ -2886,6 +3516,8 @@ class BillService {
 			}
 			$key = mb_strtolower(trim((string)$row['name'])) . '|' . ($row['currency'] ?? '');
 			$row['unrecordedMonths'] = $row['unrecordedMonths'] ?? [];
+			$row['paidDetails'] = $row['paidDetails'] ?? [];
+			$row['paidMoreThanOnce'] = $row['paidMoreThanOnce'] ?? [];
 			if (!isset($byName[$key])) {
 				$row['billIds'] = [$row['id']];
 				$byName[$key] = count($grouped);
@@ -2894,7 +3526,11 @@ class BillService {
 			}
 			$index = $byName[$key];
 			$grouped[$index]['billIds'][] = $row['id'];
+			if (MoneyCalculator::compare((float)$grouped[$index]['amount'], (float)$row['amount'], Currency::decimalsFor($row['currency'] ?? null)) !== 0) {
+				$grouped[$index]['mixedAmounts'] = true;
+			}
 			$grouped[$index]['isActive'] = $grouped[$index]['isActive'] || $row['isActive'];
+			$grouped[$index]['inTotals'] = ($grouped[$index]['inTotals'] ?? true) !== false || ($row['inTotals'] ?? true) !== false;
 			foreach ($row['occurrences'] as $month => $occurs) {
 				if ($occurs) {
 					$grouped[$index]['occurrences'][$month] = true;
@@ -2904,14 +3540,27 @@ class BillService {
 			sort($unrecorded);
 			$grouped[$index]['unrecordedMonths'] = array_values($unrecorded);
 			foreach ($row['expectedAmounts'] as $month => $amount) {
-				$grouped[$index]['expectedAmounts'][$month] = ($grouped[$index]['expectedAmounts'][$month] ?? 0.0) + $amount;
+				$grouped[$index]['expectedAmounts'][$month] = self::sumOf($grouped[$index]['expectedAmounts'][$month] ?? 0.0, $amount);
 			}
 			foreach ($row['owedAmounts'] ?? [] as $month => $amount) {
-				$grouped[$index]['owedAmounts'][$month] = ($grouped[$index]['owedAmounts'][$month] ?? 0.0) + $amount;
+				$grouped[$index]['owedAmounts'][$month] = self::sumOf($grouped[$index]['owedAmounts'][$month] ?? 0.0, $amount);
 			}
 			foreach ($row['paidAmounts'] as $month => $amount) {
-				$grouped[$index]['paidAmounts'][$month] = ($grouped[$index]['paidAmounts'][$month] ?? 0.0) + $amount;
+				$grouped[$index]['paidAmounts'][$month] = self::sumOf($grouped[$index]['paidAmounts'][$month] ?? 0.0, $amount);
 			}
+			$times = $grouped[$index]['paidMoreThanOnce'];
+			foreach ($row['paidMoreThanOnce'] as $month => $count) {
+				$times[$month] = max($times[$month] ?? 0, $count);
+			}
+			ksort($times);
+			$grouped[$index]['paidMoreThanOnce'] = $times;
+			$details = $grouped[$index]['paidDetails'] ?? [];
+			foreach ($row['paidDetails'] as $month => $payments) {
+				$details[$month] = array_merge($details[$month] ?? [], $payments);
+				usort($details[$month], fn (array $a, array $b): int => strcmp($a['date'], $b['date']));
+			}
+			ksort($details);
+			$grouped[$index]['paidDetails'] = $details;
 			ksort($grouped[$index]['paidAmounts']);
 			ksort($grouped[$index]['expectedAmounts']);
 			$grouped[$index]['paidMonths'] = array_keys($grouped[$index]['paidAmounts']);
@@ -2936,13 +3585,66 @@ class BillService {
 	 * September paid while the Bills page showed the same occurrence as
 	 * upcoming (#375).
 	 *
-	 * Within the closed occurrences a payment belongs to the nearest unpaid
-	 * one within the window; when all of those are taken it adds to the
-	 * nearest closed one (a double payment shows as the larger amount rather
-	 * than as a month that was never paid); a payment with no closed
-	 * occurrence anywhere near it becomes an extra paid month, provided that
-	 * month is itself before the next due date. A bill with a single
-	 * occurrence takes any payment, whenever it was made.
+	 * The one exception is the payment Mark Paid would use for the date the
+	 * bill is due on ($pending, from pendingPaymentAmong()): it pays that
+	 * date. Linked to the bill before Mark Paid, it had no date to go to and
+	 * became a second payment of the date before, while the date it paid
+	 * stayed owed and Monthly Totals counted it twice (#399). The date is
+	 * then closed like the rest, so another payment near it is its double,
+	 * never its payment. So it is when that payment is the other year's
+	 * ($paidElsewhere): it is out of sight, but the date is paid all the
+	 * same.
+	 *
+	 * Within the closed occurrences each one first takes the payment nearest
+	 * its own date, the closest pairs first, so a payment only goes to an
+	 * occurrence further away when its own has a nearer one. Matched one
+	 * payment at a time in date order, the second of two payments at the end
+	 * of August took September's place, September's own payment took
+	 * October's, and a bill paid twice in August read as paid ahead (#399).
+	 * Each date the bill falls on is an occurrence, so a weekly bill's last
+	 * payments in January stay January's rather than going to February's
+	 * first week. A payment left over (paid twice) adds to the nearest closed
+	 * occurrence, so it shows as the larger amount rather than as a month that
+	 * was never paid; a payment with no closed occurrence anywhere near it
+	 * becomes an extra paid month, provided that month is itself before the
+	 * next due date.
+	 *
+	 * A bill with a single date in the year (one-time, yearly) used to take
+	 * every payment, whenever it was made (#375). A monthly bill switched to
+	 * One-Time then put its whole history into the one-time month, drawn as
+	 * September paid nine times, and an invoice paid a second time weeks
+	 * later read as paid twice (#399). Its date now takes the payments made
+	 * within its due window (dueDateToleranceDays()), a double payment
+	 * included. With none that close it takes the nearest payment that can
+	 * have paid it, however early or late: any, once the bill has moved past
+	 * the date; for a one-time bill still due, one made since it was last
+	 * marked paid. So a final invoice switched to One-Time stays due, the
+	 * old schedule's payments staying put, while an invoice paid weeks early
+	 * and linked to it is paid. Every other payment is a paid month of its
+	 * own, the month it was made, and never a second payment of anything.
+	 * It paid no date, except a one-time bill's made after the date: the
+	 * invoice paid again, which the tooltip names (#399). One made before
+	 * it paid another schedule (a monthly bill switched to One-Time), and a
+	 * yearly bill's date has its own year to be paid in. That schedule
+	 * isn't stored, so payments before the date made in one month within
+	 * OneTimeSettlement::BESIDE_DAYS of each other count as one of its dates
+	 * paid twice: the switch lost the marker of an August paid on the 29th
+	 * and the 30th (#399). Instalments a week or more apart stay apart.
+	 *
+	 * A recurring bill's single date that it still owes takes no payment but
+	 * Mark Paid's. It took every payment (#375), so a yearly premium paid
+	 * weeks before its due window and linked to it read as paying the date,
+	 * beside the amount still owed (#399). Every other payment is a paid
+	 * month of its own, whichever month.
+	 *
+	 * The year's dates have neighbours outside it. A payment nearer the
+	 * bill's last date of the year before, or its first of the year after,
+	 * than to any date of this year paid that date: late for December, or
+	 * early for January. It stays in the month the money went out, but it is
+	 * no second payment for a date of this year, which it was taken for every
+	 * January a bill was paid a few days late (#399). Only when that date is
+	 * its nearest: the other year's own payment is out of sight, so the date
+	 * would otherwise take a genuine second payment made near it.
 	 *
 	 * A closed occurrence that ends up with no payment is reported too. The
 	 * bill was marked paid with "Don't create any transaction", or the
@@ -2951,96 +3653,345 @@ class BillService {
 	 * without a payment used to mean - had a yearly premium paid in
 	 * February still showing as outstanding in September (#333).
 	 *
+	 * Returns the occurrences (with the extra months), the paid months, the
+	 * amount paid in each, the months the bill has moved past with no payment
+	 * recorded, the payments behind each paid month in date order with the
+	 * date each one paid (null for one that paid none), and for each
+	 * month with a date paid more than once, the most payments one date got.
+	 *
 	 * @param array<int, bool> $occurrences month => occurs, 1..12
 	 * @param array<int, array{date: string, amount: float}> $payments in date order
-	 * @return array{0: array<int, bool>, 1: int[], 2: array<int, float>, 3: int[]}
-	 *                                                                              occurrences (with extras), paid months, paid amount per month,
-	 *                                                                              months the bill has moved past with no payment recorded
+	 * @param int|null $pending the payment (key in $payments) Mark Paid would use for the date the bill is due on
+	 * @param bool $paidElsewhere whether Mark Paid's payment for that date is the other year's, so not among $payments
+	 * @return array{0: array<int, bool>, 1: int[], 2: array<int, float>, 3: int[], 4: array<int, list<array{date: string, amount: float, due: ?string}>>, 5: array<int, int>}
 	 */
-	private function attributePayments(array $occurrences, Bill $bill, array $payments, int $year): array {
-		$paidAmounts = [];
-		$slots = array_keys(array_filter($occurrences));
-		$slotDates = [];
-		foreach ($slots as $slot) {
-			$slotDates[$slot] = new \DateTimeImmutable($this->occurrenceDate($bill, $year, $slot));
+	private function attributePayments(array $occurrences, Bill $bill, array $payments, int $year, ?int $pending = null, bool $paidElsewhere = false): array {
+		$dayOf = fn (string $date): int => intdiv((new \DateTimeImmutable($date, new \DateTimeZone('UTC')))->getTimestamp(), 86400);
+
+		// Each date the bill falls on in an occurring month, as [month, date,
+		// day number], in date order, between the bill's last date of the
+		// year before and its first of the year after, which have no month
+		$scheduled = $this->occurrencesInYear($bill, $year);
+		$before = array_merge(...array_values($this->occurrencesInYear($bill, $year - 1)));
+		$after = array_merge(...array_values($this->occurrencesInYear($bill, $year + 1)));
+		$slots = [];
+		$last = end($before);
+		if ($last !== false) {
+			$slots[] = [null, $last, $dayOf($last)];
 		}
+		$own = [];
+		foreach (array_keys(array_filter($occurrences)) as $month) {
+			foreach ($scheduled[$month] ?? [$this->occurrenceDate($bill, $year, $month)] as $date) {
+				$own[] = count($slots);
+				$slots[] = [$month, $date, $dayOf($date)];
+			}
+		}
+		if ($after !== []) {
+			$slots[] = [null, $after[0], $dayOf($after[0])];
+		}
+		// A recurring schedule that began this year had nothing due before
+		// its first date
+		$begins = ($before === [] && $own !== [] && $bill->getFrequency() !== 'one-time') ? $slots[$own[0]][1] : null;
 
 		// Occurrences the bill itself still counts as owed are never paid
 		// targets. An inactive bill (ended, or a one-time bill after its
 		// payment) has nothing owed, so all of its occurrences are closed.
 		$nextDue = $bill->getNextDueDate();
 		$boundary = ($bill->getIsActive() && $nextDue !== null && $nextDue !== '' && $bill->getFrequency() !== 'one-time')
-			? new \DateTimeImmutable($nextDue)
+			? (new \DateTimeImmutable($nextDue))->format('Y-m-d')
 			: null;
-		$closedSlots = array_values(array_filter(
-			$slots,
-			fn (int $slot): bool => $boundary === null || $slotDates[$slot] < $boundary
-		));
+		// Due on an earlier date of the other year than its neighbour here,
+		// and paid: that date has no slot, and a payment of this year for it
+		// was in neither year (12 December paid on 2 January, with 19 and
+		// 26 December still owed, #399). It gets one, in date order.
+		if ($boundary !== null && (($pending !== null && isset($payments[$pending])) || $paidElsewhere)
+			&& (int)substr($boundary, 0, 4) !== $year && !in_array($boundary, array_column($slots, 1), true)) {
+			$at = 0;
+			while ($at < count($slots) && $slots[$at][1] < $boundary) {
+				$at++;
+			}
+			array_splice($slots, $at, 0, [[null, $boundary, $dayOf($boundary)]]);
+			$own = array_map(fn (int $slot): int => $slot >= $at ? $slot + 1 : $slot, $own);
+		}
+		$isClosed = fn (int $slot): bool => $boundary === null || $slots[$slot][1] < $boundary;
+		$closedSlots = array_values(array_filter($own, $isClosed));
 
 		// What the bill has definitely moved past. An inactive bill owes
 		// nothing; an active one-time bill owes its only occurrence, and an
 		// active recurring bill owes everything from next_due_date on. Kept
 		// apart from $closedSlots, which is deliberately wider for an active
-		// one-time bill so that its payment can land whenever it was made.
+		// one-time bill so that a payment made for it before it was marked
+		// paid (one linked to it) still lands on its date.
 		if (!$bill->getIsActive()) {
-			$settledSlots = $slots;
+			$settledSlots = $own;
 		} elseif ($boundary === null) {
 			$settledSlots = [];
 		} else {
 			$settledSlots = $closedSlots;
 		}
 
-		$nearest = function (\DateTimeImmutable $paidOn, array $candidates, ?int $window) use (&$slotDates): ?int {
+		// The date the bill is due on takes the payment Mark Paid would use
+		// for it, whichever year's that date is (a January date paid in
+		// December). Paid, it is closed to the rest like any date before it.
+		// Paid in the other year ($paidElsewhere), it is taken just the same,
+		// by a payment out of sight: one made near it in this year is its
+		// double. Left open, such a payment had no date to go to and was in
+		// neither year's totals (#399).
+		$pendingSlot = null;
+		if ((($pending !== null && isset($payments[$pending])) || $paidElsewhere) && $boundary !== null) {
+			foreach ($slots as $slot => [, $date]) {
+				if ($date === $boundary) {
+					$pendingSlot = $slot;
+					break;
+				}
+			}
+		}
+		if ($pendingSlot !== null) {
+			$isClosed = fn (int $slot): bool => $slot === $pendingSlot || $slots[$slot][1] < $boundary;
+			if (in_array($pendingSlot, $own, true)) {
+				// Last in date order, as it is the latest of them
+				$closedSlots[] = $pendingSlot;
+			}
+		}
+
+		$paidOn = array_map(fn (array $payment) => new \DateTimeImmutable($payment['date']), $payments);
+		$paidDay = array_map(fn (array $payment) => $dayOf($payment['date']), $payments);
+		$nearest = function (int $payment, array $candidates, ?int $window) use ($slots, $paidDay): ?int {
 			$best = null;
 			foreach ($candidates as $slot) {
-				$days = $paidOn->diff($slotDates[$slot])->days;
-				if ($window !== null && $days > $window) {
-					continue;
-				}
-				// Nearest wins; on a tie the earlier month (a late payment)
-				if ($best === null || $days < $best[0] || ($days === $best[0] && $slot < $best[1])) {
-					$best = [$days, $slot];
+				$apart = abs($paidDay[$payment] - $slots[$slot][2]);
+				// Nearest wins; on a tie the earlier date (a late payment)
+				if (($window === null || $apart <= $window) && ($best === null || $apart < $best[0])) {
+					$best = [$apart, $slot];
 				}
 			}
 			return $best[1] ?? null;
 		};
 
-		foreach ($payments as $payment) {
-			$paidOn = new \DateTimeImmutable($payment['date']);
-			$target = null;
-
-			if (count($slots) === 1) {
-				$target = $slots[0];
-			} else {
-				$unpaid = array_values(array_filter($closedSlots, fn (int $s): bool => !isset($paidAmounts[$s])));
-				$target = $nearest($paidOn, $unpaid, self::PAYMENT_MATCH_WINDOW_DAYS)
-					?? $nearest($paidOn, $closedSlots, self::PAYMENT_MATCH_WINDOW_DAYS);
-
-				if ($target === null) {
-					// Real money with no occurrence near it: its own month, as
-					// long as the bill does not still count that month as owed
-					$month = (int)$paidOn->format('n');
-					$monthDate = new \DateTimeImmutable($this->occurrenceDate($bill, $year, $month));
-					if ($boundary === null || $monthDate < $boundary) {
-						$target = $month;
-						$occurrences[$month] = true;
-						$slotDates[$month] = $monthDate;
-					} else {
-						$target = $nearest($paidOn, $closedSlots, null);
-					}
-				}
-			}
-
-			if ($target === null) {
-				continue; // nothing the bill counts as paid to put it on
-			}
-			$paidAmounts[$target] = ($paidAmounts[$target] ?? 0.0) + $payment['amount'];
+		$slotOf = [];   // payment => slot it paid
+		$monthOf = [];  // payment => an extra month of its own
+		// payment => the date of a single-date bill it didn't pay, so never a
+		// second payment: null, or the one-time date it was made after (#399)
+		$alone = [];
+		if ($pending !== null && $pendingSlot !== null) {
+			$slotOf[$pending] = $pendingSlot;
 		}
 
-		ksort($paidAmounts);
-		$unrecorded = array_values(array_filter($settledSlots, fn (int $slot): bool => !isset($paidAmounts[$slot])));
+		// Paid late for the year before's last date, or early for the year
+		// after's first: nearer that date than to any of this year's
+		foreach (array_keys($payments) as $payment) {
+			if (isset($slotOf[$payment])) {
+				continue;
+			}
+			$slot = $nearest($payment, array_keys($slots), self::PAYMENT_MATCH_WINDOW_DAYS);
+			if ($slot !== null && $slots[$slot][0] === null && $isClosed($slot)) {
+				$slotOf[$payment] = $slot;
+			}
+		}
 
-		return [$occurrences, array_keys($paidAmounts), $paidAmounts, $unrecorded];
+		// A single date in the year: it takes the payments within its due
+		// window, or with none that close the nearest one that can have paid
+		// it, on a tie the earlier. The rest are months of their own.
+		$single = (count($own) === 1 && $isClosed($own[0])) ? $own[0] : null;
+		if ($single !== null) {
+			$open = array_values(array_filter(array_keys($payments), fn (int $payment): bool => !isset($slotOf[$payment])));
+			$apart = fn (int $payment): int => abs($paidDay[$payment] - $slots[$single][2]);
+			$window = $this->dueDateToleranceDays($bill->getFrequency());
+			$onDate = array_values(array_filter($open, fn (int $payment): bool => $apart($payment) <= $window));
+			// Any payment, once the bill has moved past the date. A one-time
+			// bill still due can only have been paid by one made since it was
+			// last marked paid: those from before paid its old schedule.
+			$lastPaid = $bill->getLastPaidDate();
+			$since = ($lastPaid === null || $lastPaid === '') ? null : substr($lastPaid, 0, 10);
+			$candidates = (in_array($single, $settledSlots, true) || $since === null)
+				? $open
+				: array_values(array_filter($open, fn (int $payment): bool => $paidOn[$payment]->format('Y-m-d') > $since));
+			// Nor one from before a schedule that began this year: it paid
+			// none of its dates (a payment linked from an earlier bill)
+			if ($begins !== null) {
+				$candidates = array_values(array_filter($candidates, fn (int $payment): bool => $paidOn[$payment]->format('Y-m-d') >= $begins));
+			}
+			// The date the bill is due on has Mark Paid's payment already
+			if ($onDate === [] && $candidates !== [] && $single !== $pendingSlot) {
+				$best = $candidates[0];
+				foreach ($candidates as $payment) {
+					if ($apart($payment) < $apart($best)) {
+						$best = $payment;
+					}
+				}
+				$onDate = [$best];
+			}
+			// A one-time invoice paid again after its date: the payment stays
+			// in its month, but names the date it paid a second time. Its
+			// tooltip read like an ordinary payment of that month (#399).
+			$againAfter = $bill->getFrequency() === 'one-time' ? $slots[$single][1] : null;
+			foreach ($open as $payment) {
+				$month = (int)$paidOn[$payment]->format('n');
+				if (in_array($payment, $onDate, true)) {
+					$slotOf[$payment] = $single;
+				} elseif ($single === $pendingSlot || $boundary === null || $this->occurrenceDate($bill, $year, $month) < $boundary) {
+					// The date Mark Paid's payment pays, in this year or the
+					// other, owes nothing more: a payment outside its due
+					// window is a month of its own. March's went to a January
+					// paid in December as its second payment (#399).
+					$monthOf[$payment] = $month;
+					$alone[$payment] = ($againAfter !== null && $paidOn[$payment]->format('Y-m-d') > $againAfter) ? $againAfter : null;
+					$occurrences[$month] = true;
+				} else {
+					// A month the bill still owes can't hold it: it stays with the date
+					$slotOf[$payment] = $single;
+				}
+			}
+		}
+
+		// Every closed occurrence and payment within reach of each other,
+		// nearest first; on a tie the earlier occurrence, then the earlier
+		// payment. Each pairing claims both.
+		$pairs = [];
+		foreach (array_keys($payments) as $payment) {
+			if (isset($slotOf[$payment]) || isset($monthOf[$payment])) {
+				continue;
+			}
+			foreach ($closedSlots as $slot) {
+				$apart = abs($paidDay[$payment] - $slots[$slot][2]);
+				if ($apart <= self::PAYMENT_MATCH_WINDOW_DAYS) {
+					$pairs[] = [$apart, $slot, $payment];
+				}
+			}
+		}
+		sort($pairs);
+		$claimed = $pendingSlot === null ? [] : [$pendingSlot => true];
+		foreach ($pairs as [, $slot, $payment]) {
+			if (!isset($slotOf[$payment]) && !isset($claimed[$slot])) {
+				$slotOf[$payment] = $slot;
+				$claimed[$slot] = true;
+			}
+		}
+
+		// A recurring bill's only date this year, still owed and with no
+		// payment Mark Paid would use: no payment pays it
+		$owedSingle = count($own) === 1 && !$isClosed($own[0]);
+		// What a payment left over can be the second payment of: the dates
+		// closed this year, and the date the bill is due on when that is the
+		// other year's. A second payment in January of a December date paid
+		// in December had none, and was in neither year (#399).
+		$doubleTargets = ($pendingSlot !== null && !in_array($pendingSlot, $closedSlots, true))
+			? [...$closedSlots, $pendingSlot]
+			: $closedSlots;
+		foreach ($paidOn as $payment => $date) {
+			if (isset($slotOf[$payment]) || isset($monthOf[$payment])) {
+				continue;
+			}
+			// Paid twice: with the nearest closed occurrence. A payment from
+			// before the schedule began paid none of its dates (one linked
+			// from an earlier bill for the same thing), so it is no second
+			// payment for the first of them (#399).
+			if ($begins === null || $date->format('Y-m-d') >= $begins) {
+				$slot = $nearest($payment, $doubleTargets, self::PAYMENT_MATCH_WINDOW_DAYS);
+				if ($slot !== null) {
+					$slotOf[$payment] = $slot;
+					continue;
+				}
+			}
+			// Real money with no occurrence near it, or from before the
+			// schedule began: its own month, as long as the bill does not
+			// still count that month as owed. A single-date bill's, whatever
+			// the month: there is no other date to put it on.
+			$month = (int)$date->format('n');
+			if ($owedSingle) {
+				$monthOf[$payment] = $month;
+				$alone[$payment] = null;
+				$occurrences[$month] = true;
+			} elseif ($boundary === null || $this->occurrenceDate($bill, $year, $month) < $boundary) {
+				$monthOf[$payment] = $month;
+				$occurrences[$month] = true;
+			} elseif (($slot = $nearest($payment, $doubleTargets, null)) !== null) {
+				$slotOf[$payment] = $slot;
+			}
+			// else nothing the bill counts as paid to put it on
+		}
+
+		// A single-date bill's payments from before its date that paid no
+		// date, made in one month within a few days of the first of them:
+		// one date of a schedule the bill no longer has, paid twice. A
+		// monthly bill switched to One-Time lost the marker of a month it
+		// had paid twice (#399). Instalments a week apart stay apart.
+		$besideKey = []; // payment => the key it shares with those beside it
+		$singleDate = count($own) === 1 ? $slots[$own[0]][1] : null;
+		if ($singleDate !== null) {
+			$first = null;
+			foreach (array_keys($payments) as $payment) {
+				if (!isset($monthOf[$payment]) || !array_key_exists($payment, $alone) || $alone[$payment] !== null
+					|| $paidOn[$payment]->format('Y-m-d') >= $singleDate) {
+					continue;
+				}
+				if ($first === null || $monthOf[$first] !== $monthOf[$payment]
+					|| $paidDay[$payment] - $paidDay[$first] > OneTimeSettlement::BESIDE_DAYS) {
+					$first = $payment;
+				}
+				$besideKey[$payment] = 'beside' . $first;
+			}
+		}
+
+		$paidAmounts = [];
+		$paidDetails = [];
+		$perDate = []; // month => what each date shown in it was paid, by how many payments
+		// The other year's payment of the date counts towards it being paid twice
+		if ($paidElsewhere && $pendingSlot !== null && $slots[$pendingSlot][0] !== null) {
+			$perDate[$slots[$pendingSlot][0]][$pendingSlot] = 1;
+		}
+		$paidMoreThanOnce = [];
+		foreach ($payments as $payment => $paid) {
+			if (isset($slotOf[$payment])) {
+				[$month, $due] = $slots[$slotOf[$payment]];
+				$key = $slotOf[$payment];
+				if ($month === null) {
+					// The year before's or after's date: shown where the money went out
+					$month = (int)$paidOn[$payment]->format('n');
+					$occurrences[$month] = true;
+				}
+			} elseif (isset($monthOf[$payment])) {
+				// Payments of a month with no date in it share one, except
+				// those of a single-date bill, which paid nothing twice
+				// unless they were made beside each other ($besideKey). One
+				// that paid a one-time invoice again in the invoice's own
+				// month counts with the date there, so the month reads as
+				// paid twice.
+				[$month, $due, $key] = array_key_exists($payment, $alone)
+					? [$monthOf[$payment], $alone[$payment], $besideKey[$payment] ?? ('alone' . $payment)]
+					: [$monthOf[$payment], null, 'month'];
+				if ($due !== null && $single !== null && $slots[$single][0] === $month) {
+					$key = $single;
+				}
+			} else {
+				continue;
+			}
+			$paidAmounts[$month] = self::sumOf($paidAmounts[$month] ?? 0.0, $paid['amount']);
+			$paidDetails[$month][] = ['date' => $paid['date'], 'amount' => $paid['amount'], 'due' => $due];
+			$times = ($perDate[$month][$key] ?? 0) + 1;
+			$perDate[$month][$key] = $times;
+			if ($times > 1) {
+				$paidMoreThanOnce[$month] = max($paidMoreThanOnce[$month] ?? 0, $times);
+			}
+		}
+		ksort($paidAmounts);
+		ksort($paidDetails);
+		ksort($paidMoreThanOnce);
+
+		$unrecorded = [];
+		foreach ($settledSlots as $slot) {
+			$month = $slots[$slot][0]; // always this year's: only those are settled
+			if ($month !== null && !isset($paidAmounts[$month])) {
+				$unrecorded[$month] = true;
+			}
+		}
+
+		return [$occurrences, array_keys($paidAmounts), $paidAmounts, array_keys($unrecorded), $paidDetails, $paidMoreThanOnce];
+	}
+
+	/** Amounts added up without float drift (#274); scale 8 keeps a crypto amount whole. */
+	private static function sumOf(float ...$amounts): float {
+		return MoneyCalculator::toFloat(MoneyCalculator::sum($amounts, 8));
 	}
 
 	/**
@@ -3072,6 +4023,7 @@ class BillService {
 	 *
 	 *  - Nothing occurs before the start date or, without one, before the
 	 *    bill existed (#333); nothing after the end date.
+	 *  - Nothing occurs after an inactive bill stopped (stoppedOn()).
 	 *  - Remaining payments cap what is still to come from the next due date.
 	 *  - A quarterly, half-yearly or yearly bill with no month stored takes
 	 *    it from its next due date; a weekly one with no start date takes its
@@ -3113,6 +4065,10 @@ class BillService {
 		$endDate = $bill->getEndDate() ?: null;
 		if ($endDate !== null) {
 			$to = min($to, $endDate);
+		}
+		$stopped = $this->stoppedOn($bill);
+		if ($stopped !== null) {
+			$to = min($to, $stopped);
 		}
 		if ($from > $to) {
 			return [];
@@ -3157,6 +4113,38 @@ class BillService {
 			$byMonth[(int)substr($date, 5, 2)][] = $date;
 		}
 		return $byMonth;
+	}
+
+	/**
+	 * The last date an inactive recurring bill went through, or null when
+	 * nothing but its schedule says where it ends. Its schedule runs on past
+	 * the day it stopped, and a bill switched off after its March payment
+	 * was drawn April to December as months it had moved past with no
+	 * payment recorded (#399).
+	 *
+	 * Switched off by hand, or with its account closed, a bill keeps its
+	 * next due date and never came to it: it went through every date before
+	 * that one, skipped ones included. Out of payments, it stopped with its
+	 * last one, which can come a little before its date. A bill past its end
+	 * date stops there already.
+	 */
+	private function stoppedOn(Bill $bill): ?string {
+		if ($bill->getIsActive() || $bill->getFrequency() === 'one-time') {
+			return null;
+		}
+		$nextDue = $bill->getNextDueDate();
+		if ($nextDue !== null && $nextDue !== '') {
+			return (new \DateTimeImmutable($nextDue))->sub(new \DateInterval('P1D'))->format('Y-m-d');
+		}
+		$lastPaid = $bill->getLastPaidDate();
+		$endDate = $bill->getEndDate();
+		$remaining = $bill->getRemainingPayments();
+		$ranOut = $remaining !== null && $remaining <= 0;
+		if ($lastPaid === null || $lastPaid === '' || ($endDate !== null && $endDate !== '' && !$ranOut)) {
+			return null;
+		}
+		return (new \DateTimeImmutable($lastPaid))
+			->add(new \DateInterval('P' . $this->dueDateToleranceDays($bill->getFrequency()) . 'D'))->format('Y-m-d');
 	}
 
 	/**

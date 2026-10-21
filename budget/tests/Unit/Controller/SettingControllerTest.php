@@ -594,4 +594,121 @@ class SettingControllerTest extends TestCase {
 		$controller->destroy('import_folder');
 		$controller->reset();
 	}
+
+	// ── colour scheme (#432) ────────────────────────────────────────
+
+	/** @return array<string, string> key => value actually stored, over the whole request */
+	private function captureStoredValues(): \ArrayObject {
+		$stored = new \ArrayObject();
+		$this->mapper->method('findByKey')->willThrowException(new DoesNotExistException(''));
+		$this->mapper->method('insert')->willReturnCallback(function (Setting $s) use ($stored) {
+			$stored[$s->getKey()] = $s->getValue();
+			return $s;
+		});
+		return $stored;
+	}
+
+	#[\PHPUnit\Framework\Attributes\DataProvider('colourSchemes')]
+	public function testUpdateAcceptsColourScheme(string $scheme): void {
+		$this->request->method('getParams')->willReturn(['amount_color_scheme' => $scheme]);
+		$stored = $this->captureStoredValues();
+
+		$response = $this->controller->update();
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame($scheme, $stored['amount_color_scheme']);
+	}
+
+	public static function colourSchemes(): array {
+		return ['default' => ['default'], 'colorblind' => ['colorblind'], 'custom' => ['custom']];
+	}
+
+	public function testUpdateRefusesUnknownScheme(): void {
+		// date_format comes first and is valid: all or nothing
+		$this->request->method('getParams')->willReturn([
+			'date_format' => 'd/m/Y',
+			'amount_color_scheme' => 'pink',
+		]);
+		$this->mapper->expects($this->never())->method('insert');
+		$this->mapper->expects($this->never())->method('update');
+
+		$response = $this->controller->update();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Invalid colour setting', $response->getData()['error']);
+	}
+
+	public function testUpdateCanonicalisesCustomColours(): void {
+		$this->request->method('getParams')->willReturn([
+			'amount_color_custom' => '{"darkNegative":"#F5A35C","lightPositive":"#0B62A4","lightNegative":"#A84800","darkPositive":"#6CB4EE"}',
+		]);
+		$stored = $this->captureStoredValues();
+		$canonical = '{"lightPositive":"#0b62a4","lightNegative":"#a84800","darkPositive":"#6cb4ee","darkNegative":"#f5a35c"}';
+
+		$response = $this->controller->update();
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame($canonical, $stored['amount_color_custom']);
+		$this->assertSame($canonical, $response->getData()['settings']['amount_color_custom']);
+	}
+
+	public function testUpdateRefusesMalformedCustomColours(): void {
+		$this->request->method('getParams')->willReturn([
+			'date_format' => 'd/m/Y',
+			'amount_color_custom' => '{"lightPositive":"red"}',
+		]);
+		$this->mapper->expects($this->never())->method('insert');
+		$this->mapper->expects($this->never())->method('update');
+
+		$response = $this->controller->update();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Invalid colour setting', $response->getData()['error']);
+	}
+
+	public function testUpdateKeyValidatesColourKeys(): void {
+		$canonical = '{"lightPositive":"#0b62a4","lightNegative":"#a84800","darkPositive":"#6cb4ee","darkNegative":"#f5a35c"}';
+		$values = [
+			['amount_color_scheme', 'pink', false],
+			['amount_color_scheme', 'colorblind', true],
+			['amount_color_custom', 'not json', false],
+			['amount_color_custom', preg_replace_callback('/#[0-9a-f]{6}/', static fn (array $m) => strtoupper($m[0]), $canonical), true],
+		];
+		foreach ($values as [$key, $value, $ok]) {
+			$request = $this->createMock(IRequest::class);
+			$request->method('getParam')->with('value')->willReturn($value);
+			$mapper = $this->createMock(SettingMapper::class);
+			$mapper->method('findByKey')->willThrowException(new DoesNotExistException(''));
+			$stored = null;
+			$mapper->expects($ok ? $this->once() : $this->never())->method('insert')
+				->willReturnCallback(function (Setting $s) use (&$stored) {
+					$stored = $s->getValue();
+					return $s;
+				});
+			$l = $this->createMock(IL10N::class);
+			$l->method('t')->willReturnArgument(0);
+			$controller = new SettingController($request, $mapper, $this->createMock(GranularShareService::class), $l, 'user1', $this->logger, $this->importFolders);
+
+			$response = $controller->updateKey($key);
+
+			if ($ok) {
+				$this->assertSame(Http::STATUS_OK, $response->getStatus(), "$key=$value");
+				$expected = $key === 'amount_color_custom' ? $canonical : $value;
+				$this->assertSame($expected, $stored);
+				$this->assertSame($expected, $response->getData()['value']);
+			} else {
+				$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus(), "$key=$value");
+				$this->assertSame('Invalid colour setting', $response->getData()['error']);
+			}
+		}
+	}
+
+	public function testIndexIncludesColourDefaults(): void {
+		$this->mapper->method('findAll')->willReturn([]);
+
+		$data = $this->controller->index()->getData();
+
+		$this->assertSame('default', $data['amount_color_scheme']);
+		$this->assertSame(\OCA\Budget\Service\AmountColours::DEFAULT_CUSTOM_JSON, $data['amount_color_custom']);
+	}
 }

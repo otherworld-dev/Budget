@@ -9,6 +9,14 @@ import { apiFetch } from '../../utils/api.js';
 import { refreshBankSyncNav } from '../bank-sync/bankSyncStatus.js';
 import { helpDocUrl } from '../help/HelpModule.js';
 import ImportFolders, { leftAloneNotice } from './ImportFolders.js';
+import {
+    applyAmountColours,
+    parseCustom,
+    contrastRatio,
+    resolveScheme,
+    isDarkTheme,
+    COLORBLIND,
+} from '../../utils/amountColours.js';
 
 export default class SettingsModule {
     constructor(app) {
@@ -283,6 +291,7 @@ export default class SettingsModule {
             }
         });
 
+        this.syncAmountColourControls();
     }
 
     /**
@@ -336,12 +345,27 @@ export default class SettingsModule {
         view.dataset.autosaveBound = '1';
 
         view.addEventListener('change', (e) => {
+            // The colour pickers carry no setting-input class: four of them
+            // make one setting, so they save through the hidden input.
+            if (e.target.closest('.amount-color-picker')) {
+                this.onAmountColourPickerChange();
+                return;
+            }
             const el = e.target.closest('.setting-input');
             if (!el) return;
             // The preview is the only feedback these controls give, so it
             // follows the change at once rather than waiting for the save.
             if (SettingsModule.PREVIEW_INPUTS.includes(el.id)) this.updateNumberFormatPreview();
+            if (el.id === 'setting-amount-color-scheme') this.syncAmountColourControls();
             this.saveSetting(el);
+        });
+
+        // A colour picker fires input all the while it is dragged and change
+        // only when it closes; the preview follows the drag, the save waits.
+        view.addEventListener('input', (e) => {
+            if (!e.target.closest('.amount-color-picker')) return;
+            this.updateAmountColourPreview();
+            this.updateAmountColourWarnings();
         });
     }
 
@@ -452,6 +476,7 @@ export default class SettingsModule {
                 } else {
                     element.value = stored;
                 }
+                if (key === 'amount_color_custom') this.syncAmountColourControls();
             }
         }
     }
@@ -459,6 +484,9 @@ export default class SettingsModule {
     /** What a changed setting has to refresh elsewhere in the app. */
     applySettingSideEffects(changed) {
         this.updateAccountFormDefaults(changed);
+        if ('amount_color_scheme' in changed || 'amount_color_custom' in changed) {
+            applyAmountColours(this.settings.amount_color_scheme, this.settings.amount_color_custom);
+        }
         if ('date_format' in changed || 'first_day_of_week' in changed) {
             initDatePickers(this.app.settings);
         }
@@ -577,6 +605,114 @@ export default class SettingsModule {
         const previewElement = document.getElementById('number-format-preview');
         if (previewElement) {
             previewElement.textContent = formatted;
+        }
+    }
+
+    /** The four custom-colour pickers, keyed as the stored JSON is. */
+    static AMOUNT_COLOUR_PICKERS = {
+        lightPositive: 'amount-color-light-positive',
+        lightNegative: 'amount-color-light-negative',
+        darkPositive: 'amount-color-dark-positive',
+        darkNegative: 'amount-color-dark-negative',
+    };
+
+    /** Smallest contrast ratio a text colour should have on its background (WCAG AA). */
+    static AMOUNT_COLOUR_MIN_CONTRAST = 4.5;
+
+    /**
+     * What each picker's colour is read against: the light theme's white, and
+     * both dark-theme surfaces (the page and the raised cards on it).
+     */
+    static AMOUNT_COLOUR_BACKGROUNDS = {
+        lightPositive: ['#ffffff'],
+        lightNegative: ['#ffffff'],
+        darkPositive: ['#171717', '#292929'],
+        darkNegative: ['#171717', '#292929'],
+    };
+
+    /** The pickers' current colours, lowercase, keyed as the stored JSON is. */
+    readAmountColourPickers() {
+        const colours = {};
+        for (const [key, id] of Object.entries(SettingsModule.AMOUNT_COLOUR_PICKERS)) {
+            colours[key] = (document.getElementById(id)?.value || '').toLowerCase();
+        }
+        return colours;
+    }
+
+    /**
+     * Bring the colour controls in line with the stored setting: pickers from
+     * the hidden JSON (the preset's colours when it is missing or unusable),
+     * the custom rows only for Custom, then the warnings and the preview.
+     */
+    syncAmountColourControls() {
+        const scheme = document.getElementById('setting-amount-color-scheme')?.value;
+        const stored = parseCustom(document.getElementById('setting-amount-color-custom')?.value);
+        const preset = {
+            lightPositive: COLORBLIND.light.positive,
+            lightNegative: COLORBLIND.light.negative,
+            darkPositive: COLORBLIND.dark.positive,
+            darkNegative: COLORBLIND.dark.negative,
+        };
+        const colours = stored ?? preset;
+        for (const [key, id] of Object.entries(SettingsModule.AMOUNT_COLOUR_PICKERS)) {
+            const picker = document.getElementById(id);
+            if (picker) picker.value = colours[key];
+        }
+
+        const rows = document.getElementById('amount-color-custom-rows');
+        if (rows) rows.hidden = scheme !== 'custom';
+
+        this.updateAmountColourWarnings();
+        this.updateAmountColourPreview();
+    }
+
+    /** A picker closed on a colour: store it, show how it reads, save it. */
+    onAmountColourPickerChange() {
+        const hidden = document.getElementById('setting-amount-color-custom');
+        if (!hidden) return;
+        hidden.value = JSON.stringify(this.readAmountColourPickers());
+        this.updateAmountColourWarnings();
+        this.updateAmountColourPreview();
+        this.saveSetting(hidden);
+    }
+
+    /**
+     * Flag a picker whose colour is hard to read. Only a warning: the choice
+     * stays the user's and is saved either way.
+     */
+    updateAmountColourWarnings() {
+        const colours = this.readAmountColourPickers();
+        for (const [key, id] of Object.entries(SettingsModule.AMOUNT_COLOUR_PICKERS)) {
+            const warning = document.getElementById(id)?.parentElement
+                ?.querySelector('.amount-color-contrast-warning');
+            if (!warning) continue;
+            const hard = SettingsModule.AMOUNT_COLOUR_BACKGROUNDS[key].some(
+                (background) => contrastRatio(colours[key], background) < SettingsModule.AMOUNT_COLOUR_MIN_CONTRAST,
+            );
+            warning.hidden = !hard;
+        }
+    }
+
+    /**
+     * Draw the preview from the controls as they are now, without saving. The
+     * preview's own variables stand in for the scheme (the page's stylesheet
+     * only follows what is saved), in the colours of the theme being viewed.
+     * Under Default nothing is set, so it shows the app's own colours.
+     */
+    updateAmountColourPreview() {
+        const preview = document.getElementById('amount-color-preview');
+        if (!preview) return;
+
+        const scheme = document.getElementById('setting-amount-color-scheme')?.value;
+        const resolved = resolveScheme(scheme, JSON.stringify(this.readAmountColourPickers()));
+        const colours = resolved ? resolved[isDarkTheme() ? 'dark' : 'light'] : null;
+
+        for (const [property, kind] of [['--budget-color-positive', 'positive'], ['--budget-color-negative', 'negative']]) {
+            if (colours) {
+                preview.style.setProperty(property, colours[kind]);
+            } else {
+                preview.style.removeProperty(property);
+            }
         }
     }
 

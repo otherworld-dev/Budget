@@ -153,6 +153,7 @@ describe('markTransferUnpaid', () => {
         expect(showError).toHaveBeenCalledWith(
             expect.stringContaining('This bill has no recorded payment to undo'),
         );
-        expect(mod.loadTransfers).not.toHaveBeenCalled();
+        // Reloaded, not left offering the refused Mark Unpaid (#399)
+        expect(mod.loadTransfers).toHaveBeenCalledTimes(1);
     });
 });

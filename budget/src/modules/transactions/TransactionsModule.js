@@ -13,14 +13,17 @@
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning } from '../../utils/notifications.js';
-import { confirmDialog } from '../../utils/dialogs.js';
+import { confirmDialog, alertDialog } from '../../utils/dialogs.js';
 import { setDateValue } from '../../utils/datepicker.js';
 import { downloadTransactionsCsv } from '../../utils/helpers.js';
 import { apiFetch, ApiError } from '../../utils/api.js';
+import { semanticColour } from '../../utils/amountColours.js';
 import { once } from '../../utils/submitGuard.js';
 import { selectPossiblyUnavailable, unavailableCategoryLabel } from '../../utils/formSelects.js';
 import { openAccounts, pickableAccounts, accountOptionLabel, selectAccountValue, usableCategories, categoryTreeOf, sharedAccountOwner, isReadOnlyShare } from '../../utils/accounts.js';
 import { offerableTags } from '../../utils/tags.js';
+import { chooseBill, linkableBills } from '../../utils/billLinkDialog.js';
+import { floatCellPopup } from '../../utils/cellPopup.js';
 import flatpickr from 'flatpickr';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 
@@ -120,9 +123,13 @@ export default class TransactionsModule {
         filterControls.forEach(controlId => {
             const control = document.getElementById(controlId);
             if (control) {
-                const eventType = control.type === 'text' || control.type === 'number' ? 'input' : 'change';
+                // Typed controls filter as you type, debounced. The search box
+                // is type="search", and left out of this it only applied on
+                // Enter or blur (#399).
+                const typed = ['text', 'number', 'search'].includes(control.type);
+                const eventType = typed ? 'input' : 'change';
                 control.addEventListener(eventType, () => {
-                    if (control.type === 'text' || control.type === 'number') {
+                    if (typed) {
                         // Debounce text/number inputs
                         clearTimeout(this.filterTimeout);
                         this.filterTimeout = setTimeout(() => {
@@ -334,11 +341,12 @@ export default class TransactionsModule {
 
         // Table sorting and selection
         document.addEventListener('click', (e) => {
-            // Column sorting
-            if (e.target.closest('.sortable')) {
-                const header = e.target.closest('.sortable');
-                const field = header.getAttribute('data-sort');
-                this.sortTransactions(field);
+            // Column sorting, this list's own headings only: the account
+            // register and the rules table have sortable headings too, and
+            // a click on one of them re-sorted and reloaded this list
+            const header = e.target.closest('#transactions-table th.sortable');
+            if (header) {
+                this.sortTransactions(header.getAttribute('data-sort'));
             }
 
             // Select all checkbox
@@ -824,11 +832,11 @@ export default class TransactionsModule {
         }
 
         // Update sort indicators
-        document.querySelectorAll('.sort-indicator').forEach(indicator => {
+        document.querySelectorAll('#transactions-table .sort-indicator').forEach(indicator => {
             indicator.className = 'sort-indicator';
         });
 
-        const currentHeader = document.querySelector(`[data-sort="${field}"] .sort-indicator`);
+        const currentHeader = document.querySelector(`#transactions-table [data-sort="${field}"] .sort-indicator`);
         if (currentHeader) {
             currentHeader.className = `sort-indicator ${this.app.currentSort.direction}`;
         }
@@ -2171,6 +2179,9 @@ export default class TransactionsModule {
             // Set up inline split toggle
             this.setupInlineSplitToggle();
 
+            // Description is needed only while no vendor names the transaction
+            this._bindDescriptionRule();
+
             // "More options" starts open when this transaction already uses
             // something in it; receipt scanning opens it too (setupReceiptScan).
             const extras = document.getElementById('transaction-extras');
@@ -2185,6 +2196,35 @@ export default class TransactionsModule {
             modal.style.display = 'flex';
             this._keepKeyboardDownWhenViewing(transaction);
         }
+    }
+
+    /**
+     * Keep the form's Description required only while its Vendor is empty
+     * (#399). Mark Paid and Mark Received book their rows with the bill's
+     * or income's name as the vendor and no description, and the edit form
+     * wouldn't save one of them, not even a new date, until a description
+     * was made up for it. The server takes either (TransactionController).
+     * Bound to the vendor field once; 'change' too, which a receipt scan
+     * fires when it fills the field in.
+     */
+    _bindDescriptionRule() {
+        const vendor = document.getElementById('transaction-vendor');
+        if (vendor && !vendor.dataset.descriptionRule) {
+            vendor.dataset.descriptionRule = '1';
+            vendor.addEventListener('input', () => this._syncDescriptionRequired());
+            vendor.addEventListener('change', () => this._syncDescriptionRequired());
+        }
+        this._syncDescriptionRequired();
+    }
+
+    /** Description's required flag and its asterisk, from the vendor as it stands */
+    _syncDescriptionRequired() {
+        const description = document.getElementById('transaction-description');
+        if (!description) return;
+        const required = (document.getElementById('transaction-vendor')?.value ?? '').trim() === '';
+        description.required = required;
+        const marker = document.querySelector('label[for="transaction-description"] .required');
+        if (marker) marker.hidden = !required;
     }
 
     /** The account picked in the transaction form, if any. */
@@ -3393,7 +3433,7 @@ export default class TransactionsModule {
             // A readable green when balanced (the theme's success green was too
             // dark on the dark background), and the app's standard negative-amount
             // red while there's still an amount left to allocate.
-            el.style.color = balanced ? '#4caf50' : 'var(--budget-color-negative)';
+            el.style.color = balanced ? semanticColour('positive', '#4caf50') : 'var(--budget-color-negative)';
         }
     }
 
@@ -3891,6 +3931,93 @@ export default class TransactionsModule {
         } catch (error) {
             showError(error.message || t('budget', 'Failed to unlink transaction'));
         }
+    }
+
+    /**
+     * Link to bill (#399): file the row under a bill paid from its account,
+     * as one of the bill's payments. Only the row changes; the bill keeps
+     * its due date (TransactionService::attachToBill()).
+     */
+    async linkTransactionToBill(transactionId) {
+        const transaction = this.transactions?.find(tx => tx.id === transactionId);
+        if (!transaction) {
+            showWarning(t('budget', 'Transaction not found'));
+            return;
+        }
+
+        await once(`transaction-bill-${transactionId}`, null, async () => {
+            let bills;
+            try {
+                bills = await apiFetch('/apps/budget/api/bills', { errorMessage: t('budget', 'Failed to load bills') });
+            } catch (error) {
+                showError(error.message);
+                return;
+            }
+
+            const billId = await chooseBill(linkableBills(bills, transaction), this.settings, transaction);
+            if (billId === null) {
+                return;
+            }
+
+            try {
+                await apiFetch(`/apps/budget/api/transactions/${transactionId}/bill`, {
+                    method: 'POST',
+                    body: { billId },
+                    errorMessage: t('budget', 'Failed to link the transaction to the bill'),
+                });
+            } catch (error) {
+                // A refusal says why: another bill's payment, another account
+                showError(error.message);
+                return;
+            }
+
+            const bill = (bills || []).find(b => b.id === billId);
+            showSuccess(t('budget', 'Transaction linked to {bill}', { bill: bill?.name ?? '' }));
+            await this.app.loadTransactions();
+        });
+    }
+
+    /**
+     * Unlink from bill (#399): take the row out of the bill it is filed
+     * under. It stays in its account; the bill stops counting it.
+     */
+    async unlinkTransactionFromBill(transactionId) {
+        // The bill's latest payment is Mark Unpaid's to undo, and the server
+        // refuses it: say so rather than ask for a confirmation it ignores.
+        // The list says which rows those are; the refusal below covers a
+        // list loaded before the payment.
+        const row = (this.transactions || []).find(tx => tx.id === transactionId);
+        if (row?.billLatestPayment) {
+            await alertDialog(
+                t('budget', 'This is the bill\'s latest payment. Use Mark Unpaid on the bill to undo it.'),
+                { title: t('budget', 'Unlink from bill') }
+            );
+            return;
+        }
+
+        if (!await confirmDialog(
+            t('budget', 'Unlink this transaction from its bill? It stays in the account, but the bill no longer counts it as a payment.'),
+            { confirmLabel: t('budget', 'Unlink from bill') }
+        )) {
+            return;
+        }
+
+        await once(`transaction-bill-${transactionId}`, null, async () => {
+            try {
+                await apiFetch(`/apps/budget/api/transactions/${transactionId}/bill`, {
+                    method: 'DELETE',
+                    errorMessage: t('budget', 'Failed to unlink the transaction from the bill'),
+                });
+            } catch (error) {
+                // The bill's latest payment is Mark Unpaid's to undo, and the
+                // server says so
+                showError(error.message);
+                return;
+            }
+
+            showSuccess(t('budget', 'Transaction unlinked from its bill'));
+            await this.app.loadTransactions();
+        });
     }
 
     // Transaction splits
@@ -4681,6 +4808,9 @@ export default class TransactionsModule {
         }
 
         cell.classList.add('editing');
+        // The cell's full-text tooltip would sit over the editor; the table
+        // is drawn again when the edit ends, with the new text
+        cell.removeAttribute('title');
         this.currentEditingCell = cell;
         this.originalValue = value;
 
@@ -4830,6 +4960,12 @@ export default class TransactionsModule {
 
         container.appendChild(input);
         container.appendChild(dropdown);
+        // Fixed to the window, so the table's scrolling box can't cut it off,
+        // and closed as Escape closes it once the rows scroll the cell out of
+        // the box (#399)
+        const placeDropdown = floatCellPopup(dropdown, container, {
+            onHidden: () => finish(() => this.cancelInlineEdit(cell)),
+        });
 
         const showDropdown = (filter = '') => {
             const filtered = filter
@@ -4858,10 +4994,23 @@ export default class TransactionsModule {
             ` + dropdown.innerHTML;
 
             dropdown.style.display = 'block';
+            placeDropdown();
         };
 
         input.addEventListener('focus', () => showDropdown(input.value));
         input.addEventListener('input', () => showDropdown(input.value));
+
+        // One way out per edit, whichever comes first: a pick, Enter, Escape,
+        // or the blur that follows a click outside. Escape drew the table
+        // again but left the old cell marked as editing, so the blur 200 ms
+        // later saved a category the arrow keys had moved to (#399).
+        let finished = false;
+        const finish = (action) => {
+            if (finished) return;
+            finished = true;
+            dropdown.style.display = 'none';
+            action();
+        };
 
         // Handle category selection on mousedown for Safari/WebKit compatibility
         dropdown.addEventListener('mousedown', (e) => {
@@ -4872,8 +5021,7 @@ export default class TransactionsModule {
             if (item) {
                 input.dataset.categoryId = item.dataset.categoryId;
                 input.value = item.dataset.categoryName;
-                dropdown.style.display = 'none';
-                this.saveInlineEdit(cell, 'categoryId', item.dataset.categoryId);
+                finish(() => this.saveInlineEdit(cell, 'categoryId', item.dataset.categoryId));
             }
         });
 
@@ -4884,26 +5032,27 @@ export default class TransactionsModule {
 
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
-                this.cancelInlineEdit(cell);
+                finish(() => this.cancelInlineEdit(cell));
             } else if (e.key === 'Enter') {
                 e.preventDefault();
-                dropdown.style.display = 'none';
-                this.saveInlineEdit(cell, 'categoryId', input.dataset.categoryId);
+                finish(() => this.saveInlineEdit(cell, 'categoryId', input.dataset.categoryId));
             } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
                 e.preventDefault();
                 this.navigateCategoryDropdown(dropdown, e.key === 'ArrowDown' ? 1 : -1, input);
             }
         });
 
+        // A click outside keeps what was picked, as the other inline editors do
         input.addEventListener('blur', () => {
             setTimeout(() => {
                 if (!container.contains(document.activeElement)) {
-                    dropdown.style.display = 'none';
-                    if (input.dataset.categoryId !== (currentCategoryId || '')) {
-                        this.saveInlineEdit(cell, 'categoryId', input.dataset.categoryId);
-                    } else {
-                        this.cancelInlineEdit(cell);
-                    }
+                    finish(() => {
+                        if (input.dataset.categoryId !== (currentCategoryId || '')) {
+                            this.saveInlineEdit(cell, 'categoryId', input.dataset.categoryId);
+                        } else {
+                            this.cancelInlineEdit(cell);
+                        }
+                    });
                 }
             }, 200);
         });
@@ -5004,6 +5153,11 @@ export default class TransactionsModule {
 
             const currentTagIds = this.app.getTransactionTagIds(transaction.id);
             const selectedTags = new Set(currentTagIds);
+            const initialTags = new Set(currentTagIds);
+            // The tag the arrow keys are on, and whether it has been ticked
+            // or unticked since they got there
+            let highlightedTagId = null;
+            let highlightTouched = false;
 
             const container = document.createElement('div');
             container.className = 'tags-autocomplete';
@@ -5019,6 +5173,12 @@ export default class TransactionsModule {
 
             container.appendChild(input);
             container.appendChild(dropdown);
+            // Fixed to the window, so the table's scrolling box can't cut it
+            // off, and closed as Escape closes it once the rows scroll the
+            // cell out of the box (#399)
+            const placeDropdown = floatCellPopup(dropdown, container, {
+                onHidden: () => finish(false),
+            });
 
             const allTags = [];
 
@@ -5072,8 +5232,9 @@ export default class TransactionsModule {
                     html += `<div class="tags-group-header">${dom.escapeHtml(group.name)}</div>`;
                     group.tags.forEach(tag => {
                         const isSelected = selectedTags.has(tag.id);
+                        const isHighlighted = tag.id === highlightedTagId;
                         html += `
-                            <div class="tags-autocomplete-item ${isSelected ? 'selected' : ''}"
+                            <div class="tags-autocomplete-item ${isSelected ? 'selected' : ''} ${isHighlighted ? 'highlighted' : ''}"
                                  data-tag-id="${tag.id}">
                                 <span class="tag-chip"
                                       style="display: inline-flex; align-items: center; background-color: ${dom.escapeHtml(tag.color)}; color: white;
@@ -5088,10 +5249,72 @@ export default class TransactionsModule {
 
                 dropdown.innerHTML = html || `<div class="tags-autocomplete-empty">${t('budget', 'No tags found')}</div>`;
                 dropdown.style.display = 'block';
+                placeDropdown();
             };
 
             input.addEventListener('focus', () => renderDropdown(input.value));
             input.addEventListener('input', () => renderDropdown(input.value));
+
+            // Tick or untick a tag; a category's tag set takes one tag at most
+            const toggleTag = (tagId) => {
+                const clickedTag = allTags.find(tg => tg.id === tagId);
+                if (!clickedTag) return;
+
+                // Single-selection per category tag set (not for global tags)
+                if (clickedTag.tagSetId !== 'global') {
+                    const tagsFromSameSet = allTags.filter(tg => tg.tagSetId === clickedTag.tagSetId);
+                    tagsFromSameSet.forEach(tg => {
+                        if (tg.id !== tagId) {
+                            selectedTags.delete(tg.id);
+                        }
+                    });
+                }
+
+                if (selectedTags.has(tagId)) {
+                    selectedTags.delete(tagId);
+                } else {
+                    selectedTags.add(tagId);
+                }
+                if (tagId === highlightedTagId) highlightTouched = true;
+            };
+
+            /** The highlighted tag's row, if the filter still shows it */
+            const highlightedItem = () => (highlightedTagId === null
+                ? null
+                : dropdown.querySelector(`.tags-autocomplete-item[data-tag-id="${highlightedTagId}"]`));
+
+            const moveHighlight = (direction) => {
+                const items = [...dropdown.querySelectorAll('.tags-autocomplete-item')];
+                if (items.length === 0) return;
+                const at = items.indexOf(highlightedItem());
+                const next = at < 0
+                    ? (direction === 1 ? 0 : items.length - 1)
+                    : (at + direction + items.length) % items.length;
+                items.forEach(el => el.classList.remove('highlighted'));
+                items[next].classList.add('highlighted');
+                items[next].scrollIntoView({ block: 'nearest' });
+                highlightedTagId = parseInt(items[next].dataset.tagId, 10);
+                highlightTouched = false;
+            };
+
+            // One way out per edit, whichever comes first: Enter, Escape, or
+            // the blur that follows a click outside, and at most one save.
+            // Escape drew the table again but left the old cell marked as
+            // editing, so the blur 200 ms later saved the ticked tags anyway,
+            // and Enter or a click outside sent them twice (#399).
+            const unchanged = () => selectedTags.size === initialTags.size
+                && [...selectedTags].every(id => initialTags.has(id));
+            let finished = false;
+            const finish = (save) => {
+                if (finished) return;
+                finished = true;
+                dropdown.style.display = 'none';
+                if (save && !unchanged()) {
+                    this.saveTagsFromEditor(cell, selectedTags, transaction.id);
+                } else {
+                    this.cancelInlineEdit(cell);
+                }
+            };
 
             // Handle tag selection on mousedown for Safari/WebKit compatibility
             dropdown.addEventListener('mousedown', (e) => {
@@ -5100,26 +5323,7 @@ export default class TransactionsModule {
 
                 const item = e.target.closest('.tags-autocomplete-item');
                 if (item) {
-                    const tagId = parseInt(item.dataset.tagId);
-                    const clickedTag = allTags.find(tg => tg.id === tagId);
-                    if (!clickedTag) return;
-
-                    // Single-selection per category tag set (not for global tags)
-                    if (clickedTag.tagSetId !== 'global') {
-                        const tagsFromSameSet = allTags.filter(tg => tg.tagSetId === clickedTag.tagSetId);
-                        tagsFromSameSet.forEach(tg => {
-                            if (tg.id !== tagId) {
-                                selectedTags.delete(tg.id);
-                            }
-                        });
-                    }
-
-                    if (selectedTags.has(tagId)) {
-                        selectedTags.delete(tagId);
-                    } else {
-                        selectedTags.add(tagId);
-                    }
-
+                    toggleTag(parseInt(item.dataset.tagId, 10));
                     renderDropdown(input.value);
                 }
             });
@@ -5129,21 +5333,32 @@ export default class TransactionsModule {
                 e.stopPropagation();
             });
 
+            // The arrow keys move through the tags; Space ticks or unticks the
+            // highlighted one and stays open; Enter ticks a highlighted tag
+            // that Space hasn't touched, as the category picker takes its
+            // highlighted category, and saves.
             input.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape') {
-                    this.cancelInlineEdit(cell);
+                    finish(false);
                 } else if (e.key === 'Enter') {
                     e.preventDefault();
-                    this.saveTagsFromEditor(cell, selectedTags, transaction.id);
+                    if (highlightedItem() && !highlightTouched && !selectedTags.has(highlightedTagId)) {
+                        toggleTag(highlightedTagId);
+                    }
+                    finish(true);
+                } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    moveHighlight(e.key === 'ArrowDown' ? 1 : -1);
+                } else if (e.key === ' ' && highlightedItem()) {
+                    e.preventDefault();
+                    toggleTag(highlightedTagId);
+                    renderDropdown(input.value);
                 }
             });
 
+            // A click outside keeps what was ticked, as the other inline editors do
             input.addEventListener('blur', () => {
-                setTimeout(() => {
-                    if (cell.classList.contains('editing')) {
-                        this.saveTagsFromEditor(cell, selectedTags, transaction.id);
-                    }
-                }, 200);
+                setTimeout(() => finish(true), 200);
             });
 
             cell.innerHTML = '';
@@ -5304,7 +5519,8 @@ export default class TransactionsModule {
         try {
             const result = await apiFetch(`/apps/budget/api/transactions/${transactionId}`, {
                 method: 'PUT',
-                body: updateData
+                body: updateData,
+                errorMessage: t('budget', 'Failed to update transaction')
             });
             Object.assign(transaction, result);
 
@@ -5317,7 +5533,8 @@ export default class TransactionsModule {
             showSuccess(t('budget', 'Transaction updated'));
         } catch (error) {
             console.error('Failed to save inline edit:', error);
-            showError(t('budget', 'Failed to update transaction'));
+            // The server says why, e.g. a vendor cleared off a row with no description
+            showError(error.message || t('budget', 'Failed to update transaction'));
             this.cancelInlineEdit(cell);
         }
     }

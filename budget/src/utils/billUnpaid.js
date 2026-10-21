@@ -7,8 +7,26 @@
  * still want to is the revert sent again with confirmReconciled.
  */
 
+import { translate as t } from '@nextcloud/l10n';
 import { apiFetch, ApiError } from './api.js';
 import { confirmDialog } from './dialogs.js';
+
+/**
+ * The question Mark Unpaid asks before reverting the bill's last payment.
+ * Created transactions are deleted, a linked imported one only unlinked.
+ * A payment Mark Paid found already in the ledger ("Use that payment") is
+ * neither: it stays in the account, still filed under the bill (#399), and
+ * the bill says when its last payment was one (lastPaymentUsedExisting).
+ *
+ * @param {object|undefined} bill bill or transfer
+ * @return {string}
+ */
+export function markUnpaidQuestion(bill) {
+    if (bill?.lastPaymentUsedExisting) {
+        return t('budget', 'Mark this bill as unpaid? The bill schedule will be rolled back, and any transaction created for the payment deleted. The transaction the payment used was already in the account: it stays there, still filed under the bill.');
+    }
+    return t('budget', 'Mark this bill as unpaid? Transactions created for the payment will be deleted, a linked imported transaction will be unlinked, and the bill schedule rolled back.');
+}
 
 /**
  * @param {number} billId

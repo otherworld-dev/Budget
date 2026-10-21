@@ -1,5 +1,19 @@
 [
     {
+        "version": "3.1.0",
+        "title": "Your own colours, and bills that are only paid once",
+        "items": [
+            "Pick the colours for money in and money out under Settings > Colours, including a colour-blind friendly preset. Amounts, budget bars, charts and PDF exports all follow them.",
+            "A transaction's menu has Link to bill, which files a payment you entered yourself under one of your bills, so it shows in Bills by Month.",
+            "Mark Paid asks before paying anything twice. When a bill already has a payment for its date you can use that payment, and a double click only counts once.",
+            "Bills by Month shows each payment in the month it was paid and the due date it paid, and counts a payment made either side of New Year once.",
+            "Importing a CSV again with the columns mapped differently no longer adds it a second time, even after you have edited a payee.",
+            "Repair Data finds more payments that older versions recorded twice.",
+            "The Transactions list keeps its headings and page controls in view, and works better on a laptop or a phone."
+        ],
+        "link": "https://github.com/otherworld-dev/Budget/blob/main/budget/CHANGELOG.md"
+    },
+    {
         "version": "3.0.0",
         "title": "Budget 3.0, the first release out of beta",
         "items": [

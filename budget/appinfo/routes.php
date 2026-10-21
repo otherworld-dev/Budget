@@ -77,6 +77,9 @@ return [
 		['name' => 'transaction#getMatches', 'url' => '/api/transactions/{id}/matches', 'verb' => 'GET'],
 		['name' => 'transaction#link', 'url' => '/api/transactions/{id}/link/{targetId}', 'verb' => 'POST'],
 		['name' => 'transaction#unlink', 'url' => '/api/transactions/{id}/link', 'verb' => 'DELETE'],
+		// File a payment under a bill, or take it out again (#399)
+		['name' => 'transaction#linkBill', 'url' => '/api/transactions/{id}/bill', 'verb' => 'POST'],
+		['name' => 'transaction#unlinkBill', 'url' => '/api/transactions/{id}/bill', 'verb' => 'DELETE'],
 		['name' => 'transaction#convertToTransfer', 'url' => '/api/transactions/{id}/convert-to-transfer', 'verb' => 'POST'],
 		['name' => 'transaction#getSplits', 'url' => '/api/transactions/{id}/splits', 'verb' => 'GET'],
 		['name' => 'transaction#split', 'url' => '/api/transactions/{id}/splits', 'verb' => 'POST'],
@@ -219,6 +222,8 @@ return [
 		['name' => 'bill#update', 'url' => '/api/bills/{id}', 'verb' => 'PUT'],
 		['name' => 'bill#destroy', 'url' => '/api/bills/{id}', 'verb' => 'DELETE'],
 		['name' => 'bill#findMatchingTransactions', 'url' => '/api/bills/{id}/matching-transactions', 'verb' => 'GET'],
+		// The payment already recorded for the occurrence Mark Paid is about to pay (#399)
+		['name' => 'bill#recordedPayment', 'url' => '/api/bills/{id}/recorded-payment', 'verb' => 'GET'],
 		['name' => 'bill#markPaid', 'url' => '/api/bills/{id}/paid', 'verb' => 'POST'],
 		['name' => 'bill#recordMissedPayment', 'url' => '/api/bills/{id}/record-payment', 'verb' => 'POST'],
 		['name' => 'bill#dismissUnrecordedPayment', 'url' => '/api/bills/{id}/dismiss-unrecorded', 'verb' => 'POST'],

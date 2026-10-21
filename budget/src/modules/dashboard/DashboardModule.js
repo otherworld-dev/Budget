@@ -20,6 +20,7 @@ import 'gridstack/dist/gridstack.min.css';
 import { groupProjects, progressFor } from '../projects/projectMath.js';
 import { progressBarAttrs, overBudgetText } from '../../utils/budgetProgress.js';
 import { apiFetch, ApiError } from '../../utils/api.js';
+import { semanticColour } from '../../utils/amountColours.js';
 import { hiddenCategoryBranch, withoutHiddenCategories, categoryPickerRows } from '../../utils/categoryVisibility.js';
 import { rowCategoryName } from '../transactions/transactionRow.js';
 
@@ -3070,8 +3071,8 @@ export default class DashboardModule {
                     {
                         label: t('budget', 'Income'),
                         data: trends.income || [],
-                        borderColor: '#46ba61',
-                        backgroundColor: isBar ? 'rgba(70, 186, 97, 0.6)' : 'rgba(70, 186, 97, 0.1)',
+                        borderColor: semanticColour('positive', '#46ba61'),
+                        backgroundColor: isBar ? semanticColour('positive', 'rgba(70, 186, 97, 0.6)', 0.6) : semanticColour('positive', 'rgba(70, 186, 97, 0.1)', 0.1),
                         fill: !isBar,
                         tension: isBar ? 0 : 0.3,
                         segment: partialSegment,
@@ -3079,8 +3080,8 @@ export default class DashboardModule {
                     {
                         label: t('budget', 'Expenses'),
                         data: trends.expenses || [],
-                        borderColor: '#e9322d',
-                        backgroundColor: isBar ? 'rgba(233, 50, 45, 0.6)' : 'rgba(233, 50, 45, 0.1)',
+                        borderColor: semanticColour('negative', '#e9322d'),
+                        backgroundColor: isBar ? semanticColour('negative', 'rgba(233, 50, 45, 0.6)', 0.6) : semanticColour('negative', 'rgba(233, 50, 45, 0.1)', 0.1),
                         fill: !isBar,
                         tension: isBar ? 0 : 0.3,
                         segment: partialSegment,
@@ -3164,8 +3165,8 @@ export default class DashboardModule {
                 {
                     label: t('budget', 'Net Worth'),
                     data: data.map(s => s.netWorth),
-                    borderColor: '#46ba61',
-                    backgroundColor: 'rgba(70, 186, 97, 0.1)',
+                    borderColor: semanticColour('positive', '#46ba61'),
+                    backgroundColor: semanticColour('positive', 'rgba(70, 186, 97, 0.1)', 0.1),
                     fill: true, tension: 0.3, borderWidth: 2
                 },
                 {
@@ -3178,7 +3179,7 @@ export default class DashboardModule {
                 {
                     label: t('budget', 'Liabilities'),
                     data: data.map(s => s.totalLiabilities),
-                    borderColor: '#e9322d',
+                    borderColor: semanticColour('negative', '#e9322d'),
                     borderDash: [5, 5],
                     fill: false, tension: 0.3, borderWidth: 1.5
                 }
@@ -3458,15 +3459,15 @@ export default class DashboardModule {
                     {
                         label: t('budget', 'Income'),
                         data: years.map((y) => y.income),
-                        backgroundColor: 'rgba(46, 125, 50, 0.7)',
-                        borderColor: 'rgba(46, 125, 50, 1)',
+                        backgroundColor: semanticColour('positive', 'rgba(46, 125, 50, 0.7)', 0.7),
+                        borderColor: semanticColour('positive', 'rgba(46, 125, 50, 1)', 1),
                         borderWidth: 1,
                     },
                     {
                         label: t('budget', 'Expenses'),
                         data: years.map((y) => y.expenses),
-                        backgroundColor: 'rgba(198, 40, 40, 0.7)',
-                        borderColor: 'rgba(198, 40, 40, 1)',
+                        backgroundColor: semanticColour('negative', 'rgba(198, 40, 40, 0.7)', 0.7),
+                        borderColor: semanticColour('negative', 'rgba(198, 40, 40, 1)', 1),
                         borderWidth: 1,
                     },
                 ],

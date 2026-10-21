@@ -9,12 +9,27 @@
     --budget-color-split: #6f42c1;
 }
 
+/* The app's dialogs sit outside #app-content too: those in index.php in
+   #content beside it, and those the scripts build (Repair Data's report,
+   Add Transfer, Mark Paid's) on <body>. With Nextcloud's own pale shades
+   there, Repair Data's count badges were white on #FFE7E7 and the required
+   fields' asterisks #FFE7E7 on white (#399).
+
+   A money colour scheme (#432, utils/amountColours.js) sets these, and the
+   text that goes on them, on <body> and the first three here, and leaves
+   the dialogs to inherit from <body>. So these are the scheme's colours
+   (--budget-scheme-*) whenever one is in use, and a fill and the text on
+   it come from the same place: Repair Data's badges, on the app's red with
+   a scheme's text, were 2.7:1 (#399). */
 #app-navigation,
 #app-content,
-#budget-toast-container {
-    --color-success: #2e7d32;
-    --color-error: #b71c1c;
-    --color-warning: #e65100;
+#budget-toast-container,
+#repair-data-modal,
+#content.app-budget > .modal,
+.budget-modal-overlay {
+    --color-success: var(--budget-scheme-positive, #2e7d32);
+    --color-error: var(--budget-scheme-negative, #b71c1c);
+    --color-warning: var(--budget-scheme-warning, #e65100);
     /* Text on a success/error/warning fill. White on these dark shades; the
        dark theme swaps both the fills and this (see the end of the file). */
     --budget-color-on-status: white;
@@ -301,22 +316,46 @@
 }
 
 /* Navigation toggle — matches NcAppNavigationToggle from @nextcloud/vue. */
+/* Below 1024 px only, where Nextcloud hides the navigation (core's own
+   (width < 1024px)). From max-width: 1024px it sat over the docked
+   navigation's search box at exactly 1024 px (#399).
+   navToggleBreakpoint.test.js. */
 #budget-nav-toggle-wrapper {
     display: none;
 }
 
-@media (max-width: 1024px) {
+@media (width < 1024px) {
     #budget-nav-toggle-wrapper {
         display: block;
         position: fixed;
         top: calc(var(--header-height, 50px) + 4px);
         left: 4px;
         z-index: 1900;
-        transition: left 250ms ease-in-out;
+        transition: left 250ms ease-in-out, opacity 200ms ease-in-out, transform 200ms ease-in-out;
     }
 
     #budget-nav-toggle-wrapper.nav-open {
         left: 300px;
+    }
+
+    /* Out of the way while the view scrolls down, as it covered whatever
+       passed under it (see utils/navToggleOnScroll.js). Keyboard focus
+       brings it back; the focus a mouse click leaves on it doesn't, or a
+       clicked button stayed over the content (#399). */
+    #budget-nav-toggle-wrapper.scrolled-away:not(.nav-open):not(:has(:focus-visible)) {
+        opacity: 0;
+        transform: translateY(-12px);
+        pointer-events: none;
+    }
+
+    /* A browser without :has() drops the rule above: it hides the button
+       as before, whatever focused it */
+    @supports not selector(:has(*)) {
+        #budget-nav-toggle-wrapper.scrolled-away:not(.nav-open):not(:focus-within) {
+            opacity: 0;
+            transform: translateY(-12px);
+            pointer-events: none;
+        }
     }
 
     #budget-nav-toggle {
@@ -386,7 +425,7 @@
 /* Mobile Navigation - matches NcAppNavigation behavior.
  * Nextcloud's mobile.css hides #app-navigation:not(.vue) with translateX(-300px).
  * We override with our own open class and add a backdrop overlay. */
-@media (max-width: 1024px) {
+@media (width < 1024px) {
     #app-navigation:not(.vue) {
         transition: transform 250ms ease-in-out;
     }
@@ -485,7 +524,7 @@
 }
 
 .hero-icon.income {
-    background: rgba(46, 125, 50, 0.1);
+    background: var(--budget-tint-positive-10, rgba(46, 125, 50, 0.1));
 }
 
 .hero-icon.income svg {
@@ -493,7 +532,7 @@
 }
 
 .hero-icon.expenses {
-    background: rgba(183, 28, 28, 0.1);
+    background: var(--budget-tint-negative-10, rgba(183, 28, 28, 0.1));
 }
 
 .hero-icon.expenses svg {
@@ -1213,7 +1252,7 @@
 }
 
 .bill-widget-item.overdue {
-    background: rgba(198, 40, 40, 0.08);
+    background: var(--budget-tint-negative-8, rgba(198, 40, 40, 0.08));
     border-left: 3px solid var(--color-error);
 }
 
@@ -1520,12 +1559,12 @@
 }
 
 .recent-transaction-icon.income {
-    background: rgba(46, 125, 50, 0.1);
+    background: var(--budget-tint-positive-10, rgba(46, 125, 50, 0.1));
     color: var(--budget-color-positive);
 }
 
 .recent-transaction-icon.expense {
-    background: rgba(183, 28, 28, 0.1);
+    background: var(--budget-tint-negative-10, rgba(183, 28, 28, 0.1));
     color: var(--budget-color-negative);
 }
 
@@ -1837,6 +1876,50 @@
     color: var(--color-main-text);
 }
 
+/* The app's dialogs with a title row (the import templates, Add to Goal,
+   the pension balance and the rest): the title and its x on one row, the x
+   in the top right corner. Unstyled, the header was a block and the x a
+   boxed button on its own row under the title (#399). */
+.modal > .modal-content > .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.modal > .modal-content > .modal-header h3 {
+    margin: 0;
+    min-width: 0;
+}
+
+/* Most of these also carry .cancel-btn, whose boxed button this outranks */
+.modal > .modal-content > .modal-header .modal-close {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--default-clickable-area, 34px);
+    height: var(--default-clickable-area, 34px);
+    min-width: 0;
+    min-height: 0;
+    margin: -6px -10px 0 0;
+    padding: 0;
+    background: none;
+    border: none;
+    border-radius: var(--border-radius, 4px);
+    color: var(--color-text-maxcontrast);
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.modal > .modal-content > .modal-header .modal-close:hover,
+.modal > .modal-content > .modal-header .modal-close:focus-visible {
+    background-color: var(--color-background-hover);
+    color: var(--color-main-text);
+}
+
 /* Form Styles - Nextcloud Pattern */
 
 .form-group label {
@@ -1938,7 +2021,7 @@ button.secondary:focus {
 /* Success Button - Positive Actions */
 button.success {
     background: var(--color-success);
-    color: var(--budget-color-on-status, white);
+    color: var(--budget-color-on-success, var(--budget-color-on-status, white));
 }
 
 button.success:hover {
@@ -2114,7 +2197,7 @@ button.danger:hover {
 
 .account-actions .error {
     background-color: var(--color-error);
-    color: var(--budget-color-on-status, white);
+    color: var(--budget-color-on-error, var(--budget-color-on-status, white));
 }
 
 .account-actions .error:hover {
@@ -2628,12 +2711,12 @@ button.danger:hover {
 }
 
 .summary-card-assets .summary-icon {
-    background: rgba(46, 125, 50, 0.1);
+    background: var(--budget-tint-positive-10, rgba(46, 125, 50, 0.1));
     color: var(--budget-color-positive);
 }
 
 .summary-card-liabilities .summary-icon {
-    background: rgba(183, 28, 28, 0.1);
+    background: var(--budget-tint-negative-10, rgba(183, 28, 28, 0.1));
     color: var(--budget-color-negative);
 }
 
@@ -3134,7 +3217,16 @@ button.danger:hover {
 }
 
 .account-status-dot.warning {
-    background: var(--color-warning);
+    background: var(--budget-scheme-warning-fill, var(--color-warning));
+}
+
+/* Nextcloud's own `#body-user .warning` outranks the rule above and turns the
+   dot into a faint 20% tint with extra margin, padding and square-ish corners. */
+#body-user .account-status-dot.warning {
+    margin: 0;
+    padding: 0;
+    border-radius: 50%;
+    background: var(--budget-scheme-warning-fill, var(--color-warning));
 }
 
 .account-status-dot.critical {
@@ -3177,7 +3269,7 @@ button.danger:hover {
 }
 
 .account-action-btn.delete-btn:hover {
-    background: rgba(183, 28, 28, 0.1);
+    background: var(--budget-tint-negative-10, rgba(183, 28, 28, 0.1));
     color: var(--budget-color-negative);
 }
 
@@ -3285,12 +3377,12 @@ button.danger:hover {
 
 .form-group input.error:focus,
 .form-group select.error:focus {
-    box-shadow: 0 0 0 2px rgba(244, 67, 54, 0.2);
+    box-shadow: 0 0 0 2px var(--budget-tint-negative-20, rgba(244, 67, 54, 0.2));
 }
 
 .form-group input.success:focus,
 .form-group select.success:focus {
-    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+    box-shadow: 0 0 0 2px var(--budget-tint-positive-20, rgba(76, 175, 80, 0.2));
 }
 
 /* Account List Layout */
@@ -3506,9 +3598,12 @@ button.danger:hover {
     padding: 5px;
 }
 
+/* minmax(0, 1fr) and the controls' max-width: a select's longest option
+   set its column's minimum, so on a phone Category, Status and Search ran
+   past the panel's edge */
 .filters-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 12px;
     margin-bottom: 12px;
 }
@@ -3668,19 +3763,47 @@ button.danger:hover {
 }
 
 /* Enhanced Transaction Table */
+/* The box ends at its content. It used to fill the view's height (#280),
+   to give the column menu and the inline pickers room below a short
+   table, but the view is a stretched flex item, so with the filters open
+   it ran on past the paging, an empty bordered area (#399). Neither needs
+   the room now: the menu is outside .table-scroll and the pickers are
+   fixed to the window (utils/cellPopup.js). transactionListBar.test.js. */
 .table-container {
     width: 100%;
     background: var(--color-main-background);
     border: 1px solid var(--color-border);
     border-radius: var(--border-radius-small, 4px);
+}
+
+/* Only the table scrolls sideways, in this wrapper, when it is wider than
+   the list or the register (Description's minimum below). The bars above
+   and below it stay put: inside the same scrolling box they slid out of
+   view with the table (#399). The list's Actions column sticks to this
+   wrapper's right edge. transactionListBar.test.js. */
+.table-scroll {
     overflow-x: auto;
 }
 
-/* Fill the available height so the table area is tall even with few rows.
-   This gives the in-cell editors and the column-config menu room to open
-   instead of being clipped against a short container (#280). */
-#transactions-view .table-container {
-    height: 100%;
+/* Above phone width the wrapper scrolls the rows too, and the header row
+   sticks to its top. A sticky cell sticks to its nearest scrolling box, and
+   while this one only scrolled sideways the header row went off the top
+   with the page (since #280). The wrapper is at most what's left of the
+   window under Nextcloud's top bar once the view's title (83 px), the list's
+   bar (52 px) and the paging (56 px) are taken off, so on the Transactions
+   list a long page fits the window as it opens and the wheel scrolls only
+   the rows; where more sits above it (the filters, an account's details)
+   the page scrolls first and then the whole box, the paging included, is
+   in view. A short list ends at its last row as before. scroll-padding-top
+   keeps a row the keyboard moves to (KeyboardShortcuts, 'nearest') from
+   ending up under the header row. Phones show the rows as cards and keep
+   the rule above. transactionHeaderSticky.test.js. */
+@media (min-width: 641px) {
+    .table-scroll {
+        overflow-y: auto;
+        max-height: max(240px, calc(100vh - var(--header-height, 50px) - var(--body-container-margin, 8px) - 200px));
+        scroll-padding-top: 52px;
+    }
 }
 
 .table-header {
@@ -3690,6 +3813,8 @@ button.danger:hover {
     padding: 4px 8px;
     background: var(--color-background-hover);
     border-bottom: 1px solid var(--color-border);
+    /* The box round it doesn't clip it any more (.table-scroll above) */
+    border-radius: calc(var(--border-radius-small, 4px) - 1px) calc(var(--border-radius-small, 4px) - 1px) 0 0;
     flex-wrap: wrap;
     gap: 6px;
 }
@@ -3876,6 +4001,17 @@ button.danger:hover {
     cursor: pointer;
 }
 
+/* No ring from Nextcloud's input rule round a clicked checkbox, as the
+   import's filters below (#399). Its height stays, as it spaces the rows. */
+#column-config-dropdown input[type="checkbox"] {
+    box-shadow: none;
+}
+
+#column-config-dropdown input[type="checkbox"]:focus-visible {
+    outline: 2px solid var(--color-main-text);
+    outline-offset: 2px;
+}
+
 .pagination-controls.pagination-bottom {
     margin-top: 16px;
     justify-content: center;
@@ -3893,7 +4029,11 @@ button.danger:hover {
     padding: 2px 4px;
     font-weight: 600;
     color: var(--color-main-text);
-    border-bottom: 2px solid var(--color-border);
+    /* The line under the header row is a shadow inside the cells, not a
+       border: the table's borders are collapsed, and a collapsed border
+       stays put when the row sticks (.table-scroll), the rows showing
+       through the gap under it */
+    box-shadow: inset 0 -2px 0 var(--color-border);
     position: sticky;
     top: 0;
     z-index: 25;
@@ -4036,6 +4176,91 @@ button.danger:hover {
 
 .transactions-table.enhanced td.actions-column {
     padding: 2px 4px;
+}
+
+/* Description has no width of its own: table-layout: fixed gives it whatever
+   the other columns leave, which was 0 px with Balance shown at 1280 px and
+   below (#399). The table's minimum width is therefore the visible columns'
+   widths plus a minimum for Description. Narrower than that, the table
+   scrolls sideways inside its .table-scroll; wider, it is 100% as before
+   and every extra pixel still goes to Description. A column hidden through
+   Configure columns, or Balance without an account filter, drops out of the
+   sum through the table's hides-<column> class (utils/transactionColumns.js).
+   These widths are the column rules above; transactionTablesNarrow.test.js
+   checks the two agree. */
+#transactions-table {
+    --tx-col-select: 24px;
+    --tx-col-date: 90px;
+    --tx-col-description: 180px;
+    --tx-col-vendor: 150px;
+    --tx-col-category: 120px;
+    --tx-col-tags: 100px;
+    --tx-col-amount: 140px;
+    --tx-col-balance: 140px;
+    --tx-col-account: 120px;
+    --tx-col-actions: 100px;
+}
+
+#transactions-table.hides-date { --tx-col-date: 0px; }
+#transactions-table.hides-description { --tx-col-description: 0px; }
+#transactions-table.hides-vendor { --tx-col-vendor: 0px; }
+#transactions-table.hides-category { --tx-col-category: 0px; }
+#transactions-table.hides-tags { --tx-col-tags: 0px; }
+#transactions-table.hides-amount { --tx-col-amount: 0px; }
+#transactions-table.hides-balance { --tx-col-balance: 0px; }
+#transactions-table.hides-account { --tx-col-account: 0px; }
+
+/* Not on phones, where the rows are cards */
+@media (min-width: 641px) {
+    #transactions-table {
+        min-width: calc(var(--tx-col-select) + var(--tx-col-date) + var(--tx-col-description) + var(--tx-col-vendor) + var(--tx-col-category) + var(--tx-col-tags) + var(--tx-col-amount) + var(--tx-col-balance) + var(--tx-col-account) + var(--tx-col-actions));
+    }
+}
+
+/* When the table scrolls sideways, Actions stays at the .table-scroll's right
+   edge, so edit and the ⋮ menu are never off-screen (#399: Balance shown at
+   1440 px and below). The cells take an opaque fill that follows the row's
+   own (hover, keyboard cursor, linked), and a scheduled row fades the
+   buttons rather than the cell, or the scrolled columns would show through.
+   transactionActionsSticky.test.js. */
+@media (min-width: 641px) {
+    #transactions-table th.actions-column {
+        right: 0;
+        z-index: 26;
+    }
+
+    #transactions-table td.actions-column {
+        position: sticky;
+        right: 0;
+        z-index: 1;
+        background: var(--color-main-background);
+        box-shadow: inset 1px 0 0 var(--color-border);
+    }
+
+    #transactions-table tr.transaction-row:hover > td.actions-column,
+    #transactions-table tr.transaction-row.kbd-cursor > td.actions-column {
+        background: var(--color-background-hover);
+    }
+
+    #transactions-table tr.transaction-row.is-linked > td.actions-column {
+        background: var(--color-primary-element-light);
+    }
+
+    #transactions-table tr.transaction-row.is-linked:hover > td.actions-column {
+        background: linear-gradient(var(--color-primary-element-lighter, rgba(0, 130, 201, 0.15)), var(--color-primary-element-lighter, rgba(0, 130, 201, 0.15))), var(--color-main-background);
+    }
+
+    #transactions-table tr.scheduled-transaction > td.actions-column {
+        opacity: 1;
+    }
+
+    #transactions-table tr.scheduled-transaction > td.actions-column > .transaction-actions {
+        opacity: 0.65;
+    }
+
+    #transactions-table tr.scheduled-transaction:hover > td.actions-column > .transaction-actions {
+        opacity: 0.85;
+    }
 }
 
 /* Truncate cell content within fixed-layout table columns */
@@ -4442,6 +4667,13 @@ button.danger:hover {
     background: var(--color-background-hover);
 }
 
+/* Where the arrow keys are: the same ring as the tag picker's, as the hover
+   fill alone was too faint to follow */
+.category-autocomplete-item.highlighted {
+    outline: 2px solid var(--color-primary-element);
+    outline-offset: -2px;
+}
+
 .category-autocomplete-item.selected {
     background: var(--color-primary-element-light);
 }
@@ -4498,6 +4730,26 @@ button.danger:hover {
     z-index: 1000;
 }
 
+/* The list's inline category and tag pickers: fixed to the window and
+   placed from the cell (utils/cellPopup.js), as the table's scrolling box
+   cut them off in a short list's last rows (#399). As wide as the cell,
+   250 px at least, as they were inside it. Above the cell when there's no
+   room below, closed off at the top instead. inlineEditorPopups.test.js. */
+.category-autocomplete-dropdown.cell-popup,
+.tags-autocomplete-dropdown.cell-popup {
+    position: fixed;
+    width: var(--cell-popup-width, 250px);
+    box-sizing: border-box;
+}
+
+.category-autocomplete-dropdown.cell-popup--above,
+.tags-autocomplete-dropdown.cell-popup--above {
+    border-top: 1px solid var(--color-border);
+    border-bottom: none;
+    border-radius: 3px 3px 0 0;
+    box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.15);
+}
+
 .tags-group-header {
     padding: 6px 12px;
     background: var(--color-background-dark);
@@ -4528,6 +4780,13 @@ button.danger:hover {
 
 .tags-autocomplete-item.selected {
     background: var(--color-primary-element-light);
+}
+
+/* Where the arrow keys are in the list's inline tag picker (#399): a ring,
+   as a ticked tag already has the fill. inlinePickerKeys.test.js. */
+.tags-autocomplete-item.highlighted {
+    outline: 2px solid var(--color-primary-element);
+    outline-offset: -2px;
 }
 
 .tags-autocomplete-item .tag-check {
@@ -4889,7 +5148,12 @@ button.danger:hover {
 /* Mobile Responsive */
 @media (max-width: 768px) {
     .filters-grid {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .filters-grid select,
+    .filters-grid input {
+        max-width: 100%;
     }
 
     .table-header {
@@ -5241,7 +5505,16 @@ button.danger:hover {
 }
 
 .health-indicator.warning {
-    background: var(--color-warning);
+    background: var(--budget-scheme-warning-fill, var(--color-warning));
+}
+
+/* Nextcloud's own `#body-user .warning` outranks the rule above and turns the
+   dot into a faint 20% tint with extra margin, padding and square-ish corners. */
+#body-user .health-indicator.warning {
+    margin: 0;
+    padding: 0;
+    border-radius: 50%;
+    background: var(--budget-scheme-warning-fill, var(--color-warning));
 }
 
 .health-indicator.error {
@@ -5469,12 +5742,12 @@ button.danger:hover {
 
 .bank-connection-status.positive {
     color: var(--budget-color-positive);
-    background: rgba(46, 125, 50, 0.1);
+    background: var(--budget-tint-positive-10, rgba(46, 125, 50, 0.1));
 }
 
 .bank-connection-status.negative {
     color: var(--budget-color-negative);
-    background: rgba(183, 28, 28, 0.1);
+    background: var(--budget-tint-negative-10, rgba(183, 28, 28, 0.1));
 }
 
 .bank-connection-actions {
@@ -5597,14 +5870,99 @@ button.danger:hover {
 
 #account-transactions-table {
     margin-top: 0;
+    --register-col-date: 110px;
+    --register-col-description: 180px;
+    --register-col-vendor: 120px;
+    --register-col-category: 110px;
+    --register-col-amount: 100px;
+    /* "-437.23 CHF" is 104 px of text, and the cell has 10 px padding a side:
+       at 100px it read "-437.23 C…" even at 1440 px (#399) */
+    --register-col-balance: 140px;
+    --register-col-actions: 80px;
 }
-#account-transactions-table .date-column { width: 110px; }
+#account-transactions-table .date-column { width: var(--register-col-date); }
+/* No width: Description takes what the other columns leave */
 #account-transactions-table .description-column { width: auto; }
-#account-transactions-table .vendor-column { width: 120px; }
-#account-transactions-table .category-column { width: 110px; }
-#account-transactions-table .amount-column { width: 100px; }
-#account-transactions-table .balance-column { width: 100px; }
-#account-transactions-table .actions-column { width: 80px; }
+#account-transactions-table .vendor-column { width: var(--register-col-vendor); }
+#account-transactions-table .category-column { width: var(--register-col-category); }
+#account-transactions-table .amount-column { width: var(--register-col-amount); }
+#account-transactions-table .balance-column { width: var(--register-col-balance); }
+#account-transactions-table .actions-column { width: var(--register-col-actions); }
+
+/* What the other columns leave was 0 px at 1024 px with the navigation open
+   (#399). Above phone width the table is at least its columns plus a minimum
+   for Description, and scrolls sideways in its .table-scroll wrapper below
+   that, the paging under it staying put, as the Transactions list does. */
+@media (min-width: 641px) {
+    #account-transactions-table {
+        min-width: calc(var(--register-col-date) + var(--register-col-description) + var(--register-col-vendor) + var(--register-col-category) + var(--register-col-amount) + var(--register-col-balance) + var(--register-col-actions));
+    }
+
+    /* The header row stays at the top of the wrapper while the rows scroll
+       under it, as in the Transactions list (.table-scroll, #399), on the
+       header's own opaque fill */
+    #account-transactions-table th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+    }
+
+    /* The page scrolls down to the register, and where its rows start
+       scrolling depends on where the pointer is, so when they reached the
+       end the paging could still be under the window's edge (8 px at
+       1280 x 800). It sticks to the bottom of the view instead, on screen
+       whenever the register is, over the rows it covers until the page
+       scrolls on. transactionHeaderSticky.test.js. */
+    #account-transactions-pagination {
+        position: sticky;
+        bottom: 0;
+        z-index: 3;
+        background: var(--color-main-background);
+        padding: 8px 0;
+    }
+}
+
+/* The reference on its own muted line under the description, as in the
+   Transactions list. The register's table has no .enhanced styles, so the
+   dashboard widget's one-line .transaction-description ran the reference on
+   after the description, in bold (#399). */
+#account-transactions-table .transaction-description {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    margin: 0;
+    line-height: 1.3;
+}
+
+#account-transactions-table .transaction-description .description-main {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#account-transactions-table .transaction-description .secondary-text {
+    color: var(--color-text-maxcontrast);
+    font-size: 12px;
+    font-weight: normal;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* A long category name ends in an ellipsis inside its pill; the cell used to
+   cut the pill mid-word (#399). The title names it in full. */
+#account-transactions-table .category-name {
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+#account-transactions-table .category-name.split-category {
+    white-space: normal;
+}
 
 /* Transaction Balance Column */
 .transaction-balance {
@@ -6077,7 +6435,7 @@ button.danger:hover {
 
 .category-delete-btn:hover {
     background: var(--color-error);
-    color: var(--budget-color-on-status, white);
+    color: var(--budget-color-on-error, var(--budget-color-on-status, white));
 }
 
 /* Per-viewer "hide from my reports" toggle on shared categories */
@@ -6354,7 +6712,7 @@ button.danger:hover {
 }
 
 .progress-fill.warning {
-    background: var(--color-warning);
+    background: var(--budget-scheme-warning-fill, var(--color-warning));
 }
 
 .progress-fill.over {
@@ -6826,7 +7184,7 @@ button.danger:hover {
 
 .wizard-step.completed .step-number {
     background: var(--color-success);
-    color: var(--budget-color-on-status, white);
+    color: var(--budget-color-on-success, var(--budget-color-on-status, white));
 }
 
 .step-label {
@@ -7053,7 +7411,10 @@ button.danger:hover {
     position: relative;
 }
 
-.required {
+/* The asterisk in a required field's label. Only inside a label: the import
+   mapping's 'mapping-field required' wrappers matched a bare .required, which
+   made their hints bold red like errors and set those fields 4px right (#399) */
+label .required {
     font-weight: 600;
     color: var(--color-error);
     margin-left: 4px;
@@ -7070,6 +7431,31 @@ button.danger:hover {
 .mapping-field select:focus {
     outline: none;
     border-color: var(--color-primary);
+}
+
+/* The hints under the import's fields and CSV options, in the app's hint
+   style (.form-text). Unstyled they were 15px main-colour text flush on the
+   next field's label, so each read as belonging to the field below (#399). */
+.mapping-field .hint,
+.mapping-field-group > .hint,
+#import-save-template-modal .form-group .hint {
+    display: block;
+    margin: 5px 0 0;
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--color-text-maxcontrast);
+}
+
+.csv-options {
+    margin-bottom: 15px;
+}
+
+/* Nextcloud gives selects and buttons a 3px end margin. The selects
+   stretched to 297px while the checklists' toggles, at width 100%, were
+   300px: both now run the full column (#399). */
+.mapping-field select,
+.mapping-field .custom-multiselect-toggle {
+    margin-inline-end: 0;
 }
 
 .preview-data h4 {
@@ -7315,6 +7701,26 @@ button.danger:hover {
     color: var(--color-main-text);
 }
 
+/* A checkbox's own size and no ring. Nextcloud's input rule makes every
+   input 36px high and, on hover, focus and press, puts a 2px ring in the
+   page colour round it: a clicked filter stood in a tall white frame on
+   the grey bar, a black one in the dark theme (#399, as 15d0d5d2 for the
+   dialogs' radios). The step's id puts this over that rule in every state
+   (0-3-1 with :hover). Keyboard focus gets an outline of its own, as
+   Nextcloud takes the browser's off. */
+#import-step-3 .filter-options input[type="checkbox"] {
+    flex-shrink: 0;
+    height: auto;
+    min-height: 0;
+    margin: 0;
+    box-shadow: none;
+}
+
+#import-step-3 .filter-options input[type="checkbox"]:focus-visible {
+    outline: 2px solid var(--color-main-text);
+    outline-offset: 2px;
+}
+
 .preview-pagination {
     color: var(--color-text-maxcontrast);
     font-size: 14px;
@@ -7473,12 +7879,12 @@ button.danger:hover {
 }
 
 .status-success {
-    background: rgba(46, 125, 50, 0.1);
+    background: var(--budget-tint-positive-10, rgba(46, 125, 50, 0.1));
     color: var(--color-success);
 }
 
 .status-error {
-    background: rgba(198, 40, 40, 0.15);
+    background: var(--budget-tint-negative-15, rgba(198, 40, 40, 0.15));
     color: var(--budget-color-negative);
 }
 
@@ -7862,7 +8268,7 @@ button.danger:hover {
 }
 
 .quality-indicator .quality-value.high {
-    background: rgba(76, 175, 80, 0.2);
+    background: var(--budget-tint-positive-20, rgba(76, 175, 80, 0.2));
     color: var(--color-success);
 }
 
@@ -7872,7 +8278,7 @@ button.danger:hover {
 }
 
 .quality-indicator .quality-value.low {
-    background: rgba(198, 40, 40, 0.2);
+    background: var(--budget-tint-negative-20, rgba(198, 40, 40, 0.2));
     color: var(--color-error);
 }
 
@@ -8529,12 +8935,12 @@ button.danger:hover {
     text-align: center;
 }
 .qa-success {
-    background: rgba(70, 186, 97, 0.15);
-    color: var(--color-success-text, var(--budget-color-positive));
+    background: var(--budget-tint-positive-15, rgba(70, 186, 97, 0.15));
+    color: var(--budget-scheme-positive, var(--color-success-text, var(--budget-color-positive)));
 }
 .qa-error {
-    background: rgba(233, 50, 45, 0.15);
-    color: var(--color-error-text, var(--budget-color-negative));
+    background: var(--budget-tint-negative-15, rgba(233, 50, 45, 0.15));
+    color: var(--budget-scheme-negative, var(--color-error-text, var(--budget-color-negative)));
 }
 
 .settings-section h3 {
@@ -8689,7 +9095,7 @@ button.danger:hover {
 /* Bank Sync Wizard Steps */
 .bank-sync-error {
     color: var(--color-error, #e9322d);
-    background: var(--color-error-hover, #fdd);
+    background: var(--budget-tint-negative-15, var(--color-error-hover, #fdd));
     padding: 8px 12px;
     border-radius: var(--border-radius-small, 4px);
     margin-top: 8px;
@@ -8697,7 +9103,7 @@ button.danger:hover {
 }
 .bank-sync-success {
     color: var(--color-success, #46ba61);
-    background: var(--color-success-hover, #dfd);
+    background: var(--budget-tint-positive-15, var(--color-success-hover, #dfd));
     padding: 8px 12px;
     border-radius: var(--border-radius-small, 4px);
     margin-top: 8px;
@@ -8999,6 +9405,67 @@ button.danger:hover {
     font-family: monospace;
 }
 
+/* Money in / money out colours (#432) */
+#amount-color-custom-rows[hidden],
+.amount-color-contrast-warning[hidden] {
+    display: none;
+}
+
+.amount-color-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+}
+
+.amount-color-row label {
+    flex: 0 0 200px;
+    font-size: 14px;
+    color: var(--color-main-text);
+}
+
+.amount-color-row input[type="color"] {
+    width: 56px;
+    height: 36px;
+    padding: 2px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+    background: var(--color-main-background);
+    cursor: pointer;
+}
+
+.amount-color-contrast-warning {
+    font-size: 13px;
+    color: var(--color-text-maxcontrast);
+}
+
+.amount-color-contrast-warning::before {
+    content: "\26A0\FE0E ";
+}
+
+/* The preview borrows the setting-preview box; its own variables (set from
+   the controls) stand in for the saved scheme. */
+.amount-color-preview {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+}
+
+.setting-preview .amount-color-preview-positive {
+    color: var(--budget-color-positive);
+}
+
+.setting-preview .amount-color-preview-negative {
+    color: var(--budget-color-negative);
+}
+
+/* Two classes: a lone .amount-color-preview-bar loses to the later
+   .budget-progress-bar { flex: 1 }, which left the bar 0 px wide. */
+.amount-color-preview .amount-color-preview-bar {
+    flex: 0 0 120px;
+}
+
 /* Settings actions */
 
 /* Quick Add Page section */
@@ -9217,6 +9684,14 @@ button.danger:hover {
 
 .bill-card.paid {
     border-left: 4px solid var(--color-success);
+}
+
+/* A paid card fades, but not its status pill: faded with the whole card,
+   white on green came out at 3.5:1 (#399) */
+.bill-card.paid .bill-header,
+.bill-card.paid .bill-due-date,
+.bill-card.paid .bill-account-hint,
+.bill-card.paid .bill-actions {
     opacity: 0.8;
 }
 
@@ -9332,6 +9807,9 @@ button.danger:hover {
     gap: 6px;
     font-size: 14px;
     color: var(--color-text-maxcontrast);
+    /* A date that has to wrap ('Received …, next expected …' beside the
+       buttons at 1440px, #399) breaks between its halves, not after 'next' */
+    text-wrap: balance;
 }
 
 .bill-due-date span {
@@ -9348,17 +9826,33 @@ button.danger:hover {
 
 .bill-status.overdue .status-badge {
     background: var(--color-error);
+    color: var(--budget-color-on-error, var(--budget-color-on-status, #fff));
+}
+
+/* White on the warning orange #e65100 is 3.79:1, so the light theme's pill
+   takes a darker orange, 5.6:1 (#399). The dark theme's warning shade and a
+   colour scheme's warning colour come with text that reads on them. */
+.bill-status.due-soon .status-badge {
+    background: var(--budget-scheme-warning, #bf360c);
     color: var(--budget-color-on-status, #fff);
 }
 
-.bill-status.due-soon .status-badge {
+/* The status pill only: the badges beside it (Auto-pay) keep their own
+   fill, which these outranked (#399) */
+body[data-theme-dark] .bill-status.due-soon .status-badge:not(.badge-extra),
+body[data-theme-dark-highcontrast] .bill-status.due-soon .status-badge:not(.badge-extra) {
     background: var(--color-warning);
-    color: var(--budget-color-on-status, #fff);
+}
+
+@media (prefers-color-scheme: dark) {
+    body[data-theme-default] .bill-status.due-soon .status-badge:not(.badge-extra) {
+        background: var(--color-warning);
+    }
 }
 
 .bill-status.paid .status-badge {
     background: var(--color-success);
-    color: var(--budget-color-on-status, #fff);
+    color: var(--budget-color-on-success, var(--budget-color-on-status, #fff));
 }
 
 .bill-status.upcoming .status-badge {
@@ -9406,11 +9900,38 @@ button.danger:hover {
 .bill-action-btn.bill-paid-btn {
     background: var(--color-success);
     border-color: var(--color-success);
-    color: var(--budget-color-on-status, white);
+    color: var(--budget-color-on-success, var(--budget-color-on-status, white));
 }
 
+/* Under the pointer, a darker shade of the button's own green under the
+   same label. Nextcloud's --color-success-hover is a pale tint (#bdebc0)
+   that left the white label at 1.33:1, and in the dark theme a dark green
+   under the dark label (#399). */
 .bill-action-btn.bill-paid-btn:hover {
-    background: var(--color-success-hover, #1a9b4f);
+    background: color-mix(in srgb, var(--color-success), black 15%);
+    color: var(--budget-color-on-success, var(--budget-color-on-status, white));
+}
+
+/* The checkmark in the label's colour. Nextcloud draws it as an image in a
+   fixed colour, white in the dark theme, where these buttons are a pale
+   green with a dark label (#399). The same shape as a mask over the text
+   colour follows the label in every theme and colour scheme. */
+.bill-action-btn.bill-paid-btn .icon-checkmark,
+.income-action-btn.income-received-btn .icon-checkmark {
+    display: inline-block;
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    background-image: none;
+    background-color: currentColor;
+    -webkit-mask-image: var(--icon-checkmark-dark);
+    mask-image: var(--icon-checkmark-dark);
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-size: 16px 16px;
+    mask-size: 16px 16px;
 }
 
 /* ==========================================
@@ -9656,7 +10177,7 @@ button.danger:hover {
     width: 40px;
     height: 40px;
     border-radius: 10px;
-    background: rgba(46, 125, 50, 0.1);
+    background: var(--budget-tint-positive-10, rgba(46, 125, 50, 0.1));
     display: flex;
     align-items: center;
     justify-content: center;
@@ -9887,8 +10408,33 @@ button.danger:hover {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.income-card.received {
+/* Each status styled like its counterpart on Bills (#399): Overdue like
+   Overdue; Received, Completed (a one-time income that arrived) and Inactive
+   like Paid */
+.income-card.overdue {
+    border-left: 4px solid var(--color-error);
+    background: rgba(var(--color-error-rgb), 0.05);
+}
+
+.income-card.received,
+.income-card.completed,
+.income-card.inactive {
     border-left: 4px solid var(--color-success);
+}
+
+/* Faded like a paid bill, with the status pill left out (#399) */
+.income-card.received .income-header,
+.income-card.received .income-next-date,
+.income-card.received .bill-account-hint,
+.income-card.received .income-actions,
+.income-card.completed .income-header,
+.income-card.completed .income-next-date,
+.income-card.completed .bill-account-hint,
+.income-card.completed .income-actions,
+.income-card.inactive .income-header,
+.income-card.inactive .income-next-date,
+.income-card.inactive .bill-account-hint,
+.income-card.inactive .income-actions {
     opacity: 0.8;
 }
 
@@ -9954,10 +10500,52 @@ button.danger:hover {
     gap: 6px;
     font-size: 14px;
     color: var(--color-text-maxcontrast);
+    /* A date that has to wrap ('Received …, next expected …' beside the
+       buttons at 1440px, #399) breaks between its halves, not after 'next' */
+    text-wrap: balance;
 }
 
 .income-next-date span {
     font-size: 14px;
+}
+
+/* The name and the amount (#399). The header took what the date and the
+   buttons left, so a long name wrapped beside empty space and each card's
+   amount sat somewhere else. Below 1200px the header has the card's first
+   line to itself, its amount at the right edge; from 1200px the name gets
+   a column of its own and the amount a right-aligned one, the same width
+   on every card, and a long date wraps instead of the name. */
+.income-header {
+    flex: 1 1 100%;
+}
+
+@media (min-width: 1200px) {
+    .income-header {
+        flex: 0 0 auto;
+    }
+
+    .income-info {
+        width: 16rem;
+    }
+
+    .income-amount {
+        min-width: 8.5rem;
+        text-align: right;
+    }
+
+    .income-details {
+        flex: 1 1 14rem;
+        flex-wrap: nowrap;
+        min-width: 0;
+    }
+
+    .income-next-date {
+        min-width: 0;
+    }
+
+    .income-next-date > [class^="icon-"] {
+        flex-shrink: 0;
+    }
 }
 
 .income-status .status-badge {
@@ -9968,14 +10556,34 @@ button.danger:hover {
     font-weight: 500;
 }
 
-.income-status.received .status-badge {
+.income-status.overdue .status-badge {
+    background: var(--color-error);
+    color: var(--budget-color-on-error, var(--budget-color-on-status, white));
+}
+
+.income-status.received .status-badge,
+.income-status.completed .status-badge,
+.income-status.inactive .status-badge {
     background: var(--color-success);
+    color: var(--budget-color-on-success, var(--budget-color-on-status, white));
+}
+
+/* The darker orange of Bills' Due Soon pill (#399) */
+.income-status.expected-soon .status-badge {
+    background: var(--budget-scheme-warning, #bf360c);
     color: var(--budget-color-on-status, white);
 }
 
-.income-status.expected-soon .status-badge {
+/* The pill only, not Auto-create beside it (#399) */
+body[data-theme-dark] .income-status.expected-soon .status-badge:not(.badge-extra),
+body[data-theme-dark-highcontrast] .income-status.expected-soon .status-badge:not(.badge-extra) {
     background: var(--color-warning);
-    color: var(--budget-color-on-status, white);
+}
+
+@media (prefers-color-scheme: dark) {
+    body[data-theme-default] .income-status.expected-soon .status-badge:not(.badge-extra) {
+        background: var(--color-warning);
+    }
 }
 
 .income-status.upcoming .status-badge {
@@ -10006,14 +10614,19 @@ button.danger:hover {
     background: var(--color-background-hover);
 }
 
+/* The label as Bills' Mark Paid has it: --budget-color-on-success is only
+   set by a colour scheme, and without one the dark theme's light green
+   took a white label, 1.96:1 (#399). The hover is a darker shade of the
+   button's own green, as on Mark Paid. */
 .income-action-btn.income-received-btn {
     background: var(--budget-color-positive);
     border-color: var(--budget-color-positive);
-    color: white;
+    color: var(--budget-color-on-success, var(--budget-color-on-status, white));
 }
 
 .income-action-btn.income-received-btn:hover {
-    background: var(--color-success-hover, #1a9b4f);
+    background: color-mix(in srgb, var(--budget-color-positive), black 15%);
+    color: var(--budget-color-on-success, var(--budget-color-on-status, white));
 }
 
 /* ============================================
@@ -10153,7 +10766,7 @@ button.danger:hover {
 }
 
 .goal-card-actions button.delete-btn:hover {
-    background: rgba(183, 28, 28, 0.1);
+    background: var(--budget-tint-negative-10, rgba(183, 28, 28, 0.1));
     color: var(--budget-color-negative);
 }
 
@@ -10177,7 +10790,7 @@ button.danger:hover {
 }
 
 .goal-card.completed .goal-progress-fill {
-    background: linear-gradient(90deg, #2e7d32, #43a047);
+    background: linear-gradient(90deg, var(--budget-scheme-positive, #2e7d32), var(--budget-scheme-positive, #43a047));
 }
 
 .goal-amounts {
@@ -10245,7 +10858,7 @@ button.danger:hover {
     align-items: center;
     gap: 6px;
     padding: 6px 12px;
-    background: rgba(46, 125, 50, 0.1);
+    background: var(--budget-tint-positive-10, rgba(46, 125, 50, 0.1));
     color: var(--budget-color-positive);
     border-radius: 20px;
     font-size: 13px;
@@ -10391,7 +11004,7 @@ button.danger:hover {
 
 .detected-confidence.high {
     background: var(--color-success);
-    color: var(--budget-color-on-status, white);
+    color: var(--budget-color-on-success, var(--budget-color-on-status, white));
 }
 
 .detected-confidence.medium {
@@ -11495,7 +12108,7 @@ button.danger:hover {
 .budget-progress-fill.good {    background: var(--budget-color-positive);
 }
 
-.budget-progress-fill.warning {    background: var(--color-warning);
+.budget-progress-fill.warning {    background: var(--budget-scheme-warning-fill, var(--color-warning));
 }
 
 .budget-progress-fill.danger {    background: var(--budget-color-negative);
@@ -11511,7 +12124,7 @@ button.danger:hover {
     margin: 0;
     padding: 0;
     border-radius: var(--border-radius-small, 4px);
-    background: var(--color-warning);
+    background: var(--budget-scheme-warning-fill, var(--color-warning));
 }
 
 .budget-progress-text {
@@ -11633,6 +12246,13 @@ button.danger:hover {
     display: flex;
     flex-direction: column;
     gap: 4px;
+}
+
+/* Period, the account checklist and the tag filter don't scope the Bills
+   Calendar, which has its own Year and Account (#399). Important, as the
+   script sets the custom range's and the shared toggle's display inline. */
+.reports-controls[data-report-type="bills-calendar"] .report-scope-control {
+    display: none !important;
 }
 
 .reports-controls .control-group label {
@@ -11871,12 +12491,12 @@ button.danger:hover {
 }
 
 .summary-card-income .summary-icon {
-    background: rgba(46, 125, 50, 0.1);
+    background: var(--budget-tint-positive-10, rgba(46, 125, 50, 0.1));
     color: var(--budget-color-positive);
 }
 
 .summary-card-expenses .summary-icon {
-    background: rgba(183, 28, 28, 0.1);
+    background: var(--budget-tint-negative-10, rgba(183, 28, 28, 0.1));
     color: var(--budget-color-negative);
 }
 
@@ -12682,7 +13302,7 @@ button.danger:hover {
 .unlink-btn {
     padding: 4px 8px;
     background: var(--color-error);
-    color: var(--budget-color-on-status, white);
+    color: var(--budget-color-on-error, var(--budget-color-on-status, white));
     border: none;
     border-radius: var(--border-radius-small, 4px);
     cursor: pointer;
@@ -12731,6 +13351,14 @@ tr.scheduled-transaction > td:not(.balance-column) {
 
 tr.scheduled-transaction:hover > td:not(.balance-column) {
     opacity: 0.85;
+}
+
+/* Not the cell being edited: its picker is inside it, and a faded cell
+   showed the rows through the picker and kept it under the sticky Actions
+   column (#399). inlineEditorPopups.test.js. */
+tr.scheduled-transaction > td.editable-cell.editing,
+tr.scheduled-transaction:hover > td.editable-cell.editing {
+    opacity: 1;
 }
 
 .scheduled-badge {
@@ -13147,7 +13775,7 @@ tr.pending-transaction td:first-child {
     padding: 6px 12px;
     font-size: 12px;
     background: var(--color-error);
-    color: var(--budget-color-on-status, white);
+    color: var(--budget-color-on-error, var(--budget-color-on-status, white));
     border: none;
     border-radius: var(--border-radius-small, 4px);
     cursor: pointer;
@@ -13925,7 +14553,7 @@ tr.pending-transaction td:first-child {
 
 .recurring-status-overdue {
     background: var(--color-error);
-    color: var(--budget-color-on-status, white);
+    color: var(--budget-color-on-error, var(--budget-color-on-status, white));
 }
 
 .recurring-status-due {
@@ -13939,7 +14567,7 @@ tr.pending-transaction td:first-child {
 }
 
 .recurring-item.overdue .recurring-sub {
-    color: var(--color-error-text, var(--color-error));
+    color: var(--budget-scheme-negative, var(--color-error-text, var(--color-error)));
 }
 
 button.secondary.compact {
@@ -14241,7 +14869,7 @@ button.secondary.compact {
 }
 
 .asset-card-actions button.delete-btn:hover {
-    background: rgba(183, 28, 28, 0.1);
+    background: var(--budget-tint-negative-10, rgba(183, 28, 28, 0.1));
     color: var(--budget-color-negative);
 }
 
@@ -14280,12 +14908,12 @@ button.secondary.compact {
 }
 
 .asset-rate.positive {
-    background: rgba(46, 125, 50, 0.1);
+    background: var(--budget-tint-positive-10, rgba(46, 125, 50, 0.1));
     color: var(--budget-color-positive);
 }
 
 .asset-rate.negative {
-    background: rgba(183, 28, 28, 0.1);
+    background: var(--budget-tint-negative-10, rgba(183, 28, 28, 0.1));
     color: var(--budget-color-negative);
 }
 
@@ -14682,7 +15310,7 @@ button.secondary.compact {
 
 .split-remove-btn:hover {
     background: var(--color-error);
-    color: var(--budget-color-on-status, white);
+    color: var(--budget-color-on-error, var(--budget-color-on-status, white));
 }
 
 .split-remove-btn:disabled {
@@ -14870,11 +15498,11 @@ button.secondary.compact {
 }
 
 .settlement-total .positive {
-    color: var(--color-positive, #46ba61);
+    color: var(--budget-scheme-positive, var(--color-positive, #46ba61));
 }
 
 .settlement-total .negative {
-    color: var(--color-negative, #e9322d);
+    color: var(--budget-scheme-negative, var(--color-negative, #e9322d));
 }
 
 .settlement-contact-info .balance-amount {
@@ -14887,7 +15515,7 @@ button.secondary.compact {
     align-items: center;
     gap: 4px;
     padding: 2px 8px;
-    background: rgba(56, 142, 60, 0.12);
+    background: var(--budget-tint-positive-12, rgba(56, 142, 60, 0.12));
     color: var(--color-success);
     border-radius: 10px;
     font-size: 11px;
@@ -15027,7 +15655,7 @@ button.secondary.compact {
 }
 
 .alert-progress-fill.alert-warning {
-    background: var(--color-warning);
+    background: var(--budget-scheme-warning-fill, var(--color-warning));
 }
 
 .alert-progress-fill.alert-danger {
@@ -15167,7 +15795,7 @@ button.secondary.compact {
     overflow: hidden;
 }
 .debt-progress-bar-fill {
-    background: linear-gradient(90deg, var(--color-success), #27ae60);
+    background: linear-gradient(90deg, var(--color-success), var(--budget-scheme-positive, #27ae60));
     height: 100%;
     border-radius: 10px;
     transition: width 0.3s;
@@ -15737,6 +16365,10 @@ button.secondary.compact {
     font-weight: 600;
 }
 
+.shared-with-me-item .status-badge.badge-settled {
+    color: var(--budget-color-on-success, var(--budget-color-on-status, #fff));
+}
+
 /* Hover-reveal action buttons */
 .contact-actions-hover {
     position: absolute;
@@ -15775,7 +16407,7 @@ button.secondary.compact {
 .contact-actions-hover .delete-contact-btn:hover {
     color: var(--budget-color-negative, #e9322d);
     border-color: var(--budget-color-negative, #e9322d);
-    background: rgba(233, 50, 45, 0.06);
+    background: var(--budget-tint-negative-6, rgba(233, 50, 45, 0.06));
 }
 
 .contacts-list {
@@ -16885,7 +17517,7 @@ button.secondary.compact {
     padding: 8px 12px;
     border-radius: var(--border-radius, 6px);
     background: var(--color-error, #e9322d);
-    color: var(--budget-color-on-status, #fff);
+    color: var(--budget-color-on-error, var(--budget-color-on-status, #fff));
     font-size: 13px;
     white-space: pre-wrap;
 }
@@ -17481,7 +18113,7 @@ button.secondary.compact {
     transition: background 0.1s, color 0.1s;
 }
 .widget-remove-btn:hover {    background: var(--color-error);
-    color: var(--budget-color-on-status, white);
+    color: var(--budget-color-on-error, var(--budget-color-on-status, white));
 }
 
 .hero-card,
@@ -17491,7 +18123,7 @@ button.secondary.compact {
 
 /* Phase 1: New Hero Tile Styles */
 .hero-savings-rate .hero-icon {
-    background: rgba(76, 175, 80, 0.1);
+    background: var(--budget-tint-positive-10, rgba(76, 175, 80, 0.1));
     color: var(--color-success);
 }
 
@@ -17506,7 +18138,7 @@ button.secondary.compact {
 }
 
 .hero-budget-health .hero-icon {
-    background: rgba(76, 175, 80, 0.1);
+    background: var(--budget-tint-positive-10, rgba(76, 175, 80, 0.1));
     color: var(--color-success);
 }
 
@@ -17734,7 +18366,7 @@ button.secondary.compact {
     border-radius: var(--border-radius-container, 12px);
     font-size: 12px;
     font-weight: 500;
-    background: rgba(76, 175, 80, 0.1);
+    background: var(--budget-tint-positive-10, rgba(76, 175, 80, 0.1));
     color: var(--budget-color-positive);
 }
 
@@ -17745,7 +18377,7 @@ button.secondary.compact {
 }
 
 .hero-low-balance .hero-icon {
-    background: rgba(183, 28, 28, 0.1);
+    background: var(--budget-tint-negative-10, rgba(183, 28, 28, 0.1));
     color: var(--budget-color-negative);
 }
 
@@ -17794,7 +18426,7 @@ button.secondary.compact {
 }
 
 .hero-debt-free .hero-icon {
-    background: rgba(76, 175, 80, 0.1);
+    background: var(--budget-tint-positive-10, rgba(76, 175, 80, 0.1));
     color: var(--color-success);
 }
 
@@ -17852,7 +18484,7 @@ button.secondary.compact {
 }
 
 .income-progress-bar.warning {
-    background: var(--color-warning);
+    background: var(--budget-scheme-warning-fill, var(--color-warning));
 }
 
 .income-progress-bar.error {
@@ -18031,15 +18663,15 @@ button.secondary.compact {
 }
 
 .quick-add-message.success {
-    background: rgba(76, 175, 80, 0.1);
+    background: var(--budget-tint-positive-10, rgba(76, 175, 80, 0.1));
     color: var(--budget-color-positive);
-    border: 1px solid rgba(76, 175, 80, 0.3);
+    border: 1px solid var(--budget-tint-positive-30, rgba(76, 175, 80, 0.3));
 }
 
 .quick-add-message.error {
-    background: rgba(183, 28, 28, 0.1);
+    background: var(--budget-tint-negative-10, rgba(183, 28, 28, 0.1));
     color: var(--budget-color-negative);
-    border: 1px solid rgba(198, 40, 40, 0.3);
+    border: 1px solid var(--budget-tint-negative-30, rgba(198, 40, 40, 0.3));
 }
 
 .quick-add-message.info {
@@ -18140,9 +18772,13 @@ button.secondary.compact {
     max-width: 600px;
 }
 
+/* The factory reset dialog is out in #content too, and takes the app's
+   status shades (top of the file): white on the dark theme's light red was
+   2.4:1, so the text comes from the same place as the fill, as on every
+   other status fill (#399) */
 .danger-btn {
     background: var(--color-error, #e53935);
-    color: white;
+    color: var(--budget-color-on-error, var(--budget-color-on-status, white));
     border: none;
     padding: 10px 20px;
     border-radius: var(--border-radius-small, 4px);
@@ -18155,8 +18791,11 @@ button.secondary.compact {
     transition: background 0.2s ease;
 }
 
+/* A darker shade of the button's own red. Nextcloud's --color-error-hover
+   is a pale tint (#ffc3c3) under the white text, and a dark red under the
+   dark theme's dark text */
 .danger-btn:hover {
-    background: var(--color-error-hover, #c62828);
+    background: color-mix(in srgb, var(--color-error), black 15%);
 }
 
 .danger-btn:disabled {
@@ -18466,7 +19105,7 @@ button.secondary.compact {
 
 .budget-modal .error-message {
     background: var(--color-error);
-    color: var(--budget-color-on-status, white);
+    color: var(--budget-color-on-error, var(--budget-color-on-status, white));
     padding: 10px 12px;
     border-radius: var(--border-radius);
     margin-bottom: 16px;
@@ -18700,6 +19339,32 @@ button.secondary.compact {
     font-weight: 500;
 }
 
+/* The table is wider than its card at 1440px and at 800px, and scrolling it
+   sideways took the bill names with it (#399). The names stay on the left,
+   on a solid background so the months pass under them; the inset shadows
+   stand in for the borders, which a collapsed table leaves behind. */
+.bills-calendar-table .bill-name-col {
+    position: sticky;
+    inset-inline-start: 0;
+    z-index: 1;
+    background-color: var(--color-main-background);
+    box-shadow: inset -1px 0 0 var(--color-border), inset 0 -1px 0 var(--color-border);
+}
+
+.bills-calendar-table thead .bill-name-col {
+    z-index: 2;
+    background-color: var(--color-background-hover);
+}
+
+.bills-calendar-table tbody tr:hover .bill-name-col {
+    background-color: var(--color-background-hover);
+}
+
+/* The totals rows' 5% black, made solid */
+.bills-calendar-table .totals-row .bill-name-col {
+    background-color: color-mix(in srgb, var(--color-main-background), black 5%);
+}
+
 .bills-calendar-table .month-cell {
     text-align: right;
     padding-right: 8px;
@@ -18712,7 +19377,7 @@ button.secondary.compact {
 }
 
 .bills-calendar-table .month-cell.has-bill {
-    background-color: rgba(46, 125, 50, 0.08);
+    background-color: var(--budget-tint-positive-8, rgba(46, 125, 50, 0.08));
     color: var(--budget-color-positive);
     font-weight: 500;
 }
@@ -18724,15 +19389,38 @@ button.secondary.compact {
     text-decoration: line-through;
 }
 
-/* Moved past without a recorded payment: struck through, but visibly not a payment (#333) */
-.bills-calendar-table .month-cell.has-bill.paid.unrecorded {
-    text-decoration-style: dashed;
+/* Moved past without a recorded payment: muted and never struck through, so
+   it can't pass for a payment, and left out of Monthly Totals (#333, #399) */
+.bills-calendar-table .month-cell.has-bill.unrecorded {
+    background-color: rgba(0, 0, 0, 0.02);
+    color: var(--color-text-maxcontrast);
+    font-weight: 400;
+    font-style: italic;
+}
+
+/* A cell with a date paid more than once (#399). Inline-block keeps a paid
+   cell's line-through off it, and the margin stands in for a space, which
+   the line-through ran under ("2× -969.50"). White text on the light
+   theme's warning orange came to 3.79:1, under the 4.5:1 small text needs;
+   darkened by a fifth it is 5.5:1, and the dark theme's dark text on its
+   darkened amber 6.6:1. */
+.bills-calendar-table .month-cell .payments-marker {
+    display: inline-block;
+    margin-inline-end: 4px;
+    padding: 0 4px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--color-warning), black 20%);
+    color: var(--budget-color-on-status, #fff);
+    font-size: 10px;
+    font-style: normal;
+    font-weight: 600;
+    line-height: 16px;
 }
 
 .bills-calendar-table .total-cell {
     text-align: right;
     padding-right: 8px;
-    background-color: rgba(198, 40, 40, 0.1);
+    background-color: var(--budget-tint-negative-10, rgba(198, 40, 40, 0.1));
     font-weight: 600;
     font-size: 12px;
     color: var(--budget-color-negative);
@@ -18757,7 +19445,7 @@ button.secondary.compact {
 }
 
 .bills-calendar-table .balance-cell.negative {
-    background-color: rgba(198, 40, 40, 0.1);
+    background-color: var(--budget-tint-negative-10, rgba(198, 40, 40, 0.1));
     color: var(--budget-color-negative);
 }
 
@@ -18790,10 +19478,15 @@ button.secondary.compact {
     gap: 16px;
 }
 
+/* A tint of the app's red over the page, deeper the more the month costs
+   (--heat, 0 to 1, set by the script). It was the red itself at up to 80%,
+   with grey text barely readable on the busiest months (#399). At most 45%,
+   the page's own text colour stays above 6:1 in both themes. */
 .heatmap-month {
     padding: 20px;
     border-radius: var(--border-radius-element, 8px);
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--color-border);
+    background-color: color-mix(in srgb, var(--budget-color-negative) calc(var(--heat, 0) * 45%), var(--color-main-background));
     text-align: center;
     transition: transform 0.2s, box-shadow 0.2s;
 }
@@ -18812,14 +19505,14 @@ button.secondary.compact {
 
 .heatmap-month-count {
     font-size: 14px;
-    color: var(--color-text-lighter);
+    color: var(--color-main-text);
     margin-bottom: 8px;
 }
 
 .heatmap-month-total {
     font-size: 18px;
     font-weight: 700;
-    color: var(--budget-color-negative);
+    color: var(--color-main-text);
 }
 
 @media (max-width: 1200px) {
@@ -18896,10 +19589,12 @@ button.secondary.compact {
 
 .budget-toast-success {
     background-color: var(--budget-color-positive);
+    color: var(--budget-color-on-success, var(--budget-color-on-status, #fff));
 }
 
 .budget-toast-error {
     background-color: var(--color-error, #e9322d);
+    color: var(--budget-color-on-error, var(--budget-color-on-status, #fff));
 }
 
 .budget-toast-warning {
@@ -19356,7 +20051,7 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
 
 .badge-accepted {
     background: var(--color-success, #46ba61);
-    color: white;
+    color: var(--budget-color-on-success, white);
 }
 
 .sharing-item-actions {
@@ -19560,9 +20255,37 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
     background-color: var(--color-primary-element-light, rgba(0, 130, 201, 0.05));
 }
 
-.matching-tx-option input[type="radio"] {
-    margin-top: 3px;
+/* A radio's own size. Nextcloud's input rule makes every input 36px high
+   with a margin, and on hover, focus and press puts a 2px ring in the page
+   colour round it: the ticked radio, focused by the click, stood in a
+   13x36 white frame on the grey option, a black one in the dark theme
+   (#399). The dialogs' ids put this over that rule in every state (0-3-1
+   with :hover). The margin sets a radio level with its option's first
+   line. */
+#matching-tx-modal .matching-tx-option input[type="radio"],
+#bill-link-modal .matching-tx-option input[type="radio"] {
     flex-shrink: 0;
+    height: auto;
+    min-height: 0;
+    margin: 5px 0 0;
+    box-shadow: none;
+}
+
+/* Nextcloud takes the browser's focus outline off inputs, which left the
+   ring as the only sign of keyboard focus */
+#matching-tx-modal .matching-tx-option input[type="radio"]:focus-visible,
+#bill-link-modal .matching-tx-option input[type="radio"]:focus-visible {
+    outline: 2px solid var(--color-main-text);
+    outline-offset: 2px;
+}
+
+/* The second press of a double click selected the word under it ('CHF',
+   a date) on the option it landed on (#399). The options are choices, not
+   text to copy; the rest of the dialog stays selectable. */
+#matching-tx-modal .matching-tx-option,
+#bill-link-modal .matching-tx-option {
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 .matching-tx-details {
@@ -19609,20 +20332,83 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
     margin-top: 4px;
 }
 
+/* "Strong match" / "Exact amount" (#399). The dialogs hang off <body>,
+   outside the app's own status shades (top of the file), where Nextcloud
+   32+ makes --color-success a pale fill: white on it was 1.2:1. The app's
+   green is set on body for both themes and any colour scheme (#432), which
+   also gives the text to put on it; without one, white on the light green
+   is 5.1:1 and dark text on the dark one 9.2:1. */
 .matching-tx-badge {
     display: inline-block;
     font-size: 11px;
     font-weight: 600;
-    background: var(--color-success, #46ba61);
-    color: white;
+    background: var(--budget-color-positive, #2e7d32);
+    color: var(--budget-color-on-success, #fff);
     padding: 2px 6px;
     border-radius: 3px;
     margin-top: 4px;
 }
 
+body[data-theme-dark] .matching-tx-badge,
+body[data-theme-dark-highcontrast] .matching-tx-badge {
+    color: var(--budget-color-on-success, #171717);
+}
+
+@media (prefers-color-scheme: dark) {
+    body[data-theme-default] .matching-tx-badge {
+        color: var(--budget-color-on-success, #171717);
+    }
+}
+
 .matching-tx-create-new,
 .matching-tx-skip {
     border-style: dashed;
+}
+
+/* Link to bill (billLinkDialog.js) lists every bill on the account, 61 of
+   them for the reporter (#399), and the dialog scrolled as one 5,000px box
+   with Cancel and Link below the last bill. The header and footer stay in
+   view and the list scrolls between them, as in the duplicates dialog. The
+   list keeps room for a bill or two, and the body scrolls once even that
+   doesn't fit. */
+#bill-link-modal .budget-modal {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#bill-link-modal .budget-modal-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+#bill-link-modal .matching-tx-list {
+    flex: 1 1 auto;
+    min-height: 6rem;
+    overflow-y: auto;
+}
+
+/* Existing Transaction Found (matchingDialog.js) with five candidates put
+   Cancel and Confirm below the fold at 1440x900 (#399). The header and
+   footer stay in view and the body scrolls between them. */
+#matching-tx-modal .budget-modal {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#matching-tx-modal .budget-modal-header,
+#matching-tx-modal .budget-modal-footer {
+    flex: 0 0 auto;
+}
+
+#matching-tx-modal .budget-modal-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
 }
 
 .budget-modal-footer {
@@ -19634,6 +20420,27 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
 }
 
 /* Repair Data Styles */
+
+/* The report scrolled as one box with its footer inside, so at 1440x900
+   Close and Fix Selected Issues sat below the fold, and scrolling to them
+   took the title away (#399). The header and footer stay in view and the
+   body scrolls between them, as in the Link to bill dialog. */
+#repair-data-modal .budget-modal {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#repair-data-modal .budget-modal-header,
+#repair-data-modal .budget-modal-footer {
+    flex: 0 0 auto;
+}
+
+#repair-data-modal .budget-modal-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+}
 
 .repair-category {
     border: 1px solid var(--color-border);
@@ -19652,13 +20459,28 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
 }
 
 .repair-category-header h4 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     margin: 0;
     font-size: 14px;
 }
 
+/* Nextcloud sizes every input 36px high (34px at least) with a margin and a
+   white fill: the category's tick came out a 13x36 white box with the title
+   on its baseline, below it (#399) */
+.repair-category-header .repair-checkbox {
+    flex-shrink: 0;
+    height: auto;
+    min-height: 0;
+    margin: 0;
+}
+
+/* The status shades are the app's here too (see the top of the file), and
+   take dark text in the dark theme */
 .repair-category-count {
     background: var(--color-error, #e9322d);
-    color: white;
+    color: var(--budget-color-on-error, var(--budget-color-on-status, white));
     font-size: 12px;
     font-weight: 600;
     padding: 2px 8px;
@@ -19674,6 +20496,8 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
 
 .repair-item {
     display: flex;
+    /* Where the row is too narrow, the note goes onto a line of its own */
+    flex-wrap: wrap;
     align-items: center;
     gap: 8px;
     padding: 8px 0;
@@ -19683,6 +20507,21 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
 
 .repair-item:last-child {
     border-bottom: none;
+}
+
+/* Kept whole: beside a long note, a date broke after its hyphens
+   ('2026-10-' / '15') and an amount at its space (#399). So did the dates
+   and amounts in the note itself, which wraps ('on 2026-' / '03-28'). */
+.repair-item-amount,
+.repair-item-date,
+.repair-note-value {
+    white-space: nowrap;
+}
+
+/* The note takes the room the name, amount and date leave, instead of
+   squeezing the name ('CSX Pro / Credit / Cards') */
+.repair-item-note {
+    flex: 1 1 12em;
 }
 
 .repair-summary {
@@ -19980,9 +20819,13 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
     margin: 0;
 }
 
+/* Nextcloud's input sizing would stretch the row's tick too, as it did
+   the category's (above) */
 .repair-item-select input[type="checkbox"] {
     margin: 0;
     flex-shrink: 0;
+    height: auto;
+    min-height: 0;
 }
 
 .repair-category-help {
@@ -20328,7 +21171,7 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
 
 .project-amounts .negative,
 .project-row-remaining.negative {
-    color: var(--color-error-text, #8a0000);
+    color: var(--budget-scheme-negative, var(--color-error-text, #8a0000));
 }
 
 .project-status {
@@ -20672,29 +21515,39 @@ body[data-theme-dark-highcontrast] {
 }
 
 /* The error/success/warning overrides at the top of this file are set on
-   #app-navigation / #app-content, so they need redefining at the same level.
-   The light shades measured 2.7:1 (error) and 3.5:1 (success) on the dark
-   background; these are all above 6:1 on #171717 and #292929 (WCAG AA).
-   Being light, they take dark text when used as a fill. */
+   #app-navigation / #app-content and the dialogs, so they need redefining
+   at the same level, with a colour scheme's colours still first. The light
+   shades measured 2.7:1 (error) and 3.5:1 (success) on the dark background;
+   these are all above 6:1 on #171717 and #292929 (WCAG AA). Being light,
+   they take dark text when used as a fill. */
 body[data-theme-dark] #app-navigation,
 body[data-theme-dark] #app-content,
 body[data-theme-dark] #budget-toast-container,
+body[data-theme-dark] #repair-data-modal,
+body[data-theme-dark] #content.app-budget > .modal,
+body[data-theme-dark] .budget-modal-overlay,
 body[data-theme-dark-highcontrast] #app-navigation,
 body[data-theme-dark-highcontrast] #app-content,
-body[data-theme-dark-highcontrast] #budget-toast-container {
-    --color-success: #81c995;
-    --color-error: #f28b82;
-    --color-warning: #ffb74d;
+body[data-theme-dark-highcontrast] #budget-toast-container,
+body[data-theme-dark-highcontrast] #repair-data-modal,
+body[data-theme-dark-highcontrast] #content.app-budget > .modal,
+body[data-theme-dark-highcontrast] .budget-modal-overlay {
+    --color-success: var(--budget-scheme-positive, #81c995);
+    --color-error: var(--budget-scheme-negative, #f28b82);
+    --color-warning: var(--budget-scheme-warning, #ffb74d);
     --budget-color-on-status: #171717;
 }
 
 @media (prefers-color-scheme: dark) {
     body[data-theme-default] #app-navigation,
     body[data-theme-default] #app-content,
-    body[data-theme-default] #budget-toast-container {
-        --color-success: #81c995;
-        --color-error: #f28b82;
-        --color-warning: #ffb74d;
+    body[data-theme-default] #budget-toast-container,
+    body[data-theme-default] #repair-data-modal,
+    body[data-theme-default] #content.app-budget > .modal,
+    body[data-theme-default] .budget-modal-overlay {
+        --color-success: var(--budget-scheme-positive, #81c995);
+        --color-error: var(--budget-scheme-negative, #f28b82);
+        --color-warning: var(--budget-scheme-warning, #ffb74d);
         --budget-color-on-status: #171717;
     }
 }

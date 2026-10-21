@@ -312,12 +312,13 @@ class TransactionController extends Controller {
 		bool $excludedFromForecast = false,
 	): DataResponse {
 		try {
-			// Validate description (required)
-			$descValidation = $this->validationService->validateDescription($description, true);
+			// Validate description: required unless a vendor names the
+			// transaction (unnamed()), and stored empty when left out
+			$descValidation = $this->validationService->validateDescription($description, false);
 			if (!$descValidation['valid']) {
 				return new DataResponse(['error' => $descValidation['error']], Http::STATUS_BAD_REQUEST);
 			}
-			$description = $descValidation['sanitized'];
+			$description = $descValidation['sanitized'] ?? '';
 
 			// Validate date
 			$dateValidation = $this->validationService->validateDate($date, $this->l->t('Date'), true);
@@ -338,6 +339,9 @@ class TransactionController extends Controller {
 					return new DataResponse(['error' => $vendorValidation['error']], Http::STATUS_BAD_REQUEST);
 				}
 				$vendor = $vendorValidation['sanitized'];
+			}
+			if ($this->unnamed($description, $vendor)) {
+				return $this->unnamedRefusal();
 			}
 
 			if ($reference !== null) {
@@ -418,13 +422,14 @@ class TransactionController extends Controller {
 			$updates = [];
 			$params = $this->request->getParams();
 
-			// Validate description if provided
+			// Validate description if provided. Left empty it is stored empty:
+			// the column takes no null, and an edit that sent one failed.
 			if ($description !== null) {
 				$descValidation = $this->validationService->validateDescription($description, false);
 				if (!$descValidation['valid']) {
 					return new DataResponse(['error' => $descValidation['error']], Http::STATUS_BAD_REQUEST);
 				}
-				$updates['description'] = $descValidation['sanitized'];
+				$updates['description'] = $descValidation['sanitized'] ?? '';
 			}
 
 			// Validate date if provided
@@ -505,7 +510,7 @@ class TransactionController extends Controller {
 			$effectiveUserId = $this->userId;
 			$storedCategoryId = null;
 			try {
-				$this->service->find($id, $this->userId);
+				$existing = $this->service->find($id, $this->userId);
 			} catch (\Exception $e) {
 				$existing = $this->service->findForAccounts($id, $this->getVisibleAccountIds());
 				$storedCategoryId = $existing->getCategoryId();
@@ -513,6 +518,18 @@ class TransactionController extends Controller {
 					$this->requireWriteAccess('account', $existing->getAccountId());
 					$account = $this->service->findAccountById($existing->getAccountId());
 					$effectiveUserId = $account->getUserId();
+				}
+			}
+
+			// A description or a vendor has to name the row once the edit is
+			// made: taking one out leaves the other, as sent or as it was. The
+			// list edits the vendor cell on its own, so clearing the vendor of
+			// a row the app booked with no description is refused too.
+			if (array_key_exists('description', $updates) || array_key_exists('vendor', $updates)) {
+				$descriptionAfter = array_key_exists('description', $updates) ? $updates['description'] : $existing->getDescription();
+				$vendorAfter = array_key_exists('vendor', $updates) ? $updates['vendor'] : $existing->getVendor();
+				if ($this->unnamed($descriptionAfter, $vendorAfter)) {
+					return $this->unnamedRefusal();
 				}
 			}
 
@@ -542,6 +559,25 @@ class TransactionController extends Controller {
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to update transaction'), Http::STATUS_BAD_REQUEST, ['transactionId' => $id]);
 		}
+	}
+
+	/**
+	 * Whether a transaction would be named by neither a description nor a
+	 * vendor. Either will do (#399): Mark Paid and Mark Received book their
+	 * rows with the bill's or income's name as the vendor and no
+	 * description, and the form wouldn't save a date change on one until a
+	 * description was made up for it.
+	 */
+	private function unnamed(?string $description, ?string $vendor): bool {
+		return trim((string)$description) === '' && trim((string)$vendor) === '';
+	}
+
+	/** The refusal for a transaction unnamed() finds: its description is missing */
+	private function unnamedRefusal(): DataResponse {
+		return new DataResponse(
+			['error' => $this->validationService->validateDescription(null, true)['error']],
+			Http::STATUS_BAD_REQUEST
+		);
 	}
 
 	/**
@@ -758,6 +794,65 @@ class TransactionController extends Controller {
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to unlink transaction'), Http::STATUS_BAD_REQUEST);
 		}
+	}
+
+	/**
+	 * File a transaction under one of the user's bills as a payment of it
+	 * (#399). TransactionService::attachToBill() has the rules.
+	 *
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function linkBill(int $id, int $billId): DataResponse {
+		try {
+			$this->requireWritableRow($id);
+			return new DataResponse($this->service->attachToBill($id, $billId, $this->userId, $this->getWritableAccountIds()));
+		} catch (ReadOnlyShareException $e) {
+			return $this->handleError($e);
+		} catch (DoesNotExistException $e) {
+			return $this->handleNotFoundError($e, $this->l->t('Transaction'), ['transactionId' => $id]);
+		} catch (\InvalidArgumentException $e) {
+			// A refusal says why (another bill's payment, another account)
+			return $this->handleValidationError($e);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to link the transaction to the bill'), Http::STATUS_BAD_REQUEST, ['transactionId' => $id]);
+		}
+	}
+
+	/**
+	 * Take a transaction out of the bill it is filed under (#399).
+	 * TransactionService::detachFromBill() has the rules.
+	 *
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function unlinkBill(int $id): DataResponse {
+		try {
+			$this->requireWritableRow($id);
+			return new DataResponse($this->service->detachFromBill($id, $this->userId, $this->getWritableAccountIds()));
+		} catch (ReadOnlyShareException $e) {
+			return $this->handleError($e);
+		} catch (DoesNotExistException $e) {
+			return $this->handleNotFoundError($e, $this->l->t('Transaction'), ['transactionId' => $id]);
+		} catch (\InvalidArgumentException $e) {
+			// A refusal says why (the bill's latest payment, its next one)
+			return $this->handleValidationError($e);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to unlink the transaction from the bill'), Http::STATUS_BAD_REQUEST, ['transactionId' => $id]);
+		}
+	}
+
+	/**
+	 * A row this user can see and change. It may sit in an account shared
+	 * with them, and one shared read-only is refused with that reason rather
+	 * than as not found, as Link transfer does (#368).
+	 *
+	 * @throws DoesNotExistException when the user can't see the row
+	 * @throws ReadOnlyShareException when its account is shared read-only
+	 */
+	private function requireWritableRow(int $id): void {
+		$transaction = $this->service->findForAccounts($id, $this->getVisibleAccountIds());
+		$this->requireWriteAccess('account', $transaction->getAccountId());
 	}
 
 	/**

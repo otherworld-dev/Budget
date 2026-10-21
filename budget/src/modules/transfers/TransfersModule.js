@@ -3,20 +3,24 @@
  */
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import { once } from '../../utils/submitGuard.js';
+import { keepRowFocus } from '../../utils/rowFocus.js';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { billRowState } from '../../utils/billDates.js';
 import { showMatchingTransactionDialog } from '../../utils/matchingDialog.js';
 import { showSuccess, showError, showWarning, showUndoNotification } from '../../utils/notifications.js';
+import { trackSkipUndo, settleSkipUndos, forgetSkipUndo } from '../../utils/skipUndos.js';
 import { confirmDialog } from '../../utils/dialogs.js';
 import { initSingleDatePicker } from '../../utils/datepicker.js';
 import { isoWeekday } from '../../utils/helpers.js';
-import { apiFetch } from '../../utils/api.js';
+import { apiFetch, ApiError } from '../../utils/api.js';
 import { offerableTags, offerableTagSets } from '../../utils/tags.js';
 import { showLoadError } from '../../utils/loading.js';
 import { openAccounts, pickableAccounts, accountOptionLabel, accountCurrency, linkableCandidates } from '../../utils/accounts.js';
-import { requestMarkUnpaid } from '../../utils/billUnpaid.js';
+import { requestMarkUnpaid, markUnpaidQuestion } from '../../utils/billUnpaid.js';
+import { sendPayment, askAboutRecordedPaymentFirst } from '../../utils/paymentRecordedDialog.js';
 import { selectPossiblyUnavailable, unavailableCategoryLabel } from '../../utils/formSelects.js';
+import { isRepeatClick } from '../../utils/doubleClick.js';
 
 /**
  * The date to open the form on for a one-time transfer saved before the
@@ -217,13 +221,20 @@ export default class TransfersModule {
             }
         });
 
+        // Pressed from the keyboard, a payment action gives focus back to its row (#399)
+        const transferRow = (transferId) => `#transfers-list .bill-card[data-bill-id="${transferId}"]`;
+
         // Mark transfer as paid
         document.addEventListener('click', (e) => {
             const paidBtn = e.target.closest('.transfer-paid-btn');
             if (paidBtn) {
                 e.preventDefault();
+                // The second click of a double click is not one of its own:
+                // the list re-renders once a payment is made, and that click
+                // paid the transfer whose button had slid under the cursor (#399)
+                if (isRepeatClick(e)) return;
                 const transferId = parseInt(paidBtn.dataset.transferId);
-                this.markTransferPaid(transferId);
+                keepRowFocus(e, transferRow(transferId), '.transfer-paid-btn', () => this.markTransferPaid(transferId, paidBtn));
             }
         });
 
@@ -232,8 +243,9 @@ export default class TransfersModule {
             const skipBtn = e.target.closest('.transfer-skip-btn');
             if (skipBtn) {
                 e.preventDefault();
+                if (isRepeatClick(e)) return; // as for Mark Paid
                 const transferId = parseInt(skipBtn.dataset.transferId);
-                this.skipTransfer(transferId);
+                keepRowFocus(e, transferRow(transferId), '.transfer-skip-btn', () => this.skipTransfer(transferId, skipBtn));
             }
         });
 
@@ -242,8 +254,9 @@ export default class TransfersModule {
             const unpaidBtn = e.target.closest('.transfer-unpaid-btn');
             if (unpaidBtn) {
                 e.preventDefault();
+                if (isRepeatClick(e)) return; // as for Mark Paid
                 const transferId = parseInt(unpaidBtn.dataset.transferId);
-                this.markTransferUnpaid(transferId);
+                keepRowFocus(e, transferRow(transferId), '.transfer-unpaid-btn', () => this.markTransferUnpaid(transferId, unpaidBtn));
             }
         });
 
@@ -338,7 +351,7 @@ export default class TransfersModule {
                     </div>
                     <div class="bill-details">
                         <div class="bill-due-date">
-                            <span class="icon-calendar" aria-hidden="true"></span>
+                            <span class="icon-calendar-dark" aria-hidden="true"></span>
                             ${dom.escapeHtml(row.dateText)}
                         </div>
                         <div class="bill-status ${statusClass}">
@@ -971,16 +984,40 @@ export default class TransfersModule {
         }
     }
 
-    async markTransferPaid(transferId) {
+    /**
+     * Mark Paid. One action on a transfer runs at a time, with its button
+     * disabled, from the look for rows already in the account to the payment
+     * itself: two clicks at once both paid (#399).
+     *
+     * @param {number} transferId
+     * @param {HTMLElement|null} [button] the button clicked
+     */
+    markTransferPaid(transferId, button = null) {
+        return once(`bill-paid-${transferId}`, button, () => this._markTransferPaid(transferId));
+    }
+
+    async _markTransferPaid(transferId) {
         const transfer = this.transfers.find(tx => tx.id === transferId);
         if (!transfer) return;
 
         try {
+            const dueDate = transfer.nextDueDate || transfer.next_due_date || null;
+            const currency = transfer.currency || accountCurrency(this.accounts, transfer.accountId ?? transfer.account_id);
+
+            // The payment the ledger already has for this occurrence comes
+            // first, before any row to link is offered (#399)
+            const recorded = await askAboutRecordedPaymentFirst(transferId, dueDate, this.settings, { currency });
+            if (recorded === null) {
+                return; // left as it was
+            }
+
             // A withdrawal already in the source account (from a statement or
             // bank sync) may be this transfer: offer to link it, as the Bills
             // page does. Booking a new pair moved the money a second time.
             let choice = { action: 'create' };
-            if (transfer.accountId || transfer.account_id) {
+            if (recorded.usePayment) {
+                choice = { action: 'use', payment: recorded.usePayment };
+            } else if (transfer.accountId || transfer.account_id) {
                 const found = await apiFetch(`/apps/budget/api/bills/${transferId}/matching-transactions`)
                     .catch(() => null);
                 // Only rows the payment can be linked to
@@ -1000,20 +1037,35 @@ export default class TransfersModule {
             // refused rather than paid twice.
             const body = {
                 recordPayment: choice.action === 'create',
-                dueDate: transfer.nextDueDate || transfer.next_due_date || null,
+                dueDate,
             };
             if (choice.action === 'link') {
                 body.existingTransactionId = choice.transactionId;
+            } else if (choice.action === 'use') {
+                // Marked paid on that payment's date, with nothing booked
+                body.paidDate = choice.payment.date;
             } else {
                 body.paidDate = formatters.getTodayDateString();
             }
-            const result = await apiFetch(`/apps/budget/api/bills/${transferId}/paid`, {
-                method: 'POST',
-                body,
+            if (recorded.confirmSecondPayment) {
+                // Told of the payment already there, the user asked for another
+                body.confirmSecondPayment = true;
+            }
+            // When the ledger has this occurrence's payment already, the
+            // user is asked before another is booked (#399)
+            const sent = await sendPayment(`/apps/budget/api/bills/${transferId}/paid`, body, this.settings, {
+                currency,
                 errorMessage: t('budget', 'Failed to mark transfer as paid'),
             });
+            if (sent === null) {
+                return; // left as it was
+            }
+            const { result } = sent;
+            const usedPayment = choice.action === 'use' ? choice.payment : sent.usedPayment;
 
-            if (result && result.paymentTransactionRecorded === false) {
+            if (usedPayment) {
+                showSuccess(t('budget', 'Marked as paid with the payment of {date}', { date: formatters.formatDate(usedPayment.date, this.settings) }));
+            } else if (result && result.paymentTransactionRecorded === false) {
                 // Marked paid, but no money moved: say so rather than report
                 // a transfer that never reached either account
                 showWarning(t('budget', 'The transfer was marked as paid, but no transactions were recorded. Check both accounts, or add the transfer manually.'));
@@ -1027,6 +1079,24 @@ export default class TransfersModule {
         } catch (error) {
             console.error('Failed to mark transfer as paid:', error);
             showError(error.message || t('budget', 'Failed to mark transfer as paid'));
+            await this._reloadAfterRefusal(error);
+        }
+    }
+
+    /**
+     * The server refused an action on a transfer. It may have moved on in
+     * another tab or by a second request, and its row went on offering what
+     * was just refused until the page was reloaded by hand (#399). A request
+     * that never reached the server leaves the list alone: reloading it
+     * would fail the same way.
+     *
+     * @param {*} error what the action failed with
+     */
+    async _reloadAfterRefusal(error) {
+        if (error instanceof ApiError) {
+            await this.loadTransfers();
+            this.renderTransfers();
+            this.updateSummary();
         }
     }
 
@@ -1035,8 +1105,16 @@ export default class TransfersModule {
      * already handles a transfer - both pre-booked legs for the skipped date
      * go, and the next pair is pre-booked - so this is the bills list's Skip
      * with the same confirm and the same short-lived undo.
+     *
+     * @param {number} transferId
+     * @param {HTMLElement|null} [button] the button clicked: one action on a
+     *   transfer at a time, as for Mark Paid
      */
-    async skipTransfer(transferId) {
+    skipTransfer(transferId, button = null) {
+        return once(`bill-paid-${transferId}`, button, () => this._skipTransfer(transferId));
+    }
+
+    async _skipTransfer(transferId) {
         const transfer = this.transfers.find(tx => tx.id === transferId);
         if (!transfer) return;
 
@@ -1047,6 +1125,9 @@ export default class TransfersModule {
         try {
             const result = await apiFetch(`/apps/budget/api/bills/${transferId}/skip`, {
                 method: 'POST',
+                // The occurrence this row showed: a second click or a stale
+                // tab is refused instead of skipping the next one too (#399)
+                body: { dueDate: transfer.nextDueDate || transfer.next_due_date || null },
                 errorMessage: t('budget', 'Failed to skip transfer'),
             });
             const undoData = {
@@ -1061,14 +1142,19 @@ export default class TransfersModule {
             this.updateSummary();
 
             // The toast undoes this skip, whatever was done since
-            showUndoNotification(
+            const toast = showUndoNotification(
                 t('budget', 'Payment skipped. Advanced to next due date.'),
                 () => this.undoSkipTransfer(undoData),
-                () => this._dropUndo(undoData)
+                () => {
+                    forgetSkipUndo(undoData);
+                    this._dropUndo(undoData);
+                }
             );
+            trackSkipUndo(undoData, `transfer-${transferId}`, undoData.previousNextDueDate, toast);
         } catch (error) {
             console.error('Failed to skip transfer:', error);
             showError(error.message || t('budget', 'Failed to skip transfer'));
+            await this._reloadAfterRefusal(error);
         }
     }
 
@@ -1098,6 +1184,8 @@ export default class TransfersModule {
                 method: 'POST',
                 body: { previousNextDueDate },
             });
+            // Back on that date, the later skips of this transfer are undone too
+            settleSkipUndos(undoData);
 
             if (this._undoData === undoData) this._undoData = null;
             await this.loadTransfers();
@@ -1106,6 +1194,7 @@ export default class TransfersModule {
 
             showSuccess(t('budget', 'Action undone'));
         } catch (error) {
+            forgetSkipUndo(undoData);
             console.error('Failed to undo skip:', error);
             showError(t('budget', 'Failed to undo action: {message}', { message: error.message }));
         }
@@ -1115,10 +1204,18 @@ export default class TransfersModule {
      * Durable "mark as unpaid" for transfer bills (#365): the same snapshot
      * revert as the bills list — including the #347 statement-amount card
      * payments the snapshot restore exists for — with the same confirm copy.
+     *
+     * @param {number} transferId
+     * @param {HTMLElement|null} [button] the button clicked: one action on a
+     *   transfer at a time, as for Mark Paid
      */
-    async markTransferUnpaid(transferId) {
+    markTransferUnpaid(transferId, button = null) {
+        return once(`bill-paid-${transferId}`, button, () => this._markTransferUnpaid(transferId));
+    }
+
+    async _markTransferUnpaid(transferId) {
         const transfer = this.transfers.find(tx => tx.id === transferId);
-        let message = t('budget', 'Mark this bill as unpaid? Transactions created for the payment will be deleted, a linked imported transaction will be unlinked, and the bill schedule rolled back.');
+        let message = markUnpaidQuestion(transfer);
         const autoPayEnabled = transfer ? (transfer.autoPayEnabled ?? transfer.auto_pay_enabled ?? false) : false;
         if (autoPayEnabled) {
             message += '\n\n' + t('budget', 'Auto-pay is on for this bill — it may pay it again on the next run. Disable auto-pay first if the payment should not recur.');
@@ -1140,6 +1237,7 @@ export default class TransfersModule {
         } catch (error) {
             console.error('Failed to mark transfer as unpaid:', error);
             showError(error.message || t('budget', 'Failed to mark transfer as unpaid'));
+            await this._reloadAfterRefusal(error);
         }
     }
 

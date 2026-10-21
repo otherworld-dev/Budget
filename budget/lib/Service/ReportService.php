@@ -17,17 +17,20 @@ class ReportService {
 	private ReportAggregator $aggregator;
 	private ReportExporter $exporter;
 	private TagReportService $tagReportService;
+	private AmountColours $amountColours;
 
 	public function __construct(
 		ReportCalculator $calculator,
 		ReportAggregator $aggregator,
 		ReportExporter $exporter,
 		TagReportService $tagReportService,
+		AmountColours $amountColours,
 	) {
 		$this->calculator = $calculator;
 		$this->aggregator = $aggregator;
 		$this->exporter = $exporter;
 		$this->tagReportService = $tagReportService;
+		$this->amountColours = $amountColours;
 	}
 
 	/**
@@ -433,6 +436,8 @@ class ReportService {
 			default => throw new \InvalidArgumentException('Unknown report type: ' . $type),
 		};
 
-		return $this->exporter->export($data, $type, $format, $lang);
+		// The PDF draws negative amounts in the user's own colour (#432). Every
+		// export, interactive or scheduled, comes through here.
+		return $this->exporter->export($data, $type, $format, $lang, $this->amountColours->pdfNegativeRgbForUser($userId));
 	}
 }

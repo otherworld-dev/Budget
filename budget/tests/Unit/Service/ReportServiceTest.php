@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Tests\Unit\Service;
 
+use OCA\Budget\Service\AmountColours;
 use OCA\Budget\Service\Report\ReportAggregator;
 use OCA\Budget\Service\Report\ReportCalculator;
 use OCA\Budget\Service\Report\ReportExporter;
@@ -17,18 +18,25 @@ class ReportServiceTest extends TestCase {
 	private ReportAggregator $aggregator;
 	private ReportExporter $exporter;
 	private TagReportService $tagReportService;
+	private AmountColours $amountColours;
+	/** @var array<string, array{0: int, 1: int, 2: int}> negative colour by user; others get the default red */
+	private array $negativeColours = [];
 
 	protected function setUp(): void {
 		$this->calculator = $this->createMock(ReportCalculator::class);
 		$this->aggregator = $this->createMock(ReportAggregator::class);
 		$this->exporter = $this->createMock(ReportExporter::class);
 		$this->tagReportService = $this->createMock(TagReportService::class);
+		$this->amountColours = $this->createMock(AmountColours::class);
+		$this->amountColours->method('pdfNegativeRgbForUser')
+			->willReturnCallback(fn (string $userId) => $this->negativeColours[$userId] ?? [200, 0, 0]);
 
 		$this->service = new ReportService(
 			$this->calculator,
 			$this->aggregator,
 			$this->exporter,
-			$this->tagReportService
+			$this->tagReportService,
+			$this->amountColours
 		);
 	}
 
@@ -214,7 +222,7 @@ class ReportServiceTest extends TestCase {
 		$this->aggregator->method('generateSummaryWithComparison')->willReturn($summaryData);
 
 		$this->exporter->expects($this->once())->method('export')
-			->with($summaryData, 'summary', 'csv')
+			->with($summaryData, 'summary', 'csv', null, [200, 0, 0])
 			->willReturn(['stream' => 'csv data', 'contentType' => 'text/csv', 'filename' => 'summary_report.csv']);
 
 		$result = $this->service->exportReport('user1', 'summary', 'csv', '2025-01-01', '2025-12-31');
@@ -226,10 +234,22 @@ class ReportServiceTest extends TestCase {
 		$this->aggregator->method('generateSummaryWithComparison')->willReturn($summaryData);
 
 		$this->exporter->expects($this->once())->method('export')
-			->with($summaryData, 'summary', 'pdf', 'de')
+			->with($summaryData, 'summary', 'pdf', 'de', [200, 0, 0])
 			->willReturn(['stream' => '%PDF', 'contentType' => 'application/pdf', 'filename' => 'summary_report.pdf']);
 
 		$this->service->exportReport('user1', 'summary', 'pdf', '2025-01-01', '2025-12-31', lang: 'de');
+	}
+
+	public function testExportReportPassesUsersNegativeColour(): void {
+		$summaryData = ['totals' => ['totalIncome' => 5000.0]];
+		$this->aggregator->method('generateSummaryWithComparison')->willReturn($summaryData);
+		$this->negativeColours['user1'] = [168, 72, 0];
+
+		$this->exporter->expects($this->once())->method('export')
+			->with($summaryData, 'summary', 'pdf', null, [168, 72, 0])
+			->willReturn(['stream' => '%PDF', 'contentType' => 'application/pdf', 'filename' => 'summary_report.pdf']);
+
+		$this->service->exportReport('user1', 'summary', 'pdf', '2025-01-01', '2025-12-31');
 	}
 
 	public function testExportReportUnknownTypeThrows(): void {

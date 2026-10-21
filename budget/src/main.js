@@ -75,12 +75,15 @@ import { showSuccess, showError, showWarning } from './utils/notifications.js';
 import { confirmDialog } from './utils/dialogs.js';
 import { initDatePickers } from './utils/datepicker.js';
 import { setupChartTheme } from './utils/chartTheme.js';
+import { applyAmountColours, readInitialAmountColours, setupAmountColourRedraw } from './utils/amountColours.js';
 import { setupHeaderMenus } from './utils/headerMenu.js';
 import { setupClickableCards } from './utils/clickableCards.js';
 import { transactionTotalsByCurrency } from './utils/helpers.js';
 import { categoryOptionsHtml } from './utils/formSelects.js';
 import { apiFetch, ApiError } from './utils/api.js';
 import { openAccounts } from './utils/accounts.js';
+import { showRowsOf } from './utils/rowsScroll.js';
+import { duplicateItem, repairResultMessage, stuckIncomeItem } from './utils/repairFindings.js';
 
 // Configuration
 // Core
@@ -103,6 +106,7 @@ import HelpModule, { HELP_TOPICS, helpDocUrl, SUPPORT_LINKS } from './modules/he
 import OnboardingModule from './modules/onboarding/OnboardingModule.js';
 import { renderTransactionRow, transactionMenuActions } from './modules/transactions/transactionRow.js';
 import { refreshBankSyncNav } from './modules/bank-sync/bankSyncStatus.js';
+import { applyTransactionColumnVisibility, wireTransactionColumnToggles } from './utils/transactionColumns.js';
 // The rule editor's styles ship in budget-app.css with the rest, rather than
 // as a stylesheet of their own fetched when the Rules view first opens
 import './modules/rules/components/CriteriaBuilder.css';
@@ -181,6 +185,8 @@ class BudgetApp {
 
         // Initialize core infrastructure
         this.router = new Router(this);
+        // Charts read their colours when drawn, so a scheme change rebuilds the view.
+        setupAmountColourRedraw(this);
         this.keyboardShortcuts = new KeyboardShortcuts(this);
 
         // Initialize modules
@@ -472,14 +478,7 @@ class BudgetApp {
             });
 
             // Column visibility toggles
-            ['date', 'description', 'vendor', 'category', 'tags', 'amount', 'account'].forEach(col => {
-                const checkbox = document.getElementById(`col-toggle-${col}`);
-                if (checkbox) {
-                    checkbox.addEventListener('change', () => {
-                        this.toggleColumnVisibility(col, checkbox.checked);
-                    });
-                }
-            });
+            wireTransactionColumnToggles(document, (col, shown) => this.toggleColumnVisibility(col, shown));
         }
 
         // More-actions menu: a labelled dropdown under the row's ⋮ button, fixed
@@ -525,6 +524,11 @@ class BudgetApp {
                     '<path d="M18.84 12.25l1.72-1.71a4 4 0 0 0-5.66-5.66l-1.71 1.72"/><path d="M5.17 11.75l-1.71 1.71a4 4 0 0 0 5.66 5.66l1.71-1.71"/><line x1="2" y1="2" x2="22" y2="22"/>'),
                 match: () => item('transaction-match-btn', t('budget', 'Match transfer'),
                     '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>'),
+                // File a payment under a bill, or take it out of one (#399)
+                linkBill: () => item('transaction-link-bill-btn', t('budget', 'Link to bill…'),
+                    '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>'),
+                unlinkBill: () => item('transaction-unlink-bill-btn', t('budget', 'Unlink from bill'),
+                    '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/>'),
                 delete: () => '<div class="action-menu-separator" role="separator"></div>'
                     + item('transaction-delete-btn action-menu-item--danger', t('budget', 'Delete'),
                         '<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>'),
@@ -608,6 +612,12 @@ class BudgetApp {
                 const button = e.target.classList.contains('transaction-unlink-btn') ? e.target : e.target.closest('.transaction-unlink-btn');
                 const transactionId = parseInt(button.getAttribute('data-transaction-id'));
                 this.handleUnlinkTransaction(transactionId);
+            } else if (e.target.closest('.transaction-link-bill-btn')) {
+                const transactionId = parseInt(e.target.closest('.transaction-link-bill-btn').getAttribute('data-transaction-id'));
+                this.transactionsModule.linkTransactionToBill(transactionId);
+            } else if (e.target.closest('.transaction-unlink-bill-btn')) {
+                const transactionId = parseInt(e.target.closest('.transaction-unlink-bill-btn').getAttribute('data-transaction-id'));
+                this.transactionsModule.unlinkTransactionFromBill(transactionId);
             } else if (e.target.closest('.linked-indicator')) {
                 const badge = e.target.closest('.linked-indicator');
                 const linkedId = parseInt(badge.getAttribute('data-linked-id'));
@@ -881,6 +891,7 @@ class BudgetApp {
             if (!(settingsData instanceof ApiError)) {
                 this.settings = settingsData;
                 this.settingsLoaded = true;
+                applyAmountColours(this.settings.amount_color_scheme, this.settings.amount_color_custom);
                 this.columnVisibility = this.parseColumnVisibility(this.settings.transaction_columns_visible);
                 this.syncColumnConfigUI();
 
@@ -1496,6 +1507,10 @@ class BudgetApp {
                 // Always use enhanced rendering for inline editing support
                 this.renderEnhancedTransactionsTable();
                 this.applyColumnVisibility();
+                // Another page, rows per page, filters or sort start at the
+                // top of the rows' box; the same page loaded again keeps its
+                // place (#399)
+                showRowsOf(document.getElementById('transactions-table'), url);
             }
 
             // Update enhanced UI elements if they exist
@@ -1739,11 +1754,12 @@ class BudgetApp {
         const dupCount = findings.duplicateTransactions?.length || 0;
         const stuckCount = findings.stuckBills?.length || 0;
         const paidOneTimeCount = findings.paidOneTimeBills?.length || 0;
+        const stuckIncomeCount = findings.stuckIncome?.length || 0;
         const futureCount = findings.futureClearedTransactions?.length || 0;
         const driftCount = findings.balanceDrift?.length || 0;
         const signCount = findings.liabilitySignFlipped?.length || 0;
         const splitCatCount = findings.splitParentCategories?.length || 0;
-        const totalIssues = dupCount + stuckCount + paidOneTimeCount + futureCount + driftCount + signCount + splitCatCount;
+        const totalIssues = dupCount + stuckCount + paidOneTimeCount + stuckIncomeCount + futureCount + driftCount + signCount + splitCatCount;
 
         const modal = document.createElement('div');
         modal.id = 'repair-data-modal';
@@ -1757,29 +1773,13 @@ class BudgetApp {
         if (totalIssues === 0) {
             findingsHtml = `<div class="repair-summary"><p>${t('budget', 'No data integrity issues found. Everything looks good!')}</p></div>`;
         } else {
-            findingsHtml = `<div class="repair-summary"><p>${t('budget', 'Found {count} issue(s) across {categories} categories.', { count: totalIssues, categories: (dupCount > 0 ? 1 : 0) + (stuckCount > 0 ? 1 : 0) + (paidOneTimeCount > 0 ? 1 : 0) + (futureCount > 0 ? 1 : 0) + (driftCount > 0 ? 1 : 0) + (signCount > 0 ? 1 : 0) })}</p></div>`;
+            findingsHtml = `<div class="repair-summary"><p>${t('budget', 'Found {count} issue(s) across {categories} categories.', { count: totalIssues, categories: (dupCount > 0 ? 1 : 0) + (stuckCount > 0 ? 1 : 0) + (paidOneTimeCount > 0 ? 1 : 0) + (stuckIncomeCount > 0 ? 1 : 0) + (futureCount > 0 ? 1 : 0) + (driftCount > 0 ? 1 : 0) + (signCount > 0 ? 1 : 0) })}</p></div>`;
 
             // Duplicate transactions. A tick per row, because a payment that
             // only looks like a duplicate is a real payment lost for good when
             // it is deleted. Only pairs the scan is sure of come ticked.
             if (dupCount > 0) {
-                const dupItems = findings.duplicateTransactions.map(d => {
-                    let note = d.reason === 'same_occurrence'
-                        ? t('budget', 'Looks like a second payment for {occurrence} (other payment on {date})', { occurrence: d.occurrence, date: d.originalDate })
-                        : t('budget', 'Also recorded as {description} on {date}', { description: d.originalDescription || t('budget', '(unnamed)'), date: d.originalDate });
-                    if (d.originalReconciled) {
-                        note += ` (${t('budget', 'reconciled')})`;
-                    }
-                    return `<div class="repair-item">
-                        <label class="repair-item-select">
-                            <input type="checkbox" class="repair-dup-checkbox" data-transaction-id="${Number(d.duplicateId)}"${d.selected ? ' checked' : ''}>
-                            <span>${dom.escapeHtml(d.vendor) || t('budget', '(unnamed)')}</span>
-                        </label>
-                        <span>${formatCurrency(d.amount)}</span>
-                        <span>${dom.escapeHtml(d.date)}</span>
-                        <span class="repair-item-note">${note}</span>
-                    </div>`;
-                }).join('');
+                const dupItems = findings.duplicateTransactions.map(d => duplicateItem(d, formatCurrency)).join('');
 
                 findingsHtml += `
                     <div class="repair-category" data-category="duplicateTransactions">
@@ -1800,8 +1800,8 @@ class BudgetApp {
                 const stuckItems = findings.stuckBills.map(b =>
                     `<div class="repair-item">
                         <span>${dom.escapeHtml(b.name)}</span>
-                        <span>${t('budget', 'Due: {date}', { date: b.nextDueDate })}</span>
-                        <span>${t('budget', 'Paid: {date}', { date: b.lastPaidDate })}</span>
+                        <span class="repair-item-date">${t('budget', 'Due: {date}', { date: b.nextDueDate })}</span>
+                        <span class="repair-item-date">${t('budget', 'Paid: {date}', { date: b.lastPaidDate })}</span>
                         ${b.fixable ? '' : `<span class="repair-item-note">${t('budget', 'Check: not changed')}</span>`}
                     </div>`
                 ).join('');
@@ -1824,8 +1824,8 @@ class BudgetApp {
                 const paidOneTimeItems = findings.paidOneTimeBills.map(b =>
                     `<div class="repair-item">
                         <span>${dom.escapeHtml(b.name)}</span>
-                        <span>${formatCurrency(b.amount)}</span>
-                        <span>${t('budget', 'Paid: {date}', { date: b.lastPaidDate })}</span>
+                        <span class="repair-item-amount">${formatCurrency(b.amount)}</span>
+                        <span class="repair-item-date">${t('budget', 'Paid: {date}', { date: b.lastPaidDate })}</span>
                     </div>`
                 ).join('');
 
@@ -1839,13 +1839,31 @@ class BudgetApp {
                     </div>`;
             }
 
+            // Income an older version left expected on a payment it had
+            // already recorded (#399): Mark Received would record it again
+            if (stuckIncomeCount > 0) {
+                const stuckIncomeItems = findings.stuckIncome.map(i => stuckIncomeItem(i, formatCurrency)).join('');
+
+                findingsHtml += `
+                    <div class="repair-category" data-category="stuckIncome">
+                        <div class="repair-category-header">
+                            <h4><input type="checkbox" class="repair-checkbox" checked> ${t('budget', 'Income Received Early but Still Expected')}</h4>
+                            <span class="repair-category-count">${stuckIncomeCount}</span>
+                        </div>
+                        <div class="repair-category-details">
+                            <p class="repair-category-help">${t('budget', 'An older version recorded these payments on their expected date but left the income waiting for them, so Mark Received would record them a second time. Repairing moves each one on to its next date. Nothing is added or deleted.')}</p>
+                            ${stuckIncomeItems}
+                        </div>
+                    </div>`;
+            }
+
             // Future cleared transactions
             if (futureCount > 0) {
                 const futureItems = findings.futureClearedTransactions.slice(0, 20).map(f =>
                     `<div class="repair-item">
                         <span>${dom.escapeHtml(f.description) || t('budget', '(unnamed)')}</span>
-                        <span>${formatCurrency(f.amount)}</span>
-                        <span>${dom.escapeHtml(f.date)}</span>
+                        <span class="repair-item-amount">${formatCurrency(f.amount)}</span>
+                        <span class="repair-item-date">${dom.escapeHtml(f.date)}</span>
                         <span class="repair-item-note">${dom.escapeHtml(f.accountName)}${f.review ? ` · ${t('budget', 'Check: not changed')}` : ''}</span>
                     </div>`
                 ).join('');
@@ -1875,8 +1893,8 @@ class BudgetApp {
                             <input type="checkbox" class="repair-account-checkbox" data-account-id="${a.accountId}" checked>
                             <span>${dom.escapeHtml(a.accountName)}</span>
                         </label>
-                        <span>${t('budget', 'Now: {amount} in credit', { amount: formatCurrency(Math.abs(a.currentBalance)) })}</span>
-                        <span>${t('budget', 'After repair: {amount} owed', { amount: formatCurrency(Math.abs(a.repairedBalance)) })}</span>
+                        <span class="repair-item-amount">${t('budget', 'Now: {amount} in credit', { amount: formatCurrency(Math.abs(a.currentBalance)) })}</span>
+                        <span class="repair-item-amount">${t('budget', 'After repair: {amount} owed', { amount: formatCurrency(Math.abs(a.repairedBalance)) })}</span>
                     </div>`
                 ).join('');
 
@@ -1899,7 +1917,7 @@ class BudgetApp {
                     const category = this.categories?.find(c => c.id === tx.categoryId);
                     return `<div class="repair-item">
                         <span>${dom.escapeHtml(tx.description || tx.vendor || t('budget', 'Transaction'))}</span>
-                        <span>${dom.escapeHtml(this.formatDate(tx.date))}</span>
+                        <span class="repair-item-date">${dom.escapeHtml(this.formatDate(tx.date))}</span>
                         <span>${t('budget', 'Listed under {category}', { category: dom.escapeHtml(category ? category.name : t('budget', 'Uncategorized')) }, undefined, { escape: false })}</span>
                     </div>`;
                 }).join('');
@@ -1922,8 +1940,8 @@ class BudgetApp {
                 const driftItems = findings.balanceDrift.map(a =>
                     `<div class="repair-item">
                         <span>${dom.escapeHtml(a.accountName)}</span>
-                        <span>${t('budget', 'Stored: {amount}', { amount: formatCurrency(a.storedBalance) })}</span>
-                        <span>${t('budget', 'Expected: {amount}', { amount: formatCurrency(a.expectedBalance) })}</span>
+                        <span class="repair-item-amount">${t('budget', 'Stored: {amount}', { amount: formatCurrency(a.storedBalance) })}</span>
+                        <span class="repair-item-amount">${t('budget', 'Expected: {amount}', { amount: formatCurrency(a.expectedBalance) })}</span>
                         <span class="repair-item-note">${t('budget', 'Diff: {amount}', { amount: formatCurrency(a.difference) })}</span>
                     </div>`
                 ).join('');
@@ -2018,34 +2036,7 @@ class BudgetApp {
 
                     cleanup();
 
-                    // Build result summary
-                    const parts = [];
-                    if (result.duplicateTransactions) {
-                        parts.push(t('budget', '{count} duplicate transactions removed', { count: result.duplicateTransactions.deleted }));
-                    }
-                    if (result.stuckBills) {
-                        parts.push(t('budget', '{count} bill due dates fixed', { count: result.stuckBills.fixed }));
-                    }
-                    if (result.paidOneTimeBills) {
-                        parts.push(t('budget', '{count} one-time bills deactivated', { count: result.paidOneTimeBills.fixed }));
-                    }
-                    if (result.futureClearedTransactions) {
-                        parts.push(t('budget', '{count} future transactions set to scheduled', { count: result.futureClearedTransactions.fixed }));
-                    }
-                    if (result.splitParentCategories) {
-                        parts.push(t('budget', '{count} split transactions had a stray category removed', { count: result.splitParentCategories.fixed }));
-                    }
-                    if (result.liabilitySignFlipped) {
-                        parts.push(t('budget', '{count} debts re-recorded as owed', { count: result.liabilitySignFlipped.fixed }));
-                        if (result.liabilitySignFlipped.confirmed > 0) {
-                            parts.push(t('budget', '{count} confirmed as genuine credits', { count: result.liabilitySignFlipped.confirmed }));
-                        }
-                    }
-                    if (result.balanceDrift) {
-                        parts.push(t('budget', '{count} account balances corrected', { count: result.balanceDrift.updated }));
-                    }
-
-                    showSuccess(t('budget', 'Repair complete: {details}', { details: parts.join(', ') }));
+                    showSuccess(repairResultMessage(result));
 
                     // Reload app data
                     this.loadAccounts();
@@ -3914,35 +3905,9 @@ class BudgetApp {
     // Duplicate parseDashboardConfig removed - using delegation to dashboardModule
 
     applyColumnVisibility() {
-        const table = document.getElementById('transactions-table');
-        if (!table) return;
-
-        const columnMap = {
-            date: 'date-column',
-            description: 'description-column',
-            vendor: 'vendor-column',
-            category: 'category-column',
-            tags: 'tags-column',
-            amount: 'amount-column',
-            balance: 'balance-column',
-            account: 'account-column'
-        };
-
-        Object.entries(this.columnVisibility).forEach(([key, visible]) => {
-            const className = columnMap[key];
-            if (!className) return;
-
-            // Balance column auto-hides when data isn't available
-            let isVisible = visible;
-            if (key === 'balance' && !this.runningBalances) {
-                isVisible = false;
-            }
-
-            // Apply to all cells with this class (header and body)
-            const cells = table.querySelectorAll(`th.${className}, td.${className}`);
-            cells.forEach(cell => {
-                cell.style.display = isVisible ? '' : 'none';
-            });
+        // Balance column auto-hides when data isn't available
+        applyTransactionColumnVisibility(document.getElementById('transactions-table'), this.columnVisibility, {
+            hasBalances: !!this.runningBalances,
         });
     }
 
@@ -4156,5 +4121,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Before any chart is drawn: axis labels, legends and grid lines follow
     // the Nextcloud theme instead of Chart.js's fixed grey.
     setupChartTheme(Chart);
+    // The per-user money-in/money-out colours, also before any chart is drawn.
+    const { scheme, custom } = readInitialAmountColours();
+    applyAmountColours(scheme, custom);
     window.budgetApp = new BudgetApp();
 });

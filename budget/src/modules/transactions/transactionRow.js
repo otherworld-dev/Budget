@@ -26,13 +26,34 @@ import { isReadOnlyShare } from '../../utils/accounts.js';
  *
  * @param {object} tx - Transaction row as the API returns it
  * @param {object|undefined} account - The row's account
- * @returns {Array<'duplicate'|'share'|'match'|'unlink'|'delete'>}
+ * @returns {Array<'duplicate'|'share'|'match'|'unlink'|'linkBill'|'unlinkBill'|'delete'>}
  */
 export function transactionMenuActions(tx, account) {
     if (isReadOnlyShare(account)) {
         return ['share'];
     }
-    return ['duplicate', 'share', tx?.linkedTransactionId != null ? 'unlink' : 'match', 'delete'];
+    const bill = billMenuAction(tx);
+    return ['duplicate', 'share', tx?.linkedTransactionId != null ? 'unlink' : 'match', ...(bill ? [bill] : []), 'delete'];
+}
+
+/**
+ * The row's bill entry (#399): Link to bill on a payment no bill holds, or
+ * one whose bill was deleted (billDeleted), and Unlink from bill on one a
+ * bill still holds. Neither on money in, which no bill pays, nor on a
+ * scheduled row: money that hasn't moved, or a bill's upcoming payment,
+ * which stays with its bill.
+ *
+ * @param {object} tx - Transaction row as the API returns it
+ * @returns {'linkBill'|'unlinkBill'|null}
+ */
+function billMenuAction(tx) {
+    if (!tx || tx.status === 'scheduled') {
+        return null;
+    }
+    if (tx.billId != null && !tx.billDeleted) {
+        return 'unlinkBill';
+    }
+    return tx.type === 'debit' ? 'linkBill' : null;
 }
 
 /**
@@ -164,6 +185,27 @@ export function rowCategoryName(tx, category) {
 }
 
 /**
+ * A title attribute with texts in full, one to a line, for a cell that cuts
+ * them to one line (#399): the two copies of a receipt line imported twice,
+ * 'Wassertank Zubehör' and 'Wassertank Zubehör, Diverses', both read
+ * 'Wassertank …'. An empty text adds nothing: a row with no description
+ * shows a placeholder, not text of its own.
+ *
+ * In the main list the title goes on the cell itself. Its editable cells
+ * lie under an invisible overlay that takes the clicks
+ * ('.editable-cell::after' in style.css), so the pointer never reaches the
+ * text inside, and a title there never showed. The register has no
+ * overlay, and its titles stay on the texts.
+ *
+ * @param {...(string|null|undefined)} texts
+ * @returns {string} ' title="…"', or empty
+ */
+function fullTextTitle(...texts) {
+    const lines = texts.map(text => (text == null ? '' : String(text))).filter(text => text.trim() !== '');
+    return lines.length ? ` title="${lines.map(line => escapeHtml(line)).join('&#10;')}"` : '';
+}
+
+/**
  * A scheduled row's balance is where the balance will be once it and the
  * scheduled rows before it go through, so it is marked as projected (#414).
  */
@@ -229,7 +271,7 @@ export function renderTransactionRow(tx, ctx) {
             ? `<span class="category-name split-category" title="${split.title}">${split.label}</span>`
             : isSplit
                 ? `<span class="category-name split-category">${t('budget', 'Split')}</span>`
-                : `<span class="category-name ${categoryName !== null ? '' : 'uncategorized'}">${categoryName !== null ? escapeHtml(categoryName) : t('budget', 'Uncategorized')}</span>`;
+                : `<span class="category-name ${categoryName !== null ? '' : 'uncategorized'}"${fullTextTitle(categoryName)}>${categoryName !== null ? escapeHtml(categoryName) : t('budget', 'Uncategorized')}</span>`;
 
         return `
             <tr class="${rowClasses.join(' ')}" data-transaction-id="${tx.id}"${readOnlyAttr}>
@@ -238,12 +280,12 @@ export function renderTransactionRow(tx, ctx) {
                 </td>
                 <td class="description-column">
                     <div class="transaction-description">
-                        <span class="description-main">${escapeHtml(tx.description) || noDescription}</span>
-                        ${tx.reference ? `<span class="secondary-text">${escapeHtml(tx.reference)}</span>` : ''}
+                        <span class="description-main"${fullTextTitle(tx.description)}>${escapeHtml(tx.description) || noDescription}</span>
+                        ${tx.reference ? `<span class="secondary-text"${fullTextTitle(tx.reference)}>${escapeHtml(tx.reference)}</span>` : ''}
                         ${badges}
                     </div>
                 </td>
-                <td class="vendor-column">${escapeHtml(tx.vendor || '')}</td>
+                <td class="vendor-column"${fullTextTitle(tx.vendor)}>${escapeHtml(tx.vendor || '')}</td>
                 <td class="category-column">
                     ${categoryContent}
                     <div class="transaction-tags-display" data-transaction-id="${tx.id}" style="margin-top: 4px;"></div>
@@ -290,7 +332,7 @@ export function renderTransactionRow(tx, ctx) {
             <td class="description-column ${editable}"
                 data-field="description"
                 data-value="${escapeHtml(tx.description)}"
-                data-transaction-id="${tx.id}">
+                data-transaction-id="${tx.id}"${fullTextTitle(tx.description, tx.reference)}>
                 <div class="transaction-description">
                     <span class="primary-text cell-display">${escapeHtml(tx.description) || noDescription}</span>
                     ${tx.reference ? `<span class="secondary-text">${escapeHtml(tx.reference)}</span>` : ''}
@@ -300,7 +342,7 @@ export function renderTransactionRow(tx, ctx) {
             <td class="vendor-column ${editable}"
                 data-field="vendor"
                 data-value="${escapeHtml(tx.vendor || '')}"
-                data-transaction-id="${tx.id}">
+                data-transaction-id="${tx.id}"${fullTextTitle(tx.vendor)}>
                 <span class="cell-display">${escapeHtml(tx.vendor) || '-'}</span>
             </td>
             <td class="category-column ${isSplit ? '' : editable}"

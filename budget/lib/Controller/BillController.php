@@ -6,6 +6,7 @@ namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Db\Bill;
+use OCA\Budget\Enum\Currency;
 use OCA\Budget\Exception\ReconciledPaymentException;
 use OCA\Budget\Service\BillService;
 use OCA\Budget\Service\Export\CsvSafe;
@@ -911,6 +912,42 @@ class BillController extends Controller {
 	}
 
 	/**
+	 * The payment the ledger already holds for the occurrence the page
+	 * shows, if it has one (#399): {existing: {id, date, amount}|null}.
+	 *
+	 * Mark Paid asks about it before rows to link are offered. The
+	 * "Existing Transaction Found" dialog came first, and two of its
+	 * choices never reached the question: a re-opened bill got an unrelated
+	 * row linked as a second payment, or was marked paid today with a
+	 * warning that nothing was recorded. Checked as Mark Paid is, and
+	 * looked for as the person paying: only a row in an account they can
+	 * write to is named, the one Mark Paid itself would refuse over.
+	 *
+	 * The query's dueDate is the occurrence the page showed; once the bill
+	 * has moved past it nothing is named, and Mark Paid then refuses it as
+	 * already recorded.
+	 * @NoAdminRequired
+	 */
+	public function recordedPayment(int $id): DataResponse {
+		try {
+			$this->requireWriteAccess('bill', $id);
+			$this->requireBillAccountsWritable($id);
+			$dueDate = $this->request->getParams()['dueDate'] ?? null;
+			$existing = $this->service->recordedPaymentForPendingOccurrence(
+				$id,
+				$this->billOwner($id),
+				is_string($dueDate) ? $dueDate : null,
+				$this->userId
+			);
+			return new DataResponse(['existing' => $existing]);
+		} catch (DoesNotExistException $e) {
+			return $this->handleNotFoundError($e, $this->l->t('Bill'), ['billId' => $id]);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to mark bill as paid'), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
+		}
+	}
+
+	/**
 	 * Bills recently marked paid without a recorded transaction (#274)
 	 * @NoAdminRequired
 	 */
@@ -980,8 +1017,26 @@ class BillController extends Controller {
 			// The occurrence the page showed, so a second click or a stale
 			// tab is refused instead of paying it twice
 			$expectedDueDate = is_string($params['dueDate'] ?? null) ? $params['dueDate'] : null;
+			$owner = $this->billOwner($id);
+			// The user answered "Record another payment" to the page's question
+			$secondPayment = filter_var($params['confirmSecondPayment'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
-			$result = $this->service->markPaid($id, $this->billOwner($id), $paidDate, $recordPayment, $existingTransactionId, $expectedDueDate, $this->userId);
+			// The ledger may hold the occurrence's payment already: a bill
+			// made due again was paid a second time with one click (#399).
+			// Booking another then takes the user saying so; the page asks.
+			// Only a payment in an account the user can write to is named.
+			if ($recordPayment && $existingTransactionId === null && !$secondPayment) {
+				$existing = $this->service->recordedPaymentForPendingOccurrence($id, $owner, $expectedDueDate, $this->userId);
+				if ($existing !== null) {
+					return new DataResponse([
+						'error' => $this->l->t('This bill already has a payment on %1$s.', [$existing['date']]),
+						'code' => 'payment_recorded',
+						'existing' => $existing,
+					], Http::STATUS_CONFLICT);
+				}
+			}
+
+			$result = $this->service->markPaid($id, $owner, $paidDate, $recordPayment, $existingTransactionId, $expectedDueDate, $this->userId, $secondPayment);
 			return new DataResponse($result);
 		} catch (\InvalidArgumentException $e) {
 			// Service-only validation keeps its message (#362)
@@ -1060,7 +1115,10 @@ class BillController extends Controller {
 		try {
 			$this->requireWriteAccess('bill', $id);
 			$this->requireBillAccountsWritable($id);
-			$result = $this->service->skipPayment($id, $this->billOwner($id));
+			// The occurrence the page showed, so a second click or a stale
+			// tab is refused instead of skipping the next one too (#399)
+			$dueDate = $this->request->getParams()['dueDate'] ?? null;
+			$result = $this->service->skipPayment($id, $this->billOwner($id), is_string($dueDate) ? $dueDate : null);
 			return new DataResponse($result);
 		} catch (\InvalidArgumentException $e) {
 			return $this->handleError($e, $e->getMessage(), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
@@ -1083,6 +1141,13 @@ class BillController extends Controller {
 
 			if ($previousNextDueDate === null) {
 				return new DataResponse(['error' => $this->l->t('Missing previous due date')], Http::STATUS_BAD_REQUEST);
+			}
+			// Any string was stored as the due date, and a bad one made the
+			// annual overview fail for the whole user (#399)
+			$previousNextDueDate = is_string($previousNextDueDate) ? $previousNextDueDate : '';
+			$validation = $this->validationService->validateDate($previousNextDueDate, $this->l->t('Previous due date'), true);
+			if (!$validation['valid']) {
+				return new DataResponse(['error' => $validation['error']], Http::STATUS_BAD_REQUEST);
 			}
 
 			$bill = $this->service->undoSkip($id, $this->billOwner($id), $previousNextDueDate);
@@ -1411,33 +1476,16 @@ class BillController extends Controller {
 
 		// Bill rows
 		foreach ($data['bills'] ?? [] as $bill) {
-			$row = [
-				$bill['name'] ?? '',
-				$bill['amount'] ?? 0,
-				$bill['frequency'] ?? '',
-			];
-
-			$annualTotal = 0;
-			for ($m = 1; $m <= 12; $m++) {
-				$occurs = !empty($bill['occurrences'][$m]);
-				$row[] = $occurs ? number_format((float)($bill['amount'] ?? 0), 2) : '';
-				if ($occurs) {
-					$annualTotal += (float)($bill['amount'] ?? 0);
-				}
-			}
-			$row[] = number_format($annualTotal, 2);
-			CsvSafe::put($csv, $row);
+			[$months, $annualTotal] = $this->calendarExportCells($bill);
+			CsvSafe::put($csv, array_merge(
+				[$bill['name'] ?? '', $this->calendarExportAmount($bill), $bill['frequency'] ?? ''],
+				$months,
+				[$annualTotal]
+			));
 		}
 
 		// Monthly totals row
-		$totalsRow = [$this->l->t('Total'), '', ''];
-		$grandTotal = 0;
-		for ($m = 1; $m <= 12; $m++) {
-			$total = $data['monthlyTotals'][$m] ?? 0;
-			$totalsRow[] = number_format($total, 2);
-			$grandTotal += $total;
-		}
-		$totalsRow[] = number_format($grandTotal, 2);
+		$totalsRow = array_merge([$this->l->t('Total'), '', ''], $this->calendarExportTotals($data));
 		CsvSafe::put($csv, $totalsRow);
 
 		$balanceRow = $this->projectedBalanceRow($data);
@@ -1457,6 +1505,87 @@ class BillController extends Controller {
 	}
 
 	/**
+	 * A calendar row's twelve months as an export prints them, and the year
+	 * added up from what is printed. Every month the bill fell in printed
+	 * the bill's amount, whatever was paid (#399), so four invoices folded
+	 * into one row printed the first one's amount four times.
+	 *
+	 * @return array{0: string[], 1: string} the months January to December, the annual total
+	 */
+	private function calendarExportCells(array $bill): array {
+		$decimals = Currency::decimalsFor($bill['currency'] ?? null);
+		$months = [];
+		$annual = '0';
+		for ($m = 1; $m <= 12; $m++) {
+			$amount = $this->calendarCellAmount($bill, $m);
+			$months[] = $amount === null ? '' : number_format($amount, $decimals);
+			if ($amount !== null) {
+				$annual = MoneyCalculator::add($annual, round($amount, $decimals), $decimals);
+			}
+		}
+		return [$months, number_format(MoneyCalculator::toFloat($annual), $decimals)];
+	}
+
+	/**
+	 * A calendar row's Amount column, written as its months are. It was the
+	 * raw number ('1013.1', '630'), and a row folding one-time invoices of
+	 * one name printed the first invoice's amount for all of them; a row
+	 * whose invoices' amounts differ leaves it blank (#399).
+	 */
+	private function calendarExportAmount(array $bill): string {
+		if (!empty($bill['mixedAmounts'])) {
+			return '';
+		}
+		return number_format((float)($bill['amount'] ?? 0), Currency::decimalsFor($bill['currency'] ?? null));
+	}
+
+	/**
+	 * The Monthly Totals row's twelve months and the year, in the base
+	 * currency the totals are converted to. A converted total carries more
+	 * decimals than it prints, and bcadd at the currency's scale truncates
+	 * them, so each month is rounded as printed before the year adds it up
+	 * (twelve months of 100.006 printed 100.01 and came to 1,200.00).
+	 *
+	 * @return string[]
+	 */
+	private function calendarExportTotals(array $data): array {
+		$decimals = Currency::decimalsFor($data['baseCurrency'] ?? null);
+		$row = [];
+		$grandTotal = '0';
+		for ($m = 1; $m <= 12; $m++) {
+			$total = round((float)($data['monthlyTotals'][$m] ?? 0), $decimals);
+			$row[] = number_format($total, $decimals);
+			$grandTotal = MoneyCalculator::add($grandTotal, $total, $decimals);
+		}
+		$row[] = number_format(MoneyCalculator::toFloat($grandTotal), $decimals);
+		return $row;
+	}
+
+	/**
+	 * What one month of a calendar row comes to, as the Bills Calendar shows
+	 * it (calendarCell() in src/utils/billsCalendarCell.js): what was paid in
+	 * it plus what is still owed, which is also what the month adds to the
+	 * monthly totals. A month the bill moved past with no payment recorded
+	 * comes to nothing, as does one it doesn't fall in, and one whose date
+	 * was paid in the other year (paidElsewhere, counted there). A row that
+	 * says nothing about payments comes to its expected amount.
+	 */
+	private function calendarCellAmount(array $bill, int $month): ?float {
+		if (empty($bill['occurrences'][$month])) {
+			return null;
+		}
+		$paid = $bill['paidAmounts'][$month] ?? null;
+		$owed = $bill['owedAmounts'][$month] ?? null;
+		if ($paid !== null || $owed !== null) {
+			return MoneyCalculator::toFloat(MoneyCalculator::add((float)($paid ?? 0), (float)($owed ?? 0), 8));
+		}
+		if (in_array($month, $bill['unrecordedMonths'] ?? [], true) || !empty($bill['paidElsewhere'][$month])) {
+			return null;
+		}
+		return (float)($bill['expectedAmounts'][$month] ?? $bill['amount'] ?? 0);
+	}
+
+	/**
 	 * The calendar's projected balance row for an export, in the CSV's
 	 * column order: label, today's balance in the Amount column, a blank for
 	 * Frequency, then the balance at the end of each month (blank for the
@@ -1470,10 +1599,11 @@ class BillController extends Controller {
 		if (empty($data['account']) || !is_array($data['projectedBalance'] ?? null)) {
 			return null;
 		}
-		$row = [$this->l->t('Projected balance'), number_format((float)$data['account']['balance'], 2), ''];
+		$decimals = Currency::decimalsFor($data['account']['currency'] ?? null);
+		$row = [$this->l->t('Projected balance'), number_format((float)$data['account']['balance'], $decimals), ''];
 		for ($m = 1; $m <= 12; $m++) {
 			$left = $data['projectedBalance'][$m] ?? null;
-			$row[] = $left === null ? '' : number_format((float)$left, 2);
+			$row[] = $left === null ? '' : number_format((float)$left, $decimals);
 		}
 		$row[] = '';
 		return $row;
@@ -1515,34 +1645,35 @@ class BillController extends Controller {
 		}
 		$pdf->Cell($totalW, 5, $this->l->t('Annual'), 1, 1, 'R');
 
-		// Data rows
+		// Data rows. A long name wraps inside its column, and the row grows
+		// to fit it; written on one line it ran on into the Amount (#399).
 		$pdf->SetFont('dejavusans', '', 7);
 		foreach ($data['bills'] ?? [] as $bill) {
-			$pdf->Cell($nameW, 5, $bill['name'] ?? '', 1, 0, 'L');
-			$pdf->Cell($amtW, 5, number_format((float)($bill['amount'] ?? 0), 2), 1, 0, 'R');
-
-			$annualTotal = 0;
-			for ($m = 1; $m <= 12; $m++) {
-				$occurs = !empty($bill['occurrences'][$m]);
-				$pdf->Cell($monthW, 5, $occurs ? number_format((float)($bill['amount'] ?? 0), 2) : '', 1, 0, 'R');
-				if ($occurs) {
-					$annualTotal += (float)($bill['amount'] ?? 0);
-				}
+			$name = (string)($bill['name'] ?? '');
+			// A millimetre's room keeps the last line inside the cell's limit
+			$height = max(5, $pdf->getStringHeight($nameW, $name) + 1);
+			if ($pdf->GetY() + $height > $pdf->getPageHeight() - $pdf->getBreakMargin()) {
+				$pdf->AddPage();
 			}
-			$pdf->Cell($totalW, 5, number_format($annualTotal, 2), 1, 1, 'R');
+			$pdf->MultiCell($nameW, $height, $name, 1, 'L', false, 0, null, null, true, 0, false, true, $height, 'M');
+			$pdf->Cell($amtW, $height, $this->calendarExportAmount($bill), 1, 0, 'R');
+
+			[$months, $annualTotal] = $this->calendarExportCells($bill);
+			foreach ($months as $month) {
+				$pdf->Cell($monthW, $height, $month, 1, 0, 'R');
+			}
+			$pdf->Cell($totalW, $height, $annualTotal, 1, 1, 'R');
 		}
 
 		// Totals row
 		$pdf->SetFont('dejavusans', 'B', 7);
 		$pdf->Cell($nameW, 5, $this->l->t('Total'), 1, 0, 'L');
 		$pdf->Cell($amtW, 5, '', 1, 0, 'R');
-		$grandTotal = 0;
+		$totals = $this->calendarExportTotals($data);
 		for ($m = 1; $m <= 12; $m++) {
-			$total = $data['monthlyTotals'][$m] ?? 0;
-			$pdf->Cell($monthW, 5, number_format($total, 2), 1, 0, 'R');
-			$grandTotal += $total;
+			$pdf->Cell($monthW, 5, $totals[$m - 1], 1, 0, 'R');
 		}
-		$pdf->Cell($totalW, 5, number_format($grandTotal, 2), 1, 1, 'R');
+		$pdf->Cell($totalW, 5, $totals[12], 1, 1, 'R');
 
 		$balanceRow = $this->projectedBalanceRow($data);
 		if ($balanceRow !== null) {

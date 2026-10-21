@@ -11,6 +11,7 @@ import { setDateValue, clearDateValue } from '../../utils/datepicker.js';
 import Chart from '../../utils/chart.js';
 import { apiFetch } from '../../utils/api.js';
 import { showLoading, showLoadError } from '../../utils/loading.js';
+import { semanticColour } from '../../utils/amountColours.js';
 
 export default class AssetsModule {
     constructor(app) {
@@ -607,8 +608,8 @@ export default class AssetsModule {
             canvas.style.display = '';
 
             const isAppreciating = (data.annualChangeRate || 0) >= 0;
-            const lineColor = isAppreciating ? '#46ba61' : '#e9322d';
-            const bgColor = isAppreciating ? 'rgba(70, 186, 97, 0.1)' : 'rgba(233, 50, 45, 0.1)';
+            const lineColor = isAppreciating ? semanticColour('positive', '#46ba61') : semanticColour('negative', '#e9322d');
+            const bgColor = isAppreciating ? semanticColour('positive', 'rgba(70, 186, 97, 0.1)', 0.1) : semanticColour('negative', 'rgba(233, 50, 45, 0.1)', 0.1);
             const currency = this.currentAsset?.currency || formatters.getPrimaryCurrency(this.app.accounts, this.settings);
 
             // Update 10yr projected value metric

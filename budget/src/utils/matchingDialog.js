@@ -6,6 +6,7 @@
 import { translate as t } from '@nextcloud/l10n';
 import * as formatters from './formatters.js';
 import * as dom from './dom.js';
+import { ignoreOpeningClickOnOptions, isOpeningClick, isRepeatClick, keepFocusOnOpeningPress } from './doubleClick.js';
 
 /**
  * @param {object} bill the bill or transfer being paid
@@ -64,6 +65,11 @@ export function showMatchingTransactionDialog(bill, candidates, settings) {
             `;
         }).join('');
 
+        // A one-time bill has no next due date to move on to
+        const outcome = bill.frequency === 'one-time'
+            ? t('budget', 'Whichever you choose, the bill is marked as paid.')
+            : t('budget', 'Whichever you choose, the bill is marked as paid and moves on to its next due date.');
+
         const modal = document.createElement('div');
         modal.id = 'matching-tx-modal';
         modal.className = 'budget-modal-overlay';
@@ -75,7 +81,7 @@ export function showMatchingTransactionDialog(bill, candidates, settings) {
                 </div>
                 <div class="budget-modal-body">
                     <p class="matching-tx-intro">${t('budget', 'We found existing transactions that may already represent this bill payment ({billName}, {amount}). Would you like to link one instead of creating a new transaction?', { billName: dom.escapeHtml(bill.name), amount: dom.escapeHtml(formatAmount(bill.amount)) }, undefined, { escape: false })}</p>
-                    <p class="matching-tx-intro">${t('budget', 'Whichever you choose, the bill is marked as paid and moves on to its next due date.')}</p>
+                    <p class="matching-tx-intro">${outcome}</p>
                     <div class="matching-tx-list">
                         ${candidateRows}
                     </div>
@@ -100,25 +106,37 @@ export function showMatchingTransactionDialog(bill, candidates, settings) {
             </div>
         `;
         document.body.appendChild(modal);
+        const openedAt = Date.now();
 
         const cleanup = () => modal.remove();
 
-        modal.querySelector('.close-btn').addEventListener('click', () => {
+        // The second click of the double click on Mark Paid that opened the
+        // dialog lands on whatever is under the pointer now: on a phone that
+        // can be a button, on a wide screen the backdrop, and in between one
+        // of the options. It answers nothing and picks nothing (see
+        // utils/doubleClick.js, #399).
+        ignoreOpeningClickOnOptions(modal, '.matching-tx-option', openedAt);
+        modal.querySelector('.close-btn').addEventListener('click', (e) => {
+            if (isRepeatClick(e)) return;
             cleanup();
             resolve(null);
         });
-        modal.querySelector('.cancel-btn').addEventListener('click', () => {
+        modal.querySelector('.cancel-btn').addEventListener('click', (e) => {
+            if (isRepeatClick(e)) return;
             cleanup();
             resolve(null);
         });
         modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
+            if (e.target === modal && !isOpeningClick(e, openedAt)) {
                 cleanup();
                 resolve(null);
             }
         });
+        // ...and the press of that click on the backdrop moves no focus
+        keepFocusOnOpeningPress(modal, openedAt);
 
-        modal.querySelector('.confirm-btn').addEventListener('click', () => {
+        modal.querySelector('.confirm-btn').addEventListener('click', (e) => {
+            if (isRepeatClick(e)) return;
             const selected = modal.querySelector('input[name="matching-tx-choice"]:checked');
             if (!selected) {
                 cleanup();

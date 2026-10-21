@@ -2,6 +2,7 @@
  * Savings Module - Savings goals tracking and management
  */
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
+import { semanticColour } from '../../utils/amountColours.js';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { showSuccess, showError, showWarning, showInfo } from '../../utils/notifications.js';
@@ -151,7 +152,7 @@ export default class SavingsModule {
 
                     <div class="goal-progress-section">
                         <div class="goal-progress-bar">
-                            <div class="goal-progress-fill" style="width: ${percentage}%; background: ${isCompleted ? 'linear-gradient(90deg, #2e7d32, #43a047)' : `linear-gradient(90deg, ${color}, ${color}dd)`}"></div>
+                            <div class="goal-progress-fill" style="width: ${percentage}%; background: ${isCompleted ? `linear-gradient(90deg, ${semanticColour('positive', '#2e7d32')}, ${semanticColour('positive', '#43a047')})` : `linear-gradient(90deg, ${color}, ${color}dd)`}"></div>
                         </div>
                         <div class="goal-amounts">
                             <span class="goal-current-amount">${formatters.formatCurrency(current, null, this.settings)}</span>
@@ -161,7 +162,7 @@ export default class SavingsModule {
                     </div>
 
                     <div class="goal-footer">
-                        ${targetDateText ? `<span class="goal-target-date"><span class="icon-calendar"></span> ${targetDateText}</span>` : '<span></span>'}
+                        ${targetDateText ? `<span class="goal-target-date"><span class="icon-calendar-dark"></span> ${targetDateText}</span>` : '<span></span>'}
                         ${footerAction}
                     </div>
                 </div>

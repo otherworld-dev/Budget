@@ -8,6 +8,7 @@ use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Db\Setting;
 use OCA\Budget\Db\SettingMapper;
 use OCA\Budget\Enum\Currency;
+use OCA\Budget\Service\AmountColours;
 use OCA\Budget\Service\AttachmentService;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\ImportFolderService;
@@ -64,6 +65,8 @@ class SettingController extends Controller {
 		'dashboard_hero_config' => '{"order":["netWorth","income","expenses","savings","pension"],"visibility":{"netWorth":true,"income":true,"expenses":true,"savings":true,"pension":true}}',
 		'dashboard_widgets_config' => '{"order":["trendChart","spendingChart","netWorthHistory","recentTransactions","accounts","budgetAlerts","upcomingBills","budgetProgress","savingsGoals","debtPayoff"],"visibility":{"trendChart":true,"spendingChart":true,"netWorthHistory":true,"recentTransactions":true,"accounts":true,"budgetAlerts":true,"upcomingBills":true,"budgetProgress":true,"savingsGoals":true,"debtPayoff":true}}',
 		'dashboard_locked' => 'true', // Dashboard starts locked
+		AmountColours::SETTING_SCHEME => 'default', // money in / out colours (#432)
+		AmountColours::SETTING_CUSTOM => AmountColours::DEFAULT_CUSTOM_JSON,
 	];
 
 	/**
@@ -185,6 +188,14 @@ class SettingController extends Controller {
 					return $this->refusedKey((string)$key);
 				}
 			}
+			// Same again for the colour settings, so a bad one saves nothing
+			foreach ($data as $key => $value) {
+				try {
+					$data[$key] = $this->validatedColourSetting((string)$key, $value);
+				} catch (\InvalidArgumentException $e) {
+					return $this->invalidColourSetting();
+				}
+			}
 
 			foreach ($data as $key => $value) {
 
@@ -246,6 +257,11 @@ class SettingController extends Controller {
 			if (!self::isClientKey($key)) {
 				return $this->refusedKey($key);
 			}
+			try {
+				$value = $this->validatedColourSetting($key, $value);
+			} catch (\InvalidArgumentException $e) {
+				return $this->invalidColourSetting();
+			}
 
 			if ($key === AttachmentService::RECEIPT_FOLDER_KEY) {
 				try {
@@ -275,6 +291,33 @@ class SettingController extends Controller {
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to update setting'), Http::STATUS_INTERNAL_SERVER_ERROR, ['key' => $key]);
 		}
+	}
+
+	/**
+	 * The colour scheme and custom palette are checked, and the palette
+	 * stored in its canonical form (lowercase, fixed key order). Any other
+	 * key passes through untouched.
+	 *
+	 * @param mixed $value
+	 * @return mixed
+	 * @throws \InvalidArgumentException when the value isn't acceptable
+	 */
+	private function validatedColourSetting(string $key, $value) {
+		if ($key === AmountColours::SETTING_SCHEME) {
+			if (!is_string($value) || !in_array($value, AmountColours::SCHEMES, true)) {
+				throw new \InvalidArgumentException('Unknown colour scheme');
+			}
+		} elseif ($key === AmountColours::SETTING_CUSTOM) {
+			if (!is_string($value)) {
+				throw new \InvalidArgumentException('Custom colours must be a JSON string');
+			}
+			return AmountColours::validateCustom($value);
+		}
+		return $value;
+	}
+
+	private function invalidColourSetting(): DataResponse {
+		return new DataResponse(['error' => $this->l->t('Invalid colour setting')], Http::STATUS_BAD_REQUEST);
 	}
 
 	/**

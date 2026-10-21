@@ -57,7 +57,7 @@ trait FullDataset {
 			'current_balance' => '5000.00', 'created_at' => $now, 'updated_at' => $now,
 		]);
 
-		$ids['tx_plain'] = $this->makeTransaction($ids['current'], ['category_id' => $ids['food'], 'amount' => '12.50', 'import_id' => 'csv:1']);
+		$ids['tx_plain'] = $this->makeTransaction($ids['current'], ['category_id' => $ids['food'], 'amount' => '12.50', 'import_id' => 'csv:1', 'vendor' => 'Corner shop', 'import_vendor' => 'CORNER SHOP 123']);
 		$ids['tx_split'] = $this->makeSplitTransaction($ids['current'], [[$ids['food'], '6.00'], [$ids['takeaway'], '4.00']]);
 		$ids['tx_out'] = $this->makeTransaction($ids['current'], ['amount' => '50.00', 'description' => 'Card payment']);
 		$ids['tx_in'] = $this->makeTransaction($ids['card'], ['amount' => '50.00', 'type' => 'credit', 'description' => 'Card payment', 'linked_transaction_id' => $ids['tx_out']]);

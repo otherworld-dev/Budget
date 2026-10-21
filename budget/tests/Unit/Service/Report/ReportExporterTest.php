@@ -472,6 +472,44 @@ class ReportExporterTest extends TestCase {
 		return $cases;
 	}
 
+	// ===== negative amount colour (#432) =====
+
+	/**
+	 * Tested through the PDF output (TCPDF is loaded in the test container):
+	 * the page content stream holds one "r g b rg" fill-colour operator per
+	 * SetTextColor call, so the negative amounts' colour is read back from the
+	 * file the user would get, not from the calls that made it.
+	 */
+	public function testCategoryMonthlyPdfUsesGivenNegativeColour(): void {
+		$this->requireTcpdf();
+
+		$result = $this->exporter->export($this->categoryMonthlyData(), 'category-monthly', 'pdf', null, [168, 72, 0]);
+
+		$text = $this->pdfText($result['stream']);
+		$this->assertStringContainsString('0.658824 0.282353 0.000000 rg', $text);
+		$this->assertStringNotContainsString('0.784314 0.000000 0.000000 rg', $text);
+	}
+
+	/** Default must render exactly as before: the old red, 200/0/0 */
+	public function testDefaultNegativeColourUnchanged(): void {
+		$this->requireTcpdf();
+
+		$text = $this->pdfText($this->exporter->export($this->categoryMonthlyData(), 'category-monthly', 'pdf')['stream']);
+
+		$this->assertStringContainsString('0.784314 0.000000 0.000000 rg', $text);
+	}
+
+	public function testPositiveAmountsStayBlackWhateverTheNegativeColour(): void {
+		$this->requireTcpdf();
+		$data = $this->categoryMonthlyData();
+		$data['rows'] = [['name' => 'Salary', 'depth' => 0, 'isParent' => false, 'monthly' => ['2026-01' => 900.0, '2026-02' => 900.0], 'total' => 1800.0]];
+		$data['totals'] = ['monthly' => ['2026-01' => 900.0, '2026-02' => 900.0], 'total' => 1800.0];
+
+		$text = $this->pdfText($this->exporter->export($data, 'category-monthly', 'pdf', null, [168, 72, 0])['stream']);
+
+		$this->assertStringNotContainsString('0.658824 0.282353 0.000000 rg', $text);
+	}
+
 	// ===== Unknown format =====
 
 	public function testExportUnknownFormatThrows(): void {

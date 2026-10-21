@@ -13,6 +13,7 @@ import { openAccounts, usableCategories, categoryTreeOf, isReadOnlyShare } from 
 import { showLoading, clearLoading, showLoadError } from '../../utils/loading.js';
 import { apiFetch, ApiError } from '../../utils/api.js';
 import { renderTransactionRow } from '../transactions/transactionRow.js';
+import { showRowsOf } from '../../utils/rowsScroll.js';
 
 // Which account attributes are rendered in the accounts view (tiles + list).
 // User-configurable through the gear menu in the accounts header, stored in
@@ -1077,6 +1078,7 @@ export default class AccountsModule {
             this.accountRowsPerPage = 50;
             this.accountFilters = {};
             this.accountSort = { field: 'date', direction: 'desc' };
+            this.showAccountSort();
 
             // Load account transactions and metrics
             await this.loadAccountTransactions(accountId);
@@ -1564,6 +1566,9 @@ export default class AccountsModule {
             // Render account transactions
             this.renderAccountTransactions();
             this.updateAccountPagination();
+            // Another page, sort, filters or account start at the top of the
+            // rows' box; the same page loaded again keeps its place (#399)
+            showRowsOf(document.getElementById('account-transactions-table'), params.toString());
 
         } catch (error) {
             console.error('Failed to load account transactions:', error);
@@ -1770,9 +1775,52 @@ export default class AccountsModule {
         }
     }
 
+    /**
+     * Sort the register by one of its headings. A heading clicked again
+     * turns the order round; another heading starts ascending, as in the
+     * Transactions list. The headings carried the sortable markup but
+     * nothing listened to them.
+     *
+     * @param {string} field date, description or amount
+     */
+    sortAccountTransactions(field) {
+        if (!this.currentAccount) return;
+        if (this.accountSort.field === field) {
+            this.accountSort.direction = this.accountSort.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            this.accountSort = { field, direction: 'asc' };
+        }
+        this.accountCurrentPage = 1;
+        this.showAccountSort();
+        this.loadAccountTransactions(this.currentAccount.id);
+    }
+
+    /** The register headings' arrows and aria-sort, from accountSort */
+    showAccountSort() {
+        const { field, direction } = this.accountSort;
+        document.querySelectorAll('#account-transactions-table th[data-sort]').forEach(th => {
+            const sorted = th.dataset.sort === field;
+            th.setAttribute('aria-sort', sorted ? (direction === 'asc' ? 'ascending' : 'descending') : 'none');
+            const indicator = th.querySelector('.sort-indicator');
+            if (indicator) {
+                indicator.className = sorted ? `sort-indicator ${direction}` : 'sort-indicator';
+            }
+        });
+    }
+
     setupAccountDetailsEventListeners() {
         if (this._accountDetailsListenersSetup) return;
         this._accountDetailsListenersSetup = true;
+
+        const registerHead = document.querySelector('#account-transactions-table thead');
+        if (registerHead) {
+            registerHead.addEventListener('click', (e) => {
+                const header = e.target.closest('th.sortable');
+                if (header) {
+                    this.sortAccountTransactions(header.dataset.sort);
+                }
+            });
+        }
 
         // Back to accounts button
         const backBtn = document.getElementById('back-to-accounts-btn');

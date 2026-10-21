@@ -54,6 +54,16 @@ class RecurringIncomeLifecycleTest extends TestCase {
 				$this->stored->{'set' . str_replace('_', '', ucwords($column, '_'))}($value);
 			}
 		});
+		// Written only while the income is still expected on the date claimed, as the real one does
+		$this->mapper->method('claimOccurrence')->willReturnCallback(function (int $id, string $user, string $expected, array $fields) {
+			if (!$this->stored->getIsActive() || $this->stored->getNextExpectedDate() !== $expected) {
+				return false;
+			}
+			foreach ($fields as $column => $value) {
+				$this->stored->{'set' . str_replace('_', '', ucwords($column, '_'))}($value);
+			}
+			return true;
+		});
 
 		$this->transactions = $this->createMock(TransactionService::class);
 		$this->transactions->method('createFromIncome')->willReturnCallback(
