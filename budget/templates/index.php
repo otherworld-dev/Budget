@@ -5351,7 +5351,7 @@ style('budget', 'budget-app');
                     <!-- Tag options populated dynamically -->
                     </select>
                     <p class="form-hint" style="margin-top: 4px; font-size: 12px; color: #888;">
-                    <?php p($l->t('Any transaction, bill or transfer with this tag counts towards the goal. With a linked account, only tagged transactions in that account count.')); ?>
+                    <?php p($l->t('Money in with this tag adds to the goal and money out takes it away, including bills and transfers. A tagged transfer between your accounts counts once, on the savings side. With a linked account, only transactions in that account count.')); ?>
                     </p>
                     <p class="form-hint" id="goal-tag-hint" style="display: none; margin-top: 4px; font-size: 12px; color: #888;">
                     <?php p($l->t('Current amount will be automatically calculated from tagged transactions.')); ?>

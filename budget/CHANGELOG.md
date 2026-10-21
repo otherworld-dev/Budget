@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Download a receipt through the API.** `GET /transactions/{id}/receipts/{attachmentId}/download` returns the receipt file itself, with its type and name, so a client can show the image or open the PDF without knowing where the user's receipts folder is. Owner-only like the other receipt calls, and a deleted file is a `404`. Reported by @SGiersch ([#436](https://github.com/otherworld-dev/Budget/issues/436))
 
 ### Changed
-- **The savings goal form explains linked tags.** A line under **Linked Tag** says that any transaction, bill or transfer with the tag counts towards the goal, and that a linked account limits it to that account. Reported by @TerjeTM ([#438](https://github.com/otherworld-dev/Budget/issues/438))
+- **The savings goal form explains linked tags.** A line under **Linked Tag** says how tagged transactions, bills and transfers count: money in adds to the goal, money out takes it away, a transfer between your accounts counts once on the savings side, and a linked account limits it to that account. Reported by @TerjeTM ([#438](https://github.com/otherworld-dev/Budget/issues/438))
 
 ### Fixed
 - **The API says why a receipt couldn't be attached.** A photo sent with a new transaction that couldn't be saved only came back as a general `photo_error`. It now also carries a `photo_error_code`, and `POST /transactions/{id}/receipts` answers with an `error_code` (`403` when Files refuses the write). The usual cause is an app password with **Allow filesystem access** switched off in Settings → Security: it can record transactions but can't save files, and the error now says so. Reported by @SGiersch ([#437](https://github.com/otherworld-dev/Budget/issues/437))

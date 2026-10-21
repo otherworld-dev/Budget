@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-10-21 22:50+0000\n"
+"POT-Creation-Date: 2026-10-21 22:58+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16589,8 +16589,10 @@ msgstr ""
 
 #: /app/templates/index.php:5354
 msgid ""
-"Any transaction, bill or transfer with this tag counts towards the goal. "
-"With a linked account, only tagged transactions in that account count."
+"Money in with this tag adds to the goal and money out takes it away, "
+"including bills and transfers. A tagged transfer between your accounts "
+"counts once, on the savings side. With a linked account, only transactions "
+"in that account count."
 msgstr ""
 
 #: /app/templates/index.php:5357
