@@ -11,9 +11,9 @@ use OCP\Migration\IOutput;
 
 /**
  * Migration 126's backfill against the real database (#399): the rows a
- * file import stored take their payee as import_vendor, so an edit made
- * after the update is followed on a re-import; every other row stays NULL,
- * and a second run changes nothing.
+ * file import stored take their payee as import_vendor ('' for none), so
+ * an edit made after the update is followed on a re-import; every other row
+ * stays NULL, and a second run changes nothing.
  */
 class ImportVendorBackfillTest extends IntegrationTestCase {
 	private function runMigration(): void {
@@ -63,10 +63,10 @@ class ImportVendorBackfillTest extends IntegrationTestCase {
 		$this->assertSame('Starbucks', $this->importVendorOf($rows['csv']));
 		$this->assertSame('Starbucks', $this->importVendorOf($rows['csv repeat']));
 		$this->assertSame('COOP CITY', $this->importVendorOf($rows['ofx']));
-		if ($this->db()->getDatabaseProvider() !== \OCP\IDBConnection::PLATFORM_ORACLE) {
-			$this->assertSame('', $this->importVendorOf($rows['csv, empty payee']));
-		}
-		$this->assertNull($this->importVendorOf($rows['csv, no payee']));
+		// Oracle stores '' as NULL: there such a row stays NULL, as before
+		$none = $this->db()->getDatabaseProvider() === \OCP\IDBConnection::PLATFORM_ORACLE ? null : '';
+		$this->assertSame($none, $this->importVendorOf($rows['csv, empty payee']));
+		$this->assertSame($none, $this->importVendorOf($rows['csv, no payee']));
 		$this->assertSame('DREMEL 426', $this->importVendorOf($rows['csv, already kept']));
 		$this->assertNull($this->importVendorOf($rows['bank sync']));
 		$this->assertNull($this->importVendorOf($rows['typed in']));
@@ -76,12 +76,17 @@ class ImportVendorBackfillTest extends IntegrationTestCase {
 	public function testASecondRunChangesNothing(): void {
 		$account = $this->makeAccount()->getId();
 		$id = $this->makeTransaction($account, ['import_id' => 'hash_9c0d', 'vendor' => 'Starbucks']);
+		$noPayee = $this->makeTransaction($account, ['import_id' => 'hash_9c0e', 'vendor' => null]);
 		$this->runMigration();
 
-		// The payee edited after the update; the second run must not take it
+		// The payees edited after the update; the second run must not take them
 		$this->db()->executeStatement('UPDATE *PREFIX*budget_transactions SET vendor = ? WHERE id = ?', ['Starbucks Zürich', $id]);
+		$this->db()->executeStatement('UPDATE *PREFIX*budget_transactions SET vendor = ? WHERE id = ?', ['Dremel', $noPayee]);
 		$this->runMigration();
 
 		$this->assertSame('Starbucks', $this->importVendorOf($id));
+		if ($this->db()->getDatabaseProvider() !== \OCP\IDBConnection::PLATFORM_ORACLE) {
+			$this->assertSame('', $this->importVendorOf($noPayee));
+		}
 	}
 }

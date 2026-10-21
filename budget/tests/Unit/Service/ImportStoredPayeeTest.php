@@ -537,8 +537,8 @@ class ImportStoredPayeeTest extends TestCase {
 	/**
 	 * What Version001000126Date20261021::postSchemaChange() does to a row an
 	 * import stored before the update (ImportVendorBackfillTest runs the
-	 * statement itself): a file import's row with a payee keeps it, any other
-	 * stays NULL.
+	 * statement itself): a file import's row keeps its payee, '' for none,
+	 * any other row stays NULL.
 	 */
 	private function backfilled(int $id): void {
 		$row = $this->ledger[$id];
@@ -546,7 +546,7 @@ class ImportStoredPayeeTest extends TestCase {
 		foreach (\OCA\Budget\Migration\Version001000126Date20261021::FILE_IMPORT_ID_PREFIXES as $prefix) {
 			$fromAFile = $fromAFile || str_starts_with((string)$row['importId'], $prefix);
 		}
-		$this->ledger[$id]['importVendor'] = $row['importVendor'] ?? ($fromAFile && $row['vendor'] !== null ? $row['vendor'] : null);
+		$this->ledger[$id]['importVendor'] = $row['importVendor'] ?? ($fromAFile ? ($row['vendor'] ?? '') : null);
 	}
 
 	private function importedBeforeTheUpdateThenMigrated(array $rows, array $mapping): void {
@@ -582,17 +582,20 @@ class ImportStoredPayeeTest extends TestCase {
 	}
 
 	/**
-	 * The browser run's Dremel row was imported with no payee, which the
-	 * migration has no way to record (NULL stays NULL): a payee typed on
-	 * such a row is still compared as it is now, as before.
+	 * The browser run's Dremel row, imported with no payee: the migration
+	 * records that as '', so a payee typed on it after the update is
+	 * followed, whichever mapping reads the file again.
 	 */
-	public function testAnOldRowImportedWithNoPayeeIsComparedByItsPayeeNow(): void {
+	public function testAnOldRowImportedWithNoPayeeThenGivenOneAfterTheUpdateIsFollowed(): void {
 		$file = [self::WOLFCRAFT, self::DREMEL];
 		$this->importedBeforeTheUpdateThenMigrated($file, self::WITH_CATEGORY);
-		$this->assertNull($this->ledger[2]['importVendor']);
+		$this->assertSame('', $this->ledger[2]['importVendor']);
 		$this->editPayee(2, 'Dremel');
 
-		$this->assertSame([0], self::flagged($this->preview($file, self::BY_PRODUCT)));
+		foreach ([self::BY_PRODUCT, self::CATEGORY_FIRST, self::PRODUCT_AS_PAYEE] as $mapping) {
+			$this->assertSame([0, 1], self::flagged($this->preview($file, $mapping)));
+		}
+		$this->assertSame(0, $this->import($file, self::BY_PRODUCT)['imported']);
 	}
 
 	/** A payee edited before the update is what the migration keeps: no change from before */

@@ -9,6 +9,7 @@ use OCP\DB\ISchemaWrapper;
 use OCP\DB\QueryBuilder\ICompositeExpression;
 use OCP\DB\QueryBuilder\IExpressionBuilder;
 use OCP\DB\QueryBuilder\IQueryBuilder;
+use OCP\DB\QueryBuilder\IQueryFunction;
 use OCP\DB\Types;
 use OCP\IDBConnection;
 use OCP\Migration\IOutput;
@@ -17,7 +18,7 @@ use PHPUnit\Framework\TestCase;
 /**
  * Migration 126 adds budget_transactions.import_vendor, the payee an import
  * stored (#399): nullable, as long as the payee. Then it fills it in for the
- * rows a file import put there, from their payee now, in one statement
+ * rows a file import put there, from their payee now ('' for none), in one statement
  * (ImportVendorBackfillTest runs that statement against a real database).
  */
 class Version001000126Test extends TestCase {
@@ -66,6 +67,12 @@ class Version001000126Test extends TestCase {
 		$qb = $this->createMock(IQueryBuilder::class);
 		$qb->method('expr')->willReturn($expr);
 		$qb->method('createNamedParameter')->willReturnCallback(fn ($value) => "'" . $value . "'");
+		$qb->method('getColumnName')->willReturnCallback(fn (string $column) => $column);
+		$qb->method('createFunction')->willReturnCallback(function (string $call) use (&$composites) {
+			$function = $this->createMock(IQueryFunction::class);
+			$composites[spl_object_id($function)] = $call;
+			return $function;
+		});
 		foreach (['update', 'set', 'where', 'andWhere'] as $method) {
 			$qb->method($method)->willReturnCallback(function (...$args) use ($method, $qb, &$composites) {
 				// Without the defaults the mock fills in (update()'s alias)
@@ -143,9 +150,8 @@ class Version001000126Test extends TestCase {
 		$this->assertSame(1, $this->statements);
 		$this->assertSame([
 			['update', 'budget_transactions'],
-			['set', ['import_vendor', 'vendor']],
+			['set', ['import_vendor', "COALESCE(vendor, '')"]],
 			['where', 'import_vendor IS NULL'],
-			['andWhere', 'vendor IS NOT NULL'],
 			['andWhere', "(import_id LIKE 'hash\_%' OR import_id LIKE 'ofx\_fitid\_%')"],
 		], $this->built);
 		$this->assertSame(['Kept the payee of 3 imported transaction(s) for recognising them on a later import'], $this->info);

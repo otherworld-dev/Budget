@@ -776,7 +776,7 @@ class ImportService {
 	 * be told from one read out of a column this line does not have, so the
 	 * row is compared as it was imported, edited or not. Rows imported before
 	 * then were given their payee as it was when the app was updated
-	 * (migration 126); one with none kept is compared by its payee now, as
+	 * (migration 126); a row with none kept is compared by its payee now, as
 	 * before.
 	 *
 	 * Each stored row stands for one line at most and each line for one
@@ -1261,9 +1261,8 @@ class ImportService {
 	/**
 	 * A stored row's payee as the import that stored it wrote it, so a payee
 	 * edited by hand since is not taken for one of the line's columns (#399).
-	 * A row with none recorded (typed in, synced from the bank, or imported
-	 * with no payee before import_vendor existed) is compared by its payee
-	 * now, as before.
+	 * A row with none recorded (typed in, synced from the bank) is compared
+	 * by its payee now, as before.
 	 *
 	 * @param array<string, mixed> $row From TransactionMapper::findImportComparables()
 	 */

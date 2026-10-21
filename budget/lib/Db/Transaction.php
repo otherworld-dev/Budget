@@ -75,8 +75,8 @@ class Transaction extends Entity implements JsonSerializable {
 	protected $reconSessionId;   // reconciliation session this row was ticked into
 	protected $pensionContribId; // pension contribution this bank leg funds (#304); excluded from spending
 	// The payee as the file import stored it, '' for none, NULL when not
-	// known (typed in, bank sync, or imported with no payee before #399;
-	// migration 126 filled in older imported rows' payees). Never changed by
+	// known (typed in, bank sync; migration 126 filled in the rows imported
+	// before #399 from their payee then). Never changed by
 	// an edit: a re-import under another mapping compares the line with it.
 	// Not serialized: it is the import's own record, not something to show.
 	protected $importVendor;
