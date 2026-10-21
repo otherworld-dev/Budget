@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Download a receipt through the API.** `GET /transactions/{id}/receipts/{attachmentId}/download` returns the receipt file itself, with its type and name, so a client can show the image or open the PDF without knowing where the user's receipts folder is. Owner-only like the other receipt calls, and a deleted file is a `404`. Reported by @SGiersch ([#436](https://github.com/otherworld-dev/Budget/issues/436))
+
 ## [3.1.0] - 2026-10-21
 
 ### Added

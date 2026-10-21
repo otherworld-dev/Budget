@@ -875,6 +875,63 @@
         }
       }
     },
+    "/transactions/{id}/receipts/{attachmentId}/download": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer"
+          }
+        },
+        {
+          "name": "attachmentId",
+          "in": "path",
+          "required": true,
+          "description": "The receipt's id from GET /transactions/{id}/receipts.",
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "transactions"
+        ],
+        "operationId": "downloadReceipt",
+        "summary": "Download a receipt file",
+        "description": "Owner-only, like the receipt list. Returns the file's raw bytes, not an OCS envelope, with Content-Type from Nextcloud's own detection of the file and Content-Disposition inline plus its name (filename and RFC 5987 filename*). A file whose type is no longer an image or PDF (its contents were replaced in Files) is sent as application/octet-stream with Content-Disposition attachment. Not cached. A missing transaction, an attachment of another transaction and a receipt whose file was deleted (missing: true in the list) are all 404.",
+        "responses": {
+          "200": {
+            "description": "The receipt file",
+            "content": {
+              "image/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorised"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "412": {
+            "$ref": "#/components/responses/MissingOcsHeader"
+          }
+        }
+      }
+    },
     "/capabilities": {
       "get": {
         "tags": [

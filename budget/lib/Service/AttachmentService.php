@@ -8,6 +8,7 @@ use OCA\Budget\Db\Attachment;
 use OCA\Budget\Db\AttachmentMapper;
 use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
+use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\Files\File;
 use OCP\Files\IRootFolder;
 use OCP\Files\NotEnoughSpaceException;
@@ -236,6 +237,30 @@ class AttachmentService {
 				'app' => 'budget',
 			]);
 		}
+	}
+
+	/**
+	 * The file behind one of a transaction's attachments, for download
+	 * (#436). Every way of not getting it — not your transaction, not this
+	 * transaction's attachment, the file deleted or unreadable — is the same
+	 * DoesNotExistException, so a caller can't probe for ids it can't read.
+	 *
+	 * @throws DoesNotExistException
+	 */
+	public function fileForDownload(int $transactionId, string $userId, int $attachmentId): File {
+		$this->transactionMapper->find($transactionId, $userId); // ownership or 404
+
+		$attachment = $this->mapper->find($attachmentId, $userId);
+		if ($attachment->getTransactionId() !== $transactionId) {
+			throw new DoesNotExistException('Attachment does not belong to this transaction');
+		}
+
+		$nodes = $this->rootFolder->getUserFolder($userId)->getById($attachment->getFileId());
+		$node = $nodes[0] ?? null;
+		if (!$node instanceof File || !$node->isReadable()) {
+			throw new DoesNotExistException('Receipt file is gone');
+		}
+		return $node;
 	}
 
 	/**

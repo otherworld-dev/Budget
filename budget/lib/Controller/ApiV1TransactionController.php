@@ -26,6 +26,7 @@ use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\AppFramework\Http\FileDisplayResponse;
 use OCP\AppFramework\OCSController;
 use OCP\IL10N;
 use OCP\IRequest;
@@ -1243,6 +1244,48 @@ class ApiV1TransactionController extends OCSController {
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to load attachments'));
 		}
+	}
+
+	/**
+	 * The receipt file itself, as raw bytes rather than an OCS envelope
+	 * (#436), so a client can hand it straight to an image view or PDF
+	 * viewer. Owner-only like receipts(); a missing transaction, a foreign
+	 * attachment or a deleted file are all the same 404.
+	 *
+	 * The type comes from Nextcloud's own detection of the file, not from
+	 * the name. The user can swap a file's contents in Files after attaching
+	 * it, so anything outside the image/PDF types an attachment may be is
+	 * sent as an opaque download instead of being displayed.
+	 */
+	#[NoAdminRequired]
+	public function downloadReceipt(int $id, int $attachmentId): FileDisplayResponse|DataResponse {
+		try {
+			$file = $this->attachmentService->fileForDownload($id, $this->userId, $attachmentId);
+		} catch (DoesNotExistException $e) {
+			return $this->notFound($this->l->t('Attachment not found'));
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to load attachments'));
+		}
+
+		$mime = $file->getMimeType();
+		$displayable = in_array($mime, AttachmentService::ALLOWED_MIMES, true);
+		$response = new FileDisplayResponse($file);
+		$response->addHeader('Content-Type', $displayable ? $mime : 'application/octet-stream');
+		$response->addHeader('Content-Disposition', self::contentDisposition($displayable ? 'inline' : 'attachment', $file->getName()));
+		// Personal financial documents: never in a shared cache.
+		$response->cacheFor(0);
+
+		return $response;
+	}
+
+	/**
+	 * A Content-Disposition value that survives any filename: an ASCII
+	 * fallback for old clients plus the exact name as RFC 5987 filename*.
+	 * Receipt names carry the merchant, which can be anything.
+	 */
+	private static function contentDisposition(string $type, string $name): string {
+		$ascii = preg_replace('/[^\x20-\x7E]|["\\\\]/', '_', $name) ?? 'receipt';
+		return sprintf('%s; filename="%s"; filename*=UTF-8\'\'%s', $type, $ascii, rawurlencode($name));
 	}
 
 	/**

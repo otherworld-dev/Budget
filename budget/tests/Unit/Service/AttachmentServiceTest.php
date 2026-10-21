@@ -191,6 +191,45 @@ class AttachmentServiceTest extends TestCase {
 		$this->service->detach(5, 'alice', 9);
 	}
 
+	// ── download (#436) ─────────────────────────────────────────────
+
+	public function testFileForDownloadReturnsTheAttachedFile(): void {
+		$this->ownTransaction();
+		$this->mapper->method('find')->with(9, 'alice')->willReturn($this->makeAttachment(9, 5, 200));
+		$file = $this->makeFile(200);
+		$file->method('isReadable')->willReturn(true);
+		$this->userFolder->method('getById')->with(200)->willReturn([$file]);
+
+		$this->assertSame($file, $this->service->fileForDownload(5, 'alice', 9));
+	}
+
+	public function testFileForDownloadRefusesAnotherUsersTransaction(): void {
+		$this->transactionMapper->method('find')
+			->willThrowException(new DoesNotExistException('not yours'));
+		$this->userFolder->expects($this->never())->method('getById');
+
+		$this->expectException(DoesNotExistException::class);
+		$this->service->fileForDownload(5, 'alice', 9);
+	}
+
+	public function testFileForDownloadRefusesAnotherTransactionsAttachment(): void {
+		$this->ownTransaction();
+		$this->mapper->method('find')->willReturn($this->makeAttachment(9, 999, 200));
+		$this->userFolder->expects($this->never())->method('getById');
+
+		$this->expectException(DoesNotExistException::class);
+		$this->service->fileForDownload(5, 'alice', 9);
+	}
+
+	public function testFileForDownloadIsNotFoundOnceTheFileIsDeleted(): void {
+		$this->ownTransaction();
+		$this->mapper->method('find')->willReturn($this->makeAttachment(9, 5, 200));
+		$this->userFolder->method('getById')->willReturn([]);
+
+		$this->expectException(DoesNotExistException::class);
+		$this->service->fileForDownload(5, 'alice', 9);
+	}
+
 	public function testGetCountsDelegatesToMapper(): void {
 		$this->mapper->method('countsByUser')->with('alice')->willReturn([5 => 2, 7 => 1]);
 

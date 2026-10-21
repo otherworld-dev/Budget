@@ -509,6 +509,8 @@ return [
 		['name' => 'apiV1Transaction#unreconcile', 'url' => '/api/v1/transactions/{id}/reconcile', 'verb' => 'DELETE'],
 		['name' => 'apiV1Transaction#receipts', 'url' => '/api/v1/transactions/{id}/receipts', 'verb' => 'GET'],
 		['name' => 'apiV1Transaction#uploadReceipt', 'url' => '/api/v1/transactions/{id}/receipts', 'verb' => 'POST'],
+		// The receipt file itself (#436). Additive to v1.
+		['name' => 'apiV1Transaction#downloadReceipt', 'url' => '/api/v1/transactions/{id}/receipts/{attachmentId}/download', 'verb' => 'GET'],
 
 		// Receipt extraction (#533): image in, draft transaction out. No
 		// side effects — the client records the draft via POST /transactions.
