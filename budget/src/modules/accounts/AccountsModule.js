@@ -13,6 +13,7 @@ import { openAccounts, usableCategories, categoryTreeOf, isReadOnlyShare } from 
 import { showLoading, clearLoading, showLoadError } from '../../utils/loading.js';
 import { apiFetch, ApiError } from '../../utils/api.js';
 import { renderTransactionRow } from '../transactions/transactionRow.js';
+import { showRowsOf } from '../../utils/rowsScroll.js';
 
 // Which account attributes are rendered in the accounts view (tiles + list).
 // User-configurable through the gear menu in the accounts header, stored in
@@ -1564,6 +1565,9 @@ export default class AccountsModule {
             // Render account transactions
             this.renderAccountTransactions();
             this.updateAccountPagination();
+            // Another page, sort, filters or account start at the top of the
+            // rows' box; the same page loaded again keeps its place (#399)
+            showRowsOf(document.getElementById('account-transactions-table'), params.toString());
 
         } catch (error) {
             console.error('Failed to load account transactions:', error);
