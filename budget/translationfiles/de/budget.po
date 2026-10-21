@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-10-21 00:40+0000\n"
-"PO-Revision-Date: 2026-10-16 19:51+0000\n"
+"PO-Revision-Date: 2026-10-21 19:29+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -985,11 +985,9 @@ msgid "Failed to dismiss the payment"
 msgstr "Die Zahlung konnte nicht verworfen werden"
 
 #: /app/lib/Controller/BillController.php:1032
-#, fuzzy, php-format
-#| msgid "This bill has no recorded payment to undo"
+#, php-format
 msgid "This bill already has a payment on %1$s."
-msgstr ""
-"Für diese Rechnung ist keine erfasste Zahlung zum Rückgängigmachen vorhanden"
+msgstr "Für diese Rechnung wurde bereits am %1$s eine Zahlung erfasst."
 
 #: /app/lib/Controller/BillController.php:1072
 msgid "Failed to undo mark as paid"
@@ -1012,10 +1010,8 @@ msgid "Missing previous due date"
 msgstr "Vorheriger Stichtag fehlt"
 
 #: /app/lib/Controller/BillController.php:1148
-#, fuzzy
-#| msgid "Previous expected date"
 msgid "Previous due date"
-msgstr "Vorheriges erwartetes Datum"
+msgstr "Vorheriges Fälligkeitsdatum"
 
 #: /app/lib/Controller/BillController.php:1158
 msgid "Failed to undo skip"
@@ -2267,10 +2263,9 @@ msgid "Failed to retrieve income summary"
 msgstr "Einnahmenübersicht konnte nicht abgerufen werden"
 
 #: /app/lib/Controller/RecurringIncomeController.php:502
-#, fuzzy, php-format
-#| msgid "This income has no payment to receive"
+#, php-format
 msgid "This income already has a payment on %1$s."
-msgstr "Für diese Einnahme ist keine Zahlung zu erhalten"
+msgstr "Für diese Einnahme wurde bereits am %1$s eine Zahlung erfasst."
 
 #: /app/lib/Controller/RecurringIncomeController.php:565
 msgid "Previous expected date"
@@ -2412,10 +2407,8 @@ msgid "Failed to update setting"
 msgstr "Einstellung konnte nicht aktualisiert werden"
 
 #: /app/lib/Controller/SettingController.php:320
-#, fuzzy
-#| msgid "Invalid position"
 msgid "Invalid colour setting"
-msgstr "Ungültige Position"
+msgstr "Ungültige Farbeinstellung"
 
 #: /app/lib/Controller/SettingController.php:395
 msgid "Setting reset to default"
@@ -2900,17 +2893,15 @@ msgstr "Aufheben der Buchungsvernüpfung fehlgeschlagen"
 
 #: /app/lib/Controller/TransactionController.php:818
 #: /app/src/modules/transactions/TransactionsModule.js:3965
-#, fuzzy
-#| msgid "Failed to split the transaction"
 msgid "Failed to link the transaction to the bill"
-msgstr "Die Transaktion konnte nicht aufgeteilt werden"
+msgstr "Die Transaktion konnte nicht mit der Rechnung verknüpft werden"
 
 #: /app/lib/Controller/TransactionController.php:841
 #: /app/src/modules/transactions/TransactionsModule.js:4008
-#, fuzzy
-#| msgid "Failed to unlink transaction"
 msgid "Failed to unlink the transaction from the bill"
-msgstr "Aufheben der Buchungsvernüpfung fehlgeschlagen"
+msgstr ""
+"Die Verknüpfung zwischen der Transaktion und der Rechnung konnte nicht "
+"aufgehoben werden"
 
 #: /app/lib/Controller/TransactionController.php:882
 msgid "Failed to bulk match transactions"
@@ -3800,14 +3791,11 @@ msgstr "Bei dieser Rechnung ist nichts mehr zu bezahlen"
 #: /app/lib/Service/RecurringIncomeService.php:320
 #: /app/lib/Service/RecurringIncomeService.php:765
 #: /app/lib/Service/RecurringIncomeService.php:776
-#, fuzzy
-#| msgid ""
-#| "This payment was already recorded. Reload the page to see the next one."
 msgid ""
 "This date was already paid or skipped. Reload the page to see the next one."
 msgstr ""
-"Diese Zahlung wurde bereits erfasst. Lade die Seite neu, um die nächste "
-"Zahlung anzuzeigen."
+"Für dieses Datum wurde bereits eine Zahlung erfasst oder der Termin wurde "
+"übersprungen. Lade die Seite neu, um den nächsten Termin anzuzeigen."
 
 #: /app/lib/Service/BillService.php:1357
 #: /app/lib/Service/TransactionService.php:1298
@@ -3827,6 +3815,8 @@ msgstr ""
 #: /app/lib/Service/BillService.php:1800
 msgid "Undo the skip first: a later date has been skipped since this payment."
 msgstr ""
+"Mache zuerst das Überspringen rückgängig: Seit dieser Zahlung wurde ein "
+"späteres Datum übersprungen."
 
 #: /app/lib/Service/BillService.php:1823
 msgid ""
@@ -3846,16 +3836,12 @@ msgid "Cannot skip an inactive bill"
 msgstr "Ruhende Rechnung kann nicht übersprungen werden"
 
 #: /app/lib/Service/BillService.php:1963
-#, fuzzy
-#| msgid "Automatically creates a transaction on the bill's due date"
 msgid "That date is after the bill's next due date"
-msgstr "Erstellt automatisch eine Buchung am Fälligkeitstag der Rechnung"
+msgstr "Dieses Datum liegt nach dem nächsten Fälligkeitsdatum der Rechnung"
 
 #: /app/lib/Service/BillService.php:1968
-#, fuzzy
-#| msgid "Automatically creates a transaction on the bill's due date"
 msgid "That date isn't one of this bill's due dates"
-msgstr "Erstellt automatisch eine Buchung am Fälligkeitstag der Rechnung"
+msgstr "Dieses Datum gehört nicht zu den Fälligkeitsterminen dieser Rechnung"
 
 #: /app/lib/Service/BillService.php:2291
 #: /app/lib/Service/RecurringIncomeService.php:1000
@@ -3886,7 +3872,7 @@ msgstr "Rechnung ist keinem Konto zugewiesen"
 
 #: /app/lib/Service/BillService.php:2996
 msgid "The payment could not be recorded"
-msgstr "Die Zahlung konnte nicht erfasst werden"
+msgstr "Die Zahlung konnte nicht verbucht werden"
 
 #: /app/lib/Service/BillService.php:3013
 msgid "Bill auto-paid successfully"
@@ -4680,6 +4666,8 @@ msgstr "Transfer marked as paid"
 #: /app/lib/Service/RecurringIncomeService.php:421
 msgid "Undo the skip first: a later date has been skipped since this receipt."
 msgstr ""
+"Mache zuerst das Überspringen rückgängig: Seit diesem Zahlungseingang wurde "
+"ein späteres Datum übersprungen."
 
 #: /app/lib/Service/RecurringIncomeService.php:692
 msgid "Recurring income cannot use a custom schedule"
@@ -5195,33 +5183,31 @@ msgid "Shared expense"
 msgstr "Geteilte Ausgabe"
 
 #: /app/lib/Service/TransactionService.php:1285
-#, fuzzy
-#| msgid ""
-#| "This transaction is scheduled, so it is not on a statement yet and cannot "
-#| "be ticked."
 msgid ""
 "This transaction is still scheduled, so it can't be a bill's payment yet"
 msgstr ""
-"Diese Buchung ist geplant und steht deshalb noch nicht auf einem "
-"Kontoauszug. Sie kann nicht angehakt werden."
+"Diese Transaktion ist noch geplant und kann daher noch nicht als Zahlung für "
+"eine Rechnung verwendet werden"
 
 #: /app/lib/Service/TransactionService.php:1342
-#, fuzzy
-#| msgid "That transaction can't pay this bill"
 msgid "This transaction isn't linked to a bill"
-msgstr "Diese Transaktion kann diese Rechnung nicht bezahlen"
+msgstr "Diese Transaktion ist mit keiner Rechnung verknüpft"
 
 #: /app/lib/Service/TransactionService.php:1347
 msgid ""
 "This is the upcoming payment of a bill, so it stays linked to it. Edit or "
 "skip the bill instead."
 msgstr ""
+"Dies ist die nächste anstehende Zahlung einer Rechnung und bleibt daher mit "
+"ihr verknüpft. Bearbeite oder überspringe stattdessen die Rechnung."
 
 #: /app/lib/Service/TransactionService.php:1364
 #: /app/src/modules/transactions/TransactionsModule.js:3991
 msgid ""
 "This is the bill's latest payment. Use Mark Unpaid on the bill to undo it."
 msgstr ""
+"Dies ist die letzte Zahlung für diese Rechnung. Verwende bei der Rechnung „"
+"Als unbezahlt markieren“, um die Zahlung rückgängig zu machen."
 
 #: /app/lib/Service/TransactionService.php:2381
 msgid "The account this would transfer to is closed. Reopen it first"
@@ -5961,15 +5947,13 @@ msgstr "Transfer zuordnen"
 
 #: /app/src/main.js:527
 msgid "Link to bill…"
-msgstr ""
+msgstr "Mit Rechnung verknüpfen…"
 
 #: /app/src/main.js:529
 #: /app/src/modules/transactions/TransactionsModule.js:3992
 #: /app/src/modules/transactions/TransactionsModule.js:3999
-#, fuzzy
-#| msgid "(from a bill)"
 msgid "Unlink from bill"
-msgstr "(aus einer Rechnung)"
+msgstr "Verknüpfung mit Rechnung aufheben"
 
 #: /app/src/main.js:532 /app/src/main.js:2921
 #: /app/src/modules/accounts/AccountsModule.js:617
@@ -6193,7 +6177,7 @@ msgstr "Bezahlte einmalige Rechnungen sind noch aktiv"
 
 #: /app/src/main.js:1845
 msgid "Income Received Early but Still Expected"
-msgstr ""
+msgstr "Einnahme vorzeitig erhalten, aber weiterhin erwartet"
 
 #: /app/src/main.js:1849
 msgid ""
@@ -6201,6 +6185,11 @@ msgid ""
 "income waiting for them, so Mark Received would record them a second time. "
 "Repairing moves each one on to its next date. Nothing is added or deleted."
 msgstr ""
+"Eine ältere Version hat diese Zahlungen an ihrem erwarteten Datum erfasst, "
+"die Einnahmen aber weiterhin als ausstehend angezeigt. Dadurch würden sie "
+"beim Verwenden von „Als erhalten markieren“ ein zweites Mal erfasst werden. "
+"Bei der Reparatur wird das erwartete Datum jeder betroffenen Einnahme auf "
+"den nächsten Termin gesetzt. Es wird nichts hinzugefügt oder gelöscht."
 
 #: /app/src/main.js:1859 /app/src/utils/repairFindings.js:50
 #: /app/src/utils/repairFindings.js:94 /app/src/utils/repairFindings.js:99
@@ -8046,10 +8035,8 @@ msgstr "Neuer Link erstellt"
 
 #: /app/src/modules/bills/BillsModule.js:1417
 #: /app/src/modules/transfers/TransfersModule.js:1067
-#, fuzzy
-#| msgid "Marked paid on {date}"
 msgid "Marked as paid with the payment of {date}"
-msgstr "Am {date} als bezahlt markiert"
+msgstr "Mit der Zahlung vom {date} als bezahlt markiert"
 
 #: /app/src/modules/bills/BillsModule.js:1419
 msgid "Bill marked as paid. Linked to existing transaction."
@@ -9915,32 +9902,23 @@ msgid "Rule: {name}"
 msgstr "Regel: {name}"
 
 #: /app/src/modules/import/ImportModule.js:220
-#, fuzzy
-#| msgid "Successfully updated %n transaction"
-#| msgid_plural "Successfully updated %n transactions"
 msgid "Successfully imported %n transaction"
 msgid_plural "Successfully imported %n transactions"
-msgstr[0] "%n Buchung erfolgreich aktualisiert"
-msgstr[1] "%n Buchungen erfolgreich aktualisiert"
+msgstr[0] "%n Transaktion erfolgreich importiert"
+msgstr[1] "%n Transaktionen erfolgreich importiert"
 
 #: /app/src/modules/import/ImportModule.js:224
-#, fuzzy
-#| msgid "Skipped"
 msgid "%n skipped"
 msgid_plural "%n skipped"
-msgstr[0] "Übersprungen"
-msgstr[1] "Übersprungen"
+msgstr[0] "%n übersprungen"
+msgstr[1] "%n übersprungen"
 
 #. TRANSLATORS: {skipped} is "%n skipped", translated on its own
 #: /app/src/modules/import/ImportModule.js:223
-#, fuzzy
-#| msgid "Successfully imported {imported} transactions ({skipped} skipped)"
 msgid "Successfully imported %n transaction ({skipped})"
 msgid_plural "Successfully imported %n transactions ({skipped})"
-msgstr[0] ""
-"Erfolgreich importiert: {imported} Buchungen ({skipped} übersprungen)"
-msgstr[1] ""
-"Erfolgreich importiert: {imported} Buchungen ({skipped} übersprungen)"
+msgstr[0] "%n Transaktion erfolgreich importiert ({skipped})"
+msgstr[1] "%n Transaktionen erfolgreich importiert ({skipped})"
 
 #: /app/src/modules/import/ImportModule.js:281
 msgid "Upload failed"
@@ -10243,10 +10221,9 @@ msgid "Showing {shown} of {total}"
 msgstr "Zeige {shown} von {total}"
 
 #: /app/src/modules/import/ImportModule.js:2203
-#, fuzzy
-#| msgid "Showing {shown} of {total}"
 msgid "Showing {shown} of the first {sample} of {total} rows"
-msgstr "Zeige {shown} von {total}"
+msgstr ""
+"Es werden {shown} der ersten {sample} von insgesamt {total} Zeilen angezeigt"
 
 #: /app/src/modules/import/ImportModule.js:2219
 msgid "Skip rows without an account"
@@ -10514,7 +10491,7 @@ msgstr "Fehler beim Löschen der Einnahme"
 
 #: /app/src/modules/income/IncomeModule.js:628
 msgid "Marked as received with the payment of {date}"
-msgstr ""
+msgstr "Mit der Zahlung vom {date} als erhalten markiert"
 
 #: /app/src/modules/income/IncomeModule.js:631
 msgid "Income marked as received. Transaction created."
@@ -11224,12 +11201,10 @@ msgstr "Anzahl der Rechnungen"
 
 #. TRANSLATORS: {amount} is a placeholder, do NOT translate it. It is what was paid in this month of the calendar.
 #: /app/src/modules/reports/ReportsModule.js:1928
-#, fuzzy
-#| msgid "{amount} a month"
 msgid "Paid once, {amount} this month"
 msgid_plural "Paid %n times, {amount} this month"
-msgstr[0] "{amount} pro Monat"
-msgstr[1] "{amount} pro Monat"
+msgstr[0] "Einmal bezahlt, {amount} in diesem Monat"
+msgstr[1] "%n-mal bezahlt, {amount} in diesem Monat"
 
 #: /app/src/modules/reports/ReportsModule.js:1934
 #: /app/src/modules/transactions/TransactionsModule.js:2065
@@ -13881,22 +13856,20 @@ msgid "Destination Amount ({currency})"
 msgstr "Zielbetrag ({currency})"
 
 #: /app/src/modules/transactions/TransactionsModule.js:3974
-#, fuzzy
-#| msgid "Transactions linked"
 msgid "Transaction linked to {bill}"
-msgstr "Buchungen wurden verknüpft"
+msgstr "Transaktion mit {bill} verknüpft"
 
 #: /app/src/modules/transactions/TransactionsModule.js:3998
 msgid ""
 "Unlink this transaction from its bill? It stays in the account, but the bill "
 "no longer counts it as a payment."
 msgstr ""
+"Diese Transaktion von ihrer Rechnung trennen? Sie bleibt im Konto erhalten, "
+"wird aber nicht mehr als Zahlung für die Rechnung berücksichtigt."
 
 #: /app/src/modules/transactions/TransactionsModule.js:4017
-#, fuzzy
-#| msgid "Transaction unlinked"
 msgid "Transaction unlinked from its bill"
-msgstr "Buchung abgelöst"
+msgstr "Verknüpfung der Transaktion mit der Rechnung aufgehoben"
 
 #: /app/src/modules/transactions/TransactionsModule.js:4050
 #: /app/templates/index.php:7217
@@ -14651,22 +14624,26 @@ msgid ""
 "Choose the bill this transaction paid. It then counts as one of the bill's "
 "payments, in the Bills Calendar too. The bill's due date doesn't change."
 msgstr ""
+"Wähle die Rechnung aus, die mit dieser Transaktion bezahlt wurde. Die "
+"Transaktion wird dann als eine der Zahlungen für diese Rechnung "
+"berücksichtigt, auch im Rechnungskalender. Das Fälligkeitsdatum der Rechnung "
+"bleibt unverändert."
 
 #: /app/src/utils/billLinkDialog.js:118
 msgid ""
 "There are no bills on this account yet. Add the bill first, then link this "
 "payment to it."
 msgstr ""
+"Für dieses Konto gibt es noch keine Rechnungen. Füge zuerst die Rechnung "
+"hinzu und verknüpfe anschließend diese Zahlung mit ihr."
 
 #: /app/src/utils/billLinkDialog.js:126
-#, fuzzy
-#| msgid "Edit bill"
 msgid "Link to bill"
-msgstr "Rechnung bearbeiten"
+msgstr "Mit Rechnung verknüpfen"
 
 #: /app/src/utils/billLinkDialog.js:134
 msgid "Link"
-msgstr ""
+msgstr "Verknüpfen"
 
 #: /app/src/utils/billUnpaid.js:26
 msgid ""
@@ -14674,6 +14651,10 @@ msgid ""
 "transaction created for the payment deleted. The transaction the payment "
 "used was already in the account: it stays there, still filed under the bill."
 msgstr ""
+"Diese Rechnung als unbezahlt markieren? Der Zahlungsplan der Rechnung wird "
+"zurückgesetzt und alle für die Zahlung erstellten Transaktionen werden "
+"gelöscht. War die für die Zahlung verwendete Transaktion bereits im Konto "
+"vorhanden, bleibt sie dort erhalten und weiterhin der Rechnung zugeordnet."
 
 #: /app/src/utils/billUnpaid.js:28
 msgid ""
@@ -14688,13 +14669,11 @@ msgstr ""
 #. TRANSLATORS: {amount}, {date} and {due} are placeholders, do NOT translate them. {due} is the date the bill was due that the payment was for.
 #: /app/src/utils/billsCalendarCell.js:57
 msgid "Paid {amount} on {date} for {due}"
-msgstr ""
+msgstr "{amount} am {date} für den Fälligkeitstermin {due} bezahlt"
 
 #: /app/src/utils/billsCalendarCell.js:59
-#, fuzzy
-#| msgid "Paid {date}"
 msgid "Paid {amount} on {date}"
-msgstr "Bezahlt am {date}"
+msgstr "{amount} am {date} bezahlt"
 
 #: /app/src/utils/billsCalendarCell.js:76
 #: /app/src/utils/billsCalendarCell.js:90
@@ -14702,10 +14681,8 @@ msgid "Due"
 msgstr "Fällig"
 
 #: /app/src/utils/billsCalendarCell.js:79
-#, fuzzy
-#| msgid "{amount} left"
 msgid "{amount} still due"
-msgstr "{amount} verfügbar"
+msgstr "{amount} noch offen"
 
 #: /app/src/utils/billsCalendarCell.js:88
 msgid "No payment recorded - the bill has moved on from this date"
@@ -14819,14 +14796,8 @@ msgid "Strong match"
 msgstr "Hohe Übereinstimmung"
 
 #: /app/src/utils/matchingDialog.js:70
-#, fuzzy
-#| msgid ""
-#| "Whichever you choose, the bill is marked as paid and moves on to its next "
-#| "due date."
 msgid "Whichever you choose, the bill is marked as paid."
-msgstr ""
-"Unabhängig von deiner Auswahl wird die Rechnung als bezahlt markiert und der "
-"nächste Fälligkeitstermin festgelegt."
+msgstr "Unabhängig von deiner Auswahl wird die Rechnung als bezahlt markiert."
 
 #: /app/src/utils/matchingDialog.js:71
 msgid ""
@@ -14872,43 +14843,36 @@ msgid "No options available"
 msgstr "Keine Optionen verfügbar"
 
 #: /app/src/utils/paymentRecordedDialog.js:45
-#, fuzzy
-#| msgid "This income has no payment to receive"
 msgid "This income already has a payment on {date} ({amount})."
-msgstr "Für diese Einnahme ist keine Zahlung zu erhalten"
+msgstr ""
+"Für diese Einnahme wurde bereits am {date} eine Zahlung über {amount} "
+"erfasst."
 
 #: /app/src/utils/paymentRecordedDialog.js:46
 msgid "This bill already has a payment on {date} ({amount})."
 msgstr ""
+"Für diese Rechnung wurde bereits am {date} eine Zahlung über {amount} "
+"erfasst."
 
 #: /app/src/utils/paymentRecordedDialog.js:54
-#, fuzzy
-#| msgid "The payment could not be recorded"
 msgid "Payment already recorded"
-msgstr "Die Zahlung konnte nicht erfasst werden"
+msgstr "Zahlung bereits erfasst"
 
 #: /app/src/utils/paymentRecordedDialog.js:62
-#, fuzzy
-#| msgid "Record Payment"
 msgid "Record another payment"
-msgstr "Zahlung aufnehmen"
+msgstr "Weitere Zahlung erfassen"
 
 #: /app/src/utils/paymentRecordedDialog.js:63
-#, fuzzy
-#| msgid "Revert the last payment"
 msgid "Use that payment"
-msgstr "Die letzte Zahlung rückgängig machen"
+msgstr "Diese Zahlung verwenden"
 
 #: /app/src/utils/repairFindings.js:83
-#, fuzzy
-#| msgid ""
-#| "Looks like a second payment for {occurrence} (other payment on {date})"
 msgid ""
 "Looks like a second payment for {occurrence} (other payment of {amount} on "
 "{date})"
 msgstr ""
-"Scheint eine zweite Zahlung für {occurrence} zu sein (andere Zahlung am "
-"{date})"
+"Sieht nach einer zweiten Zahlung für {occurrence} aus (weitere Zahlung über "
+"{amount} am {date})"
 
 #: /app/src/utils/repairFindings.js:88
 msgid "Looks like a second payment for {occurrence} (other payment on {date})"
@@ -14917,13 +14881,9 @@ msgstr ""
 "{date})"
 
 #: /app/src/utils/repairFindings.js:93
-#, fuzzy
-#| msgid ""
-#| "Looks like a second payment for {occurrence} (other payment on {date})"
 msgid "Looks like a second payment of {bill} (other payment on {date})"
 msgstr ""
-"Scheint eine zweite Zahlung für {occurrence} zu sein (andere Zahlung am "
-"{date})"
+"Sieht nach einer zweiten Zahlung für {bill} aus (weitere Zahlung am {date})"
 
 #: /app/src/utils/repairFindings.js:98
 msgid "Also recorded as {description} on {date}"
@@ -14934,17 +14894,12 @@ msgid "reconciled"
 msgstr "Abgeglichen"
 
 #: /app/src/utils/repairFindings.js:107
-#, fuzzy
-#| msgid "The date this transfer is due. It can be in the past."
 msgid "The other side of the transfer is removed with it."
-msgstr ""
-"Das Fälligkeitsdatum dieser Umbuchung. Es darf in der Vergangenheit liegen."
+msgstr "Die andere Seite der Umbuchung wird ebenfalls entfernt."
 
 #: /app/src/utils/repairFindings.js:132
-#, fuzzy
-#| msgid "Week of {date}"
 msgid "Moves on to {date}"
-msgstr "Woche vom {date}"
+msgstr "Wird auf {date} verschoben"
 
 #: /app/src/utils/repairFindings.js:148
 msgid "{count} duplicate transactions removed"
@@ -14962,7 +14917,9 @@ msgstr "{count} einmalige Rechnungen deaktiviert"
 msgid "%n income moved on to its next date"
 msgid_plural "%n incomes moved on to their next date"
 msgstr[0] ""
+"Bei %n Einnahme wurde das erwartete Datum auf den nächsten Termin gesetzt"
 msgstr[1] ""
+"Bei %n Einnahmen wurde das erwartete Datum auf den nächsten Termin gesetzt"
 
 #: /app/src/utils/repairFindings.js:160
 msgid "{count} future transactions set to scheduled"
@@ -16932,10 +16889,8 @@ msgid "Number Format"
 msgstr "Zahlenformat"
 
 #: /app/templates/index.php:4417 /app/templates/index.php:4561
-#, fuzzy
-#| msgid "Color"
 msgid "Colours"
-msgstr "Farbe"
+msgstr "Farben"
 
 #: /app/templates/index.php:4418 /app/templates/index.php:4613
 msgid "Notifications"
@@ -17090,43 +17045,43 @@ msgstr "Vorschau:"
 
 #: /app/templates/index.php:4566
 msgid "Money in and money out"
-msgstr ""
+msgstr "Geldeingänge und Geldausgänge"
 
 #: /app/templates/index.php:4567
 msgid ""
 "The colours used for income and expenses, balances, budget bars and charts"
 msgstr ""
+"Die Farben für Einnahmen und Ausgaben, Kontostände, Budgetbalken und "
+"Diagramme"
 
 #: /app/templates/index.php:4570
-#, fuzzy
-#| msgid "Default Currency"
 msgid "Default"
-msgstr "Standardwährung"
+msgstr "Standard"
 
 #: /app/templates/index.php:4571
 msgid "Colour-blind friendly (blue and orange)"
-msgstr ""
+msgstr "Für Menschen mit Farbsehschwäche geeignet (Blau und Orange)"
 
 #: /app/templates/index.php:4579
 msgid "Money in, light theme"
-msgstr ""
+msgstr "Geldeingänge, helles Design"
 
 #: /app/templates/index.php:4581 /app/templates/index.php:4586
 #: /app/templates/index.php:4591 /app/templates/index.php:4596
 msgid "Hard to read on this background"
-msgstr ""
+msgstr "Auf diesem Hintergrund schwer lesbar"
 
 #: /app/templates/index.php:4584
 msgid "Money out, light theme"
-msgstr ""
+msgstr "Geldausgänge, helles Design"
 
 #: /app/templates/index.php:4589
 msgid "Money in, dark theme"
-msgstr ""
+msgstr "Geldeingänge, dunkles Design"
 
 #: /app/templates/index.php:4594
 msgid "Money out, dark theme"
-msgstr ""
+msgstr "Money in, dark theme"
 
 #: /app/templates/index.php:4621
 msgid "Notify when approaching or exceeding budget limits"
