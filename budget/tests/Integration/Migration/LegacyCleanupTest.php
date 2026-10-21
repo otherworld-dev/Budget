@@ -295,13 +295,24 @@ class LegacyCleanupTest extends IntegrationTestCase {
 	}
 
 	private function runMigration(): void {
+		// getTable() is declared to return Doctrine's Table on older servers
+		// and OCP\DB\Schema\ITable on newer ones (NC 35.0.2 on): hand back a
+		// mock of whichever this server declares
+		$type = (new \ReflectionMethod(ISchemaWrapper::class, 'getTable'))->getReturnType();
+		$tableClass = $type instanceof \ReflectionNamedType && !$type->isBuiltin() ? $type->getName() : null;
+		if ($tableClass !== null) {
+			$table = $this->createMock($tableClass);
+			$table->method('hasColumn')->willReturn(true);
+		} else {
+			$table = new class {
+				public function hasColumn(string $name): bool {
+					return true;
+				}
+			};
+		}
 		$schema = $this->createMock(ISchemaWrapper::class);
 		$schema->method('hasTable')->willReturn(true);
-		$schema->method('getTable')->willReturn(new class {
-			public function hasColumn(string $name): bool {
-				return true;
-			}
-		});
+		$schema->method('getTable')->willReturn($table);
 		$migration = new Version001000125Date20261019(
 			$this->service(LegacyIncomeRows::class),
 			$this->service(DanglingLinks::class),
