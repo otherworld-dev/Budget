@@ -842,7 +842,11 @@ class MigrationService {
 			$rows = $this->fetchBatch($qb);
 			foreach ($rows as $row) {
 				$lastId = (int)$row['id'];
-				yield Transaction::fromRow($row)->jsonSerialize();
+				$transaction = Transaction::fromRow($row);
+				// The payee its import stored is not part of the entity's JSON
+				// (nothing shows it), but a restored row needs it to be
+				// recognised by the next import of its statement (#399)
+				yield $transaction->jsonSerialize() + ['importVendor' => $transaction->getImportVendor()];
 			}
 		} while (count($rows) === self::EXPORT_BATCH);
 	}
@@ -1546,6 +1550,9 @@ class MigrationService {
 			$transaction->setReference($txnData['reference'] ?? null);
 			$transaction->setNotes($txnData['notes'] ?? null);
 			$transaction->setImportId($txnData['importId'] ?? null);
+			// Absent from backups made before #399: not known, as for any
+			// row imported before then
+			$transaction->setImportVendor(is_string($txnData['importVendor'] ?? null) ? $txnData['importVendor'] : null);
 			$transaction->setReconciled(self::flag($txnData, 'reconciled', false));
 			// Restore status — dropping it turned scheduled transactions into
 			// cleared ones, silently corrupting balances after a migration (#274)

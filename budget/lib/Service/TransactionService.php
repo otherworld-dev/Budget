@@ -152,6 +152,9 @@ class TransactionService {
 		?string $status = null,
 		bool $excludedFromForecast = false,
 		bool $deferBalanceUpdate = false,
+		// The payee as a file import stored it ('' for none), for a later
+		// re-import to compare with (#399); null everywhere else
+		?string $importVendor = null,
 	): Transaction {
 		// Verify account belongs to user
 		$account = $this->accountMapper->find($accountId, $userId);
@@ -172,6 +175,7 @@ class TransactionService {
 		$transaction->setReference($reference);
 		$transaction->setNotes($notes);
 		$transaction->setImportId($importId);
+		$transaction->setImportVendor($importVendor);
 		$transaction->setBillId($billId);
 		// Auto-set status based on date: future transactions are scheduled.
 		// "Future" is judged in the USER's timezone — the date came from their
@@ -1555,6 +1559,10 @@ class TransactionService {
 				$transaction->setIsSplit(false);
 			}
 		}
+
+		// The payee the import stored is the import's record of the line, which
+		// a re-import compares with (#399): an edit never changes it
+		unset($updates['importVendor']);
 
 		// Apply updates
 		foreach ($updates as $key => $value) {
