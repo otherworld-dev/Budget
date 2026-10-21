@@ -191,15 +191,36 @@ class TransactionImportVendorTest extends TestCase {
 		$this->assertSame(['Dremel', 'Dremel', 'Dremel'], array_map(fn (Transaction $t) => $t->getVendor(), $inserted));
 	}
 
-	/** A backup made before it existed restores as rows imported before then: not known */
-	public function testAnOlderBackupRestoresWithoutIt(): void {
-		$old = ['id' => 1, 'accountId' => 7, 'date' => '2026-10-06', 'description' => 'Dremel Trennscheibe 426',
-			'vendor' => 'Dremel', 'amount' => 12.4, 'type' => 'debit', 'importId' => 'hash_abc'];
+	/**
+	 * A backup made before it existed restores its rows as migration 126
+	 * left them: a file import's row keeps its payee ('' for none), any
+	 * other row is not known.
+	 */
+	public function testAnOlderBackupRestoresItAsTheMigrationWould(): void {
+		$old = ['accountId' => 7, 'date' => '2026-10-06', 'description' => 'Dremel Trennscheibe 426', 'amount' => 12.4, 'type' => 'debit'];
 
-		$inserted = $this->restored([$old, ['importVendor' => ['not', 'a', 'string'], 'id' => 2] + $old]);
+		$inserted = $this->restored([
+			['id' => 1, 'vendor' => 'Dremel', 'importId' => 'hash_abc'] + $old,
+			['id' => 2, 'vendor' => null, 'importId' => 'hash_def_occ2'] + $old,
+			['id' => 3, 'vendor' => 'COOP CITY', 'importId' => 'ofx_fitid_qif_0123'] + $old,
+			['id' => 4, 'vendor' => 'Tesco', 'importId' => 'gocardless:abc'] + $old,
+			['id' => 5, 'vendor' => 'Bakery'] + $old,
+		]);
 
-		$this->assertNull($inserted[0]->getImportVendor());
-		$this->assertNull($inserted[1]->getImportVendor());
+		$this->assertSame(['Dremel', '', 'COOP CITY', null, null], array_map(fn (Transaction $t) => $t->getImportVendor(), $inserted));
 		$this->assertSame('hash_abc', $inserted[0]->getImportId());
+	}
+
+	/** A newer backup says what it is, even when that is not known */
+	public function testANewerBackupIsTakenAtItsWord(): void {
+		$row = ['accountId' => 7, 'date' => '2026-10-06', 'description' => 'Dremel', 'vendor' => 'Dremel', 'amount' => 12.4, 'type' => 'debit', 'importId' => 'hash_abc'];
+
+		$inserted = $this->restored([
+			['id' => 1, 'importVendor' => null] + $row,
+			['id' => 2, 'importVendor' => ['not', 'a', 'string']] + $row,
+			['id' => 3, 'importVendor' => 'DREMEL 426'] + $row,
+		]);
+
+		$this->assertSame([null, null, 'DREMEL 426'], array_map(fn (Transaction $t) => $t->getImportVendor(), $inserted));
 	}
 }

@@ -505,6 +505,43 @@ class ImportStoredPayeeTest extends TestCase {
 		$this->assertNull($this->ledger[2]['vendor'], 'The line with no shop is the one that went in');
 	}
 
+	// ===== several lines, one stored row (review of round 7, M2) =====
+
+	/**
+	 * A row imported with no payee, then given the shop by hand: of two
+	 * lines the stored row could each be, the one the typed payee names is
+	 * the one taken, wherever it is in the file, and the other comes in.
+	 */
+	public function testOfTwoLinesTheOneTheTypedPayeeNamesIsTakenForTheRow(): void {
+		$this->import([self::STARBUCKS], self::BY_PRODUCT);
+		$this->assertSame('', $this->ledger[1]['importVendor']);
+		$this->editPayee(1, 'Starbucks');
+
+		$this->assertSame([1], self::flagged($this->preview([self::COSTA, self::STARBUCKS], self::WITH_SHOP_AND_CATEGORY)));
+		$this->assertSame([0], self::flagged($this->preview([self::STARBUCKS, self::COSTA], self::WITH_SHOP_AND_CATEGORY)));
+
+		$again = $this->import([self::COSTA, self::STARBUCKS], self::WITH_SHOP_AND_CATEGORY);
+		$this->assertSame(1, $again['imported']);
+		$this->assertSame('Costa', $this->ledger[2]['vendor']);
+	}
+
+	/** With a stored row for each, both lines are still recognised */
+	public function testEveryLineIsStillRecognisedWhenThereIsARowForEach(): void {
+		$this->import([self::STARBUCKS, self::STARBUCKS], self::BY_PRODUCT);
+		$this->editPayee(1, 'Starbucks');
+
+		$this->assertSame([0, 1], self::flagged($this->preview([self::COSTA, self::STARBUCKS], self::WITH_SHOP_AND_CATEGORY)));
+		$this->assertSame(0, $this->import([self::COSTA, self::STARBUCKS], self::WITH_SHOP_AND_CATEGORY)['imported']);
+	}
+
+	/** A typed payee no line names changes nothing: the first line is taken, as before */
+	public function testATypedPayeeNoLineNamesLeavesThePairingAsItWas(): void {
+		$this->import([self::STARBUCKS], self::BY_PRODUCT);
+		$this->editPayee(1, 'Hornbach');
+
+		$this->assertSame([0], self::flagged($this->preview([self::COSTA, self::STARBUCKS], self::WITH_SHOP_AND_CATEGORY)));
+	}
+
 	// ===== rows imported before the update =====
 
 	/** No stored payee: the row is compared by its payee now, as before, so the browser run's case still doubles */
@@ -637,6 +674,24 @@ class ImportStoredPayeeTest extends TestCase {
 
 		$content = self::YNAB_HEADER . self::ynabRow('Book Shop', 'Kaffeebohnen') . self::ynabRow('Corner Cafe', 'Kaffeebohnen');
 		$this->assertSame([1], self::flagged($this->previewRaw($content, [], true, 'ynab')));
+	}
+
+	/**
+	 * The same for an app's export: a manual mapping stored the memo with no
+	 * payee and the payee was typed in since; of the two rows of the export
+	 * the stored text fits, the one the typed payee names is taken for it.
+	 */
+	public function testAPresetTakesTheRowTheTypedPayeeNamesFirst(): void {
+		$manual = ['date' => 2, 'description' => 7, 'expenseColumn' => 8, 'incomeColumn' => 9, 'skipFirstRow' => true];
+		$this->importRaw(self::YNAB_HEADER . self::ynabRow('Corner Cafe', 'Cafe'), $manual);
+		$this->assertSame('', $this->ledger[1]['importVendor']);
+		$this->editPayee(1, 'Corner Cafe');
+
+		$content = self::YNAB_HEADER . self::ynabRow('Cafe Nero', 'x') . self::ynabRow('Corner Cafe', 'y');
+		$this->assertSame([1], self::flagged($this->previewRaw($content, [], true, 'ynab')));
+		$again = $this->importRaw($content, [], true, 'ynab');
+		$this->assertSame(1, $again['imported']);
+		$this->assertSame('Cafe Nero', $this->ledger[2]['description']);
 	}
 
 	/** A row stored before the update is compared by its payee now, as before */
