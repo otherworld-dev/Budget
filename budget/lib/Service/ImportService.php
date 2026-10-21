@@ -697,6 +697,49 @@ class ImportService {
 		if ($importIdDuplicate) {
 			return true;
 		}
+		return $this->claimStoredRow($stored, $fileIds, $accountId, $transaction, false);
+	}
+
+	/**
+	 * Before an app export's rows are gone through, the stored rows whose
+	 * payee was typed in by hand since their import go to a row of the file
+	 * that payee names, if one also matches them as imported: the row
+	 * imported with no payee, then given "Corner Cafe", is that one, not the
+	 * "Cafe Nero" listed above it (review of round 7, M2). The rest are then
+	 * claimed in file order by matchesStoredRow(), as before; a typed payee
+	 * only orders the claiming, it never rules a row of the file out.
+	 *
+	 * @param array<string, array<int, array<string, mixed>>> $stored Per-import cache of the rows compared against, by account and month
+	 * @param array<string, true> $fileIds From fileImportIds()
+	 * @param list<array{index: array-key, accountId: int, importId: string, transaction: array, cells: array}> $lines From scanFileRows()
+	 * @return array<array-key, true> The indexes of the file's rows that claimed a stored row
+	 */
+	private function claimRowsTypedPayeesName(array &$stored, array $fileIds, array $lines): array {
+		$claimed = [];
+		$seen = [];
+		foreach ($lines as $line) {
+			$key = $line['accountId'] . '|' . $line['importId'];
+			$repeat = isset($seen[$key]);
+			$seen[$key] = true;
+			if ($repeat || $this->duplicateDetector->isDuplicateByImportId($line['accountId'], $line['importId'])) {
+				continue;
+			}
+			if ($this->claimStoredRow($stored, $fileIds, $line['accountId'], $line['transaction'], true)) {
+				$claimed[$line['index']] = true;
+			}
+		}
+		return $claimed;
+	}
+
+	/**
+	 * Claim the first stored row this row of an app export matches (see
+	 * matchesStoredRow()); with $namedOnly, only one whose payee typed in by
+	 * hand since also names it.
+	 *
+	 * @param array<string, array<int, array<string, mixed>>> $stored Per-import cache of the rows compared against, by account and month
+	 * @param array<string, true> $fileIds From fileImportIds()
+	 */
+	private function claimStoredRow(array &$stored, array $fileIds, int $accountId, array $transaction, bool $namedOnly): bool {
 		$date = (string)($transaction['date'] ?? '');
 		if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) !== 1) {
 			return false;
@@ -714,6 +757,9 @@ class ImportService {
 				|| $row['date'] !== $date
 				|| $row['type'] !== ($transaction['type'] ?? null)
 				|| MoneyCalculator::compare((string)$row['amount'], (float)($transaction['amount'] ?? 0), 8) !== 0) {
+				continue;
+			}
+			if ($namedOnly && !(self::payeeEditedByHand($row) && self::textsMatch($texts, self::comparableTexts([$row['vendor']])))) {
 				continue;
 			}
 			if (self::textsMatch($texts, self::comparableTexts([$row['description'], self::storedPayee($row)]))) {
@@ -784,7 +830,11 @@ class ImportService {
 	 * line that could be either of two stored rows leaves the one another
 	 * line needs, wherever the two are in the file. A stored row whose import
 	 * id a line of this file carries belongs to that line (V2-2), and a line
-	 * its own import id already recognises takes no other.
+	 * its own import id already recognises takes no other. Of the lines a
+	 * stored row could be, one that the payee typed on it since also names
+	 * is paired with it first (the row imported with no payee, then given
+	 * "Starbucks": of a Costa and a Starbucks line, Starbucks's); the typed
+	 * payee only orders the pairing, it never rules a line out.
 	 *
 	 * Only rows stored under a content hash are compared: a row typed in by
 	 * hand, synced from the bank or carrying the bank's own id (an OFX
@@ -800,6 +850,7 @@ class ImportService {
 	private function linesImportedBefore(array $lines, array $fileIds, string $userId, ?array $rules): array {
 		$stored = [];
 		$candidates = [];
+		$preferred = [];
 		$seen = [];
 		foreach ($lines as $n => $line) {
 			$accountId = $line['accountId'];
@@ -820,6 +871,7 @@ class ImportService {
 			}
 
 			$matches = [];
+			$named = [];
 			$memo = [];
 			foreach ($stored[$month] as $i => $row) {
 				$storedId = $row['import_id'] ?? '';
@@ -832,17 +884,34 @@ class ImportService {
 				}
 				if ($this->couldHaveStored($row, $line, $texts, $memo, $userId, $rules)) {
 					$matches[] = $month . '|' . $i;
+					// The payee typed on the row since names this line too
+					if (self::payeeEditedByHand($row)
+						&& $this->couldHaveStored(['import_vendor' => null] + $row, $line, $texts, $memo, $userId, $rules)) {
+						$named[] = $month . '|' . $i;
+					}
 				}
 			}
 			if ($matches !== [] && !$this->duplicateDetector->isDuplicateByImportId($accountId, $line['importId'])) {
 				$candidates[$n] = $matches;
+				if ($named !== []) {
+					$preferred[$n] = $named;
+				}
 			}
 		}
 
+		// The lines a row's hand-typed payee names are paired with it first,
+		// then the rest: a path that makes room only ever moves a line to
+		// another of its rows, never leaves it out, so as many lines as can
+		// be are still recognised.
 		$pairedWith = [];
-		foreach (array_keys($candidates) as $n) {
-			$tried = [];
-			self::pairLine($n, $candidates, $pairedWith, $tried);
+		foreach ([$preferred, $candidates] as $pass) {
+			$paired = array_flip($pairedWith);
+			foreach (array_keys($pass) as $n) {
+				if (!isset($paired[$n])) {
+					$tried = [];
+					self::pairLine($n, $pass, $pairedWith, $tried);
+				}
+			}
 		}
 
 		$recognised = [];
@@ -1271,6 +1340,21 @@ class ImportService {
 	}
 
 	/**
+	 * Whether the row's payee now is one typed in since its import stored
+	 * another (or none): a payee, not the one in import_vendor. Unknown for a
+	 * row with no import_vendor, so false.
+	 *
+	 * @param array<string, mixed> $row From TransactionMapper::findImportComparables()
+	 */
+	private static function payeeEditedByHand(array $row): bool {
+		if (($row['import_vendor'] ?? null) === null) {
+			return false;
+		}
+		$now = self::comparableTexts([$row['vendor'] ?? null]);
+		return $now !== [] && $now !== self::comparableTexts([$row['import_vendor']]);
+	}
+
+	/**
 	 * Free text as compared across imports: lower case, every run of anything
 	 * but letters and digits as one space, blanks dropped.
 	 *
@@ -1510,6 +1594,7 @@ class ImportService {
 		});
 		$fileIds = self::fileImportIds($lines);
 		$importedBefore = $preset === null ? $this->linesImportedBefore($lines, $fileIds, $userId, $applyRules ? $rules : null) : [];
+		$claimedFirst = $preset !== null ? $this->claimRowsTypedPayeesName($storedRows, $fileIds, $lines) : [];
 
 		foreach ($data as $index => $row) {
 			try {
@@ -1577,7 +1662,7 @@ class ImportService {
 					if ($preset !== null) {
 						// A preset's ids differ from the ones a manual mapping of
 						// the same file stored (R5-4)
-						$isDuplicate = $this->matchesStoredRow($storedRows, $fileIds, $txAccountId, $transaction, $isDuplicate);
+						$isDuplicate = isset($claimedFirst[$index]) || $this->matchesStoredRow($storedRows, $fileIds, $txAccountId, $transaction, $isDuplicate);
 					} elseif (isset($importedBefore[$index])) {
 						// The line went in before under another mapping (#399)
 						$isDuplicate = true;
@@ -2140,6 +2225,7 @@ class ImportService {
 		// Every row's import id, before any row is matched (V2-2)
 		$fileIds = [];
 		$importedBefore = [];
+		$claimedFirst = [];
 		if ($skipDuplicates) {
 			$lines = $this->scanFileRows($data, $mapping, $preset, function (array $transaction) use ($hasAccountColumn, $accountId, $resolvedAccounts): ?int {
 				$name = $hasAccountColumn ? (string)($transaction['_accountName'] ?? '') : '';
@@ -2147,6 +2233,7 @@ class ImportService {
 			});
 			$fileIds = self::fileImportIds($lines);
 			$importedBefore = $preset === null ? $this->linesImportedBefore($lines, $fileIds, $userId, $applyRules ? $rules : null) : [];
+			$claimedFirst = $preset !== null ? $this->claimRowsTypedPayeesName($storedRows, $fileIds, $lines) : [];
 		}
 
 		foreach ($data as $index => $row) {
@@ -2205,7 +2292,7 @@ class ImportService {
 					if ($preset !== null) {
 						// A preset's ids differ from the ones a manual mapping of
 						// the same file stored (R5-4)
-						$isDuplicate = $this->matchesStoredRow($storedRows, $fileIds, $txAccountId, $transaction, $isDuplicate);
+						$isDuplicate = isset($claimedFirst[$index]) || $this->matchesStoredRow($storedRows, $fileIds, $txAccountId, $transaction, $isDuplicate);
 					} elseif (isset($importedBefore[$index])) {
 						// The line went in before under another mapping (#399)
 						$isDuplicate = true;
