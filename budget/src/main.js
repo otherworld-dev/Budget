@@ -82,6 +82,7 @@ import { transactionTotalsByCurrency } from './utils/helpers.js';
 import { categoryOptionsHtml } from './utils/formSelects.js';
 import { apiFetch, ApiError } from './utils/api.js';
 import { openAccounts } from './utils/accounts.js';
+import { showRowsOf } from './utils/rowsScroll.js';
 import { duplicateItem, repairResultMessage, stuckIncomeItem } from './utils/repairFindings.js';
 
 // Configuration
@@ -1506,6 +1507,10 @@ class BudgetApp {
                 // Always use enhanced rendering for inline editing support
                 this.renderEnhancedTransactionsTable();
                 this.applyColumnVisibility();
+                // Another page, rows per page, filters or sort start at the
+                // top of the rows' box; the same page loaded again keeps its
+                // place (#399)
+                showRowsOf(document.getElementById('transactions-table'), url);
             }
 
             // Update enhanced UI elements if they exist
