@@ -3163,6 +3163,9 @@ class TransactionMapper extends QBMapper {
 					$matchArrays[] = $matchArray;
 				}
 
+				// The row is read whole (t.*); the payee its import stored is
+				// the import's own record and shown nowhere (#399)
+				unset($tx['import_vendor']);
 				$transactionsWithMatches[] = [
 					'transaction' => $tx,
 					'matches' => $matchArrays,

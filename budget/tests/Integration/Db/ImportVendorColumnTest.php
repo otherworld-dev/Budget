@@ -55,6 +55,28 @@ class ImportVendorColumnTest extends IntegrationTestCase {
 		$this->assertSame('Hornbach', $service->find($id, $this->userId)->getVendor());
 	}
 
+	/** The transfer-matching scan reads its rows whole; the column must not reach the page */
+	public function testTheTransferMatchScanDoesNotShowIt(): void {
+		$current = $this->makeAccount()->getId();
+		$savings = $this->makeAccount(['name' => 'Savings'])->getId();
+		$out = $this->makeTransaction($current, ['amount' => '250.00', 'date' => '2026-10-06', 'import_id' => 'hash_out', 'vendor' => 'Savings', 'import_vendor' => 'TRANSFER 0042']);
+		$this->makeTransaction($savings, ['amount' => '250.00', 'date' => '2026-10-06', 'type' => 'credit', 'import_id' => 'hash_in', 'import_vendor' => '']);
+
+		$found = $this->service(TransactionMapper::class)->findUnlinkedWithMatches($this->userId, 3, 100, 0);
+
+		$this->assertNotSame([], $found['transactions']);
+		$ids = [];
+		foreach ($found['transactions'] as $item) {
+			$ids[] = (int)$item['transaction']['id'];
+			$this->assertArrayNotHasKey('import_vendor', $item['transaction']);
+			$this->assertArrayHasKey('vendor', $item['transaction']);
+			foreach ($item['matches'] as $match) {
+				$this->assertArrayNotHasKey('importVendor', $match);
+			}
+		}
+		$this->assertContains($out, $ids);
+	}
+
 	public function testABackupRoundTripKeepsIt(): void {
 		$account = $this->makeAccount()->getId();
 		$this->makeTransaction($account, ['description' => 'Imported', 'vendor' => 'Dremel', 'import_id' => 'hash_a', 'import_vendor' => 'DREMEL 426']);
