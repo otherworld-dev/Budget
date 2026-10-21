@@ -5350,6 +5350,9 @@ style('budget', 'budget-app');
                     <option value=""><?php p($l->t('No linked tag')); ?></option>
                     <!-- Tag options populated dynamically -->
                     </select>
+                    <p class="form-hint" style="margin-top: 4px; font-size: 12px; color: #888;">
+                    <?php p($l->t('Any transaction, bill or transfer with this tag counts towards the goal. With a linked account, only tagged transactions in that account count.')); ?>
+                    </p>
                     <p class="form-hint" id="goal-tag-hint" style="display: none; margin-top: 4px; font-size: 12px; color: #888;">
                     <?php p($l->t('Current amount will be automatically calculated from tagged transactions.')); ?>
                     </p>
