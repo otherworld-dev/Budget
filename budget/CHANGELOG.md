@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Download a receipt through the API.** `GET /transactions/{id}/receipts/{attachmentId}/download` returns the receipt file itself, with its type and name, so a client can show the image or open the PDF without knowing where the user's receipts folder is. Owner-only like the other receipt calls, and a deleted file is a `404`. Reported by @SGiersch ([#436](https://github.com/otherworld-dev/Budget/issues/436))
+- **Pick an icon for a category.** The category form has an **Icon** picker with around 60 icons (home, bills, food, transport, health, pets, savings and more), shown on the category's colour as you choose. Only the default categories had icons before, and most of them drew an empty circle because they named icons Nextcloud doesn't have; those now show too. Reported by @bzielinskib ([#440](https://github.com/otherworld-dev/Budget/issues/440))
 
 ### Changed
 - **The savings goal form explains linked tags.** A line under **Linked Tag** says how tagged transactions, bills and transfers count: money in adds to the goal, money out takes it away, a transfer between your accounts counts once on the savings side, and a linked account limits it to that account. Reported by @TerjeTM ([#438](https://github.com/otherworld-dev/Budget/issues/438))

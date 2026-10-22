@@ -6936,6 +6936,12 @@ style('budget', 'budget-app');
                         <input type="color" id="category-color" value="#3b82f6" aria-describedby="category-color-help">
                         <small id="category-color-help" class="form-text"><?php p($l->t('Color for charts and display')); ?></small>
                     </div>
+
+                    <div class="form-group">
+                        <span class="form-label" id="category-icon-label"><?php p($l->t('Icon')); ?></span>
+                        <input type="hidden" id="category-icon" value="icon-tag">
+                        <div id="category-icon-picker" class="category-icon-picker" role="radiogroup" aria-labelledby="category-icon-label"></div>
+                    </div>
                   </div>
                 </div>
 

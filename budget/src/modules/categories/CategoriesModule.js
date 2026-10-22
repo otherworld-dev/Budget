@@ -15,6 +15,7 @@ import { nextCategoryColor, distinctCategoryColors } from '../../utils/colors.js
 import { parentPickerTree } from './parentPicker.js';
 import { roundMoney } from '../../utils/money.js';
 import { semanticColour } from '../../utils/amountColours.js';
+import { categoryIconChoices, categoryIconColour, categoryIconSvg, resolveCategoryIcon } from '../../utils/categoryIcons.js';
 
 export default class CategoriesModule {
     constructor(app) {
@@ -231,6 +232,70 @@ export default class CategoriesModule {
         if (bulkRecolorBtn) {
             bulkRecolorBtn.addEventListener('click', () => this.recolorSelectedCategories());
         }
+
+        this.setupCategoryIconPicker();
+    }
+
+    /**
+     * Build the icon picker in the category form (#440): one radio button per
+     * icon, writing its key to the hidden #category-icon input. The buttons
+     * take the colour chosen above, so the picker previews the real circle.
+     */
+    setupCategoryIconPicker() {
+        const picker = document.getElementById('category-icon-picker');
+        const input = document.getElementById('category-icon');
+        if (!picker || !input || picker.dataset.bound) return;
+        picker.dataset.bound = '1';
+
+        picker.innerHTML = categoryIconChoices().map(({ key, label }) => `
+            <button type="button" role="radio" class="category-icon-choice" data-icon="${key}"
+                    aria-checked="false" tabindex="-1"
+                    aria-label="${dom.escapeHtml(label)}" title="${dom.escapeHtml(label)}">
+                ${categoryIconSvg(key, 18)}
+            </button>`).join('');
+
+        const choose = (btn) => {
+            if (!btn) return;
+            input.value = btn.dataset.icon;
+            this.syncCategoryIconPicker();
+        };
+
+        picker.addEventListener('click', (e) => choose(e.target.closest('button[data-icon]')));
+
+        // Arrow keys move between the options, as in any radio group.
+        picker.addEventListener('keydown', (e) => {
+            if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return;
+            e.preventDefault();
+            const buttons = [...picker.querySelectorAll('button[data-icon]')];
+            const i = buttons.findIndex(b => b.dataset.icon === resolveCategoryIcon(input.value));
+            const step = (e.key === 'ArrowRight' || e.key === 'ArrowDown') ? 1 : -1;
+            const next = buttons[(i + step + buttons.length) % buttons.length];
+            choose(next);
+            next.focus();
+        });
+
+        document.getElementById('category-color')
+            ?.addEventListener('input', () => this.syncCategoryIconPicker());
+    }
+
+    /** Mirror the hidden input and colour onto the picker buttons. */
+    syncCategoryIconPicker() {
+        const picker = document.getElementById('category-icon-picker');
+        const input = document.getElementById('category-icon');
+        if (!picker || !input) return;
+        const color = document.getElementById('category-color')?.value || '#999999';
+        picker.style.setProperty('--category-icon-fill', color);
+        picker.style.setProperty('--category-icon-ink', categoryIconColour(color));
+        // An unknown stored key shows as the tag (as it renders) but is kept
+        // as-is in the input unless the user picks something else.
+        const selected = resolveCategoryIcon(input.value);
+        picker.querySelectorAll('button[data-icon]').forEach(btn => {
+            const chosen = btn.dataset.icon === selected;
+            btn.classList.toggle('active', chosen);
+            btn.setAttribute('aria-checked', chosen ? 'true' : 'false');
+            // Only the chosen option is in the tab order (roving tabindex).
+            btn.tabIndex = chosen ? 0 : -1;
+        });
     }
 
     switchCategoryType(type) {
@@ -326,8 +391,8 @@ export default class CategoriesModule {
                             </button>
                         ` : '<div style="width: 20px;"></div>'}
 
-                        <div class="category-icon" style="background-color: ${dom.escapeHtml(category.color || '#999')};">
-                            <span class="${dom.escapeHtml(category.icon || 'icon-tag')}" aria-hidden="true"></span>
+                        <div class="category-icon" style="background-color: ${dom.escapeHtml(category.color || '#999')}; color: ${categoryIconColour(category.color || '#999')};">
+                            ${categoryIconSvg(category.icon)}
                         </div>
 
                         <div class="category-content">
@@ -781,8 +846,10 @@ export default class CategoriesModule {
 
         const iconEl = document.getElementById('category-display-icon');
         if (iconEl) {
-            iconEl.className = `category-icon large ${category.icon || 'icon-tag'}`;
+            iconEl.className = 'category-icon large';
             iconEl.style.backgroundColor = category.color || '#999';
+            iconEl.style.color = categoryIconColour(category.color || '#999');
+            iconEl.innerHTML = categoryIconSvg(category.icon, 24);
         }
 
         const typeEl = document.getElementById('category-display-type');
@@ -1489,6 +1556,10 @@ export default class CategoriesModule {
         const colorInput = document.getElementById('category-color');
         if (colorInput) colorInput.value = nextCategoryColor((this.allCategories || []).map(c => c.color));
 
+        const iconInput = document.getElementById('category-icon');
+        if (iconInput) iconInput.value = 'icon-tag';
+        this.syncCategoryIconPicker();
+
         const excludedCheckbox = document.getElementById('category-excluded-from-reports');
         if (excludedCheckbox) excludedCheckbox.checked = false;
 
@@ -1502,6 +1573,10 @@ export default class CategoriesModule {
         document.getElementById('category-type').value = category.type;
         document.getElementById('category-parent').value = category.parentId || '';
         document.getElementById('category-color').value = category.color || '#3b82f6';
+
+        const iconInput = document.getElementById('category-icon');
+        if (iconInput) iconInput.value = category.icon || 'icon-tag';
+        this.syncCategoryIconPicker();
 
         const excludedCheckbox = document.getElementById('category-excluded-from-reports');
         if (excludedCheckbox) {
@@ -1563,6 +1638,7 @@ export default class CategoriesModule {
         const type = document.getElementById('category-type').value;
         const parentId = document.getElementById('category-parent').value || null;
         const color = document.getElementById('category-color').value;
+        const icon = document.getElementById('category-icon')?.value || null;
 
         if (!name) {
             showWarning(t('budget', 'Category name is required'));
@@ -1573,7 +1649,7 @@ export default class CategoriesModule {
         const excludedFromBudget = document.getElementById('category-excluded-from-budget')?.checked || false;
 
         // When editing a write-shared category, the recipient may change only
-        // cosmetic fields (name, colour). Structural fields (type, parent), budget
+        // cosmetic fields (name, colour, icon). Structural fields (type, parent), budget
         // fields and the scope flags (excludedFromReports, excludedFromBudget)
         // belong to the owner and are stripped server-side too. Guard precisely on
         // the category being edited so creating a new category is never affected
@@ -1585,7 +1661,7 @@ export default class CategoriesModule {
             && !!this.selectedCategory._canWrite
             && !this.selectedCategory._canManage;
 
-        const categoryData = { name, color };
+        const categoryData = { name, color, icon };
         if (!isEditingWriteShared) {
             categoryData.type = type;
             categoryData.parentId = parentId ? parseInt(parentId) : null;

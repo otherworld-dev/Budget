@@ -6550,6 +6550,49 @@ button.danger:hover {
     font-size: 18px;
 }
 
+/* Icon picker in the category form (#440) */
+.category-icon-picker {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
+    gap: 6px;
+    max-height: 168px;
+    overflow-y: auto;
+    padding: 2px;
+}
+
+.category-icon-picker .category-icon-choice {
+    width: 36px;
+    min-width: 0;
+    height: 36px;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    border-radius: 50%;
+    border: 1px solid var(--color-border);
+    background: var(--color-main-background);
+    color: var(--color-main-text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.category-icon-picker .category-icon-choice svg {
+    flex-shrink: 0;
+}
+
+.category-icon-picker .category-icon-choice:hover {
+    background: var(--color-background-hover);
+}
+
+.category-icon-picker .category-icon-choice.active,
+.category-icon-picker .category-icon-choice.active:hover {
+    background: var(--category-icon-fill, var(--color-primary-element));
+    color: var(--category-icon-ink, var(--color-primary-element-text));
+    border-color: var(--color-main-text);
+    box-shadow: 0 0 0 2px var(--color-main-background), 0 0 0 3px var(--color-main-text);
+}
+
 .category-content {
     flex: 1;
     display: flex;
