@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-10-21 22:58+0000\n"
-"PO-Revision-Date: 2026-10-21 19:29+0000\n"
+"PO-Revision-Date: 2026-10-23 01:51+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -479,13 +479,12 @@ msgid "This request is still being processed. Try again shortly"
 msgstr "Diese Anfrage wird noch verarbeitet. Versuche es in Kürze erneut"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:1101
-#, fuzzy
-#| msgid "The transaction was recorded, but the photo could not be attached"
 msgid ""
 "The transaction was recorded, but the photo could not be attached: this app "
 "password has no access to your Files"
 msgstr ""
-"Die Transaktion wurde erfasst, aber das Foto konnte nicht angehängt werden"
+"Die Transaktion wurde erfasst, aber das Foto konnte nicht angehängt werden: "
+"Dieses App-Passwort hat keinen Zugriff auf deine Dateien"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:1102
 msgid "The transaction was recorded, but the photo could not be attached"
@@ -17862,6 +17861,11 @@ msgid ""
 "counts once, on the savings side. With a linked account, only transactions "
 "in that account count."
 msgstr ""
+"Geldeingänge mit diesem Tag erhöhen den Betrag des Sparziels, während "
+"Geldausgänge ihn verringern. Das gilt auch für Rechnungen und Umbuchungen. "
+"Eine mit diesem Tag versehene Umbuchung zwischen deinen Konten wird nur "
+"einmal berücksichtigt, und zwar auf der Seite des Sparkontos. Bei einem "
+"verknüpften Konto werden nur Transaktionen in diesem Konto berücksichtigt."
 
 #: /app/templates/index.php:5357
 msgid ""
