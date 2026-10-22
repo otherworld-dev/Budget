@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-10-21 22:58+0000\n"
-"PO-Revision-Date: 2026-10-21 13:19+0000\n"
+"PO-Revision-Date: 2026-10-23 01:51+0000\n"
 "Last-Translator: Christophe <capersys@users.noreply.hosted.weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/fr/>\n"
@@ -472,13 +472,12 @@ msgid "This request is still being processed. Try again shortly"
 msgstr "Cette demande est en cours de traitement. Réessayez dans un instant"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:1101
-#, fuzzy
-#| msgid "The transaction was recorded, but the photo could not be attached"
 msgid ""
 "The transaction was recorded, but the photo could not be attached: this app "
 "password has no access to your Files"
 msgstr ""
-"La transaction a été enregistrée, mais la photo n'a pas pu être attachée"
+"L'opération a été enregistrée, mais la photo n'a pas pu être jointe : le mot "
+"de passe de cette application n'a pas accès à vos fichiers"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:1102
 msgid "The transaction was recorded, but the photo could not be attached"
@@ -990,10 +989,9 @@ msgid "Failed to dismiss the payment"
 msgstr "Impossible d'annuler le paiement"
 
 #: /app/lib/Controller/BillController.php:1032
-#, fuzzy, php-format
-#| msgid "This bill has no recorded payment to undo"
+#, php-format
 msgid "This bill already has a payment on %1$s."
-msgstr "Cette facture n'a pas de paiement enregistré à annuler"
+msgstr "Cette facture comporte déjà un paiement de %1$s."
 
 #: /app/lib/Controller/BillController.php:1072
 msgid "Failed to undo mark as paid"
@@ -1016,10 +1014,8 @@ msgid "Missing previous due date"
 msgstr "Date d'échéance précédente manquante"
 
 #: /app/lib/Controller/BillController.php:1148
-#, fuzzy
-#| msgid "Previous expected date"
 msgid "Previous due date"
-msgstr "Date prévue précédemment"
+msgstr "Date d'échéance précédente"
 
 #: /app/lib/Controller/BillController.php:1158
 msgid "Failed to undo skip"
@@ -2267,10 +2263,9 @@ msgid "Failed to retrieve income summary"
 msgstr "Impossible de récupérer le résumé des revenus"
 
 #: /app/lib/Controller/RecurringIncomeController.php:502
-#, fuzzy, php-format
-#| msgid "This income has no payment to receive"
+#, php-format
 msgid "This income already has a payment on %1$s."
-msgstr "Ce revenu ne donne lieu à aucun paiement à percevoir"
+msgstr "Ce revenu fait déjà l'objet d'un règlement de %1$s."
 
 #: /app/lib/Controller/RecurringIncomeController.php:565
 msgid "Previous expected date"
@@ -2413,10 +2408,8 @@ msgid "Failed to update setting"
 msgstr "Échec de la mise à jour du paramètre"
 
 #: /app/lib/Controller/SettingController.php:320
-#, fuzzy
-#| msgid "Invalid position"
 msgid "Invalid colour setting"
-msgstr "Position invalide"
+msgstr "Paramètre de couleur non valide"
 
 #: /app/lib/Controller/SettingController.php:395
 msgid "Setting reset to default"
@@ -2898,17 +2891,13 @@ msgstr "Échec de la dissociation de l'opération"
 
 #: /app/lib/Controller/TransactionController.php:818
 #: /app/src/modules/transactions/TransactionsModule.js:3966
-#, fuzzy
-#| msgid "Failed to split the transaction"
 msgid "Failed to link the transaction to the bill"
-msgstr "Impossible de ventiler l'opération"
+msgstr "Impossible de relier l'opération à la facture"
 
 #: /app/lib/Controller/TransactionController.php:841
 #: /app/src/modules/transactions/TransactionsModule.js:4009
-#, fuzzy
-#| msgid "Failed to unlink transaction"
 msgid "Failed to unlink the transaction from the bill"
-msgstr "Échec de la dissociation de l'opération"
+msgstr "Impossible de dissocier l'opération de la facture"
 
 #: /app/lib/Controller/TransactionController.php:882
 msgid "Failed to bulk match transactions"
@@ -3794,14 +3783,11 @@ msgstr "Il ne reste plus rien à payer sur cette facture"
 #: /app/lib/Service/RecurringIncomeService.php:320
 #: /app/lib/Service/RecurringIncomeService.php:765
 #: /app/lib/Service/RecurringIncomeService.php:776
-#, fuzzy
-#| msgid ""
-#| "This payment was already recorded. Reload the page to see the next one."
 msgid ""
 "This date was already paid or skipped. Reload the page to see the next one."
 msgstr ""
-"Ce paiement a déjà été enregistré. Actualisez la page pour afficher le "
-"suivant."
+"Cette date a déjà été payée ou ignorée. Actualisez la page pour voir la "
+"suivante."
 
 #: /app/lib/Service/BillService.php:1357
 #: /app/lib/Service/TransactionService.php:1298
@@ -3820,6 +3806,8 @@ msgstr "Cette facture n'a pas de paiement enregistré à annuler"
 #: /app/lib/Service/BillService.php:1800
 msgid "Undo the skip first: a later date has been skipped since this payment."
 msgstr ""
+"Annulez d'abord l'étape précédente : un versement ultérieur a été ignoré "
+"depuis ce paiement."
 
 #: /app/lib/Service/BillService.php:1823
 msgid ""
@@ -3840,11 +3828,11 @@ msgstr "Impossible de passer une facture inactive"
 
 #: /app/lib/Service/BillService.php:1963
 msgid "That date is after the bill's next due date"
-msgstr ""
+msgstr "Cette date est postérieure à la prochaine date d'échéance de la facture"
 
 #: /app/lib/Service/BillService.php:1968
 msgid "That date isn't one of this bill's due dates"
-msgstr ""
+msgstr "Cette date ne figure pas parmi les dates d'échéance de cette facture"
 
 #: /app/lib/Service/BillService.php:2291
 #: /app/lib/Service/RecurringIncomeService.php:1000
@@ -4663,6 +4651,8 @@ msgstr "Ce revenu n'a aucun reçu d'enregistré qui donne lieu à annulation"
 #: /app/lib/Service/RecurringIncomeService.php:421
 msgid "Undo the skip first: a later date has been skipped since this receipt."
 msgstr ""
+"Commencez par annuler l'étape précédente : une date ultérieure a été ignorée "
+"depuis ce reçu."
 
 #: /app/lib/Service/RecurringIncomeService.php:692
 msgid "Recurring income cannot use a custom schedule"
@@ -5181,33 +5171,31 @@ msgid "Shared expense"
 msgstr "Dépense partagée"
 
 #: /app/lib/Service/TransactionService.php:1285
-#, fuzzy
-#| msgid ""
-#| "This transaction is scheduled, so it is not on a statement yet and cannot "
-#| "be ticked."
 msgid ""
 "This transaction is still scheduled, so it can't be a bill's payment yet"
 msgstr ""
-"Cette opération est programmée ; elle n'apparaît donc pas encore sur le "
-"relevé et ne peut pas être cochée."
+"Cette opération est toujours prévue ; il ne peut donc pas s'agir pour "
+"l'instant du paiement d'une facture."
 
 #: /app/lib/Service/TransactionService.php:1342
-#, fuzzy
-#| msgid "That transaction can't pay this bill"
 msgid "This transaction isn't linked to a bill"
-msgstr "Cette opération ne permet pas de régler cette facture"
+msgstr "Cette opération n'est pas liée à une facture"
 
 #: /app/lib/Service/TransactionService.php:1347
 msgid ""
 "This is the upcoming payment of a bill, so it stays linked to it. Edit or "
 "skip the bill instead."
 msgstr ""
+"Il s'agit du prochain paiement d'une facture ; il reste donc associé à celle-"
+"ci. Modifiez ou ignorez plutôt la facture."
 
 #: /app/lib/Service/TransactionService.php:1364
 #: /app/src/modules/transactions/TransactionsModule.js:3992
 msgid ""
 "This is the bill's latest payment. Use Mark Unpaid on the bill to undo it."
 msgstr ""
+"Il s'agit du dernier paiement correspondant à cette facture. Pour l'annuler, "
+"cochez la case « Non payé » sur la facture."
 
 #: /app/lib/Service/TransactionService.php:2381
 msgid "The account this would transfer to is closed. Reopen it first"
@@ -5953,15 +5941,13 @@ msgstr "Associer le virement"
 
 #: /app/src/main.js:528
 msgid "Link to bill…"
-msgstr ""
+msgstr "Lier vers la facture…"
 
 #: /app/src/main.js:530
 #: /app/src/modules/transactions/TransactionsModule.js:3993
 #: /app/src/modules/transactions/TransactionsModule.js:4000
-#, fuzzy
-#| msgid "(from a bill)"
 msgid "Unlink from bill"
-msgstr "(depuis une facture)"
+msgstr "Dissocier la facture"
 
 #: /app/src/main.js:533 /app/src/main.js:2926
 #: /app/src/modules/accounts/AccountsModule.js:618
@@ -6187,7 +6173,7 @@ msgstr "Factures ponctuelles réglées toujours actives"
 
 #: /app/src/main.js:1850
 msgid "Income Received Early but Still Expected"
-msgstr ""
+msgstr "Revenus perçus avant l'échéance mais toujours attendus"
 
 #: /app/src/main.js:1854
 msgid ""
@@ -6195,6 +6181,10 @@ msgid ""
 "income waiting for them, so Mark Received would record them a second time. "
 "Repairing moves each one on to its next date. Nothing is added or deleted."
 msgstr ""
+"Une version antérieure enregistrait ces règlements à leur date prévue, mais "
+"laissait les revenus en attente ; Budget les enregistrait donc une deuxième "
+"fois. La correction déplace chacun d'entre eux vers la date suivante. Rien "
+"n'est ajouté ni supprimé."
 
 #: /app/src/main.js:1864 /app/src/utils/repairFindings.js:50
 #: /app/src/utils/repairFindings.js:94 /app/src/utils/repairFindings.js:99
@@ -14282,7 +14272,7 @@ msgstr "Tous les virements"
 #: /app/src/modules/transfers/TransfersModule.js:148
 #: /app/src/utils/billDates.js:50 /app/templates/index.php:2702
 msgid "Due Soon"
-msgstr "Échu(e)s prochainement"
+msgstr "Échu prochainement"
 
 #: /app/src/modules/transfers/TransfersModule.js:150
 #: /app/src/utils/incomeStatus.js:55 /app/templates/index.php:1423
