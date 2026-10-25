@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-10-21 22:58+0000\n"
-"PO-Revision-Date: 2026-10-23 01:51+0000\n"
+"PO-Revision-Date: 2026-10-26 01:22+0000\n"
 "Last-Translator: Christophe <capersys@users.noreply.hosted.weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/fr/>\n"
@@ -5175,7 +5175,7 @@ msgid ""
 "This transaction is still scheduled, so it can't be a bill's payment yet"
 msgstr ""
 "Cette opération est toujours prévue ; il ne peut donc pas s'agir pour "
-"l'instant du paiement d'une facture."
+"l'instant du paiement d'une facture"
 
 #: /app/lib/Service/TransactionService.php:1342
 msgid "This transaction isn't linked to a bill"
@@ -8023,10 +8023,8 @@ msgstr "Nouveau lien généré"
 
 #: /app/src/modules/bills/BillsModule.js:1417
 #: /app/src/modules/transfers/TransfersModule.js:1067
-#, fuzzy
-#| msgid "Marked paid on {date}"
 msgid "Marked as paid with the payment of {date}"
-msgstr "Marqué comme payé le {date}"
+msgstr "Marqué comme payé suite au paiement effectué le {date}"
 
 #: /app/src/modules/bills/BillsModule.js:1419
 msgid "Bill marked as paid. Linked to existing transaction."
@@ -9898,30 +9896,23 @@ msgid "Rule: {name}"
 msgstr "Règle : {name}"
 
 #: /app/src/modules/import/ImportModule.js:220
-#, fuzzy
-#| msgid "Successfully updated %n transaction"
-#| msgid_plural "Successfully updated %n transactions"
 msgid "Successfully imported %n transaction"
 msgid_plural "Successfully imported %n transactions"
-msgstr[0] "Mise à jour réussie de %n opération"
-msgstr[1] "Mise à jour réussie de %n opérations"
+msgstr[0] "%n opération importée avec succès"
+msgstr[1] "%n opérations importées avec succès"
 
 #: /app/src/modules/import/ImportModule.js:224
-#, fuzzy
-#| msgid "Skipped"
 msgid "%n skipped"
 msgid_plural "%n skipped"
-msgstr[0] "Ignorées"
-msgstr[1] "Ignorées"
+msgstr[0] "%n ignorée"
+msgstr[1] "%n ignorées"
 
 #. TRANSLATORS: {skipped} is "%n skipped", translated on its own
 #: /app/src/modules/import/ImportModule.js:223
-#, fuzzy
-#| msgid "Successfully imported {imported} transactions ({skipped} skipped)"
 msgid "Successfully imported %n transaction ({skipped})"
 msgid_plural "Successfully imported %n transactions ({skipped})"
-msgstr[0] "Importation réussie de {imported} opérations ({skipped} ignorées)"
-msgstr[1] "Importation réussie de {imported} opérations ({skipped} ignorées)"
+msgstr[0] "%n opération importée avec succès ({skipped})"
+msgstr[1] "%n opérations importées avec succès ({skipped})"
 
 #: /app/src/modules/import/ImportModule.js:281
 msgid "Upload failed"
@@ -10222,10 +10213,8 @@ msgid "Showing {shown} of {total}"
 msgstr "Affichage de {shown} sur {total}"
 
 #: /app/src/modules/import/ImportModule.js:2203
-#, fuzzy
-#| msgid "Showing {shown} of {total}"
 msgid "Showing {shown} of the first {sample} of {total} rows"
-msgstr "Affichage de {shown} sur {total}"
+msgstr "Affichage de {shown} sur les {sample} premières lignes sur {total}"
 
 #: /app/src/modules/import/ImportModule.js:2219
 msgid "Skip rows without an account"
@@ -10492,7 +10481,7 @@ msgstr "Échec de la suppression du revenu"
 
 #: /app/src/modules/income/IncomeModule.js:628
 msgid "Marked as received with the payment of {date}"
-msgstr ""
+msgstr "Enregistré comme reçu avec le paiement du {date}"
 
 #: /app/src/modules/income/IncomeModule.js:631
 msgid "Income marked as received. Transaction created."
@@ -11204,12 +11193,10 @@ msgstr "Total des factures"
 
 #. TRANSLATORS: {amount} is a placeholder, do NOT translate it. It is what was paid in this month of the calendar.
 #: /app/src/modules/reports/ReportsModule.js:1928
-#, fuzzy
-#| msgid "{amount} a month"
 msgid "Paid once, {amount} this month"
 msgid_plural "Paid %n times, {amount} this month"
-msgstr[0] "{amount} par mois"
-msgstr[1] "{amount} par mois"
+msgstr[0] "Paiement unique de {amount} ce mois-ci"
+msgstr[1] "Paiement effectué %n fois, {amount} ce mois-ci"
 
 #: /app/src/modules/reports/ReportsModule.js:1934
 #: /app/src/modules/transactions/TransactionsModule.js:2066
@@ -13869,22 +13856,20 @@ msgid "Destination Amount ({currency})"
 msgstr "Montant converti ({currency})"
 
 #: /app/src/modules/transactions/TransactionsModule.js:3975
-#, fuzzy
-#| msgid "Transactions linked"
 msgid "Transaction linked to {bill}"
-msgstr "Opérations liées"
+msgstr "Opération liée à {bill}"
 
 #: /app/src/modules/transactions/TransactionsModule.js:3999
 msgid ""
 "Unlink this transaction from its bill? It stays in the account, but the bill "
 "no longer counts it as a payment."
 msgstr ""
+"Dissocier cette opération de sa facture ? Elle reste sur le compte, mais la "
+"facture ne la considère plus comme un paiement."
 
 #: /app/src/modules/transactions/TransactionsModule.js:4018
-#, fuzzy
-#| msgid "Transaction unlinked"
 msgid "Transaction unlinked from its bill"
-msgstr "Opération dissociée"
+msgstr "Opération dissociée de sa facture"
 
 #: /app/src/modules/transactions/TransactionsModule.js:4051
 #: /app/templates/index.php:7220
@@ -14635,22 +14620,26 @@ msgid ""
 "Choose the bill this transaction paid. It then counts as one of the bill's "
 "payments, in the Bills Calendar too. The bill's due date doesn't change."
 msgstr ""
+"Sélectionnez la facture à laquelle cette opération correspond. Elle sera "
+"alors comptabilisée comme l'un des paiements de cette facture, y compris "
+"dans le calendrier des factures. La date d'échéance de la facture reste "
+"inchangée."
 
 #: /app/src/utils/billLinkDialog.js:118
 msgid ""
 "There are no bills on this account yet. Add the bill first, then link this "
 "payment to it."
 msgstr ""
+"Ce compte ne comporte encore aucune facture. Ajoutez d'abord la facture, "
+"puis associez-lui ce paiement."
 
 #: /app/src/utils/billLinkDialog.js:126
-#, fuzzy
-#| msgid "Edit bill"
 msgid "Link to bill"
-msgstr "Modifier une facture"
+msgstr "Lien vers la facture"
 
 #: /app/src/utils/billLinkDialog.js:134
 msgid "Link"
-msgstr ""
+msgstr "Lien"
 
 #: /app/src/utils/billUnpaid.js:26
 msgid ""
@@ -14658,6 +14647,10 @@ msgid ""
 "transaction created for the payment deleted. The transaction the payment "
 "used was already in the account: it stays there, still filed under the bill."
 msgstr ""
+"Marquer cette facture comme non payée ? Le calendrier des factures sera "
+"réinitialisé et toute opération créée pour ce paiement sera supprimée. "
+"L'opération utilisée pour ce paiement figurait déjà sur le compte : elle y "
+"reste, toujours associée à la facture."
 
 #: /app/src/utils/billUnpaid.js:28
 msgid ""
@@ -14672,13 +14665,11 @@ msgstr ""
 #. TRANSLATORS: {amount}, {date} and {due} are placeholders, do NOT translate them. {due} is the date the bill was due that the payment was for.
 #: /app/src/utils/billsCalendarCell.js:57
 msgid "Paid {amount} on {date} for {due}"
-msgstr ""
+msgstr "Payé {amount} le {date} pour le {due}"
 
 #: /app/src/utils/billsCalendarCell.js:59
-#, fuzzy
-#| msgid "Paid {date}"
 msgid "Paid {amount} on {date}"
-msgstr "Payé {date}"
+msgstr "Payé {amount} le {date}"
 
 #: /app/src/utils/billsCalendarCell.js:76
 #: /app/src/utils/billsCalendarCell.js:90
@@ -14686,10 +14677,8 @@ msgid "Due"
 msgstr "À payer"
 
 #: /app/src/utils/billsCalendarCell.js:79
-#, fuzzy
-#| msgid "{amount} left"
 msgid "{amount} still due"
-msgstr "{amount} restant"
+msgstr "{amount} restant à payé"
 
 #: /app/src/utils/billsCalendarCell.js:88
 msgid "No payment recorded - the bill has moved on from this date"
@@ -14802,14 +14791,8 @@ msgid "Strong match"
 msgstr "Forte correspondance"
 
 #: /app/src/utils/matchingDialog.js:70
-#, fuzzy
-#| msgid ""
-#| "Whichever you choose, the bill is marked as paid and moves on to its next "
-#| "due date."
 msgid "Whichever you choose, the bill is marked as paid."
-msgstr ""
-"Quel que soit votre choix, la facture est marquée comme payée et passe à la "
-"prochaine date d'échéance."
+msgstr "Quel que soit votre choix, la facture sera marquée comme payée."
 
 #: /app/src/utils/matchingDialog.js:71
 msgid ""
@@ -14854,43 +14837,32 @@ msgid "No options available"
 msgstr "Aucune option disponible"
 
 #: /app/src/utils/paymentRecordedDialog.js:45
-#, fuzzy
-#| msgid "This income has no payment to receive"
 msgid "This income already has a payment on {date} ({amount})."
-msgstr "Ce revenu ne donne lieu à aucun paiement à percevoir"
+msgstr "Ce revenu a déjà fait l'objet d'un versement le {date} ({amount})."
 
 #: /app/src/utils/paymentRecordedDialog.js:46
 msgid "This bill already has a payment on {date} ({amount})."
-msgstr ""
+msgstr "Cette facture a déjà fait l'objet d'un paiement le {date} ({amount})."
 
 #: /app/src/utils/paymentRecordedDialog.js:54
-#, fuzzy
-#| msgid "The payment could not be recorded"
 msgid "Payment already recorded"
-msgstr "Le paiement n'a pas pu être enregistré"
+msgstr "Paiement déjà enregistré"
 
 #: /app/src/utils/paymentRecordedDialog.js:62
-#, fuzzy
-#| msgid "Record Payment"
 msgid "Record another payment"
-msgstr "Enregistrer le paiement"
+msgstr "Enregistrer un autre paiement"
 
 #: /app/src/utils/paymentRecordedDialog.js:63
-#, fuzzy
-#| msgid "Revert the last payment"
 msgid "Use that payment"
-msgstr "Annuler le dernier paiement"
+msgstr "Utilisez ce paiement"
 
 #: /app/src/utils/repairFindings.js:83
-#, fuzzy
-#| msgid ""
-#| "Looks like a second payment for {occurrence} (other payment on {date})"
 msgid ""
 "Looks like a second payment for {occurrence} (other payment of {amount} on "
 "{date})"
 msgstr ""
 "Il semble qu'il s'agisse d'un deuxième paiement pour {occurrence} (autre "
-"paiement effectué le {date})"
+"paiement de {amount} effectué le {date})"
 
 #: /app/src/utils/repairFindings.js:88
 msgid "Looks like a second payment for {occurrence} (other payment on {date})"
@@ -14899,13 +14871,10 @@ msgstr ""
 "paiement effectué le {date})"
 
 #: /app/src/utils/repairFindings.js:93
-#, fuzzy
-#| msgid ""
-#| "Looks like a second payment for {occurrence} (other payment on {date})"
 msgid "Looks like a second payment of {bill} (other payment on {date})"
 msgstr ""
-"Il semble qu'il s'agisse d'un deuxième paiement pour {occurrence} (autre "
-"paiement effectué le {date})"
+"Il semble qu'il s'agisse d'un deuxième paiement de {bill} (autre paiement "
+"effectué le {date})"
 
 #: /app/src/utils/repairFindings.js:98
 msgid "Also recorded as {description} on {date}"
@@ -14916,18 +14885,12 @@ msgid "reconciled"
 msgstr "Rapprochée"
 
 #: /app/src/utils/repairFindings.js:107
-#, fuzzy
-#| msgid "The date this transfer is due. It can be in the past."
 msgid "The other side of the transfer is removed with it."
-msgstr ""
-"La date à laquelle ce virement doit être effectué. Elle peut être antérieure "
-"à la date du présent document."
+msgstr "La contre partie du virement est supprimée en même temps."
 
 #: /app/src/utils/repairFindings.js:132
-#, fuzzy
-#| msgid "Week of {date}"
 msgid "Moves on to {date}"
-msgstr "Semaine du {date}"
+msgstr "Reporté au {date}"
 
 #: /app/src/utils/repairFindings.js:148
 msgid "{count} duplicate transactions removed"
@@ -14944,8 +14907,8 @@ msgstr "{count} factures ponctuelles désactivées"
 #: /app/src/utils/repairFindings.js:157
 msgid "%n income moved on to its next date"
 msgid_plural "%n incomes moved on to their next date"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "%n revenu a été reporté à la date suivante"
+msgstr[1] "%n revenus ont été reportés à la date suivante"
 
 #: /app/src/utils/repairFindings.js:160
 msgid "{count} future transactions set to scheduled"
@@ -16930,10 +16893,8 @@ msgid "Number Format"
 msgstr "Format de nombre"
 
 #: /app/templates/index.php:4417 /app/templates/index.php:4561
-#, fuzzy
-#| msgid "Color"
 msgid "Colours"
-msgstr "Couleur"
+msgstr "Couleurs"
 
 #: /app/templates/index.php:4418 /app/templates/index.php:4613
 msgid "Notifications"
@@ -17088,43 +17049,43 @@ msgstr "Aperçu :"
 
 #: /app/templates/index.php:4566
 msgid "Money in and money out"
-msgstr ""
+msgstr "Entrées et sorties d'argent"
 
 #: /app/templates/index.php:4567
 msgid ""
 "The colours used for income and expenses, balances, budget bars and charts"
 msgstr ""
+"Les couleurs utilisées pour les recettes et les dépenses, les soldes, les "
+"barres budgétaires et les graphiques"
 
 #: /app/templates/index.php:4570
-#, fuzzy
-#| msgid "Default Currency"
 msgid "Default"
-msgstr "Devise par défaut"
+msgstr "Par défaut"
 
 #: /app/templates/index.php:4571
 msgid "Colour-blind friendly (blue and orange)"
-msgstr ""
+msgstr "Adapté aux personnes daltoniennes (bleu et orange)"
 
 #: /app/templates/index.php:4579
 msgid "Money in, light theme"
-msgstr ""
+msgstr "Entrées d'argent, thème clair"
 
 #: /app/templates/index.php:4581 /app/templates/index.php:4586
 #: /app/templates/index.php:4591 /app/templates/index.php:4596
 msgid "Hard to read on this background"
-msgstr ""
+msgstr "C'est difficile à lire sur ce fond"
 
 #: /app/templates/index.php:4584
 msgid "Money out, light theme"
-msgstr ""
+msgstr "Sorties d'argent, thème clair"
 
 #: /app/templates/index.php:4589
 msgid "Money in, dark theme"
-msgstr ""
+msgstr "Entrées d'argent, thème sombre"
 
 #: /app/templates/index.php:4594
 msgid "Money out, dark theme"
-msgstr ""
+msgstr "Sorties d'argent, thème sombre"
 
 #: /app/templates/index.php:4621
 msgid "Notify when approaching or exceeding budget limits"
@@ -17898,6 +17859,11 @@ msgid ""
 "counts once, on the savings side. With a linked account, only transactions "
 "in that account count."
 msgstr ""
+"Les entrées d'argent associées à ce tag s'ajoutent à l'objectif, tandis que "
+"les sorties d'argent en sont déduites, y compris les factures et les "
+"virements. Un virement marqué de ce tag entre vos comptes n'est comptabilisé "
+"qu'une seule fois, du côté de l'épargne. Avec un compte lié, seules les "
+"opérations effectuées sur ce compte sont prises en compte."
 
 #: /app/templates/index.php:5357
 msgid ""
@@ -19171,7 +19137,7 @@ msgstr "Reste à allouer :"
 
 #: /app/templates/index.php:7252
 msgid "Unsplit Transaction"
-msgstr "Opération dissociée"
+msgstr "Opération globale"
 
 #: /app/templates/index.php:7254
 msgid "Save Splits"
