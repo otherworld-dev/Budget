@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-10-21 22:58+0000\n"
+"POT-Creation-Date: 2026-10-22 12:41+0000\n"
 "PO-Revision-Date: 2026-09-17 01:48+0000\n"
 "Last-Translator: Alexandre Heuschkel <alexandre@heuschkel.online>\n"
 "Language-Team: Portuguese <https://hosted.weblate.org/projects/nextcloud-"
@@ -429,7 +429,7 @@ msgstr "O preenchimento do nome é obrigatório"
 #: /app/templates/index.php:2608 /app/templates/index.php:5538
 #: /app/templates/index.php:5563 /app/templates/index.php:5599
 #: /app/templates/index.php:5777 /app/templates/index.php:5951
-#: /app/templates/index.php:6627 /app/templates/index.php:7436
+#: /app/templates/index.php:6627 /app/templates/index.php:7442
 #: /app/templates/quick-add.php:34
 msgid "Date"
 msgstr "Data"
@@ -1099,7 +1099,7 @@ msgstr "Falha ao exportar o calendário de contas"
 #: /app/templates/index.php:5559 /app/templates/index.php:5595
 #: /app/templates/index.php:5631 /app/templates/index.php:5930
 #: /app/templates/index.php:6288 /app/templates/index.php:6548
-#: /app/templates/index.php:6629 /app/templates/index.php:7228
+#: /app/templates/index.php:6629 /app/templates/index.php:7234
 #: /app/templates/quick-add.php:57
 msgid "Amount"
 msgstr "Quantidade"
@@ -1125,8 +1125,8 @@ msgstr "Totais Mensais"
 #: /app/lib/Service/Report/ReportExporter.php:527
 #: /app/lib/Service/Report/ReportExporter.php:598
 #: /app/lib/Service/Report/ReportExporter.php:673
-#: /app/src/modules/categories/CategoriesModule.js:2461
-#: /app/src/modules/reports/ReportsModule.js:1873 /app/templates/index.php:7430
+#: /app/src/modules/categories/CategoriesModule.js:2537
+#: /app/src/modules/reports/ReportsModule.js:1873 /app/templates/index.php:7436
 msgid "Total"
 msgstr "Total"
 
@@ -1280,8 +1280,8 @@ msgstr "Falha ao buscar as contagens de transações"
 #: /app/templates/index.php:3380 /app/templates/index.php:3425
 #: /app/templates/index.php:3594 /app/templates/index.php:5266
 #: /app/templates/index.php:5970 /app/templates/index.php:6361
-#: /app/templates/index.php:6832 /app/templates/index.php:7227
-#: /app/templates/index.php:7268 /app/templates/quick-add.php:72
+#: /app/templates/index.php:6832 /app/templates/index.php:7233
+#: /app/templates/index.php:7274 /app/templates/quick-add.php:72
 msgid "Category"
 msgstr "Categoria"
 
@@ -1291,7 +1291,7 @@ msgstr ""
 "Período orçamental inválido. Deve ser mensal, semanal, anual ou trimestral"
 
 #: /app/lib/Controller/CategoryController.php:360
-#: /app/src/modules/categories/CategoriesModule.js:1438
+#: /app/src/modules/categories/CategoriesModule.js:1505
 #, fuzzy
 #| msgid "Failed to delete category"
 msgid "Failed to update category"
@@ -1318,7 +1318,7 @@ msgid "Invalid budget period"
 msgstr ""
 
 #: /app/lib/Controller/CategoryController.php:433
-#: /app/src/modules/categories/CategoriesModule.js:2487
+#: /app/src/modules/categories/CategoriesModule.js:2563
 msgid "Only the owner can change the budget of a shared category"
 msgstr ""
 
@@ -1345,8 +1345,8 @@ msgstr ""
 
 #: /app/lib/Controller/CategoryController.php:530
 #: /app/lib/Controller/CategoryController.php:536
-#: /app/src/modules/categories/CategoriesModule.js:636
-#: /app/src/modules/categories/CategoriesModule.js:645
+#: /app/src/modules/categories/CategoriesModule.js:701
+#: /app/src/modules/categories/CategoriesModule.js:710
 msgid "Failed to reorder category"
 msgstr ""
 
@@ -1370,7 +1370,7 @@ msgid "Category not found"
 msgstr "Configuração não encontrada"
 
 #: /app/lib/Controller/CategoryController.php:623
-#: /app/src/modules/categories/CategoriesModule.js:447
+#: /app/src/modules/categories/CategoriesModule.js:512
 #, fuzzy
 #| msgid "Failed to update import rule"
 msgid "Failed to update report preference"
@@ -1394,24 +1394,24 @@ msgid "Failed to retrieve recurring budgets"
 msgstr ""
 
 #: /app/lib/Controller/CategoryTransferController.php:64
-#: /app/src/modules/categories/CategoriesModule.js:1659
-#: /app/src/modules/categories/CategoriesModule.js:1671
+#: /app/src/modules/categories/CategoriesModule.js:1735
+#: /app/src/modules/categories/CategoriesModule.js:1747
 #, fuzzy
 #| msgid "Failed to retrieve categories"
 msgid "Failed to export categories"
 msgstr "Falha ao buscar as categorias"
 
 #: /app/lib/Controller/CategoryTransferController.php:89
-#: /app/src/modules/categories/CategoriesModule.js:1695
-#: /app/src/modules/categories/CategoriesModule.js:1701
+#: /app/src/modules/categories/CategoriesModule.js:1771
+#: /app/src/modules/categories/CategoriesModule.js:1777
 #, fuzzy
 #| msgid "Failed to retrieve categories"
 msgid "Failed to read the category file"
 msgstr "Falha ao buscar as categorias"
 
 #: /app/lib/Controller/CategoryTransferController.php:109
-#: /app/src/modules/categories/CategoriesModule.js:1769
-#: /app/src/modules/categories/CategoriesModule.js:1777
+#: /app/src/modules/categories/CategoriesModule.js:1845
+#: /app/src/modules/categories/CategoriesModule.js:1853
 #, fuzzy
 #| msgid "Failed to retrieve categories"
 msgid "Failed to import categories"
@@ -1579,7 +1579,8 @@ msgstr "Falha ao buscar as metas"
 #: /app/lib/Controller/GoalsController.php:105
 #: /app/lib/Controller/GoalsController.php:380
 #: /app/lib/Controller/GoalsController.php:409
-#: /app/lib/Controller/GoalsController.php:428 /app/templates/index.php:5314
+#: /app/lib/Controller/GoalsController.php:428
+#: /app/src/utils/categoryIcons.js:89 /app/templates/index.php:5314
 #: /app/templates/index.php:5389
 msgid "Goal"
 msgstr "Meta"
@@ -2476,7 +2477,7 @@ msgstr "Segunda-feira"
 
 #: /app/lib/Controller/SettingController.php:454
 #: /app/src/modules/bills/BillsModule.js:343
-#: /app/src/modules/categories/CategoriesModule.js:2523
+#: /app/src/modules/categories/CategoriesModule.js:2599
 #: /app/src/modules/income/IncomeModule.js:102
 #: /app/src/modules/transfers/TransfersModule.js:330
 #: /app/src/modules/transfers/TransfersModule.js:493
@@ -2489,7 +2490,7 @@ msgstr "Semanal"
 #: /app/lib/Controller/SettingController.php:455
 #: /app/src/modules/accounts/AccountsModule.js:1381
 #: /app/src/modules/bills/BillsModule.js:346
-#: /app/src/modules/categories/CategoriesModule.js:2522
+#: /app/src/modules/categories/CategoriesModule.js:2598
 #: /app/src/modules/income/IncomeModule.js:105
 #: /app/src/modules/pensions/PensionsModule.js:1099
 #: /app/src/modules/transfers/TransfersModule.js:333
@@ -2503,7 +2504,7 @@ msgstr "Mensal"
 
 #: /app/lib/Controller/SettingController.php:456
 #: /app/src/modules/bills/BillsModule.js:347
-#: /app/src/modules/categories/CategoriesModule.js:2524
+#: /app/src/modules/categories/CategoriesModule.js:2600
 #: /app/src/modules/income/IncomeModule.js:106
 #: /app/src/modules/pensions/PensionsModule.js:1100
 #: /app/src/modules/transfers/TransfersModule.js:334
@@ -2517,7 +2518,7 @@ msgstr "Trismestral"
 #: /app/lib/Controller/SettingController.php:457
 #: /app/src/modules/accounts/AccountsModule.js:1382
 #: /app/src/modules/bills/BillsModule.js:349
-#: /app/src/modules/categories/CategoriesModule.js:2525
+#: /app/src/modules/categories/CategoriesModule.js:2601
 #: /app/src/modules/income/IncomeModule.js:108
 #: /app/src/modules/pensions/PensionsModule.js:1101
 #: /app/src/modules/transfers/TransfersModule.js:336
@@ -3113,9 +3114,9 @@ msgstr ""
 #: /app/lib/Service/Report/ReportExporter.php:558
 #: /app/lib/Service/Report/ReportExporter.php:608
 #: /app/src/core/KeyboardShortcuts.js:354
-#: /app/src/modules/categories/CategoriesModule.js:790
-#: /app/src/modules/categories/CategoriesModule.js:940
-#: /app/src/modules/categories/CategoriesModule.js:1747
+#: /app/src/modules/categories/CategoriesModule.js:857
+#: /app/src/modules/categories/CategoriesModule.js:1007
+#: /app/src/modules/categories/CategoriesModule.js:1823
 #: /app/src/modules/dashboard/DashboardModule.js:2510
 #: /app/src/modules/dashboard/DashboardModule.js:3072
 #: /app/src/modules/dashboard/DashboardModule.js:3397
@@ -3165,7 +3166,7 @@ msgstr ""
 #: /app/src/modules/dashboard/DashboardModule.js:1104
 #: /app/src/modules/dashboard/DashboardModule.js:2429
 #: /app/src/modules/reports/ReportsModule.js:1489
-#: /app/src/utils/formatters.js:267
+#: /app/src/utils/categoryIcons.js:84 /app/src/utils/formatters.js:267
 msgid "Savings"
 msgstr ""
 
@@ -3311,8 +3312,8 @@ msgstr[1] ""
 #: /app/lib/Notification/Notifier.php:31 /app/lib/Service/DigestService.php:195
 #: /app/specialAppInfoFakeDummyForL10nScript.php:2
 #: /app/src/core/KeyboardShortcuts.js:353
-#: /app/src/modules/categories/CategoriesModule.js:961
-#: /app/src/modules/categories/CategoriesModule.js:2503
+#: /app/src/modules/categories/CategoriesModule.js:1028
+#: /app/src/modules/categories/CategoriesModule.js:2579
 #: /app/src/modules/dashboard/DashboardModule.js:2346
 #: /app/src/modules/help/HelpModule.js:32
 #: /app/src/modules/projects/ProjectsModule.js:147 /app/templates/index.php:93
@@ -3652,7 +3653,8 @@ msgstr ""
 #: /app/src/core/KeyboardShortcuts.js:355
 #: /app/src/modules/dashboard/DashboardModule.js:5822
 #: /app/src/modules/help/HelpModule.js:34
-#: /app/src/modules/sharing/SharingModule.js:274 /app/templates/index.php:113
+#: /app/src/modules/sharing/SharingModule.js:274
+#: /app/src/utils/categoryIcons.js:79 /app/templates/index.php:113
 #: /app/templates/index.php:2624 /app/templates/index.php:4870
 msgid "Bills"
 msgstr ""
@@ -3843,7 +3845,7 @@ msgstr ""
 #: /app/src/modules/transfers/TransfersModule.js:464
 #: /app/templates/index.php:1104 /app/templates/index.php:2816
 #: /app/templates/index.php:5262 /app/templates/index.php:5691
-#: /app/templates/index.php:7345
+#: /app/templates/index.php:7351
 msgid "Name"
 msgstr ""
 
@@ -4047,8 +4049,8 @@ msgstr[1] ""
 #: /app/templates/index.php:2572 /app/templates/index.php:5708
 #: /app/templates/index.php:5962 /app/templates/index.php:6282
 #: /app/templates/index.php:6544 /app/templates/index.php:6628
-#: /app/templates/index.php:6767 /app/templates/index.php:6993
-#: /app/templates/index.php:7094 /app/templates/quick-add.php:62
+#: /app/templates/index.php:6767 /app/templates/index.php:6999
+#: /app/templates/index.php:7100 /app/templates/quick-add.php:62
 msgid "Description"
 msgstr "Descrição"
 
@@ -4061,7 +4063,7 @@ msgstr "Descrição"
 #: /app/templates/index.php:1541 /app/templates/index.php:1785
 #: /app/templates/index.php:1840 /app/templates/index.php:3446
 #: /app/templates/index.php:5966 /app/templates/index.php:6545
-#: /app/templates/index.php:7276 /app/templates/quick-add.php:67
+#: /app/templates/index.php:7282 /app/templates/quick-add.php:67
 msgid "Vendor"
 msgstr ""
 
@@ -4088,7 +4090,7 @@ msgstr ""
 #: /app/src/modules/rules/components/ActionBuilder.js:234
 #: /app/src/modules/rules/components/ActionBuilder.js:258
 #: /app/src/modules/rules/components/CriteriaBuilder.js:192
-#: /app/templates/index.php:6546 /app/templates/index.php:7282
+#: /app/templates/index.php:6546 /app/templates/index.php:7288
 msgid "Reference"
 msgstr ""
 
@@ -4102,8 +4104,8 @@ msgstr ""
 #: /app/templates/index.php:2440 /app/templates/index.php:2574
 #: /app/templates/index.php:5370 /app/templates/index.php:6030
 #: /app/templates/index.php:6394 /app/templates/index.php:6547
-#: /app/templates/index.php:6862 /app/templates/index.php:7288
-#: /app/templates/index.php:7395 /app/templates/index.php:7441
+#: /app/templates/index.php:6862 /app/templates/index.php:7294
+#: /app/templates/index.php:7401 /app/templates/index.php:7447
 #: /app/templates/quick-add.php:82
 msgid "Notes"
 msgstr ""
@@ -4123,8 +4125,8 @@ msgid "Split of"
 msgstr "Dividir"
 
 #: /app/lib/Service/Export/TransactionCsvExporter.php:144
-#: /app/src/modules/categories/CategoriesModule.js:790
-#: /app/src/modules/categories/CategoriesModule.js:1747
+#: /app/src/modules/categories/CategoriesModule.js:857
+#: /app/src/modules/categories/CategoriesModule.js:1823
 #: /app/src/modules/rules/components/ActionBuilder.js:414
 #: /app/src/modules/rules/components/CriteriaBuilder.js:217
 #: /app/templates/index.php:1046 /app/templates/index.php:1475
@@ -4762,7 +4764,7 @@ msgstr "Vencido"
 #: /app/lib/Service/Report/ReportExporter.php:763
 #: /app/src/config/dashboardWidgets.js:26 /app/src/main.js:1921
 #: /app/src/main.js:3639 /app/src/modules/accounts/AccountsModule.js:1929
-#: /app/src/modules/categories/CategoriesModule.js:858
+#: /app/src/modules/categories/CategoriesModule.js:925
 #: /app/src/modules/dashboard/DashboardModule.js:1319
 #: /app/src/modules/import/ImportModule.js:200
 #: /app/src/modules/reports/ReportsModule.js:22
@@ -4797,7 +4799,7 @@ msgstr "Valor"
 #: /app/lib/Service/Report/ReportExporter.php:450
 #: /app/lib/Service/Report/ReportExporter.php:608
 #: /app/lib/Service/Report/ReportExporter.php:615
-#: /app/src/modules/categories/CategoriesModule.js:799
+#: /app/src/modules/categories/CategoriesModule.js:866
 #: /app/src/modules/reports/ReportsModule.js:986 /app/templates/index.php:3276
 msgid "Total Income"
 msgstr ""
@@ -4890,7 +4892,7 @@ msgid "Source"
 msgstr ""
 
 #: /app/lib/Service/Report/ReportExporter.php:371
-#: /app/src/modules/categories/CategoriesModule.js:2520
+#: /app/src/modules/categories/CategoriesModule.js:2596
 #: /app/templates/index.php:597 /app/templates/index.php:2040
 #: /app/templates/index.php:2239 /app/templates/index.php:3209
 msgid "Period"
@@ -4909,7 +4911,7 @@ msgstr "Orçamento"
 
 #: /app/lib/Service/Report/ReportExporter.php:416
 #: /app/lib/Service/Report/ReportExporter.php:655
-#: /app/src/modules/categories/CategoriesModule.js:2528
+#: /app/src/modules/categories/CategoriesModule.js:2604
 #: /app/src/modules/dashboard/DashboardModule.js:2347
 #: /app/src/modules/projects/ProjectsModule.js:148
 #: /app/templates/index.php:2240 /app/templates/index.php:5242
@@ -4918,7 +4920,7 @@ msgstr ""
 
 #: /app/lib/Service/Report/ReportExporter.php:417
 #: /app/lib/Service/Report/ReportExporter.php:656
-#: /app/src/modules/categories/CategoriesModule.js:2531
+#: /app/src/modules/categories/CategoriesModule.js:2607
 #: /app/src/modules/dashboard/DashboardModule.js:2348
 #: /app/src/modules/projects/ProjectsModule.js:149
 #: /app/templates/index.php:2208 /app/templates/index.php:2241
@@ -5578,7 +5580,7 @@ msgstr ""
 
 #: /app/src/core/KeyboardShortcuts.js:361
 #: /app/src/modules/help/HelpModule.js:41 /app/templates/index.php:183
-#: /app/templates/index.php:4212 /app/templates/index.php:7474
+#: /app/templates/index.php:4212 /app/templates/index.php:7480
 msgid "Shared Expenses"
 msgstr "Despesas Partilhadas"
 
@@ -5688,9 +5690,9 @@ msgstr ""
 #: /app/templates/index.php:5555 /app/templates/index.php:5591
 #: /app/templates/index.php:5627 /app/templates/index.php:5681
 #: /app/templates/index.php:5771 /app/templates/index.php:5880
-#: /app/templates/index.php:6727 /app/templates/index.php:7142
-#: /app/templates/index.php:7491 /app/templates/index.php:7553
-#: /app/templates/index.php:7654 /app/templates/index.php:7664
+#: /app/templates/index.php:6727 /app/templates/index.php:7148
+#: /app/templates/index.php:7497 /app/templates/index.php:7559
+#: /app/templates/index.php:7660 /app/templates/index.php:7670
 msgid "Close"
 msgstr ""
 
@@ -6036,7 +6038,7 @@ msgid "Deleting..."
 msgstr "A apagar..."
 
 #: /app/src/main.js:2161 /app/src/modules/settings/SettingsModule.js:836
-#: /app/templates/index.php:7537
+#: /app/templates/index.php:7543
 msgid "Delete Everything"
 msgstr ""
 
@@ -6323,7 +6325,7 @@ msgstr ""
 
 #: /app/src/main.js:3556
 #: /app/src/modules/transactions/TransactionsModule.js:4043
-#: /app/templates/index.php:7207
+#: /app/templates/index.php:7213
 msgid "Split Transaction"
 msgstr ""
 
@@ -6486,7 +6488,7 @@ msgid "Select account"
 msgstr ""
 
 #: /app/src/modules/accounts/AccountsModule.js:684
-#: /app/src/modules/categories/CategoriesModule.js:1364
+#: /app/src/modules/categories/CategoriesModule.js:1431
 msgid "%n selected"
 msgid_plural "%n selected"
 msgstr[0] ""
@@ -6532,7 +6534,7 @@ msgstr[0] "Snapshot apagado"
 msgstr[1] "Snapshot apagado"
 
 #: /app/src/modules/accounts/AccountsModule.js:764
-#: /app/src/modules/categories/CategoriesModule.js:1404
+#: /app/src/modules/categories/CategoriesModule.js:1471
 msgid "Failed to delete: {errors}"
 msgstr ""
 
@@ -6940,7 +6942,8 @@ msgstr "Empréstimo"
 
 #: /app/src/modules/accounts/AccountsModule.js:3481
 #: /app/src/modules/dashboard/DashboardModule.js:1107
-#: /app/src/utils/formatters.js:270 /app/templates/index.php:6094
+#: /app/src/utils/categoryIcons.js:82 /app/src/utils/formatters.js:270
+#: /app/templates/index.php:6094
 msgid "Cash"
 msgstr ""
 
@@ -6997,7 +7000,7 @@ msgstr "Colecionáveis"
 #: /app/src/modules/assets/AssetsModule.js:111
 #: /app/src/modules/dashboard/DashboardModule.js:2433
 #: /app/src/modules/dashboard/DashboardModule.js:5825
-#: /app/templates/index.php:5703
+#: /app/src/utils/categoryIcons.js:90 /app/templates/index.php:5703
 msgid "Other"
 msgstr "Outros"
 
@@ -7177,7 +7180,7 @@ msgstr ""
 #: /app/src/modules/bank-sync/BankSyncModule.js:358
 #: /app/templates/index.php:1564 /app/templates/index.php:1819
 #: /app/templates/index.php:1869 /app/templates/index.php:2589
-#: /app/templates/index.php:7604
+#: /app/templates/index.php:7610
 msgid "Next"
 msgstr ""
 
@@ -7208,7 +7211,7 @@ msgid "No banks found for this country."
 msgstr ""
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:533
-#: /app/templates/index.php:7631
+#: /app/templates/index.php:7637
 msgid "Connect"
 msgstr ""
 
@@ -7238,7 +7241,7 @@ msgid "Authorization check failed: {error}"
 msgstr ""
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:579
-#: /app/templates/index.php:7653
+#: /app/templates/index.php:7659
 msgid "I've Completed Authorization"
 msgstr ""
 
@@ -7602,7 +7605,7 @@ msgstr ""
 msgid "No specific account"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1029 /app/templates/index.php:7229
+#: /app/src/modules/bills/BillsModule.js:1029 /app/templates/index.php:7235
 msgid "Description (optional)"
 msgstr ""
 
@@ -7816,43 +7819,43 @@ msgstr ""
 msgid "No tags defined"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:116
-#: /app/src/modules/categories/CategoriesModule.js:119
+#: /app/src/modules/categories/CategoriesModule.js:117
+#: /app/src/modules/categories/CategoriesModule.js:120
 msgid "Failed to load categories"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:324
+#: /app/src/modules/categories/CategoriesModule.js:389
 msgid "Collapse"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:324
+#: /app/src/modules/categories/CategoriesModule.js:389
 msgid "Expand"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:337
+#: /app/src/modules/categories/CategoriesModule.js:402
 msgid "Shared by {owner} — you have full control"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:337
+#: /app/src/modules/categories/CategoriesModule.js:402
 msgid "Shared (full control)"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:339
+#: /app/src/modules/categories/CategoriesModule.js:404
 msgid "Shared by {owner} — you can edit"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:339
+#: /app/src/modules/categories/CategoriesModule.js:404
 msgid "Shared (editable)"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:341
+#: /app/src/modules/categories/CategoriesModule.js:406
 #: /app/src/modules/projects/ProjectsModule.js:58
 #: /app/src/modules/rules/RulesModule.js:140
 #: /app/src/modules/savings/SavingsModule.js:132
 msgid "Shared by {owner}"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:341
+#: /app/src/modules/categories/CategoriesModule.js:406
 #: /app/src/modules/projects/ProjectsModule.js:58
 #: /app/src/modules/rules/RulesModule.js:140
 #: /app/src/modules/savings/SavingsModule.js:132
@@ -7860,43 +7863,43 @@ msgstr ""
 msgid "Shared"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:343
+#: /app/src/modules/categories/CategoriesModule.js:408
 msgid "Hidden from your reports — the owner and other viewers are unaffected"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:343
+#: /app/src/modules/categories/CategoriesModule.js:408
 msgid "Hidden from my reports"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:351
+#: /app/src/modules/categories/CategoriesModule.js:416
 msgid "Show in my reports"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:351
+#: /app/src/modules/categories/CategoriesModule.js:416
 msgid "Hide from my reports"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:355
+#: /app/src/modules/categories/CategoriesModule.js:420
 msgid "Delete {name}"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:441
+#: /app/src/modules/categories/CategoriesModule.js:506
 msgid "Category hidden from your reports"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:442
+#: /app/src/modules/categories/CategoriesModule.js:507
 msgid "Category shown in your reports again"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:625
+#: /app/src/modules/categories/CategoriesModule.js:690
 msgid "Shared categories can only be reordered among themselves"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:641
+#: /app/src/modules/categories/CategoriesModule.js:706
 msgid "Category reordered successfully"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:719
+#: /app/src/modules/categories/CategoriesModule.js:784
 #: /app/src/modules/dashboard/DashboardModule.js:5401
 #: /app/src/modules/reports/ReportsModule.js:212
 #: /app/src/modules/reports/ReportsModule.js:215
@@ -7910,117 +7913,117 @@ msgstr ""
 msgid "All Accounts"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:799
+#: /app/src/modules/categories/CategoriesModule.js:866
 #: /app/templates/index.php:1996 /app/templates/index.php:2199
 msgid "Total Spent"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:801
+#: /app/src/modules/categories/CategoriesModule.js:868
 #, fuzzy
 #| msgid "Monthly"
 msgid "Monthly Income"
 msgstr "Mensal"
 
-#: /app/src/modules/categories/CategoriesModule.js:801
+#: /app/src/modules/categories/CategoriesModule.js:868
 #: /app/templates/index.php:2035
 msgid "Monthly Spending"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:819
+#: /app/src/modules/categories/CategoriesModule.js:886
 msgid "Increasing"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:820
+#: /app/src/modules/categories/CategoriesModule.js:887
 msgid "Decreasing"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:821
+#: /app/src/modules/categories/CategoriesModule.js:888
 msgid "Stable"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:838
+#: /app/src/modules/categories/CategoriesModule.js:905
 #: /app/templates/index.php:2058
 msgid "No transactions in this category yet."
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:867
+#: /app/src/modules/categories/CategoriesModule.js:934
 #: /app/src/modules/transactions/transactionRow.js:106
 msgid ""
 "Part of a split transaction. The amount shown is the part in this category."
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:867
+#: /app/src/modules/categories/CategoriesModule.js:934
 #: /app/src/modules/transactions/transactionRow.js:107
 #, fuzzy
 #| msgid "Split"
 msgid "Split part"
 msgstr "Dividir"
 
-#: /app/src/modules/categories/CategoriesModule.js:868
+#: /app/src/modules/categories/CategoriesModule.js:935
 msgid "Split part of {total}"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:941
+#: /app/src/modules/categories/CategoriesModule.js:1008
 msgid "Spending"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1086
+#: /app/src/modules/categories/CategoriesModule.js:1153
 msgid "Root"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1110
+#: /app/src/modules/categories/CategoriesModule.js:1177
 #: /app/templates/index.php:1890 /app/templates/index.php:1954
 msgid "Add Category"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1165
+#: /app/src/modules/categories/CategoriesModule.js:1232
 #, fuzzy
 #| msgid "Current Category"
 msgid "Edit Shared Category"
 msgstr "Categoria Atual"
 
-#: /app/src/modules/categories/CategoriesModule.js:1166
+#: /app/src/modules/categories/CategoriesModule.js:1233
 msgid "Edit Category"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1212
+#: /app/src/modules/categories/CategoriesModule.js:1279
 msgid ""
 "Are you sure you want to delete the category \"{name}\"? This action cannot "
 "be undone."
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1225
-#: /app/src/modules/categories/CategoriesModule.js:1254
+#: /app/src/modules/categories/CategoriesModule.js:1292
+#: /app/src/modules/categories/CategoriesModule.js:1321
 msgid "Category deleted; its transactions are now Uncategorized"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1226
-#: /app/src/modules/categories/CategoriesModule.js:1255
+#: /app/src/modules/categories/CategoriesModule.js:1293
+#: /app/src/modules/categories/CategoriesModule.js:1322
 msgid "Category deleted successfully"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1232
-#: /app/src/modules/categories/CategoriesModule.js:1264
-#: /app/src/modules/categories/CategoriesModule.js:1276
+#: /app/src/modules/categories/CategoriesModule.js:1299
+#: /app/src/modules/categories/CategoriesModule.js:1331
+#: /app/src/modules/categories/CategoriesModule.js:1343
 msgid "Failed to delete category"
 msgstr "Falha ao apagar a categoria"
 
-#: /app/src/modules/categories/CategoriesModule.js:1243
+#: /app/src/modules/categories/CategoriesModule.js:1310
 msgid "this category"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1245
+#: /app/src/modules/categories/CategoriesModule.js:1312
 msgid ""
 "Are you sure you want to delete \"{name}\"? This action cannot be undone."
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1292
+#: /app/src/modules/categories/CategoriesModule.js:1359
 msgid ""
 "This category still has transactions assigned to it. Move them to "
 "Uncategorized and delete \"{name}\"?"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1372
+#: /app/src/modules/categories/CategoriesModule.js:1439
 msgid ""
 "Are you sure you want to delete %n category? This action cannot be undone."
 msgid_plural ""
@@ -8028,88 +8031,88 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1384
+#: /app/src/modules/categories/CategoriesModule.js:1451
 #: /app/src/modules/pensions/PensionsModule.js:885
 #: /app/src/modules/pensions/PensionsModule.js:1185
 msgid "Failed to delete"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1396
+#: /app/src/modules/categories/CategoriesModule.js:1463
 msgid "%n category deleted successfully"
 msgid_plural "%n categories deleted successfully"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1419
+#: /app/src/modules/categories/CategoriesModule.js:1486
 msgid "Give %n category a new color? Its current color will be replaced."
 msgid_plural ""
 "Give %n categories new colors? Their current colors will be replaced."
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1448
+#: /app/src/modules/categories/CategoriesModule.js:1515
 msgid "%n category recolored"
 msgid_plural "%n categories recolored"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1454
+#: /app/src/modules/categories/CategoriesModule.js:1521
 #, fuzzy
 #| msgid "Failed to run rule: {error}"
 msgid "Failed to recolor: {errors}"
 msgstr "Não foi possível executar a regra: {error}"
 
-#: /app/src/modules/categories/CategoriesModule.js:1534
+#: /app/src/modules/categories/CategoriesModule.js:1609
 #: /app/templates/index.php:6929
 msgid "None (Top Level)"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1568
+#: /app/src/modules/categories/CategoriesModule.js:1644
 msgid "Category name is required"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1606
-#: /app/src/modules/categories/CategoriesModule.js:1621
+#: /app/src/modules/categories/CategoriesModule.js:1682
+#: /app/src/modules/categories/CategoriesModule.js:1697
 msgid "Failed to save category"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1609
+#: /app/src/modules/categories/CategoriesModule.js:1685
 msgid "Category updated successfully"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1609
+#: /app/src/modules/categories/CategoriesModule.js:1685
 msgid "Category created successfully"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1636
-#: /app/src/modules/categories/CategoriesModule.js:1644
+#: /app/src/modules/categories/CategoriesModule.js:1712
+#: /app/src/modules/categories/CategoriesModule.js:1720
 msgid "Failed to create default categories"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1639
+#: /app/src/modules/categories/CategoriesModule.js:1715
 msgid "Default categories created successfully"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1687
+#: /app/src/modules/categories/CategoriesModule.js:1763
 #: /app/src/modules/rules/RulesModule.js:1397
 #, fuzzy
 #| msgid "Failed to update rule: {error}"
 msgid "Could not read that file: {error}"
 msgstr "Não foi possível atualizar a regra: {error}"
 
-#: /app/src/modules/categories/CategoriesModule.js:1713
+#: /app/src/modules/categories/CategoriesModule.js:1789
 msgid ""
 "{create} new categories will be created. {exists} already exist and will be "
 "left unchanged."
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1714
+#: /app/src/modules/categories/CategoriesModule.js:1790
 msgid "%n new category will be created."
 msgid_plural "%n new categories will be created."
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1733
+#: /app/src/modules/categories/CategoriesModule.js:1809
 #, fuzzy
 #| msgid "Import rule"
 msgid "Import %n category"
@@ -8117,21 +8120,21 @@ msgid_plural "Import %n categories"
 msgstr[0] "Regra de importação"
 msgstr[1] "Regra de importação"
 
-#: /app/src/modules/categories/CategoriesModule.js:1734
+#: /app/src/modules/categories/CategoriesModule.js:1810
 #: /app/src/modules/settings/ImportFolders.js:296
 msgid "Nothing to import"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1744
+#: /app/src/modules/categories/CategoriesModule.js:1820
 msgid "Exists"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1745
+#: /app/src/modules/categories/CategoriesModule.js:1821
 #: /app/src/modules/import/ImportModule.js:2128
 msgid "New"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1772
+#: /app/src/modules/categories/CategoriesModule.js:1848
 #, fuzzy
 #| msgid "Import rule"
 msgid "Imported %n category"
@@ -8139,35 +8142,35 @@ msgid_plural "Imported %n categories"
 msgstr[0] "Regra de importação"
 msgstr[1] "Regra de importação"
 
-#: /app/src/modules/categories/CategoriesModule.js:1996
+#: /app/src/modules/categories/CategoriesModule.js:2072
 msgid "Budgets adjusted from {month}"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:1997
+#: /app/src/modules/categories/CategoriesModule.js:2073
 msgid "Remove adjustment"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2010
+#: /app/src/modules/categories/CategoriesModule.js:2086
 msgid "Adjust budgets from this month"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2026
+#: /app/src/modules/categories/CategoriesModule.js:2102
 msgid ""
 "This will save the current budget values as a new baseline from {month} "
 "onwards. Previous months will keep their existing values. You can edit the "
 "new values after confirming."
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2028
+#: /app/src/modules/categories/CategoriesModule.js:2104
 msgid "Adjust budgets from {month}?"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2029
+#: /app/src/modules/categories/CategoriesModule.js:2105
 #: /app/src/utils/dialogs.js:264 /app/src/utils/matchingDialog.js:104
 msgid "Confirm"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2030
+#: /app/src/modules/categories/CategoriesModule.js:2106
 #: /app/src/modules/transfers/TransfersModule.js:181
 #: /app/src/modules/transfers/TransfersModule.js:611
 #: /app/src/utils/billLinkDialog.js:133 /app/src/utils/dialogs.js:265
@@ -8186,142 +8189,142 @@ msgstr ""
 #: /app/templates/index.php:6256 /app/templates/index.php:6490
 #: /app/templates/index.php:6660 /app/templates/index.php:6748
 #: /app/templates/index.php:6877 /app/templates/index.php:6896
-#: /app/templates/index.php:6972 /app/templates/index.php:7002
-#: /app/templates/index.php:7033 /app/templates/index.php:7072
-#: /app/templates/index.php:7103 /app/templates/index.php:7199
-#: /app/templates/index.php:7255 /app/templates/index.php:7295
-#: /app/templates/index.php:7321 /app/templates/index.php:7359
-#: /app/templates/index.php:7401 /app/templates/index.php:7447
-#: /app/templates/index.php:7534 /app/templates/index.php:7605
+#: /app/templates/index.php:6978 /app/templates/index.php:7008
+#: /app/templates/index.php:7039 /app/templates/index.php:7078
+#: /app/templates/index.php:7109 /app/templates/index.php:7205
+#: /app/templates/index.php:7261 /app/templates/index.php:7301
+#: /app/templates/index.php:7327 /app/templates/index.php:7365
+#: /app/templates/index.php:7407 /app/templates/index.php:7453
+#: /app/templates/index.php:7540 /app/templates/index.php:7611
 msgid "Cancel"
 msgstr "Cancelar"
 
-#: /app/src/modules/categories/CategoriesModule.js:2041
-#: /app/src/modules/categories/CategoriesModule.js:2061
+#: /app/src/modules/categories/CategoriesModule.js:2117
+#: /app/src/modules/categories/CategoriesModule.js:2137
 msgid "Failed to create budget adjustment"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2055
+#: /app/src/modules/categories/CategoriesModule.js:2131
 msgid ""
 "Budget adjusted from {month}. You can now edit values for this month onwards."
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2070
+#: /app/src/modules/categories/CategoriesModule.js:2146
 msgid "Budget adjustment created."
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2071
+#: /app/src/modules/categories/CategoriesModule.js:2147
 #: /app/src/modules/transactions/TransactionsModule.js:4506
 #: /app/src/modules/transactions/TransactionsModule.js:4661
 #: /app/src/utils/notifications.js:73
 msgid "Undo"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2104
+#: /app/src/modules/categories/CategoriesModule.js:2180
 msgid "Budget adjustment removed"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2107
+#: /app/src/modules/categories/CategoriesModule.js:2183
 msgid "Failed to remove budget adjustment"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2458
+#: /app/src/modules/categories/CategoriesModule.js:2534
 #, fuzzy
 #| msgid "{count} updated"
 msgid "{amount} a month"
 msgstr "{count} atualizado(s)"
 
-#: /app/src/modules/categories/CategoriesModule.js:2473
+#: /app/src/modules/categories/CategoriesModule.js:2549
 msgid "{spent} of {budget} this year"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2474
+#: /app/src/modules/categories/CategoriesModule.js:2550
 msgid "{spent} of {budget} this quarter"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2498
+#: /app/src/modules/categories/CategoriesModule.js:2574
 msgid ""
 "Envelope budgeting on: unspent budget carries to next month. Click to turn "
 "off."
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2498
+#: /app/src/modules/categories/CategoriesModule.js:2574
 msgid "Turn on envelope budgeting: unspent budget carries to next month"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2499
+#: /app/src/modules/categories/CategoriesModule.js:2575
 #, fuzzy
 #| msgid "Overdue"
 msgid "Envelope budgeting"
 msgstr "Vencido"
 
-#: /app/src/modules/categories/CategoriesModule.js:2506
+#: /app/src/modules/categories/CategoriesModule.js:2582
 #, fuzzy
 #| msgid "Failed to delete category"
 msgid "Budget for {category}"
 msgstr "Falha ao apagar a categoria"
 
-#: /app/src/modules/categories/CategoriesModule.js:2513
+#: /app/src/modules/categories/CategoriesModule.js:2589
 msgid "Auto-calculated from recurring bills/income. Enter a value to override."
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2513
+#: /app/src/modules/categories/CategoriesModule.js:2589
 #: /app/src/modules/pensions/PensionsModule.js:1109
 msgid "auto"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2515
+#: /app/src/modules/categories/CategoriesModule.js:2591
 msgid "{base} − {over} overspent = {available} available"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2516
+#: /app/src/modules/categories/CategoriesModule.js:2592
 msgid "{base} + {carried} carried = {available} available"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2517
+#: /app/src/modules/categories/CategoriesModule.js:2593
 msgid "(projected)"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2521
+#: /app/src/modules/categories/CategoriesModule.js:2597
 #, fuzzy
 #| msgid "Failed to delete category"
 msgid "Budget period for {category}"
 msgstr "Falha ao apagar a categoria"
 
-#: /app/src/modules/categories/CategoriesModule.js:2534
+#: /app/src/modules/categories/CategoriesModule.js:2610
 #: /app/templates/index.php:2242 /app/templates/index.php:5244
 msgid "Progress"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2542
+#: /app/src/modules/categories/CategoriesModule.js:2618
 msgid "No budget set"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2615
+#: /app/src/modules/categories/CategoriesModule.js:2691
 msgid "Envelope budgeting enabled — unspent budget now carries to next month"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2616
+#: /app/src/modules/categories/CategoriesModule.js:2692
 msgid "Envelope budgeting disabled"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2619
+#: /app/src/modules/categories/CategoriesModule.js:2695
 msgid "Failed to update envelope setting"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2694
+#: /app/src/modules/categories/CategoriesModule.js:2770
 msgid "Budget updated"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2697
+#: /app/src/modules/categories/CategoriesModule.js:2773
 msgid "Failed to update budget: {message}"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2793
+#: /app/src/modules/categories/CategoriesModule.js:2869
 msgid "Over-assigned: {income} in, {budgeted} budgeted"
 msgstr ""
 
-#: /app/src/modules/categories/CategoriesModule.js:2795
+#: /app/src/modules/categories/CategoriesModule.js:2871
 msgid "{income} in, {budgeted} budgeted"
 msgstr ""
 
@@ -8619,6 +8622,7 @@ msgid "Credit Cards"
 msgstr ""
 
 #: /app/src/modules/dashboard/DashboardModule.js:2431
+#: /app/src/utils/categoryIcons.js:85
 msgid "Investments"
 msgstr ""
 
@@ -8905,7 +8909,7 @@ msgstr ""
 
 #: /app/src/modules/dashboard/DashboardModule.js:5227
 #: /app/src/modules/dashboard/DashboardModule.js:5331
-#: /app/templates/index.php:7546
+#: /app/templates/index.php:7552
 msgid "Tile Settings"
 msgstr ""
 
@@ -9358,7 +9362,7 @@ msgid ""
 msgstr ""
 
 #: /app/src/modules/help/HelpModule.js:52 /app/templates/index.php:287
-#: /app/templates/index.php:5065 /app/templates/index.php:7670
+#: /app/templates/index.php:5065 /app/templates/index.php:7676
 msgid "Help & Docs"
 msgstr ""
 
@@ -11428,7 +11432,7 @@ msgstr ""
 #: /app/src/modules/rules/components/ActionBuilder.js:314
 #: /app/src/modules/rules/components/ActionBuilder.js:315
 #: /app/src/modules/transactions/TransactionsModule.js:4055
-#: /app/templates/index.php:7212
+#: /app/templates/index.php:7218
 msgid "Description:"
 msgstr ""
 
@@ -12075,7 +12079,7 @@ msgid "Edit Contact"
 msgstr ""
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:269
-#: /app/templates/index.php:4216 /app/templates/index.php:7330
+#: /app/templates/index.php:4216 /app/templates/index.php:7336
 msgid "Add Contact"
 msgstr ""
 
@@ -12108,7 +12112,7 @@ msgid "Failed to load contact details"
 msgstr ""
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:439
-#: /app/templates/index.php:7480
+#: /app/templates/index.php:7486
 msgid "No shared expenses"
 msgstr "Nenhuma despesa partilhada"
 
@@ -12125,7 +12129,7 @@ msgid "Open"
 msgstr ""
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:474
-#: /app/templates/index.php:7486
+#: /app/templates/index.php:7492
 msgid "No settlements yet"
 msgstr "Sem quitações registadas"
 
@@ -12460,18 +12464,18 @@ msgstr ""
 #: /app/src/modules/tagsets/TagSetsModule.js:83
 #: /app/src/modules/tagsets/TagSetsModule.js:395
 #: /app/src/modules/tagsets/TagSetsModule.js:729 /app/templates/index.php:5183
-#: /app/templates/index.php:7062
+#: /app/templates/index.php:7068
 msgid "Hidden"
 msgstr ""
 
-#: /app/src/modules/tagsets/TagSetsModule.js:181 /app/templates/index.php:7042
+#: /app/src/modules/tagsets/TagSetsModule.js:181 /app/templates/index.php:7048
 msgid "Edit Tag"
 msgstr ""
 
 #: /app/src/modules/tagsets/TagSetsModule.js:189
 #: /app/src/modules/tagsets/TagSetsModule.js:738 /app/templates/index.php:2100
-#: /app/templates/index.php:5165 /app/templates/index.php:7011
-#: /app/templates/index.php:7032
+#: /app/templates/index.php:5165 /app/templates/index.php:7017
+#: /app/templates/index.php:7038
 msgid "Add Tag"
 msgstr ""
 
@@ -12522,8 +12526,8 @@ msgstr "Grave a categoria primeiro para gerir as coleções de etiquetas"
 msgid "Tag Sets"
 msgstr "Coleções de Etiquetas"
 
-#: /app/src/modules/tagsets/TagSetsModule.js:365 /app/templates/index.php:6981
-#: /app/templates/index.php:7001
+#: /app/src/modules/tagsets/TagSetsModule.js:365 /app/templates/index.php:6987
+#: /app/templates/index.php:7007
 msgid "Add Tag Set"
 msgstr "Adicionar Coleção de Etiquetas"
 
@@ -12612,7 +12616,7 @@ msgstr "Selecione uma categoria para gerir as coleções de etiquetas"
 msgid "No tag sets yet."
 msgstr "Ainda não há coleções de etiquetas cadastradas."
 
-#: /app/src/modules/tagsets/TagSetsModule.js:741 /app/templates/index.php:7081
+#: /app/src/modules/tagsets/TagSetsModule.js:741 /app/templates/index.php:7087
 msgid "Edit Tag Set"
 msgstr "Editar Coleção de Etiquetas"
 
@@ -12751,7 +12755,7 @@ msgid "Failed to unreconcile transactions"
 msgstr ""
 
 #: /app/src/modules/transactions/TransactionsModule.js:1239
-#: /app/templates/index.php:7270
+#: /app/templates/index.php:7276
 msgid "Don't change"
 msgstr ""
 
@@ -13288,7 +13292,7 @@ msgid "Transaction unlinked from its bill"
 msgstr ""
 
 #: /app/src/modules/transactions/TransactionsModule.js:4051
-#: /app/templates/index.php:7220
+#: /app/templates/index.php:7226
 msgid "Date:"
 msgstr ""
 
@@ -13327,12 +13331,12 @@ msgid "All candidates shown for your confirmation before linking."
 msgstr ""
 
 #: /app/src/modules/transactions/TransactionsModule.js:4342
-#: /app/templates/index.php:7158
+#: /app/templates/index.php:7164
 msgid "Scanning for matching transactions..."
 msgstr ""
 
 #: /app/src/modules/transactions/TransactionsModule.js:4353
-#: /app/templates/index.php:7191
+#: /app/templates/index.php:7197
 msgid "No matching transactions found."
 msgstr ""
 
@@ -13395,7 +13399,7 @@ msgid "These transactions have been linked. Click Undo to unlink a pair."
 msgstr ""
 
 #: /app/src/modules/transactions/TransactionsModule.js:4681
-#: /app/templates/index.php:7198
+#: /app/templates/index.php:7204
 msgid "Confirm Selected"
 msgstr ""
 
@@ -13420,7 +13424,7 @@ msgid "Enter description..."
 msgstr ""
 
 #: /app/src/modules/transactions/TransactionsModule.js:4926
-#: /app/src/utils/userPicker.js:66 /app/templates/index.php:7340
+#: /app/src/utils/userPicker.js:66 /app/templates/index.php:7346
 msgid "Type to search..."
 msgstr ""
 
@@ -14076,6 +14080,234 @@ msgstr "{count} atualizado(s)"
 msgid "No payment recorded - the bill has moved on from this date"
 msgstr ""
 
+#: /app/src/utils/categoryIcons.js:32
+#, fuzzy
+#| msgid "Tags"
+msgid "Tag"
+msgstr "Etiquetas"
+
+#: /app/src/utils/categoryIcons.js:33
+msgid "Home"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:34
+msgid "Electricity"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:35
+msgid "Water"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:36
+#, fuzzy
+#| msgid "settings"
+msgid "Heating"
+msgstr "configurações"
+
+#: /app/src/utils/categoryIcons.js:37
+msgid "Internet"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:38
+msgid "Phone"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:39
+msgid "TV"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:40
+#, fuzzy
+#| msgid "categories"
+msgid "Groceries"
+msgstr "categorias"
+
+#: /app/src/utils/categoryIcons.js:41
+msgid "Food"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:42
+msgid "Restaurant"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:43
+msgid "Coffee"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:44
+msgid "Drinks"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:45
+msgid "Shopping"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:46
+msgid "Clothing"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:47
+msgid "Haircut"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:48
+#, fuzzy
+#| msgid "Mar"
+msgid "Car"
+msgstr "Mar"
+
+#: /app/src/utils/categoryIcons.js:49
+msgid "Fuel"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:50
+msgid "Bus"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:51
+msgid "Train"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:52
+msgid "Bike"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:53
+msgid "Travel"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:54
+msgid "Hotel"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:55
+msgid "Medical"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:56
+msgid "Pharmacy"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:57
+msgid "Fitness"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:58
+msgid "Heart"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:59
+msgid "Children"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:60
+msgid "Pets"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:61
+#, fuzzy
+#| msgid "Description"
+msgid "Education"
+msgstr "Descrição"
+
+#: /app/src/utils/categoryIcons.js:62
+msgid "Books"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:63
+msgid "Music"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:64
+msgid "Video"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:65
+msgid "Streaming"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:66
+msgid "Games"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:67
+msgid "Events"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:68
+msgid "Gifts"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:69
+msgid "Charity"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:70
+msgid "Garden"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:71
+msgid "Plants"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:72
+msgid "Repairs"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:73
+msgid "Computer"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:74
+msgid "Software"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:75
+msgid "Services"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:76
+#, fuzzy
+#| msgid "Description"
+msgid "Subscriptions"
+msgstr "Descrição"
+
+#: /app/src/utils/categoryIcons.js:77
+msgid "Insurance"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:78
+#, fuzzy
+#| msgid "Description"
+msgid "Protection"
+msgstr "Descrição"
+
+#: /app/src/utils/categoryIcons.js:80
+msgid "Interest"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:81
+msgid "Card"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:83
+msgid "Bank"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:86
+msgid "Work"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:87
+msgid "Person"
+msgstr ""
+
+#: /app/src/utils/categoryIcons.js:88
+#, fuzzy
+#| msgid "One-Time"
+msgid "Time"
+msgstr "Único"
+
 #: /app/src/utils/dialogs.js:263
 msgid "Please confirm"
 msgstr ""
@@ -14343,7 +14575,7 @@ msgstr ""
 msgid "Tools & Settings"
 msgstr ""
 
-#: /app/templates/index.php:217 /app/templates/index.php:7663
+#: /app/templates/index.php:217 /app/templates/index.php:7669
 msgid "Help"
 msgstr ""
 
@@ -14862,7 +15094,7 @@ msgstr ""
 msgid "250 per page"
 msgstr ""
 
-#: /app/templates/index.php:1829 /app/templates/index.php:7424
+#: /app/templates/index.php:1829 /app/templates/index.php:7430
 msgid "Select all"
 msgstr ""
 
@@ -15635,7 +15867,7 @@ msgstr ""
 #: /app/templates/index.php:5663 /app/templates/index.php:6058
 #: /app/templates/index.php:6255 /app/templates/index.php:6489
 #: /app/templates/index.php:6659 /app/templates/index.php:6876
-#: /app/templates/index.php:6971 /app/templates/index.php:7358
+#: /app/templates/index.php:6977 /app/templates/index.php:7364
 msgid "Save"
 msgstr ""
 
@@ -15878,7 +16110,7 @@ msgid "Edit pension"
 msgstr ""
 
 #: /app/templates/index.php:3831 /app/templates/index.php:4964
-#: /app/templates/index.php:5446 /app/templates/index.php:7566
+#: /app/templates/index.php:5446 /app/templates/index.php:7572
 msgid "Provider"
 msgstr ""
 
@@ -16849,7 +17081,7 @@ msgstr ""
 msgid "Open docs site"
 msgstr ""
 
-#: /app/templates/index.php:5078 /app/templates/index.php:7671
+#: /app/templates/index.php:5078 /app/templates/index.php:7677
 msgid "Report an Issue"
 msgstr ""
 
@@ -16922,8 +17154,8 @@ msgstr ""
 msgid "Copy to Clipboard"
 msgstr ""
 
-#: /app/templates/index.php:5170 /app/templates/index.php:7020
-#: /app/templates/index.php:7052
+#: /app/templates/index.php:5170 /app/templates/index.php:7026
+#: /app/templates/index.php:7058
 msgid "Tag Name"
 msgstr ""
 
@@ -16932,8 +17164,8 @@ msgid "e.g., Business, Vacation, Groceries"
 msgstr ""
 
 #: /app/templates/index.php:5174 /app/templates/index.php:5362
-#: /app/templates/index.php:6935 /app/templates/index.php:7024
-#: /app/templates/index.php:7056
+#: /app/templates/index.php:6935 /app/templates/index.php:7030
+#: /app/templates/index.php:7062
 msgid "Color"
 msgstr ""
 
@@ -16941,7 +17173,7 @@ msgstr ""
 msgid "Color (hex code)"
 msgstr ""
 
-#: /app/templates/index.php:5185 /app/templates/index.php:7064
+#: /app/templates/index.php:5185 /app/templates/index.php:7070
 msgid ""
 "Stop offering this tag when tagging new transactions. Transactions that "
 "already have it keep it."
@@ -17479,8 +17711,8 @@ msgstr ""
 #: /app/templates/index.php:6059 /app/templates/index.php:6256
 #: /app/templates/index.php:6490 /app/templates/index.php:6660
 #: /app/templates/index.php:6877 /app/templates/index.php:6896
-#: /app/templates/index.php:6972 /app/templates/index.php:7255
-#: /app/templates/index.php:7295 /app/templates/index.php:7321
+#: /app/templates/index.php:6978 /app/templates/index.php:7261
+#: /app/templates/index.php:7301 /app/templates/index.php:7327
 msgid "Cancel and close dialog"
 msgstr ""
 
@@ -17819,7 +18051,7 @@ msgid ""
 "needed."
 msgstr ""
 
-#: /app/templates/index.php:6482 /app/templates/index.php:7242
+#: /app/templates/index.php:6482 /app/templates/index.php:7248
 msgid "Add Split"
 msgstr ""
 
@@ -18107,496 +18339,500 @@ msgstr ""
 msgid "Color for charts and display"
 msgstr ""
 
-#: /app/templates/index.php:6945
-msgid "Options"
-msgstr ""
-
-#: /app/templates/index.php:6949
-msgid "Exclude from reports"
+#: /app/templates/index.php:6941
+msgid "Icon"
 msgstr ""
 
 #: /app/templates/index.php:6951
+msgid "Options"
+msgstr ""
+
+#: /app/templates/index.php:6955
+msgid "Exclude from reports"
+msgstr ""
+
+#: /app/templates/index.php:6957
 msgid ""
 "Transactions in this category will not count toward budgets, spending "
 "reports, or dashboard totals."
 msgstr ""
 
-#: /app/templates/index.php:6957
+#: /app/templates/index.php:6963
 msgid "Exclude from budgeting"
 msgstr ""
 
-#: /app/templates/index.php:6959
+#: /app/templates/index.php:6965
 msgid ""
 "For spending you track but never budget against. The category keeps counting "
 "in reports, the dashboard and every total — it just drops out of the Budget "
 "page, budget alerts and the budget report, along with its subcategories."
 msgstr ""
 
-#: /app/templates/index.php:6971
+#: /app/templates/index.php:6977
 msgid "Save category"
 msgstr ""
 
-#: /app/templates/index.php:6989 /app/templates/index.php:7090
+#: /app/templates/index.php:6995 /app/templates/index.php:7096
 msgid "Tag Set Name"
 msgstr ""
 
-#: /app/templates/index.php:6990 /app/templates/index.php:7091
+#: /app/templates/index.php:6996 /app/templates/index.php:7097
 msgid "e.g., Activity, Equipment, Location"
 msgstr ""
 
-#: /app/templates/index.php:6994 /app/templates/index.php:7095
+#: /app/templates/index.php:7000 /app/templates/index.php:7101
 msgid "Optional description"
 msgstr ""
 
-#: /app/templates/index.php:7021 /app/templates/index.php:7053
+#: /app/templates/index.php:7027 /app/templates/index.php:7059
 msgid "e.g., Fishing, Rods, Online"
 msgstr ""
 
-#: /app/templates/index.php:7071 /app/templates/index.php:7102
+#: /app/templates/index.php:7077 /app/templates/index.php:7108
 msgid "Save Changes"
 msgstr ""
 
-#: /app/templates/index.php:7112
+#: /app/templates/index.php:7118
 msgid "Find Transfer Matches"
 msgstr ""
 
-#: /app/templates/index.php:7114
+#: /app/templates/index.php:7120
 msgid "Source Transaction"
 msgstr ""
 
-#: /app/templates/index.php:7125
+#: /app/templates/index.php:7131
 msgid "Searching for matches..."
 msgstr ""
 
-#: /app/templates/index.php:7128
+#: /app/templates/index.php:7134
 msgid "No matching transactions found within the date range."
 msgstr ""
 
-#: /app/templates/index.php:7129
+#: /app/templates/index.php:7135
 msgid ""
 "Matches must have the same amount, opposite type (income/expense), and be "
 "within 3 days."
 msgstr ""
 
-#: /app/templates/index.php:7134
+#: /app/templates/index.php:7140
 msgid "No match? Create the other side"
 msgstr ""
 
-#: /app/templates/index.php:7135
+#: /app/templates/index.php:7141
 msgid ""
 "Creates the opposite transaction in the account you pick and links the pair "
 "as a transfer. Useful when the other account has nothing to import (e.g. a "
 "loan account)."
 msgstr ""
 
-#: /app/templates/index.php:7137
+#: /app/templates/index.php:7143
 #, fuzzy
 #| msgid "Failed to update account"
 msgid "Counterpart account"
 msgstr "Falha ao atualizar a conta financeira"
 
-#: /app/templates/index.php:7138
+#: /app/templates/index.php:7144
 msgid "Create and link"
 msgstr ""
 
-#: /app/templates/index.php:7142 /app/templates/index.php:7199
+#: /app/templates/index.php:7148 /app/templates/index.php:7205
 msgid "Close dialog"
 msgstr ""
 
-#: /app/templates/index.php:7150
+#: /app/templates/index.php:7156
 msgid "Match Transfers"
 msgstr ""
 
-#: /app/templates/index.php:7167
+#: /app/templates/index.php:7173
 msgid "Matched Pairs"
 msgstr ""
 
-#: /app/templates/index.php:7171
+#: /app/templates/index.php:7177
 msgid "Need Review"
 msgstr ""
 
-#: /app/templates/index.php:7177
+#: /app/templates/index.php:7183
 msgid "Auto-Matched Pairs"
 msgstr ""
 
-#: /app/templates/index.php:7178
+#: /app/templates/index.php:7184
 msgid ""
 "These transactions were automatically linked. Click Undo to unlink a pair."
 msgstr ""
 
-#: /app/templates/index.php:7184
+#: /app/templates/index.php:7190
 msgid "Needs Manual Review"
 msgstr ""
 
-#: /app/templates/index.php:7185
+#: /app/templates/index.php:7191
 msgid ""
 "These transactions have multiple potential matches. Select the correct match "
 "for each."
 msgstr ""
 
-#: /app/templates/index.php:7192
+#: /app/templates/index.php:7198
 msgid ""
 "Matches require: same amount, same currency, opposite type (income/expense), "
 "different accounts, within your configured date window."
 msgstr ""
 
-#: /app/templates/index.php:7197
+#: /app/templates/index.php:7203
 msgid "Scan for Matches"
 msgstr ""
 
-#: /app/templates/index.php:7216
+#: /app/templates/index.php:7222
 msgid "Amount:"
 msgstr ""
 
-#: /app/templates/index.php:7247
+#: /app/templates/index.php:7253
 msgid "Remaining to allocate:"
 msgstr ""
 
-#: /app/templates/index.php:7252
+#: /app/templates/index.php:7258
 msgid "Unsplit Transaction"
 msgstr ""
 
-#: /app/templates/index.php:7254
+#: /app/templates/index.php:7260
 msgid "Save Splits"
 msgstr ""
 
-#: /app/templates/index.php:7264
+#: /app/templates/index.php:7270
 msgid "Bulk Edit Transactions"
 msgstr ""
 
-#: /app/templates/index.php:7265
+#: /app/templates/index.php:7271
 msgid "Edit fields for"
 msgstr ""
 
-#: /app/templates/index.php:7265
+#: /app/templates/index.php:7271
 msgid "selected transactions. Leave fields empty to keep existing values."
 msgstr ""
 
-#: /app/templates/index.php:7266
+#: /app/templates/index.php:7272
 msgid "Bulk edit form"
 msgstr ""
 
-#: /app/templates/index.php:7272
+#: /app/templates/index.php:7278
 msgid "Update category for all selected transactions (optional)"
 msgstr ""
 
-#: /app/templates/index.php:7278
+#: /app/templates/index.php:7284
 msgid "Update vendor name for all selected transactions (optional)"
 msgstr ""
 
-#: /app/templates/index.php:7284
+#: /app/templates/index.php:7290
 msgid "Update reference number for all selected transactions (optional)"
 msgstr ""
 
-#: /app/templates/index.php:7290
+#: /app/templates/index.php:7296
 msgid "Update notes for all selected transactions (optional)"
 msgstr ""
 
-#: /app/templates/index.php:7294
+#: /app/templates/index.php:7300
 msgid "Update selected transactions"
 msgstr ""
 
-#: /app/templates/index.php:7294
+#: /app/templates/index.php:7300
 msgid "Update Transactions"
 msgstr ""
 
-#: /app/templates/index.php:7304
+#: /app/templates/index.php:7310
 #, fuzzy
 #| msgid "Edit Tag Set"
 msgid "Bulk Edit Tags"
 msgstr "Editar Coleção de Etiquetas"
 
-#: /app/templates/index.php:7306
+#: /app/templates/index.php:7312
 msgid "Bulk tag form"
 msgstr ""
 
-#: /app/templates/index.php:7308
+#: /app/templates/index.php:7314
 msgid "Add these tags"
 msgstr ""
 
-#: /app/templates/index.php:7313
+#: /app/templates/index.php:7319
 msgid "Remove these tags"
 msgstr ""
 
-#: /app/templates/index.php:7320
+#: /app/templates/index.php:7326
 #, fuzzy
 #| msgid "Failed to delete transactions"
 msgid "Apply tag changes to selected transactions"
 msgstr "Falha ao apagar as transações"
 
-#: /app/templates/index.php:7320
+#: /app/templates/index.php:7326
 #, fuzzy
 #| msgid "Apply Rules"
 msgid "Apply Tags"
 msgstr "Aplicar Regras"
 
-#: /app/templates/index.php:7331
+#: /app/templates/index.php:7337
 msgid "Contact form"
 msgstr ""
 
-#: /app/templates/index.php:7339
+#: /app/templates/index.php:7345
 msgid "Nextcloud User"
 msgstr ""
 
-#: /app/templates/index.php:7341
+#: /app/templates/index.php:7347
 msgid ""
 "Type a name, user ID or email to link a Nextcloud user, or leave it empty "
 "for someone without an account"
 msgstr ""
 
-#: /app/templates/index.php:7346
+#: /app/templates/index.php:7352
 msgid "e.g., John, Roommate, Partner"
 msgstr ""
 
-#: /app/templates/index.php:7350
+#: /app/templates/index.php:7356
 msgid "Email"
 msgstr ""
 
-#: /app/templates/index.php:7351
+#: /app/templates/index.php:7357
 msgid "Optional email address"
 msgstr ""
 
-#: /app/templates/index.php:7368
+#: /app/templates/index.php:7374
 msgid "Share Expense"
 msgstr "Partilhar Despesa"
 
-#: /app/templates/index.php:7369
+#: /app/templates/index.php:7375
 msgid "Share expense form"
 msgstr "Formulário de partilhamento de despesa"
 
-#: /app/templates/index.php:7379
+#: /app/templates/index.php:7385
 msgid "Split Method"
 msgstr ""
 
-#: /app/templates/index.php:7381
+#: /app/templates/index.php:7387
 #, fuzzy
 #| msgid "equals"
 msgid "Equally"
 msgstr "é igual a"
 
-#: /app/templates/index.php:7382
+#: /app/templates/index.php:7388
 msgid "By percentage"
 msgstr ""
 
-#: /app/templates/index.php:7383
+#: /app/templates/index.php:7389
 #, fuzzy
 #| msgid "Amount"
 msgid "By amount"
 msgstr "Quantidade"
 
-#: /app/templates/index.php:7388
+#: /app/templates/index.php:7394
 #, fuzzy
 #| msgid "between"
 msgid "Split between"
 msgstr "entre"
 
-#: /app/templates/index.php:7396
+#: /app/templates/index.php:7402
 msgid "Optional notes about this split"
 msgstr ""
 
-#: /app/templates/index.php:7400
+#: /app/templates/index.php:7406
 #, fuzzy
 #| msgid "Split"
 msgid "Save Split"
 msgstr "Dividir"
 
-#: /app/templates/index.php:7410
+#: /app/templates/index.php:7416
 msgid "Settle Expenses"
 msgstr ""
 
-#: /app/templates/index.php:7411
+#: /app/templates/index.php:7417
 msgid "Settlement form"
 msgstr "Formulário de quitação"
 
-#: /app/templates/index.php:7420
+#: /app/templates/index.php:7426
 msgid "Select expenses to settle"
 msgstr ""
 
-#: /app/templates/index.php:7442 /app/templates/quick-add.php:83
+#: /app/templates/index.php:7448 /app/templates/quick-add.php:83
 msgid "Optional notes"
 msgstr ""
 
-#: /app/templates/index.php:7446
+#: /app/templates/index.php:7452
 msgid "Settle Selected"
 msgstr ""
 
-#: /app/templates/index.php:7456
+#: /app/templates/index.php:7462
 msgid "Contact Details"
 msgstr ""
 
-#: /app/templates/index.php:7463
+#: /app/templates/index.php:7469
 msgid "Balance:"
 msgstr ""
 
-#: /app/templates/index.php:7469
+#: /app/templates/index.php:7475
 msgid "Settle All"
 msgstr "Quitar Tudo"
 
-#: /app/templates/index.php:7470
+#: /app/templates/index.php:7476
 msgid "Record Payment"
 msgstr ""
 
-#: /app/templates/index.php:7475
+#: /app/templates/index.php:7481
 msgid "Settlement History"
 msgstr "Histórico de Quitação"
 
-#: /app/templates/index.php:7501
+#: /app/templates/index.php:7507
 msgid "Confirm Factory Reset"
 msgstr ""
 
-#: /app/templates/index.php:7505
+#: /app/templates/index.php:7511
 msgid "WARNING: This action cannot be undone!"
 msgstr ""
 
-#: /app/templates/index.php:7506
+#: /app/templates/index.php:7512
 msgid "A factory reset will permanently delete ALL of your data including:"
 msgstr ""
 
-#: /app/templates/index.php:7508
+#: /app/templates/index.php:7514
 msgid "All accounts and their balances"
 msgstr ""
 
-#: /app/templates/index.php:7509
+#: /app/templates/index.php:7515
 msgid "All transactions and transaction history"
 msgstr ""
 
-#: /app/templates/index.php:7510
+#: /app/templates/index.php:7516
 msgid "All bills and recurring income"
 msgstr ""
 
-#: /app/templates/index.php:7511
+#: /app/templates/index.php:7517
 msgid "All categories and budget settings"
 msgstr ""
 
-#: /app/templates/index.php:7512
+#: /app/templates/index.php:7518
 msgid "All savings goals and pension accounts"
 msgstr ""
 
-#: /app/templates/index.php:7513
+#: /app/templates/index.php:7519
 msgid "All import rules and settings"
 msgstr ""
 
-#: /app/templates/index.php:7514
+#: /app/templates/index.php:7520
 msgid "All shared expenses and contacts"
 msgstr "Todos os contactos e despesas partilhadas"
 
-#: /app/templates/index.php:7516
+#: /app/templates/index.php:7522
 msgid "Only audit logs will be preserved for compliance purposes."
 msgstr ""
 
-#: /app/templates/index.php:7517
+#: /app/templates/index.php:7523
 msgid "You will need to set up everything from scratch after this operation."
 msgstr ""
 
-#: /app/templates/index.php:7522
+#: /app/templates/index.php:7528
 msgid "Type DELETE to confirm:"
 msgstr ""
 
-#: /app/templates/index.php:7527
+#: /app/templates/index.php:7533
 msgid "Type DELETE to confirm"
 msgstr ""
 
-#: /app/templates/index.php:7530
+#: /app/templates/index.php:7536
 msgid "You must type DELETE (all caps) exactly to proceed"
 msgstr "Digite DELETE (em maiúsculas) exatamente para prosseguir"
 
-#: /app/templates/index.php:7559 /app/templates/index.php:7563
+#: /app/templates/index.php:7565 /app/templates/index.php:7569
 msgid "Add Bank Connection"
 msgstr ""
 
-#: /app/templates/index.php:7568
+#: /app/templates/index.php:7574
 msgid "Select a provider..."
 msgstr ""
 
-#: /app/templates/index.php:7569
+#: /app/templates/index.php:7575
 msgid "GoCardless (UK/Europe)"
 msgstr ""
 
-#: /app/templates/index.php:7570
+#: /app/templates/index.php:7576
 msgid "SimpleFIN Bridge (US)"
 msgstr ""
 
-#: /app/templates/index.php:7575
+#: /app/templates/index.php:7581
 msgid "Connection Name"
 msgstr ""
 
-#: /app/templates/index.php:7576
+#: /app/templates/index.php:7582
 msgid "e.g. My Bank"
 msgstr ""
 
-#: /app/templates/index.php:7582
+#: /app/templates/index.php:7588
 msgid "Setup Token"
 msgstr ""
 
-#: /app/templates/index.php:7583
+#: /app/templates/index.php:7589
 msgid "Paste your SimpleFIN setup token"
 msgstr ""
 
-#: /app/templates/index.php:7584
+#: /app/templates/index.php:7590
 msgid "Get a token from beta-bridge.simplefin.org"
 msgstr ""
 
-#: /app/templates/index.php:7591
+#: /app/templates/index.php:7597
 msgid "Secret ID"
 msgstr ""
 
-#: /app/templates/index.php:7592
+#: /app/templates/index.php:7598
 msgid "Your GoCardless Secret ID"
 msgstr ""
 
-#: /app/templates/index.php:7595
+#: /app/templates/index.php:7601
 msgid "Secret Key"
 msgstr ""
 
-#: /app/templates/index.php:7596
+#: /app/templates/index.php:7602
 msgid "Your GoCardless Secret Key"
 msgstr ""
 
-#: /app/templates/index.php:7598
+#: /app/templates/index.php:7604
 msgid "Get API keys from bankaccountdata.gocardless.com"
 msgstr ""
 
-#: /app/templates/index.php:7611
+#: /app/templates/index.php:7617
 msgid "Select Your Bank"
 msgstr ""
 
-#: /app/templates/index.php:7614
+#: /app/templates/index.php:7620
 msgid "Country"
 msgstr ""
 
-#: /app/templates/index.php:7619
+#: /app/templates/index.php:7625
 msgid "Search banks..."
 msgstr ""
 
-#: /app/templates/index.php:7619
+#: /app/templates/index.php:7625
 msgid "Search banks"
 msgstr ""
 
-#: /app/templates/index.php:7623
+#: /app/templates/index.php:7629
 msgid "Loading banks..."
 msgstr ""
 
-#: /app/templates/index.php:7632
+#: /app/templates/index.php:7638
 msgid "Back"
 msgstr ""
 
-#: /app/templates/index.php:7638
+#: /app/templates/index.php:7644
 msgid "Authorize with Your Bank"
 msgstr ""
 
-#: /app/templates/index.php:7641
+#: /app/templates/index.php:7647
 msgid "A new window has been opened for you to authorize access at your bank."
 msgstr ""
 
-#: /app/templates/index.php:7642
+#: /app/templates/index.php:7648
 msgid "Once you have completed the authorization, click the button below."
 msgstr ""
 
-#: /app/templates/index.php:7644
+#: /app/templates/index.php:7650
 msgid "If the window did not open, "
 msgstr ""
 
-#: /app/templates/index.php:7645
+#: /app/templates/index.php:7651
 msgid "click here to authorize"
 msgstr ""
 
