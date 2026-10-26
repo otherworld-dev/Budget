@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Tests\Unit\Enum;
 
 use OCA\Budget\Enum\Currency;
+use OCA\Budget\Service\ExchangeRateService;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -48,5 +49,30 @@ class CurrencyTest extends TestCase {
 		$this->assertSame('Belarusian Ruble', $byn->name());
 		$this->assertSame(2, $byn->decimals());
 		$this->assertFalse($byn->isCrypto());
+	}
+
+	public function testXmrIsSupported(): void {
+		$xmr = Currency::tryFromString('xmr');
+
+		$this->assertSame(Currency::XMR, $xmr);
+		$this->assertSame('Monero', $xmr->name());
+		$this->assertSame(8, $xmr->decimals());
+		$this->assertTrue($xmr->isCrypto());
+		$this->assertSame('monero', ExchangeRateService::getCoinGeckoId('XMR'));
+	}
+
+	/**
+	 * A crypto with no CoinGecko id never gets a rate, so its accounts can't
+	 * be converted to the base currency.
+	 */
+	public function testEveryCryptoHasARateSource(): void {
+		foreach (Currency::cases() as $currency) {
+			if ($currency->isCrypto()) {
+				$this->assertNotNull(
+					ExchangeRateService::getCoinGeckoId($currency->value),
+					$currency->value . ' has no CoinGecko id'
+				);
+			}
+		}
 	}
 }

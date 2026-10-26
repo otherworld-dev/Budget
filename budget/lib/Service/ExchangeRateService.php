@@ -54,6 +54,7 @@ class ExchangeRateService {
 		'BNB' => 'binancecoin',
 		'MATIC' => 'matic-network',
 		'SHIB' => 'shiba-inu',
+		'XMR' => 'monero',
 	];
 
 	private ExchangeRateMapper $mapper;
