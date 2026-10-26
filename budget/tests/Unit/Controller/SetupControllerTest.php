@@ -249,4 +249,25 @@ class SetupControllerTest extends TestCase {
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
+
+	// ── ignoreDuplicates ────────────────────────────────────────────
+
+	public function testIgnoreDuplicatesPassesTheRowsAndWhichWay(): void {
+		$this->request->method('getParams')->willReturn(['transactionIds' => ['501', 77], 'ignore' => 'false']);
+		$this->repairService->expects($this->once())->method('ignoreDuplicates')
+			->with('user1', ['501', 77], false)
+			->willReturn([501, 77]);
+
+		$response = $this->controller->ignoreDuplicates();
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame(['transactionIds' => [501, 77], 'ignore' => false], $response->getData());
+	}
+
+	public function testIgnoreDuplicatesWithNoRowsIsRefused(): void {
+		$this->request->method('getParams')->willReturn(['ignore' => true]);
+		$this->repairService->expects($this->never())->method('ignoreDuplicates');
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $this->controller->ignoreDuplicates()->getStatus());
+	}
 }

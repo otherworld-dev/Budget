@@ -31,7 +31,7 @@ vi.mock('@nextcloud/l10n', () => {
     };
 });
 
-import { duplicateItem, repairResultMessage, stuckIncomeItem } from '../../src/utils/repairFindings.js';
+import { duplicateDetails, duplicateItem, repairResultMessage, stuckIncomeItem } from '../../src/utils/repairFindings.js';
 import { RULES, rulesMatching, declarationsFor } from './helpers/stylesheet.js';
 
 const chf = (amount) => `${Number(amount).toFixed(2)} CHF`;
@@ -252,5 +252,51 @@ describe('the Repair Data modal', () => {
 
         expect(values.map(v => v.textContent)).toEqual(['151.67 CHF', '2026-10-15', '100.00 CHF', 'Received 2026-09-28']);
         values.forEach(v => expect(declarationsFor(v)['white-space'], v.textContent).toBe('nowrap'));
+    });
+});
+
+describe('ignoring a duplicate', () => {
+    afterEach(() => { document.body.innerHTML = ''; });
+
+    it('offers Ignore on every row still to decide on', () => {
+        const modal = inModal(duplicateDetails([christian(), cembra()], [], new Set(), chf));
+
+        expect([...modal.querySelectorAll('.repair-item-ignore')].map(b => Number(b.dataset.transactionId)))
+            .toEqual([1599732, 1600840]);
+        expect(modal.querySelector('.repair-ignored')).toBeNull();
+    });
+
+    it('keeps the ticks it is given, and only those', () => {
+        const modal = inModal(duplicateDetails([christian({ selected: true }), cembra()], [], new Set([1600840]), chf));
+        const ticks = [...modal.querySelectorAll('.repair-dup-checkbox')];
+
+        expect(ticks.map(tick => tick.checked)).toEqual([false, true]);
+    });
+
+    it('lists ignored rows apart, with no tick, to bring back', () => {
+        const modal = inModal(duplicateDetails([cembra()], [christian()], new Set(), chf));
+        const ignored = modal.querySelector('.repair-ignored');
+
+        expect(ignored.open).toBe(false);
+        expect(ignored.querySelector('summary').textContent).toBe('1 ignored row');
+        expect(ignored.querySelector('.repair-dup-checkbox')).toBeNull();
+        expect(ignored.querySelector('.repair-item-unignore').dataset.transactionId).toBe('1599732');
+        expect(ignored.textContent).toContain('Christian Uhrenschmuck24');
+        // The ticks the repair sends are only the rows above it
+        expect([...modal.querySelectorAll('.repair-dup-checkbox')].map(c => c.dataset.transactionId)).toEqual(['1600840']);
+    });
+
+    it('says there is nothing left once every row is ignored', () => {
+        const modal = inModal(duplicateDetails([], [christian(), cembra()], new Set(), chf, true));
+
+        expect(modal.querySelector('.repair-category-help').textContent).toBe('Nothing left to check.');
+        expect(modal.querySelector('.repair-ignored').open).toBe(true);
+        expect(modal.querySelector('.repair-ignored summary').textContent).toBe('2 ignored rows');
+    });
+
+    it('keeps the buttons at a small button size', () => {
+        const button = inModal(duplicateItem(cembra(), chf)).querySelector('.repair-item-ignore');
+
+        expect(declarationsFor(button)).toMatchObject({ 'min-height': '0', height: 'auto' });
     });
 });

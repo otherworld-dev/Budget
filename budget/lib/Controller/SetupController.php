@@ -266,6 +266,32 @@ class SetupController extends Controller {
 	}
 
 	/**
+	 * Ignore duplicate rows Repair Data reports, or stop ignoring them
+	 * (ignore: false). An ignored row is listed apart and never deleted.
+	 *
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function ignoreDuplicates(): DataResponse {
+		try {
+			$params = $this->request->getParams();
+			$ids = is_array($params['transactionIds'] ?? null) ? $params['transactionIds'] : [];
+			$ignore = filter_var($params['ignore'] ?? true, FILTER_VALIDATE_BOOLEAN);
+			if ($ids === []) {
+				return new DataResponse([
+					'error' => $this->l->t('No transactions specified')
+				], Http::STATUS_BAD_REQUEST);
+			}
+
+			$changed = $this->repairService->ignoreDuplicates($this->userId, $ids, $ignore);
+
+			return new DataResponse(['transactionIds' => $changed, 'ignore' => $ignore]);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Could not update the ignored duplicates'), Http::STATUS_INTERNAL_SERVER_ERROR);
+		}
+	}
+
+	/**
 	 * @NoAdminRequired
 	 */
 	public function systemInfo(): DataResponse {

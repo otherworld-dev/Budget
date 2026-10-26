@@ -91,6 +91,53 @@ class RepairDuplicatesTest extends IntegrationTestCase {
 		$this->assertNotNull($this->fetchRow('budget_transactions', $refund));
 	}
 
+	/**
+	 * A row the user checked and wants kept stops being listed, and comes
+	 * back when they say so (#399: the same old doubles came back on every
+	 * scan, with nothing to do about them but delete real history).
+	 */
+	public function testAnIgnoredDuplicateIsListedApartAndNeverDeleted(): void {
+		$account = $this->makeAccount()->getId();
+		$bill = $this->bill($account, 'Netflix');
+		$generated = $this->payment($account, $bill, 'Netflix', $this->day(-5));
+		$this->makeTransaction($account, [
+			'date' => $this->day(-6), 'amount' => '40.00', 'vendor' => 'NETFLIX.COM',
+			'description' => 'NETFLIX.COM', 'import_id' => 'csv-it-4',
+		]);
+		$repair = $this->service(RepairService::class);
+
+		$this->assertSame([$generated], $repair->ignoreDuplicates($this->userId, [$generated, 999999999]));
+
+		$found = $repair->diagnose($this->userId);
+		$this->assertSame([], $found['duplicateTransactions']);
+		$this->assertSame([$generated], array_column($found['ignoredDuplicates'], 'duplicateId'));
+
+		// Neither a repair that names no rows nor a stale page sending it ticked removes it
+		$repair->repair($this->userId, ['duplicateTransactions']);
+		$repair->repair($this->userId, ['duplicateTransactions'], ['transactionIds' => [$generated]]);
+		$this->assertNotNull($this->fetchRow('budget_transactions', $generated));
+
+		$this->assertSame([$generated], $repair->ignoreDuplicates($this->userId, [$generated], false));
+		$found = $repair->diagnose($this->userId);
+		$this->assertSame([$generated], array_column($found['duplicateTransactions'], 'duplicateId'));
+		$this->assertSame([], $found['ignoredDuplicates']);
+	}
+
+	public function testAnotherUsersIgnoreChangesNothingHere(): void {
+		$account = $this->makeAccount()->getId();
+		$bill = $this->bill($account, 'Netflix');
+		$generated = $this->payment($account, $bill, 'Netflix', $this->day(-5));
+		$this->makeTransaction($account, [
+			'date' => $this->day(-6), 'amount' => '40.00', 'vendor' => 'NETFLIX.COM',
+			'description' => 'NETFLIX.COM', 'import_id' => 'csv-it-5',
+		]);
+		$repair = $this->service(RepairService::class);
+
+		// Not a duplicate of theirs, so nothing is stored for them
+		$this->assertSame([], $repair->ignoreDuplicates($this->newUserId(), [$generated]));
+		$this->assertSame([$generated], array_column($repair->diagnose($this->userId)['duplicateTransactions'], 'duplicateId'));
+	}
+
 	public function testAReconciledPaymentIsNeverOffered(): void {
 		$account = $this->makeAccount()->getId();
 		$bill = $this->bill($account, 'Insurance');

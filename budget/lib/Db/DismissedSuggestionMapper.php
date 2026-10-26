@@ -35,6 +35,39 @@ class DismissedSuggestionMapper extends QBMapper {
 	}
 
 	/**
+	 * The stored pattern of each dismissal of one type, for types keyed by
+	 * a row id rather than a hash of a description.
+	 *
+	 * @return string[]
+	 */
+	public function findPatterns(string $userId, string $type): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('pattern')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+			->andWhere($qb->expr()->eq('suggestion_type', $qb->createNamedParameter($type)))
+			->andWhere($qb->expr()->isNotNull('pattern'));
+
+		$result = $qb->executeQuery();
+		$patterns = array_map(fn ($row) => (string)$row['pattern'], $result->fetchAll());
+		$result->closeCursor();
+
+		return $patterns;
+	}
+
+	/**
+	 * Take a dismissal back. Not an error when there isn't one.
+	 */
+	public function undismiss(string $userId, string $type, string $patternHash): void {
+		$qb = $this->db->getQueryBuilder();
+		$qb->delete($this->getTableName())
+			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+			->andWhere($qb->expr()->eq('suggestion_type', $qb->createNamedParameter($type)))
+			->andWhere($qb->expr()->eq('pattern_hash', $qb->createNamedParameter($patternHash)));
+		$qb->executeStatement();
+	}
+
+	/**
 	 * Record a dismissal (idempotent — re-dismissing is not an error).
 	 */
 	public function dismiss(string $userId, string $type, string $patternHash, ?string $pattern = null): void {

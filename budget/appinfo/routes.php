@@ -396,6 +396,7 @@ return [
 		['name' => 'setup#recalculateBalances', 'url' => '/api/setup/recalculate-balances', 'verb' => 'POST'],
 		['name' => 'setup#diagnoseData', 'url' => '/api/setup/diagnose', 'verb' => 'GET'],
 		['name' => 'setup#repairData', 'url' => '/api/setup/repair', 'verb' => 'POST'],
+		['name' => 'setup#ignoreDuplicates', 'url' => '/api/setup/repair/ignore', 'verb' => 'POST'],
 		['name' => 'setup#systemInfo', 'url' => '/api/setup/system-info', 'verb' => 'GET'],
 
 		// First-run checklist and sample data
