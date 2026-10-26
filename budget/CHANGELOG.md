@@ -27,6 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **The report summary counts both ends of its date range.** `GET /api/reports/summary` includes transactions on the start and end dates, but `period.days` left one of them out, so 1-30 September came back as 29 days and `averageDaily` was divided by 29. It now counts every date in the range, and a daylight-saving change inside it no longer leaves a fraction of a day. Reported by @rapmost2o ([#449](https://github.com/otherworld-dev/Budget/issues/449))
 
+### Security
+- **DOMPurify updated to 3.4.17.** The HTML sanitiser that Nextcloud's translation library bundles into the app was 3.3.3, inside the affected range of several published DOMPurify advisories. No way to exploit them through Budget was found (the app uses it only with default settings, on translated strings), but the bundle now carries the current release, and a test pins the sanitising of translated strings. Reported by @rapmost2o ([#450](https://github.com/otherworld-dev/Budget/issues/450))
+
 ## [3.1.0] - 2026-10-21
 
 ### Added
