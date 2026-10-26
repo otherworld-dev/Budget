@@ -326,8 +326,13 @@ class ImportRuleService extends AbstractCrudService {
 		}
 	}
 
-	public function testRules(string $userId, array $transactionData): array {
-		$rules = $this->mapper->findActive($userId);
+	/**
+	 * @param ImportRule[]|null $rules The user's active rules, when the caller
+	 *                                 tests many rows and has already loaded them
+	 *                                 (a receipt's items); null loads them here.
+	 */
+	public function testRules(string $userId, array $transactionData, ?array $rules = null): array {
+		$rules ??= $this->mapper->findActive($userId);
 		$results = [];
 
 		foreach ($rules as $rule) {
@@ -360,13 +365,19 @@ class ImportRuleService extends AbstractCrudService {
 	 * category would this rule apply" must look in both places, or every
 	 * modern rule reads as category-less — which is how the receipt draft's
 	 * category suggestion silently returned null for every real user.
+	 *
+	 * The builder saves the list wrapped — {version: 2, actions: [...]} — so
+	 * unwrap it the way RuleActionApplicator does. Reading only the bare-list
+	 * shape left every builder-made rule category-less here (#444).
 	 */
 	public function effectiveCategoryId(ImportRule $rule): ?int {
 		if ($rule->getCategoryId() !== null) {
 			return $rule->getCategoryId();
 		}
 
-		foreach ($rule->getParsedActions() as $action) {
+		$actions = $rule->getParsedActions();
+		$list = isset($actions['actions']) && is_array($actions['actions']) ? $actions['actions'] : $actions;
+		foreach ($list as $action) {
 			if (is_array($action) && ($action['type'] ?? null) === 'set_category' && isset($action['value'])) {
 				return (int)$action['value'];
 			}

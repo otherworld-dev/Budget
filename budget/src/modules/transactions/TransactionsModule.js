@@ -24,6 +24,7 @@ import { openAccounts, pickableAccounts, accountOptionLabel, selectAccountValue,
 import { offerableTags } from '../../utils/tags.js';
 import { chooseBill, linkableBills } from '../../utils/billLinkDialog.js';
 import { floatCellPopup } from '../../utils/cellPopup.js';
+import { rememberedRulePayload, findRememberedRule } from '../../utils/receiptItemRules.js';
 import flatpickr from 'flatpickr';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import { makeAmountInput } from '../../utils/amountInput.js';
@@ -2594,7 +2595,12 @@ export default class TransactionsModule {
     receiptSplitPlan(draft) {
         const total = Number(draft.total);
         const items = (draft.lineItems || [])
-            .map((item) => ({ description: String(item.description ?? '').slice(0, 255), amount: Number(item.amount) }))
+            .map((item) => ({
+                description: String(item.description ?? '').slice(0, 255),
+                amount: Number(item.amount),
+                // From the user's own rules, server-side (#444); null = no match.
+                suggestedCategoryId: item.suggestedCategoryId ?? null,
+            }))
             .filter((item) => Number.isFinite(item.amount) && item.amount > 0);
 
         if (items.length < 2 || !Number.isFinite(total) || total <= 0) return null;
@@ -2698,11 +2704,90 @@ export default class TransactionsModule {
             }
         });
 
+        // Each item's suggested category (#444), and a way to keep a
+        // correction. Only the receipt's own items: the savings and tax
+        // lines are ours, not the till's, so there's nothing to remember.
+        let suggested = 0;
+        rowEls.forEach((el, index) => {
+            if (index >= plan.rows.length) return;
+            const select = el.querySelector('.inline-split-category');
+            if (!select) return;
+            if (this.preselectSuggestedCategory(select, plan.rows[index].suggestedCategoryId)) {
+                suggested++;
+            }
+            this.offerRememberItemCategory(el, select, plan.rows[index]);
+        });
+
         this.refreshInlineSplitRows();
         this.recomputeRemainderRow();
-        showSuccess(
-            t('budget', 'Split into {count} lines from the receipt. Set a category on each.', { count: rows.length }),
+        showSuccess(suggested
+            ? t('budget', 'Split into {count} lines from the receipt. Your rules set a category on {suggested} of them; check them and set the rest.', { count: rows.length, suggested })
+            : t('budget', 'Split into {count} lines from the receipt. Set a category on each.', { count: rows.length }),
         );
+    }
+
+    /**
+     * Select a rule's suggested category, but only if it is a live option in
+     * this row's list. A suggestion for a category this account can't use
+     * (or one gone since the scan) leaves the row uncategorised rather than
+     * adding an "unavailable" placeholder the save would carry.
+     *
+     * @returns {boolean} whether it was selected
+     */
+    preselectSuggestedCategory(select, categoryId) {
+        if (categoryId === null || categoryId === undefined) return false;
+        const option = [...select.options].find((o) => o.value === String(categoryId) && !o.disabled);
+        if (!option) return false;
+        select.value = option.value;
+        return true;
+    }
+
+    /**
+     * "Remember" beside a receipt item's category once the user picks one the
+     * rules didn't suggest (#444). It saves a rule matching this item's text,
+     * so the next receipt with it comes back categorised. The rule is an
+     * ordinary one, listed on the Rules page, but never runs on imports —
+     * see receiptItemRules.js.
+     */
+    offerRememberItemCategory(rowEl, select, item) {
+        const field = rowEl.querySelector('.split-category-field');
+        if (!field || !item.description) return;
+
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'receipt-remember-btn';
+        button.textContent = t('budget', 'Remember');
+        button.title = t('budget', 'Use this category for "{item}" on future receipts', { item: item.description });
+        button.hidden = true;
+        field.appendChild(button);
+
+        let remembered = item.suggestedCategoryId !== null ? String(item.suggestedCategoryId) : '';
+        select.addEventListener('change', () => {
+            button.hidden = select.value === '' || select.value === remembered;
+            button.disabled = false;
+            button.textContent = t('budget', 'Remember');
+        });
+
+        button.addEventListener('click', async () => {
+            const categoryId = select.value;
+            if (categoryId === '') return;
+            button.disabled = true;
+            try {
+                const rules = await apiFetch('/apps/budget/api/import-rules');
+                const existing = findRememberedRule(rules, item.description);
+                const body = rememberedRulePayload(item.description, categoryId, t('budget', 'Receipt items'));
+                await apiFetch(existing ? `/apps/budget/api/import-rules/${existing.id}` : '/apps/budget/api/import-rules', {
+                    method: existing ? 'PUT' : 'POST',
+                    body,
+                    errorMessage: t('budget', 'Could not save the rule'),
+                });
+                remembered = categoryId;
+                button.textContent = t('budget', 'Remembered');
+            } catch (error) {
+                button.disabled = false;
+                showError(error?.message || t('budget', 'Could not save the rule'));
+            }
+        });
     }
 
     /** Say what was filled, and pass on anything the reader was unsure about. */

@@ -114,8 +114,8 @@ class ReceiptExtractionServiceTest extends TestCase {
 		$this->assertSame('GBP', $draft['currency']);
 		$this->assertSame('9.75', $draft['total']);
 		$this->assertSame([
-			['description' => 'Milk 2L', 'amount' => '1.65'],
-			['description' => 'Bread', 'amount' => '8.10'],
+			['description' => 'Milk 2L', 'amount' => '1.65', 'suggestedCategoryId' => null, 'suggestedCategoryName' => null],
+			['description' => 'Bread', 'amount' => '8.10', 'suggestedCategoryId' => null, 'suggestedCategoryName' => null],
 		], $draft['lineItems']);
 		$this->assertSame([], $draft['warnings']);
 	}
@@ -448,7 +448,10 @@ class ReceiptExtractionServiceTest extends TestCase {
 		$this->assertSame('2026-08-02', $draft['date']);
 		$this->assertSame('2.00', $draft['total']);
 		$this->assertNull($draft['currency']);
-		$this->assertSame([['description' => 'Apples', 'amount' => '2.00']], $draft['lineItems']);
+		$this->assertSame(
+			[['description' => 'Apples', 'amount' => '2.00', 'suggestedCategoryId' => null, 'suggestedCategoryName' => null]],
+			$draft['lineItems']
+		);
 	}
 
 	// ── the local category suggestion ───────────────────────────────
@@ -497,7 +500,104 @@ class ReceiptExtractionServiceTest extends TestCase {
 		$this->assertNull($draft['suggestedCategoryId']);
 	}
 
+	// ── per-item suggestions (#444) ─────────────────────────────────
+
+	public function testEachItemGetsACategoryFromTheRulesThatMatchItsText(): void {
+		$this->configureCustom();
+		$this->modelAnswers(json_encode([
+			'merchant' => 'Big Shop',
+			'total' => 7.50,
+			'lineItems' => [
+				['description' => 'ORGANIC WHOLE MILK', 'amount' => 1.50],
+				['description' => 'DOG TREATS', 'amount' => 3.00],
+				['description' => 'MYSTERY ITEM', 'amount' => 3.00],
+			],
+		]));
+		$this->ruleService->method('testRules')->willReturnCallback(
+			static fn (string $userId, array $data) => match ($data['description']) {
+				'ORGANIC WHOLE MILK' => [['ruleId' => 1, 'categoryId' => 10, 'priority' => 1]],
+				'DOG TREATS' => [['ruleId' => 2, 'categoryId' => 20, 'priority' => 1]],
+				default => [],
+			}
+		);
+		$this->categoryService->method('find')->willReturnCallback(
+			fn (int $id) => $this->category($id, $id === 10 ? 'Groceries' : 'Pets')
+		);
+
+		$items = $this->service->extract('user1', $this->pngUpload())['lineItems'];
+
+		$this->assertSame([10, 'Groceries'], [$items[0]['suggestedCategoryId'], $items[0]['suggestedCategoryName']]);
+		$this->assertSame([20, 'Pets'], [$items[1]['suggestedCategoryId'], $items[1]['suggestedCategoryName']]);
+		// No rule matched: left uncategorised, not guessed.
+		$this->assertNull($items[2]['suggestedCategoryId']);
+		$this->assertNull($items[2]['suggestedCategoryName']);
+	}
+
+	public function testAMerchantRuleDoesNotCategoriseEveryItem(): void {
+		// A "Big Shop → Groceries" vendor rule would match every line if the
+		// merchant were passed along with each item.
+		$this->configureCustom();
+		$this->modelAnswers(json_encode([
+			'merchant' => 'Big Shop',
+			'total' => 3.00,
+			'lineItems' => [['description' => 'DOG TREATS', 'amount' => 3.00]],
+		]));
+		$this->ruleService->method('testRules')->willReturnCallback(
+			static fn (string $userId, array $data) => $data['vendor'] === 'Big Shop'
+				? [['ruleId' => 1, 'categoryId' => 10, 'priority' => 1]]
+				: []
+		);
+		$this->categoryService->method('find')->willReturn($this->category(10, 'Groceries'));
+
+		$draft = $this->service->extract('user1', $this->pngUpload());
+
+		$this->assertSame(10, $draft['suggestedCategoryId']);
+		$this->assertNull($draft['lineItems'][0]['suggestedCategoryId']);
+	}
+
+	public function testRulesAndCategoriesAreLoadedOncePerReceipt(): void {
+		$this->configureCustom();
+		$items = [];
+		for ($i = 0; $i < 20; $i++) {
+			$items[] = ['description' => "Item $i", 'amount' => 1];
+		}
+		$this->modelAnswers(json_encode(['merchant' => 'Shop', 'total' => 20, 'lineItems' => $items]));
+
+		$this->ruleService->expects($this->once())->method('findActive')->with('user1')->willReturn([]);
+		$this->ruleService->method('testRules')->willReturn([['ruleId' => 1, 'categoryId' => 10, 'priority' => 1]]);
+		$this->categoryService->expects($this->once())->method('find')->willReturn($this->category(10, 'Groceries'));
+
+		$draft = $this->service->extract('user1', $this->pngUpload());
+
+		$this->assertSame(10, $draft['lineItems'][19]['suggestedCategoryId']);
+	}
+
+	public function testUnloadableRulesTurnSuggestionsOffQuietly(): void {
+		$this->configureCustom();
+		$this->modelAnswers(json_encode([
+			'merchant' => 'Shop',
+			'total' => 2,
+			'lineItems' => [['description' => 'Milk', 'amount' => 2]],
+		]));
+		$this->ruleService->method('findActive')->willThrowException(new \RuntimeException('db down'));
+		$this->ruleService->expects($this->never())->method('testRules');
+
+		$draft = $this->service->extract('user1', $this->pngUpload());
+
+		$this->assertSame('2.00', $draft['total']);
+		$this->assertNull($draft['suggestedCategoryId']);
+		$this->assertNull($draft['lineItems'][0]['suggestedCategoryId']);
+	}
+
 	// ── helpers ─────────────────────────────────────────────────────
+
+	private function category(int $id, string $name): Category {
+		$category = new Category();
+		$category->setId($id);
+		$category->setName($name);
+
+		return $category;
+	}
 
 	private function configureCustom(string $apiKey = 'sk-test'): void {
 		$this->settings->method('isConfigured')->willReturn(true);

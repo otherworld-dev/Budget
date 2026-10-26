@@ -2570,7 +2570,9 @@
               "type": "object",
               "required": [
                 "description",
-                "amount"
+                "amount",
+                "suggested_category_id",
+                "suggested_category_name"
               ],
               "properties": {
                 "description": {
@@ -2581,6 +2583,16 @@
                   "type": "string",
                   "pattern": "^\\d+\\.\\d{2}$",
                   "example": "1.65"
+                },
+                "suggested_category_id": {
+                  "type": "integer",
+                  "nullable": true,
+                  "description": "This item's category from the user's own categorisation rules, matched against the item's text only (not the merchant). Null when no rule matched: leave the item uncategorised rather than guessing."
+                },
+                "suggested_category_name": {
+                  "type": "string",
+                  "nullable": true,
+                  "example": "Groceries"
                 }
               }
             }

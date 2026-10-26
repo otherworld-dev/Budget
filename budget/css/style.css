@@ -13584,6 +13584,35 @@ button.receipt-scan-split-btn:disabled {
     cursor: default;
 }
 
+/* "Remember" under a receipt item's category (#444): a quiet text link, not
+   a second button competing with the row's remove control. */
+button.receipt-remember-btn {
+    display: block;
+    margin: 4px 0 0;
+    padding: 0;
+    min-height: 0;
+    background: none;
+    border: none;
+    color: var(--color-primary-element);
+    font-size: 12px;
+    cursor: pointer;
+}
+
+/* display: block above would otherwise beat the hidden attribute. */
+button.receipt-remember-btn[hidden] {
+    display: none;
+}
+
+button.receipt-remember-btn:hover:not(:disabled),
+button.receipt-remember-btn:focus-visible:not(:disabled) {
+    text-decoration: underline;
+}
+
+button.receipt-remember-btn:disabled {
+    color: var(--color-text-maxcontrast);
+    cursor: default;
+}
+
 .attachments-list {
     display: flex;
     flex-direction: column;
