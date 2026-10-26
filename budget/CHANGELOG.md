@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Category Details says when its bars are budget months.** With a **Budget Cycle Start Day** set, each bar of **Monthly Spending** covers a budget month, so with the 25th the October bar runs from 25 September to 24 October, but nothing said so and a September purchase seemed to land in the wrong month. A line under the chart now names the start day, hovering a bar shows its dates, and **This Month** reads **This Period** (#447).
 - **The savings goal form explains linked tags.** A line under **Linked Tag** says how tagged transactions, bills and transfers count: money in adds to the goal, money out takes it away, a transfer between your accounts counts once on the savings side, and a linked account limits it to that account. Reported by @TerjeTM ([#438](https://github.com/otherworld-dev/Budget/issues/438))
 
+### Removed
+- **The unused `POST /api/import/execute` call.** It was a leftover stub: it answered "Import completed successfully" for any import id without saving anything. Nothing in the app used it, since imports go through `/api/import/process`, so it now returns `404` and can't report an import that never happened. Reported by @rapmost2o ([#448](https://github.com/otherworld-dev/Budget/issues/448))
+
 ### Fixed
 - **Amount boxes take a decimal comma.** `12,50` now works in every amount box, including the Transactions amount filter, on any browser; Safari used to treat it as empty (#442). Thousands separators work in either style (`1.250,50` or `1,250.50`), and the box tidies what you type into a plain `1250.50` as you go.
 - **Receipt scans suggest a category from rules made in the rule builder.** The suggestion only understood rules made in older versions, so a rule created in today's rule builder never set the category on a scanned receipt. ([#444](https://github.com/otherworld-dev/Budget/issues/444))

@@ -380,27 +380,16 @@ class ImportControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 	}
 
-	// ── execute ─────────────────────────────────────────────────────
+	/**
+	 * POST /api/import/execute was a stub that answered "imported" for any
+	 * import id without writing a row (#448). Imports run through
+	 * /api/import/process; the stub must stay gone.
+	 */
+	public function testTheStubExecuteRouteIsGone(): void {
+		$names = array_column((require __DIR__ . '/../../../appinfo/routes.php')['routes'], 'name');
 
-	public function testExecuteReturnsData(): void {
-		$result = ['imported' => 3];
-		$this->service->method('executeImport')
-			->with('user1', 'import123', 1, [1, 2, 3])
-			->willReturn($result);
-
-		$response = $this->controller->execute('import123', 1, [1, 2, 3]);
-
-		$this->assertSame(Http::STATUS_OK, $response->getStatus());
-		$this->assertSame($result, $response->getData());
-	}
-
-	public function testExecuteHandlesError(): void {
-		$this->service->method('executeImport')
-			->willThrowException(new \RuntimeException('error'));
-
-		$response = $this->controller->execute('import123', 1, [1]);
-
-		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertNotContains('import#execute', $names);
+		$this->assertFalse(method_exists(ImportController::class, 'execute'));
 	}
 
 	public function testUploadShowsASpreadsheetsOwnMessage(): void {
