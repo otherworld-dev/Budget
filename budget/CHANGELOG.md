@@ -25,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Receipt scans suggest a category from rules made in the rule builder.** The suggestion only understood rules made in older versions, so a rule created in today's rule builder never set the category on a scanned receipt. ([#444](https://github.com/otherworld-dev/Budget/issues/444))
 - **The API says why a receipt couldn't be attached.** A photo sent with a new transaction that couldn't be saved only came back as a general `photo_error`. It now also carries a `photo_error_code`, and `POST /transactions/{id}/receipts` answers with an `error_code` (`403` when Files refuses the write). The usual cause is an app password with **Allow filesystem access** switched off in Settings → Security: it can record transactions but can't save files, and the error now says so. Reported by @SGiersch ([#437](https://github.com/otherworld-dev/Budget/issues/437))
 
+- **The report summary counts both ends of its date range.** `GET /api/reports/summary` includes transactions on the start and end dates, but `period.days` left one of them out, so 1-30 September came back as 29 days and `averageDaily` was divided by 29. It now counts every date in the range, and a daylight-saving change inside it no longer leaves a fraction of a day. Reported by @rapmost2o ([#449](https://github.com/otherworld-dev/Budget/issues/449))
+
 ## [3.1.0] - 2026-10-21
 
 ### Added

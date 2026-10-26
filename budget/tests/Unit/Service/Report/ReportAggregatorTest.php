@@ -113,6 +113,56 @@ class ReportAggregatorTest extends TestCase {
 		$this->assertEmpty($result['unconvertedCurrencies']);
 	}
 
+	// ===== Period length (#449) =====
+
+	public function testDailyAverageDividesByEveryDateTheRangeIncludes(): void {
+		$this->accountMapper->method('findAll')->willReturn([$this->makeAccount(1, 'Checking', 'checking', 0.0, 'AUD')]);
+		$this->transactionMapper->method('getAccountSummaries')->willReturn([
+			1 => ['income' => 0, 'expenses' => 2587.34, 'count' => 30],
+		]);
+		$this->transactionMapper->method('getTransferTotals')->willReturn(['income' => 0, 'expenses' => 0]);
+		$this->setupDefaultMocks();
+		$this->conversionService->method('getBaseCurrency')->willReturn('AUD');
+		$this->conversionService->method('needsConversion')->willReturn(false);
+
+		$result = $this->aggregator->generateSummary('user1', null, '2026-09-01', '2026-09-30');
+
+		$this->assertSame(30, $result['period']['days']);
+		$this->assertEqualsWithDelta(86.2447, $result['totals']['averageDaily']['expenses'], 0.0001);
+	}
+
+	/**
+	 * @dataProvider inclusiveDaysProvider
+	 */
+	public function testInclusiveDays(string $start, string $end, int $expected): void {
+		$this->assertSame($expected, ReportAggregator::inclusiveDays($start, $end));
+	}
+
+	public static function inclusiveDaysProvider(): array {
+		return [
+			'full month' => ['2026-09-01', '2026-09-30', 30],
+			'single day' => ['2026-09-15', '2026-09-15', 1],
+			'across a month' => ['2026-01-30', '2026-02-02', 4],
+			'across a year' => ['2025-12-30', '2026-01-02', 4],
+			'leap February' => ['2028-02-01', '2028-02-29', 29],
+			'spring forward' => ['2026-03-28', '2026-03-30', 3],
+			'fall back' => ['2026-10-24', '2026-10-26', 3],
+			'datetime ends' => ['2026-09-01 00:00:00', '2026-09-30 23:59:59', 30],
+			'reversed' => ['2026-09-30', '2026-09-01', 0],
+		];
+	}
+
+	public function testInclusiveDaysIgnoresTheServerTimezone(): void {
+		$previous = date_default_timezone_get();
+		date_default_timezone_set('Australia/Sydney');
+		try {
+			// AEST to AEDT on 4 October 2026
+			$this->assertSame(31, ReportAggregator::inclusiveDays('2026-10-01', '2026-10-31'));
+		} finally {
+			date_default_timezone_set($previous);
+		}
+	}
+
 	// ===== Multi-currency conversion =====
 
 	public function testMultiCurrencyConversion(): void {
