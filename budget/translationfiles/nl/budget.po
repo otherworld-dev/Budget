@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-10-26 12:22+0000\n"
+"POT-Creation-Date: 2026-10-26 12:45+0000\n"
 "PO-Revision-Date: 2026-09-17 01:50+0000\n"
 "Last-Translator: GitHub webhook <noreply-webhook-github@weblate.org>\n"
 "Language-Team: Dutch <https://hosted.weblate.org/projects/nextcloud-budget/"
@@ -1624,10 +1624,6 @@ msgstr ""
 
 #: /app/lib/Controller/ImportController.php:353
 msgid "Failed to validate file"
-msgstr ""
-
-#: /app/lib/Controller/ImportController.php:375
-msgid "Failed to execute import"
 msgstr ""
 
 #: /app/lib/Controller/ImportFolderController.php:45
@@ -4180,42 +4176,42 @@ msgstr ""
 msgid "Failed to process upload: %1$s"
 msgstr ""
 
-#: /app/lib/Service/ImportService.php:427
-#: /app/lib/Service/ImportService.php:436
+#: /app/lib/Service/ImportService.php:417
+#: /app/lib/Service/ImportService.php:426
 msgid "Import file not found"
 msgstr ""
 
-#: /app/lib/Service/ImportService.php:1533
-#: /app/lib/Service/ImportService.php:2167
+#: /app/lib/Service/ImportService.php:1523
+#: /app/lib/Service/ImportService.php:2157
 msgid "Account ID is required for single-account imports"
 msgstr ""
 
-#: /app/lib/Service/ImportService.php:1637
-#: /app/lib/Service/ImportService.php:2272
+#: /app/lib/Service/ImportService.php:1627
+#: /app/lib/Service/ImportService.php:2262
 msgid "This row has no account, and no account was chosen for the import"
 msgstr ""
 
-#: /app/lib/Service/ImportService.php:1988
+#: /app/lib/Service/ImportService.php:1978
 #, php-format
 msgid "Destination account %1$s not found"
 msgstr ""
 
-#: /app/lib/Service/ImportService.php:2092
+#: /app/lib/Service/ImportService.php:2082
 #, php-format
 msgid "Failed to recalculate balance for account %1$s"
 msgstr ""
 
-#: /app/lib/Service/ImportService.php:2273
+#: /app/lib/Service/ImportService.php:2263
 #, php-format
 msgid "Could not resolve account: %1$s"
 msgstr ""
 
-#: /app/lib/Service/ImportService.php:3183
+#: /app/lib/Service/ImportService.php:3173
 #, php-format
 msgid "The %1$s format reads CSV files only"
 msgstr ""
 
-#: /app/lib/Service/ImportService.php:3207
+#: /app/lib/Service/ImportService.php:3197
 #, php-format
 msgid "This file does not look like a %1$s export. Columns missing: %2$s"
 msgstr ""

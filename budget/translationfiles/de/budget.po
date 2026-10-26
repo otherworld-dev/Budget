@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-10-26 12:22+0000\n"
+"POT-Creation-Date: 2026-10-26 12:45+0000\n"
 "PO-Revision-Date: 2026-10-26 12:28+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
@@ -1691,10 +1691,6 @@ msgstr "Fehler beim Laden der Import-Historie"
 #: /app/lib/Controller/ImportController.php:353
 msgid "Failed to validate file"
 msgstr "Fehler bei der Dateiprüfung"
-
-#: /app/lib/Controller/ImportController.php:375
-msgid "Failed to execute import"
-msgstr "Fehler beim Ausführen des Imports"
 
 #: /app/lib/Controller/ImportFolderController.php:45
 msgid "Failed to load the import folders"
@@ -4367,43 +4363,43 @@ msgstr "%1$s ist eine Datei und kann daher nicht als Ordner verwendet werden."
 msgid "Failed to process upload: %1$s"
 msgstr "Verarbeitung des Uploads %1$s fehlgeschlagen"
 
-#: /app/lib/Service/ImportService.php:427
-#: /app/lib/Service/ImportService.php:436
+#: /app/lib/Service/ImportService.php:417
+#: /app/lib/Service/ImportService.php:426
 msgid "Import file not found"
 msgstr "Importdatei nicht gefunden"
 
-#: /app/lib/Service/ImportService.php:1533
-#: /app/lib/Service/ImportService.php:2167
+#: /app/lib/Service/ImportService.php:1523
+#: /app/lib/Service/ImportService.php:2157
 msgid "Account ID is required for single-account imports"
 msgstr "Eine Konto-ID wird für Einzelkontenimporte benötigt"
 
-#: /app/lib/Service/ImportService.php:1637
-#: /app/lib/Service/ImportService.php:2272
+#: /app/lib/Service/ImportService.php:1627
+#: /app/lib/Service/ImportService.php:2262
 msgid "This row has no account, and no account was chosen for the import"
 msgstr ""
 "Diese Zeile enthält kein Konto und für den Import wurde kein Konto ausgewählt"
 
-#: /app/lib/Service/ImportService.php:1988
+#: /app/lib/Service/ImportService.php:1978
 #, php-format
 msgid "Destination account %1$s not found"
 msgstr "Zielkonto %1$s wurde nicht gefunden"
 
-#: /app/lib/Service/ImportService.php:2092
+#: /app/lib/Service/ImportService.php:2082
 #, php-format
 msgid "Failed to recalculate balance for account %1$s"
 msgstr "Der Kontostand von Konto %1$s konnte nicht neu berechnet werden"
 
-#: /app/lib/Service/ImportService.php:2273
+#: /app/lib/Service/ImportService.php:2263
 #, php-format
 msgid "Could not resolve account: %1$s"
 msgstr "Konto konnte nicht ermittelt werden: %1$s"
 
-#: /app/lib/Service/ImportService.php:3183
+#: /app/lib/Service/ImportService.php:3173
 #, php-format
 msgid "The %1$s format reads CSV files only"
 msgstr "Das Format %1$s unterstützt nur CSV-Dateien"
 
-#: /app/lib/Service/ImportService.php:3207
+#: /app/lib/Service/ImportService.php:3197
 #, php-format
 msgid "This file does not look like a %1$s export. Columns missing: %2$s"
 msgstr "Diese Datei scheint kein %1$s-Export zu sein. Fehlende Spalten: %2$s"
@@ -19795,6 +19791,9 @@ msgid ""
 msgstr ""
 "Die Transaktion wurde gespeichert, aber der Beleg konnte nicht angehängt "
 "werden. Öffne die Transaktion in Budget, um den Beleg hinzuzufügen."
+
+#~ msgid "Failed to execute import"
+#~ msgstr "Fehler beim Ausführen des Imports"
 
 #~ msgid "Skip Duplicate Transactions"
 #~ msgstr "Doppelte Buchungen überspringen"
