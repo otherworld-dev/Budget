@@ -2023,7 +2023,7 @@ style('budget', 'budget-app');
                                 <div class="analytics-card">
                                     <div class="analytics-content">
                                         <div class="analytics-value" id="category-this-month">--</div>
-                                        <div class="analytics-label"><?php p($l->t('This Month')); ?></div>
+                                        <div class="analytics-label" id="category-this-month-label"><?php p($l->t('This Month')); ?></div>
                                     </div>
                                 </div>
                             </div>
@@ -2045,6 +2045,7 @@ style('budget', 'budget-app');
                                     </select>
                                 </div>
                             </div>
+                            <p id="category-chart-note" class="category-chart-note" style="display: none;"></p>
                             <div class="category-chart-container">
                                 <canvas id="category-spending-chart"></canvas>
                             </div>

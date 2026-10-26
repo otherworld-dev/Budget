@@ -895,6 +895,14 @@ export default class CategoriesModule {
 
         const thisMonthEl = document.getElementById('category-this-month');
         if (thisMonthEl) thisMonthEl.textContent = this.formatCurrency(details.thisMonth);
+        // With a budget start day the figure is the running budget period,
+        // which isn't the calendar month (#447).
+        const thisMonthLabelEl = document.getElementById('category-this-month-label');
+        if (thisMonthLabelEl) {
+            thisMonthLabelEl.textContent = this._budgetStartDay() > 1
+                ? t('budget', 'This Period')
+                : t('budget', 'This Month');
+        }
     }
 
     renderRecentTransactions(transactions) {
@@ -984,8 +992,12 @@ export default class CategoriesModule {
         // months. The server keys them by budget month, ending with the one
         // running today.
         const currentMonth = this._currentBudgetMonth();
+        const startDay = this._budgetStartDay();
         const labels = [];
         const amounts = [];
+        // With a budget start day a bar named after a month runs from one
+        // start day to the next, so its tooltip gives the dates (#447).
+        const ranges = [];
         const serverMap = {};
         for (const entry of (monthlySpending || [])) {
             serverMap[entry.month] = entry.total;
@@ -998,6 +1010,15 @@ export default class CategoriesModule {
                 : d.toLocaleDateString(formatters.userLocale(), { month: 'short' });
             labels.push(label);
             amounts.push(serverMap[key] || 0);
+            ranges.push(startDay > 1 ? formatters.budgetMonthRange(key, startDay).label : null);
+        }
+
+        const noteEl = document.getElementById('category-chart-note');
+        if (noteEl) {
+            noteEl.textContent = startDay > 1
+                ? t('budget', 'Each bar is a budget month starting on day {day}, your Budget Cycle Start Day in Settings.', { day: startDay })
+                : '';
+            noteEl.style.display = startDay > 1 ? '' : 'none';
         }
 
         const chartColor = categoryColor || 'rgba(54, 162, 235, 0.7)';
@@ -1047,6 +1068,7 @@ export default class CategoriesModule {
                     legend: { display: budget > 0, position: 'top', labels: { usePointStyle: true, padding: 10 } },
                     tooltip: {
                         callbacks: {
+                            title: (items) => (items.length && ranges[items[0].dataIndex]) || (items.length ? items[0].label : ''),
                             label: (context) => `${context.dataset.label}: ${this.formatCurrency(context.raw)}`
                         }
                     }

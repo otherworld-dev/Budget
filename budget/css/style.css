@@ -6879,6 +6879,12 @@ button.danger:hover {
 .category-chart-header h5 {
     margin: 0;
 }
+/* Says the bars are budget months when a budget start day is set (#447) */
+.category-chart-note {
+    margin: -8px 0 12px;
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+}
 .category-chart-controls select {
     padding: 4px 8px;
     font-size: 12px;

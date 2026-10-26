@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Monero (XMR).** XMR is in the currency list for accounts, with its rate updated daily from CoinGecko like the other cryptocurrencies, so XMR balances convert to your base currency without a manual rate. Amounts are kept to 8 decimal places. ([#445](https://github.com/otherworld-dev/Budget/issues/445))
 
 ### Changed
+- **Category Details says when its bars are budget months.** With a **Budget Cycle Start Day** set, each bar of **Monthly Spending** covers a budget month, so with the 25th the October bar runs from 25 September to 24 October, but nothing said so and a September purchase seemed to land in the wrong month. A line under the chart now names the start day, hovering a bar shows its dates, and **This Month** reads **This Period** (#447).
 - **The savings goal form explains linked tags.** A line under **Linked Tag** says how tagged transactions, bills and transfers count: money in adds to the goal, money out takes it away, a transfer between your accounts counts once on the savings side, and a linked account limits it to that account. Reported by @TerjeTM ([#438](https://github.com/otherworld-dev/Budget/issues/438))
 
 ### Fixed
