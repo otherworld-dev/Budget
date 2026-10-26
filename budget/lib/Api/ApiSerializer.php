@@ -197,6 +197,10 @@ final class ApiSerializer {
 				static fn (array $item) => [
 					'description' => (string)$item['description'],
 					'amount' => (string)$item['amount'],
+					// Per item, from the user's own rules (#444); null when
+					// no rule matched. Additive to v1.
+					'suggested_category_id' => $item['suggestedCategoryId'] ?? null,
+					'suggested_category_name' => $item['suggestedCategoryName'] ?? null,
 				],
 				$draft['lineItems'] ?? []
 			)),

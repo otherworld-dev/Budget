@@ -581,7 +581,12 @@ class ApiSerializerTest extends TestCase {
 			'subtotal' => '8.13',
 			'tax' => '1.62',
 			'discount' => '0.75',
-			'lineItems' => [['description' => 'Milk 2L', 'amount' => '1.65']],
+			'lineItems' => [[
+				'description' => 'Milk 2L',
+				'amount' => '1.65',
+				'suggestedCategoryId' => 7,
+				'suggestedCategoryName' => 'Dairy',
+			]],
 			'suggestedCategoryId' => 42,
 			'suggestedCategoryName' => 'Groceries',
 			'warnings' => ['line-items-sum-mismatch'],
@@ -597,7 +602,12 @@ class ApiSerializerTest extends TestCase {
 			'currency' => 'GBP',
 			'suggested_category_id' => 42,
 			'suggested_category_name' => 'Groceries',
-			'line_items' => [['description' => 'Milk 2L', 'amount' => '1.65']],
+			'line_items' => [[
+				'description' => 'Milk 2L',
+				'amount' => '1.65',
+				'suggested_category_id' => 7,
+				'suggested_category_name' => 'Dairy',
+			]],
 			'warnings' => ['line-items-sum-mismatch'],
 		], $result);
 	}
@@ -609,7 +619,12 @@ class ApiSerializerTest extends TestCase {
 
 		// json_encode must produce an array of {description, amount} objects
 		// with money as strings, like everything else in v1.
-		$this->assertSame([['description' => 'Milk', 'amount' => '1.65']], $result['line_items']);
+		$this->assertSame([[
+			'description' => 'Milk',
+			'amount' => '1.65',
+			'suggested_category_id' => null,
+			'suggested_category_name' => null,
+		]], $result['line_items']);
 	}
 
 	// ── map ─────────────────────────────────────────────────────────
