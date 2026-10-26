@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-10-26 12:45+0000\n"
-"PO-Revision-Date: 2026-10-26 01:22+0000\n"
+"PO-Revision-Date: 2026-10-27 01:02+0000\n"
 "Last-Translator: Christophe <capersys@users.noreply.hosted.weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/fr/>\n"
@@ -8270,10 +8270,8 @@ msgid "Stable"
 msgstr "Stable"
 
 #: /app/src/modules/categories/CategoriesModule.js:903
-#, fuzzy
-#| msgid "Period"
 msgid "This Period"
-msgstr "Période"
+msgstr "Cette période"
 
 #: /app/src/modules/categories/CategoriesModule.js:904
 #: /app/templates/index.php:2026 /app/templates/index.php:3212
@@ -8307,6 +8305,8 @@ msgid ""
 "Each bar is a budget month starting on day {day}, your Budget Cycle Start "
 "Day in Settings."
 msgstr ""
+"Chaque barre correspond à un mois budgétaire commençant le jour {day}, c'est-"
+"à-dire le jour de début de votre cycle budgétaire défini dans les paramètres."
 
 #: /app/src/modules/categories/CategoriesModule.js:1029
 msgid "Spending"
@@ -19365,7 +19365,7 @@ msgstr ""
 
 #: /app/templates/index.php:7141
 msgid "No match? Create the other side"
-msgstr "Aucune correspondance ? Créer l'autre côté"
+msgstr "Aucune correspondance ? Créer la contre partie"
 
 #: /app/templates/index.php:7142
 msgid ""
