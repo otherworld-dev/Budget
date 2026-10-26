@@ -4,6 +4,7 @@
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import { once } from '../../utils/submitGuard.js';
 import { keepRowFocus } from '../../utils/rowFocus.js';
+import { makeAmountInput } from '../../utils/amountInput.js';
 import * as formatters from '../../utils/formatters.js';
 import * as dom from '../../utils/dom.js';
 import { billRowState, oneTimeDateUnconfirmed } from '../../utils/billDates.js';
@@ -1000,9 +1001,7 @@ export default class BillsModule {
         row.style.cssText = 'display: flex; gap: 8px; align-items: center; margin-bottom: 6px;';
 
         // Amount input
-        const amountInput = document.createElement('input');
-        amountInput.type = 'number';
-        amountInput.step = '0.01';
+        const amountInput = makeAmountInput(document.createElement('input'));
         amountInput.min = '0';
         amountInput.placeholder = t('budget', 'Amount');
         amountInput.className = 'bill-split-amount';

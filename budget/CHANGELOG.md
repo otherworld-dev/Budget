@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The savings goal form explains linked tags.** A line under **Linked Tag** says how tagged transactions, bills and transfers count: money in adds to the goal, money out takes it away, a transfer between your accounts counts once on the savings side, and a linked account limits it to that account. Reported by @TerjeTM ([#438](https://github.com/otherworld-dev/Budget/issues/438))
 
 ### Fixed
+- **Amount boxes take a decimal comma.** `12,50` now works in every amount box, including the Transactions amount filter, on any browser; Safari used to treat it as empty (#442). Thousands separators work in either style (`1.250,50` or `1,250.50`), and the box tidies what you type into a plain `1250.50` as you go.
 - **The API says why a receipt couldn't be attached.** A photo sent with a new transaction that couldn't be saved only came back as a general `photo_error`. It now also carries a `photo_error_code`, and `POST /transactions/{id}/receipts` answers with an `error_code` (`403` when Files refuses the write). The usual cause is an app password with **Allow filesystem access** switched off in Settings → Security: it can record transactions but can't save files, and the error now says so. Reported by @SGiersch ([#437](https://github.com/otherworld-dev/Budget/issues/437))
 
 ## [3.1.0] - 2026-10-21

@@ -2577,13 +2577,12 @@ export default class CategoriesModule {
                                 ${budgetLocked ? 'disabled' : ''}>&#8635;</button>` : ''}
                     </div>
                     <div class="budget-input-wrapper" data-label="${t('budget', 'Budget')}">
-                        <input type="number"
+                        <input type="text" inputmode="decimal" data-amount
                                class="budget-input ${isAutoBudget ? 'auto-budget' : ''}"
                                aria-label="${t('budget', 'Budget for {category}', { category: category.name })}"
                                data-category-id="${category.id}"
                                value="${manualBudgetAmount ? Math.round(manualBudgetAmount * 100) / 100 : ''}"
                                placeholder="${isAutoBudget ? Math.round(recurringBudgetAmount * 100) / 100 : '0.00'}"
-                               step="0.01"
                                min="0"
                                ${lockedAttrs}>
                         ${isAutoBudget ? `<span class="budget-auto-hint" title="${t('budget', 'Auto-calculated from recurring bills/income. Enter a value to override.')}">${t('budget', 'auto')}</span>` : ''}

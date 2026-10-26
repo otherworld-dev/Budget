@@ -26,6 +26,7 @@ import { chooseBill, linkableBills } from '../../utils/billLinkDialog.js';
 import { floatCellPopup } from '../../utils/cellPopup.js';
 import flatpickr from 'flatpickr';
 import { translate as t, translatePlural as n } from '@nextcloud/l10n';
+import { makeAmountInput } from '../../utils/amountInput.js';
 
 /** Width at which the transactions table turns into cards (shared with the account register). */
 const PHONE_CARD_QUERY = dom.PHONE_CARD_QUERY;
@@ -3373,7 +3374,7 @@ export default class TransactionsModule {
         row.innerHTML = `
             <div class="split-field split-amount-field">
                 <label>${t('budget', 'Amount')}</label>
-                <input aria-label="${t('budget', 'Amount')}" type="number" class="inline-split-amount" step="0.01" ${minAttr} placeholder="0.00"
+                <input aria-label="${t('budget', 'Amount')}" type="text" inputmode="decimal" data-amount class="inline-split-amount" ${minAttr} placeholder="0.00"
                        value="${existingSplit ? existingSplit.amount : ''}">
             </div>
             <div class="split-field split-category-field">
@@ -4114,7 +4115,7 @@ export default class TransactionsModule {
         row.innerHTML = `
             <div class="split-field split-amount-field">
                 <label>${t('budget', 'Amount')}</label>
-                <input aria-label="${t('budget', 'Amount')}" type="number" class="split-amount" step="0.01" min="0.01"
+                <input aria-label="${t('budget', 'Amount')}" type="text" inputmode="decimal" data-amount class="split-amount" min="0.01"
                        value="${split ? split.amount : ''}" placeholder="0.00" required>
             </div>
             <div class="split-field split-category-field">
@@ -4901,11 +4902,9 @@ export default class TransactionsModule {
     }
 
     createAmountEditor(cell, transaction) {
-        const input = document.createElement('input');
-        input.type = 'number';
+        const input = makeAmountInput(document.createElement('input'));
         input.className = 'inline-edit-input';
         input.value = transaction.type === 'debit' ? -Math.abs(transaction.amount) : Math.abs(transaction.amount);
-        input.step = '0.01';
         input.dataset.type = transaction.type;
 
         this.setupEditorEvents(input, cell, 'amount');

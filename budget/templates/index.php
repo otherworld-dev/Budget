@@ -1049,7 +1049,7 @@ style('budget', 'budget-app');
                                 </div>
                                 <div class="form-group-inline">
                                     <label for="quick-add-amount"><?php p($l->t('Amount')); ?></label>
-                                    <input type="number" id="quick-add-amount" step="0.01" required min="0" placeholder="0.00">
+                                    <input type="text" inputmode="decimal" data-amount id="quick-add-amount" required min="0" placeholder="0.00">
                                 </div>
                                 <div class="form-group-inline">
                                     <label for="quick-add-description"><?php p($l->t('Description')); ?></label>
@@ -1499,12 +1499,12 @@ style('budget', 'budget-app');
 
                                 <div class="filter-group">
                                     <label for="account-filter-amount-min"><?php p($l->t('Min Amount')); ?></label>
-                                    <input type="number" id="account-filter-amount-min" step="0.01" placeholder="0.00">
+                                    <input type="text" inputmode="decimal" data-amount id="account-filter-amount-min" placeholder="0.00">
                                 </div>
 
                                 <div class="filter-group">
                                     <label for="account-filter-amount-max"><?php p($l->t('Max Amount')); ?></label>
-                                    <input type="number" id="account-filter-amount-max" step="0.01" placeholder="1000.00">
+                                    <input type="text" inputmode="decimal" data-amount id="account-filter-amount-max" placeholder="1000.00">
                                 </div>
 
                                 <div class="filter-group full-width">
@@ -1684,12 +1684,12 @@ style('budget', 'budget-app');
 
                         <div class="filter-group">
                             <label for="filter-amount-min"><?php p($l->t('Min Amount')); ?></label>
-                            <input type="number" id="filter-amount-min" step="0.01" placeholder="0.00">
+                            <input type="text" inputmode="decimal" data-amount id="filter-amount-min" placeholder="0.00">
                         </div>
 
                         <div class="filter-group">
                             <label for="filter-amount-max"><?php p($l->t('Max Amount')); ?></label>
-                            <input type="number" id="filter-amount-max" step="0.01" placeholder="1000.00">
+                            <input type="text" inputmode="decimal" data-amount id="filter-amount-max" placeholder="1000.00">
                         </div>
 
                         <div class="filter-group full-width">
@@ -1745,7 +1745,7 @@ style('budget', 'budget-app');
                         </div>
                         <div class="form-group">
                             <label for="reconcile-statement-balance"><?php p($l->t('Statement Balance')); ?></label>
-                            <input type="number" id="reconcile-statement-balance" step="0.01" placeholder="0.00" required>
+                            <input type="text" inputmode="decimal" data-amount id="reconcile-statement-balance" placeholder="0.00" required>
                         </div>
                         <div class="form-group">
                             <label for="reconcile-statement-date"><?php p($l->t('Statement Date')); ?></label>
@@ -5269,7 +5269,7 @@ style('budget', 'budget-app');
             </div>
             <div class="form-group">
                 <label for="project-total"><?php p($l->t('Total budget')); ?> <span class="required">*</span></label>
-                <input type="number" id="project-total" step="0.01" min="0" inputmode="decimal" required>
+                <input type="text" inputmode="decimal" data-amount id="project-total" min="0" required>
             </div>
             <div class="project-dates">
                 <div class="form-group">
@@ -5319,12 +5319,12 @@ style('budget', 'budget-app');
 
                     <div class="form-group">
                     <label for="goal-target"><?php p($l->t('Target Amount')); ?><span class="required">*</span></label>
-                    <input type="number" id="goal-target" name="targetAmount" min="0" step="0.01" required placeholder="0.00">
+                    <input type="text" inputmode="decimal" data-amount id="goal-target" name="targetAmount" min="0" required placeholder="0.00">
                     </div>
 
                     <div class="form-group">
                     <label for="goal-current"><?php p($l->t('Current Amount')); ?></label>
-                    <input type="number" id="goal-current" name="currentAmount" min="0" step="0.01" value="0" placeholder="0.00">
+                    <input type="text" inputmode="decimal" data-amount id="goal-current" name="currentAmount" min="0" value="0" placeholder="0.00">
                     </div>
 
                     <div class="form-group">
@@ -5392,7 +5392,7 @@ style('budget', 'budget-app');
         <form id="add-to-goal-form" class="modal-form">
             <div class="form-group">
                 <label for="add-amount"><?php p($l->t('Amount to Add')); ?></label>
-                <input type="number" id="add-amount" name="amount" min="0.01" step="0.01" required placeholder="0.00">
+                <input type="text" inputmode="decimal" data-amount id="add-amount" name="amount" min="0.01" required placeholder="0.00">
             </div>
             <input type="hidden" id="add-to-goal-id" name="goalId" value="">
             <div class="modal-actions">
@@ -5462,19 +5462,19 @@ style('budget', 'budget-app');
 
                     <div class="form-group">
                     <label for="pension-balance"><?php p($l->t('Current Balance')); ?></label>
-                    <input type="number" id="pension-balance" name="currentBalance" min="0" step="0.01" placeholder="0.00">
+                    <input type="text" inputmode="decimal" data-amount id="pension-balance" name="currentBalance" min="0" placeholder="0.00">
                     <small class="form-text"><?php p($l->t('Current total value of the pension pot')); ?></small>
                     </div>
 
                     <div class="form-group">
                     <label for="pension-monthly"><?php p($l->t('Monthly Contribution')); ?></label>
-                    <input type="number" id="pension-monthly" name="monthlyContribution" min="0" step="0.01" placeholder="0.00">
+                    <input type="text" inputmode="decimal" data-amount id="pension-monthly" name="monthlyContribution" min="0" placeholder="0.00">
                     <small class="form-text"><?php p($l->t('Combined employee and employer contribution')); ?></small>
                     </div>
 
                     <div class="form-group">
                     <label for="pension-return"><?php p($l->t('Expected Annual Return (%%)')); ?></label>
-                    <input type="number" id="pension-return" name="expectedReturnRate" min="0" max="100" step="0.1" placeholder="5.0">
+                    <input type="text" inputmode="decimal" data-amount id="pension-return" name="expectedReturnRate" min="0" max="100" placeholder="5.0">
                     <small class="form-text"><?php p($l->t('Estimated yearly growth rate for projections')); ?></small>
                     </div>
 
@@ -5486,7 +5486,7 @@ style('budget', 'budget-app');
 
                     <div class="form-group">
                     <label for="pension-target"><?php p($l->t('Target Pot at Retirement')); ?></label>
-                    <input type="number" id="pension-target" name="projectionTarget" min="0" step="0.01" placeholder="500000.00">
+                    <input type="text" inputmode="decimal" data-amount id="pension-target" name="projectionTarget" min="0" placeholder="500000.00">
                     <small class="form-text"><?php p($l->t('Goal pot value used for the projection progress bar (leave blank for the default)')); ?></small>
                     </div>
                   </div>
@@ -5495,13 +5495,13 @@ style('budget', 'budget-app');
 
                     <div class="form-group">
                     <label for="pension-income"><?php p($l->t('Projected Annual Income')); ?></label>
-                    <input type="number" id="pension-income" name="annualIncome" min="0" step="0.01" placeholder="0.00">
+                    <input type="text" inputmode="decimal" data-amount id="pension-income" name="annualIncome" min="0" placeholder="0.00">
                     <small class="form-text"><?php p($l->t('Expected yearly income at retirement')); ?></small>
                     </div>
 
                     <div class="form-group">
                     <label for="pension-transfer"><?php p($l->t('Transfer Value')); ?></label>
-                    <input type="number" id="pension-transfer" name="transferValue" min="0" step="0.01" placeholder="0.00">
+                    <input type="text" inputmode="decimal" data-amount id="pension-transfer" name="transferValue" min="0" placeholder="0.00">
                     <small class="form-text"><?php p($l->t('Cash equivalent transfer value (CETV) if known')); ?></small>
                     </div>
 
@@ -5532,7 +5532,7 @@ style('budget', 'budget-app');
         <form id="pension-balance-form" class="modal-form">
             <div class="form-group">
                 <label for="snapshot-balance"><?php p($l->t('Current Balance')); ?> <span class="required">*</span></label>
-                <input type="number" id="snapshot-balance" name="balance" min="0" step="0.01" required placeholder="0.00">
+                <input type="text" inputmode="decimal" data-amount id="snapshot-balance" name="balance" min="0" required placeholder="0.00">
             </div>
             <div class="form-group">
                 <label for="snapshot-date"><?php p($l->t('Date')); ?> <span class="required">*</span></label>
@@ -5557,7 +5557,7 @@ style('budget', 'budget-app');
         <form id="pension-contribution-form" class="modal-form">
             <div class="form-group">
                 <label for="contribution-amount"><?php p($l->t('Amount')); ?> <span class="required">*</span></label>
-                <input type="number" id="contribution-amount" name="amount" min="0.01" step="0.01" required placeholder="0.00">
+                <input type="text" inputmode="decimal" data-amount id="contribution-amount" name="amount" min="0.01" required placeholder="0.00">
             </div>
             <div class="form-group">
                 <label for="contribution-date"><?php p($l->t('Date')); ?> <span class="required">*</span></label>
@@ -5593,7 +5593,7 @@ style('budget', 'budget-app');
         <form id="pension-withdrawal-form" class="modal-form">
             <div class="form-group">
                 <label for="withdrawal-amount"><?php p($l->t('Amount')); ?> <span class="required">*</span></label>
-                <input type="number" id="withdrawal-amount" name="amount" min="0.01" step="0.01" required placeholder="0.00">
+                <input type="text" inputmode="decimal" data-amount id="withdrawal-amount" name="amount" min="0.01" required placeholder="0.00">
             </div>
             <div class="form-group">
                 <label for="withdrawal-date"><?php p($l->t('Date')); ?> <span class="required">*</span></label>
@@ -5629,7 +5629,7 @@ style('budget', 'budget-app');
         <form id="pension-recurring-form" class="modal-form">
             <div class="form-group">
                 <label for="recurring-amount"><?php p($l->t('Amount')); ?> <span class="required">*</span></label>
-                <input type="number" id="recurring-amount" name="amount" min="0.01" step="0.01" required placeholder="0.00">
+                <input type="text" inputmode="decimal" data-amount id="recurring-amount" name="amount" min="0.01" required placeholder="0.00">
             </div>
             <div class="form-group">
                 <label for="recurring-frequency"><?php p($l->t('Frequency')); ?> <span class="required">*</span></label>
@@ -5715,7 +5715,7 @@ style('budget', 'budget-app');
                     <h4><?php p($l->t('Valuation')); ?></h4>
                     <div class="form-group">
                     <label for="asset-current-value"><?php p($l->t('Current Value')); ?></label>
-                    <input type="number" id="asset-current-value" name="currentValue" step="0.01" min="0" placeholder="0.00">
+                    <input type="text" inputmode="decimal" data-amount id="asset-current-value" name="currentValue" min="0" placeholder="0.00">
                     <small class="form-text"><?php p($l->t("Today's estimated market value")); ?></small>
                     </div>
 
@@ -5728,7 +5728,7 @@ style('budget', 'budget-app');
 
                     <div class="form-group">
                     <label for="asset-purchase-price"><?php p($l->t('Purchase Price')); ?></label>
-                    <input type="number" id="asset-purchase-price" name="purchasePrice" step="0.01" min="0" placeholder="0.00">
+                    <input type="text" inputmode="decimal" data-amount id="asset-purchase-price" name="purchasePrice" min="0" placeholder="0.00">
                     <small class="form-text"><?php p($l->t('Original acquisition cost')); ?></small>
                     </div>
 
@@ -5741,7 +5741,7 @@ style('budget', 'budget-app');
                     <h4><?php p($l->t('Growth / Depreciation')); ?></h4>
                     <div class="form-group">
                     <label for="asset-annual-change-rate"><?php p($l->t('Annual Change Rate (%%)')); ?></label>
-                    <input type="number" id="asset-annual-change-rate" name="annualChangeRate" step="0.1" placeholder="<?php p($l->t('e.g., 3.5')); ?>">
+                    <input type="text" inputmode="decimal" data-amount id="asset-annual-change-rate" name="annualChangeRate" placeholder="<?php p($l->t('e.g., 3.5')); ?>">
                     <small class="form-text"><?php p($l->t('Positive for appreciation (e.g., 3.5), negative for depreciation (e.g., -15). Used for value projections.')); ?></small>
                     </div>
                   </div>
@@ -5779,7 +5779,7 @@ style('budget', 'budget-app');
                 </div>
                 <div class="form-group">
                     <label for="asset-value-amount"><?php p($l->t('Value')); ?> <span class="required">*</span></label>
-                    <input type="number" id="asset-value-amount" name="value" step="0.01" min="0" required placeholder="0.00">
+                    <input type="text" inputmode="decimal" data-amount id="asset-value-amount" name="value" min="0" required placeholder="0.00">
                 </div>
                 <input type="hidden" id="asset-value-asset-id" name="assetId" value="">
             </div>
@@ -5822,13 +5822,13 @@ style('budget', 'budget-app');
                     <h4><?php p($l->t('Payments')); ?></h4>
                     <div class="form-group">
                     <label for="scenario-extra-payment"><?php p($l->t('Extra Monthly Payment')); ?></label>
-                    <input type="number" id="scenario-extra-payment" min="0" step="0.01" value="0">
+                    <input type="text" inputmode="decimal" data-amount id="scenario-extra-payment" min="0" value="0">
                     <small class="form-text"><?php p($l->t('Additional amount paid each month beyond minimums')); ?></small>
                     </div>
 
                     <div class="form-group">
                     <label for="scenario-lump-sum"><?php p($l->t('One-Time Lump Sum')); ?></label>
-                    <input type="number" id="scenario-lump-sum" min="0" step="0.01" value="0">
+                    <input type="text" inputmode="decimal" data-amount id="scenario-lump-sum" min="0" value="0">
                     <small class="form-text"><?php p($l->t('A single extra payment applied once')); ?></small>
                     </div>
 
@@ -5883,7 +5883,7 @@ style('budget', 'budget-app');
             <p id="manual-rate-currency" class="manual-rate-currency-name"></p>
             <div class="manual-rate-equation">
                 <span id="manual-rate-base-label" class="manual-rate-eq-label"></span>
-                <input type="number" id="manual-rate-value" step="any" min="0" class="manual-rate-eq-input" placeholder="0.00" aria-labelledby="manual-rate-modal-title manual-rate-currency" />
+                <input type="text" inputmode="decimal" data-amount id="manual-rate-value" min="0" class="manual-rate-eq-input" placeholder="0.00" aria-labelledby="manual-rate-modal-title manual-rate-currency" />
                 <span id="manual-rate-target-label" class="manual-rate-eq-label"></span>
             </div>
             <input type="hidden" id="manual-rate-currency-input" />
@@ -5928,11 +5928,11 @@ style('budget', 'budget-app');
                     </div>
                     <div class="form-group">
                         <label for="transaction-amount"><span id="transaction-amount-label"><?php p($l->t('Amount')); ?></span> <span class="required">*</span></label>
-                        <input type="number" id="transaction-amount" step="0.01" required min="0" placeholder="0.00">
+                        <input type="text" inputmode="decimal" data-amount id="transaction-amount" required min="0" placeholder="0.00">
                     </div>
                     <div id="transfer-dest-amount-wrapper" class="form-group" style="display: none;">
                         <label for="transfer-dest-amount"><span id="transfer-dest-amount-label"><?php p($l->t('Destination Amount')); ?></span></label>
-                        <input type="number" id="transfer-dest-amount" step="0.01" min="0" aria-describedby="transfer-dest-amount-help">
+                        <input type="text" inputmode="decimal" data-amount id="transfer-dest-amount" min="0" aria-describedby="transfer-dest-amount-help">
                         <small id="transfer-dest-amount-help" class="form-text"><?php p($l->t('Auto-filled from the exchange rate, editable')); ?></small>
                     </div>
                     <div class="form-group">
@@ -6098,7 +6098,7 @@ style('budget', 'budget-app');
 
                     <div class="form-group" id="opening-balance-group" style="display: none;">
                         <label for="account-opening-balance" id="account-opening-balance-label"><?php p($l->t('Opening Balance')); ?></label>
-                        <input type="number" id="account-opening-balance" step="0.01" aria-describedby="account-opening-balance-help">
+                        <input type="text" inputmode="decimal" data-amount id="account-opening-balance" aria-describedby="account-opening-balance-help">
                         <small id="account-opening-balance-help" class="form-text"><?php p($l->t('The starting balance when this account was created')); ?></small>
                     </div>
 
@@ -6113,7 +6113,7 @@ style('budget', 'budget-app');
 
                     <div class="form-group">
                         <label for="account-balance" id="account-balance-label"><?php p($l->t('Starting Balance')); ?></label>
-                        <input type="number" id="account-balance" step="0.01" aria-describedby="account-balance-help">
+                        <input type="text" inputmode="decimal" data-amount id="account-balance" aria-describedby="account-balance-help">
                         <small id="account-balance-help" class="form-text"><?php p($l->t('The balance this account starts with')); ?></small>
                     </div>
 
@@ -6186,7 +6186,7 @@ style('budget', 'budget-app');
                     <h4><?php p($l->t('Rates & limits')); ?></h4>
                         <div class="form-group conditional" id="interest-rate-group">
                             <label for="account-interest-rate"><?php p($l->t('Interest Rate (%%)')); ?></label>
-                            <input type="number" id="account-interest-rate" step="0.0001" min="0" max="100">
+                            <input type="text" inputmode="decimal" data-amount id="account-interest-rate" min="0" max="100">
                         </div>
 
                         <div class="form-group conditional" id="compounding-frequency-group">
@@ -6201,17 +6201,17 @@ style('budget', 'budget-app');
 
                         <div class="form-group conditional" id="credit-limit-group">
                             <label for="account-credit-limit"><?php p($l->t('Credit Limit')); ?></label>
-                            <input type="number" id="account-credit-limit" step="0.01" min="0">
+                            <input type="text" inputmode="decimal" data-amount id="account-credit-limit" min="0">
                         </div>
 
                         <div class="form-group conditional" id="overdraft-limit-group">
                             <label for="account-overdraft-limit"><?php p($l->t('Overdraft Limit')); ?></label>
-                            <input type="number" id="account-overdraft-limit" step="0.01" min="0">
+                            <input type="text" inputmode="decimal" data-amount id="account-overdraft-limit" min="0">
                         </div>
 
                         <div class="form-group conditional" id="minimum-payment-group">
                             <label for="account-minimum-payment"><?php p($l->t('Minimum Payment')); ?></label>
-                            <input type="number" id="account-minimum-payment" step="0.01" min="0" aria-describedby="account-minimum-payment-help">
+                            <input type="text" inputmode="decimal" data-amount id="account-minimum-payment" min="0" aria-describedby="account-minimum-payment-help">
                             <small id="account-minimum-payment-help" class="form-text"><?php p($l->t('Used for debt payoff calculations')); ?></small>
                         </div>
 
@@ -6286,7 +6286,7 @@ style('budget', 'budget-app');
 
                     <div class="form-group">
                     <label for="bill-amount"><?php p($l->t('Amount')); ?> <span class="required">*</span></label>
-                    <input type="number" id="bill-amount" step="0.01" required min="0" aria-describedby="bill-amount-help" placeholder="0.00">
+                    <input type="text" inputmode="decimal" data-amount id="bill-amount" required min="0" aria-describedby="bill-amount-help" placeholder="0.00">
                     <small id="bill-amount-help" class="form-text"><?php p($l->t('Expected bill amount')); ?></small>
                     </div>
 
@@ -6771,7 +6771,7 @@ style('budget', 'budget-app');
 
             <div class="form-group">
                 <label for="income-amount"><?php p($l->t('Expected Amount')); ?> <span class="required">*</span></label>
-                <input type="number" id="income-amount" step="0.01" required min="0" aria-describedby="income-amount-help" placeholder="0.00">
+                <input type="text" inputmode="decimal" data-amount id="income-amount" required min="0" aria-describedby="income-amount-help" placeholder="0.00">
                 <small id="income-amount-help" class="form-text"><?php p($l->t('Expected amount each period')); ?></small>
             </div>
 

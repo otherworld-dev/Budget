@@ -107,6 +107,7 @@ import OnboardingModule from './modules/onboarding/OnboardingModule.js';
 import { renderTransactionRow, transactionMenuActions } from './modules/transactions/transactionRow.js';
 import { refreshBankSyncNav } from './modules/bank-sync/bankSyncStatus.js';
 import { applyTransactionColumnVisibility, wireTransactionColumnToggles } from './utils/transactionColumns.js';
+import { installAmountInputs } from './utils/amountInput.js';
 // The rule editor's styles ship in budget-app.css with the rest, rather than
 // as a stylesheet of their own fetched when the Rules view first opens
 import './modules/rules/components/CriteriaBuilder.css';
@@ -237,6 +238,7 @@ class BudgetApp {
     }
 
     async init() {
+        installAmountInputs();
         this.setupNavigation();
         this.setupEventListeners();
         await this.loadInitialData();
@@ -2978,7 +2980,7 @@ class BudgetApp {
                 return `
                     <div class="scenario-rate-item">
                         <span class="rate-label">${dom.escapeHtml(debt.name)}</span>
-                        <input type="number" class="rate-override-input" data-debt-id="${debt.id}" value="${rate}" min="0" step="0.01" aria-label="${t('budget', 'Interest Rate')}: ${dom.escapeHtml(debt.name)}">
+                        <input type="text" inputmode="decimal" data-amount class="rate-override-input" data-debt-id="${debt.id}" value="${rate}" min="0" aria-label="${t('budget', 'Interest Rate')}: ${dom.escapeHtml(debt.name)}">
                         <span class="rate-suffix">%</span>
                     </div>
                 `;
@@ -3630,7 +3632,7 @@ class BudgetApp {
         row.innerHTML = `
             <div class="split-field split-amount-field">
                 <label>${t('budget', 'Amount')}</label>
-                <input aria-label="${t('budget', 'Amount')}" type="number" class="split-amount" step="0.01" min="0.01"
+                <input aria-label="${t('budget', 'Amount')}" type="text" inputmode="decimal" data-amount class="split-amount" min="0.01"
                        value="${split ? split.amount : ''}" placeholder="0.00" required>
             </div>
             <div class="split-field split-category-field">

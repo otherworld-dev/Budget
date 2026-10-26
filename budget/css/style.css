@@ -3731,6 +3731,7 @@ button.danger:hover {
 
 .reconcile-panel select,
 .reconcile-panel input[type="number"],
+.reconcile-panel input[data-amount],
 .reconcile-panel input[type="date"],
 .reconcile-panel input.flatpickr-input {
     background-color: var(--color-main-background);
@@ -3744,6 +3745,7 @@ button.danger:hover {
 
 .reconcile-panel select:focus,
 .reconcile-panel input[type="number"]:focus,
+.reconcile-panel input[data-amount]:focus,
 .reconcile-panel input[type="date"]:focus,
 .reconcile-panel input.flatpickr-input:focus {
     border-color: var(--color-primary-element);
@@ -4591,7 +4593,8 @@ button.danger:hover {
     width: 130px;
 }
 
-.inline-edit-input[type="number"] {
+.inline-edit-input[type="number"],
+.inline-edit-input[data-amount] {
     width: 100px;
     text-align: right;
 }
@@ -15325,7 +15328,8 @@ button.secondary.compact {
     outline: none;
 }
 
-.split-row input[type="number"] {
+.split-row input[type="number"],
+.split-row input[data-amount] {
     text-align: right;
     font-family: var(--font-mono, monospace);
 }
