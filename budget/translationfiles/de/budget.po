@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-10-22 12:41+0000\n"
-"PO-Revision-Date: 2026-10-23 01:51+0000\n"
+"PO-Revision-Date: 2026-10-26 12:28+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -7549,7 +7549,7 @@ msgstr ""
 #: /app/src/modules/bank-sync/BankSyncModule.js:568
 #: /app/templates/index.php:4901
 msgid "Done"
-msgstr "Fertig"
+msgstr "Erledigt"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:571
 msgid ""
@@ -8634,7 +8634,7 @@ msgstr ""
 #: /app/src/modules/categories/CategoriesModule.js:2589
 #: /app/src/modules/pensions/PensionsModule.js:1109
 msgid "auto"
-msgstr "Auto"
+msgstr "auto"
 
 #: /app/src/modules/categories/CategoriesModule.js:2591
 msgid "{base} − {over} overspent = {available} available"
@@ -11039,7 +11039,7 @@ msgstr "Demnächst"
 
 #: /app/src/modules/projects/ProjectsModule.js:89 /app/templates/index.php:3037
 msgid "Finished"
-msgstr "Abgeschlossen"
+msgstr "Fertig"
 
 #: /app/src/modules/projects/ProjectsModule.js:97
 msgid "From {start}"
@@ -12590,7 +12590,7 @@ msgstr "Einstellungen wurden zurückgesetzt"
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:798
 #: /app/src/modules/transactions/transactionRow.js:112
 msgid "Settled"
-msgstr "Erledigt"
+msgstr "Abgeklärt"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:68
 msgid "Outstanding"
@@ -14704,254 +14704,216 @@ msgstr ""
 "verschoben"
 
 #: /app/src/utils/categoryIcons.js:32
-#, fuzzy
-#| msgid "Tags"
 msgid "Tag"
-msgstr "Schlagwörter"
+msgstr "Schlagwort"
 
 #: /app/src/utils/categoryIcons.js:33
 msgid "Home"
-msgstr ""
+msgstr "Startseite"
 
 #: /app/src/utils/categoryIcons.js:34
-#, fuzzy
-#| msgid "Select receipt"
 msgid "Electricity"
-msgstr "Beleg auswählen"
+msgstr "Strom"
 
 #: /app/src/utils/categoryIcons.js:35
 msgid "Water"
-msgstr ""
+msgstr "Wasser"
 
 #: /app/src/utils/categoryIcons.js:36
-#, fuzzy
-#| msgid "Settings"
 msgid "Heating"
-msgstr "Einstellungen"
+msgstr "Heizung"
 
 #: /app/src/utils/categoryIcons.js:37
-#, fuzzy
-#| msgid "Interest Rate"
 msgid "Internet"
-msgstr "Zinssatz"
+msgstr "Internet"
 
 #: /app/src/utils/categoryIcons.js:38
 msgid "Phone"
-msgstr ""
+msgstr "Telefon"
 
 #: /app/src/utils/categoryIcons.js:39
 msgid "TV"
-msgstr ""
+msgstr "Fernsehen"
 
 #: /app/src/utils/categoryIcons.js:40
-#, fuzzy
-#| msgid "categories"
 msgid "Groceries"
-msgstr "categorien"
+msgstr "Lebensmittel"
 
 #: /app/src/utils/categoryIcons.js:41
 msgid "Food"
-msgstr ""
+msgstr "Essen"
 
 #: /app/src/utils/categoryIcons.js:42
 msgid "Restaurant"
-msgstr ""
+msgstr "Restaurant"
 
 #: /app/src/utils/categoryIcons.js:43
 msgid "Coffee"
-msgstr ""
+msgstr "Kaffee"
 
 #: /app/src/utils/categoryIcons.js:44
 msgid "Drinks"
-msgstr ""
+msgstr "Getränke"
 
 #: /app/src/utils/categoryIcons.js:45
 msgid "Shopping"
-msgstr ""
+msgstr "Einkaufen"
 
 #: /app/src/utils/categoryIcons.js:46
 msgid "Clothing"
-msgstr ""
+msgstr "Kleidung"
 
 #: /app/src/utils/categoryIcons.js:47
 msgid "Haircut"
-msgstr ""
+msgstr "Haarschnitt"
 
 #: /app/src/utils/categoryIcons.js:48
-#, fuzzy
-#| msgid "Clear"
 msgid "Car"
-msgstr "Leeren"
+msgstr "Auto"
 
 #: /app/src/utils/categoryIcons.js:49
 msgid "Fuel"
-msgstr ""
+msgstr "Kraftstoff"
 
 #: /app/src/utils/categoryIcons.js:50
 msgid "Bus"
-msgstr ""
+msgstr "Bus"
 
 #: /app/src/utils/categoryIcons.js:51
 msgid "Train"
-msgstr ""
+msgstr "Zug"
 
 #: /app/src/utils/categoryIcons.js:52
 msgid "Bike"
-msgstr ""
+msgstr "Fahrrad"
 
 #: /app/src/utils/categoryIcons.js:53
 msgid "Travel"
-msgstr ""
+msgstr "Reisen"
 
 #: /app/src/utils/categoryIcons.js:54
 msgid "Hotel"
-msgstr ""
+msgstr "Hotel"
 
 #: /app/src/utils/categoryIcons.js:55
-#, fuzzy
-#| msgid "Medium"
 msgid "Medical"
-msgstr "Mittel"
+msgstr "Medizin"
 
 #: /app/src/utils/categoryIcons.js:56
 msgid "Pharmacy"
-msgstr ""
+msgstr "Apotheke"
 
 #: /app/src/utils/categoryIcons.js:57
 msgid "Fitness"
-msgstr ""
+msgstr "Fitness"
 
 #: /app/src/utils/categoryIcons.js:58
 msgid "Heart"
-msgstr ""
+msgstr "Herz"
 
 #: /app/src/utils/categoryIcons.js:59
 msgid "Children"
-msgstr ""
+msgstr "Kinder"
 
 #: /app/src/utils/categoryIcons.js:60
 msgid "Pets"
-msgstr ""
+msgstr "Haustiere"
 
 #: /app/src/utils/categoryIcons.js:61
-#, fuzzy
-#| msgid "Valuation"
 msgid "Education"
-msgstr "Bewertung"
+msgstr "Bildung"
 
 #: /app/src/utils/categoryIcons.js:62
 msgid "Books"
-msgstr ""
+msgstr "Bücher"
 
 #: /app/src/utils/categoryIcons.js:63
 msgid "Music"
-msgstr ""
+msgstr "Musik"
 
 #: /app/src/utils/categoryIcons.js:64
 msgid "Video"
-msgstr ""
+msgstr "Video"
 
 #: /app/src/utils/categoryIcons.js:65
 msgid "Streaming"
-msgstr ""
+msgstr "Streaming"
 
 #: /app/src/utils/categoryIcons.js:66
 msgid "Games"
-msgstr ""
+msgstr "Spiele"
 
 #: /app/src/utils/categoryIcons.js:67
 msgid "Events"
-msgstr ""
+msgstr "Veranstaltungen"
 
 #: /app/src/utils/categoryIcons.js:68
 msgid "Gifts"
-msgstr ""
+msgstr "Geschenke"
 
 #: /app/src/utils/categoryIcons.js:69
-#, fuzzy
-#| msgid "Chart Type"
 msgid "Charity"
-msgstr "Diagrammtyp"
+msgstr "Wohltätigkeit"
 
 #: /app/src/utils/categoryIcons.js:70
 msgid "Garden"
-msgstr ""
+msgstr "Garten"
 
 #: /app/src/utils/categoryIcons.js:71
-#, fuzzy
-#| msgid "Plan"
 msgid "Plants"
-msgstr "Plan"
+msgstr "Pflanzen"
 
 #: /app/src/utils/categoryIcons.js:72
-#, fuzzy
-#| msgid "Repair Data"
 msgid "Repairs"
-msgstr "Daten reparieren"
+msgstr "Reparaturen"
 
 #: /app/src/utils/categoryIcons.js:73
-#, fuzzy
-#| msgid "Completed"
 msgid "Computer"
-msgstr "Abgeschlossen"
+msgstr "Computer"
 
 #: /app/src/utils/categoryIcons.js:74
 msgid "Software"
-msgstr ""
+msgstr "Software"
 
 #: /app/src/utils/categoryIcons.js:75
 msgid "Services"
-msgstr ""
+msgstr "Dienstleistungen"
 
 #: /app/src/utils/categoryIcons.js:76
-#, fuzzy
-#| msgid "Subscription"
 msgid "Subscriptions"
-msgstr "Abonnement"
+msgstr "Abonnements"
 
 #: /app/src/utils/categoryIcons.js:77
 msgid "Insurance"
-msgstr ""
+msgstr "Versicherung"
 
 #: /app/src/utils/categoryIcons.js:78
-#, fuzzy
-#| msgid "Disable Protection"
 msgid "Protection"
-msgstr "Schutz deaktivieren"
+msgstr "Schutz"
 
 #: /app/src/utils/categoryIcons.js:80
-#, fuzzy
-#| msgid "Interest Rate"
 msgid "Interest"
-msgstr "Zinssatz"
+msgstr "Interesse"
 
 #: /app/src/utils/categoryIcons.js:81
 msgid "Card"
-msgstr ""
+msgstr "Karte"
 
 #: /app/src/utils/categoryIcons.js:83
-#, fuzzy
-#| msgid "Banking"
 msgid "Bank"
-msgstr "Bankdaten"
+msgstr "Bank"
 
 #: /app/src/utils/categoryIcons.js:86
-#, fuzzy
-#| msgid "Workplace"
 msgid "Work"
-msgstr "Arbeitsplatz"
+msgstr "Arbeit"
 
 #: /app/src/utils/categoryIcons.js:87
-#, fuzzy
-#| msgid "Personal"
 msgid "Person"
-msgstr "Persönlich"
+msgstr "Person"
 
 #: /app/src/utils/categoryIcons.js:88
-#, fuzzy
-#| msgid "One-Time"
 msgid "Time"
-msgstr "Einmalig"
+msgstr "Zeit"
 
 #: /app/src/utils/dialogs.js:263
 msgid "Please confirm"
@@ -19225,7 +19187,7 @@ msgstr "Farbe für Diagramme und Anzeige"
 
 #: /app/templates/index.php:6941
 msgid "Icon"
-msgstr ""
+msgstr "Symbol"
 
 #: /app/templates/index.php:6951
 msgid "Options"
