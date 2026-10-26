@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-10-26 12:45+0000\n"
-"PO-Revision-Date: 2026-10-26 12:28+0000\n"
+"PO-Revision-Date: 2026-10-27 01:02+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -8290,10 +8290,8 @@ msgid "Stable"
 msgstr "Stabil"
 
 #: /app/src/modules/categories/CategoriesModule.js:903
-#, fuzzy
-#| msgid "Period"
 msgid "This Period"
-msgstr "Periode"
+msgstr "Dieser Zeitraum"
 
 #: /app/src/modules/categories/CategoriesModule.js:904
 #: /app/templates/index.php:2026 /app/templates/index.php:3212
@@ -8327,6 +8325,9 @@ msgid ""
 "Each bar is a budget month starting on day {day}, your Budget Cycle Start "
 "Day in Settings."
 msgstr ""
+"Jeder Balken stellt einen Budgetmonat dar, der am Tag {day} beginnt, "
+"entsprechend dem in den Einstellungen festgelegten Starttag deines "
+"Budgetzyklus."
 
 #: /app/src/modules/categories/CategoriesModule.js:1029
 msgid "Spending"
@@ -13635,14 +13636,13 @@ msgid "VAT / tax"
 msgstr "MwSt. / Steuer"
 
 #: /app/src/modules/transactions/TransactionsModule.js:2724
-#, fuzzy
-#| msgid "Split into {count} lines from the receipt. Set a category on each."
 msgid ""
 "Split into {count} lines from the receipt. Your rules set a category on "
 "{suggested} of them; check them and set the rest."
 msgstr ""
-"In {count} Zeilen aus dem Beleg aufgeteilt. Lege für jede eine Kategorie "
-"fest."
+"Anhand des Belegs in {count} Positionen aufgeteilt. Deine Regeln haben für "
+"{suggested} davon eine Kategorie vorgeschlagen. Überprüfe diese und weise "
+"den übrigen Positionen Kategorien zu."
 
 #: /app/src/modules/transactions/TransactionsModule.js:2725
 msgid "Split into {count} lines from the receipt. Set a category on each."
@@ -13652,35 +13652,25 @@ msgstr ""
 
 #: /app/src/modules/transactions/TransactionsModule.js:2759
 #: /app/src/modules/transactions/TransactionsModule.js:2768
-#, fuzzy
-#| msgid "December"
 msgid "Remember"
-msgstr "Dezember"
+msgstr "Merken"
 
 #: /app/src/modules/transactions/TransactionsModule.js:2760
-#, fuzzy
-#| msgid "One line per item on the receipt"
 msgid "Use this category for \"{item}\" on future receipts"
-msgstr "Eine Zeile pro Position auf dem Beleg"
+msgstr "Diese Kategorie für „{item}“ auf zukünftigen Belegen verwenden"
 
 #: /app/src/modules/transactions/TransactionsModule.js:2778
-#, fuzzy
-#| msgid "Receipts"
 msgid "Receipt items"
-msgstr "Belege"
+msgstr "Belegpositionen"
 
 #: /app/src/modules/transactions/TransactionsModule.js:2782
 #: /app/src/modules/transactions/TransactionsModule.js:2788
-#, fuzzy
-#| msgid "Failed to save rule"
 msgid "Could not save the rule"
-msgstr "Fehler beim Speichern der Regel"
+msgstr "Die Regel konnte nicht gespeichert werden"
 
 #: /app/src/modules/transactions/TransactionsModule.js:2785
-#, fuzzy
-#| msgid "December"
 msgid "Remembered"
-msgstr "Dezember"
+msgstr "Gemerkt"
 
 #: /app/src/modules/transactions/TransactionsModule.js:2800
 #: /app/templates/quick-add.php:108
