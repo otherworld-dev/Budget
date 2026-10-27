@@ -37,17 +37,19 @@ Once it is enabled, the [getting started guide](https://budget.otherworld.dev/do
 
 [Enable Banking](https://enablebanking.com) is a licensed EU account-information provider. Its free "restricted production" mode only works for the accounts of the person who owns the Enable Banking application, so each Nextcloud user sets up their own application. Full production access needs a contract with Enable Banking.
 
+Before you start, a Nextcloud admin has to switch on **Enable Bank Sync** in Budget's admin settings. Bank sync stays hidden until then.
+
 1. In the Enable Banking control panel, create an application.
 2. Generate an RSA key pair and a self-signed certificate, for example `openssl req -x509 -newkey rsa:4096 -nodes -keyout private.pem -out public.crt -days 730 -subj "/CN=budget"`, and upload the certificate (`public.crt`) to the application.
 3. Whitelist the callback URL that Budget's wizard shows, which ends in `/apps/budget/bank-sync/enablebanking/callback`. If the control panel asks you to link accounts first, do that.
-4. In Budget, an admin enables bank sync. Then go to **Bank Sync**, **Add connection**, **Enable Banking** and enter the application ID and the contents of `private.pem` once. They are stored encrypted for your user and reused for every bank.
+4. In Budget, go to **Bank Sync**, click **Add Connection**, choose **Enable Banking (Europe)** and enter the application ID and the contents of `private.pem`. You only do this once: they are stored encrypted for your user and reused for every bank.
 5. Pick a country and a bank, confirm in the bank's app, come back and click **I've Completed Authorization**, then map the accounts and sync.
 
 Consent lasts up to 180 days, or the bank's maximum if that is shorter. After that, use **Re-authorize**. PSD2 covers payment accounts only, so securities and depot accounts are not available, and banks allow only a few automatic refreshes per day.
 
-On a mapping's first sync into an empty Budget account, Budget sets the opening balance so that the balance matches the bank's. If the balances differ later, Budget shows the difference with a **Reconcile** button and never corrects it silently. This applies to all bank sync providers.
+The first time an account syncs into an empty Budget account, Budget sets that account's opening balance so that its balance matches the bank's. This happens automatically for Enable Banking only; with the other providers, Budget shows the difference and a **Reconcile** button instead. If the balances differ later, Budget shows the difference with a **Reconcile** button and never corrects it silently.
 
-The Nextcloud server only contacts `api.enablebanking.com`. Bank logos are loaded by your browser.
+The Nextcloud server only contacts `api.enablebanking.com`. If bank logos are shown, your browser loads them directly from Enable Banking; the server never does.
 
 ## Translations
 
