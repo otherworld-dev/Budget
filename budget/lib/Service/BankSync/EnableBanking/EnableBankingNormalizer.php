@@ -17,8 +17,12 @@ class EnableBankingNormalizer {
 	 * Booked balances first: Budget's own balance only counts posted
 	 * transactions unless pending ones are imported too, so the bank balance we
 	 * compare against must include exactly the same set.
+	 *
+	 * The interim booked balance (ITBD) comes before the closing one (CLBD):
+	 * CLBD is usually the previous day's close, while Budget compares against
+	 * its balance as of today, so today's bookings would show as a difference.
 	 */
-	private const BALANCE_TYPES_BOOKED = ['CLBD', 'ITBD', 'XPCD'];
+	private const BALANCE_TYPES_BOOKED = ['ITBD', 'CLBD', 'XPCD'];
 	private const BALANCE_TYPES_WITH_PENDING = ['XPCD', 'ITBD', 'CLBD'];
 
 	/**

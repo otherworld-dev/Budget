@@ -104,6 +104,18 @@ class EnableBankingNormalizerTest extends TestCase {
 		$this->assertSame('950', $this->normalizer->balance($balances, true));
 	}
 
+	/**
+	 * CLBD is usually yesterday's closing balance, while Budget compares
+	 * against its balance as of today: the interim booked balance comes first.
+	 */
+	public function testBookedBalancePrefersInterimOverClosing(): void {
+		$balances = [$this->bal('CLBD', '1000'), $this->bal('XPCD', '950'), $this->bal('ITBD', '980')];
+
+		$this->assertSame('980', $this->normalizer->balance($balances, false));
+		$this->assertSame('950', $this->normalizer->balance($balances, true));
+		$this->assertSame('1000', $this->normalizer->balance([$this->bal('XPCD', '950'), $this->bal('CLBD', '1000')], false));
+	}
+
 	public function testBalanceFallsBackToFirstEntryWhenOnlyAvailableTypes(): void {
 		$this->assertSame('900', $this->normalizer->balance([$this->bal('ITAV', '900')], false));
 	}
