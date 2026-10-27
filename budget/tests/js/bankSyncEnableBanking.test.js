@@ -188,9 +188,9 @@ describe('Enable Banking wizard', () => {
 
         const tiles = document.querySelectorAll('.bank-institution-tile');
         expect(tiles).toHaveLength(2);
-        // names are escaped, logos are plain <img> tags loaded by the browser
+        // names are escaped; Enable Banking tiles carry no logo image
         expect(document.querySelector('.bank-institution-name').innerHTML).toBe('Sparkasse &lt;b&gt;');
-        expect(tiles[0].querySelector('img').getAttribute('src')).toBe('https://logo.example/s.png');
+        expect(tiles[0].querySelector('img')).toBeNull();
     });
 
     it('connect sends provider enablebanking and no redirectUrl', async () => {
@@ -249,6 +249,27 @@ describe('Enable Banking wizard', () => {
         const [, options] = calls('POST')[0];
         expect(options.body.redirectUrl).toBeTruthy();
         expect(options.body.institutionId).toBe('BANK_X');
+    });
+});
+
+describe('Institution tiles', () => {
+    it('renders Enable Banking banks without images', () => {
+        module._wizardCredentials = { name: 'x', provider: 'enablebanking' };
+        module.renderInstitutions(BANKS);
+
+        const grid = document.getElementById('bank-sync-institutions-grid');
+        expect(grid.querySelector('img')).toBeNull();
+        const names = [...grid.querySelectorAll('.bank-institution-name')].map(n => n.textContent);
+        expect(names).toEqual(['Sparkasse <b>', 'DKB']);
+    });
+
+    it('still renders GoCardless logos', () => {
+        module._wizardCredentials = { secretId: 'a', secretKey: 'b', name: 'x', provider: 'gocardless' };
+        module.renderInstitutions(BANKS);
+
+        const imgs = document.querySelectorAll('#bank-sync-institutions-grid img');
+        expect(imgs).toHaveLength(1);
+        expect(imgs[0].getAttribute('src')).toBe('https://logo.example/s.png');
     });
 });
 

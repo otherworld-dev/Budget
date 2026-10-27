@@ -579,9 +579,12 @@ export default class BankSyncModule {
             return;
         }
 
+        // Nextcloud's CSP blocks Enable Banking's logo hosts, so show names only.
+        const showLogos = this._wizardCredentials?.provider !== 'enablebanking';
+
         grid.innerHTML = institutions.map(inst => `
             <div class="bank-institution-tile" data-institution-id="${escapeHtml(inst.id)}" tabindex="0" role="button">
-                ${inst.logo ? `<img src="${escapeHtml(inst.logo)}" alt="" class="bank-institution-logo" loading="lazy">` : '<div class="bank-institution-logo-placeholder"></div>'}
+                ${!showLogos ? '' : inst.logo ? `<img src="${escapeHtml(inst.logo)}" alt="" class="bank-institution-logo" loading="lazy">` : '<div class="bank-institution-logo-placeholder"></div>'}
                 <span class="bank-institution-name">${escapeHtml(inst.name)}</span>
             </div>
         `).join('');

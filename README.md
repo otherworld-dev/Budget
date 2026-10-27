@@ -49,7 +49,7 @@ Consent lasts up to 180 days, or the bank's maximum if that is shorter. After th
 
 The first time an account syncs into an empty Budget account, Budget sets that account's opening balance so that its balance matches the bank's. This happens automatically for Enable Banking only; with the other providers, Budget shows the difference and a **Reconcile** button instead. If the balances differ later, Budget shows the difference with a **Reconcile** button and never corrects it silently.
 
-The Nextcloud server only contacts `api.enablebanking.com`. If bank logos are shown, your browser loads them directly from Enable Banking; the server never does.
+The Nextcloud server only contacts `api.enablebanking.com`. Budget shows bank names only; it loads no bank logos.
 
 ## Translations
 
