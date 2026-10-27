@@ -17,7 +17,7 @@ interface InstitutionListingProviderInterface {
 	 *
 	 * @param string $userId Nextcloud user, for providers whose API keys are stored per user
 	 * @param array $params Provider-specific filters (e.g. country)
-	 * @return list<array{id: string, name: string, logo: ?string, country: string}>
+	 * @return list<array{id: string, name: string, logo: ?string, country: string, ...<string, mixed>}>
 	 * @throws \Exception on API failure
 	 */
 	public function listInstitutions(string $userId, array $params): array;
