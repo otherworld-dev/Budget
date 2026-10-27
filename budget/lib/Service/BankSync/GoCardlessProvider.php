@@ -119,7 +119,8 @@ class GoCardlessProvider implements BankSyncProviderInterface, InstitutionListin
 				$balances = $this->getAccountBalances($accessToken, $accountId);
 				$transactions = $this->getAccountTransactions($accessToken, $accountId);
 
-				$balance = '0';
+				// No balances reported means no balance, not a zero one
+				$balance = null;
 				if (!empty($balances['balances'])) {
 					// Prefer 'expected' or 'interimAvailable' balance
 					foreach ($balances['balances'] as $bal) {
@@ -204,7 +205,8 @@ class GoCardlessProvider implements BankSyncProviderInterface, InstitutionListin
 				$details = $this->getAccountDetails($accessToken, $accountId);
 				$balances = $this->getAccountBalances($accessToken, $accountId);
 
-				$balance = '0';
+				// No balances reported means no balance, not a zero one
+				$balance = null;
 				if (!empty($balances['balances'])) {
 					foreach ($balances['balances'] as $bal) {
 						$balance = $bal['balanceAmount']['amount'] ?? '0';
