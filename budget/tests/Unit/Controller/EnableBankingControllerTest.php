@@ -12,6 +12,7 @@ use OCA\Budget\Db\BankConnectionMapper;
 use OCA\Budget\Service\AdminSettingService;
 use OCA\Budget\Service\AuditService;
 use OCA\Budget\Service\BankSync\BankSyncService;
+use OCA\Budget\Service\BankSync\EnableBanking\EnableBankingKeys;
 use OCA\Budget\Service\BankSync\EnableBanking\EnableBankingKeyStore;
 use OCA\Budget\Service\BankSync\EnableBankingProvider;
 use OCA\Budget\Service\BankSync\ProviderFactory;
@@ -221,7 +222,7 @@ class EnableBankingControllerTest extends TestCase {
 
 	public function testSettingsNeverReturnsPrivateKey(): void {
 		$this->enable();
-		$this->keyStore->method('get')->willReturn(['applicationId' => 'app-1', 'privateKey' => 'PRIVATE-PEM']);
+		$this->keyStore->method('get')->willReturn(new EnableBankingKeys('app-1', 'PRIVATE-PEM'));
 		$this->keyStore->method('describe')->with(self::USER_ID)
 			->willReturn(['hasKeys' => true, 'applicationId' => 'app-1']);
 
@@ -241,16 +242,20 @@ class EnableBankingControllerTest extends TestCase {
 		$this->keyStore->expects($this->never())->method('save');
 
 		$this->assertSame(Http::STATUS_FORBIDDEN, $this->controller()->settings()->getStatus());
-		$this->assertSame(Http::STATUS_FORBIDDEN, $this->controller()->saveSettings('app-1', 'pem')->getStatus());
+		$this->assertSame(Http::STATUS_FORBIDDEN, $this->controller()->saveSettings('app-1')->getStatus());
 		$this->assertSame(Http::STATUS_FORBIDDEN, $this->controller()->deleteSettings()->getStatus());
 	}
 
 	public function testSaveSettingsStoresKeysAndReturnsSummary(): void {
 		$this->enable();
-		$this->keyStore->expects($this->once())->method('save')->with(self::USER_ID, 'app-1', 'PRIVATE-PEM');
+		$this->request->method('getParam')->with('privateKey', '')->willReturn('PRIVATE-PEM');
+		$this->keyStore->expects($this->once())->method('save')->with(
+			self::USER_ID,
+			$this->callback(fn (EnableBankingKeys $k) => $k->applicationId() === 'app-1' && $k->privateKey() === 'PRIVATE-PEM')
+		);
 		$this->keyStore->method('describe')->willReturn(['hasKeys' => true, 'applicationId' => 'app-1']);
 
-		$response = $this->controller()->saveSettings('app-1', 'PRIVATE-PEM');
+		$response = $this->controller()->saveSettings('app-1');
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 		$this->assertSame(true, $response->getData()['hasKeys']);
@@ -261,7 +266,9 @@ class EnableBankingControllerTest extends TestCase {
 		$this->enable();
 		$this->keyStore->method('save')->willThrowException(new \InvalidArgumentException('Invalid private key'));
 
-		$response = $this->controller()->saveSettings('app-1', 'not a key');
+		$this->request->method('getParam')->with('privateKey', '')->willReturn('not a key');
+
+		$response = $this->controller()->saveSettings('app-1');
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 		$this->assertSame('Invalid private key', $response->getData()['error']);

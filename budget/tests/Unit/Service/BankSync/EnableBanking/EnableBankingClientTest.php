@@ -6,6 +6,7 @@ namespace OCA\Budget\Tests\Unit\Service\BankSync\EnableBanking;
 
 use OCA\Budget\Service\BankSync\EnableBanking\EnableBankingAuthException;
 use OCA\Budget\Service\BankSync\EnableBanking\EnableBankingClient;
+use OCA\Budget\Service\BankSync\EnableBanking\EnableBankingKeys;
 use OCA\Budget\Service\BankSync\EnableBanking\EnableBankingRateLimitException;
 use OCP\Http\Client\IClient;
 use OCP\Http\Client\IClientService;
@@ -32,6 +33,23 @@ class EnableBankingClientTest extends TestCase {
 		$this->publicKeyPem = openssl_pkey_get_details($key)['key'];
 	}
 
+	private function keys(): EnableBankingKeys {
+		return new EnableBankingKeys('app-1', $this->privateKeyPem);
+	}
+
+	/**
+	 * print_r() of the frames of app code, arguments included. PHPUnit's
+	 * own frames carry the test case, which holds the PEM itself.
+	 */
+	public static function appFrames(\Throwable $e): string {
+		$frames = array_filter(
+			$e->getTrace(),
+			fn (array $f) => str_starts_with($f['class'] ?? '', 'OCA\\Budget\\')
+				&& !str_starts_with($f['class'] ?? '', 'OCA\\Budget\\Tests\\')
+		);
+		return print_r($frames, true);
+	}
+
 	private function b64urlDecode(string $data): string {
 		return base64_decode(strtr($data, '-_', '+/'));
 	}
@@ -44,7 +62,7 @@ class EnableBankingClientTest extends TestCase {
 	}
 
 	public function testBuildJwtHasExpectedHeaderAndClaims(): void {
-		$jwt = $this->api->buildJwt('app-1', $this->privateKeyPem, 1_800_000_000);
+		$jwt = $this->api->buildJwt($this->keys(), 1_800_000_000);
 		[$h, $p] = explode('.', $jwt);
 
 		$this->assertSame(
@@ -63,7 +81,7 @@ class EnableBankingClientTest extends TestCase {
 	}
 
 	public function testBuildJwtSignatureVerifiesWithPublicKey(): void {
-		$jwt = $this->api->buildJwt('app-1', $this->privateKeyPem, 1_800_000_000);
+		$jwt = $this->api->buildJwt($this->keys(), 1_800_000_000);
 		[$h, $p, $s] = explode('.', $jwt);
 
 		$this->assertSame(
@@ -93,7 +111,7 @@ class EnableBankingClientTest extends TestCase {
 			)
 			->willReturn($this->response(200, '{"url":"x"}'));
 
-		$result = $this->api->request('POST', '/auth', 'app-1', $this->privateKeyPem, $payload);
+		$result = $this->api->request('POST', '/auth', $this->keys(), $payload);
 
 		$this->assertSame(['url' => 'x'], $result);
 	}
@@ -110,8 +128,7 @@ class EnableBankingClientTest extends TestCase {
 		$result = $this->api->request(
 			'GET',
 			'/accounts/abc/transactions',
-			'app-1',
-			$this->privateKeyPem,
+			$this->keys(),
 			null,
 			['date_from' => '2026-01-01']
 		);
@@ -123,7 +140,7 @@ class EnableBankingClientTest extends TestCase {
 		$this->client->method('get')->willReturn($this->response(429, '{}'));
 
 		$this->expectException(EnableBankingRateLimitException::class);
-		$this->api->request('GET', '/aspsps', 'app-1', $this->privateKeyPem);
+		$this->api->request('GET', '/aspsps', $this->keys());
 	}
 
 	/**
@@ -133,7 +150,7 @@ class EnableBankingClientTest extends TestCase {
 		$this->client->method('get')->willReturn($this->response($status, '{}'));
 
 		$this->expectException(EnableBankingAuthException::class);
-		$this->api->request('GET', '/aspsps', 'app-1', $this->privateKeyPem);
+		$this->api->request('GET', '/aspsps', $this->keys());
 	}
 
 	public static function authStatusProvider(): array {
@@ -144,12 +161,54 @@ class EnableBankingClientTest extends TestCase {
 		$this->client->method('get')->willReturn($this->response(500, '{"secret":"S3CRET"}'));
 
 		try {
-			$this->api->request('GET', '/aspsps', 'app-1', $this->privateKeyPem);
+			$this->api->request('GET', '/aspsps', $this->keys());
 			$this->fail('Expected exception');
 		} catch (\RuntimeException $e) {
 			$this->assertStringNotContainsString('S3CRET', $e->getMessage());
 			$this->assertSame('Enable Banking request failed (HTTP 500)', $e->getMessage());
 		}
+	}
+
+	/**
+	 * With zend.exception_ignore_args off (PHP's default without a production
+	 * php.ini) every frame keeps its arguments, and Nextcloud logs them with
+	 * the exception. A wrong application ID answers 401, and that trace held
+	 * the PEM and the session path.
+	 */
+	public function testExceptionTraceCarriesNeitherKeyNorSessionId(): void {
+		$previous = ini_set('zend.exception_ignore_args', '0');
+		try {
+			$this->client->method('get')->willReturn($this->response(401, '{}'));
+
+			try {
+				$this->api->request('GET', '/sessions/SESSION-SECRET', $this->keys(), null, ['state' => 'STATE-SECRET']);
+				$this->fail('Expected an EnableBankingAuthException');
+			} catch (EnableBankingAuthException $e) {
+				$this->assertNotSame([], $e->getTrace()[0]['args'] ?? [], 'trace arguments are recorded');
+				foreach ([(string)$e, $e->getTraceAsString(), self::appFrames($e)] as $dump) {
+					$this->assertStringNotContainsString('BEGIN PRIVATE KEY', $dump);
+					$this->assertStringNotContainsString('SESSION-SECRET', $dump);
+					$this->assertStringNotContainsString('STATE-SECRET', $dump);
+				}
+			}
+		} finally {
+			ini_set('zend.exception_ignore_args', (string)$previous);
+		}
+	}
+
+	/**
+	 * PHP 8.1 ignores #[\SensitiveParameter]; the keys object alone has to
+	 * keep the PEM out of debug output and Nextcloud's log serializer, which
+	 * reads public properties only.
+	 */
+	public function testKeysObjectHidesThePrivateKey(): void {
+		$keys = $this->keys();
+
+		$this->assertStringNotContainsString('BEGIN PRIVATE KEY', print_r($keys, true));
+		$this->assertStringNotContainsString('BEGIN PRIVATE KEY', var_export($keys->__debugInfo(), true));
+		$this->assertSame([], get_object_vars($keys));
+		$this->assertSame('app-1', $keys->applicationId());
+		$this->assertSame($this->privateKeyPem, $keys->privateKey());
 	}
 
 	public function testRequestTransportErrorDoesNotLeakUrl(): void {
@@ -160,7 +219,7 @@ class EnableBankingClientTest extends TestCase {
 		);
 
 		try {
-			$this->api->request('GET', '/sessions/SESSION-SECRET', 'app-1', $this->privateKeyPem);
+			$this->api->request('GET', '/sessions/SESSION-SECRET', $this->keys());
 			$this->fail('Expected a RuntimeException');
 		} catch (\RuntimeException $e) {
 			$this->assertSame('Enable Banking request failed (network error)', $e->getMessage());

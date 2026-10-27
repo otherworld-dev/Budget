@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Tests\Unit\Service\BankSync\EnableBanking;
 
 use OCA\Budget\Db\Setting;
+use OCA\Budget\Service\BankSync\EnableBanking\EnableBankingKeys;
 use OCA\Budget\Service\BankSync\EnableBanking\EnableBankingKeyStore;
 use OCA\Budget\Service\EncryptionService;
 use OCA\Budget\Service\SettingService;
@@ -54,29 +55,55 @@ class EnableBankingKeyStoreTest extends TestCase {
 	}
 
 	public function testSaveEncryptsAndGetDecrypts(): void {
-		$this->store->save('alice', 'app-1', $this->privateKeyPem);
+		$this->store->save('alice', $this->keys());
 
 		$stored = $this->storage['alice|' . EnableBankingKeyStore::SETTING_KEY];
 		$this->assertStringNotContainsString('BEGIN PRIVATE KEY', $stored);
 		$this->assertStringNotContainsString('app-1', $stored);
 		$this->assertNull(json_decode($stored, true));
 
-		$this->assertSame(
-			['applicationId' => 'app-1', 'privateKey' => $this->privateKeyPem],
-			$this->store->get('alice')
-		);
+		$keys = $this->store->get('alice');
+		$this->assertInstanceOf(EnableBankingKeys::class, $keys);
+		$this->assertSame('app-1', $keys->applicationId());
+		$this->assertSame($this->privateKeyPem, $keys->privateKey());
 	}
 
 	public function testSaveRejectsInvalidKey(): void {
 		$this->expectException(\InvalidArgumentException::class);
 		$this->expectExceptionMessage('Invalid private key');
-		$this->store->save('alice', 'app-1', 'not a key');
+		$this->store->save('alice', new EnableBankingKeys('app-1', 'not a key'));
 	}
 
 	public function testSaveRejectsEmptyApplicationId(): void {
 		$this->expectException(\InvalidArgumentException::class);
 		$this->expectExceptionMessage('Application ID is required');
-		$this->store->save('alice', '   ', $this->privateKeyPem);
+		$this->store->save('alice', $this->keys('   '));
+	}
+
+	/**
+	 * The frame that fails while encrypting holds the key as an argument, so
+	 * its exception must not travel up to the log.
+	 */
+	public function testSaveFailureCarriesNoKeyInItsTrace(): void {
+		$encryption = $this->createMock(EncryptionService::class);
+		$encryption->method('encrypt')->willThrowException(new \RuntimeException('no secret'));
+		$store = new EnableBankingKeyStore($this->settings, $encryption);
+		$previous = ini_set('zend.exception_ignore_args', '0');
+
+		try {
+			$store->save('alice', $this->keys());
+			$this->fail('Expected a RuntimeException');
+		} catch (\RuntimeException $e) {
+			$this->assertSame('Unable to store the Enable Banking keys', $e->getMessage());
+			$this->assertNull($e->getPrevious());
+			$this->assertStringNotContainsString('BEGIN PRIVATE KEY', EnableBankingClientTest::appFrames($e));
+		} finally {
+			ini_set('zend.exception_ignore_args', (string)$previous);
+		}
+	}
+
+	private function keys(string $applicationId = 'app-1'): EnableBankingKeys {
+		return new EnableBankingKeys($applicationId, $this->privateKeyPem);
 	}
 
 	public function testGetReturnsNullWhenUnset(): void {
@@ -84,12 +111,12 @@ class EnableBankingKeyStoreTest extends TestCase {
 	}
 
 	public function testKeysAreScopedPerUser(): void {
-		$this->store->save('alice', 'app-1', $this->privateKeyPem);
+		$this->store->save('alice', $this->keys());
 		$this->assertNull($this->store->get('bob'));
 	}
 
 	public function testDeleteRemovesKeys(): void {
-		$this->store->save('alice', 'app-1', $this->privateKeyPem);
+		$this->store->save('alice', $this->keys());
 		$this->store->delete('alice');
 		$this->assertNull($this->store->get('alice'));
 		$this->assertFalse($this->store->describe('alice')['hasKeys']);
@@ -98,7 +125,7 @@ class EnableBankingKeyStoreTest extends TestCase {
 	public function testDescribeNeverReturnsKey(): void {
 		$this->assertSame(['hasKeys' => false, 'applicationId' => null], $this->store->describe('alice'));
 
-		$this->store->save('alice', 'app-1', $this->privateKeyPem);
+		$this->store->save('alice', $this->keys());
 		$described = $this->store->describe('alice');
 
 		$this->assertSame(['hasKeys' => true, 'applicationId' => 'app-1'], $described);

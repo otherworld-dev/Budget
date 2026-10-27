@@ -6,6 +6,7 @@ namespace OCA\Budget\Service\BankSync;
 
 use OCA\Budget\Service\BankSync\EnableBanking\EnableBankingAuthException;
 use OCA\Budget\Service\BankSync\EnableBanking\EnableBankingClient;
+use OCA\Budget\Service\BankSync\EnableBanking\EnableBankingKeys;
 use OCA\Budget\Service\BankSync\EnableBanking\EnableBankingKeyStore;
 use OCA\Budget\Service\BankSync\EnableBanking\EnableBankingNormalizer;
 use OCA\Budget\Service\BankSync\EnableBanking\EnableBankingRateLimitException;
@@ -93,7 +94,7 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 	 * Keeps the current session (and its accounts) so syncing continues until
 	 * the bank redirect completes; the callback replaces and revokes it.
 	 */
-	public function reinitializeConnection(string $credentials, array $params): array {
+	public function reinitializeConnection(#[\SensitiveParameter] string $credentials, array $params): array {
 		$creds = $this->decode($credentials);
 		$redirectUrl = (string)($params['redirectUrl'] ?? '');
 		if ($redirectUrl === '') {
@@ -115,11 +116,11 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 	 *
 	 * @return array{credentials: string, accounts: list<array>}
 	 */
-	public function completeAuthorization(string $credentials, string $code): array {
+	public function completeAuthorization(#[\SensitiveParameter] string $credentials, #[\SensitiveParameter] string $code): array {
 		$creds = $this->decode($credentials);
 		$keys = $this->requireKeys((string)($creds['userId'] ?? ''));
 
-		$session = $this->client->request('POST', '/sessions', $keys['applicationId'], $keys['privateKey'], ['code' => $code]);
+		$session = $this->client->request('POST', '/sessions', $keys, ['code' => $code]);
 		if (empty($session['session_id'])) {
 			throw new \RuntimeException('Enable Banking did not return a session');
 		}
@@ -151,7 +152,7 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 		return ['credentials' => json_encode($creds), 'accounts' => $accounts];
 	}
 
-	public function fetchAccounts(string $credentials, array $options = []): array {
+	public function fetchAccounts(#[\SensitiveParameter] string $credentials, array $options = []): array {
 		$creds = $this->decode($credentials);
 		$keys = $this->requireKeys((string)($creds['userId'] ?? ''));
 		$includePending = (bool)($options['includePending'] ?? false);
@@ -181,7 +182,7 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 		return $result;
 	}
 
-	public function fetchAccountList(string $credentials, array $options = []): array {
+	public function fetchAccountList(#[\SensitiveParameter] string $credentials, array $options = []): array {
 		$creds = $this->decode($credentials);
 		$keys = $this->requireKeys((string)($creds['userId'] ?? ''));
 		$includePending = (bool)($options['includePending'] ?? false);
@@ -200,7 +201,7 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 		return ['accounts' => $accounts];
 	}
 
-	public function requiresReauthorization(string $credentials): bool {
+	public function requiresReauthorization(#[\SensitiveParameter] string $credentials): bool {
 		$creds = json_decode($credentials, true);
 		if (!is_array($creds) || empty($creds['sessionId'])) {
 			return true;
@@ -217,7 +218,7 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 		}
 
 		try {
-			$session = $this->client->request('GET', '/sessions/' . rawurlencode((string)$creds['sessionId']), $keys['applicationId'], $keys['privateKey']);
+			$session = $this->client->request('GET', '/sessions/' . rawurlencode((string)$creds['sessionId']), $keys);
 			return ($session['status'] ?? null) !== 'AUTHORIZED';
 		} catch (EnableBankingAuthException) {
 			return true;
@@ -229,7 +230,7 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 		}
 	}
 
-	public function revokeConnection(string $credentials): void {
+	public function revokeConnection(#[\SensitiveParameter] string $credentials): void {
 		$creds = json_decode($credentials, true);
 		if (!is_array($creds) || empty($creds['sessionId'])) {
 			return;
@@ -240,7 +241,7 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 		}
 
 		try {
-			$this->client->request('DELETE', '/sessions/' . rawurlencode((string)$creds['sessionId']), $keys['applicationId'], $keys['privateKey']);
+			$this->client->request('DELETE', '/sessions/' . rawurlencode((string)$creds['sessionId']), $keys);
 		} catch (\Exception $e) {
 			$this->logger->warning('Enable Banking: failed to revoke session: ' . $e::class, ['app' => 'budget']);
 		}
@@ -250,7 +251,7 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 		$keys = $this->requireKeys($userId);
 		$country = strtoupper((string)($params['country'] ?? 'DE'));
 
-		$response = $this->client->request('GET', '/aspsps', $keys['applicationId'], $keys['privateKey'], null, [
+		$response = $this->client->request('GET', '/aspsps', $keys, null, [
 			'country' => $country,
 			'psu_type' => self::PSU_TYPE,
 		]);
@@ -276,7 +277,13 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 	/**
 	 * POST /auth for the stored ASPSP and record a fresh single-use state.
 	 */
-	private function startAuthorization(array $keys, array $creds, string $redirectUrl, mixed $maxConsentSeconds): array {
+	private function startAuthorization(
+		EnableBankingKeys $keys,
+		#[\SensitiveParameter]
+		array $creds,
+		string $redirectUrl,
+		mixed $maxConsentSeconds,
+	): array {
 		$now = $this->time->getTime();
 		$validity = self::MAX_CONSENT_SECONDS;
 		if (is_numeric($maxConsentSeconds) && (int)$maxConsentSeconds > 0) {
@@ -284,7 +291,7 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 		}
 		$state = bin2hex(random_bytes(32));
 
-		$response = $this->client->request('POST', '/auth', $keys['applicationId'], $keys['privateKey'], [
+		$response = $this->client->request('POST', '/auth', $keys, [
 			'access' => ['valid_until' => (new \DateTimeImmutable('@' . ($now + $validity)))->format(DATE_RFC3339)],
 			'aspsp' => ['name' => $creds['aspspName'], 'country' => $creds['aspspCountry']],
 			'state' => $state,
@@ -310,11 +317,11 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 	 * Returns null when the account could not be read for a reason that should
 	 * not stop the other accounts; rate limits and lost consent propagate.
 	 */
-	private function fetchAccount(array $keys, string $hash, string $uid, bool $includePending, ?string $dateFrom): ?array {
+	private function fetchAccount(EnableBankingKeys $keys, string $hash, string $uid, bool $includePending, ?string $dateFrom): ?array {
 		$base = '/accounts/' . rawurlencode($uid);
 		try {
-			$details = $this->client->request('GET', $base . '/details', $keys['applicationId'], $keys['privateKey']);
-			$balances = $this->client->request('GET', $base . '/balances', $keys['applicationId'], $keys['privateKey'])['balances'] ?? [];
+			$details = $this->client->request('GET', $base . '/details', $keys);
+			$balances = $this->client->request('GET', $base . '/balances', $keys)['balances'] ?? [];
 			$transactions = $dateFrom === null ? [] : $this->fetchTransactions($keys, $base, $dateFrom, $includePending);
 		} catch (EnableBankingRateLimitException|EnableBankingAuthException $e) {
 			throw $e;
@@ -332,7 +339,7 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 		];
 	}
 
-	private function fetchTransactions(array $keys, string $base, string $dateFrom, bool $includePending): array {
+	private function fetchTransactions(EnableBankingKeys $keys, string $base, string $dateFrom, bool $includePending): array {
 		$transactions = [];
 		$continuationKey = null;
 		for ($page = 0; $page < self::MAX_TRANSACTION_PAGES; $page++) {
@@ -340,7 +347,7 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 			if ($continuationKey !== null) {
 				$query['continuation_key'] = $continuationKey;
 			}
-			$response = $this->client->request('GET', $base . '/transactions', $keys['applicationId'], $keys['privateKey'], null, $query);
+			$response = $this->client->request('GET', $base . '/transactions', $keys, null, $query);
 
 			foreach ($response['transactions'] ?? [] as $tx) {
 				$row = $this->normalizer->transaction($tx);
@@ -363,7 +370,7 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 	 * BankSyncService stores exception messages as the connection's lastError,
 	 * so the two expected failure modes get a message the user can act on.
 	 */
-	private function withReadableErrors(callable $fetch): array {
+	private function withReadableErrors(#[\SensitiveParameter] callable $fetch): array {
 		try {
 			return $fetch();
 		} catch (EnableBankingRateLimitException) {
@@ -399,10 +406,7 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 		}
 	}
 
-	/**
-	 * @return array{applicationId: string, privateKey: string}
-	 */
-	private function requireKeys(string $userId): array {
+	private function requireKeys(string $userId): EnableBankingKeys {
 		$keys = $userId === '' ? null : $this->keyStore->get($userId);
 		if ($keys === null) {
 			throw new \InvalidArgumentException(self::MSG_NO_KEYS);
@@ -410,7 +414,7 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 		return $keys;
 	}
 
-	private function decode(string $credentials): array {
+	private function decode(#[\SensitiveParameter] string $credentials): array {
 		$creds = json_decode($credentials, true);
 		if (!is_array($creds)) {
 			throw new \Exception('Invalid credentials format');

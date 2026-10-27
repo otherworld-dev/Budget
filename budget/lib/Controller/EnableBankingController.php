@@ -7,6 +7,7 @@ namespace OCA\Budget\Controller;
 use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Service\AdminSettingService;
 use OCA\Budget\Service\BankSync\BankSyncService;
+use OCA\Budget\Service\BankSync\EnableBanking\EnableBankingKeys;
 use OCA\Budget\Service\BankSync\EnableBanking\EnableBankingKeyStore;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCP\AppFramework\Controller;
@@ -58,7 +59,7 @@ class EnableBankingController extends Controller {
 	 * @NoCSRFRequired
 	 */
 	#[UserRateLimit(limit: 10, period: 60)]
-	public function callback(string $state = '', string $code = '', string $error = ''): TemplateResponse {
+	public function callback(#[\SensitiveParameter] string $state = '', #[\SensitiveParameter] string $code = '', string $error = ''): TemplateResponse {
 		$success = false;
 		if ($this->adminSettings->isBankSyncEnabled() && $this->userId !== null && $state !== '') {
 			if ($error !== '') {
@@ -77,7 +78,7 @@ class EnableBankingController extends Controller {
 		]);
 	}
 
-	private function completeAuthorization(string $userId, string $state, string $code): bool {
+	private function completeAuthorization(string $userId, #[\SensitiveParameter] string $state, #[\SensitiveParameter] string $code): bool {
 		try {
 			$this->syncService->completeEnableBankingAuthorization($userId, $state, $code);
 			return true;
@@ -88,7 +89,7 @@ class EnableBankingController extends Controller {
 		}
 	}
 
-	private function failAuthorization(string $userId, string $state, string $error): void {
+	private function failAuthorization(string $userId, #[\SensitiveParameter] string $state, string $error): void {
 		try {
 			$this->syncService->failEnableBankingAuthorization($userId, $state, $error);
 		} catch (\Exception $e) {
@@ -113,16 +114,22 @@ class EnableBankingController extends Controller {
 	 * Store or replace the user's application ID and private key. Every
 	 * Enable Banking connection of the user uses the new keys from then on.
 	 *
+	 * The private key is read from the request rather than taken as a method
+	 * argument: on PHP 8.1 #[\SensitiveParameter] is ignored, and this frame
+	 * would carry the PEM in the trace of any exception logged below it.
+	 *
 	 * @NoAdminRequired
 	 */
 	#[UserRateLimit(limit: 10, period: 60)]
-	public function saveSettings(string $applicationId = '', string $privateKey = ''): DataResponse {
+	public function saveSettings(string $applicationId = ''): DataResponse {
 		if ($r = $this->requireBankSync()) {
 			return $r;
 		}
 
 		try {
-			$this->keyStore->save((string)$this->userId, $applicationId, $privateKey);
+			$privateKey = $this->request->getParam('privateKey', '');
+			$keys = new EnableBankingKeys($applicationId, is_string($privateKey) ? $privateKey : '');
+			$this->keyStore->save((string)$this->userId, $keys);
 		} catch (\InvalidArgumentException $e) {
 			$message = $e->getMessage() === 'Application ID is required'
 				? $this->l->t('Application ID is required')

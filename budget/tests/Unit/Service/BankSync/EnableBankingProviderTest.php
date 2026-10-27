@@ -6,12 +6,14 @@ namespace OCA\Budget\Tests\Unit\Service\BankSync;
 
 use OCA\Budget\Service\BankSync\EnableBanking\EnableBankingAuthException;
 use OCA\Budget\Service\BankSync\EnableBanking\EnableBankingClient;
+use OCA\Budget\Service\BankSync\EnableBanking\EnableBankingKeys;
 use OCA\Budget\Service\BankSync\EnableBanking\EnableBankingKeyStore;
 use OCA\Budget\Service\BankSync\EnableBanking\EnableBankingNormalizer;
 use OCA\Budget\Service\BankSync\EnableBanking\EnableBankingRateLimitException;
 use OCA\Budget\Service\BankSync\EnableBankingProvider;
 use OCA\Budget\Service\BankSync\InstitutionListingProviderInterface;
 use OCA\Budget\Service\BankSync\ReauthorizableProviderInterface;
+use OCA\Budget\Tests\Unit\Service\BankSync\EnableBanking\EnableBankingClientTest;
 use OCP\AppFramework\Utility\ITimeFactory;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -38,9 +40,9 @@ class EnableBankingProviderTest extends TestCase {
 
 		$this->client = $this->createMock(EnableBankingClient::class);
 		$this->client->method('request')->willReturnCallback(
-			function (string $method, string $path, string $appId, string $pem, ?array $json = null, array $query = []): array {
-				$this->assertSame(self::KEYS['applicationId'], $appId);
-				$this->assertSame(self::KEYS['privateKey'], $pem);
+			function (string $method, string $path, EnableBankingKeys $keys, ?array $json = null, array $query = []): array {
+				$this->assertSame(self::KEYS['applicationId'], $keys->applicationId());
+				$this->assertSame(self::KEYS['privateKey'], $keys->privateKey());
 				$this->calls[] = ['method' => $method, 'path' => $path, 'json' => $json, 'query' => $query];
 
 				$response = $this->responses[$method . ' ' . $path] ?? null;
@@ -59,7 +61,9 @@ class EnableBankingProviderTest extends TestCase {
 
 		$this->keyStore = $this->createMock(EnableBankingKeyStore::class);
 		$this->keyStore->method('get')->willReturnCallback(
-			fn (string $userId) => $userId === 'alice' ? self::KEYS : null
+			fn (string $userId) => $userId === 'alice'
+				? new EnableBankingKeys(self::KEYS['applicationId'], self::KEYS['privateKey'])
+				: null
 		);
 
 		$time = $this->createMock(ITimeFactory::class);
@@ -369,6 +373,27 @@ class EnableBankingProviderTest extends TestCase {
 	}
 
 	// ── Logging hygiene ─────────────────────────────────────────────
+
+	/**
+	 * Sync failures are logged with their trace; with exception arguments on,
+	 * the frames held the credentials JSON (session ID) and the keys.
+	 */
+	public function testFailureTracesCarryNeitherSessionIdNorKey(): void {
+		$previous = ini_set('zend.exception_ignore_args', '0');
+		try {
+			$this->responses['GET /accounts/uid-a/details'] = new EnableBankingAuthException('HTTP 401');
+			try {
+				$this->provider->fetchAccounts($this->credentials());
+				$this->fail('Expected an exception');
+			} catch (\Exception $e) {
+				$dump = EnableBankingClientTest::appFrames($e) . $e->getTraceAsString();
+				$this->assertStringNotContainsString('sess-1', $dump);
+				$this->assertStringNotContainsString(self::KEYS['privateKey'], $dump);
+			}
+		} finally {
+			ini_set('zend.exception_ignore_args', (string)$previous);
+		}
+	}
 
 	public function testFailureLogsNeverContainExceptionMessages(): void {
 		$logged = [];

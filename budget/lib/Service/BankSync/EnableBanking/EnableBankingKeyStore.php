@@ -24,10 +24,7 @@ class EnableBankingKeyStore {
 	) {
 	}
 
-	/**
-	 * @return array{applicationId: string, privateKey: string}|null
-	 */
-	public function get(string $userId): ?array {
+	public function get(string $userId): ?EnableBankingKeys {
 		$stored = $this->settings->get($userId, self::SETTING_KEY);
 		if ($stored === null || $stored === '') {
 			return null;
@@ -42,14 +39,15 @@ class EnableBankingKeyStore {
 			return null;
 		}
 
-		return ['applicationId' => $data['applicationId'], 'privateKey' => $data['privateKey']];
+		return new EnableBankingKeys($data['applicationId'], $data['privateKey']);
 	}
 
 	/**
 	 * @throws \InvalidArgumentException when the application ID is empty or the PEM is not a private key
 	 */
-	public function save(string $userId, string $applicationId, string $privateKeyPem): void {
-		$applicationId = trim($applicationId);
+	public function save(string $userId, #[\SensitiveParameter] EnableBankingKeys $keys): void {
+		$applicationId = trim($keys->applicationId());
+		$privateKeyPem = $keys->privateKey();
 		if ($applicationId === '') {
 			throw new \InvalidArgumentException('Application ID is required');
 		}
@@ -57,8 +55,15 @@ class EnableBankingKeyStore {
 			throw new \InvalidArgumentException('Invalid private key');
 		}
 
-		$json = json_encode(['applicationId' => $applicationId, 'privateKey' => $privateKeyPem], JSON_THROW_ON_ERROR);
-		$this->settings->set($userId, self::SETTING_KEY, (string)$this->encryption->encrypt($json));
+		try {
+			$json = json_encode(['applicationId' => $applicationId, 'privateKey' => $privateKeyPem], JSON_THROW_ON_ERROR);
+			$encrypted = (string)$this->encryption->encrypt($json);
+		} catch (\Throwable) {
+			// The failing frame's arguments hold the key; neither the
+			// exception nor its trace is passed on.
+			throw new \RuntimeException('Unable to store the Enable Banking keys');
+		}
+		$this->settings->set($userId, self::SETTING_KEY, $encrypted);
 	}
 
 	public function delete(string $userId): void {
@@ -74,7 +79,7 @@ class EnableBankingKeyStore {
 		$keys = $this->get($userId);
 		return [
 			'hasKeys' => $keys !== null,
-			'applicationId' => $keys['applicationId'] ?? null,
+			'applicationId' => $keys?->applicationId(),
 		];
 	}
 }

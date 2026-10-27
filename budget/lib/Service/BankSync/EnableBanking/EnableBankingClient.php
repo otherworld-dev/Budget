@@ -16,6 +16,11 @@ use Psr\Log\LoggerInterface;
  *
  * Error messages deliberately never include response bodies or headers: they can
  * contain account data and must not end up in logs or user-facing errors.
+ *
+ * Key material travels as EnableBankingKeys, and every argument that can carry
+ * a secret (paths with session IDs, bodies with a code or a state) is marked
+ * #[\SensitiveParameter], so exception traces logged with their arguments
+ * show neither.
  */
 class EnableBankingClient {
 	public const BASE_URL = 'https://api.enablebanking.com';
@@ -28,8 +33,8 @@ class EnableBankingClient {
 	) {
 	}
 
-	public function buildJwt(string $applicationId, string $privateKeyPem, int $now): string {
-		$header = ['typ' => 'JWT', 'alg' => 'RS256', 'kid' => $applicationId];
+	public function buildJwt(#[\SensitiveParameter] EnableBankingKeys $keys, int $now): string {
+		$header = ['typ' => 'JWT', 'alg' => 'RS256', 'kid' => $keys->applicationId()];
 		$claims = [
 			'iss' => 'enablebanking.com',
 			'aud' => 'api.enablebanking.com',
@@ -40,7 +45,7 @@ class EnableBankingClient {
 		$signingInput = self::base64UrlEncode(json_encode($header, JSON_THROW_ON_ERROR))
 			. '.' . self::base64UrlEncode(json_encode($claims, JSON_THROW_ON_ERROR));
 
-		$key = openssl_pkey_get_private($privateKeyPem);
+		$key = openssl_pkey_get_private($keys->privateKey());
 		if ($key === false || !openssl_sign($signingInput, $signature, $key, OPENSSL_ALGO_SHA256)) {
 			throw new \RuntimeException('Unable to sign Enable Banking JWT');
 		}
@@ -51,7 +56,7 @@ class EnableBankingClient {
 	/**
 	 * Whether the PEM parses as a private key (a public key or garbage does not).
 	 */
-	public static function isValidPrivateKey(string $privateKeyPem): bool {
+	public static function isValidPrivateKey(#[\SensitiveParameter] string $privateKeyPem): bool {
 		return @openssl_pkey_get_private($privateKeyPem) !== false;
 	}
 
@@ -63,13 +68,16 @@ class EnableBankingClient {
 	 */
 	public function request(
 		string $method,
+		#[\SensitiveParameter]
 		string $path,
-		string $applicationId,
-		string $privateKeyPem,
+		#[\SensitiveParameter]
+		EnableBankingKeys $keys,
+		#[\SensitiveParameter]
 		?array $json = null,
+		#[\SensitiveParameter]
 		array $query = [],
 	): array {
-		$jwt = $this->buildJwt($applicationId, $privateKeyPem, time());
+		$jwt = $this->buildJwt($keys, time());
 
 		$options = [
 			'headers' => [

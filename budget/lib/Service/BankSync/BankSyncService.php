@@ -821,7 +821,7 @@ class BankSyncService {
 	 *
 	 * @throws \RuntimeException when no pending connection matches the state
 	 */
-	public function completeEnableBankingAuthorization(string $userId, string $state, string $code): BankConnection {
+	public function completeEnableBankingAuthorization(string $userId, #[\SensitiveParameter] string $state, #[\SensitiveParameter] string $code): BankConnection {
 		$this->requireEnabled();
 
 		$connection = $this->findEnableBankingConnectionByState($userId, $state, true);
@@ -888,7 +888,7 @@ class BankSyncService {
 	 * The bank's error text is not stored or shown: it is untrusted input,
 	 * and the user only needs to know to try again.
 	 */
-	public function failEnableBankingAuthorization(string $userId, string $state, string $error): void {
+	public function failEnableBankingAuthorization(string $userId, #[\SensitiveParameter] string $state, string $error): void {
 		$connection = $this->findEnableBankingConnectionByState($userId, $state, false);
 		if ($connection === null) {
 			return;
@@ -908,7 +908,7 @@ class BankSyncService {
 	 * compared in constant time. With $requireFresh, a state older than
 	 * ENABLE_BANKING_STATE_TTL does not match.
 	 */
-	private function findEnableBankingConnectionByState(string $userId, string $state, bool $requireFresh): ?BankConnection {
+	private function findEnableBankingConnectionByState(string $userId, #[\SensitiveParameter] string $state, bool $requireFresh): ?BankConnection {
 		if ($state === '') {
 			return null;
 		}
@@ -929,7 +929,7 @@ class BankSyncService {
 		return null;
 	}
 
-	private function decodeCredentials(?string $credentials): array {
+	private function decodeCredentials(#[\SensitiveParameter] ?string $credentials): array {
 		$creds = json_decode((string)$credentials, true);
 		return is_array($creds) ? $creds : [];
 	}
