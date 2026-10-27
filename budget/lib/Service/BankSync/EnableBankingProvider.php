@@ -36,7 +36,7 @@ use Psr\Log\LoggerInterface;
  * Failures are logged with the exception class only, never its message:
  * messages from the HTTP layer can contain URLs with session IDs and UIDs.
  */
-class EnableBankingProvider implements BankSyncProviderInterface, InstitutionListingProviderInterface, ReauthorizableProviderInterface {
+class EnableBankingProvider implements BankSyncProviderInterface, InstitutionListingProviderInterface, ReauthorizableProviderInterface, ReliableBalanceProviderInterface {
 	private const PSU_TYPE = 'personal';
 	private const MAX_CONSENT_SECONDS = 180 * 86400;
 	private const FIRST_SYNC_DAYS = 90;

@@ -16,6 +16,7 @@ use OCA\Budget\Service\BankSync\BankSyncService;
 use OCA\Budget\Service\BankSync\EnableBankingProvider;
 use OCA\Budget\Service\BankSync\GoCardlessProvider;
 use OCA\Budget\Service\BankSync\ProviderFactory;
+use OCA\Budget\Service\BankSync\ReliableBalanceProviderInterface;
 use OCA\Budget\Service\TransactionService;
 use OCP\IL10N;
 use PHPUnit\Framework\TestCase;
@@ -1667,14 +1668,17 @@ class BankSyncServiceTest extends TestCase {
 	 * @param array $feed normalized bank rows
 	 * @param string $foreignNet net change of rows the account already had
 	 */
-	private function syncLedger(array $feed, ?string $bankBalance, int $existingRows = 0, string $foreignNet = '0', string $type = 'checking', string $currency = 'EUR', string $bankCurrency = 'EUR', float $opening = 0.0): \OCA\Budget\Db\Account {
+	private function syncLedger(array $feed, ?string $bankBalance, int $existingRows = 0, string $foreignNet = '0', string $type = 'checking', string $currency = 'EUR', string $bankCurrency = 'EUR', float $opening = 0.0, bool $reliableBalance = true): \OCA\Budget\Db\Account {
 		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
 		$connection = $this->createConnection(1, 'enablebanking', 'My Bank', 'active');
 		$this->connectionMapper->method('find')->with(1, self::USER_ID)->willReturn($connection);
-		$this->providerFactory->method('getProvider')->willReturn($this->provider);
-		$this->provider->method('requiresReauthorization')->willReturn(false);
+		$provider = $reliableBalance
+			? $this->createMockForIntersectionOfInterfaces([BankSyncProviderInterface::class, ReliableBalanceProviderInterface::class])
+			: $this->provider;
+		$this->providerFactory->method('getProvider')->willReturn($provider);
+		$provider->method('requiresReauthorization')->willReturn(false);
 		$this->ledgerFeed = $feed;
-		$this->provider->method('fetchAccounts')->willReturnCallback(fn () => ['accounts' => [[
+		$provider->method('fetchAccounts')->willReturnCallback(fn () => ['accounts' => [[
 			'id' => 'ext-1', 'name' => 'Giro', 'balance' => $bankBalance, 'currency' => $bankCurrency,
 			'transactions' => $this->ledgerFeed,
 		]]]);
@@ -1734,6 +1738,32 @@ class BankSyncServiceTest extends TestCase {
 
 		$this->assertSame(1150.0, $account->getOpeningBalance());
 		$this->assertSame(1000.0, $this->transactionService->getBalanceAsOf(100, date('Y-m-d')));
+	}
+
+	/**
+	 * GoCardless and SimpleFIN may report an available balance (credit line
+	 * included) or none at all, so a first sync must not set the opening
+	 * balance from it. The difference is still shown for a manual reconcile.
+	 */
+	public function testFirstSyncWithoutAReliableBalanceOnlyShowsTheDifference(): void {
+		$account = $this->syncLedger([
+			['id' => 'a', 'date' => '2026-10-01', 'amount' => '-200.00', 'description' => 'Rent'],
+			['id' => 'b', 'date' => '2026-10-02', 'amount' => '50.00', 'description' => 'Refund'],
+		], '1000.00', reliableBalance: false);
+		$this->accountService->expects($this->never())->method('update');
+
+		$this->service->sync(self::USER_ID, 1);
+
+		$this->assertSame(0.0, $account->getOpeningBalance());
+		$this->assertNull($this->ledgerMapping->getBalanceReconciledAt());
+		$this->assertSame('1000.00', $this->ledgerMapping->getLastBalance());
+		$this->assertSame('1150.00', $this->service->getBalanceDifference($this->ledgerMapping, self::USER_ID));
+	}
+
+	public function testOnlyEnableBankingDeclaresReliableBalances(): void {
+		$this->assertTrue(is_subclass_of(EnableBankingProvider::class, ReliableBalanceProviderInterface::class));
+		$this->assertFalse(is_subclass_of(GoCardlessProvider::class, ReliableBalanceProviderInterface::class));
+		$this->assertFalse(is_subclass_of(\OCA\Budget\Service\BankSync\SimpleFINProvider::class, ReliableBalanceProviderInterface::class));
 	}
 
 	public function testFirstSyncWithZeroTransactionsSetsOpeningToBankBalance(): void {

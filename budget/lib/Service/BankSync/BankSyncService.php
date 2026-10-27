@@ -451,7 +451,8 @@ class BankSyncService {
 			// Update mapping balance
 			$mapping->setLastBalance($externalAccount['balance'] ?? null);
 			$mapping->setLastCurrency($externalAccount['currency'] ?? null);
-			if (isset($externalAccount['balance']) && is_numeric($externalAccount['balance'])) {
+			if ($provider instanceof ReliableBalanceProviderInterface
+				&& isset($externalAccount['balance']) && is_numeric($externalAccount['balance'])) {
 				$this->autoReconcileNewAccount(
 					$mapping,
 					$budgetAccount,
@@ -646,6 +647,10 @@ class BankSyncService {
 	 * account that stays empty would otherwise pass the row check on every
 	 * sync, and its balance would follow the bank's, hiding a row the bank
 	 * never delivered. Mapping it to another account resets it.
+	 *
+	 * Only for providers that declare ReliableBalanceProviderInterface: an
+	 * available balance with a credit line, or none, would set a wrong
+	 * opening balance without anyone noticing.
 	 */
 	private function autoReconcileNewAccount(BankAccountMapping $mapping, Account $account, string $bankBalance, string $bankCurrency, int $importedThisRun, string $userId): void {
 		if ($this->accountService === null || $this->transactionMapper === null
