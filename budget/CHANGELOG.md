@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [3.2.0] - 2026-10-27
 
 ### Added
 - **Download a receipt through the API.** `GET /transactions/{id}/receipts/{attachmentId}/download` returns the receipt file itself, with its type and name, so a client can show the image or open the PDF without knowing where the user's receipts folder is. Owner-only like the other receipt calls, and a deleted file is a `404`. Reported by @SGiersch ([#436](https://github.com/otherworld-dev/Budget/issues/436))
@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Ignore a duplicate in Repair Data.** Each row under Duplicate Auto-Generated Transactions has an **Ignore** button for a payment you have checked and want to keep, such as an old double your balance already allows for. It then stops being listed or counted, is never deleted, and goes under the ignored rows at the bottom, where **Stop ignoring** brings it back. Until now the same rows came back on every scan. ([#399](https://github.com/otherworld-dev/Budget/issues/399))
 
 ### Changed
+- **Translations.** German and French have been updated from Weblate.
 - **Category Details says when its bars are budget months.** With a **Budget Cycle Start Day** set, each bar of **Monthly Spending** covers a budget month, so with the 25th the October bar runs from 25 September to 24 October, but nothing said so and a September purchase seemed to land in the wrong month. A line under the chart now names the start day, hovering a bar shows its dates, and **This Month** reads **This Period** (#447).
 - **The savings goal form explains linked tags.** A line under **Linked Tag** says how tagged transactions, bills and transfers count: money in adds to the goal, money out takes it away, a transfer between your accounts counts once on the savings side, and a linked account limits it to that account. Reported by @TerjeTM ([#438](https://github.com/otherworld-dev/Budget/issues/438))
 
@@ -25,7 +26,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Amount boxes take a decimal comma.** `12,50` now works in every amount box, including the Transactions amount filter, on any browser; Safari used to treat it as empty (#442). Thousands separators work in either style (`1.250,50` or `1,250.50`), and the box tidies what you type into a plain `1250.50` as you go.
 - **Receipt scans suggest a category from rules made in the rule builder.** The suggestion only understood rules made in older versions, so a rule created in today's rule builder never set the category on a scanned receipt. ([#444](https://github.com/otherworld-dev/Budget/issues/444))
 - **The API says why a receipt couldn't be attached.** A photo sent with a new transaction that couldn't be saved only came back as a general `photo_error`. It now also carries a `photo_error_code`, and `POST /transactions/{id}/receipts` answers with an `error_code` (`403` when Files refuses the write). The usual cause is an app password with **Allow filesystem access** switched off in Settings → Security: it can record transactions but can't save files, and the error now says so. Reported by @SGiersch ([#437](https://github.com/otherworld-dev/Budget/issues/437))
-
 - **The report summary counts both ends of its date range.** `GET /api/reports/summary` includes transactions on the start and end dates, but `period.days` left one of them out, so 1-30 September came back as 29 days and `averageDaily` was divided by 29. It now counts every date in the range, and a daylight-saving change inside it no longer leaves a fraction of a day. Reported by @rapmost2o ([#449](https://github.com/otherworld-dev/Budget/issues/449))
 
 ### Security

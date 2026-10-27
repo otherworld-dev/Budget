@@ -1,5 +1,18 @@
 [
     {
+        "version": "3.2.0",
+        "title": "Category icons, receipt items sorted by your rules, and Monero",
+        "items": [
+            "Pick an icon for each category from about 60 in the category form.",
+            "Receipts split into items file each line under a category from your rules, and Remember saves a rule for next time.",
+            "Every amount box takes a decimal comma, such as 12,50, in any browser.",
+            "Monero (XMR) is in the currency list, with daily rates.",
+            "Repair Data can ignore a duplicate you have checked, so it stops coming back on every scan.",
+            "Category Details says when its bars are budget months rather than calendar months."
+        ],
+        "link": "https://github.com/otherworld-dev/Budget/blob/main/budget/CHANGELOG.md"
+    },
+    {
         "version": "3.1.0",
         "title": "Your own colours, and bills that are only paid once",
         "items": [
