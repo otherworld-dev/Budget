@@ -454,6 +454,11 @@ return [
 		['name' => 'bankSync#updateMapping', 'url' => '/api/bank-sync/connections/{id}/mappings/{mappingId}', 'verb' => 'PUT'],
 		['name' => 'bankSync#refreshAccounts', 'url' => '/api/bank-sync/connections/{id}/refresh', 'verb' => 'POST'],
 		['name' => 'bankSync#reauthorize', 'url' => '/api/bank-sync/connections/{id}/reauthorize', 'verb' => 'POST'],
+		// Enable Banking: the bank's redirect target (a page) and the user's application keys
+		['name' => 'enableBanking#callback', 'url' => '/bank-sync/enablebanking/callback', 'verb' => 'GET'],
+		['name' => 'enableBanking#settings', 'url' => '/api/bank-sync/enablebanking/settings', 'verb' => 'GET'],
+		['name' => 'enableBanking#saveSettings', 'url' => '/api/bank-sync/enablebanking/settings', 'verb' => 'PUT'],
+		['name' => 'enableBanking#deleteSettings', 'url' => '/api/bank-sync/enablebanking/settings', 'verb' => 'DELETE'],
 
 		// Admin settings routes
 		['name' => 'adminSetting#index', 'url' => '/api/admin/settings', 'verb' => 'GET'],

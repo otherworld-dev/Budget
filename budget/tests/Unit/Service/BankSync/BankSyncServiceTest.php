@@ -1453,7 +1453,199 @@ class BankSyncServiceTest extends TestCase {
 		$this->service->sync(self::USER_ID, 1);
 	}
 
+	// ===== Enable Banking callback =====
+
+	public function testCompleteKeepsMappingBudgetAccountAcrossNewUids(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$connection = $this->ebConnection(1, 'state-a', time() - 60, null);
+		$this->connectionMapper->method('findAll')->with(self::USER_ID)->willReturn([$connection]);
+		$eb = $this->ebProvider();
+		$eb->expects($this->once())->method('completeAuthorization')
+			->with($connection->getCredentials(), 'code-1')
+			->willReturn($this->ebResult('sess-new', '2027-04-24T10:00:00+00:00', ['hash-1', 'hash-2']));
+
+		// hash-1 was mapped before (under an older session's uid); hash-2 is new
+		$existing = $this->createMapping(5, 1, 'hash-1', 42, true);
+		$this->mappingMapper->method('findByExternalId')->willReturnMap([
+			[1, 'hash-1', $existing],
+			[1, 'hash-2', null],
+		]);
+		$this->mappingMapper->expects($this->once())->method('update')
+			->willReturnCallback(function (BankAccountMapping $m) {
+				$this->assertSame('hash-1', $m->getExternalAccountId());
+				$this->assertSame(42, $m->getBudgetAccountId());
+				$this->assertTrue($m->getEnabled());
+				return $m;
+			});
+		$this->mappingMapper->expects($this->once())->method('insert')
+			->willReturnCallback(function (BankAccountMapping $m) {
+				$this->assertSame('hash-2', $m->getExternalAccountId());
+				$this->assertSame(1, $m->getConnectionId());
+				$this->assertFalse($m->getEnabled());
+				return $m;
+			});
+		// A first connection has no previous session to revoke
+		$eb->expects($this->never())->method('revokeConnection');
+		$this->auditService->expects($this->once())->method('log')
+			->with(self::USER_ID, 'bank_connected', 'bank_connection', 1, ['provider' => 'enablebanking']);
+
+		$result = $this->service->completeEnableBankingAuthorization(self::USER_ID, 'state-a', 'code-1');
+
+		$this->assertSame('active', $result->getStatus());
+		$this->assertSame('sess-new', json_decode($result->getCredentials(), true)['sessionId']);
+	}
+
+	public function testCompleteRevokesPreviousSession(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$connection = $this->ebConnection(1, 'state-a', time() - 60, 'sess-old');
+		$oldCredentials = $connection->getCredentials();
+		$this->connectionMapper->method('findAll')->willReturn([$connection]);
+		$eb = $this->ebProvider();
+		$eb->method('completeAuthorization')
+			->willReturn($this->ebResult('sess-new', '2027-04-24T10:00:00+00:00', []));
+		$eb->expects($this->once())->method('revokeConnection')->with($oldCredentials);
+		$this->auditService->expects($this->once())->method('log')
+			->with(self::USER_ID, 'bank_reauthorized', 'bank_connection', 1, ['provider' => 'enablebanking']);
+
+		$this->service->completeEnableBankingAuthorization(self::USER_ID, 'state-a', 'code-1');
+	}
+
+	public function testCompleteSetsConsentExpiresOnMappings(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$connection = $this->ebConnection(1, 'state-a', time() - 60, null);
+		$this->connectionMapper->method('findAll')->willReturn([$connection]);
+		$this->ebProvider()->method('completeAuthorization')
+			->willReturn($this->ebResult('sess-new', '2027-04-24T10:00:00+00:00', ['hash-1', 'hash-2']));
+		$existing = $this->createMapping(5, 1, 'hash-1', 42, true);
+		$this->mappingMapper->method('findByExternalId')->willReturnMap([
+			[1, 'hash-1', $existing],
+			[1, 'hash-2', null],
+		]);
+		$saved = [];
+		$collect = function (BankAccountMapping $m) use (&$saved) {
+			$saved[] = $m;
+			return $m;
+		};
+		$this->mappingMapper->method('update')->willReturnCallback($collect);
+		$this->mappingMapper->method('insert')->willReturnCallback($collect);
+
+		$this->service->completeEnableBankingAuthorization(self::USER_ID, 'state-a', 'code-1');
+
+		$expected = date('Y-m-d H:i:s', strtotime('2027-04-24T10:00:00+00:00'));
+		$this->assertCount(2, $saved);
+		foreach ($saved as $m) {
+			$this->assertSame($expected, $m->getConsentExpires());
+		}
+	}
+
+	public function testStateIsSingleUse(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$connection = $this->ebConnection(1, 'state-a', time() - 60, null);
+		$this->connectionMapper->method('findAll')->willReturn([$connection]);
+		$eb = $this->ebProvider();
+		$eb->expects($this->once())->method('completeAuthorization')
+			->willReturn($this->ebResult('sess-new', '2027-04-24T10:00:00+00:00', []));
+
+		$this->service->completeEnableBankingAuthorization(self::USER_ID, 'state-a', 'code-1');
+
+		$this->expectException(\RuntimeException::class);
+		$this->service->completeEnableBankingAuthorization(self::USER_ID, 'state-a', 'code-1');
+	}
+
+	public function testCompleteUnknownStateNeverCallsProvider(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$this->connectionMapper->method('findAll')->willReturn([$this->ebConnection(1, 'state-a', time() - 60, null)]);
+		$eb = $this->ebProvider();
+		$eb->expects($this->never())->method('completeAuthorization');
+		$this->connectionMapper->expects($this->never())->method('update');
+
+		$this->expectException(\RuntimeException::class);
+		$this->service->completeEnableBankingAuthorization(self::USER_ID, 'state-b', 'code-1');
+	}
+
+	public function testCompleteRejectsStateOlderThanThirtyMinutes(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$this->connectionMapper->method('findAll')->willReturn([$this->ebConnection(1, 'state-a', time() - 31 * 60, null)]);
+		$this->ebProvider()->expects($this->never())->method('completeAuthorization');
+
+		$this->expectException(\RuntimeException::class);
+		$this->service->completeEnableBankingAuthorization(self::USER_ID, 'state-a', 'code-1');
+	}
+
+	public function testCompleteIgnoresConnectionsNotPendingOrOfOtherProviders(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$active = $this->ebConnection(1, 'state-a', time() - 60, null);
+		$active->setStatus('active');
+		$other = $this->ebConnection(2, 'state-a', time() - 60, null);
+		$other->setProvider('gocardless');
+		$this->connectionMapper->method('findAll')->willReturn([$active, $other]);
+		$this->ebProvider()->expects($this->never())->method('completeAuthorization');
+
+		$this->expectException(\RuntimeException::class);
+		$this->service->completeEnableBankingAuthorization(self::USER_ID, 'state-a', 'code-1');
+	}
+
+	public function testFailClearsStateAndSetsGenericError(): void {
+		$connection = $this->ebConnection(1, 'state-a', time() - 60, null);
+		$this->connectionMapper->method('findAll')->with(self::USER_ID)->willReturn([$connection]);
+		$this->connectionMapper->expects($this->once())->method('update')
+			->willReturnCallback(function (BankConnection $c) {
+				$creds = json_decode($c->getCredentials(), true);
+				$this->assertNull($creds['state']);
+				$this->assertNull($creds['stateCreatedAt']);
+				$this->assertSame('Authorization was cancelled or failed at the bank.', $c->getLastError());
+				return $c;
+			});
+
+		$this->service->failEnableBankingAuthorization(self::USER_ID, 'state-a', 'access_denied <script>');
+	}
+
+	public function testFailWithUnknownStateChangesNothing(): void {
+		$this->connectionMapper->method('findAll')->willReturn([$this->ebConnection(1, 'state-a', time() - 60, null)]);
+		$this->connectionMapper->expects($this->never())->method('update');
+
+		$this->service->failEnableBankingAuthorization(self::USER_ID, 'state-b', 'access_denied');
+	}
+
 	// ===== Helpers =====
+
+	private function ebConnection(int $id, ?string $state, ?int $stateCreatedAt, ?string $sessionId): BankConnection {
+		$conn = $this->createConnection($id, 'enablebanking', 'EU Bank', 'pending_auth');
+		$conn->setCredentials(json_encode([
+			'userId' => self::USER_ID,
+			'aspspName' => 'Bank',
+			'aspspCountry' => 'DE',
+			'state' => $state,
+			'stateCreatedAt' => $stateCreatedAt,
+			'sessionId' => $sessionId,
+			'validUntil' => null,
+			'accounts' => [],
+			'lastSyncDate' => null,
+		]));
+		return $conn;
+	}
+
+	/** @return EnableBankingProvider&\PHPUnit\Framework\MockObject\MockObject */
+	private function ebProvider(): EnableBankingProvider {
+		$eb = $this->createMock(EnableBankingProvider::class);
+		$this->providerFactory->method('getProvider')->with('enablebanking')->willReturn($eb);
+		return $eb;
+	}
+
+	/** @param list<string> $hashes */
+	private function ebResult(string $sessionId, string $validUntil, array $hashes): array {
+		return [
+			'credentials' => json_encode([
+				'userId' => self::USER_ID,
+				'state' => null,
+				'stateCreatedAt' => null,
+				'sessionId' => $sessionId,
+				'validUntil' => $validUntil,
+				'accounts' => array_fill_keys($hashes, 'uid-new'),
+			]),
+			'accounts' => array_map(fn ($h) => ['id' => $h, 'name' => 'Acc ' . $h, 'currency' => 'EUR', 'balance' => null], $hashes),
+		];
+	}
 
 	private function createConnection(int $id, string $provider, string $name, string $status): BankConnection {
 		$conn = new BankConnection();

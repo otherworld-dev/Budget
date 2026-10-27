@@ -20,6 +20,9 @@ use Psr\Log\LoggerInterface;
  * managing account mappings, and coordinating with providers.
  */
 class BankSyncService {
+	/** How long the bank redirect may take before the `state` is refused. */
+	private const ENABLE_BANKING_STATE_TTL = 1800;
+
 	public function __construct(
 		private BankConnectionMapper $connectionMapper,
 		private BankAccountMappingMapper $mappingMapper,
@@ -641,6 +644,148 @@ class BankSyncService {
 		return [
 			'authorizationUrl' => $result['authorizationUrl'] ?? null,
 		];
+	}
+
+	/**
+	 * Finish an Enable Banking authorization from the bank's redirect.
+	 *
+	 * The `state` is the only thing tying the redirect to a connection, so it
+	 * is matched only among the logged-in user's own pending Enable Banking
+	 * connections: a state taken from someone else's redirect authorizes
+	 * nothing. The provider clears it, which makes it single use.
+	 *
+	 * Mappings are matched by `identification_hash`, which outlives the
+	 * per-session account UIDs, so a reauthorized connection keeps its
+	 * Budget accounts. The bank's balances are not fetched here (banks allow
+	 * only a few accesses a day); the wizard's refresh step does that.
+	 *
+	 * @throws \RuntimeException when no pending connection matches the state
+	 */
+	public function completeEnableBankingAuthorization(string $userId, string $state, string $code): BankConnection {
+		$this->requireEnabled();
+
+		$connection = $this->findEnableBankingConnectionByState($userId, $state, true);
+		if ($connection === null) {
+			throw new \RuntimeException('No pending bank authorization matches this request');
+		}
+
+		$provider = $this->providerFactory->getProvider('enablebanking');
+		if (!($provider instanceof EnableBankingProvider)) {
+			throw new \RuntimeException('Enable Banking is not available');
+		}
+
+		// Read before completing: the provider overwrites the session ID
+		$oldCredentials = $connection->getCredentials();
+		$oldSessionId = $this->decodeCredentials($oldCredentials)['sessionId'] ?? null;
+
+		$result = $provider->completeAuthorization($oldCredentials, $code);
+		$newCreds = $this->decodeCredentials($result['credentials']);
+		$now = date('Y-m-d H:i:s');
+
+		$connection->setCredentials($result['credentials']);
+		$connection->setStatus('active');
+		$connection->setLastError(null);
+		$connection->setUpdatedAt($now);
+		$this->connectionMapper->update($connection);
+
+		$consentExpires = $this->toDbDateTime($newCreds['validUntil'] ?? null);
+		foreach ($result['accounts'] as $account) {
+			$mapping = $this->mappingMapper->findByExternalId($connection->getId(), $account['id']);
+			$isNew = $mapping === null;
+			if ($isNew) {
+				$mapping = new BankAccountMapping();
+				$mapping->setConnectionId($connection->getId());
+				$mapping->setExternalAccountId($account['id']);
+				$mapping->setEnabled(false);
+				$mapping->setCreatedAt($now);
+			}
+			$mapping->setExternalAccountName($account['name']);
+			$mapping->setLastCurrency($account['currency'] ?? null);
+			$mapping->setConsentExpires($consentExpires);
+			$mapping->setUpdatedAt($now);
+			if ($isNew) {
+				$this->mappingMapper->insert($mapping);
+			} else {
+				$this->mappingMapper->update($mapping);
+			}
+		}
+
+		$reauthorized = !empty($oldSessionId);
+		if ($reauthorized && $oldSessionId !== ($newCreds['sessionId'] ?? null)) {
+			// Best effort: the provider logs and swallows failures
+			$provider->revokeConnection($oldCredentials);
+		}
+
+		$this->auditService->log($userId, $reauthorized ? 'bank_reauthorized' : 'bank_connected', 'bank_connection', $connection->getId(), [
+			'provider' => 'enablebanking',
+		]);
+
+		return $connection;
+	}
+
+	/**
+	 * The bank redirected back with an error (or the user cancelled there).
+	 * The bank's error text is not stored or shown: it is untrusted input,
+	 * and the user only needs to know to try again.
+	 */
+	public function failEnableBankingAuthorization(string $userId, string $state, string $error): void {
+		$connection = $this->findEnableBankingConnectionByState($userId, $state, false);
+		if ($connection === null) {
+			return;
+		}
+
+		$creds = $this->decodeCredentials($connection->getCredentials());
+		$creds['state'] = null;
+		$creds['stateCreatedAt'] = null;
+		$connection->setCredentials((string)json_encode($creds));
+		$connection->setLastError('Authorization was cancelled or failed at the bank.');
+		$connection->setUpdatedAt(date('Y-m-d H:i:s'));
+		$this->connectionMapper->update($connection);
+	}
+
+	/**
+	 * The user's pending Enable Banking connection whose `state` matches,
+	 * compared in constant time. With $requireFresh, a state older than
+	 * ENABLE_BANKING_STATE_TTL does not match.
+	 */
+	private function findEnableBankingConnectionByState(string $userId, string $state, bool $requireFresh): ?BankConnection {
+		if ($state === '') {
+			return null;
+		}
+		foreach ($this->connectionMapper->findAll($userId) as $connection) {
+			if ($connection->getProvider() !== 'enablebanking' || $connection->getStatus() !== 'pending_auth') {
+				continue;
+			}
+			$creds = $this->decodeCredentials($connection->getCredentials());
+			$stored = $creds['state'] ?? null;
+			if (!is_string($stored) || $stored === '' || !hash_equals($stored, $state)) {
+				continue;
+			}
+			if ($requireFresh && time() - (int)($creds['stateCreatedAt'] ?? 0) >= self::ENABLE_BANKING_STATE_TTL) {
+				return null;
+			}
+			return $connection;
+		}
+		return null;
+	}
+
+	private function decodeCredentials(?string $credentials): array {
+		$creds = json_decode((string)$credentials, true);
+		return is_array($creds) ? $creds : [];
+	}
+
+	/** An RFC 3339 timestamp as a server-local DATETIME column value, or null. */
+	private function toDbDateTime(mixed $value): ?string {
+		if (!is_string($value) || $value === '') {
+			return null;
+		}
+		try {
+			return (new \DateTimeImmutable($value))
+				->setTimezone(new \DateTimeZone(date_default_timezone_get()))
+				->format('Y-m-d H:i:s');
+		} catch (\Exception $e) {
+			return null;
+		}
 	}
 
 	/**
