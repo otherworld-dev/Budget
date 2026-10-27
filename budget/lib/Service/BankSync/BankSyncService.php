@@ -168,11 +168,23 @@ class BankSyncService {
 			throw new \Exception('Bank authorization has expired. Please reconnect.');
 		}
 
+		// Transactions are only wanted for imported accounts: enabled and
+		// mapped to a budget account. One whose balance was never reconciled
+		// has not been imported yet and needs its full history.
+		$allMappings = $this->mappingMapper->findByConnection($connectionId);
+		$syncAccounts = [];
+		foreach ($allMappings as $m) {
+			if ($m->getEnabled() && $m->getBudgetAccountId() !== null) {
+				$syncAccounts[$m->getExternalAccountId()] = $m->getBalanceReconciledAt() === null;
+			}
+		}
+
 		// Fetch accounts and transactions from provider
 		$includePending = (bool)$connection->getIncludePending();
 		try {
 			$data = $provider->fetchAccounts($connection->getCredentials(), [
 				'includePending' => $includePending,
+				'syncAccounts' => $syncAccounts,
 			]);
 		} catch (\Exception $e) {
 			$connection->setStatus('error');
@@ -194,7 +206,6 @@ class BankSyncService {
 		}
 
 		// Auto-discover accounts if none have been mapped yet
-		$allMappings = $this->mappingMapper->findByConnection($connectionId);
 		if (empty($allMappings)) {
 			$this->refreshAccounts($userId, $connectionId);
 		}

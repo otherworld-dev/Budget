@@ -88,7 +88,7 @@ class EnableBankingProviderTest extends TestCase {
 			'sessionId' => 'sess-1',
 			'validUntil' => gmdate('Y-m-d\TH:i:sP', $this->now + 30 * self::DAY),
 			'accounts' => ['hash-a' => 'uid-a'],
-			'lastSyncDate' => null,
+			'lastSyncDates' => [],
 		], $overrides));
 	}
 
@@ -235,13 +235,144 @@ class EnableBankingProviderTest extends TestCase {
 		$this->assertSame(['12.30', '-50.00'], array_column($account['transactions'], 'amount'));
 
 		$updated = json_decode($result['updatedCredentials'], true);
-		$this->assertSame('2026-10-27', $updated['lastSyncDate']);
+		$this->assertSame(['hash-a' => '2026-10-27'], $updated['lastSyncDates']);
 		$this->assertSame('sess-1', $updated['sessionId']);
 
 		// Later syncs overlap the last successful one by 7 days.
 		$this->calls = [];
-		$this->provider->fetchAccounts($this->credentials(['lastSyncDate' => '2026-10-20']));
+		$this->provider->fetchAccounts($this->credentials(['lastSyncDates' => ['hash-a' => '2026-10-20']]));
 		$this->assertSame('2026-10-13', $this->callsTo('GET', '/accounts/uid-a/transactions')[0]['query']['date_from']);
+	}
+
+	private function stubPlainAccount(string $uid): void {
+		$this->responses['GET /accounts/' . $uid . '/details'] = ['name' => 'Account ' . $uid, 'currency' => 'EUR'];
+		$this->responses['GET /accounts/' . $uid . '/balances'] = ['balances' => [
+			['balance_type' => 'CLBD', 'balance_amount' => ['amount' => '10.00', 'currency' => 'EUR']],
+		]];
+		$this->responses['GET /accounts/' . $uid . '/transactions'] = ['transactions' => [[
+			'transaction_id' => 'tx-' . $uid, 'transaction_amount' => ['amount' => '1.00', 'currency' => 'EUR'],
+			'credit_debit_indicator' => 'DBIT', 'status' => 'BOOK', 'booking_date' => '2026-10-25',
+		]]];
+	}
+
+	private function dateFromFor(string $uid): ?string {
+		$calls = $this->callsTo('GET', '/accounts/' . $uid . '/transactions');
+		return $calls === [] ? null : $calls[0]['query']['date_from'];
+	}
+
+	/**
+	 * Accounts nobody imports yet (no enabled mapping with a budget account)
+	 * still show details and balance, but their transactions are not read:
+	 * that would spend the bank's daily quota and move their sync window.
+	 */
+	public function testUnmappedAccountsFetchNoTransactionsAndKeepTheirWindow(): void {
+		$this->stubPlainAccount('uid-a');
+		$this->stubPlainAccount('uid-b');
+
+		$result = $this->provider->fetchAccounts($this->credentials([
+			'accounts' => ['hash-a' => 'uid-a', 'hash-b' => 'uid-b'],
+			'lastSyncDates' => ['hash-a' => '2026-10-20', 'hash-b' => '2026-10-01'],
+		]), ['syncAccounts' => ['hash-a' => false]]);
+
+		$this->assertSame('2026-10-13', $this->dateFromFor('uid-a'));
+		$this->assertSame([], $this->callsTo('GET', '/accounts/uid-b/transactions'));
+		$this->assertCount(1, $this->callsTo('GET', '/accounts/uid-b/details'));
+		$this->assertCount(1, $this->callsTo('GET', '/accounts/uid-b/balances'));
+
+		$this->assertSame(['hash-a', 'hash-b'], array_column($result['accounts'], 'id'));
+		$this->assertSame([], $result['accounts'][1]['transactions']);
+		$this->assertSame('10.00', $result['accounts'][1]['balance']);
+
+		$updated = json_decode($result['updatedCredentials'], true);
+		$this->assertSame(['hash-a' => '2026-10-27', 'hash-b' => '2026-10-01'], $updated['lastSyncDates']);
+	}
+
+	/**
+	 * The UI syncs once right after connecting, before anything is mapped.
+	 * That sync must not cost the account its first 90 days.
+	 */
+	public function testLateMappedAccountGetsFullHistory(): void {
+		$this->stubPlainAccount('uid-a');
+
+		$first = $this->provider->fetchAccounts($this->credentials(), ['syncAccounts' => []]);
+		$this->assertSame([], $this->callsTo('GET', '/accounts/uid-a/transactions'));
+		$credentials = $first['updatedCredentials'] ?? $this->credentials();
+		$this->assertSame([], json_decode($credentials, true)['lastSyncDates'] ?? []);
+
+		$this->provider->fetchAccounts($credentials, ['syncAccounts' => ['hash-a' => true]]);
+		$this->assertSame('2026-07-29', $this->dateFromFor('uid-a'));
+
+		// An account that still needs its history gets the full window even
+		// when a date was stored for it.
+		$this->calls = [];
+		$this->provider->fetchAccounts(
+			$this->credentials(['lastSyncDates' => ['hash-a' => '2026-10-20']]),
+			['syncAccounts' => ['hash-a' => true]]
+		);
+		$this->assertSame('2026-07-29', $this->dateFromFor('uid-a'));
+	}
+
+	public function testSyncedAccountUsesItsOwnLastDateMinus7(): void {
+		$this->stubPlainAccount('uid-a');
+		$this->stubPlainAccount('uid-b');
+		$this->stubPlainAccount('uid-c');
+
+		$result = $this->provider->fetchAccounts($this->credentials([
+			'accounts' => ['hash-a' => 'uid-a', 'hash-b' => 'uid-b', 'hash-c' => 'uid-c'],
+			'lastSyncDates' => ['hash-a' => '2026-10-20', 'hash-b' => '2026-09-30'],
+		]), ['syncAccounts' => ['hash-a' => false, 'hash-b' => false, 'hash-c' => false]]);
+
+		$this->assertSame('2026-10-13', $this->dateFromFor('uid-a'));
+		$this->assertSame('2026-09-23', $this->dateFromFor('uid-b'));
+		$this->assertSame('2026-07-29', $this->dateFromFor('uid-c'));
+
+		$updated = json_decode($result['updatedCredentials'], true);
+		$this->assertSame(
+			['hash-a' => '2026-10-27', 'hash-b' => '2026-10-27', 'hash-c' => '2026-10-27'],
+			$updated['lastSyncDates']
+		);
+	}
+
+	/**
+	 * The connection-wide date from before per-account windows may have been
+	 * set by a sync that imported nothing; it is not trusted.
+	 */
+	public function testLegacyScalarLastSyncDateIsIgnored(): void {
+		$this->stubPlainAccount('uid-a');
+		$legacy = json_decode($this->credentials(['lastSyncDate' => '2026-10-20']), true);
+		unset($legacy['lastSyncDates']);
+
+		$result = $this->provider->fetchAccounts(json_encode($legacy), ['syncAccounts' => ['hash-a' => false]]);
+
+		$this->assertSame('2026-07-29', $this->dateFromFor('uid-a'));
+		$updated = json_decode($result['updatedCredentials'], true);
+		$this->assertSame(['hash-a' => '2026-10-27'], $updated['lastSyncDates']);
+		$this->assertArrayNotHasKey('lastSyncDate', $updated);
+
+		// Without syncAccounts (older callers) the scalar is ignored as well.
+		$this->calls = [];
+		$this->provider->fetchAccounts(json_encode($legacy));
+		$this->assertSame('2026-07-29', $this->dateFromFor('uid-a'));
+	}
+
+	public function testCutOffAccountDoesNotAdvanceItsDate(): void {
+		$this->stubPlainAccount('uid-a');
+		$this->stubPlainAccount('uid-b');
+		$this->stubPlainAccount('uid-c');
+		$page = 0;
+		$this->responses['GET /accounts/uid-a/transactions'] = function () use (&$page) {
+			$page++;
+			return ['transactions' => [], 'continuation_key' => 'page-' . $page];
+		};
+		$this->responses['GET /accounts/uid-c/transactions'] = new \RuntimeException('HTTP 500');
+
+		$result = $this->provider->fetchAccounts($this->credentials([
+			'accounts' => ['hash-a' => 'uid-a', 'hash-b' => 'uid-b', 'hash-c' => 'uid-c'],
+			'lastSyncDates' => ['hash-a' => '2026-10-20', 'hash-b' => '2026-10-20'],
+		]), ['syncAccounts' => ['hash-a' => false, 'hash-b' => false, 'hash-c' => false]]);
+
+		$updated = json_decode($result['updatedCredentials'], true);
+		$this->assertSame(['hash-a' => '2026-10-20', 'hash-b' => '2026-10-27'], $updated['lastSyncDates']);
 	}
 
 	public function testFetchAccountsDropsPendingUnlessRequested(): void {
@@ -299,7 +430,8 @@ class EnableBankingProviderTest extends TestCase {
 		$result = $this->provider->fetchAccounts($this->credentials(['accounts' => ['hash-a' => 'uid-a', 'hash-b' => 'uid-b']]));
 
 		$this->assertSame(['hash-a'], array_column($result['accounts'], 'id'));
-		$this->assertArrayNotHasKey('updatedCredentials', $result);
+		$updated = json_decode($result['updatedCredentials'], true);
+		$this->assertSame(['hash-a' => '2026-10-27'], $updated['lastSyncDates']);
 	}
 
 	public function testFetchAccountsWithoutAccountsInTheSessionIsNoError(): void {
@@ -459,7 +591,7 @@ class EnableBankingProviderTest extends TestCase {
 		$oldState = str_repeat('b', 64);
 
 		$result = $this->provider->reinitializeConnection(
-			$this->credentials(['state' => $oldState, 'lastSyncDate' => '2026-10-20']),
+			$this->credentials(['state' => $oldState, 'lastSyncDates' => ['hash-a' => '2026-10-20']]),
 			['redirectUrl' => 'https://cloud.example/callback']
 		);
 
@@ -475,7 +607,7 @@ class EnableBankingProviderTest extends TestCase {
 		$this->assertSame($this->now, $creds['stateCreatedAt']);
 		$this->assertSame('sess-1', $creds['sessionId']);
 		$this->assertSame(['hash-a' => 'uid-a'], $creds['accounts']);
-		$this->assertSame('2026-10-20', $creds['lastSyncDate']);
+		$this->assertSame(['hash-a' => '2026-10-20'], $creds['lastSyncDates']);
 	}
 
 	// ── Logging hygiene ─────────────────────────────────────────────

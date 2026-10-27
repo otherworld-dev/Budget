@@ -31,7 +31,9 @@ use Psr\Log\LoggerInterface;
  * mappings and deduplication survive a reauth.
  *
  * Credentials JSON: userId, aspspName, aspspCountry, state, stateCreatedAt,
- * sessionId, validUntil, accounts (identification_hash => uid), lastSyncDate.
+ * sessionId, validUntil, accounts (identification_hash => uid),
+ * lastSyncDates (identification_hash => Y-m-d of the account's last complete
+ * transaction read).
  *
  * Failures are logged with the exception class only, never its message:
  * messages from the HTTP layer can contain URLs with session IDs and UIDs.
@@ -85,7 +87,7 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 			'sessionId' => null,
 			'validUntil' => null,
 			'accounts' => [],
-			'lastSyncDate' => null,
+			'lastSyncDates' => [],
 		];
 
 		return $this->startAuthorization($keys, $creds, $redirectUrl, $params['maximumConsentValidity'] ?? null);
@@ -153,23 +155,46 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 		return ['credentials' => json_encode($creds), 'accounts' => $accounts];
 	}
 
+	/**
+	 * Options: includePending (bool); syncAccounts (array<identification_hash,
+	 * bool needsFullHistory>), the accounts whose transactions are imported.
+	 * Accounts not listed get details and balance only, so they spend none of
+	 * the bank's daily accesses on transactions and keep their sync window.
+	 * Without syncAccounts every account's transactions are fetched.
+	 */
 	public function fetchAccounts(#[\SensitiveParameter] string $credentials, array $options = []): array {
 		$creds = $this->decode($credentials);
 		$keys = $this->requireKeys((string)($creds['userId'] ?? ''));
 		$includePending = (bool)($options['includePending'] ?? false);
-		$dateFrom = $this->syncStartDate($creds['lastSyncDate'] ?? null);
+		$syncAccounts = isset($options['syncAccounts']) && is_array($options['syncAccounts'])
+			? $options['syncAccounts']
+			: null;
 
-		$complete = true;
-		$accounts = $this->withReadableErrors(function () use ($creds, $keys, $includePending, $dateFrom, &$complete) {
+		// The connection-wide date from before per-account windows may have
+		// been set by a sync that imported nothing: read it as absent.
+		$lastSyncDates = is_array($creds['lastSyncDates'] ?? null) ? $creds['lastSyncDates'] : [];
+		$newSyncDates = $lastSyncDates;
+
+		$accounts = $this->withReadableErrors(function () use ($creds, $keys, $includePending, $syncAccounts, $lastSyncDates, &$newSyncDates) {
 			$accounts = [];
 			foreach ($creds['accounts'] ?? [] as $hash => $uid) {
-				$cutOff = false;
-				$account = $this->fetchAccount($keys, (string)$hash, (string)$uid, $includePending, $dateFrom, $cutOff);
-				if ($account === null || $cutOff) {
-					$complete = false;
+				$hash = (string)$hash;
+				$dateFrom = null;
+				if ($syncAccounts === null || array_key_exists($hash, $syncAccounts)) {
+					$needsFullHistory = $syncAccounts !== null && (bool)$syncAccounts[$hash];
+					$dateFrom = $this->syncStartDate($needsFullHistory ? null : ($lastSyncDates[$hash] ?? null));
 				}
-				if ($account !== null) {
-					$accounts[] = $account;
+
+				$cutOff = false;
+				$account = $this->fetchAccount($keys, $hash, (string)$uid, $includePending, $dateFrom, $cutOff);
+				if ($account === null) {
+					continue;
+				}
+				$accounts[] = $account;
+				// Only a complete read moves the account's window forward, so
+				// a failing or cut-off account does not lose the days it missed.
+				if ($dateFrom !== null && !$cutOff) {
+					$newSyncDates[$hash] = $this->today()->format('Y-m-d');
 				}
 			}
 			return $accounts;
@@ -182,10 +207,9 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 		}
 
 		$result = ['accounts' => $accounts];
-		// Only move the sync window forward when every account was read, so a
-		// failing account does not lose the days it missed.
-		if ($complete) {
-			$creds['lastSyncDate'] = $this->today()->format('Y-m-d');
+		if ($newSyncDates !== $lastSyncDates || array_key_exists('lastSyncDate', $creds)) {
+			unset($creds['lastSyncDate']);
+			$creds['lastSyncDates'] = $newSyncDates;
 			$result['updatedCredentials'] = json_encode($creds);
 		}
 		return $result;
@@ -427,7 +451,7 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 		}
 	}
 
-	private function syncStartDate(?string $lastSyncDate): string {
+	private function syncStartDate(mixed $lastSyncDate): string {
 		$last = is_string($lastSyncDate) && $lastSyncDate !== ''
 			? \DateTimeImmutable::createFromFormat('!Y-m-d', $lastSyncDate, new \DateTimeZone('UTC'))
 			: false;

@@ -303,6 +303,39 @@ class BankSyncServiceTest extends TestCase {
 		$this->assertEquals(1, $result['discovered']);
 	}
 
+	/**
+	 * Only accounts that are imported (enabled and mapped to a budget account)
+	 * have their transactions fetched; one whose balance was never reconciled
+	 * has not been imported yet and needs its full history.
+	 */
+	public function testSyncPassesSyncAccountsFromEnabledMappedMappings(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+
+		$connection = $this->createConnection(1, 'enablebanking', 'My Bank', 'active');
+		$connection->setIncludePending(true);
+		$this->connectionMapper->method('find')->with(1, self::USER_ID)->willReturn($connection);
+
+		$fresh = $this->createMapping(10, 1, 'hash-fresh', 100, true);
+		$imported = $this->createMapping(11, 1, 'hash-imported', 101, true);
+		$imported->setBalanceReconciledAt('2026-10-20 08:00:00');
+		$unmapped = $this->createMapping(12, 1, 'hash-unmapped', null, true);
+		$disabled = $this->createMapping(13, 1, 'hash-disabled', 102, false);
+		$disabled->setBalanceReconciledAt('2026-10-20 08:00:00');
+		$this->mappingMapper->method('findByConnection')->with(1)->willReturn([$fresh, $imported, $unmapped, $disabled]);
+		$this->mappingMapper->method('findEnabledByConnection')->with(1)->willReturn([$fresh, $imported]);
+
+		$this->providerFactory->method('getProvider')->willReturn($this->provider);
+		$this->provider->method('requiresReauthorization')->willReturn(false);
+		$this->provider->expects($this->once())->method('fetchAccounts')
+			->with($this->anything(), [
+				'includePending' => true,
+				'syncAccounts' => ['hash-fresh' => true, 'hash-imported' => false],
+			])
+			->willReturn(['accounts' => []]);
+
+		$this->service->sync(self::USER_ID, 1);
+	}
+
 	public function testSyncImportsTransactionsAndSkipsDuplicates(): void {
 		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
 
