@@ -293,7 +293,8 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 			$institutions[] = [
 				'id' => (string)$aspsp['name'],
 				'name' => (string)$aspsp['name'],
-				'logo' => $aspsp['logo'] ?? null,
+				// Never a URL: the UI shows Enable Banking banks without logos
+				'logo' => null,
 				'country' => (string)($aspsp['country'] ?? $country),
 				'maximumConsentValidity' => isset($aspsp['maximum_consent_validity']) ? (int)$aspsp['maximum_consent_validity'] : null,
 			];

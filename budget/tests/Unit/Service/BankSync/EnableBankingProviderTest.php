@@ -432,7 +432,11 @@ class EnableBankingProviderTest extends TestCase {
 
 	// ── listInstitutions ────────────────────────────────────────────
 
-	public function testListInstitutionsMapsAspsps(): void {
+	/**
+	 * The UI shows Enable Banking banks without logos (Nextcloud's CSP
+	 * blocks their hosts), so no logo URL is handed to the browser.
+	 */
+	public function testListInstitutionsMapsAspspsWithoutLogos(): void {
 		$this->responses['GET /aspsps'] = ['aspsps' => [
 			['name' => 'Sparkasse', 'country' => 'DE', 'logo' => 'https://cdn.example/s.png', 'maximum_consent_validity' => 7776000],
 			['name' => 'N26', 'country' => 'DE'],
@@ -442,9 +446,10 @@ class EnableBankingProviderTest extends TestCase {
 
 		$this->assertSame(['country' => 'DE', 'psu_type' => 'personal'], $this->callsTo('GET', '/aspsps')[0]['query']);
 		$this->assertSame([
-			['id' => 'Sparkasse', 'name' => 'Sparkasse', 'logo' => 'https://cdn.example/s.png', 'country' => 'DE', 'maximumConsentValidity' => 7776000],
+			['id' => 'Sparkasse', 'name' => 'Sparkasse', 'logo' => null, 'country' => 'DE', 'maximumConsentValidity' => 7776000],
 			['id' => 'N26', 'name' => 'N26', 'logo' => null, 'country' => 'DE', 'maximumConsentValidity' => null],
 		], $result);
+		$this->assertStringNotContainsString('cdn.example', (string)json_encode($result));
 	}
 
 	// ── reinitializeConnection ──────────────────────────────────────
