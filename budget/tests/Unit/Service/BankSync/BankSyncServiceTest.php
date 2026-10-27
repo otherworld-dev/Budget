@@ -34,6 +34,8 @@ class BankSyncServiceTest extends TestCase {
 	private LoggerInterface $logger;
 	private BankSyncProviderInterface $provider;
 	private \OCA\Budget\Service\BillService $billService;
+	private \OCA\Budget\Service\AccountService $accountService;
+	private \OCA\Budget\Db\TransactionMapper $transactionMapper;
 
 	private const USER_ID = 'user1';
 
@@ -59,6 +61,8 @@ class BankSyncServiceTest extends TestCase {
 
 		$transactionTagService = $this->createMock(\OCA\Budget\Service\TransactionTagService::class);
 		$this->billService = $this->createMock(\OCA\Budget\Service\BillService::class);
+		$this->accountService = $this->createMock(\OCA\Budget\Service\AccountService::class);
+		$this->transactionMapper = $this->createMock(\OCA\Budget\Db\TransactionMapper::class);
 
 		$this->service = new BankSyncService(
 			$this->connectionMapper,
@@ -73,7 +77,9 @@ class BankSyncServiceTest extends TestCase {
 			$transactionTagService,
 			$this->billService,
 			$this->l,
-			$this->logger
+			$this->logger,
+			accountService: $this->accountService,
+			transactionMapper: $this->transactionMapper,
 		);
 	}
 
@@ -1645,6 +1651,257 @@ class BankSyncServiceTest extends TestCase {
 			]),
 			'accounts' => array_map(fn ($h) => ['id' => $h, 'name' => 'Acc ' . $h, 'currency' => 'EUR', 'balance' => null], $hashes),
 		];
+	}
+
+	// ===== balance reconciliation =====
+
+	/**
+	 * A small ledger behind the mocks: rows created by the sync add to the
+	 * net change, AccountService::update moves the opening balance, and the
+	 * balance as of today is opening + net, as AccountBalanceCalculator has it.
+	 *
+	 * @param array $feed normalized bank rows
+	 * @param string $foreignNet net change of rows the account already had
+	 */
+	private function syncLedger(array $feed, ?string $bankBalance, int $existingRows = 0, string $foreignNet = '0', string $type = 'checking', string $currency = 'EUR', string $bankCurrency = 'EUR', float $opening = 0.0): \OCA\Budget\Db\Account {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$connection = $this->createConnection(1, 'enablebanking', 'My Bank', 'active');
+		$this->connectionMapper->method('find')->with(1, self::USER_ID)->willReturn($connection);
+		$this->providerFactory->method('getProvider')->willReturn($this->provider);
+		$this->provider->method('requiresReauthorization')->willReturn(false);
+		$this->provider->method('fetchAccounts')->willReturn(['accounts' => [[
+			'id' => 'ext-1', 'name' => 'Giro', 'balance' => $bankBalance, 'currency' => $bankCurrency,
+			'transactions' => $feed,
+		]]]);
+		$mapping = $this->createMapping(10, 1, 'ext-1', 100, true);
+		$this->mappingMapper->method('findByConnection')->willReturn([$mapping]);
+		$this->mappingMapper->method('findEnabledByConnection')->willReturn([$mapping]);
+
+		$account = new \OCA\Budget\Db\Account();
+		$account->setId(100);
+		$account->setUserId(self::USER_ID);
+		$account->setType($type);
+		$account->setCurrency($currency);
+		$account->setOpeningBalance($opening);
+		$this->accountMapper->method('find')->willReturn($account);
+		$this->transactionService->method('findByImportId')->willReturn(null);
+		$this->transactionService->method('findPendingImported')->willReturn([]);
+
+		$net = $foreignNet;
+		$rows = $existingRows;
+		$this->transactionService->method('create')->willReturnCallback(
+			function (string $userId, int $accountId, string $date, string $description, float $amount, string $type) use (&$net, &$rows) {
+				$net = \OCA\Budget\Service\MoneyCalculator::add($net, $type === 'debit' ? -$amount : $amount);
+				$rows++;
+				$tx = new \OCA\Budget\Db\Transaction();
+				$tx->setId(1000 + $rows);
+				return $tx;
+			}
+		);
+		$this->transactionMapper->method('countByAccount')->with(100, self::USER_ID)
+			->willReturnCallback(function () use (&$rows) {
+				return $rows;
+			});
+		$this->transactionService->method('getBalanceAsOf')->with(100, date('Y-m-d'))
+			->willReturnCallback(function () use (&$net, $account) {
+				return (float)\OCA\Budget\Service\MoneyCalculator::add((float)$account->getOpeningBalance(), $net);
+			});
+		$this->accountService->method('update')->willReturnCallback(
+			function (int $id, string $userId, array $updates) use ($account) {
+				$account->setOpeningBalance((float)$updates['openingBalance']);
+				return $account;
+			}
+		);
+
+		return $account;
+	}
+
+	public function testFirstSyncOnEmptyAccountMatchesBankBalance(): void {
+		$account = $this->syncLedger([
+			['id' => 'a', 'date' => '2026-10-01', 'amount' => '-200.00', 'description' => 'Rent'],
+			['id' => 'b', 'date' => '2026-10-02', 'amount' => '50.00', 'description' => 'Refund'],
+		], '1000.00');
+		$this->accountService->expects($this->once())->method('update')
+			->with(100, self::USER_ID, ['openingBalance' => 1150.0]);
+
+		$this->service->sync(self::USER_ID, 1);
+
+		$this->assertSame(1150.0, $account->getOpeningBalance());
+		$this->assertSame(1000.0, $this->transactionService->getBalanceAsOf(100, date('Y-m-d')));
+	}
+
+	public function testFirstSyncWithZeroTransactionsSetsOpeningToBankBalance(): void {
+		$account = $this->syncLedger([], '734.56');
+
+		$this->service->sync(self::USER_ID, 1);
+
+		$this->assertSame(734.56, $account->getOpeningBalance());
+	}
+
+	public function testSecondSyncDoesNotAutoReconcile(): void {
+		// The first sync imported one row (-200.00); this one brings one more
+		$this->syncLedger([
+			['id' => 'c', 'date' => '2026-10-03', 'amount' => '-10.00', 'description' => 'Coffee'],
+		], '1000.00', 1, '-200.00', opening: 1200.0);
+		$this->accountService->expects($this->never())->method('update');
+
+		$this->service->sync(self::USER_ID, 1);
+	}
+
+	public function testAccountWithForeignRowsIsNotReconciled(): void {
+		$account = $this->syncLedger([
+			['id' => 'a', 'date' => '2026-10-01', 'amount' => '-200.00', 'description' => 'Rent'],
+		], '1000.00', 3, '42.00');
+		$this->accountService->expects($this->never())->method('update');
+
+		$this->service->sync(self::USER_ID, 1);
+
+		$this->assertSame(0.0, $account->getOpeningBalance());
+	}
+
+	public function testLiabilityAccountIsSkipped(): void {
+		$this->syncLedger([
+			['id' => 'a', 'date' => '2026-10-01', 'amount' => '-20.00', 'description' => 'Card'],
+		], '-20.00', type: 'credit_card');
+		$this->accountService->expects($this->never())->method('update');
+
+		$this->service->sync(self::USER_ID, 1);
+	}
+
+	public function testCurrencyMismatchIsSkipped(): void {
+		$this->syncLedger([
+			['id' => 'a', 'date' => '2026-10-01', 'amount' => '-20.00', 'description' => 'Shop'],
+		], '500.00', bankCurrency: 'USD');
+		$this->accountService->expects($this->never())->method('update');
+
+		$this->service->sync(self::USER_ID, 1);
+	}
+
+	public function testFirstSyncWithoutABankBalanceIsSkipped(): void {
+		$this->syncLedger([
+			['id' => 'a', 'date' => '2026-10-01', 'amount' => '-20.00', 'description' => 'Shop'],
+		], null);
+		$this->accountService->expects($this->never())->method('update');
+
+		$this->service->sync(self::USER_ID, 1);
+	}
+
+	public function testFirstSyncDoesNotFailWhenTheOpeningBalanceCanNotBeSet(): void {
+		$this->syncLedger([], '10.00');
+		$this->accountService = $this->createMock(\OCA\Budget\Service\AccountService::class);
+		$this->accountService->method('update')->willThrowException(new \RuntimeException('db down'));
+		$this->rebuildService();
+
+		$result = $this->service->sync(self::USER_ID, 1);
+
+		$this->assertSame(0, $result['errors']);
+	}
+
+	/** A mapping with a last bank balance, its account and today's Budget balance. */
+	private function differenceFixture(?string $lastBalance, string $budgetBalance, string $type = 'checking', string $currency = 'EUR', ?int $budgetAccountId = 100): BankAccountMapping {
+		$mapping = $this->createMapping(10, 1, 'ext-1', $budgetAccountId, true);
+		$mapping->setLastBalance($lastBalance);
+		$mapping->setLastCurrency('EUR');
+		$account = new \OCA\Budget\Db\Account();
+		$account->setId(100);
+		$account->setUserId(self::USER_ID);
+		$account->setType($type);
+		$account->setCurrency($currency);
+		$account->setOpeningBalance(100.0);
+		$this->accountMapper->method('find')->with(100, self::USER_ID)->willReturn($account);
+		$this->transactionService->method('getBalanceAsOf')->with(100, date('Y-m-d'))->willReturn((float)$budgetBalance);
+		return $mapping;
+	}
+
+	public function testGetBalanceDifference(): void {
+		$mapping = $this->differenceFixture('1000.00', '987.65');
+		$this->assertSame('12.35', $this->service->getBalanceDifference($mapping, self::USER_ID));
+	}
+
+	public function testGetBalanceDifferenceIsZeroWhenBalancesMatch(): void {
+		$mapping = $this->differenceFixture('1000.10', '1000.1');
+		$this->assertSame('0.00', $this->service->getBalanceDifference($mapping, self::USER_ID));
+	}
+
+	public function testGetBalanceDifferenceIsNullForAnUnmappedAccount(): void {
+		$this->assertNull($this->service->getBalanceDifference($this->createMapping(10, 1, 'ext-1'), self::USER_ID));
+	}
+
+	public static function incomparableMappings(): array {
+		return [
+			'no bank balance' => [null, 'checking', 'EUR'],
+			'liability' => ['5.00', 'loan', 'EUR'],
+			'other currency' => ['5.00', 'checking', 'GBP'],
+		];
+	}
+
+	#[\PHPUnit\Framework\Attributes\DataProvider('incomparableMappings')]
+	public function testGetBalanceDifferenceIsNullWhenItCanNotBeCompared(?string $lastBalance, string $type, string $currency): void {
+		$mapping = $this->differenceFixture($lastBalance, '5.00', $type, $currency);
+		$this->assertNull($this->service->getBalanceDifference($mapping, self::USER_ID));
+	}
+
+	public function testReconcileMappingAppliesDifference(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$this->connectionMapper->method('find')->with(1, self::USER_ID)
+			->willReturn($this->createConnection(1, 'simplefin', 'My Bank', 'active'));
+		$mapping = $this->differenceFixture('1000.00', '987.65');
+		$this->mappingMapper->method('find')->with(10)->willReturn($mapping);
+
+		// Rebuild getBalanceAsOf as a ledger, so the result reflects the update
+		$this->transactionService = $this->createMock(TransactionService::class);
+		$account = $this->accountMapper->find(100, self::USER_ID);
+		$this->transactionService->method('getBalanceAsOf')->willReturnCallback(
+			fn () => (float)\OCA\Budget\Service\MoneyCalculator::add((float)$account->getOpeningBalance(), '887.65')
+		);
+		$this->rebuildService();
+
+		$this->accountService->expects($this->once())->method('update')
+			->with(100, self::USER_ID, ['openingBalance' => 112.35])
+			->willReturnCallback(function (int $id, string $userId, array $updates) use ($account) {
+				$account->setOpeningBalance($updates['openingBalance']);
+				return $account;
+			});
+		$this->auditService->expects($this->once())->method('log')
+			->with(self::USER_ID, 'bank_balance_reconciled', 'bank_connection', 1, ['mappingId' => 10]);
+
+		$result = $this->service->reconcileMapping(self::USER_ID, 1, 10);
+
+		$this->assertSame(['balance' => '1000.00', 'balanceDifference' => '0.00'], $result);
+	}
+
+	public function testReconcileMappingRejectsAMappingOfAnotherConnection(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$this->connectionMapper->method('find')->willReturn($this->createConnection(1, 'simplefin', 'My Bank', 'active'));
+		$this->mappingMapper->method('find')->willReturn($this->createMapping(10, 2, 'ext-1', 100, true));
+		$this->accountService->expects($this->never())->method('update');
+
+		$this->expectException(\Exception::class);
+		$this->service->reconcileMapping(self::USER_ID, 1, 10);
+	}
+
+	public function testReconcileMappingRefusesAnAccountThatCanNotBeCompared(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$this->connectionMapper->method('find')->willReturn($this->createConnection(1, 'simplefin', 'My Bank', 'active'));
+		$this->mappingMapper->method('find')->willReturn($this->differenceFixture('5', '5', 'loan'));
+		$this->accountService->expects($this->never())->method('update');
+
+		$this->expectException(\Exception::class);
+		$this->service->reconcileMapping(self::USER_ID, 1, 10);
+	}
+
+	private function rebuildService(): void {
+		$ruleApplicator = $this->createMock(\OCA\Budget\Service\Import\ImportRuleApplicator::class);
+		$this->service = new BankSyncService(
+			$this->connectionMapper, $this->mappingMapper, $this->providerFactory, $this->transactionService,
+			$this->auditService, $this->adminSettings, $this->accountMapper,
+			$this->createMock(\OCA\Budget\Db\DismissedImportMapper::class),
+			$ruleApplicator,
+			$this->createMock(\OCA\Budget\Service\TransactionTagService::class),
+			$this->billService, $this->l, $this->logger,
+			accountService: $this->accountService,
+			transactionMapper: $this->transactionMapper,
+		);
 	}
 
 	private function createConnection(int $id, string $provider, string $name, string $status): BankConnection {

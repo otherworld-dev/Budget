@@ -452,6 +452,7 @@ return [
 		['name' => 'bankSync#sync', 'url' => '/api/bank-sync/connections/{id}/sync', 'verb' => 'POST'],
 		['name' => 'bankSync#mappings', 'url' => '/api/bank-sync/connections/{id}/mappings', 'verb' => 'GET'],
 		['name' => 'bankSync#updateMapping', 'url' => '/api/bank-sync/connections/{id}/mappings/{mappingId}', 'verb' => 'PUT'],
+		['name' => 'bankSync#reconcileMapping', 'url' => '/api/bank-sync/connections/{id}/mappings/{mappingId}/reconcile', 'verb' => 'POST'],
 		['name' => 'bankSync#refreshAccounts', 'url' => '/api/bank-sync/connections/{id}/refresh', 'verb' => 'POST'],
 		['name' => 'bankSync#reauthorize', 'url' => '/api/bank-sync/connections/{id}/reauthorize', 'verb' => 'POST'],
 		// Enable Banking: the bank's redirect target (a page) and the user's application keys

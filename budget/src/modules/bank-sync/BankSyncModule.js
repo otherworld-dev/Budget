@@ -4,7 +4,7 @@ import { confirmDialog } from '../../utils/dialogs.js';
 import { apiFetch } from '../../utils/api.js';
 import { refreshBankSyncNav } from './bankSyncStatus.js';
 import { importTargetAccounts, accountOptionLabel } from '../../utils/accounts.js';
-import { userLocale } from '../../utils/formatters.js';
+import { userLocale, formatCurrency } from '../../utils/formatters.js';
 import { escapeHtml } from '../../utils/dom.js';
 
 /**
@@ -928,6 +928,7 @@ export default class BankSyncModule {
         container.innerHTML = mappings.map(mapping => {
             const enabled = mapping.enabled ? 'checked' : '';
             const balance = mapping.lastBalance ? `${mapping.lastCurrency || ''} ${mapping.lastBalance}` : '';
+            const balanceCheck = this.renderBalanceCheck(mapping);
 
             return `
                 <div class="bank-mapping-row" data-mapping-id="${mapping.id}">
@@ -940,6 +941,7 @@ export default class BankSyncModule {
                             <strong>${escapeHtml(mapping.externalAccountName || mapping.externalAccountId)}</strong>
                             ${balance ? `<small>${balance}</small>` : ''}
                             ${mapping.consentExpires ? `<small class="consent-warning">${t('budget', 'Consent expires: {date}', { date: new Date(mapping.consentExpires).toLocaleDateString(userLocale()) })}</small>` : ''}
+                            ${balanceCheck}
                         </div>
                     </div>
                     <div class="bank-mapping-target">
@@ -968,6 +970,14 @@ export default class BankSyncModule {
             ));
         });
 
+        container.querySelectorAll('.bank-reconcile-btn').forEach(btn => {
+            btn.addEventListener('click', () => this.reconcileMapping(
+                mappings,
+                connectionId,
+                parseInt(btn.dataset.mappingId)
+            ));
+        });
+
         container.querySelectorAll('.mapping-account-select').forEach(sel => {
             sel.addEventListener('change', () => this.updateMapping(
                 parseInt(sel.dataset.connectionId),
@@ -976,6 +986,42 @@ export default class BankSyncModule {
                 null
             ));
         });
+    }
+
+    /**
+     * The bank's balance against Budget's, shown only when they differ. The
+     * gap usually means a missing or doubled transaction, so it is never
+     * corrected on its own: Reconcile is the user's call.
+     */
+    renderBalanceCheck(mapping) {
+        const difference = mapping.balanceDifference;
+        if (difference === null || difference === undefined || Number(difference) === 0) return '';
+
+        const settings = this.app.settings || {};
+        const currency = mapping.lastCurrency;
+        const bank = Number(mapping.lastBalance);
+        const text = t('budget', 'Bank: {bank} · Budget: {budget} · Difference: {difference}', {
+            bank: formatCurrency(bank, currency, settings),
+            budget: formatCurrency(bank - Number(difference), currency, settings),
+            difference: formatCurrency(Number(difference), currency, settings),
+        });
+
+        return `<small class="bank-balance-check consent-warning">${text}</small>
+            <button class="bank-reconcile-btn" data-mapping-id="${mapping.id}" title="${t('budget', 'Set the opening balance so that the balance matches the bank')}">${t('budget', 'Reconcile')}</button>`;
+    }
+
+    async reconcileMapping(mappings, connectionId, mappingId) {
+        try {
+            const result = await apiFetch(`/apps/budget/api/bank-sync/connections/${connectionId}/mappings/${mappingId}/reconcile`, {
+                method: 'POST',
+            });
+            const mapping = mappings.find(m => m.id === mappingId);
+            if (mapping) mapping.balanceDifference = result.balanceDifference;
+            this.renderMappings(mappings, connectionId);
+            showSuccess(t('budget', 'Balance matched to the bank'));
+        } catch (error) {
+            showError(t('budget', 'Failed to reconcile the balance'));
+        }
     }
 
     async updateMapping(connectionId, mappingId, budgetAccountId, enabled) {

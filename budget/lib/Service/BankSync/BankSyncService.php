@@ -4,13 +4,19 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Service\BankSync;
 
+use OCA\Budget\Db\Account;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\BankAccountMapping;
 use OCA\Budget\Db\BankAccountMappingMapper;
 use OCA\Budget\Db\BankConnection;
 use OCA\Budget\Db\BankConnectionMapper;
+use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Enum\AccountType;
+use OCA\Budget\Enum\Currency;
+use OCA\Budget\Service\AccountService;
 use OCA\Budget\Service\AdminSettingService;
 use OCA\Budget\Service\AuditService;
+use OCA\Budget\Service\MoneyCalculator;
 use OCA\Budget\Service\TransactionService;
 use OCP\IL10N;
 use Psr\Log\LoggerInterface;
@@ -39,6 +45,8 @@ class BankSyncService {
 		private LoggerInterface $logger,
 		private ?\OCA\Budget\Service\PensionService $pensionService = null,
 		private ?\OCA\Budget\Service\RecurringIncomeService $incomeService = null,
+		private ?AccountService $accountService = null,
+		private ?TransactionMapper $transactionMapper = null,
 	) {
 	}
 
@@ -231,13 +239,15 @@ class BankSyncService {
 
 			// Verify the budget account exists and belongs to this user
 			try {
-				$this->accountMapper->find($budgetAccountId, $userId);
+				$budgetAccount = $this->accountMapper->find($budgetAccountId, $userId);
 			} catch (\Exception $e) {
 				$totalErrors++;
 				continue;
 			}
 
 			$imported = 0;
+			// Rows this run added to the account (posted holds were already there)
+			$created = 0;
 			$transferLinkIds = [];
 			$skipped = 0;
 			$balanceDirty = false;
@@ -340,6 +350,7 @@ class BankSyncService {
 					// application) is swallowed by the catch below, and the
 					// persisted row must still get its balance recompute.
 					$balanceDirty = true;
+					$created++;
 					if ($isPending || !$this->isCopyOfBillHold($existingPending, $postedHoldIds, $tx)) {
 						$createdForBillMatch[] = $createdTx;
 					}
@@ -442,6 +453,16 @@ class BankSyncService {
 			$mapping->setLastCurrency($externalAccount['currency'] ?? null);
 			$mapping->setUpdatedAt(date('Y-m-d H:i:s'));
 			$this->mappingMapper->update($mapping);
+
+			if (isset($externalAccount['balance']) && is_numeric($externalAccount['balance'])) {
+				$this->autoReconcileNewAccount(
+					$budgetAccount,
+					(string)$externalAccount['balance'],
+					(string)($externalAccount['currency'] ?? ''),
+					$created,
+					$userId
+				);
+			}
 
 			$totalImported += $imported;
 			$totalSkipped += $skipped;
@@ -556,6 +577,131 @@ class BankSyncService {
 
 		$mapping->setUpdatedAt(date('Y-m-d H:i:s'));
 		return $this->mappingMapper->update($mapping);
+	}
+
+	/**
+	 * The bank's balance minus Budget's balance as of today, for a mapping
+	 * the two can be compared on. A non-zero difference usually means a
+	 * missing or doubled row, so it is shown, never corrected on its own.
+	 *
+	 * Null when the mapping has no Budget account or no bank balance yet,
+	 * the account is a liability (banks report those with their own sign),
+	 * or the bank reports another currency than the account's.
+	 */
+	public function getBalanceDifference(BankAccountMapping $m, string $userId): ?string {
+		$account = $this->comparableAccount($m, $userId);
+		return $account === null ? null : $this->balanceDifference($account, (string)$m->getLastBalance());
+	}
+
+	/**
+	 * Make Budget's balance match the bank's by moving the account's opening
+	 * balance by the difference. The rows stay as they are: the user chose
+	 * to accept the gap rather than find the row that causes it.
+	 *
+	 * @return array{balance: string, balanceDifference: string}
+	 */
+	public function reconcileMapping(string $userId, int $connectionId, int $mappingId): array {
+		// Verify connection ownership
+		$this->connectionMapper->find($connectionId, $userId);
+
+		$mapping = $this->mappingMapper->find($mappingId);
+		if ($mapping->getConnectionId() !== $connectionId) {
+			throw new \Exception('Mapping does not belong to this connection');
+		}
+
+		$account = $this->comparableAccount($mapping, $userId);
+		if ($account === null || $this->accountService === null) {
+			throw new \Exception('This account cannot be matched to the bank balance');
+		}
+
+		$bankBalance = (string)$mapping->getLastBalance();
+		$this->moveOpeningBalance($account, $this->balanceDifference($account, $bankBalance), $userId);
+
+		// No amounts: the audit log must not carry balances
+		$this->auditService->log($userId, 'bank_balance_reconciled', 'bank_connection', $connectionId, [
+			'mappingId' => $mappingId,
+		]);
+
+		return [
+			'balance' => $this->budgetBalanceToday($account),
+			'balanceDifference' => $this->balanceDifference($account, $bankBalance),
+		];
+	}
+
+	/**
+	 * On the first sync into an account that holds nothing but the rows just
+	 * imported, set its opening balance so that its balance equals the
+	 * bank's. Only the bank's recent history is fetched, so without this the
+	 * account would start at the sum of those rows. An account with any other
+	 * row is left alone: its difference is shown with a Reconcile action.
+	 */
+	private function autoReconcileNewAccount(Account $account, string $bankBalance, string $bankCurrency, int $importedThisRun, string $userId): void {
+		if ($this->accountService === null || $this->transactionMapper === null
+			|| !$this->isComparable($account, $bankCurrency)
+			|| $this->transactionMapper->countByAccount($account->getId(), $userId) !== $importedThisRun) {
+			return;
+		}
+
+		try {
+			$this->moveOpeningBalance($account, $this->balanceDifference($account, $bankBalance), $userId);
+		} catch (\Exception $e) {
+			// The rows are in; the difference stays visible for a manual reconcile
+			$this->logger->warning("Bank sync: could not set the opening balance of account {$account->getId()}: {$e->getMessage()}", ['app' => 'budget']);
+		}
+	}
+
+	/** The mapping's Budget account, when its balance can be compared to the bank's. */
+	private function comparableAccount(BankAccountMapping $m, string $userId): ?Account {
+		$accountId = $m->getBudgetAccountId();
+		if ($accountId === null || !is_numeric($m->getLastBalance())) {
+			return null;
+		}
+		try {
+			$account = $this->accountMapper->find($accountId, $userId);
+		} catch (\Exception $e) {
+			return null;
+		}
+		return $this->isComparable($account, $m->getLastCurrency()) ? $account : null;
+	}
+
+	private function isComparable(Account $account, ?string $bankCurrency): bool {
+		if (AccountType::tryFrom((string)$account->getType())?->isLiability() ?? false) {
+			return false;
+		}
+		return $bankCurrency !== null && $bankCurrency !== ''
+			&& strtoupper($bankCurrency) === strtoupper((string)$account->getCurrency());
+	}
+
+	/** Budget's balance as of today, pending rows included, as a decimal string. */
+	private function budgetBalanceToday(Account $account): string {
+		return MoneyCalculator::add(
+			$this->transactionService->getBalanceAsOf($account->getId(), date('Y-m-d')),
+			'0',
+			Currency::decimalsFor($account->getCurrency())
+		);
+	}
+
+	private function balanceDifference(Account $account, string $bankBalance): string {
+		return MoneyCalculator::subtract(
+			$bankBalance,
+			$this->budgetBalanceToday($account),
+			Currency::decimalsFor($account->getCurrency())
+		);
+	}
+
+	/** AccountService recomputes the stored balance from the new opening balance. */
+	private function moveOpeningBalance(Account $account, string $difference, string $userId): void {
+		if ($this->accountService === null) {
+			return;
+		}
+		$opening = MoneyCalculator::add(
+			(float)($account->getOpeningBalance() ?? 0.0),
+			$difference,
+			Currency::decimalsFor($account->getCurrency())
+		);
+		$this->accountService->update($account->getId(), $userId, [
+			'openingBalance' => MoneyCalculator::toFloat($opening),
+		]);
 	}
 
 	/**

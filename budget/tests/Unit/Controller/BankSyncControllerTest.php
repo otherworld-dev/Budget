@@ -257,7 +257,7 @@ class BankSyncControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
 	}
 
-	public function testMappingsReturnsMappingsForFoundConnection(): void {
+	public function testMappingsIncludeBalanceDifference(): void {
 		$this->enableBankSync();
 
 		$connection = new BankConnection();
@@ -266,16 +266,63 @@ class BankSyncControllerTest extends TestCase {
 		$connection->setProvider('simplefin');
 		$connection->setName('My Bank');
 		$connection->setStatus('active');
-		$mappings = [['id' => 10, 'externalAccount' => 'checking']];
+		$matched = new BankAccountMapping();
+		$matched->setId(10);
+		$matched->setExternalAccountId('checking');
+		$matched->setLastBalance('1000.00');
+		$unmapped = new BankAccountMapping();
+		$unmapped->setId(11);
+		$unmapped->setExternalAccountId('savings');
 
 		$this->syncService->method('getConnections')
 			->with('user1')
-			->willReturn([['connection' => $connection, 'mappings' => $mappings]]);
+			->willReturn([['connection' => $connection, 'mappings' => [$matched, $unmapped]]]);
+		$this->syncService->method('getBalanceDifference')
+			->willReturnMap([[$matched, 'user1', '12.35'], [$unmapped, 'user1', null]]);
 
 		$response = $this->controller->mappings(1);
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
-		$this->assertSame($mappings, $response->getData());
+		$data = $response->getData();
+		$this->assertCount(2, $data);
+		$this->assertSame(10, $data[0]['id']);
+		$this->assertSame('checking', $data[0]['externalAccountId']);
+		$this->assertSame('1000.00', $data[0]['lastBalance']);
+		$this->assertSame('12.35', $data[0]['balanceDifference']);
+		$this->assertArrayHasKey('balanceDifference', $data[1]);
+		$this->assertNull($data[1]['balanceDifference']);
+	}
+
+	public function testReconcileMappingReturnsTheMatchedBalance(): void {
+		$this->enableBankSync();
+		$this->syncService->expects($this->once())->method('reconcileMapping')
+			->with('user1', 1, 10)
+			->willReturn(['balance' => '1000.00', 'balanceDifference' => '0.00']);
+
+		$response = $this->controller->reconcileMapping(1, 10);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame(['balance' => '1000.00', 'balanceDifference' => '0.00'], $response->getData());
+	}
+
+	public function testReconcileMappingReturns403WhenDisabled(): void {
+		$this->disableBankSync();
+		$this->syncService->expects($this->never())->method('reconcileMapping');
+
+		$response = $this->controller->reconcileMapping(1, 10);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	public function testReconcileMappingFailureReturnsAGenericError(): void {
+		$this->enableBankSync();
+		$this->syncService->method('reconcileMapping')
+			->willThrowException(new \Exception('Mapping does not belong to this connection'));
+
+		$response = $this->controller->reconcileMapping(1, 10);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Failed to reconcile the balance', $response->getData()['error']);
 	}
 
 	public function testMappingsReturns404ForUnknownConnection(): void {

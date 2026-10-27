@@ -251,3 +251,42 @@ describe('Enable Banking wizard', () => {
         expect(options.body.institutionId).toBe('BANK_X');
     });
 });
+
+describe('Account mappings balance check', () => {
+    const MAPPINGS = [
+        { id: 10, externalAccountName: 'Giro', budgetAccountId: 5, enabled: true, lastBalance: '1000.00', lastCurrency: 'EUR', balanceDifference: '12.35' },
+        { id: 11, externalAccountName: 'Savings', budgetAccountId: 6, enabled: true, lastBalance: '50.00', lastCurrency: 'EUR', balanceDifference: '0.00' },
+        { id: 12, externalAccountName: 'Card', budgetAccountId: null, enabled: false, lastBalance: '-20.00', lastCurrency: 'EUR', balanceDifference: null },
+    ];
+    const row = (id) => document.querySelector(`.bank-mapping-row[data-mapping-id="${id}"]`);
+
+    beforeEach(() => {
+        document.body.innerHTML = '<div id="bank-mappings-list"></div>';
+        module.app = { accounts: [], settings: {} };
+        apiFetch.mockImplementation((url, options = {}) => {
+            if (url === `${BASE}/connections/3/mappings/10/reconcile` && options.method === 'POST') {
+                return Promise.resolve({ balance: '1000.00', balanceDifference: '0.00' });
+            }
+            return Promise.reject(new Error(`unexpected ${options.method || 'GET'} ${url}`));
+        });
+    });
+
+    it('shows difference and reconcile button only when non-zero', async () => {
+        module.renderMappings(MAPPINGS.map(m => ({ ...m })), 3);
+
+        expect(row(10).querySelector('.bank-balance-check').textContent)
+            .toBe('Bank: €1,000.00 · Budget: €987.65 · Difference: €12.35');
+        expect(row(10).querySelectorAll('.bank-reconcile-btn')).toHaveLength(1);
+        expect(row(11).querySelector('.bank-balance-check')).toBeNull();
+        expect(row(11).querySelector('.bank-reconcile-btn')).toBeNull();
+        expect(row(12).querySelector('.bank-balance-check')).toBeNull();
+        expect(row(12).querySelector('.bank-reconcile-btn')).toBeNull();
+
+        row(10).querySelector('.bank-reconcile-btn').click();
+        await tick();
+
+        expect(calls('POST').map(([url]) => url)).toEqual([`${BASE}/connections/3/mappings/10/reconcile`]);
+        expect(row(10).querySelector('.bank-balance-check')).toBeNull();
+        expect(row(10).querySelector('.bank-reconcile-btn')).toBeNull();
+    });
+});

@@ -276,9 +276,30 @@ class BankSyncController extends Controller {
 				return new DataResponse(['error' => $this->l->t('Connection not found')], Http::STATUS_NOT_FOUND);
 			}
 
-			return new DataResponse($mappings);
+			// The difference to the bank's balance, for the Reconcile action
+			return new DataResponse(array_map(
+				fn ($m) => $m->jsonSerialize() + ['balanceDifference' => $this->syncService->getBalanceDifference($m, $this->userId)],
+				$mappings
+			));
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to fetch mappings'), Http::STATUS_BAD_REQUEST, ['connectionId' => $id]);
+		}
+	}
+
+	/**
+	 * Match the Budget account's balance to the bank's by moving its opening balance.
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 10, period: 60)]
+	public function reconcileMapping(int $id, int $mappingId): DataResponse {
+		if ($r = $this->requireBankSync()) {
+			return $r;
+		}
+
+		try {
+			return new DataResponse($this->syncService->reconcileMapping($this->userId, $id, $mappingId));
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to reconcile the balance'), Http::STATUS_BAD_REQUEST, ['connectionId' => $id]);
 		}
 	}
 
