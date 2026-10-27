@@ -192,7 +192,7 @@ class EnableBankingProviderTest extends TestCase {
 		$this->assertSame('alice', $creds['userId']);
 
 		$this->assertSame(['hash-1', 'hash-2'], array_column($result['accounts'], 'id'));
-		$this->assertSame(['Giro', 'DE…3000'], array_column($result['accounts'], 'name'));
+		$this->assertSame(['Giro', 'Account (…3000)'], array_column($result['accounts'], 'name'));
 		$this->assertSame([], $result['accounts'][0]['transactions']);
 	}
 

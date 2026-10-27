@@ -126,10 +126,23 @@ class EnableBankingNormalizerTest extends TestCase {
 
 	// ── accountName ─────────────────────────────────────────────────
 
-	public function testAccountNameFallbacks(): void {
-		$this->assertSame('Girokonto', $this->normalizer->accountName(['name' => 'Girokonto', 'product' => 'Giro']));
-		$this->assertSame('Giro', $this->normalizer->accountName(['product' => 'Giro']));
-		$this->assertSame('DE…3000', $this->normalizer->accountName(['account_id' => ['iban' => 'DE89370400440532013000']]));
+	public function testAccountNameUsesProductAndIbanEnding(): void {
+		$this->assertSame('Girokonto (…3000)', $this->normalizer->accountName(['product' => 'Girokonto', 'account_id' => ['iban' => 'DE89370400440532013000']]));
+		$this->assertSame('Sascha K (…1234)', $this->normalizer->accountName(['name' => 'Sascha K', 'account_id' => ['iban' => 'DE00 0000 0000 0000 1234']]));
+		$this->assertSame('X', $this->normalizer->accountName(['name' => 'X']));
+	}
+
+	public function testAccountNamePrefersProductThenDetailsThenName(): void {
+		$this->assertSame('Giro', $this->normalizer->accountName(['product' => 'Giro', 'details' => 'D', 'name' => 'N']));
+		$this->assertSame('D', $this->normalizer->accountName(['details' => 'D', 'name' => 'N']));
+		$this->assertSame('N', $this->normalizer->accountName(['name' => 'N']));
+		$this->assertSame('Account (…3000)', $this->normalizer->accountName(['account_id' => ['iban' => 'DE89370400440532013000']]));
 		$this->assertSame('Account', $this->normalizer->accountName([]));
+	}
+
+	public function testTwoAccountsOfOneHolderGetDifferentLabels(): void {
+		$a = $this->normalizer->accountName(['name' => 'Sascha K', 'account_id' => ['iban' => 'DE89370400440532013000']]);
+		$b = $this->normalizer->accountName(['name' => 'Sascha K', 'account_id' => ['iban' => 'DE02120300000000202051']]);
+		$this->assertNotSame($a, $b);
 	}
 }

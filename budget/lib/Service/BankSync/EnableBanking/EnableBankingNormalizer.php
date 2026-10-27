@@ -95,22 +95,19 @@ class EnableBankingNormalizer {
 
 	/**
 	 * Display name for an account from `/accounts/{uid}/details` or the
-	 * account objects in a session. The IBAN is masked because the name ends
-	 * up in the UI and in mapping lists.
+	 * account objects in a session. Product/details/name come first (the name is
+	 * often only the holder), followed by the last four IBAN characters so
+	 * accounts of one holder stay distinguishable without exposing the IBAN.
 	 */
 	public function accountName(array $details): string {
-		$name = $this->firstNonEmpty($details['name'] ?? null, $details['product'] ?? null);
-		if ($name !== null) {
-			return $name;
-		}
+		$label = $this->firstNonEmpty($details['product'] ?? null, $details['details'] ?? null, $details['name'] ?? null) ?? 'Account';
 
 		$iban = $this->firstNonEmpty($details['account_id']['iban'] ?? null);
 		if ($iban !== null) {
-			$iban = str_replace(' ', '', $iban);
-			return substr($iban, 0, 2) . '…' . substr($iban, -4);
+			$label .= ' (…' . substr(str_replace(' ', '', $iban), -4) . ')';
 		}
 
-		return 'Account';
+		return $label;
 	}
 
 	private function amountOf(array $money): string {
