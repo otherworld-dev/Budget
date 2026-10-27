@@ -492,9 +492,7 @@ class BankSyncService {
 			$this->logger->info("Bank sync: account '{$externalAccount['name']}' result: {$imported} imported, {$skipped} duplicates skipped, mapped to budget account {$budgetAccountId}", ['app' => 'budget']);
 
 			// Update mapping balance
-			$mapping->setLastBalance($externalAccount['balance'] ?? null);
-			$mapping->setLastBalanceDate(self::dayOf($externalAccount['balanceDate'] ?? null));
-			$mapping->setLastCurrency($externalAccount['currency'] ?? null);
+			$this->applyProviderAccount($mapping, $externalAccount);
 			if ($provider instanceof ReliableBalanceProviderInterface
 				&& isset($externalAccount['balance']) && is_numeric($externalAccount['balance'])) {
 				$this->autoReconcileNewAccount(
@@ -809,13 +807,19 @@ class BankSyncService {
 	}
 
 	/**
-	 * The bank's balance date, or today without one. Never after today: that
-	 * would count Budget's future-dated rows as if the bank had them.
+	 * The bank's balance date, or today without one. Never later than
+	 * tomorrow: the bank (e.g. CET) may be a day ahead of the server around
+	 * midnight, but anything further would count Budget's future-dated rows
+	 * as if the bank had them.
 	 */
 	private function comparisonDate(?string $balanceDate): string {
 		$today = date('Y-m-d');
+		$latest = date('Y-m-d', strtotime('+1 day'));
 		$day = self::dayOf($balanceDate);
-		return $day === null || $day > $today ? $today : $day;
+		if ($day === null) {
+			return $today;
+		}
+		return $day > $latest ? $latest : $day;
 	}
 
 	/** `Y-m-d` from a date or date-time string (databases may add a time), else null. */
@@ -840,6 +844,20 @@ class BankSyncService {
 		$this->accountService->update($account->getId(), $userId, [
 			'openingBalance' => MoneyCalculator::toFloat($opening),
 		]);
+	}
+
+	/**
+	 * Takes what the provider currently reports for an account onto its
+	 * mapping: the name too, so labels changed by the provider reach
+	 * connections created before the change.
+	 */
+	private function applyProviderAccount(BankAccountMapping $mapping, array $account): void {
+		if (isset($account['name']) && is_string($account['name']) && $account['name'] !== '') {
+			$mapping->setExternalAccountName($account['name']);
+		}
+		$mapping->setLastBalance($account['balance'] ?? null);
+		$mapping->setLastBalanceDate(self::dayOf($account['balanceDate'] ?? null));
+		$mapping->setLastCurrency($account['currency'] ?? null);
 	}
 
 	/**
@@ -887,9 +905,7 @@ class BankSyncService {
 				$newMappings[] = $this->mappingMapper->insert($mapping);
 			} else {
 				// Update balance
-				$existing->setLastBalance($account['balance'] ?? null);
-				$existing->setLastBalanceDate(self::dayOf($account['balanceDate'] ?? null));
-				$existing->setLastCurrency($account['currency'] ?? null);
+				$this->applyProviderAccount($existing, $account);
 				$existing->setUpdatedAt($now);
 				$this->mappingMapper->update($existing);
 			}

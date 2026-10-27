@@ -349,6 +349,26 @@ class BankSyncServiceTest extends TestCase {
 		$this->service->sync(self::USER_ID, 1);
 	}
 
+	public function testSyncPassesNoSyncAccountsWhenNothingIsEnabledAndMapped(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+
+		$connection = $this->createConnection(1, 'enablebanking', 'My Bank', 'active');
+		$this->connectionMapper->method('find')->with(1, self::USER_ID)->willReturn($connection);
+
+		$unmapped = $this->createMapping(12, 1, 'hash-unmapped', null, true);
+		$disabled = $this->createMapping(13, 1, 'hash-disabled', 102, false);
+		$this->mappingMapper->method('findByConnection')->with(1)->willReturn([$unmapped, $disabled]);
+		$this->mappingMapper->method('findEnabledByConnection')->with(1)->willReturn([]);
+
+		$this->providerFactory->method('getProvider')->willReturn($this->provider);
+		$this->provider->method('requiresReauthorization')->willReturn(false);
+		$this->provider->expects($this->once())->method('fetchAccounts')
+			->with($this->anything(), ['includePending' => false, 'syncAccounts' => []])
+			->willReturn(['accounts' => [['id' => 'hash-unmapped', 'name' => 'Main', 'balance' => '1.00', 'currency' => 'EUR', 'transactions' => []]]]);
+
+		$this->service->sync(self::USER_ID, 1);
+	}
+
 	public function testSyncImportsTransactionsAndSkipsDuplicates(): void {
 		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
 
@@ -724,6 +744,55 @@ class BankSyncServiceTest extends TestCase {
 		$result = $this->service->refreshAccounts(self::USER_ID, 1);
 
 		$this->assertCount(1, $result);
+	}
+
+	public function testRefreshAccountsUpdatesTheNameOfExistingMappings(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+
+		$connection = $this->createConnection(1, 'enablebanking', 'My Bank', 'active');
+		$this->connectionMapper->method('find')->with(1, self::USER_ID)->willReturn($connection);
+		$this->providerFactory->method('getProvider')->willReturn($this->provider);
+		$this->provider->method('fetchAccountList')->willReturn([
+			'accounts' => [['id' => 'ext-1', 'name' => 'Girokonto (…1234)', 'balance' => '1.00', 'currency' => 'EUR']],
+		]);
+
+		$existingMapping = $this->createMapping(10, 1, 'ext-1', 100, true);
+		$existingMapping->setExternalAccountName('Max Mustermann');
+		$this->mappingMapper->method('findByExternalId')->willReturn($existingMapping);
+		$this->mappingMapper->method('findByConnection')->willReturn([$existingMapping]);
+		$this->mappingMapper->expects($this->once())->method('update')
+			->willReturnCallback(function (BankAccountMapping $m) {
+				$this->assertSame('Girokonto (…1234)', $m->getExternalAccountName());
+				return $m;
+			});
+
+		$this->service->refreshAccounts(self::USER_ID, 1);
+	}
+
+	public function testSyncUpdatesTheNameOfMappedAccounts(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+
+		$connection = $this->createConnection(1, 'enablebanking', 'My Bank', 'active');
+		$this->connectionMapper->method('find')->with(1, self::USER_ID)->willReturn($connection);
+		$this->providerFactory->method('getProvider')->willReturn($this->provider);
+		$this->provider->method('requiresReauthorization')->willReturn(false);
+		$this->provider->method('fetchAccounts')->willReturn([
+			'accounts' => [['id' => 'ext-1', 'name' => 'Girokonto (…1234)', 'balance' => '1.00', 'currency' => 'EUR', 'transactions' => []]],
+		]);
+
+		$mapping = $this->createMapping(10, 1, 'ext-1', 100, true);
+		$mapping->setExternalAccountName('Max Mustermann');
+		$this->mappingMapper->method('findByConnection')->willReturn([$mapping]);
+		$this->mappingMapper->method('findEnabledByConnection')->willReturn([$mapping]);
+		$account = new \OCA\Budget\Db\Account();
+		$account->setId(100);
+		$account->setUserId(self::USER_ID);
+		$this->accountMapper->method('find')->willReturn($account);
+		$this->mappingMapper->method('update')->willReturnArgument(0);
+
+		$this->service->sync(self::USER_ID, 1);
+
+		$this->assertSame('Girokonto (…1234)', $mapping->getExternalAccountName());
 	}
 
 	// ===== reauthorize =====
@@ -2291,12 +2360,21 @@ class BankSyncServiceTest extends TestCase {
 	}
 
 	/**
-	 * A date after today would count Budget's future-dated rows (scheduled
-	 * ones) as if the bank had them; today is as far as the check looks.
+	 * Around local midnight the bank (CET) can already be a day ahead of the
+	 * server (UTC); its balance date of tomorrow is honoured as it is.
 	 */
-	public function testABalanceDateAfterTodayIsComparedAsOfToday(): void {
+	public function testABalanceDateOneDayAfterTodayIsHonoured(): void {
 		$tomorrow = date('Y-m-d', strtotime('+1 day'));
-		$mapping = $this->differenceFixture('950.00', [date('Y-m-d') => '950.00', $tomorrow => '900.00'], balanceDate: $tomorrow);
+		$mapping = $this->differenceFixture('900.00', [date('Y-m-d') => '950.00', $tomorrow => '900.00'], balanceDate: $tomorrow);
+
+		$this->assertSame('0.00', $this->service->getBalanceDifference($mapping, self::USER_ID));
+	}
+
+	/** Further ahead than that would count Budget's scheduled rows as if the bank had them. */
+	public function testABalanceDateMoreThanADayAfterTodayIsComparedAsOfTomorrow(): void {
+		$tomorrow = date('Y-m-d', strtotime('+1 day'));
+		$later = date('Y-m-d', strtotime('+3 days'));
+		$mapping = $this->differenceFixture('900.00', [date('Y-m-d') => '950.00', $tomorrow => '900.00', $later => '500.00'], balanceDate: $later);
 
 		$this->assertSame('0.00', $this->service->getBalanceDifference($mapping, self::USER_ID));
 	}
