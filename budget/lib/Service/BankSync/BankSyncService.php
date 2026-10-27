@@ -145,18 +145,17 @@ class BankSyncService {
 
 		// An Enable Banking connection waiting for the bank's redirect: without
 		// a session its first authorization never finished, which the user
-		// has to complete, not renew. With one, the old session syncs. While
-		// a re-authorization is under way (fresh state) the connection stays
-		// pending so the redirect still matches it; once the state is gone or
-		// timed out, nothing can complete it and a good sync makes it active.
-		$keepPending = false;
+		// has to complete, not renew. While a re-authorization is under way
+		// (fresh state) nothing may touch the connection, or the redirect would
+		// no longer match it. Once the state is gone or timed out, nothing can
+		// complete it and the old session syncs; a good sync makes it active.
 		if ($connection->getProvider() === 'enablebanking' && $connection->getStatus() === 'pending_auth') {
 			$creds = $this->decodeCredentials($connection->getCredentials());
 			if (empty($creds['sessionId'])) {
 				throw new \Exception('Please finish connecting this bank first.');
 			}
-			$keepPending = $this->hasFreshEnableBankingState($creds);
 		}
+		$this->assertNoEnableBankingAuthorizationUnderway($connection);
 
 		$provider = $this->providerFactory->getProvider($connection->getProvider());
 
@@ -176,7 +175,7 @@ class BankSyncService {
 				'includePending' => $includePending,
 			]);
 		} catch (\Exception $e) {
-			$connection->setStatus($keepPending ? 'pending_auth' : 'error');
+			$connection->setStatus('error');
 			$connection->setLastError($e->getMessage());
 			$connection->setUpdatedAt(date('Y-m-d H:i:s'));
 			$this->connectionMapper->update($connection);
@@ -511,7 +510,7 @@ class BankSyncService {
 		// Update connection sync status
 		$connection->setLastSyncAt(date('Y-m-d H:i:s'));
 		$connection->setLastError($totalErrors > 0 ? $this->l->t('Sync completed with %1$s error(s)', [$totalErrors]) : null);
-		$connection->setStatus($keepPending ? 'pending_auth' : 'active');
+		$connection->setStatus('active');
 		$connection->setUpdatedAt(date('Y-m-d H:i:s'));
 		$this->connectionMapper->update($connection);
 
@@ -584,6 +583,20 @@ class BankSyncService {
 			return false;
 		}
 		return $provider instanceof ReauthorizableProviderInterface;
+	}
+
+	/**
+	 * Refuse to work on an Enable Banking connection while its
+	 * (re-)authorization is under way at the bank: syncing or promoting it
+	 * would move it out of pending_auth and the bank's redirect could no
+	 * longer complete it. Nothing is changed or recorded.
+	 */
+	private function assertNoEnableBankingAuthorizationUnderway(BankConnection $connection): void {
+		if ($connection->getProvider() === 'enablebanking'
+			&& $connection->getStatus() === 'pending_auth'
+			&& $this->hasFreshEnableBankingState($this->decodeCredentials($connection->getCredentials()))) {
+			throw new \Exception('Please finish authorizing at your bank first.');
+		}
 	}
 
 	/** A `state` is stored and younger than ENABLE_BANKING_STATE_TTL. */
@@ -778,6 +791,7 @@ class BankSyncService {
 		$this->requireEnabled();
 
 		$connection = $this->connectionMapper->find($connectionId, $userId);
+		$this->assertNoEnableBankingAuthorizationUnderway($connection);
 		$provider = $this->providerFactory->getProvider($connection->getProvider());
 		$data = $provider->fetchAccountList($connection->getCredentials());
 		$now = date('Y-m-d H:i:s');
