@@ -436,7 +436,7 @@ class SettingController extends Controller {
 	public function reset(): DataResponse {
 		try {
 			$this->leaveImportFilesAlone('');
-			$deleted = $this->mapper->deleteAll($this->getEffectiveUserId());
+			$deleted = $this->mapper->deleteAll($this->getEffectiveUserId(), self::HIDDEN_KEYS);
 
 			return new DataResponse([
 				'message' => $this->l->t('All settings reset to defaults'),

@@ -440,6 +440,18 @@ class SettingControllerTest extends TestCase {
 		$this->assertSame('GBP', $data['defaults']['default_currency']);
 	}
 
+	public function testResetKeepsTheEnableBankingKeys(): void {
+		$this->mapper->expects($this->once())
+			->method('deleteAll')
+			->with('user1', ['enablebanking_keys'])
+			->willReturn(4);
+
+		$response = $this->controller->reset();
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame(4, $response->getData()['deleted_count']);
+	}
+
 	public function testResetHandlesException(): void {
 		$this->mapper->method('deleteAll')->willThrowException(new \RuntimeException('error'));
 
