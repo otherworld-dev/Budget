@@ -165,8 +165,12 @@ export default class BankSyncModule {
             const mappedCount = mappings.filter(m => m.budgetAccountId && m.enabled).length;
             const isExpired = connection.status === 'expired';
             const needsReauth = connection.provider === 'gocardless' || connection.provider === 'enablebanking';
+            // An Enable Banking authorization that failed or was abandoned at
+            // the bank stays pending; only starting it again can rescue it.
+            const ebAuthFailed = connection.provider === 'enablebanking'
+                && connection.status === 'pending_auth' && !!connection.lastError;
 
-            const actionBtn = (isExpired && needsReauth)
+            const actionBtn = ((isExpired && needsReauth) || ebAuthFailed)
                 ? `<button class="btn-warning bank-reauth-btn" data-connection-id="${connection.id}" title="${t('budget', 'Re-authorize')}">${t('budget', 'Re-authorize')}</button>`
                 : `<button class="bank-sync-btn" data-connection-id="${connection.id}" title="${t('budget', 'Sync now')}" aria-label="${t('budget', 'Sync now')}">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z"/></svg>

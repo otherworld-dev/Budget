@@ -290,3 +290,31 @@ describe('Account mappings balance check', () => {
         expect(row(10).querySelector('.bank-reconcile-btn')).toBeNull();
     });
 });
+
+describe('Connection card actions', () => {
+    const card = (id) => document.querySelector(`.bank-connection-card[data-connection-id="${id}"]`);
+    const conn = (id, provider, status, lastError = null) => ({
+        connection: { id, name: `C${id}`, provider, status, lastError }, mappings: [],
+    });
+
+    beforeEach(() => {
+        document.body.innerHTML = '<div id="bank-connections-list"></div>';
+    });
+
+    it('offers Re-authorize for a stuck Enable Banking authorization', () => {
+        module.connections = [
+            conn(1, 'enablebanking', 'pending_auth', 'Authorization was cancelled or failed at the bank.'),
+            conn(2, 'enablebanking', 'pending_auth'),
+            conn(3, 'enablebanking', 'expired'),
+            conn(4, 'gocardless', 'pending_auth', 'Some error'),
+        ];
+        module.renderConnections();
+
+        expect(card(1).querySelector('.bank-reauth-btn')).not.toBeNull();
+        expect(card(1).querySelector('.bank-sync-btn')).toBeNull();
+        expect(card(2).querySelector('.bank-reauth-btn')).toBeNull();
+        expect(card(2).querySelector('.bank-sync-btn')).not.toBeNull();
+        expect(card(3).querySelector('.bank-reauth-btn')).not.toBeNull();
+        expect(card(4).querySelector('.bank-reauth-btn')).toBeNull();
+    });
+});
