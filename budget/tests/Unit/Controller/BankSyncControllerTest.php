@@ -9,6 +9,7 @@ use OCA\Budget\Db\BankAccountMapping;
 use OCA\Budget\Db\BankConnection;
 use OCA\Budget\Service\AdminSettingService;
 use OCA\Budget\Service\BankSync\BankSyncService;
+use OCA\Budget\Service\BankSync\EnableBanking\EnableBankingAuthException;
 use OCA\Budget\Service\BankSync\EnableBankingProvider;
 use OCA\Budget\Service\BankSync\GoCardlessProvider;
 use OCA\Budget\Service\BankSync\ProviderFactory;
@@ -484,6 +485,24 @@ class BankSyncControllerTest extends TestCase {
 		$response = $this->controller->institutions('enablebanking');
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 		$this->assertEquals('Nordea', $response->getData()[0]['id']);
+	}
+
+	public function testInstitutionsExplainsAnInactiveEnableBankingApplication(): void {
+		$this->enableBankSync();
+		$this->request->method('getParams')->willReturn(['country' => 'DE']);
+
+		$eb = $this->createMock(EnableBankingProvider::class);
+		$this->providerFactory->method('getProvider')->with('enablebanking')->willReturn($eb);
+		$eb->method('listInstitutions')->willThrowException(
+			new EnableBankingAuthException('Enable Banking rejected the credentials (HTTP 403)', EnableBankingAuthException::REASON_APPLICATION_INACTIVE)
+		);
+
+		$response = $this->controller->institutions('enablebanking');
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame(
+			['error' => 'Your Enable Banking application is not active yet. Link at least one of your accounts in the Enable Banking control panel, then try again.'],
+			$response->getData()
+		);
 	}
 
 	public function testInstitutionsRejectsProviderWithoutListing(): void {

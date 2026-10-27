@@ -120,7 +120,10 @@ class EnableBankingClient {
 			throw new EnableBankingRateLimitException('Enable Banking rate limit reached (HTTP 429)');
 		}
 		if ($status === 401 || $status === 403) {
-			throw new EnableBankingAuthException('Enable Banking rejected the credentials (HTTP ' . $status . ')');
+			throw new EnableBankingAuthException(
+				'Enable Banking rejected the credentials (HTTP ' . $status . ')',
+				$this->authFailureReason((string)$response->getBody())
+			);
 		}
 		if ($status >= 400) {
 			throw new \RuntimeException('Enable Banking request failed (HTTP ' . $status . ')');
@@ -142,5 +145,17 @@ class EnableBankingClient {
 
 	private static function base64UrlEncode(string $data): string {
 		return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
+	}
+
+	/**
+	 * The error body is read only to recognise a known cause by exact match;
+	 * none of its text is kept or passed on.
+	 */
+	private function authFailureReason(string $body): ?string {
+		$data = json_decode($body, true);
+		if (is_array($data) && ($data['message'] ?? null) === 'Application is not active') {
+			return EnableBankingAuthException::REASON_APPLICATION_INACTIVE;
+		}
+		return null;
 	}
 }

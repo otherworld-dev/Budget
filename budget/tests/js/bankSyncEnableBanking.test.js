@@ -193,6 +193,19 @@ describe('Enable Banking wizard', () => {
         expect(tiles[0].querySelector('img')).toBeNull();
     });
 
+    it('shows the server error text on step 1 when listing banks fails', async () => {
+        const message = 'Your Enable Banking application is not active yet. Link at least one of your accounts in the Enable Banking control panel, then try again.';
+        settings = { ...settings, hasKeys: true, applicationId: 'app-1' };
+        const base = apiFetch.getMockImplementation();
+        apiFetch.mockImplementation((url, options = {}) =>
+            url === INSTITUTIONS_URL ? Promise.reject(new Error(message)) : base(url, options));
+        await pickEnableBanking();
+        await module.handleStep1Next();
+
+        expect(document.getElementById('bank-sync-step1-error').textContent).toContain(message);
+        expect(show('bank-sync-step-2')).toBe(false);
+    });
+
     it('connect sends provider enablebanking and no redirectUrl', async () => {
         settings = { ...settings, hasKeys: true, applicationId: 'app-1' };
         await pickEnableBanking('Mein Konto');

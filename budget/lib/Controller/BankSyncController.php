@@ -8,6 +8,7 @@ use OCA\Budget\AppInfo\Application;
 use OCA\Budget\Db\BankAccountMapping;
 use OCA\Budget\Service\AdminSettingService;
 use OCA\Budget\Service\BankSync\BankSyncService;
+use OCA\Budget\Service\BankSync\EnableBanking\EnableBankingAuthException;
 use OCA\Budget\Service\BankSync\InstitutionListingProviderInterface;
 use OCA\Budget\Service\BankSync\ProviderFactory;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
@@ -108,6 +109,9 @@ class BankSyncController extends Controller {
 
 			return new DataResponse($p->listInstitutions($this->userId, $listParams));
 		} catch (\Exception $e) {
+			if ($r = $this->inactiveApplicationResponse($e)) {
+				return $r;
+			}
 			return $this->handleError($e, $this->l->t('Failed to fetch institutions'), Http::STATUS_BAD_REQUEST);
 		}
 	}
@@ -180,6 +184,9 @@ class BankSyncController extends Controller {
 			$result = $this->syncService->connect($this->userId, $provider, $providerParams, $name);
 			return new DataResponse($result);
 		} catch (\Exception $e) {
+			if ($r = $this->inactiveApplicationResponse($e)) {
+				return $r;
+			}
 			return $this->handleError($e, $this->l->t('Failed to connect bank'), Http::STATUS_BAD_REQUEST);
 		}
 	}
@@ -408,6 +415,15 @@ class BankSyncController extends Controller {
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to re-authorize'), Http::STATUS_BAD_REQUEST, ['connectionId' => $id]);
 		}
+	}
+
+	private function inactiveApplicationResponse(\Throwable $e): ?DataResponse {
+		if (!($e instanceof EnableBankingAuthException) || $e->getReason() !== EnableBankingAuthException::REASON_APPLICATION_INACTIVE) {
+			return null;
+		}
+		return new DataResponse([
+			'error' => $this->l->t('Your Enable Banking application is not active yet. Link at least one of your accounts in the Enable Banking control panel, then try again.'),
+		], Http::STATUS_BAD_REQUEST);
 	}
 
 	private function enableBankingCallbackUrl(): string {

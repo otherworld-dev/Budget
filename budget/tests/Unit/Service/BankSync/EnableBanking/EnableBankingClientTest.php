@@ -157,6 +157,30 @@ class EnableBankingClientTest extends TestCase {
 		return [[401], [403]];
 	}
 
+	public function testInactiveApplicationIsFlaggedWithoutLeakingTheBody(): void {
+		$this->client->method('get')->willReturn($this->response(403, '{"code":403,"message":"Application is not active"}'));
+
+		try {
+			$this->api->request('GET', '/aspsps', $this->keys());
+			$this->fail('Expected an EnableBankingAuthException');
+		} catch (EnableBankingAuthException $e) {
+			$this->assertSame(EnableBankingAuthException::REASON_APPLICATION_INACTIVE, $e->getReason());
+			$this->assertSame('application_inactive', $e->getReason());
+			$this->assertStringNotContainsString('not active', $e->getMessage());
+		}
+	}
+
+	public function testOtherAuthFailuresHaveNoReason(): void {
+		$this->client->method('get')->willReturn($this->response(403, '{"message":"Something else"}'));
+
+		try {
+			$this->api->request('GET', '/aspsps', $this->keys());
+			$this->fail('Expected an EnableBankingAuthException');
+		} catch (EnableBankingAuthException $e) {
+			$this->assertNull($e->getReason());
+		}
+	}
+
 	public function testRequestErrorMessageDoesNotLeakBody(): void {
 		$this->client->method('get')->willReturn($this->response(500, '{"secret":"S3CRET"}'));
 
