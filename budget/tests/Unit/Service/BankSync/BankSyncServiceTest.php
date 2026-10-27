@@ -13,6 +13,8 @@ use OCA\Budget\Service\AdminSettingService;
 use OCA\Budget\Service\AuditService;
 use OCA\Budget\Service\BankSync\BankSyncProviderInterface;
 use OCA\Budget\Service\BankSync\BankSyncService;
+use OCA\Budget\Service\BankSync\EnableBankingProvider;
+use OCA\Budget\Service\BankSync\GoCardlessProvider;
 use OCA\Budget\Service\BankSync\ProviderFactory;
 use OCA\Budget\Service\TransactionService;
 use OCP\IL10N;
@@ -666,26 +668,30 @@ class BankSyncServiceTest extends TestCase {
 	public function testReauthorizeCreatesNewRequisitionAndUpdatesConnection(): void {
 		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
 
-		$connection = new BankConnection();
-		$connection->setId(1);
-		$connection->setUserId(self::USER_ID);
-		$connection->setProvider('gocardless');
-		$connection->setCredentials(json_encode([
+		$stored = json_encode([
 			'secretId' => 'sid',
 			'secretKey' => 'skey',
 			'accessToken' => 'old-token',
 			'requisitionId' => 'old-req',
-		]));
+		]);
+		$connection = new BankConnection();
+		$connection->setId(1);
+		$connection->setUserId(self::USER_ID);
+		$connection->setProvider('gocardless');
+		$connection->setCredentials($stored);
 		$connection->setStatus('expired');
 
+		$gocardless = $this->createMock(GoCardlessProvider::class);
 		$this->connectionMapper->method('find')->with(1, self::USER_ID)->willReturn($connection);
-		$this->providerFactory->method('getProvider')->with('gocardless')->willReturn($this->provider);
+		$this->providerFactory->method('getProvider')->with('gocardless')->willReturn($gocardless);
 
-		$this->provider->method('initializeConnection')->willReturn([
-			'credentials' => json_encode(['secretId' => 'sid', 'secretKey' => 'skey', 'requisitionId' => 'new-req']),
-			'accounts' => [],
-			'authorizationUrl' => 'https://bank.example.com/auth',
-		]);
+		$gocardless->expects($this->once())->method('reinitializeConnection')
+			->with($stored, ['institutionId' => 'BANK_ID', 'redirectUrl' => 'https://app/callback'])
+			->willReturn([
+				'credentials' => json_encode(['secretId' => 'sid', 'secretKey' => 'skey', 'requisitionId' => 'new-req']),
+				'accounts' => [],
+				'authorizationUrl' => 'https://bank.example.com/auth',
+			]);
 
 		$this->connectionMapper->expects($this->once())->method('update')
 			->willReturnCallback(function (BankConnection $c) {
@@ -696,12 +702,49 @@ class BankSyncServiceTest extends TestCase {
 				return $c;
 			});
 
-		$result = $this->service->reauthorize(self::USER_ID, 1, 'BANK_ID', 'https://app/callback');
+		$result = $this->service->reauthorize(self::USER_ID, 1, ['institutionId' => 'BANK_ID', 'redirectUrl' => 'https://app/callback']);
 
 		$this->assertEquals('https://bank.example.com/auth', $result['authorizationUrl']);
 	}
 
-	public function testReauthorizeRejectsNonGoCardlessProvider(): void {
+	public function testReauthorizeEnableBankingSetsPendingAuth(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+
+		$connection = new BankConnection();
+		$connection->setId(2);
+		$connection->setUserId(self::USER_ID);
+		$connection->setProvider('enablebanking');
+		$connection->setCredentials('{"sessionId":"old"}');
+		$connection->setStatus('expired');
+		$connection->setLastError('Consent expired');
+
+		$eb = $this->createMock(EnableBankingProvider::class);
+		$this->connectionMapper->method('find')->with(2, self::USER_ID)->willReturn($connection);
+		$this->providerFactory->method('getProvider')->with('enablebanking')->willReturn($eb);
+
+		$params = ['institutionId' => 'Nordea', 'country' => 'FI', 'redirectUrl' => 'https://nc/cb', 'maximumConsentValidity' => 7776000];
+		$eb->expects($this->once())->method('reinitializeConnection')
+			->with('{"sessionId":"old"}', $params)
+			->willReturn([
+				'credentials' => '{"pendingState":"x"}',
+				'accounts' => [],
+				'authorizationUrl' => 'https://auth.enablebanking.example/start',
+			]);
+
+		$this->connectionMapper->expects($this->once())->method('update')
+			->willReturnCallback(function (BankConnection $c) {
+				$this->assertEquals('pending_auth', $c->getStatus());
+				$this->assertNull($c->getLastError());
+				$this->assertEquals('{"pendingState":"x"}', $c->getCredentials());
+				return $c;
+			});
+
+		$result = $this->service->reauthorize(self::USER_ID, 2, $params);
+
+		$this->assertEquals('https://auth.enablebanking.example/start', $result['authorizationUrl']);
+	}
+
+	public function testReauthorizeRejectsNonReauthorizableProvider(): void {
 		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
 
 		$connection = new BankConnection();
@@ -711,11 +754,13 @@ class BankSyncServiceTest extends TestCase {
 		$connection->setCredentials('{}');
 
 		$this->connectionMapper->method('find')->willReturn($connection);
+		$this->providerFactory->method('getProvider')->with('simplefin')->willReturn($this->provider);
+		$this->connectionMapper->expects($this->never())->method('update');
 
 		$this->expectException(\Exception::class);
-		$this->expectExceptionMessage('only supported for GoCardless');
+		$this->expectExceptionMessage('does not support re-authorization');
 
-		$this->service->reauthorize(self::USER_ID, 1, 'BANK_ID', '');
+		$this->service->reauthorize(self::USER_ID, 1, ['institutionId' => 'BANK_ID']);
 	}
 
 	public function testReauthorizeThrowsWhenDisabled(): void {
@@ -724,7 +769,7 @@ class BankSyncServiceTest extends TestCase {
 		$this->expectException(\Exception::class);
 		$this->expectExceptionMessage('disabled');
 
-		$this->service->reauthorize(self::USER_ID, 1, 'BANK_ID', '');
+		$this->service->reauthorize(self::USER_ID, 1, ['institutionId' => 'BANK_ID']);
 	}
 
 	// ===== connect edge cases =====

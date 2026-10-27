@@ -611,4 +611,37 @@ class GoCardlessProviderTest extends TestCase {
 
 		$this->provider->getInstitutions('token');
 	}
+
+	// ── listInstitutions / reinitializeConnection ───────────────────
+
+	public function testListInstitutionsRequiresCredentials(): void {
+		$this->expectException(\InvalidArgumentException::class);
+		$this->provider->listInstitutions('user1', ['country' => 'GB']);
+	}
+
+	public function testListInstitutionsFetchesTokenThenInstitutions(): void {
+		$tokenResponse = $this->createMock(IResponse::class);
+		$tokenResponse->method('getBody')->willReturn(json_encode(['access' => 'tok']));
+		$listResponse = $this->createMock(IResponse::class);
+		$listResponse->method('getBody')->willReturn(json_encode([['id' => 'B1', 'name' => 'Bank']]));
+
+		$this->client->method('post')->willReturn($tokenResponse);
+		$this->client->expects($this->once())->method('get')
+			->with($this->stringContains('country=DE'), $this->callback(fn ($o) => $o['headers']['Authorization'] === 'Bearer tok'))
+			->willReturn($listResponse);
+
+		$result = $this->provider->listInstitutions('user1', ['country' => 'DE', 'secretId' => 's', 'secretKey' => 'k']);
+		$this->assertSame('B1', $result[0]['id']);
+	}
+
+	public function testReinitializeConnectionRejectsIncompleteCredentials(): void {
+		$this->expectException(\Exception::class);
+		$this->expectExceptionMessage('Stored credentials are incomplete');
+		$this->provider->reinitializeConnection('{"secretId":"s"}', ['institutionId' => 'B1']);
+	}
+
+	public function testReinitializeConnectionRequiresInstitution(): void {
+		$this->expectException(\InvalidArgumentException::class);
+		$this->provider->reinitializeConnection('{"secretId":"s","secretKey":"k"}', []);
+	}
 }

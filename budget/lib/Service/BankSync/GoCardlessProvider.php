@@ -19,7 +19,7 @@ use Psr\Log\LoggerInterface;
  *
  * PSD2 requirement: Bank connections expire after 90 days, user must re-authorize.
  */
-class GoCardlessProvider implements BankSyncProviderInterface {
+class GoCardlessProvider implements BankSyncProviderInterface, InstitutionListingProviderInterface, ReauthorizableProviderInterface {
 	private const BASE_URL = 'https://bankaccountdata.gocardless.com/api/v2';
 
 	public function __construct(
@@ -286,6 +286,48 @@ class GoCardlessProvider implements BankSyncProviderInterface {
 		} catch (\Exception $e) {
 			$this->logger->warning('GoCardless: failed to revoke requisition: ' . $e->getMessage(), ['app' => 'budget']);
 		}
+	}
+
+	/**
+	 * GoCardless needs the user's API credentials for every listing call, so
+	 * they arrive in $params rather than from storage; $userId is unused.
+	 */
+	public function listInstitutions(string $userId, array $params): array {
+		$secretId = $params['secretId'] ?? null;
+		$secretKey = $params['secretKey'] ?? null;
+		if (!$secretId || !$secretKey) {
+			throw new \InvalidArgumentException('API credentials required');
+		}
+
+		$accessToken = $this->getToken($secretId, $secretKey);
+		return $this->getInstitutions($accessToken, (string)($params['country'] ?? 'GB'));
+	}
+
+	/**
+	 * An expired requisition cannot be revived, so re-authorizing means
+	 * creating a new one with the stored API credentials.
+	 */
+	public function reinitializeConnection(string $credentials, array $params): array {
+		$creds = json_decode($credentials, true);
+		if (!is_array($creds) || !isset($creds['secretId'], $creds['secretKey'])) {
+			throw new \Exception('Stored credentials are incomplete');
+		}
+
+		// Without an institution no requisition is created and there is nothing to authorize
+		if (empty($params['institutionId'])) {
+			throw new \InvalidArgumentException('Institution ID is required');
+		}
+
+		// With an institution, initializeConnection always returns the authorization link
+		/** @var array{credentials: string, accounts: array, authorizationUrl: string} $result */
+		$result = $this->initializeConnection([
+			'secretId' => $creds['secretId'],
+			'secretKey' => $creds['secretKey'],
+			'institutionId' => $params['institutionId'],
+			'redirectUrl' => $params['redirectUrl'] ?? '',
+		]);
+
+		return $result;
 	}
 
 	/**

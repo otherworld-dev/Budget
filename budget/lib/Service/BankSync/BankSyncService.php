@@ -609,33 +609,22 @@ class BankSyncService {
 	}
 
 	/**
-	 * Re-authorize an expired GoCardless connection with a new requisition.
+	 * Re-authorize an expired connection with any provider that supports it.
 	 *
-	 * @return array{authorizationUrl: string}
+	 * @param array $params Provider-specific input (institutionId, redirectUrl, ...)
+	 * @return array{authorizationUrl: string|null}
 	 */
-	public function reauthorize(string $userId, int $connectionId, string $institutionId, string $redirectUrl): array {
+	public function reauthorize(string $userId, int $connectionId, array $params): array {
 		$this->requireEnabled();
 
 		$connection = $this->connectionMapper->find($connectionId, $userId);
+		$provider = $this->providerFactory->getProvider($connection->getProvider());
 
-		if ($connection->getProvider() !== 'gocardless') {
-			throw new \Exception('Re-authorization is only supported for GoCardless connections');
+		if (!($provider instanceof ReauthorizableProviderInterface)) {
+			throw new \Exception('This provider does not support re-authorization');
 		}
 
-		$provider = $this->providerFactory->getProvider('gocardless');
-		$creds = json_decode($connection->getCredentials(), true);
-
-		if (!$creds || !isset($creds['secretId'], $creds['secretKey'])) {
-			throw new \Exception('Stored credentials are incomplete');
-		}
-
-		// Re-initialize with institution to create a new requisition
-		$result = $provider->initializeConnection([
-			'secretId' => $creds['secretId'],
-			'secretKey' => $creds['secretKey'],
-			'institutionId' => $institutionId,
-			'redirectUrl' => $redirectUrl,
-		]);
+		$result = $provider->reinitializeConnection($connection->getCredentials(), $params);
 
 		// Update connection with new credentials (new requisitionId, fresh token)
 		// Status stays pending until user completes bank authorization
@@ -646,7 +635,7 @@ class BankSyncService {
 		$this->connectionMapper->update($connection);
 
 		$this->auditService->log($userId, 'bank_reauthorized', 'bank_connection', $connectionId, [
-			'provider' => 'gocardless',
+			'provider' => $connection->getProvider(),
 		]);
 
 		return [

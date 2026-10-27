@@ -9,12 +9,14 @@ use OCA\Budget\Db\BankAccountMapping;
 use OCA\Budget\Db\BankConnection;
 use OCA\Budget\Service\AdminSettingService;
 use OCA\Budget\Service\BankSync\BankSyncService;
+use OCA\Budget\Service\BankSync\EnableBankingProvider;
 use OCA\Budget\Service\BankSync\GoCardlessProvider;
 use OCA\Budget\Service\BankSync\ProviderFactory;
 use OCA\Budget\Service\BankSync\SimpleFINProvider;
 use OCP\AppFramework\Http;
 use OCP\IL10N;
 use OCP\IRequest;
+use OCP\IURLGenerator;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
@@ -26,6 +28,7 @@ class BankSyncControllerTest extends TestCase {
 	private IRequest $request;
 	private LoggerInterface $logger;
 	private IL10N $l;
+	private IURLGenerator $urlGenerator;
 
 	protected function setUp(): void {
 		$this->request = $this->createMock(IRequest::class);
@@ -38,12 +41,15 @@ class BankSyncControllerTest extends TestCase {
 			return vsprintf($text, $parameters);
 		});
 
+		$this->urlGenerator = $this->createMock(IURLGenerator::class);
+
 		$this->controller = new BankSyncController(
 			$this->request,
 			$this->syncService,
 			$this->adminSettings,
 			$this->providerFactory,
 			$this->l,
+			$this->urlGenerator,
 			'user1',
 			$this->logger
 		);
@@ -383,8 +389,7 @@ class BankSyncControllerTest extends TestCase {
 
 		$gcProvider = $this->createMock(GoCardlessProvider::class);
 		$this->providerFactory->method('getProvider')->with('gocardless')->willReturn($gcProvider);
-		$gcProvider->method('getToken')->willReturn('token123');
-		$gcProvider->method('getInstitutions')->willReturn([
+		$gcProvider->method('listInstitutions')->willReturn([
 			['id' => 'BANK_1', 'name' => 'Test Bank', 'logo' => null],
 		]);
 
@@ -392,6 +397,83 @@ class BankSyncControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 		$this->assertCount(1, $response->getData());
 		$this->assertEquals('BANK_1', $response->getData()[0]['id']);
+	}
+
+	public function testInstitutionsForEnableBankingUsesKeyStore(): void {
+		$this->enableBankSync();
+		// A client-supplied secretId must not reach the provider: keys come from the key store
+		$this->request->method('getParams')->willReturn(['country' => 'de', 'secretId' => 'ignored']);
+
+		$eb = $this->createMock(EnableBankingProvider::class);
+		$this->providerFactory->method('getProvider')->with('enablebanking')->willReturn($eb);
+		$eb->expects($this->once())->method('listInstitutions')
+			->with('user1', $this->callback(fn ($p) => $p['country'] === 'DE'))
+			->willReturn([['id' => 'Nordea', 'name' => 'Nordea', 'logo' => null, 'country' => 'DE', 'maximumConsentValidity' => 7776000]]);
+
+		$response = $this->controller->institutions('enablebanking');
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertEquals('Nordea', $response->getData()[0]['id']);
+	}
+
+	public function testInstitutionsRejectsProviderWithoutListing(): void {
+		$this->enableBankSync();
+		$this->request->method('getParams')->willReturn(['country' => 'GB']);
+		$this->providerFactory->method('getProvider')->with('simplefin')->willReturn($this->createMock(SimpleFINProvider::class));
+
+		$response = $this->controller->institutions('simplefin');
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	public function testConnectEnableBankingUsesCallbackUrlNotClientUrl(): void {
+		$this->enableBankSync();
+		$this->request->method('getParams')->willReturn([
+			'provider' => 'enablebanking',
+			'name' => 'My Bank',
+			'institutionId' => 'Nordea',
+			'country' => 'FI',
+			'maximumConsentValidity' => 7776000,
+			'redirectUrl' => 'https://evil.example/steal',
+		]);
+		$this->urlGenerator->method('linkToRouteAbsolute')->with('budget.enableBanking.callback')->willReturn('https://nc.example/apps/budget/enable-banking/callback');
+
+		$this->syncService->expects($this->once())->method('connect')
+			->with('user1', 'enablebanking', [
+				'userId' => 'user1',
+				'institutionId' => 'Nordea',
+				'country' => 'FI',
+				'redirectUrl' => 'https://nc.example/apps/budget/enable-banking/callback',
+				'maximumConsentValidity' => 7776000,
+			], 'My Bank')
+			->willReturn(['authorizationUrl' => 'https://auth.example/start']);
+
+		$response = $this->controller->connect();
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testReauthorizeEnableBankingPassesParamsAndCallbackUrl(): void {
+		$this->enableBankSync();
+		$this->request->method('getParams')->willReturn([
+			'institutionId' => 'Nordea',
+			'country' => 'FI',
+			'maximumConsentValidity' => 7776000,
+			'redirectUrl' => 'https://evil.example/steal',
+		]);
+		$connection = new BankConnection();
+		$connection->setProvider('enablebanking');
+		$this->syncService->method('getConnection')->with('user1', 1)->willReturn($connection);
+		$this->urlGenerator->method('linkToRouteAbsolute')->willReturn('https://nc.example/cb');
+
+		$this->syncService->expects($this->once())->method('reauthorize')
+			->with('user1', 1, [
+				'institutionId' => 'Nordea',
+				'country' => 'FI',
+				'redirectUrl' => 'https://nc.example/cb',
+				'maximumConsentValidity' => 7776000,
+			])
+			->willReturn(['authorizationUrl' => 'https://auth.example/start']);
+
+		$response = $this->controller->reauthorize(1);
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
 
 	public function testInstitutionsDisabledReturns403(): void {
