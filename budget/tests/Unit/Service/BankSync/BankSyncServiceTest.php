@@ -321,15 +321,24 @@ class BankSyncServiceTest extends TestCase {
 		$unmapped = $this->createMapping(12, 1, 'hash-unmapped', null, true);
 		$disabled = $this->createMapping(13, 1, 'hash-disabled', 102, false);
 		$disabled->setBalanceReconciledAt('2026-10-20 08:00:00');
-		$this->mappingMapper->method('findByConnection')->with(1)->willReturn([$fresh, $imported, $unmapped, $disabled]);
-		$this->mappingMapper->method('findEnabledByConnection')->with(1)->willReturn([$fresh, $imported]);
+		// Never reconciled (auto-reconcile skipped it), but rows were imported
+		$importedUnreconciled = $this->createMapping(14, 1, 'hash-imported-unreconciled', 103, true);
+		$this->mappingMapper->method('findByConnection')->with(1)
+			->willReturn([$fresh, $imported, $unmapped, $disabled, $importedUnreconciled]);
+		$this->mappingMapper->method('findEnabledByConnection')->with(1)
+			->willReturn([$fresh, $imported, $importedUnreconciled]);
+		$this->transactionMapper->method('hasImportIdPrefix')->willReturnMap([
+			[100, 'enablebanking:', false],
+			[101, 'enablebanking:', true],
+			[103, 'enablebanking:', true],
+		]);
 
 		$this->providerFactory->method('getProvider')->willReturn($this->provider);
 		$this->provider->method('requiresReauthorization')->willReturn(false);
 		$this->provider->expects($this->once())->method('fetchAccounts')
 			->with($this->anything(), [
 				'includePending' => true,
-				'syncAccounts' => ['hash-fresh' => true, 'hash-imported' => false],
+				'syncAccounts' => ['hash-fresh' => true, 'hash-imported' => false, 'hash-imported-unreconciled' => false],
 			])
 			->willReturn(['accounts' => []]);
 

@@ -169,14 +169,20 @@ class BankSyncService {
 		}
 
 		// Transactions are only wanted for imported accounts: enabled and
-		// mapped to a budget account. One whose balance was never reconciled
-		// has not been imported yet and needs its full history.
+		// mapped to a budget account. One that was never reconciled and holds
+		// no row from this provider has not been imported yet and needs its
+		// full history. Reconciliation alone is not enough: auto-reconcile
+		// skips some accounts, and those would ask for 90 days every sync.
 		$allMappings = $this->mappingMapper->findByConnection($connectionId);
+		$importPrefix = $connection->getProvider() . ':';
 		$syncAccounts = [];
 		foreach ($allMappings as $m) {
-			if ($m->getEnabled() && $m->getBudgetAccountId() !== null) {
-				$syncAccounts[$m->getExternalAccountId()] = $m->getBalanceReconciledAt() === null;
+			$budgetAccountId = $m->getBudgetAccountId();
+			if (!$m->getEnabled() || $budgetAccountId === null) {
+				continue;
 			}
+			$syncAccounts[$m->getExternalAccountId()] = $m->getBalanceReconciledAt() === null
+				&& !($this->transactionMapper?->hasImportIdPrefix($budgetAccountId, $importPrefix) ?? false);
 		}
 
 		// Fetch accounts and transactions from provider
