@@ -39,6 +39,10 @@ class BankSyncServiceTest extends TestCase {
 
 	private const USER_ID = 'user1';
 
+	/** The bank rows syncLedger()'s provider returns, changeable between syncs */
+	private array $ledgerFeed = [];
+	private ?BankAccountMapping $ledgerMapping = null;
+
 	protected function setUp(): void {
 		$this->connectionMapper = $this->createMock(BankConnectionMapper::class);
 		$this->mappingMapper = $this->createMock(BankAccountMappingMapper::class);
@@ -1669,11 +1673,13 @@ class BankSyncServiceTest extends TestCase {
 		$this->connectionMapper->method('find')->with(1, self::USER_ID)->willReturn($connection);
 		$this->providerFactory->method('getProvider')->willReturn($this->provider);
 		$this->provider->method('requiresReauthorization')->willReturn(false);
-		$this->provider->method('fetchAccounts')->willReturn(['accounts' => [[
+		$this->ledgerFeed = $feed;
+		$this->provider->method('fetchAccounts')->willReturnCallback(fn () => ['accounts' => [[
 			'id' => 'ext-1', 'name' => 'Giro', 'balance' => $bankBalance, 'currency' => $bankCurrency,
-			'transactions' => $feed,
+			'transactions' => $this->ledgerFeed,
 		]]]);
 		$mapping = $this->createMapping(10, 1, 'ext-1', 100, true);
+		$this->ledgerMapping = $mapping;
 		$this->mappingMapper->method('findByConnection')->willReturn([$mapping]);
 		$this->mappingMapper->method('findEnabledByConnection')->willReturn([$mapping]);
 
@@ -1736,6 +1742,29 @@ class BankSyncServiceTest extends TestCase {
 		$this->service->sync(self::USER_ID, 1);
 
 		$this->assertSame(734.56, $account->getOpeningBalance());
+		$this->assertNotNull($this->ledgerMapping->getBalanceReconciledAt());
+	}
+
+	public function testSecondSyncOnStillEmptyAccountDoesNotAutoReconcile(): void {
+		$account = $this->syncLedger([], '734.56');
+		$this->accountService->expects($this->once())->method('update');
+		$this->service->sync(self::USER_ID, 1);
+		$this->assertSame(734.56, $account->getOpeningBalance());
+		$this->assertNotNull($this->ledgerMapping->getBalanceReconciledAt());
+
+		// The bank now lists a row; the account still holds only bank rows
+		$this->ledgerFeed = [['id' => 'a', 'date' => '2026-10-20', 'amount' => '-4.56', 'description' => 'Bakery']];
+		$this->service->sync(self::USER_ID, 1);
+
+		$this->assertSame(734.56, $account->getOpeningBalance());
+	}
+
+	public function testAMappingAlreadyReconciledIsNotAutoReconciled(): void {
+		$this->syncLedger([], '734.56');
+		$this->ledgerMapping->setBalanceReconciledAt('2026-10-01 10:00:00');
+		$this->accountService->expects($this->never())->method('update');
+
+		$this->service->sync(self::USER_ID, 1);
 	}
 
 	public function testSecondSyncDoesNotAutoReconcile(): void {
@@ -1868,6 +1897,55 @@ class BankSyncServiceTest extends TestCase {
 		$result = $this->service->reconcileMapping(self::USER_ID, 1, 10);
 
 		$this->assertSame(['balance' => '1000.00', 'balanceDifference' => '0.00'], $result);
+	}
+
+	public function testManualReconcileSetsReconciledFlag(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$this->connectionMapper->method('find')->with(1, self::USER_ID)
+			->willReturn($this->createConnection(1, 'simplefin', 'My Bank', 'active'));
+		$mapping = $this->differenceFixture('1000.00', '987.65');
+		$this->mappingMapper->method('find')->with(10)->willReturn($mapping);
+		$this->mappingMapper->expects($this->once())->method('update')
+			->with($this->callback(fn (BankAccountMapping $m) => $m === $mapping && $m->getBalanceReconciledAt() !== null))
+			->willReturnArgument(0);
+
+		$this->service->reconcileMapping(self::USER_ID, 1, 10);
+
+		$this->assertNotNull($mapping->getBalanceReconciledAt());
+	}
+
+	public static function remappings(): array {
+		return [
+			'another account' => [200, false],
+			'cleared' => [null, true],
+		];
+	}
+
+	#[\PHPUnit\Framework\Attributes\DataProvider('remappings')]
+	public function testRemappingResetsReconciledFlag(?int $newAccountId, bool $clear): void {
+		$this->connectionMapper->method('find')->willReturn($this->createConnection(1, 'simplefin', 'My Bank', 'active'));
+		$mapping = $this->createMapping(10, 1, 'ext-1', 100, true);
+		$mapping->setBalanceReconciledAt('2026-10-01 10:00:00');
+		$this->mappingMapper->method('find')->with(10)->willReturn($mapping);
+		$this->mappingMapper->method('update')->willReturnArgument(0);
+
+		$result = $this->service->updateMapping(self::USER_ID, 1, 10, $newAccountId, $clear, null);
+
+		$this->assertNull($result->getBalanceReconciledAt());
+	}
+
+	public function testTogglingAMappingKeepsReconciledFlag(): void {
+		$this->connectionMapper->method('find')->willReturn($this->createConnection(1, 'simplefin', 'My Bank', 'active'));
+		$mapping = $this->createMapping(10, 1, 'ext-1', 100, true);
+		$mapping->setBalanceReconciledAt('2026-10-01 10:00:00');
+		$this->mappingMapper->method('find')->with(10)->willReturn($mapping);
+		$this->mappingMapper->method('update')->willReturnArgument(0);
+		$this->accountMapper->method('find')->willReturn(new \OCA\Budget\Db\Account());
+
+		// Picking the account it already has, and switching it off
+		$result = $this->service->updateMapping(self::USER_ID, 1, 10, 100, false, false);
+
+		$this->assertSame('2026-10-01 10:00:00', $result->getBalanceReconciledAt());
 	}
 
 	public function testReconcileMappingRejectsAMappingOfAnotherConnection(): void {

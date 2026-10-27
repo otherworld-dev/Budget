@@ -451,11 +451,9 @@ class BankSyncService {
 			// Update mapping balance
 			$mapping->setLastBalance($externalAccount['balance'] ?? null);
 			$mapping->setLastCurrency($externalAccount['currency'] ?? null);
-			$mapping->setUpdatedAt(date('Y-m-d H:i:s'));
-			$this->mappingMapper->update($mapping);
-
 			if (isset($externalAccount['balance']) && is_numeric($externalAccount['balance'])) {
 				$this->autoReconcileNewAccount(
+					$mapping,
 					$budgetAccount,
 					(string)$externalAccount['balance'],
 					(string)($externalAccount['currency'] ?? ''),
@@ -463,6 +461,8 @@ class BankSyncService {
 					$userId
 				);
 			}
+			$mapping->setUpdatedAt(date('Y-m-d H:i:s'));
+			$this->mappingMapper->update($mapping);
 
 			$totalImported += $imported;
 			$totalSkipped += $skipped;
@@ -570,6 +570,10 @@ class BankSyncService {
 		if ($oldBudgetAccountId !== null && $mapping->getBudgetAccountId() !== $oldBudgetAccountId) {
 			$this->dismissedImportMapper->deleteByAccount($oldBudgetAccountId);
 		}
+		// Another account's first sync may set its opening balance again
+		if ($mapping->getBudgetAccountId() !== $oldBudgetAccountId) {
+			$mapping->setBalanceReconciledAt(null);
+		}
 
 		if ($enabled !== null) {
 			$mapping->setEnabled($enabled);
@@ -616,6 +620,9 @@ class BankSyncService {
 
 		$bankBalance = (string)$mapping->getLastBalance();
 		$this->moveOpeningBalance($account, $this->balanceDifference($account, $bankBalance), $userId);
+		$mapping->setBalanceReconciledAt(date('Y-m-d H:i:s'));
+		$mapping->setUpdatedAt(date('Y-m-d H:i:s'));
+		$this->mappingMapper->update($mapping);
 
 		// No amounts: the audit log must not carry balances
 		$this->auditService->log($userId, 'bank_balance_reconciled', 'bank_connection', $connectionId, [
@@ -634,9 +641,15 @@ class BankSyncService {
 	 * bank's. Only the bank's recent history is fetched, so without this the
 	 * account would start at the sum of those rows. An account with any other
 	 * row is left alone: its difference is shown with a Reconcile action.
+	 *
+	 * The mapping remembers that it was matched (the caller saves it). An
+	 * account that stays empty would otherwise pass the row check on every
+	 * sync, and its balance would follow the bank's, hiding a row the bank
+	 * never delivered. Mapping it to another account resets it.
 	 */
-	private function autoReconcileNewAccount(Account $account, string $bankBalance, string $bankCurrency, int $importedThisRun, string $userId): void {
+	private function autoReconcileNewAccount(BankAccountMapping $mapping, Account $account, string $bankBalance, string $bankCurrency, int $importedThisRun, string $userId): void {
 		if ($this->accountService === null || $this->transactionMapper === null
+			|| $mapping->getBalanceReconciledAt() !== null
 			|| !$this->isComparable($account, $bankCurrency)
 			|| $this->transactionMapper->countByAccount($account->getId(), $userId) !== $importedThisRun) {
 			return;
@@ -644,6 +657,7 @@ class BankSyncService {
 
 		try {
 			$this->moveOpeningBalance($account, $this->balanceDifference($account, $bankBalance), $userId);
+			$mapping->setBalanceReconciledAt(date('Y-m-d H:i:s'));
 		} catch (\Exception $e) {
 			// The rows are in; the difference stays visible for a manual reconcile
 			$this->logger->warning("Bank sync: could not set the opening balance of account {$account->getId()}: {$e->getMessage()}", ['app' => 'budget']);
