@@ -163,12 +163,14 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 		$accounts = $this->withReadableErrors(function () use ($creds, $keys, $includePending, $dateFrom, &$complete) {
 			$accounts = [];
 			foreach ($creds['accounts'] ?? [] as $hash => $uid) {
-				$account = $this->fetchAccount($keys, (string)$hash, (string)$uid, $includePending, $dateFrom);
-				if ($account === null) {
+				$cutOff = false;
+				$account = $this->fetchAccount($keys, (string)$hash, (string)$uid, $includePending, $dateFrom, $cutOff);
+				if ($account === null || $cutOff) {
 					$complete = false;
-					continue;
 				}
-				$accounts[] = $account;
+				if ($account !== null) {
+					$accounts[] = $account;
+				}
 			}
 			return $accounts;
 		});
@@ -197,7 +199,8 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 		$accounts = $this->withReadableErrors(function () use ($creds, $keys, $includePending) {
 			$accounts = [];
 			foreach ($creds['accounts'] ?? [] as $hash => $uid) {
-				$account = $this->fetchAccount($keys, (string)$hash, (string)$uid, $includePending, null);
+				$cutOff = false;
+				$account = $this->fetchAccount($keys, (string)$hash, (string)$uid, $includePending, null, $cutOff);
 				if ($account !== null) {
 					$accounts[] = $account;
 				}
@@ -323,13 +326,14 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 	 * Read one account. Transactions are only fetched when $dateFrom is given.
 	 * Returns null when the account could not be read for a reason that should
 	 * not stop the other accounts; rate limits and lost consent propagate.
+	 * $cutOff is set when the transaction list stopped at the page limit.
 	 */
-	private function fetchAccount(EnableBankingKeys $keys, string $hash, string $uid, bool $includePending, ?string $dateFrom): ?array {
+	private function fetchAccount(EnableBankingKeys $keys, string $hash, string $uid, bool $includePending, ?string $dateFrom, bool &$cutOff): ?array {
 		$base = '/accounts/' . rawurlencode($uid);
 		try {
 			$details = $this->client->request('GET', $base . '/details', $keys);
 			$balances = $this->client->request('GET', $base . '/balances', $keys)['balances'] ?? [];
-			$transactions = $dateFrom === null ? [] : $this->fetchTransactions($keys, $base, $dateFrom, $includePending);
+			$transactions = $dateFrom === null ? [] : $this->fetchTransactions($keys, $base, $dateFrom, $includePending, $cutOff);
 		} catch (EnableBankingRateLimitException|EnableBankingAuthException $e) {
 			throw $e;
 		} catch (\RuntimeException $e) {
@@ -346,7 +350,7 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 		];
 	}
 
-	private function fetchTransactions(EnableBankingKeys $keys, string $base, string $dateFrom, bool $includePending): array {
+	private function fetchTransactions(EnableBankingKeys $keys, string $base, string $dateFrom, bool $includePending, bool &$cutOff): array {
 		$transactions = [];
 		// Two genuine identical bookings without a bank ID share a fallback
 		// hash; numbering repeats in feed order keeps both, and the same feed
@@ -379,6 +383,12 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 				break;
 			}
 			$continuationKey = $next;
+		}
+		if ($page === self::MAX_TRANSACTION_PAGES) {
+			// The rows after the last page were never read: the caller keeps
+			// the sync window, so the next sync asks for them again.
+			$cutOff = true;
+			$this->logger->warning('Enable Banking: transaction list cut off at the page limit; the sync window is kept', ['app' => 'budget']);
 		}
 		return $transactions;
 	}

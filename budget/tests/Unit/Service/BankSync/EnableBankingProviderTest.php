@@ -308,6 +308,33 @@ class EnableBankingProviderTest extends TestCase {
 		$this->assertSame([], $result['accounts']);
 	}
 
+	/**
+	 * A bank that keeps sending continuation keys is cut off at the page
+	 * limit. The rows after it were never read, so the sync window must not
+	 * move past them.
+	 */
+	public function testHittingThePageLimitKeepsTheSyncWindow(): void {
+		$this->stubAccountEndpoints();
+		$page = 0;
+		$this->responses['GET /accounts/uid-a/transactions'] = function () use (&$page) {
+			$page++;
+			return ['transactions' => [[
+				'transaction_id' => 't-' . $page, 'transaction_amount' => ['amount' => '1.00', 'currency' => 'EUR'],
+				'credit_debit_indicator' => 'DBIT', 'status' => 'BOOK', 'booking_date' => '2026-10-25',
+			]], 'continuation_key' => 'page-' . $page];
+		};
+		$warnings = [];
+		$this->logger->method('warning')->willReturnCallback(function (string $message) use (&$warnings): void {
+			$warnings[] = $message;
+		});
+
+		$result = $this->provider->fetchAccounts($this->credentials());
+
+		$this->assertCount(100, $result['accounts'][0]['transactions']);
+		$this->assertArrayNotHasKey('updatedCredentials', $result);
+		$this->assertSame(['Enable Banking: transaction list cut off at the page limit; the sync window is kept'], $warnings);
+	}
+
 	public function testFetchAccountsTurnsRateLimitIntoReadableError(): void {
 		$this->responses['GET /accounts/uid-a/details'] = new EnableBankingRateLimitException('HTTP 429');
 
