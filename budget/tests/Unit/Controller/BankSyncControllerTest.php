@@ -523,6 +523,35 @@ class BankSyncControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
 
+	private function goCardlessReauthorizeWith(string $redirectUrl): void {
+		$this->enableBankSync();
+		$this->request->method('getParams')->willReturn(['institutionId' => 'BANK_ID', 'redirectUrl' => $redirectUrl]);
+		$this->request->method('getServerProtocol')->willReturn('https');
+		$this->request->method('getServerHost')->willReturn('nc.example');
+		$connection = new BankConnection();
+		$connection->setProvider('gocardless');
+		$this->syncService->method('getConnection')->with('user1', 1)->willReturn($connection);
+	}
+
+	/** The bank must never send the user (and the requisition) to another host. */
+	public function testReauthorizeGoCardlessDropsForeignRedirectUrl(): void {
+		$this->goCardlessReauthorizeWith('https://evil.example/steal');
+		$this->syncService->expects($this->once())->method('reauthorize')
+			->with('user1', 1, ['institutionId' => 'BANK_ID', 'redirectUrl' => ''])
+			->willReturn(['authorizationUrl' => 'https://bank.example/auth']);
+
+		$this->assertSame(Http::STATUS_OK, $this->controller->reauthorize(1)->getStatus());
+	}
+
+	public function testReauthorizeGoCardlessKeepsSameHostRedirectUrl(): void {
+		$this->goCardlessReauthorizeWith('https://nc.example/apps/budget/#bank-sync');
+		$this->syncService->expects($this->once())->method('reauthorize')
+			->with('user1', 1, ['institutionId' => 'BANK_ID', 'redirectUrl' => 'https://nc.example/apps/budget/#bank-sync'])
+			->willReturn(['authorizationUrl' => 'https://bank.example/auth']);
+
+		$this->assertSame(Http::STATUS_OK, $this->controller->reauthorize(1)->getStatus());
+	}
+
 	public function testInstitutionsDisabledReturns403(): void {
 		$this->disableBankSync();
 		$response = $this->controller->institutions('gocardless');
