@@ -108,7 +108,7 @@ class EnableBankingController extends Controller {
 		try {
 			$this->syncService->completeEnableBankingAuthorization($userId, $state, $code);
 			return true;
-		} catch (\Exception) {
+		} catch (\Throwable) {
 			// Not logged: Nextcloud adds the request URL, with code and
 			// state, to every log entry. The service has kept the failure on
 			// the connection (lastError, state cleared) where it matched one.
@@ -119,7 +119,7 @@ class EnableBankingController extends Controller {
 	private function failAuthorization(string $userId, #[\SensitiveParameter] string $state, string $error): void {
 		try {
 			$this->syncService->failEnableBankingAuthorization($userId, $state, $error);
-		} catch (\Exception) {
+		} catch (\Throwable) {
 			// Not logged, see completeAuthorization(). A stale state still
 			// lets the card offer Re-authorize once it times out.
 		}

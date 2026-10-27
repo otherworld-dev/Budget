@@ -274,6 +274,18 @@ class EnableBankingControllerTest extends TestCase {
 				$service->method('failEnableBankingAuthorization')->willThrowException(new \RuntimeException('db down'));
 				$response = $this->controller($service)->callback('state-a', '', 'access_denied');
 				break;
+			case 'completing throws a TypeError':
+				$this->enable();
+				$service = $this->createMock(BankSyncService::class);
+				$service->method('completeEnableBankingAuthorization')->willThrowException(new \TypeError('bad code-1'));
+				$response = $this->controller($service)->callback('state-a', 'code-1');
+				break;
+			case 'recording the error throws a TypeError':
+				$this->enable();
+				$service = $this->createMock(BankSyncService::class);
+				$service->method('failEnableBankingAuthorization')->willThrowException(new \TypeError('bad state-a'));
+				$response = $this->controller($service)->callback('state-a', '', 'access_denied');
+				break;
 			case 'missing params':
 				$this->enable();
 				$response = $this->controller()->callback('state-a');
@@ -302,6 +314,8 @@ class EnableBankingControllerTest extends TestCase {
 			'expired state' => ['expired state'],
 			'error param' => ['error param'],
 			'recording the error fails' => ['recording the error fails'],
+			'completing throws a TypeError' => ['completing throws a TypeError'],
+			'recording the error throws a TypeError' => ['recording the error throws a TypeError'],
 			'missing params' => ['missing params'],
 			'provider throws on POST /sessions' => ['provider throws on POST /sessions'],
 			'bank sync disabled' => ['bank sync disabled'],
