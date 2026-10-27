@@ -24,6 +24,7 @@ use OCP\AppFramework\Http\TemplateResponse;
 use OCP\IL10N;
 use OCP\IRequest;
 use OCP\IURLGenerator;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -42,6 +43,7 @@ class EnableBankingControllerTest extends TestCase {
 	private AdminSettingService&MockObject $adminSettings;
 	private EnableBankingKeyStore&MockObject $keyStore;
 	private IRequest&MockObject $request;
+	private LoggerInterface&MockObject $logger;
 	private BankSyncService $syncService;
 
 	protected function setUp(): void {
@@ -51,6 +53,7 @@ class EnableBankingControllerTest extends TestCase {
 		$this->adminSettings = $this->createMock(AdminSettingService::class);
 		$this->keyStore = $this->createMock(EnableBankingKeyStore::class);
 		$this->request = $this->createMock(IRequest::class);
+		$this->logger = $this->createMock(LoggerInterface::class);
 
 		$providerFactory = $this->createMock(ProviderFactory::class);
 		$providerFactory->method('getProvider')->with('enablebanking')->willReturn($this->provider);
@@ -68,7 +71,7 @@ class EnableBankingControllerTest extends TestCase {
 			$this->createMock(\OCA\Budget\Service\TransactionTagService::class),
 			$this->createMock(\OCA\Budget\Service\BillService::class),
 			$this->l10n(),
-			$this->createMock(LoggerInterface::class),
+			$this->logger,
 		);
 	}
 
@@ -89,7 +92,7 @@ class EnableBankingControllerTest extends TestCase {
 			$this->adminSettings,
 			$this->l10n(),
 			$urlGenerator,
-			$this->createMock(LoggerInterface::class),
+			$this->logger,
 			self::USER_ID,
 		);
 	}
@@ -235,6 +238,74 @@ class EnableBankingControllerTest extends TestCase {
 
 		$this->assertRedirect($response, false);
 		$this->assertStringNotContainsString('code-1', $response->getRedirectURL());
+	}
+
+	/**
+	 * Nextcloud core appends the request URL, with `code` and `state` in its
+	 * query string, to every log entry: nothing may be logged while the
+	 * bank's redirect is handled. A failure is kept on the connection
+	 * (lastError, cleared state) instead.
+	 */
+	#[DataProvider('failedCallbackProvider')]
+	public function testFailedCallbackWritesNoLog(string $case): void {
+		foreach (['emergency', 'alert', 'critical', 'error', 'warning', 'notice', 'info', 'debug', 'log'] as $method) {
+			$this->logger->expects($this->never())->method($method);
+		}
+
+		switch ($case) {
+			case 'unknown state':
+				$this->enable();
+				$this->connectionMapper->method('findAll')->willReturn([$this->pendingConnection('state-a', time() - 60)]);
+				$response = $this->controller()->callback('state-unknown', 'code-1');
+				break;
+			case 'expired state':
+				$this->enable();
+				$this->connectionMapper->method('findAll')->willReturn([$this->pendingConnection('state-a', time() - 31 * 60)]);
+				$response = $this->controller()->callback('state-a', 'code-1');
+				break;
+			case 'error param':
+				$this->enable();
+				$this->connectionMapper->method('findAll')->willReturn([$this->pendingConnection('state-a', time() - 60)]);
+				$response = $this->controller()->callback('state-a', '', 'access_denied');
+				break;
+			case 'recording the error fails':
+				$this->enable();
+				$service = $this->createMock(BankSyncService::class);
+				$service->method('failEnableBankingAuthorization')->willThrowException(new \RuntimeException('db down'));
+				$response = $this->controller($service)->callback('state-a', '', 'access_denied');
+				break;
+			case 'missing params':
+				$this->enable();
+				$response = $this->controller()->callback('state-a');
+				break;
+			case 'provider throws on POST /sessions':
+				$this->enable();
+				$this->connectionMapper->method('findAll')->willReturn([$this->pendingConnection('state-a', time() - 60)]);
+				$this->provider->method('completeAuthorization')
+					->willThrowException(new \RuntimeException('POST /sessions code-1 failed'));
+				$response = $this->controller()->callback('state-a', 'code-1');
+				break;
+			case 'bank sync disabled':
+				$this->adminSettings->method('isBankSyncEnabled')->willReturn(false);
+				$response = $this->controller()->callback('state-a', 'code-1');
+				break;
+			default:
+				$this->fail('Unknown case ' . $case);
+		}
+
+		$this->assertRedirect($response, false);
+	}
+
+	public static function failedCallbackProvider(): array {
+		return [
+			'unknown state' => ['unknown state'],
+			'expired state' => ['expired state'],
+			'error param' => ['error param'],
+			'recording the error fails' => ['recording the error fails'],
+			'missing params' => ['missing params'],
+			'provider throws on POST /sessions' => ['provider throws on POST /sessions'],
+			'bank sync disabled' => ['bank sync disabled'],
+		];
 	}
 
 	public function testResultSuccessRendersTheSuccessPage(): void {

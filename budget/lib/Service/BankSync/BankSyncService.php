@@ -145,15 +145,17 @@ class BankSyncService {
 
 		// An Enable Banking connection waiting for the bank's redirect: without
 		// a session its first authorization never finished, which the user
-		// has to complete, not renew. With one, a re-authorization is under
-		// way and the old session syncs until the redirect replaces it; the
-		// connection stays pending so that redirect still matches it.
+		// has to complete, not renew. With one, the old session syncs. While
+		// a re-authorization is under way (fresh state) the connection stays
+		// pending so the redirect still matches it; once the state is gone or
+		// timed out, nothing can complete it and a good sync makes it active.
 		$keepPending = false;
 		if ($connection->getProvider() === 'enablebanking' && $connection->getStatus() === 'pending_auth') {
-			if (empty($this->decodeCredentials($connection->getCredentials())['sessionId'])) {
+			$creds = $this->decodeCredentials($connection->getCredentials());
+			if (empty($creds['sessionId'])) {
 				throw new \Exception('Please finish connecting this bank first.');
 			}
-			$keepPending = true;
+			$keepPending = $this->hasFreshEnableBankingState($creds);
 		}
 
 		$provider = $this->providerFactory->getProvider($connection->getProvider());
@@ -552,10 +554,43 @@ class BankSyncService {
 			$result[] = [
 				'connection' => $conn,
 				'mappings' => $this->mappingMapper->findByConnection($conn->getId()),
+				'canReauthorize' => $this->canReauthorize($conn),
 			];
 		}
 
 		return $result;
+	}
+
+	/**
+	 * Whether the card offers Re-authorize. Expired connections of a
+	 * re-authorizable provider can be renewed. An Enable Banking connection
+	 * stuck in pending_auth can be restarted once its authorization failed
+	 * (lastError) or can no longer complete (state cleared or timed out),
+	 * but not while the user may still be at the bank.
+	 */
+	private function canReauthorize(BankConnection $connection): bool {
+		$status = $connection->getStatus();
+		$stuckEnableBanking = $connection->getProvider() === 'enablebanking'
+			&& $status === 'pending_auth'
+			&& ($connection->getLastError() !== null
+				|| !$this->hasFreshEnableBankingState($this->decodeCredentials($connection->getCredentials())));
+		if ($status !== 'expired' && !$stuckEnableBanking) {
+			return false;
+		}
+
+		try {
+			$provider = $this->providerFactory->getProvider($connection->getProvider());
+		} catch (\InvalidArgumentException) {
+			return false;
+		}
+		return $provider instanceof ReauthorizableProviderInterface;
+	}
+
+	/** A `state` is stored and younger than ENABLE_BANKING_STATE_TTL. */
+	private function hasFreshEnableBankingState(#[\SensitiveParameter] array $creds): bool {
+		$state = $creds['state'] ?? null;
+		return is_string($state) && $state !== ''
+			&& time() - (int)($creds['stateCreatedAt'] ?? 0) < self::ENABLE_BANKING_STATE_TTL;
 	}
 
 	/**
@@ -897,8 +932,10 @@ class BankSyncService {
 
 		$reauthorized = !empty($oldSessionId);
 		if ($reauthorized && $oldSessionId !== ($newCreds['sessionId'] ?? null)) {
-			// Best effort: the provider logs and swallows failures
-			$provider->revokeConnection($oldCredentials);
+			// Best effort, and not logged: this runs on the bank's redirect,
+			// whose URL (code, state) Nextcloud would add to the log entry.
+			// An unrevoked session lapses at the bank on its own.
+			$provider->revokeSession($oldCredentials);
 		}
 
 		$this->auditService->log($userId, $reauthorized ? 'bank_reauthorized' : 'bank_connected', 'bank_connection', $connection->getId(), [

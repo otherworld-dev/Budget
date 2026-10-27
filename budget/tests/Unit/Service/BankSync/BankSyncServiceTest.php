@@ -17,8 +17,10 @@ use OCA\Budget\Service\BankSync\EnableBankingProvider;
 use OCA\Budget\Service\BankSync\GoCardlessProvider;
 use OCA\Budget\Service\BankSync\ProviderFactory;
 use OCA\Budget\Service\BankSync\ReliableBalanceProviderInterface;
+use OCA\Budget\Service\BankSync\SimpleFINProvider;
 use OCA\Budget\Service\TransactionService;
 use OCP\IL10N;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
@@ -1497,6 +1499,7 @@ class BankSyncServiceTest extends TestCase {
 			});
 		// A first connection has no previous session to revoke
 		$eb->expects($this->never())->method('revokeConnection');
+		$eb->expects($this->never())->method('revokeSession');
 		$this->auditService->expects($this->once())->method('log')
 			->with(self::USER_ID, 'bank_connected', 'bank_connection', 1, ['provider' => 'enablebanking']);
 
@@ -1514,7 +1517,9 @@ class BankSyncServiceTest extends TestCase {
 		$eb = $this->ebProvider();
 		$eb->method('completeAuthorization')
 			->willReturn($this->ebResult('sess-new', '2027-04-24T10:00:00+00:00', []));
-		$eb->expects($this->once())->method('revokeConnection')->with($oldCredentials);
+		// The provider's logging revoke must not run on the callback request
+		$eb->expects($this->never())->method('revokeConnection');
+		$eb->expects($this->once())->method('revokeSession')->with($oldCredentials)->willReturn(true);
 		$this->auditService->expects($this->once())->method('log')
 			->with(self::USER_ID, 'bank_reauthorized', 'bank_connection', 1, ['provider' => 'enablebanking']);
 
@@ -1699,6 +1704,91 @@ class BankSyncServiceTest extends TestCase {
 
 		$this->assertSame('pending_auth', $connection->getStatus());
 		$this->assertSame('The bank could not be reached. Please try again later.', $connection->getLastError());
+	}
+
+	/**
+	 * Whether the card offers Re-authorize is decided here, from the
+	 * credentials the browser never sees: an Enable Banking connection stuck
+	 * in pending_auth (failed, abandoned or timed-out authorization) must
+	 * always be rescuable, but not while a fresh authorization is under way.
+	 */
+	#[DataProvider('canReauthorizeCases')]
+	public function testCanReauthorizeFlags(string $provider, string $status, bool $withState, ?int $stateAge, ?string $lastError, bool $expected): void {
+		$this->providerFactory->method('getProvider')->willReturnCallback(fn (string $id) => match ($id) {
+			'gocardless' => $this->createMock(GoCardlessProvider::class),
+			'enablebanking' => $this->createMock(EnableBankingProvider::class),
+			'simplefin' => $this->createMock(SimpleFINProvider::class),
+		});
+		$connection = $this->ebConnection(1, $withState ? 'state-a' : null, $stateAge === null ? null : time() - $stateAge, 'sess-old');
+		$connection->setProvider($provider);
+		$connection->setStatus($status);
+		$connection->setLastError($lastError);
+		$this->connectionMapper->method('findAll')->with(self::USER_ID)->willReturn([$connection]);
+		$this->mappingMapper->method('findByConnection')->willReturn([]);
+
+		$result = $this->service->getConnections(self::USER_ID);
+
+		$this->assertSame($expected, $result[0]['canReauthorize']);
+		$this->assertStringNotContainsString('state-a', (string)json_encode($result));
+		$this->assertStringNotContainsString('sess-old', (string)json_encode($result));
+	}
+
+	public static function canReauthorizeCases(): array {
+		return [
+			'GoCardless expired' => ['gocardless', 'expired', false, null, null, true],
+			'GoCardless active' => ['gocardless', 'active', false, null, null, false],
+			'EB pending_auth, fresh state, no error' => ['enablebanking', 'pending_auth', true, 60, null, false],
+			'EB pending_auth, stale state' => ['enablebanking', 'pending_auth', true, 31 * 60, null, true],
+			'EB pending_auth, no state' => ['enablebanking', 'pending_auth', false, null, null, true],
+			'EB pending_auth, lastError' => ['enablebanking', 'pending_auth', true, 60, 'Authorization was cancelled or failed at the bank.', true],
+			'EB active' => ['enablebanking', 'active', false, null, null, false],
+			'EB expired' => ['enablebanking', 'expired', false, null, null, true],
+			'EB error' => ['enablebanking', 'error', false, null, 'boom', false],
+			'SimpleFIN expired' => ['simplefin', 'expired', false, null, null, false],
+		];
+	}
+
+	public function testSyncDuringFreshReauthorizationKeepsPendingAuth(): void {
+		$connection = $this->ebConnection(1, 'state-a', time() - 60, 'sess-old');
+		$this->syncEnableBankingSuccessfully($connection);
+
+		$this->assertSame('pending_auth', $connection->getStatus());
+	}
+
+	/**
+	 * A re-authorization that was abandoned (state older than the TTL, or
+	 * already cleared) no longer holds the connection in pending_auth: the
+	 * old session still works, so a successful sync makes it active again.
+	 */
+	#[DataProvider('staleStates')]
+	public function testSyncWithStaleStateRestoresActive(?string $state, ?int $stateAge): void {
+		$connection = $this->ebConnection(1, $state, $stateAge === null ? null : time() - $stateAge, 'sess-old');
+		$this->syncEnableBankingSuccessfully($connection);
+
+		$this->assertSame('active', $connection->getStatus());
+	}
+
+	public static function staleStates(): array {
+		return [
+			'state older than the TTL' => ['state-a', 31 * 60],
+			'state absent' => [null, null],
+		];
+	}
+
+	private function syncEnableBankingSuccessfully(BankConnection $connection): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$this->connectionMapper->method('find')->with(1, self::USER_ID)->willReturn($connection);
+		$this->connectionMapper->method('update')->willReturnArgument(0);
+		$eb = $this->ebProvider();
+		$eb->method('requiresReauthorization')->willReturn(false);
+		$eb->expects($this->once())->method('fetchAccounts')->willReturn(['accounts' => [[
+			'id' => 'ext-1', 'name' => 'Giro', 'balance' => null, 'currency' => 'EUR', 'transactions' => [],
+		]]]);
+		$mapping = $this->createMapping(10, 1, 'ext-1', null, true);
+		$this->mappingMapper->method('findByConnection')->willReturn([$mapping]);
+		$this->mappingMapper->method('findEnabledByConnection')->willReturn([$mapping]);
+
+		$this->service->sync(self::USER_ID, 1);
 	}
 
 	public function testFailWithUnknownStateChangesNothing(): void {

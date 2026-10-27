@@ -241,19 +241,38 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 	}
 
 	public function revokeConnection(#[\SensitiveParameter] string $credentials): void {
+		$error = null;
+		if (!$this->revokeSession($credentials, $error)) {
+			$this->logger->warning('Enable Banking: failed to revoke session: ' . (string)$error, ['app' => 'budget']);
+		}
+	}
+
+	/**
+	 * Revoke the session without logging, for the bank's redirect: Nextcloud
+	 * adds the request URL, with code and state, to every log entry.
+	 *
+	 * @param-out ?class-string<\Exception> $error the failure's class, never its message
+	 * @return bool false when the bank refused or could not be reached; true
+	 *              when the session was revoked, or there is no session or
+	 *              no keys to revoke it with
+	 */
+	public function revokeSession(#[\SensitiveParameter] string $credentials, ?string &$error = null): bool {
+		$error = null;
 		$creds = json_decode($credentials, true);
 		if (!is_array($creds) || empty($creds['sessionId'])) {
-			return;
+			return true;
 		}
 		$keys = $this->keyStore->get((string)($creds['userId'] ?? ''));
 		if ($keys === null) {
-			return;
+			return true;
 		}
 
 		try {
 			$this->client->request('DELETE', '/sessions/' . rawurlencode((string)$creds['sessionId']), $keys);
+			return true;
 		} catch (\Exception $e) {
-			$this->logger->warning('Enable Banking: failed to revoke session: ' . $e::class, ['app' => 'budget']);
+			$error = $e::class;
+			return false;
 		}
 	}
 

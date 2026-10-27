@@ -27,7 +27,8 @@ use Psr\Log\LoggerInterface;
  * the bank redirects back to, and the user's application keys.
  *
  * Nothing here ever logs or returns the auth code, the state, a session ID
- * or the private key.
+ * or the private key. The callback logs nothing at all: Nextcloud appends
+ * the request URL, query string included, to every log entry.
  */
 class EnableBankingController extends Controller {
 	use ApiErrorHandlerTrait;
@@ -107,9 +108,10 @@ class EnableBankingController extends Controller {
 		try {
 			$this->syncService->completeEnableBankingAuthorization($userId, $state, $code);
 			return true;
-		} catch (\Exception $e) {
-			// Class only: a message could carry the code or a session ID
-			$this->logger?->warning('Enable Banking: authorization callback failed: ' . $e::class, ['app' => 'budget']);
+		} catch (\Exception) {
+			// Not logged: Nextcloud adds the request URL, with code and
+			// state, to every log entry. The service has kept the failure on
+			// the connection (lastError, state cleared) where it matched one.
 			return false;
 		}
 	}
@@ -117,8 +119,9 @@ class EnableBankingController extends Controller {
 	private function failAuthorization(string $userId, #[\SensitiveParameter] string $state, string $error): void {
 		try {
 			$this->syncService->failEnableBankingAuthorization($userId, $state, $error);
-		} catch (\Exception $e) {
-			$this->logger?->warning('Enable Banking: recording a failed authorization failed: ' . $e::class, ['app' => 'budget']);
+		} catch (\Exception) {
+			// Not logged, see completeAuthorization(). A stale state still
+			// lets the card offer Re-authorize once it times out.
 		}
 	}
 

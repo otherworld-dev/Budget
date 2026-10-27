@@ -321,28 +321,42 @@ describe('Account mappings balance check', () => {
 
 describe('Connection card actions', () => {
     const card = (id) => document.querySelector(`.bank-connection-card[data-connection-id="${id}"]`);
-    const conn = (id, provider, status, lastError = null) => ({
-        connection: { id, name: `C${id}`, provider, status, lastError }, mappings: [],
+    const conn = (id, provider, status, canReauthorize, lastError = null) => ({
+        connection: { id, name: `C${id}`, provider, status, lastError }, mappings: [], canReauthorize,
     });
 
     beforeEach(() => {
         document.body.innerHTML = '<div id="bank-connections-list"></div>';
     });
 
-    it('offers Re-authorize for a stuck Enable Banking authorization', () => {
+    // The server decides from the credentials (state age) the browser never
+    // sees; the card only follows the flag.
+    it('shows Re-authorize when the server says canReauthorize', () => {
         module.connections = [
-            conn(1, 'enablebanking', 'pending_auth', 'Authorization was cancelled or failed at the bank.'),
-            conn(2, 'enablebanking', 'pending_auth'),
-            conn(3, 'enablebanking', 'expired'),
-            conn(4, 'gocardless', 'pending_auth', 'Some error'),
+            conn(1, 'enablebanking', 'pending_auth', true),
+            conn(2, 'enablebanking', 'expired', true),
+            conn(3, 'gocardless', 'expired', true),
         ];
         module.renderConnections();
 
-        expect(card(1).querySelector('.bank-reauth-btn')).not.toBeNull();
-        expect(card(1).querySelector('.bank-sync-btn')).toBeNull();
-        expect(card(2).querySelector('.bank-reauth-btn')).toBeNull();
-        expect(card(2).querySelector('.bank-sync-btn')).not.toBeNull();
-        expect(card(3).querySelector('.bank-reauth-btn')).not.toBeNull();
-        expect(card(4).querySelector('.bank-reauth-btn')).toBeNull();
+        for (const id of [1, 2, 3]) {
+            expect(card(id).querySelector('.bank-reauth-btn')).not.toBeNull();
+            expect(card(id).querySelector('.bank-sync-btn')).toBeNull();
+        }
+    });
+
+    it('hides Re-authorize when canReauthorize is false', () => {
+        module.connections = [
+            conn(1, 'enablebanking', 'pending_auth', false, 'Authorization was cancelled or failed at the bank.'),
+            conn(2, 'enablebanking', 'expired', false),
+            conn(3, 'gocardless', 'pending_auth', false, 'Some error'),
+            conn(4, 'simplefin', 'expired', false),
+        ];
+        module.renderConnections();
+
+        for (const id of [1, 2, 3, 4]) {
+            expect(card(id).querySelector('.bank-reauth-btn')).toBeNull();
+            expect(card(id).querySelector('.bank-sync-btn')).not.toBeNull();
+        }
     });
 });

@@ -411,6 +411,25 @@ class EnableBankingProviderTest extends TestCase {
 		$this->assertSame([], $this->calls);
 	}
 
+	/**
+	 * Used while the bank's redirect is handled, when nothing may be logged
+	 * (the log entry would carry the request URL with code and state).
+	 */
+	public function testRevokeSessionReportsTheOutcomeWithoutLogging(): void {
+		foreach (['emergency', 'alert', 'critical', 'error', 'warning', 'notice', 'info', 'debug', 'log'] as $method) {
+			$this->logger->expects($this->never())->method($method);
+		}
+
+		$this->responses['DELETE /sessions/sess-1'] = [];
+		$this->assertTrue($this->provider->revokeSession($this->credentials()));
+
+		$this->responses['DELETE /sessions/sess-1'] = new \RuntimeException('HTTP 500');
+		$this->assertFalse($this->provider->revokeSession($this->credentials()));
+
+		// Nothing to revoke
+		$this->assertTrue($this->provider->revokeSession($this->credentials(['sessionId' => null])));
+	}
+
 	// ── listInstitutions ────────────────────────────────────────────
 
 	public function testListInstitutionsMapsAspsps(): void {
