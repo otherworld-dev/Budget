@@ -10,7 +10,7 @@ Budget is a personal finance app for Nextcloud. It keeps your bank accounts, cre
 
 - Accounts and transactions in over 45 currencies, with splits, tags, transfers and statement reconciliation
 - Statement import from CSV, Excel and LibreOffice spreadsheets, OFX, QIF and camt.053 XML, exports from Firefly III, YNAB, Actual Budget, Mint and Monarch Money, and an import folder that imports the statements you drop into your Files
-- Rules that categorise transactions for you, and bank sync through GoCardless or SimpleFIN (in beta)
+- Rules that categorise transactions for you, and bank sync through GoCardless, SimpleFIN or Enable Banking (in beta)
 - Receipt photos attached to transactions, and receipt scanning (OCR) that reads the amount and items once an admin sets it up
 - Category budgets (including envelope budgets that roll over) with a "ready to assign" figure, project budgets for jobs that run over months, bills, recurring income and balance forecasts
 - Detection of payments that look recurring but are not tracked yet, so subscriptions become bills in one click
@@ -32,6 +32,22 @@ Budget needs Nextcloud 30 to 35 and PHP 8.1 or later with the BCMath extension, 
 The simplest way to install it is from the Nextcloud App Store: log in as an admin, go to **Apps**, search for "Budget" and click **Download and enable**. To install from a release tarball or from source instead, see [INSTALL.md](INSTALL.md).
 
 Once it is enabled, the [getting started guide](https://budget.otherworld.dev/docs/getting-started.html) takes you through adding your first account and importing a statement.
+
+## Bank sync with Enable Banking
+
+[Enable Banking](https://enablebanking.com) is a licensed EU account-information provider. Its free "restricted production" mode only works for the accounts of the person who owns the Enable Banking application, so each Nextcloud user sets up their own application. Full production access needs a contract with Enable Banking.
+
+1. In the Enable Banking control panel, create an application.
+2. Generate an RSA key pair and a self-signed certificate, for example `openssl req -x509 -newkey rsa:4096 -nodes -keyout private.pem -out public.crt -days 730 -subj "/CN=budget"`, and upload the certificate (`public.crt`) to the application.
+3. Whitelist the callback URL that Budget's wizard shows, which ends in `/apps/budget/bank-sync/enablebanking/callback`. If the control panel asks you to link accounts first, do that.
+4. In Budget, an admin enables bank sync. Then go to **Bank Sync**, **Add connection**, **Enable Banking** and enter the application ID and the contents of `private.pem` once. They are stored encrypted for your user and reused for every bank.
+5. Pick a country and a bank, confirm in the bank's app, come back and click **I've Completed Authorization**, then map the accounts and sync.
+
+Consent lasts up to 180 days, or the bank's maximum if that is shorter. After that, use **Re-authorize**. PSD2 covers payment accounts only, so securities and depot accounts are not available, and banks allow only a few automatic refreshes per day.
+
+On a mapping's first sync into an empty Budget account, Budget sets the opening balance so that the balance matches the bank's. If the balances differ later, Budget shows the difference with a **Reconcile** button and never corrects it silently. This applies to all bank sync providers.
+
+The Nextcloud server only contacts `api.enablebanking.com`. Bank logos are loaded by your browser.
 
 ## Translations
 
