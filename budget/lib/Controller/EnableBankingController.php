@@ -14,6 +14,8 @@ use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\AppFramework\Http\RedirectResponse;
+use OCP\AppFramework\Http\Response;
 use OCP\AppFramework\Http\TemplateResponse;
 use OCP\IL10N;
 use OCP\IRequest;
@@ -55,11 +57,27 @@ class EnableBankingController extends Controller {
 	 * nothing. Every failure shows the same generic text: why a state did not
 	 * match is nobody's business but the server's.
 	 *
+	 * Post-Redirect-Get: the bank's redirect is processed once and answered
+	 * with a redirect to this route carrying only `result`, which renders the
+	 * page. A reload then neither re-sends the spent code (and reports a
+	 * failure) nor keeps code and state in the address bar and history.
+	 *
 	 * @NoAdminRequired
 	 * @NoCSRFRequired
 	 */
 	#[UserRateLimit(limit: 10, period: 60)]
-	public function callback(#[\SensitiveParameter] string $state = '', #[\SensitiveParameter] string $code = '', string $error = ''): TemplateResponse {
+	public function callback(
+		#[\SensitiveParameter]
+		string $state = '',
+		#[\SensitiveParameter]
+		string $code = '',
+		string $error = '',
+		string $result = '',
+	): Response {
+		if ($state === '' && $code === '' && $error === '') {
+			return $this->callbackPage($result === 'success');
+		}
+
 		$success = false;
 		if ($this->adminSettings->isBankSyncEnabled() && $this->userId !== null && $state !== '') {
 			if ($error !== '') {
@@ -69,6 +87,13 @@ class EnableBankingController extends Controller {
 			}
 		}
 
+		return new RedirectResponse($this->urlGenerator->linkToRoute(
+			'budget.enableBanking.callback',
+			['result' => $success ? 'success' : 'failed']
+		));
+	}
+
+	private function callbackPage(bool $success): TemplateResponse {
 		return new TemplateResponse(Application::APP_ID, 'bank-sync-callback', [
 			'success' => $success,
 			'message' => $success

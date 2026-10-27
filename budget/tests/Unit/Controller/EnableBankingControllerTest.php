@@ -18,6 +18,8 @@ use OCA\Budget\Service\BankSync\EnableBankingProvider;
 use OCA\Budget\Service\BankSync\ProviderFactory;
 use OCA\Budget\Service\TransactionService;
 use OCP\AppFramework\Http;
+use OCP\AppFramework\Http\RedirectResponse;
+use OCP\AppFramework\Http\Response;
 use OCP\AppFramework\Http\TemplateResponse;
 use OCP\IL10N;
 use OCP\IRequest;
@@ -75,7 +77,10 @@ class EnableBankingControllerTest extends TestCase {
 		$urlGenerator->method('linkToRouteAbsolute')
 			->with('budget.enableBanking.callback')
 			->willReturn('https://cloud.example/apps/budget/bank-sync/enablebanking/callback');
-		$urlGenerator->method('linkToRoute')->with('budget.page.index')->willReturn('/apps/budget/');
+		$urlGenerator->method('linkToRoute')->willReturnCallback(fn (string $route, array $params = []) => match ($route) {
+			'budget.page.index' => '/apps/budget/',
+			'budget.enableBanking.callback' => '/apps/budget/bank-sync/enablebanking/callback' . ($params === [] ? '' : '?' . http_build_query($params)),
+		});
 
 		return new EnableBankingController(
 			$this->request,
@@ -117,7 +122,21 @@ class EnableBankingControllerTest extends TestCase {
 		return $conn;
 	}
 
-	private function assertPage(TemplateResponse $response, bool $success): void {
+	/**
+	 * Post-Redirect-Get: processing the bank's redirect answers with a
+	 * redirect to the same page that carries only the outcome, so a reload
+	 * neither re-sends the spent code nor keeps it in the address bar.
+	 */
+	private function assertRedirect(Response $response, bool $success): void {
+		$this->assertInstanceOf(RedirectResponse::class, $response);
+		$this->assertSame(
+			'/apps/budget/bank-sync/enablebanking/callback?result=' . ($success ? 'success' : 'failed'),
+			$response->getRedirectURL()
+		);
+	}
+
+	private function assertPage(Response $response, bool $success): void {
+		$this->assertInstanceOf(TemplateResponse::class, $response);
 		$this->assertSame('bank-sync-callback', $response->getTemplateName());
 		$params = $response->getParams();
 		$this->assertSame($success, $params['success']);
@@ -137,7 +156,7 @@ class EnableBankingControllerTest extends TestCase {
 
 		$response = $this->controller()->callback('state-a', 'code-1');
 
-		$this->assertPage($response, true);
+		$this->assertRedirect($response, true);
 	}
 
 	public function testCallbackUnknownStateRendersFailureAndCallsNothing(): void {
@@ -148,7 +167,7 @@ class EnableBankingControllerTest extends TestCase {
 
 		$response = $this->controller()->callback('state-unknown', 'code-1');
 
-		$this->assertPage($response, false);
+		$this->assertRedirect($response, false);
 	}
 
 	public function testCallbackExpiredStateFails(): void {
@@ -158,7 +177,7 @@ class EnableBankingControllerTest extends TestCase {
 
 		$response = $this->controller()->callback('state-a', 'code-1');
 
-		$this->assertPage($response, false);
+		$this->assertRedirect($response, false);
 	}
 
 	public function testCallbackStateOfOtherUserFails(): void {
@@ -174,7 +193,7 @@ class EnableBankingControllerTest extends TestCase {
 
 		$response = $this->controller()->callback('state-bob', 'code-1');
 
-		$this->assertPage($response, false);
+		$this->assertRedirect($response, false);
 	}
 
 	public function testCallbackErrorParamCallsFail(): void {
@@ -186,7 +205,7 @@ class EnableBankingControllerTest extends TestCase {
 
 		$response = $this->controller($service)->callback('state-a', '', 'access_denied');
 
-		$this->assertPage($response, false);
+		$this->assertRedirect($response, false);
 	}
 
 	public function testCallbackMissingCodeAndErrorFails(): void {
@@ -194,7 +213,7 @@ class EnableBankingControllerTest extends TestCase {
 		$service = $this->createMock(BankSyncService::class);
 		$service->expects($this->never())->method('completeEnableBankingAuthorization');
 
-		$this->assertPage($this->controller($service)->callback('state-a'), false);
+		$this->assertRedirect($this->controller($service)->callback('state-a'), false);
 		$this->assertPage($this->controller($service)->callback(), false);
 	}
 
@@ -203,7 +222,7 @@ class EnableBankingControllerTest extends TestCase {
 		$service = $this->createMock(BankSyncService::class);
 		$service->expects($this->never())->method('completeEnableBankingAuthorization');
 
-		$this->assertPage($this->controller($service)->callback('state-a', 'code-1'), false);
+		$this->assertRedirect($this->controller($service)->callback('state-a', 'code-1'), false);
 	}
 
 	public function testCallbackProviderFailureRendersGenericFailure(): void {
@@ -214,8 +233,23 @@ class EnableBankingControllerTest extends TestCase {
 
 		$response = $this->controller()->callback('state-a', 'code-1');
 
-		$this->assertPage($response, false);
-		$this->assertStringNotContainsString('code-1', $response->getParams()['message']);
+		$this->assertRedirect($response, false);
+		$this->assertStringNotContainsString('code-1', $response->getRedirectURL());
+	}
+
+	public function testResultSuccessRendersTheSuccessPage(): void {
+		$service = $this->createMock(BankSyncService::class);
+		$service->expects($this->never())->method('completeEnableBankingAuthorization');
+
+		$response = $this->controller($service)->callback('', '', '', 'success');
+
+		$this->assertPage($response, true);
+		$this->assertStringContainsString('Your bank is connected', $response->getParams()['message']);
+	}
+
+	public function testResultFailedOrUnknownRendersTheFailurePage(): void {
+		$this->assertPage($this->controller()->callback('', '', '', 'failed'), false);
+		$this->assertPage($this->controller()->callback('', '', '', 'whatever'), false);
 	}
 
 	// ── settings ────────────────────────────────────────────────────
