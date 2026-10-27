@@ -201,8 +201,8 @@ class EnableBankingProviderTest extends TestCase {
 	private function stubAccountEndpoints(): void {
 		$this->responses['GET /accounts/uid-a/details'] = ['name' => 'Giro', 'currency' => 'EUR'];
 		$this->responses['GET /accounts/uid-a/balances'] = ['balances' => [
-			['balance_type' => 'CLBD', 'balance_amount' => ['amount' => '1000.00', 'currency' => 'EUR']],
-			['balance_type' => 'XPCD', 'balance_amount' => ['amount' => '950.00', 'currency' => 'EUR']],
+			['balance_type' => 'CLBD', 'balance_amount' => ['amount' => '1000.00', 'currency' => 'EUR'], 'reference_date' => '2026-10-26'],
+			['balance_type' => 'XPCD', 'balance_amount' => ['amount' => '950.00', 'currency' => 'EUR'], 'reference_date' => '2026-10-27'],
 		]];
 		$this->responses['GET /accounts/uid-a/transactions'] = fn (?array $json, array $query) => isset($query['continuation_key'])
 			? ['transactions' => [[
@@ -231,6 +231,7 @@ class EnableBankingProviderTest extends TestCase {
 		$this->assertSame('Giro', $account['name']);
 		$this->assertSame('EUR', $account['currency']);
 		$this->assertSame('950.00', $account['balance']);
+		$this->assertSame('2026-10-27', $account['balanceDate']);
 		$this->assertSame(['t-1', 't-2'], array_column($account['transactions'], 'id'));
 		$this->assertSame(['12.30', '-50.00'], array_column($account['transactions'], 'amount'));
 
@@ -282,6 +283,7 @@ class EnableBankingProviderTest extends TestCase {
 		$this->assertSame(['hash-a', 'hash-b'], array_column($result['accounts'], 'id'));
 		$this->assertSame([], $result['accounts'][1]['transactions']);
 		$this->assertSame('10.00', $result['accounts'][1]['balance']);
+		$this->assertNull($result['accounts'][1]['balanceDate']);
 
 		$updated = json_decode($result['updatedCredentials'], true);
 		$this->assertSame(['hash-a' => '2026-10-27', 'hash-b' => '2026-10-01'], $updated['lastSyncDates']);
@@ -382,6 +384,7 @@ class EnableBankingProviderTest extends TestCase {
 
 		$this->assertSame(['t-1'], array_column($account['transactions'], 'id'));
 		$this->assertSame('1000.00', $account['balance']);
+		$this->assertSame('2026-10-26', $account['balanceDate']);
 	}
 
 	/**

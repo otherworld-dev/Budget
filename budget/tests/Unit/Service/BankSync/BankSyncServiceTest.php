@@ -113,7 +113,7 @@ class BankSyncServiceTest extends TestCase {
 			->willReturn([
 				'credentials' => 'encrypted-creds',
 				'accounts' => [
-					['id' => 'ext-1', 'name' => 'Checking', 'balance' => '1500.00', 'currency' => 'USD'],
+					['id' => 'ext-1', 'name' => 'Checking', 'balance' => '1500.00', 'currency' => 'USD', 'balanceDate' => '2026-10-26'],
 					['id' => 'ext-2', 'name' => 'Savings', 'balance' => '5000.00', 'currency' => 'USD'],
 				],
 				'authorizationUrl' => null,
@@ -131,10 +131,12 @@ class BankSyncServiceTest extends TestCase {
 				return $insertedConnection;
 			});
 
+		$balanceDates = [];
 		$this->mappingMapper->expects($this->exactly(2))->method('insert')
-			->willReturnCallback(function (BankAccountMapping $m) {
+			->willReturnCallback(function (BankAccountMapping $m) use (&$balanceDates) {
 				$this->assertEquals(1, $m->getConnectionId());
 				$this->assertFalse($m->getEnabled());
+				$balanceDates[] = $m->getLastBalanceDate();
 				return $m;
 			});
 
@@ -149,6 +151,8 @@ class BankSyncServiceTest extends TestCase {
 			}));
 
 		$result = $this->service->connect(self::USER_ID, 'simplefin', ['token' => 'abc'], 'My Bank');
+
+		$this->assertSame(['2026-10-26', null], $balanceDates);
 
 		$this->assertSame($insertedConnection, $result['connection']);
 		$this->assertCount(2, $result['mappings']);
@@ -662,7 +666,7 @@ class BankSyncServiceTest extends TestCase {
 		$this->providerFactory->method('getProvider')->willReturn($this->provider);
 		$this->provider->method('fetchAccountList')->willReturn([
 			'accounts' => [
-				['id' => 'ext-new', 'name' => 'New Account', 'balance' => '3000', 'currency' => 'EUR'],
+				['id' => 'ext-new', 'name' => 'New Account', 'balance' => '3000', 'currency' => 'EUR', 'balanceDate' => '2026-10-26'],
 			],
 		]);
 
@@ -675,6 +679,7 @@ class BankSyncServiceTest extends TestCase {
 				$this->assertEquals('New Account', $m->getExternalAccountName());
 				$this->assertFalse($m->getEnabled());
 				$this->assertEquals('3000', $m->getLastBalance());
+				$this->assertSame('2026-10-26', $m->getLastBalanceDate());
 				$this->assertEquals('EUR', $m->getLastCurrency());
 				return $m;
 			});
@@ -701,12 +706,15 @@ class BankSyncServiceTest extends TestCase {
 		]);
 
 		$existingMapping = $this->createMapping(10, 1, 'ext-1', 100, true);
+		// A date that belonged to the previous balance must not stay with the new one
+		$existingMapping->setLastBalanceDate('2026-10-01');
 		$this->mappingMapper->method('findByExternalId')->with(1, 'ext-1')->willReturn($existingMapping);
 
 		$this->mappingMapper->expects($this->never())->method('insert');
 		$this->mappingMapper->expects($this->once())->method('update')
 			->willReturnCallback(function (BankAccountMapping $m) {
 				$this->assertEquals('9999.99', $m->getLastBalance());
+				$this->assertNull($m->getLastBalanceDate());
 				$this->assertEquals('USD', $m->getLastCurrency());
 				return $m;
 			});
@@ -1975,7 +1983,7 @@ class BankSyncServiceTest extends TestCase {
 	 * @param array $feed normalized bank rows
 	 * @param string $foreignNet net change of rows the account already had
 	 */
-	private function syncLedger(array $feed, ?string $bankBalance, int $existingRows = 0, string $foreignNet = '0', string $type = 'checking', string $currency = 'EUR', string $bankCurrency = 'EUR', float $opening = 0.0, bool $reliableBalance = true): \OCA\Budget\Db\Account {
+	private function syncLedger(array $feed, ?string $bankBalance, int $existingRows = 0, string $foreignNet = '0', string $type = 'checking', string $currency = 'EUR', string $bankCurrency = 'EUR', float $opening = 0.0, bool $reliableBalance = true, ?string $balanceDate = null): \OCA\Budget\Db\Account {
 		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
 		$connection = $this->createConnection(1, 'enablebanking', 'My Bank', 'active');
 		$this->connectionMapper->method('find')->with(1, self::USER_ID)->willReturn($connection);
@@ -1987,6 +1995,7 @@ class BankSyncServiceTest extends TestCase {
 		$this->ledgerFeed = $feed;
 		$provider->method('fetchAccounts')->willReturnCallback(fn () => ['accounts' => [[
 			'id' => 'ext-1', 'name' => 'Giro', 'balance' => $bankBalance, 'currency' => $bankCurrency,
+			'balanceDate' => $balanceDate,
 			'transactions' => $this->ledgerFeed,
 		]]]);
 		$mapping = $this->createMapping(10, 1, 'ext-1', 100, true);
@@ -2004,11 +2013,12 @@ class BankSyncServiceTest extends TestCase {
 		$this->transactionService->method('findByImportId')->willReturn(null);
 		$this->transactionService->method('findPendingImported')->willReturn([]);
 
-		$net = $foreignNet;
+		// The rows the account already had are older than any date asked for
+		$created = [];
 		$rows = $existingRows;
 		$this->transactionService->method('create')->willReturnCallback(
-			function (string $userId, int $accountId, string $date, string $description, float $amount, string $type) use (&$net, &$rows) {
-				$net = \OCA\Budget\Service\MoneyCalculator::add($net, $type === 'debit' ? -$amount : $amount);
+			function (string $userId, int $accountId, string $date, string $description, float $amount, string $type) use (&$created, &$rows) {
+				$created[] = [$date, $type === 'debit' ? -$amount : $amount];
 				$rows++;
 				$tx = new \OCA\Budget\Db\Transaction();
 				$tx->setId(1000 + $rows);
@@ -2019,9 +2029,16 @@ class BankSyncServiceTest extends TestCase {
 			->willReturnCallback(function () use (&$rows) {
 				return $rows;
 			});
-		$this->transactionService->method('getBalanceAsOf')->with(100, date('Y-m-d'))
-			->willReturnCallback(function () use (&$net, $account) {
-				return (float)\OCA\Budget\Service\MoneyCalculator::add((float)$account->getOpeningBalance(), $net);
+		$this->transactionService->method('getBalanceAsOf')
+			->willReturnCallback(function (int $accountId, string $asOf) use (&$created, $foreignNet, $account) {
+				$this->assertSame(100, $accountId);
+				$balance = \OCA\Budget\Service\MoneyCalculator::add((float)$account->getOpeningBalance(), $foreignNet);
+				foreach ($created as [$date, $amount]) {
+					if ($date <= $asOf) {
+						$balance = \OCA\Budget\Service\MoneyCalculator::add($balance, $amount);
+					}
+				}
+				return (float)$balance;
 			});
 		$this->accountService->method('update')->willReturnCallback(
 			function (int $id, string $userId, array $updates) use ($account) {
@@ -2045,6 +2062,38 @@ class BankSyncServiceTest extends TestCase {
 
 		$this->assertSame(1150.0, $account->getOpeningBalance());
 		$this->assertSame(1000.0, $this->transactionService->getBalanceAsOf(100, date('Y-m-d')));
+	}
+
+	/**
+	 * comdirect reports yesterday's closing balance. A row booked today is
+	 * not in it, so the opening balance is set from the balance as of
+	 * yesterday; counting today's row would move the opening balance by it.
+	 */
+	public function testAutoReconcileUsesTheBankBalanceDate(): void {
+		$today = date('Y-m-d');
+		$yesterday = date('Y-m-d', strtotime('-1 day'));
+		$account = $this->syncLedger([
+			['id' => 'a', 'date' => $today, 'amount' => '-50.00', 'description' => 'Bakery'],
+		], '1000.00', balanceDate: $yesterday);
+
+		$this->service->sync(self::USER_ID, 1);
+
+		$this->assertSame(1000.0, $account->getOpeningBalance());
+		$this->assertSame(1000.0, $this->transactionService->getBalanceAsOf(100, $yesterday));
+		$this->assertSame(950.0, $this->transactionService->getBalanceAsOf(100, $today));
+		$this->assertSame($yesterday, $this->ledgerMapping->getLastBalanceDate());
+		$this->assertSame('0.00', $this->service->getBalanceDifference($this->ledgerMapping, self::USER_ID));
+	}
+
+	public function testAutoReconcileWithoutABalanceDateUsesToday(): void {
+		$account = $this->syncLedger([
+			['id' => 'a', 'date' => date('Y-m-d'), 'amount' => '-50.00', 'description' => 'Bakery'],
+		], '1000.00');
+
+		$this->service->sync(self::USER_ID, 1);
+
+		$this->assertSame(1050.0, $account->getOpeningBalance());
+		$this->assertNull($this->ledgerMapping->getLastBalanceDate());
 	}
 
 	/**
@@ -2163,11 +2212,18 @@ class BankSyncServiceTest extends TestCase {
 		$this->assertSame(0, $result['errors']);
 	}
 
-	/** A mapping with a last bank balance, its account and today's Budget balance. */
-	private function differenceFixture(?string $lastBalance, string $budgetBalance, string $type = 'checking', string $currency = 'EUR', ?int $budgetAccountId = 100): BankAccountMapping {
+	/**
+	 * A mapping with a last bank balance, its account and Budget's balance:
+	 * one string for today, or a map of date => balance (the latest date not
+	 * after the one asked for applies).
+	 *
+	 * @param string|array<string, string> $budgetBalance
+	 */
+	private function differenceFixture(?string $lastBalance, string|array $budgetBalance, string $type = 'checking', string $currency = 'EUR', ?int $budgetAccountId = 100, ?string $balanceDate = null): BankAccountMapping {
 		$mapping = $this->createMapping(10, 1, 'ext-1', $budgetAccountId, true);
 		$mapping->setLastBalance($lastBalance);
 		$mapping->setLastCurrency('EUR');
+		$mapping->setLastBalanceDate($balanceDate);
 		$account = new \OCA\Budget\Db\Account();
 		$account->setId(100);
 		$account->setUserId(self::USER_ID);
@@ -2175,7 +2231,21 @@ class BankSyncServiceTest extends TestCase {
 		$account->setCurrency($currency);
 		$account->setOpeningBalance(100.0);
 		$this->accountMapper->method('find')->with(100, self::USER_ID)->willReturn($account);
-		$this->transactionService->method('getBalanceAsOf')->with(100, date('Y-m-d'))->willReturn((float)$budgetBalance);
+		if (is_string($budgetBalance)) {
+			$this->transactionService->method('getBalanceAsOf')->with(100, date('Y-m-d'))->willReturn((float)$budgetBalance);
+			return $mapping;
+		}
+		ksort($budgetBalance);
+		$this->transactionService->method('getBalanceAsOf')->willReturnCallback(function (int $accountId, string $asOf) use ($budgetBalance) {
+			$this->assertSame(100, $accountId);
+			$result = 0.0;
+			foreach ($budgetBalance as $date => $balance) {
+				if ($date <= $asOf) {
+					$result = (float)$balance;
+				}
+			}
+			return $result;
+		});
 		return $mapping;
 	}
 
@@ -2187,6 +2257,86 @@ class BankSyncServiceTest extends TestCase {
 	public function testGetBalanceDifferenceIsZeroWhenBalancesMatch(): void {
 		$mapping = $this->differenceFixture('1000.10', '1000.1');
 		$this->assertSame('0.00', $this->service->getBalanceDifference($mapping, self::USER_ID));
+	}
+
+	/** Bank 1000 as of yesterday; Budget has a -50 row dated today. */
+	public function testDifferenceUsesTheBankBalanceDate(): void {
+		$yesterday = date('Y-m-d', strtotime('-1 day'));
+		$mapping = $this->differenceFixture('1000.00', [$yesterday => '1000.00', date('Y-m-d') => '950.00'], balanceDate: $yesterday);
+
+		$this->assertSame('0.00', $this->service->getBalanceDifference($mapping, self::USER_ID));
+	}
+
+	public function testMissingBalanceDateFallsBackToToday(): void {
+		$yesterday = date('Y-m-d', strtotime('-1 day'));
+		$mapping = $this->differenceFixture('1000.00', [$yesterday => '1000.00', date('Y-m-d') => '950.00']);
+
+		$this->assertSame('50.00', $this->service->getBalanceDifference($mapping, self::USER_ID));
+	}
+
+	/** A stored value the date check can not read is treated as missing. */
+	public function testAnUnreadableBalanceDateFallsBackToToday(): void {
+		$yesterday = date('Y-m-d', strtotime('-1 day'));
+		$mapping = $this->differenceFixture('1000.00', [$yesterday => '1000.00', date('Y-m-d') => '950.00'], balanceDate: 'garbage');
+
+		$this->assertSame('50.00', $this->service->getBalanceDifference($mapping, self::USER_ID));
+	}
+
+	/** Some databases return a DATE column with a time part. */
+	public function testABalanceDateWithATimePartIsReadAsItsDay(): void {
+		$yesterday = date('Y-m-d', strtotime('-1 day'));
+		$mapping = $this->differenceFixture('1000.00', [$yesterday => '1000.00', date('Y-m-d') => '950.00'], balanceDate: $yesterday . ' 00:00:00');
+
+		$this->assertSame('0.00', $this->service->getBalanceDifference($mapping, self::USER_ID));
+	}
+
+	/**
+	 * A date after today would count Budget's future-dated rows (scheduled
+	 * ones) as if the bank had them; today is as far as the check looks.
+	 */
+	public function testABalanceDateAfterTodayIsComparedAsOfToday(): void {
+		$tomorrow = date('Y-m-d', strtotime('+1 day'));
+		$mapping = $this->differenceFixture('950.00', [date('Y-m-d') => '950.00', $tomorrow => '900.00'], balanceDate: $tomorrow);
+
+		$this->assertSame('0.00', $this->service->getBalanceDifference($mapping, self::USER_ID));
+	}
+
+	public function testReconcileUsesTheBankBalanceDate(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$this->connectionMapper->method('find')->with(1, self::USER_ID)
+			->willReturn($this->createConnection(1, 'enablebanking', 'My Bank', 'active'));
+		$yesterday = date('Y-m-d', strtotime('-1 day'));
+		$mapping = $this->differenceFixture('1000.00', '0', balanceDate: $yesterday);
+		$this->mappingMapper->method('find')->with(10)->willReturn($mapping);
+
+		// Ledger: the opening balance plus 890 up to yesterday, -50 today
+		$this->transactionService = $this->createMock(TransactionService::class);
+		$account = $this->accountMapper->find(100, self::USER_ID);
+		$this->transactionService->method('getBalanceAsOf')->willReturnCallback(
+			fn (int $id, string $asOf) => (float)\OCA\Budget\Service\MoneyCalculator::add(
+				(float)$account->getOpeningBalance(),
+				$asOf >= date('Y-m-d') ? '840.00' : '890.00'
+			)
+		);
+		$this->rebuildService();
+
+		$this->accountService->expects($this->once())->method('update')
+			->with(100, self::USER_ID, ['openingBalance' => 110.0])
+			->willReturnCallback(function (int $id, string $userId, array $updates) use ($account) {
+				$account->setOpeningBalance($updates['openingBalance']);
+				return $account;
+			});
+
+		$result = $this->service->reconcileMapping(self::USER_ID, 1, 10);
+
+		$this->assertSame(['balance' => '1000.00', 'balanceDifference' => '0.00'], $result);
+	}
+
+	public function testMappingSerializesItsBalanceDate(): void {
+		$mapping = $this->createMapping(10, 1, 'ext-1');
+		$mapping->setLastBalanceDate('2026-10-26');
+
+		$this->assertSame('2026-10-26', $mapping->jsonSerialize()['lastBalanceDate']);
 	}
 
 	public function testGetBalanceDifferenceIsNullForAnUnmappedAccount(): void {

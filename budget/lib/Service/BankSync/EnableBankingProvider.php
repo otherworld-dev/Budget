@@ -385,11 +385,13 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 			return null;
 		}
 
+		$balance = $this->normalizer->balanceWithDate($balances, $includePending);
 		return [
 			'id' => $hash,
 			'name' => $this->normalizer->accountName($details),
 			'currency' => $details['currency'] ?? $balances[0]['balance_amount']['currency'] ?? 'EUR',
-			'balance' => $this->normalizer->balance($balances, $includePending),
+			'balance' => $balance['amount'],
+			'balanceDate' => $balance['date'],
 			'transactions' => $transactions,
 		];
 	}

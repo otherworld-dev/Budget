@@ -19,6 +19,8 @@ namespace OCA\Budget\Service\BankSync;
  *             'name' => string,            // display name
  *             'currency' => string,        // 3-letter code
  *             'balance' => ?string,        // decimal string, null when the bank reports none
+ *             'balanceDate' => ?string,    // optional: YYYY-MM-DD the balance is reported for;
+ *                                          // missing or null = today
  *             'transactions' => [
  *                 [
  *                     'id' => string,          // provider's unique transaction ID

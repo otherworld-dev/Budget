@@ -80,6 +80,7 @@ class BankSyncService {
 			$mapping->setExternalAccountName($account['name']);
 			$mapping->setEnabled(false);
 			$mapping->setLastBalance($account['balance'] ?? null);
+			$mapping->setLastBalanceDate(self::dayOf($account['balanceDate'] ?? null));
 			$mapping->setLastCurrency($account['currency'] ?? null);
 			$mapping->setCreatedAt($now);
 			$mapping->setUpdatedAt($now);
@@ -492,6 +493,7 @@ class BankSyncService {
 
 			// Update mapping balance
 			$mapping->setLastBalance($externalAccount['balance'] ?? null);
+			$mapping->setLastBalanceDate(self::dayOf($externalAccount['balanceDate'] ?? null));
 			$mapping->setLastCurrency($externalAccount['currency'] ?? null);
 			if ($provider instanceof ReliableBalanceProviderInterface
 				&& isset($externalAccount['balance']) && is_numeric($externalAccount['balance'])) {
@@ -500,6 +502,7 @@ class BankSyncService {
 					$budgetAccount,
 					(string)$externalAccount['balance'],
 					(string)($externalAccount['currency'] ?? ''),
+					$mapping->getLastBalanceDate(),
 					$created,
 					$userId
 				);
@@ -674,9 +677,10 @@ class BankSyncService {
 	}
 
 	/**
-	 * The bank's balance minus Budget's balance as of today, for a mapping
-	 * the two can be compared on. A non-zero difference usually means a
-	 * missing or doubled row, so it is shown, never corrected on its own.
+	 * The bank's balance minus Budget's balance on the day the bank reported
+	 * it for (today when it gave none), for a mapping the two can be compared
+	 * on. A non-zero difference usually means a missing or doubled row, so it
+	 * is shown, never corrected on its own.
 	 *
 	 * Null when the mapping has no Budget account or no bank balance yet,
 	 * the account is a liability (banks report those with their own sign),
@@ -684,7 +688,7 @@ class BankSyncService {
 	 */
 	public function getBalanceDifference(BankAccountMapping $m, string $userId): ?string {
 		$account = $this->comparableAccount($m, $userId);
-		return $account === null ? null : $this->balanceDifference($account, (string)$m->getLastBalance());
+		return $account === null ? null : $this->balanceDifference($account, (string)$m->getLastBalance(), $m->getLastBalanceDate());
 	}
 
 	/**
@@ -709,7 +713,8 @@ class BankSyncService {
 		}
 
 		$bankBalance = (string)$mapping->getLastBalance();
-		$this->moveOpeningBalance($account, $this->balanceDifference($account, $bankBalance), $userId);
+		$balanceDate = $mapping->getLastBalanceDate();
+		$this->moveOpeningBalance($account, $this->balanceDifference($account, $bankBalance, $balanceDate), $userId);
 		$mapping->setBalanceReconciledAt(date('Y-m-d H:i:s'));
 		$mapping->setUpdatedAt(date('Y-m-d H:i:s'));
 		$this->mappingMapper->update($mapping);
@@ -719,17 +724,19 @@ class BankSyncService {
 			'mappingId' => $mappingId,
 		]);
 
+		// Both as of the day compared, so that balance + difference = the bank's
 		return [
-			'balance' => $this->budgetBalanceToday($account),
-			'balanceDifference' => $this->balanceDifference($account, $bankBalance),
+			'balance' => $this->budgetBalanceOn($account, $this->comparisonDate($balanceDate)),
+			'balanceDifference' => $this->balanceDifference($account, $bankBalance, $balanceDate),
 		];
 	}
 
 	/**
 	 * On the first sync into an account that holds nothing but the rows just
-	 * imported, set its opening balance so that its balance equals the
-	 * bank's. Only the bank's recent history is fetched, so without this the
-	 * account would start at the sum of those rows. An account with any other
+	 * imported, set its opening balance so that its balance on the bank's
+	 * balance date equals the bank's. Only the bank's recent history is
+	 * fetched, so without this the account would start at the sum of those
+	 * rows. An account with any other
 	 * row is left alone: its difference is shown with a Reconcile action.
 	 *
 	 * The mapping remembers that it was matched (the caller saves it). An
@@ -741,7 +748,7 @@ class BankSyncService {
 	 * available balance with a credit line, or none, would set a wrong
 	 * opening balance without anyone noticing.
 	 */
-	private function autoReconcileNewAccount(BankAccountMapping $mapping, Account $account, string $bankBalance, string $bankCurrency, int $importedThisRun, string $userId): void {
+	private function autoReconcileNewAccount(BankAccountMapping $mapping, Account $account, string $bankBalance, string $bankCurrency, ?string $balanceDate, int $importedThisRun, string $userId): void {
 		if ($this->accountService === null || $this->transactionMapper === null
 			|| $mapping->getBalanceReconciledAt() !== null
 			|| !$this->isComparable($account, $bankCurrency)
@@ -750,7 +757,7 @@ class BankSyncService {
 		}
 
 		try {
-			$this->moveOpeningBalance($account, $this->balanceDifference($account, $bankBalance), $userId);
+			$this->moveOpeningBalance($account, $this->balanceDifference($account, $bankBalance, $balanceDate), $userId);
 			$mapping->setBalanceReconciledAt(date('Y-m-d H:i:s'));
 		} catch (\Exception $e) {
 			// The rows are in; the difference stays visible for a manual reconcile
@@ -780,21 +787,44 @@ class BankSyncService {
 			&& strtoupper($bankCurrency) === strtoupper((string)$account->getCurrency());
 	}
 
-	/** Budget's balance as of today, pending rows included, as a decimal string. */
-	private function budgetBalanceToday(Account $account): string {
+	/** Budget's balance as of a day, pending rows included, as a decimal string. */
+	private function budgetBalanceOn(Account $account, string $date): string {
 		return MoneyCalculator::add(
-			$this->transactionService->getBalanceAsOf($account->getId(), date('Y-m-d')),
+			$this->transactionService->getBalanceAsOf($account->getId(), $date),
 			'0',
 			Currency::decimalsFor($account->getCurrency())
 		);
 	}
 
-	private function balanceDifference(Account $account, string $bankBalance): string {
+	/**
+	 * Compared on the bank's balance date: comdirect reports the previous
+	 * day's close, which does not include rows booked today.
+	 */
+	private function balanceDifference(Account $account, string $bankBalance, ?string $balanceDate): string {
 		return MoneyCalculator::subtract(
 			$bankBalance,
-			$this->budgetBalanceToday($account),
+			$this->budgetBalanceOn($account, $this->comparisonDate($balanceDate)),
 			Currency::decimalsFor($account->getCurrency())
 		);
+	}
+
+	/**
+	 * The bank's balance date, or today without one. Never after today: that
+	 * would count Budget's future-dated rows as if the bank had them.
+	 */
+	private function comparisonDate(?string $balanceDate): string {
+		$today = date('Y-m-d');
+		$day = self::dayOf($balanceDate);
+		return $day === null || $day > $today ? $today : $day;
+	}
+
+	/** `Y-m-d` from a date or date-time string (databases may add a time), else null. */
+	private static function dayOf(mixed $value): ?string {
+		if (!is_string($value) || preg_match('/^(\d{4})-(\d{2})-(\d{2})/', $value, $m) !== 1
+			|| !checkdate((int)$m[2], (int)$m[3], (int)$m[1])) {
+			return null;
+		}
+		return $m[0];
 	}
 
 	/** AccountService recomputes the stored balance from the new opening balance. */
@@ -850,6 +880,7 @@ class BankSyncService {
 				$mapping->setExternalAccountName($account['name']);
 				$mapping->setEnabled(false);
 				$mapping->setLastBalance($account['balance'] ?? null);
+				$mapping->setLastBalanceDate(self::dayOf($account['balanceDate'] ?? null));
 				$mapping->setLastCurrency($account['currency'] ?? null);
 				$mapping->setCreatedAt($now);
 				$mapping->setUpdatedAt($now);
@@ -857,6 +888,7 @@ class BankSyncService {
 			} else {
 				// Update balance
 				$existing->setLastBalance($account['balance'] ?? null);
+				$existing->setLastBalanceDate(self::dayOf($account['balanceDate'] ?? null));
 				$existing->setLastCurrency($account['currency'] ?? null);
 				$existing->setUpdatedAt($now);
 				$this->mappingMapper->update($existing);

@@ -124,6 +124,52 @@ class EnableBankingNormalizerTest extends TestCase {
 		$this->assertNull($this->normalizer->balance([], false));
 	}
 
+	/**
+	 * Budget compares the bank balance against its own as of the day the
+	 * bank reports it for: comdirect's CLBD is the previous day's close.
+	 */
+	public function testBalanceWithDateReturnsTheChosenEntrysReferenceDate(): void {
+		$balances = [
+			$this->bal('CLBD', '1000') + ['reference_date' => '2026-10-26'],
+			$this->bal('XPCD', '950') + ['reference_date' => '2026-10-27'],
+		];
+
+		$this->assertSame(['amount' => '1000', 'date' => '2026-10-26'], $this->normalizer->balanceWithDate($balances, false));
+		$this->assertSame(['amount' => '950', 'date' => '2026-10-27'], $this->normalizer->balanceWithDate($balances, true));
+	}
+
+	public function testBalanceWithDateKeepsOnlyTheDayOfADateTime(): void {
+		$balances = [$this->bal('ITBD', '5') + ['reference_date' => '2026-10-26T23:59:59.000Z']];
+
+		$this->assertSame('2026-10-26', $this->normalizer->balanceWithDate($balances, false)['date']);
+	}
+
+	public static function unusableReferenceDates(): array {
+		return [
+			'missing' => [[]],
+			'null' => [['reference_date' => null]],
+			'empty' => [['reference_date' => '']],
+			'not a date' => [['reference_date' => 'yesterday']],
+			'impossible day' => [['reference_date' => '2026-02-30']],
+		];
+	}
+
+	#[\PHPUnit\Framework\Attributes\DataProvider('unusableReferenceDates')]
+	public function testBalanceWithDateHasNoDateWithoutAUsableReferenceDate(array $extra): void {
+		$this->assertSame(['amount' => '1000', 'date' => null], $this->normalizer->balanceWithDate([$this->bal('CLBD', '1000') + $extra], false));
+	}
+
+	public function testBalanceWithDateWithoutEntries(): void {
+		$this->assertSame(['amount' => null, 'date' => null], $this->normalizer->balanceWithDate([], false));
+	}
+
+	public function testFallbackBalanceCarriesItsReferenceDate(): void {
+		$this->assertSame(
+			['amount' => '900', 'date' => '2026-10-25'],
+			$this->normalizer->balanceWithDate([$this->bal('ITAV', '900') + ['reference_date' => '2026-10-25']], false)
+		);
+	}
+
 	// ── accountName ─────────────────────────────────────────────────
 
 	public function testAccountNameUsesProductAndIbanEnding(): void {

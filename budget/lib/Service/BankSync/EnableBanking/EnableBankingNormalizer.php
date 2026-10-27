@@ -18,9 +18,9 @@ class EnableBankingNormalizer {
 	 * transactions unless pending ones are imported too, so the bank balance we
 	 * compare against must include exactly the same set.
 	 *
-	 * The interim booked balance (ITBD) comes before the closing one (CLBD):
-	 * CLBD is usually the previous day's close, while Budget compares against
-	 * its balance as of today, so today's bookings would show as a difference.
+	 * The interim booked balance (ITBD) comes before the closing one (CLBD),
+	 * as it is the more recent of the two. Budget compares either as of its
+	 * reference date (CLBD is usually the previous day's close).
 	 */
 	private const BALANCE_TYPES_BOOKED = ['ITBD', 'CLBD', 'XPCD'];
 	private const BALANCE_TYPES_WITH_PENDING = ['XPCD', 'ITBD', 'CLBD'];
@@ -31,6 +31,27 @@ class EnableBankingNormalizer {
 	 * reports nothing else.
 	 */
 	public function balance(array $balances, bool $includePending): ?string {
+		return $this->balanceWithDate($balances, $includePending)['amount'];
+	}
+
+	/**
+	 * The balance balance() picks, with the day it is reported for
+	 * (`reference_date`, `Y-m-d`), or null when the bank gives no usable date.
+	 *
+	 * @return array{amount: ?string, date: ?string}
+	 */
+	public function balanceWithDate(array $balances, bool $includePending): array {
+		$entry = $this->chooseBalance($balances, $includePending);
+		if ($entry === null) {
+			return ['amount' => null, 'date' => null];
+		}
+		return [
+			'amount' => $this->amountOf(is_array($entry['balance_amount'] ?? null) ? $entry['balance_amount'] : []),
+			'date' => $this->dayOf($entry['reference_date'] ?? null),
+		];
+	}
+
+	private function chooseBalance(array $balances, bool $includePending): ?array {
 		if ($balances === []) {
 			return null;
 		}
@@ -43,17 +64,26 @@ class EnableBankingNormalizer {
 
 		foreach ($includePending ? self::BALANCE_TYPES_WITH_PENDING : self::BALANCE_TYPES_BOOKED as $type) {
 			if (isset($byType[$type])) {
-				return $this->amountOf($byType[$type]['balance_amount'] ?? []);
+				return $byType[$type];
 			}
 		}
 
 		foreach ($balances as $entry) {
 			if (!str_ends_with((string)($entry['balance_type'] ?? ''), 'AV')) {
-				return $this->amountOf($entry['balance_amount'] ?? []);
+				return $entry;
 			}
 		}
 
-		return $this->amountOf($balances[array_key_first($balances)]['balance_amount'] ?? []);
+		return $balances[array_key_first($balances)];
+	}
+
+	/** `Y-m-d` from a date or date-time string, null for anything else. */
+	private function dayOf(mixed $value): ?string {
+		if (!is_string($value) || preg_match('/^(\d{4})-(\d{2})-(\d{2})/', $value, $m) !== 1
+			|| !checkdate((int)$m[2], (int)$m[3], (int)$m[1])) {
+			return null;
+		}
+		return $m[0];
 	}
 
 	/**
