@@ -8,13 +8,16 @@ use OCA\Budget\Db\Attachment;
 use OCA\Budget\Db\AttachmentMapper;
 use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Exception\ReceiptUploadException;
 use OCA\Budget\Service\AttachmentService;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\Files\File;
 use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
+use OCP\Files\NotPermittedException;
 use OCP\IUser;
 use OCP\IUserManager;
+use OCP\Lockdown\ILockdownManager;
 use OCP\Notification\IManager as INotificationManager;
 use OCP\Notification\INotification;
 use PHPUnit\Framework\TestCase;
@@ -189,6 +192,45 @@ class AttachmentServiceTest extends TestCase {
 
 		$this->expectException(\InvalidArgumentException::class);
 		$this->service->detach(5, 'alice', 9);
+	}
+
+	// ── download (#436) ─────────────────────────────────────────────
+
+	public function testFileForDownloadReturnsTheAttachedFile(): void {
+		$this->ownTransaction();
+		$this->mapper->method('find')->with(9, 'alice')->willReturn($this->makeAttachment(9, 5, 200));
+		$file = $this->makeFile(200);
+		$file->method('isReadable')->willReturn(true);
+		$this->userFolder->method('getById')->with(200)->willReturn([$file]);
+
+		$this->assertSame($file, $this->service->fileForDownload(5, 'alice', 9));
+	}
+
+	public function testFileForDownloadRefusesAnotherUsersTransaction(): void {
+		$this->transactionMapper->method('find')
+			->willThrowException(new DoesNotExistException('not yours'));
+		$this->userFolder->expects($this->never())->method('getById');
+
+		$this->expectException(DoesNotExistException::class);
+		$this->service->fileForDownload(5, 'alice', 9);
+	}
+
+	public function testFileForDownloadRefusesAnotherTransactionsAttachment(): void {
+		$this->ownTransaction();
+		$this->mapper->method('find')->willReturn($this->makeAttachment(9, 999, 200));
+		$this->userFolder->expects($this->never())->method('getById');
+
+		$this->expectException(DoesNotExistException::class);
+		$this->service->fileForDownload(5, 'alice', 9);
+	}
+
+	public function testFileForDownloadIsNotFoundOnceTheFileIsDeleted(): void {
+		$this->ownTransaction();
+		$this->mapper->method('find')->willReturn($this->makeAttachment(9, 5, 200));
+		$this->userFolder->method('getById')->willReturn([]);
+
+		$this->expectException(DoesNotExistException::class);
+		$this->service->fileForDownload(5, 'alice', 9);
 	}
 
 	public function testGetCountsDelegatesToMapper(): void {
@@ -496,6 +538,66 @@ class AttachmentServiceTest extends TestCase {
 			$this->service->upload(5, 'alice', ['error' => UPLOAD_ERR_OK, 'size' => 10, 'tmp_name' => $tmp, 'name' => 'big.png']);
 		} finally {
 			unlink($tmp);
+		}
+	}
+
+	private function serviceWithLockdown(bool $canAccessFilesystem, Folder $userFolder): AttachmentService {
+		$rootFolder = $this->createMock(IRootFolder::class);
+		$rootFolder->method('getUserFolder')->willReturn($userFolder);
+		$lockdown = $this->createMock(ILockdownManager::class);
+		$lockdown->method('canAccessFilesystem')->willReturn($canAccessFilesystem);
+		return new AttachmentService(
+			$this->mapper, $this->transactionMapper, $rootFolder,
+			$this->createMock(LoggerInterface::class), null, null, null, $lockdown
+		);
+	}
+
+	/**
+	 * #437: an app password with filesystem access switched off sees a
+	 * read-only Files. Say that, rather than failing on the first folder.
+	 */
+	public function testAnAppPasswordWithoutFilesAccessIsNamedAsTheCause(): void {
+		$this->ownTransaction();
+		$userFolder = $this->createMock(Folder::class);
+		$userFolder->expects($this->never())->method('newFolder');
+		$upload = $this->pngUpload();
+
+		try {
+			$this->serviceWithLockdown(false, $userFolder)->upload(5, 'alice', $upload);
+			$this->fail('Expected a ReceiptUploadException');
+		} catch (ReceiptUploadException $e) {
+			$this->assertSame(ReceiptUploadException::FILES_ACCESS_DENIED, $e->getErrorCode());
+		} finally {
+			unlink($upload['tmp_name']);
+		}
+	}
+
+	/** A parent folder that refuses writes is a coded error, not a bare NotPermittedException. */
+	public function testAReceiptsFolderThatCannotBeCreatedIsACodedError(): void {
+		$this->ownTransaction();
+		$userFolder = $this->createMock(Folder::class);
+		$userFolder->method('nodeExists')->willReturn(false);
+		$userFolder->method('newFolder')->willThrowException(new NotPermittedException('No create permission for folder "Budget"'));
+		$upload = $this->pngUpload();
+
+		try {
+			$this->serviceWithLockdown(true, $userFolder)->upload(5, 'alice', $upload);
+			$this->fail('Expected a ReceiptUploadException');
+		} catch (ReceiptUploadException $e) {
+			$this->assertSame(ReceiptUploadException::FOLDER_NOT_WRITABLE, $e->getErrorCode());
+		} finally {
+			unlink($upload['tmp_name']);
+		}
+	}
+
+	public function testABadFileIsInvalidFile(): void {
+		$this->ownTransaction();
+
+		try {
+			$this->service->upload(5, 'alice', ['error' => UPLOAD_ERR_PARTIAL, 'size' => 10]);
+			$this->fail('Expected a ReceiptUploadException');
+		} catch (ReceiptUploadException $e) {
+			$this->assertSame(ReceiptUploadException::INVALID_FILE, $e->getErrorCode());
 		}
 	}
 }

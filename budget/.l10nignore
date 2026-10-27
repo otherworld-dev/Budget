@@ -4,3 +4,6 @@ js/
 # Composer dependencies are third-party code - their strings belong to those
 # projects, not to Budget, and Weblate should never be asked to translate them.
 vendor
+# Tests feed made-up strings to t() (the sanitiser's XSS checks among them):
+# none of them is the app's, and Weblate should never be asked to translate them.
+tests/

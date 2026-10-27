@@ -296,8 +296,10 @@ class RepairServiceTest extends TestCase {
 
 		// Asserted against the registry rather than a hand-kept literal, so
 		// adding a category cannot leave diagnose() and the controller's
-		// whitelist silently out of step.
-		$this->assertSame(RepairService::CATEGORIES, array_keys($result));
+		// whitelist silently out of step. The ignored duplicates ride along
+		// beside them: they are listed, never repaired.
+		$this->assertSame(RepairService::CATEGORIES, array_values(array_diff(array_keys($result), ['ignoredDuplicates'])));
+		$this->assertSame([], $result['ignoredDuplicates']);
 	}
 
 	public function testBalanceDriftIsReportedLastSoItRecalculatesAfterEveryOtherFix(): void {

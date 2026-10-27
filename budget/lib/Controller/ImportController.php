@@ -353,26 +353,4 @@ class ImportController extends Controller {
 			return $this->handleError($e, $this->l->t('Failed to validate file'));
 		}
 	}
-
-	/**
-	 * @NoAdminRequired
-	 */
-	#[UserRateLimit(limit: 10, period: 60)]
-	public function execute(
-		string $importId,
-		int $accountId,
-		array $transactionIds,
-	): DataResponse {
-		try {
-			$result = $this->service->executeImport(
-				$this->userId,
-				$importId,
-				$accountId,
-				$transactionIds
-			);
-			return new DataResponse($result);
-		} catch (\Exception $e) {
-			return $this->handleError($e, $this->l->t('Failed to execute import'));
-		}
-	}
 }

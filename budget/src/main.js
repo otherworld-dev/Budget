@@ -83,7 +83,7 @@ import { categoryOptionsHtml } from './utils/formSelects.js';
 import { apiFetch, ApiError } from './utils/api.js';
 import { openAccounts } from './utils/accounts.js';
 import { showRowsOf } from './utils/rowsScroll.js';
-import { duplicateItem, repairResultMessage, stuckIncomeItem } from './utils/repairFindings.js';
+import { duplicateDetails, repairResultMessage, stuckIncomeItem } from './utils/repairFindings.js';
 
 // Configuration
 // Core
@@ -107,6 +107,7 @@ import OnboardingModule from './modules/onboarding/OnboardingModule.js';
 import { renderTransactionRow, transactionMenuActions } from './modules/transactions/transactionRow.js';
 import { refreshBankSyncNav } from './modules/bank-sync/bankSyncStatus.js';
 import { applyTransactionColumnVisibility, wireTransactionColumnToggles } from './utils/transactionColumns.js';
+import { installAmountInputs } from './utils/amountInput.js';
 // The rule editor's styles ship in budget-app.css with the rest, rather than
 // as a stylesheet of their own fetched when the Rules view first opens
 import './modules/rules/components/CriteriaBuilder.css';
@@ -237,6 +238,7 @@ class BudgetApp {
     }
 
     async init() {
+        installAmountInputs();
         this.setupNavigation();
         this.setupEventListeners();
         await this.loadInitialData();
@@ -1760,6 +1762,13 @@ class BudgetApp {
         const signCount = findings.liabilitySignFlipped?.length || 0;
         const splitCatCount = findings.splitParentCategories?.length || 0;
         const totalIssues = dupCount + stuckCount + paidOneTimeCount + stuckIncomeCount + futureCount + driftCount + signCount + splitCatCount;
+        // Rows the user ignored aren't issues, but stay listed to be brought back
+        const dups = {
+            active: [...(findings.duplicateTransactions || [])],
+            ignored: [...(findings.ignoredDuplicates || [])],
+            ticked: new Set((findings.duplicateTransactions || []).filter(d => d.selected).map(d => Number(d.duplicateId))),
+        };
+        const showDuplicates = dups.active.length + dups.ignored.length > 0;
 
         const modal = document.createElement('div');
         modal.id = 'repair-data-modal';
@@ -1770,27 +1779,32 @@ class BudgetApp {
         // Build findings HTML
         let findingsHtml = '';
 
-        if (totalIssues === 0) {
-            findingsHtml = `<div class="repair-summary"><p>${t('budget', 'No data integrity issues found. Everything looks good!')}</p></div>`;
+        // The summary follows the duplicates as rows are ignored or brought back
+        const summaryText = (duplicateCount) => {
+            const issues = totalIssues - dupCount + duplicateCount;
+            if (issues === 0) {
+                return t('budget', 'No data integrity issues found. Everything looks good!');
+            }
+            const categories = (duplicateCount > 0 ? 1 : 0) + (stuckCount > 0 ? 1 : 0) + (paidOneTimeCount > 0 ? 1 : 0) + (stuckIncomeCount > 0 ? 1 : 0) + (futureCount > 0 ? 1 : 0) + (driftCount > 0 ? 1 : 0) + (signCount > 0 ? 1 : 0);
+            return t('budget', 'Found {count} issue(s) across {categories} categories.', { count: issues, categories });
+        };
+
+        if (totalIssues === 0 && !showDuplicates) {
+            findingsHtml = `<div class="repair-summary"><p>${summaryText(0)}</p></div>`;
         } else {
-            findingsHtml = `<div class="repair-summary"><p>${t('budget', 'Found {count} issue(s) across {categories} categories.', { count: totalIssues, categories: (dupCount > 0 ? 1 : 0) + (stuckCount > 0 ? 1 : 0) + (paidOneTimeCount > 0 ? 1 : 0) + (stuckIncomeCount > 0 ? 1 : 0) + (futureCount > 0 ? 1 : 0) + (driftCount > 0 ? 1 : 0) + (signCount > 0 ? 1 : 0) })}</p></div>`;
+            findingsHtml = `<div class="repair-summary"><p>${summaryText(dupCount)}</p></div>`;
 
             // Duplicate transactions. A tick per row, because a payment that
             // only looks like a duplicate is a real payment lost for good when
             // it is deleted. Only pairs the scan is sure of come ticked.
-            if (dupCount > 0) {
-                const dupItems = findings.duplicateTransactions.map(d => duplicateItem(d, formatCurrency)).join('');
-
+            if (showDuplicates) {
                 findingsHtml += `
                     <div class="repair-category" data-category="duplicateTransactions">
                         <div class="repair-category-header">
                             <h4><input type="checkbox" class="repair-checkbox" checked> ${t('budget', 'Duplicate Auto-Generated Transactions')}</h4>
-                            <span class="repair-category-count">${dupCount}</span>
+                            <span class="repair-category-count"${dupCount === 0 ? ' hidden' : ''}>${dupCount}</span>
                         </div>
-                        <div class="repair-category-details">
-                            <p class="repair-category-help">${t('budget', 'Only ticked rows are deleted. Rows that come ticked are bill payments the app recorded that an imported bank transaction records as well. The others only look like duplicates and may be real payments: check them in the account first, and tick only the ones you are sure about.')}</p>
-                            ${dupItems}
-                        </div>
+                        <div class="repair-category-details">${duplicateDetails(dups.active, dups.ignored, dups.ticked, formatCurrency)}</div>
                     </div>`;
             }
 
@@ -1966,7 +1980,7 @@ class BudgetApp {
                 <div class="budget-modal-body">
                     ${findingsHtml}
                 </div>
-                ${totalIssues > 0 ? `
+                ${totalIssues > 0 || showDuplicates ? `
                 <div class="budget-modal-footer">
                     <button class="cancel-btn">${t('budget', 'Close')}</button>
                     <button class="repair-btn primary">${t('budget', 'Fix Selected Issues')}</button>
@@ -1992,6 +2006,56 @@ class BudgetApp {
         modal.querySelector('.close-btn').addEventListener('click', cleanup);
         modal.querySelector('.cancel-btn').addEventListener('click', cleanup);
         modal.addEventListener('click', (e) => { if (e.target === modal) cleanup(); });
+
+        // Ignoring a duplicate, or bringing one back. The rows move between
+        // the list and the ignored rows below it, keeping every other tick.
+        const dupCategory = modal.querySelector('.repair-category[data-category="duplicateTransactions"]');
+        if (dupCategory) {
+            const details = dupCategory.querySelector('.repair-category-details');
+            details.addEventListener('change', (e) => {
+                if (!e.target.classList.contains('repair-dup-checkbox')) return;
+                const id = parseInt(e.target.dataset.transactionId, 10);
+                if (e.target.checked) {
+                    dups.ticked.add(id);
+                } else {
+                    dups.ticked.delete(id);
+                }
+            });
+            details.addEventListener('click', async (e) => {
+                const button = e.target.closest('.repair-item-ignore, .repair-item-unignore');
+                if (!button) return;
+                const ignore = button.classList.contains('repair-item-ignore');
+                const id = parseInt(button.dataset.transactionId, 10);
+                button.disabled = true;
+                try {
+                    await apiFetch('/apps/budget/api/setup/repair/ignore', {
+                        method: 'POST',
+                        body: { transactionIds: [id], ignore },
+                        errorMessage: t('budget', 'Could not update the ignored duplicates'),
+                    });
+                } catch (error) {
+                    showError(error.message);
+                    button.disabled = false;
+                    return;
+                }
+                const [from, to] = ignore ? [dups.active, dups.ignored] : [dups.ignored, dups.active];
+                const index = from.findIndex(d => Number(d.duplicateId) === id);
+                if (index !== -1) {
+                    to.push(...from.splice(index, 1));
+                }
+                // Never ticked on its way back: deleting it is a fresh decision
+                dups.ticked.delete(id);
+                const ignoredOpen = !ignore || !!details.querySelector('.repair-ignored[open]');
+                details.innerHTML = duplicateDetails(dups.active, dups.ignored, dups.ticked, formatCurrency, ignoredOpen);
+                const count = dupCategory.querySelector('.repair-category-count');
+                count.textContent = String(dups.active.length);
+                count.hidden = dups.active.length === 0;
+                modal.querySelector('.repair-summary p').textContent = summaryText(dups.active.length);
+                // Focus stays in the list rather than falling back to the page
+                const next = details.querySelector(ignore ? '.repair-item-ignore' : `.repair-dup-checkbox[data-transaction-id="${id}"]`);
+                (next || details).focus?.();
+            });
+        }
 
         // Repair handler
         const repairBtn = modal.querySelector('.repair-btn');
@@ -2978,7 +3042,7 @@ class BudgetApp {
                 return `
                     <div class="scenario-rate-item">
                         <span class="rate-label">${dom.escapeHtml(debt.name)}</span>
-                        <input type="number" class="rate-override-input" data-debt-id="${debt.id}" value="${rate}" min="0" step="0.01" aria-label="${t('budget', 'Interest Rate')}: ${dom.escapeHtml(debt.name)}">
+                        <input type="text" inputmode="decimal" data-amount class="rate-override-input" data-debt-id="${debt.id}" value="${rate}" min="0" aria-label="${t('budget', 'Interest Rate')}: ${dom.escapeHtml(debt.name)}">
                         <span class="rate-suffix">%</span>
                     </div>
                 `;
@@ -3630,7 +3694,7 @@ class BudgetApp {
         row.innerHTML = `
             <div class="split-field split-amount-field">
                 <label>${t('budget', 'Amount')}</label>
-                <input aria-label="${t('budget', 'Amount')}" type="number" class="split-amount" step="0.01" min="0.01"
+                <input aria-label="${t('budget', 'Amount')}" type="text" inputmode="decimal" data-amount class="split-amount" min="0.01"
                        value="${split ? split.amount : ''}" placeholder="0.00" required>
             </div>
             <div class="split-field split-category-field">

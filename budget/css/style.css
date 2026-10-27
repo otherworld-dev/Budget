@@ -3731,6 +3731,7 @@ button.danger:hover {
 
 .reconcile-panel select,
 .reconcile-panel input[type="number"],
+.reconcile-panel input[data-amount],
 .reconcile-panel input[type="date"],
 .reconcile-panel input.flatpickr-input {
     background-color: var(--color-main-background);
@@ -3744,6 +3745,7 @@ button.danger:hover {
 
 .reconcile-panel select:focus,
 .reconcile-panel input[type="number"]:focus,
+.reconcile-panel input[data-amount]:focus,
 .reconcile-panel input[type="date"]:focus,
 .reconcile-panel input.flatpickr-input:focus {
     border-color: var(--color-primary-element);
@@ -4591,7 +4593,8 @@ button.danger:hover {
     width: 130px;
 }
 
-.inline-edit-input[type="number"] {
+.inline-edit-input[type="number"],
+.inline-edit-input[data-amount] {
     width: 100px;
     text-align: right;
 }
@@ -6550,6 +6553,49 @@ button.danger:hover {
     font-size: 18px;
 }
 
+/* Icon picker in the category form (#440) */
+.category-icon-picker {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
+    gap: 6px;
+    max-height: 168px;
+    overflow-y: auto;
+    padding: 2px;
+}
+
+.category-icon-picker .category-icon-choice {
+    width: 36px;
+    min-width: 0;
+    height: 36px;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    border-radius: 50%;
+    border: 1px solid var(--color-border);
+    background: var(--color-main-background);
+    color: var(--color-main-text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.category-icon-picker .category-icon-choice svg {
+    flex-shrink: 0;
+}
+
+.category-icon-picker .category-icon-choice:hover {
+    background: var(--color-background-hover);
+}
+
+.category-icon-picker .category-icon-choice.active,
+.category-icon-picker .category-icon-choice.active:hover {
+    background: var(--category-icon-fill, var(--color-primary-element));
+    color: var(--category-icon-ink, var(--color-primary-element-text));
+    border-color: var(--color-main-text);
+    box-shadow: 0 0 0 2px var(--color-main-background), 0 0 0 3px var(--color-main-text);
+}
+
 .category-content {
     flex: 1;
     display: flex;
@@ -6832,6 +6878,12 @@ button.danger:hover {
 }
 .category-chart-header h5 {
     margin: 0;
+}
+/* Says the bars are budget months when a budget start day is set (#447) */
+.category-chart-note {
+    margin: -8px 0 12px;
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
 }
 .category-chart-controls select {
     padding: 4px 8px;
@@ -13538,6 +13590,35 @@ button.receipt-scan-split-btn:disabled {
     cursor: default;
 }
 
+/* "Remember" under a receipt item's category (#444): a quiet text link, not
+   a second button competing with the row's remove control. */
+button.receipt-remember-btn {
+    display: block;
+    margin: 4px 0 0;
+    padding: 0;
+    min-height: 0;
+    background: none;
+    border: none;
+    color: var(--color-primary-element);
+    font-size: 12px;
+    cursor: pointer;
+}
+
+/* display: block above would otherwise beat the hidden attribute. */
+button.receipt-remember-btn[hidden] {
+    display: none;
+}
+
+button.receipt-remember-btn:hover:not(:disabled),
+button.receipt-remember-btn:focus-visible:not(:disabled) {
+    text-decoration: underline;
+}
+
+button.receipt-remember-btn:disabled {
+    color: var(--color-text-maxcontrast);
+    cursor: default;
+}
+
 .attachments-list {
     display: flex;
     flex-direction: column;
@@ -15282,7 +15363,8 @@ button.secondary.compact {
     outline: none;
 }
 
-.split-row input[type="number"] {
+.split-row input[type="number"],
+.split-row input[data-amount] {
     text-align: right;
     font-family: var(--font-mono, monospace);
 }
@@ -20522,6 +20604,29 @@ body[data-theme-dark-highcontrast] .matching-tx-badge {
    squeezing the name ('CSX Pro / Credit / Cards') */
 .repair-item-note {
     flex: 1 1 12em;
+}
+
+/* Ignore / Stop ignoring at the end of a duplicate's row, at a small
+   button's size rather than Nextcloud's 34px minimum */
+#repair-data-modal .repair-item-ignore,
+#repair-data-modal .repair-item-unignore {
+    flex-shrink: 0;
+    margin: 0 0 0 auto;
+    min-height: 0;
+    height: auto;
+    padding: 2px 10px;
+    font-size: 12px;
+}
+
+.repair-ignored {
+    margin-top: 8px;
+    border-top: 1px solid var(--color-border);
+}
+
+.repair-ignored > summary {
+    cursor: pointer;
+    padding: 8px 0;
+    font-weight: 600;
 }
 
 .repair-summary {

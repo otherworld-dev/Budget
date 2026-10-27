@@ -64,6 +64,23 @@ class ReportAggregator {
 	}
 
 	/**
+	 * Calendar dates in a range, both ends included: the transaction filters
+	 * are inclusive, so 1-30 September is 30 days, not 29 (#449). Counted in
+	 * UTC so a daylight-saving change inside the range can't shave an hour
+	 * off and leave a fraction. Zero when the range is reversed or unparseable.
+	 */
+	public static function inclusiveDays(string $startDate, string $endDate): int {
+		try {
+			$utc = new \DateTimeZone('UTC');
+			$start = new \DateTimeImmutable(substr($startDate, 0, 10), $utc);
+			$end = new \DateTimeImmutable(substr($endDate, 0, 10), $utc);
+		} catch (\Exception) {
+			return 0;
+		}
+		return $end < $start ? 0 : $start->diff($end)->days + 1;
+	}
+
+	/**
 	 * Generate a comprehensive financial summary.
 	 * OPTIMIZED: Uses single aggregated query instead of N+1 pattern.
 	 * Multi-currency accounts are converted to the user's base currency for totals.
@@ -114,7 +131,7 @@ class ReportAggregator {
 			'period' => [
 				'startDate' => $startDate,
 				'endDate' => $endDate,
-				'days' => (strtotime($endDate) - strtotime($startDate)) / (24 * 60 * 60)
+				'days' => self::inclusiveDays($startDate, $endDate)
 			],
 			'accounts' => [],
 			'totals' => [

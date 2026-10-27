@@ -12,6 +12,7 @@ use OCA\Budget\Db\IdempotencyKeyMapper;
 use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionSplit;
 use OCA\Budget\Exception\ReadOnlyShareException;
+use OCA\Budget\Exception\ReceiptUploadException;
 use OCA\Budget\Service\AttachmentService;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\TransactionService;
@@ -21,6 +22,9 @@ use OCA\Budget\Service\UserClock;
 use OCA\Budget\Service\ValidationService;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
+use OCP\AppFramework\Http\DataResponse;
+use OCP\AppFramework\Http\FileDisplayResponse;
+use OCP\Files\File;
 use OCP\IL10N;
 use OCP\IRequest;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -664,6 +668,46 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
 		$this->assertSame(10, $response->getData()['id']);
 		$this->assertArrayHasKey('photo_error', $response->getData());
+		$this->assertSame('upload_failed', $response->getData()['photo_error_code']);
+	}
+
+	public function testAPhotoErrorCarriesTheReasonCode(): void {
+		// #437: a client can tell "this login can't reach Files" apart
+		$this->params = $this->captureParams();
+		$this->uploads['photo'] = ['name' => 'r.jpg', 'error' => UPLOAD_ERR_OK];
+		$this->service->method('create')->willReturn($this->transaction());
+		$this->attachmentService->method('upload')->willThrowException(
+			new ReceiptUploadException(ReceiptUploadException::FILES_ACCESS_DENIED, 'no files')
+		);
+
+		$response = $this->controller->create();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+		$this->assertSame('files_access_denied', $response->getData()['photo_error_code']);
+	}
+
+	public function testUploadReceiptRefusedByFilesIs403WithACode(): void {
+		$this->uploads['file'] = ['name' => 'r.jpg', 'error' => UPLOAD_ERR_OK];
+		$this->attachmentService->method('upload')->willThrowException(
+			new ReceiptUploadException(ReceiptUploadException::FOLDER_NOT_WRITABLE, 'nope')
+		);
+
+		$response = $this->controller->uploadReceipt(10);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+		$this->assertSame('receipt_folder_not_writable', $response->getData()['error_code']);
+	}
+
+	public function testUploadReceiptWithABadFileIs400WithACode(): void {
+		$this->uploads['file'] = ['name' => 'r.jpg', 'error' => UPLOAD_ERR_OK];
+		$this->attachmentService->method('upload')->willThrowException(
+			new ReceiptUploadException(ReceiptUploadException::INVALID_FILE, 'too big')
+		);
+
+		$response = $this->controller->uploadReceipt(10);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('invalid_file', $response->getData()['error_code']);
 	}
 
 	// ── create: idempotency ─────────────────────────────────────────
@@ -1035,6 +1079,59 @@ class ApiV1TransactionControllerTest extends TestCase {
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 		$this->assertSame('File type not allowed', $response->getData()['error']);
+	}
+
+	private function receiptFile(string $name, string $mime): File {
+		$file = $this->createMock(File::class);
+		$file->method('getName')->willReturn($name);
+		$file->method('getMimeType')->willReturn($mime);
+		$file->method('getEtag')->willReturn('etag');
+		$file->method('getMTime')->willReturn(1760000000);
+		return $file;
+	}
+
+	/** getHeaders() needs a booted server; read the raw header map instead. */
+	private function rawHeaders(\OCP\AppFramework\Http\Response $response): array {
+		$headersProp = new \ReflectionProperty(\OCP\AppFramework\Http\Response::class, 'headers');
+		$headersProp->setAccessible(true);
+		return $headersProp->getValue($response);
+	}
+
+	public function testDownloadReceiptServesTheFileInline(): void {
+		$this->attachmentService->method('fileForDownload')->with(10, 'user1', 3)
+			->willReturn($this->receiptFile('2026-08-05 Café 23.77.pdf', 'application/pdf'));
+
+		$response = $this->controller->downloadReceipt(10, 3);
+
+		$this->assertInstanceOf(FileDisplayResponse::class, $response);
+		$headers = $this->rawHeaders($response);
+		$this->assertSame('application/pdf', $headers['Content-Type']);
+		$this->assertSame(
+			'inline; filename="2026-08-05 Caf__ 23.77.pdf"; filename*=UTF-8\'\'2026-08-05%20Caf%C3%A9%2023.77.pdf',
+			$headers['Content-Disposition']
+		);
+		$this->assertStringContainsString('no-store', $headers['Cache-Control']);
+	}
+
+	public function testDownloadReceiptNeverDisplaysAnUnexpectedType(): void {
+		// The user replaced the attached file's contents in Files.
+		$this->attachmentService->method('fileForDownload')
+			->willReturn($this->receiptFile('r"x.html', 'text/html'));
+
+		$headers = $this->rawHeaders($this->controller->downloadReceipt(10, 3));
+
+		$this->assertSame('application/octet-stream', $headers['Content-Type']);
+		$this->assertStringStartsWith('attachment; filename="r_x.html"', $headers['Content-Disposition']);
+	}
+
+	public function testDownloadReceiptIsA404WhenNotReachable(): void {
+		$this->attachmentService->method('fileForDownload')
+			->willThrowException(new DoesNotExistException('gone'));
+
+		$response = $this->controller->downloadReceipt(10, 3);
+
+		$this->assertInstanceOf(DataResponse::class, $response);
+		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
 	}
 
 	public function testUnauthenticatedConstructionDoesNotFatal(): void {

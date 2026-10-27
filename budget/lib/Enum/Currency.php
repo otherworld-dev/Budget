@@ -102,6 +102,7 @@ enum Currency: string {
 	case BNB = 'BNB';    // BNB
 	case MATIC = 'MATIC'; // Polygon
 	case SHIB = 'SHIB';  // Shiba Inu
+	case XMR = 'XMR';    // Monero
 
 	/**
 	 * Get the currency symbol.
@@ -198,6 +199,7 @@ enum Currency: string {
 			self::BNB => 'BNB',
 			self::MATIC => 'MATIC',
 			self::SHIB => 'SHIB',
+			self::XMR => 'XMR',
 		};
 	}
 
@@ -212,7 +214,8 @@ enum Currency: string {
 			self::XLM => 7,
 			self::BTC, self::ETH, self::SOL, self::DOGE, self::DOT, self::LTC,
 			self::LINK, self::AVAX, self::UNI, self::NEAR, self::FIL, self::APT,
-			self::ARB, self::OP, self::DAI, self::BNB, self::MATIC, self::SHIB => 8,
+			self::ARB, self::OP, self::DAI, self::BNB, self::MATIC, self::SHIB,
+			self::XMR => 8,
 			default => 2,
 		};
 	}
@@ -323,6 +326,7 @@ enum Currency: string {
 			self::BNB => 'BNB',
 			self::MATIC => 'Polygon',
 			self::SHIB => 'Shiba Inu',
+			self::XMR => 'Monero',
 		};
 	}
 
@@ -335,7 +339,7 @@ enum Currency: string {
 			self::DOT, self::LTC, self::LINK, self::AVAX, self::UNI, self::ATOM,
 			self::XLM, self::ALGO, self::NEAR, self::FIL, self::APT, self::ARB,
 			self::OP, self::USDT, self::USDC, self::DAI, self::BNB, self::MATIC,
-			self::SHIB => true,
+			self::SHIB, self::XMR => true,
 			default => false,
 		};
 	}

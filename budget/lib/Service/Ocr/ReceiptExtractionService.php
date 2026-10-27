@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Service\Ocr;
 
 use OCA\Budget\AppInfo\Application;
+use OCA\Budget\Db\ImportRule;
 use OCA\Budget\Service\AttachmentService;
 use OCA\Budget\Service\CategoryService;
 use OCA\Budget\Service\ImportRuleService;
@@ -20,8 +21,8 @@ use Psr\Log\LoggerInterface;
  * described: the ONLY thing that ever leaves this server is the image. The
  * category suggestion therefore runs locally after extraction — the user's
  * import/categorisation rules are matched against the extracted merchant and
- * total, and the provider never sees a category name, an account, or any
- * other part of the ledger.
+ * total, and against each line item (#444), and the provider never sees a
+ * category name, an account, or any other part of the ledger.
  *
  * Nothing in the returned draft is trusted: every field is normalised and
  * bounded here before it reaches a client, because "the model said so" is
@@ -76,7 +77,8 @@ class ReceiptExtractionService {
 	 * @param array $uploadedFile PHP uploaded-file array (name, type, tmp_name, error, size)
 	 * @return array{
 	 *   merchant: ?string, date: ?string, currency: ?string, total: ?string,
-	 *   lineItems: list<array{description: string, amount: string}>,
+	 *   lineItems: list<array{description: string, amount: string,
+	 *     suggestedCategoryId: ?int, suggestedCategoryName: ?string}>,
 	 *   suggestedCategoryId: ?int, suggestedCategoryName: ?string,
 	 *   warnings: list<string>,
 	 * }
@@ -280,7 +282,27 @@ class ReceiptExtractionService {
 			$warnings[] = 'line-items-sum-mismatch';
 		}
 
-		[$categoryId, $categoryName] = $this->suggestCategory($userId, $merchant, $total);
+		$rules = $this->loadRules($userId);
+		[$categoryId, $categoryName] = $this->suggestCategory($userId, $rules, [
+			'description' => $merchant,
+			'vendor' => $merchant,
+			'amount' => $total,
+		]);
+
+		// Each item gets its own suggestion, from rules that match the item's
+		// text (#444). The merchant is deliberately NOT passed as the vendor:
+		// a "Tesco → Groceries" rule would then match every line and drown
+		// out the item rules. An item no rule matches stays uncategorised —
+		// a blank the user fills beats a wrong category they skim past.
+		foreach ($lineItems as $i => $item) {
+			[$itemCategoryId, $itemCategoryName] = $this->suggestCategory($userId, $rules, [
+				'description' => $item['description'],
+				'vendor' => '',
+				'amount' => $item['amount'],
+			]);
+			$lineItems[$i]['suggestedCategoryId'] = $itemCategoryId;
+			$lineItems[$i]['suggestedCategoryName'] = $itemCategoryName;
+		}
 
 		return [
 			'merchant' => $merchant,
@@ -440,37 +462,55 @@ class ReceiptExtractionService {
 	}
 
 	/**
+	 * The user's active rules, loaded once per receipt rather than once per
+	 * line item. null when the rule engine can't be reached, which turns
+	 * every suggestion off without sinking the extraction.
+	 *
+	 * @return ImportRule[]|null
+	 */
+	private function loadRules(string $userId): ?array {
+		try {
+			return $this->ruleService->findActive($userId);
+		} catch (\Throwable $e) {
+			$this->logger->debug('Receipt category suggestion skipped: ' . $e->getMessage(), [
+				'app' => Application::APP_ID,
+			]);
+			return null;
+		}
+	}
+
+	/**
 	 * The user's own categorisation rules, run against the extracted fields.
 	 * Local by design — see the class doc. The first (highest-priority)
 	 * matching rule that still points at a real category wins.
 	 *
+	 * @param ImportRule[]|null $rules
+	 * @param array{description: ?string, vendor: string|null, amount: ?string} $fields
 	 * @return array{0: ?int, 1: ?string}
 	 */
-	private function suggestCategory(string $userId, ?string $merchant, ?string $total): array {
-		if ($merchant === null) {
+	private function suggestCategory(string $userId, ?array $rules, array $fields): array {
+		if ($rules === null || $fields['description'] === null) {
 			return [null, null];
 		}
 
 		try {
 			$matches = $this->ruleService->testRules($userId, [
-				'description' => $merchant,
-				'vendor' => $merchant,
-				'amount' => $total !== null ? (float)$total : 0.0,
+				'description' => $fields['description'],
+				'vendor' => $fields['vendor'],
+				'amount' => $fields['amount'] !== null ? (float)$fields['amount'] : 0.0,
 				'type' => 'debit',
-			]);
+			], $rules);
 
 			foreach ($matches as $match) {
 				$categoryId = $match['categoryId'] ?? null;
 				if ($categoryId === null) {
 					continue;
 				}
-				try {
-					$category = $this->categoryService->find((int)$categoryId, $userId);
-
-					return [(int)$categoryId, $category->getName()];
-				} catch (\Throwable $e) {
-					// Rule points at a deleted category — try the next match.
+				$name = $this->categoryName($userId, (int)$categoryId);
+				if ($name !== null) {
+					return [(int)$categoryId, $name];
 				}
+				// Rule points at a deleted category — try the next match.
 			}
 		} catch (\Throwable $e) {
 			$this->logger->debug('Receipt category suggestion skipped: ' . $e->getMessage(), [
@@ -479,6 +519,22 @@ class ReceiptExtractionService {
 		}
 
 		return [null, null];
+	}
+
+	/** @var array<int, ?string> category id → name, per request; null = gone */
+	private array $categoryNames = [];
+
+	/** Looked up once per category, not once per item that suggests it. */
+	private function categoryName(string $userId, int $categoryId): ?string {
+		if (!array_key_exists($categoryId, $this->categoryNames)) {
+			try {
+				$this->categoryNames[$categoryId] = $this->categoryService->find($categoryId, $userId)->getName();
+			} catch (\Throwable $e) {
+				$this->categoryNames[$categoryId] = null;
+			}
+		}
+
+		return $this->categoryNames[$categoryId];
 	}
 
 	private function cleanString(mixed $value, int $maxLength): ?string {

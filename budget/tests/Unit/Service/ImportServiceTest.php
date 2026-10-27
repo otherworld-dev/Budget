@@ -139,17 +139,6 @@ class ImportServiceTest extends TestCase {
 		$this->assertEmpty($result);
 	}
 
-	// ===== executeImport =====
-
-	public function testExecuteImportReturnsSuccessStructure(): void {
-		$result = $this->service->executeImport('user1', 'import_123', 1, [1, 2, 3]);
-
-		$this->assertEquals('import_123', $result['importId']);
-		$this->assertEquals(1, $result['accountId']);
-		$this->assertEquals(3, $result['imported']);
-		$this->assertTrue($result['success']);
-	}
-
 	// ===== import file ownership =====
 
 	public static function foreignFileIds(): array {

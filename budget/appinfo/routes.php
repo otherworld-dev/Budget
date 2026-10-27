@@ -155,7 +155,6 @@ return [
 		['name' => 'import#preview', 'url' => '/api/import/preview', 'verb' => 'POST'],
 		['name' => 'import#dataPreview', 'url' => '/api/import/data-preview', 'verb' => 'POST'],
 		['name' => 'import#process', 'url' => '/api/import/process', 'verb' => 'POST'],
-		['name' => 'import#execute', 'url' => '/api/import/execute', 'verb' => 'POST'],
 		['name' => 'import#history', 'url' => '/api/import/history', 'verb' => 'GET'],
 		['name' => 'import#templates', 'url' => '/api/import/templates', 'verb' => 'GET'],
 
@@ -397,6 +396,7 @@ return [
 		['name' => 'setup#recalculateBalances', 'url' => '/api/setup/recalculate-balances', 'verb' => 'POST'],
 		['name' => 'setup#diagnoseData', 'url' => '/api/setup/diagnose', 'verb' => 'GET'],
 		['name' => 'setup#repairData', 'url' => '/api/setup/repair', 'verb' => 'POST'],
+		['name' => 'setup#ignoreDuplicates', 'url' => '/api/setup/repair/ignore', 'verb' => 'POST'],
 		['name' => 'setup#systemInfo', 'url' => '/api/setup/system-info', 'verb' => 'GET'],
 
 		// First-run checklist and sample data
@@ -509,6 +509,8 @@ return [
 		['name' => 'apiV1Transaction#unreconcile', 'url' => '/api/v1/transactions/{id}/reconcile', 'verb' => 'DELETE'],
 		['name' => 'apiV1Transaction#receipts', 'url' => '/api/v1/transactions/{id}/receipts', 'verb' => 'GET'],
 		['name' => 'apiV1Transaction#uploadReceipt', 'url' => '/api/v1/transactions/{id}/receipts', 'verb' => 'POST'],
+		// The receipt file itself (#436). Additive to v1.
+		['name' => 'apiV1Transaction#downloadReceipt', 'url' => '/api/v1/transactions/{id}/receipts/{attachmentId}/download', 'verb' => 'GET'],
 
 		// Receipt extraction (#533): image in, draft transaction out. No
 		// side effects — the client records the draft via POST /transactions.

@@ -7,6 +7,7 @@ namespace OCA\Budget\Tests\Integration\Service;
 use OCA\Budget\Service\BillService;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\MigrationService;
+use OCA\Budget\Service\RepairService;
 use OCA\Budget\Tests\Integration\FullDataset;
 use OCA\Budget\Tests\Integration\IntegrationTestCase;
 
@@ -267,6 +268,11 @@ class BackupRestoreLinksTest extends IntegrationTestCase {
 			'user_id' => $this->userId, 'suggestion_type' => 'unrecorded', 'pattern' => $invoice . ':2026-08-14',
 			'pattern_hash' => sha1($invoice . ':2026-08-14'), 'dismissed_at' => $now,
 		]);
+		// A duplicate Repair Data was told to ignore follows its row's new id
+		$this->insertRow('budget_dismissed_sugg', [
+			'user_id' => $this->userId, 'suggestion_type' => RepairService::IGNORED_DUPLICATE_TYPE, 'pattern' => (string)$paid,
+			'pattern_hash' => sha1((string)$paid), 'dismissed_at' => $now,
+		]);
 		$target = $this->newUserId();
 
 		$this->migration->importAll($target, $this->migration->exportAll($this->userId)['content']);
@@ -282,6 +288,10 @@ class BackupRestoreLinksTest extends IntegrationTestCase {
 			'SELECT id FROM *PREFIX*budget_transactions WHERE bill_id = ?', [(int)$restoredTax['id']]
 		)->fetchOne();
 		$this->assertSame([$restoredPaid], json_decode((string)$restoredTax['paid_undo_state'], true)['createdTransactionIds']);
+		$this->assertSame(1, $this->countRows('budget_dismissed_sugg', [
+			'user_id' => $target, 'suggestion_type' => RepairService::IGNORED_DUPLICATE_TYPE,
+			'pattern' => (string)$restoredPaid, 'pattern_hash' => sha1((string)$restoredPaid),
+		]));
 
 		$bill = $this->service(BillService::class)->markUnpaid((int)$restoredTax['id'], $target);
 		$this->assertSame('2026-08-01', $bill->getLastPaidDate());

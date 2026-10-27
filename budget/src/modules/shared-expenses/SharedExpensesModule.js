@@ -759,7 +759,7 @@ export default class SharedExpensesModule {
                 : t('budget', 'Amount for {name}', { name });
             return `
                 <span class="share-person-value-wrap">
-                    <input type="number" class="share-person-value" step="0.01" min="0" inputmode="decimal"
+                    <input type="text" inputmode="decimal" data-amount class="share-person-value" min="0"
                            value="${dom.escapeHtml(values?.get(id) ?? '')}" aria-label="${label}">
                     ${s.method === 'percent' ? '<span class="share-person-unit">%</span>' : ''}
                 </span>`;

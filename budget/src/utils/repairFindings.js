@@ -43,16 +43,75 @@ const HTML_VALUES = { escape: false };
  * @return {string} HTML
  */
 export function duplicateItem(finding, formatAmount) {
-    const name = finding.vendor || finding.description || finding.billName || finding.originalDescription;
+    const id = Number(finding.duplicateId);
     return `<div class="repair-item">
         <label class="repair-item-select">
-            <input type="checkbox" class="repair-dup-checkbox" data-transaction-id="${Number(finding.duplicateId)}"${finding.selected ? ' checked' : ''}>
-            <span>${name ? escapeHtml(name) : t('budget', '(unnamed)')}</span>
+            <input type="checkbox" class="repair-dup-checkbox" data-transaction-id="${id}"${finding.selected ? ' checked' : ''}>
+            <span>${duplicateName(finding)}</span>
         </label>
         <span class="repair-item-amount">${formatAmount(finding.amount)}</span>
         <span class="repair-item-date">${escapeHtml(finding.date)}</span>
         <span class="repair-item-note">${duplicateNote(finding, formatAmount)}</span>
+        <button type="button" class="repair-item-ignore" data-transaction-id="${id}">${t('budget', 'Ignore')}</button>
     </div>`;
+}
+
+/**
+ * The name a duplicate row goes by (see duplicateItem()), as HTML.
+ *
+ * @param {object} finding
+ * @return {string} HTML
+ */
+function duplicateName(finding) {
+    const name = finding.vendor || finding.description || finding.billName || finding.originalDescription;
+    return name ? escapeHtml(name) : t('budget', '(unnamed)');
+}
+
+/**
+ * One row the user told Repair Data to ignore: no tick, as it is never
+ * deleted, and a button to bring it back to the list.
+ *
+ * @param {object} finding one of the scan's ignoredDuplicates
+ * @param {function(number): string} formatAmount
+ * @return {string} HTML
+ */
+export function ignoredDuplicateItem(finding, formatAmount) {
+    return `<div class="repair-item repair-item-ignored">
+        <span>${duplicateName(finding)}</span>
+        <span class="repair-item-amount">${formatAmount(finding.amount)}</span>
+        <span class="repair-item-date">${escapeHtml(finding.date)}</span>
+        <span class="repair-item-note">${duplicateNote(finding, formatAmount)}</span>
+        <button type="button" class="repair-item-unignore" data-transaction-id="${Number(finding.duplicateId)}">${t('budget', 'Stop ignoring')}</button>
+    </div>`;
+}
+
+/**
+ * The inside of "Duplicate Auto-Generated Transactions": the help, the rows
+ * still to decide on, and the ignored ones folded away under them.
+ *
+ * Ignoring is for a row the user has checked and wants to keep, such as one
+ * an earlier balance correction already made up for. Without it the same
+ * rows came back on every scan with no way to say so (#399).
+ *
+ * @param {object[]} active the scan's duplicateTransactions
+ * @param {object[]} ignored the scan's ignoredDuplicates
+ * @param {Set<number>} ticked ids of the rows ticked for deletion
+ * @param {function(number): string} formatAmount
+ * @param {boolean} ignoredOpen whether the ignored list is unfolded
+ * @return {string} HTML
+ */
+export function duplicateDetails(active, ignored, ticked, formatAmount, ignoredOpen = false) {
+    const rows = active.map(d => duplicateItem({ ...d, selected: ticked.has(Number(d.duplicateId)) }, formatAmount)).join('');
+    const help = active.length > 0
+        ? `<p class="repair-category-help">${t('budget', 'Only ticked rows are deleted. Rows that come ticked are bill payments the app recorded that an imported bank transaction records as well. The others only look like duplicates and may be real payments: check them in the account first, and tick only the ones you are sure about.')} ${t('budget', 'Ignore a row you have checked and want to keep, and it is no longer listed.')}</p>`
+        : `<p class="repair-category-help">${t('budget', 'Nothing left to check.')}</p>`;
+    const ignoredList = ignored.length > 0
+        ? `<details class="repair-ignored"${ignoredOpen ? ' open' : ''}>
+            <summary>${n('budget', '%n ignored row', '%n ignored rows', ignored.length)}</summary>
+            ${ignored.map(d => ignoredDuplicateItem(d, formatAmount)).join('')}
+        </details>`
+        : '';
+    return help + rows + ignoredList;
 }
 
 /**

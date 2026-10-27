@@ -469,8 +469,7 @@ export default class TransfersModule {
 
                                 <div class="form-group">
                                 <label for="transfer-amount">${t('budget', 'Amount')} <span class="required">*</span></label>
-                                <input type="number" id="transfer-amount"
-                                step="0.01" min="0" required
+                                <input type="text" inputmode="decimal" data-amount id="transfer-amount" min="0" required
                                 value="${isEdit ? transfer.amount : ''}">
                                 </div>
 

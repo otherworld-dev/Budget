@@ -544,6 +544,23 @@ class ImportRuleServiceTest extends TestCase {
 		$this->assertSame(423, $result[0]['categoryId']);
 	}
 
+	public function testEffectiveCategoryIdReadsTheBuildersWrappedActions(): void {
+		// The rule builder saves {version: 2, stopProcessing, actions: [...]},
+		// not a bare list (#444).
+		$rule = $this->makeRule(['categoryId' => null]);
+		$rule->setSchemaVersion(2);
+		$rule->setActions(json_encode([
+			'version' => 2,
+			'stopProcessing' => true,
+			'actions' => [
+				['type' => 'set_vendor', 'value' => 'Tesco'],
+				['type' => 'set_category', 'value' => 31],
+			],
+		]));
+
+		$this->assertSame(31, $this->service->effectiveCategoryId($rule));
+	}
+
 	public function testEffectiveCategoryIdPrefersTheLegacyColumn(): void {
 		$legacy = $this->makeRule(['categoryId' => 5]);
 		$this->assertSame(5, $this->service->effectiveCategoryId($legacy));

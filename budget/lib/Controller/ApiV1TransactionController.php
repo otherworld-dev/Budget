@@ -11,6 +11,7 @@ use OCA\Budget\Db\IdempotencyKeyMapper;
 use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionSplit;
 use OCA\Budget\Exception\ReadOnlyShareException;
+use OCA\Budget\Exception\ReceiptUploadException;
 use OCA\Budget\Service\AttachmentService;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\MoneyCalculator;
@@ -26,6 +27,7 @@ use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\AppFramework\Http\FileDisplayResponse;
 use OCP\AppFramework\OCSController;
 use OCP\IL10N;
 use OCP\IRequest;
@@ -724,7 +726,7 @@ class ApiV1TransactionController extends OCSController {
 					$this->logger?->warning('Receipt attach during create failed: ' . $e->getMessage(), [
 						'app' => Application::APP_ID,
 					]);
-					$out['photo_error'] = $this->l->t('The transaction was recorded, but the photo could not be attached');
+					$out = array_merge($out, $this->photoError($e));
 				}
 			}
 
@@ -1077,11 +1079,29 @@ class ApiV1TransactionController extends OCSController {
 				$this->logger?->warning('Receipt attach during replay failed: ' . $e->getMessage(), [
 					'app' => Application::APP_ID,
 				]);
-				$out['photo_error'] = $this->l->t('The transaction was recorded, but the photo could not be attached');
+				$out = array_merge($out, $this->photoError($e));
 			}
 		}
 
 		return $out;
+	}
+
+	/**
+	 * photo_error and photo_error_code for a receipt that didn't attach to a
+	 * recorded transaction (#437). The code lets a client tell a login that
+	 * can't reach Files (fixable only in the user's security settings) from
+	 * a full quota or a bad file; anything unforeseen is upload_failed.
+	 *
+	 * @return array{photo_error: string, photo_error_code: string}
+	 */
+	private function photoError(\Throwable $e): array {
+		$code = $e instanceof ReceiptUploadException ? $e->getErrorCode() : 'upload_failed';
+		return [
+			'photo_error' => $code === ReceiptUploadException::FILES_ACCESS_DENIED
+				? $this->l->t('The transaction was recorded, but the photo could not be attached: this app password has no access to your Files')
+				: $this->l->t('The transaction was recorded, but the photo could not be attached'),
+			'photo_error_code' => $code,
+		];
 	}
 
 	/** The account the other side of a transfer sits in, null when there is none. */
@@ -1246,6 +1266,48 @@ class ApiV1TransactionController extends OCSController {
 	}
 
 	/**
+	 * The receipt file itself, as raw bytes rather than an OCS envelope
+	 * (#436), so a client can hand it straight to an image view or PDF
+	 * viewer. Owner-only like receipts(); a missing transaction, a foreign
+	 * attachment or a deleted file are all the same 404.
+	 *
+	 * The type comes from Nextcloud's own detection of the file, not from
+	 * the name. The user can swap a file's contents in Files after attaching
+	 * it, so anything outside the image/PDF types an attachment may be is
+	 * sent as an opaque download instead of being displayed.
+	 */
+	#[NoAdminRequired]
+	public function downloadReceipt(int $id, int $attachmentId): FileDisplayResponse|DataResponse {
+		try {
+			$file = $this->attachmentService->fileForDownload($id, $this->userId, $attachmentId);
+		} catch (DoesNotExistException $e) {
+			return $this->notFound($this->l->t('Attachment not found'));
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to load attachments'));
+		}
+
+		$mime = $file->getMimeType();
+		$displayable = in_array($mime, AttachmentService::ALLOWED_MIMES, true);
+		$response = new FileDisplayResponse($file);
+		$response->addHeader('Content-Type', $displayable ? $mime : 'application/octet-stream');
+		$response->addHeader('Content-Disposition', self::contentDisposition($displayable ? 'inline' : 'attachment', $file->getName()));
+		// Personal financial documents: never in a shared cache.
+		$response->cacheFor(0);
+
+		return $response;
+	}
+
+	/**
+	 * A Content-Disposition value that survives any filename: an ASCII
+	 * fallback for old clients plus the exact name as RFC 5987 filename*.
+	 * Receipt names carry the merchant, which can be anything.
+	 */
+	private static function contentDisposition(string $type, string $name): string {
+		$ascii = preg_replace('/[^\x20-\x7E]|["\\\\]/', '_', $name) ?? 'receipt';
+		return sprintf('%s; filename="%s"; filename*=UTF-8\'\'%s', $type, $ascii, rawurlencode($name));
+	}
+
+	/**
 	 * Upload a receipt photo as multipart/form-data under the field `file`.
 	 * The file is stored in the user's own Files, in their receipts folder
 	 * under <year>/<month>/ of the transaction's date.
@@ -1264,6 +1326,14 @@ class ApiV1TransactionController extends OCSController {
 			return new DataResponse(ApiSerializer::attachment($attachment), Http::STATUS_CREATED);
 		} catch (DoesNotExistException $e) {
 			return $this->notFound();
+		} catch (ReceiptUploadException $e) {
+			// A refused write is the login's or the folder's permissions, not
+			// the request: 403, with the same codes create() gives photo_error
+			$code = $e->getErrorCode();
+			$status = in_array($code, [ReceiptUploadException::FILES_ACCESS_DENIED, ReceiptUploadException::FOLDER_NOT_WRITABLE], true)
+				? Http::STATUS_FORBIDDEN
+				: Http::STATUS_BAD_REQUEST;
+			return new DataResponse(['error' => $e->getMessage(), 'error_code' => $code], $status);
 		} catch (\InvalidArgumentException $e) {
 			return new DataResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
 		} catch (\Exception $e) {

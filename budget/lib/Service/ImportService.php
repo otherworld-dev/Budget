@@ -396,16 +396,6 @@ class ImportService {
 		}
 	}
 
-	public function executeImport(string $userId, string $importId, int $accountId, array $transactionIds): array {
-		return [
-			'importId' => $importId,
-			'accountId' => $accountId,
-			'imported' => count($transactionIds),
-			'success' => true,
-			'message' => 'Import completed successfully'
-		];
-	}
-
 	// Private helper methods
 
 	private function getOrCreateImportsFolder() {

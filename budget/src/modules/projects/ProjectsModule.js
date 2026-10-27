@@ -298,8 +298,7 @@ export default class ProjectsModule {
         document.getElementById('project-allocations').innerHTML = subcategories.map(sub => `
             <div class="project-alloc-row" style="--depth: ${sub.depth}">
                 <label for="project-alloc-${sub.id}">${dom.escapeHtml(sub.name)}</label>
-                <input type="number" id="project-alloc-${sub.id}" class="project-alloc-input" data-category-id="${sub.id}"
-                       step="0.01" min="0" inputmode="decimal" placeholder="${t('budget', 'No amount')}"
+                <input type="text" inputmode="decimal" data-amount id="project-alloc-${sub.id}" class="project-alloc-input" data-category-id="${sub.id}" min="0" placeholder="${t('budget', 'No amount')}"
                        value="${dom.escapeHtml(this._allocationValues.get(sub.id) ?? '')}">
             </div>`).join('');
         this.updateUnallocated();

@@ -140,6 +140,7 @@ const CURRENCY_CONFIG = {
     'BNB': { symbol: 'BNB', position: 'suffix', decimals: 8 },
     'MATIC': { symbol: 'MATIC', position: 'suffix', decimals: 8 },
     'SHIB': { symbol: 'SHIB', position: 'suffix', decimals: 8 },
+    'XMR': { symbol: 'XMR', position: 'suffix', decimals: 8 },
 };
 
 /**

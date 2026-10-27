@@ -85,8 +85,9 @@ class MigrationService {
 	 *   snapshotRefs  [JSON column => [key => idMapKey]]: an undo snapshot
 	 *           naming one row by id, moved to its restored id, or dropped
 	 *           whole when that row didn't come back: see remapSnapshotRefs()
-	 *   billKeyedType  dismissals of this suggestion_type are keyed by a
-	 *           bill id: see remapBillKeyedDismissal()
+	 *   keyedTypes  [suggestion_type => idMap]: dismissals of that type are
+	 *           keyed by a row id, moved to the row's restored id: see
+	 *           remapKeyedDismissal()
 	 *   userLink  a column naming a Nextcloud user the row is linked to,
 	 *           kept only when the restoring user could link it today
 	 *           (ContactLinkPolicy)
@@ -298,8 +299,12 @@ class MigrationService {
 		'dismissed_sugg' => [
 			'table' => 'budget_dismissed_sugg',
 			'scope' => 'user',
-			// A dismissed unrecorded payment (#394) is keyed by its bill's id
-			'billKeyedType' => 'unrecorded',
+			// A dismissed unrecorded payment (#394) is keyed by its bill's id,
+			// a duplicate Repair Data was told to ignore by its row's id
+			'keyedTypes' => [
+				'unrecorded' => 'bills',
+				RepairService::IGNORED_DUPLICATE_TYPE => 'transactions',
+			],
 		],
 		'dismiss_imp' => [
 			'table' => 'budget_dismiss_imp',
@@ -1790,8 +1795,9 @@ class MigrationService {
 			}
 		}
 
-		if (isset($spec['billKeyedType']) && ($row['suggestion_type'] ?? null) === $spec['billKeyedType']) {
-			return $this->remapBillKeyedDismissal($row, $idMaps);
+		$keyedBy = $spec['keyedTypes'][$row['suggestion_type'] ?? ''] ?? null;
+		if ($keyedBy !== null) {
+			return $this->remapKeyedDismissal($row, $idMaps[$keyedBy] ?? []);
 		}
 
 		foreach ($spec['jsonFk'] ?? [] as $column => $fkSpec) {
@@ -1983,27 +1989,29 @@ class MigrationService {
 	}
 
 	/**
-	 * A dismissed unrecorded payment moved to its bill's restored id, or null
+	 * A dismissal keyed by a row id, moved to that row's restored id, or null
 	 * to leave it out.
 	 *
-	 * The dismissal is keyed "billId:paidDate" (and its sha1), as
-	 * BillService::unrecordedPaymentKey() builds it. Copied as it was, the
-	 * payment came back on the card after every restore, and on a new server
-	 * a different bill holding the old id could have its own payment hidden.
-	 * One whose bill isn't in the backup applies to nothing.
+	 * A dismissed unrecorded payment is keyed "billId:paidDate" (and its
+	 * sha1), as BillService::unrecordedPaymentKey() builds it, and an ignored
+	 * duplicate "transactionId". Copied as it was, the payment came back on
+	 * the card after every restore, and on a new server a different row
+	 * holding the old id could have its own payment hidden. One whose row
+	 * isn't in the backup applies to nothing.
 	 *
 	 * @param array<string, mixed> $row
+	 * @param array<int, int> $idMap old id => restored id
 	 * @return array<string, mixed>|null
 	 */
-	private function remapBillKeyedDismissal(array $row, array $idMaps): ?array {
-		if (!is_string($row['pattern'] ?? null) || preg_match('/^(\d+):(.+)$/', $row['pattern'], $m) !== 1) {
+	private function remapKeyedDismissal(array $row, array $idMap): ?array {
+		if (!is_string($row['pattern'] ?? null) || preg_match('/^(\d+)(:.+)?$/', $row['pattern'], $m) !== 1) {
 			return null;
 		}
-		$newBillId = $idMaps['bills'][(int)$m[1]] ?? null;
-		if ($newBillId === null) {
+		$newId = $idMap[(int)$m[1]] ?? null;
+		if ($newId === null) {
 			return null;
 		}
-		$row['pattern'] = $newBillId . ':' . $m[2];
+		$row['pattern'] = $newId . ($m[2] ?? '');
 		$row['pattern_hash'] = sha1($row['pattern']);
 		return $row;
 	}

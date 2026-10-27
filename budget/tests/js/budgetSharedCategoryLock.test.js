@@ -43,7 +43,7 @@ const own = { ...base, id: 1 };
 const writeShared = { ...base, id: 2, _shared: true, _canWrite: true, _canManage: false };
 const fullShared = { ...base, id: 3, _shared: true, _canWrite: true, _canManage: true };
 
-const inputOf = (html) => html.match(/<input type="number"[\s\S]*?>/)[0];
+const inputOf = (html) => html.match(/<input type="text" inputmode="decimal" data-amount[\s\S]*?>/)[0];
 const selectOf = (html) => html.match(/<select class="budget-period-select"[^>]*>/)[0];
 const rolloverOf = (html) => html.match(/<button class="budget-rollover-toggle[\s\S]*?>/)[0];
 

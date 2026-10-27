@@ -481,6 +481,11 @@
                                       "type": "string",
                                       "description": "Present only when the transaction was recorded but the inline photo could not be attached. Never re-post in that case; retry with the same idempotency_key (which heals the photo) or attach via POST /transactions/{id}/receipts."
                                     },
+                                    "photo_error_code": {
+                                      "type": "string",
+                                      "enum": ["files_access_denied", "receipt_folder_not_writable", "not_enough_space", "invalid_file", "upload_failed"],
+                                      "description": "Sent with photo_error, saying why. files_access_denied: the app password in use has filesystem access switched off (Settings > Security), so no receipt can be stored until the user allows it; retrying will not help. receipt_folder_not_writable: the receipts folder or one of its parents refuses writes. not_enough_space: the user's Files quota is full. invalid_file: too big, a type not in GET / limits, or a broken upload. upload_failed: anything else. Switch on this, never on the photo_error text."
+                                    },
                                     "category_error": {
                                       "type": "string",
                                       "description": "Present only when the category_id sent is not one the account owner can use or, on an account shared with you, not one you can see (one of the owner's categories that was never shared with you; the message is then \"Category not found\"). The transaction is recorded anyway, uncategorised (category_id null), so never re-post; set a category later with PATCH /transactions/{id}. A replay of the same idempotency_key returns the recorded transaction without this field.",
@@ -808,7 +813,7 @@
         ],
         "operationId": "uploadReceipt",
         "summary": "Attach a receipt photo",
-        "description": "Owner-only. The file is stored in the user's own Files, in their receipts folder (Budget/Receipts unless they changed it in Settings) under <year>/<month>/ of the transaction's date, and referenced from the transaction. Rate limited to 10 per minute per user.",
+        "description": "Owner-only. The file is stored in the user's own Files, in their receipts folder (Budget/Receipts unless they changed it in Settings) under <year>/<month>/ of the transaction's date, and referenced from the transaction; missing folders are created. Rate limited to 10 per minute per user.",
         "requestBody": {
           "required": true,
           "content": {
@@ -858,10 +863,27 @@
             }
           },
           "400": {
-            "$ref": "#/components/responses/BadRequest"
+            "description": "The file was refused; error_code is not_enough_space or invalid_file (too big, a type not in GET / limits, or a broken upload).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
           },
           "401": {
             "$ref": "#/components/responses/Unauthorised"
+          },
+          "403": {
+            "description": "The receipt cannot be stored in the user's Files. error_code files_access_denied: the app password in use has filesystem access switched off (Settings > Security); retrying will not help until the user allows it. error_code receipt_folder_not_writable: the receipts folder or one of its parents refuses writes.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
@@ -871,6 +893,63 @@
           },
           "429": {
             "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/transactions/{id}/receipts/{attachmentId}/download": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer"
+          }
+        },
+        {
+          "name": "attachmentId",
+          "in": "path",
+          "required": true,
+          "description": "The receipt's id from GET /transactions/{id}/receipts.",
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "transactions"
+        ],
+        "operationId": "downloadReceipt",
+        "summary": "Download a receipt file",
+        "description": "Owner-only, like the receipt list. Returns the file's raw bytes, not an OCS envelope, with Content-Type from Nextcloud's own detection of the file and Content-Disposition inline plus its name (filename and RFC 5987 filename*). A file whose type is no longer an image or PDF (its contents were replaced in Files) is sent as application/octet-stream with Content-Disposition attachment. Not cached. A missing transaction, an attachment of another transaction and a receipt whose file was deleted (missing: true in the list) are all 404.",
+        "responses": {
+          "200": {
+            "description": "The receipt file",
+            "content": {
+              "image/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorised"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "412": {
+            "$ref": "#/components/responses/MissingOcsHeader"
           }
         }
       }
@@ -1822,7 +1901,7 @@
           },
           "error_code": {
             "type": "string",
-            "description": "Stable machine-readable code, present on failures clients must distinguish programmatically: ocr_not_configured, ocr_quota_exhausted, ocr_extraction_failed, idempotency_key_conflict, request_in_flight, field_not_editable, invalid_amount, transfer_leg, reconciled, split, scheduled, transfer_same_account, transfer_currency_mismatch, transfer_split, invalid_tags, account_closed. Switch on this, never on the error text."
+            "description": "Stable machine-readable code, present on failures clients must distinguish programmatically: ocr_not_configured, ocr_quota_exhausted, ocr_extraction_failed, idempotency_key_conflict, request_in_flight, field_not_editable, invalid_amount, transfer_leg, reconciled, split, scheduled, transfer_same_account, transfer_currency_mismatch, transfer_split, invalid_tags, account_closed, files_access_denied, receipt_folder_not_writable, not_enough_space, invalid_file. Switch on this, never on the error text."
           },
           "hint": {
             "type": "string",
@@ -2491,7 +2570,9 @@
               "type": "object",
               "required": [
                 "description",
-                "amount"
+                "amount",
+                "suggested_category_id",
+                "suggested_category_name"
               ],
               "properties": {
                 "description": {
@@ -2502,6 +2583,16 @@
                   "type": "string",
                   "pattern": "^\\d+\\.\\d{2}$",
                   "example": "1.65"
+                },
+                "suggested_category_id": {
+                  "type": "integer",
+                  "nullable": true,
+                  "description": "This item's category from the user's own categorisation rules, matched against the item's text only (not the merchant). Null when no rule matched: leave the item uncategorised rather than guessing."
+                },
+                "suggested_category_name": {
+                  "type": "string",
+                  "nullable": true,
+                  "example": "Groceries"
                 }
               }
             }
