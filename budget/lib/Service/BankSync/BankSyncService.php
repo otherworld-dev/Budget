@@ -211,6 +211,17 @@ class BankSyncService {
 			$this->connectionMapper->update($connection);
 		}
 
+		// A session that lists no accounts (not linked in the Enable Banking
+		// control panel) has nothing to sync; it needs a new authorization.
+		if ($connection->getProvider() === 'enablebanking' && empty($data['accounts'])) {
+			$message = $this->noAccountsMessage();
+			$connection->setStatus('expired');
+			$connection->setLastError($message);
+			$connection->setUpdatedAt(date('Y-m-d H:i:s'));
+			$this->connectionMapper->update($connection);
+			throw new \Exception($message);
+		}
+
 		// Auto-discover accounts if none have been mapped yet
 		if (empty($allMappings)) {
 			$this->refreshAccounts($userId, $connectionId);
@@ -933,9 +944,12 @@ class BankSyncService {
 		$newCreds = $this->decodeCredentials($result['credentials']);
 		$now = date('Y-m-d H:i:s');
 
+		// An authorized session without accounts is not usable: expired makes
+		// the card offer Re-authorize once the account is linked at Enable Banking.
+		$noAccounts = empty($result['accounts']);
 		$connection->setCredentials($result['credentials']);
-		$connection->setStatus('active');
-		$connection->setLastError(null);
+		$connection->setStatus($noAccounts ? 'expired' : 'active');
+		$connection->setLastError($noAccounts ? $this->noAccountsMessage() : null);
 		$connection->setUpdatedAt($now);
 		$this->connectionMapper->update($connection);
 
@@ -974,6 +988,10 @@ class BankSyncService {
 		]);
 
 		return $connection;
+	}
+
+	private function noAccountsMessage(): string {
+		return $this->l->t('The bank did not share any accounts. Link the account in the Enable Banking control panel, then use Re-authorize.');
 	}
 
 	/**

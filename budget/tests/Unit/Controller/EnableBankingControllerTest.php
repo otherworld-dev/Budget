@@ -162,6 +162,20 @@ class EnableBankingControllerTest extends TestCase {
 		$this->assertRedirect($response, true);
 	}
 
+	public function testCallbackWithoutAccountsStillRendersSuccessButExpires(): void {
+		$this->enable();
+		$conn = $this->pendingConnection('state-a', time() - 60);
+		$this->connectionMapper->method('findAll')->with(self::USER_ID)->willReturn([$conn]);
+		$this->provider->method('completeAuthorization')
+			->willReturn(['credentials' => json_encode(['sessionId' => 's', 'validUntil' => null]), 'accounts' => []]);
+
+		$response = $this->controller()->callback('state-a', 'code-1');
+
+		$this->assertRedirect($response, true);
+		$this->assertSame('expired', $conn->getStatus());
+		$this->assertStringContainsString('did not share any accounts', $conn->getLastError());
+	}
+
 	public function testCallbackUnknownStateRendersFailureAndCallsNothing(): void {
 		$this->enable();
 		$this->connectionMapper->method('findAll')->willReturn([$this->pendingConnection('state-a', time() - 60)]);

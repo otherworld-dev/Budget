@@ -340,7 +340,7 @@ class BankSyncServiceTest extends TestCase {
 				'includePending' => true,
 				'syncAccounts' => ['hash-fresh' => true, 'hash-imported' => false, 'hash-imported-unreconciled' => false],
 			])
-			->willReturn(['accounts' => []]);
+			->willReturn(['accounts' => [['id' => 'hash-fresh', 'name' => 'Main', 'balance' => '1.00', 'currency' => 'EUR', 'transactions' => []]]]);
 
 		$this->service->sync(self::USER_ID, 1);
 	}
@@ -1549,6 +1549,61 @@ class BankSyncServiceTest extends TestCase {
 
 		$this->assertSame('active', $result->getStatus());
 		$this->assertSame('sess-new', json_decode($result->getCredentials(), true)['sessionId']);
+	}
+
+	private const NO_ACCOUNTS_MESSAGE = 'The bank did not share any accounts. Link the account in the Enable Banking control panel, then use Re-authorize.';
+
+	public function testCallbackWithoutAccountsMarksTheConnectionExpired(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$connection = $this->ebConnection(1, 'state-a', time() - 60, 'sess-old');
+		$oldCredentials = $connection->getCredentials();
+		$this->connectionMapper->method('findAll')->willReturn([$connection]);
+		$eb = $this->ebProvider();
+		$eb->method('completeAuthorization')
+			->willReturn($this->ebResult('sess-new', '2027-04-24T10:00:00+00:00', []));
+		// Old session handling is unchanged
+		$eb->expects($this->once())->method('revokeSession')->with($oldCredentials)->willReturn(true);
+
+		$result = $this->service->completeEnableBankingAuthorization(self::USER_ID, 'state-a', 'code-1');
+
+		$this->assertSame('expired', $result->getStatus());
+		$this->assertSame(self::NO_ACCOUNTS_MESSAGE, $result->getLastError());
+		$this->assertSame('sess-new', json_decode($result->getCredentials(), true)['sessionId']);
+	}
+
+	public function testSyncWithoutAccountsMarksTheConnectionExpired(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$connection = $this->createConnection(1, 'enablebanking', 'My Bank', 'active');
+		$this->connectionMapper->method('find')->with(1, self::USER_ID)->willReturn($connection);
+		$this->mappingMapper->method('findByConnection')->willReturn([]);
+		$this->providerFactory->method('getProvider')->willReturn($this->provider);
+		$this->provider->method('requiresReauthorization')->willReturn(false);
+		$this->provider->method('fetchAccounts')->willReturn(['accounts' => []]);
+
+		try {
+			$this->service->sync(self::USER_ID, 1);
+			$this->fail('Expected an exception');
+		} catch (\Exception $e) {
+			$this->assertSame(self::NO_ACCOUNTS_MESSAGE, $e->getMessage());
+		}
+
+		$this->assertSame('expired', $connection->getStatus());
+		$this->assertSame(self::NO_ACCOUNTS_MESSAGE, $connection->getLastError());
+	}
+
+	public function testSyncWithoutAccountsFromOtherProvidersIsNotExpired(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$connection = $this->createConnection(1, 'simplefin', 'My Bank', 'active');
+		$this->connectionMapper->method('find')->with(1, self::USER_ID)->willReturn($connection);
+		$this->mappingMapper->method('findByConnection')->willReturn([]);
+		$this->mappingMapper->method('findEnabledByConnection')->willReturn([]);
+		$this->providerFactory->method('getProvider')->willReturn($this->provider);
+		$this->provider->method('requiresReauthorization')->willReturn(false);
+		$this->provider->method('fetchAccounts')->willReturn(['accounts' => []]);
+
+		$this->service->sync(self::USER_ID, 1);
+
+		$this->assertSame('active', $connection->getStatus());
 	}
 
 	public function testCompleteRevokesPreviousSession(): void {
