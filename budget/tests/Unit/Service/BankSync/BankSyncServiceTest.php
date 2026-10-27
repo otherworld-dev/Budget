@@ -1611,6 +1611,96 @@ class BankSyncServiceTest extends TestCase {
 		$this->service->failEnableBankingAuthorization(self::USER_ID, 'state-a', 'access_denied <script>');
 	}
 
+	/**
+	 * POST /sessions failed: the state is used up either way, and the card
+	 * must offer Re-authorize instead of leaving the connection stuck.
+	 */
+	public function testCompleteFailureAtTheBankClearsStateAndRecordsTheError(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$connection = $this->ebConnection(1, 'state-a', time() - 60, null);
+		$this->connectionMapper->method('findAll')->willReturn([$connection]);
+		$this->ebProvider()->method('completeAuthorization')->willThrowException(new \RuntimeException('HTTP 400'));
+		$this->connectionMapper->expects($this->once())->method('update')->willReturnArgument(0);
+
+		try {
+			$this->service->completeEnableBankingAuthorization(self::USER_ID, 'state-a', 'code-1');
+			$this->fail('Expected the failure to propagate');
+		} catch (\RuntimeException $e) {
+			$this->assertSame('HTTP 400', $e->getMessage());
+		}
+
+		$creds = json_decode($connection->getCredentials(), true);
+		$this->assertNull($creds['state']);
+		$this->assertNull($creds['stateCreatedAt']);
+		$this->assertSame('pending_auth', $connection->getStatus());
+		$this->assertSame('Authorization was cancelled or failed at the bank.', $connection->getLastError());
+	}
+
+	/**
+	 * A connection whose first authorization never finished has no session
+	 * to sync; flipping it to expired hid that the user only has to finish.
+	 */
+	public function testSyncOfAnEnableBankingConnectionNeverAuthorizedAsksToFinish(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$connection = $this->ebConnection(1, null, null, null);
+		$this->connectionMapper->method('find')->with(1, self::USER_ID)->willReturn($connection);
+		$eb = $this->ebProvider();
+		$eb->expects($this->never())->method('requiresReauthorization');
+		$eb->expects($this->never())->method('fetchAccounts');
+		$this->connectionMapper->expects($this->never())->method('update');
+
+		try {
+			$this->service->sync(self::USER_ID, 1);
+			$this->fail('Expected an exception');
+		} catch (\Exception $e) {
+			$this->assertSame('Please finish connecting this bank first.', $e->getMessage());
+		}
+		$this->assertSame('pending_auth', $connection->getStatus());
+	}
+
+	/**
+	 * During a re-authorization the old session still works and is synced,
+	 * but the connection stays pending, or the bank's redirect back would
+	 * no longer match it.
+	 */
+	public function testSyncDuringAnEnableBankingReauthorizationKeepsItPending(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$connection = $this->ebConnection(1, 'state-a', time() - 60, 'sess-old');
+		$this->connectionMapper->method('find')->with(1, self::USER_ID)->willReturn($connection);
+		$this->connectionMapper->method('update')->willReturnArgument(0);
+		$eb = $this->ebProvider();
+		$eb->method('requiresReauthorization')->willReturn(false);
+		$eb->expects($this->once())->method('fetchAccounts')->willReturn(['accounts' => [[
+			'id' => 'ext-1', 'name' => 'Giro', 'balance' => null, 'currency' => 'EUR', 'transactions' => [],
+		]]]);
+		$mapping = $this->createMapping(10, 1, 'ext-1', null, true);
+		$this->mappingMapper->method('findByConnection')->willReturn([$mapping]);
+		$this->mappingMapper->method('findEnabledByConnection')->willReturn([$mapping]);
+
+		$this->service->sync(self::USER_ID, 1);
+
+		$this->assertSame('pending_auth', $connection->getStatus());
+		$this->assertSame('state-a', json_decode($connection->getCredentials(), true)['state']);
+	}
+
+	public function testFailedSyncDuringAnEnableBankingReauthorizationKeepsItPending(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$connection = $this->ebConnection(1, 'state-a', time() - 60, 'sess-old');
+		$this->connectionMapper->method('find')->with(1, self::USER_ID)->willReturn($connection);
+		$eb = $this->ebProvider();
+		$eb->method('requiresReauthorization')->willReturn(false);
+		$eb->method('fetchAccounts')->willThrowException(new \Exception('The bank could not be reached. Please try again later.'));
+
+		try {
+			$this->service->sync(self::USER_ID, 1);
+			$this->fail('Expected an exception');
+		} catch (\Exception $e) {
+		}
+
+		$this->assertSame('pending_auth', $connection->getStatus());
+		$this->assertSame('The bank could not be reached. Please try again later.', $connection->getLastError());
+	}
+
 	public function testFailWithUnknownStateChangesNothing(): void {
 		$this->connectionMapper->method('findAll')->willReturn([$this->ebConnection(1, 'state-a', time() - 60, null)]);
 		$this->connectionMapper->expects($this->never())->method('update');

@@ -143,6 +143,19 @@ class BankSyncService {
 			);
 		}
 
+		// An Enable Banking connection waiting for the bank's redirect: without
+		// a session its first authorization never finished, which the user
+		// has to complete, not renew. With one, a re-authorization is under
+		// way and the old session syncs until the redirect replaces it; the
+		// connection stays pending so that redirect still matches it.
+		$keepPending = false;
+		if ($connection->getProvider() === 'enablebanking' && $connection->getStatus() === 'pending_auth') {
+			if (empty($this->decodeCredentials($connection->getCredentials())['sessionId'])) {
+				throw new \Exception('Please finish connecting this bank first.');
+			}
+			$keepPending = true;
+		}
+
 		$provider = $this->providerFactory->getProvider($connection->getProvider());
 
 		// Check if re-authorization is needed
@@ -161,7 +174,7 @@ class BankSyncService {
 				'includePending' => $includePending,
 			]);
 		} catch (\Exception $e) {
-			$connection->setStatus('error');
+			$connection->setStatus($keepPending ? 'pending_auth' : 'error');
 			$connection->setLastError($e->getMessage());
 			$connection->setUpdatedAt(date('Y-m-d H:i:s'));
 			$this->connectionMapper->update($connection);
@@ -496,7 +509,7 @@ class BankSyncService {
 		// Update connection sync status
 		$connection->setLastSyncAt(date('Y-m-d H:i:s'));
 		$connection->setLastError($totalErrors > 0 ? $this->l->t('Sync completed with %1$s error(s)', [$totalErrors]) : null);
-		$connection->setStatus('active');
+		$connection->setStatus($keepPending ? 'pending_auth' : 'active');
 		$connection->setUpdatedAt(date('Y-m-d H:i:s'));
 		$this->connectionMapper->update($connection);
 
@@ -843,7 +856,14 @@ class BankSyncService {
 		$oldCredentials = $connection->getCredentials();
 		$oldSessionId = $this->decodeCredentials($oldCredentials)['sessionId'] ?? null;
 
-		$result = $provider->completeAuthorization($oldCredentials, $code);
+		try {
+			$result = $provider->completeAuthorization($oldCredentials, $code);
+		} catch (\Exception $e) {
+			// The code was spent or refused: the state can't be used again,
+			// and the error lets the card offer Re-authorize.
+			$this->recordFailedAuthorization($connection);
+			throw $e;
+		}
 		$newCreds = $this->decodeCredentials($result['credentials']);
 		$now = date('Y-m-d H:i:s');
 
@@ -898,7 +918,11 @@ class BankSyncService {
 		if ($connection === null) {
 			return;
 		}
+		$this->recordFailedAuthorization($connection);
+	}
 
+	/** Clear the used-up state and show that the authorization failed. */
+	private function recordFailedAuthorization(BankConnection $connection): void {
 		$creds = $this->decodeCredentials($connection->getCredentials());
 		$creds['state'] = null;
 		$creds['stateCreatedAt'] = null;
