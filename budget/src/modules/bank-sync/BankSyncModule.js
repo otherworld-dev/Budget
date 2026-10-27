@@ -73,6 +73,9 @@ export default class BankSyncModule {
             } else if (e.target.closest('#bank-sync-eb-copy-callback')) {
                 e.preventDefault();
                 this._copyEnableBankingCallbackUrl();
+            } else if (e.target.closest('#bank-sync-modal .cancel-btn')) {
+                // main.js hides the modal; the entered key must not stay in the page
+                this._resetWizardState();
             } else if (e.target.closest('#bank-sync-check-auth')) {
                 e.preventDefault();
                 this.handleCheckAuth();
@@ -289,6 +292,11 @@ export default class BankSyncModule {
         const fallback = document.getElementById('bank-sync-auth-link-fallback');
         if (fallback) fallback.style.display = 'none';
         this._setAuthText(false);
+        // The private key must not linger in the page after cancel or reopen
+        for (const id of ['bank-sync-eb-private-key', 'bank-sync-eb-application-id', 'bank-sync-eb-private-key-file']) {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        }
     }
 
     /** Step 3 wording differs for Enable Banking: the bank's own tab says "Connected". */

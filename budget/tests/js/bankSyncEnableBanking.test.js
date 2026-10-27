@@ -252,6 +252,34 @@ describe('Enable Banking wizard', () => {
     });
 });
 
+describe('Wizard reset', () => {
+    it('clears the entered key, application ID and key file on cancel and open', () => {
+        const fileInput = document.getElementById('bank-sync-eb-private-key-file');
+        const fileValues = [];
+        Object.defineProperty(fileInput, 'value', {
+            configurable: true,
+            get: () => fileValues.at(-1) ?? 'C:\\fakepath\\key.pem',
+            set: (v) => { fileValues.push(v); },
+        });
+
+        const cancel = document.createElement('button');
+        cancel.className = 'secondary cancel-btn';
+        document.getElementById('bank-sync-step-1').appendChild(cancel);
+
+        for (const reset of [() => module._resetWizardState(), () => module.showConnectModal(), () => cancel.click()]) {
+            document.getElementById('bank-sync-eb-private-key').value = PEM;
+            document.getElementById('bank-sync-eb-application-id').value = 'app-1';
+            fileValues.length = 0;
+
+            reset();
+
+            expect(document.getElementById('bank-sync-eb-private-key').value).toBe('');
+            expect(document.getElementById('bank-sync-eb-application-id').value).toBe('');
+            expect(fileValues).toContain('');
+        }
+    });
+});
+
 describe('Account mappings balance check', () => {
     const MAPPINGS = [
         { id: 10, externalAccountName: 'Giro', budgetAccountId: 5, enabled: true, lastBalance: '1000.00', lastCurrency: 'EUR', balanceDifference: '12.35' },
