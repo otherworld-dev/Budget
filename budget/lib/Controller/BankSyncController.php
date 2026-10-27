@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
+use OCA\Budget\Db\BankAccountMapping;
 use OCA\Budget\Service\AdminSettingService;
 use OCA\Budget\Service\BankSync\BankSyncService;
 use OCA\Budget\Service\BankSync\InstitutionListingProviderInterface;
@@ -278,11 +279,28 @@ class BankSyncController extends Controller {
 
 			// The difference to the bank's balance, for the Reconcile action
 			return new DataResponse(array_map(
-				fn ($m) => $m->jsonSerialize() + ['balanceDifference' => $this->syncService->getBalanceDifference($m, $this->userId)],
+				fn ($m) => $m->jsonSerialize() + ['balanceDifference' => $this->balanceDifferenceOrNull($m, $id)],
 				$mappings
 			));
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to fetch mappings'), Http::STATUS_BAD_REQUEST, ['connectionId' => $id]);
+		}
+	}
+
+	/**
+	 * One mapping whose difference can't be computed must not hide the
+	 * others: it shows none. Fixed text only, the message could carry amounts.
+	 */
+	private function balanceDifferenceOrNull(BankAccountMapping $mapping, int $connectionId): ?string {
+		try {
+			return $this->syncService->getBalanceDifference($mapping, $this->userId);
+		} catch (\Exception $e) {
+			$this->logger?->warning('Bank sync: could not compute a balance difference', [
+				'app' => 'budget',
+				'connectionId' => $connectionId,
+				'mappingId' => $mapping->getId(),
+			]);
+			return null;
 		}
 	}
 

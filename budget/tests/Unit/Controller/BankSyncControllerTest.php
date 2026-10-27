@@ -293,6 +293,30 @@ class BankSyncControllerTest extends TestCase {
 		$this->assertNull($data[1]['balanceDifference']);
 	}
 
+	/** One account that can't be compared must not hide every mapping. */
+	public function testMappingsSurviveADifferenceThatFails(): void {
+		$this->enableBankSync();
+		$connection = new BankConnection();
+		$connection->setId(1);
+		$broken = new BankAccountMapping();
+		$broken->setId(10);
+		$fine = new BankAccountMapping();
+		$fine->setId(11);
+		$this->syncService->method('getConnections')
+			->willReturn([['connection' => $connection, 'mappings' => [$broken, $fine]]]);
+		$this->syncService->method('getBalanceDifference')->willReturnCallback(
+			fn (BankAccountMapping $m) => $m === $broken ? throw new \RuntimeException('db error 1000.00') : '5.00'
+		);
+		$this->logger->expects($this->once())->method('warning')
+			->with('Bank sync: could not compute a balance difference', $this->anything());
+
+		$response = $this->controller->mappings(1);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertNull($response->getData()[0]['balanceDifference']);
+		$this->assertSame('5.00', $response->getData()[1]['balanceDifference']);
+	}
+
 	public function testReconcileMappingReturnsTheMatchedBalance(): void {
 		$this->enableBankSync();
 		$this->syncService->expects($this->once())->method('reconcileMapping')
