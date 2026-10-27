@@ -101,6 +101,34 @@ class SettingControllerTest extends TestCase {
 		$this->assertArrayNotHasKey('import_skip_duplicates', $this->controller->index()->getData());
 	}
 
+	/**
+	 * The Enable Banking keys are an encrypted private key. The settings UI
+	 * only learns whether they exist, from its own endpoint; this API must
+	 * not hand the ciphertext to the browser, nor write or delete it.
+	 */
+	public function testTheEnableBankingKeysNeverLeaveThroughTheSettingsApi(): void {
+		$this->mapper->method('findAll')->with('user1')->willReturn([
+			$this->makeSetting('enablebanking_keys', 'CIPHERTEXT'),
+			$this->makeSetting('default_currency', 'EUR'),
+		]);
+		$this->mapper->method('findByKey')->willReturn($this->makeSetting('enablebanking_keys', 'CIPHERTEXT'));
+		$this->mapper->expects($this->never())->method('deleteByKey');
+		$this->mapper->expects($this->never())->method('insert');
+		$this->mapper->expects($this->never())->method('update');
+
+		$index = $this->controller->index();
+		$this->assertArrayNotHasKey('enablebanking_keys', $index->getData());
+		$this->assertSame('EUR', $index->getData()['default_currency']);
+
+		$show = $this->controller->show('enablebanking_keys');
+		$this->assertSame(Http::STATUS_NOT_FOUND, $show->getStatus());
+		$this->assertStringNotContainsString('CIPHERTEXT', json_encode($show->getData()));
+
+		$this->request->method('getParam')->with('value')->willReturn('x');
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $this->controller->updateKey('enablebanking_keys')->getStatus());
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $this->controller->destroy('enablebanking_keys')->getStatus());
+	}
+
 	public function testIndexHandlesException(): void {
 		$this->mapper->method('findAll')->willThrowException(new \RuntimeException('DB error'));
 

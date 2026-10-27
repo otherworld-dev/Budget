@@ -21,6 +21,7 @@ use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Enum\AccountType;
 use OCA\Budget\Enum\Currency;
 use OCA\Budget\Migration\Version001000104Date20260916;
+use OCA\Budget\Service\BankSync\EnableBanking\EnableBankingKeyStore;
 use OCA\Budget\Service\Import\SetupDefaultRules;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
@@ -57,8 +58,13 @@ class MigrationService {
 	 * user's bills feed without a login and must be unique; restored from
 	 * someone else's backup, or one from another server, it duplicated a
 	 * token and the feed answered 404 for both users.
+	 *
+	 * The Enable Banking keys belong with the bank connections, which are not
+	 * backed up either: they are encrypted with this server's secret, and a
+	 * restore that replaced them left the remaining connections unable to
+	 * sync or be revoked.
 	 */
-	private const SERVER_SETTINGS = ['bills_feed_token'];
+	private const SERVER_SETTINGS = ['bills_feed_token', EnableBankingKeyStore::SETTING_KEY];
 
 	/**
 	 * Table-level round-trip specs (#351): everything beyond the five bespoke
