@@ -151,4 +151,21 @@ class EnableBankingClientTest extends TestCase {
 			$this->assertSame('Enable Banking request failed (HTTP 500)', $e->getMessage());
 		}
 	}
+
+	public function testRequestTransportErrorDoesNotLeakUrl(): void {
+		// Guzzle transport errors put the full request URI (with session IDs,
+		// account UIDs and query strings) into their message.
+		$this->client->method('get')->willThrowException(
+			new \RuntimeException('cURL error 28 for https://api.enablebanking.com/sessions/SESSION-SECRET')
+		);
+
+		try {
+			$this->api->request('GET', '/sessions/SESSION-SECRET', 'app-1', $this->privateKeyPem);
+			$this->fail('Expected a RuntimeException');
+		} catch (\RuntimeException $e) {
+			$this->assertSame('Enable Banking request failed (network error)', $e->getMessage());
+			$this->assertStringNotContainsString('SESSION-SECRET', $e->getMessage());
+			$this->assertNull($e->getPrevious());
+		}
+	}
 }

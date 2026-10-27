@@ -31,6 +31,9 @@ use Psr\Log\LoggerInterface;
  *
  * Credentials JSON: userId, aspspName, aspspCountry, state, stateCreatedAt,
  * sessionId, validUntil, accounts (identification_hash => uid), lastSyncDate.
+ *
+ * Failures are logged with the exception class only, never its message:
+ * messages from the HTTP layer can contain URLs with session IDs and UIDs.
  */
 class EnableBankingProvider implements BankSyncProviderInterface, InstitutionListingProviderInterface, ReauthorizableProviderInterface {
 	private const PSU_TYPE = 'personal';
@@ -221,7 +224,7 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 		} catch (\RuntimeException $e) {
 			// Network trouble or a rate limit says nothing about the consent;
 			// do not flip the connection to expired for it.
-			$this->logger->warning('Enable Banking: session check failed, assuming still valid: ' . $e->getMessage(), ['app' => 'budget']);
+			$this->logger->warning('Enable Banking: session check failed, assuming still valid: ' . $e::class, ['app' => 'budget']);
 			return false;
 		}
 	}
@@ -239,7 +242,7 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 		try {
 			$this->client->request('DELETE', '/sessions/' . rawurlencode((string)$creds['sessionId']), $keys['applicationId'], $keys['privateKey']);
 		} catch (\Exception $e) {
-			$this->logger->warning('Enable Banking: failed to revoke session: ' . $e->getMessage(), ['app' => 'budget']);
+			$this->logger->warning('Enable Banking: failed to revoke session: ' . $e::class, ['app' => 'budget']);
 		}
 	}
 
@@ -316,7 +319,7 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 		} catch (EnableBankingRateLimitException|EnableBankingAuthException $e) {
 			throw $e;
 		} catch (\RuntimeException $e) {
-			$this->logger->warning('Enable Banking: failed to fetch an account: ' . $e->getMessage(), ['app' => 'budget']);
+			$this->logger->warning('Enable Banking: failed to fetch an account: ' . $e::class, ['app' => 'budget']);
 			return null;
 		}
 

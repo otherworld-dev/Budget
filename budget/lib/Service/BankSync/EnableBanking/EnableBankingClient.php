@@ -89,12 +89,23 @@ class EnableBankingClient {
 		$client = $this->clientService->newClient();
 		$url = self::BASE_URL . $path;
 
-		$response = match (strtoupper($method)) {
-			'GET' => $client->get($url, $options),
-			'POST' => $client->post($url, $options),
-			'DELETE' => $client->delete($url, $options),
-			default => throw new \InvalidArgumentException('Unsupported HTTP method'),
-		};
+		$method = strtoupper($method);
+		if (!in_array($method, ['GET', 'POST', 'DELETE'], true)) {
+			throw new \InvalidArgumentException('Unsupported HTTP method');
+		}
+
+		try {
+			$response = match ($method) {
+				'GET' => $client->get($url, $options),
+				'POST' => $client->post($url, $options),
+				'DELETE' => $client->delete($url, $options),
+			};
+		} catch (\Throwable) {
+			// Transport errors (timeouts, DNS, TLS) carry the full request URI,
+			// including session IDs and account UIDs, in their message. Neither
+			// the message nor the exception itself is passed on.
+			throw new \RuntimeException('Enable Banking request failed (network error)');
+		}
 
 		$status = $response->getStatusCode();
 		if ($status === 429) {

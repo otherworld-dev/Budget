@@ -24,6 +24,7 @@ class EnableBankingProviderTest extends TestCase {
 	private EnableBankingProvider $provider;
 	private EnableBankingClient&MockObject $client;
 	private EnableBankingKeyStore&MockObject $keyStore;
+	private LoggerInterface&MockObject $logger;
 	private int $now;
 
 	/** @var array<string, array|\Throwable|callable> responses keyed by "METHOD /path" */
@@ -69,7 +70,7 @@ class EnableBankingProviderTest extends TestCase {
 			$this->keyStore,
 			new EnableBankingNormalizer(),
 			$time,
-			$this->createMock(LoggerInterface::class),
+			$this->logger = $this->createMock(LoggerInterface::class),
 		);
 	}
 
@@ -365,5 +366,34 @@ class EnableBankingProviderTest extends TestCase {
 		$this->assertSame('sess-1', $creds['sessionId']);
 		$this->assertSame(['hash-a' => 'uid-a'], $creds['accounts']);
 		$this->assertSame('2026-10-20', $creds['lastSyncDate']);
+	}
+
+	// ── Logging hygiene ─────────────────────────────────────────────
+
+	public function testFailureLogsNeverContainExceptionMessages(): void {
+		$logged = [];
+		$this->logger->method('warning')->willReturnCallback(
+			function (string $message, array $context = []) use (&$logged): void {
+				$logged[] = $message . ' ' . json_encode($context);
+			}
+		);
+		// A transport error message as Guzzle would build it, with the URI inside.
+		$leaky = new \RuntimeException('cURL error 28 for https://api.enablebanking.com/sessions/sess-1');
+
+		$this->responses['GET /sessions/sess-1'] = $leaky;
+		$this->assertFalse($this->provider->requiresReauthorization($this->credentials()));
+
+		$this->responses['DELETE /sessions/sess-1'] = $leaky;
+		$this->provider->revokeConnection($this->credentials());
+
+		$this->responses['GET /accounts/uid-a/details'] = new \RuntimeException('cURL error 28 for https://api.enablebanking.com/accounts/uid-a/details');
+		$this->provider->fetchAccounts($this->credentials());
+
+		$this->assertCount(3, $logged);
+		foreach ($logged as $line) {
+			$this->assertStringNotContainsString('sess-1', $line);
+			$this->assertStringNotContainsString('uid-a', $line);
+			$this->assertStringNotContainsString('cURL', $line);
+		}
 	}
 }
