@@ -458,9 +458,14 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 			? \DateTimeImmutable::createFromFormat('!Y-m-d', $lastSyncDate, new \DateTimeZone('UTC'))
 			: false;
 
-		$start = $last !== false
-			? $last->modify('-' . self::SYNC_OVERLAP_DAYS . ' days')
-			: $this->today()->modify('-' . self::FIRST_SYNC_DAYS . ' days');
+		$earliest = $this->today()->modify('-' . self::FIRST_SYNC_DAYS . ' days');
+		if ($last === false) {
+			return $earliest->format('Y-m-d');
+		}
+
+		// Never reach back further than banks serve; a stale per-account date
+		// would otherwise make the fetch fail forever.
+		$start = max($last->modify('-' . self::SYNC_OVERLAP_DAYS . ' days'), $earliest);
 		return $start->format('Y-m-d');
 	}
 

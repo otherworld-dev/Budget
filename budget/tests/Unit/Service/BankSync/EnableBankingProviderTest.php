@@ -245,6 +245,12 @@ class EnableBankingProviderTest extends TestCase {
 		$this->assertSame('2026-10-13', $this->callsTo('GET', '/accounts/uid-a/transactions')[0]['query']['date_from']);
 	}
 
+	public function testStaleLastSyncDateIsClampedToFirstSyncWindow(): void {
+		$this->stubAccountEndpoints();
+		$this->provider->fetchAccounts($this->credentials(['lastSyncDates' => ['hash-a' => '2026-04-10']]));
+		$this->assertSame('2026-07-29', $this->callsTo('GET', '/accounts/uid-a/transactions')[0]['query']['date_from']);
+	}
+
 	private function stubPlainAccount(string $uid): void {
 		$this->responses['GET /accounts/' . $uid . '/details'] = ['name' => 'Account ' . $uid, 'currency' => 'EUR'];
 		$this->responses['GET /accounts/' . $uid . '/balances'] = ['balances' => [
