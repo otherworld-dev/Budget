@@ -1775,6 +1775,7 @@ class BankSyncServiceTest extends TestCase {
 			'EB pending_auth, fresh state, no error' => ['enablebanking', 'pending_auth', true, 60, null, false],
 			'EB pending_auth, stale state' => ['enablebanking', 'pending_auth', true, 31 * 60, null, true],
 			'EB pending_auth, no state' => ['enablebanking', 'pending_auth', false, null, null, true],
+			'EB pending_auth, state without stateCreatedAt' => ['enablebanking', 'pending_auth', true, null, null, true],
 			'EB pending_auth, lastError' => ['enablebanking', 'pending_auth', true, 60, 'Authorization was cancelled or failed at the bank.', true],
 			'EB active' => ['enablebanking', 'active', false, null, null, false],
 			'EB expired' => ['enablebanking', 'expired', false, null, null, true],
