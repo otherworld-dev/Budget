@@ -41,11 +41,12 @@ Before you start, a Nextcloud admin has to switch on **Enable Bank Sync** in Bud
 
 1. In the Enable Banking control panel, create an application.
 2. Generate an RSA key pair and a self-signed certificate, for example `openssl req -x509 -newkey rsa:4096 -nodes -keyout private.pem -out public.crt -days 730 -subj "/CN=budget"`, and upload the certificate (`public.crt`) to the application.
-3. Whitelist the callback URL that Budget's wizard shows, which ends in `/apps/budget/bank-sync/enablebanking/callback`. If the control panel asks you to link accounts first, do that.
-4. In Budget, go to **Bank Sync**, click **Add Connection**, choose **Enable Banking (Europe)** and enter the application ID and the contents of `private.pem`. You only do this once: they are stored encrypted for your user and reused for every bank.
-5. Pick a country and a bank, confirm in the bank's app, come back and click **I've Completed Authorization**, then map the accounts and sync.
+3. Whitelist the callback URL that Budget's wizard shows, which ends in `/apps/budget/bank-sync/enablebanking/callback`. In production it must use `https`.
+4. In the control panel, link every bank account you want in Budget. A restricted production application only becomes active once at least one account is linked, and Budget can only see accounts that are linked there.
+5. In Budget, go to **Bank Sync**, click **Add Connection**, choose **Enable Banking (Europe)** and enter the application ID and the contents of `private.pem`. You only do this once: they are stored encrypted for your user and reused for every bank.
+6. Pick a country and a bank, confirm in the bank's app, come back and click **I've Completed Authorization**, then map the accounts and sync. If the bank shares no account, Budget marks the connection as needing re-authorization: link the account in the control panel, then click **Re-authorize**.
 
-Consent lasts up to 180 days, or the bank's maximum if that is shorter. After that, use **Re-authorize**. PSD2 covers payment accounts only, so securities and depot accounts are not available, and banks allow only a few automatic refreshes per day.
+Consent lasts up to 180 days, or the bank's maximum if that is shorter. After that, use **Re-authorize**, and link any new accounts in the control panel first (for example 180 days for comdirect, 90 days for Trade Republic). Trade Republic delivers only amount, currency and booking date per transaction, with no description or counterparty, so rules that match on text won't apply to it. PSD2 covers payment accounts only, so securities and depot accounts are not available, and banks allow only a few automatic refreshes per day.
 
 The first time an account syncs into an empty Budget account, Budget sets that account's opening balance so that its balance matches the bank's. This happens automatically for Enable Banking only; with the other providers, Budget shows the difference and a **Reconcile** button instead. If the balances differ later, Budget shows the difference with a **Reconcile** button and never corrects it silently.
 
