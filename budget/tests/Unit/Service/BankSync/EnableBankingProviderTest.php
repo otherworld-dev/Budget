@@ -279,6 +279,35 @@ class EnableBankingProviderTest extends TestCase {
 		$this->assertSame($first, $second);
 	}
 
+	/**
+	 * When the session lists accounts and none can be read, the sync failed:
+	 * reporting success left the connection active without an error.
+	 */
+	public function testFetchAccountsFailsWhenNoAccountCouldBeRead(): void {
+		$this->responses['GET /accounts/uid-a/details'] = new \RuntimeException('HTTP 500');
+
+		$this->expectException(\Exception::class);
+		$this->expectExceptionMessage('The bank could not be reached. Please try again later.');
+
+		$this->provider->fetchAccounts($this->credentials());
+	}
+
+	public function testFetchAccountsSucceedsWhenSomeAccountsCouldBeRead(): void {
+		$this->stubAccountEndpoints();
+		$this->responses['GET /accounts/uid-b/details'] = new \RuntimeException('HTTP 500');
+
+		$result = $this->provider->fetchAccounts($this->credentials(['accounts' => ['hash-a' => 'uid-a', 'hash-b' => 'uid-b']]));
+
+		$this->assertSame(['hash-a'], array_column($result['accounts'], 'id'));
+		$this->assertArrayNotHasKey('updatedCredentials', $result);
+	}
+
+	public function testFetchAccountsWithoutAccountsInTheSessionIsNoError(): void {
+		$result = $this->provider->fetchAccounts($this->credentials(['accounts' => []]));
+
+		$this->assertSame([], $result['accounts']);
+	}
+
 	public function testFetchAccountsTurnsRateLimitIntoReadableError(): void {
 		$this->responses['GET /accounts/uid-a/details'] = new EnableBankingRateLimitException('HTTP 429');
 
@@ -438,7 +467,11 @@ class EnableBankingProviderTest extends TestCase {
 		$this->provider->revokeConnection($this->credentials());
 
 		$this->responses['GET /accounts/uid-a/details'] = new \RuntimeException('cURL error 28 for https://api.enablebanking.com/accounts/uid-a/details');
-		$this->provider->fetchAccounts($this->credentials());
+		try {
+			$this->provider->fetchAccounts($this->credentials());
+		} catch (\Exception $e) {
+			// Every account failed (see testFetchAccountsFailsWhenNoAccountCouldBeRead)
+		}
 
 		$this->assertCount(3, $logged);
 		foreach ($logged as $line) {

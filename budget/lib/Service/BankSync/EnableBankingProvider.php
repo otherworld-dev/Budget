@@ -47,6 +47,7 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 	private const MSG_NO_KEYS = 'Enable Banking keys are not set up';
 	private const MSG_RATE_LIMIT = 'The bank only allows a few refreshes per day. Please try again later.';
 	private const MSG_EXPIRED = 'Bank authorization has expired. Please reconnect.';
+	private const MSG_UNREACHABLE = 'The bank could not be reached. Please try again later.';
 
 	public function __construct(
 		private EnableBankingClient $client,
@@ -171,6 +172,12 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 			}
 			return $accounts;
 		});
+
+		// Every account failed: that is a failed sync (status error, the
+		// message shown), not a successful one that found nothing.
+		if ($accounts === [] && !empty($creds['accounts'])) {
+			throw new \Exception(self::MSG_UNREACHABLE);
+		}
 
 		$result = ['accounts' => $accounts];
 		// Only move the sync window forward when every account was read, so a
