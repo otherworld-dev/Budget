@@ -253,6 +253,32 @@ class EnableBankingProviderTest extends TestCase {
 		$this->assertSame('1000.00', $account['balance']);
 	}
 
+	/**
+	 * Two genuine, identical bookings on one day without a bank ID hash to
+	 * the same fallback ID; the sync then skipped the second as a duplicate.
+	 */
+	public function testIdenticalRowsWithoutIdsGetDistinctStableIds(): void {
+		$this->stubAccountEndpoints();
+		$row = [
+			'transaction_amount' => ['amount' => '4.50', 'currency' => 'EUR'],
+			'credit_debit_indicator' => 'DBIT', 'status' => 'BOOK', 'booking_date' => '2026-10-25',
+			'remittance_information' => ['Coffee'],
+		];
+		$this->responses['GET /accounts/uid-a/transactions'] = ['transactions' => [
+			$row,
+			['transaction_id' => 't-9'] + $row,
+			$row,
+			$row,
+		]];
+
+		$first = array_column($this->provider->fetchAccounts($this->credentials())['accounts'][0]['transactions'], 'id');
+		$second = array_column($this->provider->fetchAccounts($this->credentials())['accounts'][0]['transactions'], 'id');
+
+		$this->assertMatchesRegularExpression('/^h:[0-9a-f]{32}$/', $first[0]);
+		$this->assertSame([$first[0], 't-9', $first[0] . ':2', $first[0] . ':3'], $first);
+		$this->assertSame($first, $second);
+	}
+
 	public function testFetchAccountsTurnsRateLimitIntoReadableError(): void {
 		$this->responses['GET /accounts/uid-a/details'] = new EnableBankingRateLimitException('HTTP 429');
 

@@ -341,6 +341,10 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 
 	private function fetchTransactions(EnableBankingKeys $keys, string $base, string $dateFrom, bool $includePending): array {
 		$transactions = [];
+		// Two genuine identical bookings without a bank ID share a fallback
+		// hash; numbering repeats in feed order keeps both, and the same feed
+		// numbers them the same way again on the next sync.
+		$fallbackSeen = [];
 		$continuationKey = null;
 		for ($page = 0; $page < self::MAX_TRANSACTION_PAGES; $page++) {
 			$query = ['date_from' => $dateFrom];
@@ -353,6 +357,12 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 				$row = $this->normalizer->transaction($tx);
 				if ($row['date'] === '' || ($row['pending'] && !$includePending)) {
 					continue;
+				}
+				if (str_starts_with($row['id'], 'h:')) {
+					$seen = $fallbackSeen[$row['id']] = ($fallbackSeen[$row['id']] ?? 0) + 1;
+					if ($seen > 1) {
+						$row['id'] .= ':' . $seen;
+					}
 				}
 				$transactions[] = $row;
 			}
