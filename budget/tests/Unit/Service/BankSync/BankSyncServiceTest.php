@@ -1600,6 +1600,7 @@ class BankSyncServiceTest extends TestCase {
 		$this->providerFactory->method('getProvider')->willReturn($this->provider);
 		$this->provider->method('requiresReauthorization')->willReturn(false);
 		$this->provider->method('fetchAccounts')->willReturn(['accounts' => []]);
+		$this->provider->method('fetchAccountList')->willReturn(['accounts' => []]);
 
 		$this->service->sync(self::USER_ID, 1);
 
