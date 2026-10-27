@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-10-26 12:45+0000\n"
+"POT-Creation-Date: 2026-10-26 23:48+0000\n"
 "PO-Revision-Date: 2026-09-21 19:51+0000\n"
 "Last-Translator: Leonid Zaliubovskyi <la399fox@gmail.com>\n"
 "Language-Team: Ukrainian <https://hosted.weblate.org/projects/nextcloud-"
@@ -221,8 +221,8 @@ msgstr "Неприпустимий формат дати. Використову
 msgid "Failed to add interest rate"
 msgstr "Не вдалося додати процентну ставку"
 
-#: /app/lib/Controller/AccountController.php:931 /app/src/main.js:2885
-#: /app/src/main.js:2983
+#: /app/lib/Controller/AccountController.php:931 /app/src/main.js:2947
+#: /app/src/main.js:3045
 msgid "Interest Rate"
 msgstr "Процентна ставка"
 
@@ -411,7 +411,7 @@ msgstr "Потрібно вказати рахунок"
 #: /app/lib/Controller/PensionController.php:481
 #: /app/lib/Controller/TransactionController.php:324
 #: /app/lib/Controller/TransactionController.php:437
-#: /app/lib/Service/Export/TransactionCsvExporter.php:28 /app/src/main.js:3566
+#: /app/lib/Service/Export/TransactionCsvExporter.php:28 /app/src/main.js:3628
 #: /app/src/modules/income/IncomeModule.js:420
 #: /app/src/modules/rules/RulesModule.js:964
 #: /app/src/modules/rules/RulesModule.js:1166
@@ -591,8 +591,8 @@ msgstr ""
 #: /app/lib/Controller/ApiV1TransactionController.php:1792
 #: /app/lib/Controller/AttachmentController.php:57
 #: /app/lib/Controller/AttachmentController.php:72
-#: /app/lib/Controller/AttachmentController.php:97 /app/src/main.js:3303
-#: /app/src/main.js:3542
+#: /app/lib/Controller/AttachmentController.php:97 /app/src/main.js:3365
+#: /app/src/main.js:3604
 #: /app/src/modules/transactions/TransactionsModule.js:3918
 #: /app/src/modules/transactions/TransactionsModule.js:4030
 #: /app/src/modules/transactions/TransactionsModule.js:4113
@@ -1072,8 +1072,8 @@ msgstr "Не вдалося експортувати календар плате
 #: /app/lib/Service/Report/ReportExporter.php:392
 #: /app/lib/Service/Report/ReportExporter.php:509
 #: /app/lib/Service/Report/ReportExporter.php:586
-#: /app/lib/Service/Report/ReportExporter.php:629 /app/src/main.js:3634
-#: /app/src/main.js:3635 /app/src/modules/bills/BillsModule.js:1006
+#: /app/lib/Service/Report/ReportExporter.php:629 /app/src/main.js:3696
+#: /app/src/main.js:3697 /app/src/modules/bills/BillsModule.js:1006
 #: /app/src/modules/rules/RulesModule.js:966
 #: /app/src/modules/rules/RulesModule.js:1168
 #: /app/src/modules/rules/components/CriteriaBuilder.js:190
@@ -1251,8 +1251,8 @@ msgstr "Не вдалося отримати кількість транзакц
 #: /app/lib/Service/Report/ReportExporter.php:628
 #: /app/lib/Service/Report/ReportExporter.php:653
 #: /app/lib/Service/Report/ReportExporter.php:690
-#: /app/lib/Service/Report/ReportExporter.php:736 /app/src/main.js:3639
-#: /app/src/main.js:3640 /app/src/modules/dashboard/DashboardModule.js:2345
+#: /app/lib/Service/Report/ReportExporter.php:736 /app/src/main.js:3701
+#: /app/src/main.js:3702 /app/src/modules/dashboard/DashboardModule.js:2345
 #: /app/src/modules/reports/ReportsModule.js:1129
 #: /app/src/modules/reports/ReportsModule.js:1577
 #: /app/src/modules/transactions/TransactionsModule.js:3466
@@ -1418,8 +1418,8 @@ msgstr "Не вдалося розрахувати план погашення"
 msgid "Failed to get debt progress"
 msgstr "Не вдалося отримати дані про перебіг погашення боргу"
 
-#: /app/lib/Controller/DebtController.php:166 /app/src/main.js:3105
-#: /app/src/main.js:3110
+#: /app/lib/Controller/DebtController.php:166 /app/src/main.js:3167
+#: /app/src/main.js:3172
 msgid "Failed to compare strategies"
 msgstr "Не вдалося порівняти стратегії"
 
@@ -2529,13 +2529,13 @@ msgstr ""
 "Для скидання до заводських налаштувань потрібен параметр confirmed=true. Це "
 "назавжди видалить УСІ ваші дані."
 
-#: /app/lib/Controller/SetupController.php:158 /app/src/main.js:2149
+#: /app/lib/Controller/SetupController.php:158 /app/src/main.js:2211
 #: /app/src/modules/settings/SettingsModule.js:822
 msgid "Factory reset completed successfully. All data has been deleted."
 msgstr ""
 "Скидання до заводських налаштувань успішно завершено. Усі дані видалено."
 
-#: /app/lib/Controller/SetupController.php:162 /app/src/main.js:2142
+#: /app/lib/Controller/SetupController.php:162 /app/src/main.js:2204
 #: /app/src/modules/settings/SettingsModule.js:815
 msgid "Factory reset failed"
 msgstr "Не вдалося скинути до заводських налаштувань"
@@ -2556,11 +2556,23 @@ msgstr "Не вказано категорії для виправлення"
 msgid "No valid repair categories specified"
 msgstr "Не вказано допустимі категорії для виправлення"
 
-#: /app/lib/Controller/SetupController.php:264 /app/src/main.js:2036
+#: /app/lib/Controller/SetupController.php:264 /app/src/main.js:2098
 msgid "Repair failed"
 msgstr "Не вдалося виконати виправлення"
 
-#: /app/lib/Controller/SetupController.php:379
+#: /app/lib/Controller/SetupController.php:282
+#, fuzzy
+#| msgid "No transactions found"
+msgid "No transactions specified"
+msgstr "Транзакцій не знайдено"
+
+#: /app/lib/Controller/SetupController.php:290 /app/src/main.js:2034
+#, fuzzy
+#| msgid "Failed to save rule"
+msgid "Could not update the ignored duplicates"
+msgstr "Не вдалося зберегти правило"
+
+#: /app/lib/Controller/SetupController.php:405
 msgid "Failed to get system info"
 msgstr "Не вдалося отримати відомості про систему"
 
@@ -2873,7 +2885,7 @@ msgstr "Не вдалося експортувати транзакції"
 #: /app/lib/Controller/TransactionController.php:1253
 #: /app/lib/Controller/TransactionController.php:1304
 #: /app/lib/Controller/TransactionController.php:1327
-#: /app/lib/Controller/TransactionController.php:1390 /app/src/main.js:1921
+#: /app/lib/Controller/TransactionController.php:1390 /app/src/main.js:1933
 #: /app/src/modules/dashboard/DashboardModule.js:1396
 #: /app/templates/index.php:5912
 msgid "Transaction"
@@ -2891,7 +2903,7 @@ msgstr "Не вдалося отримати транзакції без кат�
 msgid "Failed to categorize transactions"
 msgstr "Не вдалося призначити категорії транзакціям"
 
-#: /app/lib/Controller/TransactionController.php:795 /app/src/main.js:3530
+#: /app/lib/Controller/TransactionController.php:795 /app/src/main.js:3592
 #: /app/src/modules/transactions/TransactionsModule.js:4018
 msgid "Failed to unlink transaction"
 msgstr "Не вдалося відв’язати транзакцію"
@@ -3039,7 +3051,7 @@ msgstr "Порівняння за роками"
 
 #: /app/lib/Controller/YearOverYearController.php:238
 #: /app/lib/Service/Report/ReportExporter.php:320
-#: /app/lib/Service/Report/ReportExporter.php:557 /app/src/main.js:2742
+#: /app/lib/Service/Report/ReportExporter.php:557 /app/src/main.js:2804
 #: /app/templates/index.php:3501 /app/templates/index.php:3550
 msgid "Month"
 msgstr "Місяць"
@@ -3157,8 +3169,8 @@ msgstr "Зміна, %%"
 #: /app/lib/Controller/YearOverYearController.php:295
 #: /app/lib/Controller/YearOverYearController.php:403
 #: /app/lib/Service/Report/ReportExporter.php:235
-#: /app/lib/Service/Report/ReportExporter.php:243 /app/src/main.js:2309
-#: /app/src/main.js:2312 /app/src/main.js:3365
+#: /app/lib/Service/Report/ReportExporter.php:243 /app/src/main.js:2371
+#: /app/src/main.js:2374 /app/src/main.js:3427
 #: /app/src/modules/accounts/AccountsModule.js:3493
 #: /app/src/modules/dashboard/DashboardModule.js:2538
 #: /app/src/modules/dashboard/DashboardModule.js:2616
@@ -4081,8 +4093,8 @@ msgstr[2] ""
 "Застосунок «Бюджет» виявив %n можливих регулярних платежів, які ви ще не "
 "відстежуєте."
 
-#: /app/lib/Service/Export/TransactionCsvExporter.php:29 /app/src/main.js:3570
-#: /app/src/main.js:3646 /app/src/main.js:3647
+#: /app/lib/Service/Export/TransactionCsvExporter.php:29 /app/src/main.js:3632
+#: /app/src/main.js:3708 /app/src/main.js:3709
 #: /app/src/modules/rules/RulesModule.js:965
 #: /app/src/modules/rules/RulesModule.js:1167
 #: /app/src/modules/rules/components/ActionBuilder.js:200
@@ -4423,14 +4435,14 @@ msgid "Cannot convert rate: no exchange rate available for base currency %1$s"
 msgstr ""
 "Не можна конвертувати курс: немає обмінного курсу для базової валюти %1$s"
 
-#: /app/lib/Service/MigrationService.php:589
+#: /app/lib/Service/MigrationService.php:594
 msgid ""
 "Your import folders could not be read after the restore, so they were "
 "switched off. When you switch one back on, the files already in it will be "
 "imported."
 msgstr ""
 
-#: /app/lib/Service/MigrationService.php:593
+#: /app/lib/Service/MigrationService.php:598
 msgid ""
 "%n file already in your import folders was left as it is. Only files added "
 "from now on are imported."
@@ -4441,7 +4453,7 @@ msgstr[0] ""
 msgstr[1] ""
 msgstr[2] ""
 
-#: /app/lib/Service/MigrationService.php:747
+#: /app/lib/Service/MigrationService.php:752
 msgid ""
 "%n item you shared could not be matched to the restored data, so it is no "
 "longer shared. Share it again in Settings if you still want to."
@@ -4452,7 +4464,7 @@ msgstr[0] ""
 msgstr[1] ""
 msgstr[2] ""
 
-#: /app/lib/Service/MigrationService.php:754
+#: /app/lib/Service/MigrationService.php:759
 msgid ""
 "%n bill or transfer lost its account in the restore: the account is not in "
 "this backup, or not shared with you any more. Its auto-pay is off; edit it "
@@ -4465,7 +4477,7 @@ msgstr[0] ""
 msgstr[1] ""
 msgstr[2] ""
 
-#: /app/lib/Service/MigrationService.php:761
+#: /app/lib/Service/MigrationService.php:766
 msgid ""
 "%n item of someone you share with used an account, category or bill that did "
 "not come back in this restore, and has been unlinked from it."
@@ -4476,7 +4488,7 @@ msgstr[0] ""
 msgstr[1] ""
 msgstr[2] ""
 
-#: /app/lib/Service/MigrationService.php:768
+#: /app/lib/Service/MigrationService.php:773
 msgid ""
 "%n contact was linked to a Nextcloud user you can't share with on this "
 "server, so the link was removed."
@@ -4487,7 +4499,7 @@ msgstr[0] ""
 msgstr[1] ""
 msgstr[2] ""
 
-#: /app/lib/Service/MigrationService.php:776
+#: /app/lib/Service/MigrationService.php:781
 msgid ""
 "%n bank account link could not be matched to an account in this backup, so "
 "Bank Sync no longer imports into it. Choose the account again in Bank Sync."
@@ -4499,7 +4511,7 @@ msgstr[0] ""
 msgstr[1] ""
 msgstr[2] ""
 
-#: /app/lib/Service/MigrationService.php:798
+#: /app/lib/Service/MigrationService.php:803
 #, php-format
 msgid ""
 "This backup was made by a newer version of Budget (backup format %1$s, this "
@@ -4507,20 +4519,20 @@ msgid ""
 "Budget first if you can."
 msgstr ""
 
-#: /app/lib/Service/MigrationService.php:1034
+#: /app/lib/Service/MigrationService.php:1039
 #, php-format
 msgid ""
 "This backup cannot be imported: %1$s is larger than %2$s MB when unpacked"
 msgstr ""
 
-#: /app/lib/Service/MigrationService.php:1035
+#: /app/lib/Service/MigrationService.php:1040
 #, php-format
 msgid ""
 "This backup cannot be imported: its files add up to more than %1$s MB when "
 "unpacked"
 msgstr ""
 
-#: /app/lib/Service/MigrationService.php:1124
+#: /app/lib/Service/MigrationService.php:1129
 #, php-format
 msgid "This backup cannot be imported: %1$s is not in the expected format"
 msgstr ""
@@ -4852,8 +4864,8 @@ msgstr "Бюджет перевищено"
 
 #: /app/lib/Service/Report/ReportExporter.php:238
 #: /app/lib/Service/Report/ReportExporter.php:763
-#: /app/src/config/dashboardWidgets.js:26 /app/src/main.js:1923
-#: /app/src/main.js:3641 /app/src/modules/accounts/AccountsModule.js:1929
+#: /app/src/config/dashboardWidgets.js:26 /app/src/main.js:1935
+#: /app/src/main.js:3703 /app/src/modules/accounts/AccountsModule.js:1929
 #: /app/src/modules/categories/CategoriesModule.js:933
 #: /app/src/modules/dashboard/DashboardModule.js:1319
 #: /app/src/modules/import/ImportModule.js:200
@@ -5886,8 +5898,8 @@ msgstr ""
 msgid "Keyboard shortcuts"
 msgstr "Сполучення клавіш"
 
-#: /app/src/core/KeyboardShortcuts.js:417 /app/src/main.js:1966
-#: /app/src/main.js:1973 /app/src/main.js:1977
+#: /app/src/core/KeyboardShortcuts.js:417 /app/src/main.js:1978
+#: /app/src/main.js:1985 /app/src/main.js:1989
 #: /app/src/modules/bills/BillsModule.js:1250
 #: /app/src/modules/import/ImportModule.js:2524
 #: /app/src/modules/import/ImportModule.js:2537
@@ -5950,7 +5962,7 @@ msgstr ""
 msgid "Unlink from bill"
 msgstr "(з платежу)"
 
-#: /app/src/main.js:535 /app/src/main.js:2928
+#: /app/src/main.js:535 /app/src/main.js:2990
 #: /app/src/modules/accounts/AccountsModule.js:618
 #: /app/src/modules/accounts/AccountsModule.js:1396
 #: /app/src/modules/assets/AssetsModule.js:171
@@ -6109,41 +6121,33 @@ msgstr "Сканування..."
 msgid "Failed to scan for issues: {error}"
 msgstr "Не вдалося перевірити дані на наявність проблем: {error}"
 
-#: /app/src/main.js:1776
+#: /app/src/main.js:1786
 msgid "No data integrity issues found. Everything looks good!"
 msgstr "Проблем із цілісністю даних не знайдено. Усе гаразд!"
 
-#: /app/src/main.js:1778
+#: /app/src/main.js:1789
 msgid "Found {count} issue(s) across {categories} categories."
 msgstr "Знайдено проблем: {count}; охоплено категорій: {categories}."
 
-#: /app/src/main.js:1789
+#: /app/src/main.js:1804
 msgid "Duplicate Auto-Generated Transactions"
 msgstr "Дублікати автоматично створених транзакцій"
 
-#: /app/src/main.js:1793
-msgid ""
-"Only ticked rows are deleted. Rows that come ticked are bill payments the "
-"app recorded that an imported bank transaction records as well. The others "
-"only look like duplicates and may be real payments: check them in the "
-"account first, and tick only the ones you are sure about."
-msgstr ""
-
-#: /app/src/main.js:1805
+#: /app/src/main.js:1817
 msgid "Due: {date}"
 msgstr "Строк сплати: {date}"
 
-#: /app/src/main.js:1806 /app/src/main.js:1830
+#: /app/src/main.js:1818 /app/src/main.js:1842
 msgid "Paid: {date}"
 msgstr "Сплачено: {date}"
 
-#: /app/src/main.js:1807 /app/src/main.js:1869
+#: /app/src/main.js:1819 /app/src/main.js:1881
 #, fuzzy
 #| msgid "Don't change"
 msgid "Check: not changed"
 msgstr "Не змінювати"
 
-#: /app/src/main.js:1811
+#: /app/src/main.js:1823
 msgid ""
 "Repairing moves these bills on to their next due date, with their pending "
 "transaction. Bills marked Check are left as they are: their due date is "
@@ -6152,59 +6156,59 @@ msgid ""
 "page."
 msgstr ""
 
-#: /app/src/main.js:1817
+#: /app/src/main.js:1829
 msgid "Bills with Stuck Due Dates"
 msgstr "Платежі з датами сплати, що не оновлюються"
 
-#: /app/src/main.js:1837
+#: /app/src/main.js:1849
 msgid "Paid One-Time Bills Still Active"
 msgstr "Сплачені одноразові платежі, які досі активні"
 
-#: /app/src/main.js:1852
+#: /app/src/main.js:1864
 msgid "Income Received Early but Still Expected"
 msgstr ""
 
-#: /app/src/main.js:1856
+#: /app/src/main.js:1868
 msgid ""
 "An older version recorded these payments on their expected date but left the "
 "income waiting for them, so Mark Received would record them a second time. "
 "Repairing moves each one on to its next date. Nothing is added or deleted."
 msgstr ""
 
-#: /app/src/main.js:1866 /app/src/utils/repairFindings.js:50
-#: /app/src/utils/repairFindings.js:94 /app/src/utils/repairFindings.js:99
-#: /app/src/utils/repairFindings.js:129
+#: /app/src/main.js:1878 /app/src/utils/repairFindings.js:67
+#: /app/src/utils/repairFindings.js:153 /app/src/utils/repairFindings.js:158
+#: /app/src/utils/repairFindings.js:188
 msgid "(unnamed)"
 msgstr "(без назви)"
 
-#: /app/src/main.js:1875
+#: /app/src/main.js:1887
 msgid ""
 "Repairing marks these as scheduled, so they count in the balance from their "
 "date. Bill payments and reconciled transactions marked Check are left as "
 "they are: check their dates on the Transactions page."
 msgstr ""
 
-#: /app/src/main.js:1881
+#: /app/src/main.js:1893
 msgid "Future Transactions Not Marked as Scheduled"
 msgstr "Майбутні транзакції, не позначені як заплановані"
 
-#: /app/src/main.js:1884 /app/src/main.js:1935
+#: /app/src/main.js:1896 /app/src/main.js:1947
 msgid "and {more} more"
 msgstr "і ще {more}"
 
-#: /app/src/main.js:1898
+#: /app/src/main.js:1910
 msgid "Now: {amount} in credit"
 msgstr "Зараз: позитивний баланс {amount}"
 
-#: /app/src/main.js:1899
+#: /app/src/main.js:1911
 msgid "After repair: {amount} owed"
 msgstr "Після виправлення: борг {amount}"
 
-#: /app/src/main.js:1906
+#: /app/src/main.js:1918
 msgid "Debts Recorded as Being in Credit"
 msgstr "Борги, записані як позитивний баланс"
 
-#: /app/src/main.js:1910
+#: /app/src/main.js:1922
 msgid ""
 "These debts hold a positive balance, so the app is counting them as money "
 "you have rather than money you owe. Untick any you really have overpaid — "
@@ -6215,15 +6219,15 @@ msgstr ""
 "— їх буде записано як реальний позитивний баланс і виключено з майбутніх "
 "перевірок."
 
-#: /app/src/main.js:1923
+#: /app/src/main.js:1935
 msgid "Listed under {category}"
 msgstr "Зазначено в категорії «{category}»"
 
-#: /app/src/main.js:1930
+#: /app/src/main.js:1942
 msgid "Split Transactions Carrying a Category"
 msgstr "Розподілені транзакції з власною категорією"
 
-#: /app/src/main.js:1934
+#: /app/src/main.js:1946
 msgid ""
 "A split transaction keeps its categories on its individual parts, so it "
 "should not carry one of its own. These picked one up from an older version "
@@ -6237,193 +6241,193 @@ msgstr ""
 "вона відтоді залишалася на них. Виправлення видалить лише цю зайву категорію "
 "— сам розподіл і всі його частини залишаться без змін."
 
-#: /app/src/main.js:1945
+#: /app/src/main.js:1957
 msgid "Stored: {amount}"
 msgstr "Збережено: {amount}"
 
-#: /app/src/main.js:1946
+#: /app/src/main.js:1958
 msgid "Expected: {amount}"
 msgstr "Очікується: {amount}"
 
-#: /app/src/main.js:1947
+#: /app/src/main.js:1959
 msgid "Diff: {amount}"
 msgstr "Різниця: {amount}"
 
-#: /app/src/main.js:1954
+#: /app/src/main.js:1966
 msgid "Account Balance Inconsistencies"
 msgstr "Невідповідності балансів рахунків"
 
-#: /app/src/main.js:1965
+#: /app/src/main.js:1977
 msgid "Data Integrity Report"
 msgstr "Звіт про цілісність даних"
 
-#: /app/src/main.js:1974 /app/src/main.js:2050
+#: /app/src/main.js:1986 /app/src/main.js:2112
 msgid "Fix Selected Issues"
 msgstr "Виправити вибрані проблеми"
 
-#: /app/src/main.js:2011
+#: /app/src/main.js:2073
 msgid "No categories selected"
 msgstr "Категорії не вибрано"
 
-#: /app/src/main.js:2030
+#: /app/src/main.js:2092
 msgid "Repairing..."
 msgstr "Виправлення..."
 
-#: /app/src/main.js:2048
+#: /app/src/main.js:2110
 msgid "Repair failed: {error}"
 msgstr "Не вдалося виконати виправлення: {error}"
 
-#: /app/src/main.js:2134 /app/src/modules/settings/SettingsModule.js:809
+#: /app/src/main.js:2196 /app/src/modules/settings/SettingsModule.js:809
 #: /app/src/modules/transactions/TransactionsModule.js:5835
 msgid "Deleting..."
 msgstr "Видалення..."
 
-#: /app/src/main.js:2163 /app/src/modules/settings/SettingsModule.js:836
+#: /app/src/main.js:2225 /app/src/modules/settings/SettingsModule.js:836
 #: /app/templates/index.php:7544
 msgid "Delete Everything"
 msgstr "Видалити все"
 
-#: /app/src/main.js:2166 /app/src/modules/settings/SettingsModule.js:839
+#: /app/src/main.js:2228 /app/src/modules/settings/SettingsModule.js:839
 msgid "Failed to perform factory reset"
 msgstr "Не вдалося скинути до заводських налаштувань"
 
-#: /app/src/main.js:2239
+#: /app/src/main.js:2301
 msgid "Exporting..."
 msgstr "Експорт..."
 
-#: /app/src/main.js:2243
+#: /app/src/main.js:2305
 msgid "Export failed"
 msgstr "Не вдалося виконати експорт"
 
-#: /app/src/main.js:2267
+#: /app/src/main.js:2329
 msgid "Export completed successfully"
 msgstr "Експорт успішно завершено"
 
-#: /app/src/main.js:2270
+#: /app/src/main.js:2332
 msgid "Failed to export data: {error}"
 msgstr "Не вдалося експортувати дані: {error}"
 
-#: /app/src/main.js:2279
+#: /app/src/main.js:2341
 msgid "Please select a ZIP file"
 msgstr "Виберіть ZIP-файл"
 
-#: /app/src/main.js:2292
+#: /app/src/main.js:2354
 msgid "Validating file..."
 msgstr "Перевірка файлу..."
 
-#: /app/src/main.js:2301 /app/src/main.js:2305
+#: /app/src/main.js:2363 /app/src/main.js:2367
 msgid "Invalid export file"
 msgstr "Неприпустимий файл експорту"
 
-#: /app/src/main.js:2336
+#: /app/src/main.js:2398
 msgid "Failed to preview file: {error}"
 msgstr "Не вдалося переглянути файл: {error}"
 
-#: /app/src/main.js:2348
+#: /app/src/main.js:2410
 msgid "No file selected"
 msgstr "Файл не вибрано"
 
-#: /app/src/main.js:2353
+#: /app/src/main.js:2415
 msgid ""
 "This will PERMANENTLY DELETE all your existing data and replace it with the "
 "imported data."
 msgstr "Це НАЗАВЖДИ ВИДАЛИТЬ усі наявні дані й замінить їх імпортованими."
 
-#: /app/src/main.js:2353
+#: /app/src/main.js:2415
 msgid "Are you absolutely sure you want to continue?"
 msgstr "Ви цілком упевнені, що хочете продовжити?"
 
-#: /app/src/main.js:2363
+#: /app/src/main.js:2425
 msgid "Importing data... This may take a moment."
 msgstr "Імпорт даних... Це може тривати деякий час."
 
-#: /app/src/main.js:2373 /app/src/main.js:2379
+#: /app/src/main.js:2435 /app/src/main.js:2441
 #: /app/src/modules/import/ImportModule.js:2622
 msgid "Import failed"
 msgstr "Не вдалося виконати імпорт"
 
-#: /app/src/main.js:2387
+#: /app/src/main.js:2449
 msgid "Import Successful!"
 msgstr "Імпорт успішно завершено!"
 
-#: /app/src/main.js:2388
+#: /app/src/main.js:2450
 msgid "Your data has been imported successfully."
 msgstr "Ваші дані успішно імпортовано."
 
-#: /app/src/main.js:2390
+#: /app/src/main.js:2452
 msgid "categories"
 msgstr "категорії"
 
-#: /app/src/main.js:2391
+#: /app/src/main.js:2453
 msgid "accounts"
 msgstr "рахунки"
 
-#: /app/src/main.js:2392
+#: /app/src/main.js:2454
 msgid "transactions"
 msgstr "транзакції"
 
-#: /app/src/main.js:2393
+#: /app/src/main.js:2455
 msgid "bills"
 msgstr "платежі"
 
-#: /app/src/main.js:2394
+#: /app/src/main.js:2456
 msgid "import rules"
 msgstr "правила імпорту"
 
-#: /app/src/main.js:2395
+#: /app/src/main.js:2457
 msgid "settings"
 msgstr "налаштування"
 
-#: /app/src/main.js:2407
+#: /app/src/main.js:2469
 msgid "Import completed successfully"
 msgstr "Імпорт успішно завершено"
 
-#: /app/src/main.js:2415
+#: /app/src/main.js:2477
 msgid "Import Failed"
 msgstr "Не вдалося виконати імпорт"
 
-#: /app/src/main.js:2417
+#: /app/src/main.js:2479
 msgid "Your existing data has not been modified."
 msgstr "Ваші наявні дані не змінено."
 
-#: /app/src/main.js:2660
+#: /app/src/main.js:2722
 msgid "Failed to calculate scenario"
 msgstr "Не вдалося розрахувати сценарій"
 
-#: /app/src/main.js:2705 /app/src/modules/dashboard/DashboardModule.js:1016
+#: /app/src/main.js:2767 /app/src/modules/dashboard/DashboardModule.js:1016
 #: /app/src/modules/reports/ReportsModule.js:1585
 msgid "N/A"
 msgstr "Не застосовується"
 
-#: /app/src/main.js:2886 /app/templates/index.php:1276
+#: /app/src/main.js:2948 /app/templates/index.php:1276
 msgid "Min Payment"
 msgstr "Мін. платіж"
 
-#: /app/src/main.js:2887
+#: /app/src/main.js:2949
 msgid "Payoff"
 msgstr "Погашення"
 
-#: /app/src/main.js:2887
+#: /app/src/main.js:2949
 msgid "month {month}"
 msgstr "місяць {month}"
 
-#: /app/src/main.js:2888 /app/templates/index.php:4156
+#: /app/src/main.js:2950 /app/templates/index.php:4156
 msgid "Total Interest"
 msgstr "Загальна сума відсотків"
 
-#: /app/src/main.js:2911
+#: /app/src/main.js:2973
 msgid "No scenarios yet. Create one to compare strategies."
 msgstr "Сценаріїв ще немає. Створіть сценарій, щоб порівняти стратегії."
 
-#: /app/src/main.js:2916 /app/src/main.js:3147
+#: /app/src/main.js:2978 /app/src/main.js:3209
 msgid "Snowball"
 msgstr "Снігова куля"
 
-#: /app/src/main.js:2916 /app/src/main.js:3136
+#: /app/src/main.js:2978 /app/src/main.js:3198
 msgid "Avalanche"
 msgstr "Лавина"
 
-#: /app/src/main.js:2927 /app/src/modules/accounts/AccountsModule.js:615
+#: /app/src/main.js:2989 /app/src/modules/accounts/AccountsModule.js:615
 #: /app/src/modules/assets/AssetsModule.js:168
 #: /app/src/modules/pensions/PensionsModule.js:144
 #: /app/src/modules/savings/SavingsModule.js:144
@@ -6434,206 +6438,206 @@ msgstr "Лавина"
 msgid "Edit"
 msgstr "Редагувати"
 
-#: /app/src/main.js:2929
+#: /app/src/main.js:2991
 msgid "Set as active"
 msgstr "Зробити активним"
 
-#: /app/src/main.js:2943
+#: /app/src/main.js:3005
 msgid "Edit Scenario"
 msgstr "Редагувати сценарій"
 
-#: /app/src/main.js:2943 /app/templates/index.php:4135
+#: /app/src/main.js:3005 /app/templates/index.php:4135
 #: /app/templates/index.php:4137 /app/templates/index.php:5798
 msgid "New Scenario"
 msgstr "Новий сценарій"
 
-#: /app/src/main.js:2997
+#: /app/src/main.js:3059
 msgid "Please enter a scenario name"
 msgstr "Введіть назву сценарію"
 
-#: /app/src/main.js:3051
+#: /app/src/main.js:3113
 msgid "Failed to save scenario"
 msgstr "Не вдалося зберегти сценарій"
 
-#: /app/src/main.js:3056
+#: /app/src/main.js:3118
 msgid "Are you sure you want to delete this scenario?"
 msgstr "Справді видалити цей сценарій?"
 
-#: /app/src/main.js:3075
+#: /app/src/main.js:3137
 msgid "Failed to delete scenario"
 msgstr "Не вдалося видалити сценарій"
 
-#: /app/src/main.js:3091
+#: /app/src/main.js:3153
 msgid "Failed to activate scenario"
 msgstr "Не вдалося активувати сценарій"
 
-#: /app/src/main.js:3138 /app/src/main.js:3149
+#: /app/src/main.js:3200 /app/src/main.js:3211
 msgid "Months to payoff"
 msgstr "Місяців до погашення"
 
-#: /app/src/main.js:3142 /app/src/main.js:3153
+#: /app/src/main.js:3204 /app/src/main.js:3215
 msgid "Total interest"
 msgstr "Загальна сума відсотків"
 
-#: /app/src/main.js:3171
+#: /app/src/main.js:3233
 msgid "Avalanche Recommended"
 msgstr "Рекомендовано лавину"
 
-#: /app/src/main.js:3172
+#: /app/src/main.js:3234
 msgid "Snowball Recommended"
 msgstr "Рекомендовано снігову кулю"
 
-#: /app/src/main.js:3172
+#: /app/src/main.js:3234
 msgid "Either Works"
 msgstr "Підходять обидві стратегії"
 
-#: /app/src/main.js:3175
+#: /app/src/main.js:3237
 msgid "Avalanche saves {amount} in interest"
 msgstr "Лавина заощаджує {amount} на відсотках"
 
-#: /app/src/main.js:3176
+#: /app/src/main.js:3238
 msgid "Snowball saves {amount} in interest"
 msgstr "Снігова куля заощаджує {amount} на відсотках"
 
-#: /app/src/main.js:3212
+#: /app/src/main.js:3274
 msgid "Hide"
 msgstr "Приховати"
 
-#: /app/src/main.js:3212
+#: /app/src/main.js:3274
 msgid "Show"
 msgstr "Показати"
 
-#: /app/src/main.js:3322
+#: /app/src/main.js:3384
 #: /app/src/modules/transactions/TransactionsModule.js:3937
 #: /app/src/modules/transactions/transactionRow.js:378
 msgid "Unknown Account"
 msgstr "Невідомий рахунок"
 
-#: /app/src/main.js:3367
+#: /app/src/main.js:3429
 #: /app/src/modules/transactions/TransactionsModule.js:3982
 msgid "Link as Transfer"
 msgstr "Пов’язати як переказ"
 
-#: /app/src/main.js:3376
+#: /app/src/main.js:3438
 #: /app/src/modules/transactions/TransactionsModule.js:3991
 msgid "Failed to search for matches. Please try again."
 msgstr "Не вдалося знайти відповідності. Спробуйте ще раз."
 
-#: /app/src/main.js:3386
+#: /app/src/main.js:3448
 #: /app/src/modules/transactions/TransactionsModule.js:3998
 msgid "Transactions linked as transfer"
 msgstr "Транзакції пов’язано як переказ"
 
-#: /app/src/main.js:3392
+#: /app/src/main.js:3454
 #: /app/src/modules/transactions/TransactionsModule.js:4004
 #: /app/src/modules/transactions/TransactionsModule.js:4763
 #: /app/src/modules/transactions/TransactionsModule.js:4835
 msgid "Failed to link transactions"
 msgstr "Не вдалося пов’язати транзакції"
 
-#: /app/src/main.js:3416
+#: /app/src/main.js:3478
 msgid "Select an account for the other side of the transfer"
 msgstr "Виберіть рахунок для іншої сторони переказу"
 
-#: /app/src/main.js:3421
+#: /app/src/main.js:3483
 msgid "Transfer created and linked"
 msgstr "Переказ створено й пов’язано"
 
-#: /app/src/main.js:3427
+#: /app/src/main.js:3489
 #: /app/src/modules/transactions/TransactionsModule.js:3185
 msgid "Failed to create transfer"
 msgstr "Не вдалося створити переказ"
 
-#: /app/src/main.js:3446
+#: /app/src/main.js:3508
 msgid "Could not navigate to linked transaction"
 msgstr "Не вдалося перейти до пов’язаної транзакції"
 
-#: /app/src/main.js:3521
+#: /app/src/main.js:3583
 #: /app/src/modules/transactions/TransactionsModule.js:4009
 msgid ""
 "Are you sure you want to unlink this transaction from its transfer pair?"
 msgstr "Справді відв’язати цю транзакцію від парного переказу?"
 
-#: /app/src/main.js:3527
+#: /app/src/main.js:3589
 #: /app/src/modules/transactions/TransactionsModule.js:4015
 msgid "Transaction unlinked"
 msgstr "Транзакцію відв’язано"
 
-#: /app/src/main.js:3558
+#: /app/src/main.js:3620
 #: /app/src/modules/transactions/TransactionsModule.js:4129
 msgid "Edit Transaction Splits"
 msgstr "Редагувати розподіл транзакції"
 
-#: /app/src/main.js:3558
+#: /app/src/main.js:3620
 #: /app/src/modules/transactions/TransactionsModule.js:4129
 #: /app/templates/index.php:7214
 msgid "Split Transaction"
 msgstr "Розподілити транзакцію"
 
-#: /app/src/main.js:3574
+#: /app/src/main.js:3636
 msgid "Total Amount"
 msgstr "Загальна сума"
 
-#: /app/src/main.js:3648
+#: /app/src/main.js:3710
 #: /app/src/modules/transactions/TransactionsModule.js:3474
 #: /app/src/modules/transactions/TransactionsModule.js:4216
 #: /app/templates/index.php:5659
 msgid "Optional note"
 msgstr "Необов’язкова примітка"
 
-#: /app/src/main.js:3652 /app/src/modules/bills/BillsModule.js:1038
+#: /app/src/main.js:3714 /app/src/modules/bills/BillsModule.js:1038
 #: /app/src/modules/transactions/TransactionsModule.js:4220
 msgid "Remove split"
 msgstr "Видалити частину"
 
-#: /app/src/main.js:3763
+#: /app/src/main.js:3825
 #: /app/src/modules/transactions/TransactionsModule.js:4288
 msgid "A split transaction must have at least 2 parts"
 msgstr "Розподілена транзакція має складатися щонайменше з 2 частин"
 
-#: /app/src/main.js:3769
+#: /app/src/main.js:3831
 #: /app/src/modules/transactions/TransactionsModule.js:4294
 msgid ""
 "Split amounts ({splitTotal}) must equal transaction amount ({totalAmount})"
 msgstr ""
 "Сума частин ({splitTotal}) має дорівнювати сумі транзакції ({totalAmount})"
 
-#: /app/src/main.js:3780
+#: /app/src/main.js:3842
 #: /app/src/modules/transactions/TransactionsModule.js:4305
 msgid "Transaction split successfully"
 msgstr "Транзакцію успішно розподілено"
 
-#: /app/src/main.js:3784
+#: /app/src/main.js:3846
 #: /app/src/modules/transactions/TransactionsModule.js:4309
 msgid "Failed to save splits"
 msgstr "Не вдалося зберегти розподіл"
 
-#: /app/src/main.js:3795
+#: /app/src/main.js:3857
 #: /app/src/modules/transactions/TransactionsModule.js:4317
 msgid ""
 "Are you sure you want to remove the split and revert to a single transaction?"
 msgstr "Справді видалити розподіл і відновити єдину транзакцію?"
 
-#: /app/src/main.js:3803
+#: /app/src/main.js:3865
 #: /app/src/modules/transactions/TransactionsModule.js:4325
 msgid "Transaction unsplit successfully"
 msgstr "Розподіл транзакції успішно скасовано"
 
-#: /app/src/main.js:3807
+#: /app/src/main.js:3869
 #: /app/src/modules/transactions/TransactionsModule.js:3233
 #: /app/src/modules/transactions/TransactionsModule.js:4329
 msgid "Failed to unsplit transaction"
 msgstr "Не вдалося скасувати розподіл транзакції"
 
-#: /app/src/main.js:3920
+#: /app/src/main.js:3982
 msgid "At least one column must remain visible"
 msgstr "Принаймні один стовпець має залишатися видимим"
 
-#: /app/src/main.js:3940
+#: /app/src/main.js:4002
 msgid "Failed to save column visibility"
 msgstr "Не вдалося зберегти налаштування видимості стовпців"
 
-#: /app/src/main.js:3947
+#: /app/src/main.js:4009
 msgid "Failed to save column preferences"
 msgstr "Не вдалося зберегти налаштування стовпців"
 
@@ -15107,7 +15111,7 @@ msgstr "Іпотека"
 msgid "Week of {date}"
 msgstr "Строк сплати: {date}"
 
-#: /app/src/utils/incomeStatus.js:47 /app/src/utils/repairFindings.js:131
+#: /app/src/utils/incomeStatus.js:47 /app/src/utils/repairFindings.js:190
 #, fuzzy
 #| msgid "Received"
 msgid "Received {date}"
@@ -15253,80 +15257,112 @@ msgstr "Записати платіж"
 msgid "Use that payment"
 msgstr "Скасувати останню сплату"
 
-#: /app/src/utils/repairFindings.js:83
+#: /app/src/utils/repairFindings.js:55
+msgid "Ignore"
+msgstr ""
+
+#: /app/src/utils/repairFindings.js:84
+msgid "Stop ignoring"
+msgstr ""
+
+#: /app/src/utils/repairFindings.js:106
+msgid ""
+"Only ticked rows are deleted. Rows that come ticked are bill payments the "
+"app recorded that an imported bank transaction records as well. The others "
+"only look like duplicates and may be real payments: check them in the "
+"account first, and tick only the ones you are sure about."
+msgstr ""
+
+#: /app/src/utils/repairFindings.js:106
+msgid ""
+"Ignore a row you have checked and want to keep, and it is no longer listed."
+msgstr ""
+
+#: /app/src/utils/repairFindings.js:107
+msgid "Nothing left to check."
+msgstr ""
+
+#: /app/src/utils/repairFindings.js:110
+msgid "%n ignored row"
+msgid_plural "%n ignored rows"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#: /app/src/utils/repairFindings.js:142
 msgid ""
 "Looks like a second payment for {occurrence} (other payment of {amount} on "
 "{date})"
 msgstr ""
 
-#: /app/src/utils/repairFindings.js:88
+#: /app/src/utils/repairFindings.js:147
 msgid "Looks like a second payment for {occurrence} (other payment on {date})"
 msgstr ""
 
-#: /app/src/utils/repairFindings.js:93
+#: /app/src/utils/repairFindings.js:152
 msgid "Looks like a second payment of {bill} (other payment on {date})"
 msgstr ""
 
-#: /app/src/utils/repairFindings.js:98
+#: /app/src/utils/repairFindings.js:157
 msgid "Also recorded as {description} on {date}"
 msgstr ""
 
-#: /app/src/utils/repairFindings.js:104
+#: /app/src/utils/repairFindings.js:163
 #, fuzzy
 #| msgid "Unreconciled"
 msgid "reconciled"
 msgstr "Не звірено"
 
-#: /app/src/utils/repairFindings.js:107
+#: /app/src/utils/repairFindings.js:166
 msgid "The other side of the transfer is removed with it."
 msgstr ""
 
-#: /app/src/utils/repairFindings.js:132
+#: /app/src/utils/repairFindings.js:191
 #, fuzzy
 #| msgid "Due {date}"
 msgid "Moves on to {date}"
 msgstr "Строк сплати: {date}"
 
-#: /app/src/utils/repairFindings.js:148
+#: /app/src/utils/repairFindings.js:207
 msgid "{count} duplicate transactions removed"
 msgstr "Видалено дублікатів транзакцій: {count}"
 
-#: /app/src/utils/repairFindings.js:151
+#: /app/src/utils/repairFindings.js:210
 msgid "{count} bill due dates fixed"
 msgstr "Виправлено дат сплати платежів: {count}"
 
-#: /app/src/utils/repairFindings.js:154
+#: /app/src/utils/repairFindings.js:213
 msgid "{count} one-time bills deactivated"
 msgstr "Деактивовано одноразових платежів: {count}"
 
-#: /app/src/utils/repairFindings.js:157
+#: /app/src/utils/repairFindings.js:216
 msgid "%n income moved on to its next date"
 msgid_plural "%n incomes moved on to their next date"
 msgstr[0] ""
 msgstr[1] ""
 msgstr[2] ""
 
-#: /app/src/utils/repairFindings.js:160
+#: /app/src/utils/repairFindings.js:219
 msgid "{count} future transactions set to scheduled"
 msgstr "Майбутніх транзакцій позначено як заплановані: {count}"
 
-#: /app/src/utils/repairFindings.js:163
+#: /app/src/utils/repairFindings.js:222
 msgid "{count} split transactions had a stray category removed"
 msgstr "Зайву категорію видалено з розподілених транзакцій: {count}"
 
-#: /app/src/utils/repairFindings.js:166
+#: /app/src/utils/repairFindings.js:225
 msgid "{count} debts re-recorded as owed"
 msgstr "Боргів повторно записано як заборгованість: {count}"
 
-#: /app/src/utils/repairFindings.js:168
+#: /app/src/utils/repairFindings.js:227
 msgid "{count} confirmed as genuine credits"
 msgstr "Підтверджено реальних позитивних балансів: {count}"
 
-#: /app/src/utils/repairFindings.js:172
+#: /app/src/utils/repairFindings.js:231
 msgid "{count} account balances corrected"
 msgstr "Виправлено балансів рахунків: {count}"
 
-#: /app/src/utils/repairFindings.js:175
+#: /app/src/utils/repairFindings.js:234
 msgid "Repair complete: {details}"
 msgstr "Виправлення завершено: {details}"
 
