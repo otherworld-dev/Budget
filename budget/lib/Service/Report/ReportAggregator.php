@@ -1040,25 +1040,16 @@ class ReportAggregator {
 	}
 
 	/**
-	 * The months of a trend series. Calendar months step from the start date
-	 * as they always have; with a month start day they are the budget
-	 * months the range touches.
+	 * The months of a trend series: every month the range touches, calendar
+	 * months or with a month start day budget months. Stepping a month at a
+	 * time from the start date lost the last month of a range starting
+	 * later in the month than it ends (26 Jul - 25 Oct had no October), and
+	 * skipped February from the 31st of January.
 	 *
 	 * @return string[] 'YYYY-MM' keys
 	 */
 	private function trendMonths(string $startDate, string $endDate, int $monthStartDay): array {
-		if ($monthStartDay > 1) {
-			return BudgetPeriod::monthsBetween($startDate, $endDate, $monthStartDay);
-		}
-		$months = [];
-		$current = new \DateTime($startDate);
-		$end = new \DateTime($endDate);
-		$interval = new \DateInterval('P1M');
-		while ($current <= $end) {
-			$months[] = $current->format('Y-m');
-			$current->add($interval);
-		}
-		return $months;
+		return BudgetPeriod::monthsBetween($startDate, $endDate, $monthStartDay);
 	}
 
 	/**

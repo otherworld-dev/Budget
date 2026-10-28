@@ -561,6 +561,22 @@ class ReportAggregatorTest extends TestCase {
 		$this->assertCount(3, $result['trends']['income']);
 	}
 
+	public function testTrendDataCoversEveryCalendarMonthTheRangeTouches(): void {
+		$account = $this->makeAccount(1, 'Current', 'checking', 1000.00, 'GBP');
+		$this->accountMapper->method('find')->willReturn($account);
+		$this->transactionMapper->method('getAccountSummaries')->willReturn([]);
+		$this->setupDefaultMocks();
+		$this->conversionService->method('getBaseCurrency')->willReturn('GBP');
+
+		// Stepping a month from the 26th went past 25 October and lost it
+		$late = $this->aggregator->generateSummary('user1', 1, '2026-07-26', '2026-10-25');
+		// From 31 January a month on is 3 March, so February went missing
+		$endOfMonth = $this->aggregator->generateSummary('user1', 1, '2026-01-31', '2026-03-15');
+
+		$this->assertSame(['2026-07', '2026-08', '2026-09', '2026-10'], $late['trends']['months']);
+		$this->assertSame(['2026-01', '2026-02', '2026-03'], $endOfMonth['trends']['months']);
+	}
+
 	public function testTrendDataNamesBudgetMonthsWithAMonthStartDay(): void {
 		$account = $this->makeAccount(1, 'Current', 'checking', 1000.00, 'GBP');
 		$this->accountMapper->method('find')->willReturn($account);
