@@ -577,29 +577,10 @@ class RuleActionApplicator {
 		}
 
 		try {
-			// Get existing tags
-			$existingTags = $this->transactionTagService->getTransactionTags($transaction->getId(), $userId);
-			$existingTagIds = array_column($existingTags, 'tagId');
-
-			$finalTagIds = $existingTagIds;
-
-			// Apply each tag action
-			foreach ($appliedActions['_deferred_tags'] as $tagAction) {
-				$newTagIds = $tagAction['tagIds'] ?? [];
-				$behavior = $tagAction['behavior'] ?? 'merge';
-
-				if ($behavior === 'merge') {
-					// Merge with existing tags (union)
-					$finalTagIds = array_unique(array_merge($finalTagIds, $newTagIds));
-				} else {
-					// Replace all tags
-					$finalTagIds = $newTagIds;
-				}
+			$tagChange = $this->transactionTagService->applyRuleTags($transaction->getId(), $userId, $appliedActions['_deferred_tags']);
+			if ($tagChange !== null) {
+				$changes['tags'] = $tagChange;
 			}
-
-			// Set final tags
-			$this->transactionTagService->setTransactionTags($transaction->getId(), $userId, $finalTagIds);
-			$changes['tags'] = ['old' => $existingTagIds, 'new' => $finalTagIds];
 		} catch (\Exception $e) {
 			$this->logger->error('Failed to apply tag actions', [
 				'transactionId' => $transaction->getId(),

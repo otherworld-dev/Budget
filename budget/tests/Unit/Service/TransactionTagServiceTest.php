@@ -427,6 +427,108 @@ class TransactionTagServiceTest extends TestCase {
 	}
 
 	/**
+	 * Stub the writes replaceTransactionTags() makes, and collect the tag
+	 * ids it inserts.
+	 *
+	 * @param int[] $inserted
+	 */
+	private function captureTagWrites(array &$inserted): void {
+		$qb = $this->createMock(IQueryBuilder::class);
+		$qb->method('expr')->willReturn($this->createMock(IExpressionBuilder::class));
+		$qb->method('createNamedParameter')->willReturn(':param');
+		foreach (['update', 'set', 'where'] as $m) {
+			$qb->method($m)->willReturnSelf();
+		}
+		$this->db->method('getQueryBuilder')->willReturn($qb);
+		$this->transactionTagMapper->method('insert')->willReturnCallback(
+			function (TransactionTag $link) use (&$inserted) {
+				$inserted[] = $link->getTagId();
+				return $link;
+			}
+		);
+	}
+
+	/**
+	 * A rule runs on every row it matches (#452): a category tag lands only
+	 * on rows of its own category, and a misfit is skipped rather than
+	 * throwing and losing the rule's other tags with it.
+	 */
+	public function testRuleTagsSkipCategoryTagsOfAnotherCategory(): void {
+		$this->transactionMapper->method('find')->with(42, 'user1')->willReturn($this->makeTransaction(42, 5));
+		$this->transactionTagMapper->method('findByTransaction')->willReturn([$this->makeTransactionTag(42, 1)]);
+		$this->tagMapper->method('findByIds')->with([2, 3, 4])->willReturn([
+			2 => $this->makeGlobalTag(2),
+			3 => $this->makeTag(3, 10),
+			4 => $this->makeTag(4, 11),
+		]);
+		$this->tagSetMapper->method('findCategoryIdsForTagSets')->with([10, 11], 'user1')->willReturn([10 => 5, 11 => 9]);
+		$inserted = [];
+		$this->captureTagWrites($inserted);
+
+		$change = $this->service->applyRuleTags(42, 'user1', [['tagIds' => [2, 3, 4], 'behavior' => 'merge']]);
+
+		$this->assertSame(['old' => [1], 'new' => [1, 2, 3]], $change);
+		$this->assertSame([1, 2, 3], $inserted);
+	}
+
+	public function testRuleTagsPutOnlyGlobalTagsOnAnUncategorisedRow(): void {
+		$this->transactionMapper->method('find')->willReturn($this->makeTransaction(42, null));
+		$this->transactionTagMapper->method('findByTransaction')->willReturn([]);
+		$this->tagMapper->method('findByIds')->willReturn([
+			2 => $this->makeGlobalTag(2),
+			3 => $this->makeTag(3, 10),
+		]);
+		$this->tagSetMapper->expects($this->never())->method('findCategoryIdsForTagSets');
+		$inserted = [];
+		$this->captureTagWrites($inserted);
+
+		$change = $this->service->applyRuleTags(42, 'user1', [['tagIds' => [3, 2], 'behavior' => 'merge']]);
+
+		$this->assertSame([2], $change['new']);
+		$this->assertSame([2], $inserted);
+	}
+
+	/**
+	 * Merge keeps what the row has, even a tag of the category it was moved
+	 * out of; only the newly added tags are checked.
+	 */
+	public function testRuleTagsMergeKeepsTagsAlreadyOnTheRow(): void {
+		$this->transactionMapper->method('find')->willReturn($this->makeTransaction(42, 5));
+		$this->transactionTagMapper->method('findByTransaction')->willReturn([$this->makeTransactionTag(42, 7)]);
+		$this->tagMapper->expects($this->once())->method('findByIds')->with([2])->willReturn([2 => $this->makeGlobalTag(2)]);
+		$inserted = [];
+		$this->captureTagWrites($inserted);
+
+		$change = $this->service->applyRuleTags(42, 'user1', [['tagIds' => [2], 'behavior' => 'merge']]);
+
+		$this->assertSame([7, 2], $change['new']);
+	}
+
+	public function testRuleTagsReplaceDropsTheRowsOtherTags(): void {
+		$this->transactionMapper->method('find')->willReturn($this->makeTransaction(42, 5));
+		$this->transactionTagMapper->method('findByTransaction')->willReturn([$this->makeTransactionTag(42, 1), $this->makeTransactionTag(42, 2)]);
+		$this->tagMapper->method('findByIds')->with([3])->willReturn([3 => $this->makeTag(3, 10)]);
+		$this->tagSetMapper->method('findCategoryIdsForTagSets')->willReturn([10 => 5]);
+		$inserted = [];
+		$this->captureTagWrites($inserted);
+
+		$change = $this->service->applyRuleTags(42, 'user1', [['tagIds' => [3], 'behavior' => 'replace']]);
+
+		$this->assertSame(['old' => [1, 2], 'new' => [3]], $change);
+	}
+
+	public function testRuleTagsThatCannotLandWriteNothing(): void {
+		$this->transactionMapper->method('find')->willReturn($this->makeTransaction(42, 5));
+		$this->transactionTagMapper->method('findByTransaction')->willReturn([]);
+		$this->tagMapper->method('findByIds')->willReturn([4 => $this->makeTag(4, 11)]);
+		$this->tagSetMapper->method('findCategoryIdsForTagSets')->willReturn([11 => 9]);
+		$this->db->expects($this->never())->method('beginTransaction');
+		$this->transactionTagMapper->expects($this->never())->method('insert');
+
+		$this->assertNull($this->service->applyRuleTags(42, 'user1', [['tagIds' => [4], 'behavior' => 'merge']]));
+	}
+
+	/**
 	 * Replacing the tags is a delete and then inserts. Half done, a row lost
 	 * tags nobody asked to remove, and on a shared account the owner's ones
 	 * the caller cannot use could not even be put back by them.

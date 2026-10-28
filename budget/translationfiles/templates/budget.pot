@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-10-28 22:09+0000\n"
+"POT-Creation-Date: 2026-10-28 23:12+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -400,8 +400,8 @@ msgstr ""
 #: /app/lib/Controller/TransactionController.php:437
 #: /app/lib/Service/Export/TransactionCsvExporter.php:28 /app/src/main.js:3628
 #: /app/src/modules/income/IncomeModule.js:420
-#: /app/src/modules/rules/RulesModule.js:964
-#: /app/src/modules/rules/RulesModule.js:1166
+#: /app/src/modules/rules/RulesModule.js:972
+#: /app/src/modules/rules/RulesModule.js:1174
 #: /app/src/modules/rules/components/CriteriaBuilder.js:194
 #: /app/templates/index.php:1033 /app/templates/index.php:1536
 #: /app/templates/index.php:1777 /app/templates/index.php:1832
@@ -1037,8 +1037,8 @@ msgstr ""
 #: /app/lib/Service/Report/ReportExporter.php:586
 #: /app/lib/Service/Report/ReportExporter.php:629 /app/src/main.js:3696
 #: /app/src/main.js:3697 /app/src/modules/bills/BillsModule.js:1006
-#: /app/src/modules/rules/RulesModule.js:966
-#: /app/src/modules/rules/RulesModule.js:1168
+#: /app/src/modules/rules/RulesModule.js:974
+#: /app/src/modules/rules/RulesModule.js:1176
 #: /app/src/modules/rules/components/CriteriaBuilder.js:190
 #: /app/src/modules/transactions/TransactionsModule.js:2120
 #: /app/src/modules/transactions/TransactionsModule.js:3468
@@ -2899,7 +2899,7 @@ msgstr ""
 #: /app/lib/Controller/TransactionController.php:1368
 #: /app/src/modules/bills/BillsModule.js:378
 #: /app/src/modules/dashboard/DashboardModule.js:1350
-#: /app/src/modules/rules/RulesModule.js:1015
+#: /app/src/modules/rules/RulesModule.js:1023
 #: /app/src/modules/transactions/TransactionsModule.js:5781
 #: /app/src/modules/transactions/transactionRow.js:107
 #: /app/src/modules/transactions/transactionRow.js:273
@@ -2985,7 +2985,7 @@ msgstr ""
 #: /app/src/modules/reports/ReportsModule.js:1465
 #: /app/src/modules/reports/ReportsModule.js:1481
 #: /app/src/modules/reports/ReportsModule.js:1526
-#: /app/src/modules/rules/components/ActionBuilder.js:419
+#: /app/src/modules/rules/components/ActionBuilder.js:420
 #: /app/src/modules/rules/components/CriteriaBuilder.js:218
 #: /app/templates/index.php:103 /app/templates/index.php:1047
 #: /app/templates/index.php:1474 /app/templates/index.php:1640
@@ -3568,7 +3568,7 @@ msgid ""
 "then sync again."
 msgstr ""
 
-#: /app/lib/Service/BankSync/BankSyncService.php:473
+#: /app/lib/Service/BankSync/BankSyncService.php:462
 #, php-format
 msgid "Sync completed with %1$s error(s)"
 msgstr ""
@@ -3865,8 +3865,8 @@ msgstr[1] ""
 
 #: /app/lib/Service/Export/TransactionCsvExporter.php:29 /app/src/main.js:3632
 #: /app/src/main.js:3708 /app/src/main.js:3709
-#: /app/src/modules/rules/RulesModule.js:965
-#: /app/src/modules/rules/RulesModule.js:1167
+#: /app/src/modules/rules/RulesModule.js:973
+#: /app/src/modules/rules/RulesModule.js:1175
 #: /app/src/modules/rules/components/ActionBuilder.js:200
 #: /app/src/modules/rules/components/ActionBuilder.js:207
 #: /app/src/modules/rules/components/ActionBuilder.js:232
@@ -3958,7 +3958,7 @@ msgstr ""
 #: /app/lib/Service/Export/TransactionCsvExporter.php:144
 #: /app/src/modules/categories/CategoriesModule.js:878
 #: /app/src/modules/categories/CategoriesModule.js:1866
-#: /app/src/modules/rules/components/ActionBuilder.js:414
+#: /app/src/modules/rules/components/ActionBuilder.js:415
 #: /app/src/modules/rules/components/CriteriaBuilder.js:217
 #: /app/templates/index.php:1046 /app/templates/index.php:1475
 #: /app/templates/index.php:1641 /app/templates/index.php:5923
@@ -4133,12 +4133,12 @@ msgid "Import file not found"
 msgstr ""
 
 #: /app/lib/Service/ImportService.php:1523
-#: /app/lib/Service/ImportService.php:2157
+#: /app/lib/Service/ImportService.php:2146
 msgid "Account ID is required for single-account imports"
 msgstr ""
 
 #: /app/lib/Service/ImportService.php:1627
-#: /app/lib/Service/ImportService.php:2262
+#: /app/lib/Service/ImportService.php:2251
 msgid "This row has no account, and no account was chosen for the import"
 msgstr ""
 
@@ -4147,22 +4147,22 @@ msgstr ""
 msgid "Destination account %1$s not found"
 msgstr ""
 
-#: /app/lib/Service/ImportService.php:2082
+#: /app/lib/Service/ImportService.php:2071
 #, php-format
 msgid "Failed to recalculate balance for account %1$s"
 msgstr ""
 
-#: /app/lib/Service/ImportService.php:2263
+#: /app/lib/Service/ImportService.php:2252
 #, php-format
 msgid "Could not resolve account: %1$s"
 msgstr ""
 
-#: /app/lib/Service/ImportService.php:3173
+#: /app/lib/Service/ImportService.php:3149
 #, php-format
 msgid "The %1$s format reads CSV files only"
 msgstr ""
 
-#: /app/lib/Service/ImportService.php:3197
+#: /app/lib/Service/ImportService.php:3173
 #, php-format
 msgid "This file does not look like a %1$s export. Columns missing: %2$s"
 msgstr ""
@@ -4581,7 +4581,7 @@ msgstr ""
 #: /app/src/modules/dashboard/DashboardModule.js:1319
 #: /app/src/modules/import/ImportModule.js:200
 #: /app/src/modules/reports/ReportsModule.js:22
-#: /app/src/modules/rules/RulesModule.js:1020
+#: /app/src/modules/rules/RulesModule.js:1028
 #: /app/src/modules/transactions/TransactionsModule.js:544
 #: /app/src/modules/transactions/TransactionsModule.js:1242
 #: /app/src/modules/transactions/TransactionsModule.js:2274
@@ -4889,17 +4889,17 @@ msgstr ""
 msgid "The account this would transfer to is closed. Reopen it first"
 msgstr ""
 
-#: /app/lib/Service/TransactionTagService.php:252
-#: /app/lib/Service/TransactionTagService.php:549
+#: /app/lib/Service/TransactionTagService.php:334
+#: /app/lib/Service/TransactionTagService.php:631
 msgid "One or more tags do not exist"
 msgstr ""
 
-#: /app/lib/Service/TransactionTagService.php:556
-#: /app/lib/Service/TransactionTagService.php:577
+#: /app/lib/Service/TransactionTagService.php:638
+#: /app/lib/Service/TransactionTagService.php:659
 msgid "One or more tags are not available for this transaction"
 msgstr ""
 
-#: /app/lib/Service/TransactionTagService.php:561
+#: /app/lib/Service/TransactionTagService.php:643
 msgid "Category tags cannot be applied to uncategorized transactions"
 msgstr ""
 
@@ -5358,7 +5358,7 @@ msgstr ""
 #: /app/src/modules/bills/BillsModule.js:1763
 #: /app/src/modules/help/HelpModule.js:31
 #: /app/src/modules/reports/ReportsModule.js:440
-#: /app/src/modules/rules/RulesModule.js:849
+#: /app/src/modules/rules/RulesModule.js:857
 #: /app/src/modules/savings/SavingsModule.js:301
 #: /app/src/modules/tagsets/TagSetsModule.js:613
 #: /app/src/modules/transactions/TransactionsModule.js:582
@@ -5403,7 +5403,7 @@ msgstr ""
 
 #: /app/src/core/KeyboardShortcuts.js:364
 #: /app/src/modules/help/HelpModule.js:44
-#: /app/src/modules/rules/RulesModule.js:152 /app/templates/index.php:227
+#: /app/src/modules/rules/RulesModule.js:156 /app/templates/index.php:227
 #: /app/templates/index.php:1444 /app/templates/index.php:1898
 #: /app/templates/index.php:2770 /app/templates/index.php:6900
 msgid "Import"
@@ -7619,14 +7619,14 @@ msgstr ""
 
 #: /app/src/modules/categories/CategoriesModule.js:410
 #: /app/src/modules/projects/ProjectsModule.js:58
-#: /app/src/modules/rules/RulesModule.js:140
+#: /app/src/modules/rules/RulesModule.js:144
 #: /app/src/modules/savings/SavingsModule.js:132
 msgid "Shared by {owner}"
 msgstr ""
 
 #: /app/src/modules/categories/CategoriesModule.js:410
 #: /app/src/modules/projects/ProjectsModule.js:58
-#: /app/src/modules/rules/RulesModule.js:140
+#: /app/src/modules/rules/RulesModule.js:144
 #: /app/src/modules/savings/SavingsModule.js:132
 #: /app/src/modules/transactions/transactionRow.js:110
 msgid "Shared"
@@ -7870,7 +7870,7 @@ msgid "Default categories created successfully"
 msgstr ""
 
 #: /app/src/modules/categories/CategoriesModule.js:1806
-#: /app/src/modules/rules/RulesModule.js:1397
+#: /app/src/modules/rules/RulesModule.js:1405
 msgid "Could not read that file: {error}"
 msgstr ""
 
@@ -10476,205 +10476,205 @@ msgstr ""
 msgid "Deficit"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:97
-#: /app/src/modules/rules/RulesModule.js:100
+#: /app/src/modules/rules/RulesModule.js:101
+#: /app/src/modules/rules/RulesModule.js:104
 msgid "Failed to load rules"
-msgstr ""
-
-#: /app/src/modules/rules/RulesModule.js:125
-#: /app/src/modules/rules/RulesModule.js:204
-#: /app/src/modules/rules/components/CriteriaBuilder.js:253
-msgid "contains"
-msgstr ""
-
-#: /app/src/modules/rules/RulesModule.js:126
-#: /app/src/modules/rules/RulesModule.js:207
-#: /app/src/modules/rules/components/CriteriaBuilder.js:261
-msgid "equals"
-msgstr ""
-
-#: /app/src/modules/rules/RulesModule.js:127
-#: /app/src/modules/rules/RulesModule.js:205
-#: /app/src/modules/rules/components/CriteriaBuilder.js:254
-msgid "starts with"
-msgstr ""
-
-#: /app/src/modules/rules/RulesModule.js:128
-#: /app/src/modules/rules/RulesModule.js:206
-#: /app/src/modules/rules/components/CriteriaBuilder.js:255
-msgid "ends with"
 msgstr ""
 
 #: /app/src/modules/rules/RulesModule.js:129
 #: /app/src/modules/rules/RulesModule.js:208
+#: /app/src/modules/rules/components/CriteriaBuilder.js:253
+msgid "contains"
+msgstr ""
+
+#: /app/src/modules/rules/RulesModule.js:130
+#: /app/src/modules/rules/RulesModule.js:211
+#: /app/src/modules/rules/components/CriteriaBuilder.js:261
+msgid "equals"
+msgstr ""
+
+#: /app/src/modules/rules/RulesModule.js:131
+#: /app/src/modules/rules/RulesModule.js:209
+#: /app/src/modules/rules/components/CriteriaBuilder.js:254
+msgid "starts with"
+msgstr ""
+
+#: /app/src/modules/rules/RulesModule.js:132
+#: /app/src/modules/rules/RulesModule.js:210
+#: /app/src/modules/rules/components/CriteriaBuilder.js:255
+msgid "ends with"
+msgstr ""
+
+#: /app/src/modules/rules/RulesModule.js:133
+#: /app/src/modules/rules/RulesModule.js:212
 msgid "matches"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:148
+#: /app/src/modules/rules/RulesModule.js:152
 msgid "Click to disable"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:148
+#: /app/src/modules/rules/RulesModule.js:152
 msgid "Click to enable"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:157
+#: /app/src/modules/rules/RulesModule.js:161
 msgid "Run rule"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:158
+#: /app/src/modules/rules/RulesModule.js:162
 msgid "Edit rule"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:159
+#: /app/src/modules/rules/RulesModule.js:163
 msgid "Delete rule"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:183
-#: /app/src/modules/rules/RulesModule.js:199
+#: /app/src/modules/rules/RulesModule.js:187
+#: /app/src/modules/rules/RulesModule.js:203
 msgid "Complex criteria"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:195 /app/src/utils/multiselect.js:35
+#: /app/src/modules/rules/RulesModule.js:199 /app/src/utils/multiselect.js:35
 #: /app/templates/index.php:1483 /app/templates/index.php:1649
 #: /app/templates/index.php:1659 /app/templates/index.php:2809
 #: /app/templates/index.php:4328
 msgid "All"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:195
+#: /app/src/modules/rules/RulesModule.js:199
 msgid "Any"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:196
+#: /app/src/modules/rules/RulesModule.js:200
 msgid "{operator} of {count} conditions"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:211
+#: /app/src/modules/rules/RulesModule.js:215
 #: /app/src/modules/rules/components/CriteriaBuilder.js:264
 msgid "between"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:212
+#: /app/src/modules/rules/RulesModule.js:216
 #: /app/src/modules/rules/components/CriteriaBuilder.js:269
 msgid "before"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:213
+#: /app/src/modules/rules/RulesModule.js:217
 #: /app/src/modules/rules/components/CriteriaBuilder.js:270
 msgid "after"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:216
+#: /app/src/modules/rules/RulesModule.js:220
 #: /app/src/modules/rules/components/CriteriaBuilder.js:185
 msgid "NOT"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:250
-#: /app/src/modules/rules/RulesModule.js:294
+#: /app/src/modules/rules/RulesModule.js:254
+#: /app/src/modules/rules/RulesModule.js:298
 msgid "Category #{id}"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:255
-#: /app/src/modules/rules/RulesModule.js:300
+#: /app/src/modules/rules/RulesModule.js:259
+#: /app/src/modules/rules/RulesModule.js:304
 msgid "Vendor:"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:258
+#: /app/src/modules/rules/RulesModule.js:262
 msgid "Set description"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:261
-#: /app/src/modules/rules/RulesModule.js:304
+#: /app/src/modules/rules/RulesModule.js:265
+#: /app/src/modules/rules/RulesModule.js:308
 msgid "Set notes"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:264
+#: /app/src/modules/rules/RulesModule.js:268
 msgid "Set tags"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:267
+#: /app/src/modules/rules/RulesModule.js:271
 msgid "Type:"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:270
+#: /app/src/modules/rules/RulesModule.js:274
 msgid "Move account"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:273
+#: /app/src/modules/rules/RulesModule.js:277
 msgid "Set reference"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:278
+#: /app/src/modules/rules/RulesModule.js:282
 msgid "Regular expression: {source} → {target}"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:282
+#: /app/src/modules/rules/RulesModule.js:286
 msgid "Case change on {field}"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:285
+#: /app/src/modules/rules/RulesModule.js:289
 msgid "Replace in {field}"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:308
+#: /app/src/modules/rules/RulesModule.js:312
 msgid "No actions"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:436
-#: /app/src/modules/rules/RulesModule.js:455
+#: /app/src/modules/rules/RulesModule.js:440
+#: /app/src/modules/rules/RulesModule.js:459
 msgid "rule"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:436
-#: /app/src/modules/rules/RulesModule.js:455
+#: /app/src/modules/rules/RulesModule.js:440
+#: /app/src/modules/rules/RulesModule.js:459
 msgid "rules"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:436
+#: /app/src/modules/rules/RulesModule.js:440
 msgid "active"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:437
+#: /app/src/modules/rules/RulesModule.js:441
 msgid "Run all rules in this group"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:437
+#: /app/src/modules/rules/RulesModule.js:441
 msgid "Run Group"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:454
+#: /app/src/modules/rules/RulesModule.js:458
 msgid "Ungrouped"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:745
+#: /app/src/modules/rules/RulesModule.js:749
 msgid "This rule has been upgraded to the new format with advanced features"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:748
+#: /app/src/modules/rules/RulesModule.js:752
 msgid "Failed to upgrade rule format"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:764
+#: /app/src/modules/rules/RulesModule.js:768
 msgid "Edit Rule"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:792 /app/templates/index.php:2775
+#: /app/src/modules/rules/RulesModule.js:796 /app/templates/index.php:2775
 msgid "Add Rule"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:903
-#: /app/src/modules/rules/RulesModule.js:1259
+#: /app/src/modules/rules/RulesModule.js:911
+#: /app/src/modules/rules/RulesModule.js:1267
 msgid "Error: CriteriaBuilder not initialized"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:909
-#: /app/src/modules/rules/RulesModule.js:1093
-#: /app/src/modules/rules/RulesModule.js:1264
+#: /app/src/modules/rules/RulesModule.js:917
+#: /app/src/modules/rules/RulesModule.js:1101
+#: /app/src/modules/rules/RulesModule.js:1272
 msgid "Invalid criteria: {errors}"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:924
+#: /app/src/modules/rules/RulesModule.js:932
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:514
 #: /app/src/modules/sharing/SharingModule.js:32
 #: /app/src/modules/transactions/TransactionsModule.js:1352
@@ -10689,219 +10689,219 @@ msgstr ""
 msgid "Loading..."
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:943
+#: /app/src/modules/rules/RulesModule.js:951
 msgid "Failed to preview rule: {error}"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:947 /app/templates/index.php:6662
+#: /app/src/modules/rules/RulesModule.js:955 /app/templates/index.php:6662
 msgid "Preview Matches"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:967
-#: /app/src/modules/rules/RulesModule.js:1169 /app/templates/index.php:6635
+#: /app/src/modules/rules/RulesModule.js:975
+#: /app/src/modules/rules/RulesModule.js:1177 /app/templates/index.php:6635
 msgid "Current Category"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:985
+#: /app/src/modules/rules/RulesModule.js:993
 msgid "No matching transactions found"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1031 /app/templates/quick-add.php:101
+#: /app/src/modules/rules/RulesModule.js:1039 /app/templates/quick-add.php:101
 msgid "Saving..."
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1039
+#: /app/src/modules/rules/RulesModule.js:1047
 msgid "Failed to save rule"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1043
-#: /app/src/modules/rules/RulesModule.js:1714
+#: /app/src/modules/rules/RulesModule.js:1051
+#: /app/src/modules/rules/RulesModule.js:1722
 msgid "Running..."
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1057
-#: /app/src/modules/rules/RulesModule.js:1729
+#: /app/src/modules/rules/RulesModule.js:1065
+#: /app/src/modules/rules/RulesModule.js:1737
 msgid "Rule applied: %n transaction updated"
 msgid_plural "Rule applied: %n transactions updated"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/rules/RulesModule.js:1063
-#: /app/src/modules/rules/RulesModule.js:1181
-#: /app/src/modules/rules/RulesModule.js:1734
-#: /app/src/modules/rules/RulesModule.js:1773
+#: /app/src/modules/rules/RulesModule.js:1071
+#: /app/src/modules/rules/RulesModule.js:1189
+#: /app/src/modules/rules/RulesModule.js:1742
+#: /app/src/modules/rules/RulesModule.js:1781
 msgid "No transactions were updated"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1068
-#: /app/src/modules/rules/RulesModule.js:1738
+#: /app/src/modules/rules/RulesModule.js:1076
+#: /app/src/modules/rules/RulesModule.js:1746
 msgid "Failed to run rule: {error}"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1071 /app/templates/index.php:6663
+#: /app/src/modules/rules/RulesModule.js:1079 /app/templates/index.php:6663
 msgid "Run Rule Now"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1088
+#: /app/src/modules/rules/RulesModule.js:1096
 msgid "CriteriaBuilder not initialized"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1100
+#: /app/src/modules/rules/RulesModule.js:1108
 msgid "ActionBuilder not initialized"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1105
-#: /app/src/modules/rules/RulesModule.js:1275
+#: /app/src/modules/rules/RulesModule.js:1113
+#: /app/src/modules/rules/RulesModule.js:1283
 msgid "Invalid actions: {errors}"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1174
+#: /app/src/modules/rules/RulesModule.js:1182
 msgid "{count} updated"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1234
+#: /app/src/modules/rules/RulesModule.js:1242
 msgid "Rule updated successfully"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1234
+#: /app/src/modules/rules/RulesModule.js:1242
 msgid "Rule created successfully"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1243
+#: /app/src/modules/rules/RulesModule.js:1251
 msgid "Failed to save rule: {error}"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1270
+#: /app/src/modules/rules/RulesModule.js:1278
 msgid "Error: ActionBuilder not initialized"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1358
+#: /app/src/modules/rules/RulesModule.js:1366
 msgid "You have no rules to export."
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1380
+#: /app/src/modules/rules/RulesModule.js:1388
 msgid "Exported %n rule"
 msgid_plural "Exported %n rules"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/rules/RulesModule.js:1406
+#: /app/src/modules/rules/RulesModule.js:1414
 msgid "No rules found in that file."
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1424
+#: /app/src/modules/rules/RulesModule.js:1432
 msgid ""
 "No rules could be imported. They may reference categories or accounts that "
 "don't exist here."
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1426
+#: /app/src/modules/rules/RulesModule.js:1434
 msgid ""
 "Imported {imported}; {failed} could not be imported (they may reference "
 "categories or accounts that don't exist here)."
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1428
+#: /app/src/modules/rules/RulesModule.js:1436
 msgid "Imported %n rule"
 msgid_plural "Imported %n rules"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/rules/RulesModule.js:1492
+#: /app/src/modules/rules/RulesModule.js:1500
 msgid "Invalid JSON: {error}"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1496
+#: /app/src/modules/rules/RulesModule.js:1504
 msgid "Rule JSON must be a single object."
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1543
+#: /app/src/modules/rules/RulesModule.js:1551
 msgid ""
 "This JSON could not be loaded into the builder. Fix the structure, or save "
 "directly from JSON."
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1621
+#: /app/src/modules/rules/RulesModule.js:1629
 msgid "Rule JSON copied to clipboard"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1626
+#: /app/src/modules/rules/RulesModule.js:1634
 msgid "Could not copy automatically — the text is selected, press Ctrl+C"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1636
+#: /app/src/modules/rules/RulesModule.js:1644
 msgid "Failed to load rule"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1641
+#: /app/src/modules/rules/RulesModule.js:1649
 msgid "Are you sure you want to delete this rule?"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1646
+#: /app/src/modules/rules/RulesModule.js:1654
 msgid "Rule deleted successfully"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1650
+#: /app/src/modules/rules/RulesModule.js:1658
 msgid "Failed to delete rule"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1678
+#: /app/src/modules/rules/RulesModule.js:1686
 msgid "Rule enabled"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1678
+#: /app/src/modules/rules/RulesModule.js:1686
 msgid "Rule disabled"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1681
+#: /app/src/modules/rules/RulesModule.js:1689
 msgid "Failed to update rule: {error}"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1698
+#: /app/src/modules/rules/RulesModule.js:1706
 msgid "Run rule \"{name}\" on matching transactions?"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1741 /app/templates/index.php:6752
+#: /app/src/modules/rules/RulesModule.js:1749 /app/templates/index.php:6752
 msgid "Run"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1748
+#: /app/src/modules/rules/RulesModule.js:1756
 msgid "No active rules in this group"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1752
+#: /app/src/modules/rules/RulesModule.js:1760
 msgid "Run {count} active rules in group \"{name}\"?"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1768
+#: /app/src/modules/rules/RulesModule.js:1776
 msgid "Group applied: %n transaction updated"
 msgid_plural "Group applied: %n transactions updated"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/rules/RulesModule.js:1777
+#: /app/src/modules/rules/RulesModule.js:1785
 msgid "Failed to run group rules: {error}"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1839
+#: /app/src/modules/rules/RulesModule.js:1847
 msgid ""
 "Apply rules to matching transactions? This will modify the selected "
 "transactions."
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1848
+#: /app/src/modules/rules/RulesModule.js:1856
 msgid "Applying..."
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1866
+#: /app/src/modules/rules/RulesModule.js:1874
 msgid "Rules applied: {success} updated, {skipped} skipped, {failed} failed"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1875
+#: /app/src/modules/rules/RulesModule.js:1883
 msgid "Failed to apply rules"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1878 /app/templates/index.php:2762
+#: /app/src/modules/rules/RulesModule.js:1886 /app/templates/index.php:2762
 #: /app/templates/index.php:6731
 msgid "Apply Rules"
 msgstr ""
@@ -11009,7 +11009,7 @@ msgstr ""
 #: /app/src/modules/rules/components/ActionBuilder.js:287
 #: /app/src/modules/rules/components/ActionBuilder.js:304
 #: /app/src/modules/rules/components/ActionBuilder.js:321
-#: /app/src/modules/rules/components/ActionBuilder.js:436
+#: /app/src/modules/rules/components/ActionBuilder.js:437
 msgid "Always set"
 msgstr ""
 
@@ -11017,7 +11017,7 @@ msgstr ""
 #: /app/src/modules/rules/components/ActionBuilder.js:288
 #: /app/src/modules/rules/components/ActionBuilder.js:305
 #: /app/src/modules/rules/components/ActionBuilder.js:322
-#: /app/src/modules/rules/components/ActionBuilder.js:437
+#: /app/src/modules/rules/components/ActionBuilder.js:438
 msgid "Only if empty"
 msgstr ""
 
@@ -11101,10 +11101,10 @@ msgstr ""
 #: /app/src/modules/rules/components/ActionBuilder.js:320
 #: /app/src/modules/rules/components/ActionBuilder.js:336
 #: /app/src/modules/rules/components/ActionBuilder.js:337
-#: /app/src/modules/rules/components/ActionBuilder.js:377
 #: /app/src/modules/rules/components/ActionBuilder.js:378
-#: /app/src/modules/rules/components/ActionBuilder.js:434
+#: /app/src/modules/rules/components/ActionBuilder.js:379
 #: /app/src/modules/rules/components/ActionBuilder.js:435
+#: /app/src/modules/rules/components/ActionBuilder.js:436
 msgid "Behavior:"
 msgstr ""
 
@@ -11162,124 +11162,128 @@ msgstr ""
 msgid "No tag sets available"
 msgstr ""
 
-#: /app/src/modules/rules/components/ActionBuilder.js:379
-msgid "Merge with existing tags"
+#: /app/src/modules/rules/components/ActionBuilder.js:374
+msgid "Category tags are only added to transactions in their own category."
 msgstr ""
 
 #: /app/src/modules/rules/components/ActionBuilder.js:380
+msgid "Merge with existing tags"
+msgstr ""
+
+#: /app/src/modules/rules/components/ActionBuilder.js:381
 msgid "Replace all tags"
 msgstr ""
 
-#: /app/src/modules/rules/components/ActionBuilder.js:392
 #: /app/src/modules/rules/components/ActionBuilder.js:393
+#: /app/src/modules/rules/components/ActionBuilder.js:394
 msgid "Account:"
 msgstr ""
 
-#: /app/src/modules/rules/components/ActionBuilder.js:394
+#: /app/src/modules/rules/components/ActionBuilder.js:395
 msgid "-- Select Account --"
 msgstr ""
 
-#: /app/src/modules/rules/components/ActionBuilder.js:401
+#: /app/src/modules/rules/components/ActionBuilder.js:402
 msgid "This will reassign the transaction to a different account"
 msgstr ""
 
-#: /app/src/modules/rules/components/ActionBuilder.js:409
+#: /app/src/modules/rules/components/ActionBuilder.js:410
 msgid "Transaction Type:"
 msgstr ""
 
-#: /app/src/modules/rules/components/ActionBuilder.js:429
 #: /app/src/modules/rules/components/ActionBuilder.js:430
+#: /app/src/modules/rules/components/ActionBuilder.js:431
 msgid "Reference Value:"
 msgstr ""
 
-#: /app/src/modules/rules/components/ActionBuilder.js:431
+#: /app/src/modules/rules/components/ActionBuilder.js:432
 msgid "e.g., CHECK-1234, AUTO"
 msgstr ""
 
-#: /app/src/modules/rules/components/ActionBuilder.js:447
 #: /app/src/modules/rules/components/ActionBuilder.js:448
+#: /app/src/modules/rules/components/ActionBuilder.js:449
 msgid "Forecast:"
 msgstr ""
 
-#: /app/src/modules/rules/components/ActionBuilder.js:449
+#: /app/src/modules/rules/components/ActionBuilder.js:450
 msgid "Exclude from forecast"
 msgstr ""
 
-#: /app/src/modules/rules/components/ActionBuilder.js:450
+#: /app/src/modules/rules/components/ActionBuilder.js:451
 msgid "Include in forecast"
 msgstr ""
 
-#: /app/src/modules/rules/components/ActionBuilder.js:454
+#: /app/src/modules/rules/components/ActionBuilder.js:455
 msgid ""
 "Extraordinary one-time amounts are left out of the forecast averages (they "
 "still affect your real balance)."
 msgstr ""
 
-#: /app/src/modules/rules/components/ActionBuilder.js:462
+#: /app/src/modules/rules/components/ActionBuilder.js:463
 msgid ""
 "After import, automatically find and link a matching transaction from "
 "another account as a transfer pair. Matches by amount, opposite type, and "
 "date proximity (within 3 days)."
 msgstr ""
 
-#: /app/src/modules/rules/components/ActionBuilder.js:650
+#: /app/src/modules/rules/components/ActionBuilder.js:651
 msgid "Action {number}: Missing type"
 msgstr ""
 
-#: /app/src/modules/rules/components/ActionBuilder.js:657
+#: /app/src/modules/rules/components/ActionBuilder.js:658
 msgid "Action {number}: Category not selected"
 msgstr ""
 
-#: /app/src/modules/rules/components/ActionBuilder.js:662
+#: /app/src/modules/rules/components/ActionBuilder.js:663
 msgid "Action {number}: Vendor name is empty"
 msgstr ""
 
-#: /app/src/modules/rules/components/ActionBuilder.js:667
+#: /app/src/modules/rules/components/ActionBuilder.js:668
 msgid "Action {number}: Description is empty"
 msgstr ""
 
-#: /app/src/modules/rules/components/ActionBuilder.js:672
+#: /app/src/modules/rules/components/ActionBuilder.js:673
 msgid "Action {number}: Notes text is empty"
 msgstr ""
 
-#: /app/src/modules/rules/components/ActionBuilder.js:677
+#: /app/src/modules/rules/components/ActionBuilder.js:678
 msgid "Action {number}: No tags selected"
 msgstr ""
 
-#: /app/src/modules/rules/components/ActionBuilder.js:682
+#: /app/src/modules/rules/components/ActionBuilder.js:683
 msgid "Action {number}: Account not selected"
 msgstr ""
 
-#: /app/src/modules/rules/components/ActionBuilder.js:687
+#: /app/src/modules/rules/components/ActionBuilder.js:688
 msgid "Action {number}: Invalid transaction type"
 msgstr ""
 
-#: /app/src/modules/rules/components/ActionBuilder.js:692
+#: /app/src/modules/rules/components/ActionBuilder.js:693
 msgid "Action {number}: Reference value is empty"
 msgstr ""
 
-#: /app/src/modules/rules/components/ActionBuilder.js:697
+#: /app/src/modules/rules/components/ActionBuilder.js:698
 msgid "Action {number}: Regex field is invalid"
 msgstr ""
 
-#: /app/src/modules/rules/components/ActionBuilder.js:700
+#: /app/src/modules/rules/components/ActionBuilder.js:701
 msgid "Action {number}: Regex target field is invalid"
 msgstr ""
 
-#: /app/src/modules/rules/components/ActionBuilder.js:703
+#: /app/src/modules/rules/components/ActionBuilder.js:704
 msgid "Action {number}: Regex pattern is empty"
 msgstr ""
 
-#: /app/src/modules/rules/components/ActionBuilder.js:708
-#: /app/src/modules/rules/components/ActionBuilder.js:716
+#: /app/src/modules/rules/components/ActionBuilder.js:709
+#: /app/src/modules/rules/components/ActionBuilder.js:717
 msgid "Action {number}: Text field is invalid"
 msgstr ""
 
-#: /app/src/modules/rules/components/ActionBuilder.js:711
+#: /app/src/modules/rules/components/ActionBuilder.js:712
 msgid "Action {number}: Case mode is invalid"
 msgstr ""
 
-#: /app/src/modules/rules/components/ActionBuilder.js:719
+#: /app/src/modules/rules/components/ActionBuilder.js:720
 msgid "Action {number}: Replace text target is empty"
 msgstr ""
 
