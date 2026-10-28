@@ -312,6 +312,39 @@ class BudgetCarryoverServiceTest extends TestCase {
 		$this->assertSame(60.0, $result[1]);
 	}
 
+	/**
+	 * @return array<string, array{0: ?string, 1: ?string, 2: int}>
+	 */
+	public static function reportMonthStartDayCases(): array {
+		return [
+			'calendar months by default' => [null, '26', 1],
+			'calendar months when chosen' => ['calendar', '26', 1],
+			'budget months when chosen' => ['budget', '26', 26],
+			'budget months with start day 1 are calendar months' => ['budget', '1', 1],
+		];
+	}
+
+	/**
+	 * @dataProvider reportMonthStartDayCases
+	 */
+	public function testReportMonthStartDayFollowsTheUsersChoice(?string $grouping, ?string $startDay, int $expected): void {
+		$settingService = $this->createMock(SettingService::class);
+		$settingService->method('get')->willReturnMap([
+			['alice', BudgetCarryoverService::REPORT_MONTHS_SETTING, $grouping],
+			['alice', 'budget_start_day', $startDay],
+		]);
+		$service = new TestableBudgetCarryoverService(
+			$this->createMock(CategoryMapper::class),
+			$this->snapshotMapper,
+			$this->transactionMapper,
+			$this->splitMapper,
+			$this->recurringBudgetService,
+			$settingService
+		);
+
+		$this->assertSame($expected, $service->reportMonthStartDay('alice'));
+	}
+
 	public function testLateStartDayMapsPeriodToContainingMonth(): void {
 		// Start day 25: budget month M is the period CONTAINING the 15th of M
 		// (matches the Budget view): "May" = Apr 25 – May 24, "June" = May 25 – Jun 24.
