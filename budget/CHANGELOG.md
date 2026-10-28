@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **Tags on a new transfer are saved.** Tags picked in the transaction form when creating a transfer were dropped, so neither side was tagged and a savings goal linked to that tag never counted the transfer. Both sides now get the tags, and the goal counts the transfer once, on the savings side. Reported by @TerjeTM ([#438](https://github.com/otherworld-dev/Budget/issues/438))
+
 ## [3.2.0] - 2026-10-27
 
 ### Added
