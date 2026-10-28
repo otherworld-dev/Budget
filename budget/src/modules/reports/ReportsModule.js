@@ -744,6 +744,7 @@ export default class ReportsModule {
     renderReportTrendChart(trends) {
         const canvas = document.getElementById('report-trend-chart');
         if (!canvas || !trends) return;
+        formatters.showMonthGroupingNote(document.getElementById('report-trend-month-note'), trends.monthStartDay || 1);
 
         if (this.reportCharts.trend) {
             this.reportCharts.trend.destroy();
@@ -1052,6 +1053,7 @@ export default class ReportsModule {
         if (avgNetEl) avgNetEl.textContent = this.formatCurrency(averages.net || 0, currency);
 
         // Render chart
+        formatters.showMonthGroupingNote(document.getElementById('report-cashflow-month-note'), data.period?.monthStartDay || 1);
         this.renderCashFlowChart(data.data || []);
 
         // Render table
@@ -1069,6 +1071,7 @@ export default class ReportsModule {
         const sortSel = document.getElementById('category-monthly-sort');
         if (sortSel && sortSel.value !== sort) sortSel.value = sort;
 
+        formatters.showMonthGroupingNote(document.getElementById('category-monthly-month-note'), data.period?.monthStartDay || 1);
         this.renderCategoryMonthlyMatrix(data);
     }
 

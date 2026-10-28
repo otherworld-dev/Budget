@@ -217,6 +217,9 @@ class TransactionReportQueries {
 	 *
 	 * @param int[] $tagIds Optional tag filter (OR logic)
 	 * @param bool $includeUntagged Include untagged transactions when filtering by tags
+	 * @param int $monthStartDay 1 for calendar months; otherwise the budget
+	 *                           start day, and 'month' is the budget month
+	 *                           (BudgetPeriod) each transaction falls in
 	 * @return array<int, array{month: string, income: float, expenses: float, net: float, count: int}>
 	 */
 	public function getCashFlowByMonth(
@@ -228,19 +231,27 @@ class TransactionReportQueries {
 		bool $includeUntagged = true,
 		bool $excludeTransfers = false,
 		?array $visibleAccountIds = null,
+		int $monthStartDay = 1,
 	): array {
+		$bucket = ReportScope::monthBucketExpr($monthStartDay);
 		[$direct, $split] = $this->reportHalves(
 			$userId, $accountId, $startDate, $endDate, $visibleAccountIds, $excludeTransfers,
-			function (IQueryBuilder $qb, string $alloc) use ($tagIds, $includeUntagged): void {
-				$qb->select($qb->createFunction(ReportScope::monthExpr() . ' as month'));
+			function (IQueryBuilder $qb, string $alloc) use ($tagIds, $includeUntagged, $bucket): void {
+				$qb->select($qb->createFunction($bucket . ' as month'));
 				ReportScope::selectIncomeExpenses($qb, $alloc);
 				$qb->selectAlias($qb->createFunction('COUNT(DISTINCT t.id)'), 'count');
 				ReportScope::applyTagFilter($qb, $tagIds, $includeUntagged);
-				$qb->groupBy($qb->createFunction(ReportScope::monthExpr()));
+				$qb->groupBy($qb->createFunction($bucket));
 			}
 		);
 
-		$rows = ReportScope::mergeReportHalves($direct, $split, ['month'], ['income', 'expenses'], ['count']);
+		// A transaction has one date, so adding up the counts of a budget
+		// month's dates counts each transaction once
+		$rows = ReportScope::mergeReportHalves(
+			ReportScope::toBudgetMonths($direct, $monthStartDay),
+			ReportScope::toBudgetMonths($split, $monthStartDay),
+			['month'], ['income', 'expenses'], ['count']
+		);
 		usort($rows, static fn (array $a, array $b) => strcmp((string)$a['month'], (string)$b['month']));
 
 		return array_map(fn (array $row) => [
@@ -269,20 +280,26 @@ class TransactionReportQueries {
 		bool $includeUntagged = true,
 		bool $excludeTransfers = false,
 		?array $visibleAccountIds = null,
+		int $monthStartDay = 1,
 	): array {
+		$bucket = ReportScope::monthBucketExpr($monthStartDay);
 		[$direct, $split] = $this->reportHalves(
 			$userId, null, $startDate, $endDate, $visibleAccountIds, $excludeTransfers,
-			function (IQueryBuilder $qb, string $alloc) use ($tagIds, $includeUntagged): void {
+			function (IQueryBuilder $qb, string $alloc) use ($tagIds, $includeUntagged, $bucket): void {
 				$qb->select('t.account_id')
-					->addSelect($qb->createFunction(ReportScope::monthExpr() . ' as month'));
+					->addSelect($qb->createFunction($bucket . ' as month'));
 				ReportScope::selectIncomeExpenses($qb, $alloc);
 				$qb->selectAlias($qb->createFunction('COUNT(DISTINCT t.id)'), 'count');
 				ReportScope::applyTagFilter($qb, $tagIds, $includeUntagged);
-				$qb->groupBy('t.account_id', $qb->createFunction(ReportScope::monthExpr()));
+				$qb->groupBy('t.account_id', $qb->createFunction($bucket));
 			}
 		);
 
-		$rows = ReportScope::mergeReportHalves($direct, $split, ['account_id', 'month'], ['income', 'expenses'], ['count']);
+		$rows = ReportScope::mergeReportHalves(
+			ReportScope::toBudgetMonths($direct, $monthStartDay),
+			ReportScope::toBudgetMonths($split, $monthStartDay),
+			['account_id', 'month'], ['income', 'expenses'], ['count']
+		);
 		usort($rows, static fn (array $a, array $b) => strcmp((string)$a['month'], (string)$b['month']));
 
 		return array_map(static fn (array $row) => [
@@ -315,13 +332,14 @@ class TransactionReportQueries {
 		bool $includeUntagged = true,
 		bool $excludeTransfers = false,
 		?array $visibleAccountIds = null,
+		int $monthStartDay = 1,
 	): array {
 		return array_map(static fn (array $row) => [
 			'month' => $row['month'],
 			'income' => $row['income'],
 			'expenses' => $row['expenses'],
 		], $this->getCashFlowByMonth(
-			$userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
+			$userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds, $monthStartDay
 		));
 	}
 
@@ -342,6 +360,7 @@ class TransactionReportQueries {
 		bool $includeUntagged = true,
 		bool $excludeTransfers = false,
 		?array $visibleAccountIds = null,
+		int $monthStartDay = 1,
 	): array {
 		return array_map(static fn (array $row) => [
 			'month' => $row['month'],
@@ -349,7 +368,7 @@ class TransactionReportQueries {
 			'income' => $row['income'],
 			'expenses' => $row['expenses'],
 		], $this->getCashFlowByMonthByAccount(
-			$userId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
+			$userId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds, $monthStartDay
 		));
 	}
 
@@ -786,6 +805,8 @@ class TransactionReportQueries {
 	 * under key UNCATEGORIZED, so the report's totals match the month view.
 	 *
 	 * @param int[]|null $visibleAccountIds
+	 * @param int $monthStartDay 1 for calendar months, else budget months
+	 *                           starting on that day (see getCashFlowByMonth())
 	 * @return array<int, array<string, float>> categoryId => 'YYYY-MM' => net
 	 */
 	public function getCategoryNetByMonth(
@@ -794,20 +815,27 @@ class TransactionReportQueries {
 		string $endDate,
 		?int $accountId = null,
 		?array $visibleAccountIds = null,
+		int $monthStartDay = 1,
 	): array {
+		$bucket = ReportScope::monthBucketExpr($monthStartDay);
 		[$direct, $split] = $this->reportHalves(
 			$userId, $accountId, $startDate, $endDate, $visibleAccountIds, $accountId === null,
-			function (IQueryBuilder $qb, string $alloc): void {
+			function (IQueryBuilder $qb, string $alloc) use ($bucket): void {
 				$qb->select("{$alloc}.category_id")
-					->addSelect($qb->createFunction(ReportScope::monthExpr() . ' as month'))
+					->addSelect($qb->createFunction($bucket . ' as month'))
 					->selectAlias($qb->createFunction(ReportScope::signedAmountSum($qb, 'credit', "{$alloc}.amount")), 'net')
 					->groupBy("{$alloc}.category_id")
-					->addGroupBy($qb->createFunction(ReportScope::monthExpr()));
+					->addGroupBy($qb->createFunction($bucket));
 			}
 		);
 
 		$totals = [];
-		foreach (ReportScope::mergeReportHalves($direct, $split, ['category_id', 'month'], ['net']) as $row) {
+		$merged = ReportScope::mergeReportHalves(
+			ReportScope::toBudgetMonths($direct, $monthStartDay),
+			ReportScope::toBudgetMonths($split, $monthStartDay),
+			['category_id', 'month'], ['net']
+		);
+		foreach ($merged as $row) {
 			$catId = $row['category_id'] === null ? self::UNCATEGORIZED : (int)$row['category_id'];
 			$totals[$catId][substr((string)$row['month'], 0, 7)] = $row['net'];
 		}

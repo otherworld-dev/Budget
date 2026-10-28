@@ -95,6 +95,7 @@ class ReportAggregator {
 		array $tagIds = [],
 		bool $includeUntagged = true,
 		array $visibleAccountIds = [],
+		int $monthStartDay = 1,
 	): array {
 		if ($accountId) {
 			// One account selected: an account shared with the user is in
@@ -383,7 +384,7 @@ class ReportAggregator {
 		$summary['spending'] = $this->spendingInBase($userId, $accountId, !empty($visibleAccountIds) ? $visibleAccountIds : null, $spendingQuery);
 
 		// Generate trend data (with currency conversion for multi-account view)
-		$summary['trends'] = $this->generateTrendData($userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, !empty($visibleAccountIds) ? $visibleAccountIds : null);
+		$summary['trends'] = $this->generateTrendData($userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, !empty($visibleAccountIds) ? $visibleAccountIds : null, $monthStartDay);
 
 		return $summary;
 	}
@@ -401,9 +402,10 @@ class ReportAggregator {
 		array $tagIds = [],
 		bool $includeUntagged = true,
 		array $visibleAccountIds = [],
+		int $monthStartDay = 1,
 	): array {
 		// Current period
-		$current = $this->generateSummary($userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, $visibleAccountIds);
+		$current = $this->generateSummary($userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, $visibleAccountIds, $monthStartDay);
 
 		// Calculate previous period (same duration)
 		$start = new \DateTime($startDate);
@@ -422,7 +424,8 @@ class ReportAggregator {
 			$prevEnd->format('Y-m-d'),
 			$tagIds,
 			$includeUntagged,
-			$visibleAccountIds
+			$visibleAccountIds,
+			$monthStartDay
 		);
 
 		// Calculate changes
@@ -652,6 +655,7 @@ class ReportAggregator {
 		array $tagIds = [],
 		bool $includeUntagged = true,
 		?array $visibleAccountIds = null,
+		int $monthStartDay = 1,
 	): array {
 		$excludeTransfers = $accountId === null;
 
@@ -668,18 +672,18 @@ class ReportAggregator {
 			if ($needsConversion) {
 				$currencyMap = $this->conversionService->getAccountCurrencyMap($accounts);
 				$cashFlow = $this->convertCashFlowByAccount(
-					$userId, $startDate, $endDate, $currencyMap, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
+					$userId, $startDate, $endDate, $currencyMap, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds, $monthStartDay
 				);
 			} else {
 				$cashFlow = $this->reportQueries->getCashFlowByMonth(
-					$userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
+					$userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds, $monthStartDay
 				);
 			}
 		} else {
 			// Still within the viewer's accounts: without them the query is
 			// scoped to the viewer's own, and a shared account came back empty
 			$cashFlow = $this->reportQueries->getCashFlowByMonth(
-				$userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
+				$userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds, $monthStartDay
 			);
 		}
 
@@ -694,7 +698,7 @@ class ReportAggregator {
 		$monthCount = count($cashFlow);
 
 		return [
-			'period' => ['startDate' => $startDate, 'endDate' => $endDate],
+			'period' => ['startDate' => $startDate, 'endDate' => $endDate, 'monthStartDay' => $monthStartDay],
 			'data' => $cashFlow,
 			'totals' => $totals,
 			'averageMonthly' => [
@@ -719,9 +723,10 @@ class ReportAggregator {
 		bool $includeUntagged,
 		bool $excludeTransfers,
 		?array $visibleAccountIds = null,
+		int $monthStartDay = 1,
 	): array {
 		$perAccountData = $this->reportQueries->getCashFlowByMonthByAccount(
-			$userId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
+			$userId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds, $monthStartDay
 		);
 
 		$baseCurrency = $this->conversionService->getBaseCurrency($userId);
@@ -769,6 +774,7 @@ class ReportAggregator {
 		array $tagIds = [],
 		bool $includeUntagged = true,
 		?array $visibleAccountIds = null,
+		int $monthStartDay = 1,
 	): array {
 		$excludeTransfers = $accountId === null;
 
@@ -784,11 +790,11 @@ class ReportAggregator {
 			if ($needsConversion) {
 				$currencyMap = $this->conversionService->getAccountCurrencyMap($accounts);
 				$dataByMonth = $this->convertTrendDataByAccount(
-					$userId, $startDate, $endDate, $currencyMap, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
+					$userId, $startDate, $endDate, $currencyMap, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds, $monthStartDay
 				);
 			} else {
 				$monthlyData = $this->reportQueries->getMonthlyTrendData(
-					$userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
+					$userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds, $monthStartDay
 				);
 				$dataByMonth = [];
 				foreach ($monthlyData as $row) {
@@ -798,7 +804,7 @@ class ReportAggregator {
 		} else {
 			// Within the viewer's accounts, as getCashFlowReport() does
 			$monthlyData = $this->reportQueries->getMonthlyTrendData(
-				$userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, false, $visibleAccountIds
+				$userId, $accountId, $startDate, $endDate, $tagIds, $includeUntagged, false, $visibleAccountIds, $monthStartDay
 			);
 			$dataByMonth = [];
 			foreach ($monthlyData as $row) {
@@ -808,29 +814,22 @@ class ReportAggregator {
 
 		// `months` (Y-m) is what the web UI formats, in the user's own
 		// language; `labels` stays as the English "M Y" for anything that
-		// still reads it.
+		// still reads it. With a month start day they are budget months.
 		$trends = [
 			'labels' => [],
 			'months' => [],
 			'income' => [],
-			'expenses' => []
+			'expenses' => [],
+			'monthStartDay' => $monthStartDay,
 		];
 
-		$start = new \DateTime($startDate);
-		$end = new \DateTime($endDate);
-		$interval = new \DateInterval('P1M');
-
-		$current = clone $start;
-		while ($current <= $end) {
-			$month = $current->format('Y-m');
-			$trends['labels'][] = $current->format('M Y');
+		foreach ($this->trendMonths($startDate, $endDate, $monthStartDay) as $month) {
+			$trends['labels'][] = \DateTime::createFromFormat('!Y-m', $month)->format('M Y');
 			$trends['months'][] = $month;
 
 			$monthData = $dataByMonth[$month] ?? ['income' => 0, 'expenses' => 0];
 			$trends['income'][] = $monthData['income'];
 			$trends['expenses'][] = $monthData['expenses'];
-
-			$current->add($interval);
 		}
 
 		return $trends;
@@ -855,7 +854,7 @@ class ReportAggregator {
 	 *
 	 * @param string $sort 'alpha' (default) or 'total'
 	 * @param int[] $visibleAccountIds
-	 * @return array{period: array, sort: string, baseCurrency: string, rows: array, totals: array}
+	 * @return array{period: array, sort: string, baseCurrency: string, mixedCurrency: bool, rows: array, totals: array}
 	 */
 	public function getCategoryMonthlyReport(
 		string $userId,
@@ -864,14 +863,15 @@ class ReportAggregator {
 		?int $accountId = null,
 		string $sort = 'alpha',
 		array $visibleAccountIds = [],
+		int $monthStartDay = 1,
 	): array {
 		$sort = $sort === 'total' ? 'total' : 'alpha';
 		$vis = !empty($visibleAccountIds) ? $visibleAccountIds : null;
-		$months = $this->buildMonthList($startDate, $endDate);
+		$months = $this->buildMonthList($startDate, $endDate, $monthStartDay);
 
 		// Signed net per category per month: each category's OWN amounts
 		// (direct + split parts), already report-scoped in SQL
-		$own = $this->reportQueries->getCategoryNetByMonth($userId, $startDate, $endDate, $accountId, $vis);
+		$own = $this->reportQueries->getCategoryNetByMonth($userId, $startDate, $endDate, $accountId, $vis, $monthStartDay);
 
 		// Rows: a category excluded from reports, or muted by this viewer,
 		// carries no money (the query dropped it) and is not shown either;
@@ -1030,7 +1030,7 @@ class ReportAggregator {
 		$mixedCurrency = $this->conversionService->needsConversion($reportAccounts);
 
 		return [
-			'period' => ['startDate' => $startDate, 'endDate' => $endDate, 'months' => $months],
+			'period' => ['startDate' => $startDate, 'endDate' => $endDate, 'months' => $months, 'monthStartDay' => $monthStartDay],
 			'sort' => $sort,
 			'baseCurrency' => $this->conversionService->getBaseCurrency($userId),
 			'mixedCurrency' => $mixedCurrency,
@@ -1040,11 +1040,39 @@ class ReportAggregator {
 	}
 
 	/**
-	 * List of 'YYYY-MM' month keys from startDate to endDate inclusive.
+	 * The months of a trend series. Calendar months step from the start date
+	 * as they always have; with a month start day they are the budget
+	 * months the range touches.
+	 *
+	 * @return string[] 'YYYY-MM' keys
+	 */
+	private function trendMonths(string $startDate, string $endDate, int $monthStartDay): array {
+		if ($monthStartDay > 1) {
+			return BudgetPeriod::monthsBetween($startDate, $endDate, $monthStartDay);
+		}
+		$months = [];
+		$current = new \DateTime($startDate);
+		$end = new \DateTime($endDate);
+		$interval = new \DateInterval('P1M');
+		while ($current <= $end) {
+			$months[] = $current->format('Y-m');
+			$current->add($interval);
+		}
+		return $months;
+	}
+
+	/**
+	 * List of 'YYYY-MM' month keys from startDate to endDate inclusive:
+	 * calendar months, or with a month start day the budget months the
+	 * range touches.
 	 *
 	 * @return string[]
 	 */
-	private function buildMonthList(string $startDate, string $endDate): array {
+	private function buildMonthList(string $startDate, string $endDate, int $monthStartDay = 1): array {
+		if ($monthStartDay > 1) {
+			// The same guard as the calendar months below
+			return array_slice(BudgetPeriod::monthsBetween($startDate, $endDate, $monthStartDay), 0, 600);
+		}
 		$months = [];
 		$cur = strtotime(substr($startDate, 0, 7) . '-01');
 		$end = strtotime(substr($endDate, 0, 7) . '-01');
@@ -1097,9 +1125,10 @@ class ReportAggregator {
 		bool $includeUntagged,
 		bool $excludeTransfers,
 		?array $visibleAccountIds = null,
+		int $monthStartDay = 1,
 	): array {
 		$perAccountData = $this->reportQueries->getMonthlyTrendDataByAccount(
-			$userId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds
+			$userId, $startDate, $endDate, $tagIds, $includeUntagged, $excludeTransfers, $visibleAccountIds, $monthStartDay
 		);
 
 		$baseCurrency = $this->conversionService->getBaseCurrency($userId);

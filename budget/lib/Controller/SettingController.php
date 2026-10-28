@@ -10,6 +10,7 @@ use OCA\Budget\Db\SettingMapper;
 use OCA\Budget\Enum\Currency;
 use OCA\Budget\Service\AmountColours;
 use OCA\Budget\Service\AttachmentService;
+use OCA\Budget\Service\BudgetCarryoverService;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\ImportFolderService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
@@ -56,6 +57,7 @@ class SettingController extends Controller {
 		'export_default_format' => 'csv',
 		'budget_period' => 'monthly',
 		'budget_start_day' => '1',
+		BudgetCarryoverService::REPORT_MONTHS_SETTING => 'calendar', // or 'budget' (#457)
 		'budget_alert_threshold' => '80',
 		'budget_alert_scope' => 'all', // or 'manual': only budgets the user set (#389)
 		'budget_alert_muted_categories' => '[]',
