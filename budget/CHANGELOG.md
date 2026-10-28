@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Category Details can show calendar months.** With a **Budget Cycle Start Day** set, the **Monthly Spending** chart has a choice of **Budget periods** or **Calendar months**. Budget periods stay the default, so the bars match your budgets; calendar months put a purchase on 26 September in the September bar, for reading the chart as history. **This Month** and the trend follow the choice, which is remembered in your browser. Reported by @TerjeTM ([#447](https://github.com/otherworld-dev/Budget/issues/447))
+
 ### Fixed
 - **Tags on a new transfer are saved.** Tags picked in the transaction form when creating a transfer were dropped, so neither side was tagged and a savings goal linked to that tag never counted the transfer. Both sides now get the tags, and the goal counts the transfer once, on the savings side. Reported by @TerjeTM ([#438](https://github.com/otherworld-dev/Budget/issues/438))
 

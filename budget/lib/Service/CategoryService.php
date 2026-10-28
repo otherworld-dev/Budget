@@ -566,16 +566,19 @@ class CategoryService extends AbstractCrudService {
 	 * come from those, never from accounts of the owner's that weren't
 	 * shared with them. Null keeps $userId's own accounts.
 	 *
+	 * $calendarMonths ignores the start day and buckets by calendar month,
+	 * for someone who reads the chart as history rather than budgeting (#447).
+	 *
 	 * @param int[]|null $visibleAccountIds
 	 */
-	public function getCategoryDetails(int $categoryId, string $userId, ?string $startDate = null, ?string $endDate = null, ?int $accountId = null, ?string $viewerId = null, ?array $visibleAccountIds = null): array {
+	public function getCategoryDetails(int $categoryId, string $userId, ?string $startDate = null, ?string $endDate = null, ?int $accountId = null, ?string $viewerId = null, ?array $visibleAccountIds = null, bool $calendarMonths = false): array {
 		$category = $this->find($categoryId, $userId); // Verify ownership
 
 		$scope = $this->resolveDetailScope($category, $userId);
 		$categoryIds = $scope['ids'];
 
 		$viewerId ??= $userId;
-		$startDay = $this->carryoverService->budgetStartDay($viewerId);
+		$startDay = $calendarMonths ? 1 : $this->carryoverService->budgetStartDay($viewerId);
 
 		$summary = $this->transactionMapper->getCategorySummary($userId, $categoryId, $categoryIds, $visibleAccountIds, $category->getType() ?? 'expense');
 		$monthlySpending = $this->transactionMapper->getCategoryMonthlySpending(
@@ -601,7 +604,9 @@ class CategoryService extends AbstractCrudService {
 		}
 
 		// This month's total from monthly data
-		$currentMonth = $this->carryoverService->currentBudgetMonth($viewerId);
+		$currentMonth = $calendarMonths
+			? BudgetPeriod::monthContaining($this->carryoverService->today($viewerId), 1)
+			: $this->carryoverService->currentBudgetMonth($viewerId);
 		$thisMonth = 0.0;
 		foreach ($monthlySpending as $entry) {
 			if ($entry['month'] === $currentMonth) {

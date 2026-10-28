@@ -662,7 +662,7 @@ class CategoryController extends Controller {
 	/**
 	 * @NoAdminRequired
 	 */
-	public function details(int $id, ?string $startDate = null, ?string $endDate = null, ?int $accountId = null): DataResponse {
+	public function details(int $id, ?string $startDate = null, ?string $endDate = null, ?int $accountId = null, bool $calendarMonths = false): DataResponse {
 		try {
 			// Resolve the owner so a shared category reads the owner's data, not
 			// the recipient's (whose owner-scoped queries would find nothing) (#328).
@@ -677,8 +677,9 @@ class CategoryController extends Controller {
 			if ($accountId !== null && !in_array($accountId, $visibleAccountIds, true)) {
 				return new DataResponse(['error' => $this->l->t('Account not found')], Http::STATUS_NOT_FOUND);
 			}
-			// The months follow the viewer's budget start day, like the rest of their view
-			$details = $this->service->getCategoryDetails($id, $owner, $startDate, $endDate, $accountId, $this->userId, $visibleAccountIds);
+			// The months follow the viewer's budget start day, like the rest of
+			// their view, unless they've switched the chart to calendar months
+			$details = $this->service->getCategoryDetails($id, $owner, $startDate, $endDate, $accountId, $this->userId, $visibleAccountIds, $calendarMonths);
 			return new DataResponse($details);
 		} catch (\Exception $e) {
 			return $this->handleNotFoundError($e, $this->l->t('Category'), ['categoryId' => $id]);
