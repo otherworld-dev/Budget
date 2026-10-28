@@ -14,6 +14,7 @@ vi.mock('@nextcloud/l10n', () => ({
 }));
 
 import DashboardModule from '../../src/modules/dashboard/DashboardModule.js';
+import ReportsModule from '../../src/modules/reports/ReportsModule.js';
 import { reportMonthStartDay, showMonthGroupingNote } from '../../src/utils/formatters.js';
 
 function makeDashboard(settings = {}) {
@@ -137,5 +138,34 @@ describe('hero comparison', () => {
         dash.updateDashboardHero({ totals: { totalIncome: 3000 }, trends: { income: [1000, 3000] } });
 
         expect(document.getElementById('hero-income-change').textContent).toBe('');
+    });
+});
+
+describe('report period presets', () => {
+    function rangeFor(preset, settings) {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date(2026, 9, 28));
+        document.body.innerHTML = '<input id="report-start-date"><input id="report-end-date">';
+        const reports = Object.create(ReportsModule.prototype);
+        reports.app = { settings };
+        reports.setReportDateRange(preset);
+        return [document.getElementById('report-start-date').value, document.getElementById('report-end-date').value];
+    }
+
+    const budget = { budget_start_day: '26', report_month_grouping: 'budget' };
+
+    it('keeps calendar months by default', () => {
+        expect(rangeFor('this-month', { budget_start_day: '26' })).toEqual(['2026-10-01', '2026-10-31']);
+    });
+
+    it('makes "This Month" the running budget month, not two halves', () => {
+        // 28 Oct with start day 26 is in November's budget month
+        expect(rangeFor('this-month', budget)).toEqual(['2026-10-26', '2026-11-25']);
+    });
+
+    it('makes the other presets whole budget months', () => {
+        expect(rangeFor('last-3-months', budget)).toEqual(['2026-08-26', '2026-11-25']);
+        expect(rangeFor('ytd', budget)).toEqual(['2025-12-26', '2026-10-28']);
+        expect(rangeFor('last-year', budget)).toEqual(['2024-12-26', '2025-12-25']);
     });
 });
