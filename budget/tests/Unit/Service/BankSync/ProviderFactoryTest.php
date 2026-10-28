@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Tests\Unit\Service\BankSync;
 
 use OCA\Budget\Service\BankSync\BankSyncProviderInterface;
+use OCA\Budget\Service\BankSync\EnableBankingProvider;
 use OCA\Budget\Service\BankSync\GoCardlessProvider;
 use OCA\Budget\Service\BankSync\ProviderFactory;
 use OCA\Budget\Service\BankSync\SimpleFINProvider;
@@ -14,6 +15,7 @@ class ProviderFactoryTest extends TestCase {
 	private ProviderFactory $factory;
 	private BankSyncProviderInterface $simplefin;
 	private BankSyncProviderInterface $gocardless;
+	private BankSyncProviderInterface $enablebanking;
 
 	protected function setUp(): void {
 		$this->simplefin = $this->createMock(SimpleFINProvider::class);
@@ -24,7 +26,11 @@ class ProviderFactoryTest extends TestCase {
 		$this->gocardless->method('getIdentifier')->willReturn('gocardless');
 		$this->gocardless->method('getDisplayName')->willReturn('GoCardless');
 
-		$this->factory = new ProviderFactory($this->simplefin, $this->gocardless);
+		$this->enablebanking = $this->createMock(EnableBankingProvider::class);
+		$this->enablebanking->method('getIdentifier')->willReturn('enablebanking');
+		$this->enablebanking->method('getDisplayName')->willReturn('Enable Banking');
+
+		$this->factory = new ProviderFactory($this->simplefin, $this->gocardless, $this->enablebanking);
 	}
 
 	public function testGetProviderReturnsSimplefin(): void {
@@ -37,6 +43,10 @@ class ProviderFactoryTest extends TestCase {
 		$this->assertSame($this->gocardless, $provider);
 	}
 
+	public function testGetProviderReturnsEnablebanking(): void {
+		$this->assertSame($this->enablebanking, $this->factory->getProvider('enablebanking'));
+	}
+
 	public function testGetProviderThrowsForUnknownIdentifier(): void {
 		$this->expectException(\InvalidArgumentException::class);
 		$this->expectExceptionMessage('Unknown bank sync provider: plaid');
@@ -44,11 +54,12 @@ class ProviderFactoryTest extends TestCase {
 		$this->factory->getProvider('plaid');
 	}
 
-	public function testGetAvailableProvidersReturnsBoth(): void {
+	public function testGetAvailableProvidersReturnsAll(): void {
 		$providers = $this->factory->getAvailableProviders();
 
-		$this->assertCount(2, $providers);
+		$this->assertCount(3, $providers);
 		$this->assertSame(['id' => 'simplefin', 'name' => 'SimpleFIN'], $providers[0]);
 		$this->assertSame(['id' => 'gocardless', 'name' => 'GoCardless'], $providers[1]);
+		$this->assertSame(['id' => 'enablebanking', 'name' => 'Enable Banking'], $providers[2]);
 	}
 }

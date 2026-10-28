@@ -13,9 +13,14 @@ use OCA\Budget\Service\AdminSettingService;
 use OCA\Budget\Service\AuditService;
 use OCA\Budget\Service\BankSync\BankSyncProviderInterface;
 use OCA\Budget\Service\BankSync\BankSyncService;
+use OCA\Budget\Service\BankSync\EnableBankingProvider;
+use OCA\Budget\Service\BankSync\GoCardlessProvider;
 use OCA\Budget\Service\BankSync\ProviderFactory;
+use OCA\Budget\Service\BankSync\ReliableBalanceProviderInterface;
+use OCA\Budget\Service\BankSync\SimpleFINProvider;
 use OCA\Budget\Service\TransactionService;
 use OCP\IL10N;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
@@ -32,8 +37,14 @@ class BankSyncServiceTest extends TestCase {
 	private LoggerInterface $logger;
 	private BankSyncProviderInterface $provider;
 	private \OCA\Budget\Service\BillService $billService;
+	private \OCA\Budget\Service\AccountService $accountService;
+	private \OCA\Budget\Db\TransactionMapper $transactionMapper;
 
 	private const USER_ID = 'user1';
+
+	/** The bank rows syncLedger()'s provider returns, changeable between syncs */
+	private array $ledgerFeed = [];
+	private ?BankAccountMapping $ledgerMapping = null;
 
 	protected function setUp(): void {
 		$this->connectionMapper = $this->createMock(BankConnectionMapper::class);
@@ -57,6 +68,8 @@ class BankSyncServiceTest extends TestCase {
 
 		$transactionTagService = $this->createMock(\OCA\Budget\Service\TransactionTagService::class);
 		$this->billService = $this->createMock(\OCA\Budget\Service\BillService::class);
+		$this->accountService = $this->createMock(\OCA\Budget\Service\AccountService::class);
+		$this->transactionMapper = $this->createMock(\OCA\Budget\Db\TransactionMapper::class);
 
 		$this->service = new BankSyncService(
 			$this->connectionMapper,
@@ -71,7 +84,9 @@ class BankSyncServiceTest extends TestCase {
 			$transactionTagService,
 			$this->billService,
 			$this->l,
-			$this->logger
+			$this->logger,
+			accountService: $this->accountService,
+			transactionMapper: $this->transactionMapper,
 		);
 	}
 
@@ -98,7 +113,7 @@ class BankSyncServiceTest extends TestCase {
 			->willReturn([
 				'credentials' => 'encrypted-creds',
 				'accounts' => [
-					['id' => 'ext-1', 'name' => 'Checking', 'balance' => '1500.00', 'currency' => 'USD'],
+					['id' => 'ext-1', 'name' => 'Checking', 'balance' => '1500.00', 'currency' => 'USD', 'balanceDate' => '2026-10-26'],
 					['id' => 'ext-2', 'name' => 'Savings', 'balance' => '5000.00', 'currency' => 'USD'],
 				],
 				'authorizationUrl' => null,
@@ -116,10 +131,12 @@ class BankSyncServiceTest extends TestCase {
 				return $insertedConnection;
 			});
 
+		$balanceDates = [];
 		$this->mappingMapper->expects($this->exactly(2))->method('insert')
-			->willReturnCallback(function (BankAccountMapping $m) {
+			->willReturnCallback(function (BankAccountMapping $m) use (&$balanceDates) {
 				$this->assertEquals(1, $m->getConnectionId());
 				$this->assertFalse($m->getEnabled());
+				$balanceDates[] = $m->getLastBalanceDate();
 				return $m;
 			});
 
@@ -134,6 +151,8 @@ class BankSyncServiceTest extends TestCase {
 			}));
 
 		$result = $this->service->connect(self::USER_ID, 'simplefin', ['token' => 'abc'], 'My Bank');
+
+		$this->assertSame(['2026-10-26', null], $balanceDates);
 
 		$this->assertSame($insertedConnection, $result['connection']);
 		$this->assertCount(2, $result['mappings']);
@@ -286,6 +305,68 @@ class BankSyncServiceTest extends TestCase {
 		$this->assertEquals(0, $result['errors']);
 		$this->assertEmpty($result['accounts']);
 		$this->assertEquals(1, $result['discovered']);
+	}
+
+	/**
+	 * Only accounts that are imported (enabled and mapped to a budget account)
+	 * have their transactions fetched; one whose balance was never reconciled
+	 * has not been imported yet and needs its full history.
+	 */
+	public function testSyncPassesSyncAccountsFromEnabledMappedMappings(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+
+		$connection = $this->createConnection(1, 'enablebanking', 'My Bank', 'active');
+		$connection->setIncludePending(true);
+		$this->connectionMapper->method('find')->with(1, self::USER_ID)->willReturn($connection);
+
+		$fresh = $this->createMapping(10, 1, 'hash-fresh', 100, true);
+		$imported = $this->createMapping(11, 1, 'hash-imported', 101, true);
+		$imported->setBalanceReconciledAt('2026-10-20 08:00:00');
+		$unmapped = $this->createMapping(12, 1, 'hash-unmapped', null, true);
+		$disabled = $this->createMapping(13, 1, 'hash-disabled', 102, false);
+		$disabled->setBalanceReconciledAt('2026-10-20 08:00:00');
+		// Never reconciled (auto-reconcile skipped it), but rows were imported
+		$importedUnreconciled = $this->createMapping(14, 1, 'hash-imported-unreconciled', 103, true);
+		$this->mappingMapper->method('findByConnection')->with(1)
+			->willReturn([$fresh, $imported, $unmapped, $disabled, $importedUnreconciled]);
+		$this->mappingMapper->method('findEnabledByConnection')->with(1)
+			->willReturn([$fresh, $imported, $importedUnreconciled]);
+		$this->transactionMapper->method('hasImportIdPrefix')->willReturnMap([
+			[100, 'enablebanking:', false],
+			[101, 'enablebanking:', true],
+			[103, 'enablebanking:', true],
+		]);
+
+		$this->providerFactory->method('getProvider')->willReturn($this->provider);
+		$this->provider->method('requiresReauthorization')->willReturn(false);
+		$this->provider->expects($this->once())->method('fetchAccounts')
+			->with($this->anything(), [
+				'includePending' => true,
+				'syncAccounts' => ['hash-fresh' => true, 'hash-imported' => false, 'hash-imported-unreconciled' => false],
+			])
+			->willReturn(['accounts' => [['id' => 'hash-fresh', 'name' => 'Main', 'balance' => '1.00', 'currency' => 'EUR', 'transactions' => []]]]);
+
+		$this->service->sync(self::USER_ID, 1);
+	}
+
+	public function testSyncPassesNoSyncAccountsWhenNothingIsEnabledAndMapped(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+
+		$connection = $this->createConnection(1, 'enablebanking', 'My Bank', 'active');
+		$this->connectionMapper->method('find')->with(1, self::USER_ID)->willReturn($connection);
+
+		$unmapped = $this->createMapping(12, 1, 'hash-unmapped', null, true);
+		$disabled = $this->createMapping(13, 1, 'hash-disabled', 102, false);
+		$this->mappingMapper->method('findByConnection')->with(1)->willReturn([$unmapped, $disabled]);
+		$this->mappingMapper->method('findEnabledByConnection')->with(1)->willReturn([]);
+
+		$this->providerFactory->method('getProvider')->willReturn($this->provider);
+		$this->provider->method('requiresReauthorization')->willReturn(false);
+		$this->provider->expects($this->once())->method('fetchAccounts')
+			->with($this->anything(), ['includePending' => false, 'syncAccounts' => []])
+			->willReturn(['accounts' => [['id' => 'hash-unmapped', 'name' => 'Main', 'balance' => '1.00', 'currency' => 'EUR', 'transactions' => []]]]);
+
+		$this->service->sync(self::USER_ID, 1);
 	}
 
 	public function testSyncImportsTransactionsAndSkipsDuplicates(): void {
@@ -605,7 +686,7 @@ class BankSyncServiceTest extends TestCase {
 		$this->providerFactory->method('getProvider')->willReturn($this->provider);
 		$this->provider->method('fetchAccountList')->willReturn([
 			'accounts' => [
-				['id' => 'ext-new', 'name' => 'New Account', 'balance' => '3000', 'currency' => 'EUR'],
+				['id' => 'ext-new', 'name' => 'New Account', 'balance' => '3000', 'currency' => 'EUR', 'balanceDate' => '2026-10-26'],
 			],
 		]);
 
@@ -618,6 +699,7 @@ class BankSyncServiceTest extends TestCase {
 				$this->assertEquals('New Account', $m->getExternalAccountName());
 				$this->assertFalse($m->getEnabled());
 				$this->assertEquals('3000', $m->getLastBalance());
+				$this->assertSame('2026-10-26', $m->getLastBalanceDate());
 				$this->assertEquals('EUR', $m->getLastCurrency());
 				return $m;
 			});
@@ -644,12 +726,15 @@ class BankSyncServiceTest extends TestCase {
 		]);
 
 		$existingMapping = $this->createMapping(10, 1, 'ext-1', 100, true);
+		// A date that belonged to the previous balance must not stay with the new one
+		$existingMapping->setLastBalanceDate('2026-10-01');
 		$this->mappingMapper->method('findByExternalId')->with(1, 'ext-1')->willReturn($existingMapping);
 
 		$this->mappingMapper->expects($this->never())->method('insert');
 		$this->mappingMapper->expects($this->once())->method('update')
 			->willReturnCallback(function (BankAccountMapping $m) {
 				$this->assertEquals('9999.99', $m->getLastBalance());
+				$this->assertNull($m->getLastBalanceDate());
 				$this->assertEquals('USD', $m->getLastCurrency());
 				return $m;
 			});
@@ -661,31 +746,84 @@ class BankSyncServiceTest extends TestCase {
 		$this->assertCount(1, $result);
 	}
 
+	public function testRefreshAccountsUpdatesTheNameOfExistingMappings(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+
+		$connection = $this->createConnection(1, 'enablebanking', 'My Bank', 'active');
+		$this->connectionMapper->method('find')->with(1, self::USER_ID)->willReturn($connection);
+		$this->providerFactory->method('getProvider')->willReturn($this->provider);
+		$this->provider->method('fetchAccountList')->willReturn([
+			'accounts' => [['id' => 'ext-1', 'name' => 'Girokonto (…1234)', 'balance' => '1.00', 'currency' => 'EUR']],
+		]);
+
+		$existingMapping = $this->createMapping(10, 1, 'ext-1', 100, true);
+		$existingMapping->setExternalAccountName('Max Mustermann');
+		$this->mappingMapper->method('findByExternalId')->willReturn($existingMapping);
+		$this->mappingMapper->method('findByConnection')->willReturn([$existingMapping]);
+		$this->mappingMapper->expects($this->once())->method('update')
+			->willReturnCallback(function (BankAccountMapping $m) {
+				$this->assertSame('Girokonto (…1234)', $m->getExternalAccountName());
+				return $m;
+			});
+
+		$this->service->refreshAccounts(self::USER_ID, 1);
+	}
+
+	public function testSyncUpdatesTheNameOfMappedAccounts(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+
+		$connection = $this->createConnection(1, 'enablebanking', 'My Bank', 'active');
+		$this->connectionMapper->method('find')->with(1, self::USER_ID)->willReturn($connection);
+		$this->providerFactory->method('getProvider')->willReturn($this->provider);
+		$this->provider->method('requiresReauthorization')->willReturn(false);
+		$this->provider->method('fetchAccounts')->willReturn([
+			'accounts' => [['id' => 'ext-1', 'name' => 'Girokonto (…1234)', 'balance' => '1.00', 'currency' => 'EUR', 'transactions' => []]],
+		]);
+
+		$mapping = $this->createMapping(10, 1, 'ext-1', 100, true);
+		$mapping->setExternalAccountName('Max Mustermann');
+		$this->mappingMapper->method('findByConnection')->willReturn([$mapping]);
+		$this->mappingMapper->method('findEnabledByConnection')->willReturn([$mapping]);
+		$account = new \OCA\Budget\Db\Account();
+		$account->setId(100);
+		$account->setUserId(self::USER_ID);
+		$this->accountMapper->method('find')->willReturn($account);
+		$this->mappingMapper->method('update')->willReturnArgument(0);
+
+		$this->service->sync(self::USER_ID, 1);
+
+		$this->assertSame('Girokonto (…1234)', $mapping->getExternalAccountName());
+	}
+
 	// ===== reauthorize =====
 
 	public function testReauthorizeCreatesNewRequisitionAndUpdatesConnection(): void {
 		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
 
-		$connection = new BankConnection();
-		$connection->setId(1);
-		$connection->setUserId(self::USER_ID);
-		$connection->setProvider('gocardless');
-		$connection->setCredentials(json_encode([
+		$stored = json_encode([
 			'secretId' => 'sid',
 			'secretKey' => 'skey',
 			'accessToken' => 'old-token',
 			'requisitionId' => 'old-req',
-		]));
+		]);
+		$connection = new BankConnection();
+		$connection->setId(1);
+		$connection->setUserId(self::USER_ID);
+		$connection->setProvider('gocardless');
+		$connection->setCredentials($stored);
 		$connection->setStatus('expired');
 
+		$gocardless = $this->createMock(GoCardlessProvider::class);
 		$this->connectionMapper->method('find')->with(1, self::USER_ID)->willReturn($connection);
-		$this->providerFactory->method('getProvider')->with('gocardless')->willReturn($this->provider);
+		$this->providerFactory->method('getProvider')->with('gocardless')->willReturn($gocardless);
 
-		$this->provider->method('initializeConnection')->willReturn([
-			'credentials' => json_encode(['secretId' => 'sid', 'secretKey' => 'skey', 'requisitionId' => 'new-req']),
-			'accounts' => [],
-			'authorizationUrl' => 'https://bank.example.com/auth',
-		]);
+		$gocardless->expects($this->once())->method('reinitializeConnection')
+			->with($stored, ['institutionId' => 'BANK_ID', 'redirectUrl' => 'https://app/callback'])
+			->willReturn([
+				'credentials' => json_encode(['secretId' => 'sid', 'secretKey' => 'skey', 'requisitionId' => 'new-req']),
+				'accounts' => [],
+				'authorizationUrl' => 'https://bank.example.com/auth',
+			]);
 
 		$this->connectionMapper->expects($this->once())->method('update')
 			->willReturnCallback(function (BankConnection $c) {
@@ -696,12 +834,49 @@ class BankSyncServiceTest extends TestCase {
 				return $c;
 			});
 
-		$result = $this->service->reauthorize(self::USER_ID, 1, 'BANK_ID', 'https://app/callback');
+		$result = $this->service->reauthorize(self::USER_ID, 1, ['institutionId' => 'BANK_ID', 'redirectUrl' => 'https://app/callback']);
 
 		$this->assertEquals('https://bank.example.com/auth', $result['authorizationUrl']);
 	}
 
-	public function testReauthorizeRejectsNonGoCardlessProvider(): void {
+	public function testReauthorizeEnableBankingSetsPendingAuth(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+
+		$connection = new BankConnection();
+		$connection->setId(2);
+		$connection->setUserId(self::USER_ID);
+		$connection->setProvider('enablebanking');
+		$connection->setCredentials('{"sessionId":"old"}');
+		$connection->setStatus('expired');
+		$connection->setLastError('Consent expired');
+
+		$eb = $this->createMock(EnableBankingProvider::class);
+		$this->connectionMapper->method('find')->with(2, self::USER_ID)->willReturn($connection);
+		$this->providerFactory->method('getProvider')->with('enablebanking')->willReturn($eb);
+
+		$params = ['institutionId' => 'Nordea', 'country' => 'FI', 'redirectUrl' => 'https://nc/cb', 'maximumConsentValidity' => 7776000];
+		$eb->expects($this->once())->method('reinitializeConnection')
+			->with('{"sessionId":"old"}', $params)
+			->willReturn([
+				'credentials' => '{"pendingState":"x"}',
+				'accounts' => [],
+				'authorizationUrl' => 'https://auth.enablebanking.example/start',
+			]);
+
+		$this->connectionMapper->expects($this->once())->method('update')
+			->willReturnCallback(function (BankConnection $c) {
+				$this->assertEquals('pending_auth', $c->getStatus());
+				$this->assertNull($c->getLastError());
+				$this->assertEquals('{"pendingState":"x"}', $c->getCredentials());
+				return $c;
+			});
+
+		$result = $this->service->reauthorize(self::USER_ID, 2, $params);
+
+		$this->assertEquals('https://auth.enablebanking.example/start', $result['authorizationUrl']);
+	}
+
+	public function testReauthorizeRejectsNonReauthorizableProvider(): void {
 		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
 
 		$connection = new BankConnection();
@@ -711,11 +886,13 @@ class BankSyncServiceTest extends TestCase {
 		$connection->setCredentials('{}');
 
 		$this->connectionMapper->method('find')->willReturn($connection);
+		$this->providerFactory->method('getProvider')->with('simplefin')->willReturn($this->provider);
+		$this->connectionMapper->expects($this->never())->method('update');
 
 		$this->expectException(\Exception::class);
-		$this->expectExceptionMessage('only supported for GoCardless');
+		$this->expectExceptionMessage('does not support re-authorization');
 
-		$this->service->reauthorize(self::USER_ID, 1, 'BANK_ID', '');
+		$this->service->reauthorize(self::USER_ID, 1, ['institutionId' => 'BANK_ID']);
 	}
 
 	public function testReauthorizeThrowsWhenDisabled(): void {
@@ -724,7 +901,7 @@ class BankSyncServiceTest extends TestCase {
 		$this->expectException(\Exception::class);
 		$this->expectExceptionMessage('disabled');
 
-		$this->service->reauthorize(self::USER_ID, 1, 'BANK_ID', '');
+		$this->service->reauthorize(self::USER_ID, 1, ['institutionId' => 'BANK_ID']);
 	}
 
 	// ===== connect edge cases =====
@@ -1408,7 +1585,967 @@ class BankSyncServiceTest extends TestCase {
 		$this->service->sync(self::USER_ID, 1);
 	}
 
+	// ===== Enable Banking callback =====
+
+	public function testCompleteKeepsMappingBudgetAccountAcrossNewUids(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$connection = $this->ebConnection(1, 'state-a', time() - 60, null);
+		$this->connectionMapper->method('findAll')->with(self::USER_ID)->willReturn([$connection]);
+		$eb = $this->ebProvider();
+		$eb->expects($this->once())->method('completeAuthorization')
+			->with($connection->getCredentials(), 'code-1')
+			->willReturn($this->ebResult('sess-new', '2027-04-24T10:00:00+00:00', ['hash-1', 'hash-2']));
+
+		// hash-1 was mapped before (under an older session's uid); hash-2 is new
+		$existing = $this->createMapping(5, 1, 'hash-1', 42, true);
+		$this->mappingMapper->method('findByExternalId')->willReturnMap([
+			[1, 'hash-1', $existing],
+			[1, 'hash-2', null],
+		]);
+		$this->mappingMapper->expects($this->once())->method('update')
+			->willReturnCallback(function (BankAccountMapping $m) {
+				$this->assertSame('hash-1', $m->getExternalAccountId());
+				$this->assertSame(42, $m->getBudgetAccountId());
+				$this->assertTrue($m->getEnabled());
+				return $m;
+			});
+		$this->mappingMapper->expects($this->once())->method('insert')
+			->willReturnCallback(function (BankAccountMapping $m) {
+				$this->assertSame('hash-2', $m->getExternalAccountId());
+				$this->assertSame(1, $m->getConnectionId());
+				$this->assertFalse($m->getEnabled());
+				return $m;
+			});
+		// A first connection has no previous session to revoke
+		$eb->expects($this->never())->method('revokeConnection');
+		$eb->expects($this->never())->method('revokeSession');
+		$this->auditService->expects($this->once())->method('log')
+			->with(self::USER_ID, 'bank_connected', 'bank_connection', 1, ['provider' => 'enablebanking']);
+
+		$result = $this->service->completeEnableBankingAuthorization(self::USER_ID, 'state-a', 'code-1');
+
+		$this->assertSame('active', $result->getStatus());
+		$this->assertSame('sess-new', json_decode($result->getCredentials(), true)['sessionId']);
+	}
+
+	private const NO_ACCOUNTS_MESSAGE = 'The bank did not share any accounts. Link the account in the Enable Banking control panel, then use Re-authorize.';
+
+	public function testCallbackWithoutAccountsMarksTheConnectionExpired(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$connection = $this->ebConnection(1, 'state-a', time() - 60, 'sess-old');
+		$oldCredentials = $connection->getCredentials();
+		$this->connectionMapper->method('findAll')->willReturn([$connection]);
+		$eb = $this->ebProvider();
+		$eb->method('completeAuthorization')
+			->willReturn($this->ebResult('sess-new', '2027-04-24T10:00:00+00:00', []));
+		// Old session handling is unchanged
+		$eb->expects($this->once())->method('revokeSession')->with($oldCredentials)->willReturn(true);
+
+		$result = $this->service->completeEnableBankingAuthorization(self::USER_ID, 'state-a', 'code-1');
+
+		$this->assertSame('expired', $result->getStatus());
+		$this->assertSame(self::NO_ACCOUNTS_MESSAGE, $result->getLastError());
+		$this->assertSame('sess-new', json_decode($result->getCredentials(), true)['sessionId']);
+	}
+
+	public function testSyncWithoutAccountsMarksTheConnectionExpired(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$connection = $this->createConnection(1, 'enablebanking', 'My Bank', 'active');
+		$this->connectionMapper->method('find')->with(1, self::USER_ID)->willReturn($connection);
+		$this->mappingMapper->method('findByConnection')->willReturn([]);
+		$this->providerFactory->method('getProvider')->willReturn($this->provider);
+		$this->provider->method('requiresReauthorization')->willReturn(false);
+		$this->provider->method('fetchAccounts')->willReturn(['accounts' => []]);
+
+		try {
+			$this->service->sync(self::USER_ID, 1);
+			$this->fail('Expected an exception');
+		} catch (\Exception $e) {
+			$this->assertSame(self::NO_ACCOUNTS_MESSAGE, $e->getMessage());
+		}
+
+		$this->assertSame('expired', $connection->getStatus());
+		$this->assertSame(self::NO_ACCOUNTS_MESSAGE, $connection->getLastError());
+	}
+
+	public function testSyncWithoutAccountsFromOtherProvidersIsNotExpired(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$connection = $this->createConnection(1, 'simplefin', 'My Bank', 'active');
+		$this->connectionMapper->method('find')->with(1, self::USER_ID)->willReturn($connection);
+		$this->mappingMapper->method('findByConnection')->willReturn([]);
+		$this->mappingMapper->method('findEnabledByConnection')->willReturn([]);
+		$this->providerFactory->method('getProvider')->willReturn($this->provider);
+		$this->provider->method('requiresReauthorization')->willReturn(false);
+		$this->provider->method('fetchAccounts')->willReturn(['accounts' => []]);
+		$this->provider->method('fetchAccountList')->willReturn(['accounts' => []]);
+
+		$this->service->sync(self::USER_ID, 1);
+
+		$this->assertSame('active', $connection->getStatus());
+	}
+
+	public function testCompleteRevokesPreviousSession(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$connection = $this->ebConnection(1, 'state-a', time() - 60, 'sess-old');
+		$oldCredentials = $connection->getCredentials();
+		$this->connectionMapper->method('findAll')->willReturn([$connection]);
+		$eb = $this->ebProvider();
+		$eb->method('completeAuthorization')
+			->willReturn($this->ebResult('sess-new', '2027-04-24T10:00:00+00:00', []));
+		// The provider's logging revoke must not run on the callback request
+		$eb->expects($this->never())->method('revokeConnection');
+		$eb->expects($this->once())->method('revokeSession')->with($oldCredentials)->willReturn(true);
+		$this->auditService->expects($this->once())->method('log')
+			->with(self::USER_ID, 'bank_reauthorized', 'bank_connection', 1, ['provider' => 'enablebanking']);
+
+		$this->service->completeEnableBankingAuthorization(self::USER_ID, 'state-a', 'code-1');
+	}
+
+	public function testCompleteSetsConsentExpiresOnMappings(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$connection = $this->ebConnection(1, 'state-a', time() - 60, null);
+		$this->connectionMapper->method('findAll')->willReturn([$connection]);
+		$this->ebProvider()->method('completeAuthorization')
+			->willReturn($this->ebResult('sess-new', '2027-04-24T10:00:00+00:00', ['hash-1', 'hash-2']));
+		$existing = $this->createMapping(5, 1, 'hash-1', 42, true);
+		$this->mappingMapper->method('findByExternalId')->willReturnMap([
+			[1, 'hash-1', $existing],
+			[1, 'hash-2', null],
+		]);
+		$saved = [];
+		$collect = function (BankAccountMapping $m) use (&$saved) {
+			$saved[] = $m;
+			return $m;
+		};
+		$this->mappingMapper->method('update')->willReturnCallback($collect);
+		$this->mappingMapper->method('insert')->willReturnCallback($collect);
+
+		$this->service->completeEnableBankingAuthorization(self::USER_ID, 'state-a', 'code-1');
+
+		$expected = date('Y-m-d H:i:s', strtotime('2027-04-24T10:00:00+00:00'));
+		$this->assertCount(2, $saved);
+		foreach ($saved as $m) {
+			$this->assertSame($expected, $m->getConsentExpires());
+		}
+	}
+
+	public function testStateIsSingleUse(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$connection = $this->ebConnection(1, 'state-a', time() - 60, null);
+		$this->connectionMapper->method('findAll')->willReturn([$connection]);
+		$eb = $this->ebProvider();
+		$eb->expects($this->once())->method('completeAuthorization')
+			->willReturn($this->ebResult('sess-new', '2027-04-24T10:00:00+00:00', []));
+
+		$this->service->completeEnableBankingAuthorization(self::USER_ID, 'state-a', 'code-1');
+
+		$this->expectException(\RuntimeException::class);
+		$this->service->completeEnableBankingAuthorization(self::USER_ID, 'state-a', 'code-1');
+	}
+
+	public function testCompleteUnknownStateNeverCallsProvider(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$this->connectionMapper->method('findAll')->willReturn([$this->ebConnection(1, 'state-a', time() - 60, null)]);
+		$eb = $this->ebProvider();
+		$eb->expects($this->never())->method('completeAuthorization');
+		$this->connectionMapper->expects($this->never())->method('update');
+
+		$this->expectException(\RuntimeException::class);
+		$this->service->completeEnableBankingAuthorization(self::USER_ID, 'state-b', 'code-1');
+	}
+
+	public function testCompleteRejectsStateOlderThanThirtyMinutes(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$this->connectionMapper->method('findAll')->willReturn([$this->ebConnection(1, 'state-a', time() - 31 * 60, null)]);
+		$this->ebProvider()->expects($this->never())->method('completeAuthorization');
+
+		$this->expectException(\RuntimeException::class);
+		$this->service->completeEnableBankingAuthorization(self::USER_ID, 'state-a', 'code-1');
+	}
+
+	public function testCompleteIgnoresConnectionsNotPendingOrOfOtherProviders(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$active = $this->ebConnection(1, 'state-a', time() - 60, null);
+		$active->setStatus('active');
+		$other = $this->ebConnection(2, 'state-a', time() - 60, null);
+		$other->setProvider('gocardless');
+		$this->connectionMapper->method('findAll')->willReturn([$active, $other]);
+		$this->ebProvider()->expects($this->never())->method('completeAuthorization');
+
+		$this->expectException(\RuntimeException::class);
+		$this->service->completeEnableBankingAuthorization(self::USER_ID, 'state-a', 'code-1');
+	}
+
+	public function testFailClearsStateAndSetsGenericError(): void {
+		$connection = $this->ebConnection(1, 'state-a', time() - 60, null);
+		$this->connectionMapper->method('findAll')->with(self::USER_ID)->willReturn([$connection]);
+		$this->connectionMapper->expects($this->once())->method('update')
+			->willReturnCallback(function (BankConnection $c) {
+				$creds = json_decode($c->getCredentials(), true);
+				$this->assertNull($creds['state']);
+				$this->assertNull($creds['stateCreatedAt']);
+				$this->assertSame('Authorization was cancelled or failed at the bank.', $c->getLastError());
+				return $c;
+			});
+
+		$this->service->failEnableBankingAuthorization(self::USER_ID, 'state-a', 'access_denied <script>');
+	}
+
+	/**
+	 * POST /sessions failed: the state is used up either way, and the card
+	 * must offer Re-authorize instead of leaving the connection stuck.
+	 */
+	public function testCompleteFailureAtTheBankClearsStateAndRecordsTheError(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$connection = $this->ebConnection(1, 'state-a', time() - 60, null);
+		$this->connectionMapper->method('findAll')->willReturn([$connection]);
+		$this->ebProvider()->method('completeAuthorization')->willThrowException(new \RuntimeException('HTTP 400'));
+		$this->connectionMapper->expects($this->once())->method('update')->willReturnArgument(0);
+
+		try {
+			$this->service->completeEnableBankingAuthorization(self::USER_ID, 'state-a', 'code-1');
+			$this->fail('Expected the failure to propagate');
+		} catch (\RuntimeException $e) {
+			$this->assertSame('HTTP 400', $e->getMessage());
+		}
+
+		$creds = json_decode($connection->getCredentials(), true);
+		$this->assertNull($creds['state']);
+		$this->assertNull($creds['stateCreatedAt']);
+		$this->assertSame('pending_auth', $connection->getStatus());
+		$this->assertSame('Authorization was cancelled or failed at the bank.', $connection->getLastError());
+	}
+
+	/**
+	 * A connection whose first authorization never finished has no session
+	 * to sync; flipping it to expired hid that the user only has to finish.
+	 */
+	public function testSyncOfAnEnableBankingConnectionNeverAuthorizedAsksToFinish(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$connection = $this->ebConnection(1, null, null, null);
+		$this->connectionMapper->method('find')->with(1, self::USER_ID)->willReturn($connection);
+		$eb = $this->ebProvider();
+		$eb->expects($this->never())->method('requiresReauthorization');
+		$eb->expects($this->never())->method('fetchAccounts');
+		$this->connectionMapper->expects($this->never())->method('update');
+
+		try {
+			$this->service->sync(self::USER_ID, 1);
+			$this->fail('Expected an exception');
+		} catch (\Exception $e) {
+			$this->assertSame('Please finish connecting this bank first.', $e->getMessage());
+		}
+		$this->assertSame('pending_auth', $connection->getStatus());
+	}
+
+	/**
+	 * While a re-authorization is under way (fresh state) the bank's
+	 * redirect must still find the connection in pending_auth, so a sync
+	 * neither touches the provider nor changes anything — even when the
+	 * old consent has already expired.
+	 */
+	#[DataProvider('freshReauthorizationValidUntil')]
+	public function testSyncDuringFreshReauthorizationAsksToFinishAndChangesNothing(?string $validUntil): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$connection = $this->ebConnection(1, 'state-a', time() - 60, 'sess-old');
+		$creds = json_decode($connection->getCredentials(), true);
+		$creds['validUntil'] = $validUntil;
+		$connection->setCredentials(json_encode($creds));
+		$connection->setLastError(null);
+		$this->connectionMapper->method('find')->with(1, self::USER_ID)->willReturn($connection);
+		$this->providerFactory->expects($this->never())->method('getProvider');
+		$this->connectionMapper->expects($this->never())->method('update');
+
+		try {
+			$this->service->sync(self::USER_ID, 1);
+			$this->fail('Expected an exception');
+		} catch (\Exception $e) {
+			$this->assertSame('Please finish authorizing at your bank first.', $e->getMessage());
+		}
+
+		$this->assertSame('pending_auth', $connection->getStatus());
+		$this->assertNull($connection->getLastError());
+		$this->assertSame('state-a', json_decode($connection->getCredentials(), true)['state']);
+	}
+
+	public static function freshReauthorizationValidUntil(): array {
+		return [
+			'old consent still valid' => [null],
+			'old consent expired' => [date('Y-m-d\\TH:i:s\\Z', time() - 86400)],
+		];
+	}
+
+	/**
+	 * "I've Completed Authorization" must not promote an unfinished
+	 * re-authorization to active with the old session.
+	 */
+	public function testRefreshAccountsDuringFreshReauthorizationAsksToFinish(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$connection = $this->ebConnection(1, 'state-a', time() - 60, 'sess-old');
+		$connection->setLastError(null);
+		$this->connectionMapper->method('find')->with(1, self::USER_ID)->willReturn($connection);
+		$this->providerFactory->expects($this->never())->method('getProvider');
+		$this->connectionMapper->expects($this->never())->method('update');
+		$this->mappingMapper->expects($this->never())->method('insert');
+
+		try {
+			$this->service->refreshAccounts(self::USER_ID, 1);
+			$this->fail('Expected an exception');
+		} catch (\Exception $e) {
+			$this->assertSame('Please finish authorizing at your bank first.', $e->getMessage());
+		}
+
+		$this->assertSame('pending_auth', $connection->getStatus());
+		$this->assertNull($connection->getLastError());
+	}
+
+	/** Once the re-authorization is stale, "I've Completed Authorization" may promote again. */
+	public function testRefreshAccountsWithStaleStatePromotesToActive(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$connection = $this->ebConnection(1, 'state-a', time() - 31 * 60, 'sess-old');
+		$this->connectionMapper->method('find')->with(1, self::USER_ID)->willReturn($connection);
+		$this->connectionMapper->method('update')->willReturnArgument(0);
+		$eb = $this->ebProvider();
+		$eb->method('fetchAccountList')->willReturn(['accounts' => [['id' => 'ext-1', 'name' => 'Giro', 'balance' => null, 'currency' => 'EUR']]]);
+		$this->mappingMapper->method('findByExternalId')->willReturn(null);
+		$this->mappingMapper->method('insert')->willReturnArgument(0);
+		$this->mappingMapper->method('findByConnection')->willReturn([]);
+
+		$this->service->refreshAccounts(self::USER_ID, 1);
+
+		$this->assertSame('active', $connection->getStatus());
+	}
+
+	/**
+	 * Whether the card offers Re-authorize is decided here, from the
+	 * credentials the browser never sees: an Enable Banking connection stuck
+	 * in pending_auth (failed, abandoned or timed-out authorization) must
+	 * always be rescuable, but not while a fresh authorization is under way.
+	 */
+	#[DataProvider('canReauthorizeCases')]
+	public function testCanReauthorizeFlags(string $provider, string $status, bool $withState, ?int $stateAge, ?string $lastError, bool $expected): void {
+		$this->providerFactory->method('getProvider')->willReturnCallback(fn (string $id) => match ($id) {
+			'gocardless' => $this->createMock(GoCardlessProvider::class),
+			'enablebanking' => $this->createMock(EnableBankingProvider::class),
+			'simplefin' => $this->createMock(SimpleFINProvider::class),
+		});
+		$connection = $this->ebConnection(1, $withState ? 'state-a' : null, $stateAge === null ? null : time() - $stateAge, 'sess-old');
+		$connection->setProvider($provider);
+		$connection->setStatus($status);
+		$connection->setLastError($lastError);
+		$this->connectionMapper->method('findAll')->with(self::USER_ID)->willReturn([$connection]);
+		$this->mappingMapper->method('findByConnection')->willReturn([]);
+
+		$result = $this->service->getConnections(self::USER_ID);
+
+		$this->assertSame($expected, $result[0]['canReauthorize']);
+		$this->assertStringNotContainsString('state-a', (string)json_encode($result));
+		$this->assertStringNotContainsString('sess-old', (string)json_encode($result));
+	}
+
+	public static function canReauthorizeCases(): array {
+		return [
+			'GoCardless expired' => ['gocardless', 'expired', false, null, null, true],
+			'GoCardless active' => ['gocardless', 'active', false, null, null, false],
+			'EB pending_auth, fresh state, no error' => ['enablebanking', 'pending_auth', true, 60, null, false],
+			'EB pending_auth, stale state' => ['enablebanking', 'pending_auth', true, 31 * 60, null, true],
+			'EB pending_auth, no state' => ['enablebanking', 'pending_auth', false, null, null, true],
+			'EB pending_auth, state without stateCreatedAt' => ['enablebanking', 'pending_auth', true, null, null, true],
+			'EB pending_auth, lastError' => ['enablebanking', 'pending_auth', true, 60, 'Authorization was cancelled or failed at the bank.', true],
+			'EB active' => ['enablebanking', 'active', false, null, null, false],
+			'EB expired' => ['enablebanking', 'expired', false, null, null, true],
+			'EB error' => ['enablebanking', 'error', false, null, 'boom', false],
+			'SimpleFIN expired' => ['simplefin', 'expired', false, null, null, false],
+		];
+	}
+
+	/**
+	 * A re-authorization that was abandoned (state older than the TTL, or
+	 * already cleared) no longer holds the connection in pending_auth: the
+	 * old session still works, so a successful sync makes it active again.
+	 */
+	#[DataProvider('staleStates')]
+	public function testSyncWithStaleStateRestoresActive(?string $state, ?int $stateAge): void {
+		$connection = $this->ebConnection(1, $state, $stateAge === null ? null : time() - $stateAge, 'sess-old');
+		$this->syncEnableBankingSuccessfully($connection);
+
+		$this->assertSame('active', $connection->getStatus());
+	}
+
+	public static function staleStates(): array {
+		return [
+			'state older than the TTL' => ['state-a', 31 * 60],
+			'state absent' => [null, null],
+		];
+	}
+
+	private function syncEnableBankingSuccessfully(BankConnection $connection): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$this->connectionMapper->method('find')->with(1, self::USER_ID)->willReturn($connection);
+		$this->connectionMapper->method('update')->willReturnArgument(0);
+		$eb = $this->ebProvider();
+		$eb->method('requiresReauthorization')->willReturn(false);
+		$eb->expects($this->once())->method('fetchAccounts')->willReturn(['accounts' => [[
+			'id' => 'ext-1', 'name' => 'Giro', 'balance' => null, 'currency' => 'EUR', 'transactions' => [],
+		]]]);
+		$mapping = $this->createMapping(10, 1, 'ext-1', null, true);
+		$this->mappingMapper->method('findByConnection')->willReturn([$mapping]);
+		$this->mappingMapper->method('findEnabledByConnection')->willReturn([$mapping]);
+
+		$this->service->sync(self::USER_ID, 1);
+	}
+
+	public function testFailWithUnknownStateChangesNothing(): void {
+		$this->connectionMapper->method('findAll')->willReturn([$this->ebConnection(1, 'state-a', time() - 60, null)]);
+		$this->connectionMapper->expects($this->never())->method('update');
+
+		$this->service->failEnableBankingAuthorization(self::USER_ID, 'state-b', 'access_denied');
+	}
+
 	// ===== Helpers =====
+
+	private function ebConnection(int $id, ?string $state, ?int $stateCreatedAt, ?string $sessionId): BankConnection {
+		$conn = $this->createConnection($id, 'enablebanking', 'EU Bank', 'pending_auth');
+		$conn->setCredentials(json_encode([
+			'userId' => self::USER_ID,
+			'aspspName' => 'Bank',
+			'aspspCountry' => 'DE',
+			'state' => $state,
+			'stateCreatedAt' => $stateCreatedAt,
+			'sessionId' => $sessionId,
+			'validUntil' => null,
+			'accounts' => [],
+			'lastSyncDate' => null,
+		]));
+		return $conn;
+	}
+
+	/** @return EnableBankingProvider&\PHPUnit\Framework\MockObject\MockObject */
+	private function ebProvider(): EnableBankingProvider {
+		$eb = $this->createMock(EnableBankingProvider::class);
+		$this->providerFactory->method('getProvider')->with('enablebanking')->willReturn($eb);
+		return $eb;
+	}
+
+	/** @param list<string> $hashes */
+	private function ebResult(string $sessionId, string $validUntil, array $hashes): array {
+		return [
+			'credentials' => json_encode([
+				'userId' => self::USER_ID,
+				'state' => null,
+				'stateCreatedAt' => null,
+				'sessionId' => $sessionId,
+				'validUntil' => $validUntil,
+				'accounts' => array_fill_keys($hashes, 'uid-new'),
+			]),
+			'accounts' => array_map(fn ($h) => ['id' => $h, 'name' => 'Acc ' . $h, 'currency' => 'EUR', 'balance' => null], $hashes),
+		];
+	}
+
+	// ===== balance reconciliation =====
+
+	/**
+	 * A small ledger behind the mocks: rows created by the sync add to the
+	 * net change, AccountService::update moves the opening balance, and the
+	 * balance as of today is opening + net, as AccountBalanceCalculator has it.
+	 *
+	 * @param array $feed normalized bank rows
+	 * @param string $foreignNet net change of rows the account already had
+	 */
+	private function syncLedger(array $feed, ?string $bankBalance, int $existingRows = 0, string $foreignNet = '0', string $type = 'checking', string $currency = 'EUR', string $bankCurrency = 'EUR', float $opening = 0.0, bool $reliableBalance = true, ?string $balanceDate = null): \OCA\Budget\Db\Account {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$connection = $this->createConnection(1, 'enablebanking', 'My Bank', 'active');
+		$this->connectionMapper->method('find')->with(1, self::USER_ID)->willReturn($connection);
+		$provider = $reliableBalance
+			? $this->createMockForIntersectionOfInterfaces([BankSyncProviderInterface::class, ReliableBalanceProviderInterface::class])
+			: $this->provider;
+		$this->providerFactory->method('getProvider')->willReturn($provider);
+		$provider->method('requiresReauthorization')->willReturn(false);
+		$this->ledgerFeed = $feed;
+		$provider->method('fetchAccounts')->willReturnCallback(fn () => ['accounts' => [[
+			'id' => 'ext-1', 'name' => 'Giro', 'balance' => $bankBalance, 'currency' => $bankCurrency,
+			'balanceDate' => $balanceDate,
+			'transactions' => $this->ledgerFeed,
+		]]]);
+		$mapping = $this->createMapping(10, 1, 'ext-1', 100, true);
+		$this->ledgerMapping = $mapping;
+		$this->mappingMapper->method('findByConnection')->willReturn([$mapping]);
+		$this->mappingMapper->method('findEnabledByConnection')->willReturn([$mapping]);
+
+		$account = new \OCA\Budget\Db\Account();
+		$account->setId(100);
+		$account->setUserId(self::USER_ID);
+		$account->setType($type);
+		$account->setCurrency($currency);
+		$account->setOpeningBalance($opening);
+		$this->accountMapper->method('find')->willReturn($account);
+		$this->transactionService->method('findByImportId')->willReturn(null);
+		$this->transactionService->method('findPendingImported')->willReturn([]);
+
+		// The rows the account already had are older than any date asked for
+		$created = [];
+		$rows = $existingRows;
+		$this->transactionService->method('create')->willReturnCallback(
+			function (string $userId, int $accountId, string $date, string $description, float $amount, string $type) use (&$created, &$rows) {
+				$created[] = [$date, $type === 'debit' ? -$amount : $amount];
+				$rows++;
+				$tx = new \OCA\Budget\Db\Transaction();
+				$tx->setId(1000 + $rows);
+				return $tx;
+			}
+		);
+		$this->transactionMapper->method('countByAccount')->with(100, self::USER_ID)
+			->willReturnCallback(function () use (&$rows) {
+				return $rows;
+			});
+		$this->transactionService->method('getBalanceAsOf')
+			->willReturnCallback(function (int $accountId, string $asOf) use (&$created, $foreignNet, $account) {
+				$this->assertSame(100, $accountId);
+				$balance = \OCA\Budget\Service\MoneyCalculator::add((float)$account->getOpeningBalance(), $foreignNet);
+				foreach ($created as [$date, $amount]) {
+					if ($date <= $asOf) {
+						$balance = \OCA\Budget\Service\MoneyCalculator::add($balance, $amount);
+					}
+				}
+				return (float)$balance;
+			});
+		$this->accountService->method('update')->willReturnCallback(
+			function (int $id, string $userId, array $updates) use ($account) {
+				$account->setOpeningBalance((float)$updates['openingBalance']);
+				return $account;
+			}
+		);
+
+		return $account;
+	}
+
+	public function testFirstSyncOnEmptyAccountMatchesBankBalance(): void {
+		$account = $this->syncLedger([
+			['id' => 'a', 'date' => '2026-10-01', 'amount' => '-200.00', 'description' => 'Rent'],
+			['id' => 'b', 'date' => '2026-10-02', 'amount' => '50.00', 'description' => 'Refund'],
+		], '1000.00');
+		$this->accountService->expects($this->once())->method('update')
+			->with(100, self::USER_ID, ['openingBalance' => 1150.0]);
+
+		$this->service->sync(self::USER_ID, 1);
+
+		$this->assertSame(1150.0, $account->getOpeningBalance());
+		$this->assertSame(1000.0, $this->transactionService->getBalanceAsOf(100, date('Y-m-d')));
+	}
+
+	/**
+	 * comdirect reports yesterday's closing balance. A row booked today is
+	 * not in it, so the opening balance is set from the balance as of
+	 * yesterday; counting today's row would move the opening balance by it.
+	 */
+	public function testAutoReconcileUsesTheBankBalanceDate(): void {
+		$today = date('Y-m-d');
+		$yesterday = date('Y-m-d', strtotime('-1 day'));
+		$account = $this->syncLedger([
+			['id' => 'a', 'date' => $today, 'amount' => '-50.00', 'description' => 'Bakery'],
+		], '1000.00', balanceDate: $yesterday);
+
+		$this->service->sync(self::USER_ID, 1);
+
+		$this->assertSame(1000.0, $account->getOpeningBalance());
+		$this->assertSame(1000.0, $this->transactionService->getBalanceAsOf(100, $yesterday));
+		$this->assertSame(950.0, $this->transactionService->getBalanceAsOf(100, $today));
+		$this->assertSame($yesterday, $this->ledgerMapping->getLastBalanceDate());
+		$this->assertSame('0.00', $this->service->getBalanceDifference($this->ledgerMapping, self::USER_ID));
+	}
+
+	public function testAutoReconcileWithoutABalanceDateUsesToday(): void {
+		$account = $this->syncLedger([
+			['id' => 'a', 'date' => date('Y-m-d'), 'amount' => '-50.00', 'description' => 'Bakery'],
+		], '1000.00');
+
+		$this->service->sync(self::USER_ID, 1);
+
+		$this->assertSame(1050.0, $account->getOpeningBalance());
+		$this->assertNull($this->ledgerMapping->getLastBalanceDate());
+	}
+
+	/**
+	 * GoCardless and SimpleFIN may report an available balance (credit line
+	 * included) or none at all, so a first sync must not set the opening
+	 * balance from it. The difference is still shown for a manual reconcile.
+	 */
+	public function testFirstSyncWithoutAReliableBalanceOnlyShowsTheDifference(): void {
+		$account = $this->syncLedger([
+			['id' => 'a', 'date' => '2026-10-01', 'amount' => '-200.00', 'description' => 'Rent'],
+			['id' => 'b', 'date' => '2026-10-02', 'amount' => '50.00', 'description' => 'Refund'],
+		], '1000.00', reliableBalance: false);
+		$this->accountService->expects($this->never())->method('update');
+
+		$this->service->sync(self::USER_ID, 1);
+
+		$this->assertSame(0.0, $account->getOpeningBalance());
+		$this->assertNull($this->ledgerMapping->getBalanceReconciledAt());
+		$this->assertSame('1000.00', $this->ledgerMapping->getLastBalance());
+		$this->assertSame('1150.00', $this->service->getBalanceDifference($this->ledgerMapping, self::USER_ID));
+	}
+
+	public function testOnlyEnableBankingDeclaresReliableBalances(): void {
+		$this->assertTrue(is_subclass_of(EnableBankingProvider::class, ReliableBalanceProviderInterface::class));
+		$this->assertFalse(is_subclass_of(GoCardlessProvider::class, ReliableBalanceProviderInterface::class));
+		$this->assertFalse(is_subclass_of(\OCA\Budget\Service\BankSync\SimpleFINProvider::class, ReliableBalanceProviderInterface::class));
+	}
+
+	public function testFirstSyncWithZeroTransactionsSetsOpeningToBankBalance(): void {
+		$account = $this->syncLedger([], '734.56');
+
+		$this->service->sync(self::USER_ID, 1);
+
+		$this->assertSame(734.56, $account->getOpeningBalance());
+		$this->assertNotNull($this->ledgerMapping->getBalanceReconciledAt());
+	}
+
+	public function testSecondSyncOnStillEmptyAccountDoesNotAutoReconcile(): void {
+		$account = $this->syncLedger([], '734.56');
+		$this->accountService->expects($this->once())->method('update');
+		$this->service->sync(self::USER_ID, 1);
+		$this->assertSame(734.56, $account->getOpeningBalance());
+		$this->assertNotNull($this->ledgerMapping->getBalanceReconciledAt());
+
+		// The bank now lists a row; the account still holds only bank rows
+		$this->ledgerFeed = [['id' => 'a', 'date' => '2026-10-20', 'amount' => '-4.56', 'description' => 'Bakery']];
+		$this->service->sync(self::USER_ID, 1);
+
+		$this->assertSame(734.56, $account->getOpeningBalance());
+	}
+
+	public function testAMappingAlreadyReconciledIsNotAutoReconciled(): void {
+		$this->syncLedger([], '734.56');
+		$this->ledgerMapping->setBalanceReconciledAt('2026-10-01 10:00:00');
+		$this->accountService->expects($this->never())->method('update');
+
+		$this->service->sync(self::USER_ID, 1);
+	}
+
+	public function testSecondSyncDoesNotAutoReconcile(): void {
+		// The first sync imported one row (-200.00); this one brings one more
+		$this->syncLedger([
+			['id' => 'c', 'date' => '2026-10-03', 'amount' => '-10.00', 'description' => 'Coffee'],
+		], '1000.00', 1, '-200.00', opening: 1200.0);
+		$this->accountService->expects($this->never())->method('update');
+
+		$this->service->sync(self::USER_ID, 1);
+	}
+
+	public function testAccountWithForeignRowsIsNotReconciled(): void {
+		$account = $this->syncLedger([
+			['id' => 'a', 'date' => '2026-10-01', 'amount' => '-200.00', 'description' => 'Rent'],
+		], '1000.00', 3, '42.00');
+		$this->accountService->expects($this->never())->method('update');
+
+		$this->service->sync(self::USER_ID, 1);
+
+		$this->assertSame(0.0, $account->getOpeningBalance());
+	}
+
+	public function testLiabilityAccountIsSkipped(): void {
+		$this->syncLedger([
+			['id' => 'a', 'date' => '2026-10-01', 'amount' => '-20.00', 'description' => 'Card'],
+		], '-20.00', type: 'credit_card');
+		$this->accountService->expects($this->never())->method('update');
+
+		$this->service->sync(self::USER_ID, 1);
+	}
+
+	public function testCurrencyMismatchIsSkipped(): void {
+		$this->syncLedger([
+			['id' => 'a', 'date' => '2026-10-01', 'amount' => '-20.00', 'description' => 'Shop'],
+		], '500.00', bankCurrency: 'USD');
+		$this->accountService->expects($this->never())->method('update');
+
+		$this->service->sync(self::USER_ID, 1);
+	}
+
+	public function testFirstSyncWithoutABankBalanceIsSkipped(): void {
+		$this->syncLedger([
+			['id' => 'a', 'date' => '2026-10-01', 'amount' => '-20.00', 'description' => 'Shop'],
+		], null);
+		$this->accountService->expects($this->never())->method('update');
+
+		$this->service->sync(self::USER_ID, 1);
+	}
+
+	public function testFirstSyncDoesNotFailWhenTheOpeningBalanceCanNotBeSet(): void {
+		$this->syncLedger([], '10.00');
+		$this->accountService = $this->createMock(\OCA\Budget\Service\AccountService::class);
+		$this->accountService->method('update')->willThrowException(new \RuntimeException('db down'));
+		$this->rebuildService();
+
+		$result = $this->service->sync(self::USER_ID, 1);
+
+		$this->assertSame(0, $result['errors']);
+	}
+
+	/**
+	 * A mapping with a last bank balance, its account and Budget's balance:
+	 * one string for today, or a map of date => balance (the latest date not
+	 * after the one asked for applies).
+	 *
+	 * @param string|array<string, string> $budgetBalance
+	 */
+	private function differenceFixture(?string $lastBalance, string|array $budgetBalance, string $type = 'checking', string $currency = 'EUR', ?int $budgetAccountId = 100, ?string $balanceDate = null): BankAccountMapping {
+		$mapping = $this->createMapping(10, 1, 'ext-1', $budgetAccountId, true);
+		$mapping->setLastBalance($lastBalance);
+		$mapping->setLastCurrency('EUR');
+		$mapping->setLastBalanceDate($balanceDate);
+		$account = new \OCA\Budget\Db\Account();
+		$account->setId(100);
+		$account->setUserId(self::USER_ID);
+		$account->setType($type);
+		$account->setCurrency($currency);
+		$account->setOpeningBalance(100.0);
+		$this->accountMapper->method('find')->with(100, self::USER_ID)->willReturn($account);
+		if (is_string($budgetBalance)) {
+			$this->transactionService->method('getBalanceAsOf')->with(100, date('Y-m-d'))->willReturn((float)$budgetBalance);
+			return $mapping;
+		}
+		ksort($budgetBalance);
+		$this->transactionService->method('getBalanceAsOf')->willReturnCallback(function (int $accountId, string $asOf) use ($budgetBalance) {
+			$this->assertSame(100, $accountId);
+			$result = 0.0;
+			foreach ($budgetBalance as $date => $balance) {
+				if ($date <= $asOf) {
+					$result = (float)$balance;
+				}
+			}
+			return $result;
+		});
+		return $mapping;
+	}
+
+	public function testGetBalanceDifference(): void {
+		$mapping = $this->differenceFixture('1000.00', '987.65');
+		$this->assertSame('12.35', $this->service->getBalanceDifference($mapping, self::USER_ID));
+	}
+
+	public function testGetBalanceDifferenceIsZeroWhenBalancesMatch(): void {
+		$mapping = $this->differenceFixture('1000.10', '1000.1');
+		$this->assertSame('0.00', $this->service->getBalanceDifference($mapping, self::USER_ID));
+	}
+
+	/** Bank 1000 as of yesterday; Budget has a -50 row dated today. */
+	public function testDifferenceUsesTheBankBalanceDate(): void {
+		$yesterday = date('Y-m-d', strtotime('-1 day'));
+		$mapping = $this->differenceFixture('1000.00', [$yesterday => '1000.00', date('Y-m-d') => '950.00'], balanceDate: $yesterday);
+
+		$this->assertSame('0.00', $this->service->getBalanceDifference($mapping, self::USER_ID));
+	}
+
+	public function testMissingBalanceDateFallsBackToToday(): void {
+		$yesterday = date('Y-m-d', strtotime('-1 day'));
+		$mapping = $this->differenceFixture('1000.00', [$yesterday => '1000.00', date('Y-m-d') => '950.00']);
+
+		$this->assertSame('50.00', $this->service->getBalanceDifference($mapping, self::USER_ID));
+	}
+
+	/** A stored value the date check can not read is treated as missing. */
+	public function testAnUnreadableBalanceDateFallsBackToToday(): void {
+		$yesterday = date('Y-m-d', strtotime('-1 day'));
+		$mapping = $this->differenceFixture('1000.00', [$yesterday => '1000.00', date('Y-m-d') => '950.00'], balanceDate: 'garbage');
+
+		$this->assertSame('50.00', $this->service->getBalanceDifference($mapping, self::USER_ID));
+	}
+
+	/** Some databases return a DATE column with a time part. */
+	public function testABalanceDateWithATimePartIsReadAsItsDay(): void {
+		$yesterday = date('Y-m-d', strtotime('-1 day'));
+		$mapping = $this->differenceFixture('1000.00', [$yesterday => '1000.00', date('Y-m-d') => '950.00'], balanceDate: $yesterday . ' 00:00:00');
+
+		$this->assertSame('0.00', $this->service->getBalanceDifference($mapping, self::USER_ID));
+	}
+
+	/**
+	 * Around local midnight the bank (CET) can already be a day ahead of the
+	 * server (UTC); its balance date of tomorrow is honoured as it is.
+	 */
+	public function testABalanceDateOneDayAfterTodayIsHonoured(): void {
+		$tomorrow = date('Y-m-d', strtotime('+1 day'));
+		$mapping = $this->differenceFixture('900.00', [date('Y-m-d') => '950.00', $tomorrow => '900.00'], balanceDate: $tomorrow);
+
+		$this->assertSame('0.00', $this->service->getBalanceDifference($mapping, self::USER_ID));
+	}
+
+	/** Further ahead than that would count Budget's scheduled rows as if the bank had them. */
+	public function testABalanceDateMoreThanADayAfterTodayIsComparedAsOfTomorrow(): void {
+		$tomorrow = date('Y-m-d', strtotime('+1 day'));
+		$later = date('Y-m-d', strtotime('+3 days'));
+		$mapping = $this->differenceFixture('900.00', [date('Y-m-d') => '950.00', $tomorrow => '900.00', $later => '500.00'], balanceDate: $later);
+
+		$this->assertSame('0.00', $this->service->getBalanceDifference($mapping, self::USER_ID));
+	}
+
+	public function testReconcileUsesTheBankBalanceDate(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$this->connectionMapper->method('find')->with(1, self::USER_ID)
+			->willReturn($this->createConnection(1, 'enablebanking', 'My Bank', 'active'));
+		$yesterday = date('Y-m-d', strtotime('-1 day'));
+		$mapping = $this->differenceFixture('1000.00', '0', balanceDate: $yesterday);
+		$this->mappingMapper->method('find')->with(10)->willReturn($mapping);
+
+		// Ledger: the opening balance plus 890 up to yesterday, -50 today
+		$this->transactionService = $this->createMock(TransactionService::class);
+		$account = $this->accountMapper->find(100, self::USER_ID);
+		$this->transactionService->method('getBalanceAsOf')->willReturnCallback(
+			fn (int $id, string $asOf) => (float)\OCA\Budget\Service\MoneyCalculator::add(
+				(float)$account->getOpeningBalance(),
+				$asOf >= date('Y-m-d') ? '840.00' : '890.00'
+			)
+		);
+		$this->rebuildService();
+
+		$this->accountService->expects($this->once())->method('update')
+			->with(100, self::USER_ID, ['openingBalance' => 110.0])
+			->willReturnCallback(function (int $id, string $userId, array $updates) use ($account) {
+				$account->setOpeningBalance($updates['openingBalance']);
+				return $account;
+			});
+
+		$result = $this->service->reconcileMapping(self::USER_ID, 1, 10);
+
+		$this->assertSame(['balance' => '1000.00', 'balanceDifference' => '0.00'], $result);
+	}
+
+	public function testMappingSerializesItsBalanceDate(): void {
+		$mapping = $this->createMapping(10, 1, 'ext-1');
+		$mapping->setLastBalanceDate('2026-10-26');
+
+		$this->assertSame('2026-10-26', $mapping->jsonSerialize()['lastBalanceDate']);
+	}
+
+	public function testGetBalanceDifferenceIsNullForAnUnmappedAccount(): void {
+		$this->assertNull($this->service->getBalanceDifference($this->createMapping(10, 1, 'ext-1'), self::USER_ID));
+	}
+
+	public static function incomparableMappings(): array {
+		return [
+			'no bank balance' => [null, 'checking', 'EUR'],
+			'liability' => ['5.00', 'loan', 'EUR'],
+			'other currency' => ['5.00', 'checking', 'GBP'],
+		];
+	}
+
+	#[\PHPUnit\Framework\Attributes\DataProvider('incomparableMappings')]
+	public function testGetBalanceDifferenceIsNullWhenItCanNotBeCompared(?string $lastBalance, string $type, string $currency): void {
+		$mapping = $this->differenceFixture($lastBalance, '5.00', $type, $currency);
+		$this->assertNull($this->service->getBalanceDifference($mapping, self::USER_ID));
+	}
+
+	public function testReconcileMappingAppliesDifference(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$this->connectionMapper->method('find')->with(1, self::USER_ID)
+			->willReturn($this->createConnection(1, 'simplefin', 'My Bank', 'active'));
+		$mapping = $this->differenceFixture('1000.00', '987.65');
+		$this->mappingMapper->method('find')->with(10)->willReturn($mapping);
+
+		// Rebuild getBalanceAsOf as a ledger, so the result reflects the update
+		$this->transactionService = $this->createMock(TransactionService::class);
+		$account = $this->accountMapper->find(100, self::USER_ID);
+		$this->transactionService->method('getBalanceAsOf')->willReturnCallback(
+			fn () => (float)\OCA\Budget\Service\MoneyCalculator::add((float)$account->getOpeningBalance(), '887.65')
+		);
+		$this->rebuildService();
+
+		$this->accountService->expects($this->once())->method('update')
+			->with(100, self::USER_ID, ['openingBalance' => 112.35])
+			->willReturnCallback(function (int $id, string $userId, array $updates) use ($account) {
+				$account->setOpeningBalance($updates['openingBalance']);
+				return $account;
+			});
+		$this->auditService->expects($this->once())->method('log')
+			->with(self::USER_ID, 'bank_balance_reconciled', 'bank_connection', 1, ['mappingId' => 10]);
+
+		$result = $this->service->reconcileMapping(self::USER_ID, 1, 10);
+
+		$this->assertSame(['balance' => '1000.00', 'balanceDifference' => '0.00'], $result);
+	}
+
+	public function testManualReconcileSetsReconciledFlag(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$this->connectionMapper->method('find')->with(1, self::USER_ID)
+			->willReturn($this->createConnection(1, 'simplefin', 'My Bank', 'active'));
+		$mapping = $this->differenceFixture('1000.00', '987.65');
+		$this->mappingMapper->method('find')->with(10)->willReturn($mapping);
+		$this->mappingMapper->expects($this->once())->method('update')
+			->with($this->callback(fn (BankAccountMapping $m) => $m === $mapping && $m->getBalanceReconciledAt() !== null))
+			->willReturnArgument(0);
+
+		$this->service->reconcileMapping(self::USER_ID, 1, 10);
+
+		$this->assertNotNull($mapping->getBalanceReconciledAt());
+	}
+
+	public static function remappings(): array {
+		return [
+			'another account' => [200, false],
+			'cleared' => [null, true],
+		];
+	}
+
+	#[\PHPUnit\Framework\Attributes\DataProvider('remappings')]
+	public function testRemappingResetsReconciledFlag(?int $newAccountId, bool $clear): void {
+		$this->connectionMapper->method('find')->willReturn($this->createConnection(1, 'simplefin', 'My Bank', 'active'));
+		$mapping = $this->createMapping(10, 1, 'ext-1', 100, true);
+		$mapping->setBalanceReconciledAt('2026-10-01 10:00:00');
+		$this->mappingMapper->method('find')->with(10)->willReturn($mapping);
+		$this->mappingMapper->method('update')->willReturnArgument(0);
+
+		$result = $this->service->updateMapping(self::USER_ID, 1, 10, $newAccountId, $clear, null);
+
+		$this->assertNull($result->getBalanceReconciledAt());
+	}
+
+	public function testTogglingAMappingKeepsReconciledFlag(): void {
+		$this->connectionMapper->method('find')->willReturn($this->createConnection(1, 'simplefin', 'My Bank', 'active'));
+		$mapping = $this->createMapping(10, 1, 'ext-1', 100, true);
+		$mapping->setBalanceReconciledAt('2026-10-01 10:00:00');
+		$this->mappingMapper->method('find')->with(10)->willReturn($mapping);
+		$this->mappingMapper->method('update')->willReturnArgument(0);
+		$this->accountMapper->method('find')->willReturn(new \OCA\Budget\Db\Account());
+
+		// Picking the account it already has, and switching it off
+		$result = $this->service->updateMapping(self::USER_ID, 1, 10, 100, false, false);
+
+		$this->assertSame('2026-10-01 10:00:00', $result->getBalanceReconciledAt());
+	}
+
+	public function testReconcileMappingRejectsAMappingOfAnotherConnection(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$this->connectionMapper->method('find')->willReturn($this->createConnection(1, 'simplefin', 'My Bank', 'active'));
+		$this->mappingMapper->method('find')->willReturn($this->createMapping(10, 2, 'ext-1', 100, true));
+		$this->accountService->expects($this->never())->method('update');
+
+		$this->expectException(\Exception::class);
+		$this->service->reconcileMapping(self::USER_ID, 1, 10);
+	}
+
+	public function testReconcileMappingRefusesAnAccountThatCanNotBeCompared(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$this->connectionMapper->method('find')->willReturn($this->createConnection(1, 'simplefin', 'My Bank', 'active'));
+		$this->mappingMapper->method('find')->willReturn($this->differenceFixture('5', '5', 'loan'));
+		$this->accountService->expects($this->never())->method('update');
+
+		$this->expectException(\Exception::class);
+		$this->service->reconcileMapping(self::USER_ID, 1, 10);
+	}
+
+	private function rebuildService(): void {
+		$ruleApplicator = $this->createMock(\OCA\Budget\Service\Import\ImportRuleApplicator::class);
+		$this->service = new BankSyncService(
+			$this->connectionMapper, $this->mappingMapper, $this->providerFactory, $this->transactionService,
+			$this->auditService, $this->adminSettings, $this->accountMapper,
+			$this->createMock(\OCA\Budget\Db\DismissedImportMapper::class),
+			$ruleApplicator,
+			$this->createMock(\OCA\Budget\Service\TransactionTagService::class),
+			$this->billService, $this->l, $this->logger,
+			accountService: $this->accountService,
+			transactionMapper: $this->transactionMapper,
+		);
+	}
 
 	private function createConnection(int $id, string $provider, string $name, string $status): BankConnection {
 		$conn = new BankConnection();

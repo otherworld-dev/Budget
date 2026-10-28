@@ -144,6 +144,16 @@ class SettingMapperTest extends TestCase {
 		$this->assertEquals(5, $count);
 	}
 
+	public function testDeleteAllSparesTheKeysToKeep(): void {
+		$this->expr->expects($this->once())->method('notIn')
+			->with('key', $this->anything());
+		$this->qb->method('executeStatement')->willReturn(2);
+
+		$count = $this->mapper->deleteAll('user1', ['enablebanking_keys']);
+
+		$this->assertEquals(2, $count);
+	}
+
 	public function testDeleteAllReturnsZeroForNoSettings(): void {
 		$this->qb->method('executeStatement')->willReturn(0);
 

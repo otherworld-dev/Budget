@@ -4,13 +4,19 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Service\BankSync;
 
+use OCA\Budget\Db\Account;
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\BankAccountMapping;
 use OCA\Budget\Db\BankAccountMappingMapper;
 use OCA\Budget\Db\BankConnection;
 use OCA\Budget\Db\BankConnectionMapper;
+use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Enum\AccountType;
+use OCA\Budget\Enum\Currency;
+use OCA\Budget\Service\AccountService;
 use OCA\Budget\Service\AdminSettingService;
 use OCA\Budget\Service\AuditService;
+use OCA\Budget\Service\MoneyCalculator;
 use OCA\Budget\Service\TransactionService;
 use OCP\IL10N;
 use Psr\Log\LoggerInterface;
@@ -20,6 +26,9 @@ use Psr\Log\LoggerInterface;
  * managing account mappings, and coordinating with providers.
  */
 class BankSyncService {
+	/** How long the bank redirect may take before the `state` is refused. */
+	private const ENABLE_BANKING_STATE_TTL = 1800;
+
 	public function __construct(
 		private BankConnectionMapper $connectionMapper,
 		private BankAccountMappingMapper $mappingMapper,
@@ -36,6 +45,8 @@ class BankSyncService {
 		private LoggerInterface $logger,
 		private ?\OCA\Budget\Service\PensionService $pensionService = null,
 		private ?\OCA\Budget\Service\RecurringIncomeService $incomeService = null,
+		private ?AccountService $accountService = null,
+		private ?TransactionMapper $transactionMapper = null,
 	) {
 	}
 
@@ -69,6 +80,7 @@ class BankSyncService {
 			$mapping->setExternalAccountName($account['name']);
 			$mapping->setEnabled(false);
 			$mapping->setLastBalance($account['balance'] ?? null);
+			$mapping->setLastBalanceDate(self::dayOf($account['balanceDate'] ?? null));
 			$mapping->setLastCurrency($account['currency'] ?? null);
 			$mapping->setCreatedAt($now);
 			$mapping->setUpdatedAt($now);
@@ -132,6 +144,20 @@ class BankSyncService {
 			);
 		}
 
+		// An Enable Banking connection waiting for the bank's redirect: without
+		// a session its first authorization never finished, which the user
+		// has to complete, not renew. While a re-authorization is under way
+		// (fresh state) nothing may touch the connection, or the redirect would
+		// no longer match it. Once the state is gone or timed out, nothing can
+		// complete it and the old session syncs; a good sync makes it active.
+		if ($connection->getProvider() === 'enablebanking' && $connection->getStatus() === 'pending_auth') {
+			$creds = $this->decodeCredentials($connection->getCredentials());
+			if (empty($creds['sessionId'])) {
+				throw new \Exception('Please finish connecting this bank first.');
+			}
+		}
+		$this->assertNoEnableBankingAuthorizationUnderway($connection);
+
 		$provider = $this->providerFactory->getProvider($connection->getProvider());
 
 		// Check if re-authorization is needed
@@ -143,11 +169,29 @@ class BankSyncService {
 			throw new \Exception('Bank authorization has expired. Please reconnect.');
 		}
 
+		// Transactions are only wanted for imported accounts: enabled and
+		// mapped to a budget account. One that was never reconciled and holds
+		// no row from this provider has not been imported yet and needs its
+		// full history. Reconciliation alone is not enough: auto-reconcile
+		// skips some accounts, and those would ask for 90 days every sync.
+		$allMappings = $this->mappingMapper->findByConnection($connectionId);
+		$importPrefix = $connection->getProvider() . ':';
+		$syncAccounts = [];
+		foreach ($allMappings as $m) {
+			$budgetAccountId = $m->getBudgetAccountId();
+			if (!$m->getEnabled() || $budgetAccountId === null) {
+				continue;
+			}
+			$syncAccounts[$m->getExternalAccountId()] = $m->getBalanceReconciledAt() === null
+				&& !($this->transactionMapper?->hasImportIdPrefix($budgetAccountId, $importPrefix) ?? false);
+		}
+
 		// Fetch accounts and transactions from provider
 		$includePending = (bool)$connection->getIncludePending();
 		try {
 			$data = $provider->fetchAccounts($connection->getCredentials(), [
 				'includePending' => $includePending,
+				'syncAccounts' => $syncAccounts,
 			]);
 		} catch (\Exception $e) {
 			$connection->setStatus('error');
@@ -168,8 +212,18 @@ class BankSyncService {
 			$this->connectionMapper->update($connection);
 		}
 
+		// A session that lists no accounts (not linked in the Enable Banking
+		// control panel) has nothing to sync; it needs a new authorization.
+		if ($connection->getProvider() === 'enablebanking' && empty($data['accounts'])) {
+			$message = $this->noAccountsMessage();
+			$connection->setStatus('expired');
+			$connection->setLastError($message);
+			$connection->setUpdatedAt(date('Y-m-d H:i:s'));
+			$this->connectionMapper->update($connection);
+			throw new \Exception($message);
+		}
+
 		// Auto-discover accounts if none have been mapped yet
-		$allMappings = $this->mappingMapper->findByConnection($connectionId);
 		if (empty($allMappings)) {
 			$this->refreshAccounts($userId, $connectionId);
 		}
@@ -228,13 +282,15 @@ class BankSyncService {
 
 			// Verify the budget account exists and belongs to this user
 			try {
-				$this->accountMapper->find($budgetAccountId, $userId);
+				$budgetAccount = $this->accountMapper->find($budgetAccountId, $userId);
 			} catch (\Exception $e) {
 				$totalErrors++;
 				continue;
 			}
 
 			$imported = 0;
+			// Rows this run added to the account (posted holds were already there)
+			$created = 0;
 			$transferLinkIds = [];
 			$skipped = 0;
 			$balanceDirty = false;
@@ -337,6 +393,7 @@ class BankSyncService {
 					// application) is swallowed by the catch below, and the
 					// persisted row must still get its balance recompute.
 					$balanceDirty = true;
+					$created++;
 					if ($isPending || !$this->isCopyOfBillHold($existingPending, $postedHoldIds, $tx)) {
 						$createdForBillMatch[] = $createdTx;
 					}
@@ -435,8 +492,19 @@ class BankSyncService {
 			$this->logger->info("Bank sync: account '{$externalAccount['name']}' result: {$imported} imported, {$skipped} duplicates skipped, mapped to budget account {$budgetAccountId}", ['app' => 'budget']);
 
 			// Update mapping balance
-			$mapping->setLastBalance($externalAccount['balance'] ?? null);
-			$mapping->setLastCurrency($externalAccount['currency'] ?? null);
+			$this->applyProviderAccount($mapping, $externalAccount);
+			if ($provider instanceof ReliableBalanceProviderInterface
+				&& isset($externalAccount['balance']) && is_numeric($externalAccount['balance'])) {
+				$this->autoReconcileNewAccount(
+					$mapping,
+					$budgetAccount,
+					(string)$externalAccount['balance'],
+					(string)($externalAccount['currency'] ?? ''),
+					$mapping->getLastBalanceDate(),
+					$created,
+					$userId
+				);
+			}
 			$mapping->setUpdatedAt(date('Y-m-d H:i:s'));
 			$this->mappingMapper->update($mapping);
 
@@ -514,10 +582,57 @@ class BankSyncService {
 			$result[] = [
 				'connection' => $conn,
 				'mappings' => $this->mappingMapper->findByConnection($conn->getId()),
+				'canReauthorize' => $this->canReauthorize($conn),
 			];
 		}
 
 		return $result;
+	}
+
+	/**
+	 * Whether the card offers Re-authorize. Expired connections of a
+	 * re-authorizable provider can be renewed. An Enable Banking connection
+	 * stuck in pending_auth can be restarted once its authorization failed
+	 * (lastError) or can no longer complete (state cleared or timed out),
+	 * but not while the user may still be at the bank.
+	 */
+	private function canReauthorize(BankConnection $connection): bool {
+		$status = $connection->getStatus();
+		$stuckEnableBanking = $connection->getProvider() === 'enablebanking'
+			&& $status === 'pending_auth'
+			&& ($connection->getLastError() !== null
+				|| !$this->hasFreshEnableBankingState($this->decodeCredentials($connection->getCredentials())));
+		if ($status !== 'expired' && !$stuckEnableBanking) {
+			return false;
+		}
+
+		try {
+			$provider = $this->providerFactory->getProvider($connection->getProvider());
+		} catch (\InvalidArgumentException) {
+			return false;
+		}
+		return $provider instanceof ReauthorizableProviderInterface;
+	}
+
+	/**
+	 * Refuse to work on an Enable Banking connection while its
+	 * (re-)authorization is under way at the bank: syncing or promoting it
+	 * would move it out of pending_auth and the bank's redirect could no
+	 * longer complete it. Nothing is changed or recorded.
+	 */
+	private function assertNoEnableBankingAuthorizationUnderway(BankConnection $connection): void {
+		if ($connection->getProvider() === 'enablebanking'
+			&& $connection->getStatus() === 'pending_auth'
+			&& $this->hasFreshEnableBankingState($this->decodeCredentials($connection->getCredentials()))) {
+			throw new \Exception('Please finish authorizing at your bank first.');
+		}
+	}
+
+	/** A `state` is stored and younger than ENABLE_BANKING_STATE_TTL. */
+	private function hasFreshEnableBankingState(#[\SensitiveParameter] array $creds): bool {
+		$state = $creds['state'] ?? null;
+		return is_string($state) && $state !== ''
+			&& time() - (int)($creds['stateCreatedAt'] ?? 0) < self::ENABLE_BANKING_STATE_TTL;
 	}
 
 	/**
@@ -546,6 +661,10 @@ class BankSyncService {
 		if ($oldBudgetAccountId !== null && $mapping->getBudgetAccountId() !== $oldBudgetAccountId) {
 			$this->dismissedImportMapper->deleteByAccount($oldBudgetAccountId);
 		}
+		// Another account's first sync may set its opening balance again
+		if ($mapping->getBudgetAccountId() !== $oldBudgetAccountId) {
+			$mapping->setBalanceReconciledAt(null);
+		}
 
 		if ($enabled !== null) {
 			$mapping->setEnabled($enabled);
@@ -556,12 +675,199 @@ class BankSyncService {
 	}
 
 	/**
+	 * The bank's balance minus Budget's balance on the day the bank reported
+	 * it for (today when it gave none), for a mapping the two can be compared
+	 * on. A non-zero difference usually means a missing or doubled row, so it
+	 * is shown, never corrected on its own.
+	 *
+	 * Null when the mapping has no Budget account or no bank balance yet,
+	 * the account is a liability (banks report those with their own sign),
+	 * or the bank reports another currency than the account's.
+	 */
+	public function getBalanceDifference(BankAccountMapping $m, string $userId): ?string {
+		$account = $this->comparableAccount($m, $userId);
+		return $account === null ? null : $this->balanceDifference($account, (string)$m->getLastBalance(), $m->getLastBalanceDate());
+	}
+
+	/**
+	 * Make Budget's balance match the bank's by moving the account's opening
+	 * balance by the difference. The rows stay as they are: the user chose
+	 * to accept the gap rather than find the row that causes it.
+	 *
+	 * @return array{balance: string, balanceDifference: string}
+	 */
+	public function reconcileMapping(string $userId, int $connectionId, int $mappingId): array {
+		// Verify connection ownership
+		$this->connectionMapper->find($connectionId, $userId);
+
+		$mapping = $this->mappingMapper->find($mappingId);
+		if ($mapping->getConnectionId() !== $connectionId) {
+			throw new \Exception('Mapping does not belong to this connection');
+		}
+
+		$account = $this->comparableAccount($mapping, $userId);
+		if ($account === null || $this->accountService === null) {
+			throw new \Exception('This account cannot be matched to the bank balance');
+		}
+
+		$bankBalance = (string)$mapping->getLastBalance();
+		$balanceDate = $mapping->getLastBalanceDate();
+		$this->moveOpeningBalance($account, $this->balanceDifference($account, $bankBalance, $balanceDate), $userId);
+		$mapping->setBalanceReconciledAt(date('Y-m-d H:i:s'));
+		$mapping->setUpdatedAt(date('Y-m-d H:i:s'));
+		$this->mappingMapper->update($mapping);
+
+		// No amounts: the audit log must not carry balances
+		$this->auditService->log($userId, 'bank_balance_reconciled', 'bank_connection', $connectionId, [
+			'mappingId' => $mappingId,
+		]);
+
+		// Both as of the day compared, so that balance + difference = the bank's
+		return [
+			'balance' => $this->budgetBalanceOn($account, $this->comparisonDate($balanceDate)),
+			'balanceDifference' => $this->balanceDifference($account, $bankBalance, $balanceDate),
+		];
+	}
+
+	/**
+	 * On the first sync into an account that holds nothing but the rows just
+	 * imported, set its opening balance so that its balance on the bank's
+	 * balance date equals the bank's. Only the bank's recent history is
+	 * fetched, so without this the account would start at the sum of those
+	 * rows. An account with any other
+	 * row is left alone: its difference is shown with a Reconcile action.
+	 *
+	 * The mapping remembers that it was matched (the caller saves it). An
+	 * account that stays empty would otherwise pass the row check on every
+	 * sync, and its balance would follow the bank's, hiding a row the bank
+	 * never delivered. Mapping it to another account resets it.
+	 *
+	 * Only for providers that declare ReliableBalanceProviderInterface: an
+	 * available balance with a credit line, or none, would set a wrong
+	 * opening balance without anyone noticing.
+	 */
+	private function autoReconcileNewAccount(BankAccountMapping $mapping, Account $account, string $bankBalance, string $bankCurrency, ?string $balanceDate, int $importedThisRun, string $userId): void {
+		if ($this->accountService === null || $this->transactionMapper === null
+			|| $mapping->getBalanceReconciledAt() !== null
+			|| !$this->isComparable($account, $bankCurrency)
+			|| $this->transactionMapper->countByAccount($account->getId(), $userId) !== $importedThisRun) {
+			return;
+		}
+
+		try {
+			$this->moveOpeningBalance($account, $this->balanceDifference($account, $bankBalance, $balanceDate), $userId);
+			$mapping->setBalanceReconciledAt(date('Y-m-d H:i:s'));
+		} catch (\Exception $e) {
+			// The rows are in; the difference stays visible for a manual reconcile
+			$this->logger->warning("Bank sync: could not set the opening balance of account {$account->getId()}: {$e->getMessage()}", ['app' => 'budget']);
+		}
+	}
+
+	/** The mapping's Budget account, when its balance can be compared to the bank's. */
+	private function comparableAccount(BankAccountMapping $m, string $userId): ?Account {
+		$accountId = $m->getBudgetAccountId();
+		if ($accountId === null || !is_numeric($m->getLastBalance())) {
+			return null;
+		}
+		try {
+			$account = $this->accountMapper->find($accountId, $userId);
+		} catch (\Exception $e) {
+			return null;
+		}
+		return $this->isComparable($account, $m->getLastCurrency()) ? $account : null;
+	}
+
+	private function isComparable(Account $account, ?string $bankCurrency): bool {
+		if (AccountType::tryFrom((string)$account->getType())?->isLiability() ?? false) {
+			return false;
+		}
+		return $bankCurrency !== null && $bankCurrency !== ''
+			&& strtoupper($bankCurrency) === strtoupper((string)$account->getCurrency());
+	}
+
+	/** Budget's balance as of a day, pending rows included, as a decimal string. */
+	private function budgetBalanceOn(Account $account, string $date): string {
+		return MoneyCalculator::add(
+			$this->transactionService->getBalanceAsOf($account->getId(), $date),
+			'0',
+			Currency::decimalsFor($account->getCurrency())
+		);
+	}
+
+	/**
+	 * Compared on the bank's balance date: comdirect reports the previous
+	 * day's close, which does not include rows booked today.
+	 */
+	private function balanceDifference(Account $account, string $bankBalance, ?string $balanceDate): string {
+		return MoneyCalculator::subtract(
+			$bankBalance,
+			$this->budgetBalanceOn($account, $this->comparisonDate($balanceDate)),
+			Currency::decimalsFor($account->getCurrency())
+		);
+	}
+
+	/**
+	 * The bank's balance date, or today without one. Never later than
+	 * tomorrow: the bank (e.g. CET) may be a day ahead of the server around
+	 * midnight, but anything further would count Budget's future-dated rows
+	 * as if the bank had them.
+	 */
+	private function comparisonDate(?string $balanceDate): string {
+		$today = date('Y-m-d');
+		$latest = date('Y-m-d', strtotime('+1 day'));
+		$day = self::dayOf($balanceDate);
+		if ($day === null) {
+			return $today;
+		}
+		return $day > $latest ? $latest : $day;
+	}
+
+	/** `Y-m-d` from a date or date-time string (databases may add a time), else null. */
+	private static function dayOf(mixed $value): ?string {
+		if (!is_string($value) || preg_match('/^(\d{4})-(\d{2})-(\d{2})/', $value, $m) !== 1
+			|| !checkdate((int)$m[2], (int)$m[3], (int)$m[1])) {
+			return null;
+		}
+		return $m[0];
+	}
+
+	/** AccountService recomputes the stored balance from the new opening balance. */
+	private function moveOpeningBalance(Account $account, string $difference, string $userId): void {
+		if ($this->accountService === null) {
+			return;
+		}
+		$opening = MoneyCalculator::add(
+			(float)($account->getOpeningBalance() ?? 0.0),
+			$difference,
+			Currency::decimalsFor($account->getCurrency())
+		);
+		$this->accountService->update($account->getId(), $userId, [
+			'openingBalance' => MoneyCalculator::toFloat($opening),
+		]);
+	}
+
+	/**
+	 * Takes what the provider currently reports for an account onto its
+	 * mapping: the name too, so labels changed by the provider reach
+	 * connections created before the change.
+	 */
+	private function applyProviderAccount(BankAccountMapping $mapping, array $account): void {
+		if (isset($account['name']) && is_string($account['name']) && $account['name'] !== '') {
+			$mapping->setExternalAccountName($account['name']);
+		}
+		$mapping->setLastBalance($account['balance'] ?? null);
+		$mapping->setLastBalanceDate(self::dayOf($account['balanceDate'] ?? null));
+		$mapping->setLastCurrency($account['currency'] ?? null);
+	}
+
+	/**
 	 * Refresh the account list from the provider (does NOT import transactions).
 	 */
 	public function refreshAccounts(string $userId, int $connectionId): array {
 		$this->requireEnabled();
 
 		$connection = $this->connectionMapper->find($connectionId, $userId);
+		$this->assertNoEnableBankingAuthorizationUnderway($connection);
 		$provider = $this->providerFactory->getProvider($connection->getProvider());
 		$data = $provider->fetchAccountList($connection->getCredentials());
 		$now = date('Y-m-d H:i:s');
@@ -592,14 +898,14 @@ class BankSyncService {
 				$mapping->setExternalAccountName($account['name']);
 				$mapping->setEnabled(false);
 				$mapping->setLastBalance($account['balance'] ?? null);
+				$mapping->setLastBalanceDate(self::dayOf($account['balanceDate'] ?? null));
 				$mapping->setLastCurrency($account['currency'] ?? null);
 				$mapping->setCreatedAt($now);
 				$mapping->setUpdatedAt($now);
 				$newMappings[] = $this->mappingMapper->insert($mapping);
 			} else {
 				// Update balance
-				$existing->setLastBalance($account['balance'] ?? null);
-				$existing->setLastCurrency($account['currency'] ?? null);
+				$this->applyProviderAccount($existing, $account);
 				$existing->setUpdatedAt($now);
 				$this->mappingMapper->update($existing);
 			}
@@ -609,33 +915,22 @@ class BankSyncService {
 	}
 
 	/**
-	 * Re-authorize an expired GoCardless connection with a new requisition.
+	 * Re-authorize an expired connection with any provider that supports it.
 	 *
-	 * @return array{authorizationUrl: string}
+	 * @param array $params Provider-specific input (institutionId, redirectUrl, ...)
+	 * @return array{authorizationUrl: string|null}
 	 */
-	public function reauthorize(string $userId, int $connectionId, string $institutionId, string $redirectUrl): array {
+	public function reauthorize(string $userId, int $connectionId, array $params): array {
 		$this->requireEnabled();
 
 		$connection = $this->connectionMapper->find($connectionId, $userId);
+		$provider = $this->providerFactory->getProvider($connection->getProvider());
 
-		if ($connection->getProvider() !== 'gocardless') {
-			throw new \Exception('Re-authorization is only supported for GoCardless connections');
+		if (!($provider instanceof ReauthorizableProviderInterface)) {
+			throw new \Exception('This provider does not support re-authorization');
 		}
 
-		$provider = $this->providerFactory->getProvider('gocardless');
-		$creds = json_decode($connection->getCredentials(), true);
-
-		if (!$creds || !isset($creds['secretId'], $creds['secretKey'])) {
-			throw new \Exception('Stored credentials are incomplete');
-		}
-
-		// Re-initialize with institution to create a new requisition
-		$result = $provider->initializeConnection([
-			'secretId' => $creds['secretId'],
-			'secretKey' => $creds['secretKey'],
-			'institutionId' => $institutionId,
-			'redirectUrl' => $redirectUrl,
-		]);
+		$result = $provider->reinitializeConnection($connection->getCredentials(), $params);
 
 		// Update connection with new credentials (new requisitionId, fresh token)
 		// Status stays pending until user completes bank authorization
@@ -646,12 +941,174 @@ class BankSyncService {
 		$this->connectionMapper->update($connection);
 
 		$this->auditService->log($userId, 'bank_reauthorized', 'bank_connection', $connectionId, [
-			'provider' => 'gocardless',
+			'provider' => $connection->getProvider(),
 		]);
 
 		return [
 			'authorizationUrl' => $result['authorizationUrl'] ?? null,
 		];
+	}
+
+	/**
+	 * Finish an Enable Banking authorization from the bank's redirect.
+	 *
+	 * The `state` is the only thing tying the redirect to a connection, so it
+	 * is matched only among the logged-in user's own pending Enable Banking
+	 * connections: a state taken from someone else's redirect authorizes
+	 * nothing. The provider clears it, which makes it single use.
+	 *
+	 * Mappings are matched by `identification_hash`, which outlives the
+	 * per-session account UIDs, so a reauthorized connection keeps its
+	 * Budget accounts. The bank's balances are not fetched here (banks allow
+	 * only a few accesses a day); the wizard's refresh step does that.
+	 *
+	 * @throws \RuntimeException when no pending connection matches the state
+	 */
+	public function completeEnableBankingAuthorization(string $userId, #[\SensitiveParameter] string $state, #[\SensitiveParameter] string $code): BankConnection {
+		$this->requireEnabled();
+
+		$connection = $this->findEnableBankingConnectionByState($userId, $state, true);
+		if ($connection === null) {
+			throw new \RuntimeException('No pending bank authorization matches this request');
+		}
+
+		$provider = $this->providerFactory->getProvider('enablebanking');
+		if (!($provider instanceof EnableBankingProvider)) {
+			throw new \RuntimeException('Enable Banking is not available');
+		}
+
+		// Read before completing: the provider overwrites the session ID
+		$oldCredentials = $connection->getCredentials();
+		$oldSessionId = $this->decodeCredentials($oldCredentials)['sessionId'] ?? null;
+
+		try {
+			$result = $provider->completeAuthorization($oldCredentials, $code);
+		} catch (\Exception $e) {
+			// The code was spent or refused: the state can't be used again,
+			// and the error lets the card offer Re-authorize.
+			$this->recordFailedAuthorization($connection);
+			throw $e;
+		}
+		$newCreds = $this->decodeCredentials($result['credentials']);
+		$now = date('Y-m-d H:i:s');
+
+		// An authorized session without accounts is not usable: expired makes
+		// the card offer Re-authorize once the account is linked at Enable Banking.
+		$noAccounts = empty($result['accounts']);
+		$connection->setCredentials($result['credentials']);
+		$connection->setStatus($noAccounts ? 'expired' : 'active');
+		$connection->setLastError($noAccounts ? $this->noAccountsMessage() : null);
+		$connection->setUpdatedAt($now);
+		$this->connectionMapper->update($connection);
+
+		$consentExpires = $this->toDbDateTime($newCreds['validUntil'] ?? null);
+		foreach ($result['accounts'] as $account) {
+			$mapping = $this->mappingMapper->findByExternalId($connection->getId(), $account['id']);
+			$isNew = $mapping === null;
+			if ($isNew) {
+				$mapping = new BankAccountMapping();
+				$mapping->setConnectionId($connection->getId());
+				$mapping->setExternalAccountId($account['id']);
+				$mapping->setEnabled(false);
+				$mapping->setCreatedAt($now);
+			}
+			$mapping->setExternalAccountName($account['name']);
+			$mapping->setLastCurrency($account['currency'] ?? null);
+			$mapping->setConsentExpires($consentExpires);
+			$mapping->setUpdatedAt($now);
+			if ($isNew) {
+				$this->mappingMapper->insert($mapping);
+			} else {
+				$this->mappingMapper->update($mapping);
+			}
+		}
+
+		$reauthorized = !empty($oldSessionId);
+		if ($reauthorized && $oldSessionId !== ($newCreds['sessionId'] ?? null)) {
+			// Best effort, and not logged: this runs on the bank's redirect,
+			// whose URL (code, state) Nextcloud would add to the log entry.
+			// An unrevoked session lapses at the bank on its own.
+			$provider->revokeSession($oldCredentials);
+		}
+
+		$this->auditService->log($userId, $reauthorized ? 'bank_reauthorized' : 'bank_connected', 'bank_connection', $connection->getId(), [
+			'provider' => 'enablebanking',
+		]);
+
+		return $connection;
+	}
+
+	private function noAccountsMessage(): string {
+		return $this->l->t('The bank did not share any accounts. Link the account in the Enable Banking control panel, then use Re-authorize.');
+	}
+
+	/**
+	 * The bank redirected back with an error (or the user cancelled there).
+	 * The bank's error text is not stored or shown: it is untrusted input,
+	 * and the user only needs to know to try again.
+	 */
+	public function failEnableBankingAuthorization(string $userId, #[\SensitiveParameter] string $state, string $error): void {
+		$connection = $this->findEnableBankingConnectionByState($userId, $state, false);
+		if ($connection === null) {
+			return;
+		}
+		$this->recordFailedAuthorization($connection);
+	}
+
+	/** Clear the used-up state and show that the authorization failed. */
+	private function recordFailedAuthorization(BankConnection $connection): void {
+		$creds = $this->decodeCredentials($connection->getCredentials());
+		$creds['state'] = null;
+		$creds['stateCreatedAt'] = null;
+		$connection->setCredentials((string)json_encode($creds));
+		$connection->setLastError('Authorization was cancelled or failed at the bank.');
+		$connection->setUpdatedAt(date('Y-m-d H:i:s'));
+		$this->connectionMapper->update($connection);
+	}
+
+	/**
+	 * The user's pending Enable Banking connection whose `state` matches,
+	 * compared in constant time. With $requireFresh, a state older than
+	 * ENABLE_BANKING_STATE_TTL does not match.
+	 */
+	private function findEnableBankingConnectionByState(string $userId, #[\SensitiveParameter] string $state, bool $requireFresh): ?BankConnection {
+		if ($state === '') {
+			return null;
+		}
+		foreach ($this->connectionMapper->findAll($userId) as $connection) {
+			if ($connection->getProvider() !== 'enablebanking' || $connection->getStatus() !== 'pending_auth') {
+				continue;
+			}
+			$creds = $this->decodeCredentials($connection->getCredentials());
+			$stored = $creds['state'] ?? null;
+			if (!is_string($stored) || $stored === '' || !hash_equals($stored, $state)) {
+				continue;
+			}
+			if ($requireFresh && time() - (int)($creds['stateCreatedAt'] ?? 0) >= self::ENABLE_BANKING_STATE_TTL) {
+				return null;
+			}
+			return $connection;
+		}
+		return null;
+	}
+
+	private function decodeCredentials(#[\SensitiveParameter] ?string $credentials): array {
+		$creds = json_decode((string)$credentials, true);
+		return is_array($creds) ? $creds : [];
+	}
+
+	/** An RFC 3339 timestamp as a server-local DATETIME column value, or null. */
+	private function toDbDateTime(mixed $value): ?string {
+		if (!is_string($value) || $value === '') {
+			return null;
+		}
+		try {
+			return (new \DateTimeImmutable($value))
+				->setTimezone(new \DateTimeZone(date_default_timezone_get()))
+				->format('Y-m-d H:i:s');
+		} catch (\Exception $e) {
+			return null;
+		}
 	}
 
 	/**

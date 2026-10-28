@@ -10,6 +10,7 @@ use OCA\Budget\Db\SettingMapper;
 use OCA\Budget\Enum\Currency;
 use OCA\Budget\Service\AmountColours;
 use OCA\Budget\Service\AttachmentService;
+use OCA\Budget\Service\BankSync\EnableBanking\EnableBankingKeyStore;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\ImportFolderService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
@@ -87,6 +88,19 @@ class SettingController extends Controller {
 		'import_skip_duplicates',
 	];
 
+	/**
+	 * Stored as settings, but never handed to the browser through this API:
+	 * the Enable Banking keys are an encrypted private key, and the settings
+	 * UI only ever learns whether they exist (EnableBankingController).
+	 * Removing them here would also skip that controller's check for
+	 * connections still using them.
+	 */
+	private const HIDDEN_KEYS = [EnableBankingKeyStore::SETTING_KEY];
+
+	private static function isHiddenKey(string $key): bool {
+		return in_array($key, self::HIDDEN_KEYS, true);
+	}
+
 	private static function isClientKey(string $key): bool {
 		return array_key_exists($key, self::DEFAULTS) || in_array($key, self::CLIENT_KEYS, true);
 	}
@@ -127,6 +141,9 @@ class SettingController extends Controller {
 			// Convert to key-value array
 			$settingsArray = [];
 			foreach ($settings as $setting) {
+				if (self::isHiddenKey((string)$setting->getKey())) {
+					continue;
+				}
 				$settingsArray[$setting->getKey()] = $setting->getValue();
 			}
 
@@ -145,6 +162,12 @@ class SettingController extends Controller {
 	 * @NoAdminRequired
 	 */
 	public function show(string $key): DataResponse {
+		if (self::isHiddenKey($key)) {
+			return new DataResponse(
+				['error' => $this->l->t('Setting not found')],
+				Http::STATUS_NOT_FOUND
+			);
+		}
 		try {
 			$setting = $this->mapper->findByKey($this->getEffectiveUserId(), $key);
 			return new DataResponse([
@@ -378,6 +401,9 @@ class SettingController extends Controller {
 	 */
 	#[UserRateLimit(limit: 20, period: 60)]
 	public function destroy(string $key): DataResponse {
+		if (self::isHiddenKey($key)) {
+			return $this->refusedKey($key);
+		}
 		try {
 			if ($key === ImportFolderService::MAIN_FOLDER_KEY) {
 				$this->leaveImportFilesAlone('');
@@ -410,7 +436,7 @@ class SettingController extends Controller {
 	public function reset(): DataResponse {
 		try {
 			$this->leaveImportFilesAlone('');
-			$deleted = $this->mapper->deleteAll($this->getEffectiveUserId());
+			$deleted = $this->mapper->deleteAll($this->getEffectiveUserId(), self::HIDDEN_KEYS);
 
 			return new DataResponse([
 				'message' => $this->l->t('All settings reset to defaults'),

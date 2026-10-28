@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace OCA\Budget\Controller;
 
 use OCA\Budget\AppInfo\Application;
+use OCA\Budget\Db\BankAccountMapping;
 use OCA\Budget\Service\AdminSettingService;
 use OCA\Budget\Service\BankSync\BankSyncService;
-use OCA\Budget\Service\BankSync\GoCardlessProvider;
+use OCA\Budget\Service\BankSync\EnableBanking\EnableBankingAuthException;
+use OCA\Budget\Service\BankSync\InstitutionListingProviderInterface;
 use OCA\Budget\Service\BankSync\ProviderFactory;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCP\AppFramework\Controller;
@@ -16,6 +18,7 @@ use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\IL10N;
 use OCP\IRequest;
+use OCP\IURLGenerator;
 use Psr\Log\LoggerInterface;
 
 class BankSyncController extends Controller {
@@ -27,6 +30,7 @@ class BankSyncController extends Controller {
 		private AdminSettingService $adminSettings,
 		private ProviderFactory $providerFactory,
 		private IL10N $l,
+		private IURLGenerator $urlGenerator,
 		private string $userId,
 		LoggerInterface $logger,
 	) {
@@ -70,7 +74,7 @@ class BankSyncController extends Controller {
 	}
 
 	/**
-	 * List institutions for a provider (GoCardless bank list).
+	 * List institutions for a provider (bank list).
 	 * @NoAdminRequired
 	 */
 	#[UserRateLimit(limit: 10, period: 60)]
@@ -81,7 +85,7 @@ class BankSyncController extends Controller {
 
 		try {
 			$p = $this->providerFactory->getProvider($provider);
-			if (!($p instanceof GoCardlessProvider)) {
+			if (!($p instanceof InstitutionListingProviderInterface)) {
 				return new DataResponse(['error' => $this->l->t('This provider does not support institution listing')], Http::STATUS_BAD_REQUEST);
 			}
 
@@ -90,19 +94,24 @@ class BankSyncController extends Controller {
 			if (!preg_match('/^[A-Z]{2}$/', $country)) {
 				return new DataResponse(['error' => $this->l->t('Invalid country code')], Http::STATUS_BAD_REQUEST);
 			}
-			$secretId = $params['secretId'] ?? null;
-			$secretKey = $params['secretKey'] ?? null;
 
-			if (!$secretId || !$secretKey) {
-				return new DataResponse(['error' => $this->l->t('API credentials required')], Http::STATUS_BAD_REQUEST);
+			$listParams = ['country' => $country];
+			if ($provider === 'gocardless') {
+				$secretId = $params['secretId'] ?? null;
+				$secretKey = $params['secretKey'] ?? null;
+				if (!$secretId || !$secretKey) {
+					return new DataResponse(['error' => $this->l->t('API credentials required')], Http::STATUS_BAD_REQUEST);
+				}
+				$listParams['secretId'] = $secretId;
+				$listParams['secretKey'] = $secretKey;
 			}
+			// Enable Banking reads its keys from the key store; nothing secret is accepted from the client.
 
-			// Get access token and fetch institutions
-			$accessToken = $this->getGoCardlessToken($p, $secretId, $secretKey);
-			$institutions = $p->getInstitutions($accessToken, $country);
-
-			return new DataResponse($institutions);
+			return new DataResponse($p->listInstitutions($this->userId, $listParams));
 		} catch (\Exception $e) {
+			if ($r = $this->inactiveApplicationResponse($e)) {
+				return $r;
+			}
 			return $this->handleError($e, $this->l->t('Failed to fetch institutions'), Http::STATUS_BAD_REQUEST);
 		}
 	}
@@ -142,7 +151,7 @@ class BankSyncController extends Controller {
 				return new DataResponse(['error' => $this->l->t('Connection name must be between 1 and 255 characters')], Http::STATUS_BAD_REQUEST);
 			}
 
-			$validProviders = ['simplefin', 'gocardless'];
+			$validProviders = ['simplefin', 'gocardless', 'enablebanking'];
 			if (!in_array($provider, $validProviders, true)) {
 				return new DataResponse(['error' => $this->l->t('Invalid provider')], Http::STATUS_BAD_REQUEST);
 			}
@@ -156,9 +165,16 @@ class BankSyncController extends Controller {
 				$providerParams['secretKey'] = $params['secretKey'] ?? null;
 				$providerParams['institutionId'] = $params['institutionId'] ?? null;
 				$providerParams['redirectUrl'] = $params['redirectUrl'] ?? null;
+			} else {
+				$providerParams['userId'] = $this->userId;
+				$providerParams['institutionId'] = $params['institutionId'] ?? null;
+				$providerParams['country'] = $params['country'] ?? null;
+				$providerParams['maximumConsentValidity'] = $params['maximumConsentValidity'] ?? null;
+				// Never from the client: the bank must return to our own callback route.
+				$providerParams['redirectUrl'] = $this->enableBankingCallbackUrl();
 			}
 
-			if (!empty($providerParams['redirectUrl'])) {
+			if ($provider !== 'enablebanking' && !empty($providerParams['redirectUrl'])) {
 				$baseUrl = $this->request->getServerProtocol() . '://' . $this->request->getServerHost();
 				if (!str_starts_with($providerParams['redirectUrl'], $baseUrl)) {
 					$providerParams['redirectUrl'] = '';
@@ -168,6 +184,9 @@ class BankSyncController extends Controller {
 			$result = $this->syncService->connect($this->userId, $provider, $providerParams, $name);
 			return new DataResponse($result);
 		} catch (\Exception $e) {
+			if ($r = $this->inactiveApplicationResponse($e)) {
+				return $r;
+			}
 			return $this->handleError($e, $this->l->t('Failed to connect bank'), Http::STATUS_BAD_REQUEST);
 		}
 	}
@@ -265,9 +284,47 @@ class BankSyncController extends Controller {
 				return new DataResponse(['error' => $this->l->t('Connection not found')], Http::STATUS_NOT_FOUND);
 			}
 
-			return new DataResponse($mappings);
+			// The difference to the bank's balance, for the Reconcile action
+			return new DataResponse(array_map(
+				fn ($m) => $m->jsonSerialize() + ['balanceDifference' => $this->balanceDifferenceOrNull($m, $id)],
+				$mappings
+			));
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to fetch mappings'), Http::STATUS_BAD_REQUEST, ['connectionId' => $id]);
+		}
+	}
+
+	/**
+	 * One mapping whose difference can't be computed must not hide the
+	 * others: it shows none. Fixed text only, the message could carry amounts.
+	 */
+	private function balanceDifferenceOrNull(BankAccountMapping $mapping, int $connectionId): ?string {
+		try {
+			return $this->syncService->getBalanceDifference($mapping, $this->userId);
+		} catch (\Exception $e) {
+			$this->logger?->warning('Bank sync: could not compute a balance difference', [
+				'app' => 'budget',
+				'connectionId' => $connectionId,
+				'mappingId' => $mapping->getId(),
+			]);
+			return null;
+		}
+	}
+
+	/**
+	 * Match the Budget account's balance to the bank's by moving its opening balance.
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 10, period: 60)]
+	public function reconcileMapping(int $id, int $mappingId): DataResponse {
+		if ($r = $this->requireBankSync()) {
+			return $r;
+		}
+
+		try {
+			return new DataResponse($this->syncService->reconcileMapping($this->userId, $id, $mappingId));
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to reconcile the balance'), Http::STATUS_BAD_REQUEST, ['connectionId' => $id]);
 		}
 	}
 
@@ -314,7 +371,7 @@ class BankSyncController extends Controller {
 	}
 
 	/**
-	 * Re-authorize an expired GoCardless connection.
+	 * Re-authorize an expired connection.
 	 * @NoAdminRequired
 	 */
 	#[UserRateLimit(limit: 5, period: 60)]
@@ -326,27 +383,50 @@ class BankSyncController extends Controller {
 		try {
 			$params = $this->request->getParams();
 			$institutionId = $params['institutionId'] ?? null;
-			$redirectUrl = $params['redirectUrl'] ?? null;
 
 			if (!$institutionId) {
 				return new DataResponse(['error' => $this->l->t('Institution ID is required')], Http::STATUS_BAD_REQUEST);
 			}
 
-			if ($redirectUrl) {
-				$baseUrl = $this->request->getServerProtocol() . '://' . $this->request->getServerHost();
-				if (!str_starts_with($redirectUrl, $baseUrl)) {
-					$redirectUrl = '';
+			$connection = $this->syncService->getConnection($this->userId, $id);
+			if ($connection->getProvider() === 'enablebanking') {
+				$providerParams = [
+					'institutionId' => $institutionId,
+					'country' => $params['country'] ?? null,
+					'redirectUrl' => $this->enableBankingCallbackUrl(),
+					'maximumConsentValidity' => $params['maximumConsentValidity'] ?? null,
+				];
+			} else {
+				$redirectUrl = $params['redirectUrl'] ?? null;
+				if ($redirectUrl) {
+					$baseUrl = $this->request->getServerProtocol() . '://' . $this->request->getServerHost();
+					if (!str_starts_with($redirectUrl, $baseUrl)) {
+						$redirectUrl = '';
+					}
 				}
+				$providerParams = [
+					'institutionId' => $institutionId,
+					'redirectUrl' => $redirectUrl ?? '',
+				];
 			}
 
-			$result = $this->syncService->reauthorize($this->userId, $id, $institutionId, $redirectUrl ?? '');
+			$result = $this->syncService->reauthorize($this->userId, $id, $providerParams);
 			return new DataResponse($result);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to re-authorize'), Http::STATUS_BAD_REQUEST, ['connectionId' => $id]);
 		}
 	}
 
-	private function getGoCardlessToken(GoCardlessProvider $provider, string $secretId, string $secretKey): string {
-		return $provider->getToken($secretId, $secretKey);
+	private function inactiveApplicationResponse(\Throwable $e): ?DataResponse {
+		if (!($e instanceof EnableBankingAuthException) || $e->getReason() !== EnableBankingAuthException::REASON_APPLICATION_INACTIVE) {
+			return null;
+		}
+		return new DataResponse([
+			'error' => $this->l->t('Your Enable Banking application is not active yet. Link at least one of your accounts in the Enable Banking control panel, then try again.'),
+		], Http::STATUS_BAD_REQUEST);
+	}
+
+	private function enableBankingCallbackUrl(): string {
+		return $this->urlGenerator->linkToRouteAbsolute('budget.enableBanking.callback');
 	}
 }
