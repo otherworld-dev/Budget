@@ -561,6 +561,40 @@ class ReportAggregatorTest extends TestCase {
 		$this->assertCount(3, $result['trends']['income']);
 	}
 
+	public function testTrendDataNamesBudgetMonthsWithAMonthStartDay(): void {
+		$account = $this->makeAccount(1, 'Current', 'checking', 1000.00, 'GBP');
+		$this->accountMapper->method('find')->willReturn($account);
+		$this->transactionMapper->method('getAccountSummaries')->willReturn([]);
+		// The query is asked for budget months and answers in them; set up
+		// before the defaults, whose stub would answer first
+		$this->reportQueries->expects($this->once())->method('getMonthlyTrendData')
+			->with('user1', 1, '2026-08-26', '2026-10-25', [], true, false, null, 26)
+			->willReturn([
+				['month' => '2026-09', 'income' => 3000.0, 'expenses' => 100.0],
+				['month' => '2026-10', 'income' => 3000.0, 'expenses' => 200.0],
+			]);
+		$this->setupDefaultMocks();
+		$this->conversionService->method('getBaseCurrency')->willReturn('GBP');
+
+		// Start day 26: 26 Aug - 25 Sep is September, 26 Sep - 25 Oct October
+		$result = $this->aggregator->generateSummary('user1', 1, '2026-08-26', '2026-10-25', monthStartDay: 26);
+
+		$this->assertSame(['2026-09', '2026-10'], $result['trends']['months']);
+		$this->assertSame([3000.0, 3000.0], $result['trends']['income']);
+		$this->assertSame(26, $result['trends']['monthStartDay']);
+	}
+
+	public function testCashFlowAsksForBudgetMonthsWithAMonthStartDay(): void {
+		$this->reportQueries->expects($this->once())->method('getCashFlowByMonth')
+			->with('user1', 1, '2026-09-26', '2026-10-25', [], true, false, null, 26)
+			->willReturn([['month' => '2026-10', 'income' => 3000.0, 'expenses' => 0.0, 'net' => 3000.0, 'count' => 1]]);
+
+		$result = $this->aggregator->getCashFlowReport('user1', 1, '2026-09-26', '2026-10-25', monthStartDay: 26);
+
+		$this->assertSame('2026-10', $result['data'][0]['month']);
+		$this->assertSame(26, $result['period']['monthStartDay']);
+	}
+
 	// ===== Metadata in response =====
 
 	public function testResponseIncludesCurrencyMetadata(): void {
@@ -1053,6 +1087,23 @@ class ReportAggregatorTest extends TestCase {
 
 		$this->assertEqualsWithDelta(-80.0, $r['rows'][0]['monthly']['2026-01'], 0.001);
 		$this->assertEqualsWithDelta(-80.0, $r['totals']['total'], 0.001);
+	}
+
+	public function testCategoryMonthlyColumnsAreBudgetMonthsWithAMonthStartDay(): void {
+		$this->conversionService->method('getBaseCurrency')->willReturn('USD');
+		$this->categoryMapper->method('findAll')->willReturn([
+			$this->makeCategory(1, 'Salary', 'income'),
+		]);
+		$this->reportQueries->expects($this->once())->method('getCategoryNetByMonth')
+			->with('user1', '2026-09-26', '2026-11-25', null, null, 26)
+			->willReturn([1 => ['2026-10' => 3000.0, '2026-11' => 3000.0]]);
+
+		$r = $this->aggregator->getCategoryMonthlyReport('user1', '2026-09-26', '2026-11-25', null, 'alpha', [], 26);
+
+		// Calendar months would be Sep, Oct, Nov
+		$this->assertSame(['2026-10', '2026-11'], $r['period']['months']);
+		$this->assertSame(26, $r['period']['monthStartDay']);
+		$this->assertEqualsWithDelta(3000.0, $r['rows'][0]['monthly']['2026-10'], 0.001);
 	}
 
 	public function testCategoryMonthlyHonorsExcludedCategories(): void {
