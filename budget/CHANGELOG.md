@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Rules can add category tags.** The **Add Tags** action only offered your global tags, because the Rules page never loaded the category tag sets. It now lists every category's tag sets, each named with its category. A rule matches rows in any category, so a category tag is added only to rows in its own category, and the rule's other tags still land on the rest; before, one tag that didn't fit a row stopped the rule tagging that row at all. **Merge with existing tags** also kept nothing when rules were run on existing transactions, so it replaced the row's tags; it now keeps them. Reported by @micha-83 ([#452](https://github.com/otherworld-dev/Budget/issues/452))
 - **Tags on a new transfer are saved.** Tags picked in the transaction form when creating a transfer were dropped, so neither side was tagged and a savings goal linked to that tag never counted the transfer. Both sides now get the tags, and the goal counts the transfer once, on the savings side. Reported by @TerjeTM ([#438](https://github.com/otherworld-dev/Budget/issues/438))
 
+### Security
+- **Unlinking a transfer needs write access to both sides.** Unlinking clears the link on both transactions, but only the one being unlinked was checked, so someone you shared one account with could unlink a transfer whose other side sits in an account you never shared with them. Amounts were never changed. Unlinking now needs write access to both accounts, as linking already did. ([GHSA-c2qv-6p3r-hjc7](https://github.com/otherworld-dev/Budget/security/advisories/GHSA-c2qv-6p3r-hjc7))
+
 ## [3.2.0] - 2026-10-27
 
 ### Added

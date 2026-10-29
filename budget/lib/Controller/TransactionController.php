@@ -785,6 +785,14 @@ class TransactionController extends Controller {
 			$visibleAccountIds = $this->getVisibleAccountIds();
 			$transaction = $this->service->findForAccounts($id, $visibleAccountIds);
 			$this->requireWriteAccess('account', $transaction->getAccountId());
+			// Unlinking clears the other side's link too, so its account must
+			// be writable as well, as link() requires. Without this a share
+			// recipient could change a row in an account never shared with them
+			// (GHSA-c2qv-6p3r-hjc7).
+			$partnerAccountId = $this->service->transferPartnerAccountId($transaction);
+			if ($partnerAccountId !== null) {
+				$this->requireWriteAccess('account', $partnerAccountId);
+			}
 
 			$result = $this->service->unlinkTransaction($id, $this->userId, $visibleAccountIds);
 			return new DataResponse($result);
