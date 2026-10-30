@@ -384,5 +384,7 @@ export default class ForecastModule {
             const quality = data.dataQuality;
             dataInfoEl.textContent = t('budget', 'Based on {months} month(s) of data ({count} transactions)', { months: quality.monthsOfData, count: quality.transactionCount });
         }
+
+        formatters.showMonthGroupingNote(document.getElementById('forecast-month-note'), data.monthStartDay || 1);
     }
 }

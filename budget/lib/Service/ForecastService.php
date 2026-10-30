@@ -32,6 +32,13 @@ class ForecastService {
 	 */
 	private const MIN_TREND_MONTHS = 3;
 
+	/**
+	 * Days a month may have passed before an account's first transaction and
+	 * still count as complete (completeHistoryStart()): a weekend and a
+	 * holiday without bookings, not a bank sync that began mid-month.
+	 */
+	private const HISTORY_START_GRACE_DAYS = 3;
+
 	private AccountMapper $accountMapper;
 	private TransactionMapper $transactionMapper;
 	private PatternAnalyzer $patternAnalyzer;
@@ -52,6 +59,7 @@ class ForecastService {
 		private ?CurrencyTotals $currencyTotals = null,
 		private ?RecurringIncomeMapper $incomeMapper = null,
 		private ?BillMapper $billMapper = null,
+		private ?BudgetCarryoverService $carryoverService = null,
 	) {
 		$this->accountMapper = $accountMapper;
 		$this->transactionMapper = $transactionMapper;
@@ -242,7 +250,10 @@ class ForecastService {
 		// Key includes account visibility: a share-restricted viewer and the
 		// owner must never share a cache entry (the owner's totals would leak
 		// across the visibility boundary for up to the TTL).
-		$cacheKey = "live_{$userId}_{$forecastMonths}_" . md5(json_encode($visibleAccountIds ?? []));
+		// The months it counts in are part of the key too, so a change of
+		// the setting shows at once (#457)
+		$monthStartDay = $this->carryoverService?->reportMonthStartDay($userId) ?? 1;
+		$cacheKey = "live_{$userId}_{$forecastMonths}_{$monthStartDay}_" . md5(json_encode($visibleAccountIds ?? []));
 
 		// Try to get from cache
 		if ($this->cache !== null) {
@@ -304,11 +315,16 @@ class ForecastService {
 		// History: the twelve complete months before this one. The month in
 		// progress is not a month of income and spending yet; counted as one,
 		// four days of October read as a month in which almost nothing came
-		// in, and the trend through it projected no income at all.
-		$thisMonth = new \DateTimeImmutable(substr($today, 0, 8) . '01');
-		$endDate = $thisMonth->modify('-1 day')->format('Y-m-d');
-		$startDate = $thisMonth->modify('-12 months')->format('Y-m-d');
-		$transactions = $this->transactionMapper->findAllByUserAndDateRange($userId, $startDate, $endDate, null, $visibleAccountIds);
+		// in, and the trend through it projected no income at all. Calendar
+		// months, or budget months when the user counts in them (#457).
+		$thisMonth = BudgetPeriod::monthContaining($today, $monthStartDay);
+		$startDate = BudgetPeriod::range(self::shiftMonth($thisMonth, -12), $monthStartDay)[0];
+		$endDate = BudgetPeriod::range(self::shiftMonth($thisMonth, -1), $monthStartDay)[1];
+		// Nor is a month the accounts' history only reaches part of
+		$startDate = max($startDate, $this->completeHistoryStart($accounts, $monthStartDay, $endDate));
+		$transactions = $startDate <= $endDate
+			? $this->transactionMapper->findAllByUserAndDateRange($userId, $startDate, $endDate, null, $visibleAccountIds)
+			: [];
 		if ($rates !== null) {
 			// The history of an account left out above stays out with it
 			$transactions = array_values(array_filter(
@@ -325,7 +341,7 @@ class ForecastService {
 		$transactions = PatternAnalyzer::withoutInternalTransfers($transactions);
 
 		// Analyze patterns, each amount in the forecast's currency
-		$monthlyData = $this->patternAnalyzer->aggregateMonthlyData($transactions, $rates ?? []);
+		$monthlyData = $this->patternAnalyzer->aggregateMonthlyData($transactions, $rates ?? [], $monthStartDay);
 		$months = count($monthlyData);
 
 		// Calculate averages and trends
@@ -373,8 +389,8 @@ class ForecastService {
 		// Months after the user's own, stepped from the 1st: from the 31st,
 		// "+1 month" skipped any shorter month
 		for ($i = 1; $i <= $forecastMonths; $i++) {
-			$projectionDate = $thisMonth->modify("+{$i} months");
-			$monthLabel = $projectionDate->format('M Y');
+			$projectionMonth = self::shiftMonth($thisMonth, $i);
+			$monthLabel = \DateTimeImmutable::createFromFormat('!Y-m', $projectionMonth)->format('M Y');
 
 			$projectedIncome = max(0, $recurringIncome, $avgIncome + ($incomeTrend * $i));
 			$projectedExpenses = max(0, $spendingFloor, $avgExpenses + ($projectedExpenseTrend * $i));
@@ -389,7 +405,7 @@ class ForecastService {
 				// own language; `month` stays the English "M Y" label for the
 				// forecast-warning notification and anything else reading it.
 				'month' => $monthLabel,
-				'yearMonth' => $projectionDate->format('Y-m'),
+				'yearMonth' => $projectionMonth,
 				'balance' => round($projectedBalance, 2),
 				'income' => round($projectedIncome, 2),
 				'expenses' => round($projectedExpenses, 2),
@@ -423,6 +439,8 @@ class ForecastService {
 			],
 			'categoryBreakdown' => $categoryBreakdown,
 			'confidence' => round($confidence, 0),
+			// 1 for calendar months, else the day budget months start on
+			'monthStartDay' => $monthStartDay,
 			'dataQuality' => [
 				'monthsOfData' => $months,
 				'transactionCount' => $transactionCount,
@@ -436,6 +454,54 @@ class ForecastService {
 		}
 
 		return $result;
+	}
+
+	/**
+	 * A month (Y-m) shifted by whole months, stepped from the 1st.
+	 */
+	private static function shiftMonth(string $month, int $offset): string {
+		return \DateTimeImmutable::createFromFormat('!Y-m', $month)->modify("{$offset} months")->format('Y-m');
+	}
+
+	/**
+	 * The first day of the first month whose history every account holds
+	 * in full, or '' when nothing bounds it.
+	 *
+	 * An account that had money in it before its first transaction (an
+	 * opening balance) existed before Budget knew it, so the months before
+	 * that transaction are missing, not empty. Bank sync is the usual case:
+	 * it fetches the last 90 days, so the first month holds only its last
+	 * few days. Counted as a whole month, five days of September with the
+	 * salary in them and almost no spending made the forecast's average
+	 * savings several times too high. An account opened from nothing has
+	 * no history to miss and bounds nothing, and nor does one whose history
+	 * starts after $historyEnd: added this month, it would otherwise leave
+	 * the forecast no month at all until a month of its own had passed.
+	 *
+	 * @param \OCA\Budget\Db\Account[] $accounts
+	 */
+	private function completeHistoryStart(array $accounts, int $monthStartDay, string $historyEnd): string {
+		$withPast = array_values(array_map(
+			static fn ($a) => (int)$a->getId(),
+			array_filter($accounts, static fn ($a) => abs((float)($a->getOpeningBalance() ?? 0)) >= 0.005)
+		));
+		$firstDates = array_filter(
+			$this->transactionMapper->getFirstTransactionDates($withPast),
+			static fn (string $date) => $date <= $historyEnd
+		);
+		if ($firstDates === []) {
+			return '';
+		}
+		$latest = max($firstDates);
+		$month = BudgetPeriod::monthContaining($latest, $monthStartDay);
+		$monthStart = BudgetPeriod::range($month, $monthStartDay)[0];
+		// A first transaction is not where the history starts: the days
+		// before it may just have had none, a weekend after the 1st. A
+		// month whose first few days are all that could be missing counts.
+		$daysIn = (int)(new \DateTimeImmutable($monthStart))->diff(new \DateTimeImmutable($latest))->days;
+		return $daysIn <= self::HISTORY_START_GRACE_DAYS
+			? $monthStart
+			: BudgetPeriod::range(self::shiftMonth($month, 1), $monthStartDay)[0];
 	}
 
 	/**

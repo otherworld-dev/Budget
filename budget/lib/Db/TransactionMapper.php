@@ -458,6 +458,33 @@ class TransactionMapper extends QBMapper {
 	}
 
 	/**
+	 * The date of each account's first transaction (Y-m-d), keyed by account
+	 * id. Accounts without transactions are left out. The forecast reads it
+	 * to know from when an account's history is complete.
+	 *
+	 * @param int[] $accountIds
+	 * @return array<int, string>
+	 */
+	public function getFirstTransactionDates(array $accountIds): array {
+		if ($accountIds === []) {
+			return [];
+		}
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('account_id')
+			->selectAlias($qb->func()->min('date'), 'first_date')
+			->from($this->getTableName())
+			->where($qb->expr()->in('account_id', $qb->createNamedParameter(array_map('intval', $accountIds), IQueryBuilder::PARAM_INT_ARRAY)))
+			->groupBy('account_id');
+		$result = $qb->executeQuery();
+		$dates = [];
+		while ($row = $result->fetch()) {
+			$dates[(int)$row['account_id']] = substr((string)$row['first_date'], 0, 10);
+		}
+		$result->closeCursor();
+		return $dates;
+	}
+
+	/**
 	 * Whether any transaction or split part, in anyone's account, uses this
 	 * category. Deliberately unscoped: a shared category can be used from the
 	 * owner's accounts and every recipient's, and the one delete this guards
