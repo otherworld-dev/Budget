@@ -105,13 +105,13 @@ class ForecastService {
 	 * places on their dates, each with its multiplier into the forecast's
 	 * currency. A transfer between accounts is not spending, and a bill
 	 * kept out of the forecast stays out. A bill with no account is the
-	 * user's own, so it counts in their own forecast, not in one of
-	 * accounts shared with them.
+	 * user's own, so it counts when the forecast holds one of their own
+	 * accounts, not in one of accounts shared with them only.
 	 *
 	 * @param array<int, string>|null $rates
 	 * @return list<array{0: \OCA\Budget\Db\Bill, 1: string}>
 	 */
-	private function scheduledBills(string $userId, array $accounts, ?array $rates, ?array $visibleAccountIds): array {
+	private function scheduledBills(string $userId, array $accounts, ?array $rates): array {
 		if ($this->billMapper === null || $this->billService === null) {
 			return [];
 		}
@@ -119,7 +119,7 @@ class ForecastService {
 			$this->billMapper->findActive($userId),
 			static fn ($bill) => !($bill->getIsTransfer() ?? false) && !($bill->getExcludedFromForecast() ?? false)
 		);
-		return $this->withRates($bills, $accounts, $rates, $visibleAccountIds);
+		return $this->withRates($bills, $userId, $accounts, $rates);
 	}
 
 	/**
@@ -129,7 +129,7 @@ class ForecastService {
 	 * @param array<int, string>|null $rates
 	 * @return list<array{0: \OCA\Budget\Db\RecurringIncome, 1: string}>
 	 */
-	private function scheduledIncomes(string $userId, array $accounts, ?array $rates, ?array $visibleAccountIds): array {
+	private function scheduledIncomes(string $userId, array $accounts, ?array $rates): array {
 		if ($this->incomeMapper === null) {
 			return [];
 		}
@@ -137,31 +137,35 @@ class ForecastService {
 			$this->incomeMapper->findActive($userId),
 			static fn ($income) => !($income->getExcludedFromForecast() ?? false)
 		);
-		return $this->withRates($incomes, $accounts, $rates, $visibleAccountIds);
+		return $this->withRates($incomes, $userId, $accounts, $rates);
 	}
 
 	/**
 	 * Bills or income paired with the multiplier into the forecast's
-	 * currency, keeping those of the accounts forecast and, in the user's
-	 * own forecast, those with no account.
+	 * currency, keeping those of the accounts forecast and, when it holds
+	 * one of the user's own accounts, those with no account. The web UI
+	 * always names the accounts the user can see, so going by whether it
+	 * named any left those with no account out of every forecast it showed.
 	 *
 	 * @template T of \OCA\Budget\Db\Bill|\OCA\Budget\Db\RecurringIncome
 	 * @param iterable<T> $items
 	 * @param array<int, string>|null $rates
 	 * @return list<array{0: T, 1: string}>
 	 */
-	private function withRates(iterable $items, array $accounts, ?array $rates, ?array $visibleAccountIds): array {
+	private function withRates(iterable $items, string $userId, array $accounts, ?array $rates): array {
 		$inForecast = [];
+		$ownAccount = false;
 		foreach ($accounts as $account) {
 			if ($rates === null || isset($rates[$account->getId()])) {
 				$inForecast[(int)$account->getId()] = $rates[$account->getId()] ?? '1';
+				$ownAccount = $ownAccount || $account->getUserId() === $userId;
 			}
 		}
 		$kept = [];
 		foreach ($items as $item) {
 			$accountId = $item->getAccountId();
 			if ($accountId === null) {
-				if (empty($visibleAccountIds)) {
+				if ($ownAccount) {
 					$kept[] = [$item, '1'];
 				}
 			} elseif (isset($inForecast[(int)$accountId])) {
@@ -525,8 +529,8 @@ class ForecastService {
 		// as monthly floors, a new bill and a raise counted only once they
 		// outgrew the whole average, a yearly payment counted a twelfth in
 		// every month, and one-off items and future rows not at all.
-		$bills = $this->scheduledBills($userId, $accounts, $rates, $visibleAccountIds);
-		$incomes = $this->scheduledIncomes($userId, $accounts, $rates, $visibleAccountIds);
+		$bills = $this->scheduledBills($userId, $accounts, $rates);
+		$incomes = $this->scheduledIncomes($userId, $accounts, $rates);
 		$variable = array_values(array_filter(
 			$transactions,
 			fn ($t) => $t->getBillId() === null && !$this->isRecurringIncome($t, $incomes)

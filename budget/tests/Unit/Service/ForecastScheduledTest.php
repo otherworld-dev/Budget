@@ -47,14 +47,16 @@ class ForecastScheduledTest extends TestCase {
 	/** @var array<string, string[]> bill name => the dates its schedule falls on */
 	private array $billDates = [];
 
-	private function forecast(int $months = 3, int $monthStartDay = 1): array {
+	private function forecast(int $months = 3, int $monthStartDay = 1, ?array $visibleAccountIds = null, string $owner = 'alice'): array {
 		$account = new Account();
 		$account->setId(1);
 		$account->setName('Current');
 		$account->setBalance(10000.0);
 		$account->setCurrency('EUR');
+		$account->setUserId($owner);
 		$accounts = $this->createMock(AccountMapper::class);
 		$accounts->method('findAll')->willReturn([$account]);
+		$accounts->method('findByIds')->willReturn([$account]);
 
 		$transactions = $this->createMock(TransactionMapper::class);
 		$transactions->method('getNetChangeAfterDateForAccounts')->willReturn([]);
@@ -94,7 +96,7 @@ class ForecastScheduledTest extends TestCase {
 			$billService,
 			new FrequencyCalculator(),
 		);
-		return $service->getLiveForecast('alice', $months);
+		return $service->getLiveForecast('alice', $months, $visibleAccountIds);
 	}
 
 	private function bill(string $name, float $amount, string $frequency, array $dates, ?string $nextDue = null): void {
@@ -111,7 +113,7 @@ class ForecastScheduledTest extends TestCase {
 		$this->billDates[$name] = $dates;
 	}
 
-	private function income(float $amount, string $frequency, int $day, ?int $month = null, ?string $pattern = null): void {
+	private function income(float $amount, string $frequency, int $day, ?int $month = null, ?string $pattern = null, ?int $accountId = 1): void {
 		$income = new RecurringIncome();
 		$income->setId(count($this->incomes) + 1);
 		$income->setName('Income ' . (count($this->incomes) + 1));
@@ -119,7 +121,7 @@ class ForecastScheduledTest extends TestCase {
 		$income->setFrequency($frequency);
 		$income->setExpectedDay($day);
 		$income->setExpectedMonth($month);
-		$income->setAccountId(1);
+		$income->setAccountId($accountId);
 		$income->setAutoDetectPattern($pattern);
 		$income->setExcludedFromForecast(false);
 		$this->incomes[] = $income;
@@ -199,6 +201,25 @@ class ForecastScheduledTest extends TestCase {
 
 		// Not this income's: the salary stays in the average as well
 		$this->assertSame([6000.0, 6000.0, 6000.0], array_column(array_slice($months, 1), 'income'));
+	}
+
+	public function testIncomeWithNoAccountCountsInTheUsersOwnForecast(): void {
+		// The web UI always passes the accounts the user can see: income
+		// with no account was left out of every forecast it showed
+		$this->income(7000.0, 'yearly', 25, 12, null, null);
+
+		$months = $this->forecast(3, 1, [1])['monthlyProjections'];
+
+		$this->assertSame([0.0, 0.0, 7000.0, 0.0], array_column($months, 'scheduledIncome'));
+	}
+
+	public function testIncomeWithNoAccountStaysOutOfAccountsSharedWithTheUser(): void {
+		$this->income(7000.0, 'yearly', 25, 12, null, null);
+
+		// The only account forecast is bob's, shared with alice
+		$months = $this->forecast(3, 1, [1], 'bob')['monthlyProjections'];
+
+		$this->assertSame([0.0, 0.0, 0.0, 0.0], array_column($months, 'scheduledIncome'));
 	}
 
 	public function testANewBillCountsFromItsFirstDate(): void {
