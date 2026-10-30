@@ -3077,6 +3077,7 @@ style('budget', 'budget-app');
                 <div class="empty-icon">📊</div>
                 <h3><?php p($l->t('Not Enough Data')); ?></h3>
                 <p><?php p($l->t('Add more transactions to generate an accurate forecast. We need at least 1 month of transaction history.')); ?></p>
+                <p><?php p($l->t('Only complete months count: a month your accounts\' history only partly covers, such as the first month a bank sync fetched, is left out.')); ?></p>
             </div>
 
             <!-- Balance Overview Cards -->
@@ -3161,6 +3162,7 @@ style('budget', 'budget-app');
                     <span class="quality-value" id="forecast-confidence">--</span>
                     <span class="quality-info" id="data-info">--</span>
                 </div>
+                <p id="forecast-month-note" class="month-grouping-note" style="display: none;"></p>
             </div>
         </div>
         
