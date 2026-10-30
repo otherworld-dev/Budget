@@ -82,6 +82,8 @@ class ForecastHistoryTest extends IntegrationTestCase {
 		foreach ($forecast['monthlyProjections'] as $month) {
 			$this->assertGreaterThanOrEqual(3100.0, $month['income'], $month['yearMonth']);
 		}
+		// The bonus stopped: it is not carried on as if it still came
+		$this->assertLessThan(5100.0, $forecast['monthlyProjections'][1]['income']);
 	}
 
 	/**

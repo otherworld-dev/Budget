@@ -259,11 +259,13 @@ class ForecastServiceTest extends TestCase {
 		);
 		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturn($transactions);
 
-		// Only the 7 non-excluded transactions should reach pattern analysis.
-		$this->patternAnalyzer->expects($this->once())
-			->method('aggregateMonthlyData')
-			->with($this->callback(fn ($txns) => count($txns) === 7))
-			->willReturn([]);
+		// Only the 7 non-excluded transactions should reach pattern analysis
+		$analysed = [];
+		$this->patternAnalyzer->method('aggregateMonthlyData')
+			->willReturnCallback(function (array $txns) use (&$analysed) {
+				$analysed[] = count($txns);
+				return [];
+			});
 		$this->patternAnalyzer->method('getCategoryBreakdown')->willReturn([]);
 		$this->trendCalculator->method('calculateTrend')->willReturn(0.0);
 		$this->trendCalculator->method('getTrendDirection')->willReturn('stable');
@@ -272,6 +274,7 @@ class ForecastServiceTest extends TestCase {
 		$result = $this->service->getLiveForecast('user1');
 
 		$this->assertEquals(7, $result['dataQuality']['transactionCount']);
+		$this->assertSame([7], $analysed);
 	}
 
 	// ===== generateForecast =====
@@ -390,7 +393,8 @@ class ForecastServiceTest extends TestCase {
 			return array_intersect_key($firstDates, array_flip($ids));
 		});
 		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturnCallback(function ($u, $start, $end) use (&$seen) {
-			$seen['range'] = [$start, $end];
+			// The history first, then the rows dated after today
+			$seen[$start > '2026-10-30' ? 'futureRange' : 'range'] = [$start, $end];
 			return [];
 		});
 		$this->patternAnalyzer->method('aggregateMonthlyData')->willReturnCallback(function ($t, $rates, $day) use (&$seen) {

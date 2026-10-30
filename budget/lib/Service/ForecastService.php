@@ -8,7 +8,7 @@ use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\BillMapper;
 use OCA\Budget\Db\RecurringIncomeMapper;
 use OCA\Budget\Db\TransactionMapper;
-use OCA\Budget\Enum\Frequency;
+use OCA\Budget\Service\Bill\FrequencyCalculator;
 use OCA\Budget\Service\Forecast\ForecastProjector;
 use OCA\Budget\Service\Forecast\PatternAnalyzer;
 use OCA\Budget\Service\Forecast\ScenarioBuilder;
@@ -60,6 +60,8 @@ class ForecastService {
 		private ?RecurringIncomeMapper $incomeMapper = null,
 		private ?BillMapper $billMapper = null,
 		private ?BudgetCarryoverService $carryoverService = null,
+		private ?BillService $billService = null,
+		private ?FrequencyCalculator $frequencyCalculator = null,
 	) {
 		$this->accountMapper = $accountMapper;
 		$this->transactionMapper = $transactionMapper;
@@ -99,63 +101,204 @@ class ForecastService {
 	}
 
 	/**
-	 * The user's active recurring income into the accounts forecast, as a
-	 * monthly amount in the forecast's currency. One-off income is not
-	 * recurring and a custom pattern has no monthly figure, so neither counts.
+	 * The active bills paid from the accounts forecast that the forecast
+	 * places on their dates, each with its multiplier into the forecast's
+	 * currency. A transfer between accounts is not spending, and a bill
+	 * kept out of the forecast stays out. A bill with no account is the
+	 * user's own, so it counts in their own forecast, not in one of
+	 * accounts shared with them.
 	 *
-	 * @param array<int, string>|null $rates account id => multiplier, when converting
+	 * @param array<int, string>|null $rates
+	 * @return list<array{0: \OCA\Budget\Db\Bill, 1: string}>
 	 */
-	private function recurringMonthlyIncome(string $userId, array $accounts, ?array $rates): float {
-		if ($this->incomeMapper === null) {
-			return 0.0;
-		}
-		return $this->monthlyTotal($this->incomeMapper->findActive($userId), $accounts, $rates);
-	}
-
-	/**
-	 * The user's active bills paid from the accounts forecast, as a monthly
-	 * amount in the forecast's currency. A transfer between accounts is not
-	 * spending, so transfer bills don't count; nor do one-off bills or a
-	 * custom pattern, as for income.
-	 *
-	 * @param array<int, string>|null $rates account id => multiplier, when converting
-	 */
-	private function billsMonthlySpending(string $userId, array $accounts, ?array $rates): float {
-		if ($this->billMapper === null) {
-			return 0.0;
+	private function scheduledBills(string $userId, array $accounts, ?array $rates, ?array $visibleAccountIds): array {
+		if ($this->billMapper === null || $this->billService === null) {
+			return [];
 		}
 		$bills = array_filter(
 			$this->billMapper->findActive($userId),
-			static fn ($bill) => !($bill->getIsTransfer() ?? false)
+			static fn ($bill) => !($bill->getIsTransfer() ?? false) && !($bill->getExcludedFromForecast() ?? false)
 		);
-		return $this->monthlyTotal($bills, $accounts, $rates);
+		return $this->withRates($bills, $accounts, $rates, $visibleAccountIds);
 	}
 
 	/**
-	 * Recurring income or bills (anything with an amount, a frequency and
-	 * an account) into or from the accounts forecast, as one monthly
-	 * amount in the forecast's currency.
+	 * The active recurring income into the accounts forecast, on the same
+	 * terms as scheduledBills().
 	 *
-	 * @param iterable<\OCA\Budget\Db\RecurringIncome|\OCA\Budget\Db\Bill> $items
 	 * @param array<int, string>|null $rates
+	 * @return list<array{0: \OCA\Budget\Db\RecurringIncome, 1: string}>
 	 */
-	private function monthlyTotal(iterable $items, array $accounts, ?array $rates): float {
+	private function scheduledIncomes(string $userId, array $accounts, ?array $rates, ?array $visibleAccountIds): array {
+		if ($this->incomeMapper === null) {
+			return [];
+		}
+		$incomes = array_filter(
+			$this->incomeMapper->findActive($userId),
+			static fn ($income) => !($income->getExcludedFromForecast() ?? false)
+		);
+		return $this->withRates($incomes, $accounts, $rates, $visibleAccountIds);
+	}
+
+	/**
+	 * Bills or income paired with the multiplier into the forecast's
+	 * currency, keeping those of the accounts forecast and, in the user's
+	 * own forecast, those with no account.
+	 *
+	 * @template T of \OCA\Budget\Db\Bill|\OCA\Budget\Db\RecurringIncome
+	 * @param iterable<T> $items
+	 * @param array<int, string>|null $rates
+	 * @return list<array{0: T, 1: string}>
+	 */
+	private function withRates(iterable $items, array $accounts, ?array $rates, ?array $visibleAccountIds): array {
 		$inForecast = [];
 		foreach ($accounts as $account) {
 			if ($rates === null || isset($rates[$account->getId()])) {
-				$inForecast[(int)$account->getId()] = true;
+				$inForecast[(int)$account->getId()] = $rates[$account->getId()] ?? '1';
 			}
 		}
-
-		$total = 0.0;
+		$kept = [];
 		foreach ($items as $item) {
-			$accountId = (int)($item->getAccountId() ?? 0);
-			$frequency = Frequency::tryFrom((string)$item->getFrequency());
-			if (!isset($inForecast[$accountId]) || $frequency === null || $frequency === Frequency::ONE_TIME) {
+			$accountId = $item->getAccountId();
+			if ($accountId === null) {
+				if (empty($visibleAccountIds)) {
+					$kept[] = [$item, '1'];
+				}
+			} elseif (isset($inForecast[(int)$accountId])) {
+				$kept[] = [$item, $inForecast[(int)$accountId]];
+			}
+		}
+		return $kept;
+	}
+
+	/**
+	 * Income and spending of $rows per month, for every month $history has
+	 * a transaction in, in order: a month without any of $rows is zero.
+	 *
+	 * @param array<int, string> $rates as for PatternAnalyzer::aggregateMonthlyData()
+	 * @return list<array{income: float, expenses: float}>
+	 */
+	private static function monthlySeries(array $history, array $rows, array $rates, int $monthStartDay): array {
+		$series = [];
+		foreach ($history as $t) {
+			$series[BudgetPeriod::monthContaining(substr((string)$t->getDate(), 0, 10), $monthStartDay)] = ['income' => 0.0, 'expenses' => 0.0];
+		}
+		foreach ($rows as $t) {
+			$month = BudgetPeriod::monthContaining(substr((string)$t->getDate(), 0, 10), $monthStartDay);
+			$amount = PatternAnalyzer::inForecastCurrency((float)$t->getAmount(), $t, $rates);
+			$series[$month][$t->getType() === 'credit' ? 'income' : 'expenses'] += $amount;
+		}
+		ksort($series);
+		return array_values($series);
+	}
+
+	/**
+	 * Whether a credit is income the user set up to recur: into its account
+	 * (or any, when it names none), within a fifth of its amount, and
+	 * mentioning its pattern when it has one. Such income is placed on its
+	 * own dates, so the average must not count it again.
+	 *
+	 * @param list<array{0: \OCA\Budget\Db\RecurringIncome, 1: string}> $incomes
+	 */
+	private function isRecurringIncome($transaction, array $incomes): bool {
+		if ($transaction->getType() !== 'credit') {
+			return false;
+		}
+		$amount = (float)$transaction->getAmount();
+		$text = ($transaction->getDescription() ?? '') . ' ' . ($transaction->getVendor() ?? '');
+		foreach ($incomes as [$income]) {
+			$accountId = $income->getAccountId();
+			if ($accountId !== null && (int)$accountId !== (int)$transaction->getAccountId()) {
 				continue;
 			}
-			$monthly = $frequency->toMonthlyAmount((float)$item->getAmount());
-			$total += $rates !== null ? (float)MoneyCalculator::multiply($monthly, $rates[$accountId], 10) : $monthly;
+			$expected = (float)$income->getAmount();
+			if (abs($amount - $expected) > abs($expected) * 0.2) {
+				continue;
+			}
+			$pattern = (string)($income->getAutoDetectPattern() ?? '');
+			if ($pattern !== '' && stripos($text, $pattern) === false) {
+				continue;
+			}
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 * What scheduled bills or income come to between two dates, in the
+	 * forecast's currency. A date before the next one due has been paid or
+	 * received already.
+	 *
+	 * @param list<array{0: \OCA\Budget\Db\Bill|\OCA\Budget\Db\RecurringIncome, 1: string}> $items
+	 */
+	private function scheduledTotal(array $items, string $from, string $to): float {
+		$total = 0.0;
+		foreach ($items as [$item, $rate]) {
+			$dates = $this->occurrences($item, $from, $to);
+			if ($dates === []) {
+				continue;
+			}
+			$amount = (float)$item->getAmount() * count($dates);
+			$total += $rate === '1' ? $amount : (float)MoneyCalculator::multiply($amount, $rate, 10);
+		}
+		return $total;
+	}
+
+	/**
+	 * The dates a bill or recurring income falls on between two dates,
+	 * from the next one due on. Bills use the Bills page's own schedule;
+	 * income the same calculator, starting from its start date, or for a
+	 * one-off income its expected date.
+	 *
+	 * @param \OCA\Budget\Db\Bill|\OCA\Budget\Db\RecurringIncome $item
+	 * @return string[]
+	 */
+	private function occurrences($item, string $from, string $to): array {
+		if ($item instanceof \OCA\Budget\Db\Bill) {
+			$next = $item->getNextDueDate() ?: null;
+			$dates = $this->billService?->occurrencesBetween($item, $from, $to) ?? [];
+		} else {
+			$next = $item->getNextExpectedDate() ?: null;
+			$frequency = (string)$item->getFrequency();
+			$anchor = $item->getStartDate() ?: ($frequency === 'one-time' ? $next : null);
+			$month = $item->getExpectedMonth();
+			if ($month === null && $next !== null && in_array($frequency, ['quarterly', 'semi-annually', 'yearly'], true)) {
+				$month = (int)substr($next, 5, 2);
+			}
+			$calculator = $this->frequencyCalculator ?? new FrequencyCalculator();
+			$dates = $calculator->occurrencesBetween($frequency, $item->getExpectedDay(), $month, $from, $to, null, $anchor);
+		}
+		return $next === null ? $dates : array_values(array_filter($dates, static fn (string $d) => $d >= $next));
+	}
+
+	/**
+	 * The rows dated after today until $to, in the accounts forecast and
+	 * meant for it: transfers between them move no money in or out.
+	 *
+	 * @param array<int, string>|null $rates
+	 * @return array Transaction entities
+	 */
+	private function futureRows(string $userId, string $from, string $to, ?array $visibleAccountIds, ?array $rates): array {
+		$rows = $this->transactionMapper->findAllByUserAndDateRange($userId, $from, $to, null, $visibleAccountIds);
+		if ($rates !== null) {
+			$rows = array_filter($rows, static fn ($t) => isset($rates[(int)$t->getAccountId()]));
+		}
+		return PatternAnalyzer::withoutInternalTransfers($this->filterForecastTransactions(array_values($rows)));
+	}
+
+	/**
+	 * Credits or debits among $rows dated between two dates, in the
+	 * forecast's currency.
+	 *
+	 * @param array<int, string>|null $rates
+	 */
+	private function rowsTotal(array $rows, string $type, string $from, string $to, ?array $rates): float {
+		$total = 0.0;
+		foreach ($rows as $row) {
+			$date = substr((string)$row->getDate(), 0, 10);
+			if ($row->getType() === $type && $date >= $from && $date <= $to) {
+				$total += PatternAnalyzer::inForecastCurrency((float)$row->getAmount(), $row, $rates ?? []);
+			}
 		}
 		return $total;
 	}
@@ -359,12 +502,27 @@ class ForecastService {
 		$expenseTrend = $withTrend ? $this->trendCalculator->calculateTrend($expenseValues) : 0.0;
 		$savingsTrend = $withTrend ? $this->trendCalculator->calculateTrend($savingsValues) : 0.0;
 
-		// Income the user has set up to recur is known to keep coming, so
-		// no trend takes projected income below it. Only with some history
-		// to set spending against: on its own it would project nothing but
-		// money coming in.
-		$recurringIncome = $months > 0 ? $this->recurringMonthlyIncome($userId, $accounts, $rates) : 0.0;
-
+		// The projection is made of two parts. What is scheduled (bills,
+		// recurring income and rows dated after today) goes into the month
+		// it falls in, so a yearly bonus shows in May and a one-off bill in
+		// December. The rest of the history, without the bill payments and
+		// the income the user set up to recur, is averaged as before. Spread
+		// as monthly floors, a new bill and a raise counted only once they
+		// outgrew the whole average, a yearly payment counted a twelfth in
+		// every month, and one-off items and future rows not at all.
+		$bills = $this->scheduledBills($userId, $accounts, $rates, $visibleAccountIds);
+		$incomes = $this->scheduledIncomes($userId, $accounts, $rates, $visibleAccountIds);
+		$variable = array_values(array_filter(
+			$transactions,
+			fn ($t) => $t->getBillId() === null && !$this->isRecurringIncome($t, $incomes)
+		));
+		// Over every month learned from: a month of nothing but salary has
+		// no other income and counts as none, so a bonus that stopped
+		// shows as a falling line, not as a steady one with gaps
+		$variableData = self::monthlySeries($transactions, $variable, $rates ?? [], $monthStartDay);
+		$variableIncome = $months > 0 ? array_sum(array_column($variableData, 'income')) / $months : 0.0;
+		$variableExpenses = $months > 0 ? array_sum(array_column($variableData, 'expenses')) / $months : 0.0;
+		$variableIncomeTrend = $withTrend ? $this->trendCalculator->calculateTrend(array_column($variableData, 'income')) : 0.0;
 		// Spending follows its trend only upwards. The forecast is there to
 		// warn before money runs out, so it errs on spending more: a falling
 		// line is projected as the average of the months it learns from
@@ -372,13 +530,12 @@ class ForecastService {
 		// 11 and 131) projected next to no spending at all, and the forecast
 		// showed six months of income saved whole. The trend stays as it is
 		// for the direction shown beside the average.
-		$projectedExpenseTrend = max(0.0, $expenseTrend);
+		$variableExpenseTrend = $withTrend ? max(0.0, $this->trendCalculator->calculateTrend(array_column($variableData, 'expenses'))) : 0.0;
 
-		// And never below the bills paid from the accounts forecast, which
-		// are known to keep coming however little the history shows. (The
-		// least spent in a complete month needs no floor of its own: the
-		// average is never below it.)
-		$spendingFloor = $months > 0 ? $this->billsMonthlySpending($userId, $accounts, $rates) : 0.0;
+		// Rows dated after today, until the last month projected
+		$lastProjected = BudgetPeriod::range(self::shiftMonth($thisMonth, $forecastMonths), $monthStartDay)[1];
+		$tomorrow = (new \DateTimeImmutable($today))->modify('+1 day')->format('Y-m-d');
+		$futureRows = $this->futureRows($userId, $tomorrow, $lastProjected, $visibleAccountIds, $rates);
 
 		// Generate monthly projections
 		$monthlyProjections = [];
@@ -391,9 +548,18 @@ class ForecastService {
 		for ($i = 1; $i <= $forecastMonths; $i++) {
 			$projectionMonth = self::shiftMonth($thisMonth, $i);
 			$monthLabel = \DateTimeImmutable::createFromFormat('!Y-m', $projectionMonth)->format('M Y');
+			[$from, $to] = BudgetPeriod::range($projectionMonth, $monthStartDay);
+			if ($i === 1) {
+				// What is still to come this month is not in today's balance
+				// yet, and no later month would count it
+				$from = $tomorrow;
+			}
 
-			$projectedIncome = max(0, $recurringIncome, $avgIncome + ($incomeTrend * $i));
-			$projectedExpenses = max(0, $spendingFloor, $avgExpenses + ($projectedExpenseTrend * $i));
+			$scheduledIncome = $this->scheduledTotal($incomes, $from, $to) + $this->rowsTotal($futureRows, 'credit', $from, $to, $rates);
+			$scheduledExpenses = $this->scheduledTotal($bills, $from, $to) + $this->rowsTotal($futureRows, 'debit', $from, $to, $rates);
+
+			$projectedIncome = max(0, $variableIncome + ($variableIncomeTrend * $i)) + $scheduledIncome;
+			$projectedExpenses = max(0, $variableExpenses + ($variableExpenseTrend * $i)) + $scheduledExpenses;
 			$monthlySavings = $projectedIncome - $projectedExpenses;
 
 			$projectedBalance += $monthlySavings;
@@ -409,7 +575,10 @@ class ForecastService {
 				'balance' => round($projectedBalance, 2),
 				'income' => round($projectedIncome, 2),
 				'expenses' => round($projectedExpenses, 2),
-				'savings' => round($monthlySavings, 2)
+				'savings' => round($monthlySavings, 2),
+				// The part of income and expenses that is scheduled
+				'scheduledIncome' => round($scheduledIncome, 2),
+				'scheduledExpenses' => round($scheduledExpenses, 2),
 			];
 		}
 

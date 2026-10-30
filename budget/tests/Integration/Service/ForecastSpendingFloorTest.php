@@ -11,11 +11,11 @@ use OCA\Budget\Tests\Integration\IntegrationTestCase;
 /**
  * Projected spending follows its trend only upwards: a falling trend is
  * projected as the average of the complete months the forecast learns
- * from, and never below the bills. The forecast is there to warn before
- * money runs out, so it errs on spending more. Followed down, a line
+ * from. The forecast is there to warn before money runs out, so it errs on
+ * spending more. Followed down, a line
  * through three uneven months (1,060, 11 and 131) projected next to no
  * spending, and a reliable-looking forecast showed six months of income
- * saved whole.
+ * saved whole. Bills come on top of the average, on their own dates.
  */
 class ForecastSpendingFloorTest extends IntegrationTestCase {
 	private int $account;
@@ -49,7 +49,7 @@ class ForecastSpendingFloorTest extends IntegrationTestCase {
 		$this->assertSame(array_fill(0, 6, 400.0), array_column($this->forecast()['monthlyProjections'], 'expenses'));
 	}
 
-	public function testBillsAboveTheAverageAreTheFloor(): void {
+	public function testBillsComeOnTopOnTheirDates(): void {
 		$this->history(['1060.00', '11.00', '131.00']);
 		$this->insertRow('budget_bills', [
 			'user_id' => $this->userId, 'name' => 'Rent', 'amount' => '450.00', 'frequency' => 'monthly',
@@ -60,8 +60,11 @@ class ForecastSpendingFloorTest extends IntegrationTestCase {
 			'account_id' => $this->account, 'is_active' => true, 'created_at' => $this->now(), 'due_day' => 5, 'due_month' => 3,
 		]);
 
-		// 450 a month and 600 a year
-		$this->assertSame(array_fill(0, 6, 500.0), array_column($this->forecast()['monthlyProjections'], 'expenses'));
+		// Not paid from the history yet, so new: the average (400.67) and
+		// rent every month, the yearly insurance in March only
+		$months = $this->forecast()['monthlyProjections'];
+		$expected = array_map(static fn (string $m) => substr($m, 5, 2) === '03' ? 1450.67 : 850.67, array_column($months, 'yearMonth'));
+		$this->assertSame($expected, array_column($months, 'expenses'));
 	}
 
 	public function testFallingSpendingThatStillOutrunsIncomeWarns(): void {
