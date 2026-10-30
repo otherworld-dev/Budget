@@ -179,6 +179,28 @@ class ForecastScheduledTest extends TestCase {
 		$this->assertSame([32.26, 1900.0, 1900.0, 1900.0], array_column($months, 'expenses'));
 	}
 
+	public function testAPatternMatchesItsWordsInAnyOrder(): void {
+		// The bank writes "SALARY ACME", the pattern says "acme  salary":
+		// taken as one phrase it never matched, so the salary counted twice,
+		// once in the average and once on its date
+		$this->steadyHistory();
+		$this->income(3000.0, 'monthly', 26, null, 'acme  salary');
+
+		$months = $this->forecast(3)['monthlyProjections'];
+
+		$this->assertSame([0.0, 3000.0, 3000.0, 3000.0], array_column($months, 'income'));
+	}
+
+	public function testAPatternWithAWordTheRowLacksDoesNotMatch(): void {
+		$this->steadyHistory();
+		$this->income(3000.0, 'monthly', 26, null, 'ACME BONUS');
+
+		$months = $this->forecast(3)['monthlyProjections'];
+
+		// Not this income's: the salary stays in the average as well
+		$this->assertSame([6000.0, 6000.0, 6000.0], array_column(array_slice($months, 1), 'income'));
+	}
+
 	public function testANewBillCountsFromItsFirstDate(): void {
 		$this->steadyHistory();
 		$this->bill('Rent', 900.0, 'monthly', ['2026-11-01', '2026-12-01', '2027-01-01']);

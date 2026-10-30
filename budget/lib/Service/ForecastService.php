@@ -195,8 +195,8 @@ class ForecastService {
 	/**
 	 * Whether a credit is income the user set up to recur: into its account
 	 * (or any, when it names none), within a fifth of its amount, and
-	 * mentioning its pattern when it has one. Such income is placed on its
-	 * own dates, so the average must not count it again.
+	 * mentioning every word of its pattern when it has one. Such income is
+	 * placed on its own dates, so the average must not count it again.
 	 *
 	 * @param list<array{0: \OCA\Budget\Db\RecurringIncome, 1: string}> $incomes
 	 */
@@ -215,13 +215,28 @@ class ForecastService {
 			if (abs($amount - $expected) > abs($expected) * 0.2) {
 				continue;
 			}
-			$pattern = (string)($income->getAutoDetectPattern() ?? '');
-			if ($pattern !== '' && stripos($text, $pattern) === false) {
+			if (!self::mentions($text, (string)($income->getAutoDetectPattern() ?? ''))) {
 				continue;
 			}
 			return true;
 		}
 		return false;
+	}
+
+	/**
+	 * Whether $text holds every word of $pattern, in any order and case. An
+	 * empty pattern asks for nothing. Taken as one phrase, a pattern whose
+	 * words the bank writes in another order or with other characters
+	 * between them never matched, and the salary counted twice: in the
+	 * average and on its date.
+	 */
+	private static function mentions(string $text, string $pattern): bool {
+		foreach (preg_split('/\s+/', trim($pattern), -1, PREG_SPLIT_NO_EMPTY) as $word) {
+			if (mb_stripos($text, $word) === false) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/**
