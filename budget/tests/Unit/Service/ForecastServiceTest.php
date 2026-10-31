@@ -184,7 +184,9 @@ class ForecastServiceTest extends TestCase {
 		// the English label the forecast-warning notification reads.
 		$this->assertCount(3, $result['monthlyProjections']);
 		foreach ($result['monthlyProjections'] as $i => $projection) {
-			$expected = strtotime('+' . ($i + 1) . ' months');
+			// Stepped from the 1st like the service: from the 31st, strtotime('+1 months')
+			// skips any shorter month and the test failed on every month end.
+			$expected = strtotime('first day of +' . ($i + 1) . ' months');
 			$this->assertSame(date('Y-m', $expected), $projection['yearMonth']);
 			$this->assertSame(date('M Y', $expected), $projection['month']);
 		}
