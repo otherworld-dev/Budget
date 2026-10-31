@@ -315,7 +315,7 @@ class ParserFactory {
 	 * is wider, and nothing after it is wider still, that line is the
 	 * header and its width is the file's; csvRows() pads the rows to it.
 	 *
-	 * @param int[] $columnCounts Widths of the multi-column lines, in file order
+	 * @param list<int> $columnCounts Widths of the multi-column lines, in file order
 	 */
 	private static function headerWidth(array $columnCounts, int $width): int {
 		$first = array_search($width, $columnCounts, true);
