@@ -178,6 +178,23 @@ class ImportServiceTest extends TestCase {
 		$this->assertFalse(ImportService::isOwnImportFileId('', "import__{$hex}.csv"));
 	}
 
+	public function testBuildUploadResponsePreviewsARowShortOfTrailingCells(): void {
+		// The preview shows the debit row the import now reads (#462)
+		$refParser = new \ReflectionProperty(ImportService::class, 'parserFactory');
+		$refParser->setAccessible(true);
+		$refParser->setValue($this->service, new ParserFactory());
+
+		$refMethod = new \ReflectionMethod(ImportService::class, 'buildUploadResponse');
+		$refMethod->setAccessible(true);
+
+		$csv = "Date;Libellé;Débit;Crédit;\n27/10/2026;TEST 1;-500;\n27/10/2026;TEST 2;;2643,48;\n";
+		$result = $refMethod->invoke($this->service, 'user1', 'file_123.csv', 'file.csv', 'csv', $csv, [], 100, ';');
+
+		$this->assertEquals(['Date', 'Libellé', 'Débit', 'Crédit', ''], $result['columns']);
+		$this->assertSame(['27/10/2026', 'TEST 1', '-500', '', ''], $result['preview'][1]);
+		$this->assertSame(['27/10/2026', 'TEST 2', '', '2643,48', ''], $result['preview'][2]);
+	}
+
 	// ===== validateFile =====
 
 	public function testValidateFileReturnsValidForParseable(): void {
