@@ -373,4 +373,59 @@ class ParserFactoryTest extends TestCase {
 	public function testDetectFormatTsvIsCsv(): void {
 		$this->assertEquals('csv', $this->factory->detectFormat('Plan - Register.tsv'));
 	}
+
+	// ===== rows that leave trailing cells off (#462) =====
+
+	/**
+	 * Fortuneo writes each row only up to its last filled cell and ends it
+	 * with the delimiter, so a debit row has no credit cell and is a cell
+	 * short of the header. It was dropped as preamble: debits never imported.
+	 */
+	public function testParseCsvKeepsADebitRowShortOfItsCreditCell(): void {
+		$csv = "Date opération;Date valeur;libellé;Débit;Crédit;\r\n"
+			. "27/10/2026;27/10/2026;TEST 1;-500;\r\n"
+			. "27/10/2026;27/10/2026;TEST 2;; 2643,48;\r\n";
+
+		$result = $this->factory->parse($csv, 'csv', null, ';');
+
+		$this->assertSame([
+			['27/10/2026', '27/10/2026', 'TEST 1', '-500', '', ''],
+			['27/10/2026', '27/10/2026', 'TEST 2', '', ' 2643,48', ''],
+		], $result);
+		$this->assertSame(2, $this->factory->countRows($csv, 'csv', ';'));
+	}
+
+	public function testParseCsvKeepsAFileOfOnlyShortRowsUnderItsHeader(): void {
+		// No row fills the credit column, so none is as wide as the header:
+		// the header still heads the file and every debit is a row
+		$csv = "Date opération;Date valeur;libellé;Débit;Crédit;\n"
+			. "27/10/2026;27/10/2026;TEST 1;-500;\n"
+			. "28/10/2026;28/10/2026;TEST 3;-12,50;\n";
+
+		$this->assertSame(6, $this->factory->detectDataWidth(explode("\n", $csv), ';'));
+		$this->assertSame([
+			['27/10/2026', '27/10/2026', 'TEST 1', '-500', '', ''],
+			['28/10/2026', '28/10/2026', 'TEST 3', '-12,50', '', ''],
+		], $this->factory->parse($csv, 'csv', null, ';'));
+	}
+
+	public function testParseCsvStillSkipsShortPreambleBeforeTheHeader(): void {
+		$csv = "Compte;12345\nPériode;10/2026\nDate;Libellé;Débit;Crédit\n27/10/2026;TEST 1;-500\n27/10/2026;TEST 2;;10,00\n";
+
+		$this->assertSame([
+			['27/10/2026', 'TEST 1', '-500', ''],
+			['27/10/2026', 'TEST 2', '', '10,00'],
+		], $this->factory->parse($csv, 'csv', null, ';'));
+	}
+
+	public function testParseCsvDoesNotTakeTheRestOfAMultiLineCellForARow(): void {
+		// The note's middle line splits into two cells on its own; it is
+		// part of the note above, not a row short of trailing cells
+		$csv = "Date,Description,Amount,Notes\n2026-09-02,Multi line,-2.00,\"first line\nsecond, line\nthird line\"\n2026-09-03,After,-3.00,plain\n";
+
+		$this->assertSame([
+			['2026-09-02', 'Multi line', '-2.00', 'first line'],
+			['2026-09-03', 'After', '-3.00', 'plain'],
+		], $this->factory->parse($csv, 'csv'));
+	}
 }
