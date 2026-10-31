@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **The API says which transactions have a receipt.** Transactions in the v1 API now carry `has_receipt`, so a client can mark the ones with a receipt without asking for each transaction's receipts in turn. It is read for a whole page at once, and it is `null` on a transaction in an account shared with you, where receipts stay the owner's. Reported by @SGiersch ([#455](https://github.com/otherworld-dev/Budget/issues/455))
+
 ### Fixed
 - **CSV debits import when the row leaves its empty cells off.** Some banks, Fortuneo among them, write each CSV row only up to its last filled cell, so with separate debit and credit columns a debit row is a cell shorter than the header. Those rows were taken for heading lines and skipped, so only the credits imported. They now import, show in the preview, and a statement with only debits keeps its header. Reported by @adrien-github ([#462](https://github.com/otherworld-dev/Budget/issues/462))
 - **Receipt scanning works with current Claude models.** The request to the receipt reader no longer sets a temperature, which newer Claude models refuse with "temperature is deprecated for this model" (OpenAI's reasoning models refuse it too). Each model now reads receipts at its own default setting, and any model id you type is sent as-is. Reported by @scottws70 ([#453](https://github.com/otherworld-dev/Budget/issues/453))
