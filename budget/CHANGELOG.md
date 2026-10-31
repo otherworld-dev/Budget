@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **Receipt scanning works with current Claude models.** The request to the receipt reader no longer sets a temperature, which newer Claude models refuse with "temperature is deprecated for this model" (OpenAI's reasoning models refuse it too). Each model now reads receipts at its own default setting, and any model id you type is sent as-is. Reported by @scottws70 ([#453](https://github.com/otherworld-dev/Budget/issues/453))
 - **Tags on a new transfer are saved.** Tags picked in the transaction form when creating a transfer were dropped, so neither side was tagged and a savings goal linked to that tag never counted the transfer. Both sides now get the tags, and the goal counts the transfer once, on the savings side. Reported by @TerjeTM ([#438](https://github.com/otherworld-dev/Budget/issues/438))
 
 ## [3.2.0] - 2026-10-27
