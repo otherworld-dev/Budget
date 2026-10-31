@@ -43,7 +43,7 @@ Translations are managed on [Weblate](https://hosted.weblate.org/projects/nextcl
 
 Bug reports and feature requests go in [GitHub Issues](https://github.com/otherworld-dev/Budget/issues), and questions in [Discussions](https://github.com/otherworld-dev/Budget/discussions). For code changes, fork the repository, work on a branch from `dev`, and run `make test` and `make lint` in `budget/` before opening a pull request. [INSTALL.md](INSTALL.md#development-setup) covers setting up a development copy.
 
-Building a client or integration on the [public API](https://budget.otherworld.dev/docs/api.html)? API bugs are fixed for free like any other bug. New calls and fields, and help wiring up a client, are built first for API Partner sponsors on [GitHub Sponsors](https://github.com/sponsors/otherworld-dev); pull requests are always welcome. See [Support for the API](https://budget.otherworld.dev/docs/api.html#support-for-the-api).
+Building a client or integration on the [public API](https://budget.otherworld.dev/docs/api.html)? API bugs are fixed for free like any other bug. New calls and fields, and help wiring up a client, are built first for Developer Partner sponsors on [GitHub Sponsors](https://github.com/sponsors/otherworld-dev); pull requests are always welcome. See [Support for the API](https://budget.otherworld.dev/docs/api.html#support-for-the-api).
 
 ## Support the project
 
