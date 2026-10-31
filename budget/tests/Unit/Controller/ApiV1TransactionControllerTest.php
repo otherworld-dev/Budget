@@ -25,6 +25,7 @@ use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\Http\FileDisplayResponse;
 use OCP\Files\File;
+use OCP\IDBConnection;
 use OCP\IL10N;
 use OCP\IRequest;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -104,6 +105,7 @@ class ApiV1TransactionControllerTest extends TestCase {
 			$l,
 			'user1',
 			$this->createMock(LoggerInterface::class),
+			$this->createMock(IDBConnection::class),
 			$this->clock(),
 			$this->tagService
 		);
@@ -1145,7 +1147,8 @@ class ApiV1TransactionControllerTest extends TestCase {
 			$this->idempotencyKeys,
 			$this->createMock(IL10N::class),
 			null,
-			$this->createMock(LoggerInterface::class)
+			$this->createMock(LoggerInterface::class),
+			$this->createMock(IDBConnection::class)
 		);
 
 		$this->assertInstanceOf(ApiV1TransactionController::class, $controller);
@@ -1693,6 +1696,54 @@ class ApiV1TransactionControllerTest extends TestCase {
 	}
 
 	// ── update ──────────────────────────────────────────────────────
+
+	public static function invalidMoveAccounts(): array {
+		return array_map(static fn ($value): array => [$value], [null, '', 0, -1, '2.5', 2.5, true, '1e2', '9223372036854775808']);
+	}
+
+	#[DataProvider('invalidMoveAccounts')]
+	public function testUpdateRejectsAnInvalidMoveAccount(mixed $accountId): void {
+		$this->existing();
+		$this->params = ['account_id' => $accountId];
+		$this->service->expects($this->never())->method('update');
+		$response = $this->editor()->update(10);
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('invalid_account', $response->getData()['error_code']);
+	}
+
+	public function testAnUnchangedAccountAloneIsANoopEvenOnAReconciledTransfer(): void {
+		$this->existing(['reconciled' => true, 'linkedTransactionId' => 11]);
+		$this->params = ['account_id' => '1'];
+		$this->service->expects($this->never())->method('update');
+		$this->assertSame(Http::STATUS_OK, $this->editor()->update(10)->getStatus());
+	}
+
+	public function testAnAccountMoveCannotBypassTheTransferGuard(): void {
+		$this->existing(['linkedTransactionId' => 11]);
+		$this->params = ['account_id' => 2, 'confirm_reconciled' => true];
+		$this->service->expects($this->never())->method('update');
+		$response = $this->editor()->update(10);
+		$this->assertSame(Http::STATUS_CONFLICT, $response->getStatus());
+		$this->assertSame('transfer_leg', $response->getData()['error_code']);
+	}
+
+	public function testAnAccountMoveCannotBypassReconciliationConfirmation(): void {
+		$this->existing(['reconciled' => true]);
+		$this->params = ['account_id' => 2];
+		$this->service->expects($this->never())->method('update');
+		$response = $this->editor()->update(10);
+		$this->assertSame(Http::STATUS_CONFLICT, $response->getStatus());
+		$this->assertSame('reconciled', $response->getData()['error_code']);
+	}
+
+	public function testATickedRowCannotMoveEvenWithConfirmation(): void {
+		$this->existing(['reconciled' => false, 'reconSessionId' => 15]);
+		$this->params = ['account_id' => 2, 'confirm_reconciled' => true];
+		$this->service->expects($this->never())->method('update');
+		$response = $this->editor()->update(10);
+		$this->assertSame(Http::STATUS_CONFLICT, $response->getStatus());
+		$this->assertSame('reconciliation_in_progress', $response->getData()['error_code']);
+	}
 
 	public function testUpdateChangesOnlyTheFieldsSent(): void {
 		$this->existing();
@@ -2486,11 +2537,11 @@ class ApiV1TransactionControllerTest extends TestCase {
 	 * read, and a stale flag in it would silently undo a reconciliation made
 	 * in the meantime. An edit refuses a different value, as it always has.
 	 */
-	public function testUpdateRefusesToChangeTheAccountStatusOrReconciledFlag(): void {
+	public function testUpdateRefusesToChangeTheStatusOrReconciledFlag(): void {
 		$this->existing();
 		$this->service->expects($this->never())->method('update');
 
-		foreach ([['account_id' => 2], ['status' => 'scheduled'], ['reconciled' => true]] as $params) {
+		foreach ([['status' => 'scheduled'], ['reconciled' => true]] as $params) {
 			$this->params = $params + ['notes' => 'x'];
 			$response = $this->editor()->update(10);
 
