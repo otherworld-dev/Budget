@@ -463,16 +463,16 @@ class ImportService {
 			$dataWidth = $this->parserFactory->detectDataWidth($lines, $delimiter);
 			$isFirstRow = true;
 
-			foreach ($lines as $line) {
-				if (empty(trim($line))) {
-					continue;
-				}
-				$row = str_getcsv($line, $delimiter, '"', '');
-				// Skip rows that don't match the expected data width (metadata/preamble)
-				if ($dataWidth > 0 && count($row) !== $dataWidth) {
-					continue;
-				}
+			// The rows the import reads, so the preview shows what it will
+			// import: preamble skipped, rows short of trailing cells padded (#462)
+			$rows = $dataWidth > 0
+				? ParserFactory::csvRows($lines, $delimiter, $dataWidth)
+				: array_map(
+					static fn (string $line): array => str_getcsv($line, $delimiter, '"', ''),
+					array_filter($lines, static fn (string $line): bool => !empty(trim($line)))
+				);
 
+			foreach ($rows as $row) {
 				if ($isFirstRow) {
 					if ($skipFirstRow) {
 						$columns = array_map('trim', $row);
