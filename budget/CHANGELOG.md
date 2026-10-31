@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **Forecast scenario history is right at the end of the month.** On the 29th to 31st the past-balance history behind forecast scenarios counted the current month twice and dropped the month before it. Months are now stepped from the 1st.
 - **Tags on a new transfer are saved.** Tags picked in the transaction form when creating a transfer were dropped, so neither side was tagged and a savings goal linked to that tag never counted the transfer. Both sides now get the tags, and the goal counts the transfer once, on the savings side. Reported by @TerjeTM ([#438](https://github.com/otherworld-dev/Budget/issues/438))
 
 ## [3.2.0] - 2026-10-27
