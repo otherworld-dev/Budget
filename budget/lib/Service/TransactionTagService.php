@@ -434,6 +434,21 @@ class TransactionTagService {
 	}
 
 	/**
+	 * An account move retains tags in the same owner's namespace. Check raw
+	 * links too, so a deleted tag cannot disappear silently from the response.
+	 * Category tags already on a row keep ordinary edit's retention semantics.
+	 *
+	 * @param int[]|null $tagIds Resolved replacement, or null to retain all links
+	 */
+	public function requireRetainableTags(string $ownerId, int $transactionId, ?array $tagIds = null): void {
+		$tagIds ??= array_map(
+			static fn ($link): int => (int)$link->getTagId(),
+			$this->transactionTagMapper->findByTransaction($transactionId)
+		);
+		$this->granularShareService->requireUsableTags($ownerId, $tagIds);
+	}
+
+	/**
 	 * Store exactly these tags on a transaction, replacing its others. No
 	 * check: resolveTagsAs() is what decides the set. The set it already
 	 * has writes nothing, so updated_at only moves on a real change.

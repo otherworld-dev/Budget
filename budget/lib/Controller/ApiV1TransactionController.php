@@ -29,6 +29,7 @@ use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\Http\FileDisplayResponse;
 use OCP\AppFramework\OCSController;
+use OCP\IDBConnection;
 use OCP\IL10N;
 use OCP\IRequest;
 use Psr\Log\LoggerInterface;
@@ -41,8 +42,8 @@ use Psr\Log\LoggerInterface;
  * users may never open the web UI. They run through the same services as
  * the web UI, with one difference: where the web UI warns before a change,
  * these refuse it with a 409 and an error_code, because a client has no
- * dialog to show. Moving a transaction to another account and its status
- * stay web-only. The reconciled flag is not part of an edit: it has two calls
+ * dialog to show. A move keeps the same owner and currency. Status stays
+ * web-only. The reconciled flag is not part of an edit: it has two calls
  * of its own, so a transaction sent back whole can never carry a stale one.
  */
 class ApiV1TransactionController extends OCSController {
@@ -73,6 +74,7 @@ class ApiV1TransactionController extends OCSController {
 		private IL10N $l,
 		?string $userId,
 		LoggerInterface $logger,
+		private IDBConnection $db,
 		private ?UserClock $userClock = null,
 		private ?TransactionTagService $tagService = null,
 	) {
@@ -1346,7 +1348,7 @@ class ApiV1TransactionController extends OCSController {
 	 * left out keeps its value, and vendor, reference, notes or category_id
 	 * sent as null (or '') is cleared.
 	 *
-	 * - date, amount, type, description, vendor, reference, notes, category_id
+	 * - account_id, date, amount, type, description, vendor, reference, notes, category_id
 	 * - merchant: create()'s shorthand for description and vendor together;
 	 *   either sent explicitly wins over it
 	 * - confirm_reconciled: true to change the money on a reconciled row
@@ -1354,8 +1356,8 @@ class ApiV1TransactionController extends OCSController {
 	 *   stay; a new one is checked against the category this edit leaves, and
 	 *   a refused one refuses the edit (400, error_code invalid_tags)
 	 *
-	 * The read shape can be sent back whole with a field edited. account_id,
-	 * status and reconciled are refused only when they differ from what is
+	 * The read shape can be sent back whole with a field edited. status and
+	 * reconciled are refused only when they differ from what is
 	 * stored, and the 409s below only fire on a real change. The reconciled
 	 * flag is set through reconcile() and unreconcile(): taken from an edit,
 	 * a stale value in a transaction sent back whole would quietly undo a
@@ -1375,13 +1377,26 @@ class ApiV1TransactionController extends OCSController {
 			if ($tagIds === false) {
 				return $this->invalidTags($this->badTagIds());
 			}
-			if ($updates === [] && $tagIds === null) {
+			if ($updates === [] && $tagIds === null && !array_key_exists('account_id', $this->request->getParams())) {
 				return new DataResponse(['error' => $this->l->t('No valid fields to update')], Http::STATUS_BAD_REQUEST);
 			}
 
 			$refusal = $this->refuseUpdate($transaction, $ownerId, $updates);
 			if ($refusal !== null) {
 				return $refusal;
+			}
+			$accountChanging = isset($updates['accountId']);
+			if ($accountChanging) {
+				$refusal = $this->refuseAccountMove($transaction, $ownerId, $updates['accountId']);
+				if ($refusal !== null) {
+					return $refusal;
+				}
+				// A confirmed move leaves the old account's statement. It must
+				// be reconciled again in its destination; update() clears the
+				// session and records both the change and the old session id.
+				if ($transaction->getReconciled()) {
+					$updates['reconciled'] = false;
+				}
 			}
 
 			if (array_key_exists('categoryId', $updates)) {
@@ -1402,16 +1417,47 @@ class ApiV1TransactionController extends OCSController {
 					return $this->invalidTags($e->getMessage());
 				}
 			}
-
-			$updated = $updates === [] ? $transaction : $this->service->update($id, $ownerId, $updates, $this->userId);
-			if ($finalTags !== null) {
-				$this->tagService->replaceTransactionTags($id, $finalTags);
-				// Setting the tags moves updated_at, so the row read before
-				// it would answer with a time already gone
-				$updated = $this->service->findTransaction($id) ?? $updated;
+			if ($accountChanging) {
+				// Accounts of one owner use the same category/tag namespace.
+				// Refuse stale or foreign links rather than silently dropping
+				// metadata. Existing category tags may still be retained after
+				// a category edit, just as on an ordinary edit.
+				try {
+					$categories = $this->categoriesOn($transaction, $ownerId);
+					if (array_key_exists('categoryId', $updates)) {
+						$categories[0] = $updates['categoryId'];
+					}
+					foreach ($categories as $categoryId) {
+						$this->requireOwnersCategory($ownerId, $categoryId);
+					}
+				} catch (\InvalidArgumentException $e) {
+					return new DataResponse(['error' => $e->getMessage(), 'error_code' => 'invalid_category'], Http::STATUS_BAD_REQUEST);
+				}
+				try {
+					$this->tagService?->requireRetainableTags($ownerId, $id, $finalTags);
+				} catch (\InvalidArgumentException $e) {
+					return $this->invalidTags($e->getMessage());
+				}
 			}
 
-			return new DataResponse($this->serializeOne($updated, $this->getEffectiveAccountIds()));
+			// One edit is one write: a failure updating either balance or
+			// replacing tags must also undo the transaction and its audit log.
+			$this->db->beginTransaction();
+			try {
+				$updated = $updates === [] ? $transaction : $this->service->update($id, $ownerId, $updates, $this->userId);
+				if ($finalTags !== null) {
+					$this->tagService->replaceTransactionTags($id, $finalTags);
+					// Setting the tags moves updated_at, so answer with it.
+					$updated = $this->service->findTransaction($id) ?? $updated;
+				}
+				$data = $this->serializeOne($updated, $this->getEffectiveAccountIds());
+				$this->db->commit();
+			} catch (\Throwable $e) {
+				$this->db->rollBack();
+				throw $e;
+			}
+
+			return new DataResponse($data);
 		} catch (DoesNotExistException $e) {
 			return $this->notFound();
 		} catch (\InvalidArgumentException $e) {
@@ -1601,7 +1647,6 @@ class ApiV1TransactionController extends OCSController {
 		}
 
 		$unchanged = [
-			'account_id' => static fn ($v): bool => (int)$v === $current->getAccountId(),
 			'status' => static fn ($v): bool => (string)$v === ($current->getStatus() ?? 'cleared'),
 			'reconciled' => static fn ($v): bool => filter_var($v, FILTER_VALIDATE_BOOLEAN) === (bool)$current->getReconciled(),
 		];
@@ -1615,6 +1660,21 @@ class ApiV1TransactionController extends OCSController {
 		}
 
 		$updates = [];
+		if (array_key_exists('account_id', $p)) {
+			$raw = $p['account_id'];
+			$accountId = is_int($raw) || is_string($raw)
+				? filter_var($raw, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]])
+				: false;
+			if ($accountId === false) {
+				return new DataResponse([
+					'error' => $this->l->t('account_id must be a positive integer'),
+					'error_code' => 'invalid_account',
+				], Http::STATUS_BAD_REQUEST);
+			}
+			if ($accountId !== $current->getAccountId()) {
+				$updates['accountId'] = $accountId;
+			}
+		}
 
 		if (array_key_exists('date', $p)) {
 			$date = (string)$p['date'];
@@ -1688,7 +1748,16 @@ class ApiV1TransactionController extends OCSController {
 	 * counts, so values sent back as they were read are never refused.
 	 */
 	private function refuseUpdate(Transaction $current, string $ownerId, array $updates): ?DataResponse {
-		$moneyChanges = (array_key_exists('amount', $updates)
+		// A ticked row is not reconciled yet, but completing its source
+		// session selects it by session id. Moving it while still ticked
+		// would let that statement reconcile a different account's row.
+		if (isset($updates['accountId']) && !$current->getReconciled() && $current->getReconSessionId() !== null) {
+			return new DataResponse([
+				'error' => $this->l->t('Untick this transaction from its reconciliation session before moving it'),
+				'error_code' => 'reconciliation_in_progress',
+			], Http::STATUS_CONFLICT);
+		}
+		$moneyChanges = isset($updates['accountId']) || (array_key_exists('amount', $updates)
 				&& !MoneyCalculator::equals($current->getAmount(), $updates['amount'], '0.001'))
 			|| (array_key_exists('type', $updates) && $updates['type'] !== $current->getType())
 			|| (array_key_exists('date', $updates) && $updates['date'] !== substr((string)$current->getDate(), 0, 10));
@@ -1697,7 +1766,7 @@ class ApiV1TransactionController extends OCSController {
 		// stop adding up without anything saying so
 		if ($moneyChanges && $current->getLinkedTransactionId() !== null) {
 			return new DataResponse([
-				'error' => $this->l->t('This transaction is one side of a transfer, so its amount, type and date cannot be changed on their own'),
+				'error' => $this->l->t('This transaction is one side of a transfer, so its account, amount, type and date cannot be changed on their own'),
 				'error_code' => 'transfer_leg',
 			], Http::STATUS_CONFLICT);
 		}
@@ -1719,6 +1788,34 @@ class ApiV1TransactionController extends OCSController {
 			], Http::STATUS_CONFLICT);
 		}
 
+		return null;
+	}
+
+	/** Same ledger and currency, with write access to an open destination. */
+	private function refuseAccountMove(Transaction $current, string $ownerId, int $accountId): ?DataResponse {
+		if (!$this->granularShareService->canAccess($this->userId, 'account', $accountId)) {
+			return $this->notFound();
+		}
+		$this->requireWriteAccess('account', $accountId);
+		$target = $this->service->findAccountById($accountId);
+		if ($target->getUserId() !== $ownerId) {
+			return new DataResponse([
+				'error' => $this->l->t('The destination account must have the same owner'),
+				'error_code' => 'account_owner_mismatch',
+			], Http::STATUS_BAD_REQUEST);
+		}
+		if ($target->getClosed()) {
+			return new DataResponse([
+				'error' => $this->l->t('The destination account is closed. Reopen it first'),
+				'error_code' => 'account_closed',
+			], Http::STATUS_BAD_REQUEST);
+		}
+		if ($target->getCurrency() !== $this->currencyOf($current->getAccountId())) {
+			return new DataResponse([
+				'error' => $this->l->t('The destination account must use the same currency'),
+				'error_code' => 'account_currency_mismatch',
+			], Http::STATUS_BAD_REQUEST);
+		}
 		return null;
 	}
 

@@ -483,7 +483,13 @@
                                     },
                                     "photo_error_code": {
                                       "type": "string",
-                                      "enum": ["files_access_denied", "receipt_folder_not_writable", "not_enough_space", "invalid_file", "upload_failed"],
+                                      "enum": [
+                                        "files_access_denied",
+                                        "receipt_folder_not_writable",
+                                        "not_enough_space",
+                                        "invalid_file",
+                                        "upload_failed"
+                                      ],
                                       "description": "Sent with photo_error, saying why. files_access_denied: the app password in use has filesystem access switched off (Settings > Security), so no receipt can be stored until the user allows it; retrying will not help. receipt_folder_not_writable: the receipts folder or one of its parents refuses writes. not_enough_space: the user's Files quota is full. invalid_file: too big, a type not in GET / limits, or a broken upload. upload_failed: anything else. Switch on this, never on the photo_error text."
                                     },
                                     "category_error": {
@@ -608,7 +614,7 @@
         ],
         "operationId": "updateTransaction",
         "summary": "Edit a transaction",
-        "description": "Changes only the fields sent, through the same service as the web UI: balances are recalculated from the ledger, and a split transaction's parts are rescaled when its amount changes.\n\nWhere the web UI would warn first, this refuses with a 409 instead: the amount, type or date of one side of a transfer (transfer_leg), the same on a reconciled transaction without confirm_reconciled (reconciled), and a category on a split transaction (split). A value sent back unchanged never triggers these.\n\nMoving a transaction to another account, and changing its status or reconciled flag, are web-only.\n\nSafe to retry: the values sent are absolute, so sending the same request twice gives the same result.\n\nOn a shared account the change is written to the owner's ledger; a read-only share gets 403.",
+        "description": "Changes only the fields sent, through the same service as the web UI. Transaction, split rescaling, affected balances, audit entries and tag replacement commit atomically.\n\naccount_id moves an eligible transaction to another writable, open account with the same owner and currency. Both balances are recalculated; the transaction ID, notes, receipt links, split parts and retained tags stay intact. Categories and tags must remain usable by the same ledger owner; existing category tags keep ordinary edit's retention rules. A target not visible to the caller is 404; a read-only target is 403. Cross-owner and cross-currency moves are rejected without conversion or metadata loss.\n\nA real account, amount, type or date change to a transfer leg returns 409 transfer_leg. A reconciled transaction requires confirm_reconciled for those changes (409 reconciled). A confirmed account move marks it unreconciled, clears its old statement session and records an audit trail; reconcile it again in the destination account. A new category on a split returns 409 split. Unchanged values do not trigger these conflicts.\n\nStatus and the reconciled flag cannot be changed directly through an edit. Requests without account_id keep their existing behavior. Safe to retry: values are absolute, and an unchanged account_id is a no-op. On shared accounts the write runs as the ledger owner.\n\nA transaction ticked into an unfinished reconciliation (reconciled false with a statement session) cannot move, even with confirmation: 409 reconciliation_in_progress. Untick it or cancel that session first.",
         "requestBody": {
           "required": true,
           "content": {
@@ -648,7 +654,7 @@
             }
           },
           "400": {
-            "description": "A malformed value (a list or an object for a field that takes one value: \"vendor must be a single value\"), nothing editable in the body, an amount that is not more than zero (error_code invalid_amount), or account_id, status or reconciled sent with a different value (error_code field_not_editable). A category_id the account owner cannot use answers \"Category not found. It must be one of the account owner's categories\"; on an account shared with you, a new category_id you cannot see (one of the owner's never shared with you) answers \"Category not found\". The category the transaction already has may always be sent back. A tag_ids value that is not a list of ids, or a newly added tag that cannot be put on this transaction, answers error_code invalid_tags and writes nothing.",
+            "description": "Malformed input (including account_id that is not a positive integer: invalid_account), nothing editable in the body, a non-positive changed amount (invalid_amount), or a changed status/reconciled flag (field_not_editable). Moves also reject a closed target (account_closed), a different owner (account_owner_mismatch), a different currency (account_currency_mismatch), retained categories unavailable to the owner (invalid_category), or tags that cannot be retained (invalid_tags). No part of a refused edit is written. Existing category and tag validation still applies to edits, including invalid_tags for malformed tag_ids or unavailable newly added tags.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3103,8 +3109,14 @@
       },
       "TransactionEdit": {
         "type": "object",
-        "description": "Only the fields sent change. vendor, reference, notes and category_id sent as null (or an empty string) are cleared. The Transaction read shape can be sent back whole with a field edited: its read-only fields are ignored, and account_id, status and reconciled are refused (field_not_editable) only when they differ from what is stored.",
+        "description": "Only fields sent change. vendor, reference, notes and category_id sent as null (or an empty string) are cleared. account_id can move an eligible transaction to an open, writable account of the same owner and currency. An unchanged account_id is a no-op. The read shape can be sent back whole: read-only fields are ignored, while changed status/reconciled values are refused (field_not_editable). All writes of the edit succeed or roll back together.",
         "properties": {
+          "account_id": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 42,
+            "description": "Destination account for a move; a positive integer (a decimal integer string is also accepted). Must be visible, writable, open and have the same owner and currency. Transfers cannot move (409 transfer_leg). A reconciled move requires confirm_reconciled and then clears reconciliation and the old statement session, with an audit trail. Transaction ID, receipt links and retained metadata are preserved. Leave out to keep the current account. A transaction ticked into an unfinished reconciliation must first be unticked (409 reconciliation_in_progress); confirmation cannot override this."
+          },
           "date": {
             "type": "string",
             "format": "date",
@@ -3176,7 +3188,7 @@
           },
           "confirm_reconciled": {
             "type": "boolean",
-            "description": "Required to change the amount, type or date of a reconciled transaction. The web UI asks the user first; a client should do the same before sending it."
+            "description": "Required to change the account, amount, type or date of a reconciled transaction. Ask the user before sending it. A confirmed account move marks the transaction unreconciled and clears its old statement session, with an audit trail; reconcile it in the destination account."
           }
         }
       },
