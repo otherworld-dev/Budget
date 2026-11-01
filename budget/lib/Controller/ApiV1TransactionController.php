@@ -145,7 +145,7 @@ class ApiV1TransactionController extends OCSController {
 
 			return new DataResponse([
 				'transactions' => ApiSerializer::map(
-					$this->withTags(TransactionService::hideUnseenLinkedAccounts($result['transactions'], $visible)),
+					$this->withReceipts($this->withTags(TransactionService::hideUnseenLinkedAccounts($result['transactions'], $visible))),
 					[ApiSerializer::class, 'transaction']
 				),
 				'total' => (int)$result['total'],
@@ -365,7 +365,7 @@ class ApiV1TransactionController extends OCSController {
 			);
 
 			return new DataResponse(ApiSerializer::map(
-				TransactionService::hideUnseenLinkedAccounts($result['transactions'], $visible),
+				$this->withReceipts(TransactionService::hideUnseenLinkedAccounts($result['transactions'], $visible)),
 				[ApiSerializer::class, 'recentTransaction']
 			));
 		} catch (\Exception $e) {
@@ -423,7 +423,34 @@ class ApiV1TransactionController extends OCSController {
 		$row['isSplit'] = $parts !== [];
 		$row['linkedAccountName'] = $this->linkedAccountName($transaction, $visibleAccountIds);
 
-		return ApiSerializer::transaction($this->withTags([$row])[0], $this->currencyOf($transaction->getAccountId()));
+		return ApiSerializer::transaction($this->withReceipts($this->withTags([$row]))[0], $this->currencyOf($transaction->getAccountId()));
+	}
+
+	/**
+	 * Rows with whether each has a receipt (#455), read for the whole page in
+	 * one query rather than the GET .../receipts per row a client made
+	 * before. Scoped to the caller like that endpoint: a row in an account
+	 * shared with them is left unknown (null), never false.
+	 *
+	 * @param array<int, array<string, mixed>> $rows
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function withReceipts(array $rows): array {
+		if ($rows === []) {
+			return $rows;
+		}
+
+		$presence = $this->attachmentService->receiptPresence(array_map(static fn (array $row): int => (int)($row['id'] ?? 0), $rows), $this->userId);
+		foreach ($rows as $i => $row) {
+			$rows[$i]['hasReceipt'] = $presence[(int)($row['id'] ?? 0)] ?? null;
+		}
+
+		return $rows;
+	}
+
+	/** has_receipt for one transaction, as withReceipts() reads it. */
+	private function hasReceipt(int $transactionId): ?bool {
+		return $this->attachmentService->receiptPresence([$transactionId], $this->userId)[$transactionId] ?? null;
 	}
 
 	/**
@@ -729,6 +756,8 @@ class ApiV1TransactionController extends OCSController {
 					$out = array_merge($out, $this->photoError($e));
 				}
 			}
+			// Read after the photo, so a receipt that just attached shows
+			$out['has_receipt'] = $this->hasReceipt($transaction->getId());
 
 			// Optional per-item splits, for a capture app that read a receipt
 			// and had the user categorise each line. Handled like the photo
@@ -1074,6 +1103,7 @@ class ApiV1TransactionController extends OCSController {
 				$ownerId = $account->getUserId();
 				if ($this->attachmentService->listForTransaction($transaction->getId(), $ownerId) === []) {
 					$this->attachmentService->upload($transaction->getId(), $ownerId, $photo, $this->userId);
+					$out['has_receipt'] = $this->hasReceipt($transaction->getId());
 				}
 			} catch (\Throwable $e) {
 				$this->logger?->warning('Receipt attach during replay failed: ' . $e->getMessage(), [
