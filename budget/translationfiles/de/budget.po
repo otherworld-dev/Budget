@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-10-28 23:12+0000\n"
-"PO-Revision-Date: 2026-10-28 11:51+0000\n"
+"PO-Revision-Date: 2026-11-02 15:51+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -11997,12 +11997,9 @@ msgid "No tag sets available"
 msgstr "Keine Stichwörter verfügbar"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:374
-#, fuzzy
-#| msgid "Category deleted; its transactions are now Uncategorized"
 msgid "Category tags are only added to transactions in their own category."
 msgstr ""
-"Die Kategorie wurde gelöscht. Die zugehörigen Transaktionen wurden nach "
-"„Nicht kategorisiert“ verschoben"
+"Kategorie-Tags werden nur Transaktionen ihrer eigenen Kategorie hinzugefügt."
 
 #: /app/src/modules/rules/components/ActionBuilder.js:380
 msgid "Merge with existing tags"
@@ -15869,22 +15866,16 @@ msgid "Last 2 Years"
 msgstr "Letzte 2 Jahre"
 
 #: /app/templates/index.php:2046
-#, fuzzy
-#| msgid "Group"
 msgid "Group by"
-msgstr "Gruppe"
+msgstr "Gruppieren nach"
 
 #: /app/templates/index.php:2047
-#, fuzzy
-#| msgid "Budget Period"
 msgid "Budget periods"
-msgstr "Budgetzeitraum"
+msgstr "Budgetzeiträume"
 
 #: /app/templates/index.php:2048
-#, fuzzy
-#| msgid "Calendar"
 msgid "Calendar months"
-msgstr "Kalender"
+msgstr "Kalendermonate"
 
 #: /app/templates/index.php:2067
 msgid "View All Transactions"
