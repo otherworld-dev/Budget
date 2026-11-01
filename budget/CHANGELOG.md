@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Dashboard charts and reports can count budget periods.** With a **Budget Cycle Start Day** set, Settings has **Months in dashboard charts and reports**, with **Calendar months** (the default) or **Budget periods**. With budget periods and start day 26, a salary on 26 September counts towards October in the dashboard's trend and spending charts, the summary trend, cash flow by month and the category × month report, the same as on the Budget page. The report presets then cover whole budget periods, and a line under each chart names the start day. Exports and scheduled reports of those reports follow the choice; year-over-year and the digest stay on calendar months. Reported by @saesch83 ([#457](https://github.com/otherworld-dev/Budget/issues/457))
+
+### Fixed
+- **Trend charts keep their last month.** The income vs. expenses trend stepped a month at a time from the start date, so a range like 26 July to 25 October lost October, and a range starting on 31 January skipped February. It now lists every month the range touches, in calendar mode too.
+- **The dashboard's "% vs last month" compares like with like.** The income, expenses and cash flow tiles read the current period's calendar-month buckets, so with a start day the comparison was missing or compared two halves of one period. They now compare this budget period so far with the same number of days of the one before, so the 1st of the month no longer reads "down 100%".
+
 ## [3.3.0] - 2026-11-01
 
 ### Added

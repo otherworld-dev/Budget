@@ -2,7 +2,7 @@
  * With a budget start day the user chooses in Settings whether the dashboard
  * charts and the month-by-month reports count calendar months or budget
  * months (#457). Calendar months stay the default. The hero tiles compare
- * this budget period with the whole one before, either way.
+ * this budget period so far with the same days of the one before, either way.
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -15,7 +15,7 @@ vi.mock('@nextcloud/l10n', () => ({
 
 import DashboardModule from '../../src/modules/dashboard/DashboardModule.js';
 import ReportsModule from '../../src/modules/reports/ReportsModule.js';
-import { reportMonthStartDay, showMonthGroupingNote } from '../../src/utils/formatters.js';
+import { comparablePreviousRange, reportMonthStartDay, showMonthGroupingNote } from '../../src/utils/formatters.js';
 
 function makeDashboard(settings = {}) {
     const mod = Object.create(DashboardModule.prototype);
@@ -94,12 +94,45 @@ describe('dashboard load', () => {
         expect(ranges).toContainEqual(['2026-05-26', '2026-11-25']);
     });
 
-    it('asks for the previous budget period for the hero comparison', async () => {
+    it('asks for the same days of the previous budget period for the hero comparison', async () => {
         const ranges = await summaryRequests({ budget_start_day: '26' });
 
-        // Current period 26 Oct - 25 Nov, the one before 26 Sep - 25 Oct
+        // Current period 26 Oct - 25 Nov, on its 2nd day; the one before
+        // 26 Sep - 25 Oct, so its first 2 days
         expect(ranges).toContainEqual(['2026-10-26', '2026-11-25']);
-        expect(ranges).toContainEqual(['2026-09-26', '2026-10-25']);
+        expect(ranges).toContainEqual(['2026-09-26', '2026-09-27']);
+    });
+});
+
+describe('comparablePreviousRange', () => {
+    const previous = { start: '2026-09-01', end: '2026-09-30' };
+    const current = { start: '2026-10-01', end: '2026-10-31' };
+
+    it('is the first day of the previous period on the first day of this one', () => {
+        expect(comparablePreviousRange(previous, current, '2026-10-01')).toEqual({ start: '2026-09-01', end: '2026-09-01' });
+    });
+
+    it('covers as many days as this period has had so far', () => {
+        expect(comparablePreviousRange(previous, current, '2026-10-10')).toEqual({ start: '2026-09-01', end: '2026-09-10' });
+    });
+
+    it('stops at the end of a shorter previous period', () => {
+        expect(comparablePreviousRange(previous, current, '2026-10-30')).toEqual(previous);
+        const february = { start: '2026-02-01', end: '2026-02-28' };
+        const march = { start: '2026-03-01', end: '2026-03-31' };
+        expect(comparablePreviousRange(february, march, '2026-03-29')).toEqual(february);
+    });
+
+    it('is the whole previous period on the last day of this one', () => {
+        const october = { start: '2026-10-01', end: '2026-10-31' };
+        const november = { start: '2026-11-01', end: '2026-11-30' };
+        expect(comparablePreviousRange(october, november, '2026-11-30')).toEqual(october);
+    });
+
+    it('counts days across a month end with a start day', () => {
+        const prev = { start: '2026-09-26', end: '2026-10-25' };
+        const cur = { start: '2026-10-26', end: '2026-11-25' };
+        expect(comparablePreviousRange(prev, cur, '2026-11-03')).toEqual({ start: '2026-09-26', end: '2026-10-04' });
     });
 });
 

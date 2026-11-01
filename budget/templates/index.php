@@ -4476,11 +4476,11 @@ style('budget', 'budget-app');
                         <div class="setting-item">
                             <label for="setting-report-month-grouping">
                                 <strong><?php p($l->t('Months in dashboard charts and reports')); ?></strong>
-                                <small><?php p($l->t('With a budget cycle start day other than 1, choose whether the dashboard charts and the month-by-month reports count calendar months or your budget months. With budget months, money that arrives on or after the start day counts towards the next month, like on the Budget page.')); ?></small>
+                                <small><?php p($l->t('With a budget cycle start day other than 1, choose whether the dashboard charts and the month-by-month reports count calendar months or budget periods. Budget periods run from your start day, the same as on the Budget page.')); ?></small>
                             </label>
                             <select id="setting-report-month-grouping" class="setting-input">
                                 <option value="calendar"><?php p($l->t('Calendar months')); ?></option>
-                                <option value="budget"><?php p($l->t('Budget months')); ?></option>
+                                <option value="budget"><?php p($l->t('Budget periods')); ?></option>
                             </select>
                         </div>
 

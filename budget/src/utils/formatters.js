@@ -579,7 +579,7 @@ export function showMonthGroupingNote(el, monthStartDay) {
     if (!el) return;
     const budgetMonths = monthStartDay > 1;
     el.textContent = budgetMonths
-        ? t('budget', 'Months are budget months starting on day {day}, as chosen in Settings.', { day: monthStartDay })
+        ? t('budget', 'Months are budget periods starting on day {day}, as chosen in Settings.', { day: monthStartDay })
         : '';
     el.style.display = budgetMonths ? '' : 'none';
 }
@@ -751,6 +751,28 @@ export function precedingWindow(startDate, endDate) {
     prevStart.setDate(prevStart.getDate() - (lengthDays - 1));
 
     return { start: formatDateForAPI(prevStart), end: formatDateForAPI(prevEnd) };
+}
+
+/**
+ * The part of the previous period that matches how far the current one has
+ * got: on the 3rd day of this period, the first 3 days of the last one. A
+ * period in progress compared with a whole one reads "down 100%" on its first
+ * day. Once the current period is over, or the previous one is the shorter,
+ * the whole previous period counts.
+ *
+ * @param {object} previous - {start, end} as YYYY-MM-DD, inclusive
+ * @param {object} current - {start, end} as YYYY-MM-DD, inclusive
+ * @param {string} today - YYYY-MM-DD
+ * @returns {object} {start, end} as YYYY-MM-DD
+ */
+export function comparablePreviousRange(previous, current, today) {
+    if (today < current.start || today >= current.end) {
+        return { start: previous.start, end: previous.end };
+    }
+    const end = parseLocalDate(previous.start);
+    end.setDate(end.getDate() + daysBetweenDates(current.start, today));
+    const endDate = formatDateForAPI(end);
+    return { start: previous.start, end: endDate < previous.end ? endDate : previous.end };
 }
 
 /**

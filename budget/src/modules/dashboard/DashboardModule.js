@@ -189,8 +189,13 @@ export default class DashboardModule {
             const chartMonth = formatters.currentBudgetMonth(chartStartDay, now);
             const sixMonthsAgo = formatters.budgetMonthRange(formatters.shiftMonth(chartMonth, -5), chartStartDay).start;
             const endOfMonth = formatters.budgetMonthRange(chartMonth, chartStartDay).end;
-            // The hero tiles compare this budget period with the one before
-            const previousPeriod = formatters.budgetMonthRange(formatters.shiftMonth(periodMonth, -1), budgetStartDay);
+            // The hero tiles compare this budget period so far with the same
+            // number of days of the one before
+            const previousPeriod = formatters.comparablePreviousRange(
+                formatters.budgetMonthRange(formatters.shiftMonth(periodMonth, -1), budgetStartDay),
+                currentPeriod,
+                formatters.formatDateForAPI(now),
+            );
 
             // Cache-busting timestamp to ensure fresh data
             const cacheBuster = Date.now();
@@ -210,7 +215,7 @@ export default class DashboardModule {
             const [summary, previousSummary, trendData, transactions, billsRaw, budgetDataRaw, goalsRaw, pensionRaw, assetRaw, netWorthRaw, alertsRaw, debtSummary, assetValueHistory] = await Promise.all([
                 // Current budget cycle summary for hero stats
                 apiFetch(`/apps/budget/api/reports/summary?startDate=${periodStart}&endDate=${periodEnd}&_=${cacheBuster}`).catch(orEmpty({})),
-                // The cycle before, for the hero tiles' "vs last month"
+                // The same days of the cycle before, for the hero tiles' "vs last month"
                 apiFetch(`/apps/budget/api/reports/summary?startDate=${previousPeriod.start}&endDate=${previousPeriod.end}&_=${cacheBuster}`).catch(orEmpty({})),
                 // 6-month summary for trend charts
                 apiFetch(`/apps/budget/api/reports/summary?startDate=${sixMonthsAgo}&endDate=${endOfMonth}&_=${cacheBuster}`).catch(orEmpty({})),
@@ -403,8 +408,9 @@ export default class DashboardModule {
         }
 
         // Calculate month-over-month change for income: this budget period
-        // against the whole one before. The summary's trend buckets are
-        // calendar months, which with a start day cut this period in two.
+        // so far against the same days of the one before. The summary's
+        // trend buckets are calendar months, which with a start day cut this
+        // period in two.
         const previous = summary.previousTotals;
         const incomeChangeEl = document.getElementById('hero-income-change');
         if (incomeChangeEl && previous) {
@@ -515,7 +521,7 @@ export default class DashboardModule {
         const changeEl = document.getElementById('hero-cash-flow-change');
         const previous = summary.previousTotals;
         if (changeEl && previous) {
-            // This budget period against the whole one before
+            // This budget period so far against the same days of the one before
             const lastCF = (previous.totalIncome || 0) - (previous.totalExpenses || 0);
             const change = lastCF !== 0 ? ((cashFlow - lastCF) / Math.abs(lastCF) * 100) : 0;
             if (change !== 0) {
