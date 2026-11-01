@@ -138,8 +138,9 @@ class TransactionTagService {
 		$tags = $this->tagMapper->findByIds($tagIds);
 		$tagSetIds = [];
 		foreach ($tags as $tag) {
-			if ($tag->getTagSetId() !== null) {
-				$tagSetIds[] = $tag->getTagSetId();
+			$tagSetId = $tag->getTagSetId();
+			if ($tagSetId !== null) {
+				$tagSetIds[] = $tagSetId;
 			}
 		}
 		$categoryByTagSet = ($tagSetIds === [] || $categoryId === null)
@@ -336,8 +337,9 @@ class TransactionTagService {
 
 		$tagSetIds = [];
 		foreach ($tags as $tag) {
-			if ($tag->getTagSetId() !== null) {
-				$tagSetIds[] = $tag->getTagSetId();
+			$tagSetId = $tag->getTagSetId();
+			if ($tagSetId !== null) {
+				$tagSetIds[] = $tagSetId;
 			}
 		}
 
