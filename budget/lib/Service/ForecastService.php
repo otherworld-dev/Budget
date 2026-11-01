@@ -535,6 +535,10 @@ class ForecastService {
 		// Rows dated after today, until the last month projected
 		$lastProjected = BudgetPeriod::range(self::shiftMonth($thisMonth, $forecastMonths), $monthStartDay)[1];
 		$tomorrow = (new \DateTimeImmutable($today))->modify('+1 day')->format('Y-m-d');
+		// The share of the running month still to come
+		[$thisStart, $thisEnd] = BudgetPeriod::range($thisMonth, $monthStartDay);
+		$restOfThisMonth = $tomorrow > $thisEnd ? 0.0
+			: self::days($tomorrow, $thisEnd) / self::days($thisStart, $thisEnd);
 		$futureRows = $this->futureRows($userId, $tomorrow, $lastProjected, $visibleAccountIds, $rates);
 
 		// Generate monthly projections
@@ -543,23 +547,30 @@ class ForecastService {
 		$cumulativeSavings = 0;
 		$savingsMonthlyData = [];
 
-		// Months after the user's own, stepped from the 1st: from the 31st,
-		// "+1 month" skipped any shorter month
+		// The running month comes first, from tomorrow on, with its share of
+		// the usual income and spending: today's balance holds none of it
+		// yet. Then the months after it, stepped from the 1st: from the 31st,
+		// "+1 month" skipped any shorter month. Folded into the next month,
+		// the rest of the running month made that month look like two: with
+		// a budget start day it can have most of its days left.
+		$periods = [];
+		if ($restOfThisMonth > 0) {
+			$periods[] = [$thisMonth, $tomorrow, $thisEnd, $restOfThisMonth, 0];
+		}
 		for ($i = 1; $i <= $forecastMonths; $i++) {
 			$projectionMonth = self::shiftMonth($thisMonth, $i);
-			$monthLabel = \DateTimeImmutable::createFromFormat('!Y-m', $projectionMonth)->format('M Y');
 			[$from, $to] = BudgetPeriod::range($projectionMonth, $monthStartDay);
-			if ($i === 1) {
-				// What is still to come this month is not in today's balance
-				// yet, and no later month would count it
-				$from = $tomorrow;
-			}
+			$periods[] = [$projectionMonth, $from, $to, 1.0, $i];
+		}
+
+		foreach ($periods as [$projectionMonth, $from, $to, $share, $i]) {
+			$monthLabel = \DateTimeImmutable::createFromFormat('!Y-m', $projectionMonth)->format('M Y');
 
 			$scheduledIncome = $this->scheduledTotal($incomes, $from, $to) + $this->rowsTotal($futureRows, 'credit', $from, $to, $rates);
 			$scheduledExpenses = $this->scheduledTotal($bills, $from, $to) + $this->rowsTotal($futureRows, 'debit', $from, $to, $rates);
 
-			$projectedIncome = max(0, $variableIncome + ($variableIncomeTrend * $i)) + $scheduledIncome;
-			$projectedExpenses = max(0, $variableExpenses + ($variableExpenseTrend * $i)) + $scheduledExpenses;
+			$projectedIncome = max(0, $variableIncome + ($variableIncomeTrend * $i)) * $share + $scheduledIncome;
+			$projectedExpenses = max(0, $variableExpenses + ($variableExpenseTrend * $i)) * $share + $scheduledExpenses;
 			$monthlySavings = $projectedIncome - $projectedExpenses;
 
 			$projectedBalance += $monthlySavings;
@@ -572,6 +583,8 @@ class ForecastService {
 				// forecast-warning notification and anything else reading it.
 				'month' => $monthLabel,
 				'yearMonth' => $projectionMonth,
+				// Only what is left of the running month
+				'partial' => $i === 0,
 				'balance' => round($projectedBalance, 2),
 				'income' => round($projectedIncome, 2),
 				'expenses' => round($projectedExpenses, 2),
@@ -623,6 +636,13 @@ class ForecastService {
 		}
 
 		return $result;
+	}
+
+	/**
+	 * Days from one date to another, both included.
+	 */
+	private static function days(string $from, string $to): int {
+		return (int)(new \DateTimeImmutable($from))->diff(new \DateTimeImmutable($to))->days + 1;
 	}
 
 	/**

@@ -184,11 +184,15 @@ class ForecastServiceTest extends TestCase {
 
 		// The web UI formats `yearMonth` in the user's language; `month` stays
 		// the English label the forecast-warning notification reads.
-		$this->assertCount(3, $result['monthlyProjections']);
-		foreach ($result['monthlyProjections'] as $i => $projection) {
-			// Stepped from the 1st like the service: from the 31st, strtotime('+1 months')
-			// skips any shorter month and the test failed on every month end.
-			$expected = strtotime('first day of +' . ($i + 1) . ' months');
+		// The rest of this month comes first, unless today is its last day
+		$projections = $result['monthlyProjections'];
+		if ($projections[0]['partial']) {
+			$this->assertSame(date('Y-m'), array_shift($projections)['yearMonth']);
+		}
+		$this->assertCount(3, $projections);
+		foreach ($projections as $i => $projection) {
+			$this->assertFalse($projection['partial']);
+			$expected = strtotime(date('Y-m-01') . ' +' . ($i + 1) . ' months');
 			$this->assertSame(date('Y-m', $expected), $projection['yearMonth']);
 			$this->assertSame(date('M Y', $expected), $projection['month']);
 		}
@@ -422,7 +426,8 @@ class ForecastServiceTest extends TestCase {
 
 		$this->assertSame(['2025-10-01', '2026-09-30'], $seen['range']);
 		$this->assertSame(1, $seen['aggregatedWith']);
-		$this->assertSame(['2026-11', '2026-12', '2027-01'], array_column($result['monthlyProjections'], 'yearMonth'));
+		// The rest of October, then the months after it
+		$this->assertSame(['2026-10', '2026-11', '2026-12', '2027-01'], array_column($result['monthlyProjections'], 'yearMonth'));
 		$this->assertSame(1, $result['monthStartDay']);
 	}
 
@@ -432,7 +437,8 @@ class ForecastServiceTest extends TestCase {
 
 		$this->assertSame(['2025-10-26', '2026-10-25'], $seen['range']);
 		$this->assertSame(26, $seen['aggregatedWith']);
-		$this->assertSame(['2026-12', '2027-01', '2027-02'], array_column($result['monthlyProjections'], 'yearMonth'));
+		// The rest of November (26 October to 25 November), then the months after it
+		$this->assertSame(['2026-11', '2026-12', '2027-01', '2027-02'], array_column($result['monthlyProjections'], 'yearMonth'));
 		$this->assertSame(26, $result['monthStartDay']);
 	}
 

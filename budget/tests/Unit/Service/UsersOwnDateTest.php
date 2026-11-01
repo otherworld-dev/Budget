@@ -183,8 +183,8 @@ class UsersOwnDateTest extends TestCase {
 		$live = $forecast->getLiveForecast('alice', 2);
 		$this->assertSame(480.0, (float)$live['currentBalance']);
 		$this->assertSame(480.0, (float)$forecast->generateForecast('alice')['summary'][0]['currentBalance']);
-		// The months ahead of the user's own month
-		$this->assertSame(['2030-07', '2030-08'], array_column($live['monthlyProjections'], 'yearMonth'));
+		// The rest of the user's own month, then the months ahead of it
+		$this->assertSame(['2030-06', '2030-07', '2030-08'], array_column($live['monthlyProjections'], 'yearMonth'));
 	}
 
 	public function testScenariosNetWorthAndDebtsStartFromTodaysBalance(): void {

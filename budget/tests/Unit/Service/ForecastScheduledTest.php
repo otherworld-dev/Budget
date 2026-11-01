@@ -16,6 +16,7 @@ use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Db\TransactionSplitMapper;
 use OCA\Budget\Service\Bill\FrequencyCalculator;
 use OCA\Budget\Service\BillService;
+use OCA\Budget\Service\BudgetCarryoverService;
 use OCA\Budget\Service\Forecast\ForecastProjector;
 use OCA\Budget\Service\Forecast\PatternAnalyzer;
 use OCA\Budget\Service\Forecast\ScenarioBuilder;
@@ -31,7 +32,8 @@ use PHPUnit\Framework\TestCase;
  * twice. Spread as monthly floors, a one-off bill for a car in December, a
  * yearly bonus in May and a new subscription made no difference at all.
  *
- * Today is 30 October 2026, in calendar months.
+ * Today is 30 October 2026, in calendar months unless a test says
+ * otherwise: the rest of October comes first, then the months after it.
  */
 class ForecastScheduledTest extends TestCase {
 	/** @var Bill[] */
@@ -45,7 +47,7 @@ class ForecastScheduledTest extends TestCase {
 	/** @var array<string, string[]> bill name => the dates its schedule falls on */
 	private array $billDates = [];
 
-	private function forecast(int $months = 3): array {
+	private function forecast(int $months = 3, int $monthStartDay = 1): array {
 		$account = new Account();
 		$account->setId(1);
 		$account->setName('Current');
@@ -73,6 +75,8 @@ class ForecastScheduledTest extends TestCase {
 
 		$clock = $this->createMock(UserClock::class);
 		$clock->method('today')->willReturn('2026-10-30');
+		$carryover = $this->createMock(BudgetCarryoverService::class);
+		$carryover->method('reportMonthStartDay')->willReturn($monthStartDay);
 
 		$service = new ForecastService(
 			$accounts,
@@ -86,7 +90,7 @@ class ForecastScheduledTest extends TestCase {
 			null,
 			$incomeMapper,
 			$billMapper,
-			null,
+			$carryover,
 			$billService,
 			new FrequencyCalculator(),
 		);
@@ -148,8 +152,8 @@ class ForecastScheduledTest extends TestCase {
 
 		$months = $this->forecast(3)['monthlyProjections'];
 
-		$this->assertSame([0.0, 8500.0, 0.0], array_column($months, 'scheduledExpenses'));
-		$this->assertSame(1500.0, $months[1]['balance']);
+		$this->assertSame([0.0, 0.0, 8500.0, 0.0], array_column($months, 'scheduledExpenses'));
+		$this->assertSame(1500.0, $months[2]['balance']);
 	}
 
 	public function testAYearlyBonusLandsInMayNotATwelfthEveryMonth(): void {
@@ -170,8 +174,9 @@ class ForecastScheduledTest extends TestCase {
 		$months = $this->forecast(3)['monthlyProjections'];
 
 		// Salary and rent on their dates, the other 1,000 a month averaged
-		$this->assertSame([3000.0, 3000.0, 3000.0], array_column($months, 'income'));
-		$this->assertSame([1900.0, 1900.0, 1900.0], array_column($months, 'expenses'));
+		// (October's last day: 1,000 / 31)
+		$this->assertSame([0.0, 3000.0, 3000.0, 3000.0], array_column($months, 'income'));
+		$this->assertSame([32.26, 1900.0, 1900.0, 1900.0], array_column($months, 'expenses'));
 	}
 
 	public function testANewBillCountsFromItsFirstDate(): void {
@@ -181,7 +186,7 @@ class ForecastScheduledTest extends TestCase {
 
 		$months = $this->forecast(3)['monthlyProjections'];
 
-		$this->assertSame([900.0, 915.0, 915.0], array_column($months, 'scheduledExpenses'));
+		$this->assertSame([0.0, 900.0, 915.0, 915.0], array_column($months, 'scheduledExpenses'));
 	}
 
 	public function testRowsDatedAfterTodayLandInTheirMonth(): void {
@@ -190,17 +195,50 @@ class ForecastScheduledTest extends TestCase {
 
 		$months = $this->forecast(3)['monthlyProjections'];
 
-		$this->assertSame([0.0, 8500.0, 0.0], array_column($months, 'scheduledExpenses'));
-		$this->assertSame([0.0, 0.0, 400.0], array_column($months, 'scheduledIncome'));
+		$this->assertSame([0.0, 0.0, 8500.0, 0.0], array_column($months, 'scheduledExpenses'));
+		$this->assertSame([0.0, 0.0, 0.0, 400.0], array_column($months, 'scheduledIncome'));
 	}
 
-	public function testWhatIsStillDueThisMonthCountsInTheFirstMonth(): void {
+	public function testWhatIsStillDueThisMonthCountsInWhatIsLeftOfIt(): void {
 		// Due tomorrow, 31 October: not in today's balance yet
 		$this->bill('Insurance', 120.0, 'monthly', ['2026-10-31', '2026-11-30', '2026-12-31']);
 
 		$months = $this->forecast(2)['monthlyProjections'];
 
-		$this->assertSame([240.0, 120.0], array_column($months, 'scheduledExpenses'));
+		$this->assertSame(['2026-10', '2026-11', '2026-12'], array_column($months, 'yearMonth'));
+		$this->assertSame([true, false, false], array_column($months, 'partial'));
+		$this->assertSame([120.0, 120.0, 120.0], array_column($months, 'scheduledExpenses'));
+	}
+
+	public function testTheRestOfTheRunningMonthIsItsOwnMonth(): void {
+		$this->steadyHistory();
+		$this->bill('Rent', 900.0, 'monthly', ['2026-11-01', '2026-12-01']);
+		$this->income(3000.0, 'monthly', 26, null, 'SALARY');
+
+		$months = $this->forecast(2)['monthlyProjections'];
+
+		// 30 October: 1 of October's 31 days to come, so a 31st of the
+		// usual 1,000 spending, and November no more than a month
+		$this->assertEqualsWithDelta(1000.0 / 31, $months[0]['expenses'], 0.01);
+		$this->assertSame(1900.0, $months[1]['expenses']);
+	}
+
+	public function testWithABudgetStartDayTheRunningMonthKeepsWhatFallsInIt(): void {
+		// Budget months from the 27th: "November" runs from 27 October to
+		// 26 November, with 27 of its 31 days still to come. Its pay on 26
+		// November and its bill belong to it, not to December: folded into
+		// December, the rest of November made December look like two months.
+		$this->steadyHistory();
+		$this->bill('Car', 8500.0, 'one-time', ['2026-11-20']);
+		$this->income(7000.0, 'yearly', 26, 11);
+		$this->income(3000.0, 'monthly', 26, null, 'SALARY');
+
+		$months = $this->forecast(2, 27)['monthlyProjections'];
+
+		$this->assertSame(['2026-11', '2026-12', '2027-01'], array_column($months, 'yearMonth'));
+		$this->assertSame([true, false, false], array_column($months, 'partial'));
+		$this->assertSame([8500.0, 0.0, 0.0], array_column($months, 'scheduledExpenses'));
+		$this->assertSame([10000.0, 3000.0, 3000.0], array_column($months, 'scheduledIncome'));
 	}
 
 	public function testAPaymentMadeAheadOfItsDateIsNotCountedAgain(): void {
@@ -209,6 +247,6 @@ class ForecastScheduledTest extends TestCase {
 
 		$months = $this->forecast(3)['monthlyProjections'];
 
-		$this->assertSame([0.0, 900.0, 900.0], array_column($months, 'scheduledExpenses'));
+		$this->assertSame([0.0, 0.0, 900.0, 900.0], array_column($months, 'scheduledExpenses'));
 	}
 }
