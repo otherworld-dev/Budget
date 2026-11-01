@@ -605,6 +605,7 @@ style('budget', 'budget-app');
                             <canvas id="trend-chart"></canvas>
                         </div>
                         <div id="trend-chart-legend" class="chart-legend"></div>
+                        <p class="month-grouping-note" style="display: none;"></p>
                     </div>
 
                     <!-- Spending by Category Chart -->
@@ -3080,6 +3081,7 @@ style('budget', 'budget-app');
                 <div class="empty-icon">📊</div>
                 <h3><?php p($l->t('Not Enough Data')); ?></h3>
                 <p><?php p($l->t('Add more transactions to generate an accurate forecast. We need at least 1 month of transaction history.')); ?></p>
+                <p><?php p($l->t('Only complete months count: a month your accounts\' history only partly covers, such as the first month a bank sync fetched, is left out.')); ?></p>
             </div>
 
             <!-- Balance Overview Cards -->
@@ -3164,6 +3166,7 @@ style('budget', 'budget-app');
                     <span class="quality-value" id="forecast-confidence">--</span>
                     <span class="quality-info" id="data-info">--</span>
                 </div>
+                <p id="forecast-month-note" class="month-grouping-note" style="display: none;"></p>
             </div>
         </div>
         
@@ -3328,6 +3331,7 @@ style('budget', 'budget-app');
                         <div class="chart-container chart-container-large">
                             <canvas id="report-trend-chart"></canvas>
                         </div>
+                        <p id="report-trend-month-note" class="month-grouping-note" style="display: none;"></p>
                     </div>
 
                     <!-- Account Breakdown Table -->
@@ -3491,6 +3495,7 @@ style('budget', 'budget-app');
                         <div class="chart-container chart-container-large">
                             <canvas id="report-cashflow-chart"></canvas>
                         </div>
+                        <p id="report-cashflow-month-note" class="month-grouping-note" style="display: none;"></p>
                     </div>
 
                     <!-- Cash Flow Table -->
@@ -3713,6 +3718,7 @@ style('budget', 'budget-app');
                             </div>
                         </div>
                         <p class="report-hint"><?php p($l->t('Income is shown positive, expenses negative. Parent categories include the totals of their sub-categories.')); ?></p>
+                        <p id="category-monthly-month-note" class="month-grouping-note" style="display: none;"></p>
                         <div id="category-monthly-table">
                             <!-- Matrix rendered by JavaScript -->
                         </div>
@@ -4467,6 +4473,17 @@ style('budget', 'budget-app');
                             </label>
                             <input type="number" id="setting-budget-start-day" class="setting-input"
                                    min="1" max="31" step="1" value="1">
+                        </div>
+
+                        <div class="setting-item">
+                            <label for="setting-report-month-grouping">
+                                <strong><?php p($l->t('Months in dashboard charts and reports')); ?></strong>
+                                <small><?php p($l->t('With a budget cycle start day other than 1, choose whether the dashboard charts and the month-by-month reports count calendar months or budget periods. Budget periods run from your start day, the same as on the Budget page.')); ?></small>
+                            </label>
+                            <select id="setting-report-month-grouping" class="setting-input">
+                                <option value="calendar"><?php p($l->t('Calendar months')); ?></option>
+                                <option value="budget"><?php p($l->t('Budget periods')); ?></option>
+                            </select>
                         </div>
 
                         <div class="setting-item">

@@ -4015,6 +4015,28 @@ class BillService {
 	}
 
 	/**
+	 * Every date a bill falls on between two dates, inclusive, from the same
+	 * schedule the Bills page and its calendar use (occurrencesInYear()).
+	 * The forecast places each payment in its month with it.
+	 *
+	 * @return string[] Y-m-d dates in order
+	 */
+	public function occurrencesBetween(Bill $bill, string $from, string $to): array {
+		$dates = [];
+		for ($year = (int)substr($from, 0, 4); $year <= (int)substr($to, 0, 4); $year++) {
+			foreach ($this->occurrencesInYear($bill, $year) as $inMonth) {
+				foreach ($inMonth as $date) {
+					if ($date >= $from && $date <= $to) {
+						$dates[] = $date;
+					}
+				}
+			}
+		}
+		sort($dates);
+		return $dates;
+	}
+
+	/**
 	 * Every date a bill falls on in a year, by month, from the same schedule
 	 * the Bills page pays against. The calendar used to keep its own rules:
 	 * semi-monthly bills never appeared, a weekly bill counted once a month,

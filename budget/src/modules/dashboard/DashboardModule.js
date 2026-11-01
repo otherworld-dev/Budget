@@ -180,12 +180,22 @@ export default class DashboardModule {
             const periodEnd = currentPeriod.end;
             const periodMonth = formatters.budgetMonthForCycle(periodStart, periodEnd);
 
-            // The trend and spending charts are calendar-month series, so they
-            // stop at this month's end; a cycle ending next month would add an
-            // empty bar for it.
-            const sixMonthsAgoDate = new Date(now.getFullYear(), now.getMonth() - 5, 1);
-            const sixMonthsAgo = formatters.getMonthStart(sixMonthsAgoDate.getFullYear(), sixMonthsAgoDate.getMonth() + 1);
-            const endOfMonth = formatters.getMonthEnd(now.getFullYear(), now.getMonth() + 1);
+            // The trend and spending charts are month series: calendar months,
+            // or budget months when the user chose them in Settings (#457).
+            // They cover whole months and stop at the current one's end; a
+            // calendar series running to a cycle's end in next month would
+            // add an empty bar for it.
+            const chartStartDay = formatters.reportMonthStartDay(this.settings);
+            const chartMonth = formatters.currentBudgetMonth(chartStartDay, now);
+            const sixMonthsAgo = formatters.budgetMonthRange(formatters.shiftMonth(chartMonth, -5), chartStartDay).start;
+            const endOfMonth = formatters.budgetMonthRange(chartMonth, chartStartDay).end;
+            // The hero tiles compare this budget period so far with the same
+            // number of days of the one before
+            const previousPeriod = formatters.comparablePreviousRange(
+                formatters.budgetMonthRange(formatters.shiftMonth(periodMonth, -1), budgetStartDay),
+                currentPeriod,
+                formatters.formatDateForAPI(now),
+            );
 
             // Cache-busting timestamp to ensure fresh data
             const cacheBuster = Date.now();
@@ -202,9 +212,11 @@ export default class DashboardModule {
             };
 
             // Load all dashboard data in parallel for better performance
-            const [summary, trendData, transactions, billsRaw, budgetDataRaw, goalsRaw, pensionRaw, assetRaw, netWorthRaw, alertsRaw, debtSummary, assetValueHistory] = await Promise.all([
+            const [summary, previousSummary, trendData, transactions, billsRaw, budgetDataRaw, goalsRaw, pensionRaw, assetRaw, netWorthRaw, alertsRaw, debtSummary, assetValueHistory] = await Promise.all([
                 // Current budget cycle summary for hero stats
                 apiFetch(`/apps/budget/api/reports/summary?startDate=${periodStart}&endDate=${periodEnd}&_=${cacheBuster}`).catch(orEmpty({})),
+                // The same days of the cycle before, for the hero tiles' "vs last month"
+                apiFetch(`/apps/budget/api/reports/summary?startDate=${previousPeriod.start}&endDate=${previousPeriod.end}&_=${cacheBuster}`).catch(orEmpty({})),
                 // 6-month summary for trend charts
                 apiFetch(`/apps/budget/api/reports/summary?startDate=${sixMonthsAgo}&endDate=${endOfMonth}&_=${cacheBuster}`).catch(orEmpty({})),
                 apiFetch(`/apps/budget/api/transactions?limit=${this._recentTxLimit()}`).catch(orEmpty([])),
@@ -228,6 +240,7 @@ export default class DashboardModule {
             const budgetAlerts = alertsRaw ?? [];
 
             // Update Hero Section (current month data)
+            summary.previousTotals = previousSummary.totals || null;
             this.updateDashboardHero(summary, pensionSummary, assetSummary);
             this.updateHeroPeriodHints(budgetStartDay > 1 ? currentPeriod.label : null);
 
@@ -394,18 +407,19 @@ export default class DashboardModule {
             incomeEl.textContent = this.formatCurrency(totals.totalIncome || 0, currency);
         }
 
-        // Calculate month-over-month change for income
+        // Calculate month-over-month change for income: this budget period
+        // so far against the same days of the one before. The summary's
+        // trend buckets are calendar months, which with a start day cut this
+        // period in two.
+        const previous = summary.previousTotals;
         const incomeChangeEl = document.getElementById('hero-income-change');
-        if (incomeChangeEl && summary.trends && summary.trends.income) {
-            const incomeData = summary.trends.income;
-            if (incomeData.length >= 2) {
-                const currentMonth = incomeData[incomeData.length - 1] || 0;
-                const lastMonth = incomeData[incomeData.length - 2] || 0;
-                const change = lastMonth > 0 ? ((currentMonth - lastMonth) / lastMonth * 100) : 0;
-                if (change !== 0) {
-                    incomeChangeEl.innerHTML = `${change >= 0 ? '↑' : '↓'} ${t('budget', '{percent}% vs last month', { percent: Math.abs(change).toFixed(1) })}`;
-                    incomeChangeEl.className = `hero-change ${change >= 0 ? 'positive' : 'negative'}`;
-                }
+        if (incomeChangeEl && previous) {
+            const currentMonth = totals.totalIncome || 0;
+            const lastMonth = previous.totalIncome || 0;
+            const change = lastMonth > 0 ? ((currentMonth - lastMonth) / lastMonth * 100) : 0;
+            if (change !== 0) {
+                incomeChangeEl.innerHTML = `${change >= 0 ? '↑' : '↓'} ${t('budget', '{percent}% vs last month', { percent: Math.abs(change).toFixed(1) })}`;
+                incomeChangeEl.className = `hero-change ${change >= 0 ? 'positive' : 'negative'}`;
             }
         }
 
@@ -417,17 +431,14 @@ export default class DashboardModule {
 
         // Calculate month-over-month change for expenses
         const expensesChangeEl = document.getElementById('hero-expenses-change');
-        if (expensesChangeEl && summary.trends && summary.trends.expenses) {
-            const expenseData = summary.trends.expenses;
-            if (expenseData.length >= 2) {
-                const currentMonth = expenseData[expenseData.length - 1] || 0;
-                const lastMonth = expenseData[expenseData.length - 2] || 0;
-                const change = lastMonth > 0 ? ((currentMonth - lastMonth) / lastMonth * 100) : 0;
-                if (change !== 0) {
-                    // For expenses, down is good
-                    expensesChangeEl.innerHTML = `${change >= 0 ? '↑' : '↓'} ${t('budget', '{percent}% vs last month', { percent: Math.abs(change).toFixed(1) })}`;
-                    expensesChangeEl.className = `hero-change ${change <= 0 ? 'positive' : 'negative'}`;
-                }
+        if (expensesChangeEl && previous) {
+            const currentMonth = totals.totalExpenses || 0;
+            const lastMonth = previous.totalExpenses || 0;
+            const change = lastMonth > 0 ? ((currentMonth - lastMonth) / lastMonth * 100) : 0;
+            if (change !== 0) {
+                // For expenses, down is good
+                expensesChangeEl.innerHTML = `${change >= 0 ? '↑' : '↓'} ${t('budget', '{percent}% vs last month', { percent: Math.abs(change).toFixed(1) })}`;
+                expensesChangeEl.className = `hero-change ${change <= 0 ? 'positive' : 'negative'}`;
             }
         }
 
@@ -508,18 +519,14 @@ export default class DashboardModule {
         el.className = `hero-value ${cashFlow >= 0 ? 'income' : 'expenses'}`;
 
         const changeEl = document.getElementById('hero-cash-flow-change');
-        if (changeEl && summary.trends) {
-            // Calculate month-over-month change
-            const incomeData = summary.trends.income || [];
-            const expenseData = summary.trends.expenses || [];
-            if (incomeData.length >= 2 && expenseData.length >= 2) {
-                const currentCF = (incomeData[incomeData.length - 1] || 0) - (expenseData[expenseData.length - 1] || 0);
-                const lastCF = (incomeData[incomeData.length - 2] || 0) - (expenseData[expenseData.length - 2] || 0);
-                const change = lastCF !== 0 ? ((currentCF - lastCF) / Math.abs(lastCF) * 100) : 0;
-                if (change !== 0) {
-                    changeEl.innerHTML = `${change >= 0 ? '↑' : '↓'} ${t('budget', '{percent}% vs last month', { percent: Math.abs(change).toFixed(1) })}`;
-                    changeEl.className = `hero-change ${change >= 0 ? 'positive' : 'negative'}`;
-                }
+        const previous = summary.previousTotals;
+        if (changeEl && previous) {
+            // This budget period so far against the same days of the one before
+            const lastCF = (previous.totalIncome || 0) - (previous.totalExpenses || 0);
+            const change = lastCF !== 0 ? ((cashFlow - lastCF) / Math.abs(lastCF) * 100) : 0;
+            if (change !== 0) {
+                changeEl.innerHTML = `${change >= 0 ? '↑' : '↓'} ${t('budget', '{percent}% vs last month', { percent: Math.abs(change).toFixed(1) })}`;
+                changeEl.className = `hero-change ${change >= 0 ? 'positive' : 'negative'}`;
             }
         }
     }
@@ -3041,6 +3048,11 @@ export default class DashboardModule {
             this.charts[instanceId].destroy();
         }
 
+        const card = this.isDuplicateInstance(instanceId)
+            ? this.getWidgetCard(instanceId)
+            : document.getElementById('trend-chart-card');
+        formatters.showMonthGroupingNote(card?.querySelector('.month-grouping-note'), trends?.monthStartDay || 1);
+
         if (!trends || !trends.labels || trends.labels.length === 0) return;
 
         const ctx = canvas.getContext('2d');
@@ -3055,8 +3067,9 @@ export default class DashboardModule {
         // user's language; `labels` is its English "M Y", kept for older servers.
         const months = Array.isArray(trends.months) && trends.months.length === trends.labels.length ? trends.months : null;
         const labels = months ? months.map(m => formatters.formatYearMonth(m)) : trends.labels;
-        const now = new Date();
-        const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        // With budget months (#457) the month in progress is the budget month
+        const monthStartDay = trends.monthStartDay || 1;
+        const thisMonth = formatters.currentBudgetMonth(monthStartDay);
         const lastIndex = trends.labels.length - 1;
         const partialIndex = months && months[lastIndex] === thisMonth ? lastIndex : -1;
         const partialSegment = {
@@ -3364,9 +3377,7 @@ export default class DashboardModule {
         if (emptyState) emptyState.style.display = 'none';
 
         const currency = this.getPrimaryCurrency();
-        // `yearMonth` is formatted in the user's language; `month` is the
-        // English label a forecast cached before it existed still carries
-        const labels = [t('budget', 'Now'), ...projections.map((p) => (p.yearMonth ? formatters.formatYearMonth(p.yearMonth) : p.month))];
+        const labels = [t('budget', 'Now'), ...projections.map(formatters.projectionMonthLabel)];
         const balances = [forecast.currentBalance ?? 0, ...projections.map((p) => p.balance)];
 
         this.charts[instanceId] = new Chart(canvas.getContext('2d'), {
@@ -3669,10 +3680,19 @@ export default class DashboardModule {
 
     async refreshTrendChart(months, accountId = null, instanceId = 'trendChart') {
         try {
-            const startDate = new Date();
-            startDate.setMonth(startDate.getMonth() - months);
+            const chartStartDay = formatters.reportMonthStartDay(this.settings);
+            let startDate;
+            if (chartStartDay > 1) {
+                // Whole budget months (#457), as the dashboard loads them
+                const chartMonth = formatters.currentBudgetMonth(chartStartDay);
+                startDate = formatters.budgetMonthRange(formatters.shiftMonth(chartMonth, -months), chartStartDay).start;
+            } else {
+                const start = new Date();
+                start.setMonth(start.getMonth() - months);
+                startDate = formatters.formatDateForAPI(start);
+            }
 
-            let url = `/apps/budget/api/reports/summary?startDate=${formatters.formatDateForAPI(startDate)}`;
+            let url = `/apps/budget/api/reports/summary?startDate=${startDate}`;
             if (accountId) {
                 url += `&accountId=${accountId}`;
             }
