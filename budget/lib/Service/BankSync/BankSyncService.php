@@ -343,18 +343,7 @@ class BankSyncService {
 
 					// Apply deferred tag actions from import rules
 					if (!empty($txData['_deferred_tags'])) {
-						$finalTagIds = [];
-						foreach ($txData['_deferred_tags'] as $tagAction) {
-							$newTagIds = $tagAction['tagIds'] ?? [];
-							if (($tagAction['behavior'] ?? 'merge') === 'merge') {
-								$finalTagIds = array_values(array_unique(array_merge($finalTagIds, $newTagIds)));
-							} else {
-								$finalTagIds = $newTagIds;
-							}
-						}
-						if (!empty($finalTagIds)) {
-							$this->transactionTagService->setTransactionTags($createdTx->getId(), $userId, $finalTagIds);
-						}
+						$this->transactionTagService->applyRuleTags($createdTx->getId(), $userId, $txData['_deferred_tags']);
 					}
 
 					if (!empty($txData['_deferred_link_transfer'])) {

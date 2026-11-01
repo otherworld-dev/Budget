@@ -85,10 +85,14 @@ export default class RulesModule {
         // Always setup event listeners first, even if data load fails
         this.setupRulesEventListeners();
 
-        try {
-            // Load global tags for the action builder
-            this.app.globalTags = await apiFetch('/apps/budget/api/tags/global');
-        } catch (e) { /* ignore */ }
+        // Tags for the action builder: global ones and every category's
+        // tag sets (#452; nothing else loads the sets on this page)
+        const [globalTags, tagSets] = await Promise.all([
+            apiFetch('/apps/budget/api/tags/global').catch(() => null),
+            apiFetch('/apps/budget/api/tag-sets').catch(() => null)
+        ]);
+        if (globalTags) this.app.globalTags = globalTags;
+        if (tagSets) this.app.tagSets = tagSets;
 
         try {
             await this.loadRules();
@@ -842,8 +846,12 @@ export default class RulesModule {
         // Clear previous instance
         container.innerHTML = '';
 
-        // Include global tags as a virtual tag set alongside category tag sets
-        const tagSetsWithGlobal = [...this.tagSets];
+        // Include global tags as a virtual tag set alongside category tag
+        // sets, each named with its category: a set name alone is ambiguous
+        const tagSetsWithGlobal = this.tagSets.map(set => {
+            const category = (this.categories || []).find(c => c.id === set.categoryId);
+            return category ? { ...set, name: `${category.name} → ${set.name}` } : set;
+        });
         const globalTags = this.app.globalTags || [];
         if (globalTags.length > 0) {
             tagSetsWithGlobal.unshift({ id: 'global', name: t('budget', 'Tags'), tags: globalTags });

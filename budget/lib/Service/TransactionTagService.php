@@ -77,6 +77,89 @@ class TransactionTagService {
 	}
 
 	/**
+	 * Apply an import rule's add_tags actions to a saved transaction (#452).
+	 *
+	 * Each action either merges its tags into the row's or replaces them, in
+	 * rule order. A rule runs on every row it matches, whatever the row's
+	 * category, so a category tag only lands on rows in its tag set's own
+	 * category and is skipped elsewhere, rather than throwing and losing the
+	 * rule's other tags with it. A tag already on the row is never refused,
+	 * the same as an edit by hand.
+	 *
+	 * @param array<int, array{tagIds?: array, behavior?: string}> $tagActions
+	 * @return array{old: int[], new: int[]}|null the change, or null if none
+	 */
+	public function applyRuleTags(int $transactionId, string $userId, array $tagActions): ?array {
+		$transaction = $this->transactionMapper->find($transactionId, $userId);
+		$current = array_values(array_unique(array_map(
+			static fn ($link): int => (int)$link->getTagId(),
+			$this->transactionTagMapper->findByTransaction($transactionId)
+		)));
+
+		$final = $current;
+		foreach ($tagActions as $tagAction) {
+			$tagIds = array_map('intval', (array)($tagAction['tagIds'] ?? []));
+			$final = ($tagAction['behavior'] ?? 'merge') === 'merge'
+				? array_values(array_unique(array_merge($final, $tagIds)))
+				: array_values(array_unique($tagIds));
+		}
+
+		$added = array_values(array_diff($final, $current));
+		$usable = $this->tagsUsableOn($transaction->getCategoryId(), $added, $userId);
+		$final = array_values(array_filter(
+			$final,
+			static fn (int $id): bool => in_array($id, $current, true) || in_array($id, $usable, true)
+		));
+
+		$sortedCurrent = $current;
+		$sortedFinal = $final;
+		sort($sortedCurrent);
+		sort($sortedFinal);
+		if ($sortedCurrent === $sortedFinal) {
+			return null;
+		}
+
+		$this->replaceTransactionTags($transactionId, $final);
+		return ['old' => $current, 'new' => $final];
+	}
+
+	/**
+	 * The ids among $tagIds that may go on a transaction of $categoryId: the
+	 * user's global tags, and tags of that category's own tag sets.
+	 *
+	 * @param int[] $tagIds
+	 * @return int[]
+	 */
+	private function tagsUsableOn(?int $categoryId, array $tagIds, string $userId): array {
+		if ($tagIds === []) {
+			return [];
+		}
+
+		$tags = $this->tagMapper->findByIds($tagIds);
+		$tagSetIds = [];
+		foreach ($tags as $tag) {
+			$tagSetId = $tag->getTagSetId();
+			if ($tagSetId !== null) {
+				$tagSetIds[] = $tagSetId;
+			}
+		}
+		$categoryByTagSet = ($tagSetIds === [] || $categoryId === null)
+			? []
+			: $this->tagSetMapper->findCategoryIdsForTagSets(array_values(array_unique($tagSetIds)), $userId);
+
+		$usable = [];
+		foreach ($tags as $tag) {
+			$tagSetId = $tag->getTagSetId();
+			if ($tagSetId === null
+				? $tag->getUserId() === $userId
+				: $categoryId !== null && ($categoryByTagSet[$tagSetId] ?? null) === $categoryId) {
+				$usable[] = (int)$tag->getId();
+			}
+		}
+		return $usable;
+	}
+
+	/**
 	 * What the bulk tag picker may offer for a given selection (#379).
 	 *
 	 * Global tags always apply. A category tag only applies to rows in its tag
@@ -254,8 +337,9 @@ class TransactionTagService {
 
 		$tagSetIds = [];
 		foreach ($tags as $tag) {
-			if ($tag->getTagSetId() !== null) {
-				$tagSetIds[] = $tag->getTagSetId();
+			$tagSetId = $tag->getTagSetId();
+			if ($tagSetId !== null) {
+				$tagSetIds[] = $tagSetId;
 			}
 		}
 

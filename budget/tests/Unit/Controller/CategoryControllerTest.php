@@ -828,6 +828,19 @@ class CategoryControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
 
+	public function testDetailsPassesTheCalendarMonthsToggleThrough(): void {
+		$this->granularShareService->method('resolveOwner')->willReturn('user1');
+		$this->granularShareService->method('getVisibleAccountIds')->willReturn([1]);
+		$this->service->expects($this->once())
+			->method('getCategoryDetails')
+			->with(137, 'user1', null, null, null, 'user1', [1], true)
+			->willReturn(['count' => 0, 'total' => 0.0]);
+
+		$response = $this->controller->details(137, null, null, null, true);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
 	public function testTransactionsListsOnlyTheAccountsTheViewerCanSee(): void {
 		$this->granularShareService->method('resolveOwner')
 			->with('user1', 'category', 137)->willReturn('owner1');

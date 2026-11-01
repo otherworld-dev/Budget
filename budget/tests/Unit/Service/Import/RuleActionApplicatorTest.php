@@ -1588,53 +1588,28 @@ class RuleActionApplicatorTest extends TestCase {
 		$transaction = $this->createTransaction();
 		$transaction->setId(42);
 
-		$this->tagService->method('getTransactionTags')
-			->with(42, 'user123')
-			->willReturn([['tagId' => 1], ['tagId' => 2]]);
-
+		$actions = [['tagIds' => [3, 4], 'behavior' => 'merge']];
 		$this->tagService->expects($this->once())
-			->method('setTransactionTags')
-			->with(42, 'user123', $this->callback(function ($tagIds) {
-				sort($tagIds);
-				return $tagIds === [1, 2, 3, 4];
-			}));
-
-		$appliedActions = [
-			'_deferred_tags' => [
-				['tagIds' => [3, 4], 'behavior' => 'merge']
-			]
-		];
+			->method('applyRuleTags')
+			->with(42, 'user123', $actions)
+			->willReturn(['old' => [1, 2], 'new' => [1, 2, 3, 4]]);
 
 		$changes = [];
-		$this->applicator->applyDeferredTagActions($transaction, $appliedActions, 'user123', $changes);
+		$this->applicator->applyDeferredTagActions($transaction, ['_deferred_tags' => $actions], 'user123', $changes);
 
-		$this->assertArrayHasKey('tags', $changes);
-		$this->assertEquals([1, 2], $changes['tags']['old']);
+		$this->assertEquals(['old' => [1, 2], 'new' => [1, 2, 3, 4]], $changes['tags']);
 	}
 
-	public function testApplyDeferredTagsReplace(): void {
+	public function testApplyDeferredTagsWithNoChangeRecordsNone(): void {
 		$transaction = $this->createTransaction();
 		$transaction->setId(42);
 
-		$this->tagService->method('getTransactionTags')
-			->with(42, 'user123')
-			->willReturn([['tagId' => 1], ['tagId' => 2]]);
-
-		$this->tagService->expects($this->once())
-			->method('setTransactionTags')
-			->with(42, 'user123', [5, 6]);
-
-		$appliedActions = [
-			'_deferred_tags' => [
-				['tagIds' => [5, 6], 'behavior' => 'replace']
-			]
-		];
+		$this->tagService->method('applyRuleTags')->willReturn(null);
 
 		$changes = [];
-		$this->applicator->applyDeferredTagActions($transaction, $appliedActions, 'user123', $changes);
+		$this->applicator->applyDeferredTagActions($transaction, ['_deferred_tags' => [['tagIds' => [5], 'behavior' => 'replace']]], 'user123', $changes);
 
-		$this->assertArrayHasKey('tags', $changes);
-		$this->assertEquals([5, 6], $changes['tags']['new']);
+		$this->assertArrayNotHasKey('tags', $changes);
 	}
 
 	public function testApplyDeferredTagsNoop(): void {

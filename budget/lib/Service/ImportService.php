@@ -463,16 +463,16 @@ class ImportService {
 			$dataWidth = $this->parserFactory->detectDataWidth($lines, $delimiter);
 			$isFirstRow = true;
 
-			foreach ($lines as $line) {
-				if (empty(trim($line))) {
-					continue;
-				}
-				$row = str_getcsv($line, $delimiter, '"', '');
-				// Skip rows that don't match the expected data width (metadata/preamble)
-				if ($dataWidth > 0 && count($row) !== $dataWidth) {
-					continue;
-				}
+			// The rows the import reads, so the preview shows what it will
+			// import: preamble skipped, rows short of trailing cells padded (#462)
+			$rows = $dataWidth > 0
+				? ParserFactory::csvRows($lines, $delimiter, $dataWidth)
+				: array_map(
+					static fn (string $line): array => str_getcsv($line, $delimiter, '"', ''),
+					array_filter($lines, static fn (string $line): bool => !empty(trim($line)))
+				);
 
+			foreach ($rows as $row) {
 				if ($isFirstRow) {
 					if ($skipFirstRow) {
 						$columns = array_map('trim', $row);
@@ -2041,18 +2041,7 @@ class ImportService {
 
 						// Apply deferred tag actions from import rules
 						if (!empty($transaction['_deferred_tags'])) {
-							$finalTagIds = [];
-							foreach ($transaction['_deferred_tags'] as $tagAction) {
-								$newTagIds = $tagAction['tagIds'] ?? [];
-								if (($tagAction['behavior'] ?? 'merge') === 'merge') {
-									$finalTagIds = array_values(array_unique(array_merge($finalTagIds, $newTagIds)));
-								} else {
-									$finalTagIds = $newTagIds;
-								}
-							}
-							if (!empty($finalTagIds)) {
-								$this->transactionTagService->setTransactionTags($createdTx->getId(), $userId, $finalTagIds);
-							}
+							$this->transactionTagService->applyRuleTags($createdTx->getId(), $userId, $transaction['_deferred_tags']);
 						}
 
 						if (!empty($transaction['_deferred_link_transfer'])) {
@@ -2354,20 +2343,7 @@ class ImportService {
 
 				// Apply deferred tag actions from import rules
 				if (!empty($transaction['_deferred_tags'])) {
-					$existingTagIds = array_column(
-						$this->transactionTagService->getTransactionTags($createdTx->getId(), $userId),
-						'tagId'
-					);
-					$finalTagIds = $existingTagIds;
-					foreach ($transaction['_deferred_tags'] as $tagAction) {
-						$newTagIds = $tagAction['tagIds'] ?? [];
-						if (($tagAction['behavior'] ?? 'merge') === 'merge') {
-							$finalTagIds = array_values(array_unique(array_merge($finalTagIds, $newTagIds)));
-						} else {
-							$finalTagIds = $newTagIds;
-						}
-					}
-					$this->transactionTagService->setTransactionTags($createdTx->getId(), $userId, $finalTagIds);
+					$this->transactionTagService->applyRuleTags($createdTx->getId(), $userId, $transaction['_deferred_tags']);
 				}
 
 				// Collect transactions flagged for transfer linking

@@ -17,6 +17,10 @@ import { roundMoney } from '../../utils/money.js';
 import { semanticColour } from '../../utils/amountColours.js';
 import { categoryIconChoices, categoryIconColour, categoryIconSvg, resolveCategoryIcon } from '../../utils/categoryIcons.js';
 
+// Category Details chart: 'calendar' buckets by calendar month instead of
+// budget periods (#447). A view preference, so it lives in the browser.
+const CHART_MONTHS_STORAGE_KEY = 'budget-category-chart-months';
+
 export default class CategoriesModule {
     constructor(app) {
         this.app = app;
@@ -794,6 +798,17 @@ export default class CategoriesModule {
         if (periodSelect) {
             periodSelect.onchange = () => this.refreshCategoryChart();
         }
+
+        // Budget periods or calendar months: only a choice with a start day
+        const monthsSelect = document.getElementById('category-chart-months');
+        if (monthsSelect) {
+            monthsSelect.style.display = this._budgetStartDay() > 1 ? '' : 'none';
+            monthsSelect.value = this._chartCalendarMonths() ? 'calendar' : 'budget';
+            monthsSelect.onchange = () => {
+                localStorage.setItem(CHART_MONTHS_STORAGE_KEY, monthsSelect.value);
+                this.refreshCategoryChart();
+            };
+        }
     }
 
     /**
@@ -809,8 +824,8 @@ export default class CategoriesModule {
         const accountId = accountSelect ? accountSelect.value : '';
         // Budget months, so a custom start day's periods arrive whole: the
         // window opens where the period m months before this one begins.
-        const startDay = this._budgetStartDay();
-        const firstMonth = formatters.shiftMonth(this._currentBudgetMonth(), -m);
+        const startDay = this._chartStartDay();
+        const firstMonth = formatters.shiftMonth(formatters.currentBudgetMonth(startDay), -m);
         const startStr = formatters.budgetMonthRange(firstMonth, startDay).start;
         const endStr = formatters.formatDateForAPI(new Date());
         return { startStr, endStr, accountId };
@@ -824,6 +839,9 @@ export default class CategoriesModule {
             if (accountId) {
                 url += `&accountId=${accountId}`;
             }
+            if (this._chartCalendarMonths()) {
+                url += '&calendarMonths=1';
+            }
 
             return await apiFetch(url).catch(() => null);
         } catch (error) {
@@ -836,6 +854,9 @@ export default class CategoriesModule {
         if (!this._currentCategory) return;
         const details = await this.fetchCategoryDetails(this._currentCategory.id);
         if (details) {
+            // "This month" and the trend follow the chart's months, so a
+            // switch between budget and calendar months moves them too
+            this.updateAnalyticsFromServer(details);
             this.renderCategorySpendingChartFromServer(details.monthlySpending, this._currentCategory.color, details.budget, details.budgetPeriod);
         }
     }
@@ -899,7 +920,7 @@ export default class CategoriesModule {
         // which isn't the calendar month (#447).
         const thisMonthLabelEl = document.getElementById('category-this-month-label');
         if (thisMonthLabelEl) {
-            thisMonthLabelEl.textContent = this._budgetStartDay() > 1
+            thisMonthLabelEl.textContent = this._chartStartDay() > 1
                 ? t('budget', 'This Period')
                 : t('budget', 'This Month');
         }
@@ -991,8 +1012,8 @@ export default class CategoriesModule {
         // Build labels and amounts from server data, filling gaps for missing
         // months. The server keys them by budget month, ending with the one
         // running today.
-        const currentMonth = this._currentBudgetMonth();
-        const startDay = this._budgetStartDay();
+        const startDay = this._chartStartDay();
+        const currentMonth = formatters.currentBudgetMonth(startDay);
         const labels = [];
         const amounts = [];
         // With a budget start day a bar named after a month runs from one
@@ -2038,6 +2059,19 @@ export default class CategoriesModule {
     /** The user's budget start day; 1 means calendar months. */
     _budgetStartDay() {
         return parseInt(this.app.settings?.budget_start_day || '1', 10);
+    }
+
+    /**
+     * Whether the Category Details chart is switched to calendar months,
+     * which only means anything with a budget start day (#447).
+     */
+    _chartCalendarMonths() {
+        return this._budgetStartDay() > 1 && localStorage.getItem(CHART_MONTHS_STORAGE_KEY) === 'calendar';
+    }
+
+    /** The start day the Category Details chart buckets by. */
+    _chartStartDay() {
+        return this._chartCalendarMonths() ? 1 : this._budgetStartDay();
     }
 
     /** Convert a monthly amount into the equivalent amount for a budget period. */
