@@ -15,6 +15,7 @@ use OCA\Budget\Db\Setting;
 use OCA\Budget\Db\SettingMapper;
 use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Service\BankSync\EnableBanking\EnableBankingKeyStore;
 use OCA\Budget\Service\ImportFolderService;
 use OCA\Budget\Service\MigrationService;
 use OCP\IDBConnection;
@@ -1470,6 +1471,39 @@ class MigrationServiceTest extends TestCase {
 		$this->service->importAll('user1', $zipContent);
 
 		$this->assertSame(['default_currency' => 'GBP', 'bills_feed_token' => str_repeat('m', 64)], $inserted);
+	}
+
+	/**
+	 * The Enable Banking keys belong to the bank connections, which are not
+	 * backed up: they are never exported, and a restore keeps the user's
+	 * own, so the connections that remain can still sync and be revoked.
+	 */
+	public function testTheEnableBankingKeysAreNeverExportedAndSurviveARestore(): void {
+		foreach ([$this->categoryMapper, $this->accountMapper, $this->transactionMapper, $this->billMapper, $this->importRuleMapper] as $mapper) {
+			$mapper->method('findAll')->willReturn([]);
+		}
+		$this->settingMapper->method('findAll')->with('user1')->willReturn([
+			$this->setting(EnableBankingKeyStore::SETTING_KEY, 'enc:mine'),
+			$this->setting('default_currency', 'GBP'),
+		]);
+		$inserted = [];
+		$this->settingMapper->method('insert')->willReturnCallback(function (Setting $s) use (&$inserted) {
+			$inserted[$s->getKey()] = $s->getValue();
+			return $s;
+		});
+
+		$archive = $this->readTestZip($this->service->exportAll('user1')['content']);
+		$this->assertSame(['default_currency' => 'GBP'], json_decode($archive['settings.json'], true));
+
+		$this->service->importAll('user1', $this->createTestZip([
+			'manifest.json' => json_encode(['version' => '1.3.0', 'appId' => 'budget']),
+			'categories.json' => '[]',
+			'accounts.json' => '[]',
+			'transactions.json' => '[]',
+			'settings.json' => json_encode([EnableBankingKeyStore::SETTING_KEY => 'enc:archived', 'default_currency' => 'EUR']),
+		]));
+
+		$this->assertSame(['default_currency' => 'EUR', EnableBankingKeyStore::SETTING_KEY => 'enc:mine'], $inserted);
 	}
 
 	public function testTheFeedTokenKeyIsTheOneTheFeedUses(): void {

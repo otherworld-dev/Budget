@@ -9,12 +9,15 @@ use OCA\Budget\Db\BankAccountMapping;
 use OCA\Budget\Db\BankConnection;
 use OCA\Budget\Service\AdminSettingService;
 use OCA\Budget\Service\BankSync\BankSyncService;
+use OCA\Budget\Service\BankSync\EnableBanking\EnableBankingAuthException;
+use OCA\Budget\Service\BankSync\EnableBankingProvider;
 use OCA\Budget\Service\BankSync\GoCardlessProvider;
 use OCA\Budget\Service\BankSync\ProviderFactory;
 use OCA\Budget\Service\BankSync\SimpleFINProvider;
 use OCP\AppFramework\Http;
 use OCP\IL10N;
 use OCP\IRequest;
+use OCP\IURLGenerator;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
@@ -26,6 +29,7 @@ class BankSyncControllerTest extends TestCase {
 	private IRequest $request;
 	private LoggerInterface $logger;
 	private IL10N $l;
+	private IURLGenerator $urlGenerator;
 
 	protected function setUp(): void {
 		$this->request = $this->createMock(IRequest::class);
@@ -38,12 +42,15 @@ class BankSyncControllerTest extends TestCase {
 			return vsprintf($text, $parameters);
 		});
 
+		$this->urlGenerator = $this->createMock(IURLGenerator::class);
+
 		$this->controller = new BankSyncController(
 			$this->request,
 			$this->syncService,
 			$this->adminSettings,
 			$this->providerFactory,
 			$this->l,
+			$this->urlGenerator,
 			'user1',
 			$this->logger
 		);
@@ -251,7 +258,7 @@ class BankSyncControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
 	}
 
-	public function testMappingsReturnsMappingsForFoundConnection(): void {
+	public function testMappingsIncludeBalanceDifference(): void {
 		$this->enableBankSync();
 
 		$connection = new BankConnection();
@@ -260,16 +267,87 @@ class BankSyncControllerTest extends TestCase {
 		$connection->setProvider('simplefin');
 		$connection->setName('My Bank');
 		$connection->setStatus('active');
-		$mappings = [['id' => 10, 'externalAccount' => 'checking']];
+		$matched = new BankAccountMapping();
+		$matched->setId(10);
+		$matched->setExternalAccountId('checking');
+		$matched->setLastBalance('1000.00');
+		$unmapped = new BankAccountMapping();
+		$unmapped->setId(11);
+		$unmapped->setExternalAccountId('savings');
 
 		$this->syncService->method('getConnections')
 			->with('user1')
-			->willReturn([['connection' => $connection, 'mappings' => $mappings]]);
+			->willReturn([['connection' => $connection, 'mappings' => [$matched, $unmapped]]]);
+		$this->syncService->method('getBalanceDifference')
+			->willReturnMap([[$matched, 'user1', '12.35'], [$unmapped, 'user1', null]]);
 
 		$response = $this->controller->mappings(1);
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
-		$this->assertSame($mappings, $response->getData());
+		$data = $response->getData();
+		$this->assertCount(2, $data);
+		$this->assertSame(10, $data[0]['id']);
+		$this->assertSame('checking', $data[0]['externalAccountId']);
+		$this->assertSame('1000.00', $data[0]['lastBalance']);
+		$this->assertSame('12.35', $data[0]['balanceDifference']);
+		$this->assertArrayHasKey('balanceDifference', $data[1]);
+		$this->assertNull($data[1]['balanceDifference']);
+	}
+
+	/** One account that can't be compared must not hide every mapping. */
+	public function testMappingsSurviveADifferenceThatFails(): void {
+		$this->enableBankSync();
+		$connection = new BankConnection();
+		$connection->setId(1);
+		$broken = new BankAccountMapping();
+		$broken->setId(10);
+		$fine = new BankAccountMapping();
+		$fine->setId(11);
+		$this->syncService->method('getConnections')
+			->willReturn([['connection' => $connection, 'mappings' => [$broken, $fine]]]);
+		$this->syncService->method('getBalanceDifference')->willReturnCallback(
+			fn (BankAccountMapping $m) => $m === $broken ? throw new \RuntimeException('db error 1000.00') : '5.00'
+		);
+		$this->logger->expects($this->once())->method('warning')
+			->with('Bank sync: could not compute a balance difference', $this->anything());
+
+		$response = $this->controller->mappings(1);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertNull($response->getData()[0]['balanceDifference']);
+		$this->assertSame('5.00', $response->getData()[1]['balanceDifference']);
+	}
+
+	public function testReconcileMappingReturnsTheMatchedBalance(): void {
+		$this->enableBankSync();
+		$this->syncService->expects($this->once())->method('reconcileMapping')
+			->with('user1', 1, 10)
+			->willReturn(['balance' => '1000.00', 'balanceDifference' => '0.00']);
+
+		$response = $this->controller->reconcileMapping(1, 10);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame(['balance' => '1000.00', 'balanceDifference' => '0.00'], $response->getData());
+	}
+
+	public function testReconcileMappingReturns403WhenDisabled(): void {
+		$this->disableBankSync();
+		$this->syncService->expects($this->never())->method('reconcileMapping');
+
+		$response = $this->controller->reconcileMapping(1, 10);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	public function testReconcileMappingFailureReturnsAGenericError(): void {
+		$this->enableBankSync();
+		$this->syncService->method('reconcileMapping')
+			->willThrowException(new \Exception('Mapping does not belong to this connection'));
+
+		$response = $this->controller->reconcileMapping(1, 10);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame('Failed to reconcile the balance', $response->getData()['error']);
 	}
 
 	public function testMappingsReturns404ForUnknownConnection(): void {
@@ -383,8 +461,7 @@ class BankSyncControllerTest extends TestCase {
 
 		$gcProvider = $this->createMock(GoCardlessProvider::class);
 		$this->providerFactory->method('getProvider')->with('gocardless')->willReturn($gcProvider);
-		$gcProvider->method('getToken')->willReturn('token123');
-		$gcProvider->method('getInstitutions')->willReturn([
+		$gcProvider->method('listInstitutions')->willReturn([
 			['id' => 'BANK_1', 'name' => 'Test Bank', 'logo' => null],
 		]);
 
@@ -392,6 +469,130 @@ class BankSyncControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 		$this->assertCount(1, $response->getData());
 		$this->assertEquals('BANK_1', $response->getData()[0]['id']);
+	}
+
+	public function testInstitutionsForEnableBankingUsesKeyStore(): void {
+		$this->enableBankSync();
+		// A client-supplied secretId must not reach the provider: keys come from the key store
+		$this->request->method('getParams')->willReturn(['country' => 'de', 'secretId' => 'ignored']);
+
+		$eb = $this->createMock(EnableBankingProvider::class);
+		$this->providerFactory->method('getProvider')->with('enablebanking')->willReturn($eb);
+		$eb->expects($this->once())->method('listInstitutions')
+			->with('user1', $this->callback(fn ($p) => $p['country'] === 'DE'))
+			->willReturn([['id' => 'Nordea', 'name' => 'Nordea', 'logo' => null, 'country' => 'DE', 'maximumConsentValidity' => 7776000]]);
+
+		$response = $this->controller->institutions('enablebanking');
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertEquals('Nordea', $response->getData()[0]['id']);
+	}
+
+	public function testInstitutionsExplainsAnInactiveEnableBankingApplication(): void {
+		$this->enableBankSync();
+		$this->request->method('getParams')->willReturn(['country' => 'DE']);
+
+		$eb = $this->createMock(EnableBankingProvider::class);
+		$this->providerFactory->method('getProvider')->with('enablebanking')->willReturn($eb);
+		$eb->method('listInstitutions')->willThrowException(
+			new EnableBankingAuthException('Enable Banking rejected the credentials (HTTP 403)', EnableBankingAuthException::REASON_APPLICATION_INACTIVE)
+		);
+
+		$response = $this->controller->institutions('enablebanking');
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame(
+			['error' => 'Your Enable Banking application is not active yet. Link at least one of your accounts in the Enable Banking control panel, then try again.'],
+			$response->getData()
+		);
+	}
+
+	public function testInstitutionsRejectsProviderWithoutListing(): void {
+		$this->enableBankSync();
+		$this->request->method('getParams')->willReturn(['country' => 'GB']);
+		$this->providerFactory->method('getProvider')->with('simplefin')->willReturn($this->createMock(SimpleFINProvider::class));
+
+		$response = $this->controller->institutions('simplefin');
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	public function testConnectEnableBankingUsesCallbackUrlNotClientUrl(): void {
+		$this->enableBankSync();
+		$this->request->method('getParams')->willReturn([
+			'provider' => 'enablebanking',
+			'name' => 'My Bank',
+			'institutionId' => 'Nordea',
+			'country' => 'FI',
+			'maximumConsentValidity' => 7776000,
+			'redirectUrl' => 'https://evil.example/steal',
+		]);
+		$this->urlGenerator->method('linkToRouteAbsolute')->with('budget.enableBanking.callback')->willReturn('https://nc.example/apps/budget/enable-banking/callback');
+
+		$this->syncService->expects($this->once())->method('connect')
+			->with('user1', 'enablebanking', [
+				'userId' => 'user1',
+				'institutionId' => 'Nordea',
+				'country' => 'FI',
+				'redirectUrl' => 'https://nc.example/apps/budget/enable-banking/callback',
+				'maximumConsentValidity' => 7776000,
+			], 'My Bank')
+			->willReturn(['authorizationUrl' => 'https://auth.example/start']);
+
+		$response = $this->controller->connect();
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testReauthorizeEnableBankingPassesParamsAndCallbackUrl(): void {
+		$this->enableBankSync();
+		$this->request->method('getParams')->willReturn([
+			'institutionId' => 'Nordea',
+			'country' => 'FI',
+			'maximumConsentValidity' => 7776000,
+			'redirectUrl' => 'https://evil.example/steal',
+		]);
+		$connection = new BankConnection();
+		$connection->setProvider('enablebanking');
+		$this->syncService->method('getConnection')->with('user1', 1)->willReturn($connection);
+		$this->urlGenerator->method('linkToRouteAbsolute')->willReturn('https://nc.example/cb');
+
+		$this->syncService->expects($this->once())->method('reauthorize')
+			->with('user1', 1, [
+				'institutionId' => 'Nordea',
+				'country' => 'FI',
+				'redirectUrl' => 'https://nc.example/cb',
+				'maximumConsentValidity' => 7776000,
+			])
+			->willReturn(['authorizationUrl' => 'https://auth.example/start']);
+
+		$response = $this->controller->reauthorize(1);
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	private function goCardlessReauthorizeWith(string $redirectUrl): void {
+		$this->enableBankSync();
+		$this->request->method('getParams')->willReturn(['institutionId' => 'BANK_ID', 'redirectUrl' => $redirectUrl]);
+		$this->request->method('getServerProtocol')->willReturn('https');
+		$this->request->method('getServerHost')->willReturn('nc.example');
+		$connection = new BankConnection();
+		$connection->setProvider('gocardless');
+		$this->syncService->method('getConnection')->with('user1', 1)->willReturn($connection);
+	}
+
+	/** The bank must never send the user (and the requisition) to another host. */
+	public function testReauthorizeGoCardlessDropsForeignRedirectUrl(): void {
+		$this->goCardlessReauthorizeWith('https://evil.example/steal');
+		$this->syncService->expects($this->once())->method('reauthorize')
+			->with('user1', 1, ['institutionId' => 'BANK_ID', 'redirectUrl' => ''])
+			->willReturn(['authorizationUrl' => 'https://bank.example/auth']);
+
+		$this->assertSame(Http::STATUS_OK, $this->controller->reauthorize(1)->getStatus());
+	}
+
+	public function testReauthorizeGoCardlessKeepsSameHostRedirectUrl(): void {
+		$this->goCardlessReauthorizeWith('https://nc.example/apps/budget/#bank-sync');
+		$this->syncService->expects($this->once())->method('reauthorize')
+			->with('user1', 1, ['institutionId' => 'BANK_ID', 'redirectUrl' => 'https://nc.example/apps/budget/#bank-sync'])
+			->willReturn(['authorizationUrl' => 'https://bank.example/auth']);
+
+		$this->assertSame(Http::STATUS_OK, $this->controller->reauthorize(1)->getStatus());
 	}
 
 	public function testInstitutionsDisabledReturns403(): void {

@@ -111,14 +111,19 @@ class SettingMapper extends QBMapper {
 	 * Delete all settings for a user
 	 *
 	 * @param string $userId
+	 * @param string[] $keepKeys Setting keys to leave in place
 	 * @return int Number of deleted rows
 	 */
-	public function deleteAll(string $userId): int {
+	public function deleteAll(string $userId, array $keepKeys = []): int {
 		CurrencyConversionService::userDataChanged();
 		$qb = $this->db->getQueryBuilder();
 
 		$qb->delete($this->getTableName())
 			->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId, IQueryBuilder::PARAM_STR)));
+
+		if ($keepKeys !== []) {
+			$qb->andWhere($qb->expr()->notIn('key', $qb->createNamedParameter(array_values($keepKeys), IQueryBuilder::PARAM_STR_ARRAY)));
+		}
 
 		return $qb->executeStatement();
 	}
