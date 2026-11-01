@@ -555,6 +555,36 @@ export function currentBudgetMonth(startDay = 1, referenceDate = null) {
 }
 
 /**
+ * The day the months of the dashboard charts and the month-by-month reports
+ * start on: the budget start day when the user chose budget months for them
+ * in Settings, otherwise 1, calendar months (#457). As
+ * BudgetCarryoverService::reportMonthStartDay on the server.
+ *
+ * @param {object} settings - The user's settings
+ * @returns {number} 1-31
+ */
+export function reportMonthStartDay(settings) {
+    if (settings?.report_month_grouping !== 'budget') return 1;
+    const startDay = parseInt(settings?.budget_start_day || '1', 10);
+    return Number.isFinite(startDay) ? Math.min(31, Math.max(1, startDay)) : 1;
+}
+
+/**
+ * Show or hide a note saying a chart's or report's months are budget months.
+ *
+ * @param {HTMLElement|null} el - The note element
+ * @param {number} monthStartDay - As reportMonthStartDay(); 1 hides the note
+ */
+export function showMonthGroupingNote(el, monthStartDay) {
+    if (!el) return;
+    const budgetMonths = monthStartDay > 1;
+    el.textContent = budgetMonths
+        ? t('budget', 'Months are budget periods starting on day {day}, as chosen in Settings.', { day: monthStartDay })
+        : '';
+    el.style.display = budgetMonths ? '' : 'none';
+}
+
+/**
  * The dates a budget month covers: the calendar month, or with a budget start
  * day the cycle holding the month's 15th.
  *
@@ -721,6 +751,28 @@ export function precedingWindow(startDate, endDate) {
     prevStart.setDate(prevStart.getDate() - (lengthDays - 1));
 
     return { start: formatDateForAPI(prevStart), end: formatDateForAPI(prevEnd) };
+}
+
+/**
+ * The part of the previous period that matches how far the current one has
+ * got: on the 3rd day of this period, the first 3 days of the last one. A
+ * period in progress compared with a whole one reads "down 100%" on its first
+ * day. Once the current period is over, or the previous one is the shorter,
+ * the whole previous period counts.
+ *
+ * @param {object} previous - {start, end} as YYYY-MM-DD, inclusive
+ * @param {object} current - {start, end} as YYYY-MM-DD, inclusive
+ * @param {string} today - YYYY-MM-DD
+ * @returns {object} {start, end} as YYYY-MM-DD
+ */
+export function comparablePreviousRange(previous, current, today) {
+    if (today < current.start || today >= current.end) {
+        return { start: previous.start, end: previous.end };
+    }
+    const end = parseLocalDate(previous.start);
+    end.setDate(end.getDate() + daysBetweenDates(current.start, today));
+    const endDate = formatDateForAPI(end);
+    return { start: previous.start, end: endDate < previous.end ? endDate : previous.end };
 }
 
 /**

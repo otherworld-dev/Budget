@@ -75,6 +75,31 @@ final class BudgetPeriod {
 	}
 
 	/**
+	 * The budget months (Y-m) a range touches, in order: from the one
+	 * holding $start to the one holding $end. With start day 1 these are
+	 * the calendar months. Empty when the range is reversed.
+	 *
+	 * @return list<string>
+	 */
+	public static function monthsBetween(string $start, string $end, int $startDay): array {
+		if ($start > $end) {
+			return [];
+		}
+		$months = [];
+		$month = \DateTime::createFromFormat('!Y-m', self::monthContaining($start, $startDay));
+		$last = self::monthContaining($end, $startDay);
+		// Bounded: a thousand years of months is more than any range asks for
+		for ($guard = 0; $guard < 12000; $guard++) {
+			$months[] = $month->format('Y-m');
+			if ($months[count($months) - 1] >= $last) {
+				break;
+			}
+			$month->modify('first day of next month');
+		}
+		return $months;
+	}
+
+	/**
 	 * Budget amounts of any periods as one monthly total, by the yearly
 	 * ratios the Budget page's summary uses (formatters.prorateBudget): each
 	 * amount turned yearly, added, and the sum divided by 12 once, so the
