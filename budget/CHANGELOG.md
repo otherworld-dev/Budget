@@ -5,11 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [3.3.0] - 2026-11-01
 
 ### Added
 - **Category Details can show calendar months.** With a **Budget Cycle Start Day** set, the **Monthly Spending** chart has a choice of **Budget periods** or **Calendar months**. Budget periods stay the default, so the bars match your budgets; calendar months put a purchase on 26 September in the September bar, for reading the chart as history. **This Month** and the trend follow the choice, which is remembered in your browser. Reported by @TerjeTM ([#447](https://github.com/otherworld-dev/Budget/issues/447))
 - **The API says which transactions have a receipt.** Transactions in the v1 API now carry `has_receipt`, so a client can mark the ones with a receipt without asking for each transaction's receipts in turn. It is read for a whole page at once, and it is `null` on a transaction in an account shared with you, where receipts stay the owner's. Reported by @SGiersch ([#455](https://github.com/otherworld-dev/Budget/issues/455))
+
+### Changed
+- **Translations.** German and French have been updated from Weblate.
 
 ### Fixed
 - **Rules can add category tags.** The **Add Tags** action only offered your global tags, because the Rules page never loaded the category tag sets. It now lists every category's tag sets, each named with its category. A rule matches rows in any category, so a category tag is added only to rows in its own category, and the rule's other tags still land on the rest; before, one tag that didn't fit a row stopped the rule tagging that row at all. **Merge with existing tags** also kept nothing when rules were run on existing transactions, so it replaced the row's tags; it now keeps them. Reported by @micha-83 ([#452](https://github.com/otherworld-dev/Budget/issues/452))
