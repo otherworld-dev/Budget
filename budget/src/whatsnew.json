@@ -1,5 +1,17 @@
 [
     {
+        "version": "3.3.0",
+        "title": "Calendar months in Category Details, and import and receipt fixes",
+        "items": [
+            "Category Details can show calendar months instead of budget periods.",
+            "CSV statements that leave empty cells off, such as Fortuneo's, now import every row.",
+            "Receipt scanning works with current Claude models.",
+            "Tags on a new transfer are saved, so savings goals count them.",
+            "Rules can add category tags."
+        ],
+        "link": "https://github.com/otherworld-dev/Budget/blob/main/budget/CHANGELOG.md"
+    },
+    {
         "version": "3.2.0",
         "title": "Category icons, receipt items sorted by your rules, and Monero",
         "items": [
