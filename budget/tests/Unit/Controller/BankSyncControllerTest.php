@@ -441,4 +441,101 @@ class BankSyncControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 		$this->assertTrue($connection->getIncludePending());
 	}
+
+	// ── no credentials in the log ───────────────────────────────────
+
+	/**
+	 * Stands in for a provider method: the decrypted credentials are an
+	 * argument of the frame the exception is thrown from, as in
+	 * SimpleFINProvider::fetchAccounts(string $credentials).
+	 */
+	private static function providerCallFailing(string $credentials): never {
+		throw new \RuntimeException('Failed to fetch accounts from SimpleFIN: SimpleFIN returned HTTP 403.');
+	}
+
+	/** Every error logged, as [message, context] */
+	private array $logged = [];
+
+	private function captureErrors(): void {
+		$this->logged = [];
+		$this->logger->method('error')->willReturnCallback(function (string $message, array $context = []) {
+			$this->logged[] = [$message, $context];
+		});
+	}
+
+	/**
+	 * #[\SensitiveParameter] does nothing on PHP 8.1, so a logged exception
+	 * object carried the decrypted credentials in its trace's arguments,
+	 * which Nextcloud writes out when zend.exception_ignore_args is Off.
+	 */
+	public function testAFailedSyncLogsNoCredentials(): void {
+		ini_set('zend.exception_ignore_args', '0');
+		$this->enableBankSync();
+		$this->captureErrors();
+		$thrown = null;
+		$this->syncService->method('sync')->willReturnCallback(function () use (&$thrown) {
+			try {
+				self::providerCallFailing('https://user:SF-SECRET-PASS@bridge.simplefin.org/simplefin');
+			} catch (\RuntimeException $e) {
+				$thrown = $e;
+				throw $e;
+			}
+		});
+
+		$response = $this->controller->sync(1);
+
+		// The secret really is in the exception, so leaving it out is the fix
+		$this->assertStringContainsString('SF-SECRET-PASS', print_r($thrown, true));
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame(['error' => 'Failed to sync bank data'], $response->getData());
+		$this->assertCount(1, $this->logged);
+		[$message, $context] = $this->logged[0];
+		$this->assertArrayNotHasKey('exception', $context);
+		$this->assertStringNotContainsString('SF-SECRET-PASS', print_r($this->logged, true));
+		$this->assertStringContainsString('HTTP 403', $message);
+		$this->assertSame(\RuntimeException::class, $context['exceptionClass']);
+		$this->assertSame(1, $context['connectionId']);
+	}
+
+	public function testFailingToListBanksLogsNoCredentials(): void {
+		ini_set('zend.exception_ignore_args', '0');
+		$this->enableBankSync();
+		$this->captureErrors();
+		$this->request->method('getParams')->willReturn([
+			'country' => 'GB',
+			'secretId' => 'GC-SECRET-ID',
+			'secretKey' => 'GC-SECRET-KEY',
+		]);
+		$gcProvider = $this->createMock(GoCardlessProvider::class);
+		$this->providerFactory->method('getProvider')->willReturn($gcProvider);
+		// Thrown below the controller's getGoCardlessToken($p, $secretId, $secretKey)
+		$gcProvider->method('getToken')->willThrowException(new \RuntimeException('Failed to obtain GoCardless access token'));
+
+		$response = $this->controller->institutions('gocardless');
+
+		$this->assertSame(['error' => 'Failed to fetch institutions'], $response->getData());
+		$this->assertCount(1, $this->logged);
+		$this->assertArrayNotHasKey('exception', $this->logged[0][1]);
+		$this->assertStringNotContainsString('GC-SECRET', print_r($this->logged, true));
+	}
+
+	public function testATypeErrorInAProviderIsCaughtAndLoggedWithoutTrace(): void {
+		$this->enableBankSync();
+		$this->captureErrors();
+		$this->request->method('getParams')->willReturn([
+			'provider' => 'simplefin',
+			'name' => 'My Bank',
+			'setupToken' => 'abc123',
+		]);
+		$this->syncService->method('connect')->willThrowException(new \TypeError('Argument #1 must be of type string, null given'));
+
+		$response = $this->controller->connect();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame(['error' => 'Failed to connect bank'], $response->getData());
+		$this->assertCount(1, $this->logged);
+		$this->assertArrayNotHasKey('exception', $this->logged[0][1]);
+		$this->assertSame(\TypeError::class, $this->logged[0][1]['exceptionClass']);
+	}
 }
