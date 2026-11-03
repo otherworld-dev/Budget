@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **Bank sync shows what the bank sends as text.** The balance and currency in **Account Mappings** went into the page as they came from the bank provider, so a provider sending markup could run script in Budget. They are now shown as plain text, and the server only keeps a currency that is a three-letter code and a balance that is a number.
+- **The bank authorization page opens safely.** The GoCardless authorization link now opens with no link back to the Budget window and no referrer, and the server refuses a link that isn't https before your browser sees it. The "click here to authorize" link is always shown, since the browser can no longer say whether the window opened.
+- **A factory reset ends your bank connections at the provider.** Factory reset, clearing the sample data and purging a deleted user removed the bank connections from Budget but left the consent at GoCardless running, as only **Disconnect** revoked it. They now revoke each connection once the data has gone. A provider that can't be reached is logged and never stops the reset.
+- **Bank sync errors no longer put credentials in the log.** A failed connect, sync or bank list logged the error with its stack trace, and on PHP 8.1 that trace can hold the decrypted bank credentials. These errors are now logged with their type and message only. The message you see is the same as before.
+
 ## [3.3.0] - 2026-11-01
 
 ### Added

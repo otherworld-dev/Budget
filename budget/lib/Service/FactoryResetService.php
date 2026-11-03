@@ -13,6 +13,7 @@ use OCA\Budget\Db\ImportRuleMapper;
 use OCA\Budget\Db\SettingMapper;
 use OCA\Budget\Db\ShareMapper;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Service\BankSync\BankConnectionRevoker;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
 use OCP\Notification\IManager as INotificationManager;
@@ -40,6 +41,11 @@ use Psr\Log\LoggerInterface;
  * splits, bills, income and rules under the user's shared categories go to
  * No category, their bills on the user's shared accounts stop auto-paying,
  * and their transfer legs paired with the user's rows are unlinked.
+ *
+ * Bank connections are ended at the provider too, as Disconnect does: the
+ * rows going is not enough, the consent given to the bank stayed live. They
+ * are read before anything is deleted and revoked only once the deletion
+ * has committed, so a reset that rolls back leaves them working.
  */
 class FactoryResetService {
 	private UserTableCleaner $tableCleaner;
@@ -59,6 +65,7 @@ class FactoryResetService {
 		private ?ContactMapper $contactMapper = null,
 		private ?CrossUserLinks $crossUserLinks = null,
 		private ?LoggerInterface $logger = null,
+		private ?BankConnectionRevoker $bankRevoker = null,
 	) {
 		$this->tableCleaner = new UserTableCleaner($db);
 	}
@@ -109,6 +116,10 @@ class FactoryResetService {
 			// scheduled job later booked them into the other user's balance.
 			// Read here; deleted inside the transaction below.
 			$billIds = $this->findBillIds($userId);
+
+			// The bank connections to end at the provider once the rows are
+			// gone. Never throws: an unreadable secret can't block a reset.
+			$bankConnections = $this->bankRevoker?->collect($userId) ?? [];
 		} catch (\Throwable $e) {
 			// Nothing was deleted yet, but a deleted uid's access goes all the
 			// same, as when the purge fails inside its transaction
@@ -179,6 +190,10 @@ class FactoryResetService {
 		}
 
 		$this->dismissShareInvitations($grantedShares);
+
+		// Best-effort and after the commit: the data is gone either way, and
+		// a provider that is down only leaves its consent to lapse by itself
+		$this->bankRevoker?->revokeAll($bankConnections);
 
 		return $counts;
 	}
