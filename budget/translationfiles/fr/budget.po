@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-10-28 23:12+0000\n"
-"PO-Revision-Date: 2026-10-28 11:51+0000\n"
+"PO-Revision-Date: 2026-11-05 12:51+0000\n"
 "Last-Translator: Christophe <capersys@users.noreply.hosted.weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/fr/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n > 1;\n"
-"X-Generator: Weblate 2026.11.dev0\n"
+"X-Generator: Weblate 2026.11.2.dev0\n"
 
 #: /app/lib/Controller/AccountController.php:80
 #: /app/lib/Controller/ApiV1AccountController.php:57
@@ -11978,10 +11978,10 @@ msgid "No tag sets available"
 msgstr "Aucun jeu d'étiquettes disponible"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:374
-#, fuzzy
-#| msgid "Category deleted; its transactions are now Uncategorized"
 msgid "Category tags are only added to transactions in their own category."
-msgstr "Catégorie supprimée ; ses opérations sont désormais non catégorisées"
+msgstr ""
+"Les étiquettes de catégorie ne sont ajoutées qu'aux opérations appartenant à "
+"leur propre catégorie."
 
 #: /app/src/modules/rules/components/ActionBuilder.js:380
 msgid "Merge with existing tags"
@@ -15849,22 +15849,16 @@ msgid "Last 2 Years"
 msgstr "2 dernières années"
 
 #: /app/templates/index.php:2046
-#, fuzzy
-#| msgid "Group"
 msgid "Group by"
-msgstr "Grouper"
+msgstr "Regrouper par"
 
 #: /app/templates/index.php:2047
-#, fuzzy
-#| msgid "Budget Period"
 msgid "Budget periods"
-msgstr "Période budgétaire"
+msgstr "Périodes budgétaires"
 
 #: /app/templates/index.php:2048
-#, fuzzy
-#| msgid "Calendar"
 msgid "Calendar months"
-msgstr "Calendrier"
+msgstr "Mois civils"
 
 #: /app/templates/index.php:2067
 msgid "View All Transactions"
