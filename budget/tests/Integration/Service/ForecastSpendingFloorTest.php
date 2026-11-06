@@ -33,7 +33,9 @@ class ForecastSpendingFloorTest extends IntegrationTestCase {
 
 		$this->assertTrue($forecast['dataQuality']['isReliable']);
 		// (1,060 + 11 + 131) / 3
-		$this->assertSame($this->withRestOfThisMonth(array_fill(0, 6, 400.67), 400.67), array_column($forecast['monthlyProjections'], 'expenses'));
+		// The rest of this month from the unrounded average, as the service
+		// computes it: rounding first is a cent off on some days
+		$this->assertSame($this->withRestOfThisMonth(array_fill(0, 6, 400.67), (1060 + 11 + 131) / 3), array_column($forecast['monthlyProjections'], 'expenses'));
 		// The history's own direction is still shown as it is
 		$this->assertSame('down', $forecast['trends']['expenseDirection']);
 	}
