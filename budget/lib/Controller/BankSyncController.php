@@ -116,7 +116,7 @@ class BankSyncController extends Controller {
 
 			return new DataResponse($p->listInstitutions($this->userId, $listParams));
 		} catch (\Throwable $e) {
-			if ($r = $this->inactiveApplicationResponse($e)) {
+			if ($r = $this->enableBankingAuthResponse($e)) {
 				return $r;
 			}
 			return $this->handleErrorWithoutTrace($e, $this->l->t('Failed to fetch institutions'), Http::STATUS_BAD_REQUEST);
@@ -178,7 +178,7 @@ class BankSyncController extends Controller {
 				$providerParams['country'] = $params['country'] ?? null;
 				$providerParams['maximumConsentValidity'] = $params['maximumConsentValidity'] ?? null;
 				// Never from the client: the bank must return to our own callback route.
-				$providerParams['redirectUrl'] = $this->enableBankingCallbackUrl();
+				$providerParams['redirectUrl'] = $this->callbackUrl();
 			}
 
 			if ($provider !== 'enablebanking' && !empty($providerParams['redirectUrl'])) {
@@ -191,7 +191,7 @@ class BankSyncController extends Controller {
 			$result = $this->syncService->connect($this->userId, $provider, $providerParams, $name);
 			return new DataResponse($result);
 		} catch (\Throwable $e) {
-			if ($r = $this->inactiveApplicationResponse($e)) {
+			if ($r = $this->enableBankingAuthResponse($e)) {
 				return $r;
 			}
 			return $this->handleErrorWithoutTrace($e, $this->l->t('Failed to connect bank'), Http::STATUS_BAD_REQUEST);
@@ -400,7 +400,7 @@ class BankSyncController extends Controller {
 				$providerParams = [
 					'institutionId' => $institutionId,
 					'country' => $params['country'] ?? null,
-					'redirectUrl' => $this->enableBankingCallbackUrl(),
+					'redirectUrl' => $this->callbackUrl(),
 					'maximumConsentValidity' => $params['maximumConsentValidity'] ?? null,
 				];
 			} else {
@@ -420,20 +420,32 @@ class BankSyncController extends Controller {
 			$result = $this->syncService->reauthorize($this->userId, $id, $providerParams);
 			return new DataResponse($result);
 		} catch (\Throwable $e) {
+			if ($r = $this->enableBankingAuthResponse($e)) {
+				return $r;
+			}
 			return $this->handleErrorWithoutTrace($e, $this->l->t('Failed to re-authorize'), Http::STATUS_BAD_REQUEST, ['connectionId' => $id]);
 		}
 	}
 
-	private function inactiveApplicationResponse(\Throwable $e): ?DataResponse {
-		if (!($e instanceof EnableBankingAuthException) || $e->getReason() !== EnableBankingAuthException::REASON_APPLICATION_INACTIVE) {
+	/**
+	 * Enable Banking refused the request with 401/403: the application is not
+	 * active yet, or it rejected the application ID or private key (a wrong
+	 * or deleted application, a key from another application). Either way
+	 * the user has to fix something on their side, so say what. Nothing from
+	 * the API's answer is passed on.
+	 */
+	private function enableBankingAuthResponse(\Throwable $e): ?DataResponse {
+		if (!($e instanceof EnableBankingAuthException)) {
 			return null;
 		}
-		return new DataResponse([
-			'error' => $this->l->t('Your Enable Banking application is not active yet. Link at least one of your accounts in the Enable Banking control panel, then try again.'),
-		], Http::STATUS_BAD_REQUEST);
+		$message = $e->getReason() === EnableBankingAuthException::REASON_APPLICATION_INACTIVE
+			? $this->l->t('Your Enable Banking application is not active yet. Link at least one of your accounts in the Enable Banking control panel, then try again.')
+			: $this->l->t('Enable Banking rejected the application ID or private key. Check that both belong to the same application in the Enable Banking control panel, then enter them again with Replace keys.');
+		return new DataResponse(['error' => $message], Http::STATUS_BAD_REQUEST);
 	}
 
-	private function enableBankingCallbackUrl(): string {
-		return $this->urlGenerator->linkToRouteAbsolute('budget.enableBanking.callback');
+	/** Where a CallbackAuthorizationProviderInterface provider's bank sends the browser back to */
+	private function callbackUrl(): string {
+		return $this->urlGenerator->linkToRouteAbsolute('budget.bankSyncCallback.callback');
 	}
 }

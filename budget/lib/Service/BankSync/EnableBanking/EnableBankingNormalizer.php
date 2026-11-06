@@ -11,6 +11,11 @@ namespace OCA\Budget\Service\BankSync\EnableBanking;
  *
  * Amounts stay decimal strings throughout: they are only re-signed with string
  * operations, never parsed into floats.
+ *
+ * Nothing from the API is trusted to be what it claims: an amount is used
+ * only if it is a plain decimal number and a date only if it is a real
+ * `Y-m-d` date, so a transaction with neither is dropped and a balance
+ * without a usable amount is null.
  */
 class EnableBankingNormalizer {
 	/**
@@ -87,12 +92,19 @@ class EnableBankingNormalizer {
 	}
 
 	/**
-	 * @return array{id: string, date: string, amount: string, description: string, vendor: ?string, pending: bool}
+	 * The transaction in the provider-neutral format, or null when it has no
+	 * usable amount or date.
+	 *
+	 * @return array{id: string, date: string, amount: string, description: string, vendor: ?string, pending: bool}|null
 	 */
-	public function transaction(array $tx): array {
+	public function transaction(array $tx): ?array {
 		$indicator = $tx['credit_debit_indicator'] ?? null;
-		$amount = $this->signedAmount($this->amountOf($tx['transaction_amount'] ?? []), $indicator);
-		$date = $this->firstNonEmpty($tx['booking_date'] ?? null, $tx['value_date'] ?? null, $tx['transaction_date'] ?? null) ?? '';
+		$unsigned = $this->amountOf(is_array($tx['transaction_amount'] ?? null) ? $tx['transaction_amount'] : []);
+		$date = $this->dayOf($this->firstNonEmpty($tx['booking_date'] ?? null, $tx['value_date'] ?? null, $tx['transaction_date'] ?? null));
+		if ($unsigned === null || $date === null) {
+			return null;
+		}
+		$amount = $this->signedAmount($unsigned, $indicator);
 
 		$vendor = match ($indicator) {
 			'DBIT' => $this->firstNonEmpty($tx['creditor']['name'] ?? null),
@@ -140,8 +152,17 @@ class EnableBankingNormalizer {
 		return $label;
 	}
 
-	private function amountOf(array $money): string {
-		return trim((string)($money['amount'] ?? '0'));
+	/** A plain decimal number as a string ("12", "-3.50"), else null */
+	private function amountOf(array $money): ?string {
+		$amount = $money['amount'] ?? null;
+		if (is_int($amount) || is_float($amount)) {
+			$amount = is_finite((float)$amount) ? (string)$amount : null;
+		}
+		if (!is_string($amount)) {
+			return null;
+		}
+		$amount = trim($amount);
+		return preg_match('/^[+-]?\d+(\.\d+)?$/', $amount) === 1 ? $amount : null;
 	}
 
 	/**

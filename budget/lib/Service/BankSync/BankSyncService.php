@@ -27,7 +27,7 @@ use Psr\Log\LoggerInterface;
  */
 class BankSyncService {
 	/** How long the bank redirect may take before the `state` is refused. */
-	private const ENABLE_BANKING_STATE_TTL = 1800;
+	private const AUTHORIZATION_STATE_TTL = 1800;
 
 	public function __construct(
 		private BankConnectionMapper $connectionMapper,
@@ -139,19 +139,18 @@ class BankSyncService {
 			);
 		}
 
-		// An Enable Banking connection waiting for the bank's redirect: without
-		// a session its first authorization never finished, which the user
-		// has to complete, not renew. While a re-authorization is under way
-		// (fresh state) nothing may touch the connection, or the redirect would
-		// no longer match it. Once the state is gone or timed out, nothing can
-		// complete it and the old session syncs; a good sync makes it active.
-		if ($connection->getProvider() === 'enablebanking' && $connection->getStatus() === 'pending_auth') {
-			$creds = $this->decodeCredentials($connection->getCredentials());
-			if (empty($creds['sessionId'])) {
-				throw new \Exception('Please finish connecting this bank first.');
-			}
+		// A connection waiting for the bank's redirect: if its first
+		// authorization never finished, the user has to complete it, not
+		// renew it. While a re-authorization is under way (fresh state)
+		// nothing may touch the connection, or the redirect would no longer
+		// match it. Once the state is gone or timed out, nothing can complete
+		// it and the old access syncs; a good sync makes it active.
+		$callbackProvider = $this->callbackProvider($connection);
+		if ($callbackProvider !== null && $connection->getStatus() === 'pending_auth'
+			&& !$callbackProvider->isAuthorized((string)$connection->getCredentials())) {
+			throw new \Exception('Please finish connecting this bank first.');
 		}
-		$this->assertNoEnableBankingAuthorizationUnderway($connection);
+		$this->assertNoAuthorizationUnderway($connection);
 
 		$provider = $this->providerFactory->getProvider($connection->getProvider());
 
@@ -207,9 +206,11 @@ class BankSyncService {
 			$this->connectionMapper->update($connection);
 		}
 
-		// A session that lists no accounts (not linked in the Enable Banking
-		// control panel) has nothing to sync; it needs a new authorization.
-		if ($connection->getProvider() === 'enablebanking' && empty($data['accounts'])) {
+		// Accounts are imported, but the session lists none of them (not
+		// linked in the Enable Banking control panel): nothing can sync until
+		// a new authorization. With nothing imported, Enable Banking reads no
+		// account at all, so an empty list says nothing then.
+		if ($connection->getProvider() === 'enablebanking' && $syncAccounts !== [] && empty($data['accounts'])) {
 			$message = $this->noAccountsMessage();
 			$connection->setStatus('expired');
 			$connection->setLastError($message);
@@ -574,18 +575,18 @@ class BankSyncService {
 
 	/**
 	 * Whether the card offers Re-authorize. Expired connections of a
-	 * re-authorizable provider can be renewed. An Enable Banking connection
-	 * stuck in pending_auth can be restarted once its authorization failed
-	 * (lastError) or can no longer complete (state cleared or timed out),
-	 * but not while the user may still be at the bank.
+	 * re-authorizable provider can be renewed. A connection waiting for a
+	 * callback in pending_auth can be restarted once its authorization
+	 * failed (lastError) or can no longer complete (state cleared or timed
+	 * out), but not while the user may still be at the bank.
 	 */
 	private function canReauthorize(BankConnection $connection): bool {
 		$status = $connection->getStatus();
-		$stuckEnableBanking = $connection->getProvider() === 'enablebanking'
-			&& $status === 'pending_auth'
+		$stuckAtCallback = $status === 'pending_auth'
+			&& $this->callbackProvider($connection) !== null
 			&& ($connection->getLastError() !== null
-				|| !$this->hasFreshEnableBankingState($this->decodeCredentials($connection->getCredentials())));
-		if ($status !== 'expired' && !$stuckEnableBanking) {
+				|| !$this->hasFreshAuthorizationState($this->decodeCredentials($connection->getCredentials())));
+		if ($status !== 'expired' && !$stuckAtCallback) {
 			return false;
 		}
 
@@ -598,24 +599,37 @@ class BankSyncService {
 	}
 
 	/**
-	 * Refuse to work on an Enable Banking connection while its
-	 * (re-)authorization is under way at the bank: syncing or promoting it
-	 * would move it out of pending_auth and the bank's redirect could no
-	 * longer complete it. Nothing is changed or recorded.
+	 * Refuse to work on a connection while its (re-)authorization is under
+	 * way at the bank: syncing or promoting it would move it out of
+	 * pending_auth and the bank's redirect could no longer complete it.
+	 * Nothing is changed or recorded.
 	 */
-	private function assertNoEnableBankingAuthorizationUnderway(BankConnection $connection): void {
-		if ($connection->getProvider() === 'enablebanking'
-			&& $connection->getStatus() === 'pending_auth'
-			&& $this->hasFreshEnableBankingState($this->decodeCredentials($connection->getCredentials()))) {
+	private function assertNoAuthorizationUnderway(BankConnection $connection): void {
+		if ($connection->getStatus() === 'pending_auth'
+			&& $this->callbackProvider($connection) !== null
+			&& $this->hasFreshAuthorizationState($this->decodeCredentials($connection->getCredentials()))) {
 			throw new \Exception('Please finish authorizing at your bank first.');
 		}
 	}
 
-	/** A `state` is stored and younger than ENABLE_BANKING_STATE_TTL. */
-	private function hasFreshEnableBankingState(#[\SensitiveParameter] array $creds): bool {
+	/**
+	 * The connection's provider when it completes authorizations from the
+	 * bank's redirect, else null.
+	 */
+	private function callbackProvider(BankConnection $connection): ?CallbackAuthorizationProviderInterface {
+		try {
+			$provider = $this->providerFactory->getProvider((string)$connection->getProvider());
+		} catch (\InvalidArgumentException) {
+			return null;
+		}
+		return $provider instanceof CallbackAuthorizationProviderInterface ? $provider : null;
+	}
+
+	/** A `state` is stored and younger than AUTHORIZATION_STATE_TTL. */
+	private function hasFreshAuthorizationState(#[\SensitiveParameter] array $creds): bool {
 		$state = $creds['state'] ?? null;
 		return is_string($state) && $state !== ''
-			&& time() - (int)($creds['stateCreatedAt'] ?? 0) < self::ENABLE_BANKING_STATE_TTL;
+			&& time() - (int)($creds['stateCreatedAt'] ?? 0) < self::AUTHORIZATION_STATE_TTL;
 	}
 
 	/**
@@ -848,7 +862,7 @@ class BankSyncService {
 		$this->requireEnabled();
 
 		$connection = $this->connectionMapper->find($connectionId, $userId);
-		$this->assertNoEnableBankingAuthorizationUnderway($connection);
+		$this->assertNoAuthorizationUnderway($connection);
 		$provider = $this->providerFactory->getProvider($connection->getProvider());
 		$data = $provider->fetchAccountList($connection->getCredentials());
 		$now = date('Y-m-d H:i:s');
@@ -930,36 +944,34 @@ class BankSyncService {
 	}
 
 	/**
-	 * Finish an Enable Banking authorization from the bank's redirect.
+	 * Finish an authorization from the bank's redirect to /bank-sync/callback.
 	 *
 	 * The `state` is the only thing tying the redirect to a connection, so it
-	 * is matched only among the logged-in user's own pending Enable Banking
-	 * connections: a state taken from someone else's redirect authorizes
-	 * nothing. The provider clears it, which makes it single use.
+	 * is matched only among the logged-in user's own pending connections of
+	 * providers that complete authorizations this way: a state taken from
+	 * someone else's redirect authorizes nothing. The provider clears it,
+	 * which makes it single use.
 	 *
-	 * Mappings are matched by `identification_hash`, which outlives the
-	 * per-session account UIDs, so a reauthorized connection keeps its
-	 * Budget accounts. The bank's balances are not fetched here (banks allow
-	 * only a few accesses a day); the wizard's refresh step does that.
+	 * Mappings are matched by the provider's account ID, which for Enable
+	 * Banking is the `identification_hash` that outlives the per-session
+	 * account UIDs, so a reauthorized connection keeps its Budget accounts.
+	 * Balances are not fetched here (banks allow only a few accesses a day);
+	 * the wizard's refresh step does that.
 	 *
 	 * @throws \RuntimeException when no pending connection matches the state
 	 */
-	public function completeEnableBankingAuthorization(string $userId, #[\SensitiveParameter] string $state, #[\SensitiveParameter] string $code): BankConnection {
+	public function completeCallbackAuthorization(string $userId, #[\SensitiveParameter] string $state, #[\SensitiveParameter] string $code): BankConnection {
 		$this->requireEnabled();
 
-		$connection = $this->findEnableBankingConnectionByState($userId, $state, true);
-		if ($connection === null) {
+		$connection = $this->findConnectionByState($userId, $state, true);
+		$provider = $connection === null ? null : $this->callbackProvider($connection);
+		if ($connection === null || $provider === null) {
 			throw new \RuntimeException('No pending bank authorization matches this request');
 		}
 
-		$provider = $this->providerFactory->getProvider('enablebanking');
-		if (!($provider instanceof EnableBankingProvider)) {
-			throw new \RuntimeException('Enable Banking is not available');
-		}
-
-		// Read before completing: the provider overwrites the session ID
-		$oldCredentials = $connection->getCredentials();
-		$oldSessionId = $this->decodeCredentials($oldCredentials)['sessionId'] ?? null;
+		// Read before completing: the provider replaces the access they hold
+		$oldCredentials = (string)$connection->getCredentials();
+		$reauthorized = $provider->isAuthorized($oldCredentials);
 
 		try {
 			$result = $provider->completeAuthorization($oldCredentials, $code);
@@ -969,7 +981,6 @@ class BankSyncService {
 			$this->recordFailedAuthorization($connection);
 			throw $e;
 		}
-		$newCreds = $this->decodeCredentials($result['credentials']);
 		$now = date('Y-m-d H:i:s');
 
 		// An authorized session without accounts is not usable: expired makes
@@ -981,7 +992,7 @@ class BankSyncService {
 		$connection->setUpdatedAt($now);
 		$this->connectionMapper->update($connection);
 
-		$consentExpires = $this->toDbDateTime($newCreds['validUntil'] ?? null);
+		$consentExpires = $this->toDbDateTime($result['validUntil'] ?? null);
 		foreach ($result['accounts'] as $account) {
 			$mapping = $this->mappingMapper->findByExternalId($connection->getId(), $account['id']);
 			$isNew = $mapping === null;
@@ -993,7 +1004,7 @@ class BankSyncService {
 				$mapping->setCreatedAt($now);
 			}
 			$mapping->setExternalAccountName($account['name']);
-			$mapping->setLastCurrency($account['currency'] ?? null);
+			$mapping->setLastCurrency(self::cleanCurrency($account['currency'] ?? null));
 			$mapping->setConsentExpires($consentExpires);
 			$mapping->setUpdatedAt($now);
 			if ($isNew) {
@@ -1003,16 +1014,12 @@ class BankSyncService {
 			}
 		}
 
-		$reauthorized = !empty($oldSessionId);
-		if ($reauthorized && $oldSessionId !== ($newCreds['sessionId'] ?? null)) {
-			// Best effort, and not logged: this runs on the bank's redirect,
-			// whose URL (code, state) Nextcloud would add to the log entry.
-			// An unrevoked session lapses at the bank on its own.
-			$provider->revokeSession($oldCredentials);
+		if ($reauthorized) {
+			$provider->revokeReplacedAuthorization($oldCredentials, $result['credentials']);
 		}
 
 		$this->auditService->log($userId, $reauthorized ? 'bank_reauthorized' : 'bank_connected', 'bank_connection', $connection->getId(), [
-			'provider' => 'enablebanking',
+			'provider' => $connection->getProvider(),
 		]);
 
 		return $connection;
@@ -1027,8 +1034,8 @@ class BankSyncService {
 	 * The bank's error text is not stored or shown: it is untrusted input,
 	 * and the user only needs to know to try again.
 	 */
-	public function failEnableBankingAuthorization(string $userId, #[\SensitiveParameter] string $state, string $error): void {
-		$connection = $this->findEnableBankingConnectionByState($userId, $state, false);
+	public function failCallbackAuthorization(string $userId, #[\SensitiveParameter] string $state, string $error): void {
+		$connection = $this->findConnectionByState($userId, $state, false);
 		if ($connection === null) {
 			return;
 		}
@@ -1047,16 +1054,17 @@ class BankSyncService {
 	}
 
 	/**
-	 * The user's pending Enable Banking connection whose `state` matches,
+	 * The user's pending connection, of a provider that completes
+	 * authorizations from the bank's redirect, whose `state` matches,
 	 * compared in constant time. With $requireFresh, a state older than
-	 * ENABLE_BANKING_STATE_TTL does not match.
+	 * AUTHORIZATION_STATE_TTL does not match.
 	 */
-	private function findEnableBankingConnectionByState(string $userId, #[\SensitiveParameter] string $state, bool $requireFresh): ?BankConnection {
+	private function findConnectionByState(string $userId, #[\SensitiveParameter] string $state, bool $requireFresh): ?BankConnection {
 		if ($state === '') {
 			return null;
 		}
 		foreach ($this->connectionMapper->findAll($userId) as $connection) {
-			if ($connection->getProvider() !== 'enablebanking' || $connection->getStatus() !== 'pending_auth') {
+			if ($connection->getStatus() !== 'pending_auth' || $this->callbackProvider($connection) === null) {
 				continue;
 			}
 			$creds = $this->decodeCredentials($connection->getCredentials());
@@ -1064,7 +1072,7 @@ class BankSyncService {
 			if (!is_string($stored) || $stored === '' || !hash_equals($stored, $state)) {
 				continue;
 			}
-			if ($requireFresh && time() - (int)($creds['stateCreatedAt'] ?? 0) >= self::ENABLE_BANKING_STATE_TTL) {
+			if ($requireFresh && time() - (int)($creds['stateCreatedAt'] ?? 0) >= self::AUTHORIZATION_STATE_TTL) {
 				return null;
 			}
 			return $connection;

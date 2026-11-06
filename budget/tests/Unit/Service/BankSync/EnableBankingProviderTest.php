@@ -272,7 +272,12 @@ class EnableBankingProviderTest extends TestCase {
 	 * still show details and balance, but their transactions are not read:
 	 * that would spend the bank's daily quota and move their sync window.
 	 */
-	public function testUnmappedAccountsFetchNoTransactionsAndKeepTheirWindow(): void {
+	/**
+	 * Banks allow only a few accesses a day: an account nobody imports is
+	 * not read at all on a sync (refreshing the account list reads it), and
+	 * it keeps its sync window for when it is mapped.
+	 */
+	public function testUnmappedAccountsAreNotReadAndKeepTheirWindow(): void {
 		$this->stubPlainAccount('uid-a');
 		$this->stubPlainAccount('uid-b');
 
@@ -283,16 +288,35 @@ class EnableBankingProviderTest extends TestCase {
 
 		$this->assertSame('2026-10-13', $this->dateFromFor('uid-a'));
 		$this->assertSame([], $this->callsTo('GET', '/accounts/uid-b/transactions'));
-		$this->assertCount(1, $this->callsTo('GET', '/accounts/uid-b/details'));
-		$this->assertCount(1, $this->callsTo('GET', '/accounts/uid-b/balances'));
+		$this->assertSame([], $this->callsTo('GET', '/accounts/uid-b/details'));
+		$this->assertSame([], $this->callsTo('GET', '/accounts/uid-b/balances'));
 
-		$this->assertSame(['hash-a', 'hash-b'], array_column($result['accounts'], 'id'));
-		$this->assertSame([], $result['accounts'][1]['transactions']);
-		$this->assertSame('10.00', $result['accounts'][1]['balance']);
-		$this->assertNull($result['accounts'][1]['balanceDate']);
+		$this->assertSame(['hash-a'], array_column($result['accounts'], 'id'));
 
 		$updated = json_decode($result['updatedCredentials'], true);
 		$this->assertSame(['hash-a' => '2026-10-27', 'hash-b' => '2026-10-01'], $updated['lastSyncDates']);
+	}
+
+	/** Nothing imported: no request at all, and no "bank unreachable" either. */
+	public function testNothingImportedReadsNothing(): void {
+		$this->stubPlainAccount('uid-a');
+
+		$result = $this->provider->fetchAccounts($this->credentials(), ['syncAccounts' => []]);
+
+		$this->assertSame([], $result['accounts']);
+		$this->assertSame([], $this->callsTo('GET', '/accounts/uid-a/details'));
+		$this->assertSame([], $this->callsTo('GET', '/accounts/uid-a/balances'));
+	}
+
+	/** Refreshing the account list still reads every account's details and balance. */
+	public function testAccountListReadsUnmappedAccounts(): void {
+		$this->stubPlainAccount('uid-a');
+
+		$result = $this->provider->fetchAccountList($this->credentials());
+
+		$this->assertCount(1, $this->callsTo('GET', '/accounts/uid-a/details'));
+		$this->assertCount(1, $this->callsTo('GET', '/accounts/uid-a/balances'));
+		$this->assertSame('10.00', $result['accounts'][0]['balance']);
 	}
 
 	/**
@@ -569,6 +593,43 @@ class EnableBankingProviderTest extends TestCase {
 
 		// Nothing to revoke
 		$this->assertTrue($this->provider->revokeSession($this->credentials(['sessionId' => null])));
+	}
+
+	public function testIsAuthorizedOnceASessionWasOpened(): void {
+		$this->assertTrue($this->provider->isAuthorized($this->credentials()));
+		$this->assertFalse($this->provider->isAuthorized($this->credentials(['sessionId' => null])));
+		$this->assertFalse($this->provider->isAuthorized('not json'));
+	}
+
+	/** Runs on the bank's redirect too, so it never logs. */
+	public function testRevokeReplacedAuthorizationRevokesOnlyAReplacedSession(): void {
+		foreach (['emergency', 'alert', 'critical', 'error', 'warning', 'notice', 'info', 'debug', 'log'] as $method) {
+			$this->logger->expects($this->never())->method($method);
+		}
+		$this->responses['DELETE /sessions/sess-1'] = new \RuntimeException('HTTP 500');
+
+		// Same session handed back, or a first authorization: nothing to revoke
+		$this->provider->revokeReplacedAuthorization($this->credentials(), $this->credentials());
+		$this->provider->revokeReplacedAuthorization($this->credentials(['sessionId' => null]), $this->credentials());
+		$this->assertSame([], $this->callsTo('DELETE', '/sessions/sess-1'));
+
+		// A failed revoke is swallowed
+		$this->provider->revokeReplacedAuthorization($this->credentials(), $this->credentials(['sessionId' => 'sess-2']));
+		$this->assertCount(1, $this->callsTo('DELETE', '/sessions/sess-1'));
+	}
+
+	/** A transaction the bank sends without a usable amount or date is left out, the rest import. */
+	public function testUnusableTransactionsAreLeftOut(): void {
+		$this->stubPlainAccount('uid-a');
+		$this->responses['GET /accounts/uid-a/transactions'] = ['transactions' => [
+			['transaction_id' => 't1', 'transaction_amount' => ['amount' => '5.00'], 'credit_debit_indicator' => 'DBIT', 'booking_date' => '2026-10-20', 'status' => 'BOOK'],
+			['transaction_id' => 't2', 'transaction_amount' => ['amount' => 'five'], 'credit_debit_indicator' => 'DBIT', 'booking_date' => '2026-10-21', 'status' => 'BOOK'],
+			'not an object',
+		]];
+
+		$result = $this->provider->fetchAccounts($this->credentials(), ['syncAccounts' => ['hash-a' => false]]);
+
+		$this->assertSame(['t1'], array_column($result['accounts'][0]['transactions'], 'id'));
 	}
 
 	// ── listInstitutions ────────────────────────────────────────────

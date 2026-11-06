@@ -91,6 +91,42 @@ class EnableBankingNormalizerTest extends TestCase {
 		]))['date']);
 	}
 
+	/**
+	 * Nothing from the API is trusted: a transaction without a plain decimal
+	 * amount or a real date is dropped rather than stored half-understood.
+	 */
+	#[\PHPUnit\Framework\Attributes\DataProvider('unusableTransactions')]
+	public function testTransactionWithoutAUsableAmountOrDateIsDropped(array $overrides): void {
+		$this->assertNull($this->normalizer->transaction($this->tx($overrides)));
+	}
+
+	public static function unusableTransactions(): array {
+		return [
+			'markup amount' => [['transaction_amount' => ['amount' => '<img src=x onerror=alert(1)>', 'currency' => 'EUR']]],
+			'comma decimal' => [['transaction_amount' => ['amount' => '12,30', 'currency' => 'EUR']]],
+			'exponent' => [['transaction_amount' => ['amount' => '1e5', 'currency' => 'EUR']]],
+			'array amount' => [['transaction_amount' => ['amount' => ['12.30'], 'currency' => 'EUR']]],
+			'no amount' => [['transaction_amount' => ['currency' => 'EUR']]],
+			'amount not an object' => [['transaction_amount' => '12.30']],
+			'no date' => [['booking_date' => null, 'value_date' => null]],
+			'not a date' => [['booking_date' => 'yesterday', 'value_date' => null]],
+			'impossible date' => [['booking_date' => '2026-02-30', 'value_date' => null]],
+		];
+	}
+
+	public function testNumericAmountsAreAccepted(): void {
+		$this->assertSame('-12', $this->normalizer->transaction($this->tx(['transaction_amount' => ['amount' => 12]]))['amount']);
+		$this->assertSame('7.5', $this->normalizer->transaction($this->tx([
+			'credit_debit_indicator' => 'CRDT',
+			'transaction_amount' => ['amount' => ' 7.5 '],
+		]))['amount']);
+	}
+
+	public function testBalanceWithoutAUsableAmountIsNull(): void {
+		$balances = [['balance_type' => 'CLBD', 'balance_amount' => ['amount' => '1.0; DROP', 'currency' => 'EUR']]];
+		$this->assertNull($this->normalizer->balance($balances, false));
+	}
+
 	// ── balance ─────────────────────────────────────────────────────
 
 	private function bal(string $type, string $amount): array {

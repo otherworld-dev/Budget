@@ -505,6 +505,54 @@ class BankSyncControllerTest extends TestCase {
 		);
 	}
 
+	private const KEYS_REJECTED = 'Enable Banking rejected the application ID or private key. Check that both belong to the same application in the Enable Banking control panel, then enter them again with Replace keys.';
+
+	/** Any 401/403 but "not active": the application ID or key is wrong. */
+	public function testInstitutionsSaysTheEnableBankingKeysWereRejected(): void {
+		$this->enableBankSync();
+		$this->request->method('getParams')->willReturn(['country' => 'DE']);
+		$eb = $this->createMock(EnableBankingProvider::class);
+		$this->providerFactory->method('getProvider')->with('enablebanking')->willReturn($eb);
+		$eb->method('listInstitutions')->willThrowException(new EnableBankingAuthException('Enable Banking rejected the credentials (HTTP 401)'));
+
+		$response = $this->controller->institutions('enablebanking');
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame(['error' => self::KEYS_REJECTED], $response->getData());
+	}
+
+	public function testConnectSaysTheEnableBankingKeysWereRejected(): void {
+		$this->enableBankSync();
+		$this->request->method('getParams')->willReturn([
+			'provider' => 'enablebanking',
+			'name' => 'My Bank',
+			'institutionId' => 'Nordea',
+			'country' => 'FI',
+		]);
+		$this->urlGenerator->method('linkToRouteAbsolute')->willReturn('https://nc.example/apps/budget/bank-sync/callback');
+		$this->syncService->method('connect')->willThrowException(new EnableBankingAuthException('Enable Banking rejected the credentials (HTTP 403)'));
+
+		$response = $this->controller->connect();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame(['error' => self::KEYS_REJECTED], $response->getData());
+	}
+
+	public function testReauthorizeSaysTheEnableBankingKeysWereRejected(): void {
+		$this->enableBankSync();
+		$this->request->method('getParams')->willReturn(['institutionId' => 'Nordea', 'country' => 'FI']);
+		$connection = new \OCA\Budget\Db\BankConnection();
+		$connection->setProvider('enablebanking');
+		$this->syncService->method('getConnection')->willReturn($connection);
+		$this->urlGenerator->method('linkToRouteAbsolute')->willReturn('https://nc.example/apps/budget/bank-sync/callback');
+		$this->syncService->method('reauthorize')->willThrowException(new EnableBankingAuthException('Enable Banking rejected the credentials (HTTP 401)'));
+
+		$response = $this->controller->reauthorize(1);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame(['error' => self::KEYS_REJECTED], $response->getData());
+	}
+
 	public function testInstitutionsRejectsProviderWithoutListing(): void {
 		$this->enableBankSync();
 		$this->request->method('getParams')->willReturn(['country' => 'GB']);
@@ -524,14 +572,14 @@ class BankSyncControllerTest extends TestCase {
 			'maximumConsentValidity' => 7776000,
 			'redirectUrl' => 'https://evil.example/steal',
 		]);
-		$this->urlGenerator->method('linkToRouteAbsolute')->with('budget.enableBanking.callback')->willReturn('https://nc.example/apps/budget/enable-banking/callback');
+		$this->urlGenerator->method('linkToRouteAbsolute')->with('budget.bankSyncCallback.callback')->willReturn('https://nc.example/apps/budget/bank-sync/callback');
 
 		$this->syncService->expects($this->once())->method('connect')
 			->with('user1', 'enablebanking', [
 				'userId' => 'user1',
 				'institutionId' => 'Nordea',
 				'country' => 'FI',
-				'redirectUrl' => 'https://nc.example/apps/budget/enable-banking/callback',
+				'redirectUrl' => 'https://nc.example/apps/budget/bank-sync/callback',
 				'maximumConsentValidity' => 7776000,
 			], 'My Bank')
 			->willReturn(['authorizationUrl' => 'https://auth.example/start']);

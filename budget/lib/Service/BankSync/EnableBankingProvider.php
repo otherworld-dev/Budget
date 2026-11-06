@@ -22,8 +22,9 @@ use Psr\Log\LoggerInterface;
  * 2. initializeConnection() starts a bank authorization (POST /auth) and
  *    returns the bank's URL. The random `state` binds the bank's redirect to
  *    this connection.
- * 3. The callback hands the returned code to completeAuthorization(), which
- *    opens a session (POST /sessions).
+ * 3. The bank redirects to /bank-sync/callback; BankSyncService matches the
+ *    state and hands the code to completeAuthorization(), which opens a
+ *    session (POST /sessions).
  * 4. fetchAccounts() reads details, balances and transactions per account.
  *
  * Accounts are identified by `identification_hash`, not by `uid`: UIDs are
@@ -38,7 +39,7 @@ use Psr\Log\LoggerInterface;
  * Failures are logged with the exception class only, never its message:
  * messages from the HTTP layer can contain URLs with session IDs and UIDs.
  */
-class EnableBankingProvider implements BankSyncProviderInterface, InstitutionListingProviderInterface, ReauthorizableProviderInterface, ReliableBalanceProviderInterface {
+class EnableBankingProvider implements BankSyncProviderInterface, CallbackAuthorizationProviderInterface, InstitutionListingProviderInterface, ReauthorizableProviderInterface, ReliableBalanceProviderInterface {
 	private const PSU_TYPE = 'personal';
 	private const MAX_CONSENT_SECONDS = 180 * 86400;
 	private const FIRST_SYNC_DAYS = 90;
@@ -117,7 +118,7 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 	 * balance: banks allow only a few accesses per day, and the wizard fetches
 	 * balances right afterwards anyway.
 	 *
-	 * @return array{credentials: string, accounts: list<array>}
+	 * @return array{credentials: string, accounts: list<array>, validUntil: ?string}
 	 */
 	public function completeAuthorization(#[\SensitiveParameter] string $credentials, #[\SensitiveParameter] string $code): array {
 		$creds = $this->decode($credentials);
@@ -152,15 +153,38 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 		$creds['state'] = null;
 		$creds['stateCreatedAt'] = null;
 
-		return ['credentials' => json_encode($creds), 'accounts' => $accounts];
+		return ['credentials' => json_encode($creds), 'accounts' => $accounts, 'validUntil' => $creds['validUntil']];
+	}
+
+	/** A session was opened; a first authorization without one is still at the bank. */
+	public function isAuthorized(#[\SensitiveParameter] string $credentials): bool {
+		$creds = json_decode($credentials, true);
+		return is_array($creds) && !empty($creds['sessionId']);
+	}
+
+	/**
+	 * Revoke the session a re-authorization replaced. Nothing to do after a
+	 * first authorization, or when the bank handed back the same session.
+	 */
+	public function revokeReplacedAuthorization(#[\SensitiveParameter] string $oldCredentials, #[\SensitiveParameter] string $newCredentials): void {
+		$old = json_decode($oldCredentials, true);
+		$new = json_decode($newCredentials, true);
+		$oldSessionId = is_array($old) ? ($old['sessionId'] ?? null) : null;
+		if (empty($oldSessionId) || $oldSessionId === (is_array($new) ? ($new['sessionId'] ?? null) : null)) {
+			return;
+		}
+		// An unrevoked session lapses at the bank on its own
+		$this->revokeSession($oldCredentials);
 	}
 
 	/**
 	 * Options: includePending (bool); syncAccounts (array<identification_hash,
 	 * bool needsFullHistory>), the accounts whose transactions are imported.
-	 * Accounts not listed get details and balance only, so they spend none of
-	 * the bank's daily accesses on transactions and keep their sync window.
-	 * Without syncAccounts every account's transactions are fetched.
+	 * Accounts not listed are not read at all: banks allow only a few
+	 * accesses a day, and an account nobody imports needs no details or
+	 * balance on every sync. Refreshing the account list
+	 * (fetchAccountList()) reads them. Without syncAccounts every account
+	 * is read, transactions included.
 	 */
 	public function fetchAccounts(#[\SensitiveParameter] string $credentials, array $options = []): array {
 		$creds = $this->decode($credentials);
@@ -175,16 +199,18 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 		$lastSyncDates = is_array($creds['lastSyncDates'] ?? null) ? $creds['lastSyncDates'] : [];
 		$newSyncDates = $lastSyncDates;
 
-		$accounts = $this->withReadableErrors(function () use ($creds, $keys, $includePending, $syncAccounts, $lastSyncDates, &$newSyncDates) {
+		$attempted = 0;
+		$accounts = $this->withReadableErrors(function () use ($creds, $keys, $includePending, $syncAccounts, $lastSyncDates, &$newSyncDates, &$attempted) {
 			$accounts = [];
 			foreach ($creds['accounts'] ?? [] as $hash => $uid) {
 				$hash = (string)$hash;
-				$dateFrom = null;
-				if ($syncAccounts === null || array_key_exists($hash, $syncAccounts)) {
-					$needsFullHistory = $syncAccounts !== null && (bool)$syncAccounts[$hash];
-					$dateFrom = $this->syncStartDate($needsFullHistory ? null : ($lastSyncDates[$hash] ?? null));
+				if ($syncAccounts !== null && !array_key_exists($hash, $syncAccounts)) {
+					continue;
 				}
+				$needsFullHistory = $syncAccounts !== null && (bool)$syncAccounts[$hash];
+				$dateFrom = $this->syncStartDate($needsFullHistory ? null : ($lastSyncDates[$hash] ?? null));
 
+				$attempted++;
 				$cutOff = false;
 				$account = $this->fetchAccount($keys, $hash, (string)$uid, $includePending, $dateFrom, $cutOff);
 				if ($account === null) {
@@ -193,16 +219,16 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 				$accounts[] = $account;
 				// Only a complete read moves the account's window forward, so
 				// a failing or cut-off account does not lose the days it missed.
-				if ($dateFrom !== null && !$cutOff) {
+				if (!$cutOff) {
 					$newSyncDates[$hash] = $this->today()->format('Y-m-d');
 				}
 			}
 			return $accounts;
 		});
 
-		// Every account failed: that is a failed sync (status error, the
+		// Every account read failed: that is a failed sync (status error, the
 		// message shown), not a successful one that found nothing.
-		if ($accounts === [] && !empty($creds['accounts'])) {
+		if ($accounts === [] && $attempted > 0) {
 			throw new \Exception(self::MSG_UNREACHABLE);
 		}
 
@@ -411,8 +437,8 @@ class EnableBankingProvider implements BankSyncProviderInterface, InstitutionLis
 			$response = $this->client->request('GET', $base . '/transactions', $keys, null, $query);
 
 			foreach ($response['transactions'] ?? [] as $tx) {
-				$row = $this->normalizer->transaction($tx);
-				if ($row['date'] === '' || ($row['pending'] && !$includePending)) {
+				$row = is_array($tx) ? $this->normalizer->transaction($tx) : null;
+				if ($row === null || ($row['pending'] && !$includePending)) {
 					continue;
 				}
 				if (str_starts_with($row['id'], 'h:')) {

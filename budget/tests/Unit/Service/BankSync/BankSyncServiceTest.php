@@ -13,6 +13,7 @@ use OCA\Budget\Service\AdminSettingService;
 use OCA\Budget\Service\AuditService;
 use OCA\Budget\Service\BankSync\BankSyncProviderInterface;
 use OCA\Budget\Service\BankSync\BankSyncService;
+use OCA\Budget\Service\BankSync\CallbackAuthorizationProviderInterface;
 use OCA\Budget\Service\BankSync\EnableBankingProvider;
 use OCA\Budget\Service\BankSync\GoCardlessProvider;
 use OCA\Budget\Service\BankSync\ProviderFactory;
@@ -1622,7 +1623,7 @@ class BankSyncServiceTest extends TestCase {
 		$this->auditService->expects($this->once())->method('log')
 			->with(self::USER_ID, 'bank_connected', 'bank_connection', 1, ['provider' => 'enablebanking']);
 
-		$result = $this->service->completeEnableBankingAuthorization(self::USER_ID, 'state-a', 'code-1');
+		$result = $this->service->completeCallbackAuthorization(self::USER_ID, 'state-a', 'code-1');
 
 		$this->assertSame('active', $result->getStatus());
 		$this->assertSame('sess-new', json_decode($result->getCredentials(), true)['sessionId']);
@@ -1639,9 +1640,9 @@ class BankSyncServiceTest extends TestCase {
 		$eb->method('completeAuthorization')
 			->willReturn($this->ebResult('sess-new', '2027-04-24T10:00:00+00:00', []));
 		// Old session handling is unchanged
-		$eb->expects($this->once())->method('revokeSession')->with($oldCredentials)->willReturn(true);
+		$eb->expects($this->once())->method('revokeReplacedAuthorization')->with($oldCredentials, $this->anything());
 
-		$result = $this->service->completeEnableBankingAuthorization(self::USER_ID, 'state-a', 'code-1');
+		$result = $this->service->completeCallbackAuthorization(self::USER_ID, 'state-a', 'code-1');
 
 		$this->assertSame('expired', $result->getStatus());
 		$this->assertSame(self::NO_ACCOUNTS_MESSAGE, $result->getLastError());
@@ -1652,7 +1653,8 @@ class BankSyncServiceTest extends TestCase {
 		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
 		$connection = $this->createConnection(1, 'enablebanking', 'My Bank', 'active');
 		$this->connectionMapper->method('find')->with(1, self::USER_ID)->willReturn($connection);
-		$this->mappingMapper->method('findByConnection')->willReturn([]);
+		// An imported account the session no longer lists
+		$this->mappingMapper->method('findByConnection')->willReturn([$this->createMapping(10, 1, 'hash-1', 42, true)]);
 		$this->providerFactory->method('getProvider')->willReturn($this->provider);
 		$this->provider->method('requiresReauthorization')->willReturn(false);
 		$this->provider->method('fetchAccounts')->willReturn(['accounts' => []]);
@@ -1684,6 +1686,30 @@ class BankSyncServiceTest extends TestCase {
 		$this->assertSame('active', $connection->getStatus());
 	}
 
+	/**
+	 * With no account imported, Enable Banking reads no account at all
+	 * (daily access limits), so its empty list is no sign of a lost
+	 * consent: the connection stays active and asks for mappings.
+	 */
+	public function testSyncWithNothingImportedAsksForNoAccountAndStaysActive(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$connection = $this->createConnection(1, 'enablebanking', 'My Bank', 'active');
+		$this->connectionMapper->method('find')->with(1, self::USER_ID)->willReturn($connection);
+		$unmapped = $this->createMapping(10, 1, 'hash-1', null, false);
+		$this->mappingMapper->method('findByConnection')->willReturn([$unmapped]);
+		$this->mappingMapper->method('findEnabledByConnection')->willReturn([]);
+		$this->providerFactory->method('getProvider')->willReturn($this->provider);
+		$this->provider->method('requiresReauthorization')->willReturn(false);
+		$this->provider->expects($this->once())->method('fetchAccounts')
+			->with($this->anything(), $this->callback(fn (array $o) => $o['syncAccounts'] === []))
+			->willReturn(['accounts' => []]);
+
+		$result = $this->service->sync(self::USER_ID, 1);
+
+		$this->assertSame('active', $connection->getStatus());
+		$this->assertSame(1, $result['discovered']);
+	}
+
 	public function testCompleteRevokesPreviousSession(): void {
 		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
 		$connection = $this->ebConnection(1, 'state-a', time() - 60, 'sess-old');
@@ -1694,11 +1720,12 @@ class BankSyncServiceTest extends TestCase {
 			->willReturn($this->ebResult('sess-new', '2027-04-24T10:00:00+00:00', []));
 		// The provider's logging revoke must not run on the callback request
 		$eb->expects($this->never())->method('revokeConnection');
-		$eb->expects($this->once())->method('revokeSession')->with($oldCredentials)->willReturn(true);
+		$eb->expects($this->once())->method('revokeReplacedAuthorization')
+			->with($oldCredentials, $this->callback(fn (string $new) => json_decode($new, true)['sessionId'] === 'sess-new'));
 		$this->auditService->expects($this->once())->method('log')
 			->with(self::USER_ID, 'bank_reauthorized', 'bank_connection', 1, ['provider' => 'enablebanking']);
 
-		$this->service->completeEnableBankingAuthorization(self::USER_ID, 'state-a', 'code-1');
+		$this->service->completeCallbackAuthorization(self::USER_ID, 'state-a', 'code-1');
 	}
 
 	public function testCompleteSetsConsentExpiresOnMappings(): void {
@@ -1720,13 +1747,59 @@ class BankSyncServiceTest extends TestCase {
 		$this->mappingMapper->method('update')->willReturnCallback($collect);
 		$this->mappingMapper->method('insert')->willReturnCallback($collect);
 
-		$this->service->completeEnableBankingAuthorization(self::USER_ID, 'state-a', 'code-1');
+		$this->service->completeCallbackAuthorization(self::USER_ID, 'state-a', 'code-1');
 
 		$expected = date('Y-m-d H:i:s', strtotime('2027-04-24T10:00:00+00:00'));
 		$this->assertCount(2, $saved);
 		foreach ($saved as $m) {
 			$this->assertSame($expected, $m->getConsentExpires());
 		}
+	}
+
+	/** The bank's currency is only kept if it is a three-letter code. */
+	public function testCompleteKeepsOnlyAThreeLetterCurrency(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$connection = $this->ebConnection(1, 'state-a', time() - 60, null);
+		$this->connectionMapper->method('findAll')->willReturn([$connection]);
+		$result = $this->ebResult('sess-new', '2027-04-24T10:00:00+00:00', ['hash-1', 'hash-2']);
+		$result['accounts'][0]['currency'] = 'eur';
+		$result['accounts'][1]['currency'] = '<b>EUR</b>';
+		$this->ebProvider()->method('completeAuthorization')->willReturn($result);
+		$saved = [];
+		$this->mappingMapper->method('insert')->willReturnCallback(function (BankAccountMapping $m) use (&$saved) {
+			$saved[] = $m;
+			return $m;
+		});
+
+		$this->service->completeCallbackAuthorization(self::USER_ID, 'state-a', 'code-1');
+
+		$this->assertSame(['EUR', null], array_map(fn ($m) => $m->getLastCurrency(), $saved));
+	}
+
+	/**
+	 * The callback is not tied to Enable Banking: any provider that
+	 * completes its authorization from the bank's redirect is matched by
+	 * state the same way.
+	 */
+	public function testCompleteWorksForAnyCallbackProvider(): void {
+		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
+		$connection = $this->ebConnection(1, 'state-a', time() - 60, null);
+		$connection->setProvider('hosted');
+		$this->connectionMapper->method('findAll')->willReturn([$connection]);
+		$hosted = $this->createMockForIntersectionOfInterfaces([BankSyncProviderInterface::class, CallbackAuthorizationProviderInterface::class]);
+		$this->providerFactory->method('getProvider')->with('hosted')->willReturn($hosted);
+		$hosted->method('isAuthorized')->willReturn(false);
+		$hosted->expects($this->once())->method('completeAuthorization')
+			->with($connection->getCredentials(), 'code-1')
+			->willReturn(['credentials' => '{"token":"t"}', 'accounts' => [['id' => 'acc-1', 'name' => 'Giro', 'currency' => 'EUR']]]);
+		$hosted->expects($this->never())->method('revokeReplacedAuthorization');
+		$this->auditService->expects($this->once())->method('log')
+			->with(self::USER_ID, 'bank_connected', 'bank_connection', 1, ['provider' => 'hosted']);
+
+		$result = $this->service->completeCallbackAuthorization(self::USER_ID, 'state-a', 'code-1');
+
+		$this->assertSame('active', $result->getStatus());
+		$this->assertSame('{"token":"t"}', $result->getCredentials());
 	}
 
 	public function testStateIsSingleUse(): void {
@@ -1737,10 +1810,10 @@ class BankSyncServiceTest extends TestCase {
 		$eb->expects($this->once())->method('completeAuthorization')
 			->willReturn($this->ebResult('sess-new', '2027-04-24T10:00:00+00:00', []));
 
-		$this->service->completeEnableBankingAuthorization(self::USER_ID, 'state-a', 'code-1');
+		$this->service->completeCallbackAuthorization(self::USER_ID, 'state-a', 'code-1');
 
 		$this->expectException(\RuntimeException::class);
-		$this->service->completeEnableBankingAuthorization(self::USER_ID, 'state-a', 'code-1');
+		$this->service->completeCallbackAuthorization(self::USER_ID, 'state-a', 'code-1');
 	}
 
 	public function testCompleteUnknownStateNeverCallsProvider(): void {
@@ -1751,7 +1824,7 @@ class BankSyncServiceTest extends TestCase {
 		$this->connectionMapper->expects($this->never())->method('update');
 
 		$this->expectException(\RuntimeException::class);
-		$this->service->completeEnableBankingAuthorization(self::USER_ID, 'state-b', 'code-1');
+		$this->service->completeCallbackAuthorization(self::USER_ID, 'state-b', 'code-1');
 	}
 
 	public function testCompleteRejectsStateOlderThanThirtyMinutes(): void {
@@ -1760,7 +1833,7 @@ class BankSyncServiceTest extends TestCase {
 		$this->ebProvider()->expects($this->never())->method('completeAuthorization');
 
 		$this->expectException(\RuntimeException::class);
-		$this->service->completeEnableBankingAuthorization(self::USER_ID, 'state-a', 'code-1');
+		$this->service->completeCallbackAuthorization(self::USER_ID, 'state-a', 'code-1');
 	}
 
 	public function testCompleteIgnoresConnectionsNotPendingOrOfOtherProviders(): void {
@@ -1773,10 +1846,11 @@ class BankSyncServiceTest extends TestCase {
 		$this->ebProvider()->expects($this->never())->method('completeAuthorization');
 
 		$this->expectException(\RuntimeException::class);
-		$this->service->completeEnableBankingAuthorization(self::USER_ID, 'state-a', 'code-1');
+		$this->service->completeCallbackAuthorization(self::USER_ID, 'state-a', 'code-1');
 	}
 
 	public function testFailClearsStateAndSetsGenericError(): void {
+		$this->ebProvider();
 		$connection = $this->ebConnection(1, 'state-a', time() - 60, null);
 		$this->connectionMapper->method('findAll')->with(self::USER_ID)->willReturn([$connection]);
 		$this->connectionMapper->expects($this->once())->method('update')
@@ -1788,7 +1862,7 @@ class BankSyncServiceTest extends TestCase {
 				return $c;
 			});
 
-		$this->service->failEnableBankingAuthorization(self::USER_ID, 'state-a', 'access_denied <script>');
+		$this->service->failCallbackAuthorization(self::USER_ID, 'state-a', 'access_denied <script>');
 	}
 
 	/**
@@ -1803,7 +1877,7 @@ class BankSyncServiceTest extends TestCase {
 		$this->connectionMapper->expects($this->once())->method('update')->willReturnArgument(0);
 
 		try {
-			$this->service->completeEnableBankingAuthorization(self::USER_ID, 'state-a', 'code-1');
+			$this->service->completeCallbackAuthorization(self::USER_ID, 'state-a', 'code-1');
 			$this->fail('Expected the failure to propagate');
 		} catch (\RuntimeException $e) {
 			$this->assertSame('HTTP 400', $e->getMessage());
@@ -1853,7 +1927,9 @@ class BankSyncServiceTest extends TestCase {
 		$connection->setCredentials(json_encode($creds));
 		$connection->setLastError(null);
 		$this->connectionMapper->method('find')->with(1, self::USER_ID)->willReturn($connection);
-		$this->providerFactory->expects($this->never())->method('getProvider');
+		$eb = $this->ebProvider();
+		$eb->expects($this->never())->method('requiresReauthorization');
+		$eb->expects($this->never())->method('fetchAccounts');
 		$this->connectionMapper->expects($this->never())->method('update');
 
 		try {
@@ -1884,7 +1960,7 @@ class BankSyncServiceTest extends TestCase {
 		$connection = $this->ebConnection(1, 'state-a', time() - 60, 'sess-old');
 		$connection->setLastError(null);
 		$this->connectionMapper->method('find')->with(1, self::USER_ID)->willReturn($connection);
-		$this->providerFactory->expects($this->never())->method('getProvider');
+		$this->ebProvider()->expects($this->never())->method('fetchAccountList');
 		$this->connectionMapper->expects($this->never())->method('update');
 		$this->mappingMapper->expects($this->never())->method('insert');
 
@@ -1996,10 +2072,11 @@ class BankSyncServiceTest extends TestCase {
 	}
 
 	public function testFailWithUnknownStateChangesNothing(): void {
+		$this->ebProvider();
 		$this->connectionMapper->method('findAll')->willReturn([$this->ebConnection(1, 'state-a', time() - 60, null)]);
 		$this->connectionMapper->expects($this->never())->method('update');
 
-		$this->service->failEnableBankingAuthorization(self::USER_ID, 'state-b', 'access_denied');
+		$this->service->failCallbackAuthorization(self::USER_ID, 'state-b', 'access_denied');
 	}
 
 	// ===== Helpers =====
@@ -2023,7 +2100,14 @@ class BankSyncServiceTest extends TestCase {
 	/** @return EnableBankingProvider&\PHPUnit\Framework\MockObject\MockObject */
 	private function ebProvider(): EnableBankingProvider {
 		$eb = $this->createMock(EnableBankingProvider::class);
-		$this->providerFactory->method('getProvider')->with('enablebanking')->willReturn($eb);
+		$eb->method('isAuthorized')->willReturnCallback(
+			fn (string $credentials) => !empty(json_decode($credentials, true)['sessionId'])
+		);
+		// Any other provider is one without a callback
+		$other = $this->createMock(BankSyncProviderInterface::class);
+		$this->providerFactory->method('getProvider')->willReturnCallback(
+			fn (string $name) => $name === 'enablebanking' ? $eb : $other
+		);
 		return $eb;
 	}
 
@@ -2039,6 +2123,7 @@ class BankSyncServiceTest extends TestCase {
 				'accounts' => array_fill_keys($hashes, 'uid-new'),
 			]),
 			'accounts' => array_map(fn ($h) => ['id' => $h, 'name' => 'Acc ' . $h, 'currency' => 'EUR', 'balance' => null], $hashes),
+			'validUntil' => $validUntil,
 		];
 	}
 

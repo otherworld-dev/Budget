@@ -33,25 +33,6 @@ The simplest way to install it is from the Nextcloud App Store: log in as an adm
 
 Once it is enabled, the [getting started guide](https://budget.otherworld.dev/docs/getting-started.html) takes you through adding your first account and importing a statement.
 
-## Bank sync with Enable Banking
-
-[Enable Banking](https://enablebanking.com) is a licensed EU account-information provider. Its free "restricted production" mode only works for the accounts of the person who owns the Enable Banking application, so each Nextcloud user sets up their own application. Full production access needs a contract with Enable Banking.
-
-Before you start, a Nextcloud admin has to switch on **Enable Bank Sync** in Budget's admin settings. Bank sync stays hidden until then.
-
-1. In the Enable Banking control panel, create an application.
-2. Let the control panel generate the key in your browser, which is the default. Your browser then downloads the private key as a `.pem` file named after the application ID; keep a copy somewhere safe, since it cannot be downloaded again. If you prefer your own key, generate one with `openssl req -x509 -newkey rsa:4096 -nodes -keyout private.pem -out public.crt -days 730 -subj "/CN=budget"` and upload the certificate (`public.crt`) instead.
-3. Whitelist the callback URL that Budget's wizard shows, which ends in `/apps/budget/bank-sync/enablebanking/callback`. In production it must use `https`.
-4. In the control panel, link every bank account you want in Budget. A restricted production application only becomes active once at least one account is linked, and Budget can only see accounts that are linked there.
-5. In Budget, go to **Bank Sync**, click **Add Connection**, choose **Enable Banking (Europe)** and enter the application ID and the private key file. You only do this once: they are stored encrypted for your user and reused for every bank.
-6. Pick a country and a bank, confirm in the bank's app, come back and click **I've Completed Authorization**, then map the accounts and sync. If the bank shares no account, Budget marks the connection as needing re-authorization: link the account in the control panel, then click **Re-authorize**.
-
-Consent lasts up to 180 days, or the bank's maximum if that is shorter (180 days for comdirect, 90 days for Trade Republic). After that, use **Re-authorize**, and link any accounts you have added since in the control panel first. Trade Republic delivers only amount, currency and booking date per transaction, with no description or counterparty. Rules that match on text won't apply to it. PSD2 covers payment accounts only, so securities and depot accounts are not available, and banks allow only a few automatic refreshes per day.
-
-The first time an account syncs into an empty Budget account, Budget sets that account's opening balance so that its balance matches the bank's. This happens automatically for Enable Banking only; with the other providers, Budget shows the difference and a **Reconcile** button instead. If the balances differ later, Budget shows the difference with a **Reconcile** button and never corrects it silently.
-
-The Nextcloud server only contacts `api.enablebanking.com`. Budget shows bank names only; it loads no bank logos.
-
 ## Translations
 
 Translations are managed on [Weblate](https://hosted.weblate.org/projects/nextcloud-budget/), where you can translate in the browser without touching any code and your work is merged into the app automatically. Strings containing `{placeholders}` (e.g. `{amount}`) must keep the placeholder names exactly as they are. If you would rather work with `.po` files, see the [translation guide](budget/translationfiles/README.md).
