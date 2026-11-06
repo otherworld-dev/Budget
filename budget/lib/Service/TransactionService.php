@@ -2457,6 +2457,20 @@ class TransactionService {
 	}
 
 	/**
+	 * The account the other side of a transfer sits in, looked up without
+	 * scoping so the caller can authorize it: unlinking clears the link on
+	 * both rows, so both accounts must be writable, as linking requires.
+	 * Null when the row isn't linked or its partner is gone.
+	 */
+	public function transferPartnerAccountId(Transaction $transaction): ?int {
+		$partnerId = $transaction->getLinkedTransactionId();
+		if ($partnerId === null) {
+			return null;
+		}
+		return $this->mapper->findById($partnerId)?->getAccountId();
+	}
+
+	/**
 	 * Unlink a transaction from its transfer partner
 	 */
 	public function unlinkTransaction(int $transactionId, string $userId, ?array $visibleAccountIds = null): array {

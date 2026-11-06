@@ -1338,6 +1338,34 @@ class CategoryServiceTest extends TestCase {
 		$this->assertSame(25.0, $details['thisMonth']);
 	}
 
+	/**
+	 * Switched to calendar months, a start day of 25 no longer folds days
+	 * into periods, and "this month" is the calendar month holding today.
+	 */
+	public function testDetailsCanUseCalendarMonthsDespiteAStartDay(): void {
+		$this->budgetStartDay = 25;
+		$this->currentBudgetMonth = '2026-02';
+		$tree = $this->detailTree();
+		$this->categoryMapper->method('findAll')->willReturn($tree);
+		$this->categoryMapper->method('find')->willReturn($tree[0]);
+		$this->transactionMapper->method('getCategorySummary')->willReturn(['count' => 0, 'total' => 0.0]);
+		$byDayAsked = [];
+		$this->transactionMapper->method('getCategoryMonthlySpending')
+			->willReturnCallback(function (...$args) use (&$byDayAsked) {
+				$byDayAsked[] = $args[8] ?? false;
+				return [
+					['month' => '2025-12', 'total' => 10.0, 'count' => 1, 'splitCount' => 0],
+					['month' => '2026-01', 'total' => 25.0, 'count' => 1, 'splitCount' => 0],
+				];
+			});
+
+		$details = $this->service->getCategoryDetails(1, 'user1', null, null, null, null, null, true);
+
+		$this->assertSame([false], $byDayAsked);
+		$this->assertSame('2026-01', $details['monthlySpending'][1]['month']);
+		$this->assertSame(25.0, $details['thisMonth']);
+	}
+
 	public function testDetailsFollowTheViewersStartDay(): void {
 		$tree = $this->detailTree();
 		$this->categoryMapper->method('findAll')->willReturn($tree);

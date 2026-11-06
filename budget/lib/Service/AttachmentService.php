@@ -301,6 +301,22 @@ class AttachmentService {
 		return $this->mapper->countsByUser($userId);
 	}
 
+	/**
+	 * Whether each transaction has a receipt the user can list (#455): a key
+	 * only for transactions in the user's own accounts, as receipts are
+	 * owner-only (see the class comment). A row whose file has since been
+	 * deleted still counts, because listForTransaction() still returns it.
+	 *
+	 * @param int[] $transactionIds
+	 * @return array<int, bool>
+	 */
+	public function receiptPresence(array $transactionIds, string $userId): array {
+		if ($transactionIds === []) {
+			return [];
+		}
+		return $this->mapper->receiptPresence($transactionIds, $userId);
+	}
+
 	private function createRow(int $transactionId, string $userId, File $node): Attachment {
 		// Reject duplicates politely (unique index would throw anyway)
 		foreach ($this->mapper->findByTransaction($transactionId, $userId) as $existing) {

@@ -2043,6 +2043,10 @@ style('budget', 'budget-app');
                                         <option value="12" selected><?php p($l->t('Last 12 Months')); ?></option>
                                         <option value="24"><?php p($l->t('Last 2 Years')); ?></option>
                                     </select>
+                                    <select id="category-chart-months" class="card-select" aria-label="<?php p($l->t('Group by')); ?>" style="display: none;">
+                                        <option value="budget"><?php p($l->t('Budget periods')); ?></option>
+                                        <option value="calendar"><?php p($l->t('Calendar months')); ?></option>
+                                    </select>
                                 </div>
                             </div>
                             <p id="category-chart-note" class="category-chart-note" style="display: none;"></p>
@@ -7676,7 +7680,7 @@ style('budget', 'budget-app');
                 <p class="bank-sync-auth-text-default"><?php p($l->t('Once you have completed the authorization, click the button below.')); ?></p>
                 <p id="bank-sync-auth-link-fallback" style="display: none;">
                     <?php p($l->t('If the window did not open, ')); ?>
-                    <a id="bank-sync-auth-link" href="#" target="_blank" rel="noopener"><?php p($l->t('click here to authorize')); ?></a>.
+                    <a id="bank-sync-auth-link" href="#" target="_blank" rel="noopener noreferrer"><?php p($l->t('click here to authorize')); ?></a>.
                 </p>
             </div>
 

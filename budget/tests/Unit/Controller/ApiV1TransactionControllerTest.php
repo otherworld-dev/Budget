@@ -297,7 +297,80 @@ class ApiV1TransactionControllerTest extends TestCase {
 			'splits' => [],
 			'linked_transaction_id' => null,
 			'linked_account_name' => null,
+			'has_receipt' => null,
 		]], $data);
+	}
+
+	// â”€â”€ has_receipt (#455) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+	public function testIndexReadsReceiptsForTheWholePageInOneCall(): void {
+		$this->service->method('findWithFilters')->willReturn([
+			'transactions' => [['id' => 1, 'accountId' => 1], ['id' => 2, 'accountId' => 1], ['id' => 3, 'accountId' => 9]],
+			'total' => 3,
+		]);
+		// One call for the page, never one per row; 3 is in the shared
+		// account, so the lookup has no answer for it
+		$this->attachmentService->expects($this->once())
+			->method('receiptPresence')
+			->with([1, 2, 3], 'user1')
+			->willReturn([1 => true, 2 => false]);
+		$this->attachmentService->expects($this->never())->method('listForTransaction');
+
+		$rows = $this->controller->index()->getData()['transactions'];
+
+		$this->assertSame([true, false, null], array_column($rows, 'has_receipt'));
+	}
+
+	public function testRecentReadsReceiptsForTheWholePageInOneCall(): void {
+		$this->service->method('findWithFilters')->willReturn([
+			'transactions' => [['id' => 1, 'accountId' => 1], ['id' => 2, 'accountId' => 1]],
+			'total' => 2,
+		]);
+		$this->attachmentService->expects($this->once())
+			->method('receiptPresence')
+			->with([1, 2], 'user1')
+			->willReturn([1 => false, 2 => true]);
+
+		$this->assertSame([false, true], array_column($this->controller->recent()->getData(), 'has_receipt'));
+	}
+
+	public function testAnEmptyPageLooksNothingUp(): void {
+		$this->service->method('findWithFilters')->willReturn(['transactions' => [], 'total' => 0]);
+		$this->attachmentService->expects($this->never())->method('receiptPresence');
+
+		$this->assertSame([], $this->controller->index()->getData()['transactions']);
+	}
+
+	public function testShowSaysWhetherTheTransactionHasAReceipt(): void {
+		$this->service->method('findForAccounts')->willReturn($this->transaction());
+		$this->attachmentService->method('receiptPresence')->with([10], 'user1')->willReturn([10 => true]);
+
+		$this->assertTrue($this->controller->show(10)->getData()['has_receipt']);
+	}
+
+	public function testCreateWithAPhotoReadsHasReceiptAfterTheAttach(): void {
+		$this->params = $this->captureParams();
+		$this->uploads['photo'] = ['name' => 'r.jpg', 'tmp_name' => '/tmp/r', 'error' => UPLOAD_ERR_OK, 'size' => 10];
+		$this->service->method('create')->willReturn($this->transaction());
+		$attached = false;
+		$this->attachmentService->method('upload')->willReturnCallback(function () use (&$attached) {
+			$attached = true;
+			return new Attachment();
+		});
+		$this->attachmentService->method('receiptPresence')
+			->willReturnCallback(static function () use (&$attached) {
+				return [10 => $attached];
+			});
+
+		$this->assertTrue($this->controller->create()->getData()['has_receipt']);
+	}
+
+	public function testCreateWithoutAPhotoHasNoReceipt(): void {
+		$this->params = $this->captureParams();
+		$this->service->method('create')->willReturn($this->transaction());
+		$this->attachmentService->method('receiptPresence')->willReturn([10 => false]);
+
+		$this->assertFalse($this->controller->create()->getData()['has_receipt']);
 	}
 
 	public function testRecentFallsBackToTheDescriptionWhenThereIsNoVendor(): void {

@@ -47,6 +47,7 @@ class BankSyncService {
 		private ?\OCA\Budget\Service\RecurringIncomeService $incomeService = null,
 		private ?AccountService $accountService = null,
 		private ?TransactionMapper $transactionMapper = null,
+		private ?BankConnectionRevoker $revoker = null,
 	) {
 	}
 
@@ -58,6 +59,7 @@ class BankSyncService {
 
 		$provider = $this->providerFactory->getProvider($providerName);
 		$result = $provider->initializeConnection($params);
+		$authorizationUrl = self::safeAuthorizationUrl($result['authorizationUrl'] ?? null);
 		$now = date('Y-m-d H:i:s');
 
 		// Create connection record
@@ -66,7 +68,7 @@ class BankSyncService {
 		$connection->setProvider($providerName);
 		$connection->setName($name);
 		$connection->setCredentials($result['credentials']);
-		$hasAuthUrl = !empty($result['authorizationUrl']);
+		$hasAuthUrl = $authorizationUrl !== null;
 		$connection->setStatus($hasAuthUrl ? 'pending_auth' : 'active');
 		$connection->setCreatedAt($now);
 		$connection->setUpdatedAt($now);
@@ -79,9 +81,7 @@ class BankSyncService {
 			$mapping->setExternalAccountId($account['id']);
 			$mapping->setExternalAccountName($account['name']);
 			$mapping->setEnabled(false);
-			$mapping->setLastBalance($account['balance'] ?? null);
-			$mapping->setLastBalanceDate(self::dayOf($account['balanceDate'] ?? null));
-			$mapping->setLastCurrency($account['currency'] ?? null);
+			$this->applyProviderAccountDetails($mapping, $account);
 			$mapping->setCreatedAt($now);
 			$mapping->setUpdatedAt($now);
 			$this->mappingMapper->insert($mapping);
@@ -96,7 +96,7 @@ class BankSyncService {
 		return [
 			'connection' => $connection,
 			'mappings' => $this->mappingMapper->findByConnection($connection->getId()),
-			'authorizationUrl' => $result['authorizationUrl'] ?? null,
+			'authorizationUrl' => $authorizationUrl,
 		];
 	}
 
@@ -107,12 +107,7 @@ class BankSyncService {
 		$connection = $this->connectionMapper->find($connectionId, $userId);
 
 		// Revoke access at the provider (best-effort, won't throw)
-		try {
-			$provider = $this->providerFactory->getProvider($connection->getProvider());
-			$provider->revokeConnection($connection->getCredentials());
-		} catch (\Exception $e) {
-			$this->logger->warning('Failed to revoke provider connection: ' . $e->getMessage(), ['app' => 'budget']);
-		}
+		$this->revoker()->revoke($connection->getProvider(), $connection->getCredentials(), $connectionId);
 
 		$this->mappingMapper->deleteByConnection($connectionId);
 		$this->connectionMapper->delete($connection);
@@ -400,18 +395,7 @@ class BankSyncService {
 
 					// Apply deferred tag actions from import rules
 					if (!empty($txData['_deferred_tags'])) {
-						$finalTagIds = [];
-						foreach ($txData['_deferred_tags'] as $tagAction) {
-							$newTagIds = $tagAction['tagIds'] ?? [];
-							if (($tagAction['behavior'] ?? 'merge') === 'merge') {
-								$finalTagIds = array_values(array_unique(array_merge($finalTagIds, $newTagIds)));
-							} else {
-								$finalTagIds = $newTagIds;
-							}
-						}
-						if (!empty($finalTagIds)) {
-							$this->transactionTagService->setTransactionTags($createdTx->getId(), $userId, $finalTagIds);
-						}
+						$this->transactionTagService->applyRuleTags($createdTx->getId(), $userId, $txData['_deferred_tags']);
 					}
 
 					if (!empty($txData['_deferred_link_transfer'])) {
@@ -493,13 +477,12 @@ class BankSyncService {
 
 			// Update mapping balance
 			$this->applyProviderAccount($mapping, $externalAccount);
-			if ($provider instanceof ReliableBalanceProviderInterface
-				&& isset($externalAccount['balance']) && is_numeric($externalAccount['balance'])) {
+			if ($provider instanceof ReliableBalanceProviderInterface && $mapping->getLastBalance() !== null) {
 				$this->autoReconcileNewAccount(
 					$mapping,
 					$budgetAccount,
-					(string)$externalAccount['balance'],
-					(string)($externalAccount['currency'] ?? ''),
+					$mapping->getLastBalance(),
+					$mapping->getLastCurrency() ?? '',
 					$mapping->getLastBalanceDate(),
 					$created,
 					$userId
@@ -855,9 +838,7 @@ class BankSyncService {
 		if (isset($account['name']) && is_string($account['name']) && $account['name'] !== '') {
 			$mapping->setExternalAccountName($account['name']);
 		}
-		$mapping->setLastBalance($account['balance'] ?? null);
-		$mapping->setLastBalanceDate(self::dayOf($account['balanceDate'] ?? null));
-		$mapping->setLastCurrency($account['currency'] ?? null);
+		$this->applyProviderAccountDetails($mapping, $account);
 	}
 
 	/**
@@ -897,9 +878,7 @@ class BankSyncService {
 				$mapping->setExternalAccountId($account['id']);
 				$mapping->setExternalAccountName($account['name']);
 				$mapping->setEnabled(false);
-				$mapping->setLastBalance($account['balance'] ?? null);
-				$mapping->setLastBalanceDate(self::dayOf($account['balanceDate'] ?? null));
-				$mapping->setLastCurrency($account['currency'] ?? null);
+				$this->applyProviderAccountDetails($mapping, $account);
 				$mapping->setCreatedAt($now);
 				$mapping->setUpdatedAt($now);
 				$newMappings[] = $this->mappingMapper->insert($mapping);
@@ -931,6 +910,7 @@ class BankSyncService {
 		}
 
 		$result = $provider->reinitializeConnection($connection->getCredentials(), $params);
+		$authorizationUrl = self::safeAuthorizationUrl($result['authorizationUrl'] ?? null);
 
 		// Update connection with new credentials (new requisitionId, fresh token)
 		// Status stays pending until user completes bank authorization
@@ -945,7 +925,7 @@ class BankSyncService {
 		]);
 
 		return [
-			'authorizationUrl' => $result['authorizationUrl'] ?? null,
+			'authorizationUrl' => $authorizationUrl,
 		];
 	}
 
@@ -1383,6 +1363,70 @@ class BankSyncService {
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * Store the balance and currency a provider reports for an account, or
+	 * null for either when it isn't what it claims to be. Both come straight
+	 * from the bank aggregator's API and are shown in the mappings list, so
+	 * a currency is three capital letters and a balance is a number, nothing
+	 * else - never markup.
+	 */
+	private function applyProviderAccountDetails(BankAccountMapping $mapping, array $account): void {
+		$mapping->setLastBalance(self::cleanBalance($account['balance'] ?? null));
+		$mapping->setLastBalanceDate(self::dayOf($account['balanceDate'] ?? null));
+		$mapping->setLastCurrency(self::cleanCurrency($account['currency'] ?? null));
+	}
+
+	/** An ISO 4217-shaped code (three capital letters), or null */
+	public static function cleanCurrency(mixed $currency): ?string {
+		if (!is_string($currency)) {
+			return null;
+		}
+		$currency = strtoupper(trim($currency));
+		return preg_match('/^[A-Z]{3}$/', $currency) === 1 ? $currency : null;
+	}
+
+	/** A finite number as a string, or null */
+	public static function cleanBalance(mixed $balance): ?string {
+		if (is_int($balance)) {
+			return (string)$balance;
+		}
+		if (is_float($balance)) {
+			return is_finite($balance) ? (string)$balance : null;
+		}
+		if (!is_string($balance)) {
+			return null;
+		}
+		$balance = trim($balance);
+		return is_numeric($balance) ? $balance : null;
+	}
+
+	/**
+	 * The bank authorization link the browser is sent to, only if it is
+	 * https. It comes from the provider and is opened in a new window, so
+	 * anything else (javascript:, data:, plain http) is refused before the
+	 * connection is stored or the browser sees it.
+	 *
+	 * @throws \Exception when the provider returned a link that isn't https
+	 */
+	public static function safeAuthorizationUrl(mixed $url): ?string {
+		if ($url === null || $url === '') {
+			return null;
+		}
+		if (!is_string($url)) {
+			throw new \Exception('The bank returned an invalid authorization link');
+		}
+		$scheme = parse_url($url, PHP_URL_SCHEME);
+		$host = parse_url($url, PHP_URL_HOST);
+		if (!is_string($scheme) || strtolower($scheme) !== 'https' || !is_string($host) || $host === '') {
+			throw new \Exception('The bank returned an authorization link that is not https');
+		}
+		return $url;
+	}
+
+	private function revoker(): BankConnectionRevoker {
+		return $this->revoker ??= new BankConnectionRevoker($this->connectionMapper, $this->providerFactory, $this->logger);
 	}
 
 	private function requireEnabled(): void {

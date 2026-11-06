@@ -2360,6 +2360,11 @@
             },
             "description": "The transaction's tags, global ones first, [] when it has none. Always present on a server with tags_available. Tags are on the whole transaction, never on the parts of a split."
           },
+          "has_receipt": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "Whether the transaction has a receipt: true when GET /transactions/{id}/receipts would list at least one (a receipt whose file was since deleted from Files still counts, listed there as missing), false when it would list none. Null when the caller cannot list receipts for it, which is a transaction in an account shared with them: receipts are the account owner's. A split transaction's receipts are on the transaction itself, never on its parts. Absent on servers before it was added, so treat absent like null and fall back to the receipts call. Present on the list, the single transaction, recent, and every create or edit response."
+          },
           "tags_error": {
             "type": "string",
             "description": "Only on a create that sent tag_ids it could not apply: why. The transaction was recorded without tags; do not retry the create."
@@ -2791,6 +2796,11 @@
             "nullable": true,
             "example": "Savings",
             "description": "The name of the account the other half sits in, only when the caller can see that account (their own, or shared with them). Null otherwise, even when linked_transaction_id is set."
+          },
+          "has_receipt": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "Whether the transaction has a receipt, as on Transaction: true or false in the caller's own accounts, null in an account shared with them."
           }
         }
       },

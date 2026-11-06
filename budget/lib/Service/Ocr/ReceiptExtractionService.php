@@ -150,9 +150,16 @@ class ReceiptExtractionService {
 			$headers['Authorization'] = 'Bearer ' . $apiKey;
 		}
 
+		// No sampling parameters (temperature, top_p): the provider's default
+		// is used (#453). Newer models reject them outright - current Claude
+		// models answer 400 "temperature is deprecated for this model", and
+		// OpenAI's reasoning models refuse any non-default temperature - and
+		// this request can't tell which model sits behind a custom endpoint,
+		// so a list of models to leave it off for would always be one release
+		// behind. The prompt asks for one JSON object and every field is
+		// checked in buildDraft(), so nothing relies on greedy sampling.
 		$body = [
 			'model' => $model,
-			'temperature' => 0,
 			'max_tokens' => 1500,
 			'messages' => [[
 				'role' => 'user',

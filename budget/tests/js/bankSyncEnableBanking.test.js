@@ -222,7 +222,7 @@ describe('Enable Banking wizard', () => {
             country: 'DE',
             maximumConsentValidity: 15552000,
         });
-        expect(window.open).toHaveBeenCalledWith('https://bank.example/auth', '_blank');
+        expect(window.open).toHaveBeenCalledWith('https://bank.example/auth', '_blank', 'noopener,noreferrer');
         expect(show('bank-sync-step-3')).toBe(true);
         expect(show('bank-sync-auth-text-eb')).toBe(true);
         expect(document.querySelector('.bank-sync-auth-text-default').style.display).toBe('none');
@@ -244,7 +244,7 @@ describe('Enable Banking wizard', () => {
 
         const [, options] = calls('POST').find(([url]) => url === `${BASE}/connections/7/reauthorize`);
         expect(options.body).toEqual({ institutionId: 'Sparkasse', country: 'DE', maximumConsentValidity: 7776000 });
-        expect(window.open).toHaveBeenCalledWith('https://bank.example/re', '_blank');
+        expect(window.open).toHaveBeenCalledWith('https://bank.example/re', '_blank', 'noopener,noreferrer');
     });
 
     it('reauthorize for gocardless still asks for credentials and sends redirectUrl', async () => {

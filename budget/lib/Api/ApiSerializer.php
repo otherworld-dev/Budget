@@ -107,6 +107,7 @@ final class ApiSerializer {
 			// Its tags (discussion 420); [] when it has none, never absent,
 			// so a client renders and filters them without a special case.
 			'tags' => self::map($t['tags'] ?? [], [self::class, 'tag']),
+			'has_receipt' => self::hasReceipt($t),
 		];
 
 		// List queries join these in; single-record lookups do not. Present
@@ -239,7 +240,19 @@ final class ApiSerializer {
 			'splits' => self::splits($t['splitCategories'] ?? [], $currency),
 			'linked_transaction_id' => isset($t['linkedTransactionId']) ? (int)$t['linkedTransactionId'] : null,
 			'linked_account_name' => $t['linkedAccountName'] ?? null,
+			'has_receipt' => self::hasReceipt($t),
 		];
+	}
+
+	/**
+	 * Whether the transaction has a receipt (#455), so a client can show a
+	 * receipt mark without asking GET /transactions/{id}/receipts per row.
+	 * true and false match what that endpoint lists for the caller; null
+	 * when the caller can't list them at all (a transaction in an account
+	 * shared with them, as receipts are the owner's) or nobody looked.
+	 */
+	private static function hasReceipt(array $t): ?bool {
+		return isset($t['hasReceipt']) ? (bool)$t['hasReceipt'] : null;
 	}
 
 	/** @param callable(Entity|array): array $mapper */

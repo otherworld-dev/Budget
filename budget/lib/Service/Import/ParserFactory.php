@@ -118,7 +118,7 @@ class ParserFactory {
 		$droppedHeader = false;
 		$count = 0;
 
-		foreach ($this->csvRows($lines, $delimiter, $dataWidth) as $row) {
+		foreach (self::csvRows($lines, $delimiter, $dataWidth) as $row) {
 			if ($skipFirstRow && !$droppedHeader) {
 				$droppedHeader = true; // this line held the header text — discard it
 				continue;
@@ -151,25 +151,52 @@ class ParserFactory {
 	 * exactly as it did, the trailing "\r" of a CRLF file included (it can
 	 * feed the import id).
 	 *
+	 * The other exception is a row that leaves its empty trailing cells off.
+	 * Some exporters write only up to the last filled cell, so with separate
+	 * debit and credit columns every debit row came out a cell short and was
+	 * dropped as preamble: a Fortuneo file imported its credits only (#462).
+	 * A narrower row after the first full-width one is padded with empty
+	 * cells instead. Preamble comes before that first row, so it is still
+	 * skipped, and the padded cells are empty, so no row that imported
+	 * before reads any differently.
+	 *
 	 * @param string[] $lines The content split on "\n"
-	 * @return \Generator<int, list<?string>, mixed, void>
+	 * @return \Generator<int, list<?string>, mixed, void> Rows exactly $dataWidth wide
 	 */
-	private function csvRows(array $lines, string $delimiter, int $dataWidth): \Generator {
+	public static function csvRows(array $lines, string $delimiter, int $dataWidth): \Generator {
 		$total = count($lines);
+		$seenFullRow = false;
+		// A row read on its own line left a quoted field open (its last
+		// cell spans lines): the lines up to the closing quote are the rest
+		// of that cell, never rows short of trailing cells
+		$openField = false;
 		for ($i = 0; $i < $total; $i++) {
 			$line = $lines[$i];
 			if (empty(trim($line))) {
 				continue;
 			}
 
+			$oddQuotes = substr_count($line, '"') % 2 === 1;
+			$insideField = $openField;
+			if ($insideField && $oddQuotes) {
+				$openField = false;
+			}
+
 			$row = str_getcsv($line, $delimiter, '"', '');
 			if (count($row) === $dataWidth) {
+				$seenFullRow = true;
+				if ($oddQuotes && !$insideField) {
+					$openField = true;
+				}
 				yield $row;
 				continue;
 			}
 
 			// Balanced quotes: not a field left open, just a line of another width
-			if (substr_count($line, '"') % 2 === 0) {
+			if (!$oddQuotes) {
+				if ($seenFullRow && !$insideField && count($row) >= 2 && count($row) < $dataWidth) {
+					yield array_pad($row, $dataWidth, '');
+				}
 				continue;
 			}
 			$record = $line;
@@ -182,6 +209,7 @@ class ParserFactory {
 				if (substr_count($record, '"') % 2 === 0) {
 					$joined = str_getcsv($record, $delimiter, '"', '');
 					if (count($joined) === $dataWidth) {
+						$seenFullRow = true;
 						yield $joined;
 						$i = $j;
 					}
@@ -267,13 +295,38 @@ class ParserFactory {
 		// Prefer the highest column count appearing at least twice (header + data)
 		$repeating = array_filter($freq, fn ($f) => $f >= 2);
 		if (!empty($repeating)) {
-			return max(array_keys($repeating));
+			return self::headerWidth($columnCounts, max(array_keys($repeating)));
 		}
 
 		// Fallback: most frequent count, preferring higher on tie
 		$maxFreq = max($freq);
 		$candidates = array_keys(array_filter($freq, fn ($f) => $f === $maxFreq));
 		return max($candidates);
+	}
+
+	/**
+	 * The header's width, when every row under it leaves trailing cells off.
+	 *
+	 * An exporter that writes rows only up to their last filled cell (#462)
+	 * can leave no row as wide as its header: a statement holding only
+	 * debits never fills the credit column. The rows' own width then wins
+	 * the count, and the header was dropped as preamble and the first row
+	 * taken for it. When the line just before the first row of that width
+	 * is wider, and nothing after it is wider still, that line is the
+	 * header and its width is the file's; csvRows() pads the rows to it.
+	 *
+	 * @param list<int> $columnCounts Widths of the multi-column lines, in file order
+	 */
+	private static function headerWidth(array $columnCounts, int $width): int {
+		$first = array_search($width, $columnCounts, true);
+		if ($first === false || $first === 0) {
+			return $width;
+		}
+		$header = $columnCounts[$first - 1];
+		if ($header <= $width || max(array_slice($columnCounts, $first)) > $header) {
+			return $width;
+		}
+		return $header;
 	}
 
 	/**
@@ -290,7 +343,7 @@ class ParserFactory {
 			}
 
 			// Count the rows matching the data width, minus 1 for the header (if any)
-			$count = iterator_count($this->csvRows($lines, $delimiter, $dataWidth));
+			$count = iterator_count(self::csvRows($lines, $delimiter, $dataWidth));
 			return $skipFirstRow ? max(0, $count - 1) : $count;
 		}
 

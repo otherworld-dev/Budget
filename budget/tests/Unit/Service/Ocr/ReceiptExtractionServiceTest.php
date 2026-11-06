@@ -435,6 +435,44 @@ class ReceiptExtractionServiceTest extends TestCase {
 		$this->assertStringContainsString(self::PNG_BASE64, $body);
 	}
 
+	/**
+	 * #453: current Claude models (through Anthropic's OpenAI-compatible
+	 * endpoint) answer 400 "temperature is deprecated for this model", and
+	 * OpenAI's reasoning models refuse a non-default one. No sampling
+	 * parameter goes out, whatever the endpoint or model.
+	 */
+	public function testNoSamplingParametersAreSentToAClaudeModel(): void {
+		$this->settings->method('isConfigured')->willReturn(true);
+		$this->settings->method('getProvider')->willReturn(OcrSettingsService::PROVIDER_CUSTOM);
+		$this->settings->method('getEndpoint')->willReturn('https://api.anthropic.com/v1/');
+		$this->settings->method('getModel')->willReturn('claude-haiku-5-5');
+		$this->settings->method('getApiKey')->willReturn('sk-ant-test');
+		$this->modelAnswers('{"merchant": "Shop"}');
+
+		$this->service->extract('user1', $this->pngUpload());
+
+		$this->assertSame('https://api.anthropic.com/v1/chat/completions', $this->lastRequest['url']);
+		$body = json_decode($this->lastRequest['options']['body'], true);
+		foreach (['temperature', 'top_p', 'top_k'] as $param) {
+			$this->assertArrayNotHasKey($param, $body, $param . ' must not be sent (#453)');
+		}
+		// The admin's model id goes out exactly as typed: there is no list
+		// of known models for a new one to be missing from.
+		$this->assertSame('claude-haiku-5-5', $body['model']);
+	}
+
+	public function testNoSamplingParametersAreSentToALocalModel(): void {
+		$this->configureCustom();
+		$this->modelAnswers('{"merchant": "Shop"}');
+
+		$this->service->extract('user1', $this->pngUpload());
+
+		$body = json_decode($this->lastRequest['options']['body'], true);
+		$this->assertArrayNotHasKey('temperature', $body);
+		$this->assertArrayNotHasKey('top_p', $body);
+		$this->assertSame(1500, $body['max_tokens']);
+	}
+
 	// ── the Nextcloud TaskProcessing path ───────────────────────────
 
 	public function testNextcloudProviderParsesTheRawText(): void {

@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-10-26 23:48+0000\n"
-"PO-Revision-Date: 2026-10-27 01:02+0000\n"
+"PO-Revision-Date: 2026-10-28 11:51+0000\n"
 "Last-Translator: Christophe <capersys@users.noreply.hosted.weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/fr/>\n"
@@ -2559,16 +2559,12 @@ msgid "Repair failed"
 msgstr "Échec de la réparation"
 
 #: /app/lib/Controller/SetupController.php:282
-#, fuzzy
-#| msgid "No transactions found"
 msgid "No transactions specified"
-msgstr "Aucune opération trouvée"
+msgstr "Aucune opération n'a été spécifiée"
 
 #: /app/lib/Controller/SetupController.php:290 /app/src/main.js:2034
-#, fuzzy
-#| msgid "Failed to save rule"
 msgid "Could not update the ignored duplicates"
-msgstr "Échec de l'enregistrement de la règle"
+msgstr "Impossible de mettre à jour les doublons ignorés"
 
 #: /app/lib/Controller/SetupController.php:405
 msgid "Failed to get system info"
@@ -13618,14 +13614,13 @@ msgid "VAT / tax"
 msgstr "TVA / taxe"
 
 #: /app/src/modules/transactions/TransactionsModule.js:2724
-#, fuzzy
-#| msgid "Split into {count} lines from the receipt. Set a category on each."
 msgid ""
 "Split into {count} lines from the receipt. Your rules set a category on "
 "{suggested} of them; check them and set the rest."
 msgstr ""
-"Ventilez le reçu en {count} lignes. Attribuez une catégorie à chacune "
-"d'entre elles."
+"Le reçu a été ventilé en {count} lignes. Vos règles ont attribué une "
+"catégorie à {suggested} d'entre elles ; vérifiez-les et définissez celles "
+"qui restent."
 
 #: /app/src/modules/transactions/TransactionsModule.js:2725
 msgid "Split into {count} lines from the receipt. Set a category on each."
@@ -13635,35 +13630,25 @@ msgstr ""
 
 #: /app/src/modules/transactions/TransactionsModule.js:2759
 #: /app/src/modules/transactions/TransactionsModule.js:2768
-#, fuzzy
-#| msgid "December"
 msgid "Remember"
-msgstr "Décembre"
+msgstr "N'oubliez pas"
 
 #: /app/src/modules/transactions/TransactionsModule.js:2760
-#, fuzzy
-#| msgid "One line per item on the receipt"
 msgid "Use this category for \"{item}\" on future receipts"
-msgstr "Une ligne par article sur le reçu"
+msgstr "Utilisez cette catégorie pour « {item} » sur vos futurs reçus"
 
 #: /app/src/modules/transactions/TransactionsModule.js:2778
-#, fuzzy
-#| msgid "Receipts"
 msgid "Receipt items"
-msgstr "Reçus"
+msgstr "Rubriques du reçu"
 
 #: /app/src/modules/transactions/TransactionsModule.js:2782
 #: /app/src/modules/transactions/TransactionsModule.js:2788
-#, fuzzy
-#| msgid "Failed to save rule"
 msgid "Could not save the rule"
-msgstr "Échec de l'enregistrement de la règle"
+msgstr "Impossible d'enregistrer la règle"
 
 #: /app/src/modules/transactions/TransactionsModule.js:2785
-#, fuzzy
-#| msgid "December"
 msgid "Remembered"
-msgstr "Décembre"
+msgstr "Retenu"
 
 #: /app/src/modules/transactions/TransactionsModule.js:2800
 #: /app/templates/quick-add.php:108
@@ -14745,254 +14730,216 @@ msgstr ""
 "cette date"
 
 #: /app/src/utils/categoryIcons.js:32
-#, fuzzy
-#| msgid "Tags"
 msgid "Tag"
-msgstr "Étiquettes"
+msgstr "Étiquette"
 
 #: /app/src/utils/categoryIcons.js:33
 msgid "Home"
-msgstr ""
+msgstr "Domicile"
 
 #: /app/src/utils/categoryIcons.js:34
-#, fuzzy
-#| msgid "Select receipt"
 msgid "Electricity"
-msgstr "Sélectionner le reçu"
+msgstr "Electricité"
 
 #: /app/src/utils/categoryIcons.js:35
 msgid "Water"
-msgstr ""
+msgstr "Eau"
 
 #: /app/src/utils/categoryIcons.js:36
-#, fuzzy
-#| msgid "Settings"
 msgid "Heating"
-msgstr "Paramètres"
+msgstr "Chauffage"
 
 #: /app/src/utils/categoryIcons.js:37
-#, fuzzy
-#| msgid "Interest Rate"
 msgid "Internet"
-msgstr "Taux d'intérêt"
+msgstr "Internet"
 
 #: /app/src/utils/categoryIcons.js:38
 msgid "Phone"
-msgstr ""
+msgstr "Téléphone"
 
 #: /app/src/utils/categoryIcons.js:39
 msgid "TV"
-msgstr ""
+msgstr "Télévision"
 
 #: /app/src/utils/categoryIcons.js:40
-#, fuzzy
-#| msgid "categories"
 msgid "Groceries"
-msgstr "catégories"
+msgstr "Courses"
 
 #: /app/src/utils/categoryIcons.js:41
 msgid "Food"
-msgstr ""
+msgstr "Alimentation"
 
 #: /app/src/utils/categoryIcons.js:42
 msgid "Restaurant"
-msgstr ""
+msgstr "Restaurant"
 
 #: /app/src/utils/categoryIcons.js:43
 msgid "Coffee"
-msgstr ""
+msgstr "Café"
 
 #: /app/src/utils/categoryIcons.js:44
 msgid "Drinks"
-msgstr ""
+msgstr "Boissons"
 
 #: /app/src/utils/categoryIcons.js:45
 msgid "Shopping"
-msgstr ""
+msgstr "Faire les magasins"
 
 #: /app/src/utils/categoryIcons.js:46
 msgid "Clothing"
-msgstr ""
+msgstr "Habillement"
 
 #: /app/src/utils/categoryIcons.js:47
 msgid "Haircut"
-msgstr ""
+msgstr "Coiffeur"
 
 #: /app/src/utils/categoryIcons.js:48
-#, fuzzy
-#| msgid "Clear"
 msgid "Car"
-msgstr "Effacer"
+msgstr "Voiture"
 
 #: /app/src/utils/categoryIcons.js:49
 msgid "Fuel"
-msgstr ""
+msgstr "Carburant"
 
 #: /app/src/utils/categoryIcons.js:50
 msgid "Bus"
-msgstr ""
+msgstr "Bus"
 
 #: /app/src/utils/categoryIcons.js:51
 msgid "Train"
-msgstr ""
+msgstr "Train"
 
 #: /app/src/utils/categoryIcons.js:52
 msgid "Bike"
-msgstr ""
+msgstr "Vélo"
 
 #: /app/src/utils/categoryIcons.js:53
 msgid "Travel"
-msgstr ""
+msgstr "Voyage"
 
 #: /app/src/utils/categoryIcons.js:54
 msgid "Hotel"
-msgstr ""
+msgstr "Hôtel"
 
 #: /app/src/utils/categoryIcons.js:55
-#, fuzzy
-#| msgid "Medium"
 msgid "Medical"
-msgstr "Moyen"
+msgstr "Médical"
 
 #: /app/src/utils/categoryIcons.js:56
 msgid "Pharmacy"
-msgstr ""
+msgstr "Pharmacie"
 
 #: /app/src/utils/categoryIcons.js:57
 msgid "Fitness"
-msgstr ""
+msgstr "Fitness"
 
 #: /app/src/utils/categoryIcons.js:58
 msgid "Heart"
-msgstr ""
+msgstr "Coeur"
 
 #: /app/src/utils/categoryIcons.js:59
 msgid "Children"
-msgstr ""
+msgstr "Enfants"
 
 #: /app/src/utils/categoryIcons.js:60
 msgid "Pets"
-msgstr ""
+msgstr "Animaux"
 
 #: /app/src/utils/categoryIcons.js:61
-#, fuzzy
-#| msgid "Valuation"
 msgid "Education"
-msgstr "Valorisation"
+msgstr "Éducation"
 
 #: /app/src/utils/categoryIcons.js:62
 msgid "Books"
-msgstr ""
+msgstr "Livres"
 
 #: /app/src/utils/categoryIcons.js:63
 msgid "Music"
-msgstr ""
+msgstr "Musique"
 
 #: /app/src/utils/categoryIcons.js:64
 msgid "Video"
-msgstr ""
+msgstr "Vidéo"
 
 #: /app/src/utils/categoryIcons.js:65
 msgid "Streaming"
-msgstr ""
+msgstr "Streaming"
 
 #: /app/src/utils/categoryIcons.js:66
 msgid "Games"
-msgstr ""
+msgstr "Jeux"
 
 #: /app/src/utils/categoryIcons.js:67
 msgid "Events"
-msgstr ""
+msgstr "Événements"
 
 #: /app/src/utils/categoryIcons.js:68
 msgid "Gifts"
-msgstr ""
+msgstr "Cadeaux"
 
 #: /app/src/utils/categoryIcons.js:69
-#, fuzzy
-#| msgid "Chart Type"
 msgid "Charity"
-msgstr "Type de graphique"
+msgstr "Œuvre caritative"
 
 #: /app/src/utils/categoryIcons.js:70
 msgid "Garden"
-msgstr ""
+msgstr "Jardin"
 
 #: /app/src/utils/categoryIcons.js:71
-#, fuzzy
-#| msgid "Plan"
 msgid "Plants"
-msgstr "Plan"
+msgstr "Plantes"
 
 #: /app/src/utils/categoryIcons.js:72
-#, fuzzy
-#| msgid "Repair Data"
 msgid "Repairs"
-msgstr "Réparer les données"
+msgstr "Réparations"
 
 #: /app/src/utils/categoryIcons.js:73
-#, fuzzy
-#| msgid "Completed"
 msgid "Computer"
-msgstr "Terminé"
+msgstr "Ordinateur"
 
 #: /app/src/utils/categoryIcons.js:74
 msgid "Software"
-msgstr ""
+msgstr "Logiciel"
 
 #: /app/src/utils/categoryIcons.js:75
 msgid "Services"
-msgstr ""
+msgstr "Services"
 
 #: /app/src/utils/categoryIcons.js:76
-#, fuzzy
-#| msgid "Subscription"
 msgid "Subscriptions"
-msgstr "Abonnement"
+msgstr "Abonnements"
 
 #: /app/src/utils/categoryIcons.js:77
 msgid "Insurance"
-msgstr ""
+msgstr "Assurance"
 
 #: /app/src/utils/categoryIcons.js:78
-#, fuzzy
-#| msgid "Sort direction"
 msgid "Protection"
-msgstr "Sens de tri"
+msgstr "Protection"
 
 #: /app/src/utils/categoryIcons.js:80
-#, fuzzy
-#| msgid "Interest Rate"
 msgid "Interest"
-msgstr "Taux d'intérêt"
+msgstr "Intérêt"
 
 #: /app/src/utils/categoryIcons.js:81
 msgid "Card"
-msgstr ""
+msgstr "Carte"
 
 #: /app/src/utils/categoryIcons.js:83
-#, fuzzy
-#| msgid "Banking"
 msgid "Bank"
 msgstr "Banque"
 
 #: /app/src/utils/categoryIcons.js:86
-#, fuzzy
-#| msgid "Workplace"
 msgid "Work"
-msgstr "Lieu de travail"
+msgstr "Travail"
 
 #: /app/src/utils/categoryIcons.js:87
-#, fuzzy
-#| msgid "Personal"
 msgid "Person"
-msgstr "Personnel"
+msgstr "Personne"
 
 #: /app/src/utils/categoryIcons.js:88
-#, fuzzy
-#| msgid "One-Time"
 msgid "Time"
-msgstr "Ponctuelle"
+msgstr "Temps"
 
 #: /app/src/utils/dialogs.js:263
 msgid "Please confirm"
@@ -15166,11 +15113,11 @@ msgstr "Utilisez ce paiement"
 
 #: /app/src/utils/repairFindings.js:55
 msgid "Ignore"
-msgstr ""
+msgstr "Ignore"
 
 #: /app/src/utils/repairFindings.js:84
 msgid "Stop ignoring"
-msgstr ""
+msgstr "Cesser d'ignorer"
 
 #: /app/src/utils/repairFindings.js:106
 msgid ""
@@ -15190,16 +15137,18 @@ msgstr ""
 msgid ""
 "Ignore a row you have checked and want to keep, and it is no longer listed."
 msgstr ""
+"Si vous ignorez une ligne que vous avez cochée et que vous souhaitez "
+"conserver, celle-ci n'apparaîtra plus dans la liste."
 
 #: /app/src/utils/repairFindings.js:107
 msgid "Nothing left to check."
-msgstr ""
+msgstr "Il n'y a plus rien à vérifier."
 
 #: /app/src/utils/repairFindings.js:110
 msgid "%n ignored row"
 msgid_plural "%n ignored rows"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "%n ligne ignorée"
+msgstr[1] "%n lignes ignorées"
 
 #: /app/src/utils/repairFindings.js:142
 msgid ""
@@ -18694,7 +18643,7 @@ msgstr "par ex. CIC, BNP"
 
 #: /app/templates/index.php:6139
 msgid "Banking"
-msgstr "Banque"
+msgstr "Etablissement bancaire"
 
 #: /app/templates/index.php:6141
 msgid "Account Holder Name"
@@ -19315,7 +19264,7 @@ msgstr "Couleur pour les graphiques et l'affichage"
 
 #: /app/templates/index.php:6942
 msgid "Icon"
-msgstr ""
+msgstr "Icône"
 
 #: /app/templates/index.php:6952
 msgid "Options"

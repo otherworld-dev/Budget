@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-10-26 23:48+0000\n"
-"PO-Revision-Date: 2026-10-27 01:02+0000\n"
+"PO-Revision-Date: 2026-10-28 11:51+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -2567,16 +2567,12 @@ msgid "Repair failed"
 msgstr "Die Reparatur ist fehlgeschlagen"
 
 #: /app/lib/Controller/SetupController.php:282
-#, fuzzy
-#| msgid "No transactions found"
 msgid "No transactions specified"
-msgstr "Keine Buchungen gefunden"
+msgstr "Keine Transaktionen angegeben"
 
 #: /app/lib/Controller/SetupController.php:290 /app/src/main.js:2034
-#, fuzzy
-#| msgid "Could not save the rule"
 msgid "Could not update the ignored duplicates"
-msgstr "Die Regel konnte nicht gespeichert werden"
+msgstr "Die ignorierten Duplikate konnten nicht aktualisiert werden"
 
 #: /app/lib/Controller/SetupController.php:405
 msgid "Failed to get system info"
@@ -15137,11 +15133,11 @@ msgstr "Diese Zahlung verwenden"
 
 #: /app/src/utils/repairFindings.js:55
 msgid "Ignore"
-msgstr ""
+msgstr "Ignorieren"
 
 #: /app/src/utils/repairFindings.js:84
 msgid "Stop ignoring"
-msgstr ""
+msgstr "Nicht mehr ignorieren"
 
 #: /app/src/utils/repairFindings.js:106
 msgid ""
@@ -15160,16 +15156,18 @@ msgstr ""
 msgid ""
 "Ignore a row you have checked and want to keep, and it is no longer listed."
 msgstr ""
+"Ignoriere eine Zeile, die du überprüft hast und behalten möchtest. Sie wird "
+"dann nicht mehr in der Liste angezeigt."
 
 #: /app/src/utils/repairFindings.js:107
 msgid "Nothing left to check."
-msgstr ""
+msgstr "Nichts mehr zu überprüfen."
 
 #: /app/src/utils/repairFindings.js:110
 msgid "%n ignored row"
 msgid_plural "%n ignored rows"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "%n ignorierte Zeile"
+msgstr[1] "%n ignorierte Zeilen"
 
 #: /app/src/utils/repairFindings.js:142
 msgid ""

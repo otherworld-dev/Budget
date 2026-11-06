@@ -457,7 +457,7 @@
 	flex-direction: row;
 	flex-wrap: wrap;
 	gap: 6px;
-	max-height: 80px;
+	max-height: 200px;
 	overflow-y: auto;
 	padding: 6px;
 	background: var(--color-background-dark, #f9f9f9);
@@ -474,6 +474,10 @@
 	display: inline-flex;
 	flex-direction: column;
 	gap: 2px;
+}
+
+.tags-help {
+	flex-basis: 100%;
 }
 
 .tag-set-group legend {

@@ -262,7 +262,10 @@ class ScenarioBuilder {
 		// Work backwards from current balance using transactions
 		$balances = [];
 		$endDate = date('Y-m-d');
-		$startDate = date('Y-m-d', strtotime("-{$months} months"));
+		// Months stepped from the 1st: from the 31st, "-1 months" lands back in
+		// the same month, which counted it twice and lost the one before
+		$thisMonth = new \DateTimeImmutable(date('Y-m-01'));
+		$startDate = $thisMonth->modify("-{$months} months")->format('Y-m-d');
 		$transactions = self::inScope($this->transactionMapper->findAllByUserAndDateRange($userId, $startDate, $endDate), $rates);
 
 		// Group transactions by month
@@ -286,7 +289,7 @@ class ScenarioBuilder {
 		$monthBalances = [];
 
 		for ($i = 0; $i < $months; $i++) {
-			$month = date('Y-m', strtotime("-{$i} months"));
+			$month = $thisMonth->modify("-{$i} months")->format('Y-m');
 			$monthBalances[$month] = $balance;
 			$balance -= $monthlyChanges[$month] ?? 0;
 		}

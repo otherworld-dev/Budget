@@ -371,6 +371,7 @@ export class ActionBuilder {
 							`).join('')}
 						</fieldset>
 					`).join('')}
+					${tagSets.some(tagSet => tagSet.id !== 'global') ? `<small class="help-text tags-help">${t('budget', 'Category tags are only added to transactions in their own category.')}</small>` : ''}
 				</div>
 			</div>
 			<div class="form-row">

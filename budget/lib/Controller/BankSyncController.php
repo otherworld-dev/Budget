@@ -21,6 +21,13 @@ use OCP\IRequest;
 use OCP\IURLGenerator;
 use Psr\Log\LoggerInterface;
 
+/**
+ * Errors here are logged through handleErrorWithoutTrace(): the providers
+ * take the decrypted bank credentials as arguments, and an exception's trace
+ * would carry them into nextcloud.log on PHP 8.1. Throwable is caught, not
+ * just Exception, so a TypeError inside a provider doesn't escape to
+ * Nextcloud's own handler, which logs the full trace.
+ */
 class BankSyncController extends Controller {
 	use ApiErrorHandlerTrait;
 
@@ -108,11 +115,11 @@ class BankSyncController extends Controller {
 			// Enable Banking reads its keys from the key store; nothing secret is accepted from the client.
 
 			return new DataResponse($p->listInstitutions($this->userId, $listParams));
-		} catch (\Exception $e) {
+		} catch (\Throwable $e) {
 			if ($r = $this->inactiveApplicationResponse($e)) {
 				return $r;
 			}
-			return $this->handleError($e, $this->l->t('Failed to fetch institutions'), Http::STATUS_BAD_REQUEST);
+			return $this->handleErrorWithoutTrace($e, $this->l->t('Failed to fetch institutions'), Http::STATUS_BAD_REQUEST);
 		}
 	}
 
@@ -183,11 +190,11 @@ class BankSyncController extends Controller {
 
 			$result = $this->syncService->connect($this->userId, $provider, $providerParams, $name);
 			return new DataResponse($result);
-		} catch (\Exception $e) {
+		} catch (\Throwable $e) {
 			if ($r = $this->inactiveApplicationResponse($e)) {
 				return $r;
 			}
-			return $this->handleError($e, $this->l->t('Failed to connect bank'), Http::STATUS_BAD_REQUEST);
+			return $this->handleErrorWithoutTrace($e, $this->l->t('Failed to connect bank'), Http::STATUS_BAD_REQUEST);
 		}
 	}
 
@@ -204,8 +211,8 @@ class BankSyncController extends Controller {
 		try {
 			$this->syncService->disconnect($this->userId, $id);
 			return new DataResponse(['status' => 'ok']);
-		} catch (\Exception $e) {
-			return $this->handleError($e, $this->l->t('Failed to disconnect bank'), Http::STATUS_BAD_REQUEST, ['connectionId' => $id]);
+		} catch (\Throwable $e) {
+			return $this->handleErrorWithoutTrace($e, $this->l->t('Failed to disconnect bank'), Http::STATUS_BAD_REQUEST, ['connectionId' => $id]);
 		}
 	}
 
@@ -235,8 +242,8 @@ class BankSyncController extends Controller {
 			$this->syncService->updateConnectionEntity($connection);
 
 			return new DataResponse($connection);
-		} catch (\Exception $e) {
-			return $this->handleError($e, $this->l->t('Failed to update connection'), Http::STATUS_BAD_REQUEST, ['connectionId' => $id]);
+		} catch (\Throwable $e) {
+			return $this->handleErrorWithoutTrace($e, $this->l->t('Failed to update connection'), Http::STATUS_BAD_REQUEST, ['connectionId' => $id]);
 		}
 	}
 
@@ -253,8 +260,8 @@ class BankSyncController extends Controller {
 		try {
 			$result = $this->syncService->sync($this->userId, $id, $force);
 			return new DataResponse($result);
-		} catch (\Exception $e) {
-			return $this->handleError($e, $this->l->t('Failed to sync bank data'), Http::STATUS_BAD_REQUEST, ['connectionId' => $id]);
+		} catch (\Throwable $e) {
+			return $this->handleErrorWithoutTrace($e, $this->l->t('Failed to sync bank data'), Http::STATUS_BAD_REQUEST, ['connectionId' => $id]);
 		}
 	}
 
@@ -289,8 +296,8 @@ class BankSyncController extends Controller {
 				fn ($m) => $m->jsonSerialize() + ['balanceDifference' => $this->balanceDifferenceOrNull($m, $id)],
 				$mappings
 			));
-		} catch (\Exception $e) {
-			return $this->handleError($e, $this->l->t('Failed to fetch mappings'), Http::STATUS_BAD_REQUEST, ['connectionId' => $id]);
+		} catch (\Throwable $e) {
+			return $this->handleErrorWithoutTrace($e, $this->l->t('Failed to fetch mappings'), Http::STATUS_BAD_REQUEST, ['connectionId' => $id]);
 		}
 	}
 
@@ -323,8 +330,8 @@ class BankSyncController extends Controller {
 
 		try {
 			return new DataResponse($this->syncService->reconcileMapping($this->userId, $id, $mappingId));
-		} catch (\Exception $e) {
-			return $this->handleError($e, $this->l->t('Failed to reconcile the balance'), Http::STATUS_BAD_REQUEST, ['connectionId' => $id]);
+		} catch (\Throwable $e) {
+			return $this->handleErrorWithoutTrace($e, $this->l->t('Failed to reconcile the balance'), Http::STATUS_BAD_REQUEST, ['connectionId' => $id]);
 		}
 	}
 
@@ -347,8 +354,8 @@ class BankSyncController extends Controller {
 
 			$mapping = $this->syncService->updateMapping($this->userId, $id, $mappingId, $budgetAccountId, $clearBudgetAccount, $enabled);
 			return new DataResponse($mapping);
-		} catch (\Exception $e) {
-			return $this->handleError($e, $this->l->t('Failed to update mapping'), Http::STATUS_BAD_REQUEST);
+		} catch (\Throwable $e) {
+			return $this->handleErrorWithoutTrace($e, $this->l->t('Failed to update mapping'), Http::STATUS_BAD_REQUEST);
 		}
 	}
 
@@ -365,8 +372,8 @@ class BankSyncController extends Controller {
 		try {
 			$mappings = $this->syncService->refreshAccounts($this->userId, $id);
 			return new DataResponse($mappings);
-		} catch (\Exception $e) {
-			return $this->handleError($e, $this->l->t('Failed to refresh accounts'), Http::STATUS_BAD_REQUEST, ['connectionId' => $id]);
+		} catch (\Throwable $e) {
+			return $this->handleErrorWithoutTrace($e, $this->l->t('Failed to refresh accounts'), Http::STATUS_BAD_REQUEST, ['connectionId' => $id]);
 		}
 	}
 
@@ -412,8 +419,8 @@ class BankSyncController extends Controller {
 
 			$result = $this->syncService->reauthorize($this->userId, $id, $providerParams);
 			return new DataResponse($result);
-		} catch (\Exception $e) {
-			return $this->handleError($e, $this->l->t('Failed to re-authorize'), Http::STATUS_BAD_REQUEST, ['connectionId' => $id]);
+		} catch (\Throwable $e) {
+			return $this->handleErrorWithoutTrace($e, $this->l->t('Failed to re-authorize'), Http::STATUS_BAD_REQUEST, ['connectionId' => $id]);
 		}
 	}
 

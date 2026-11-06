@@ -1474,6 +1474,73 @@ class TransactionControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
 
+	/**
+	 * A controller seeing $visibleAccountIds that may write only to $writableAccountIds
+	 */
+	private function controllerWriting(array $visibleAccountIds, array $writableAccountIds): TransactionController {
+		$shares = $this->createMock(GranularShareService::class);
+		$shares->method('canAccess')->willReturn(true);
+		$shares->method('getOwnAccountIds')->willReturn([]);
+		$shares->method('getVisibleAccountIds')->willReturn($visibleAccountIds);
+		$shares->method('getWritableAccountIds')->willReturn($writableAccountIds);
+		$shares->method('canWrite')->willReturnCallback(fn ($user, $type, $id) => in_array($id, $writableAccountIds, true));
+		$shares->method('requireWriteAccess')->willReturnCallback(function ($user, $type, $id) use ($writableAccountIds) {
+			if (!in_array($id, $writableAccountIds, true)) {
+				throw new \OCA\Budget\Exception\ReadOnlyShareException();
+			}
+		});
+		return new TransactionController(
+			$this->request, $this->service, $this->splitService,
+			$this->tagService, $this->validationService, $shares,
+			new TransactionCsvExporter($this->l), $this->l, 'user1', $this->logger
+		);
+	}
+
+	/**
+	 * GHSA-c2qv-6p3r-hjc7: unlinking clears both rows, so a recipient with
+	 * write access to one side only must not reach the other
+	 *
+	 * @dataProvider unwritableCounterparts
+	 */
+	public function testUnlinkRefusesWhenTheOtherSideIsNotWritable(array $visible, array $writable): void {
+		$this->service->method('findForAccounts')->willReturn($this->transactionInAccount(9));
+		$this->service->method('transferPartnerAccountId')->willReturn(20);
+		$this->service->expects($this->never())->method('unlinkTransaction');
+
+		$response = $this->controllerWriting($visible, $writable)->unlink(5);
+
+		$this->assertSame(Http::STATUS_FORBIDDEN, $response->getStatus());
+	}
+
+	public static function unwritableCounterparts(): array {
+		return [
+			'counterpart account not shared' => [[9], [9]],
+			'counterpart account shared read-only' => [[9, 20], [9]],
+		];
+	}
+
+	public function testUnlinkGoesAheadWhenBothSidesAreWritable(): void {
+		$this->service->method('findForAccounts')->willReturn($this->transactionInAccount(9));
+		$this->service->method('transferPartnerAccountId')->willReturn(20);
+		$this->service->expects($this->once())->method('unlinkTransaction')
+			->willReturn(['transaction' => null, 'unlinkedTransactionId' => 6]);
+
+		$response = $this->controllerWriting([9, 20], [9, 20])->unlink(5);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public function testUnlinkStillClearsALinkWhosePartnerIsGone(): void {
+		$this->service->method('findForAccounts')->willReturn($this->transactionInAccount(9));
+		$this->service->method('transferPartnerAccountId')->willReturn(null);
+		$this->service->expects($this->once())->method('unlinkTransaction')
+			->willReturn(['transaction' => null, 'unlinkedTransactionId' => null]);
+
+		$response = $this->controllerWriting([9], [9])->unlink(5);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
 	public function testUnlinkSaysWhyAPreBookedTransferStaysLinked(): void {
 		$this->service->method('findForAccounts')->willReturn($this->transactionInAccount(9));
 		$this->service->method('unlinkTransaction')->willThrowException(

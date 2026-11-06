@@ -227,7 +227,23 @@ class ApiSerializerTest extends TestCase {
 			'amount', 'type', 'reference', 'notes', 'status', 'reconciled',
 			'is_split', 'created_at', 'updated_at',
 			'linked_transaction_id', 'linked_account_name', 'splits', 'tags',
+			'has_receipt',
 		], array_keys($result));
+	}
+
+	public function testHasReceiptSaysWhatTheControllerFound(): void {
+		$this->assertTrue(ApiSerializer::transaction(['id' => 1, 'hasReceipt' => true])['has_receipt']);
+		$this->assertFalse(ApiSerializer::transaction(['id' => 1, 'hasReceipt' => false])['has_receipt']);
+		$this->assertTrue(ApiSerializer::recentTransaction(['id' => 1, 'hasReceipt' => true])['has_receipt']);
+		$this->assertFalse(ApiSerializer::recentTransaction(['id' => 1, 'hasReceipt' => false])['has_receipt']);
+	}
+
+	public function testHasReceiptIsNullWhenNobodyCouldSay(): void {
+		// A shared account's row, or one nobody looked up: unknown, never a
+		// false that tells a client there is no receipt
+		$this->assertNull(ApiSerializer::transaction(['id' => 1])['has_receipt']);
+		$this->assertNull(ApiSerializer::transaction(['id' => 1, 'hasReceipt' => null])['has_receipt']);
+		$this->assertNull(ApiSerializer::recentTransaction(['id' => 1])['has_receipt']);
 	}
 
 	public function testTransactionAcceptsAnEntity(): void {
@@ -372,7 +388,7 @@ class ApiSerializerTest extends TestCase {
 		$this->assertSame([
 			'id', 'merchant', 'date', 'amount', 'currency', 'account_name',
 			'account_id', 'type', 'category_name', 'is_split', 'splits',
-			'linked_transaction_id', 'linked_account_name',
+			'linked_transaction_id', 'linked_account_name', 'has_receipt',
 		], array_keys($result));
 	}
 

@@ -1814,6 +1814,26 @@ class TransactionServiceTest extends TestCase {
 		$this->service->unlinkTransaction(1, 'user1');
 	}
 
+	public function testTransferPartnerAccountIdFindsTheOtherSidesAccount(): void {
+		$this->mapper->expects($this->once())->method('findById')->with(2)
+			->willReturn($this->makeTransaction(['id' => 2, 'accountId' => 20]));
+
+		$this->assertSame(20, $this->service->transferPartnerAccountId(
+			$this->makeTransaction(['id' => 1, 'linkedTransactionId' => 2])
+		));
+	}
+
+	public function testTransferPartnerAccountIdIsNullWithoutAPartner(): void {
+		$this->mapper->method('findById')->willReturn(null);
+
+		$this->assertNull($this->service->transferPartnerAccountId(
+			$this->makeTransaction(['id' => 1, 'linkedTransactionId' => null])
+		));
+		$this->assertNull($this->service->transferPartnerAccountId(
+			$this->makeTransaction(['id' => 1, 'linkedTransactionId' => 2])
+		));
+	}
+
 	// ===== findPotentialMatches() =====
 
 	public function testFindPotentialMatchesReturnsEmptyWhenAlreadyLinked(): void {

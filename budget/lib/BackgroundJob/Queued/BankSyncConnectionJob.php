@@ -40,9 +40,12 @@ class BankSyncConnectionJob extends QueuedJob {
 			return;
 		}
 
+		// Throwable, and the message only: a TypeError reaching the job runner
+		// would be logged with its trace, whose provider frames hold the
+		// decrypted credentials on PHP 8.1
 		try {
 			$this->syncService->sync($userId, $connectionId);
-		} catch (\Exception $e) {
+		} catch (\Throwable $e) {
 			$this->logger->warning(
 				"Bank sync failed for connection {$connectionId}: " . $e->getMessage(),
 				['app' => 'budget', 'userId' => $userId, 'connectionId' => $connectionId]

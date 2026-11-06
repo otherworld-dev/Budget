@@ -3104,6 +3104,11 @@ export default class TransactionsModule {
         const notes = document.getElementById('transaction-notes').value;
         const excludedFromForecast = document.getElementById('transaction-excluded-from-forecast')?.checked || false;
 
+        // Collect selected tags before the modal is closed
+        const selectedTagIds = Array.from(
+            document.querySelectorAll('#transaction-tags-container input[type="checkbox"]:checked')
+        ).map(cb => parseInt(cb.value));
+
         // Handle transfer creation (new transfers only, not editing)
         if (type === 'transfer' && !id) {
             const toAccountId = parseInt(document.getElementById('transfer-to-account').value);
@@ -3166,6 +3171,13 @@ export default class TransactionsModule {
                     errorMessage: 'Failed to link transfer transactions',
                 });
 
+                // Tag both sides: a savings goal counts the side in savings,
+                // and counts a transfer tagged on both sides once (#438)
+                if (selectedTagIds.length > 0) {
+                    await this.app.tagSetsModule.saveTransactionTags(debitTransactionId, selectedTagIds);
+                    await this.app.tagSetsModule.saveTransactionTags(creditTransactionId, selectedTagIds);
+                }
+
                 // Success
                 showSuccess(t('budget', 'Transfer created successfully'));
                 this.app.hideModals();
@@ -3199,11 +3211,6 @@ export default class TransactionsModule {
             notes: notes || null,
             excludedFromForecast
         };
-
-        // Collect selected tags before the modal is closed
-        const selectedTagIds = Array.from(
-            document.querySelectorAll('#transaction-tags-container input[type="checkbox"]:checked')
-        ).map(cb => parseInt(cb.value));
 
         // If splitting is on, validate the parts before we create/update anything
         // (otherwise the server rejects the splits and we'd be left with an
