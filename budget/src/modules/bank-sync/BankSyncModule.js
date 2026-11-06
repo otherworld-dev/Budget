@@ -8,6 +8,40 @@ import { userLocale } from '../../utils/formatters.js';
 import { escapeHtml } from '../../utils/dom.js';
 
 /**
+ * Whether a bank authorization link is safe to send the browser to: https
+ * only, so a javascript: or data: link from the provider never runs here.
+ * The server refuses anything else too; this is the second check.
+ * @param {unknown} url
+ * @returns {boolean}
+ */
+export function isHttpsUrl(url) {
+    if (typeof url !== 'string' || url === '') return false;
+    try {
+        return new URL(url).protocol === 'https:';
+    } catch (e) {
+        return false;
+    }
+}
+
+/**
+ * Open the bank's authorization page in a new window with no link back to
+ * this one (noopener) and no referrer. With noopener, window.open always
+ * returns null, so a blocked popup can't be told apart from an open one:
+ * the "click here" link is always shown and carries the same rel.
+ * @param {string} url an https link (see isHttpsUrl)
+ */
+export function openAuthorizationUrl(url) {
+    window.open(url, '_blank', 'noopener,noreferrer');
+    const fallback = document.getElementById('bank-sync-auth-link-fallback');
+    const link = document.getElementById('bank-sync-auth-link');
+    if (link) {
+        link.href = url;
+        link.rel = 'noopener noreferrer';
+    }
+    if (fallback) fallback.style.display = 'block';
+}
+
+/**
  * Bank Sync Module — manages bank connections, account mappings, and sync operations.
  * Only visible when the admin has enabled bank sync.
  *
@@ -142,7 +176,7 @@ export default class BankSyncModule {
                 pending_auth: t('budget', 'Awaiting Authorization'),
                 error: t('budget', 'Error'),
                 expired: t('budget', 'Expired'),
-            }[connection.status] || connection.status;
+            }[connection.status] || escapeHtml(connection.status);
 
             const providerLabel = connection.provider === 'gocardless' ? 'GoCardless' : 'SimpleFIN';
             const lastSync = connection.lastSyncAt
@@ -513,15 +547,9 @@ export default class BankSyncModule {
                 this._wizardConnectionId = result.connection?.id;
             }
 
-            this._wizardAuthUrl = result.authorizationUrl;
+            this._wizardAuthUrl = isHttpsUrl(result.authorizationUrl) ? result.authorizationUrl : null;
             if (this._wizardAuthUrl) {
-                const authWindow = window.open(this._wizardAuthUrl, '_blank');
-                if (!authWindow) {
-                    const fallback = document.getElementById('bank-sync-auth-link-fallback');
-                    const link = document.getElementById('bank-sync-auth-link');
-                    if (fallback) fallback.style.display = 'block';
-                    if (link) link.href = this._wizardAuthUrl;
-                }
+                openAuthorizationUrl(this._wizardAuthUrl);
             }
 
             this.showWizardStep(3);
@@ -732,12 +760,15 @@ export default class BankSyncModule {
         // shared with you: the sync imports as you, not as their owner.
         const accounts = importTargetAccounts(this.app.accounts, mappings.map(m => m.budgetAccountId));
         const accountOptions = accounts.map(a =>
-            `<option value="${a.id}">${escapeHtml(accountOptionLabel(a))} (${a.currency})</option>`
+            `<option value="${escapeHtml(a.id)}">${escapeHtml(accountOptionLabel(a))} (${escapeHtml(a.currency)})</option>`
         ).join('');
 
         container.innerHTML = mappings.map(mapping => {
             const enabled = mapping.enabled ? 'checked' : '';
-            const balance = mapping.lastBalance ? `${mapping.lastCurrency || ''} ${mapping.lastBalance}` : '';
+            // Both come from the bank provider: text, never markup
+            const balance = mapping.lastBalance
+                ? `${escapeHtml(mapping.lastCurrency || '')} ${escapeHtml(mapping.lastBalance)}`
+                : '';
 
             return `
                 <div class="bank-mapping-row" data-mapping-id="${mapping.id}">

@@ -48,6 +48,34 @@ trait ApiErrorHandlerTrait {
 		int $statusCode = Http::STATUS_BAD_REQUEST,
 		array $context = [],
 	): DataResponse {
+		return $this->errorResponse($e, $genericMessage, $statusCode, $context, true);
+	}
+
+	/**
+	 * handleError() for code whose call stack holds secrets, such as the
+	 * bank sync providers, which take the decrypted credentials as an
+	 * argument. The log gets the exception's class, message and throw site,
+	 * never the exception object: its trace keeps every frame's arguments,
+	 * #[\SensitiveParameter] only hides them from PHP 8.2, and Nextcloud
+	 * writes them to nextcloud.log when zend.exception_ignore_args is Off.
+	 * The response is exactly what handleError() gives.
+	 */
+	protected function handleErrorWithoutTrace(
+		\Throwable $e,
+		string $genericMessage = 'An error occurred',
+		int $statusCode = Http::STATUS_BAD_REQUEST,
+		array $context = [],
+	): DataResponse {
+		return $this->errorResponse($e, $genericMessage, $statusCode, $context, false);
+	}
+
+	private function errorResponse(
+		\Throwable $e,
+		string $genericMessage,
+		int $statusCode,
+		array $context,
+		bool $withTrace,
+	): DataResponse {
 		// Read-only share violations return 403 with a clear message
 		if ($e instanceof \OCA\Budget\Exception\ReadOnlyShareException) {
 			$l = $this->getL10N();
@@ -64,7 +92,7 @@ trait ApiErrorHandlerTrait {
 		if ($e instanceof \OCP\AppFramework\Db\DoesNotExistException) {
 			$this->logger?->debug('Budget: not found: ' . $e->getMessage(), array_merge(['app' => 'budget'], $context));
 		} else {
-			$this->logError($e, $context);
+			$this->logError($e, $context, $withTrace);
 		}
 
 		$body = ['error' => $genericMessage];
@@ -244,7 +272,7 @@ trait ApiErrorHandlerTrait {
 	/**
 	 * Log error details server-side.
 	 */
-	private function logError(\Throwable $e, array $context = []): void {
+	private function logError(\Throwable $e, array $context = [], bool $withTrace = true): void {
 		if ($this->logger === null) {
 			// Fallback to error_log if no logger configured
 			error_log(sprintf(
@@ -258,12 +286,12 @@ trait ApiErrorHandlerTrait {
 			return;
 		}
 
+		$details = $withTrace
+			? ['exception' => $e]
+			: ['exceptionClass' => get_class($e), 'thrownAt' => $e->getFile() . ':' . $e->getLine()];
 		$this->logger->error(
 			'Budget app error: ' . $e->getMessage(),
-			array_merge([
-				'exception' => $e,
-				'app' => 'budget',
-			], $context)
+			array_merge($details, ['app' => 'budget'], $context)
 		);
 	}
 }
