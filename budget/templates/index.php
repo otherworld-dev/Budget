@@ -7670,7 +7670,7 @@ style('budget', 'budget-app');
                 <p><?php p($l->t('Once you have completed the authorization, click the button below.')); ?></p>
                 <p id="bank-sync-auth-link-fallback" style="display: none;">
                     <?php p($l->t('If the window did not open, ')); ?>
-                    <a id="bank-sync-auth-link" href="#" target="_blank" rel="noopener"><?php p($l->t('click here to authorize')); ?></a>.
+                    <a id="bank-sync-auth-link" href="#" target="_blank" rel="noopener noreferrer"><?php p($l->t('click here to authorize')); ?></a>.
                 </p>
             </div>
 
