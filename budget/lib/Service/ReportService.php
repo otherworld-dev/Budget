@@ -25,12 +25,22 @@ class ReportService {
 		ReportExporter $exporter,
 		TagReportService $tagReportService,
 		AmountColours $amountColours,
+		private ?BudgetCarryoverService $carryoverService = null,
 	) {
 		$this->calculator = $calculator;
 		$this->aggregator = $aggregator;
 		$this->exporter = $exporter;
 		$this->tagReportService = $tagReportService;
 		$this->amountColours = $amountColours;
+	}
+
+	/**
+	 * The day the months of the month-by-month figures start on: 1 for
+	 * calendar months, or the budget start day when the user chose budget
+	 * months for the charts and reports (#457).
+	 */
+	private function monthStartDay(string $userId): int {
+		return $this->carryoverService?->reportMonthStartDay($userId) ?? 1;
 	}
 
 	/**
@@ -54,7 +64,8 @@ class ReportService {
 			$endDate,
 			$tagIds,
 			$includeUntagged,
-			$visibleAccountIds
+			$visibleAccountIds,
+			$this->monthStartDay($userId)
 		);
 	}
 
@@ -79,7 +90,8 @@ class ReportService {
 			$endDate,
 			$tagIds,
 			$includeUntagged,
-			$visibleAccountIds
+			$visibleAccountIds,
+			$this->monthStartDay($userId)
 		);
 	}
 
@@ -255,7 +267,8 @@ class ReportService {
 			$endDate,
 			$tagIds,
 			$includeUntagged,
-			$visibleAccountIds
+			$visibleAccountIds,
+			$this->monthStartDay($userId)
 		);
 	}
 
@@ -396,7 +409,8 @@ class ReportService {
 			$endDate,
 			$accountId,
 			$sort,
-			$visibleAccountIds ?? []
+			$visibleAccountIds ?? [],
+			$this->monthStartDay($userId)
 		);
 	}
 

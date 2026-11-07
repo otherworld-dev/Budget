@@ -127,6 +127,12 @@ export default class ReportsModule {
     }
 
     setReportDateRange(preset) {
+        const monthStartDay = formatters.reportMonthStartDay(this.settings);
+        if (monthStartDay > 1) {
+            this.setBudgetMonthReportDateRange(preset, monthStartDay);
+            return;
+        }
+
         const now = new Date();
         let startDate, endDate;
 
@@ -154,6 +160,46 @@ export default class ReportsModule {
 
         setDateValue('report-start-date', formatters.formatDateForAPI(startDate));
         setDateValue('report-end-date', formatters.formatDateForAPI(endDate));
+    }
+
+    /**
+     * The presets in whole budget months, when the user chose budget months
+     * for the reports (#457). "This Month" as a calendar month would span
+     * two budget months: with start day 26, 1-25 October is October's and
+     * 26-31 October already November's.
+     *
+     * @param {string} preset - The period selector's value
+     * @param {number} startDay - The budget start day (2-31)
+     */
+    setBudgetMonthReportDateRange(preset, startDay) {
+        const today = formatters.formatDateForAPI(new Date());
+        const current = formatters.currentBudgetMonth(startDay);
+        const year = parseInt(current.slice(0, 4), 10);
+        const range = (first, last) => [
+            formatters.budgetMonthRange(first, startDay).start,
+            last === null ? today : formatters.budgetMonthRange(last, startDay).end,
+        ];
+
+        let startDate, endDate;
+        switch (preset) {
+            case 'this-month':
+                [startDate, endDate] = range(current, current);
+                break;
+            case 'last-3-months':
+                [startDate, endDate] = range(formatters.shiftMonth(current, -2), current);
+                break;
+            case 'ytd':
+                [startDate, endDate] = range(`${year}-01`, null);
+                break;
+            case 'last-year':
+                [startDate, endDate] = range(`${year - 1}-01`, `${year - 1}-12`);
+                break;
+            default:
+                [startDate, endDate] = range(formatters.shiftMonth(current, -2), null);
+        }
+
+        setDateValue('report-start-date', startDate);
+        setDateValue('report-end-date', endDate);
     }
 
     async loadReportsView() {
@@ -744,6 +790,7 @@ export default class ReportsModule {
     renderReportTrendChart(trends) {
         const canvas = document.getElementById('report-trend-chart');
         if (!canvas || !trends) return;
+        formatters.showMonthGroupingNote(document.getElementById('report-trend-month-note'), trends.monthStartDay || 1);
 
         if (this.reportCharts.trend) {
             this.reportCharts.trend.destroy();
@@ -1052,6 +1099,7 @@ export default class ReportsModule {
         if (avgNetEl) avgNetEl.textContent = this.formatCurrency(averages.net || 0, currency);
 
         // Render chart
+        formatters.showMonthGroupingNote(document.getElementById('report-cashflow-month-note'), data.period?.monthStartDay || 1);
         this.renderCashFlowChart(data.data || []);
 
         // Render table
@@ -1069,6 +1117,7 @@ export default class ReportsModule {
         const sortSel = document.getElementById('category-monthly-sort');
         if (sortSel && sortSel.value !== sort) sortSel.value = sort;
 
+        formatters.showMonthGroupingNote(document.getElementById('category-monthly-month-note'), data.period?.monthStartDay || 1);
         this.renderCategoryMonthlyMatrix(data);
     }
 

@@ -44,6 +44,9 @@ use OCA\Budget\Db\TransactionSplitMapper;
  */
 class BudgetCarryoverService {
 
+	/** 'calendar' (the default) or 'budget': how the charts and reports cut months */
+	public const REPORT_MONTHS_SETTING = 'report_month_grouping';
+
 	/** Hard cap on chain length — keeps multi-year anchors bounded */
 	private const MAX_CHAIN_MONTHS = 60;
 
@@ -458,6 +461,17 @@ class BudgetCarryoverService {
 		$value = $this->settingService->get($userId, 'budget_start_day');
 		$startDay = $value !== null ? (int)$value : 1;
 		return max(1, min(31, $startDay));
+	}
+
+	/**
+	 * The day the months of the dashboard charts and the month-by-month
+	 * reports start on: the budget start day when the user chose budget
+	 * months for them in Settings, otherwise 1, calendar months (#457).
+	 */
+	public function reportMonthStartDay(string $userId): int {
+		return $this->settingService->get($userId, self::REPORT_MONTHS_SETTING) === 'budget'
+			? $this->budgetStartDay($userId)
+			: 1;
 	}
 
 	/**

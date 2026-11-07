@@ -6879,6 +6879,12 @@ button.danger:hover {
 .category-chart-header h5 {
     margin: 0;
 }
+/* Says a chart's or report's months are budget months (#457) */
+.month-grouping-note {
+    margin: 4px 0 0;
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+}
 /* Says the bars are budget months when a budget start day is set (#447) */
 .category-chart-note {
     margin: -8px 0 12px;
