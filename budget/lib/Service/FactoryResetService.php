@@ -14,6 +14,7 @@ use OCA\Budget\Db\SettingMapper;
 use OCA\Budget\Db\ShareMapper;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Service\BankSync\BankConnectionRevoker;
+use OCA\Budget\Service\BankSync\EnableBanking\EnableBankingKeyStore;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
 use OCP\Notification\IManager as INotificationManager;
@@ -154,7 +155,9 @@ class FactoryResetService {
 			$counts['importRules'] = $this->safeDelete($this->importRuleMapper, $userId);
 			$counts['accounts'] = $this->safeDelete($this->accountMapper, $userId);
 			$counts['categories'] = $this->safeDelete($this->categoryMapper, $userId);
-			$counts['settings'] = $this->safeDelete($this->settingMapper, $userId);
+			// The Enable Banking keys sign the revoke calls made after the
+			// commit, so they stay until those have run
+			$counts['settings'] = $this->settingMapper->deleteAll($userId, [EnableBankingKeyStore::SETTING_KEY]);
 
 			// 3. Attachment rows only — the receipt files stay in the user's Files
 			$counts['attachments'] = $this->safeDelete($this->attachmentMapper, $userId);
@@ -194,8 +197,24 @@ class FactoryResetService {
 		// Best-effort and after the commit: the data is gone either way, and
 		// a provider that is down only leaves its consent to lapse by itself
 		$this->bankRevoker?->revokeAll($bankConnections);
+		$this->deleteBankKeys($userId);
 
 		return $counts;
+	}
+
+	/**
+	 * The Enable Banking keys outlive the delete so the revoke can sign its
+	 * calls, and go straight after it. A failure is logged without the
+	 * exception, whose trace could carry the keys.
+	 */
+	private function deleteBankKeys(string $userId): void {
+		try {
+			$this->settingMapper->deleteByKey($userId, EnableBankingKeyStore::SETTING_KEY);
+		} catch (\Throwable $e) {
+			$this->logger?->error('Could not delete the Enable Banking keys of {user}: {class}', [
+				'app' => 'budget', 'user' => $userId, 'class' => get_class($e),
+			]);
+		}
 	}
 
 	/**
