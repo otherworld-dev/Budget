@@ -1657,8 +1657,11 @@ export default class TransactionsModule {
         const adjustmentType = diff > 0 ? 'credit' : 'debit';
         // Before anything is ticked the "difference" is the whole account
         // history, so an adjustment for it would be nonsense - the button is
-        // only offered once the ticking has started (#374).
+        // only offered once the ticking has started (#374). With nothing
+        // left to tick, though, it is the only way to a zero difference:
+        // otherwise Finish stayed disabled for good (#473).
         const untickedCount = state.untickedCount || 0;
+        const offerAdjustment = !balanced && ((state.tickedCount || 0) > 0 || untickedCount === 0);
 
         bar.innerHTML = `
             <div class="reconcile-bar-stats">
@@ -1682,7 +1685,7 @@ export default class TransactionsModule {
             <div class="reconcile-bar-actions">
                 <button id="finish-reconcile-btn" class="primary" ${!balanced ? 'disabled' : ''}>${t('budget', 'Finish')}</button>
                 ${untickedCount > 0 ? `<button id="tick-all-reconcile-btn" class="secondary">${n('budget', 'Tick %n transaction up to {date}', 'Tick all %n transactions up to {date}', untickedCount, { date: this.formatDate(state.session.statementDate) })}</button>` : ''}
-                ${!balanced && (state.tickedCount || 0) > 0 ? `<button id="adjust-reconcile-btn" class="secondary">${t('budget', 'Create {amount} adjustment', { amount: this.formatCurrency(Math.abs(diff)) })}</button>` : ''}
+                ${offerAdjustment ? `<button id="adjust-reconcile-btn" class="secondary">${t('budget', 'Create {amount} adjustment', { amount: this.formatCurrency(Math.abs(diff)) })}</button>` : ''}
                 <button id="leave-reconcile-btn" class="secondary" title="${t('budget', 'Keep the session and come back later')}">${t('budget', 'Leave')}</button>
                 <button id="cancel-reconcile-session-btn" class="secondary">${t('budget', 'Cancel session')}</button>
             </div>
