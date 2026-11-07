@@ -131,6 +131,29 @@ class TransactionControllerTest extends TestCase {
 		$this->assertSame('cleared', $captured['status']);
 	}
 
+	/** The Receipts column is the signed-in user's receipts, as the receipts list is (#475). */
+	public function testExportNamesTheCallersReceipts(): void {
+		$this->service->method('findAllForExport')->willReturnCallback(function () {
+			yield [['id' => 4, 'date' => '2026-01-15', 'description' => 'Pitch hire', 'type' => 'debit', 'amount' => 80.0]];
+		});
+		$attachments = $this->createMock(\OCA\Budget\Service\AttachmentService::class);
+		$attachments->expects($this->once())->method('receiptNames')
+			->with([4], 'user1')
+			->willReturn([4 => ['pitch invoice.pdf', 'pitch receipt.pdf']]);
+		$granularShareService = $this->createMock(GranularShareService::class);
+		$granularShareService->method('getOwnAccountIds')->willReturn([1, 2, 3]);
+		$controller = new TransactionController(
+			$this->request, $this->service, $this->splitService,
+			$this->tagService, $this->validationService, $granularShareService,
+			new TransactionCsvExporter($this->l, $attachments), $this->l, 'user1', $this->logger
+		);
+
+		$csv = $controller->export()->render();
+
+		$this->assertStringContainsString(',Receipts', $csv);
+		$this->assertStringContainsString('"pitch invoice.pdf; pitch receipt.pdf"', $csv);
+	}
+
 	public function testExportOfNoRowsStillReturnsAHeaderRow(): void {
 		$this->service->method('findAllForExport')->willReturnCallback(function () {
 			yield [];

@@ -17,7 +17,9 @@ use OCP\IL10N;
  * account's current balance:
  *
  *   starting = last completed session's statement balance
- *              (first session: opening balance + net of already-reconciled)
+ *              + net of rows reconciled outside a session since it
+ *              (first session: opening balance + net of already-reconciled
+ *              rows dated on or before the statement date)
  *   difference = statement balance − (starting + Σ ticked signed amounts)
  *
  * Ticking a transaction moves the difference; completing requires it to be
@@ -68,7 +70,7 @@ class ReconciliationService {
 			throw new \InvalidArgumentException($this->l->t('Invalid statement date'));
 		}
 
-		$startingBalance = $this->computeStartingBalance($accountId, $userId, $account->getOpeningBalance());
+		$startingBalance = $this->computeStartingBalance($accountId, $userId, $account->getOpeningBalance(), $statementDate);
 
 		$session = new ReconciliationSession();
 		$session->setAccountId($accountId);
@@ -99,6 +101,11 @@ class ReconciliationService {
 				throw new \InvalidArgumentException($this->l->t('Invalid statement date'));
 			}
 			$session->setStatementDate($statementDate);
+			// What the statement starts from depends on its date
+			$account = $this->accountMapper->find($accountId, $userId);
+			$session->setStartingBalance(
+				$this->computeStartingBalance($accountId, $userId, $account->getOpeningBalance(), $statementDate)
+			);
 		}
 		$session = $this->sessionMapper->update($session);
 
@@ -237,20 +244,35 @@ class ReconciliationService {
 	}
 
 	/**
-	 * First-session anchor: opening balance plus the net of everything
-	 * already marked reconciled (trusts legacy flags — shown in the UI so
-	 * the user can sanity-check before ticking).
+	 * Where the statement starts from.
+	 *
+	 * After a completed session: that statement's balance, plus anything
+	 * marked reconciled outside a session since it, up to this statement's
+	 * date. First session: opening balance plus the net of everything
+	 * already marked reconciled up to the statement date (trusts legacy
+	 * flags — shown in the UI so the user can sanity-check before ticking).
+	 *
+	 * Already-reconciled rows can't be ticked, so whatever of them the
+	 * statement covers has to be in here, or the difference can never reach
+	 * zero and Finish stays disabled (#473).
 	 */
-	private function computeStartingBalance(int $accountId, string $userId, ?float $openingBalance): string {
+	private function computeStartingBalance(int $accountId, string $userId, ?float $openingBalance, string $statementDate): string {
 		$last = $this->sessionMapper->findLastCompleted($accountId, $userId);
 		if ($last !== null) {
 			// DECIMAL columns hydrate as float on some drivers (SQLite)
-			return (string)$last->getStatementBalance();
+			return MoneyCalculator::add(
+				(string)$last->getStatementBalance(),
+				(string)$this->reconciliationQueries->getReconciledOutsideSessionsNetChange(
+					$accountId,
+					$last->getStatementDate(),
+					$statementDate
+				)
+			);
 		}
 
 		return MoneyCalculator::add(
 			(string)($openingBalance ?? 0),
-			(string)$this->reconciliationQueries->getReconciledNetChange($accountId)
+			(string)$this->reconciliationQueries->getReconciledNetChange($accountId, $statementDate)
 		);
 	}
 

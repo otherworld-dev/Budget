@@ -117,7 +117,9 @@ class ReconciliationServiceTest extends TestCase {
 	public function testFirstSessionAnchorIsOpeningPlusReconciledNet(): void {
 		$this->sessionMapper->method('findInProgress')->willReturn(null);
 		$this->sessionMapper->method('findLastCompleted')->willReturn(null);
-		$this->reconciliationQueries->method('getReconciledNetChange')->with(self::ACCOUNT)->willReturn(250.0);
+		// Only what the statement covers: a row reconciled with a later date
+		// belongs to a later statement (#473)
+		$this->reconciliationQueries->method('getReconciledNetChange')->with(self::ACCOUNT, '2026-06-30')->willReturn(250.0);
 		$this->sessionMapper->method('insert')->willReturnCallback(function (ReconciliationSession $s) {
 			$s->setId(11);
 			return $s;
@@ -139,6 +141,9 @@ class ReconciliationServiceTest extends TestCase {
 			$this->makeSession(['statementBalance' => '1234.56', 'status' => ReconciliationSession::STATUS_COMPLETED])
 		);
 		$this->reconciliationQueries->expects($this->never())->method('getReconciledNetChange');
+		$this->reconciliationQueries->method('getReconciledOutsideSessionsNetChange')
+			->with(self::ACCOUNT, '2026-06-30', '2026-07-31')
+			->willReturn(0.0);
 		$this->sessionMapper->method('insert')->willReturnCallback(function (ReconciliationSession $s) {
 			$s->setId(12);
 			return $s;
@@ -149,6 +154,30 @@ class ReconciliationServiceTest extends TestCase {
 		$state = $this->service->startSession(self::ACCOUNT, self::USER, 1500.0, '2026-07-31');
 
 		$this->assertSame(1234.56, $state['session']['startingBalance']);
+	}
+
+	// Rows marked reconciled outside a session since the last statement can't
+	// be ticked, so the next statement starts from them too, or nothing can
+	// bring the difference to zero (#473).
+	public function testNextSessionAnchorAddsRowsReconciledOutsideASession(): void {
+		$this->sessionMapper->method('findInProgress')->willReturn(null);
+		$this->sessionMapper->method('findLastCompleted')->willReturn(
+			$this->makeSession(['statementBalance' => '1234.56', 'status' => ReconciliationSession::STATUS_COMPLETED])
+		);
+		$this->reconciliationQueries->method('getReconciledOutsideSessionsNetChange')
+			->with(self::ACCOUNT, '2026-06-30', '2026-07-31')
+			->willReturn(-34.56);
+		$this->sessionMapper->method('insert')->willReturnCallback(function (ReconciliationSession $s) {
+			$s->setId(12);
+			return $s;
+		});
+		$this->reconciliationQueries->method('getSessionTickedSum')->willReturn(0.0);
+		$this->reconciliationQueries->method('getSessionTransactionIds')->willReturn([]);
+
+		$state = $this->service->startSession(self::ACCOUNT, self::USER, 1200.0, '2026-07-31');
+
+		$this->assertSame(1200.0, $state['session']['startingBalance']);
+		$this->assertTrue($state['isBalanced']);
 	}
 
 	public function testStartConflictsWhenSessionInProgress(): void {

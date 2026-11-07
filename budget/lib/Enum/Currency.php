@@ -40,6 +40,7 @@ enum Currency: string {
 	case CZK = 'CZK';  // Czech Koruna
 	case HUF = 'HUF';  // Hungarian Forint
 	case RON = 'RON';  // Romanian Leu
+	case MKD = 'MKD';  // Macedonian Denar
 	case UAH = 'UAH';  // Ukrainian Hryvnia
 	case ISK = 'ISK';  // Icelandic Krona
 	case RUB = 'RUB';  // Russian Ruble
@@ -140,6 +141,7 @@ enum Currency: string {
 			self::CZK => 'Kč',
 			self::HUF => 'Ft',
 			self::RON => 'lei',
+			self::MKD => 'ден',
 			self::UAH => '₴',
 			self::ISK => 'kr',
 			self::RUB => '₽',
@@ -267,6 +269,7 @@ enum Currency: string {
 			self::CZK => 'Czech Koruna',
 			self::HUF => 'Hungarian Forint',
 			self::RON => 'Romanian Leu',
+			self::MKD => 'Macedonian Denar',
 			self::UAH => 'Ukrainian Hryvnia',
 			self::ISK => 'Icelandic Krona',
 			self::RUB => 'Russian Ruble',

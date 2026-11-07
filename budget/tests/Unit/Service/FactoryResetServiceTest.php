@@ -18,6 +18,7 @@ use OCA\Budget\Db\ShareMapper;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Service\BankSync\BankConnectionRevoker;
 use OCA\Budget\Service\BankSync\BankSyncProviderInterface;
+use OCA\Budget\Service\BankSync\EnableBanking\EnableBankingKeyStore;
 use OCA\Budget\Service\BankSync\ProviderFactory;
 use OCA\Budget\Service\CrossUserLinks;
 use OCA\Budget\Service\FactoryResetService;
@@ -583,6 +584,37 @@ class FactoryResetServiceTest extends TestCase {
 		$provider->expects($this->exactly(2))->method('revokeConnection');
 
 		$this->resetWithBank($provider)->purgeDeletedUser('user1');
+	}
+
+	/**
+	 * Enable Banking signs its revoke call with the user's keys, which live
+	 * in the settings. Deleted with the other settings, they were gone by
+	 * the time the revoke ran, so it quietly skipped the call.
+	 */
+	public function testTheEnableBankingKeysOutliveTheRevoke(): void {
+		$steps = [];
+		// Fresh mock: the setUp() stub on deleteAll would win over a new one
+		$this->settingMapper = $this->createMock(SettingMapper::class);
+		$this->settingMapper->expects($this->once())->method('deleteAll')
+			->with('user1', [EnableBankingKeyStore::SETTING_KEY])
+			->willReturnCallback(function () use (&$steps) {
+				$steps[] = 'settings';
+				return 1;
+			});
+		$this->settingMapper->expects($this->once())->method('deleteByKey')
+			->with('user1', EnableBankingKeyStore::SETTING_KEY)
+			->willReturnCallback(function () use (&$steps) {
+				$steps[] = 'keys';
+				return 1;
+			});
+		$provider = $this->createMock(BankSyncProviderInterface::class);
+		$provider->method('revokeConnection')->willReturnCallback(function () use (&$steps) {
+			$steps[] = 'revoke';
+		});
+
+		$this->resetWithBank($provider)->executeFactoryReset('user1');
+
+		$this->assertSame(['settings', 'revoke', 'revoke', 'keys'], $steps);
 	}
 
 	public function testAResetThatRollsBackRevokesNothing(): void {

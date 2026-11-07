@@ -4,16 +4,19 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Tests\Unit\Service\Export;
 
+use OCA\Budget\Service\AttachmentService;
 use OCA\Budget\Service\Export\TransactionCsvExporter;
 use OCP\IL10N;
 use PHPUnit\Framework\TestCase;
 
 class TransactionCsvExporterTest extends TestCase {
 	private TransactionCsvExporter $exporter;
+	private IL10N $l;
 
 	protected function setUp(): void {
 		$l = $this->createMock(IL10N::class);
 		$l->method('t')->willReturnCallback(fn (string $text, array $params = []) => vsprintf($text, $params));
+		$this->l = $l;
 		$this->exporter = new TransactionCsvExporter($l);
 	}
 
@@ -225,7 +228,8 @@ class TransactionCsvExporterTest extends TestCase {
 		$this->assertSame('', $row[3]);
 		$this->assertSame('-5.00', $row[6]);
 		$this->assertSame('', $row[11]);
-		$this->assertCount(12, $row);
+		$this->assertSame('', $row[12]);
+		$this->assertCount(13, $row);
 	}
 
 	// ===== split shares (#359) =====
@@ -281,12 +285,112 @@ class TransactionCsvExporterTest extends TestCase {
 		$this->assertSame('', $row[11]);
 	}
 
-	public function testHeaderCarriesTheSplitColumnLast(): void {
+	public function testHeaderKeepsTheSplitColumnWhereItWas(): void {
 		// Trailing, so an existing spreadsheet template keeps its offsets.
 		$header = $this->exporter->headerRow();
 
-		$this->assertCount(12, $header);
+		$this->assertCount(13, $header);
 		$this->assertSame('Split of', $header[11]);
+	}
+
+	// ===== receipt file names (#475) =====
+
+	public function testHeaderCarriesTheReceiptsColumnLast(): void {
+		// Appended after Split of, so every earlier column keeps its offset
+		// in a spreadsheet built on the old layout.
+		$this->assertSame(
+			['Date', 'Description', 'Vendor', 'Category', 'Account', 'Type', 'Amount', 'Currency', 'Reference', 'Notes', 'Status', 'Split of', 'Receipts'],
+			$this->exporter->headerRow()
+		);
+	}
+
+	public function testSeveralReceiptsAreJoinedInOneCell(): void {
+		$row = $this->exporter->dataRow($this->transaction([
+			'receiptNames' => ['2026-01-15 Sports Club.pdf', 'delivery note.jpg'],
+		]));
+
+		$this->assertSame('2026-01-15 Sports Club.pdf; delivery note.jpg', $row[12]);
+	}
+
+	public function testARowWithNoReceiptLeavesTheCellBlank(): void {
+		$this->assertSame('', $this->exporter->dataRow($this->transaction())[12]);
+		$this->assertSame('', $this->exporter->dataRow($this->transaction(['receiptNames' => []]))[12]);
+	}
+
+	/**
+	 * One lookup per batch for every row in it, never one per row, and the
+	 * names land on the rows they belong to. A row the lookup gave no key
+	 * (an account shared with the user, where receipts are the owner's)
+	 * stays blank.
+	 */
+	public function testWriteReadsTheNamesOncePerBatchForTheUser(): void {
+		$attachments = $this->createMock(AttachmentService::class);
+		$attachments->expects($this->exactly(2))->method('receiptNames')
+			->willReturnCallback(function (array $ids, string $userId): array {
+				$this->assertSame('user1', $userId);
+				return array_intersect_key([
+					1 => ['invoice-1.pdf'],
+					3 => ['a.pdf', 'b.png'],
+				], array_flip($ids));
+			});
+		$exporter = new TransactionCsvExporter($this->l, $attachments);
+
+		$handle = fopen('php://memory', 'w+');
+		$exporter->write($handle, [
+			[$this->transaction(['id' => 1]), $this->transaction(['id' => 2])],
+			[$this->transaction(['id' => 3])],
+		], 'user1');
+		rewind($handle);
+		$rows = [];
+		while (($row = fgetcsv($handle, null, ',', '"', '\\')) !== false) {
+			$rows[] = $row;
+		}
+		fclose($handle);
+
+		$this->assertSame('Receipts', $rows[0][12]);
+		$this->assertSame('invoice-1.pdf', $rows[1][12]);
+		$this->assertSame('', $rows[2][12]);
+		$this->assertSame('a.pdf; b.png', $rows[3][12]);
+	}
+
+	public function testTheBatchIdsArePassedToTheLookup(): void {
+		$attachments = $this->createMock(AttachmentService::class);
+		$attachments->expects($this->once())->method('receiptNames')
+			->with([7, 9], 'user1')
+			->willReturn([]);
+		$exporter = new TransactionCsvExporter($this->l, $attachments);
+
+		$handle = fopen('php://memory', 'w+');
+		$exporter->write($handle, [[$this->transaction(['id' => 7]), $this->transaction(['id' => 9])]], 'user1');
+		fclose($handle);
+	}
+
+	public function testWithoutAUserNoReceiptsAreLookedUp(): void {
+		$attachments = $this->createMock(AttachmentService::class);
+		$attachments->expects($this->never())->method('receiptNames');
+		$exporter = new TransactionCsvExporter($this->l, $attachments);
+
+		$handle = fopen('php://memory', 'w+');
+		$exporter->write($handle, [[$this->transaction(['id' => 1])]]);
+		fclose($handle);
+	}
+
+	public function testAnEmptyBatchIsNoLookup(): void {
+		$attachments = $this->createMock(AttachmentService::class);
+		$attachments->expects($this->never())->method('receiptNames');
+		$exporter = new TransactionCsvExporter($this->l, $attachments);
+
+		$handle = fopen('php://memory', 'w+');
+		$exporter->write($handle, [[]], 'user1');
+		fclose($handle);
+	}
+
+	/** File names are user text too: one starting with = must not run as a formula. */
+	public function testAReceiptNameCannotRunAsAFormula(): void {
+		$csv = $this->csvFor([$this->transaction(['receiptNames' => ['=cmd.pdf']])]);
+
+		$row = str_getcsv(explode("\n", trim($csv))[1]);
+		$this->assertSame("'=cmd.pdf", $row[12]);
 	}
 
 	public function testWriteConsumesEveryBatch(): void {

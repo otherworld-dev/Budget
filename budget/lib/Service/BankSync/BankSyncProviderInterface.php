@@ -18,7 +18,9 @@ namespace OCA\Budget\Service\BankSync;
  *             'id' => string,              // provider's unique account ID
  *             'name' => string,            // display name
  *             'currency' => string,        // 3-letter code
- *             'balance' => string,         // decimal string
+ *             'balance' => ?string,        // decimal string, null when the bank reports none
+ *             'balanceDate' => ?string,    // optional: YYYY-MM-DD the balance is reported for;
+ *                                          // missing or null = today
  *             'transactions' => [
  *                 [
  *                     'id' => string,          // provider's unique transaction ID
@@ -59,7 +61,11 @@ interface BankSyncProviderInterface {
 	 * @param string $credentials Provider-specific stored credentials (decrypted)
 	 * @param array $options Provider-specific fetch options. Recognized keys:
 	 *                       - includePending (bool): also fetch not-yet-posted
-	 *                       transactions (SimpleFIN). Providers ignore unknown options.
+	 *                       transactions (SimpleFIN).
+	 *                       - syncAccounts (array<string, bool>): external account
+	 *                       ID => needsFullHistory for the accounts that are
+	 *                       imported (Enable Banking fetches transactions only
+	 *                       for these). Providers ignore unknown options.
 	 * @return array Normalized account data (see interface docblock)
 	 * @throws \Exception on API failure
 	 */

@@ -91,6 +91,7 @@ const CURRENCY_CONFIG = {
     'CZK': { symbol: 'Kč', position: 'suffix' },
     'HUF': { symbol: 'Ft', position: 'suffix', decimals: 0 },
     'RON': { symbol: 'lei', position: 'suffix' },
+    'MKD': { symbol: 'ден', position: 'suffix' },
     'UAH': { symbol: '₴', position: 'prefix' },
     'ISK': { symbol: 'kr', position: 'suffix', decimals: 0 },
     'RUB': { symbol: '₽', position: 'prefix' },

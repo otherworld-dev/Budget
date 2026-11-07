@@ -24,10 +24,15 @@ class TransactionReconciliationQueries {
 	}
 
 	/**
-	 * Signed net of all already-reconciled, non-scheduled transactions —
-	 * the first-session anchor: opening_balance + this = cleared balance.
+	 * Signed net of the already-reconciled, non-scheduled transactions dated
+	 * on or before a statement date — the first-session anchor:
+	 * opening_balance + this = where the account stood before the statement.
+	 *
+	 * Rows reconciled with a later date belong to a later statement. Counting
+	 * them put the start past the statement balance, and with every row
+	 * already reconciled there was nothing left to tick back to zero (#473).
 	 */
-	public function getReconciledNetChange(int $accountId): float {
+	public function getReconciledNetChange(int $accountId, string $upToDate): float {
 		$qb = $this->db->getQueryBuilder();
 		$qb->selectAlias(
 			$qb->createFunction('COALESCE(SUM(CASE WHEN t.type = \'credit\' THEN t.amount ELSE -t.amount END), 0)'),
@@ -36,6 +41,45 @@ class TransactionReconciliationQueries {
 			->from(self::TABLE, 't')
 			->where($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
 			->andWhere($qb->expr()->eq('t.reconciled', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
+			->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($upToDate)))
+			->andWhere(
+				$qb->expr()->orX(
+					$qb->expr()->neq('t.status', $qb->createNamedParameter('scheduled')),
+					$qb->expr()->isNull('t.status')
+				)
+			);
+
+		$result = $qb->executeQuery();
+		$netChange = (float)$result->fetchOne();
+		$result->closeCursor();
+
+		return $netChange;
+	}
+
+	/**
+	 * Signed net of the transactions marked reconciled outside any session
+	 * (the bulk Reconciled button, the API, the pre-session flow) dated after
+	 * the last statement and on or before this one.
+	 *
+	 * The last statement's balance is the next one's start, and it never
+	 * held these: they were reconciled after it closed. They can't be ticked
+	 * either, being reconciled already, so leaving them out of the start was
+	 * a difference nothing could clear (#473). A row ticked into a session
+	 * keeps that session's id, so the rows the last statement reconciled are
+	 * not counted again.
+	 */
+	public function getReconciledOutsideSessionsNetChange(int $accountId, string $afterDate, string $upToDate): float {
+		$qb = $this->db->getQueryBuilder();
+		$qb->selectAlias(
+			$qb->createFunction('COALESCE(SUM(CASE WHEN t.type = \'credit\' THEN t.amount ELSE -t.amount END), 0)'),
+			'net_change'
+		)
+			->from(self::TABLE, 't')
+			->where($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->eq('t.reconciled', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)))
+			->andWhere($qb->expr()->isNull('t.recon_session_id'))
+			->andWhere($qb->expr()->gt('t.date', $qb->createNamedParameter($afterDate)))
+			->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($upToDate)))
 			->andWhere(
 				$qb->expr()->orX(
 					$qb->expr()->neq('t.status', $qb->createNamedParameter('scheduled')),
