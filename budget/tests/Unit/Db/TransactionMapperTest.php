@@ -313,6 +313,28 @@ class TransactionMapperTest extends TestCase {
 		$this->assertFalse($exists);
 	}
 
+	// ===== hasImportIdPrefix =====
+
+	public function testHasImportIdPrefixReturnsTrueWhenARowMatches(): void {
+		$this->db->expects($this->once())->method('escapeLikeParameter')
+			->with('enable_banking:')->willReturn('enable\\_banking:');
+		$this->expr->expects($this->once())->method('like')->with('import_id', ':param');
+		$this->result->method('fetchOne')->willReturn('42');
+		$this->result->expects($this->once())->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$this->assertTrue($this->mapper->hasImportIdPrefix(10, 'enable_banking:'));
+	}
+
+	public function testHasImportIdPrefixReturnsFalseWithoutAMatch(): void {
+		$this->db->method('escapeLikeParameter')->willReturnArgument(0);
+		$this->result->method('fetchOne')->willReturn(false);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$this->assertFalse($this->mapper->hasImportIdPrefix(10, 'enablebanking:'));
+	}
+
 	// ===== findUncategorized =====
 
 	public function testFindUncategorizedReturnsNullCategoryTransactions(): void {

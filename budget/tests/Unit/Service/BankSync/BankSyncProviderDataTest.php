@@ -16,6 +16,7 @@ use OCA\Budget\Service\BankSync\BankConnectionRevoker;
 use OCA\Budget\Service\BankSync\BankSyncProviderInterface;
 use OCA\Budget\Service\BankSync\BankSyncService;
 use OCA\Budget\Service\BankSync\ProviderFactory;
+use OCA\Budget\Service\BankSync\ReauthorizableProviderInterface;
 use OCA\Budget\Service\TransactionService;
 use OCP\IL10N;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -48,7 +49,7 @@ class BankSyncProviderDataTest extends TestCase {
 		$this->adminSettings->method('isBankSyncEnabled')->willReturn(true);
 		$this->accountMapper = $this->createMock(AccountMapper::class);
 		$this->logger = $this->createMock(LoggerInterface::class);
-		$this->provider = $this->createMock(BankSyncProviderInterface::class);
+		$this->provider = $this->createMockForIntersectionOfInterfaces([BankSyncProviderInterface::class, ReauthorizableProviderInterface::class]);
 		$this->providerFactory->method('getProvider')->willReturn($this->provider);
 
 		$l = $this->createMock(IL10N::class);
@@ -233,15 +234,14 @@ class BankSyncProviderDataTest extends TestCase {
 		$connection = $this->connection('gocardless', 'expired');
 		$connection->setCredentials(json_encode(['secretId' => 'sid', 'secretKey' => 'skey', 'requisitionId' => 'old']));
 		$this->connectionMapper->method('find')->willReturn($connection);
-		$this->provider->method('initializeConnection')->willReturn([
+		$this->provider->method('reinitializeConnection')->willReturn([
 			'credentials' => json_encode(['secretId' => 'sid', 'secretKey' => 'skey', 'requisitionId' => 'new']),
-			'accounts' => [],
 			'authorizationUrl' => $link,
 		]);
 		$this->connectionMapper->expects($this->never())->method('update');
 
 		$this->expectException(\Exception::class);
-		$this->service->reauthorize(self::USER_ID, 1, 'BANK', '');
+		$this->service->reauthorize(self::USER_ID, 1, ['institutionId' => 'BANK', 'redirectUrl' => '']);
 	}
 
 	public function testConnectPassesAnHttpsAuthorizationLinkOn(): void {

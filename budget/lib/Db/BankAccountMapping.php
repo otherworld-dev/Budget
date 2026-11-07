@@ -26,8 +26,12 @@ use OCP\AppFramework\Db\Entity;
  * @method void setConsentExpires(?string $consentExpires)
  * @method string|null getLastBalance()
  * @method void setLastBalance(?string $lastBalance)
+ * @method string|null getLastBalanceDate()
+ * @method void setLastBalanceDate(?string $lastBalanceDate)
  * @method string|null getLastCurrency()
  * @method void setLastCurrency(?string $lastCurrency)
+ * @method string|null getBalanceReconciledAt()
+ * @method void setBalanceReconciledAt(?string $balanceReconciledAt)
  * @method string getCreatedAt()
  * @method void setCreatedAt(string $createdAt)
  * @method string getUpdatedAt()
@@ -42,7 +46,11 @@ class BankAccountMapping extends Entity implements JsonSerializable {
 	protected $requisitionId;
 	protected $consentExpires;
 	protected $lastBalance;
+	/** The day the bank reported lastBalance for (Y-m-d); null means today */
+	protected $lastBalanceDate;
 	protected $lastCurrency;
+	/** When the account's balance was last matched to the bank's; null until then */
+	protected $balanceReconciledAt;
 	protected $createdAt;
 	protected $updatedAt;
 
@@ -64,7 +72,9 @@ class BankAccountMapping extends Entity implements JsonSerializable {
 			'requisitionId' => $this->getRequisitionId(),
 			'consentExpires' => $this->getConsentExpires(),
 			'lastBalance' => $this->getLastBalance(),
+			'lastBalanceDate' => $this->getLastBalanceDate(),
 			'lastCurrency' => $this->getLastCurrency(),
+			'balanceReconciledAt' => $this->getBalanceReconciledAt(),
 			'createdAt' => $this->getCreatedAt(),
 			'updatedAt' => $this->getUpdatedAt(),
 		];

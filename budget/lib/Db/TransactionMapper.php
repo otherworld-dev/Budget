@@ -1036,6 +1036,28 @@ class TransactionMapper extends QBMapper {
 	}
 
 	/**
+	 * Whether the account holds any row whose import ID starts with $prefix,
+	 * e.g. "enablebanking:" once a bank sync has imported into it.
+	 *
+	 * Escapes through the connection: the query builder only gained
+	 * escapeLikeParameter() in Nextcloud 31.
+	 */
+	public function hasImportIdPrefix(int $accountId, string $prefix): bool {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('id')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->like('import_id', $qb->createNamedParameter($this->db->escapeLikeParameter($prefix) . '%')))
+			->setMaxResults(1);
+
+		$result = $qb->executeQuery();
+		$found = $result->fetchOne();
+		$result->closeCursor();
+
+		return $found !== false;
+	}
+
+	/**
 	 * Find a single transaction by account + import ID, or null if none.
 	 */
 	public function findByImportId(int $accountId, string $importId): ?Transaction {
