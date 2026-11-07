@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-10-28 23:12+0000\n"
+"POT-Creation-Date: 2026-11-07 01:42+0000\n"
 "PO-Revision-Date: 2026-09-17 01:45+0000\n"
 "Last-Translator: Pavel Borecki <pavel.borecki@gmail.com>\n"
 "Language-Team: Czech <https://hosted.weblate.org/projects/nextcloud-budget/"
@@ -26,8 +26,8 @@ msgstr "Nepodařilo se získat účty"
 
 #: /app/lib/Controller/AccountController.php:90
 #: /app/lib/Controller/AccountController.php:681
-#: /app/lib/Controller/ApiV1TransactionController.php:798
-#: /app/lib/Controller/ApiV1TransactionController.php:850
+#: /app/lib/Controller/ApiV1TransactionController.php:827
+#: /app/lib/Controller/ApiV1TransactionController.php:879
 #: /app/lib/Controller/CategoryController.php:678
 #: /app/lib/Controller/TransactionController.php:550
 msgid "Account not found"
@@ -142,7 +142,7 @@ msgid "Invalid request data"
 msgstr ""
 
 #: /app/lib/Controller/AccountController.php:481
-#: /app/lib/Controller/ApiV1TransactionController.php:1379
+#: /app/lib/Controller/ApiV1TransactionController.php:1409
 #: /app/lib/Controller/BillController.php:834
 #: /app/lib/Controller/CategoryController.php:353
 #: /app/lib/Controller/CategoryController.php:451
@@ -300,7 +300,7 @@ msgid "Failed to retrieve categories"
 msgstr ""
 
 #: /app/lib/Controller/ApiV1ReceiptController.php:73
-#: /app/lib/Controller/ApiV1TransactionController.php:1320
+#: /app/lib/Controller/ApiV1TransactionController.php:1350
 #: /app/lib/Controller/AttachmentController.php:91
 #: /app/lib/Controller/ImportController.php:112
 #: /app/lib/Controller/MigrationController.php:99
@@ -346,8 +346,8 @@ msgid "Failed to retrieve transactions"
 msgstr ""
 
 #: /app/lib/Controller/ApiV1TransactionController.php:205
-#: /app/lib/Controller/ApiV1TransactionController.php:590
-#: /app/lib/Controller/ApiV1TransactionController.php:1646
+#: /app/lib/Controller/ApiV1TransactionController.php:617
+#: /app/lib/Controller/ApiV1TransactionController.php:1676
 #: /app/lib/Controller/TransactionController.php:332
 #: /app/lib/Controller/TransactionController.php:448
 msgid "Invalid transaction type. Must be credit or debit"
@@ -368,7 +368,7 @@ msgid "Use either categoryId or uncategorized, not both"
 msgstr ""
 
 #: /app/lib/Controller/ApiV1TransactionController.php:242
-#: /app/lib/Controller/ApiV1TransactionController.php:538
+#: /app/lib/Controller/ApiV1TransactionController.php:565
 #, php-format
 msgid "%s must be a whole number above zero"
 msgstr ""
@@ -391,25 +391,25 @@ msgstr ""
 msgid "Failed to retrieve transaction"
 msgstr "Nepodařilo se získat účty"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:555
-#: /app/lib/Controller/ApiV1TransactionController.php:1631
+#: /app/lib/Controller/ApiV1TransactionController.php:582
+#: /app/lib/Controller/ApiV1TransactionController.php:1661
 #, fuzzy
 #| msgid "Account"
 msgid "Amount must be a number"
 msgstr "Účet"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:561
+#: /app/lib/Controller/ApiV1TransactionController.php:588
 msgid "Amount cannot be negative. Use type to say which way the money went"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:565
+#: /app/lib/Controller/ApiV1TransactionController.php:592
 #, fuzzy
 #| msgid "Accounts"
 msgid "An account is required"
 msgstr "Účty"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:570
-#: /app/lib/Controller/ApiV1TransactionController.php:1621
+#: /app/lib/Controller/ApiV1TransactionController.php:597
+#: /app/lib/Controller/ApiV1TransactionController.php:1651
 #: /app/lib/Controller/AssetController.php:326
 #: /app/lib/Controller/PensionController.php:358
 #: /app/lib/Controller/PensionController.php:430
@@ -432,76 +432,76 @@ msgstr "Účty"
 msgid "Date"
 msgstr "Datum"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:602
+#: /app/lib/Controller/ApiV1TransactionController.php:629
 msgid "Idempotency key too long (64 characters maximum)"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:764
+#: /app/lib/Controller/ApiV1TransactionController.php:793
 msgid "The transaction was recorded, but it could not be split"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:787
+#: /app/lib/Controller/ApiV1TransactionController.php:816
 msgid "The transaction was recorded, but its tags could not be set"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:802
-#: /app/lib/Controller/ApiV1TransactionController.php:872
+#: /app/lib/Controller/ApiV1TransactionController.php:831
+#: /app/lib/Controller/ApiV1TransactionController.php:901
 #: /app/lib/Controller/TransactionController.php:398
 msgid "Failed to create transaction"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:831
+#: /app/lib/Controller/ApiV1TransactionController.php:860
 #, fuzzy
 #| msgid "Failed to retrieve accounts"
 msgid "A transfer needs two different accounts"
 msgstr "Nepodařilo se získat účty"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:841
+#: /app/lib/Controller/ApiV1TransactionController.php:870
 msgid "A transfer cannot be split"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:867
+#: /app/lib/Controller/ApiV1TransactionController.php:896
 msgid ""
 "The two accounts are in different currencies. Record this transfer in the "
 "web UI, where each side has its own amount"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:901
+#: /app/lib/Controller/ApiV1TransactionController.php:930
 msgid "This account is closed. Reopen it to record anything in it"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:974
+#: /app/lib/Controller/ApiV1TransactionController.php:1003
 msgid "This idempotency key was already used for a different transaction"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:983
+#: /app/lib/Controller/ApiV1TransactionController.php:1012
 msgid "This request is still being processed. Try again shortly"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1101
+#: /app/lib/Controller/ApiV1TransactionController.php:1131
 msgid ""
 "The transaction was recorded, but the photo could not be attached: this app "
 "password has no access to your Files"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1102
+#: /app/lib/Controller/ApiV1TransactionController.php:1132
 msgid "The transaction was recorded, but the photo could not be attached"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1177
+#: /app/lib/Controller/ApiV1TransactionController.php:1207
 #, fuzzy
 #| msgid "Failed to retrieve accounts"
 msgid "Failed to split the transaction"
 msgstr "Nepodařilo se získat účty"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1245
+#: /app/lib/Controller/ApiV1TransactionController.php:1275
 msgid ""
 "splits must be an array of {\"amount\", \"category_id\", \"description\"} "
 "objects"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1264
-#: /app/lib/Controller/ApiV1TransactionController.php:1286
+#: /app/lib/Controller/ApiV1TransactionController.php:1294
+#: /app/lib/Controller/ApiV1TransactionController.php:1316
 #: /app/lib/Controller/AttachmentController.php:46
 #: /app/lib/Controller/AttachmentController.php:59
 #: /app/src/modules/transactions/TransactionsModule.js:3022
@@ -510,81 +510,81 @@ msgstr ""
 msgid "Failed to load attachments"
 msgstr "Nepodařilo se získat účty"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1284
+#: /app/lib/Controller/ApiV1TransactionController.php:1314
 #: /app/lib/Controller/AttachmentController.php:114
 #, fuzzy
 #| msgid "Account not found"
 msgid "Attachment not found"
 msgstr "Účet nenalezen"
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1340
+#: /app/lib/Controller/ApiV1TransactionController.php:1370
 #: /app/lib/Controller/AttachmentController.php:101
 #: /app/src/modules/transactions/TransactionsModule.js:3033
 #: /app/src/modules/transactions/TransactionsModule.js:3038
 msgid "Failed to upload receipt"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1420
-#: /app/lib/Controller/ApiV1TransactionController.php:1484
-#: /app/lib/Controller/ApiV1TransactionController.php:1531
+#: /app/lib/Controller/ApiV1TransactionController.php:1450
+#: /app/lib/Controller/ApiV1TransactionController.php:1514
+#: /app/lib/Controller/ApiV1TransactionController.php:1561
 #: /app/lib/Controller/TransactionController.php:560
 #: /app/src/modules/transactions/TransactionsModule.js:5614
 #: /app/src/modules/transactions/TransactionsModule.js:5628
 msgid "Failed to update transaction"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1450
+#: /app/lib/Controller/ApiV1TransactionController.php:1480
 #: /app/src/modules/transactions/TransactionsModule.js:3733
 #: /app/src/modules/transactions/TransactionsModule.js:3756
 msgid "Failed to delete transaction"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1518
+#: /app/lib/Controller/ApiV1TransactionController.php:1548
 msgid ""
 "A scheduled transaction cannot be reconciled, as it has not happened yet"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1587
-#: /app/lib/Controller/TransactionController.php:1057
+#: /app/lib/Controller/ApiV1TransactionController.php:1617
+#: /app/lib/Controller/TransactionController.php:1065
 msgid "Category not found. It must be one of the account owner's categories"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1611
+#: /app/lib/Controller/ApiV1TransactionController.php:1641
 #, php-format
 msgid "%s cannot be changed through the API"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1638
+#: /app/lib/Controller/ApiV1TransactionController.php:1668
 msgid "Amount must be more than zero. Use type to say which way the money went"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1700
+#: /app/lib/Controller/ApiV1TransactionController.php:1730
 msgid ""
 "This transaction is one side of a transfer, so its amount, type and date "
 "cannot be changed on their own"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1717
+#: /app/lib/Controller/ApiV1TransactionController.php:1747
 msgid ""
 "This transaction is split, so its categories are changed through its splits"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1732
+#: /app/lib/Controller/ApiV1TransactionController.php:1762
 msgid ""
 "This transaction has been reconciled against a statement. Send "
 "confirm_reconciled to go ahead"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1771
+#: /app/lib/Controller/ApiV1TransactionController.php:1801
 #, php-format
 msgid "%s must be a single value"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1785
+#: /app/lib/Controller/ApiV1TransactionController.php:1815
 msgid "category_id must be a category id or null"
 msgstr ""
 
-#: /app/lib/Controller/ApiV1TransactionController.php:1792
+#: /app/lib/Controller/ApiV1TransactionController.php:1822
 #: /app/lib/Controller/AttachmentController.php:57
 #: /app/lib/Controller/AttachmentController.php:72
 #: /app/lib/Controller/AttachmentController.php:97 /app/src/main.js:3365
@@ -610,7 +610,7 @@ msgstr "Majetek"
 #: /app/lib/Controller/PensionController.php:215
 #: /app/lib/Controller/PensionController.php:342
 #: /app/lib/Controller/PensionController.php:409
-#: /app/lib/Controller/TransactionController.php:1342
+#: /app/lib/Controller/TransactionController.php:1350
 msgid "Invalid JSON data"
 msgstr ""
 
@@ -737,93 +737,126 @@ msgstr ""
 msgid "Failed to remove attachment"
 msgstr "Nepodařilo se získat účty"
 
-#: /app/lib/Controller/BankSyncController.php:40
+#: /app/lib/Controller/BankSyncCallbackController.php:90
+msgid ""
+"Your bank is connected. You can close this tab, or go back to Budget to "
+"choose which accounts to sync."
+msgstr ""
+
+#: /app/lib/Controller/BankSyncCallbackController.php:91
+msgid ""
+"The bank connection could not be completed. Please go back to Budget and try "
+"again."
+msgstr ""
+
+#: /app/lib/Controller/BankSyncController.php:51
+#: /app/lib/Controller/EnableBankingController.php:131
 msgid "Bank sync is disabled by the administrator"
 msgstr ""
 
-#: /app/lib/Controller/BankSyncController.php:85
+#: /app/lib/Controller/BankSyncController.php:96
 msgid "This provider does not support institution listing"
 msgstr ""
 
-#: /app/lib/Controller/BankSyncController.php:91
+#: /app/lib/Controller/BankSyncController.php:102
 #, fuzzy
 #| msgid "Invalid account type: %1$s"
 msgid "Invalid country code"
 msgstr "Neplatný typ účtu: %1$s"
 
-#: /app/lib/Controller/BankSyncController.php:97
+#: /app/lib/Controller/BankSyncController.php:110
 msgid "API credentials required"
 msgstr ""
 
-#: /app/lib/Controller/BankSyncController.php:106
+#: /app/lib/Controller/BankSyncController.php:122
 msgid "Failed to fetch institutions"
 msgstr ""
 
-#: /app/lib/Controller/BankSyncController.php:137
+#: /app/lib/Controller/BankSyncController.php:153
 msgid "Provider and name are required"
 msgstr ""
 
-#: /app/lib/Controller/BankSyncController.php:142
+#: /app/lib/Controller/BankSyncController.php:158
 msgid "Connection name must be between 1 and 255 characters"
 msgstr ""
 
-#: /app/lib/Controller/BankSyncController.php:147
+#: /app/lib/Controller/BankSyncController.php:163
 msgid "Invalid provider"
 msgstr ""
 
-#: /app/lib/Controller/BankSyncController.php:171
+#: /app/lib/Controller/BankSyncController.php:197
 #, fuzzy
 #| msgid "Failed to retrieve accounts"
 msgid "Failed to connect bank"
 msgstr "Nepodařilo se získat účty"
 
-#: /app/lib/Controller/BankSyncController.php:189
-#: /app/src/modules/bank-sync/BankSyncModule.js:699
+#: /app/lib/Controller/BankSyncController.php:215
+#: /app/src/modules/bank-sync/BankSyncModule.js:927
 msgid "Failed to disconnect bank"
 msgstr ""
 
-#: /app/lib/Controller/BankSyncController.php:220
+#: /app/lib/Controller/BankSyncController.php:246
 #, fuzzy
 #| msgid "Failed to retrieve accounts"
 msgid "Failed to update connection"
 msgstr "Nepodařilo se získat účty"
 
-#: /app/lib/Controller/BankSyncController.php:238
+#: /app/lib/Controller/BankSyncController.php:264
 msgid "Failed to sync bank data"
 msgstr ""
 
-#: /app/lib/Controller/BankSyncController.php:265
+#: /app/lib/Controller/BankSyncController.php:291
 #, fuzzy
 #| msgid "Account not found"
 msgid "Connection not found"
 msgstr "Účet nenalezen"
 
-#: /app/lib/Controller/BankSyncController.php:270
+#: /app/lib/Controller/BankSyncController.php:300
 #, fuzzy
 #| msgid "Failed to retrieve accounts"
 msgid "Failed to fetch mappings"
 msgstr "Nepodařilo se získat účty"
 
-#: /app/lib/Controller/BankSyncController.php:294
-#: /app/src/modules/bank-sync/BankSyncModule.js:804
+#: /app/lib/Controller/BankSyncController.php:334
+#: /app/src/modules/bank-sync/BankSyncModule.js:1064
+#, fuzzy
+#| msgid "Failed to retrieve accounts"
+msgid "Failed to reconcile the balance"
+msgstr "Nepodařilo se získat účty"
+
+#: /app/lib/Controller/BankSyncController.php:358
+#: /app/src/modules/bank-sync/BankSyncModule.js:1081
 msgid "Failed to update mapping"
 msgstr ""
 
-#: /app/lib/Controller/BankSyncController.php:312
+#: /app/lib/Controller/BankSyncController.php:376
 #, fuzzy
 #| msgid "Failed to retrieve accounts"
 msgid "Failed to refresh accounts"
 msgstr "Nepodařilo se získat účty"
 
-#: /app/lib/Controller/BankSyncController.php:332
+#: /app/lib/Controller/BankSyncController.php:395
 msgid "Institution ID is required"
 msgstr ""
 
-#: /app/lib/Controller/BankSyncController.php:345
+#: /app/lib/Controller/BankSyncController.php:426
 #, fuzzy
 #| msgid "Failed to retrieve accounts"
 msgid "Failed to re-authorize"
 msgstr "Nepodařilo se získat účty"
+
+#: /app/lib/Controller/BankSyncController.php:442
+msgid ""
+"Your Enable Banking application is not active yet. Link at least one of your "
+"accounts in the Enable Banking control panel, then try again."
+msgstr ""
+
+#: /app/lib/Controller/BankSyncController.php:443
+msgid ""
+"Enable Banking rejected the application ID or private key. Check that both "
+"belong to the same application in the Enable Banking control panel, then "
+"enter them again with Replace keys."
+msgstr ""
 
 #: /app/lib/Controller/BillController.php:109
 msgid "Failed to retrieve bills"
@@ -854,9 +887,9 @@ msgstr "Faktura"
 #: /app/lib/Controller/ImportRuleController.php:95
 #: /app/lib/Controller/ProjectController.php:188
 #: /app/lib/Controller/RecurringIncomeController.php:93
-#: /app/lib/Controller/TransactionController.php:970
+#: /app/lib/Controller/TransactionController.php:978
 #: /app/lib/Service/TransactionService.php:1275
-#: /app/lib/Traits/ApiErrorHandlerTrait.php:218
+#: /app/lib/Traits/ApiErrorHandlerTrait.php:246
 #, php-format
 msgid "%1$s not found"
 msgstr ""
@@ -1521,6 +1554,28 @@ msgstr ""
 
 #: /app/lib/Controller/DebtScenarioController.php:298
 msgid "Failed to compare debt scenarios"
+msgstr ""
+
+#: /app/lib/Controller/EnableBankingController.php:83
+#, fuzzy
+#| msgid "Accounts"
+msgid "Application ID is required"
+msgstr "Účty"
+
+#: /app/lib/Controller/EnableBankingController.php:84
+#, fuzzy
+#| msgid "Invalid account type: %1$s"
+msgid "Invalid private key"
+msgstr "Neplatný typ účtu: %1$s"
+
+#: /app/lib/Controller/EnableBankingController.php:87
+#, fuzzy
+#| msgid "Failed to retrieve accounts"
+msgid "Failed to save Enable Banking keys"
+msgstr "Nepodařilo se získat účty"
+
+#: /app/lib/Controller/EnableBankingController.php:110
+msgid "Disconnect all Enable Banking connections before removing the keys"
 msgstr ""
 
 #: /app/lib/Controller/ExchangeRateController.php:112
@@ -2417,90 +2472,91 @@ msgstr "Nepodařilo se získat účty"
 msgid "Failed to delete saved report"
 msgstr "Nepodařilo se získat účty"
 
-#: /app/lib/Controller/SettingController.php:96
+#: /app/lib/Controller/SettingController.php:110
 #, php-format
 msgid "This setting can't be changed: %1$s"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:138
+#: /app/lib/Controller/SettingController.php:155
 msgid "Failed to retrieve settings"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:163
-#: /app/lib/Controller/SettingController.php:389
+#: /app/lib/Controller/SettingController.php:167
+#: /app/lib/Controller/SettingController.php:186
+#: /app/lib/Controller/SettingController.php:415
 msgid "Setting not found"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:167
+#: /app/lib/Controller/SettingController.php:190
 msgid "Failed to retrieve setting"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:207
-#: /app/lib/Controller/SettingController.php:270
+#: /app/lib/Controller/SettingController.php:230
+#: /app/lib/Controller/SettingController.php:293
 #, fuzzy, php-format
 #| msgid "Invalid currency: %1$s"
 msgid "Invalid receipts folder: %1$s"
 msgstr "Neplatná měna: %1$s"
 
-#: /app/lib/Controller/SettingController.php:216
-#: /app/lib/Controller/SettingController.php:277
+#: /app/lib/Controller/SettingController.php:239
+#: /app/lib/Controller/SettingController.php:300
 #, fuzzy, php-format
 #| msgid "Invalid currency: %1$s"
 msgid "Invalid import folder: %1$s"
 msgstr "Neplatná měna: %1$s"
 
-#: /app/lib/Controller/SettingController.php:227
+#: /app/lib/Controller/SettingController.php:250
 msgid "Settings updated successfully"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:237
+#: /app/lib/Controller/SettingController.php:260
 msgid "Failed to update settings"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:253
+#: /app/lib/Controller/SettingController.php:276
 msgid "Value parameter is required"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:287
+#: /app/lib/Controller/SettingController.php:310
 msgid "Setting updated successfully"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:292
+#: /app/lib/Controller/SettingController.php:315
 msgid "Failed to update setting"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:320
+#: /app/lib/Controller/SettingController.php:343
 #, fuzzy
 #| msgid "Invalid account type: %1$s"
 msgid "Invalid colour setting"
 msgstr "Neplatný typ účtu: %1$s"
 
-#: /app/lib/Controller/SettingController.php:395
+#: /app/lib/Controller/SettingController.php:421
 msgid "Setting reset to default"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:400
+#: /app/lib/Controller/SettingController.php:426
 msgid "Failed to reset setting"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:416
+#: /app/lib/Controller/SettingController.php:442
 msgid "All settings reset to defaults"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:421
+#: /app/lib/Controller/SettingController.php:447
 #: /app/src/modules/settings/SettingsModule.js:569
 msgid "Failed to reset settings"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:450 /app/templates/index.php:4508
+#: /app/lib/Controller/SettingController.php:476 /app/templates/index.php:4508
 msgid "Sunday"
 msgstr "Neděle"
 
-#: /app/lib/Controller/SettingController.php:451 /app/templates/index.php:4509
+#: /app/lib/Controller/SettingController.php:477 /app/templates/index.php:4509
 msgid "Monday"
 msgstr "Pondělí"
 
-#: /app/lib/Controller/SettingController.php:454
+#: /app/lib/Controller/SettingController.php:480
 #: /app/src/modules/bills/BillsModule.js:344
 #: /app/src/modules/categories/CategoriesModule.js:2654
 #: /app/src/modules/income/IncomeModule.js:102
@@ -2512,7 +2568,7 @@ msgstr "Pondělí"
 msgid "Weekly"
 msgstr "Týdně"
 
-#: /app/lib/Controller/SettingController.php:455
+#: /app/lib/Controller/SettingController.php:481
 #: /app/src/modules/accounts/AccountsModule.js:1381
 #: /app/src/modules/bills/BillsModule.js:347
 #: /app/src/modules/categories/CategoriesModule.js:2653
@@ -2527,7 +2583,7 @@ msgstr "Týdně"
 msgid "Monthly"
 msgstr "Měsíčně"
 
-#: /app/lib/Controller/SettingController.php:456
+#: /app/lib/Controller/SettingController.php:482
 #: /app/src/modules/bills/BillsModule.js:348
 #: /app/src/modules/categories/CategoriesModule.js:2655
 #: /app/src/modules/income/IncomeModule.js:106
@@ -2540,7 +2596,7 @@ msgstr "Měsíčně"
 msgid "Quarterly"
 msgstr "Čtvrtletně"
 
-#: /app/lib/Controller/SettingController.php:457
+#: /app/lib/Controller/SettingController.php:483
 #: /app/src/modules/accounts/AccountsModule.js:1382
 #: /app/src/modules/bills/BillsModule.js:350
 #: /app/src/modules/categories/CategoriesModule.js:2656
@@ -2954,13 +3010,13 @@ msgstr "Nepodařilo se získat účty"
 #: /app/lib/Controller/TransactionController.php:711
 #: /app/lib/Controller/TransactionController.php:742
 #: /app/lib/Controller/TransactionController.php:770
-#: /app/lib/Controller/TransactionController.php:813
-#: /app/lib/Controller/TransactionController.php:836
-#: /app/lib/Controller/TransactionController.php:970
-#: /app/lib/Controller/TransactionController.php:1253
-#: /app/lib/Controller/TransactionController.php:1304
-#: /app/lib/Controller/TransactionController.php:1327
-#: /app/lib/Controller/TransactionController.php:1390 /app/src/main.js:1933
+#: /app/lib/Controller/TransactionController.php:821
+#: /app/lib/Controller/TransactionController.php:844
+#: /app/lib/Controller/TransactionController.php:978
+#: /app/lib/Controller/TransactionController.php:1261
+#: /app/lib/Controller/TransactionController.php:1312
+#: /app/lib/Controller/TransactionController.php:1335
+#: /app/lib/Controller/TransactionController.php:1398 /app/src/main.js:1933
 #: /app/src/modules/dashboard/DashboardModule.js:1396
 #: /app/templates/index.php:5916
 msgid "Transaction"
@@ -2978,109 +3034,109 @@ msgstr ""
 msgid "Failed to categorize transactions"
 msgstr ""
 
-#: /app/lib/Controller/TransactionController.php:795 /app/src/main.js:3592
+#: /app/lib/Controller/TransactionController.php:803 /app/src/main.js:3592
 #: /app/src/modules/transactions/TransactionsModule.js:4025
 msgid "Failed to unlink transaction"
 msgstr ""
 
-#: /app/lib/Controller/TransactionController.php:818
+#: /app/lib/Controller/TransactionController.php:826
 #: /app/src/modules/transactions/TransactionsModule.js:4059
 #, fuzzy
 #| msgid "Failed to retrieve accounts"
 msgid "Failed to link the transaction to the bill"
 msgstr "Nepodařilo se získat účty"
 
-#: /app/lib/Controller/TransactionController.php:841
+#: /app/lib/Controller/TransactionController.php:849
 #: /app/src/modules/transactions/TransactionsModule.js:4102
 #, fuzzy
 #| msgid "Failed to retrieve accounts"
 msgid "Failed to unlink the transaction from the bill"
 msgstr "Nepodařilo se získat účty"
 
-#: /app/lib/Controller/TransactionController.php:882
+#: /app/lib/Controller/TransactionController.php:890
 msgid "Failed to bulk match transactions"
 msgstr ""
 
-#: /app/lib/Controller/TransactionController.php:897
+#: /app/lib/Controller/TransactionController.php:905
 msgid "Failed to scan for matches"
 msgstr ""
 
-#: /app/lib/Controller/TransactionController.php:913
+#: /app/lib/Controller/TransactionController.php:921
 msgid "No valid pairs provided"
 msgstr ""
 
-#: /app/lib/Controller/TransactionController.php:919
+#: /app/lib/Controller/TransactionController.php:927
 msgid "Failed to bulk link transactions"
 msgstr ""
 
-#: /app/lib/Controller/TransactionController.php:983
-#: /app/lib/Traits/ApiErrorHandlerTrait.php:55
+#: /app/lib/Controller/TransactionController.php:991
+#: /app/lib/Traits/ApiErrorHandlerTrait.php:83
 msgid "This shared item is read-only"
 msgstr ""
 
-#: /app/lib/Controller/TransactionController.php:1073
-#: /app/lib/Controller/TransactionController.php:1094
-#: /app/lib/Controller/TransactionController.php:1116
-#: /app/lib/Controller/TransactionController.php:1194
-#: /app/lib/Controller/TransactionController.php:1227
+#: /app/lib/Controller/TransactionController.php:1081
+#: /app/lib/Controller/TransactionController.php:1102
+#: /app/lib/Controller/TransactionController.php:1124
+#: /app/lib/Controller/TransactionController.php:1202
+#: /app/lib/Controller/TransactionController.php:1235
 msgid "No transaction IDs provided"
 msgstr ""
 
-#: /app/lib/Controller/TransactionController.php:1081
+#: /app/lib/Controller/TransactionController.php:1089
 #: /app/src/modules/transactions/TransactionsModule.js:1149
 msgid "Failed to delete transactions"
 msgstr ""
 
-#: /app/lib/Controller/TransactionController.php:1103
+#: /app/lib/Controller/TransactionController.php:1111
 msgid "Failed to update reconcile status"
 msgstr ""
 
-#: /app/lib/Controller/TransactionController.php:1120
+#: /app/lib/Controller/TransactionController.php:1128
 msgid "No update fields provided"
 msgstr ""
 
-#: /app/lib/Controller/TransactionController.php:1128
+#: /app/lib/Controller/TransactionController.php:1136
 #, php-format
 msgid "Invalid fields: %1$s"
 msgstr ""
 
-#: /app/lib/Controller/TransactionController.php:1176
+#: /app/lib/Controller/TransactionController.php:1184
 msgid "Failed to bulk edit transactions"
 msgstr ""
 
-#: /app/lib/Controller/TransactionController.php:1198
+#: /app/lib/Controller/TransactionController.php:1206
 msgid "No tags provided"
 msgstr ""
 
-#: /app/lib/Controller/TransactionController.php:1210
+#: /app/lib/Controller/TransactionController.php:1218
 #, fuzzy
 #| msgid "Failed to retrieve accounts"
 msgid "Failed to update transaction tags"
 msgstr "Nepodařilo se získat účty"
 
-#: /app/lib/Controller/TransactionController.php:1237
+#: /app/lib/Controller/TransactionController.php:1245
 #, fuzzy
 #| msgid "Failed to retrieve accounts"
 msgid "Failed to load tag options"
 msgstr "Nepodařilo se získat účty"
 
-#: /app/lib/Controller/TransactionController.php:1268
+#: /app/lib/Controller/TransactionController.php:1276
 msgid "Invalid splits data"
 msgstr ""
 
-#: /app/lib/Controller/TransactionController.php:1283
+#: /app/lib/Controller/TransactionController.php:1291
 #: /app/lib/Service/TransactionSplitService.php:64
 #, php-format
 msgid "Split %1$s: amount is required"
 msgstr ""
 
-#: /app/lib/Controller/TransactionController.php:1286
+#: /app/lib/Controller/TransactionController.php:1294
 #: /app/lib/Service/TransactionSplitService.php:69
 #, php-format
 msgid "Split %1$s: amount cannot be zero"
 msgstr ""
 
-#: /app/lib/Controller/TransactionController.php:1368
+#: /app/lib/Controller/TransactionController.php:1376
 #: /app/src/modules/bills/BillsModule.js:378
 #: /app/src/modules/dashboard/DashboardModule.js:1350
 #: /app/src/modules/rules/RulesModule.js:1023
@@ -3092,15 +3148,15 @@ msgstr ""
 msgid "Split"
 msgstr ""
 
-#: /app/lib/Controller/TransactionController.php:1414
+#: /app/lib/Controller/TransactionController.php:1422
 msgid "Failed to set transaction tags"
 msgstr ""
 
-#: /app/lib/Controller/TransactionController.php:1430
+#: /app/lib/Controller/TransactionController.php:1438
 msgid "Failed to clear transaction tags"
 msgstr ""
 
-#: /app/lib/Controller/TransactionController.php:1448
+#: /app/lib/Controller/TransactionController.php:1456
 msgid "Failed to find duplicates"
 msgstr ""
 
@@ -3771,22 +3827,28 @@ msgstr ""
 msgid "This page is out of date. Please reload it before editing this account."
 msgstr ""
 
-#: /app/lib/Service/BankSync/BankSyncService.php:186
+#: /app/lib/Service/BankSync/BankSyncService.php:236
 msgid ""
 "No accounts are enabled for sync. Open Account Mappings to enable and map "
 "your accounts."
 msgstr ""
 
-#: /app/lib/Service/BankSync/BankSyncService.php:198
+#: /app/lib/Service/BankSync/BankSyncService.php:248
 #, php-format
 msgid ""
 "Found %1$s account(s). Please open Account Mappings to enable and map them, "
 "then sync again."
 msgstr ""
 
-#: /app/lib/Service/BankSync/BankSyncService.php:462
+#: /app/lib/Service/BankSync/BankSyncService.php:525
 #, php-format
 msgid "Sync completed with %1$s error(s)"
+msgstr ""
+
+#: /app/lib/Service/BankSync/BankSyncService.php:1029
+msgid ""
+"The bank did not share any accounts. Link the account in the Enable Banking "
+"control panel, then use Re-authorize."
 msgstr ""
 
 #: /app/lib/Service/Bill/BillIcsService.php:142
@@ -4423,14 +4485,14 @@ msgstr ""
 msgid "Cannot convert rate: no exchange rate available for base currency %1$s"
 msgstr ""
 
-#: /app/lib/Service/MigrationService.php:594
+#: /app/lib/Service/MigrationService.php:600
 msgid ""
 "Your import folders could not be read after the restore, so they were "
 "switched off. When you switch one back on, the files already in it will be "
 "imported."
 msgstr ""
 
-#: /app/lib/Service/MigrationService.php:598
+#: /app/lib/Service/MigrationService.php:604
 msgid ""
 "%n file already in your import folders was left as it is. Only files added "
 "from now on are imported."
@@ -4441,7 +4503,7 @@ msgstr[0] ""
 msgstr[1] ""
 msgstr[2] ""
 
-#: /app/lib/Service/MigrationService.php:752
+#: /app/lib/Service/MigrationService.php:758
 msgid ""
 "%n item you shared could not be matched to the restored data, so it is no "
 "longer shared. Share it again in Settings if you still want to."
@@ -4452,7 +4514,7 @@ msgstr[0] ""
 msgstr[1] ""
 msgstr[2] ""
 
-#: /app/lib/Service/MigrationService.php:759
+#: /app/lib/Service/MigrationService.php:765
 msgid ""
 "%n bill or transfer lost its account in the restore: the account is not in "
 "this backup, or not shared with you any more. Its auto-pay is off; edit it "
@@ -4465,7 +4527,7 @@ msgstr[0] ""
 msgstr[1] ""
 msgstr[2] ""
 
-#: /app/lib/Service/MigrationService.php:766
+#: /app/lib/Service/MigrationService.php:772
 msgid ""
 "%n item of someone you share with used an account, category or bill that did "
 "not come back in this restore, and has been unlinked from it."
@@ -4476,7 +4538,7 @@ msgstr[0] ""
 msgstr[1] ""
 msgstr[2] ""
 
-#: /app/lib/Service/MigrationService.php:773
+#: /app/lib/Service/MigrationService.php:779
 msgid ""
 "%n contact was linked to a Nextcloud user you can't share with on this "
 "server, so the link was removed."
@@ -4487,7 +4549,7 @@ msgstr[0] ""
 msgstr[1] ""
 msgstr[2] ""
 
-#: /app/lib/Service/MigrationService.php:781
+#: /app/lib/Service/MigrationService.php:787
 msgid ""
 "%n bank account link could not be matched to an account in this backup, so "
 "Bank Sync no longer imports into it. Choose the account again in Bank Sync."
@@ -4499,7 +4561,7 @@ msgstr[0] ""
 msgstr[1] ""
 msgstr[2] ""
 
-#: /app/lib/Service/MigrationService.php:803
+#: /app/lib/Service/MigrationService.php:809
 #, php-format
 msgid ""
 "This backup was made by a newer version of Budget (backup format %1$s, this "
@@ -4507,20 +4569,20 @@ msgid ""
 "Budget first if you can."
 msgstr ""
 
-#: /app/lib/Service/MigrationService.php:1039
+#: /app/lib/Service/MigrationService.php:1045
 #, php-format
 msgid ""
 "This backup cannot be imported: %1$s is larger than %2$s MB when unpacked"
 msgstr ""
 
-#: /app/lib/Service/MigrationService.php:1040
+#: /app/lib/Service/MigrationService.php:1046
 #, php-format
 msgid ""
 "This backup cannot be imported: its files add up to more than %1$s MB when "
 "unpacked"
 msgstr ""
 
-#: /app/lib/Service/MigrationService.php:1129
+#: /app/lib/Service/MigrationService.php:1135
 #, php-format
 msgid "This backup cannot be imported: %1$s is not in the expected format"
 msgstr ""
@@ -5148,17 +5210,17 @@ msgstr ""
 msgid "The account this would transfer to is closed. Reopen it first"
 msgstr ""
 
-#: /app/lib/Service/TransactionTagService.php:334
-#: /app/lib/Service/TransactionTagService.php:631
+#: /app/lib/Service/TransactionTagService.php:335
+#: /app/lib/Service/TransactionTagService.php:633
 msgid "One or more tags do not exist"
 msgstr ""
 
-#: /app/lib/Service/TransactionTagService.php:638
-#: /app/lib/Service/TransactionTagService.php:659
+#: /app/lib/Service/TransactionTagService.php:640
+#: /app/lib/Service/TransactionTagService.php:661
 msgid "One or more tags are not available for this transaction"
 msgstr ""
 
-#: /app/lib/Service/TransactionTagService.php:643
+#: /app/lib/Service/TransactionTagService.php:645
 #, fuzzy
 #| msgid "Failed to retrieve accounts"
 msgid "Category tags cannot be applied to uncategorized transactions"
@@ -5269,12 +5331,12 @@ msgid "Budget's database schema is up to date."
 msgstr ""
 
 #: /app/lib/SetupChecks/BudgetSchemaCheck.php:52
-#: /app/lib/Traits/ApiErrorHandlerTrait.php:195
+#: /app/lib/Traits/ApiErrorHandlerTrait.php:223
 #, php-format
 msgid "An administrator can finish it by running: %1$s"
 msgstr ""
 
-#: /app/lib/Traits/ApiErrorHandlerTrait.php:204
+#: /app/lib/Traits/ApiErrorHandlerTrait.php:232
 msgid ""
 "The database is missing something this version of Budget needs, which means "
 "the update did not finish. An administrator can complete it by running: occ "
@@ -5762,7 +5824,7 @@ msgstr ""
 #: /app/templates/index.php:5776 /app/templates/index.php:5885
 #: /app/templates/index.php:6732 /app/templates/index.php:7153
 #: /app/templates/index.php:7502 /app/templates/index.php:7564
-#: /app/templates/index.php:7665 /app/templates/index.php:7675
+#: /app/templates/index.php:7692 /app/templates/index.php:7702
 msgid "Close"
 msgstr ""
 
@@ -7168,12 +7230,12 @@ msgstr ""
 msgid "Value updated"
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:134
+#: /app/src/modules/bank-sync/BankSyncModule.js:185
 #: /app/templates/index.php:4392
 msgid "No bank connections yet. Click \"Add Connection\" to get started."
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:141
+#: /app/src/modules/bank-sync/BankSyncModule.js:192
 #: /app/src/modules/projects/ProjectsModule.js:88
 #: /app/src/modules/sharing/SharingModule.js:122
 #: /app/src/modules/sharing/SharingModule.js:152 /app/templates/index.php:2797
@@ -7181,256 +7243,297 @@ msgstr ""
 msgid "Active"
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:142
+#: /app/src/modules/bank-sync/BankSyncModule.js:193
 msgid "Awaiting Authorization"
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:143
+#: /app/src/modules/bank-sync/BankSyncModule.js:194
 msgid "Error"
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:144
+#: /app/src/modules/bank-sync/BankSyncModule.js:195
 msgid "Expired"
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:149
+#: /app/src/modules/bank-sync/BankSyncModule.js:200
 msgid "Last sync: {date}"
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:150
+#: /app/src/modules/bank-sync/BankSyncModule.js:201
 msgid "Never synced"
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:156
+#: /app/src/modules/bank-sync/BankSyncModule.js:206
 msgid "Re-authorize"
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:157
+#: /app/src/modules/bank-sync/BankSyncModule.js:207
 msgid "Sync now"
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:160
+#: /app/src/modules/bank-sync/BankSyncModule.js:210
 msgid "Re-import previously deleted transactions"
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:161
+#: /app/src/modules/bank-sync/BankSyncModule.js:211
 msgid "Force"
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:174
+#: /app/src/modules/bank-sync/BankSyncModule.js:224
 #, fuzzy
 #| msgid "Accounts"
 msgid "Account mappings"
 msgstr "Účty"
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:177
+#: /app/src/modules/bank-sync/BankSyncModule.js:227
 msgid "Disconnect"
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:184
+#: /app/src/modules/bank-sync/BankSyncModule.js:234
 msgid "{count} account(s) mapped"
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:185
+#: /app/src/modules/bank-sync/BankSyncModule.js:235
 msgid "Auto-apply import rules to synced transactions"
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:187
+#: /app/src/modules/bank-sync/BankSyncModule.js:237
 msgid "Apply rules"
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:190
+#: /app/src/modules/bank-sync/BankSyncModule.js:240
 msgid ""
 "Also pull pending (not yet posted) transactions. They are marked Pending and "
 "reconciled when they post."
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:192
+#: /app/src/modules/bank-sync/BankSyncModule.js:242
 msgid "Include pending"
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:290
+#: /app/src/modules/bank-sync/BankSyncModule.js:357
 msgid "Please select a provider"
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:294
+#: /app/src/modules/bank-sync/BankSyncModule.js:361
 msgid "Please enter a connection name"
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:307
+#: /app/src/modules/bank-sync/BankSyncModule.js:379
 msgid "Please enter your API credentials"
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:316
+#: /app/src/modules/bank-sync/BankSyncModule.js:388
+#: /app/src/modules/bank-sync/BankSyncModule.js:470
 #, fuzzy
 #| msgid "Recalculating..."
 msgid "Validating..."
 msgstr "Přepočítávání…"
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:324
+#: /app/src/modules/bank-sync/BankSyncModule.js:396
 msgid "Invalid credentials: {error}"
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:328
-#: /app/src/modules/bank-sync/BankSyncModule.js:358
+#: /app/src/modules/bank-sync/BankSyncModule.js:400
+#: /app/src/modules/bank-sync/BankSyncModule.js:498
+#: /app/src/modules/bank-sync/BankSyncModule.js:536
 #: /app/templates/index.php:1564 /app/templates/index.php:1819
 #: /app/templates/index.php:1869 /app/templates/index.php:2594
-#: /app/templates/index.php:7615
+#: /app/templates/index.php:7641
 msgid "Next"
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:335
+#: /app/src/modules/bank-sync/BankSyncModule.js:415
+#, fuzzy
+#| msgid "Failed to retrieve accounts"
+msgid "Failed to load Enable Banking settings: {error}"
+msgstr "Nepodařilo se získat účty"
+
+#: /app/src/modules/bank-sync/BankSyncModule.js:448
+#, fuzzy
+#| msgid "Failed to retrieve accounts"
+msgid "Could not read the key file"
+msgstr "Nepodařilo se získat účty"
+
+#: /app/src/modules/bank-sync/BankSyncModule.js:458
+msgid "Copied"
+msgstr ""
+
+#: /app/src/modules/bank-sync/BankSyncModule.js:479
+msgid "Please enter your application ID and private key"
+msgstr ""
+
+#: /app/src/modules/bank-sync/BankSyncModule.js:494
+#: /app/src/modules/bank-sync/BankSyncModule.js:532
+#: /app/src/modules/bank-sync/BankSyncModule.js:724
+msgid "Failed to connect: {error}"
+msgstr ""
+
+#: /app/src/modules/bank-sync/BankSyncModule.js:513
 msgid "Please enter a setup token"
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:342
-#: /app/src/modules/bank-sync/BankSyncModule.js:484
+#: /app/src/modules/bank-sync/BankSyncModule.js:520
+#: /app/src/modules/bank-sync/BankSyncModule.js:666
 #, fuzzy
 #| msgid "Detecting..."
 msgid "Connecting..."
 msgstr "Zjišťování…"
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:351
+#: /app/src/modules/bank-sync/BankSyncModule.js:529
 msgid "Bank connected successfully"
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:354
-#: /app/src/modules/bank-sync/BankSyncModule.js:529
-msgid "Failed to connect: {error}"
-msgstr ""
-
-#: /app/src/modules/bank-sync/BankSyncModule.js:421
+#: /app/src/modules/bank-sync/BankSyncModule.js:600
+#: /app/src/modules/bank-sync/BankSyncModule.js:833
 msgid "Failed to load banks: {error}"
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:433
+#: /app/src/modules/bank-sync/BankSyncModule.js:612
 msgid "No banks found for this country."
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:533
-#: /app/templates/index.php:7642
+#: /app/src/modules/bank-sync/BankSyncModule.js:728
+#: /app/templates/index.php:7668
 msgid "Connect"
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:554
+#: /app/src/modules/bank-sync/BankSyncModule.js:749
 #, fuzzy
 #| msgid "Checking"
 msgid "Checking..."
 msgstr "Kontroluje se"
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:565
+#: /app/src/modules/bank-sync/BankSyncModule.js:760
 msgid ""
 "Authorization successful! {count} account(s) found. You can now close this "
 "dialog and set up your account mappings."
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:568
+#: /app/src/modules/bank-sync/BankSyncModule.js:763
 #: /app/templates/index.php:4906
 msgid "Done"
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:571
+#: /app/src/modules/bank-sync/BankSyncModule.js:766
 msgid ""
 "Authorization not yet complete. Please finish the authorization in the bank "
 "window and try again."
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:574
+#: /app/src/modules/bank-sync/BankSyncModule.js:769
 msgid "Authorization check failed: {error}"
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:579
-#: /app/templates/index.php:7664
+#: /app/src/modules/bank-sync/BankSyncModule.js:774
+#: /app/templates/index.php:7691
 msgid "I've Completed Authorization"
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:613
+#: /app/src/modules/bank-sync/BankSyncModule.js:841
 msgid "Force syncing..."
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:623
+#: /app/src/modules/bank-sync/BankSyncModule.js:851
 msgid "Sync complete: {imported} imported, {skipped} skipped"
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:632
+#: /app/src/modules/bank-sync/BankSyncModule.js:860
 msgid "Sync failed: {error}"
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:653
+#: /app/src/modules/bank-sync/BankSyncModule.js:881
 msgid "Syncing {current} of {total}..."
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:669
+#: /app/src/modules/bank-sync/BankSyncModule.js:897
 msgid ""
 "Synced {synced} of {total} connections: {imported} imported, {skipped} "
 "skipped, {errors} failed"
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:673
+#: /app/src/modules/bank-sync/BankSyncModule.js:901
 msgid "Synced {synced} connections: {imported} imported, {skipped} skipped"
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:685
+#: /app/src/modules/bank-sync/BankSyncModule.js:913
 msgid ""
 "Are you sure you want to disconnect this bank? This will remove the "
 "connection and all account mappings."
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:694
+#: /app/src/modules/bank-sync/BankSyncModule.js:922
 msgid "Bank disconnected"
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:717
+#: /app/src/modules/bank-sync/BankSyncModule.js:945
 msgid "Account Mappings — {name}"
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:722
+#: /app/src/modules/bank-sync/BankSyncModule.js:950
 #, fuzzy
 #| msgid "Failed to retrieve accounts"
 msgid "Failed to load account mappings"
 msgstr "Nepodařilo se získat účty"
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:752
+#: /app/src/modules/bank-sync/BankSyncModule.js:984
 msgid "Consent expires: {date}"
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:756
+#: /app/src/modules/bank-sync/BankSyncModule.js:989
 #: /app/src/modules/import/ImportModule.js:2344
 msgid "Budget account for {account}"
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:757
+#: /app/src/modules/bank-sync/BankSyncModule.js:990
 msgid "— Not mapped —"
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:802
+#: /app/src/modules/bank-sync/BankSyncModule.js:1044
+msgid "Bank: {bank} · Budget: {budget} · Difference: {difference}"
+msgstr ""
+
+#: /app/src/modules/bank-sync/BankSyncModule.js:1051
+msgid "Set the opening balance so that the balance matches the bank"
+msgstr ""
+
+#: /app/src/modules/bank-sync/BankSyncModule.js:1051
+#: /app/templates/index.php:1227 /app/templates/index.php:1597
+msgid "Reconcile"
+msgstr ""
+
+#: /app/src/modules/bank-sync/BankSyncModule.js:1062
+msgid "Balance matched to the bank"
+msgstr ""
+
+#: /app/src/modules/bank-sync/BankSyncModule.js:1079
 msgid "Mapping updated"
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:821
+#: /app/src/modules/bank-sync/BankSyncModule.js:1098
 #, fuzzy
 #| msgid "Accounts"
 msgid "Accounts refreshed"
 msgstr "Účty"
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:823
+#: /app/src/modules/bank-sync/BankSyncModule.js:1100
 #, fuzzy
 #| msgid "Failed to retrieve accounts"
 msgid "Failed to refresh accounts: {error}"
 msgstr "Nepodařilo se získat účty"
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:837
+#: /app/src/modules/bank-sync/BankSyncModule.js:1114
 msgid "Import rules will be applied during sync"
 msgstr ""
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:839
-#: /app/src/modules/bank-sync/BankSyncModule.js:851
+#: /app/src/modules/bank-sync/BankSyncModule.js:1116
+#: /app/src/modules/bank-sync/BankSyncModule.js:1128
 #, fuzzy
 #| msgid "Failed to retrieve accounts"
 msgid "Failed to update connection settings"
 msgstr "Nepodařilo se získat účty"
 
-#: /app/src/modules/bank-sync/BankSyncModule.js:849
+#: /app/src/modules/bank-sync/BankSyncModule.js:1126
 msgid "Pending transactions will be included during sync"
 msgstr ""
 
@@ -8327,7 +8430,7 @@ msgstr ""
 #: /app/templates/index.php:7266 /app/templates/index.php:7306
 #: /app/templates/index.php:7332 /app/templates/index.php:7370
 #: /app/templates/index.php:7412 /app/templates/index.php:7458
-#: /app/templates/index.php:7545 /app/templates/index.php:7616
+#: /app/templates/index.php:7545 /app/templates/index.php:7642
 msgid "Cancel"
 msgstr "Zrušit"
 
@@ -9521,7 +9624,7 @@ msgid ""
 msgstr ""
 
 #: /app/src/modules/help/HelpModule.js:52 /app/templates/index.php:287
-#: /app/templates/index.php:5070 /app/templates/index.php:7681
+#: /app/templates/index.php:5070 /app/templates/index.php:7708
 msgid "Help & Docs"
 msgstr ""
 
@@ -14835,6 +14938,18 @@ msgstr ""
 msgid "Repair complete: {details}"
 msgstr ""
 
+#: /app/templates/bank-sync-callback.php:11
+msgid "Bank connected"
+msgstr ""
+
+#: /app/templates/bank-sync-callback.php:11
+msgid "Bank connection failed"
+msgstr ""
+
+#: /app/templates/bank-sync-callback.php:14
+msgid "Back to bank sync"
+msgstr ""
+
 #: /app/templates/index.php:8
 msgid "Toggle navigation"
 msgstr ""
@@ -14855,7 +14970,7 @@ msgstr ""
 msgid "Tools & Settings"
 msgstr ""
 
-#: /app/templates/index.php:217 /app/templates/index.php:7674
+#: /app/templates/index.php:217 /app/templates/index.php:7701
 msgid "Help"
 msgstr ""
 
@@ -15054,10 +15169,6 @@ msgstr ""
 
 #: /app/templates/index.php:1225
 msgid "Reconcile account"
-msgstr ""
-
-#: /app/templates/index.php:1227 /app/templates/index.php:1597
-msgid "Reconcile"
 msgstr ""
 
 #: /app/templates/index.php:1229
@@ -17381,7 +17492,7 @@ msgstr ""
 msgid "Open docs site"
 msgstr ""
 
-#: /app/templates/index.php:5083 /app/templates/index.php:7682
+#: /app/templates/index.php:5083 /app/templates/index.php:7709
 msgid "Report an Issue"
 msgstr ""
 
@@ -19051,92 +19162,140 @@ msgid "GoCardless (UK/Europe)"
 msgstr ""
 
 #: /app/templates/index.php:7581
+msgid "Enable Banking (Europe)"
+msgstr ""
+
+#: /app/templates/index.php:7582
 msgid "SimpleFIN Bridge (US)"
 msgstr ""
 
-#: /app/templates/index.php:7586
+#: /app/templates/index.php:7587
 msgid "Connection Name"
 msgstr ""
 
-#: /app/templates/index.php:7587
+#: /app/templates/index.php:7588
 msgid "e.g. My Bank"
 msgstr ""
 
-#: /app/templates/index.php:7593
+#: /app/templates/index.php:7594
 msgid "Setup Token"
 msgstr ""
 
-#: /app/templates/index.php:7594
+#: /app/templates/index.php:7595
 msgid "Paste your SimpleFIN setup token"
 msgstr ""
 
-#: /app/templates/index.php:7595
+#: /app/templates/index.php:7596
 msgid "Get a token from beta-bridge.simplefin.org"
 msgstr ""
 
-#: /app/templates/index.php:7602
+#: /app/templates/index.php:7603
 msgid "Secret ID"
 msgstr ""
 
-#: /app/templates/index.php:7603
+#: /app/templates/index.php:7604
 msgid "Your GoCardless Secret ID"
 msgstr ""
 
-#: /app/templates/index.php:7606
+#: /app/templates/index.php:7607
 msgid "Secret Key"
 msgstr ""
 
-#: /app/templates/index.php:7607
+#: /app/templates/index.php:7608
 msgid "Your GoCardless Secret Key"
 msgstr ""
 
-#: /app/templates/index.php:7609
+#: /app/templates/index.php:7610
 msgid "Get API keys from bankaccountdata.gocardless.com"
 msgstr ""
 
+#: /app/templates/index.php:7616
+msgid "Your Enable Banking keys are stored."
+msgstr ""
+
+#: /app/templates/index.php:7617
+#, fuzzy
+#| msgid "Monthly"
+msgid "Replace keys"
+msgstr "Měsíčně"
+
+#: /app/templates/index.php:7621
+msgid "Application ID"
+msgstr ""
+
 #: /app/templates/index.php:7622
-msgid "Select Your Bank"
+msgid "Your Enable Banking application ID"
 msgstr ""
 
 #: /app/templates/index.php:7625
+msgid "Private Key (PEM)"
+msgstr ""
+
+#: /app/templates/index.php:7627
+msgid "Load private key from file"
+msgstr ""
+
+#: /app/templates/index.php:7631
+msgid "Redirect URL to register in Enable Banking"
+msgstr ""
+
+#: /app/templates/index.php:7633
+msgid "Copy"
+msgstr ""
+
+#: /app/templates/index.php:7635
+msgid "Register an application and create its keys at"
+msgstr ""
+
+#: /app/templates/index.php:7648
+msgid "Select Your Bank"
+msgstr ""
+
+#: /app/templates/index.php:7651
 #, fuzzy
 #| msgid "Amount"
 msgid "Country"
 msgstr "Množství"
 
-#: /app/templates/index.php:7630
+#: /app/templates/index.php:7656
 msgid "Search banks..."
 msgstr ""
 
-#: /app/templates/index.php:7630
+#: /app/templates/index.php:7656
 msgid "Search banks"
 msgstr ""
 
-#: /app/templates/index.php:7634
+#: /app/templates/index.php:7660
 msgid "Loading banks..."
 msgstr ""
 
-#: /app/templates/index.php:7643
+#: /app/templates/index.php:7669
 msgid "Back"
 msgstr ""
 
-#: /app/templates/index.php:7649
+#: /app/templates/index.php:7675
 msgid "Authorize with Your Bank"
 msgstr ""
 
-#: /app/templates/index.php:7652
+#: /app/templates/index.php:7678
+msgid ""
+"Confirm in your bank's app. When the new tab says 'Connected', come back "
+"here."
+msgstr ""
+
+#: /app/templates/index.php:7679
 msgid "A new window has been opened for you to authorize access at your bank."
 msgstr ""
 
-#: /app/templates/index.php:7653
+#: /app/templates/index.php:7680
 msgid "Once you have completed the authorization, click the button below."
 msgstr ""
 
-#: /app/templates/index.php:7655
+#: /app/templates/index.php:7682
 msgid "If the window did not open, "
 msgstr ""
 
-#: /app/templates/index.php:7656
+#: /app/templates/index.php:7683
 msgid "click here to authorize"
 msgstr ""
 
