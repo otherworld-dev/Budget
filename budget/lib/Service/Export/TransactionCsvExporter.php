@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Service\Export;
 
 use OCA\Budget\Enum\TransactionType;
+use OCA\Budget\Service\AttachmentService;
 use OCP\IL10N;
 
 /**
@@ -17,6 +18,7 @@ use OCP\IL10N;
 class TransactionCsvExporter {
 	public function __construct(
 		private IL10N $l,
+		private ?AttachmentService $attachments = null,
 	) {
 	}
 
@@ -39,6 +41,9 @@ class TransactionCsvExporter {
 			// Trailing so an existing spreadsheet template keeps its column
 			// offsets; blank on every row that isn't a split share (#359).
 			$this->l->t('Split of'),
+			// The attached receipts' file names, so an auditor can find the
+			// invoice behind a line (#475). Last for the same reason.
+			$this->l->t('Receipts'),
 		];
 	}
 
@@ -89,23 +94,52 @@ class TransactionCsvExporter {
 			(string)($transaction['notes'] ?? ''),
 			(string)($transaction['status'] ?? ''),
 			$isShare ? $this->formatAmount(abs((float)($transaction['amount'] ?? 0)), $transaction) : '',
+			implode('; ', array_map('strval', $transaction['receiptNames'] ?? [])),
 		];
 	}
 
 	/**
 	 * Write the header and every row of each batch to an open stream.
 	 *
+	 * $userId is whose receipts to name: the Receipts column stays blank
+	 * without it.
+	 *
 	 * @param resource $handle
 	 * @param iterable<array<int, array<string, mixed>>> $batches
 	 */
-	public function write($handle, iterable $batches): void {
+	public function write($handle, iterable $batches, ?string $userId = null): void {
 		CsvSafe::put($handle, $this->headerRow());
 
 		foreach ($batches as $batch) {
-			foreach ($batch as $transaction) {
+			foreach ($this->withReceiptNames($batch, $userId) as $transaction) {
 				CsvSafe::put($handle, $this->dataRow($transaction));
 			}
 		}
+	}
+
+	/**
+	 * The batch with each row's receipt file names, read in one query per
+	 * batch rather than one per row (#475). Receipts are the account owner's,
+	 * so a row in an account shared with the user is left blank, as the
+	 * receipts list is for them.
+	 *
+	 * @param array<int, array<string, mixed>> $batch
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function withReceiptNames(array $batch, ?string $userId): array {
+		if ($this->attachments === null || $userId === null || $userId === '' || $batch === []) {
+			return $batch;
+		}
+
+		$names = $this->attachments->receiptNames(
+			array_map(static fn (array $row): int => (int)($row['id'] ?? 0), $batch),
+			$userId
+		);
+		foreach ($batch as $i => $row) {
+			$batch[$i]['receiptNames'] = $names[(int)($row['id'] ?? 0)] ?? [];
+		}
+
+		return $batch;
 	}
 
 	/**

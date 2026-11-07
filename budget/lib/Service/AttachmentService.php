@@ -317,6 +317,21 @@ class AttachmentService {
 		return $this->mapper->receiptPresence($transactionIds, $userId);
 	}
 
+	/**
+	 * Receipt file names per transaction for the CSV export (#475), under the
+	 * same owner-only rule as receiptPresence(): a transaction in an account
+	 * shared with the user gets no key.
+	 *
+	 * @param int[] $transactionIds
+	 * @return array<int, string[]>
+	 */
+	public function receiptNames(array $transactionIds, string $userId): array {
+		if ($transactionIds === []) {
+			return [];
+		}
+		return $this->mapper->receiptNames($transactionIds, $userId);
+	}
+
 	private function createRow(int $transactionId, string $userId, File $node): Attachment {
 		// Reject duplicates politely (unique index would throw anyway)
 		foreach ($this->mapper->findByTransaction($transactionId, $userId) as $existing) {

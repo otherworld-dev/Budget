@@ -110,6 +110,54 @@ class AttachmentMapper extends QBMapper {
 		return $presence;
 	}
 
+	/**
+	 * The file names of each transaction's receipts, for the CSV export
+	 * (#475). Scoped exactly like receiptPresence() and so like GET
+	 * /transactions/{id}/receipts: only the user's own attachment rows on
+	 * transactions in the user's own accounts. A transaction in an account
+	 * shared with them gets no key, as receipts stay the owner's.
+	 *
+	 * The name is the one recorded when the file was attached; the receipts
+	 * list refreshes it from Files, but that is a lookup per file. Oldest
+	 * first, the order that list shows them in.
+	 *
+	 * One query per 500 ids (old SQLite caps bound variables at 999), never
+	 * one per row.
+	 *
+	 * @param int[] $transactionIds
+	 * @return array<int, string[]> transaction id => file names
+	 */
+	public function receiptNames(array $transactionIds, string $userId): array {
+		$ids = array_values(array_unique(array_map('intval', $transactionIds)));
+		$names = [];
+		foreach (array_chunk($ids, 500) as $chunk) {
+			$qb = $this->db->getQueryBuilder();
+			$qb->select('att.transaction_id', 'att.file_name')
+				->from($this->getTableName(), 'att')
+				->innerJoin('att', 'budget_transactions', 't', $qb->expr()->eq('t.id', 'att.transaction_id'))
+				->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->andX(
+					$qb->expr()->eq('t.account_id', 'a.id'),
+					$qb->expr()->eq('a.user_id', $qb->createNamedParameter($userId))
+				))
+				->where($qb->expr()->eq('att.user_id', $qb->createNamedParameter($userId)))
+				->andWhere($qb->expr()->in('att.transaction_id', $qb->createNamedParameter($chunk, IQueryBuilder::PARAM_INT_ARRAY)))
+				->orderBy('att.transaction_id', 'ASC')
+				->addOrderBy('att.created_at', 'ASC')
+				->addOrderBy('att.id', 'ASC');
+
+			$result = $qb->executeQuery();
+			while ($row = $result->fetch()) {
+				$name = (string)($row['file_name'] ?? '');
+				if ($name !== '') {
+					$names[(int)$row['transaction_id']][] = $name;
+				}
+			}
+			$result->closeCursor();
+		}
+
+		return $names;
+	}
+
 	public function deleteByTransaction(int $transactionId, string $userId): void {
 		$qb = $this->db->getQueryBuilder();
 		$qb->delete($this->getTableName())

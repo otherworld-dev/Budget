@@ -15,7 +15,8 @@ use OCP\IDBConnection;
 use PHPUnit\Framework\TestCase;
 
 /**
- * receiptPresence() feeds the v1 API's has_receipt (#455). The query builder
+ * receiptPresence() feeds the v1 API's has_receipt (#455) and receiptNames()
+ * the CSV export's Receipts column (#475). The query builder
  * is mocked, so these prove the call shape (one query per page, the caller's
  * scope on both the account and the attachment) and the result mapping; the
  * SQL itself is proven on a real instance.
@@ -53,7 +54,7 @@ class AttachmentMapperTest extends TestCase {
 		});
 		$this->expr->method('andX')->willReturn($this->createMock(ICompositeExpression::class));
 		$this->expr->method('in')->willReturn('in');
-		foreach (['select', 'selectAlias', 'from', 'where', 'innerJoin', 'leftJoin', 'groupBy'] as $method) {
+		foreach (['select', 'selectAlias', 'from', 'where', 'andWhere', 'innerJoin', 'leftJoin', 'groupBy', 'orderBy', 'addOrderBy'] as $method) {
 			$this->qb->method($method)->willReturnSelf();
 		}
 		$this->result->method('closeCursor')->willReturn(true);
@@ -100,6 +101,56 @@ class AttachmentMapperTest extends TestCase {
 		// The same scope as GET /transactions/{id}/receipts: the account is
 		// the caller's (TransactionMapper::find) and so is the attachment row
 		// (findByTransaction)
+		$scoped = array_values(array_filter($this->eqs, static fn (array $eq): bool => str_ends_with($eq[0], '.user_id')));
+		$this->assertSame(['a.user_id', 'att.user_id'], array_column($scoped, 0));
+		foreach ($scoped as [, $param]) {
+			$this->assertSame('user1', $this->params[(int)substr($param, 2) - 1]);
+		}
+		$this->assertContains([5, 6], $this->params, 'ids are de-duplicated');
+	}
+
+	// ===== receiptNames() (#475) =====
+
+	public function testNamesAreGroupedByTransactionInOneQuery(): void {
+		$this->result->method('fetch')->willReturnOnConsecutiveCalls(
+			['transaction_id' => '1', 'file_name' => 'invoice.pdf'],
+			['transaction_id' => '1', 'file_name' => 'delivery note.jpg'],
+			['transaction_id' => '4', 'file_name' => 'receipt.png'],
+			['transaction_id' => '4', 'file_name' => null],
+			false
+		);
+		$this->qb->expects($this->once())->method('executeQuery')->willReturn($this->result);
+
+		$names = $this->mapper->receiptNames(range(1, 200), 'user1');
+
+		// Rows keep the query's order; a row with no recorded name is skipped
+		$this->assertSame([1 => ['invoice.pdf', 'delivery note.jpg'], 4 => ['receipt.png']], $names);
+	}
+
+	public function testNamesForALongListAreChunkedForSqlite(): void {
+		$this->result->method('fetch')->willReturn(false);
+		$this->qb->expects($this->exactly(3))->method('executeQuery')->willReturn($this->result);
+
+		$this->mapper->receiptNames(range(1, 1200), 'user1');
+
+		$chunks = array_values(array_filter($this->params, 'is_array'));
+		$this->assertSame([500, 500, 200], array_map('count', $chunks));
+	}
+
+	public function testNoIdsIsNoNamesQuery(): void {
+		$this->qb->expects($this->never())->method('executeQuery');
+
+		$this->assertSame([], $this->mapper->receiptNames([], 'user1'));
+	}
+
+	public function testNamesAreScopedLikeTheReceiptsList(): void {
+		$this->result->method('fetch')->willReturn(false);
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$this->mapper->receiptNames([5, 5, 6], 'user1');
+
+		// Owner-only, as GET /transactions/{id}/receipts is: the account is
+		// the caller's and so is the attachment row
 		$scoped = array_values(array_filter($this->eqs, static fn (array $eq): bool => str_ends_with($eq[0], '.user_id')));
 		$this->assertSame(['a.user_id', 'att.user_id'], array_column($scoped, 0));
 		foreach ($scoped as [, $param]) {

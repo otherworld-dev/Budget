@@ -242,7 +242,7 @@ class TransactionController extends Controller {
 			$batches = $this->service->findAllForExport($this->userId, $filters, $visibleAccountIds);
 
 			$handle = fopen('php://memory', 'w+');
-			$this->csvExporter->write($handle, $batches);
+			$this->csvExporter->write($handle, $batches, $this->userId);
 			rewind($handle);
 			$csv = stream_get_contents($handle);
 			fclose($handle);
