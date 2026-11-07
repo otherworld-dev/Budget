@@ -3168,7 +3168,11 @@ class BillService {
 			// year's last; a budget changed during the year leaves them blank
 			// as a row of invoices of different amounts does
 			$budgets = array_values($estimate['budgets']);
-			[$amount, $period] = $budgets[count($budgets) - 1];
+			$last = end($budgets);
+			if ($last === false) {
+				continue;
+			}
+			[$amount, $period] = $last;
 			$rows[] = [
 				'id' => null,
 				'isBudget' => true,
