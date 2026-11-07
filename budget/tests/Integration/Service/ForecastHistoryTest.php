@@ -40,16 +40,19 @@ class ForecastHistoryTest extends IntegrationTestCase {
 
 		$forecast = $this->service(ForecastService::class)->getLiveForecast($this->userId, 6);
 
-		$rest = $this->restOfThisMonth();
+		// Last month spent 1,200 on the 10th and 800 on the 11th: what of
+		// that is still to come this month
+		$rest = ($this->stillToCome(10) ? 1200.0 : 0.0) + ($this->stillToCome(11) ? 800.0 : 0.0);
 		$months = $this->fullMonths($forecast);
 		$this->assertSame(array_fill(0, 6, 3100.0), array_column($months, 'income'));
 		$this->assertSame(array_fill(0, 6, 2000.0), array_column($months, 'expenses'));
-		// What is left of this month comes first, with its share of spending
+		// What is left of this month comes first, with the spending the
+		// same days had last month
 		if ($rest > 0) {
 			$this->assertTrue($forecast['monthlyProjections'][0]['partial']);
-			$this->assertSame(round(2000.0 * $rest, 2), $forecast['monthlyProjections'][0]['expenses']);
+			$this->assertSame($rest, $forecast['monthlyProjections'][0]['expenses']);
 		}
-		$this->assertEqualsWithDelta(3925.0 + 6 * 1100.0 - 2000.0 * $rest, $forecast['projectedBalance'], 0.01);
+		$this->assertEqualsWithDelta(3925.0 + 6 * 1100.0 - $rest, $forecast['projectedBalance'], 0.01);
 		$this->assertSame(1, $forecast['dataQuality']['monthsOfData']);
 		$this->assertFalse($forecast['dataQuality']['isReliable']);
 	}
@@ -72,8 +75,9 @@ class ForecastHistoryTest extends IntegrationTestCase {
 
 		$forecast = $this->service(ForecastService::class)->getLiveForecast($this->userId, 6);
 		$this->assertTrue($forecast['dataQuality']['isReliable']);
-		// 600 a month more out than in, after the rest of this month's share
-		$first = round(1000.0 - 600.0 * (1 + $this->restOfThisMonth()), 2);
+		// 600 a month more out than in, after what is left of this month:
+		// 1,300 on the 10th and on the 11th, if still to come
+		$first = round(1000.0 - 600.0 - ($this->stillToCome(10) ? 1300.0 : 0.0) - ($this->stillToCome(11) ? 1300.0 : 0.0), 2);
 		$this->assertSame([$first, round($first - 600.0, 2)], array_slice(array_column($this->fullMonths($forecast), 'balance'), 0, 2));
 
 		$this->assertTrue($this->service(ForecastWarningService::class)->checkAndNotify($this->userId));
@@ -132,13 +136,10 @@ class ForecastHistoryTest extends IntegrationTestCase {
 	}
 
 	/**
-	 * The share of this month still to come after today, on the user's
-	 * calendar as the forecast reads it: what is left of this month
-	 * comes first, with this share of the usual income and spending.
+	 * Whether the day of the month $day is still to come this month, on
+	 * the user's calendar as the forecast reads it.
 	 */
-	private function restOfThisMonth(): float {
-		$today = new \DateTimeImmutable($this->service(UserClock::class)->today($this->userId));
-		$days = (int)$today->format('t');
-		return ($days - (int)$today->format('j')) / $days;
+	private function stillToCome(int $day): bool {
+		return (int)(new \DateTimeImmutable($this->service(UserClock::class)->today($this->userId)))->format('j') < $day;
 	}
 }

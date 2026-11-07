@@ -176,9 +176,9 @@ class ForecastScheduledTest extends TestCase {
 		$months = $this->forecast(3)['monthlyProjections'];
 
 		// Salary and rent on their dates, the other 1,000 a month averaged
-		// (October's last day: 1,000 / 31)
+		// (October's last day: the 1,000 went out on the 10th)
 		$this->assertSame([0.0, 3000.0, 3000.0, 3000.0], array_column($months, 'income'));
-		$this->assertSame([32.26, 1900.0, 1900.0, 1900.0], array_column($months, 'expenses'));
+		$this->assertSame([0.0, 1900.0, 1900.0, 1900.0], array_column($months, 'expenses'));
 	}
 
 	public function testAPatternMatchesItsWordsInAnyOrder(): void {
@@ -260,9 +260,9 @@ class ForecastScheduledTest extends TestCase {
 
 		$months = $this->forecast(2)['monthlyProjections'];
 
-		// 30 October: 1 of October's 31 days to come, so a 31st of the
-		// usual 1,000 spending, and November no more than a month
-		$this->assertEqualsWithDelta(1000.0 / 31, $months[0]['expenses'], 0.01);
+		// 30 October: only the 31st to come, and the months before spent
+		// their 1,000 on the 10th, so none of it; November no more than a month
+		$this->assertSame(0.0, $months[0]['expenses']);
 		$this->assertSame(1900.0, $months[1]['expenses']);
 	}
 

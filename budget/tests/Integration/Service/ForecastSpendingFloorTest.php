@@ -43,7 +43,7 @@ class ForecastSpendingFloorTest extends IntegrationTestCase {
 	public function testARisingTrendIsFollowed(): void {
 		$this->history(['300.00', '400.00', '500.00']);
 
-		// The rest of this month at the average (400), not on the trend
+		// The rest of this month as the months before had it, not on the trend
 		$this->assertSame($this->withRestOfThisMonth([500.0, 600.0, 700.0, 800.0, 900.0, 1000.0], 400.0), array_column($this->forecast()['monthlyProjections'], 'expenses'));
 	}
 
@@ -81,8 +81,9 @@ class ForecastSpendingFloorTest extends IntegrationTestCase {
 		$this->db()->executeStatement('UPDATE *PREFIX*budget_accounts SET balance = ? WHERE id = ?', ['1000.00', $this->account]);
 
 		$balances = array_column($this->fullMonths($this->forecast()), 'balance');
-		// 600 a month more out than in, after the rest of this month's share
-		$first = 1000.0 - 600.0 * (1 + $this->restOfThisMonth());
+		// 600 a month more out than in, after what is left of this month:
+		// the spending on the 10th (2,600 on average) if that is still to come
+		$first = 1000.0 - 600.0 - ($this->stillToCome(10) ? 2600.0 : 0.0);
 		$this->assertEqualsWithDelta($first, $balances[0], 0.1);
 		$this->assertEqualsWithDelta($first - 600.0, $balances[1], 0.1);
 
@@ -117,25 +118,26 @@ class ForecastSpendingFloorTest extends IntegrationTestCase {
 	}
 
 	/**
-	 * The share of this month still to come after today, on the user's
-	 * calendar as the forecast reads it: what is left of this month
-	 * comes first, with this share of the usual income and spending.
+	 * Whether the day of the month $day is still to come this month, on
+	 * the user's calendar as the forecast reads it.
 	 */
-	private function restOfThisMonth(): float {
-		$today = new \DateTimeImmutable($this->service(UserClock::class)->today($this->userId));
-		$days = (int)$today->format('t');
-		return ($days - (int)$today->format('j')) / $days;
+	private function stillToCome(int $day): bool {
+		return (int)(new \DateTimeImmutable($this->service(UserClock::class)->today($this->userId)))->format('j') < $day;
 	}
 
 	/**
-	 * Monthly figures after the rest of this month's share of $average,
-	 * which comes first unless today is the month's last day.
+	 * Monthly figures after what is left of this month, which comes first
+	 * unless today is the month's last day: the spending on the 10th the
+	 * months before had ($average), if the 10th is still to come.
 	 *
 	 * @param float[] $monthly
 	 * @return float[]
 	 */
 	private function withRestOfThisMonth(array $monthly, float $average): array {
-		$rest = $this->restOfThisMonth();
-		return $rest > 0 ? [round($average * $rest, 2), ...$monthly] : $monthly;
+		$today = new \DateTimeImmutable($this->service(UserClock::class)->today($this->userId));
+		if ($today->format('j') === $today->format('t')) {
+			return $monthly;
+		}
+		return [round($this->stillToCome(10) ? $average : 0.0, 2), ...$monthly];
 	}
 }

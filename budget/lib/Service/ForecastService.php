@@ -232,6 +232,29 @@ class ForecastService {
 	}
 
 	/**
+	 * Income and spending among $rows after the first $elapsedDays days of
+	 * the month each falls in: the part of every month the running one
+	 * still has to go. A month shorter than that has none left.
+	 *
+	 * @param array<int, string> $rates
+	 * @return array{income: float, expenses: float}
+	 */
+	private static function restOfMonths(array $rows, array $rates, int $monthStartDay, int $elapsedDays): array {
+		$totals = ['income' => 0.0, 'expenses' => 0.0];
+		$cuts = [];
+		foreach ($rows as $t) {
+			$date = substr((string)$t->getDate(), 0, 10);
+			$month = BudgetPeriod::monthContaining($date, $monthStartDay);
+			$cuts[$month] ??= (new \DateTimeImmutable(BudgetPeriod::range($month, $monthStartDay)[0]))
+				->modify("+{$elapsedDays} days")->format('Y-m-d');
+			if ($date >= $cuts[$month]) {
+				$totals[$t->getType() === 'credit' ? 'income' : 'expenses'] += PatternAnalyzer::inForecastCurrency((float)$t->getAmount(), $t, $rates);
+			}
+		}
+		return $totals;
+	}
+
+	/**
 	 * Whether a row is a payment of one of the bills or recurring incomes
 	 * placed on their own dates, so the average must not count it again: a
 	 * debit for a bill, a credit for an income (or for a transfer bill into
@@ -651,10 +674,20 @@ class ForecastService {
 		// Rows dated after today, until the last month projected
 		$lastProjected = BudgetPeriod::range(self::shiftMonth($thisMonth, $forecastMonths), $monthStartDay)[1];
 		$tomorrow = (new \DateTimeImmutable($today))->modify('+1 day')->format('Y-m-d');
-		// The share of the running month still to come
+		// What the months learned from had coming in and going out in the
+		// days the running month still has to go. Money moves with the
+		// salary: most of a month's spending leaves in the days after it
+		// comes in. A share of the average by days put 61% of a month's
+		// spending in the last 19 days of a budget month whose history spent
+		// 82% in its first 12, and the month looked to end in the red.
 		[$thisStart, $thisEnd] = BudgetPeriod::range($thisMonth, $monthStartDay);
-		$restOfThisMonth = $tomorrow > $thisEnd ? 0.0
-			: self::days($tomorrow, $thisEnd) / self::days($thisStart, $thisEnd);
+		$restOfThisMonth = ['income' => 0.0, 'expenses' => 0.0];
+		if ($tomorrow <= $thisEnd && $months > 0) {
+			$elapsedDays = self::days($thisStart, $today);
+			foreach (self::restOfMonths($variable, $rates ?? [], $monthStartDay, $elapsedDays) as $kind => $total) {
+				$restOfThisMonth[$kind] = $total / $months;
+			}
+		}
 		$scheduledBillIds = [];
 		foreach ([...$bills, ...$incomingTransfers] as [$bill]) {
 			$scheduledBillIds[(int)$bill->getId()] = true;
@@ -668,23 +701,23 @@ class ForecastService {
 		$cumulativeSavings = 0;
 		$savingsMonthlyData = [];
 
-		// The running month comes first, from tomorrow on, with its share of
-		// the usual income and spending: today's balance holds none of it
-		// yet. Then the months after it, stepped from the 1st: from the 31st,
+		// The running month comes first, from tomorrow on, with what the
+		// same days of the months learned from had: today's balance holds
+		// none of it yet. Then the months after it, stepped from the 1st: from the 31st,
 		// "+1 month" skipped any shorter month. Folded into the next month,
 		// the rest of the running month made that month look like two: with
 		// a budget start day it can have most of its days left.
 		$periods = [];
-		if ($restOfThisMonth > 0) {
-			$periods[] = [$thisMonth, $tomorrow, $thisEnd, $restOfThisMonth, 0];
+		if ($tomorrow <= $thisEnd) {
+			$periods[] = [$thisMonth, $tomorrow, $thisEnd, 0];
 		}
 		for ($i = 1; $i <= $forecastMonths; $i++) {
 			$projectionMonth = self::shiftMonth($thisMonth, $i);
 			[$from, $to] = BudgetPeriod::range($projectionMonth, $monthStartDay);
-			$periods[] = [$projectionMonth, $from, $to, 1.0, $i];
+			$periods[] = [$projectionMonth, $from, $to, $i];
 		}
 
-		foreach ($periods as $index => [$projectionMonth, $from, $to, $share, $i]) {
+		foreach ($periods as $index => [$projectionMonth, $from, $to, $i]) {
 			$monthLabel = \DateTimeImmutable::createFromFormat('!Y-m', $projectionMonth)->format('M Y');
 
 			$scheduledIncome = (float)MoneyCalculator::add(
@@ -699,8 +732,8 @@ class ForecastService {
 				$index === 0 ? $overdue : '0',
 			], 10);
 
-			$projectedIncome = max(0, $variableIncome + ($variableIncomeTrend * $i)) * $share + $scheduledIncome;
-			$projectedExpenses = max(0, $variableExpenses + ($variableExpenseTrend * $i)) * $share + $scheduledExpenses;
+			$projectedIncome = ($i === 0 ? $restOfThisMonth['income'] : max(0, $variableIncome + ($variableIncomeTrend * $i))) + $scheduledIncome;
+			$projectedExpenses = ($i === 0 ? $restOfThisMonth['expenses'] : max(0, $variableExpenses + ($variableExpenseTrend * $i))) + $scheduledExpenses;
 			$monthlySavings = $projectedIncome - $projectedExpenses;
 
 			$projectedBalance += $monthlySavings;
