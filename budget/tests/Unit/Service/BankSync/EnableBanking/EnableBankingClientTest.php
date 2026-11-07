@@ -200,6 +200,11 @@ class EnableBankingClientTest extends TestCase {
 	 * the PEM and the session path.
 	 */
 	public function testExceptionTraceCarriesNeitherKeyNorSessionId(): void {
+		if (PHP_VERSION_ID < 80200) {
+			// 8.1 ignores #[\SensitiveParameter], so the frames keep the
+			// arguments; there these errors are only ever logged without a trace
+			$this->markTestSkipped('PHP 8.1 ignores #[\SensitiveParameter]');
+		}
 		$previous = ini_set('zend.exception_ignore_args', '0');
 		try {
 			$this->client->method('get')->willReturn($this->response(401, '{}'));

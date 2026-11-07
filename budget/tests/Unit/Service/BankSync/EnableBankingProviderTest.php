@@ -687,6 +687,11 @@ class EnableBankingProviderTest extends TestCase {
 	 * the frames held the credentials JSON (session ID) and the keys.
 	 */
 	public function testFailureTracesCarryNeitherSessionIdNorKey(): void {
+		if (PHP_VERSION_ID < 80200) {
+			// 8.1 ignores #[\SensitiveParameter], so the frames keep the
+			// arguments; there these errors are only ever logged without a trace
+			$this->markTestSkipped('PHP 8.1 ignores #[\SensitiveParameter]');
+		}
 		$previous = ini_set('zend.exception_ignore_args', '0');
 		try {
 			$this->responses['GET /accounts/uid-a/details'] = new EnableBankingAuthException('HTTP 401');
