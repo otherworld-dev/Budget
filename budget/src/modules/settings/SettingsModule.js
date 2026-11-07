@@ -582,7 +582,7 @@ export default class SettingsModule {
             'ARS': 'AR$', 'CLP': 'CL$', 'COP': 'CO$', 'PEN': 'S/',
             'EUR': '€', 'GBP': '£', 'CHF': 'CHF', 'SEK': 'kr',
             'NOK': 'kr', 'DKK': 'kr', 'PLN': 'zł', 'CZK': 'Kč',
-            'HUF': 'Ft', 'RON': 'lei', 'UAH': '₴', 'ISK': 'kr',
+            'HUF': 'Ft', 'RON': 'lei', 'MKD': 'ден', 'UAH': '₴', 'ISK': 'kr',
             'RUB': '₽', 'BYN': 'Br', 'TRY': '₺', 'JPY': '¥', 'CNY': '¥',
             'KRW': '₩', 'INR': '₹', 'IDR': 'Rp', 'THB': '฿',
             'PHP': '₱', 'MYR': 'RM', 'VND': '₫', 'TWD': 'NT$',
