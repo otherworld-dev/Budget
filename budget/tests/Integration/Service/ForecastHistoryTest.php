@@ -105,7 +105,7 @@ class ForecastHistoryTest extends IntegrationTestCase {
 	 */
 	private function monthOf(int $back, string $income, array $spending): void {
 		$month = $this->thisMonth->modify("-{$back} months");
-		$this->makeTransaction($this->account, ['amount' => $income, 'type' => 'credit', 'date' => $month->format('Y-m-01')]);
+		$this->makeTransaction($this->account, ['amount' => $income, 'type' => 'credit', 'description' => 'Salary ACME', 'date' => $month->format('Y-m-01')]);
 		foreach ($spending as $i => $amount) {
 			$this->makeTransaction($this->account, ['amount' => $amount, 'date' => $month->format('Y-m-') . sprintf('%02d', 10 + $i)]);
 		}
@@ -118,7 +118,8 @@ class ForecastHistoryTest extends IntegrationTestCase {
 
 	private function recurringIncome(string $amount): void {
 		$this->insertRow('budget_recurring_income', [
-			'user_id' => $this->userId, 'name' => 'Salary', 'amount' => $amount, 'frequency' => 'monthly',
+			// The pattern is what tells the salary's credits from any other
+			'user_id' => $this->userId, 'name' => 'Salary', 'amount' => $amount, 'frequency' => 'monthly', 'auto_detect_pattern' => 'ACME',
 			'account_id' => $this->account, 'is_active' => true, 'created_at' => $this->now(),
 		]);
 	}

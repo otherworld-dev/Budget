@@ -384,8 +384,8 @@ class ForecastServiceTest extends TestCase {
 	 * @param Account[] $accounts
 	 * @param array<int, string> $firstDates
 	 */
-	private function forecastOn30October(int $monthStartDay, array $accounts, array $firstDates, ?array &$seen): array {
-		$seen = ['range' => null, 'firstDatesFor' => null, 'aggregatedWith' => null];
+	private function forecastOn30October(int $monthStartDay, array $accounts, array $firstDates, ?array &$seen, array $history = []): array {
+		$seen = ['range' => null, 'firstDatesFor' => null, 'aggregatedWith' => null, 'learnedFrom' => null];
 		$clock = $this->createMock(UserClock::class);
 		$clock->method('today')->willReturn('2026-10-30');
 		$carryover = $this->createMock(BudgetCarryoverService::class);
@@ -396,13 +396,18 @@ class ForecastServiceTest extends TestCase {
 			$seen['firstDatesFor'] = $ids;
 			return array_intersect_key($firstDates, array_flip($ids));
 		});
-		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturnCallback(function ($u, $start, $end) use (&$seen) {
+		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturnCallback(function ($u, $start, $end) use (&$seen, $history) {
 			// The history first, then the rows dated after today
-			$seen[$start > '2026-10-30' ? 'futureRange' : 'range'] = [$start, $end];
-			return [];
+			if ($start > '2026-10-30') {
+				$seen['futureRange'] = [$start, $end];
+				return [];
+			}
+			$seen['range'] = [$start, $end];
+			return $history;
 		});
 		$this->patternAnalyzer->method('aggregateMonthlyData')->willReturnCallback(function ($t, $rates, $day) use (&$seen) {
 			$seen['aggregatedWith'] = $day;
+			$seen['learnedFrom'] = array_map(fn ($row) => $row->getAccountId() . ' ' . $row->getDate(), $t);
 			return [];
 		});
 		$this->patternAnalyzer->method('getCategoryBreakdown')->willReturn([]);
@@ -442,42 +447,63 @@ class ForecastServiceTest extends TestCase {
 		$this->assertSame(26, $result['monthStartDay']);
 	}
 
+	/** @return list<Transaction> one row per "account date" */
+	private function historyRows(string ...$rows): array {
+		return array_map(function (string $row) {
+			[$accountId, $date] = explode(' ', $row);
+			$transaction = $this->makeTransaction();
+			$transaction->setAccountId((int)$accountId);
+			$transaction->setDate($date);
+			return $transaction;
+		}, $rows);
+	}
+
 	public function testLiveForecastLeavesOutAMonthTheHistoryOnlyPartlyHolds(): void {
 		// Synced from 6 September: September holds only part of its month
-		$this->forecastOn30October(26, [$this->accountWithOpeningBalance(1, 2500.0)], [1 => '2026-09-06'], $seen);
+		$this->forecastOn30October(26, [$this->accountWithOpeningBalance(1, 2500.0)], [1 => '2026-09-06'], $seen,
+			$this->historyRows('1 2026-09-06', '1 2026-09-20', '1 2026-09-26', '1 2026-10-20'));
 
 		// Budget months: September (26 Aug - 25 Sep) is partial, October whole
-		$this->assertSame(['2026-09-26', '2026-10-25'], $seen['range']);
+		$this->assertSame(['1 2026-09-26', '1 2026-10-20'], $seen['learnedFrom']);
 	}
 
 	public function testLiveForecastHasNoHistoryWhenNoMonthIsComplete(): void {
-		$result = $this->forecastOn30October(1, [$this->accountWithOpeningBalance(1, 2500.0)], [1 => '2026-09-06'], $seen);
+		$result = $this->forecastOn30October(1, [$this->accountWithOpeningBalance(1, 2500.0)], [1 => '2026-09-06'], $seen,
+			$this->historyRows('1 2026-09-06', '1 2026-09-28'));
 
 		// Calendar months: September is partial and October still running
-		$this->assertNull($seen['range']);
+		$this->assertSame([], $seen['learnedFrom']);
 		$this->assertSame(0, $result['dataQuality']['monthsOfData']);
 	}
 
 	public function testLiveForecastKeepsAMonthTheHistoryStartsOnTheFirstOf(): void {
-		$this->forecastOn30October(1, [$this->accountWithOpeningBalance(1, 2500.0)], [1 => '2026-08-01'], $seen);
+		$this->forecastOn30October(1, [$this->accountWithOpeningBalance(1, 2500.0)], [1 => '2026-08-01'], $seen,
+			$this->historyRows('1 2026-08-01', '1 2026-09-15'));
 
-		$this->assertSame(['2026-08-01', '2026-09-30'], $seen['range']);
+		$this->assertSame(['1 2026-08-01', '1 2026-09-15'], $seen['learnedFrom']);
 	}
 
 	public function testLiveForecastKeepsAMonthWhoseFirstDaysJustHadNoBookings(): void {
 		// History from 28 September, two days into October's budget month
-		$this->forecastOn30October(26, [$this->accountWithOpeningBalance(1, 2500.0)], [1 => '2026-09-28'], $seen);
+		$this->forecastOn30October(26, [$this->accountWithOpeningBalance(1, 2500.0)], [1 => '2026-09-28'], $seen,
+			$this->historyRows('1 2026-09-28', '1 2026-10-10'));
 
-		$this->assertSame(['2026-09-26', '2026-10-25'], $seen['range']);
+		$this->assertSame(['1 2026-09-28', '1 2026-10-10'], $seen['learnedFrom']);
 	}
 
-	public function testLiveForecastIsBoundedByTheLatestHistoryOfAnyAccount(): void {
+	/**
+	 * Each account's partial months drop out on their own: a savings
+	 * account opened in October must not take the others' history with it.
+	 */
+	public function testLiveForecastCutsEachAccountsHistoryOnItsOwn(): void {
 		$this->forecastOn30October(1, [
 			$this->accountWithOpeningBalance(1, 2500.0),
 			$this->accountWithOpeningBalance(2, 300.0),
-		], [1 => '2026-07-30', 2 => '2026-08-10'], $seen);
+		], [1 => '2025-01-01', 2 => '2026-09-15'], $seen,
+			$this->historyRows('1 2025-11-05', '1 2026-09-05', '2 2026-09-15', '2 2026-09-28'));
 
-		$this->assertSame(['2026-09-01', '2026-09-30'], $seen['range']);
+		$this->assertSame(['2025-10-01', '2026-09-30'], $seen['range']);
+		$this->assertSame(['1 2025-11-05', '1 2026-09-05'], $seen['learnedFrom']);
 	}
 
 	public function testLiveForecastIgnoresAccountsOpenedFromNothing(): void {

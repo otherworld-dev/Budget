@@ -34,7 +34,7 @@ class ForecastService {
 
 	/**
 	 * Days a month may have passed before an account's first transaction and
-	 * still count as complete (completeHistoryStart()): a weekend and a
+	 * still count as complete (completeHistoryStarts()): a weekend and a
 	 * holiday without bookings, not a bank sync that began mid-month.
 	 */
 	private const HISTORY_START_GRACE_DAYS = 3;
@@ -101,25 +101,60 @@ class ForecastService {
 	}
 
 	/**
-	 * The active bills paid from the accounts forecast that the forecast
-	 * places on their dates, each with its multiplier into the forecast's
-	 * currency. A transfer between accounts is not spending, and a bill
-	 * kept out of the forecast stays out. A bill with no account is the
-	 * user's own, so it counts when the forecast holds one of their own
-	 * accounts, not in one of accounts shared with them only.
+	 * The active bills the forecast places on their dates, each with its
+	 * multiplier into the forecast's currency: as spending, the bills paid
+	 * from the accounts forecast, and as income, transfer bills from an
+	 * account outside the forecast into one of them. A transfer between two
+	 * accounts forecast moves no money in or out; one to an account outside
+	 * it is money leaving, like any bill. A bill kept out of the forecast
+	 * stays out. A bill with no account is the user's own, so it counts
+	 * when the forecast holds one of their own accounts, not in one of
+	 * accounts shared with them only.
 	 *
 	 * @param array<int, string>|null $rates
-	 * @return list<array{0: \OCA\Budget\Db\Bill, 1: string}>
+	 * @return array{0: list<array{0: \OCA\Budget\Db\Bill, 1: string}>, 1: list<array{0: \OCA\Budget\Db\Bill, 1: string}>} spending, income
 	 */
 	private function scheduledBills(string $userId, array $accounts, ?array $rates): array {
 		if ($this->billMapper === null || $this->billService === null) {
-			return [];
+			return [[], []];
 		}
-		$bills = array_filter(
-			$this->billMapper->findActive($userId),
-			static fn ($bill) => !($bill->getIsTransfer() ?? false) && !($bill->getExcludedFromForecast() ?? false)
-		);
-		return $this->withRates($bills, $userId, $accounts, $rates);
+		$inForecast = $this->forecastAccountRates($accounts, $rates);
+		$spending = [];
+		$incoming = [];
+		foreach ($this->billMapper->findActive($userId) as $bill) {
+			if ($bill->getExcludedFromForecast() ?? false) {
+				continue;
+			}
+			$destination = $bill->getDestinationAccountId();
+			$destinationIn = ($bill->getIsTransfer() ?? false) && $destination !== null && isset($inForecast[(int)$destination]);
+			$sourceIn = $bill->getAccountId() !== null && isset($inForecast[(int)$bill->getAccountId()]);
+			if ($destinationIn && $sourceIn) {
+				continue;
+			}
+			if ($destinationIn) {
+				$incoming[] = [$bill, $inForecast[(int)$destination]];
+			} else {
+				$spending[] = $bill;
+			}
+		}
+		return [$this->withRates($spending, $userId, $accounts, $rates), $incoming];
+	}
+
+	/**
+	 * The accounts forecast, as account id => multiplier into the
+	 * forecast's currency.
+	 *
+	 * @param array<int, string>|null $rates
+	 * @return array<int, string>
+	 */
+	private function forecastAccountRates(array $accounts, ?array $rates): array {
+		$inForecast = [];
+		foreach ($accounts as $account) {
+			if ($rates === null || isset($rates[$account->getId()])) {
+				$inForecast[(int)$account->getId()] = $rates[$account->getId()] ?? '1';
+			}
+		}
+		return $inForecast;
 	}
 
 	/**
@@ -197,39 +232,52 @@ class ForecastService {
 	}
 
 	/**
-	 * Whether a credit is income the user set up to recur: into its account
-	 * (or any, when it names none), within a fifth of its amount, and
-	 * mentioning every word of its pattern when it has one. Such income is
-	 * placed on its own dates, so the average must not count it again.
+	 * Whether a row is a payment of one of the bills or recurring incomes
+	 * placed on their own dates, so the average must not count it again: a
+	 * debit for a bill, a credit for an income (or for a transfer bill into
+	 * the forecast), with no bill linked to it.
 	 *
-	 * @param list<array{0: \OCA\Budget\Db\RecurringIncome, 1: string}> $incomes
+	 * It has to be in the item's account (or any, when it names none),
+	 * within a fifth of its amount, and be recognisably that item: its
+	 * vendor is the item's name, as on the rows Mark Received, Mark Paid
+	 * and auto-create write, or it mentions every word of the item's
+	 * pattern. With neither, any credit within a fifth in any account
+	 * passed for a pension, and a row the user meant as something else
+	 * left the average.
+	 *
+	 * @param list<array{0: \OCA\Budget\Db\Bill|\OCA\Budget\Db\RecurringIncome, 1: string}> $items
 	 */
-	private function isRecurringIncome($transaction, array $incomes): bool {
-		if ($transaction->getType() !== 'credit') {
+	private static function isScheduledPayment($transaction, array $items, string $type): bool {
+		if ($transaction->getType() !== $type) {
 			return false;
 		}
 		$amount = (float)$transaction->getAmount();
-		$text = ($transaction->getDescription() ?? '') . ' ' . ($transaction->getVendor() ?? '');
-		foreach ($incomes as [$income]) {
-			$accountId = $income->getAccountId();
+		$vendor = trim((string)($transaction->getVendor() ?? ''));
+		$text = ($transaction->getDescription() ?? '') . ' ' . $vendor;
+		foreach ($items as [$item]) {
+			$accountId = $item instanceof \OCA\Budget\Db\Bill && $type === 'credit'
+				? $item->getDestinationAccountId()
+				: $item->getAccountId();
 			if ($accountId !== null && (int)$accountId !== (int)$transaction->getAccountId()) {
 				continue;
 			}
-			$expected = (float)$income->getAmount();
+			$expected = (float)$item->getAmount();
 			if (abs($amount - $expected) > abs($expected) * 0.2) {
 				continue;
 			}
-			if (!self::mentions($text, (string)($income->getAutoDetectPattern() ?? ''))) {
-				continue;
+			$name = trim((string)$item->getName());
+			$pattern = trim((string)($item->getAutoDetectPattern() ?? ''));
+			if (($name !== '' && mb_strtolower($vendor) === mb_strtolower($name))
+				|| ($pattern !== '' && self::mentions($text, $pattern))) {
+				return true;
 			}
-			return true;
 		}
 		return false;
 	}
 
 	/**
-	 * Whether $text holds every word of $pattern, in any order and case. An
-	 * empty pattern asks for nothing. Taken as one phrase, a pattern whose
+	 * Whether $text holds every word of $pattern, in any order and case.
+	 * Taken as one phrase, a pattern whose
 	 * words the bank writes in another order or with other characters
 	 * between them never matched, and the salary counted twice: in the
 	 * average and on its date.
@@ -250,15 +298,51 @@ class ForecastService {
 	 *
 	 * @param list<array{0: \OCA\Budget\Db\Bill|\OCA\Budget\Db\RecurringIncome, 1: string}> $items
 	 */
-	private function scheduledTotal(array $items, string $from, string $to): float {
-		$total = 0.0;
+	private function scheduledTotal(array $items, string $from, string $to): string {
+		$total = '0';
 		foreach ($items as [$item, $rate]) {
 			$dates = $this->occurrences($item, $from, $to);
 			if ($dates === []) {
 				continue;
 			}
-			$amount = (float)$item->getAmount() * count($dates);
-			$total += $rate === '1' ? $amount : (float)MoneyCalculator::multiply($amount, $rate, 10);
+			$amount = MoneyCalculator::multiply((string)$item->getAmount(), (string)count($dates), 10);
+			$total = MoneyCalculator::add($total, $rate === '1' ? $amount : MoneyCalculator::multiply($amount, $rate, 10), 10);
+		}
+		return $total;
+	}
+
+	/**
+	 * What bills fell due up to today and are still owed: the dates from
+	 * the next one due until today. Marking a bill paid moves its next due
+	 * date on, and a scheduled placeholder row is not in the balance, so an
+	 * overdue bill is still to come out of it; it counts in the first month
+	 * projected. Not when a row since its due date pays it, linked or
+	 * recognisable (isScheduledPayment()): paid through the bank and not
+	 * marked paid, it is already in the balance.
+	 *
+	 * @param list<array{0: \OCA\Budget\Db\Bill, 1: string}> $bills
+	 * @param array $recentRows the rows from the earliest due date until today
+	 */
+	private function overdueTotal(array $bills, string $today, array $recentRows): string {
+		$total = '0';
+		foreach ($bills as [$item, $rate]) {
+			$next = $item->getNextDueDate();
+			if (!$next || substr($next, 0, 10) > $today) {
+				continue;
+			}
+			$next = substr($next, 0, 10);
+			foreach ($recentRows as $row) {
+				if (substr((string)$row->getDate(), 0, 10) >= $next && ($row->getStatus() ?? 'cleared') !== 'scheduled'
+					&& ((int)$row->getBillId() === (int)$item->getId() || self::isScheduledPayment($row, [[$item, $rate]], 'debit'))) {
+					continue 2;
+				}
+			}
+			$dates = $this->occurrences($item, $next, $today);
+			if ($dates === []) {
+				continue;
+			}
+			$amount = MoneyCalculator::multiply((string)$item->getAmount(), (string)count($dates), 10);
+			$total = MoneyCalculator::add($total, $rate === '1' ? $amount : MoneyCalculator::multiply($amount, $rate, 10), 10);
 		}
 		return $total;
 	}
@@ -292,16 +376,19 @@ class ForecastService {
 
 	/**
 	 * The rows dated after today until $to, in the accounts forecast and
-	 * meant for it: transfers between them move no money in or out.
+	 * meant for it: transfers between them move no money in or out. A
+	 * bill's scheduled placeholder is left out: the bill itself is placed
+	 * on its dates, and with "Create future transaction" on (the default)
+	 * a 900 rent came out 900 too high in the month of its placeholder.
 	 *
 	 * @param array<int, string>|null $rates
+	 * @param array<int, true> $scheduledBillIds the bills placed on their dates
 	 * @return array Transaction entities
 	 */
-	private function futureRows(string $userId, string $from, string $to, ?array $visibleAccountIds, ?array $rates): array {
+	private function futureRows(string $userId, string $from, string $to, ?array $visibleAccountIds, ?array $rates, array $scheduledBillIds): array {
 		$rows = $this->transactionMapper->findAllByUserAndDateRange($userId, $from, $to, null, $visibleAccountIds);
-		if ($rates !== null) {
-			$rows = array_filter($rows, static fn ($t) => isset($rates[(int)$t->getAccountId()]));
-		}
+		$rows = array_filter($rows, static fn ($t) => ($rates === null || isset($rates[(int)$t->getAccountId()]))
+			&& !($t->getBillId() !== null && isset($scheduledBillIds[(int)$t->getBillId()])));
 		return PatternAnalyzer::withoutInternalTransfers($this->filterForecastTransactions(array_values($rows)));
 	}
 
@@ -311,15 +398,15 @@ class ForecastService {
 	 *
 	 * @param array<int, string>|null $rates
 	 */
-	private function rowsTotal(array $rows, string $type, string $from, string $to, ?array $rates): float {
-		$total = 0.0;
+	private function rowsTotal(array $rows, string $type, string $from, string $to, ?array $rates): string {
+		$amounts = [];
 		foreach ($rows as $row) {
 			$date = substr((string)$row->getDate(), 0, 10);
 			if ($row->getType() === $type && $date >= $from && $date <= $to) {
-				$total += PatternAnalyzer::inForecastCurrency((float)$row->getAmount(), $row, $rates ?? []);
+				$amounts[] = PatternAnalyzer::inForecastCurrency((float)$row->getAmount(), $row, $rates ?? []);
 			}
 		}
-		return $total;
+		return MoneyCalculator::sum($amounts, 10);
 	}
 
 	/**
@@ -482,18 +569,24 @@ class ForecastService {
 		$thisMonth = BudgetPeriod::monthContaining($today, $monthStartDay);
 		$startDate = BudgetPeriod::range(self::shiftMonth($thisMonth, -12), $monthStartDay)[0];
 		$endDate = BudgetPeriod::range(self::shiftMonth($thisMonth, -1), $monthStartDay)[1];
-		// Nor is a month the accounts' history only reaches part of
-		$startDate = max($startDate, $this->completeHistoryStart($accounts, $monthStartDay, $endDate));
-		$transactions = $startDate <= $endDate
-			? $this->transactionMapper->findAllByUserAndDateRange($userId, $startDate, $endDate, null, $visibleAccountIds)
-			: [];
-		if ($rates !== null) {
-			// The history of an account left out above stays out with it
-			$transactions = array_values(array_filter(
-				$transactions,
-				static fn ($t) => isset($rates[(int)$t->getAccountId()])
-			));
-		}
+		$transactions = $this->transactionMapper->findAllByUserAndDateRange($userId, $startDate, $endDate, null, $visibleAccountIds);
+		// Nor is a month an account's history only reaches part of: that
+		// account's rows before its first complete month drop out, the
+		// other accounts' stay. Cut for every account at once, a savings
+		// account opened on 15 October took the forecast from twelve
+		// months to none.
+		$historyStarts = $this->completeHistoryStarts($accounts, $monthStartDay, $endDate);
+		$transactions = array_values(array_filter(
+			$transactions,
+			static function ($t) use ($rates, $historyStarts): bool {
+				$accountId = (int)$t->getAccountId();
+				// The history of an account left out above stays out with
+				// it, and a bill's scheduled placeholder is no history
+				return ($rates === null || isset($rates[$accountId]))
+					&& ($t->getStatus() ?? 'cleared') !== 'scheduled'
+					&& (!isset($historyStarts[$accountId]) || substr((string)$t->getDate(), 0, 10) >= $historyStarts[$accountId]);
+			}
+		));
 
 		// Drop extraordinary/one-time transactions so they don't skew the
 		// projection averages. They still affect the real (current) balance
@@ -529,11 +622,15 @@ class ForecastService {
 		// as monthly floors, a new bill and a raise counted only once they
 		// outgrew the whole average, a yearly payment counted a twelfth in
 		// every month, and one-off items and future rows not at all.
-		$bills = $this->scheduledBills($userId, $accounts, $rates);
-		$incomes = $this->scheduledIncomes($userId, $accounts, $rates);
+		[$bills, $incomingTransfers] = $this->scheduledBills($userId, $accounts, $rates);
+		$incomes = [...$this->scheduledIncomes($userId, $accounts, $rates), ...$incomingTransfers];
+		// A bill's payments leave the average when linked to it, or when
+		// they recognisably pay it without the link; income likewise
 		$variable = array_values(array_filter(
 			$transactions,
-			fn ($t) => $t->getBillId() === null && !$this->isRecurringIncome($t, $incomes)
+			static fn ($t) => $t->getBillId() === null
+				&& !self::isScheduledPayment($t, $incomes, 'credit')
+				&& !self::isScheduledPayment($t, $bills, 'debit')
 		));
 		// Over every month learned from: a month of nothing but salary has
 		// no other income and counts as none, so a bonus that stopped
@@ -558,7 +655,12 @@ class ForecastService {
 		[$thisStart, $thisEnd] = BudgetPeriod::range($thisMonth, $monthStartDay);
 		$restOfThisMonth = $tomorrow > $thisEnd ? 0.0
 			: self::days($tomorrow, $thisEnd) / self::days($thisStart, $thisEnd);
-		$futureRows = $this->futureRows($userId, $tomorrow, $lastProjected, $visibleAccountIds, $rates);
+		$scheduledBillIds = [];
+		foreach ([...$bills, ...$incomingTransfers] as [$bill]) {
+			$scheduledBillIds[(int)$bill->getId()] = true;
+		}
+		$futureRows = $this->futureRows($userId, $tomorrow, $lastProjected, $visibleAccountIds, $rates, $scheduledBillIds);
+		$overdue = $this->overdueBills($userId, $bills, $today, $visibleAccountIds);
 
 		// Generate monthly projections
 		$monthlyProjections = [];
@@ -582,11 +684,20 @@ class ForecastService {
 			$periods[] = [$projectionMonth, $from, $to, 1.0, $i];
 		}
 
-		foreach ($periods as [$projectionMonth, $from, $to, $share, $i]) {
+		foreach ($periods as $index => [$projectionMonth, $from, $to, $share, $i]) {
 			$monthLabel = \DateTimeImmutable::createFromFormat('!Y-m', $projectionMonth)->format('M Y');
 
-			$scheduledIncome = $this->scheduledTotal($incomes, $from, $to) + $this->rowsTotal($futureRows, 'credit', $from, $to, $rates);
-			$scheduledExpenses = $this->scheduledTotal($bills, $from, $to) + $this->rowsTotal($futureRows, 'debit', $from, $to, $rates);
+			$scheduledIncome = (float)MoneyCalculator::add(
+				$this->scheduledTotal($incomes, $from, $to),
+				$this->rowsTotal($futureRows, 'credit', $from, $to, $rates),
+				10
+			);
+			$scheduledExpenses = (float)MoneyCalculator::sum([
+				$this->scheduledTotal($bills, $from, $to),
+				$this->rowsTotal($futureRows, 'debit', $from, $to, $rates),
+				// Bills overdue and unpaid are still to go out, first thing
+				$index === 0 ? $overdue : '0',
+			], 10);
 
 			$projectedIncome = max(0, $variableIncome + ($variableIncomeTrend * $i)) * $share + $scheduledIncome;
 			$projectedExpenses = max(0, $variableExpenses + ($variableExpenseTrend * $i)) * $share + $scheduledExpenses;
@@ -658,6 +769,27 @@ class ForecastService {
 	}
 
 	/**
+	 * What overdue, unpaid bills come to (overdueTotal()), reading the rows
+	 * since the earliest of their due dates.
+	 *
+	 * @param list<array{0: \OCA\Budget\Db\Bill, 1: string}> $bills
+	 */
+	private function overdueBills(string $userId, array $bills, string $today, ?array $visibleAccountIds): string {
+		$earliest = null;
+		foreach ($bills as [$bill]) {
+			$next = $bill->getNextDueDate() ? substr($bill->getNextDueDate(), 0, 10) : null;
+			if ($next !== null && $next <= $today && ($earliest === null || $next < $earliest)) {
+				$earliest = $next;
+			}
+		}
+		if ($earliest === null) {
+			return '0';
+		}
+		$rows = $this->transactionMapper->findAllByUserAndDateRange($userId, $earliest, $today, null, $visibleAccountIds);
+		return $this->overdueTotal($bills, $today, $rows);
+	}
+
+	/**
 	 * Days from one date to another, both included.
 	 */
 	private static function days(string $from, string $to): int {
@@ -672,8 +804,8 @@ class ForecastService {
 	}
 
 	/**
-	 * The first day of the first month whose history every account holds
-	 * in full, or '' when nothing bounds it.
+	 * For each account whose history the forecast window only partly holds,
+	 * the first day of its first complete month.
 	 *
 	 * An account that had money in it before its first transaction (an
 	 * opening balance) existed before Budget knew it, so the months before
@@ -683,12 +815,12 @@ class ForecastService {
 	 * salary in them and almost no spending made the forecast's average
 	 * savings several times too high. An account opened from nothing has
 	 * no history to miss and bounds nothing, and nor does one whose history
-	 * starts after $historyEnd: added this month, it would otherwise leave
-	 * the forecast no month at all until a month of its own had passed.
+	 * starts after $historyEnd, which has no rows in the window.
 	 *
 	 * @param \OCA\Budget\Db\Account[] $accounts
+	 * @return array<int, string> account id => Y-m-d
 	 */
-	private function completeHistoryStart(array $accounts, int $monthStartDay, string $historyEnd): string {
+	private function completeHistoryStarts(array $accounts, int $monthStartDay, string $historyEnd): array {
 		$withPast = array_values(array_map(
 			static fn ($a) => (int)$a->getId(),
 			array_filter($accounts, static fn ($a) => abs((float)($a->getOpeningBalance() ?? 0)) >= 0.005)
@@ -697,19 +829,19 @@ class ForecastService {
 			$this->transactionMapper->getFirstTransactionDates($withPast),
 			static fn (string $date) => $date <= $historyEnd
 		);
-		if ($firstDates === []) {
-			return '';
+		$starts = [];
+		foreach ($firstDates as $accountId => $first) {
+			$month = BudgetPeriod::monthContaining($first, $monthStartDay);
+			$monthStart = BudgetPeriod::range($month, $monthStartDay)[0];
+			// A first transaction is not where the history starts: the days
+			// before it may just have had none, a weekend after the 1st. A
+			// month whose first few days are all that could be missing counts.
+			$daysIn = (int)(new \DateTimeImmutable($monthStart))->diff(new \DateTimeImmutable($first))->days;
+			$starts[(int)$accountId] = $daysIn <= self::HISTORY_START_GRACE_DAYS
+				? $monthStart
+				: BudgetPeriod::range(self::shiftMonth($month, 1), $monthStartDay)[0];
 		}
-		$latest = max($firstDates);
-		$month = BudgetPeriod::monthContaining($latest, $monthStartDay);
-		$monthStart = BudgetPeriod::range($month, $monthStartDay)[0];
-		// A first transaction is not where the history starts: the days
-		// before it may just have had none, a weekend after the 1st. A
-		// month whose first few days are all that could be missing counts.
-		$daysIn = (int)(new \DateTimeImmutable($monthStart))->diff(new \DateTimeImmutable($latest))->days;
-		return $daysIn <= self::HISTORY_START_GRACE_DAYS
-			? $monthStart
-			: BudgetPeriod::range(self::shiftMonth($month, 1), $monthStartDay)[0];
+		return $starts;
 	}
 
 	/**
