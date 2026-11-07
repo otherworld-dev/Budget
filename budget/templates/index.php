@@ -3634,6 +3634,12 @@ style('budget', 'budget-app');
                             </label>
                         </div>
                         <div class="control-group">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;" title="<?php p($l->t('Budgets you chose to show in the Bills Calendar, as estimated spending each month')); ?>">
+                                <input type="checkbox" id="bills-calendar-include-budgets" checked>
+                                <span><?php p($l->t('Include budgeted spending')); ?></span>
+                            </label>
+                        </div>
+                        <div class="control-group">
                             <label for="bills-calendar-account"><?php p($l->t('Account')); ?></label>
                             <select id="bills-calendar-account" class="report-select">
                                 <option value=""><?php p($l->t('All Accounts')); ?></option>
@@ -3648,6 +3654,7 @@ style('budget', 'budget-app');
                         </div>
                         <button id="generate-bills-calendar-btn" class="primary"><?php p($l->t('Generate')); ?></button>
                     </div>
+                    <p id="bills-calendar-budget-hint" class="bills-calendar-budget-hint" style="display: none;"><?php p($l->t('Budgeted spending is only shown for All Accounts, with Active Only or All Bills: a budget has no account and is never an inactive bill.')); ?></p>
 
                     <!-- Monthly Totals Chart -->
                     <div id="bills-calendar-chart-container" class="dashboard-card" style="display: none;">

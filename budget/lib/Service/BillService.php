@@ -15,6 +15,7 @@ use OCA\Budget\Db\UndoSnapshotSkips;
 use OCA\Budget\Enum\Currency;
 use OCA\Budget\Exception\ReconciledPaymentException;
 use OCA\Budget\Service\Bill\BalanceProjector;
+use OCA\Budget\Service\Bill\BudgetCalendarEstimates;
 use OCA\Budget\Service\Bill\FrequencyCalculator;
 use OCA\Budget\Service\Bill\OneTimeSettlement;
 use OCA\Budget\Service\Bill\RecurringBillDetector;
@@ -60,6 +61,7 @@ class BillService {
 		?UserClock $userClock = null,
 		?INotificationManager $notificationManager = null,
 		private ?PensionRecurringService $pensionRecurringService = null,
+		private ?BudgetCalendarEstimates $budgetEstimates = null,
 	) {
 		$this->mapper = $mapper;
 		$this->frequencyCalculator = $frequencyCalculator;
@@ -3078,9 +3080,10 @@ class BillService {
 	 * @param bool $includeTransfers Include transfer bills
 	 * @param string $billStatus 'active', 'inactive', or 'all'
 	 * @param int|null $accountId Filter by account ID (source or destination)
+	 * @param bool $includeBudgets Add the budgets put in the calendar as estimated spending (#459)
 	 * @return array Bills with monthly occurrences and totals
 	 */
-	public function getAnnualOverview(string $userId, int $year, bool $includeTransfers = false, string $billStatus = 'active', ?int $accountId = null): array {
+	public function getAnnualOverview(string $userId, int $year, bool $includeTransfers = false, string $billStatus = 'active', ?int $accountId = null, bool $includeBudgets = false): array {
 		// Build currency map for conversion. The same list finds the picked
 		// account below, so an id the user cannot see finds nothing.
 		$accounts = $this->accountMapper->findAll($userId);
@@ -3116,15 +3119,84 @@ class BillService {
 			}
 		}
 
+		$rows = $this->groupOneTimeBillsByName($billsData);
+		// Budgets have no account, so a single account's calendar has none,
+		// and an estimate is never an inactive bill
+		if ($includeBudgets && $accountId === null && $billStatus !== 'inactive') {
+			[$budgetRows, $monthlyTotals] = $this->budgetCalendarRows($userId, $year, $monthlyTotals);
+			$rows = array_merge($rows, $budgetRows);
+		}
+
 		return [
 			'year' => $year,
-			'bills' => $this->groupOneTimeBillsByName($billsData),
+			'bills' => $rows,
 			'monthlyTotals' => $monthlyTotals,
 			'baseCurrency' => $baseCurrency,
 			'account' => $accountSummary,
 			'projectedBalance' => $projection['balance'] ?? null,
 			'projectedFlows' => $projection['flows'] ?? null,
 		];
+	}
+
+	/**
+	 * The budgets put in the calendar (#459), a row each, after the bills:
+	 * the budget's share of every month of the year as an estimate of what
+	 * will be spent (BudgetCalendarEstimates), added to the monthly totals.
+	 * A row carries no payments, so every month shows its expected amount.
+	 *
+	 * @param array<int, float> $monthlyTotals
+	 * @return array{0: array[], 1: array<int, float>} the rows, the monthly totals with them
+	 */
+	private function budgetCalendarRows(string $userId, int $year, array $monthlyTotals): array {
+		if ($this->budgetEstimates === null) {
+			return [[], $monthlyTotals];
+		}
+		$months = array_map(static fn (int $m): string => sprintf('%04d-%02d', $year, $m), range(1, 12));
+		$estimates = $this->budgetEstimates->forMonths($userId, $months);
+		$rows = [];
+		foreach ($estimates['rows'] as $estimate) {
+			$category = $estimate['category'];
+			$occurrences = array_fill(1, 12, false);
+			$expected = [];
+			foreach ($estimate['amounts'] as $month => $amount) {
+				$m = (int)substr($month, 5, 2);
+				$occurrences[$m] = true;
+				$expected[$m] = MoneyCalculator::toFloat($amount);
+				$monthlyTotals[$m] = self::sumOf($monthlyTotals[$m], $expected[$m]);
+			}
+			// The Amount and Frequency columns show the budget as set, the
+			// year's last; a budget changed during the year leaves them blank
+			// as a row of invoices of different amounts does
+			$budgets = array_values($estimate['budgets']);
+			[$amount, $period] = $budgets[count($budgets) - 1];
+			$rows[] = [
+				'id' => null,
+				'isBudget' => true,
+				'name' => $category->getName(),
+				'amount' => $amount,
+				'currency' => $estimates['currency'],
+				'frequency' => $period,
+				'mixedAmounts' => count(array_unique(array_map(static fn (array $b): string => $b[0] . '/' . $b[1], $budgets))) > 1,
+				'categoryId' => $category->getId(),
+				'accountId' => null,
+				'isActive' => true,
+				'isTransfer' => false,
+				'destinationAccountId' => null,
+				'lastPaidDate' => null,
+				'nextDueDate' => null,
+				'occurrences' => $occurrences,
+				'paidMonths' => [],
+				'paidAmounts' => [],
+				'paidDetails' => [],
+				'paidMoreThanOnce' => [],
+				'paidElsewhere' => [],
+				'unrecordedMonths' => [],
+				'expectedAmounts' => $expected,
+				'owedAmounts' => [],
+				'inTotals' => true,
+			];
+		}
+		return [$rows, $monthlyTotals];
 	}
 
 	/**

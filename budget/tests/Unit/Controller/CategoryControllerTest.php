@@ -855,4 +855,40 @@ class CategoryControllerTest extends TestCase {
 
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
+
+	// ── show in the Bills Calendar (#459) ───────────────────────────
+
+	public function testTheOwnerCanPutABudgetInTheBillsCalendarAndTakeItOut(): void {
+		$this->granularShareService->method('resolveOwner')->willReturn('user1');
+		$this->request->method('getParams')->willReturnOnConsecutiveCalls(['showInCalendar' => true], ['showInCalendar' => 'false']);
+		$seen = [];
+		$this->service->expects($this->exactly(2))->method('update')
+			->willReturnCallback(function (int $id, string $owner, array $updates) use (&$seen) {
+				$seen[] = $updates;
+				return $this->makeCategory();
+			});
+
+		$this->controller->update(1);
+		$this->controller->update(1);
+
+		$this->assertSame([['showInCalendar' => true], ['showInCalendar' => false]], $seen);
+	}
+
+	/** A budget setting, so a write-share recipient's is dropped like the budget itself */
+	public function testAWriteShareRecipientCannotPutTheOwnersBudgetInTheCalendar(): void {
+		$this->granularShareService->method('resolveOwner')->willReturn('owner1');
+		$this->request->method('getParams')->willReturn(['showInCalendar' => true]);
+		$this->service->expects($this->never())->method('update');
+
+		$response = $this->controller->update(1);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
+	public function testTheFlagIsInTheCategorysJson(): void {
+		$category = $this->makeCategory();
+		$this->assertFalse($category->jsonSerialize()['showInCalendar']);
+		$category->setShowInCalendar(true);
+		$this->assertTrue($category->jsonSerialize()['showInCalendar']);
+	}
 }

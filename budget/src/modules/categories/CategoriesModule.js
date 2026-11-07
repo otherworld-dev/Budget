@@ -2544,6 +2544,12 @@ export default class CategoriesModule {
             const carried = this._getCarriedAmount(category.id);
             const effectiveBudgetAmount = this._getEffectiveBudgetForCalc(category.id, category.budgetAmount, effectivePeriod);
             const rolloverEligible = category.type === 'expense' && effectivePeriod === 'monthly';
+            // The budget shown in the Bills Calendar as estimated spending
+            // (#459): an expense budget the user set, as the calendar counts
+            // no recurring fallback (those bills are there already). Still
+            // offered once on, so it can be turned off.
+            const inCalendar = !!category.showInCalendar;
+            const calendarEligible = category.type === 'expense' && (manualBudgetAmount > 0 || inCalendar);
             const carriedProjected = this.budgetMonth && this.budgetMonth > this._currentBudgetMonth();
 
             // Get spending for this category (the month's, already calculated)
@@ -2631,6 +2637,13 @@ export default class CategoriesModule {
                                 aria-label="${t('budget', 'Envelope budgeting')}"
                                 aria-pressed="${rolloverEnabled ? 'true' : 'false'}"
                                 ${budgetLocked ? 'disabled' : ''}>&#8635;</button>` : ''}
+                        ${calendarEligible ? `<button class="budget-calendar-toggle ${inCalendar ? 'active' : ''}"
+                                data-category-id="${category.id}"
+                                data-enabled="${inCalendar ? '1' : '0'}"
+                                title="${inCalendar ? t('budget', 'Shown in the Bills Calendar as estimated spending. Click to hide it.') : t('budget', 'Show in Bills Calendar')}"
+                                aria-label="${t('budget', 'Show in Bills Calendar')}"
+                                aria-pressed="${inCalendar ? 'true' : 'false'}"
+                                ${budgetLocked ? 'disabled' : ''}><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2zM7 12h5v5H7z"/></svg></button>` : ''}
                     </div>
                     <div class="budget-input-wrapper" data-label="${t('budget', 'Budget')}">
                         <input type="text" inputmode="decimal" data-amount
@@ -2752,6 +2765,46 @@ export default class CategoriesModule {
                 }
             });
         });
+
+        // Bills Calendar toggles (#459)
+        document.querySelectorAll('.budget-calendar-toggle').forEach(button => {
+            button.addEventListener('click', (e) => this.toggleCalendarBudget(e.currentTarget));
+        });
+    }
+
+    /**
+     * Show a category's budget in the Bills Calendar, or stop (#459). Only
+     * the flag changes, so the row's figures stay as they are; the button
+     * is redrawn in place.
+     */
+    async toggleCalendarBudget(btn) {
+        const categoryId = parseInt(btn.dataset.categoryId);
+        const enable = btn.dataset.enabled !== '1';
+        btn.disabled = true;
+        try {
+            await apiFetch(`/apps/budget/api/categories/${categoryId}`, {
+                method: 'PUT',
+                body: { showInCalendar: enable },
+            });
+            // The page draws from its own copy of the tree (_budgetTree), so
+            // the flag is set there as well as on the category itself
+            const category = this.findCategoryById(categoryId);
+            if (category) {
+                category.showInCalendar = enable;
+            }
+            const inBudgetTree = this.flattenCategories(this._budgetTree || []).find(c => c.id === categoryId);
+            if (inBudgetTree) {
+                inBudgetTree.showInCalendar = enable;
+            }
+            this.renderBudgetTree();
+            showSuccess(enable
+                ? t('budget', 'This budget now shows in the Bills Calendar')
+                : t('budget', 'This budget no longer shows in the Bills Calendar'));
+        } catch (error) {
+            console.error('Failed to toggle Bills Calendar budget:', error);
+            showError(t('budget', 'Failed to update the Bills Calendar setting'));
+            btn.disabled = false;
+        }
     }
 
     async saveCategoryBudget(categoryId, updates) {

@@ -24,6 +24,8 @@ import { roundMoney } from './money.js';
  *    28 December), counted where the money went out; its tooltip names
  *    that payment (#399)
  *  - expected: it falls in the month and the row says nothing more
+ *  - budget: the row is a budget put in the calendar (#459), and the
+ *    amount its month's share, an estimate of what will be spent
  *  - none: the bill doesn't fall in the month
  *
  * marker says how many times a date was paid when one of the month's was
@@ -42,6 +44,11 @@ import { roundMoney } from './money.js';
 export function calendarCell(row, month, settings = {}, currency = null) {
     if (!row.occurrences?.[month]) {
         return { state: 'none', amount: null, payments: 0, title: '', marker: null };
+    }
+
+    if (row.isBudget) {
+        const amount = row.expectedAmounts?.[month] ?? 0;
+        return { state: 'budget', amount: Number(amount), payments: 0, title: t('budget', 'Budgeted spending (estimate)'), marker: null };
     }
 
     const code = row.currency || currency;
@@ -88,4 +95,26 @@ export function calendarCell(row, month, settings = {}, currency = null) {
         return cell('unrecorded', expected, t('budget', 'No payment recorded - the bill has moved on from this date'));
     }
     return cell('expected', expected, t('budget', 'Due'));
+}
+
+/**
+ * What the budgets put in the calendar (#459) add to each month's total, so
+ * the chart can show them apart from the bills.
+ *
+ * @param {object[]} rows calendar rows
+ * @param {number} [decimals] the base currency's decimal places
+ * @return {Object<number, number>} month 1..12 => amount
+ */
+export function budgetTotalsByMonth(rows, decimals = 2) {
+    const totals = {};
+    for (let month = 1; month <= 12; month++) {
+        let cents = 0;
+        for (const row of rows || []) {
+            if (row.isBudget && row.occurrences?.[month]) {
+                cents += Math.round(Number(row.expectedAmounts?.[month] ?? 0) * 10 ** decimals);
+            }
+        }
+        totals[month] = roundMoney(cents / 10 ** decimals, decimals);
+    }
+    return totals;
 }

@@ -1235,7 +1235,7 @@ class MigrationServiceTest extends TestCase {
 			'categories.json' => json_encode([
 				['id' => 1, 'name' => 'Renovation', 'type' => 'expense', 'parentId' => null,
 					'excludedFromReports' => true, 'excludedFromBudget' => true,
-					'budgetRollover' => true, 'rolloverStart' => '2026-01'],
+					'budgetRollover' => true, 'rolloverStart' => '2026-01', 'showInCalendar' => true],
 				['id' => 2, 'name' => 'Groceries', 'type' => 'expense', 'parentId' => null],
 			]),
 			'accounts.json' => json_encode([]),
@@ -1264,6 +1264,7 @@ class MigrationServiceTest extends TestCase {
 		$this->assertTrue($renovation->getExcludedFromBudget(), 'excludedFromBudget must survive a restore');
 		$this->assertTrue($renovation->getBudgetRollover(), 'budgetRollover must survive a restore');
 		$this->assertSame('2026-01', $renovation->getRolloverStart());
+		$this->assertTrue($renovation->getShowInCalendar(), 'showInCalendar must survive a restore (#459)');
 
 		// An older backup without the keys restores the defaults
 		$groceries = $captured['Groceries'];
@@ -1271,6 +1272,7 @@ class MigrationServiceTest extends TestCase {
 		$this->assertFalse((bool)$groceries->getExcludedFromBudget());
 		$this->assertFalse((bool)$groceries->getBudgetRollover());
 		$this->assertNull($groceries->getRolloverStart());
+		$this->assertFalse((bool)$groceries->getShowInCalendar());
 	}
 
 	/**

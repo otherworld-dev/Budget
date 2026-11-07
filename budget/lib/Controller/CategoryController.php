@@ -329,6 +329,9 @@ class CategoryController extends Controller {
 			if (array_key_exists('budgetRollover', $params)) {
 				$updates['budgetRollover'] = (bool)$params['budgetRollover'];
 			}
+			if (array_key_exists('showInCalendar', $params)) {
+				$updates['showInCalendar'] = filter_var($params['showInCalendar'], FILTER_VALIDATE_BOOLEAN);
+			}
 
 			// Write access is confirmed above. Resolve the actual owner so the
 			// owner-scoped service lookup succeeds for write-shared categories.

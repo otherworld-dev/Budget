@@ -11981,6 +11981,47 @@ body[data-theme-dark-highcontrast] .income-status.expected-soon .status-badge:no
     color: var(--color-primary-element, #0082c9);
 }
 
+/* Show the budget in the Bills Calendar (#459): the envelope toggle's twin */
+.budget-calendar-toggle {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    margin-left: 2px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--color-text-maxcontrast, #767676);
+    opacity: 0.35;
+    cursor: pointer;
+    vertical-align: middle;
+}
+
+.budget-calendar-toggle svg {
+    width: 14px;
+    height: 14px;
+}
+
+.budget-category-row:hover .budget-calendar-toggle {
+    opacity: 0.8;
+}
+
+.budget-calendar-toggle:hover {
+    opacity: 1;
+    background: var(--color-background-hover, rgba(0, 0, 0, 0.05));
+    color: var(--color-primary-element, #0082c9);
+}
+
+.budget-calendar-toggle.active {
+    opacity: 1;
+    background: var(--color-primary-element-light, rgba(0, 130, 201, 0.2));
+    color: var(--color-primary-element, #0082c9);
+}
+
 /* Budget Snapshot Controls */
 .budget-snapshot-controls {
     display: flex;
@@ -19553,6 +19594,41 @@ button.secondary.compact {
     background: var(--color-primary-element);
     color: var(--color-primary-element-text);
     font-size: 10px;
+}
+
+/* A budget put in the calendar (#459): an estimate, not a bill, so drawn
+   apart from the bills, in italics on a dashed cell with a badge */
+.bills-calendar-table .month-cell.has-bill.budget-estimate {
+    background-color: transparent;
+    color: var(--color-main-text);
+    font-weight: 400;
+    font-style: italic;
+    outline: 1px dashed var(--color-border-dark);
+    outline-offset: -3px;
+}
+
+.budget-estimate-badge {
+    display: inline-block;
+    margin-left: 6px;
+    vertical-align: middle;
+    padding: 1px 6px;
+    border-radius: 10px;
+    border: 1px dashed var(--color-border-dark);
+    color: var(--color-text-maxcontrast);
+    font-size: 10px;
+    font-style: italic;
+}
+
+.bills-calendar-budget-hint {
+    margin: -12px 0 16px;
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+}
+
+.heatmap-month-budget {
+    font-size: 11px;
+    font-style: italic;
+    opacity: 0.85;
 }
 
 /* Heatmap View */
