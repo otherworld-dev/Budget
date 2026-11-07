@@ -15,6 +15,7 @@ vi.mock('@nextcloud/l10n', () => ({
 
 import DashboardModule from '../../src/modules/dashboard/DashboardModule.js';
 import ReportsModule from '../../src/modules/reports/ReportsModule.js';
+import ForecastModule from '../../src/modules/forecast/ForecastModule.js';
 import { comparablePreviousRange, reportMonthStartDay, showMonthGroupingNote } from '../../src/utils/formatters.js';
 
 function makeDashboard(settings = {}) {
@@ -200,5 +201,19 @@ describe('report period presets', () => {
         expect(rangeFor('last-3-months', budget)).toEqual(['2026-08-26', '2026-11-25']);
         expect(rangeFor('ytd', budget)).toEqual(['2025-12-26', '2026-10-28']);
         expect(rangeFor('last-year', budget)).toEqual(['2024-12-26', '2025-12-25']);
+    });
+});
+
+describe('forecast', () => {
+    it('says when it learns from budget months', () => {
+        document.body.innerHTML = '<span id="forecast-confidence"></span><span id="data-info"></span><p id="forecast-month-note" style="display: none;"></p>';
+        const forecast = Object.create(ForecastModule.prototype);
+        const data = { confidence: 40, monthStartDay: 26, dataQuality: { monthsOfData: 1, transactionCount: 88 } };
+
+        forecast.displayDataQuality(data);
+        expect(document.getElementById('forecast-month-note').textContent).toContain('day 26');
+
+        forecast.displayDataQuality({ ...data, monthStartDay: 1 });
+        expect(document.getElementById('forecast-month-note').style.display).toBe('none');
     });
 });

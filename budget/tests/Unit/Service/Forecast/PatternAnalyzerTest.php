@@ -173,6 +173,26 @@ class PatternAnalyzerTest extends TestCase {
 		$this->assertEquals(800.0, $result[1]['expenses']);
 	}
 
+	public function testAggregateMonthlyDataGroupsByBudgetMonthWithAStartDay(): void {
+		// Start day 26: each salary opens its own budget month with the
+		// spending that follows it; by calendar month they would pair the
+		// September salary with October's rent
+		$transactions = [
+			$this->makeTransaction('2026-09-26', 3000, 'credit'),
+			$this->makeTransaction('2026-10-01', 900, 'debit'),
+			$this->makeTransaction('2026-10-26', 3000, 'credit'),
+			$this->makeTransaction('2026-11-01', 950, 'debit'),
+		];
+
+		$result = $this->analyzer->aggregateMonthlyData($transactions, [], 26);
+
+		$this->assertCount(2, $result);
+		$this->assertEquals(3000.0, $result[0]['income']);
+		$this->assertEquals(900.0, $result[0]['expenses']);
+		$this->assertEquals(3000.0, $result[1]['income']);
+		$this->assertEquals(950.0, $result[1]['expenses']);
+	}
+
 	public function testAggregateMonthlyDataSortsByMonth(): void {
 		$transactions = [
 			$this->makeTransaction('2025-03-01', 100, 'debit'),
