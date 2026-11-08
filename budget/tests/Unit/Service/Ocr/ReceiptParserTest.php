@@ -79,6 +79,17 @@ class ReceiptParserTest extends TestCase {
 		$this->assertSame('2026-12-31', $this->parser->parse('12/31/2026')['date']);
 	}
 
+	public function testReadDateCanReadAnAmbiguousDateMonthFirst(): void {
+		$this->assertSame('2026-11-08', $this->parser->readDate('08/11/2026 14:32'));
+		$this->assertSame('2026-08-11', $this->parser->readDate('08/11/2026 14:32', true));
+		// A date that reads only one way reads that way in either mode.
+		$this->assertSame('2026-12-31', $this->parser->readDate('31/12/2026', true));
+		$this->assertSame('2026-12-31', $this->parser->readDate('12/31/2026'));
+		// Dotted dates stay strictly day-first (see testDottedTimesAreNotDates).
+		$this->assertSame('2026-11-08', $this->parser->readDate('08.11.26', true));
+		$this->assertNull($this->parser->readDate('8 Nov 2026'));
+	}
+
 	public function testImpossibleDatesAreDroppedNotGuessed(): void {
 		$this->assertNull($this->parser->parse('Printed 33/13/2026')['date']);
 		$this->assertNull($this->parser->parse('Est. 01/02/1987')['date']);
