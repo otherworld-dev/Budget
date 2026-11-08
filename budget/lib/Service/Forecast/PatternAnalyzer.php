@@ -6,6 +6,7 @@ namespace OCA\Budget\Service\Forecast;
 
 use OCA\Budget\Db\CategoryMapper;
 use OCA\Budget\Db\TransactionSplitMapper;
+use OCA\Budget\Service\BudgetPeriod;
 use OCA\Budget\Service\MoneyCalculator;
 
 /**
@@ -173,13 +174,15 @@ class PatternAnalyzer {
 	 * @param array<int, string> $accountRates account id => multiplier into the
 	 *                                         forecast's currency (CurrencyTotals::accountRates()); empty
 	 *                                         when the accounts share one currency
+	 * @param int $monthStartDay 1 for calendar months, else the day budget
+	 *                           months start on (#457)
 	 * @return array Monthly income/expense totals
 	 */
-	public function aggregateMonthlyData(array $transactions, array $accountRates = []): array {
+	public function aggregateMonthlyData(array $transactions, array $accountRates = [], int $monthStartDay = 1): array {
 		$monthlyData = [];
 
 		foreach ($transactions as $transaction) {
-			$month = date('Y-m', strtotime($transaction->getDate()));
+			$month = BudgetPeriod::monthContaining(substr((string)$transaction->getDate(), 0, 10), $monthStartDay);
 
 			if (!isset($monthlyData[$month])) {
 				$monthlyData[$month] = ['income' => 0.0, 'expenses' => 0.0];

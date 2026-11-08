@@ -1115,7 +1115,8 @@ class RecurringIncomeService extends AbstractCrudService {
 		return abs((strtotime($date) - strtotime($expected)) / 86400) <= self::expectedWindowDays($income->getFrequency());
 	}
 
-	private static function expectedWindowDays(?string $frequency): int {
+	/** How many days either side of an expected date a payment may fall; the forecast uses it for bills too */
+	public static function expectedWindowDays(?string $frequency): int {
 		return match ($frequency) {
 			'daily' => 1,
 			'weekly' => 3,

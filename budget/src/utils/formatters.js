@@ -45,6 +45,16 @@ export function formatYearMonth(yearMonth, options = { month: 'short', year: 'nu
 }
 
 /**
+ * The label of a forecast month. `yearMonth` is formatted in the user's
+ * language; `month` is the English label a forecast cached before it
+ * existed still carries. The running month counts only from tomorrow on.
+ */
+export function projectionMonthLabel(projection) {
+    const month = projection.yearMonth ? formatYearMonth(projection.yearMonth) : projection.month;
+    return projection.partial ? t('budget', '{month} (rest)', { month }) : month;
+}
+
+/**
  * Currency configuration with symbol and position metadata
  * Position: 'prefix' = symbol before amount (e.g., $500), 'suffix' = symbol after amount (e.g., 500 kr)
  * Prefix currencies have no space, suffix currencies have a space before the symbol

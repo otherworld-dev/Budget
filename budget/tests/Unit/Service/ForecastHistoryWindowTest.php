@@ -23,9 +23,12 @@ class ForecastHistoryWindowTest extends TestCase {
 	public function testTheHistoryIsTheTwelveCompleteMonthsBeforeThisOne(): void {
 		$transactions = $this->createMock(TransactionMapper::class);
 		$transactions->method('getNetChangeAfterDateForAccounts')->willReturn([]);
-		$transactions->expects($this->once())->method('findAllByUserAndDateRange')
-			->with('alice', '2029-10-01', '2030-09-30')
-			->willReturn([]);
+		$asked = [];
+		$transactions->method('findAllByUserAndDateRange')
+			->willReturnCallback(function ($user, $from, $to) use (&$asked) {
+				$asked[] = [$user, $from, $to];
+				return [];
+			});
 		$clock = $this->createMock(UserClock::class);
 		$clock->method('today')->willReturn('2030-10-04');
 
@@ -42,6 +45,8 @@ class ForecastHistoryWindowTest extends TestCase {
 
 		$forecast = $service->getLiveForecast('alice', 3);
 
-		$this->assertSame(['2030-11', '2030-12', '2031-01'], array_column($forecast['monthlyProjections'], 'yearMonth'));
+		$this->assertSame(['2030-10', '2030-11', '2030-12', '2031-01'], array_column($forecast['monthlyProjections'], 'yearMonth'));
+		// The history, then the rows dated after today to the last month projected
+		$this->assertSame([['alice', '2029-10-01', '2030-09-30'], ['alice', '2030-10-05', '2031-01-31']], $asked);
 	}
 }
