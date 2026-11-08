@@ -1395,7 +1395,7 @@ class BillController extends Controller {
 	 * Get annual overview of bills
 	 * @NoAdminRequired
 	 */
-	public function annualOverview(?int $year = null, $includeTransfers = 'false', ?string $billStatus = 'active', ?int $accountId = null): DataResponse {
+	public function annualOverview(?int $year = null, $includeTransfers = 'false', ?string $billStatus = 'active', ?int $accountId = null, $includeBudgets = 'false'): DataResponse {
 		try {
 			// Default to current year if not specified
 			$year = $year ?? (int)date('Y');
@@ -1414,7 +1414,7 @@ class BillController extends Controller {
 				$billStatus = 'active';
 			}
 
-			$overview = $this->service->getAnnualOverview($this->getEffectiveUserId(), $year, $includeTransfersBool, $billStatus, $accountId);
+			$overview = $this->service->getAnnualOverview($this->getEffectiveUserId(), $year, $includeTransfersBool, $billStatus, $accountId, $this->toBool($includeBudgets));
 			return new DataResponse($overview);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to generate annual overview'));
@@ -1431,6 +1431,7 @@ class BillController extends Controller {
 		$includeTransfers = 'false',
 		?string $billStatus = 'active',
 		?int $accountId = null,
+		$includeBudgets = 'false',
 	): DataDownloadResponse|DataResponse {
 		try {
 			$year = $year ?? (int)date('Y');
@@ -1444,7 +1445,7 @@ class BillController extends Controller {
 				$billStatus = 'active';
 			}
 
-			$data = $this->service->getAnnualOverview($this->getEffectiveUserId(), $year, $includeTransfersBool, $billStatus, $accountId);
+			$data = $this->service->getAnnualOverview($this->getEffectiveUserId(), $year, $includeTransfersBool, $billStatus, $accountId, $this->toBool($includeBudgets));
 
 			if ($format === 'pdf') {
 				$result = $this->exportCalendarToPdf($data);
@@ -1478,7 +1479,7 @@ class BillController extends Controller {
 		foreach ($data['bills'] ?? [] as $bill) {
 			[$months, $annualTotal] = $this->calendarExportCells($bill);
 			CsvSafe::put($csv, array_merge(
-				[$bill['name'] ?? '', $this->calendarExportAmount($bill), $bill['frequency'] ?? ''],
+				[$this->calendarExportName($bill), $this->calendarExportAmount($bill), $bill['frequency'] ?? ''],
 				$months,
 				[$annualTotal]
 			));
@@ -1524,6 +1525,19 @@ class BillController extends Controller {
 			}
 		}
 		return [$months, number_format(MoneyCalculator::toFloat($annual), $decimals)];
+	}
+
+	/**
+	 * A calendar row's name as an export prints it: a budget put in the
+	 * calendar is marked as one, so it can't pass for a bill (#459).
+	 */
+	private function calendarExportName(array $bill): string {
+		$name = (string)($bill['name'] ?? '');
+		if (!empty($bill['isBudget'])) {
+			// TRANSLATORS: %s is a category name. The row is the category's budget, shown in the bills calendar as estimated spending.
+			return $this->l->t('%s (budget)', [$name]);
+		}
+		return $name;
 	}
 
 	/**
@@ -1649,7 +1663,7 @@ class BillController extends Controller {
 		// to fit it; written on one line it ran on into the Amount (#399).
 		$pdf->SetFont('dejavusans', '', 7);
 		foreach ($data['bills'] ?? [] as $bill) {
-			$name = (string)($bill['name'] ?? '');
+			$name = $this->calendarExportName($bill);
 			// A millimetre's room keeps the last line inside the cell's limit
 			$height = max(5, $pdf->getStringHeight($nameW, $name) + 1);
 			if ($pdf->GetY() + $height > $pdf->getPageHeight() - $pdf->getBreakMargin()) {

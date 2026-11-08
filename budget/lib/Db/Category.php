@@ -40,6 +40,8 @@ use OCP\AppFramework\Db\Entity;
  * @method void setBudgetRollover(?bool $budgetRollover)
  * @method string|null getRolloverStart()
  * @method void setRolloverStart(?string $rolloverStart)
+ * @method bool|null getShowInCalendar()
+ * @method void setShowInCalendar(?bool $showInCalendar)
  * @method string|null getCreatedBy()
  * @method void setCreatedBy(?string $createdBy)
  */
@@ -57,6 +59,7 @@ class Category extends Entity implements JsonSerializable {
 	protected $excludedFromBudget;  // still counts everywhere else, just not budgeted against
 	protected $budgetRollover;   // envelope budgeting: unspent budget carries to next month
 	protected $rolloverStart;    // YYYY-MM the carryover chain starts from
+	protected $showInCalendar;   // its budget shows in the Bills Calendar as estimated spending (#459)
 	protected $createdBy;        // a Full control recipient who added it; NULL = the owner
 	protected $createdAt;
 	protected $updatedAt;
@@ -69,6 +72,7 @@ class Category extends Entity implements JsonSerializable {
 		$this->addType('excludedFromReports', 'boolean');
 		$this->addType('excludedFromBudget', 'boolean');
 		$this->addType('budgetRollover', 'boolean');
+		$this->addType('showInCalendar', 'boolean');
 	}
 
 	/**
@@ -91,6 +95,7 @@ class Category extends Entity implements JsonSerializable {
 			'excludedFromBudget' => $this->getExcludedFromBudget() ?? false,
 			'budgetRollover' => $this->getBudgetRollover() ?? false,
 			'rolloverStart' => $this->getRolloverStart(),
+			'showInCalendar' => $this->getShowInCalendar() ?? false,
 			'createdBy' => $this->getCreatedBy(),
 			'createdAt' => $this->getCreatedAt(),
 			'updatedAt' => $this->getUpdatedAt(),

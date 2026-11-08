@@ -26,6 +26,7 @@ class BillIcsService {
 		private AmountFormatter $amountFormatter,
 		private IFactory $l10nFactory,
 		private IConfig $config,
+		private ?BudgetCalendarEstimates $budgetEstimates = null,
 	) {
 	}
 
@@ -60,6 +61,10 @@ class BillIcsService {
 			foreach ($this->materializeOccurrences($bill, $horizon) as $date) {
 				$lines = array_merge($lines, $this->buildEvent($bill, $date, $instanceId, $now, $l));
 			}
+		}
+
+		foreach ($this->budgetEvents($userId, $horizon, $instanceId, $now, $l) as $event) {
+			$lines = array_merge($lines, $event);
 		}
 
 		$lines[] = 'END:VCALENDAR';
@@ -146,6 +151,50 @@ class BillIcsService {
 
 		$lines[] = 'END:VEVENT';
 		return $lines;
+	}
+
+	/**
+	 * The budgets put in the Bills Calendar (#459), one all-day event on the
+	 * first of each calendar month from this one to the horizon's, holding
+	 * the month's share of the budget (BudgetCalendarEstimates). The UID is
+	 * the category and the month, so a refresh updates the event in place:
+	 * a changed budget changes its title, never adds a second one.
+	 *
+	 * @return list<string[]> ICS lines, one list per VEVENT
+	 */
+	private function budgetEvents(string $userId, string $horizon, string $instanceId, string $dtstamp, $l): array {
+		if ($this->budgetEstimates === null) {
+			return [];
+		}
+		$months = [];
+		$month = new \DateTime('first day of this month');
+		$last = substr($horizon, 0, 7);
+		while ($month->format('Y-m') <= $last) {
+			$months[] = $month->format('Y-m');
+			$month->modify('first day of next month');
+		}
+
+		$estimates = $this->budgetEstimates->forMonths($userId, $months);
+		$events = [];
+		foreach ($estimates['rows'] as $row) {
+			$category = $row['category'];
+			foreach ($row['amounts'] as $ym => $amount) {
+				$dateCompact = str_replace('-', '', $ym) . '01';
+				$formatted = $this->amountFormatter->format((float)$amount, $estimates['currency']);
+				$events[] = [
+					'BEGIN:VEVENT',
+					$this->fold("UID:budget-estimate-{$category->getId()}-{$dateCompact}@{$instanceId}"),
+					"DTSTAMP:{$dtstamp}",
+					"DTSTART;VALUE=DATE:{$dateCompact}",
+					// TRANSLATORS: %1$s is a category name, %2$s the amount its budget plans to spend in the month. A calendar event title.
+					$this->fold('SUMMARY:' . $this->escape($l->t('%1$s budget: %2$s', [$category->getName(), $formatted]))),
+					$this->fold('DESCRIPTION:' . $this->escape($l->t('Estimated spending for the month, from your budget.'))),
+					'TRANSP:TRANSPARENT',
+					'END:VEVENT',
+				];
+			}
+		}
+		return $events;
 	}
 
 	/**

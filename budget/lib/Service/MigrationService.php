@@ -1293,6 +1293,7 @@ class MigrationService {
 			$category->setExcludedFromBudget(self::flag($catData, 'excludedFromBudget', false));
 			$category->setBudgetRollover(self::flag($catData, 'budgetRollover', false));
 			$category->setRolloverStart($catData['rolloverStart'] ?? null);
+			$category->setShowInCalendar(self::flag($catData, 'showInCalendar', false));
 			$category->setCreatedAt($catData['createdAt'] ?? date('Y-m-d H:i:s'));
 			// The Full control recipient who added it, so they can still delete
 			// it after a restore. Imported into that same person's account it

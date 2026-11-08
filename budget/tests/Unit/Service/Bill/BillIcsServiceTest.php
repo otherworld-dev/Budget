@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace OCA\Budget\Tests\Unit\Service\Bill;
 
 use OCA\Budget\Db\Bill;
+use OCA\Budget\Db\Category;
 use OCA\Budget\Service\AmountFormatter;
 use OCA\Budget\Service\Bill\BillIcsService;
+use OCA\Budget\Service\Bill\BudgetCalendarEstimates;
 use OCA\Budget\Service\Bill\FrequencyCalculator;
 use OCA\Budget\Service\BillService;
 use OCA\Budget\Service\SettingService;
@@ -28,7 +30,7 @@ class BillIcsServiceTest extends TestCase {
 		$this->service = $this->buildService($this->frequencyCalculator);
 	}
 
-	private function buildService(FrequencyCalculator $calculator): BillIcsService {
+	private function buildService(FrequencyCalculator $calculator, ?BudgetCalendarEstimates $estimates = null): BillIcsService {
 		$l = $this->createMock(IL10N::class);
 		$l->method('t')->willReturnCallback(fn (string $text, array $params = []) => vsprintf(str_replace('%1$s', '%s', $text), $params));
 		$l10nFactory = $this->createMock(IFactory::class);
@@ -44,7 +46,8 @@ class BillIcsServiceTest extends TestCase {
 			$calculator,
 			$amountFormatter,
 			$l10nFactory,
-			$config
+			$config,
+			$estimates
 		);
 	}
 
@@ -201,5 +204,75 @@ class BillIcsServiceTest extends TestCase {
 		$ics = $this->service->generateBillsFeed('alice');
 
 		$this->assertStringNotContainsString('BEGIN:VALARM', $ics);
+	}
+
+	/**
+	 * A budget put in the Bills Calendar (#459) is an all-day event on the
+	 * first of each month to the horizon, with its month's share; the UID
+	 * is the category and the month, so a refresh never duplicates it.
+	 *
+	 * @param string[] $asked set to the months forMonths() was asked for
+	 */
+	private function feedWithBudget(array &$asked): string {
+		$estimates = $this->createMock(BudgetCalendarEstimates::class);
+		$estimates->method('forMonths')->willReturnCallback(function (string $userId, array $months) use (&$asked): array {
+			$asked = $months;
+			$food = new Category();
+			$food->setId(9);
+			$food->setName('Lebensmittel, Getränke');
+			return ['currency' => 'CHF', 'rows' => [
+				['category' => $food, 'amounts' => array_fill_keys($months, '700.00'), 'budgets' => []],
+			]];
+		});
+		$this->billService->method('findActive')->willReturn([]);
+		return $this->buildService($this->frequencyCalculator, $estimates)->generateBillsFeed('alice');
+	}
+
+	public function testBudgetsAreAnEventOnTheFirstOfEachMonth(): void {
+		$asked = [];
+		$ics = $this->feedWithBudget($asked);
+
+		// This month to the horizon's, twelve months on: thirteen months
+		$this->assertCount(13, $asked);
+		$this->assertSame(date('Y-m'), $asked[0]);
+		$this->assertSame(date('Y-m', strtotime('first day of this month +12 months')), $asked[12]);
+		$this->assertSame(13, substr_count($ics, 'BEGIN:VEVENT'));
+
+		$first = date('Ym') . '01';
+		$this->assertStringContainsString("UID:budget-estimate-9-{$first}@octest\r\n", $ics);
+		$this->assertStringContainsString("DTSTART;VALUE=DATE:{$first}\r\n", $ics);
+		// Escaped as the bills' titles are
+		$this->assertMatchesRegularExpression('/SUMMARY:Lebensmittel\\\\, Getränke budget: [^\r]*700/u', $ics);
+		$this->assertStringContainsString('TRANSP:TRANSPARENT', $ics);
+	}
+
+	public function testBudgetEventUidsAreStableAcrossRefreshes(): void {
+		$asked = [];
+		$first = $this->feedWithBudget($asked);
+		preg_match_all('/^UID:(.*)$/m', $first, $uids);
+		$second = $this->buildService($this->frequencyCalculator, $this->createConfiguredMock(BudgetCalendarEstimates::class, [
+			'forMonths' => ['currency' => 'CHF', 'rows' => [[
+				'category' => (function () {
+					$c = new Category();
+					$c->setId(9);
+					$c->setName('Lebensmittel, Getränke');
+					return $c;
+				})(),
+				// The budget changed since: the same events, new titles
+				'amounts' => array_fill_keys($asked, '750.00'),
+				'budgets' => [],
+			]]],
+		]))->generateBillsFeed('alice');
+		preg_match_all('/^UID:(.*)$/m', $second, $uidsAgain);
+
+		$this->assertCount(13, $uids[1]);
+		$this->assertSame($uids[1], $uidsAgain[1]);
+		$this->assertStringContainsString('750', $second);
+	}
+
+	public function testNoBudgetsWithoutTheService(): void {
+		$this->billService->method('findActive')->willReturn([]);
+
+		$this->assertStringNotContainsString('budget-estimate', $this->service->generateBillsFeed('alice'));
 	}
 }

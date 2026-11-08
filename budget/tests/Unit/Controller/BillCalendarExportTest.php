@@ -128,4 +128,49 @@ class BillCalendarExportTest extends TestCase {
 		$this->assertStringNotContainsString('4,052.40', $text);
 		$this->assertStringNotContainsString('900.00', $text);
 	}
+
+	/** A budget put in the calendar (#459) is marked as one, its months printing its estimate */
+	private function budgetRow(): array {
+		return [
+			'id' => null, 'isBudget' => true, 'name' => 'Lebensmittel', 'amount' => 700.0, 'currency' => 'CHF',
+			'frequency' => 'monthly', 'mixedAmounts' => false,
+			'occurrences' => array_fill(1, 12, true),
+			'paidMonths' => [], 'paidAmounts' => [], 'unrecordedMonths' => [], 'owedAmounts' => [],
+			'expectedAmounts' => array_fill(1, 12, 700.0),
+		];
+	}
+
+	public function testABudgetRowIsMarkedAsABudget(): void {
+		$csv = $this->export('csv', $this->budgetRow());
+
+		$this->assertStringContainsString(
+			'"Lebensmittel (budget)",700.00,monthly,' . implode(',', array_fill(0, 12, '700.00')) . ',"8,400.00"' . "\n",
+			$csv
+		);
+	}
+
+	public function testThePdfMarksTheBudgetRowToo(): void {
+		$this->requireTcpdf();
+
+		$text = $this->pdfText($this->export('pdf', $this->budgetRow()));
+
+		// A PDF string escapes its brackets
+		$this->assertStringContainsString('Lebensmittel \(budget\)', $text);
+		$this->assertStringContainsString('8,400.00', $text);
+	}
+
+	/** The report's checkbox reaches the service; left out, there are none */
+	public function testTheExportPassesIncludeBudgetsOn(): void {
+		$asked = [];
+		$this->service->method('getAnnualOverview')->willReturnCallback(function (...$args) use (&$asked) {
+			$asked[] = $args[5] ?? null;
+			return ['year' => 2026, 'bills' => [], 'monthlyTotals' => array_fill(1, 12, 0.0)];
+		});
+
+		$this->controller->exportCalendar('csv', 2026, 'false', 'active', null, 'true');
+		$this->controller->exportCalendar('csv', 2026);
+		$this->controller->annualOverview(2026, 'false', 'all', null, 'true');
+
+		$this->assertSame([true, false, true], $asked);
+	}
 }

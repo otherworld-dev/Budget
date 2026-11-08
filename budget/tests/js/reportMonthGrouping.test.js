@@ -124,10 +124,21 @@ describe('comparablePreviousRange', () => {
         expect(comparablePreviousRange(february, march, '2026-03-29')).toEqual(february);
     });
 
-    it('is the whole previous period on the last day of this one', () => {
+    it('keeps the days even on the last day of this one', () => {
+        // 28 February: 28 days of January, not all 31
+        const january = { start: '2027-01-01', end: '2027-01-31' };
+        const february = { start: '2027-02-01', end: '2027-02-28' };
+        expect(comparablePreviousRange(january, february, '2027-02-28')).toEqual({ start: '2027-01-01', end: '2027-01-28' });
+        // 30 November: 30 days of October
         const october = { start: '2026-10-01', end: '2026-10-31' };
         const november = { start: '2026-11-01', end: '2026-11-30' };
-        expect(comparablePreviousRange(october, november, '2026-11-30')).toEqual(october);
+        expect(comparablePreviousRange(october, november, '2026-11-30')).toEqual({ start: '2026-10-01', end: '2026-10-30' });
+    });
+
+    it('is the whole previous period once this one is over', () => {
+        const october = { start: '2026-10-01', end: '2026-10-31' };
+        const november = { start: '2026-11-01', end: '2026-11-30' };
+        expect(comparablePreviousRange(october, november, '2026-12-01')).toEqual(october);
     });
 
     it('counts days across a month end with a start day', () => {
