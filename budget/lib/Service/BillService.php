@@ -4017,14 +4017,16 @@ class BillService {
 	/**
 	 * Every date a bill falls on between two dates, inclusive, from the same
 	 * schedule the Bills page and its calendar use (occurrencesInYear()).
-	 * The forecast places each payment in its month with it.
+	 * The forecast places each payment in its month with it. With
+	 * $sinceCreated false, a bill with no start date has dates before it
+	 * was added too: the forecast looks for its payments in the history.
 	 *
 	 * @return string[] Y-m-d dates in order
 	 */
-	public function occurrencesBetween(Bill $bill, string $from, string $to): array {
+	public function occurrencesBetween(Bill $bill, string $from, string $to, bool $sinceCreated = true): array {
 		$dates = [];
 		for ($year = (int)substr($from, 0, 4); $year <= (int)substr($to, 0, 4); $year++) {
-			foreach ($this->occurrencesInYear($bill, $year) as $inMonth) {
+			foreach ($this->occurrencesInYear($bill, $year, $sinceCreated) as $inMonth) {
 				foreach ($inMonth as $date) {
 					if ($date >= $from && $date <= $to) {
 						$dates[] = $date;
@@ -4044,7 +4046,8 @@ class BillService {
 	 * bill came back in the same month of every later year.
 	 *
 	 *  - Nothing occurs before the start date or, without one, before the
-	 *    bill existed (#333); nothing after the end date.
+	 *    bill existed (#333), unless $sinceCreated is false; nothing after
+	 *    the end date.
 	 *  - Nothing occurs after an inactive bill stopped (stoppedOn()).
 	 *  - Remaining payments cap what is still to come from the next due date.
 	 *  - A quarterly, half-yearly or yearly bill with no month stored takes
@@ -4053,7 +4056,7 @@ class BillService {
 	 *
 	 * @return array<int, string[]> month => Y-m-d dates in order
 	 */
-	private function occurrencesInYear(Bill $bill, int $year): array {
+	private function occurrencesInYear(Bill $bill, int $year, bool $sinceCreated = true): array {
 		$from = sprintf('%04d-01-01', $year);
 		$to = sprintf('%04d-12-31', $year);
 		$frequency = $bill->getFrequency();
@@ -4081,7 +4084,7 @@ class BillService {
 			$dueMonth = (int)substr($nextDue, 5, 2);
 		}
 
-		if ($anchor === null && $bill->getCreatedAt()) {
+		if ($anchor === null && $sinceCreated && $bill->getCreatedAt()) {
 			$from = max($from, substr((string)$bill->getCreatedAt(), 0, 10));
 		}
 		$endDate = $bill->getEndDate() ?: null;

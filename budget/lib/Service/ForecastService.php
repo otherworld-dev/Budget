@@ -255,47 +255,110 @@ class ForecastService {
 	}
 
 	/**
-	 * Whether a row is a payment of one of the bills or recurring incomes
-	 * placed on their own dates, so the average must not count it again: a
-	 * debit for a bill, a credit for an income (or for a transfer bill into
-	 * the forecast), with no bill linked to it.
-	 *
-	 * It has to be in the item's account (or any, when it names none),
-	 * within a fifth of its amount, and be recognisably that item: its
-	 * vendor is the item's name, as on the rows Mark Received, Mark Paid
-	 * and auto-create write, or it mentions every word of the item's
-	 * pattern. With neither, any credit within a fifth in any account
-	 * passed for a pension, and a row the user meant as something else
-	 * left the average.
+	 * The rows among $rows that are payments of the bills or recurring
+	 * incomes placed on their own dates between $from and $to, so the
+	 * average must not count them again: debits for a bill, credits for an
+	 * income (or for a transfer bill into the forecast).
 	 *
 	 * @param list<array{0: \OCA\Budget\Db\Bill|\OCA\Budget\Db\RecurringIncome, 1: string}> $items
+	 * @return array<int, true> spl_object_id() of each row claimed
 	 */
-	private static function isScheduledPayment($transaction, array $items, string $type): bool {
-		if ($transaction->getType() !== $type) {
+	private function scheduledPayments(array $rows, array $items, string $type, string $from, string $to): array {
+		$claimed = [];
+		foreach ($items as [$item]) {
+			$window = RecurringIncomeService::expectedWindowDays($item->getFrequency());
+			$dates = $this->allOccurrences(
+				$item,
+				(new \DateTimeImmutable($from))->modify("-{$window} days")->format('Y-m-d'),
+				(new \DateTimeImmutable($to))->modify("+{$window} days")->format('Y-m-d'),
+				false
+			);
+			$this->claimPayments($rows, $item, $type, $dates, $claimed);
+		}
+		return $claimed;
+	}
+
+	/**
+	 * Each of $dates claims the one row in $rows that pays $item then, if
+	 * there is one, into $claimed. One row per date, within the item's
+	 * window of it (RecurringIncomeService::expectedWindowDays()), so a
+	 * bill with a pattern as wide as AMAZON takes one purchase a month out
+	 * of the average, not every one near its amount.
+	 *
+	 * The row has to be in the item's account (or any, when it names none)
+	 * and be linked to it, or recognisably it, or, for an item with no
+	 * pattern, in the item's own account within a fifth of its amount. Recognisably it: its vendor is the
+	 * item's name, as on the rows Mark Received, Mark Paid and auto-create
+	 * write, or it mentions every word of the item's pattern; such a row is
+	 * the item's whatever its amount, so a month with overtime stays the
+	 * salary's and doesn't turn into a rising trend. By amount alone it
+	 * takes the item's account: a salary the bank books under the
+	 * employer's name is the salary's, any credit near a pension's amount
+	 * in any account was not. Of several rows, a linked one comes first,
+	 * then a recognised one, then the nearest the date, then the nearest
+	 * the amount. An item with a pattern takes only the rows it matches:
+	 * the user said what its payments look like.
+	 *
+	 * @param \OCA\Budget\Db\Bill|\OCA\Budget\Db\RecurringIncome $item
+	 * @param string[] $dates
+	 * @param array<int, true> $claimed
+	 * @return bool whether any date claimed a row
+	 */
+	private function claimPayments(array $rows, $item, string $type, array $dates, array &$claimed): bool {
+		if ($dates === []) {
 			return false;
 		}
-		$amount = (float)$transaction->getAmount();
-		$vendor = trim((string)($transaction->getVendor() ?? ''));
-		$text = ($transaction->getDescription() ?? '') . ' ' . $vendor;
-		foreach ($items as [$item]) {
-			$accountId = $item instanceof \OCA\Budget\Db\Bill && $type === 'credit'
-				? $item->getDestinationAccountId()
-				: $item->getAccountId();
-			if ($accountId !== null && (int)$accountId !== (int)$transaction->getAccountId()) {
+		$isBill = $item instanceof \OCA\Budget\Db\Bill;
+		$accountId = $item instanceof \OCA\Budget\Db\Bill && $type === 'credit' ? $item->getDestinationAccountId() : $item->getAccountId();
+		$expected = abs((float)$item->getAmount());
+		$name = mb_strtolower(trim((string)$item->getName()));
+		$pattern = trim((string)($item->getAutoDetectPattern() ?? ''));
+
+		$candidates = [];
+		foreach ($rows as $row) {
+			if ($row->getType() !== $type || isset($claimed[spl_object_id($row)])
+				|| ($row->getStatus() ?? 'cleared') === 'scheduled'
+				|| ($accountId !== null && (int)$accountId !== (int)$row->getAccountId())) {
 				continue;
 			}
-			$expected = (float)$item->getAmount();
-			if (abs($amount - $expected) > abs($expected) * 0.2) {
+			$billId = $row->getBillId();
+			if ($billId !== null && !($isBill && (int)$billId === (int)$item->getId())) {
 				continue;
 			}
-			$name = trim((string)$item->getName());
-			$pattern = trim((string)($item->getAutoDetectPattern() ?? ''));
-			if (($name !== '' && mb_strtolower($vendor) === mb_strtolower($name))
-				|| ($pattern !== '' && self::mentions($text, $pattern))) {
-				return true;
+			$vendor = trim((string)($row->getVendor() ?? ''));
+			$recognised = ($name !== '' && strcmp(mb_strtolower($vendor), $name) === 0)
+				|| ($pattern !== '' && self::mentions(($row->getDescription() ?? '') . ' ' . $vendor, $pattern));
+			$rank = $billId !== null ? 0 : ($recognised ? 1 : 2);
+			$amountOff = abs((float)$row->getAmount() - $expected);
+			if ($rank === 2 && ($accountId === null || $pattern !== '' || $amountOff > $expected * 0.2)) {
+				continue;
+			}
+			$candidates[] = [$row, $rank, strtotime(substr((string)$row->getDate(), 0, 10)), $amountOff];
+		}
+
+		$window = RecurringIncomeService::expectedWindowDays($item->getFrequency());
+		$any = false;
+		foreach ($dates as $date) {
+			$day = strtotime($date);
+			$best = null;
+			$bestKey = null;
+			foreach ($candidates as [$row, $rank, $rowDay, $amountOff]) {
+				$days = abs($rowDay - $day) / 86400;
+				if ($days > $window || isset($claimed[spl_object_id($row)])) {
+					continue;
+				}
+				$key = [$rank, $days, $amountOff];
+				if ($bestKey === null || $key < $bestKey) {
+					$best = $row;
+					$bestKey = $key;
+				}
+			}
+			if ($best !== null) {
+				$claimed[spl_object_id($best)] = true;
+				$any = true;
 			}
 		}
-		return false;
+		return $any;
 	}
 
 	/**
@@ -335,39 +398,43 @@ class ForecastService {
 	}
 
 	/**
-	 * What bills fell due up to today and are still owed: the dates from
-	 * the next one due until today. Marking a bill paid moves its next due
-	 * date on, and a scheduled placeholder row is not in the balance, so an
-	 * overdue bill is still to come out of it; it counts in the first month
-	 * projected. Not when a row since its due date pays it, linked or
-	 * recognisable (isScheduledPayment()): paid through the bank and not
-	 * marked paid, it is already in the balance.
+	 * What bills fell due up to today and are still owed. Marking a bill
+	 * paid moves its next due date on, and a scheduled placeholder row is
+	 * not in the balance, so an overdue bill is still to come out of it; it
+	 * counts in the first month projected. Only its latest date due: a bill
+	 * nobody marks paid had every month since July counted, and the balance
+	 * went below zero on payments long made. Not when a row pays that date
+	 * (claimPayments()): paid through the bank and not marked paid, it is
+	 * already in the balance.
 	 *
 	 * @param list<array{0: \OCA\Budget\Db\Bill, 1: string}> $bills
-	 * @param array $recentRows the rows from the earliest due date until today
+	 * @param array $recentRows the rows from the earliest window until today
 	 */
 	private function overdueTotal(array $bills, string $today, array $recentRows): string {
 		$total = '0';
+		$claimed = [];
 		foreach ($bills as [$item, $rate]) {
-			$next = $item->getNextDueDate();
-			if (!$next || substr($next, 0, 10) > $today) {
+			$latest = $this->latestDue($item, $today);
+			if ($latest === null || $this->claimPayments($recentRows, $item, 'debit', [$latest], $claimed)) {
 				continue;
 			}
-			$next = substr($next, 0, 10);
-			foreach ($recentRows as $row) {
-				if (substr((string)$row->getDate(), 0, 10) >= $next && ($row->getStatus() ?? 'cleared') !== 'scheduled'
-					&& ((int)$row->getBillId() === (int)$item->getId() || self::isScheduledPayment($row, [[$item, $rate]], 'debit'))) {
-					continue 2;
-				}
-			}
-			$dates = $this->occurrences($item, $next, $today);
-			if ($dates === []) {
-				continue;
-			}
-			$amount = MoneyCalculator::multiply((string)$item->getAmount(), (string)count($dates), 10);
+			$amount = (string)$item->getAmount();
 			$total = MoneyCalculator::add($total, $rate === '1' ? $amount : MoneyCalculator::multiply($amount, $rate, 10), 10);
 		}
 		return $total;
+	}
+
+	/**
+	 * The latest date a bill fell due on, from its next due date up to
+	 * today, or null when it is not due yet.
+	 */
+	private function latestDue(\OCA\Budget\Db\Bill $bill, string $today): ?string {
+		$next = $bill->getNextDueDate();
+		if (!$next || substr($next, 0, 10) > $today) {
+			return null;
+		}
+		$dates = $this->occurrences($bill, substr($next, 0, 10), $today);
+		return $dates === [] ? null : end($dates);
 	}
 
 	/**
@@ -380,21 +447,33 @@ class ForecastService {
 	 * @return string[]
 	 */
 	private function occurrences($item, string $from, string $to): array {
-		if ($item instanceof \OCA\Budget\Db\Bill) {
-			$next = $item->getNextDueDate() ?: null;
-			$dates = $this->billService?->occurrencesBetween($item, $from, $to) ?? [];
-		} else {
-			$next = $item->getNextExpectedDate() ?: null;
-			$frequency = (string)$item->getFrequency();
-			$anchor = $item->getStartDate() ?: ($frequency === 'one-time' ? $next : null);
-			$month = $item->getExpectedMonth();
-			if ($month === null && $next !== null && in_array($frequency, ['quarterly', 'semi-annually', 'yearly'], true)) {
-				$month = (int)substr($next, 5, 2);
-			}
-			$calculator = $this->frequencyCalculator ?? new FrequencyCalculator();
-			$dates = $calculator->occurrencesBetween($frequency, $item->getExpectedDay(), $month, $from, $to, null, $anchor);
-		}
+		$next = $item instanceof \OCA\Budget\Db\Bill ? ($item->getNextDueDate() ?: null) : ($item->getNextExpectedDate() ?: null);
+		$dates = $this->allOccurrences($item, $from, $to, true);
 		return $next === null ? $dates : array_values(array_filter($dates, static fn (string $d) => $d >= $next));
+	}
+
+	/**
+	 * Every date a bill or recurring income falls on between two dates,
+	 * paid or not. With $sinceCreated false a bill's dates go back before
+	 * it was added: a bill set up in October was paid in the months before
+	 * as well, and those payments are its, not spending to average.
+	 *
+	 * @param \OCA\Budget\Db\Bill|\OCA\Budget\Db\RecurringIncome $item
+	 * @return string[]
+	 */
+	private function allOccurrences($item, string $from, string $to, bool $sinceCreated): array {
+		if ($item instanceof \OCA\Budget\Db\Bill) {
+			return $this->billService?->occurrencesBetween($item, $from, $to, $sinceCreated) ?? [];
+		}
+		$next = $item->getNextExpectedDate() ?: null;
+		$frequency = (string)$item->getFrequency();
+		$anchor = $item->getStartDate() ?: ($frequency === 'one-time' ? $next : null);
+		$month = $item->getExpectedMonth();
+		if ($month === null && $next !== null && in_array($frequency, ['quarterly', 'semi-annually', 'yearly'], true)) {
+			$month = (int)substr($next, 5, 2);
+		}
+		$calculator = $this->frequencyCalculator ?? new FrequencyCalculator();
+		return $calculator->occurrencesBetween($frequency, $item->getExpectedDay(), $month, $from, $to, null, $anchor);
 	}
 
 	/**
@@ -648,12 +727,19 @@ class ForecastService {
 		[$bills, $incomingTransfers] = $this->scheduledBills($userId, $accounts, $rates);
 		$incomes = [...$this->scheduledIncomes($userId, $accounts, $rates), ...$incomingTransfers];
 		// A bill's payments leave the average when linked to it, or when
-		// they recognisably pay it without the link; income likewise
+		// they pay it without the link (scheduledPayments()); income
+		// likewise. Rows linked to a bill of the user's own that isn't
+		// placed (paused, or left out of the forecast) leave it as well.
+		// Those linked to another user's bill stay: on an account shared
+		// with them that bill isn't placed in their forecast, and the
+		// owner's rent dropped out of it altogether.
+		$paid = $this->scheduledPayments($transactions, $incomes, 'credit', $startDate, $endDate)
+			+ $this->scheduledPayments($transactions, $bills, 'debit', $startDate, $endDate);
+		$ownBills = $this->ownBillIds($userId);
 		$variable = array_values(array_filter(
 			$transactions,
-			static fn ($t) => $t->getBillId() === null
-				&& !self::isScheduledPayment($t, $incomes, 'credit')
-				&& !self::isScheduledPayment($t, $bills, 'debit')
+			static fn ($t) => !isset($paid[spl_object_id($t)])
+				&& !($t->getBillId() !== null && isset($ownBills[(int)$t->getBillId()]))
 		));
 		// Over every month learned from: a month of nothing but salary has
 		// no other income and counts as none, so a bonus that stopped
@@ -810,16 +896,32 @@ class ForecastService {
 	private function overdueBills(string $userId, array $bills, string $today, ?array $visibleAccountIds): string {
 		$earliest = null;
 		foreach ($bills as [$bill]) {
-			$next = $bill->getNextDueDate() ? substr($bill->getNextDueDate(), 0, 10) : null;
-			if ($next !== null && $next <= $today && ($earliest === null || $next < $earliest)) {
-				$earliest = $next;
+			$latest = $this->latestDue($bill, $today);
+			if ($latest === null) {
+				continue;
 			}
+			$window = RecurringIncomeService::expectedWindowDays($bill->getFrequency());
+			$from = (new \DateTimeImmutable($latest))->modify("-{$window} days")->format('Y-m-d');
+			$earliest = $earliest === null ? $from : min($earliest, $from);
 		}
 		if ($earliest === null) {
 			return '0';
 		}
 		$rows = $this->transactionMapper->findAllByUserAndDateRange($userId, $earliest, $today, null, $visibleAccountIds);
 		return $this->overdueTotal($bills, $today, $rows);
+	}
+
+	/**
+	 * The ids of every bill of the user's own, active or not.
+	 *
+	 * @return array<int, true>
+	 */
+	private function ownBillIds(string $userId): array {
+		$ids = [];
+		foreach ($this->billMapper?->findAll($userId) ?? [] as $bill) {
+			$ids[(int)$bill->getId()] = true;
+		}
+		return $ids;
 	}
 
 	/**

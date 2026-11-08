@@ -65,6 +65,7 @@ class ForecastScheduledTest extends TestCase {
 
 		$billMapper = $this->createMock(BillMapper::class);
 		$billMapper->method('findActive')->willReturn($this->bills);
+		$billMapper->method('findAll')->willReturn($this->bills);
 		$billService = $this->createMock(BillService::class);
 		$billService->method('occurrencesBetween')->willReturnCallback(
 			fn (Bill $bill, string $from, string $to) => array_values(array_filter(
