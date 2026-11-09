@@ -49,6 +49,14 @@ use OCP\AppFramework\Db\Entity;
  * @method void setOverdraftLimit(?float $overdraftLimit)
  * @method float|null getMinimumPayment()
  * @method void setMinimumPayment(?float $minimumPayment)
+ * @method float|null getPromoRate()
+ * @method void setPromoRate(?float $promoRate)
+ * @method string|null getPromoStart()
+ * @method void setPromoStart(?string $promoStart)
+ * @method string|null getPromoEnd()
+ * @method void setPromoEnd(?string $promoEnd)
+ * @method string|null getPromoWarned()
+ * @method void setPromoWarned(?string $promoWarned)
  * @method int|null getStatementDay()
  * @method void setStatementDay(?int $statementDay)
  * @method bool|null getInterestEnabled()
@@ -104,6 +112,13 @@ class Account extends Entity implements JsonSerializable {
 	protected $overdraftLimit;
 	protected $minimumPayment;
 	protected $statementDay;    // Day of month (1-31) the card's statement payment is due (#347)
+	// Promotional rate (e.g. 0%) on a liability, in force from promoStart to
+	// promoEnd (Y-m-d). promoWarned is the promoEnd an expiry warning was last
+	// sent for. All NULL = no promotion.
+	protected $promoRate;
+	protected $promoStart;
+	protected $promoEnd;
+	protected $promoWarned;
 	protected $interestEnabled;
 	protected $compoundingFrequency;
 	protected $accruedInterest;
@@ -134,6 +149,7 @@ class Account extends Entity implements JsonSerializable {
 		$this->addType('overdraftLimit', 'float');
 		$this->addType('minimumPayment', 'float');
 		$this->addType('statementDay', 'integer');
+		$this->addType('promoRate', 'float');
 		$this->addType('interestEnabled', 'boolean');
 		$this->addType('accruedInterest', 'float');
 		$this->addType('excludedFromReports', 'boolean');
@@ -194,6 +210,9 @@ class Account extends Entity implements JsonSerializable {
 			'overdraftLimit' => $this->getOverdraftLimit(),
 			'minimumPayment' => $this->getMinimumPayment(),
 			'statementDay' => $this->getStatementDay(),
+			'promoRate' => $this->getPromoRate(),
+			'promoStart' => $this->getPromoStart(),
+			'promoEnd' => $this->getPromoEnd(),
 			'interestEnabled' => $this->getInterestEnabled() ?? false,
 			'compoundingFrequency' => $this->getCompoundingFrequency(),
 			'accruedInterest' => $this->getAccruedInterest() ?? 0.0,
@@ -234,6 +253,10 @@ class Account extends Entity implements JsonSerializable {
 			'overdraftLimit' => $this->getOverdraftLimit(),
 			'minimumPayment' => $this->getMinimumPayment(),
 			'statementDay' => $this->getStatementDay(),
+			'promoRate' => $this->getPromoRate(),
+			'promoStart' => $this->getPromoStart(),
+			'promoEnd' => $this->getPromoEnd(),
+			'promoWarned' => $this->getPromoWarned(),
 			'interestEnabled' => $this->getInterestEnabled() ?? false,
 			'compoundingFrequency' => $this->getCompoundingFrequency(),
 			'accruedInterest' => $this->getAccruedInterest() ?? 0.0,

@@ -1703,4 +1703,15 @@ class MigrationServiceTest extends TestCase {
 		}
 		return $result;
 	}
+
+	/**
+	 * The promotional rate columns come back from a backup: the import copies
+	 * whatever copiedAccountProperties() lists.
+	 */
+	public function testCopiedAccountPropertiesIncludesPromoFields(): void {
+		$copied = MigrationService::copiedAccountProperties();
+		foreach (['promoRate', 'promoStart', 'promoEnd', 'promoWarned'] as $property) {
+			$this->assertContains($property, $copied);
+		}
+	}
 }

@@ -214,6 +214,10 @@ class AccountMapper extends QBMapper {
 			->set('statement_day', $entity->getStatementDay() === null
 				? $qb->createNamedParameter(null, IQueryBuilder::PARAM_NULL)
 				: $qb->createNamedParameter($entity->getStatementDay(), IQueryBuilder::PARAM_INT))
+			->set('promo_rate', $qb->createNamedParameter($entity->getPromoRate()))
+			->set('promo_start', $this->nullableDateParam($qb, $entity->getPromoStart()))
+			->set('promo_end', $this->nullableDateParam($qb, $entity->getPromoEnd()))
+			->set('promo_warned', $this->nullableDateParam($qb, $entity->getPromoWarned()))
 			->set('interest_enabled', $qb->createNamedParameter($entity->getInterestEnabled(), IQueryBuilder::PARAM_BOOL))
 			->set('compounding_frequency', $qb->createNamedParameter($entity->getCompoundingFrequency()))
 			->set('accrued_interest', $qb->createNamedParameter(
@@ -233,6 +237,25 @@ class AccountMapper extends QBMapper {
 
 		// Reload the entity from database to ensure we return the persisted state (decrypted)
 		return $this->find($entity->getId(), $entity->getUserId());
+	}
+
+	/**
+	 * Record the promo_end an expiry warning was sent for. A targeted
+	 * single-column write: it leaves updated_at alone, so the warning job
+	 * doesn't look like a user edit.
+	 */
+	public function markPromoWarned(int $accountId, string $promoEnd): void {
+		$qb = $this->db->getQueryBuilder();
+		$qb->update($this->getTableName())
+			->set('promo_warned', $qb->createNamedParameter($promoEnd))
+			->where($qb->expr()->eq('id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)));
+		$qb->executeStatement();
+	}
+
+	private function nullableDateParam(IQueryBuilder $qb, ?string $date): string {
+		return $date === null
+			? $qb->createNamedParameter(null, IQueryBuilder::PARAM_NULL)
+			: $qb->createNamedParameter($date);
 	}
 
 	/**

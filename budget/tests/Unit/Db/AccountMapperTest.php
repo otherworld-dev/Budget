@@ -393,6 +393,39 @@ class AccountMapperTest extends TestCase {
 		$this->assertContains('statement_day', $this->setColumns);
 	}
 
+	public function testUpdateWritesPromoColumns(): void {
+		$this->qb->method('executeStatement')->willReturn(1);
+		$this->result->method('fetch')
+			->willReturnOnConsecutiveCalls($this->makeAccountRow(), false);
+		$this->result->method('closeCursor');
+		$this->qb->method('executeQuery')->willReturn($this->result);
+
+		$account = new Account();
+		$account->setId(1);
+		$account->setUserId('user1');
+		$account->setName('Card');
+		$account->setType('credit_card');
+		$account->setBalance(-10.0);
+		$account->setCurrency('GBP');
+		$account->setPromoRate(0.0);
+		$account->setPromoStart('2026-01-01');
+		$account->setPromoEnd('2027-01-01');
+
+		$this->mapper->update($account);
+
+		foreach (['promo_rate', 'promo_start', 'promo_end', 'promo_warned'] as $column) {
+			$this->assertContains($column, $this->setColumns);
+		}
+	}
+
+	public function testMarkPromoWarnedSetsOnlyThatColumn(): void {
+		$this->qb->expects($this->once())->method('executeStatement')->willReturn(1);
+
+		$this->mapper->markPromoWarned(5, '2027-01-01');
+
+		$this->assertSame(['promo_warned'], $this->setColumns);
+	}
+
 	/**
 	 * Guard against the whole class of bug: every column the entity maps must
 	 * be written by update(), apart from the key, the owner and the creation
