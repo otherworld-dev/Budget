@@ -1002,6 +1002,122 @@ class AccountServiceTest extends TestCase {
 		$this->assertNull($captured->getLiabilityInCredit());
 	}
 
+	// ===== promotional rate =====
+
+	private function captureUpdate(): \stdClass {
+		$box = new \stdClass();
+		$box->account = null;
+		$this->transactionMapper->method('getNetChangeAll')->willReturn(0.0);
+		$this->accountMapper->method('update')->willReturnCallback(function (Account $a) use ($box) {
+			$box->account = $a;
+			return $a;
+		});
+		return $box;
+	}
+
+	private function promoCard(): Account {
+		$account = $this->makeAccount(['type' => 'credit_card']);
+		$account->setPromoRate(0.0);
+		$account->setPromoStart('2026-01-01');
+		$account->setPromoEnd('2027-01-01');
+		$account->setPromoWarned('2027-01-01');
+		return $account;
+	}
+
+	public function testUpdateSetsPromoOnCreditCard(): void {
+		$this->accountMapper->method('find')->willReturn($this->makeAccount(['type' => 'credit_card']));
+		$box = $this->captureUpdate();
+
+		$this->service->update(1, 'user1', [
+			'promoRate' => 0.0,
+			'promoStart' => '2026-01-01',
+			'promoEnd' => '2027-01-01',
+		]);
+
+		$this->assertSame(0.0, $box->account->getPromoRate());
+		$this->assertSame('2026-01-01', $box->account->getPromoStart());
+		$this->assertSame('2027-01-01', $box->account->getPromoEnd());
+	}
+
+	public function testUpdateRefusesPromoOnSavings(): void {
+		$this->accountMapper->method('find')->willReturn($this->makeAccount(['type' => 'savings']));
+		$this->accountMapper->expects($this->never())->method('update');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->service->update(1, 'user1', [
+			'promoRate' => 0.0,
+			'promoStart' => '2026-01-01',
+			'promoEnd' => '2027-01-01',
+		]);
+	}
+
+	public function testUpdateStoresNullNotEmptyStringForBlankPromoFields(): void {
+		$this->accountMapper->method('find')->willReturn($this->makeAccount(['type' => 'credit_card']));
+		$box = $this->captureUpdate();
+
+		$this->service->update(1, 'user1', ['promoRate' => null, 'promoStart' => '', 'promoEnd' => '']);
+
+		$this->assertNull($box->account->getPromoStart());
+		$this->assertNull($box->account->getPromoEnd());
+	}
+
+	public function testClearingPromoResetsWarned(): void {
+		$this->accountMapper->method('find')->willReturn($this->promoCard());
+		$box = $this->captureUpdate();
+
+		$this->service->update(1, 'user1', ['promoRate' => null, 'promoStart' => null, 'promoEnd' => null]);
+
+		$this->assertNull($box->account->getPromoRate());
+		$this->assertNull($box->account->getPromoEnd());
+		$this->assertNull($box->account->getPromoWarned());
+	}
+
+	public function testChangingPromoEndResetsWarned(): void {
+		$this->accountMapper->method('find')->willReturn($this->promoCard());
+		$box = $this->captureUpdate();
+
+		$this->service->update(1, 'user1', ['promoEnd' => '2027-06-01']);
+
+		$this->assertSame('2027-06-01', $box->account->getPromoEnd());
+		$this->assertNull($box->account->getPromoWarned());
+	}
+
+	public function testTypeFlipToAssetClearsPromo(): void {
+		$this->accountMapper->method('find')->willReturn($this->promoCard());
+		$box = $this->captureUpdate();
+
+		$this->service->update(1, 'user1', ['type' => 'savings']);
+
+		$this->assertNull($box->account->getPromoRate());
+		$this->assertNull($box->account->getPromoStart());
+		$this->assertNull($box->account->getPromoEnd());
+		$this->assertNull($box->account->getPromoWarned());
+	}
+
+	public function testCreateRefusesPromoOnAsset(): void {
+		$this->accountMapper->expects($this->never())->method('insert');
+		$this->expectException(\InvalidArgumentException::class);
+		$this->service->create(
+			'user1', 'Sav', 'savings',
+			promoRate: 0.0, promoStart: '2026-01-01', promoEnd: '2027-01-01'
+		);
+	}
+
+	public function testCreateStoresPromoOnLiability(): void {
+		$captured = null;
+		$this->accountMapper->method('insert')->willReturnCallback(function (Account $a) use (&$captured) {
+			$captured = $a;
+			return $a;
+		});
+		$this->service->create(
+			'user1', 'Card', 'credit_card',
+			interestRate: 22.9,
+			promoRate: 0.0, promoStart: '2026-01-01', promoEnd: '2027-01-01'
+		);
+		$this->assertSame(0.0, $captured->getPromoRate());
+		$this->assertSame('2027-01-01', $captured->getPromoEnd());
+	}
+
 	// ===== closing an account (#372) =====
 
 	/** The service wired with a closure guard, which setUp() leaves out. */
