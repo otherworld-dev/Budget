@@ -1277,6 +1277,10 @@ style('budget', 'budget-app');
                                     <label><?php p($l->t('Min Payment')); ?></label>
                                     <div id="account-minimum-payment-display" class="balance-amount"></div>
                                 </div>
+                                <div class="balance-item" id="promo-rate-info" style="display: none;">
+                                    <label><?php p($l->t('Promotional rate')); ?></label>
+                                    <div id="account-promo-display" class="balance-amount"></div>
+                                </div>
                                 <div class="balance-item" id="statement-day-info" style="display: none;">
                                     <label><?php p($l->t('Statement due day')); ?></label>
                                     <div id="account-statement-day-display" class="balance-amount"></div>
@@ -6224,6 +6228,17 @@ style('budget', 'budget-app');
                                 <option value="yearly"><?php p($l->t('Yearly')); ?></option>
                                 <option value="simple"><?php p($l->t('Simple (no compounding)')); ?></option>
                             </select>
+                        </div>
+
+                        <div class="form-group conditional" id="promo-rate-group">
+                            <label for="account-promo-rate"><?php p($l->t('Promotional rate (%%)')); ?></label>
+                            <input type="text" inputmode="decimal" data-amount id="account-promo-rate">
+                            <label for="account-promo-start"><?php p($l->t('Starts on')); ?></label>
+                            <input type="date" id="account-promo-start">
+                            <label for="account-promo-end"><?php p($l->t('Ends on')); ?></label>
+                            <input type="date" id="account-promo-end">
+                            <small><?php p($l->t('e.g. 0%% on purchases or balance transfers. The normal rate applies from the end date.')); ?></small>
+                            <a href="#" class="card-link" id="account-promo-clear"><?php p($l->t('Remove promotional rate')); ?></a>
                         </div>
 
                         <div class="form-group conditional" id="credit-limit-group">

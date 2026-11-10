@@ -1206,6 +1206,8 @@ export default class AccountsModule {
             }
         }
 
+        this.renderPromoInfo(account);
+
         // Statement due day tile for card accounts (#347)
         const statementDayInfo = document.getElementById('statement-day-info');
         const statementDayDisplay = document.getElementById('account-statement-day-display');
@@ -2508,6 +2510,40 @@ export default class AccountsModule {
         }
     }
 
+    /**
+     * The "0% until ..." tile on the account detail view. Only a liability
+     * with an end date shows it; once the date has passed it reads "ended".
+     */
+    renderPromoInfo(account) {
+        const info = document.getElementById('promo-rate-info');
+        const display = document.getElementById('account-promo-display');
+        if (!info || !display) return;
+
+        const hasPromo = isLiabilityType(account.type)
+            && account.promoRate !== null && account.promoRate !== undefined
+            && !!account.promoEnd;
+        if (!hasPromo) {
+            info.style.display = 'none';
+            return;
+        }
+
+        const rate = Number(account.promoRate);
+        const date = this.formatDate(account.promoEnd);
+        const ended = account.promoEnd < formatters.getTodayDateString();
+        display.textContent = ended
+            ? t('budget', '{rate}% ended {date}', { rate, date })
+            : t('budget', '{rate}% until {date}', { rate, date });
+        info.style.display = 'block';
+    }
+
+    /** Empty the promotional rate inputs; saving then removes the promo. */
+    clearPromoRate() {
+        const rate = document.getElementById('account-promo-rate');
+        if (rate) rate.value = '';
+        clearDateValue('account-promo-start');
+        clearDateValue('account-promo-end');
+    }
+
     /** One at a time: a double click created two (see utils/submitGuard.js) */
     saveAccount() {
         return once('account-save', document.querySelector('#account-form [type="submit"]'), () => this._saveAccount());
@@ -2600,6 +2636,21 @@ export default class AccountsModule {
                     }
                     formData.openingBalance = openingBalance;
                 }
+            }
+
+            // A promotional rate belongs to liabilities only; the server refuses
+            // one on anything else, so the keys are left out entirely. Entering
+            // a rate with no start date means it starts today.
+            if (targetIsLiability) {
+                const promoRate = getFormValue('account-promo-rate', null, true);
+                let promoStart = getFormValue('account-promo-start');
+                const promoEnd = getFormValue('account-promo-end');
+                if (promoRate !== null && promoStart === null) {
+                    promoStart = formatters.getTodayDateString();
+                }
+                formData.promoRate = promoRate;
+                formData.promoStart = promoStart;
+                formData.promoEnd = promoEnd;
             }
 
             // Only an existing account can be closed; the server ignores the key
@@ -2915,6 +2966,9 @@ export default class AccountsModule {
 
             document.getElementById('account-holder-name').value = account.accountHolderName || '';
             setDateValue('account-opening-date', account.openingDate || '');
+            document.getElementById('account-promo-rate').value = account.promoRate ?? '';
+            setDateValue('account-promo-start', account.promoStart || '');
+            setDateValue('account-promo-end', account.promoEnd || '');
             document.getElementById('account-interest-rate').value = account.interestRate || '';
             document.getElementById('account-credit-limit').value = account.creditLimit || '';
             document.getElementById('account-overdraft-limit').value = account.overdraftLimit || '';
@@ -3050,6 +3104,7 @@ export default class AccountsModule {
         }
         form.reset();
         clearDateValue('account-opening-date');
+        this.clearPromoRate();
         this.syncClosedControl(null);
 
         const accountId = document.getElementById('account-id');
@@ -3216,6 +3271,7 @@ export default class AccountsModule {
                 document.getElementById('compounding-frequency-group').style.display = 'block';
                 document.getElementById('minimum-payment-group').style.display = 'block';
                 document.getElementById('statement-day-group').style.display = 'block';
+                document.getElementById('promo-rate-group').style.display = 'block';
                 break;
 
             case 'loan':
@@ -3226,6 +3282,7 @@ export default class AccountsModule {
                 document.getElementById('interest-enabled-group').style.display = 'block';
                 document.getElementById('compounding-frequency-group').style.display = 'block';
                 document.getElementById('minimum-payment-group').style.display = 'block';
+                document.getElementById('promo-rate-group').style.display = 'block';
                 if (accountType === 'line_of_credit') {
                     // Statement cycles are card-like, not loan-like
                     document.getElementById('statement-day-group').style.display = 'block';

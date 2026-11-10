@@ -349,6 +349,14 @@ class BudgetApp {
             });
         }
 
+        const promoClear = document.getElementById('account-promo-clear');
+        if (promoClear) {
+            promoClear.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.accountsModule.clearPromoRate();
+            });
+        }
+
         // Category form
         const categoryForm = document.getElementById('category-form');
         if (categoryForm) {
@@ -2937,6 +2945,14 @@ class BudgetApp {
                 payoffDateStr = payoffDate.toLocaleDateString(formatters.userLocale(), { month: 'short', year: 'numeric' });
             }
 
+            let promoLine = '';
+            if (debt.promoRate !== null && debt.promoRate !== undefined) {
+                const promoEnd = debt.promoEnd
+                    ? new Date(debt.promoEnd + 'T00:00:00').toLocaleDateString(formatters.userLocale(), { day: 'numeric', month: 'short', year: 'numeric' })
+                    : '';
+                promoLine = `<div>${dom.escapeHtml(t('budget', 'Promotional rate: {rate}% until {date}', { rate: Number(debt.promoRate), date: promoEnd }))}</div>`;
+            }
+
             return `
                 <div class="debt-card" data-debt-id="${debt.id || ''}" style="border-left-color: ${this._debtColor(index)};">
                     <div class="debt-card-header">
@@ -2946,6 +2962,7 @@ class BudgetApp {
                     <div class="debt-card-meta">
                         ${rate > 0 ? `<div>${t('budget', 'Interest Rate')}: ${rate.toFixed(1)}%</div>` : ''}
                         ${minPayment > 0 ? `<div>${t('budget', 'Min Payment')}: ${this.formatCurrency(minPayment, currency)}</div>` : ''}
+                        ${promoLine}
                         ${payoffDateStr ? `<div>${t('budget', 'Payoff')}: ${payoffDateStr} (${t('budget', 'month {month}', { month: debt.payoffMonth })})</div>` : ''}
                         ${interest > 0 ? `<div>${t('budget', 'Total Interest')}: ${this.formatCurrency(interest, currency)}</div>` : ''}
                     </div>
