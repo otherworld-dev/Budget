@@ -16,7 +16,7 @@ use OCP\Migration\SimpleMigrationStep;
  * holds the promo_end value an expiry warning was last sent for, so each end
  * date is warned about once. All NULL for every existing account.
  */
-class Version001000130Date20261109 extends SimpleMigrationStep {
+class Version001000132Date20261111 extends SimpleMigrationStep {
 	public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
 		/** @var ISchemaWrapper $schema */
 		$schema = $schemaClosure();
