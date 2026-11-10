@@ -11,9 +11,11 @@ use OCA\Budget\Enum\Currency;
 use OCA\Budget\Service\AmountColours;
 use OCA\Budget\Service\AttachmentService;
 use OCA\Budget\Service\BankSync\EnableBanking\EnableBankingKeyStore;
+use OCA\Budget\Service\BillService;
 use OCA\Budget\Service\BudgetCarryoverService;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\ImportFolderService;
+use OCA\Budget\Service\Runway\RunwayAlertService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCA\Budget\Traits\SharedAccessTrait;
 use OCP\AppFramework\Controller;
@@ -44,6 +46,7 @@ class SettingController extends Controller {
 		'number_format_thousands_sep' => ',',
 		'notification_budget_alert' => 'true',
 		'notification_forecast_warning' => 'true',
+		'notification_runway_alert' => 'true',
 		'digest_enabled' => 'false',
 		'digest_frequency' => 'weekly',
 		'digest_email_enabled' => 'false',
@@ -70,7 +73,25 @@ class SettingController extends Controller {
 		'dashboard_locked' => 'true', // Dashboard starts locked
 		AmountColours::SETTING_SCHEME => 'default', // money in / out colours (#432)
 		AmountColours::SETTING_CUSTOM => AmountColours::DEFAULT_CUSTOM_JSON,
+		// One runway setup for every tile, the API and the alert: blank account
+		// ids mean the default set (RunwayService::chosenAccounts())
+		'runway_account_ids' => '',
+		'runway_window_months' => '3',
+		'runway_include_scheduled' => 'true',
+		'runway_alert_months' => '1',
+		BillService::MATCH_WINDOW_SETTING => '5', // days either side an imported row matches a bill by name
 	];
+
+	/** Whole-number runway settings and the range each accepts */
+	private const RUNWAY_RANGES = [
+		'runway_window_months' => [1, 12],
+		'runway_alert_months' => [1, 6],
+	];
+
+	private const RUNWAY_SWITCHES = ['runway_include_scheduled', 'notification_runway_alert'];
+
+	/** What the run-out alert remembers between its checks (RunwayAlertService) */
+	private const RUNWAY_ALERT_STATE = [RunwayAlertService::BASELINE_KEY, RunwayAlertService::CHECKS_KEY];
 
 	/**
 	 * Keys the web app saves beyond those with a default. Together with
@@ -204,6 +225,7 @@ class SettingController extends Controller {
 			$now = date('Y-m-d H:i:s');
 			$updated = [];
 			$importFolderLeftAlone = null;
+			$runwayChanged = false;
 
 			// Skip internal parameters
 			$data = array_diff_key($data, array_flip(['_route', 'controller', 'action']));
@@ -216,9 +238,17 @@ class SettingController extends Controller {
 			// Same again for the colour settings, so a bad one saves nothing
 			foreach ($data as $key => $value) {
 				try {
-					$data[$key] = $this->validatedColourSetting((string)$key, $value);
+					$data[$key] = $this->validatedSetting((string)$key, $value);
 				} catch (\InvalidArgumentException $e) {
 					return $this->invalidColourSetting();
+				}
+			}
+			// And for the runway setup
+			foreach ($data as $key => $value) {
+				try {
+					$data[$key] = $this->validatedRunwaySetting((string)$key, $value);
+				} catch (\InvalidArgumentException $e) {
+					return $this->invalidRunwaySetting((string)$key);
 				}
 			}
 
@@ -243,9 +273,13 @@ class SettingController extends Controller {
 					$importFolderLeftAlone = $this->leaveImportFilesAlone($value);
 				}
 
-				$this->storeSetting($this->getEffectiveUserId(), (string)$key, (string)$value, $now);
+				$previous = $this->storeSetting($this->getEffectiveUserId(), (string)$key, (string)$value, $now);
+				$runwayChanged = $runwayChanged || self::changesTheRunway((string)$key, $previous, (string)$value);
 
 				$updated[$key] = $value;
+			}
+			if ($runwayChanged) {
+				$this->forgetRunwayAlert($this->getEffectiveUserId());
 			}
 
 			$response = [
@@ -283,9 +317,14 @@ class SettingController extends Controller {
 				return $this->refusedKey($key);
 			}
 			try {
-				$value = $this->validatedColourSetting($key, $value);
+				$value = $this->validatedSetting($key, $value);
 			} catch (\InvalidArgumentException $e) {
 				return $this->invalidColourSetting();
+			}
+			try {
+				$value = $this->validatedRunwaySetting($key, $value);
+			} catch (\InvalidArgumentException $e) {
+				return $this->invalidRunwaySetting($key);
 			}
 
 			if ($key === AttachmentService::RECEIPT_FOLDER_KEY) {
@@ -306,7 +345,10 @@ class SettingController extends Controller {
 
 			$now = date('Y-m-d H:i:s');
 
-			$this->storeSetting($this->getEffectiveUserId(), $key, (string)$value, $now);
+			$previous = $this->storeSetting($this->getEffectiveUserId(), $key, (string)$value, $now);
+			if (self::changesTheRunway($key, $previous, (string)$value)) {
+				$this->forgetRunwayAlert($this->getEffectiveUserId());
+			}
 
 			return new DataResponse([
 				'message' => $this->l->t('Setting updated successfully'),
@@ -320,14 +362,15 @@ class SettingController extends Controller {
 
 	/**
 	 * The colour scheme and custom palette are checked, and the palette
-	 * stored in its canonical form (lowercase, fixed key order). Any other
-	 * key passes through untouched.
+	 * stored in its canonical form (lowercase, fixed key order). The bill
+	 * match window is held to whole days in range. Any other key passes
+	 * through untouched.
 	 *
 	 * @param mixed $value
 	 * @return mixed
 	 * @throws \InvalidArgumentException when the value isn't acceptable
 	 */
-	private function validatedColourSetting(string $key, $value) {
+	private function validatedSetting(string $key, $value) {
 		if ($key === AmountColours::SETTING_SCHEME) {
 			if (!is_string($value) || !in_array($value, AmountColours::SCHEMES, true)) {
 				throw new \InvalidArgumentException('Unknown colour scheme');
@@ -337,12 +380,65 @@ class SettingController extends Controller {
 				throw new \InvalidArgumentException('Custom colours must be a JSON string');
 			}
 			return AmountColours::validateCustom($value);
+		} elseif ($key === BillService::MATCH_WINDOW_SETTING) {
+			return (string)BillService::matchWindowDays(is_scalar($value) ? (string)$value : null);
 		}
 		return $value;
 	}
 
 	private function invalidColourSetting(): DataResponse {
 		return new DataResponse(['error' => $this->l->t('Invalid colour setting')], Http::STATUS_BAD_REQUEST);
+	}
+
+	/**
+	 * The runway setup is checked and stored in one plain form, so
+	 * RunwayService reads exactly what it expects: account ids as a JSON
+	 * list of ids ('' for the default set), the window and alert months as
+	 * whole numbers in range, the switches as 'true' or 'false'. Any other
+	 * key passes through untouched.
+	 *
+	 * @param mixed $value
+	 * @return mixed
+	 * @throws \InvalidArgumentException when the value isn't acceptable
+	 */
+	private function validatedRunwaySetting(string $key, $value) {
+		if ($key === 'runway_account_ids') {
+			if ($value === '' || $value === null) {
+				return '';
+			}
+			$ids = is_string($value) ? json_decode($value, true) : $value;
+			if (!is_array($ids) || !array_is_list($ids)) {
+				throw new \InvalidArgumentException('Account ids must be a list');
+			}
+			foreach ($ids as $id) {
+				if (!is_int($id) || $id < 1) {
+					throw new \InvalidArgumentException('Account ids must be whole numbers');
+				}
+			}
+			return (string)json_encode(array_values(array_unique($ids)));
+		}
+		if (isset(self::RUNWAY_RANGES[$key])) {
+			[$min, $max] = self::RUNWAY_RANGES[$key];
+			$text = is_int($value) ? (string)$value : (is_string($value) ? trim($value) : '');
+			if (!ctype_digit($text) || (int)$text < $min || (int)$text > $max) {
+				throw new \InvalidArgumentException('Out of range');
+			}
+			return (string)(int)$text;
+		}
+		if (in_array($key, self::RUNWAY_SWITCHES, true)) {
+			if (is_bool($value)) {
+				return $value ? 'true' : 'false';
+			}
+			if ($value !== 'true' && $value !== 'false') {
+				throw new \InvalidArgumentException('Must be true or false');
+			}
+			return $value;
+		}
+		return $value;
+	}
+
+	private function invalidRunwaySetting(string $key): DataResponse {
+		return new DataResponse(['error' => $this->l->t('Invalid runway setting: %1$s', [$key])], Http::STATUS_BAD_REQUEST);
 	}
 
 	/**
@@ -365,13 +461,36 @@ class SettingController extends Controller {
 	}
 
 	/**
+	 * Whether writing $value over $previous (null: never stored, so the
+	 * default) changes the runway setup or the alert switch. The run-out
+	 * date then moves for a reason that isn't spending, so the alert's
+	 * baseline no longer compares like with like. The setup saves all its
+	 * controls on every Save, so only a real change counts: otherwise each
+	 * Save would set the alert settling again.
+	 */
+	private static function changesTheRunway(string $key, ?string $previous, string $value): bool {
+		if (!str_starts_with($key, 'runway_') && $key !== 'notification_runway_alert') {
+			return false;
+		}
+		return ($previous ?? self::DEFAULTS[$key] ?? null) !== $value;
+	}
+
+	private function forgetRunwayAlert(string $userId): void {
+		foreach (self::RUNWAY_ALERT_STATE as $key) {
+			$this->mapper->deleteByKey($userId, $key);
+		}
+	}
+
+	/**
 	 * Create or update one setting. Two saves of a setting that has never
 	 * been stored can overlap (the settings page saves on every change), and
 	 * then both find nothing and both insert: the second hits the unique
 	 * (user_id, key) index. That row is the one this save should have
 	 * updated, so update it rather than failing with a 500.
+	 *
+	 * @return ?string the value it had before, null if it had none
 	 */
-	private function storeSetting(string $userId, string $key, string $value, string $now): void {
+	private function storeSetting(string $userId, string $key, string $value, string $now): ?string {
 		try {
 			$setting = $this->mapper->findByKey($userId, $key);
 		} catch (DoesNotExistException $e) {
@@ -383,7 +502,7 @@ class SettingController extends Controller {
 			$setting->setUpdatedAt($now);
 			try {
 				$this->mapper->insert($setting);
-				return;
+				return null;
 			} catch (DbException $e) {
 				if ($e->getReason() !== DbException::REASON_UNIQUE_CONSTRAINT_VIOLATION) {
 					throw $e;
@@ -391,9 +510,11 @@ class SettingController extends Controller {
 				$setting = $this->mapper->findByKey($userId, $key);
 			}
 		}
+		$previous = $setting->getValue();
 		$setting->setValue($value);
 		$setting->setUpdatedAt($now);
 		$this->mapper->update($setting);
+		return $previous;
 	}
 
 	/**
@@ -403,7 +524,10 @@ class SettingController extends Controller {
 	 */
 	#[UserRateLimit(limit: 20, period: 60)]
 	public function destroy(string $key): DataResponse {
-		if (self::isHiddenKey($key)) {
+		// Only what update() can write. The rest is the app's own memory
+		// (forecast_warning_notified, runway_alert_baseline...): deleting one
+		// would re-arm that alert on demand.
+		if (self::isHiddenKey($key) || !self::isClientKey($key)) {
 			return $this->refusedKey($key);
 		}
 		try {
@@ -438,7 +562,7 @@ class SettingController extends Controller {
 	public function reset(): DataResponse {
 		try {
 			$this->leaveImportFilesAlone('');
-			$deleted = $this->mapper->deleteAll($this->getEffectiveUserId(), self::HIDDEN_KEYS);
+			$deleted = $this->mapper->deleteAll($this->getEffectiveUserId(), [...self::HIDDEN_KEYS, ...self::RUNWAY_ALERT_STATE]);
 
 			return new DataResponse([
 				'message' => $this->l->t('All settings reset to defaults'),

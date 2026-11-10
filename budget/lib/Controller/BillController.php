@@ -961,6 +961,69 @@ class BillController extends Controller {
 	}
 
 	/**
+	 * A payment a bill booked beside the bank's own row of it, for the
+	 * duplicate finder
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 10, period: 60)]
+	public function paymentPairs(): DataResponse {
+		try {
+			$pairs = $this->service->findPaymentPairs($this->getEffectiveUserId());
+			return new DataResponse(['pairs' => $pairs, 'count' => count($pairs)]);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to look for bill payments beside the bank\'s rows'));
+		}
+	}
+
+	/**
+	 * Merge a bill's booked payment into the bank's own row of it
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function mergePayment(int $id, int $bookedId, int $bankId): DataResponse {
+		try {
+			$this->requireWriteAccess('bill', $id);
+			$this->requireBillAccountsWritable($id);
+			return new DataResponse($this->service->mergePayment($this->billOwner($id), $id, $bookedId, $bankId));
+		} catch (\InvalidArgumentException $e) {
+			return $this->handleError($e, $e->getMessage(), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('The payment could not be merged'), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
+		}
+	}
+
+	/**
+	 * Bill payments the bank's rows haven't shown a week on
+	 * @NoAdminRequired
+	 */
+	public function unconfirmedPayments(): DataResponse {
+		try {
+			$items = $this->service->findUnconfirmedPayments($this->getEffectiveUserId());
+			return new DataResponse(['items' => $items, 'count' => count($items)]);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to check for payments the bank hasn\'t shown'));
+		}
+	}
+
+	/**
+	 * Take an auto-paid payment the bank hasn't shown as gone out after all
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function confirmPayment(int $id, int $transactionId): DataResponse {
+		try {
+			$this->requireWriteAccess('bill', $id);
+			$this->requireBillAccountsWritable($id);
+			$this->service->confirmPayment($this->billOwner($id), $id, $transactionId);
+			return new DataResponse(['status' => 'success']);
+		} catch (\InvalidArgumentException $e) {
+			return $this->handleError($e, $e->getMessage(), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to confirm the payment'), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
+		}
+	}
+
+	/**
 	 * Record the missing transaction for a payment marked paid without one (#274)
 	 * @NoAdminRequired
 	 */

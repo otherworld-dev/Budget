@@ -1831,6 +1831,33 @@ export default class ImportModule {
         }
     }
 
+    /**
+     * The bills the import will settle with these rows: rows that pay a bill,
+     * or stand in for a payment one booked, and rows that could be more than
+     * one bill's payment, which the import leaves for the duplicate finder.
+     *
+     * @param {{matched: number, review: number}|undefined} matches
+     */
+    renderBillMatches(matches) {
+        const matched = matches?.matched || 0;
+        const review = matches?.review || 0;
+        const count = document.getElementById('import-bill-matches');
+        if (count) {
+            count.textContent = matched;
+        }
+        const note = document.getElementById('import-bill-review');
+        if (!note) {
+            return;
+        }
+        note.textContent = review > 0
+            ? n('budget',
+                '%n row could be the payment of more than one bill. It will be imported without one: match it from Find Duplicates on the Transactions page, or with Link to bill in its menu.',
+                '%n rows could be the payment of more than one bill. They will be imported without one: match them from Find Duplicates on the Transactions page, or with Link to bill in their menu.',
+                review)
+            : '';
+        note.style.display = review > 0 ? '' : 'none';
+    }
+
     updateImportSummary(result) {
         // Not "total-transactions": the account page has an element with that
         // id earlier in the document, and it took every update meant for this one
@@ -1857,6 +1884,7 @@ export default class ImportModule {
                 : previewCategorized;
         }
         document.getElementById('categorized-transactions').textContent = categorized;
+        this.renderBillMatches(result.billMatches);
 
         // First, so it sits below the others: these rows still import.
         this.renderBlankDescriptionWarning(result.blankDescriptionRows, result.validTransactions);
@@ -2123,9 +2151,16 @@ export default class ImportModule {
             const magnitude = Math.abs(parseFloat(transaction.amount) || 0);
             const amount = transaction.type === 'debit' ? -magnitude : magnitude;
             const isDuplicate = transaction.isDuplicate || false;
-            const statusBadge = isDuplicate
+            const billMatch = transaction.billMatch;
+            let statusBadge = isDuplicate
                 ? `<span class="status-badge status-error">${t('budget', 'Duplicate')}</span>`
                 : `<span class="status-badge status-success">${t('budget', 'New')}</span>`;
+            if (billMatch && !isDuplicate) {
+                const name = dom.escapeHtml(billMatch.billName || '');
+                statusBadge += billMatch.review
+                    ? ` <span class="status-badge status-warning" title="${dom.escapeHtml(t('budget', 'Could be the payment of more than one bill'))}">${dom.escapeHtml(t('budget', 'Check bill'))}</span>`
+                    : ` <span class="status-badge status-info" title="${name}">${dom.escapeHtml(t('budget', 'Bill: {name}', { name: billMatch.billName || '' }))}</span>`;
+            }
 
             const notes = transaction.notes ?? '';
             const payee = transaction.vendor ?? '';
@@ -2639,6 +2674,14 @@ export default class ImportModule {
                     '%n bill was automatically marked as paid from matching transactions',
                     '%n bills were automatically marked as paid from matching transactions',
                     result.billsMarkedPaid
+                ));
+            }
+            if (result.billsToReview > 0) {
+                showInfo(n(
+                    'budget',
+                    '%n row could be the payment of more than one bill and was imported without one. Match it from Find Duplicates on the Transactions page, or with Link to bill in its menu.',
+                    '%n rows could be the payment of more than one bill and were imported without one. Match them from Find Duplicates on the Transactions page, or with Link to bill in their menu.',
+                    result.billsToReview
                 ));
             }
             if (result.errors && result.errors.length > 0) {

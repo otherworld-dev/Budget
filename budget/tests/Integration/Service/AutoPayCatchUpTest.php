@@ -73,12 +73,13 @@ class AutoPayCatchUpTest extends IntegrationTestCase {
 			$this->assertSame($bill, (int)$this->fetchRow('budget_transactions', $row)['bill_id'], 'The bank row pays its week');
 		}
 		$qb = $this->db()->getQueryBuilder();
-		$qb->select('date')->from('budget_transactions')
+		$qb->select('date', 'status')->from('budget_transactions')
 			->where($qb->expr()->eq('bill_id', $qb->createNamedParameter($bill)))
 			->andWhere($qb->expr()->isNull('import_id'))
-			->andWhere($qb->expr()->eq('status', $qb->createNamedParameter('cleared')));
-		$booked = array_map(fn (array $r) => substr((string)$r['date'], 0, 10), $qb->executeQuery()->fetchAll());
-		$this->assertSame([$day(0)], $booked, 'Only the week with no bank row is booked');
+			->andWhere($qb->expr()->neq('status', $qb->createNamedParameter('scheduled')));
+		$booked = array_map(fn (array $r) => [substr((string)$r['date'], 0, 10), $r['status']], $qb->executeQuery()->fetchAll());
+		// Pending: the account takes statements, so the bank's row confirms it
+		$this->assertSame([[$day(0), 'pending']], $booked, 'Only the week with no bank row is booked');
 		$this->assertSame(900.0, (float)$this->service(AccountMapper::class)->findById($account)->getBalance());
 	}
 }

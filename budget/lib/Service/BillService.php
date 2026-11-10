@@ -15,6 +15,7 @@ use OCA\Budget\Db\UndoSnapshotSkips;
 use OCA\Budget\Enum\Currency;
 use OCA\Budget\Exception\ReconciledPaymentException;
 use OCA\Budget\Service\Bill\BalanceProjector;
+use OCA\Budget\Service\Bill\BillNameMatcher;
 use OCA\Budget\Service\Bill\BudgetCalendarEstimates;
 use OCA\Budget\Service\Bill\FrequencyCalculator;
 use OCA\Budget\Service\Bill\OneTimeSettlement;
@@ -62,6 +63,7 @@ class BillService {
 		?INotificationManager $notificationManager = null,
 		private ?PensionRecurringService $pensionRecurringService = null,
 		private ?BudgetCalendarEstimates $budgetEstimates = null,
+		private ?SettingService $settingService = null,
 	) {
 		$this->mapper = $mapper;
 		$this->frequencyCalculator = $frequencyCalculator;
@@ -113,6 +115,25 @@ class BillService {
 	private const BOOKED_REPLACED = 1;
 	/** replaceBookedPayment(): the bank row is the copy of a booked payment that stays */
 	private const BOOKED_KEPT = 2;
+
+	/** The user's days either side an imported row is matched to a bill by name */
+	public const MATCH_WINDOW_SETTING = 'bill_match_window_days';
+	public const MATCH_WINDOW_DEFAULT = 5;
+	private const MATCH_WINDOW_MAX = 30;
+
+	/** @var array<string, int> each bill owner's match window, read once */
+	private array $matchWindows = [];
+
+	/**
+	 * The match window a stored setting asks for: whole days from 1 to 30,
+	 * the default for anything else
+	 */
+	public static function matchWindowDays(?string $value): int {
+		if ($value === null || !is_numeric(trim($value))) {
+			return self::MATCH_WINDOW_DEFAULT;
+		}
+		return max(1, min(self::MATCH_WINDOW_MAX, (int)round((float)$value)));
+	}
 
 	/**
 	 * @throws DoesNotExistException
@@ -341,6 +362,250 @@ class BillService {
 
 		usort($unrecorded, static fn ($a, $b) => strcmp($b['lastPaidDate'], $a['lastPaidDate']));
 		return $unrecorded;
+	}
+
+	/**
+	 * A payment the app booked for a bill and the bank's own row of it, both
+	 * still in the ledger: the double count an import that didn't recognise
+	 * the bank's row leaves behind, for the duplicate finder.
+	 *
+	 * The booked row is a debit the app generated for one of the user's
+	 * bills, in the bill's account and not reconciled: a payment auto-pay or
+	 * Mark Paid booked, or the placeholder of the occurrence the bill is
+	 * waiting on. The bank's row is an imported debit in the same account
+	 * that pays no bill, of the same amount to the penny, within the match
+	 * window of it (the owner's setting, no wider than the bill's schedule
+	 * allows), naming the bill: its pattern, or its name (BillNameMatcher).
+	 * A row can be in more than one pair; merging one settles the rest.
+	 *
+	 * @return list<array{billId: int, billName: string, booked: array, bank: array}>
+	 */
+	public function findPaymentPairs(string $userId): array {
+		// Only bills whose accounts the owner can still write to: a bill keeps
+		// an account another user shared with its owner after the share ends,
+		// and listing that account's bank rows would show the other user's
+		// ledger. Merge refuses such a bill anyway.
+		$bills = [];
+		foreach ($this->mapper->findAll($userId) as $bill) {
+			if ($bill->getAccountId() !== null && $this->accountsWritable($bill)) {
+				$bills[$bill->getId()] = $bill;
+			}
+		}
+		if ($bills === []) {
+			return [];
+		}
+
+		$bookedByAccount = [];
+		foreach ($this->transactionService->findGeneratedBillDebits(array_keys($bills)) as $row) {
+			$bill = $bills[$row->getBillId()] ?? null;
+			if ($bill === null || $row->getAccountId() !== $bill->getAccountId() || $row->getReconciled()) {
+				continue;
+			}
+			// A placeholder only for the occurrence the bill still owes: the
+			// bank's row of it pays the bill
+			if (($row->getStatus() ?? 'cleared') === 'scheduled' && $row->getDate() !== $bill->getNextDueDate()) {
+				continue;
+			}
+			$bookedByAccount[$row->getAccountId()][] = $row;
+		}
+
+		$accounts = [];
+		foreach ($this->accountMapper->findByIds(array_keys($bookedByAccount)) as $account) {
+			$accounts[$account->getId()] = $account;
+		}
+		$pairs = [];
+		foreach ($bookedByAccount as $accountId => $bookedRows) {
+			$from = (new \DateTimeImmutable($bookedRows[0]->getDate()))->modify('-' . self::MATCH_WINDOW_MAX . ' days')->format('Y-m-d');
+			$to = (new \DateTimeImmutable(end($bookedRows)->getDate()))->modify('+' . self::MATCH_WINDOW_MAX . ' days')->format('Y-m-d');
+			$bankRows = $this->transactionService->findUnbilledImportedDebits($accountId, $from, $to);
+			if ($bankRows === []) {
+				continue;
+			}
+			$account = $accounts[$accountId] ?? null;
+			foreach ($bookedRows as $booked) {
+				$bill = $bills[$booked->getBillId()];
+				$days = $this->nameMatchWindow($bill);
+				foreach ($bankRows as $bank) {
+					$daysOff = abs((strtotime((string)$bank->getDate()) - strtotime((string)$booked->getDate())) / 86400);
+					if ($daysOff > $days
+						|| MoneyCalculator::compare((float)$bank->getAmount(), (float)$booked->getAmount(), 2) !== 0
+						|| (!($bill->getIsTransfer() ?? false) && $bank->getLinkedTransactionId() !== null)
+						|| !$this->bankRowNamesBill($bill, $bank)) {
+						continue;
+					}
+					$pairs[] = [
+						'billId' => (int)$bill->getId(),
+						'billName' => (string)$bill->getName(),
+						'booked' => $this->pairRow($booked, $account),
+						'bank' => $this->pairRow($bank, $account),
+					];
+				}
+			}
+		}
+		return $pairs;
+	}
+
+	/** The bank row's text holds the bill's pattern, or names the bill */
+	private function bankRowNamesBill(Bill $bill, \OCA\Budget\Db\Transaction $bank): bool {
+		$pattern = $this->matchPattern($bill);
+		if ($pattern !== '' && stripos($bank->getDescription() . ' ' . ($bank->getVendor() ?? ''), $pattern) !== false) {
+			return true;
+		}
+		return BillNameMatcher::matches((string)$bill->getName(), (string)$bank->getDescription(), (string)($bank->getVendor() ?? ''));
+	}
+
+	/** A row of a payment pair, as the duplicate finder shows it */
+	private function pairRow(\OCA\Budget\Db\Transaction $row, ?Account $account): array {
+		return [
+			'id' => (int)$row->getId(),
+			'accountId' => (int)$row->getAccountId(),
+			'accountName' => $account?->getName(),
+			'currency' => $account?->getCurrency() ?: null,
+			'date' => $row->getDate(),
+			'description' => $row->getDescription(),
+			'vendor' => $row->getVendor(),
+			'amount' => (float)$row->getAmount(),
+			'type' => $row->getType(),
+			'status' => $row->getStatus() ?? 'cleared',
+		];
+	}
+
+	/**
+	 * Merge a payment the app booked for a bill with the bank's own row of
+	 * it, as findPaymentPairs() lists them. The bank's row stays, with its
+	 * date, text and cleared status, and takes the bill, its category, tags
+	 * and splits and whatever the user added to the booked row; the booked
+	 * row goes. A placeholder of the occurrence the bill still owes is paid
+	 * with the bank's row instead, which moves the bill on.
+	 *
+	 * Only a pair the finder would list now can be merged: the ids come from
+	 * the browser, and either row may have changed since the list was read.
+	 *
+	 * @return array{billId: int, transactionId: int}
+	 * @throws \InvalidArgumentException when the two rows are no longer a pair
+	 */
+	public function mergePayment(string $userId, int $billId, int $bookedId, int $bankId): array {
+		$pair = null;
+		foreach ($this->findPaymentPairs($userId) as $candidate) {
+			if ($candidate['billId'] === $billId && $candidate['booked']['id'] === $bookedId && $candidate['bank']['id'] === $bankId) {
+				$pair = $candidate;
+				break;
+			}
+		}
+		$booked = $pair !== null ? $this->transactionService->findTransaction($bookedId) : null;
+		$bank = $pair !== null ? $this->transactionService->findTransaction($bankId) : null;
+		if ($pair === null || $booked === null || $bank === null) {
+			throw new \InvalidArgumentException($this->l->t('These two rows can no longer be merged. Reload the list to see where they stand.'));
+		}
+		$bill = $this->find($pair['billId'], $userId);
+		$this->requireWritableAccounts($bill);
+
+		if (($booked->getStatus() ?? 'cleared') === 'scheduled') {
+			$this->markPaid($bill->getId(), $userId, $bank->getDate(), false, $bankId, $bill->getNextDueDate());
+		} elseif ($this->swapBookedPayment($bill, $booked, $bank) !== self::BOOKED_REPLACED) {
+			throw new \RuntimeException($this->l->t('The payment could not be merged'));
+		}
+		return ['billId' => (int)$bill->getId(), 'transactionId' => $bankId];
+	}
+
+	/** Days a bill's payment can wait for the bank's row before it is listed (findUnconfirmedPayments()) */
+	public const UNCONFIRMED_AFTER_DAYS = 7;
+
+	/**
+	 * Bill payments the bank's rows haven't shown a week on, in accounts the
+	 * bank's rows come into (accountTakesStatements()), for the Bills page:
+	 *
+	 * - 'overdue': a bill whose due date is more than a week gone with no
+	 *   payment matched to it. Its placeholder stays scheduled, out of the
+	 *   balance, for as long as that lasts; deleting it wouldn't settle the
+	 *   bill, so it is listed for the user to pay, skip or end instead.
+	 * - 'unconfirmed': a payment auto-pay booked as pending that no bank row
+	 *   has taken the place of. It counts in the balance meanwhile, so one
+	 *   that never happened, or that the bank took a different amount for,
+	 *   would otherwise go unnoticed.
+	 *
+	 * @return list<array<string, mixed>> oldest first
+	 */
+	public function findUnconfirmedPayments(string $userId): array {
+		$cutoff = (new \DateTimeImmutable($this->today($userId)))->modify('-' . self::UNCONFIRMED_AFTER_DAYS . ' days')->format('Y-m-d');
+		$bills = [];
+		$takesStatements = [];
+		foreach ($this->mapper->findAll($userId) as $bill) {
+			$accountId = $bill->getAccountId();
+			// Not an account the owner can no longer write to (a share that
+			// ended): its rows are the other user's, and the actions refuse it
+			if ($accountId === null || !$this->accountsWritable($bill)) {
+				continue;
+			}
+			$takesStatements[$accountId] ??= $this->transactionService->accountTakesStatements($accountId);
+			if ($takesStatements[$accountId]) {
+				$bills[$bill->getId()] = $bill;
+			}
+		}
+		if ($bills === []) {
+			return [];
+		}
+		$currencyMap = $this->withAccountsOf(
+			$this->buildCurrencyMap($userId),
+			array_map(static fn (Bill $b) => $b->getAccountId(), $bills)
+		);
+
+		$items = [];
+		foreach ($bills as $bill) {
+			$due = $bill->getNextDueDate();
+			if ($bill->getIsActive() && $due !== null && $due <= $cutoff) {
+				$items[] = $this->unconfirmedItem('overdue', $bill, $due, (float)$bill->getAmount(), null, $currencyMap);
+			}
+		}
+		foreach ($this->transactionService->findGeneratedBillDebits(array_keys($bills)) as $row) {
+			$bill = $bills[$row->getBillId()] ?? null;
+			// In the bill's own account: a row left in one the bill has since
+			// moved away from isn't the bill's to confirm
+			if ($bill !== null && $row->getAccountId() === $bill->getAccountId()
+				&& $row->getStatus() === 'pending' && !$row->getReconciled() && $row->getDate() <= $cutoff) {
+				$items[] = $this->unconfirmedItem('unconfirmed', $bill, (string)$row->getDate(), (float)$row->getAmount(), (int)$row->getId(), $currencyMap);
+			}
+		}
+		usort($items, static fn ($a, $b) => [$a['date'], $a['billId']] <=> [$b['date'], $b['billId']]);
+		return $items;
+	}
+
+	/** @param array<int, string|null> $currencyMap */
+	private function unconfirmedItem(string $kind, Bill $bill, string $date, float $amount, ?int $transactionId, array $currencyMap): array {
+		return [
+			'kind' => $kind,
+			'billId' => (int)$bill->getId(),
+			'name' => (string)$bill->getName(),
+			'date' => $date,
+			'amount' => $amount,
+			'transactionId' => $transactionId,
+			'accountId' => $bill->getAccountId(),
+			'isTransfer' => (bool)($bill->getIsTransfer() ?? false),
+			'destinationAccountId' => $bill->getDestinationAccountId(),
+			'currency' => $currencyMap[$bill->getAccountId()] ?? null,
+		];
+	}
+
+	/**
+	 * Take a payment auto-pay booked as pending as the bank's word too, from
+	 * the Bills page list, when the user can see it went out (a statement
+	 * that lists it under another amount, a row they won't import).
+	 *
+	 * @throws \InvalidArgumentException when the row isn't one of the list's
+	 */
+	public function confirmPayment(string $userId, int $billId, int $transactionId): void {
+		foreach ($this->findUnconfirmedPayments($userId) as $item) {
+			if ($item['billId'] === $billId && $item['transactionId'] === $transactionId) {
+				$bill = $this->find($item['billId'], $userId);
+				$this->requireWritableAccounts($bill);
+				$row = $this->transactionService->findTransaction($transactionId);
+				if ($row !== null) {
+					$this->transactionService->update($transactionId, $this->accountMapper->findById($row->getAccountId())->getUserId(), ['status' => 'cleared']);
+				}
+				return;
+			}
+		}
+		throw new \InvalidArgumentException($this->l->t('That payment is no longer waiting for the bank. Reload the page to see where it stands.'));
 	}
 
 	/**
@@ -1285,9 +1550,11 @@ class BillService {
 	 * @param string|null $actingUserId The user paying, when it is a person (the bill may be shared with them)
 	 * @param bool $secondPayment The user said this is a payment of its own, beside the one the ledger already
 	 *                            holds for the occurrence ("Record another payment"), so that one isn't used
+	 * @param string $paymentStatus What a recorded payment is booked as: auto-pay books 'pending' in an
+	 *                              account the bank's statements come into, until the bank's row confirms it
 	 * @return array Updated bill with undo data
 	 */
-	public function markPaid(int $id, string $userId, ?string $paidDate = null, bool $recordPayment = true, ?int $existingTransactionId = null, ?string $expectedDueDate = null, ?string $actingUserId = null, bool $secondPayment = false): array {
+	public function markPaid(int $id, string $userId, ?string $paidDate = null, bool $recordPayment = true, ?int $existingTransactionId = null, ?string $expectedDueDate = null, ?string $actingUserId = null, bool $secondPayment = false, string $paymentStatus = 'cleared'): array {
 		$bill = $this->find($id, $userId);
 
 		// A paid one-time bill, an ended or paused one: a second click
@@ -1478,11 +1745,11 @@ class BillService {
 			} elseif ($recordPayment && $bill->getAccountId() !== null) {
 				try {
 					// Clear pre-existing scheduled transaction(s), or create new cleared one
-					$transaction = $this->transactionService->clearScheduledBillTransaction($userId, $bill->getId(), $paidDate, $statementAmount, (bool)($bill->getIsTransfer() ?? false), $bill);
+					$transaction = $this->transactionService->clearScheduledBillTransaction($userId, $bill->getId(), $paidDate, $statementAmount, (bool)($bill->getIsTransfer() ?? false), $bill, $paymentStatus);
 					if ($transaction) {
 						$hadScheduledTransaction = true;
 					} else {
-						$transaction = $this->transactionService->createFromBill($userId, $bill, $paidDate, 'cleared');
+						$transaction = $this->transactionService->createFromBill($userId, $bill, $paidDate, $paymentStatus);
 					}
 					$createdTransactionIds[] = $transaction->getId();
 					$paymentTransactionRecorded = true;
@@ -2352,24 +2619,44 @@ class BillService {
 	/**
 	 * Auto-mark bills paid from freshly imported transactions (#274).
 	 *
-	 * For each imported debit that matches an active bill's auto-detect
-	 * pattern (amount within 10%, account matching when the bill has one,
-	 * transaction date within the bill's current due window), the bill is
-	 * marked paid with the transaction LINKED — no duplicate money movement
-	 * is ever recorded. Marking paid advances the due date, so a second
-	 * same-period transaction in the batch falls outside the new window and
-	 * cannot double-advance the bill.
+	 * @param \OCA\Budget\Db\Transaction[] $transactions freshly created rows
+	 * @return int number of bills marked paid
+	 */
+	public function autoMatchPaidFromImport(string $userId, array $transactions): int {
+		return $this->matchImportedRows($userId, $transactions)['matched'];
+	}
+
+	/**
+	 * Settle bills with the rows an import or a bank sync just brought in.
+	 *
+	 * For each imported debit that matches an active bill (amount within
+	 * 10%, account matching when the bill has one, transaction date within
+	 * the bill's current due window, for a bill with an auto-detect
+	 * pattern), the bill is marked paid with the transaction LINKED — no
+	 * duplicate money movement is ever recorded. Marking paid advances the
+	 * due date, so a second same-period transaction in the batch falls
+	 * outside the new window and cannot double-advance the bill. The bank's
+	 * copy of a payment the app already booked (Mark Paid, auto-pay) takes
+	 * that payment's place instead (replaceBookedPayment()).
+	 *
+	 * A bill with no pattern is matched by its name, to the penny and within
+	 * the owner's match window (looksLikeBillByName()), as planBillMatches()
+	 * decides before anything changes: a row that could be two payments, or
+	 * a payment two rows of the batch could be, is left as it came in and
+	 * returned for review rather than guessed at.
 	 *
 	 * A credit in a recurring transfer's destination is the bank's own row
 	 * of a deposit the app may already have booked for the transfer, and
 	 * takes that deposit's place (replaceBookedDeposit()).
 	 *
 	 * @param \OCA\Budget\Db\Transaction[] $transactions freshly created rows
-	 * @return int number of bills marked paid
+	 * @return array{matched: int, review: int[]} bills settled, and the ids of
+	 *                                            the rows left for the user
 	 */
-	public function autoMatchPaidFromImport(string $userId, array $transactions): int {
+	public function matchImportedRows(string $userId, array $transactions): array {
+		$result = ['matched' => 0, 'review' => []];
 		if (empty($transactions)) {
-			return 0;
+			return $result;
 		}
 
 		// Bills and recurring transfers alike: a transfer matches its
@@ -2378,8 +2665,7 @@ class BillService {
 		$active = $this->findActive($userId);
 		$bills = array_filter(
 			$active,
-			fn (Bill $bill) => $this->matchPattern($bill) !== ''
-				&& $bill->getNextDueDate() !== null
+			fn (Bill $bill) => !$this->matchesByName($bill) && $bill->getNextDueDate() !== null
 		);
 		$transfersInto = [];
 		foreach ($active as $bill) {
@@ -2387,8 +2673,8 @@ class BillService {
 				$transfersInto[$bill->getDestinationAccountId()][] = $bill;
 			}
 		}
-		if (empty($bills) && $transfersInto === []) {
-			return 0;
+		if ($active === []) {
+			return $result;
 		}
 
 		// Oldest first, whatever order the statement lists them in: a bank
@@ -2396,9 +2682,9 @@ class BillService {
 		// pays the next occurrence. Newest-first files paid the next one
 		// first and left the bank's row beside the booked payment.
 		usort($transactions, fn ($a, $b) => [(string)$a->getDate(), (int)$a->getId()] <=> [(string)$b->getDate(), (int)$b->getId()]);
+		$plan = $this->planBillMatches($transactions, $active);
 
-		$marked = 0;
-		foreach ($transactions as $transaction) {
+		foreach ($transactions as $index => $transaction) {
 			if (($transaction->getStatus() ?? 'cleared') === 'scheduled') {
 				continue;
 			}
@@ -2414,13 +2700,23 @@ class BillService {
 				continue;
 			}
 
+			$planned = $plan[$index] ?? null;
+			if ($planned !== null && $planned['byName']) {
+				if ($planned['kind'] === self::PLAN_REVIEW) {
+					$result['review'][] = (int)$transaction->getId();
+				} elseif ($this->settleByName($userId, $planned, $transaction)) {
+					$result['matched']++;
+				}
+				continue;
+			}
+
 			foreach ($bills as $key => $bill) {
 				// The bank's copy of a payment already booked by Mark Paid or
 				// auto-pay takes that payment's place rather than sitting
 				// beside it, which booked the money twice
 				$booked = $this->replaceBookedPayment($bill, $transaction);
 				if ($booked === self::BOOKED_REPLACED) {
-					$marked++;
+					$result['matched']++;
 					$bills[$key] = $this->find($bill->getId(), $userId);
 					break;
 				}
@@ -2435,7 +2731,7 @@ class BillService {
 
 				try {
 					$this->markPaid($bill->getId(), $userId, $transaction->getDate(), false, $transaction->getId());
-					$marked++;
+					$result['matched']++;
 					// Reload: the due date advanced (or the bill deactivated),
 					// which is what keeps this loop from double-advancing
 					$bills[$key] = $this->find($bill->getId(), $userId);
@@ -2451,7 +2747,227 @@ class BillService {
 			}
 		}
 
-		return $marked;
+		return $result;
+	}
+
+	/**
+	 * What an import will do with its rows' bills, for the preview: the rows
+	 * that pay a bill or take the place of a payment it booked, and the rows
+	 * left for the user to look at. Nothing is changed.
+	 *
+	 * @param \OCA\Budget\Db\Transaction[] $rows the file's rows as they would
+	 *                                           be stored, without ids
+	 * @return array{matched: int, review: int, rows: array<int, array{billId: int, billName: string, review: bool}>}
+	 *                                                                                                                keyed by the row's index in $rows
+	 */
+	public function previewImportMatches(string $userId, array $rows): array {
+		$summary = ['matched' => 0, 'review' => 0, 'rows' => []];
+		$active = $this->findActive($userId);
+		if ($rows === [] || $active === []) {
+			return $summary;
+		}
+		$order = array_keys($rows);
+		usort($order, fn ($a, $b) => [(string)$rows[$a]->getDate(), $a] <=> [(string)$rows[$b]->getDate(), $b]);
+		$sorted = array_map(fn ($key) => $rows[$key], $order);
+
+		foreach ($this->planBillMatches($sorted, $active) as $index => $planned) {
+			$review = $planned['kind'] === self::PLAN_REVIEW;
+			$summary[$review ? 'review' : 'matched']++;
+			$summary['rows'][$order[$index]] = [
+				'billId' => (int)$planned['bill']->getId(),
+				'billName' => (string)$planned['bill']->getName(),
+				'review' => $review,
+			];
+		}
+		return $summary;
+	}
+
+	/** planBillMatches(): the row is the bank's copy of a payment the bill booked */
+	private const PLAN_BOOKED = 'booked';
+	/** planBillMatches(): ...of one reconciled by hand, which stays */
+	private const PLAN_KEPT = 'kept';
+	/** planBillMatches(): the row pays the bill's due occurrence */
+	private const PLAN_DUE = 'due';
+	/** planBillMatches(): the row could be more than one payment, or share one with another row */
+	private const PLAN_REVIEW = 'review';
+
+	/**
+	 * Which bill each debit of a batch settles, worked out on copies of the
+	 * bills before anything is changed, so the import's preview and the
+	 * import itself come to the same answer.
+	 *
+	 * Rows go oldest first. A bill with a pattern takes the first row it
+	 * fits, as it always has. A bill matched by name takes a row only when
+	 * that row fits nothing else by name and no other row of the batch fits
+	 * the same payment: two ADAM -150.00 rows two days apart, beside the one
+	 * payment auto-pay booked, are both left for review, and so is a row two
+	 * bills of the same name and amount could each be paid by. A row that
+	 * pays a bill moves its copy on to the next occurrence, so a statement of
+	 * several months pays each one in turn.
+	 *
+	 * @param \OCA\Budget\Db\Transaction[] $rows oldest first, list-keyed
+	 * @param Bill[] $bills the user's active bills
+	 * @return array<int, array{kind: string, bill: Bill, booked: ?\OCA\Budget\Db\Transaction, due: ?string, byName: bool}>
+	 */
+	private function planBillMatches(array $rows, array $bills): array {
+		$byPattern = [];
+		$byName = [];
+		foreach ($bills as $bill) {
+			if ($bill->getNextDueDate() === null) {
+				continue;
+			}
+			if (!$this->matchesByName($bill)) {
+				$byPattern[] = clone $bill;
+			} elseif ($bill->getAccountId() !== null) {
+				$byName[] = clone $bill;
+			}
+		}
+		if ($byPattern === [] && $byName === []) {
+			return [];
+		}
+
+		// A payment more than one row could be is left to the user for each
+		// of them, judged on the bills as they stand
+		$claims = [];
+		foreach ($rows as $index => $row) {
+			if ($this->couldPayBill($row)) {
+				foreach ($this->nameCandidates($row, $byName, []) as $candidate) {
+					$claims[$candidate['key']][] = $index;
+				}
+			}
+		}
+		$contested = [];
+		foreach ($claims as $claiming) {
+			if (count($claiming) > 1) {
+				foreach ($claiming as $index) {
+					$contested[$index] = true;
+				}
+			}
+		}
+
+		$plan = [];
+		$taken = [];
+		foreach ($rows as $index => $row) {
+			if (!$this->couldPayBill($row)) {
+				continue;
+			}
+
+			foreach ($byPattern as $bill) {
+				if (!$this->importedTransactionLooksLikeBill($bill, $row)) {
+					continue;
+				}
+				$booked = $this->bookedPaymentNear($bill, $row, $this->generatedNoteFor($bill), $taken);
+				if ($booked !== null) {
+					$taken[$booked->getId()] = true;
+					$plan[$index] = $this->planned($booked->getReconciled() ? self::PLAN_KEPT : self::PLAN_BOOKED, $bill, $booked, null, false);
+					continue 2;
+				}
+				if ($this->withinDueWindow($bill, (string)$row->getDate(), (string)$bill->getNextDueDate())) {
+					$plan[$index] = $this->planned(self::PLAN_DUE, $bill, null, (string)$bill->getNextDueDate(), false);
+					$this->advancePlanned($bill);
+					continue 2;
+				}
+			}
+
+			$candidates = $this->nameCandidates($row, $byName, $taken);
+			if ($candidates === []) {
+				continue;
+			}
+			if (isset($contested[$index]) || count($candidates) > 1) {
+				$plan[$index] = $this->planned(self::PLAN_REVIEW, $candidates[0]['bill'], $candidates[0]['booked'], $candidates[0]['due'], true);
+				continue;
+			}
+			$candidate = $candidates[0];
+			if ($candidate['booked'] !== null) {
+				$taken[$candidate['booked']->getId()] = true;
+			} else {
+				$this->advancePlanned($candidate['bill']);
+			}
+			$plan[$index] = $this->planned($candidate['kind'], $candidate['bill'], $candidate['booked'], $candidate['due'], true);
+		}
+		return $plan;
+	}
+
+	/**
+	 * The payments a row could be by name: per bill, the payment it booked
+	 * nearest the row, else its due occurrence when the row is in its window
+	 *
+	 * @param Bill[] $bills
+	 * @param array<int, true> $taken booked rows other rows already took
+	 * @return list<array{key: string, kind: string, bill: Bill, booked: ?\OCA\Budget\Db\Transaction, due: ?string}>
+	 */
+	private function nameCandidates(\OCA\Budget\Db\Transaction $row, array $bills, array $taken): array {
+		$candidates = [];
+		foreach ($bills as $bill) {
+			if (!$this->looksLikeBillByName($bill, $row)) {
+				continue;
+			}
+			$booked = $this->bookedPaymentNear($bill, $row, $this->generatedNoteFor($bill), $taken);
+			if ($booked !== null) {
+				$candidates[] = [
+					'key' => 'booked:' . $booked->getId(),
+					'kind' => $booked->getReconciled() ? self::PLAN_KEPT : self::PLAN_BOOKED,
+					'bill' => $bill,
+					'booked' => $booked,
+					'due' => null,
+				];
+			} elseif ($this->withinDueWindow($bill, (string)$row->getDate(), (string)$bill->getNextDueDate())) {
+				$candidates[] = [
+					'key' => 'due:' . $bill->getId() . ':' . $bill->getNextDueDate(),
+					'kind' => self::PLAN_DUE,
+					'bill' => $bill,
+					'booked' => null,
+					'due' => (string)$bill->getNextDueDate(),
+				];
+			}
+		}
+		return $candidates;
+	}
+
+	/** @return array{kind: string, bill: Bill, booked: ?\OCA\Budget\Db\Transaction, due: ?string, byName: bool} */
+	private function planned(string $kind, Bill $bill, ?\OCA\Budget\Db\Transaction $booked, ?string $due, bool $byName): array {
+		return ['kind' => $kind, 'bill' => $bill, 'booked' => $booked, 'due' => $due, 'byName' => $byName];
+	}
+
+	/** A plan's copy of a bill moves on to the occurrence after the one a row paid */
+	private function advancePlanned(Bill $bill): void {
+		$next = $this->scheduleAfterPayment($bill);
+		$bill->setNextDueDate($next['isActive'] ? $next['nextDueDate'] : null);
+		$bill->setRemainingPayments($next['remainingPayments']);
+	}
+
+	/** A debit that has gone out: what can pay a bill */
+	private function couldPayBill(\OCA\Budget\Db\Transaction $row): bool {
+		return $row->getType() === 'debit' && ($row->getStatus() ?? 'cleared') !== 'scheduled';
+	}
+
+	/** The notes the app writes on the payments it books for a bill */
+	private function generatedNoteFor(Bill $bill): string {
+		return ($bill->getIsTransfer() ?? false) ? 'Auto-generated transfer:' : 'Auto-generated from bill:';
+	}
+
+	/**
+	 * Carry out what planBillMatches() decided for a row matched by name.
+	 * The bill is read again first: an earlier row may have paid it.
+	 *
+	 * @param array{kind: string, bill: Bill, booked: ?\OCA\Budget\Db\Transaction, due: ?string, byName: bool} $planned
+	 * @return bool whether a bill was settled
+	 */
+	private function settleByName(string $userId, array $planned, \OCA\Budget\Db\Transaction $row): bool {
+		$billId = (int)$planned['bill']->getId();
+		try {
+			$bill = $this->find($billId, $userId);
+			if ($planned['kind'] === self::PLAN_BOOKED && $planned['booked'] !== null) {
+				return $this->swapBookedPayment($bill, $planned['booked'], $row) === self::BOOKED_REPLACED;
+			}
+			if ($planned['kind'] === self::PLAN_DUE) {
+				$this->markPaid($billId, $userId, $row->getDate(), false, $row->getId(), $planned['due']);
+				return true;
+			}
+		} catch (\Exception $e) {
+			$this->logger->warning("Auto-match failed settling bill {$billId} from imported transaction {$row->getId()}: {$e->getMessage()}");
+		}
+		return false;
 	}
 
 	/**
@@ -2507,8 +3023,15 @@ class BillService {
 		return $pattern;
 	}
 
-	/** Pattern, amount within 10% and the bill's account: everything but the date */
+	/**
+	 * Pattern, amount within 10% and the bill's account: everything but the
+	 * date. A bill with no pattern goes by its name instead
+	 * (looksLikeBillByName()).
+	 */
 	private function importedTransactionLooksLikeBill(Bill $bill, \OCA\Budget\Db\Transaction $transaction): bool {
+		if ($this->matchesByName($bill)) {
+			return $this->looksLikeBillByName($bill, $transaction);
+		}
 		$pattern = $this->matchPattern($bill);
 		$haystack = $transaction->getDescription() . ' ' . ($transaction->getVendor() ?? '');
 		if ($pattern === '' || stripos($haystack, $pattern) === false) {
@@ -2525,7 +3048,59 @@ class BillService {
 
 	private function withinDueWindow(Bill $bill, string $date, string $around): bool {
 		$daysOff = abs((strtotime($date) - strtotime($around)) / 86400);
-		return $daysOff <= $this->dueDateToleranceDays($bill->getFrequency());
+		return $daysOff <= $this->matchWindow($bill);
+	}
+
+	/**
+	 * A bill with no auto-detect pattern is matched to the bank's rows by
+	 * its name. Its pre-booked payments carry the bill's name and the bank's
+	 * carry the bank's text, and with no pattern imports used to pass every
+	 * one of them by: the bank row came in beside the payment auto-pay or
+	 * Mark Paid had booked, and the money left the account twice.
+	 */
+	private function matchesByName(Bill $bill): bool {
+		return $this->matchPattern($bill) === '';
+	}
+
+	/**
+	 * The bank's row of a payment of a bill matched by name: in the bill's
+	 * own account, the bill's amount to the penny, and a payee naming the
+	 * bill (BillNameMatcher). Held tighter than a pattern, which the user
+	 * wrote to fit the bank's text: a bill with no account can't be told
+	 * apart from the same payee's payments from another, and isn't matched.
+	 */
+	private function looksLikeBillByName(Bill $bill, \OCA\Budget\Db\Transaction $transaction): bool {
+		return $bill->getAccountId() !== null
+			&& $bill->getAccountId() === $transaction->getAccountId()
+			&& (float)$bill->getAmount() > 0
+			&& MoneyCalculator::compare((float)$transaction->getAmount(), (float)$bill->getAmount(), 2) === 0
+			&& BillNameMatcher::matches((string)$bill->getName(), (string)$transaction->getDescription(), (string)($transaction->getVendor() ?? ''));
+	}
+
+	/**
+	 * Days either side of a date a bank row may be the bill's payment. A
+	 * pattern keeps the bill's frequency's window. A name match takes the
+	 * owner's setting (five days unless changed), never wider than that
+	 * window, so a weekly bill can't reach into the next week's payment.
+	 */
+	private function matchWindow(Bill $bill): int {
+		return $this->matchesByName($bill) ? $this->nameMatchWindow($bill) : $this->dueDateToleranceDays($bill->getFrequency());
+	}
+
+	/** The owner's match window setting, never wider than the bill's schedule allows */
+	private function nameMatchWindow(Bill $bill): int {
+		$frequency = $this->dueDateToleranceDays($bill->getFrequency());
+		$owner = (string)$bill->getUserId();
+		if (!array_key_exists($owner, $this->matchWindows)) {
+			$stored = null;
+			try {
+				$stored = $this->settingService?->get($owner, self::MATCH_WINDOW_SETTING);
+			} catch (\Exception $e) {
+				// The default, then
+			}
+			$this->matchWindows[$owner] = self::matchWindowDays($stored);
+		}
+		return min($this->matchWindows[$owner], $frequency);
 	}
 
 	/**
@@ -2564,15 +3139,26 @@ class BillService {
 		if (!$this->importedTransactionLooksLikeBill($bill, $imported)) {
 			return self::BOOKED_NONE;
 		}
-		$isTransfer = (bool)($bill->getIsTransfer() ?? false);
-		$generatedNote = $isTransfer ? 'Auto-generated transfer:' : 'Auto-generated from bill:';
-		$booked = $this->bookedPaymentNear($bill, $imported, $generatedNote);
+		$booked = $this->bookedPaymentNear($bill, $imported, $this->generatedNoteFor($bill));
 		if ($booked === null) {
 			return self::BOOKED_NONE;
 		}
+		return $this->swapBookedPayment($bill, $booked, $imported);
+	}
+
+	/**
+	 * Put the bank row in the place of the payment the bill booked, as
+	 * replaceBookedPayment() describes, once that payment is found.
+	 *
+	 * @return int BOOKED_REPLACED, or BOOKED_KEPT when the booked payment
+	 *             stays (reconciled by hand, or the swap failed)
+	 */
+	private function swapBookedPayment(Bill $bill, \OCA\Budget\Db\Transaction $booked, \OCA\Budget\Db\Transaction $imported): int {
 		if ($booked->getReconciled()) {
 			return self::BOOKED_KEPT;
 		}
+		$isTransfer = (bool)($bill->getIsTransfer() ?? false);
+		$generatedNote = $this->generatedNoteFor($bill);
 
 		// The deposit the app booked with a transfer's payment goes with it,
 		// and the bank row gets its own arrival. Any other row on the other
@@ -2658,10 +3244,16 @@ class BillService {
 	/**
 	 * The payment the app booked for the bill nearest a bank row's date:
 	 * within the bill's due window of it, in the row's account and within a
-	 * tenth of the bill's amount of it.
+	 * tenth of the bill's amount of it (to the penny for a bill matched by
+	 * name).
+	 *
+	 * @param array<int, true> $taken booked rows to pass over: a plan's rows
+	 *                                other rows of the batch already took
 	 */
-	private function bookedPaymentNear(Bill $bill, \OCA\Budget\Db\Transaction $imported, string $generatedNote): ?\OCA\Budget\Db\Transaction {
-		$days = $this->dueDateToleranceDays($bill->getFrequency());
+	private function bookedPaymentNear(Bill $bill, \OCA\Budget\Db\Transaction $imported, string $generatedNote, array $taken = []): ?\OCA\Budget\Db\Transaction {
+		$days = $this->matchWindow($bill);
+		// By name the amounts agree to the penny, as the bank row's had to
+		$margin = $this->matchesByName($bill) ? 0.005 : (float)$bill->getAmount() * 0.1;
 		$on = new \DateTimeImmutable($imported->getDate());
 		$nearest = null;
 		$rank = null;
@@ -2674,8 +3266,8 @@ class BillService {
 		);
 		foreach ($candidates as $row) {
 			$amountOff = abs((float)$row->getAmount() - (float)$imported->getAmount());
-			if ($row->getId() === $imported->getId() || $row->getAccountId() !== $imported->getAccountId()
-				|| $amountOff > (float)$bill->getAmount() * 0.1) {
+			if (($imported->getId() !== null && $row->getId() === $imported->getId()) || $row->getAccountId() !== $imported->getAccountId()
+				|| $amountOff > $margin || isset($taken[$row->getId()])) {
 				continue;
 			}
 			$thisRank = [abs(strtotime($row->getDate()) - $on->getTimestamp()), $amountOff];
@@ -2978,7 +3570,7 @@ class BillService {
 					$existing = $this->unclaimedPaymentFor($bill, $due);
 					$result = $existing !== null
 						? $this->markPaid($id, $userId, $existing->getDate(), false, $existing->getId(), $due)
-						: $this->markPaid($id, $userId, min($due, $today), true, null, $due);
+						: $this->markPaid($id, $userId, min($due, $today), true, null, $due, null, false, $this->autoPayStatus($bill));
 				} catch (\InvalidArgumentException $e) {
 					if ($this->find($id, $userId)->getNextDueDate() !== $due) {
 						break;
@@ -3045,12 +3637,12 @@ class BillService {
 	 * window, and no bill pays it. The nearest the due date wins.
 	 */
 	private function unclaimedPaymentFor(Bill $bill, string $due): ?\OCA\Budget\Db\Transaction {
-		if ($bill->getAccountId() === null || $this->matchPattern($bill) === '') {
+		if ($bill->getAccountId() === null) {
 			return null;
 		}
 		$nearest = null;
 		$rank = null;
-		foreach ($this->transactionService->findUnclaimedDebits($bill->getAccountId(), $due, $this->dueDateToleranceDays($bill->getFrequency())) as $row) {
+		foreach ($this->transactionService->findUnclaimedDebits($bill->getAccountId(), $due, $this->matchWindow($bill)) as $row) {
 			// A deleted bill's row is offered too, but linking it would fail
 			if ((int)($row->getBillId() ?? 0) !== 0 || $row->getPensionContribId() !== null
 				|| !$this->importedTransactionLooksLikeBill($bill, $row) || !$this->withinDueWindow($bill, $row->getDate(), $due)) {
@@ -3062,6 +3654,20 @@ class BillService {
 			}
 		}
 		return $nearest;
+	}
+
+	/**
+	 * What auto-pay books a payment as. In an account the bank's own rows
+	 * come into (an import or a bank sync has stored one), the payment is
+	 * only the app's word until the bank's row arrives and takes its place:
+	 * 'pending', still in the balance, and listed as unconfirmed if no row
+	 * turns up. Booked 'cleared', it read as settled by the bank and the
+	 * bank's own row, missed by the import, booked the money a second time.
+	 * An account kept by hand has nothing to wait for and stays 'cleared'.
+	 */
+	private function autoPayStatus(Bill $bill): string {
+		$accountId = $bill->getAccountId();
+		return $accountId !== null && $this->transactionService->accountTakesStatements($accountId) ? 'pending' : 'cleared';
 	}
 
 	private function checkIfPaidInPeriod(Bill $bill, string $startDate, string $endDate): bool {
