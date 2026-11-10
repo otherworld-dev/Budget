@@ -768,4 +768,85 @@ class ApiSerializerTest extends TestCase {
 		$this->assertSame([12, 27], array_column($result['tags'], 'id'));
 		$this->assertSame(ApiSerializer::tag(['id' => 27, 'name' => 'Tesco', 'tagSetId' => 4, 'tagSetName' => 'Shop', 'categoryId' => 415, 'userId' => 'alice']), $result['tags'][1]);
 	}
+
+	// ── runway ──────────────────────────────────────────────────────
+
+	private static function runwayInput(array $over = []): array {
+		return array_replace([
+			'window' => ['months' => 3, 'effectiveMonths' => 3, 'from' => '2026-08-10', 'to' => '2026-11-10'],
+			'monthlyOut' => '1500.5', 'monthlyIn' => '1000',
+			'excluded' => ['count' => 2, 'total' => '300', 'ids' => [4, 5]],
+			'scenarios' => [
+				'current' => ['state' => 'running_out', 'monthlyDrain' => '500.5', 'months' => 20.7, 'runsOutOn' => '2028-07-01'],
+				'onBudget' => ['state' => 'running_out', 'monthlyDrain' => '400', 'months' => 25.0, 'runsOutOn' => '2029-01-01'],
+			],
+			'differenceMonths' => 4.3,
+			'series' => ['history' => [], 'current' => [], 'onBudget' => []],
+			'events' => [],
+			'currency' => 'GBP', 'total' => '10000',
+			'accounts' => [['id' => 1, 'name' => 'Current', 'balance' => '10000']],
+			'skippedAccounts' => [],
+			'oneOffs' => [
+				['id' => 7, 'description' => 'Tax', 'amount' => '-250', 'date' => '2026-12-01', 'past' => false],
+				['id' => 6, 'description' => 'Old', 'amount' => '-10', 'date' => '2026-10-01', 'past' => true],
+			],
+			'settings' => ['accountIds' => [1], 'windowMonths' => 3, 'includeScheduled' => true, 'accountIdsAreDefault' => true],
+		], $over);
+	}
+
+	public function testRunwayKeysAreFixed(): void {
+		$result = ApiSerializer::runway(self::runwayInput());
+
+		$this->assertSame([
+			'currency', 'total', 'accounts', 'window', 'monthly_out', 'monthly_in',
+			'excluded_count', 'excluded_total', 'scenarios', 'difference_months',
+			'one_offs', 'calculated_at',
+		], array_keys($result));
+		$this->assertSame(['id', 'name', 'balance'], array_keys($result['accounts'][0]));
+		$this->assertSame(['months', 'from', 'to'], array_keys($result['window']));
+		$this->assertSame(['current', 'on_budget'], array_keys($result['scenarios']));
+		$this->assertSame(['state', 'monthly_drain', 'months', 'runs_out_on'], array_keys($result['scenarios']['current']));
+		$this->assertSame(['state', 'monthly_drain', 'months', 'runs_out_on'], array_keys($result['scenarios']['on_budget']));
+		$this->assertSame(['id', 'description', 'amount', 'date'], array_keys($result['one_offs'][0]));
+	}
+
+	public function testRunwayValuesAreMapped(): void {
+		$result = ApiSerializer::runway(self::runwayInput());
+
+		$this->assertSame('GBP', $result['currency']);
+		$this->assertSame('10000.00', $result['total']);
+		$this->assertSame('10000.00', $result['accounts'][0]['balance']);
+		$this->assertSame(3, $result['window']['months']);
+		$this->assertSame('1500.50', $result['monthly_out']);
+		$this->assertSame('1000.00', $result['monthly_in']);
+		$this->assertSame(2, $result['excluded_count']);
+		$this->assertSame('300.00', $result['excluded_total']);
+		$this->assertSame('500.50', $result['scenarios']['current']['monthly_drain']);
+		$this->assertSame(20.7, $result['scenarios']['current']['months']);
+		$this->assertSame('2029-01-01', $result['scenarios']['on_budget']['runs_out_on']);
+		$this->assertSame(4.3, $result['difference_months']);
+		$this->assertSame('-250.00', $result['one_offs'][0]['amount']);
+		$this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/', $result['calculated_at']);
+	}
+
+	public function testRunwayNullsWhenNotRunningOut(): void {
+		$none = ['state' => 'not_running_out', 'monthlyDrain' => null, 'months' => null, 'runsOutOn' => null];
+		$result = ApiSerializer::runway(self::runwayInput([
+			'scenarios' => ['current' => $none, 'onBudget' => ['state' => 'unavailable'] + $none],
+			'differenceMonths' => null,
+		]));
+
+		$this->assertNull($result['scenarios']['current']['monthly_drain']);
+		$this->assertNull($result['scenarios']['current']['months']);
+		$this->assertNull($result['scenarios']['current']['runs_out_on']);
+		$this->assertSame('unavailable', $result['scenarios']['on_budget']['state']);
+		$this->assertNull($result['scenarios']['on_budget']['months']);
+		$this->assertNull($result['difference_months']);
+	}
+
+	public function testRunwayOmitsPastOneOffs(): void {
+		$result = ApiSerializer::runway(self::runwayInput());
+
+		$this->assertSame([7], array_column($result['one_offs'], 'id'));
+	}
 }
