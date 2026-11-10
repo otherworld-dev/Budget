@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-11-10 01:30+0000\n"
+"POT-Creation-Date: 2026-11-10 03:14+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -173,7 +173,7 @@ msgid "Only the account owner can delete an account"
 msgstr ""
 
 #: /app/lib/Controller/AccountController.php:688
-#: /app/src/modules/accounts/AccountsModule.js:3181
+#: /app/src/modules/accounts/AccountsModule.js:3202
 msgid "Failed to delete account"
 msgstr ""
 
@@ -216,8 +216,8 @@ msgstr ""
 msgid "Failed to add interest rate"
 msgstr ""
 
-#: /app/lib/Controller/AccountController.php:955 /app/src/main.js:2963
-#: /app/src/main.js:3062
+#: /app/lib/Controller/AccountController.php:955 /app/src/main.js:2972
+#: /app/src/main.js:3072
 msgid "Interest Rate"
 msgstr ""
 
@@ -398,7 +398,7 @@ msgstr ""
 #: /app/lib/Controller/PensionController.php:481
 #: /app/lib/Controller/TransactionController.php:324
 #: /app/lib/Controller/TransactionController.php:437
-#: /app/lib/Service/Export/TransactionCsvExporter.php:30 /app/src/main.js:3645
+#: /app/lib/Service/Export/TransactionCsvExporter.php:30 /app/src/main.js:3655
 #: /app/src/modules/income/IncomeModule.js:420
 #: /app/src/modules/rules/RulesModule.js:972
 #: /app/src/modules/rules/RulesModule.js:1174
@@ -561,8 +561,8 @@ msgstr ""
 #: /app/lib/Controller/ApiV1TransactionController.php:1822
 #: /app/lib/Controller/AttachmentController.php:57
 #: /app/lib/Controller/AttachmentController.php:72
-#: /app/lib/Controller/AttachmentController.php:97 /app/src/main.js:3382
-#: /app/src/main.js:3621
+#: /app/lib/Controller/AttachmentController.php:97 /app/src/main.js:3392
+#: /app/src/main.js:3631
 #: /app/src/modules/transactions/TransactionsModule.js:3928
 #: /app/src/modules/transactions/TransactionsModule.js:4040
 #: /app/src/modules/transactions/TransactionsModule.js:4123
@@ -1066,8 +1066,8 @@ msgstr ""
 #: /app/lib/Service/Report/ReportExporter.php:392
 #: /app/lib/Service/Report/ReportExporter.php:509
 #: /app/lib/Service/Report/ReportExporter.php:586
-#: /app/lib/Service/Report/ReportExporter.php:629 /app/src/main.js:3713
-#: /app/src/main.js:3714 /app/src/modules/bills/BillsModule.js:1006
+#: /app/lib/Service/Report/ReportExporter.php:629 /app/src/main.js:3723
+#: /app/src/main.js:3724 /app/src/modules/bills/BillsModule.js:1006
 #: /app/src/modules/rules/RulesModule.js:974
 #: /app/src/modules/rules/RulesModule.js:1176
 #: /app/src/modules/rules/components/CriteriaBuilder.js:190
@@ -1251,8 +1251,8 @@ msgstr ""
 #: /app/lib/Service/Report/ReportExporter.php:628
 #: /app/lib/Service/Report/ReportExporter.php:653
 #: /app/lib/Service/Report/ReportExporter.php:690
-#: /app/lib/Service/Report/ReportExporter.php:736 /app/src/main.js:3718
-#: /app/src/main.js:3719 /app/src/modules/dashboard/DashboardModule.js:2352
+#: /app/lib/Service/Report/ReportExporter.php:736 /app/src/main.js:3728
+#: /app/src/main.js:3729 /app/src/modules/dashboard/DashboardModule.js:2352
 #: /app/src/modules/reports/ReportsModule.js:1179
 #: /app/src/modules/reports/ReportsModule.js:1627
 #: /app/src/modules/transactions/TransactionsModule.js:3476
@@ -1409,8 +1409,8 @@ msgstr ""
 msgid "Failed to get debt progress"
 msgstr ""
 
-#: /app/lib/Controller/DebtController.php:166 /app/src/main.js:3184
-#: /app/src/main.js:3189
+#: /app/lib/Controller/DebtController.php:166 /app/src/main.js:3194
+#: /app/src/main.js:3199
 msgid "Failed to compare strategies"
 msgstr ""
 
@@ -2822,7 +2822,7 @@ msgid "Failed to delete global tag"
 msgstr ""
 
 #: /app/lib/Controller/TransactionController.php:256
-#: /app/src/modules/accounts/AccountsModule.js:3653
+#: /app/src/modules/accounts/AccountsModule.js:3674
 #: /app/src/modules/transactions/TransactionsModule.js:1014
 msgid "Failed to export transactions"
 msgstr ""
@@ -2856,7 +2856,7 @@ msgstr ""
 msgid "Failed to categorize transactions"
 msgstr ""
 
-#: /app/lib/Controller/TransactionController.php:803 /app/src/main.js:3609
+#: /app/lib/Controller/TransactionController.php:803 /app/src/main.js:3619
 #: /app/src/modules/transactions/TransactionsModule.js:4028
 msgid "Failed to unlink transaction"
 msgstr ""
@@ -3119,8 +3119,8 @@ msgstr ""
 #: /app/lib/Controller/YearOverYearController.php:403
 #: /app/lib/Service/Report/ReportExporter.php:235
 #: /app/lib/Service/Report/ReportExporter.php:243 /app/src/main.js:2379
-#: /app/src/main.js:2382 /app/src/main.js:3444
-#: /app/src/modules/accounts/AccountsModule.js:3550
+#: /app/src/main.js:2382 /app/src/main.js:3454
+#: /app/src/modules/accounts/AccountsModule.js:3571
 #: /app/src/modules/dashboard/DashboardModule.js:2545
 #: /app/src/modules/dashboard/DashboardModule.js:2623
 #: /app/src/modules/dashboard/DashboardModule.js:2787
@@ -3611,20 +3611,20 @@ msgstr ""
 msgid "Pension #%1$s"
 msgstr ""
 
-#: /app/lib/Service/AccountService.php:100
-#: /app/lib/Service/AccountService.php:398
+#: /app/lib/Service/AccountService.php:101
+#: /app/lib/Service/AccountService.php:410
 msgid ""
 "A promotional rate can only be set on a credit card, loan, mortgage or line "
 "of credit."
 msgstr ""
 
-#: /app/lib/Service/AccountService.php:153
+#: /app/lib/Service/AccountService.php:154
 msgid ""
 "Cannot delete account with existing transactions. Please delete all "
 "transactions first."
 msgstr ""
 
-#: /app/lib/Service/AccountService.php:322
+#: /app/lib/Service/AccountService.php:327
 msgid "This page is out of date. Please reload it before editing this account."
 msgstr ""
 
@@ -3952,8 +3952,8 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/lib/Service/Export/TransactionCsvExporter.php:31 /app/src/main.js:3649
-#: /app/src/main.js:3725 /app/src/main.js:3726
+#: /app/lib/Service/Export/TransactionCsvExporter.php:31 /app/src/main.js:3659
+#: /app/src/main.js:3735 /app/src/main.js:3736
 #: /app/src/modules/rules/RulesModule.js:973
 #: /app/src/modules/rules/RulesModule.js:1175
 #: /app/src/modules/rules/components/ActionBuilder.js:200
@@ -4431,6 +4431,31 @@ msgid ""
 "out of it"
 msgstr ""
 
+#: /app/lib/Service/PromoRate.php:52
+msgid "A promotional rate is needed along with its dates."
+msgstr ""
+
+#: /app/lib/Service/PromoRate.php:55
+msgid "The promotional rate must be between 0 and 999.9999."
+msgstr ""
+
+#: /app/lib/Service/PromoRate.php:58
+msgid "A promotional rate needs a start date."
+msgstr ""
+
+#: /app/lib/Service/PromoRate.php:61
+msgid "A promotional rate needs an end date."
+msgstr ""
+
+#: /app/lib/Service/PromoRate.php:65
+msgid "Promotional dates must be in YYYY-MM-DD format."
+msgstr ""
+
+#: /app/lib/Service/PromoRate.php:69
+#: /app/src/modules/accounts/AccountsModule.js:2727
+msgid "The promotional rate must start before it ends."
+msgstr ""
+
 #: /app/lib/Service/ReconciliationService.php:70
 #: /app/lib/Service/ReconciliationService.php:101
 msgid "Invalid statement date"
@@ -4671,7 +4696,7 @@ msgstr ""
 #: /app/lib/Service/Report/ReportExporter.php:238
 #: /app/lib/Service/Report/ReportExporter.php:763
 #: /app/src/config/dashboardWidgets.js:26 /app/src/main.js:1943
-#: /app/src/main.js:3720 /app/src/modules/accounts/AccountsModule.js:1931
+#: /app/src/main.js:3730 /app/src/modules/accounts/AccountsModule.js:1931
 #: /app/src/modules/categories/CategoriesModule.js:954
 #: /app/src/modules/dashboard/DashboardModule.js:1326
 #: /app/src/modules/import/ImportModule.js:200
@@ -4724,7 +4749,7 @@ msgstr ""
 
 #: /app/lib/Service/Report/ReportExporter.php:255
 #: /app/lib/Service/Report/ReportExporter.php:453
-#: /app/src/modules/accounts/AccountsModule.js:2890
+#: /app/src/modules/accounts/AccountsModule.js:2911
 #: /app/templates/index.php:1260 /app/templates/index.php:3094
 #: /app/templates/index.php:3859 /app/templates/index.php:5495
 #: /app/templates/index.php:5565
@@ -5627,7 +5652,7 @@ msgstr ""
 msgid "Unlink from bill"
 msgstr ""
 
-#: /app/src/main.js:543 /app/src/main.js:3007
+#: /app/src/main.js:543 /app/src/main.js:3017
 #: /app/src/modules/accounts/AccountsModule.js:618
 #: /app/src/modules/accounts/AccountsModule.js:1398
 #: /app/src/modules/assets/AssetsModule.js:171
@@ -6042,40 +6067,49 @@ msgstr ""
 msgid "N/A"
 msgstr ""
 
-#: /app/src/main.js:2953
+#: /app/src/main.js:2954
+#, no-javascript-format
+msgid "Promotional rate: {rate}% from {start} until {date}"
+msgstr ""
+
+#: /app/src/main.js:2955
 #, no-javascript-format
 msgid "Promotional rate: {rate}% until {date}"
 msgstr ""
 
-#: /app/src/main.js:2964 /app/templates/index.php:1277
+#: /app/src/main.js:2962
+msgid "Min payment rises to {amount} when the promotional rate ends"
+msgstr ""
+
+#: /app/src/main.js:2973 /app/templates/index.php:1277
 msgid "Min Payment"
 msgstr ""
 
-#: /app/src/main.js:2966
+#: /app/src/main.js:2976
 msgid "Payoff"
 msgstr ""
 
-#: /app/src/main.js:2966
+#: /app/src/main.js:2976
 msgid "month {month}"
 msgstr ""
 
-#: /app/src/main.js:2967 /app/templates/index.php:4175
+#: /app/src/main.js:2977 /app/templates/index.php:4175
 msgid "Total Interest"
 msgstr ""
 
-#: /app/src/main.js:2990
+#: /app/src/main.js:3000
 msgid "No scenarios yet. Create one to compare strategies."
 msgstr ""
 
-#: /app/src/main.js:2995 /app/src/main.js:3226
+#: /app/src/main.js:3005 /app/src/main.js:3236
 msgid "Snowball"
 msgstr ""
 
-#: /app/src/main.js:2995 /app/src/main.js:3215
+#: /app/src/main.js:3005 /app/src/main.js:3225
 msgid "Avalanche"
 msgstr ""
 
-#: /app/src/main.js:3006 /app/src/modules/accounts/AccountsModule.js:615
+#: /app/src/main.js:3016 /app/src/modules/accounts/AccountsModule.js:615
 #: /app/src/modules/assets/AssetsModule.js:168
 #: /app/src/modules/pensions/PensionsModule.js:144
 #: /app/src/modules/savings/SavingsModule.js:144
@@ -6086,205 +6120,205 @@ msgstr ""
 msgid "Edit"
 msgstr ""
 
-#: /app/src/main.js:3008
+#: /app/src/main.js:3018
 msgid "Set as active"
 msgstr ""
 
-#: /app/src/main.js:3022
+#: /app/src/main.js:3032
 msgid "Edit Scenario"
 msgstr ""
 
-#: /app/src/main.js:3022 /app/templates/index.php:4154
+#: /app/src/main.js:3032 /app/templates/index.php:4154
 #: /app/templates/index.php:4156 /app/templates/index.php:5828
 msgid "New Scenario"
 msgstr ""
 
-#: /app/src/main.js:3076
+#: /app/src/main.js:3086
 msgid "Please enter a scenario name"
 msgstr ""
 
-#: /app/src/main.js:3130
+#: /app/src/main.js:3140
 msgid "Failed to save scenario"
 msgstr ""
 
-#: /app/src/main.js:3135
+#: /app/src/main.js:3145
 msgid "Are you sure you want to delete this scenario?"
 msgstr ""
 
-#: /app/src/main.js:3154
+#: /app/src/main.js:3164
 msgid "Failed to delete scenario"
 msgstr ""
 
-#: /app/src/main.js:3170
+#: /app/src/main.js:3180
 msgid "Failed to activate scenario"
 msgstr ""
 
-#: /app/src/main.js:3217 /app/src/main.js:3228
+#: /app/src/main.js:3227 /app/src/main.js:3238
 msgid "Months to payoff"
 msgstr ""
 
-#: /app/src/main.js:3221 /app/src/main.js:3232
+#: /app/src/main.js:3231 /app/src/main.js:3242
 msgid "Total interest"
 msgstr ""
 
-#: /app/src/main.js:3250
+#: /app/src/main.js:3260
 msgid "Avalanche Recommended"
 msgstr ""
 
-#: /app/src/main.js:3251
+#: /app/src/main.js:3261
 msgid "Snowball Recommended"
 msgstr ""
 
-#: /app/src/main.js:3251
+#: /app/src/main.js:3261
 msgid "Either Works"
 msgstr ""
 
-#: /app/src/main.js:3254
+#: /app/src/main.js:3264
 msgid "Avalanche saves {amount} in interest"
 msgstr ""
 
-#: /app/src/main.js:3255
+#: /app/src/main.js:3265
 msgid "Snowball saves {amount} in interest"
 msgstr ""
 
-#: /app/src/main.js:3291
+#: /app/src/main.js:3301
 msgid "Hide"
 msgstr ""
 
-#: /app/src/main.js:3291
+#: /app/src/main.js:3301
 msgid "Show"
 msgstr ""
 
-#: /app/src/main.js:3401
+#: /app/src/main.js:3411
 #: /app/src/modules/transactions/TransactionsModule.js:3947
 #: /app/src/modules/transactions/transactionRow.js:378
 msgid "Unknown Account"
 msgstr ""
 
-#: /app/src/main.js:3446
+#: /app/src/main.js:3456
 #: /app/src/modules/transactions/TransactionsModule.js:3992
 msgid "Link as Transfer"
 msgstr ""
 
-#: /app/src/main.js:3455
+#: /app/src/main.js:3465
 #: /app/src/modules/transactions/TransactionsModule.js:4001
 msgid "Failed to search for matches. Please try again."
 msgstr ""
 
-#: /app/src/main.js:3465
+#: /app/src/main.js:3475
 #: /app/src/modules/transactions/TransactionsModule.js:4008
 msgid "Transactions linked as transfer"
 msgstr ""
 
-#: /app/src/main.js:3471
+#: /app/src/main.js:3481
 #: /app/src/modules/transactions/TransactionsModule.js:4014
 #: /app/src/modules/transactions/TransactionsModule.js:4773
 #: /app/src/modules/transactions/TransactionsModule.js:4845
 msgid "Failed to link transactions"
 msgstr ""
 
-#: /app/src/main.js:3495
+#: /app/src/main.js:3505
 msgid "Select an account for the other side of the transfer"
 msgstr ""
 
-#: /app/src/main.js:3500
+#: /app/src/main.js:3510
 msgid "Transfer created and linked"
 msgstr ""
 
-#: /app/src/main.js:3506
+#: /app/src/main.js:3516
 #: /app/src/modules/transactions/TransactionsModule.js:3200
 msgid "Failed to create transfer"
 msgstr ""
 
-#: /app/src/main.js:3525
+#: /app/src/main.js:3535
 msgid "Could not navigate to linked transaction"
 msgstr ""
 
-#: /app/src/main.js:3600
+#: /app/src/main.js:3610
 #: /app/src/modules/transactions/TransactionsModule.js:4019
 msgid ""
 "Are you sure you want to unlink this transaction from its transfer pair?"
 msgstr ""
 
-#: /app/src/main.js:3606
+#: /app/src/main.js:3616
 #: /app/src/modules/transactions/TransactionsModule.js:4025
 msgid "Transaction unlinked"
 msgstr ""
 
-#: /app/src/main.js:3637
+#: /app/src/main.js:3647
 #: /app/src/modules/transactions/TransactionsModule.js:4139
 msgid "Edit Transaction Splits"
 msgstr ""
 
-#: /app/src/main.js:3637
+#: /app/src/main.js:3647
 #: /app/src/modules/transactions/TransactionsModule.js:4139
 #: /app/templates/index.php:7255
 msgid "Split Transaction"
 msgstr ""
 
-#: /app/src/main.js:3653
+#: /app/src/main.js:3663
 msgid "Total Amount"
 msgstr ""
 
-#: /app/src/main.js:3727
+#: /app/src/main.js:3737
 #: /app/src/modules/transactions/TransactionsModule.js:3484
 #: /app/src/modules/transactions/TransactionsModule.js:4226
 #: /app/templates/index.php:5689
 msgid "Optional note"
 msgstr ""
 
-#: /app/src/main.js:3731 /app/src/modules/bills/BillsModule.js:1038
+#: /app/src/main.js:3741 /app/src/modules/bills/BillsModule.js:1038
 #: /app/src/modules/transactions/TransactionsModule.js:4230
 msgid "Remove split"
 msgstr ""
 
-#: /app/src/main.js:3842
+#: /app/src/main.js:3852
 #: /app/src/modules/transactions/TransactionsModule.js:4298
 msgid "A split transaction must have at least 2 parts"
 msgstr ""
 
-#: /app/src/main.js:3848
+#: /app/src/main.js:3858
 #: /app/src/modules/transactions/TransactionsModule.js:4304
 msgid ""
 "Split amounts ({splitTotal}) must equal transaction amount ({totalAmount})"
 msgstr ""
 
-#: /app/src/main.js:3859
+#: /app/src/main.js:3869
 #: /app/src/modules/transactions/TransactionsModule.js:4315
 msgid "Transaction split successfully"
 msgstr ""
 
-#: /app/src/main.js:3863
+#: /app/src/main.js:3873
 #: /app/src/modules/transactions/TransactionsModule.js:4319
 msgid "Failed to save splits"
 msgstr ""
 
-#: /app/src/main.js:3874
+#: /app/src/main.js:3884
 #: /app/src/modules/transactions/TransactionsModule.js:4327
 msgid ""
 "Are you sure you want to remove the split and revert to a single transaction?"
 msgstr ""
 
-#: /app/src/main.js:3882
+#: /app/src/main.js:3892
 #: /app/src/modules/transactions/TransactionsModule.js:4335
 msgid "Transaction unsplit successfully"
 msgstr ""
 
-#: /app/src/main.js:3886
+#: /app/src/main.js:3896
 #: /app/src/modules/transactions/TransactionsModule.js:3243
 #: /app/src/modules/transactions/TransactionsModule.js:4339
 msgid "Failed to unsplit transaction"
 msgstr ""
 
-#: /app/src/main.js:3999
+#: /app/src/main.js:4009
 msgid "At least one column must remain visible"
 msgstr ""
 
-#: /app/src/main.js:4019
+#: /app/src/main.js:4029
 msgid "Failed to save column visibility"
 msgstr ""
 
-#: /app/src/main.js:4026
+#: /app/src/main.js:4036
 msgid "Failed to save column preferences"
 msgstr ""
 
@@ -6362,7 +6396,7 @@ msgid "Excluded"
 msgstr ""
 
 #: /app/src/modules/accounts/AccountsModule.js:567
-#: /app/src/modules/accounts/AccountsModule.js:2819
+#: /app/src/modules/accounts/AccountsModule.js:2840
 msgid "Edit Account"
 msgstr ""
 
@@ -6645,223 +6679,232 @@ msgstr ""
 msgid "No category"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2534
+#: /app/src/modules/accounts/AccountsModule.js:2535
 #, no-javascript-format
 msgid "{rate}% ended {date}"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2535
+#: /app/src/modules/accounts/AccountsModule.js:2538
+#, no-javascript-format
+msgid "{rate}% from {start} until {date}"
+msgstr ""
+
+#: /app/src/modules/accounts/AccountsModule.js:2540
 #, no-javascript-format
 msgid "{rate}% until {date}"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2560
+#: /app/src/modules/accounts/AccountsModule.js:2566
 msgid "Form error: Account name field not found"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2566
+#: /app/src/modules/accounts/AccountsModule.js:2572
 msgid "Form error: Account type field not found"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2620
-#: /app/src/modules/accounts/AccountsModule.js:2634
+#: /app/src/modules/accounts/AccountsModule.js:2626
+#: /app/src/modules/accounts/AccountsModule.js:2640
 msgid ""
 "Enter the amount owed as a positive number. Tick \"This account is in "
 "credit\" if the lender owes you instead."
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2686
+#: /app/src/modules/accounts/AccountsModule.js:2692
 msgid "Please enter an account name"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2693
+#: /app/src/modules/accounts/AccountsModule.js:2699
 msgid "Please select an account type"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2700
+#: /app/src/modules/accounts/AccountsModule.js:2706
 msgid "Account name is too long (maximum 255 characters)"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2707
+#: /app/src/modules/accounts/AccountsModule.js:2713
 msgid "Please enter a valid balance amount"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2727
+#: /app/src/modules/accounts/AccountsModule.js:2722
+msgid "Please enter the date the promotional rate ends"
+msgstr ""
+
+#: /app/src/modules/accounts/AccountsModule.js:2748
 msgid "Account saved successfully"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2750
+#: /app/src/modules/accounts/AccountsModule.js:2771
 msgid "Unknown error occurred"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2751
+#: /app/src/modules/accounts/AccountsModule.js:2772
 msgid "Failed to save account: {error}"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2781
+#: /app/src/modules/accounts/AccountsModule.js:2802
 msgid ""
 "This account has a balance of {balance}. It must be zero before it can be "
 "closed."
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2843
+#: /app/src/modules/accounts/AccountsModule.js:2864
 #: /app/templates/index.php:1123
 msgid "Add Account"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2886
+#: /app/src/modules/accounts/AccountsModule.js:2907
 msgid "Balance is calculated from transactions"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2894
+#: /app/src/modules/accounts/AccountsModule.js:2915
 msgid "Calculated from transactions"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2962
+#: /app/src/modules/accounts/AccountsModule.js:2983
 msgid "••••••••  (leave blank to keep current)"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:2989
+#: /app/src/modules/accounts/AccountsModule.js:3010
 msgid "Failed to load account data"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3067
-#: /app/src/modules/accounts/AccountsModule.js:3079
+#: /app/src/modules/accounts/AccountsModule.js:3088
+#: /app/src/modules/accounts/AccountsModule.js:3100
 msgid "Amount owed"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3068
+#: /app/src/modules/accounts/AccountsModule.js:3089
 #: /app/templates/index.php:6131
 msgid "Opening Balance"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3073
+#: /app/src/modules/accounts/AccountsModule.js:3094
 msgid ""
 "Enter what you owe as a plain positive number — the app records it as a debt "
 "for you."
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3074
+#: /app/src/modules/accounts/AccountsModule.js:3095
 #: /app/templates/index.php:6133
 msgid "The starting balance when this account was created"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3080
-#: /app/src/modules/accounts/AccountsModule.js:3123
+#: /app/src/modules/accounts/AccountsModule.js:3101
+#: /app/src/modules/accounts/AccountsModule.js:3144
 #: /app/templates/index.php:6146
 msgid "Starting Balance"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3089
+#: /app/src/modules/accounts/AccountsModule.js:3110
 msgid ""
 "This account is currently recorded as being in credit — as if the lender "
 "owes you this money, which adds it to your net worth. If you actually owe "
 "it, untick the box above and save."
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3127
+#: /app/src/modules/accounts/AccountsModule.js:3148
 #: /app/templates/index.php:6148
 msgid "The balance this account starts with"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3187
+#: /app/src/modules/accounts/AccountsModule.js:3208
 msgid ""
 "Are you sure you want to delete this account? This action cannot be undone."
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3188
+#: /app/src/modules/accounts/AccountsModule.js:3209
 msgid "Any bills, transfers or recurring income that use it are switched off."
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3207
+#: /app/src/modules/accounts/AccountsModule.js:3228
 msgid ""
 "This account still has {count} transaction(s). Delete them along with the "
 "account? This cannot be undone."
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3208
+#: /app/src/modules/accounts/AccountsModule.js:3229
 msgid ""
 "This account still has transactions. Delete them along with the account? "
 "This cannot be undone."
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3216
+#: /app/src/modules/accounts/AccountsModule.js:3237
 msgid "Account and its {count} transaction(s) deleted"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3217
+#: /app/src/modules/accounts/AccountsModule.js:3238
 msgid "Account deleted successfully"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3227
+#: /app/src/modules/accounts/AccountsModule.js:3248
 msgid "Failed to delete account: {error}"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3448
+#: /app/src/modules/accounts/AccountsModule.js:3469
 msgid "Valid"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3513
+#: /app/src/modules/accounts/AccountsModule.js:3534
 #: /app/templates/index.php:6118
 msgid "Checking Account"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3518
+#: /app/src/modules/accounts/AccountsModule.js:3539
 #: /app/templates/index.php:6119
 msgid "Savings Account"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3523
+#: /app/src/modules/accounts/AccountsModule.js:3544
 #: /app/src/modules/dashboard/DashboardModule.js:1112
 #: /app/src/utils/formatters.js:270 /app/templates/index.php:6120
 msgid "Credit Card"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3528
+#: /app/src/modules/accounts/AccountsModule.js:3549
 #: /app/src/modules/dashboard/DashboardModule.js:1113
 #: /app/src/utils/formatters.js:271
 msgid "Investment"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3533
+#: /app/src/modules/accounts/AccountsModule.js:3554
 #: /app/src/modules/dashboard/DashboardModule.js:1115
 #: /app/src/utils/formatters.js:273
 msgid "Loan"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3538
+#: /app/src/modules/accounts/AccountsModule.js:3559
 #: /app/src/modules/dashboard/DashboardModule.js:1114
 #: /app/src/utils/categoryIcons.js:82 /app/src/utils/formatters.js:272
 #: /app/templates/index.php:6125
 msgid "Cash"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3543
+#: /app/src/modules/accounts/AccountsModule.js:3564
 #: /app/src/utils/formatters.js:276 /app/templates/index.php:6126
 msgid "Cryptocurrency"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3565
+#: /app/src/modules/accounts/AccountsModule.js:3586
 msgid "Credit utilization very high"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3571
+#: /app/src/modules/accounts/AccountsModule.js:3592
 msgid "Credit utilization high"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3581
+#: /app/src/modules/accounts/AccountsModule.js:3602
 msgid "Negative balance"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3590
+#: /app/src/modules/accounts/AccountsModule.js:3611
 msgid "Exceeds overdraft limit"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3597
+#: /app/src/modules/accounts/AccountsModule.js:3618
 msgid "Account is in good standing"
 msgstr ""
 
-#: /app/src/modules/accounts/AccountsModule.js:3629
+#: /app/src/modules/accounts/AccountsModule.js:3650
 msgid "No transactions to export"
 msgstr ""
 
