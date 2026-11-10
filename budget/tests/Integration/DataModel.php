@@ -48,6 +48,7 @@ final class DataModel {
 		'budget_nw_snaps' => 'user_id',
 		'budget_pen_contribs' => 'user_id',
 		'budget_pen_recur' => 'user_id',
+		'budget_runway_oneoffs' => 'user_id',
 		'budget_pen_snaps' => 'user_id',
 		'budget_pensions' => 'user_id',
 		'budget_project_allocs' => 'user_id',

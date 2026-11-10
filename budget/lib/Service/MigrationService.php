@@ -239,6 +239,11 @@ class MigrationService {
 				'template_id' => ['map' => 'import_templates', 'onMissing' => 'null'],
 			],
 		],
+		// Planned one-offs for the runway forecast: no references to other rows
+		'runway_oneoffs' => [
+			'table' => 'budget_runway_oneoffs',
+			'scope' => 'user',
+		],
 		'imp_links' => [
 			'table' => 'budget_imp_links',
 			'scope' => 'user',
