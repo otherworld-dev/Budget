@@ -381,9 +381,13 @@ class BillService {
 	 * @return list<array{billId: int, billName: string, booked: array, bank: array}>
 	 */
 	public function findPaymentPairs(string $userId): array {
+		// Only bills whose accounts the owner can still write to: a bill keeps
+		// an account another user shared with its owner after the share ends,
+		// and listing that account's bank rows would show the other user's
+		// ledger. Merge refuses such a bill anyway.
 		$bills = [];
 		foreach ($this->mapper->findAll($userId) as $bill) {
-			if ($bill->getAccountId() !== null) {
+			if ($bill->getAccountId() !== null && $this->accountsWritable($bill)) {
 				$bills[$bill->getId()] = $bill;
 			}
 		}
@@ -528,7 +532,9 @@ class BillService {
 		$takesStatements = [];
 		foreach ($this->mapper->findAll($userId) as $bill) {
 			$accountId = $bill->getAccountId();
-			if ($accountId === null) {
+			// Not an account the owner can no longer write to (a share that
+			// ended): its rows are the other user's, and the actions refuse it
+			if ($accountId === null || !$this->accountsWritable($bill)) {
 				continue;
 			}
 			$takesStatements[$accountId] ??= $this->transactionService->accountTakesStatements($accountId);
@@ -553,7 +559,10 @@ class BillService {
 		}
 		foreach ($this->transactionService->findGeneratedBillDebits(array_keys($bills)) as $row) {
 			$bill = $bills[$row->getBillId()] ?? null;
-			if ($bill !== null && $row->getStatus() === 'pending' && !$row->getReconciled() && $row->getDate() <= $cutoff) {
+			// In the bill's own account: a row left in one the bill has since
+			// moved away from isn't the bill's to confirm
+			if ($bill !== null && $row->getAccountId() === $bill->getAccountId()
+				&& $row->getStatus() === 'pending' && !$row->getReconciled() && $row->getDate() <= $cutoff) {
 				$items[] = $this->unconfirmedItem('unconfirmed', $bill, (string)$row->getDate(), (float)$row->getAmount(), (int)$row->getId(), $currencyMap);
 			}
 		}

@@ -207,6 +207,27 @@ class BillImportNameMatchTest extends IntegrationTestCase {
 	}
 
 	/**
+	 * A bill left pointing at another user's account after its share ended:
+	 * neither list shows that account's rows, and Merge refuses
+	 */
+	public function testAnAccountNoLongerSharedIsLeftOut(): void {
+		$other = $this->newUserId();
+		$this->account = $this->makeAccount(['openingBalance' => self::OPENING, 'balance' => self::OPENING], $other)->getId();
+		$bill = $this->makeBill('Octopus Energy', '257.05', '2026-07-01');
+		$booked = $this->makeTransaction($this->account, [
+			'date' => '2026-08-01', 'description' => '', 'vendor' => 'Octopus Energy', 'amount' => '257.05',
+			'bill_id' => $bill, 'notes' => 'Auto-generated from bill: Octopus Energy', 'status' => 'pending',
+		]);
+		$bank = $this->makeTransaction($this->account, ['date' => '2026-08-03', 'description' => 'OCTOPUS ENERGY', 'amount' => '257.05', 'import_id' => 'bank-oct']);
+		$bills = $this->service(BillService::class);
+
+		$this->assertSame([], $bills->findPaymentPairs($this->userId));
+		$this->assertSame([], $bills->findUnconfirmedPayments($this->userId));
+		$this->expectException(\InvalidArgumentException::class);
+		$bills->mergePayment($this->userId, $bill, $booked, $bank);
+	}
+
+	/**
 	 * Auto-pay in an account the bank's rows come into books the payment
 	 * pending, and a week on with no bank row it is listed; an account kept
 	 * by hand still gets a cleared one
