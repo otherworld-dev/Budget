@@ -31,10 +31,11 @@ class RunwayCalculatorTest extends TestCase {
 		?int $linkedAccountId = null,
 		?int $billId = null,
 		array $splits = [],
+		string $description = '',
 	): RunwayRow {
 		return new RunwayRow(
 			$this->nextId++, $date, $amount, $categoryId, $status,
-			$excluded, $pensionLeg, $linkedAccountId, $billId, $splits,
+			$excluded, $pensionLeg, $linkedAccountId, $billId, $splits, $description,
 		);
 	}
 
@@ -210,16 +211,16 @@ class RunwayCalculatorTest extends TestCase {
 			7 => new RunwayBill(7, 'monthly', '800.00', 20),
 			8 => new RunwayBill(8, 'one-time', '100.00', 21),
 		];
-		$noBill = $this->row('2027-01-01', '-2000', status: 'scheduled');
+		$noBill = $this->row('2027-01-01', '-2000', status: 'scheduled', description: 'Car repair');
 		$recurringBill = $this->row('2026-12-01', '-800', status: 'scheduled', billId: 7);
-		$oneTimeBill = $this->row('2026-12-05', '-1200', status: 'scheduled', billId: 8);
+		$oneTimeBill = $this->row('2026-12-05', '-1200', status: 'scheduled', billId: 8, description: 'Boiler');
 		$future = [$noBill, $recurringBill, $oneTimeBill];
 		$rows = $this->monthly('-1000');
 
 		$with = $this->calc(['rows' => $rows, 'futureRows' => $future, 'bills' => $bills]);
 		$this->assertSame([
-			['date' => '2026-12-05', 'amount' => '-1200.00', 'description' => '', 'source' => 'scheduled'],
-			['date' => '2027-01-01', 'amount' => '-2000.00', 'description' => '', 'source' => 'scheduled'],
+			['date' => '2026-12-05', 'amount' => '-1200.00', 'description' => 'Boiler', 'source' => 'scheduled'],
+			['date' => '2027-01-01', 'amount' => '-2000.00', 'description' => 'Car repair', 'source' => 'scheduled'],
 		], $with['events']);
 		// 12000 - 3200 at 1000/month: day 268
 		$this->assertSame('2027-08-05', $with['scenarios']['current']['runsOutOn']);
@@ -229,6 +230,109 @@ class RunwayCalculatorTest extends TestCase {
 		]);
 		$this->assertSame([], $without['events']);
 		$this->assertSame(self::BASE_RUN_OUT, $without['scenarios']['current']['runsOutOn']);
+	}
+
+	public function testFutureRowWithBillNotInBillsIsApplied(): void {
+		// A transfer bill, or one paid from an unchosen account, never reaches bills
+		$result = $this->calc([
+			'rows' => $this->monthly('-1000'),
+			'futureRows' => [$this->row('2026-12-01', '-300', status: 'scheduled', billId: 99)],
+			'bills' => [7 => new RunwayBill(7, 'monthly', '800.00', 20)],
+		]);
+
+		$this->assertSame(
+			[['date' => '2026-12-01', 'amount' => '-300.00', 'description' => '', 'source' => 'scheduled']],
+			$result['events'],
+		);
+	}
+
+	public function testFutureInternalTransferIsNotAnEvent(): void {
+		$result = $this->calc([
+			'rows' => $this->monthly('-1000'),
+			'futureRows' => [
+				$this->row('2026-12-01', '-500', status: 'scheduled', linkedAccountId: 2),
+				$this->row('2026-12-01', '500', status: 'scheduled', linkedAccountId: 1),
+				$this->row('2026-12-02', '-250', status: 'scheduled', linkedAccountId: 9),
+			],
+		]);
+
+		$this->assertSame(
+			[['date' => '2026-12-02', 'amount' => '-250.00', 'description' => '', 'source' => 'scheduled']],
+			$result['events'],
+		);
+	}
+
+	public function testFutureExcludedAndPensionRowsAreStillApplied(): void {
+		$result = $this->calc([
+			'rows' => $this->monthly('-1000'),
+			'futureRows' => [
+				$this->row('2026-12-01', '-400', status: 'scheduled', excluded: true),
+				$this->row('2026-12-02', '-150', status: 'scheduled', pensionLeg: true),
+			],
+		]);
+
+		$this->assertSame(['2026-12-01', '2026-12-02'], array_column($result['events'], 'date'));
+		$this->assertSame(['-400.00', '-150.00'], array_column($result['events'], 'amount'));
+	}
+
+	public function testOneOffDatedTodayAppliedOnDayZero(): void {
+		$result = $this->calc([
+			'rows' => $this->monthly('-1000'),
+			'oneOffs' => [['id' => 1, 'description' => 'Today', 'amount' => '-12000', 'date' => '2026-11-10']],
+		]);
+
+		$current = $result['scenarios']['current'];
+		$this->assertSame('running_out', $current['state']);
+		$this->assertSame('2026-11-10', $current['runsOutOn']);
+		$this->assertSame(0.0, $current['months']);
+		$this->assertSame([['date' => '2026-11-10', 'total' => '0.00']], $result['series']['current']);
+		$this->assertCount(1, $result['events']);
+	}
+
+	public function testExcludedOnlyListsRowsThatWouldOtherwiseCount(): void {
+		$result = $this->calc([
+			'rows' => [
+				...$this->monthly('-1000'),
+				$this->row('2026-09-20', '-700', excluded: true, linkedAccountId: 2),
+				$this->row('2026-09-21', '-80', excluded: true, pensionLeg: true),
+				$this->row('2026-09-22', '-600', excluded: true, billId: 5),
+			],
+			'bills' => [5 => new RunwayBill(5, 'yearly', '50.00', 30)],
+		]);
+
+		$this->assertSame(['count' => 0, 'total' => '0.00', 'ids' => []], $result['excluded']);
+	}
+
+	public function testLongPeriodUsesEffectiveMonths(): void {
+		$quarterly = [4 => new RunwayBill(4, 'quarterly', '100.00', 40)];
+
+		// One month of history: a quarterly payment in it is smoothed to a third
+		$oneMonth = $this->calc([
+			'rows' => [$this->row('2026-10-15', '-300', 40, billId: 4)],
+			'bills' => $quarterly,
+			'firstActivityDate' => '2026-10-05',
+		]);
+		$this->assertSame(1, $oneMonth['window']['effectiveMonths']);
+		$this->assertSame('100.00', $oneMonth['monthlyOut']);
+
+		// Boundary: three averaged months see a quarterly bill come round, two don't
+		$threeMonths = $this->calc(['bills' => $quarterly]);
+		$this->assertSame(3, $threeMonths['window']['effectiveMonths']);
+		$this->assertSame('0.00', $threeMonths['monthlyOut']);
+
+		$twoMonths = $this->calc(['bills' => $quarterly, 'firstActivityDate' => '2026-09-05']);
+		$this->assertSame(2, $twoMonths['window']['effectiveMonths']);
+		$this->assertSame('100.00', $twoMonths['monthlyOut']);
+	}
+
+	public function testWindowMonthsClampedToOneToTwelve(): void {
+		$low = $this->calc(['windowMonths' => 0]);
+		$this->assertSame(1, $low['window']['months']);
+		$this->assertSame('2026-10-01', $low['window']['from']);
+
+		$high = $this->calc(['windowMonths' => 20]);
+		$this->assertSame(12, $high['window']['months']);
+		$this->assertSame('2025-11-01', $high['window']['from']);
 	}
 
 	public function testYearlyBillSmoothed(): void {

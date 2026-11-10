@@ -15,6 +15,7 @@ final class RunwayRow {
 	 * @param string $status cleared|pending|scheduled
 	 * @param ?int $linkedAccountId Account of the linked partner row, null if unlinked
 	 * @param list<array{categoryId: ?int, amount: string}> $splits Base currency, non-empty only for split parents
+	 * @param string $description Labels the row when it's applied as a future event
 	 */
 	public function __construct(
 		public int $id,
@@ -27,6 +28,7 @@ final class RunwayRow {
 		public ?int $linkedAccountId,
 		public ?int $billId,
 		public array $splits = [],
+		public string $description = '',
 	) {
 	}
 }

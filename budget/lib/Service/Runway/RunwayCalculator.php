@@ -31,19 +31,35 @@ class RunwayCalculator {
 	 *     oneOffs: list<array{id: int, description: string, amount: string, date: string}>,
 	 *     budgets: ?array<int, string>
 	 * } $in
+	 * @return array{
+	 *     window: array{months: int, effectiveMonths: int, from: string, to: string},
+	 *     monthlyOut: string, monthlyIn: string,
+	 *     excluded: array{count: int, total: string, ids: int[]},
+	 *     scenarios: array{
+	 *         current: array{state: string, monthlyDrain: ?string, months: ?float, runsOutOn: ?string},
+	 *         onBudget: array{state: string, monthlyDrain: ?string, months: ?float, runsOutOn: ?string}
+	 *     },
+	 *     differenceMonths: ?float,
+	 *     series: array{
+	 *         history: list<array{date: string, total: string}>,
+	 *         current: list<array{date: string, total: string}>,
+	 *         onBudget: list<array{date: string, total: string}>
+	 *     },
+	 *     events: list<array{date: string, amount: string, description: string, source: 'oneOff'|'scheduled'}>
+	 * }
 	 */
 	public function calculate(array $in): array {
 		$today = new \DateTimeImmutable($in['today']);
 		$todayDate = $today->format('Y-m-d');
 		$total = MoneyCalculator::add($in['total'], '0', self::SCALE);
-		$windowMonths = (int)$in['windowMonths'];
+		$windowMonths = max(1, min(12, (int)$in['windowMonths']));
 
 		$monthStart = $today->modify('first day of this month');
 		$from = $monthStart->modify("-{$windowMonths} months");
 		$to = $monthStart->modify('-1 day');
 		$effectiveMonths = $this->effectiveMonths($from, $windowMonths, $in['firstActivityDate'] ?? null);
 
-		$actuals = $this->windowActuals($in, $from->format('Y-m-d'), $to->format('Y-m-d'), $effectiveMonths);
+		$actuals = $this->windowActuals($in, $from->format('Y-m-d'), $to->format('Y-m-d'), $windowMonths, $effectiveMonths);
 		$monthlyOut = $this->perMonth(MoneyCalculator::negate($actuals['out'], self::SCALE), $effectiveMonths);
 		$monthlyIn = $this->perMonth($actuals['in'], $effectiveMonths);
 		$currentDrain = MoneyCalculator::subtract($monthlyOut, $monthlyIn);
@@ -84,6 +100,7 @@ class RunwayCalculator {
 			'monthlyIn' => $monthlyIn,
 			'excluded' => [
 				'count' => count($actuals['excludedIds']),
+				// Net money out, in the drain's sense: an excluded refund or windfall reduces it
 				'total' => self::round2(MoneyCalculator::negate($actuals['excludedSum'], self::SCALE)),
 				'ids' => $actuals['excludedIds'],
 			],
@@ -117,16 +134,18 @@ class RunwayCalculator {
 	}
 
 	/**
-	 * A bill that comes round less than once per window would be missing
-	 * from the average, or counted several times over while it sits in it.
+	 * A bill that comes round less than once per averaged period would be
+	 * missing from the average, or counted several times over while it sits
+	 * in it. The period is the months actually averaged over: with one month
+	 * of history a quarterly bill is long-period even in a 3-month window.
 	 */
-	private function isLongPeriod(RunwayBill $bill, int $windowMonths): bool {
+	private function isLongPeriod(RunwayBill $bill, int $months): bool {
 		$frequency = Frequency::tryFrom($bill->frequency);
 		if ($frequency === null || $frequency === Frequency::ONE_TIME || $frequency === Frequency::CUSTOM) {
 			return false;
 		}
-		// 12 / occurrences > window, kept in integers
-		return $windowMonths * $frequency->occurrencesPerYear() < 12;
+		// 12 / occurrences > months, kept in integers
+		return $months * $frequency->occurrencesPerYear() < 12;
 	}
 
 	/**
@@ -135,11 +154,12 @@ class RunwayCalculator {
 	 *
 	 * @return array{out: string, in: string, byCategory: array<int, string>, excludedSum: string, excludedIds: int[]}
 	 */
-	private function windowActuals(array $in, string $from, string $to, int $effectiveMonths): array {
+	private function windowActuals(array $in, string $from, string $to, int $windowMonths, int $effectiveMonths): array {
 		$chosen = array_map('intval', $in['chosenAccountIds'] ?? []);
+		$averagedMonths = $effectiveMonths > 0 ? $effectiveMonths : $windowMonths;
 		$longPeriod = array_filter(
 			$in['bills'] ?? [],
-			fn (RunwayBill $bill) => $this->isLongPeriod($bill, (int)$in['windowMonths']),
+			fn (RunwayBill $bill) => $this->isLongPeriod($bill, $averagedMonths),
 		);
 		$totals = ['out' => '0', 'in' => '0', 'byCategory' => [], 'excludedSum' => '0', 'excludedIds' => []];
 
@@ -147,17 +167,18 @@ class RunwayCalculator {
 			if ($row->date < $from || $row->date > $to || $row->status === 'scheduled') {
 				continue;
 			}
-			if ($row->excludedFromForecast) {
-				$totals['excludedSum'] = MoneyCalculator::add($totals['excludedSum'], $row->amount, self::SCALE);
-				$totals['excludedIds'][] = $row->id;
-				continue;
-			}
 			// An internal transfer only moves money between chosen accounts. Checking the
 			// partner's account, not whether the partner is in rows, keeps a transfer whose
 			// other leg falls just outside the window from counting as one-sided.
 			if ($row->pensionLeg
-				|| ($row->linkedAccountId !== null && in_array($row->linkedAccountId, $chosen, true))
+				|| $this->isInternalTransfer($row, $chosen)
 				|| ($row->billId !== null && isset($longPeriod[$row->billId]))) {
+				continue;
+			}
+			// Checked last, so `excluded` lists only rows that would otherwise have counted
+			if ($row->excludedFromForecast) {
+				$totals['excludedSum'] = MoneyCalculator::add($totals['excludedSum'], $row->amount, self::SCALE);
+				$totals['excludedIds'][] = $row->id;
 				continue;
 			}
 			$this->addToTotals($totals, $row->amount);
@@ -179,6 +200,13 @@ class RunwayCalculator {
 		}
 
 		return $totals;
+	}
+
+	/**
+	 * @param int[] $chosen
+	 */
+	private function isInternalTransfer(RunwayRow $row, array $chosen): bool {
+		return $row->linkedAccountId !== null && in_array($row->linkedAccountId, $chosen, true);
 	}
 
 	private function addToTotals(array &$totals, string $amount): void {
@@ -231,9 +259,12 @@ class RunwayCalculator {
 	 * included. A recurring bill's pre-booking is left out: that bill is
 	 * already in the average (as actual rows or smoothed), so applying it
 	 * again would count it twice. A one-time bill is in no average, so its
-	 * row is applied.
+	 * row is applied. A transfer between chosen accounts nets to nothing, so
+	 * neither leg is an event. Rows excluded from the forecast and pension
+	 * legs are still applied: those flags keep them out of the average, but
+	 * they are real money leaving on a known date.
 	 *
-	 * @return list<array{date: string, amount: string, description: string, source: string}>
+	 * @return list<array{date: string, amount: string, description: string, source: 'oneOff'|'scheduled'}>
 	 */
 	private function events(array $in, string $today): array {
 		$events = [];
@@ -241,7 +272,7 @@ class RunwayCalculator {
 			if ($oneOff['date'] >= $today) {
 				$events[] = [
 					'date' => $oneOff['date'],
-					'amount' => MoneyCalculator::add($oneOff['amount'], '0'),
+					'amount' => self::round2($oneOff['amount']),
 					'description' => $oneOff['description'],
 					'source' => 'oneOff',
 				];
@@ -250,9 +281,10 @@ class RunwayCalculator {
 
 		if ($in['includeScheduled'] ?? false) {
 			$bills = $in['bills'] ?? [];
+			$chosen = array_map('intval', $in['chosenAccountIds'] ?? []);
 			foreach ($in['futureRows'] ?? [] as $row) {
 				// Today's rows are already in the total
-				if ($row->date <= $today) {
+				if ($row->date <= $today || $this->isInternalTransfer($row, $chosen)) {
 					continue;
 				}
 				$bill = $row->billId !== null ? ($bills[$row->billId] ?? null) : null;
@@ -261,8 +293,8 @@ class RunwayCalculator {
 				}
 				$events[] = [
 					'date' => $row->date,
-					'amount' => MoneyCalculator::add($row->amount, '0'),
-					'description' => '',
+					'amount' => self::round2($row->amount),
+					'description' => $row->description,
 					'source' => 'scheduled',
 				];
 			}
