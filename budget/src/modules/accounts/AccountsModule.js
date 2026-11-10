@@ -2512,7 +2512,8 @@ export default class AccountsModule {
 
     /**
      * The "0% until ..." tile on the account detail view. Only a liability
-     * with an end date shows it; once the date has passed it reads "ended".
+     * with an end date shows it. From the end date on it reads "ended" (the
+     * promo covers start to the day before end); one still to start says so.
      */
     renderPromoInfo(account) {
         const info = document.getElementById('promo-rate-info');
@@ -2529,10 +2530,15 @@ export default class AccountsModule {
 
         const rate = Number(account.promoRate);
         const date = this.formatDate(account.promoEnd);
-        const ended = account.promoEnd < formatters.getTodayDateString();
-        display.textContent = ended
-            ? /* xgettext:no-javascript-format */ t('budget', '{rate}% ended {date}', { rate, date })
-            : /* xgettext:no-javascript-format */ t('budget', '{rate}% until {date}', { rate, date });
+        const today = formatters.getTodayDateString();
+        if (account.promoEnd <= today) {
+            display.textContent = /* xgettext:no-javascript-format */ t('budget', '{rate}% ended {date}', { rate, date });
+        } else if (account.promoStart && account.promoStart > today) {
+            const start = this.formatDate(account.promoStart);
+            display.textContent = /* xgettext:no-javascript-format */ t('budget', '{rate}% from {start} until {date}', { rate, start, date });
+        } else {
+            display.textContent = /* xgettext:no-javascript-format */ t('budget', '{rate}% until {date}', { rate, date });
+        }
         info.style.display = 'block';
     }
 

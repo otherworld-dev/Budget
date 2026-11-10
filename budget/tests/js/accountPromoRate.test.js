@@ -184,6 +184,17 @@ describe('promotional rate on the account detail view', () => {
         expect(document.getElementById('account-promo-display').textContent).toMatch(/^0% ended /);
     });
 
+    it('says ended on the end date itself', () => {
+        const today = formatters.getTodayDateString();
+        mod.renderPromoInfo({ type: 'credit_card', promoRate: 0, promoStart: '2020-01-01', promoEnd: today });
+        expect(document.getElementById('account-promo-display').textContent).toMatch(/^0% ended /);
+    });
+
+    it('says from and until for a promo still to start', () => {
+        mod.renderPromoInfo({ type: 'credit_card', promoRate: 0, promoStart: '2998-01-01', promoEnd: '2999-01-01' });
+        expect(document.getElementById('account-promo-display').textContent).toMatch(/^0% from .+ until .+/);
+    });
+
     it('hides without a promo or for a non-liability', () => {
         mod.renderPromoInfo({ type: 'credit_card', promoRate: null, promoEnd: null });
         expect(visible('promo-rate-info')).toBe(false);

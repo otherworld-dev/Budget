@@ -2945,12 +2945,15 @@ class BudgetApp {
                 payoffDateStr = payoffDate.toLocaleDateString(formatters.userLocale(), { month: 'short', year: 'numeric' });
             }
 
+            // The plan only carries a promo that has not ended yet
             let promoLine = '';
             if (debt.promoRate !== null && debt.promoRate !== undefined) {
-                const promoEnd = debt.promoEnd
-                    ? new Date(debt.promoEnd + 'T00:00:00').toLocaleDateString(formatters.userLocale(), { day: 'numeric', month: 'short', year: 'numeric' })
-                    : '';
-                promoLine = `<div>${dom.escapeHtml(/* xgettext:no-javascript-format */ t('budget', 'Promotional rate: {rate}% until {date}', { rate: Number(debt.promoRate), date: promoEnd }))}</div>`;
+                const promoRate = Number(debt.promoRate);
+                const promoEnd = debt.promoEnd ? this.formatDate(debt.promoEnd) : '';
+                const text = debt.promoStart && debt.promoStart > formatters.getTodayDateString()
+                    ? /* xgettext:no-javascript-format */ t('budget', 'Promotional rate: {rate}% from {start} until {date}', { rate: promoRate, start: this.formatDate(debt.promoStart), date: promoEnd })
+                    : /* xgettext:no-javascript-format */ t('budget', 'Promotional rate: {rate}% until {date}', { rate: promoRate, date: promoEnd });
+                promoLine = `<div>${dom.escapeHtml(text)}</div>`;
             }
 
             // Min Payment is this month's; a minimum set for the promo can

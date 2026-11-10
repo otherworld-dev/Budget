@@ -224,8 +224,10 @@ class DebtPayoffPromoTest extends TestCase {
 		$debts = array_column($plan['debts'], null, 'id');
 
 		$this->assertNull($debts[1]['promoRate']);
+		$this->assertNull($debts[1]['promoStart']);
 		$this->assertNull($debts[1]['promoEnd']);
 		$this->assertSame(0.0, $debts[2]['promoRate']);
+		$this->assertSame('2026-11-01', $debts[2]['promoStart']);
 		$this->assertSame('2027-11-01', $debts[2]['promoEnd']);
 		// interestRate stays the normal rate
 		$this->assertEquals(22.9, $debts[2]['interestRate']);

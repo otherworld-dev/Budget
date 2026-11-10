@@ -473,6 +473,7 @@ class DebtPayoffService {
 				// The normal rate (after any override), not a promo's
 				'interestRate' => round($debt['normalRate'] * 100, 2),
 				'promoRate' => $promoActive ? round($debt['promoRate'] * 100, 2) : null,
+				'promoStart' => $promoActive ? $debt['promoStart'] : null,
 				'promoEnd' => $promoActive ? $debt['promoEnd'] : null,
 				'interestPaid' => round($debt['interestPaid'], 2),
 				'payoffMonth' => $debt['payoffMonth'],
