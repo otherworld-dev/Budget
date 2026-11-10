@@ -44,6 +44,7 @@ class SettingController extends Controller {
 		'number_format_thousands_sep' => ',',
 		'notification_budget_alert' => 'true',
 		'notification_forecast_warning' => 'true',
+		'notification_runway_alert' => 'true',
 		'digest_enabled' => 'false',
 		'digest_frequency' => 'weekly',
 		'digest_email_enabled' => 'false',
@@ -70,7 +71,21 @@ class SettingController extends Controller {
 		'dashboard_locked' => 'true', // Dashboard starts locked
 		AmountColours::SETTING_SCHEME => 'default', // money in / out colours (#432)
 		AmountColours::SETTING_CUSTOM => AmountColours::DEFAULT_CUSTOM_JSON,
+		// One runway setup for every tile, the API and the alert: blank account
+		// ids mean the default set (RunwayService::chosenAccounts())
+		'runway_account_ids' => '',
+		'runway_window_months' => '3',
+		'runway_include_scheduled' => 'true',
+		'runway_alert_months' => '1',
 	];
+
+	/** Whole-number runway settings and the range each accepts */
+	private const RUNWAY_RANGES = [
+		'runway_window_months' => [1, 12],
+		'runway_alert_months' => [1, 6],
+	];
+
+	private const RUNWAY_SWITCHES = ['runway_include_scheduled', 'notification_runway_alert'];
 
 	/**
 	 * Keys the web app saves beyond those with a default. Together with
@@ -221,6 +236,14 @@ class SettingController extends Controller {
 					return $this->invalidColourSetting();
 				}
 			}
+			// And for the runway setup
+			foreach ($data as $key => $value) {
+				try {
+					$data[$key] = $this->validatedRunwaySetting((string)$key, $value);
+				} catch (\InvalidArgumentException $e) {
+					return $this->invalidRunwaySetting((string)$key);
+				}
+			}
 
 			foreach ($data as $key => $value) {
 
@@ -287,6 +310,11 @@ class SettingController extends Controller {
 			} catch (\InvalidArgumentException $e) {
 				return $this->invalidColourSetting();
 			}
+			try {
+				$value = $this->validatedRunwaySetting($key, $value);
+			} catch (\InvalidArgumentException $e) {
+				return $this->invalidRunwaySetting($key);
+			}
 
 			if ($key === AttachmentService::RECEIPT_FOLDER_KEY) {
 				try {
@@ -343,6 +371,57 @@ class SettingController extends Controller {
 
 	private function invalidColourSetting(): DataResponse {
 		return new DataResponse(['error' => $this->l->t('Invalid colour setting')], Http::STATUS_BAD_REQUEST);
+	}
+
+	/**
+	 * The runway setup is checked and stored in one plain form, so
+	 * RunwayService reads exactly what it expects: account ids as a JSON
+	 * list of ids ('' for the default set), the window and alert months as
+	 * whole numbers in range, the switches as 'true' or 'false'. Any other
+	 * key passes through untouched.
+	 *
+	 * @param mixed $value
+	 * @return mixed
+	 * @throws \InvalidArgumentException when the value isn't acceptable
+	 */
+	private function validatedRunwaySetting(string $key, $value) {
+		if ($key === 'runway_account_ids') {
+			if ($value === '' || $value === null) {
+				return '';
+			}
+			$ids = is_string($value) ? json_decode($value, true) : $value;
+			if (!is_array($ids) || !array_is_list($ids)) {
+				throw new \InvalidArgumentException('Account ids must be a list');
+			}
+			foreach ($ids as $id) {
+				if (!is_int($id) || $id < 1) {
+					throw new \InvalidArgumentException('Account ids must be whole numbers');
+				}
+			}
+			return (string)json_encode(array_values(array_unique($ids)));
+		}
+		if (isset(self::RUNWAY_RANGES[$key])) {
+			[$min, $max] = self::RUNWAY_RANGES[$key];
+			$text = is_int($value) ? (string)$value : (is_string($value) ? trim($value) : '');
+			if (!ctype_digit($text) || (int)$text < $min || (int)$text > $max) {
+				throw new \InvalidArgumentException('Out of range');
+			}
+			return (string)(int)$text;
+		}
+		if (in_array($key, self::RUNWAY_SWITCHES, true)) {
+			if (is_bool($value)) {
+				return $value ? 'true' : 'false';
+			}
+			if ($value !== 'true' && $value !== 'false') {
+				throw new \InvalidArgumentException('Must be true or false');
+			}
+			return $value;
+		}
+		return $value;
+	}
+
+	private function invalidRunwaySetting(string $key): DataResponse {
+		return new DataResponse(['error' => $this->l->t('Invalid runway setting: %1$s', [$key])], Http::STATUS_BAD_REQUEST);
 	}
 
 	/**

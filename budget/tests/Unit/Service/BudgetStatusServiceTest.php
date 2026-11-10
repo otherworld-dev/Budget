@@ -373,4 +373,56 @@ class BudgetStatusServiceTest extends TestCase {
 		$this->assertSame([], $status['categories']);
 		$this->assertSame(['0.00', '0.00', '0.00'], array_map(self::money(...), array_values($status['totals'])));
 	}
+
+	// ── monthlyBaseBudgets (runway) ─────────────────────────────────
+
+	/**
+	 * The runway swaps a category's average spending for its budget in
+	 * every month it projects, so it takes the base budget a month: a carry
+	 * belongs to one month and would otherwise repeat in all of them.
+	 */
+	public function testMonthlyBaseBudgetsIgnoresCarryAndNormalises(): void {
+		$this->tree = [
+			self::cat(1, 'Insurance'),
+			self::cat(2, 'Groceries'),
+			self::cat(3, 'Salary', ['type' => 'income']),
+			self::cat(4, 'Unbudgeted'),
+		];
+		$this->budgets = [
+			1 => self::budget(1200, 'yearly'),
+			2 => self::budget(250, 'monthly', 50, true),
+			3 => self::budget(3000),
+			4 => self::budget(0),
+		];
+
+		$this->assertSame([1 => '100.00', 2 => '200.00'], $this->service->monthlyBaseBudgets('user1'));
+	}
+
+	public function testMonthlyBaseBudgetsFallBackToTheCategoryAmountThenRecurring(): void {
+		$this->tree = [
+			self::cat(5, 'Vet', ['budgetAmount' => 25.0]),
+			self::cat(6, 'Gym'),
+			self::cat(7, 'Coffee', ['budgetPeriod' => 'weekly']),
+		];
+		// 5 has no entry; 6 and 7 have nothing set and fall back to recurring
+		$this->budgets = [
+			6 => self::budget(0),
+			7 => ['amount' => null, 'period' => 'weekly', 'rollover' => false, 'carried' => 0.0, 'available' => 12.0],
+		];
+		$this->recurring = [6 => 40.0, 7 => 52.0];
+
+		$this->assertSame([5 => '25.00', 6 => '40.00', 7 => '52.00'], $this->service->monthlyBaseBudgets('user1'));
+	}
+
+	public function testMonthlyBaseBudgetsTakeEachCategorysOwnAndLeaveOutExcludedBranches(): void {
+		$this->tree = [
+			self::cat(8, 'Business', ['excludedFromBudget' => true, 'children' => [self::cat(9, 'Travel', ['parentId' => 8])]]),
+			self::cat(10, 'Food', ['children' => [self::cat(11, 'Takeaway', ['parentId' => 10])]]),
+		];
+		$this->budgets = [9 => self::budget(500), 10 => self::budget(100), 11 => self::budget(30)];
+
+		// The parent's own budget, not rolled up with its child's: the runway
+		// swaps each category's own spending
+		$this->assertSame([10 => '100.00', 11 => '30.00'], $this->service->monthlyBaseBudgets('user1'));
+	}
 }

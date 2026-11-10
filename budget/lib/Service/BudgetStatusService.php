@@ -35,17 +35,7 @@ class BudgetStatusService {
 		$currentMonth = $this->carryoverService->currentBudgetMonth($userId);
 		$month ??= $currentMonth;
 		[$startDate, $endDate] = $this->carryoverService->budgetMonthRange($userId, $month);
-		// The page reads the same scope for its budgets and its spending
-		$accountIds = $this->granularShareService->getVisibleAccountIds($userId);
-
-		$budgets = $this->categoryService->resolveEffectiveBudgets($userId, $month, $accountIds)
-			+ $this->sharedBudgets->effectiveBudgets($userId, $month);
-
-		$tree = self::filterBudgetCategories(self::mergeCategoryTree(
-			$this->categoryService->getCategoryTree($userId),
-			self::sharedTree($this->granularShareService->getSharedCategories($userId))
-		));
-		$rows = self::flatten($tree);
+		[$accountIds, $budgets, $tree, $rows] = $this->budgetRows($userId, $month);
 
 		[$periods, $ownBudget] = $this->ownBudgets($userId, $rows, $budgets, $month, $month < $currentMonth);
 		// Every row is measured over the month, whatever its period
@@ -67,14 +57,66 @@ class BudgetStatusService {
 	}
 
 	/**
+	 * Each expense category's own base budget for the budget month running
+	 * today, as a monthly amount to 2 places, for the runway's on-budget
+	 * scenario. The same rows and budgets the Budget page shows, but never
+	 * the envelope's `available`: a carry belongs to one month, and the
+	 * runway swaps the budget in for every month it projects. Each category
+	 * keeps its own budget, not its branch's, because the runway swaps each
+	 * category's own spending. Only budgets above zero are listed.
+	 *
+	 * @return array<int, string> by category id
+	 */
+	public function monthlyBaseBudgets(string $userId): array {
+		$month = $this->carryoverService->currentBudgetMonth($userId);
+		[, $budgets, , $rows] = $this->budgetRows($userId, $month);
+		$rows = array_values(array_filter($rows, static fn (array $row) => ($row['type'] ?? '') === 'expense'));
+		[$periods, $ownBudget] = $this->ownBudgets($userId, $rows, $budgets, $month, false, false);
+
+		$monthly = [];
+		foreach ($ownBudget as $id => $amount) {
+			// Anything not above zero is dropped, so adding half a cent
+			// before bcmath truncates rounds what's kept to the nearest
+			$rounded = MoneyCalculator::add(BudgetPeriod::monthlyTotal([[$amount, $periods[$id]]]), '0.005', 2);
+			if (MoneyCalculator::compare($rounded, '0') > 0) {
+				$monthly[$id] = $rounded;
+			}
+		}
+		return $monthly;
+	}
+
+	/**
+	 * What the Budget page builds a month from: the account scope it reads
+	 * budgets and spending over, each category's budget entry, and the
+	 * category tree (own and shared, merged, with excluded branches gone)
+	 * plus its rows in page order.
+	 *
+	 * @return array{0: int[], 1: array<int, array<string, mixed>>, 2: array, 3: list<array<string, mixed>>} [accountIds, budgets, tree, rows]
+	 */
+	private function budgetRows(string $userId, string $month): array {
+		// The page reads the same scope for its budgets and its spending
+		$accountIds = $this->granularShareService->getVisibleAccountIds($userId);
+
+		$budgets = $this->categoryService->resolveEffectiveBudgets($userId, $month, $accountIds)
+			+ $this->sharedBudgets->effectiveBudgets($userId, $month);
+
+		$tree = self::filterBudgetCategories(self::mergeCategoryTree(
+			$this->categoryService->getCategoryTree($userId),
+			self::sharedTree($this->granularShareService->getSharedCategories($userId))
+		));
+		return [$accountIds, $budgets, $tree, self::flatten($tree)];
+	}
+
+	/**
 	 * Each row's own budget and the period it is set for: the page's
 	 * _getEffectiveBudgetForCalc() and _getEffectiveBudgetPeriod(). The
-	 * server's `available` wins; a category with no entry falls back to its
-	 * own amount, then to the recurring figure (never for a past month).
+	 * server's `available` wins (unless $withCarry is off, which leaves the
+	 * base budget); a category with no entry falls back to its own amount,
+	 * then to the recurring figure (never for a past month).
 	 *
 	 * @return array{0: array<int, string>, 1: array<int, string>} [periods, budgets] by category id
 	 */
-	private function ownBudgets(string $userId, array $rows, array $budgets, string $month, bool $pastMonth): array {
+	private function ownBudgets(string $userId, array $rows, array $budgets, string $month, bool $pastMonth, bool $withCarry = true): array {
 		$periods = [];
 		$own = [];
 		$recurring = null;
@@ -85,7 +127,7 @@ class BudgetStatusService {
 				? (((string)($entry['period'] ?? '')) ?: 'monthly')
 				: (((string)($row['budgetPeriod'] ?? '')) ?: 'monthly');
 
-			if ($entry !== null && ($entry['available'] ?? null) !== null) {
+			if ($withCarry && $entry !== null && ($entry['available'] ?? null) !== null) {
 				$own[$id] = MoneyCalculator::add((float)$entry['available'], '0', self::SCALE);
 				continue;
 			}
