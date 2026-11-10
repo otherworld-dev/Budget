@@ -11,6 +11,7 @@ use OCA\Budget\Enum\Currency;
 use OCA\Budget\Service\AmountColours;
 use OCA\Budget\Service\AttachmentService;
 use OCA\Budget\Service\BankSync\EnableBanking\EnableBankingKeyStore;
+use OCA\Budget\Service\BillService;
 use OCA\Budget\Service\BudgetCarryoverService;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\ImportFolderService;
@@ -70,6 +71,7 @@ class SettingController extends Controller {
 		'dashboard_locked' => 'true', // Dashboard starts locked
 		AmountColours::SETTING_SCHEME => 'default', // money in / out colours (#432)
 		AmountColours::SETTING_CUSTOM => AmountColours::DEFAULT_CUSTOM_JSON,
+		BillService::MATCH_WINDOW_SETTING => '5', // days either side an imported row matches a bill by name
 	];
 
 	/**
@@ -216,7 +218,7 @@ class SettingController extends Controller {
 			// Same again for the colour settings, so a bad one saves nothing
 			foreach ($data as $key => $value) {
 				try {
-					$data[$key] = $this->validatedColourSetting((string)$key, $value);
+					$data[$key] = $this->validatedSetting((string)$key, $value);
 				} catch (\InvalidArgumentException $e) {
 					return $this->invalidColourSetting();
 				}
@@ -283,7 +285,7 @@ class SettingController extends Controller {
 				return $this->refusedKey($key);
 			}
 			try {
-				$value = $this->validatedColourSetting($key, $value);
+				$value = $this->validatedSetting($key, $value);
 			} catch (\InvalidArgumentException $e) {
 				return $this->invalidColourSetting();
 			}
@@ -320,14 +322,15 @@ class SettingController extends Controller {
 
 	/**
 	 * The colour scheme and custom palette are checked, and the palette
-	 * stored in its canonical form (lowercase, fixed key order). Any other
-	 * key passes through untouched.
+	 * stored in its canonical form (lowercase, fixed key order). The bill
+	 * match window is held to whole days in range. Any other key passes
+	 * through untouched.
 	 *
 	 * @param mixed $value
 	 * @return mixed
 	 * @throws \InvalidArgumentException when the value isn't acceptable
 	 */
-	private function validatedColourSetting(string $key, $value) {
+	private function validatedSetting(string $key, $value) {
 		if ($key === AmountColours::SETTING_SCHEME) {
 			if (!is_string($value) || !in_array($value, AmountColours::SCHEMES, true)) {
 				throw new \InvalidArgumentException('Unknown colour scheme');
@@ -337,6 +340,8 @@ class SettingController extends Controller {
 				throw new \InvalidArgumentException('Custom colours must be a JSON string');
 			}
 			return AmountColours::validateCustom($value);
+		} elseif ($key === BillService::MATCH_WINDOW_SETTING) {
+			return (string)BillService::matchWindowDays(is_scalar($value) ? (string)$value : null);
 		}
 		return $value;
 	}

@@ -7946,6 +7946,22 @@ label .required {
     color: var(--budget-color-negative);
 }
 
+/* A preview row the import pays a bill with, or leaves to the user */
+.status-info {
+    background: var(--color-primary-element-light);
+    color: var(--color-primary-element-light-text);
+}
+
+.status-warning {
+    background: rgba(233, 166, 0, 0.15);
+    color: var(--color-warning-text, var(--color-warning));
+}
+
+.import-bill-review {
+    margin: 8px 0 0;
+    color: var(--color-warning-text, var(--color-warning));
+}
+
 /* Import Responsive Design */
 @media (max-width: 1024px) {
     .mapping-container {
@@ -19974,6 +19990,22 @@ input.flatpickr-input[type="hidden"] + .flatpickr-input {
 
 .duplicate-group-items {
     padding: 4px 0;
+}
+
+/* A bill's booked payment and the bank's row of it: nothing to tick, one Merge */
+.duplicate-item.bill-pair-row {
+    cursor: default;
+}
+
+.bill-pair-actions {
+    padding: 0 14px 10px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+#duplicates-bill-pairs .duplicates-summary h3 {
+    margin: 0 0 6px;
+    font-size: 15px;
 }
 
 .duplicate-item {

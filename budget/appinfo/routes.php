@@ -211,6 +211,9 @@ return [
 		['name' => 'bill#createFromDetected', 'url' => '/api/bills/create-from-detected', 'verb' => 'POST'],
 		['name' => 'bill#annualOverview', 'url' => '/api/bills/annual-overview', 'verb' => 'GET'],
 		['name' => 'bill#unrecordedPayments', 'url' => '/api/bills/unrecorded-payments', 'verb' => 'GET'],
+		// A bill's booked payment beside the bank's own row of it, and payments the bank hasn't shown
+		['name' => 'bill#paymentPairs', 'url' => '/api/bills/payment-pairs', 'verb' => 'GET'],
+		['name' => 'bill#unconfirmedPayments', 'url' => '/api/bills/unconfirmed-payments', 'verb' => 'GET'],
 		['name' => 'bill#exportCalendar', 'url' => '/api/bills/export-calendar', 'verb' => 'POST'],
 
 		// Bills calendar feed (ICS): public token-authenticated feed + token management
@@ -226,6 +229,8 @@ return [
 		['name' => 'bill#markPaid', 'url' => '/api/bills/{id}/paid', 'verb' => 'POST'],
 		['name' => 'bill#recordMissedPayment', 'url' => '/api/bills/{id}/record-payment', 'verb' => 'POST'],
 		['name' => 'bill#dismissUnrecordedPayment', 'url' => '/api/bills/{id}/dismiss-unrecorded', 'verb' => 'POST'],
+		['name' => 'bill#mergePayment', 'url' => '/api/bills/{id}/merge-payment', 'verb' => 'POST'],
+		['name' => 'bill#confirmPayment', 'url' => '/api/bills/{id}/confirm-payment', 'verb' => 'POST'],
 		['name' => 'bill#skipPayment', 'url' => '/api/bills/{id}/skip', 'verb' => 'POST'],
 		['name' => 'bill#undoSkip', 'url' => '/api/bills/{id}/undo-skip', 'verb' => 'POST'],
 		['name' => 'bill#undoPaid', 'url' => '/api/bills/{id}/undo-paid', 'verb' => 'POST'],

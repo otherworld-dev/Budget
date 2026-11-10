@@ -3364,6 +3364,83 @@ class TransactionMapper extends QBMapper {
 	}
 
 	/**
+	 * Debits the app booked for any of the bills (by their generated notes,
+	 * never an imported row), scheduled placeholders included
+	 *
+	 * @param int[] $billIds
+	 * @return Transaction[]
+	 */
+	public function findGeneratedBillDebits(array $billIds): array {
+		if ($billIds === []) {
+			return [];
+		}
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->in('bill_id', $qb->createNamedParameter($billIds, IQueryBuilder::PARAM_INT_ARRAY)))
+			->andWhere($qb->expr()->eq('type', $qb->createNamedParameter('debit')))
+			->andWhere($qb->expr()->orX(
+				$qb->expr()->like('notes', $qb->createNamedParameter('Auto-generated from bill:%')),
+				$qb->expr()->like('notes', $qb->createNamedParameter('Auto-generated transfer:%'))
+			))
+			->andWhere($qb->expr()->orX(
+				$qb->expr()->isNull('import_id'),
+				$qb->expr()->eq('import_id', $qb->createNamedParameter(''))
+			))
+			->orderBy('date', 'ASC')
+			->addOrderBy('id', 'ASC');
+
+		return $this->findEntities($qb);
+	}
+
+	/**
+	 * Debits that came from a statement or a bank sync into the account
+	 * between two dates and pay no bill (or one since deleted)
+	 *
+	 * @return Transaction[]
+	 */
+	public function findUnbilledImportedDebits(int $accountId, string $from, string $to): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('t.*')
+			->from($this->getTableName(), 't')
+			->leftJoin('t', 'budget_bills', 'b', $qb->expr()->eq('t.bill_id', 'b.id'))
+			->where($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
+			->andWhere($qb->expr()->isNotNull('t.import_id'))
+			->andWhere($qb->expr()->neq('t.import_id', $qb->createNamedParameter('')))
+			->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($from)))
+			->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($to)))
+			->andWhere($qb->expr()->orX(
+				$qb->expr()->neq('t.status', $qb->createNamedParameter('scheduled')),
+				$qb->expr()->isNull('t.status')
+			))
+			->andWhere($qb->expr()->orX(
+				$qb->expr()->isNull('t.bill_id'),
+				$qb->expr()->eq('t.bill_id', $qb->createNamedParameter(0, IQueryBuilder::PARAM_INT)),
+				$qb->expr()->isNull('b.id')
+			))
+			->orderBy('t.date', 'ASC')
+			->addOrderBy('t.id', 'ASC');
+
+		return $this->findEntities($qb);
+	}
+
+	/** Whether any row of the account came from a statement or a bank sync (carries an import id) */
+	public function hasImportedRows(int $accountId): bool {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('id')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->isNotNull('import_id'))
+			->andWhere($qb->expr()->neq('import_id', $qb->createNamedParameter('')))
+			->setMaxResults(1);
+		$result = $qb->executeQuery();
+		$found = $result->fetchOne() !== false;
+		$result->closeCursor();
+		return $found;
+	}
+
+	/**
 	 * Find scheduled transactions whose date has arrived (for background job transition).
 	 *
 	 * @return Transaction[]

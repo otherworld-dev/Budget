@@ -2529,7 +2529,12 @@ style('budget', 'budget-app');
                                     <span class="stat-label"><?php p($l->t('Auto-categorized:')); ?></span>
                                     <span class="stat-value" id="categorized-transactions">0</span>
                                 </div>
+                                <div class="stat-item">
+                                    <span class="stat-label"><?php p($l->t('Matched to bills:')); ?></span>
+                                    <span class="stat-value" id="import-bill-matches">0</span>
+                                </div>
                             </div>
+                            <p id="import-bill-review" class="import-bill-review" style="display: none;"></p>
 
                             <!-- Single account selection (for CSV) -->
                             <div class="account-selection" id="single-account-selection">
@@ -2642,6 +2647,15 @@ style('budget', 'budget-app');
                         <?php p($l->t('Add Bill')); ?>
                     </button>
                 </div>
+            </div>
+
+            <!-- Bill payments the bank's rows haven't shown a week on -->
+            <div id="unconfirmed-payments-card" class="unrecorded-payments-card" style="display: none;">
+                <div class="bill-suggestions-header">
+                    <h3><?php p($l->t('Bill payments the bank hasn\'t shown')); ?> <span id="unconfirmed-payments-count" class="badge"></span></h3>
+                </div>
+                <p class="bill-suggestions-hint"><?php p($l->t('More than a week on, no row from the bank matches these. A bill that is overdue may have stopped or moved to another account; an auto-paid payment may have gone out for a different amount.')); ?></p>
+                <div id="unconfirmed-payments-list"></div>
             </div>
 
             <!-- Proactive recurring-bill suggestions -->
@@ -4809,6 +4823,15 @@ style('budget', 'budget-app');
                                     <small><?php p($l->t('Automatically categorize transactions when importing')); ?></small>
                                 </div>
                             </label>
+                        </div>
+
+                        <div class="setting-item">
+                            <label for="setting-bill-match-window-days">
+                                <strong><?php p($l->t('Bill match window (days)')); ?></strong>
+                                <small><?php p($l->t('How many days either side of a bill payment an imported row can be and still be matched to it by the bill\'s name. The amount must match to the penny.')); ?></small>
+                            </label>
+                            <input type="number" id="setting-bill-match-window-days" class="setting-input"
+                                   min="1" max="30" step="1" value="5">
                         </div>
 
                         <div class="setting-item">

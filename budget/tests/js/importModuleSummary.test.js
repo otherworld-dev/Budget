@@ -38,6 +38,8 @@ beforeEach(() => {
             <span id="new-transactions">0</span>
             <span id="duplicate-transactions">0</span>
             <span id="categorized-transactions">0</span>
+            <span id="import-bill-matches">0</span>
+            <p id="import-bill-review" style="display: none;"></p>
         </div>
     `;
 });
@@ -64,5 +66,26 @@ describe('ImportModule review summary', () => {
         expect(document.getElementById('new-transactions').textContent).toBe('2');
         expect(document.getElementById('duplicate-transactions').textContent).toBe('1');
         expect(document.getElementById('total-transactions').textContent).toBe('0');
+    });
+
+    it('counts the rows that pay a bill and says how many are left for review', () => {
+        const mod = new ImportModule(makeApp());
+
+        mod.updateImportSummary({ totalRows: 15, validTransactions: 15, transactions: [], billMatches: { matched: 12, review: 3 } });
+
+        expect(document.getElementById('import-bill-matches').textContent).toBe('12');
+        const note = document.getElementById('import-bill-review');
+        expect(note.style.display).toBe('');
+        expect(note.textContent).toContain('could be the payment of more than one bill');
+    });
+
+    it('hides the review note when every match is certain, and copes with no summary', () => {
+        const mod = new ImportModule(makeApp());
+
+        mod.updateImportSummary({ totalRows: 2, validTransactions: 2, transactions: [], billMatches: { matched: 2, review: 0 } });
+        expect(document.getElementById('import-bill-review').style.display).toBe('none');
+
+        mod.updateImportSummary({ totalRows: 2, validTransactions: 2, transactions: [] });
+        expect(document.getElementById('import-bill-matches').textContent).toBe('0');
     });
 });
