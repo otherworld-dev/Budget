@@ -6232,7 +6232,7 @@ style('budget', 'budget-app');
 
                         <div class="form-group conditional" id="promo-rate-group">
                             <label for="account-promo-rate"><?php p($l->t('Promotional rate (%%)')); ?></label>
-                            <input type="text" inputmode="decimal" data-amount id="account-promo-rate">
+                            <input type="text" inputmode="decimal" data-amount id="account-promo-rate" min="0">
                             <label for="account-promo-start"><?php p($l->t('Starts on')); ?></label>
                             <input type="date" id="account-promo-start">
                             <label for="account-promo-end"><?php p($l->t('Ends on')); ?></label>
