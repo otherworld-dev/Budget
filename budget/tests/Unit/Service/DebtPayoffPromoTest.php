@@ -151,6 +151,37 @@ class DebtPayoffPromoTest extends TestCase {
 		$this->assertLessThan(480, $plan['totalMonths']);
 	}
 
+	public function testMinimumPaymentIsThisMonthsDuringPromo(): void {
+		// The testMinimumRaisedWhenPromoEnds card: 25 a month at 0% now,
+		// raised once 24.9% comes back in February
+		$service = $this->service([
+			$this->card(1, -5000.0, 24.9, 25.0, 0.0, '2026-11-01', '2027-02-01'),
+		]);
+
+		$plan = $service->calculatePayoffPlan('alice', 'avalanche', 0.0);
+		$debt = $plan['debts'][0];
+
+		$this->assertSame(25.0, $debt['minimumPayment']);
+		$this->assertNotNull($debt['minimumAfterPromo']);
+		$this->assertGreaterThan(25.0, $debt['minimumAfterPromo']);
+		// The first month pays the account's minimum, not the raised one
+		$this->assertSame(25.0, $plan['timeline'][0]['payments'][0]['payment']);
+	}
+
+	public function testMinimumAfterPromoNullWhenNotRaised(): void {
+		$service = $this->service([
+			$this->card(1, -1200.0, 22.9, 100.0, 0.0, '2026-11-01', '2027-02-01'),
+			$this->card(2, -1000.0, 19.9, 50.0),
+		]);
+
+		$plan = $service->calculatePayoffPlan('alice', 'avalanche', 0.0);
+		$debts = array_column($plan['debts'], null, 'id');
+
+		$this->assertSame(100.0, $debts[1]['minimumPayment']);
+		$this->assertNull($debts[1]['minimumAfterPromo']);
+		$this->assertNull($debts[2]['minimumAfterPromo']);
+	}
+
 	public function testMonthDateClampsToTheEndOfAShortMonth(): void {
 		// Today is 31 January: month 2 is 28 February, not 3 March, so a
 		// promo ending 1 March still covers it

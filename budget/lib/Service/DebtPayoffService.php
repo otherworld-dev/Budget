@@ -227,6 +227,8 @@ class DebtPayoffService {
 				'currency' => $debt->getCurrency() ?: $this->baseCurrency($userId),
 				'nativeBalance' => $nativeBalance,
 				'minimumPayment' => $minimumPayment,
+				// Month 1's minimum, before any raise when a promo ends
+				'startMinimum' => $minimumPayment,
 				// The rate in force this month (set at the top of each month),
 				// and the normal and promotional rates it is picked from
 				'interestRate' => $interestRate,
@@ -459,8 +461,15 @@ class DebtPayoffService {
 				// What the plan pays on it each month before any extra: the
 				// account's minimum, 25 when none is set, or more when that
 				// would not cover the interest. The Debt Payoff page adds these
-				// up for its Monthly Payment, which read 0 without them.
-				'minimumPayment' => round($debt['minimumPayment'], 2),
+				// up for its Monthly Payment, which read 0 without them. It is
+				// month 1's: a promo ending can raise it later (below), and
+				// the raised one is not what is paid now.
+				'minimumPayment' => round($debt['startMinimum'], 2),
+				// The minimum once a promo has ended and the old one no longer
+				// covered the interest; null when the promo end changed nothing
+				'minimumAfterPromo' => $debt['minimumPayment'] > $debt['startMinimum']
+					? round($debt['minimumPayment'], 2)
+					: null,
 				// The normal rate (after any override), not a promo's
 				'interestRate' => round($debt['normalRate'] * 100, 2),
 				'promoRate' => $promoActive ? round($debt['promoRate'] * 100, 2) : null,
