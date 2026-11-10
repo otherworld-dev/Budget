@@ -43,7 +43,24 @@ class PromoRateWarningService {
 		return $sent;
 	}
 
+	/**
+	 * Take down any reminder already sent for the account: one for an end
+	 * date since changed, or for a promo that was removed or an account that
+	 * was deleted, would otherwise sit in the bell for good.
+	 */
+	public function dismiss(string $userId, int $accountId): void {
+		$notification = $this->notificationManager->createNotification();
+		$notification->setApp(Application::APP_ID)
+			->setUser($userId)
+			->setObject('account', (string)$accountId)
+			->setSubject('promo_rate_ending');
+		$this->notificationManager->markProcessed($notification);
+	}
+
 	private function notify(string $userId, Account $account, string $end): void {
+		// A re-armed reminder (the end date moved) replaces the earlier one
+		$this->dismiss($userId, $account->getId());
+
 		$notification = $this->notificationManager->createNotification();
 		$notification->setApp(Application::APP_ID)
 			->setUser($userId)

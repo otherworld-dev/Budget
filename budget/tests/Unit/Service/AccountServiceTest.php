@@ -13,6 +13,7 @@ use OCA\Budget\Service\AccountService;
 use OCA\Budget\Service\BudgetCarryoverService;
 use OCA\Budget\Service\CurrencyConversionService;
 use OCA\Budget\Service\GranularShareService;
+use OCA\Budget\Service\PromoRateWarningService;
 use OCA\Budget\Service\TransactionService;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\IL10N;
@@ -1080,6 +1081,60 @@ class AccountServiceTest extends TestCase {
 
 		$this->assertSame('2027-06-01', $box->account->getPromoEnd());
 		$this->assertNull($box->account->getPromoWarned());
+	}
+
+	/** The service wired with a promo reminder service, which setUp() leaves out. */
+	private function serviceWithPromoWarnings(PromoRateWarningService $warnings): AccountService {
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnArgument(0);
+
+		return new AccountService(
+			$this->accountMapper,
+			$this->transactionMapper,
+			$this->createMock(InterestRateMapper::class),
+			$this->conversionService,
+			$this->granularShareService,
+			$this->transactionService,
+			$l,
+			promoWarnings: $warnings,
+		);
+	}
+
+	public function testChangingPromoEndDismissesTheSentReminder(): void {
+		$this->accountMapper->method('find')->willReturn($this->promoCard());
+		$this->captureUpdate();
+		$warnings = $this->createMock(PromoRateWarningService::class);
+		$warnings->expects($this->once())->method('dismiss')->with('user1', 1);
+
+		$this->serviceWithPromoWarnings($warnings)->update(1, 'user1', ['promoEnd' => '2027-06-01']);
+	}
+
+	public function testClearingPromoDismissesTheSentReminder(): void {
+		$this->accountMapper->method('find')->willReturn($this->promoCard());
+		$this->captureUpdate();
+		$warnings = $this->createMock(PromoRateWarningService::class);
+		$warnings->expects($this->once())->method('dismiss')->with('user1', 1);
+
+		$this->serviceWithPromoWarnings($warnings)
+			->update(1, 'user1', ['promoRate' => null, 'promoStart' => null, 'promoEnd' => null]);
+	}
+
+	public function testUnrelatedEditKeepsTheReminder(): void {
+		$this->accountMapper->method('find')->willReturn($this->promoCard());
+		$this->captureUpdate();
+		$warnings = $this->createMock(PromoRateWarningService::class);
+		$warnings->expects($this->never())->method('dismiss');
+
+		$this->serviceWithPromoWarnings($warnings)->update(1, 'user1', ['name' => 'Renamed']);
+	}
+
+	public function testDeletingAWarnedAccountDismissesTheReminder(): void {
+		$this->accountMapper->method('find')->willReturn($this->promoCard());
+		$this->transactionMapper->method('findByAccount')->willReturn([]);
+		$warnings = $this->createMock(PromoRateWarningService::class);
+		$warnings->expects($this->once())->method('dismiss')->with('user1', 1);
+
+		$this->serviceWithPromoWarnings($warnings)->delete(1, 'user1');
 	}
 
 	public function testTypeFlipToAssetClearsPromo(): void {

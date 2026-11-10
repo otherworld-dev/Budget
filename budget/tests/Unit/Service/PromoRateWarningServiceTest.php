@@ -32,7 +32,7 @@ class PromoRateWarningServiceTest extends TestCase {
 			$n->method('setUser')->willReturnSelf();
 			$n->method('setDateTime')->willReturnSelf();
 			$n->method('setObject')->willReturnSelf();
-			$n->method('setSubject')->willReturnCallback(function (string $s, array $p) use ($n) {
+			$n->method('setSubject')->willReturnCallback(function (string $s, array $p = []) use ($n) {
 				$this->subjects[] = [$s, $p];
 				return $n;
 			});
@@ -64,10 +64,12 @@ class PromoRateWarningServiceTest extends TestCase {
 	public function testWarnsThirtyDaysBefore(): void {
 		$this->manager->expects($this->once())->method('notify');
 		$this->assertSame(1, $this->sendFor($this->account('2026-12-09'), 1));
-		$this->assertSame('promo_rate_ending', $this->subjects[0][0]);
+		// The first is the dismissal of any earlier reminder, the second the one sent
+		$this->assertSame(['promo_rate_ending', []], $this->subjects[0]);
+		$this->assertSame('promo_rate_ending', $this->subjects[1][0]);
 		$this->assertSame(
 			['accountName' => 'Barclaycard', 'promoRate' => '0', 'promoEnd' => '2026-12-09', 'normalRate' => '22.9'],
-			$this->subjects[0][1]
+			$this->subjects[1][1]
 		);
 	}
 
@@ -92,6 +94,34 @@ class PromoRateWarningServiceTest extends TestCase {
 
 	public function testChangedEndDateReArmsWarning(): void {
 		$this->assertSame(1, $this->sendFor($this->account('2026-12-05', '2026-12-01'), 1));
+	}
+
+	public function testEarlierReminderIsDismissedBeforeNotifying(): void {
+		$calls = [];
+		$this->manager->expects($this->once())->method('markProcessed')
+			->willReturnCallback(function () use (&$calls) {
+				$calls[] = 'markProcessed';
+			});
+		$this->manager->expects($this->once())->method('notify')
+			->willReturnCallback(function () use (&$calls) {
+				$calls[] = 'notify';
+			});
+
+		$this->assertSame(1, $this->sendFor($this->account('2026-12-05', '2026-12-01'), 1));
+		$this->assertSame(['markProcessed', 'notify'], $calls);
+	}
+
+	public function testDismissTargetsTheAccountsReminder(): void {
+		$n = $this->createMock(INotification::class);
+		$n->expects($this->once())->method('setApp')->with('budget')->willReturnSelf();
+		$n->expects($this->once())->method('setUser')->with('alice')->willReturnSelf();
+		$n->expects($this->once())->method('setObject')->with('account', '7')->willReturnSelf();
+		$n->expects($this->once())->method('setSubject')->with('promo_rate_ending')->willReturnSelf();
+		$manager = $this->createMock(IManager::class);
+		$manager->method('createNotification')->willReturn($n);
+		$manager->expects($this->once())->method('markProcessed')->with($n);
+
+		(new PromoRateWarningService($this->mapper, $manager))->dismiss('alice', 7);
 	}
 
 	public function testClosedAccountIsNotWarned(): void {

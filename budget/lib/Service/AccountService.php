@@ -51,6 +51,7 @@ class AccountService extends AbstractCrudService {
 		private ?UserClock $userClock = null,
 		private ?ImportFolderMapper $importFolderMapper = null,
 		private ?ImportAccountLinkMapper $importLinkMapper = null,
+		private ?PromoRateWarningService $promoWarnings = null,
 	) {
 		$this->mapper = $mapper;
 		$this->transactionMapper = $transactionMapper;
@@ -168,6 +169,10 @@ class AccountService extends AbstractCrudService {
 		// Bills, transfers and recurring income on the account (anyone's)
 		// would otherwise go on running against a deleted id
 		$this->closureService?->stopSchedulesFor($entity);
+		// A promo ending reminder would point at an account that is gone
+		if ($entity->getPromoWarned() !== null) {
+			$this->promoWarnings?->dismiss($entity->getUserId(), $entity->getId());
+		}
 	}
 
 	/**
@@ -343,8 +348,15 @@ class AccountService extends AbstractCrudService {
 		// -------------------------------------------------------------------
 
 		$updates = $this->resolvePromoUpdates($existing, $updates, $isLiability);
+		// A reminder already sent is about a promo that has just been removed
+		// or moved to another end date
+		$staleWarning = $existing->getPromoWarned() !== null
+			&& array_key_exists('promoWarned', $updates) && $updates['promoWarned'] === null;
 
 		$account = parent::update($id, $userId, $updates);
+		if ($staleWarning) {
+			$this->promoWarnings?->dismiss($userId, $id);
+		}
 		if ($closing) {
 			// What can no longer post into it lets go of it (#372)
 			$this->closureService?->detachStaleSchedules($existing);
