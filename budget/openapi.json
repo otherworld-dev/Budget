@@ -3149,7 +3149,7 @@
           "excluded_total": {
             "type": "string",
             "example": "1234.50",
-            "description": "Their combined amount."
+            "description": "Their combined amount, as net money out: positive when they took money out, negative when they brought more in (a refund or windfall)."
           },
           "scenarios": {
             "type": "object",
@@ -3172,7 +3172,7 @@
                     "type": "string",
                     "nullable": true,
                     "example": "500.50",
-                    "description": "Money out less money in per month, in `currency`. Null when there is no figure."
+                    "description": "Money out less money in per month, in `currency`. Negative when more comes in than goes out. Null when there is no figure."
                   },
                   "months": {
                     "type": "number",
@@ -3209,7 +3209,7 @@
                     "type": "string",
                     "nullable": true,
                     "example": "500.50",
-                    "description": "Money out less money in per month, in `currency`. Null when there is no figure."
+                    "description": "Money out less money in per month, in `currency`. Negative when more comes in than goes out. Null when there is no figure."
                   },
                   "months": {
                     "type": "number",
