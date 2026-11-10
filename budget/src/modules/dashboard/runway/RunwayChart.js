@@ -45,6 +45,19 @@ function todayLine(index, colour) {
 }
 
 /**
+ * Destroys the chart kept under `chartKey`, if there is one.
+ *
+ * @param {string} chartKey
+ */
+export function dropRunwayChart(chartKey) {
+    const charts = runwayContext().charts() || {};
+    if (charts[chartKey]) {
+        charts[chartKey].destroy?.();
+        delete charts[chartKey];
+    }
+}
+
+/**
  * Draws the chart into `host`, replacing any chart already registered under
  * `chartKey`.
  *
@@ -54,10 +67,7 @@ function todayLine(index, colour) {
  */
 export function drawRunwayChart(host, data, chartKey) {
     const charts = runwayContext().charts() || {};
-    if (charts[chartKey]) {
-        charts[chartKey].destroy?.();
-        delete charts[chartKey];
-    }
+    dropRunwayChart(chartKey);
 
     const series = data.series || {};
     const points = (series.history?.length || 0) + (series.current?.length || 0);

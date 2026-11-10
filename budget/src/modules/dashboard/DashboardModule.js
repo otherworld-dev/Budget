@@ -4001,7 +4001,8 @@ export default class DashboardModule {
         config.visibility[widgetId] = true;
 
         if (category === 'hero') {
-            const element = document.querySelector(`[data-widget-id="${widgetId}"]`);
+            // Scoped: the Add Tiles menu's own button carries the same id
+            const element = document.querySelector(`[data-widget-id="${widgetId}"][data-widget-category="hero"]`);
             if (element) element.style.display = '';
         } else if (this.gridstack) {
             let wrapper = document.querySelector(`[gs-id="${widgetId}"]`);

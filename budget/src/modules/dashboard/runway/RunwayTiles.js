@@ -17,7 +17,7 @@ import { translate as t, translatePlural as n } from '@nextcloud/l10n';
 import { apiFetch } from '../../../utils/api.js';
 import { showError, showSuccess } from '../../../utils/notifications.js';
 import { monthsPhrase, untilPhrase, differencePhrase } from '../../../utils/runway.js';
-import { drawRunwayChart } from './RunwayChart.js';
+import { drawRunwayChart, dropRunwayChart } from './RunwayChart.js';
 import { renderOneOffs } from './RunwayOneOffs.js';
 import { renderRunwaySetup } from './RunwaySetup.js';
 import {
@@ -53,13 +53,15 @@ function drainLine(data) {
     if (drain === null || drain === undefined || months < 1) return '';
     const value = Number(drain);
     const amount = money(Math.abs(value), data.currency);
-    return value > 0
+    // Exactly nothing going out still reads as a drain: "surplus £0.00" says something that isn't so
+    return value >= 0
         ? n('budget', 'Monthly drain {amount} · last {count} month', 'Monthly drain {amount} · last {count} months', months, { amount, count: months }, AS_TEXT)
         : n('budget', 'Monthly surplus {amount} · last {count} month', 'Monthly surplus {amount} · last {count} months', months, { amount, count: months }, AS_TEXT);
 }
 
 function onBudgetLine(onBudget) {
-    if (!onBudget) return '';
+    // No budgets: the hero has no room to explain, the scenarios tile does
+    if (!onBudget || onBudget.state === 'unavailable') return '';
     const months = monthsPhrase(onBudget);
     const until = untilPhrase(onBudget);
     return until
@@ -78,7 +80,7 @@ function perMonth(drain, currency) {
     if (drain === null || drain === undefined) return '';
     const value = Number(drain);
     const amount = money(Math.abs(value), currency);
-    return value > 0
+    return value >= 0
         ? t('budget', '{amount} a month going out', { amount }, undefined, AS_TEXT)
         : t('budget', '{amount} a month more coming in', { amount }, undefined, AS_TEXT);
 }
@@ -134,17 +136,22 @@ function scenarios(data) {
 }
 
 /**
- * Looks the excluded transactions up the first time the list is opened.
- * The payload only carries their ids.
+ * Looks the excluded transactions up when the list is opened. The payload
+ * only carries their ids.
+ *
+ * @returns {Promise<boolean>} whether every row loaded; if not, opening the
+ *   list again tries again
  */
 async function fillExcluded(list, data) {
     const ids = data.excluded?.ids || [];
     list.textContent = '';
     list.appendChild(el('li', 'runway-muted', t('budget', 'Loading...')));
-    const rows = await Promise.all(ids.slice(0, EXCLUDED_LIST_LIMIT)
+    const asked = ids.slice(0, EXCLUDED_LIST_LIMIT);
+    const rows = await Promise.all(asked
         .map((id) => apiFetch(`/apps/budget/api/transactions/${id}`).catch(() => null)));
     list.textContent = '';
     const accounts = runwayContext().accounts() || [];
+    const failed = rows.filter((row) => !row).length;
     for (const tx of rows.filter(Boolean)) {
         const signed = tx.type === 'debit' ? -Math.abs(Number(tx.amount)) : Math.abs(Number(tx.amount));
         const currency = accounts.find((a) => String(a.id) === String(tx.accountId))?.currency || data.currency;
@@ -161,13 +168,15 @@ async function fillExcluded(list, data) {
         item.appendChild(open);
         list.appendChild(item);
     }
+    if (failed > 0) {
+        list.appendChild(el('li', 'runway-warning', n('budget', '{count} transaction could not be loaded. Close and open the list to try again.',
+            '{count} transactions could not be loaded. Close and open the list to try again.', failed, { count: failed })));
+    }
     if (ids.length > EXCLUDED_LIST_LIMIT) {
         const more = ids.length - EXCLUDED_LIST_LIMIT;
         list.appendChild(el('li', 'runway-muted', n('budget', 'and {count} more', 'and {count} more', more, { count: more })));
     }
-    if (!list.children.length) {
-        list.appendChild(el('li', 'runway-muted', t('budget', 'These transactions could not be loaded.')));
-    }
+    return failed === 0;
 }
 
 function breakdown(data) {
@@ -187,7 +196,7 @@ function breakdown(data) {
     add(t('budget', 'Money out'), money(data.monthlyOut, data.currency));
     add(t('budget', 'Money in'), money(data.monthlyIn, data.currency));
     const drain = Number(data.scenarios?.current?.monthlyDrain ?? 0);
-    add(drain > 0 ? t('budget', 'Net drain') : t('budget', 'Net surplus'), money(Math.abs(drain), data.currency), 'runway-breakdown-total');
+    add(drain >= 0 ? t('budget', 'Net drain') : t('budget', 'Net surplus'), money(Math.abs(drain), data.currency), 'runway-breakdown-total');
     wrap.appendChild(table);
 
     const requested = data.window?.months || months;
@@ -205,11 +214,16 @@ function breakdown(data) {
         details.appendChild(el('p', 'runway-muted', t('budget', 'These are marked "Exclude from forecast". Open one to change that.')));
         const list = el('ul', 'runway-excluded-list');
         details.appendChild(list);
+        // Filled once it has loaded in full; a failure is tried again on the next open
         let filled = false;
-        details.addEventListener('toggle', () => {
-            if (details.open && !filled) {
-                filled = true;
-                fillExcluded(list, data);
+        let loading = false;
+        details.addEventListener('toggle', async () => {
+            if (!details.open || filled || loading) return;
+            loading = true;
+            try {
+                filled = await fillExcluded(list, data);
+            } finally {
+                loading = false;
             }
         });
         wrap.appendChild(details);
@@ -253,9 +267,14 @@ function renderHero(card, data) {
     set('drain', drainLine(data));
 }
 
+/** The one-offs list as a tile shows it; `key` is the tile it sits in. */
+function oneOffs(host, data, key) {
+    renderOneOffs(host, data, { onChanged: refreshRunwayTiles, onClosed: () => redrawIfStale(key) });
+}
+
 const WIDGETS = {
     runwayChart: (body, data) => drawRunwayChart(body, data, 'runwayChart'),
-    runwayOneOffs: (body, data) => renderOneOffs(body, data, { onChanged: refreshRunwayTiles }),
+    runwayOneOffs: (body, data) => oneOffs(body, data, 'runwayOneOffs'),
     runwayScenarios: (body, data) => body.appendChild(scenarios(data)),
     runwayBreakdown: (body, data) => body.appendChild(breakdown(data)),
     runwayOverview: (body, data) => {
@@ -267,9 +286,39 @@ const WIDGETS = {
         // In the page before the chart reads its theme colours from it
         body.appendChild(grid);
         drawRunwayChart(right, data, 'runwayOverview');
-        renderOneOffs(right, data, { onChanged: refreshRunwayTiles });
+        oneOffs(right, data, 'runwayOverview');
     },
 };
+
+/** The tiles with a chart, and the registry key each chart is kept under. */
+const CHART_TILES = ['runwayChart', 'runwayOverview'];
+
+/**
+ * The tile's card. Scoped by category: the Add Tiles menu's buttons carry
+ * the same data-widget-id and come first in the page.
+ *
+ * @param {string} key
+ * @returns {Element|null}
+ */
+function tileCard(key) {
+    const category = key === 'runway' ? 'hero' : 'widget';
+    return document.querySelector(`[data-widget-id="${key}"][data-widget-category="${category}"]`);
+}
+
+/** A one-off being added or edited in this card, which a redraw would throw away. */
+function hasOpenEditor(card) {
+    return !!card?.querySelector('.runway-oneoff-form');
+}
+
+/** Tiles left alone by a refresh because an editor was open in them. */
+const stale = new Set();
+
+/** Brings a tile up to date once its editor closes, if a refresh skipped it. */
+function redrawIfStale(key) {
+    if (!stale.has(key) || hasOpenEditor(tileCard(key))) return;
+    stale.delete(key);
+    loadRunway().then((data) => renderRunwayTile(key, data), () => renderRunwayTile(key, null));
+}
 
 /**
  * Draws one runway tile from the payload. A null payload draws the tile's
@@ -279,9 +328,10 @@ const WIDGETS = {
  * @param {object|null} data the GET /api/runway payload
  */
 export function renderRunwayTile(key, data) {
-    const card = document.querySelector(`[data-widget-id="${key}"]`);
+    const card = tileCard(key);
     if (!card) return;
     rendered.add(key);
+    stale.delete(key);
 
     if (key === 'runway') {
         renderHero(card, data);
@@ -291,6 +341,10 @@ export function renderRunwayTile(key, data) {
     const body = card.querySelector('[data-runway-body]');
     if (!draw || !body) return;
 
+    // Let go of what the old content held: an open editor's date picker,
+    // and the chart (a tile going to a message state draws no new one)
+    body.querySelectorAll('.runway-oneoff-form').forEach((form) => form.runwayRelease?.());
+    if (CHART_TILES.includes(key)) dropRunwayChart(key);
     body.textContent = '';
     if (!data) {
         body.appendChild(el('div', 'empty-state-small', t('budget', 'The runway could not be loaded')));
@@ -307,7 +361,8 @@ export function renderRunwayTile(key, data) {
 
 /**
  * Fetches the runway again and draws every runway tile drawn so far, after
- * a setup change or a one-off edit.
+ * a setup change or a one-off edit. A tile with a one-off editor open is
+ * left as it is, so the typing isn't lost, and drawn when the editor closes.
  *
  * @returns {Promise<void>}
  */
@@ -319,6 +374,10 @@ export async function refreshRunwayTiles() {
         showError(error?.message || t('budget', 'The runway could not be loaded'));
     }
     for (const key of rendered) {
+        if (hasOpenEditor(tileCard(key))) {
+            stale.add(key);
+            continue;
+        }
         renderRunwayTile(key, data);
     }
 }
@@ -334,17 +393,24 @@ export async function refreshRunwayTiles() {
 export async function openRunwaySetup(onSaved, container = document.getElementById('tile-settings-specific')) {
     if (!container) return;
     container.textContent = '';
-    container.appendChild(el('div', 'runway-muted', t('budget', 'Loading...')));
+    const placeholder = el('div', 'runway-muted', t('budget', 'Loading...'));
+    container.appendChild(placeholder);
+    // The dialog is shared by every tile: if another tile's settings were
+    // opened while this waited, the placeholder is gone and this one stops
+    const stillOurs = () => container.contains(placeholder);
 
     let data;
     try {
         data = await loadRunway();
     } catch (error) {
+        if (!stillOurs()) return;
         container.textContent = '';
         container.appendChild(el('p', 'runway-warning', error?.message || t('budget', 'The runway could not be loaded')));
         return;
     }
+    if (!stillOurs()) return;
 
+    let panel = null;
     const save = async (body) => {
         try {
             await apiFetch('/apps/budget/api/settings', { method: 'PUT', body });
@@ -355,15 +421,19 @@ export async function openRunwaySetup(onSaved, container = document.getElementBy
         Object.assign(runwayContext().settings() || {}, body);
         showSuccess(t('budget', 'Runway settings saved'));
         await refreshRunwayTiles();
-        // Draw the setup again from the new payload: the default-accounts
-        // note and the ticks follow what was saved
+        // Draw the setup again from the new payload, so the default-accounts
+        // note and the ticks follow what was saved; not if the dialog has
+        // moved on to another tile meanwhile
         try {
-            renderRunwaySetup(container, await loadRunway(), { onSave: save });
+            const fresh = await loadRunway();
+            if (container.contains(panel)) {
+                panel = renderRunwaySetup(container, fresh, { onSave: save });
+            }
         } catch {
             // The tiles already say the runway could not be loaded
         }
         onSaved?.();
     };
 
-    renderRunwaySetup(container, data, { onSave: save });
+    panel = renderRunwaySetup(container, data, { onSave: save });
 }

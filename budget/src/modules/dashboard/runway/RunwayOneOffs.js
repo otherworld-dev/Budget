@@ -12,10 +12,10 @@
 import { translate as t } from '@nextcloud/l10n';
 import { apiFetch } from '../../../utils/api.js';
 import { makeAmountInput, normaliseAmountText } from '../../../utils/amountInput.js';
-import { initSingleDatePicker } from '../../../utils/datepicker.js';
+import { initSingleDatePicker, destroyDatePicker } from '../../../utils/datepicker.js';
 import { confirmDialog } from '../../../utils/dialogs.js';
 import { showError } from '../../../utils/notifications.js';
-import { AS_TEXT, el, button, money, longDate, amountClass, settings } from './runwayData.js';
+import { AS_TEXT, el, button, longDate, amountClass, signedMoney, settings } from './runwayData.js';
 
 const URL = '/apps/budget/api/runway/one-offs';
 
@@ -46,11 +46,11 @@ function field(labelText, control) {
  *
  * @param {object|null} oneOff the one being edited, or null to add one
  * @param {object} handlers
- * @param {Function} handlers.onSaved awaited after a save
- * @param {Function} handlers.onCancel
- * @returns {HTMLFormElement}
+ * @param {Function} handlers.onSaved awaited after a save, once the form is closed
+ * @param {Function} handlers.onClose (saved) => void; takes the form away
+ * @returns {HTMLFormElement} with `runwayRelease()`, which lets go of its date picker
  */
-function editor(oneOff, { onSaved, onCancel }) {
+function editor(oneOff, { onSaved, onClose }) {
     const form = el('form', 'runway-oneoff-form');
     form.noValidate = true;
 
@@ -86,7 +86,7 @@ function editor(oneOff, { onSaved, onCancel }) {
 
     const save = el('button', 'primary', oneOff ? t('budget', 'Save') : t('budget', 'Add'));
     save.type = 'submit';
-    const cancel = button(t('budget', 'Cancel'), 'secondary', () => onCancel());
+    const cancel = button(t('budget', 'Cancel'), 'secondary', () => onClose(false));
 
     const fields = el('div', 'runway-oneoff-fields');
     fields.append(
@@ -127,7 +127,7 @@ function editor(oneOff, { onSaved, onCancel }) {
             if (Number(signed) !== Number(oneOff.amount)) body.amount = signed;
             if (day !== oneOff.date) body.date = day;
             if (Object.keys(body).length === 0) {
-                onCancel();
+                onClose(false);
                 return;
             }
         }
@@ -135,19 +135,28 @@ function editor(oneOff, { onSaved, onCancel }) {
         save.disabled = true;
         try {
             await apiFetch(oneOff ? `${URL}/${oneOff.id}` : URL, { method: oneOff ? 'PUT' : 'POST', body });
-            await onSaved();
         } catch (error) {
             showError(error?.message || t('budget', 'Failed to save the one-off'));
             save.disabled = false;
+            return;
         }
+        // Closed first, so the refresh draws this tile too: a tile with an
+        // editor open is left alone
+        onClose(true);
+        await onSaved();
     });
 
     // The app's date box: a picker showing the user's date format
+    let picker = null;
     try {
-        initSingleDatePicker(date, settings());
+        picker = initSingleDatePicker(date, settings());
     } catch {
         // A plain date box still works
     }
+    form.runwayRelease = () => {
+        destroyDatePicker(picker);
+        picker = null;
+    };
     return form;
 }
 
@@ -176,7 +185,7 @@ function row(oneOff, currency, { onEdit, onSaved }) {
     item.appendChild(main);
 
     const value = Number(oneOff.amount);
-    item.appendChild(el('span', `runway-oneoff-amount ${amountClass(value)}`, (value > 0 ? '+' : '') + money(value, currency)));
+    item.appendChild(el('span', `runway-oneoff-amount ${amountClass(value)}`, signedMoney(value, currency)));
 
     const actions = el('span', 'runway-oneoff-actions');
     const edit = button('', 'action-btn edit-btn', () => onEdit(item));
@@ -201,8 +210,9 @@ function row(oneOff, currency, { onEdit, onSaved }) {
  * @param {object} data the runway payload
  * @param {object} options
  * @param {Function} options.onChanged awaited after any change; refreshes every runway tile
+ * @param {Function} [options.onClosed] after an editor is closed without saving
  */
-export function renderOneOffs(host, data, { onChanged }) {
+export function renderOneOffs(host, data, { onChanged, onClosed }) {
     const wrap = el('div', 'runway-oneoffs');
     const list = el('ul', 'runway-oneoff-list');
     const oneOffs = data.oneOffs || [];
@@ -212,19 +222,26 @@ export function renderOneOffs(host, data, { onChanged }) {
     const empty = el('li', 'runway-oneoff-empty', t('budget', 'No planned one-offs. Add money you expect to spend or receive once, such as a car repair or a tax refund.'));
 
     function openEditor(oneOff, item = null) {
-        wrap.querySelectorAll('.runway-oneoff-form').forEach((form) => form.closest('li')?.remove());
+        wrap.querySelectorAll('.runway-oneoff-form').forEach((form) => {
+            form.runwayRelease?.();
+            form.closest('li')?.remove();
+        });
         list.querySelectorAll('.runway-oneoff').forEach((node) => { node.hidden = false; });
         empty.hidden = true;
         addButton.hidden = true;
 
         const holder = el('li', 'runway-oneoff-editing');
-        const close = () => {
+        let form = null;
+        const close = (saved) => {
+            form.runwayRelease();
             holder.remove();
             if (item) item.hidden = false;
             empty.hidden = oneOffs.length > 0;
             addButton.hidden = false;
+            if (!saved) onClosed?.();
         };
-        holder.appendChild(editor(oneOff, { onSaved: onChanged, onCancel: close }));
+        form = editor(oneOff, { onSaved: onChanged, onClose: close });
+        holder.appendChild(form);
         if (item) {
             item.hidden = true;
             item.after(holder);

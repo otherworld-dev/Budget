@@ -48,17 +48,19 @@ let pending = null;
 /**
  * The runway payload, fetched once and shared by every tile that asks.
  *
+ * A failure is shared too: six tiles asking a failing server get the one
+ * error rather than six requests, and the next dashboard load (or a forced
+ * refresh) asks again.
+ *
  * @param {boolean} [force] ask the server again (after a change)
  * @returns {Promise<object>}
  */
 export function loadRunway(force = false) {
     if (!pending || force) {
-        const request = apiFetch('/apps/budget/api/runway');
-        pending = request;
-        // A failure is not kept: the next tile, or the next load, asks again.
-        request.catch(() => {
-            if (pending === request) pending = null;
-        });
+        pending = apiFetch('/apps/budget/api/runway');
+        // Every caller handles the failure; this only stops it counting as
+        // unhandled before the first of them does
+        pending.catch(() => {});
     }
     return pending;
 }
@@ -100,15 +102,6 @@ export function shortMonth(date) {
     if (!match) return '';
     return new Date(Number(match[1]), Number(match[2]) - 1, 1)
         .toLocaleDateString(formatters.userLocale(), { month: 'short', year: '2-digit' });
-}
-
-/**
- * Today in the browser's time zone, Y-m-d.
- *
- * @returns {string}
- */
-export function today() {
-    return formatters.formatDateForAPI(new Date());
 }
 
 /**

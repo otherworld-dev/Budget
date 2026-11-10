@@ -77,6 +77,7 @@ const sameSet = (a, b) => a.length === b.length && a.every((id) => b.includes(id
  * @param {object} data the runway payload (its settings and skipped accounts)
  * @param {object} options
  * @param {Function} options.onSave async (body) => void, given only the keys to write
+ * @returns {HTMLElement} the panel
  */
 export function renderRunwaySetup(container, data, { onSave }) {
     container.textContent = '';
@@ -96,7 +97,9 @@ export function renderRunwaySetup(container, data, { onSave }) {
         const reset = button(t('budget', 'Use the default accounts'), 'btn-link-small runway-setup-default', async () => {
             reset.disabled = true;
             try {
-                await onSave({ runway_account_ids: '' });
+                // Saved with the other controls, so a change made to them
+                // first isn't thrown away by the redraw
+                await onSave({ ...controlValues(), runway_account_ids: '' });
             } finally {
                 reset.disabled = false;
             }
@@ -147,21 +150,27 @@ export function renderRunwaySetup(container, data, { onSave }) {
     actions.appendChild(save);
     panel.appendChild(actions);
 
+    function controlValues() {
+        return {
+            runway_window_months: panel.querySelector('[data-runway-setting="window"]').value,
+            runway_include_scheduled: includeBox.checked ? 'true' : 'false',
+            runway_alert_months: panel.querySelector('[data-runway-setting="alert"]').value,
+        };
+    }
+
     save.addEventListener('click', async () => {
         const ticked = [...panel.querySelectorAll('input[data-runway-account]')]
             .filter((box) => box.checked)
             .map((box) => Number(box.dataset.runwayAccount));
         const initial = accounts.map((a) => Number(a.id)).filter((id) => chosen.includes(id));
 
-        const body = {
-            runway_window_months: panel.querySelector('[data-runway-setting="window"]').value,
-            runway_include_scheduled: includeBox.checked ? 'true' : 'false',
-            runway_alert_months: panel.querySelector('[data-runway-setting="alert"]').value,
-        };
+        const body = controlValues();
         if (!sameSet(ticked, initial)) {
             if (!ticked.length) {
                 fieldset.querySelector('.runway-setup-none')?.remove();
-                fieldset.appendChild(el('p', 'runway-warning runway-setup-none', t('budget', 'Tick at least one account.')));
+                const none = el('p', 'runway-warning runway-setup-none', t('budget', 'Tick at least one account.'));
+                none.setAttribute('role', 'alert');
+                fieldset.appendChild(none);
                 return;
             }
             body.runway_account_ids = JSON.stringify([...ticked].sort((a, b) => a - b));
@@ -176,4 +185,5 @@ export function renderRunwaySetup(container, data, { onSave }) {
     });
 
     container.appendChild(panel);
+    return panel;
 }

@@ -28,6 +28,17 @@ vi.mock('../../src/utils/chart.js', () => ({
     },
 }));
 
+/** Every date picker the editor made, so a test can see it let go. */
+const pickers = vi.hoisted(() => []);
+vi.mock('../../src/utils/datepicker.js', () => ({
+    initSingleDatePicker: () => {
+        const picker = { destroyed: false, destroy() { this.destroyed = true; } };
+        pickers.push(picker);
+        return picker;
+    },
+    destroyDatePicker: (picker) => picker?.destroy(),
+}));
+
 vi.mock('../../src/utils/notifications.js', () => ({
     showSuccess: vi.fn(),
     showError: vi.fn(),
@@ -42,6 +53,7 @@ import {
     resetRunway,
     renderRunwayTile,
     openRunwaySetup,
+    refreshRunwayTiles,
     setRunwayContext,
     RUNWAY_TILE_KEYS,
 } from '../../src/modules/dashboard/runway/RunwayTiles.js';
@@ -220,11 +232,20 @@ describe('loadRunway', () => {
         expect(runwayGets()).toHaveLength(2);
     });
 
-    it('lets a failed request be retried', async () => {
-        global.fetch = vi.fn(async () => respond({ error: 'boom' }, 500));
+    it('shares a failure between tiles, and asks again on the next load', async () => {
+        const failing = vi.fn(async () => respond({ error: 'boom' }, 500));
+        global.fetch = failing;
+        const dash = makeDashboard();
+        for (const key of ['runway', 'runwayChart', 'runwayScenarios']) {
+            await dash.loadWidgetData(key);
+        }
+        expect(failing).toHaveBeenCalledTimes(1);
+        expect(dash.widgetDataLoaded.runway).toBeUndefined();
         await expect(loadRunway()).rejects.toThrow();
-        installFetch();
+        expect(failing).toHaveBeenCalledTimes(1);
 
+        installFetch();
+        resetRunway();
         await loadRunway();
 
         expect(runwayGets()).toHaveLength(1);
@@ -402,5 +423,183 @@ describe('a saved dashboard that still names burnRate', () => {
         expect(offered).toContain('runway');
         expect(offered).not.toContain('burnRate');
         expect(hero.order).toContain('runway');
+    });
+});
+
+describe('review fixes', () => {
+    const menuButton = (key, category) =>
+        `<div id="add-tiles-menu-list"><button class="add-tile-btn" data-widget-id="${key}" data-category="${category}"></button></div>`;
+
+    it('fills the tile, not the Add Tiles button with the same id', () => {
+        document.body.innerHTML = menuButton('runway', 'hero') + menuButton('runwayScenarios', 'widget') + tileMarkup();
+
+        renderRunwayTile('runway', payload());
+        renderRunwayTile('runwayScenarios', payload());
+
+        expect(document.querySelector('[data-widget-id="runway"][data-widget-category="hero"] [data-runway-part="value"]').textContent)
+            .toBe('About 21 months');
+        expect(document.querySelector('[data-widget-id="runwayScenarios"][data-widget-category="widget"]').textContent)
+            .toContain('About 25 months');
+    });
+
+    it('shows and fills a runway hero added from the menu', async () => {
+        document.body.innerHTML = menuButton('runway', 'hero') + tileMarkup();
+        const hero = document.querySelector('[data-widget-id="runway"][data-widget-category="hero"]');
+        hero.style.display = 'none';
+        const dash = makeDashboard();
+        dash.app.dashboardLocked = true;
+        dash.app.dashboardConfig = {
+            hero: dash.parseDashboardConfig('', 'hero'),
+            widgets: dash.parseDashboardConfig('', 'widgets'),
+        };
+        dash.app.needsLazyLoad = (k) => dash.needsLazyLoad(k);
+        dash.app.loadWidgetData = (k) => dash.loadWidgetData(k);
+
+        await dash.showWidget('runway', 'hero');
+
+        expect(hero.style.display).toBe('');
+        expect(hero.querySelector('[data-runway-part="value"]').textContent).toBe('About 21 months');
+    });
+
+    it('lets the excluded list try again after a row fails to load', async () => {
+        let fail = true;
+        const asked = [];
+        global.fetch = vi.fn(async (url) => {
+            asked.push(url);
+            if (fail && url.endsWith('/12')) return respond({ error: 'gone' }, 404);
+            return respond({ id: Number(url.split('/').pop()), date: '2026-09-02', description: 'Repay', amount: '750.00', type: 'debit', accountId: 1 });
+        });
+        renderRunwayTile('runwayBreakdown', payload());
+        const details = document.querySelector('[data-widget-id="runwayBreakdown"] details');
+        const open = async () => {
+            details.open = true;
+            details.dispatchEvent(new Event('toggle'));
+            await vi.waitFor(() => expect(details.textContent).not.toContain('Loading...'));
+        };
+
+        await open();
+        expect(details.textContent).toContain('1 transaction could not be loaded');
+        expect(details.querySelectorAll('.runway-excluded-row')).toHaveLength(1);
+
+        fail = false;
+        details.open = false;
+        await open();
+        expect(details.querySelectorAll('.runway-excluded-row')).toHaveLength(2);
+        expect(details.textContent).not.toContain('could not be loaded');
+
+        const before = asked.length;
+        details.open = false;
+        details.open = true;
+        details.dispatchEvent(new Event('toggle'));
+        await flush();
+        expect(asked.length).toBe(before);
+    });
+
+    it('destroys the chart when a chart tile goes to a message state', () => {
+        renderRunwayTile('runwayChart', payload());
+        expect(chartInstances).toHaveLength(1);
+
+        renderRunwayTile('runwayChart', null);
+        expect(chartInstances[0].destroyed).toBe(true);
+
+        renderRunwayTile('runwayOverview', payload());
+        renderRunwayTile('runwayOverview', payload({ accounts: [] }));
+        expect(chartInstances[1].destroyed).toBe(true);
+    });
+
+    it('leaves the dialog alone when another tile took it over while the setup loaded', async () => {
+        let answer;
+        global.fetch = vi.fn(() => new Promise((resolve) => { answer = resolve; }));
+        const container = document.getElementById('tile-settings-specific');
+
+        const opening = openRunwaySetup(() => {}, container);
+        container.innerHTML = '<p id="other-tile">Spending settings</p>';
+        answer(respond(payload()));
+        await opening;
+
+        expect(container.querySelector('#other-tile')).not.toBeNull();
+        expect(container.querySelector('.runway-setup')).toBeNull();
+    });
+
+    it('saves the other controls along with "Use the default accounts"', async () => {
+        runwayAnswers = [payload({ settings: { accountIds: [1], windowMonths: 3, includeScheduled: true, accountIdsAreDefault: false } })];
+        const container = document.getElementById('tile-settings-specific');
+        await openRunwaySetup(() => {}, container);
+        container.querySelector('[data-runway-setting="window"]').value = '6';
+        container.querySelector('[data-runway-setting="includeScheduled"]').checked = false;
+
+        container.querySelector('[data-runway-action="default"]').click();
+        await vi.waitFor(() => expect(requests.some(([m]) => m === 'PUT')).toBe(true));
+
+        const [, , body] = requests.find(([m]) => m === 'PUT');
+        expect(body).toEqual({
+            runway_window_months: '6',
+            runway_include_scheduled: 'false',
+            runway_alert_months: '1',
+            runway_account_ids: '',
+        });
+    });
+
+    it('announces that at least one account must be ticked', async () => {
+        const container = document.getElementById('tile-settings-specific');
+        await openRunwaySetup(() => {}, container);
+        container.querySelectorAll('input[data-runway-account]').forEach((box) => { box.checked = false; });
+
+        container.querySelector('[data-runway-action="save"]').click();
+
+        expect(container.querySelector('[role="alert"]').textContent).toBe('Tick at least one account.');
+        expect(requests.some(([m]) => m === 'PUT')).toBe(false);
+    });
+
+    it('keeps an open one-off editor through a refresh, and catches up when it closes', async () => {
+        renderRunwayTile('runwayOneOffs', payload());
+        renderRunwayTile('runwayScenarios', payload());
+        const body = document.querySelector('[data-widget-id="runwayOneOffs"] [data-runway-body]');
+        body.querySelector('[data-runway-action="add"]').click();
+        body.querySelector('[name="description"]').value = 'Half typed';
+        const picker = pickers[pickers.length - 1];
+        runwayAnswers = [later()];
+        runwayAnswers[0].oneOffs = [{ id: 6, description: 'Boiler', amount: '-864.27', date: '2027-01-15', past: false }];
+
+        await refreshRunwayTiles();
+
+        expect(body.querySelector('[name="description"]').value).toBe('Half typed');
+        expect(document.querySelector('[data-widget-id="runwayScenarios"]').textContent).toContain('About 30 months');
+
+        body.querySelector('.runway-oneoff-form .secondary').click();
+        await vi.waitFor(() => expect(body.textContent).toContain('Boiler'));
+        expect(body.querySelector('form')).toBeNull();
+        expect(picker.destroyed).toBe(true);
+    });
+
+    it('redraws its own tile after the editor saves', async () => {
+        renderRunwayTile('runwayOneOffs', payload());
+        const body = document.querySelector('[data-widget-id="runwayOneOffs"] [data-runway-body]');
+        body.querySelector('[data-runway-action="add"]').click();
+        const form = body.querySelector('form');
+        form.querySelector('[name="description"]').value = 'Boiler';
+        form.querySelector('[name="amount"]').value = '864.27';
+        form.querySelector('[name="date"]').value = '2027-01-15';
+        runwayAnswers = [payload({ oneOffs: [{ id: 9, description: 'Boiler', amount: '-864.27', date: '2027-01-15', past: false }] })];
+
+        form.dispatchEvent(new Event('submit', { cancelable: true }));
+
+        await vi.waitFor(() => expect(body.textContent).toContain('Boiler'));
+        expect(body.querySelector('form')).toBeNull();
+        expect(pickers[pickers.length - 1].destroyed).toBe(true);
+    });
+
+    it('hides the hero budget line without budgets, and calls a zero drain a drain', () => {
+        renderRunwayTile('runway', payload({
+            scenarios: {
+                current: { state: 'not_running_out', monthlyDrain: '0.00', months: null, runsOutOn: null },
+                onBudget: { state: 'unavailable', monthlyDrain: null, months: null, runsOutOn: null },
+            },
+            differenceMonths: null,
+        }));
+
+        const card = document.querySelector('[data-widget-id="runway"]');
+        expect(card.querySelector('[data-runway-part="budget"]').hidden).toBe(true);
+        expect(card.querySelector('[data-runway-part="drain"]').textContent).toBe('Monthly drain £0.00 · last 3 months');
     });
 });
