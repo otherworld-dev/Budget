@@ -11,6 +11,7 @@ use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\DB\IResult;
 use OCP\DB\QueryBuilder\IExpressionBuilder;
 use OCP\DB\QueryBuilder\IFunctionBuilder;
+use OCP\DB\QueryBuilder\IParameter;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\DB\QueryBuilder\IQueryFunction;
 use OCP\IDBConnection;
@@ -416,6 +417,40 @@ class AccountMapperTest extends TestCase {
 		foreach (['promo_rate', 'promo_start', 'promo_end', 'promo_warned'] as $column) {
 			$this->assertContains($column, $this->setColumns);
 		}
+	}
+
+	/**
+	 * The real query builder hands back an IParameter, not the string the
+	 * shared setUp() stub returns. A string return type on the date helper
+	 * passed every mocked test and threw a TypeError on every account save.
+	 */
+	public function testUpdateAcceptsRealParameterObjects(): void {
+		$db = $this->createMock(IDBConnection::class);
+		$qb = $this->createMock(IQueryBuilder::class);
+		$db->method('getQueryBuilder')->willReturn($qb);
+		$qb->method('expr')->willReturn($this->expr);
+		$qb->method('createNamedParameter')->willReturn($this->createMock(IParameter::class));
+		foreach (['select', 'from', 'where', 'andWhere', 'update', 'set'] as $method) {
+			$qb->method($method)->willReturnSelf();
+		}
+		$qb->method('executeStatement')->willReturn(1);
+		$this->result->method('fetch')
+			->willReturnOnConsecutiveCalls($this->makeAccountRow(), false);
+		$qb->method('executeQuery')->willReturn($this->result);
+		$mapper = new AccountMapper($db, $this->encryptionService);
+
+		$account = new Account();
+		$account->setId(1);
+		$account->setUserId('user1');
+		$account->setName('Card');
+		$account->setType('credit_card');
+		$account->setBalance(-10.0);
+		$account->setCurrency('GBP');
+		$account->setPromoRate(0.0);
+		$account->setPromoStart('2026-01-01');
+		$account->setPromoEnd(null);
+
+		$this->assertInstanceOf(Account::class, $mapper->update($account));
 	}
 
 	public function testMarkPromoWarnedSetsOnlyThatColumn(): void {

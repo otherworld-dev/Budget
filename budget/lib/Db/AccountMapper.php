@@ -11,6 +11,7 @@ use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Db\Entity;
 use OCP\AppFramework\Db\QBMapper;
 use OCP\DB\QueryBuilder\ICompositeExpression;
+use OCP\DB\QueryBuilder\IParameter;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
 
@@ -252,7 +253,13 @@ class AccountMapper extends QBMapper {
 		$qb->executeStatement();
 	}
 
-	private function nullableDateParam(IQueryBuilder $qb, ?string $date): string {
+	/**
+	 * No native return type: createNamedParameter() returns an IParameter
+	 * object, and a declared string made every account save throw.
+	 *
+	 * @return IParameter
+	 */
+	private function nullableDateParam(IQueryBuilder $qb, ?string $date) {
 		return $date === null
 			? $qb->createNamedParameter(null, IQueryBuilder::PARAM_NULL)
 			: $qb->createNamedParameter($date);
