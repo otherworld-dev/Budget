@@ -556,16 +556,19 @@ style('budget', 'budget-app');
                 </div>
 
                 <!-- Phase 3: Advanced Hero Tiles -->
-                <div class="hero-card hero-burn-rate" data-widget-id="burnRate" data-widget-category="hero" style="display: none;">
+                <!-- Runway: how long the chosen accounts last (replaces Burn Rate) -->
+                <div class="hero-card hero-runway" data-widget-id="runway" data-widget-category="hero" style="display: none;">
                     <div class="hero-icon">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4zM13 19H11v-2h2v2zm0-4H11v-4h2v4zm0-6H11V7h2v2z"/>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                            <path d="M6 2v6h.01L6 8.01 10 12l-4 4 .01.01H6V22h12v-5.99h-.01L18 16l-4-4 4-3.99-.01-.01H18V2H6zm10 14.5V20H8v-3.5l4-4 4 4zm-4-5l-4-4V4h8v3.5l-4 4z"/>
                         </svg>
                     </div>
                     <div class="hero-content">
-                        <span class="hero-label"><?php p($l->t('Burn Rate')); ?></span>
-                        <span id="hero-burn-rate-value" class="hero-value">--</span>
-                        <span id="hero-burn-rate-change" class="hero-subtext"></span>
+                        <span class="hero-label"><?php p($l->t('Runway')); ?></span>
+                        <span id="hero-runway-value" class="hero-value" data-runway-part="value">--</span>
+                        <span id="hero-runway-until" class="hero-subtext" data-runway-part="until"></span>
+                        <span id="hero-runway-budget" class="hero-subtext hero-runway-budget" data-runway-part="budget" hidden></span>
+                        <span id="hero-runway-drain" class="hero-subtext" data-runway-part="drain" hidden></span>
                     </div>
                 </div>
 
@@ -969,6 +972,52 @@ style('budget', 'budget-app');
                         </div>
                         <div id="cash-flow-forecast-empty" class="chart-empty-state" style="display: none;">
                             <?php p($l->t('Not enough history yet to forecast')); ?>
+                        </div>
+                    </div>
+
+                    <!-- Runway tiles: drawn by src/modules/dashboard/runway/RunwayTiles.js -->
+                    <div id="runway-chart-card" class="dashboard-card runway-card dashboard-tile-m" data-widget-id="runwayChart" data-widget-category="widget" style="display: none;">
+                        <div class="card-header">
+                            <h3><?php p($l->t('Runway forecast')); ?></h3>
+                        </div>
+                        <div class="runway-tile-body" data-runway-body>
+                            <div class="empty-state-small"><?php p($l->t('Loading...')); ?></div>
+                        </div>
+                    </div>
+
+                    <div id="runway-one-offs-card" class="dashboard-card runway-card dashboard-tile-s" data-widget-id="runwayOneOffs" data-widget-category="widget" style="display: none;">
+                        <div class="card-header">
+                            <h3><?php p($l->t('Planned one-offs')); ?></h3>
+                        </div>
+                        <div class="runway-tile-body" data-runway-body>
+                            <div class="empty-state-small"><?php p($l->t('Loading...')); ?></div>
+                        </div>
+                    </div>
+
+                    <div id="runway-scenarios-card" class="dashboard-card runway-card dashboard-tile-m" data-widget-id="runwayScenarios" data-widget-category="widget" style="display: none;">
+                        <div class="card-header">
+                            <h3><?php p($l->t('How long will it last')); ?></h3>
+                        </div>
+                        <div class="runway-tile-body" data-runway-body>
+                            <div class="empty-state-small"><?php p($l->t('Loading...')); ?></div>
+                        </div>
+                    </div>
+
+                    <div id="runway-breakdown-card" class="dashboard-card runway-card dashboard-tile-s" data-widget-id="runwayBreakdown" data-widget-category="widget" style="display: none;">
+                        <div class="card-header">
+                            <h3><?php p($l->t('Where the drain comes from')); ?></h3>
+                        </div>
+                        <div class="runway-tile-body" data-runway-body>
+                            <div class="empty-state-small"><?php p($l->t('Loading...')); ?></div>
+                        </div>
+                    </div>
+
+                    <div id="runway-overview-card" class="dashboard-card runway-card dashboard-tile-l" data-widget-id="runwayOverview" data-widget-category="widget" style="display: none;">
+                        <div class="card-header">
+                            <h3><?php p($l->t('Runway overview')); ?></h3>
+                        </div>
+                        <div class="runway-tile-body" data-runway-body>
+                            <div class="empty-state-small"><?php p($l->t('Loading...')); ?></div>
                         </div>
                     </div>
 
@@ -4670,6 +4719,16 @@ style('budget', 'budget-app');
                                 <div>
                                     <strong><?php p($l->t('Forecast Warnings')); ?></strong>
                                     <small><?php p($l->t('Notify about negative cash flow predictions')); ?></small>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="setting-item checkbox-setting">
+                            <label>
+                                <input type="checkbox" id="setting-notification-runway-alert" class="setting-input">
+                                <div>
+                                    <strong><?php p($l->t('Runway alerts')); ?></strong>
+                                    <small><?php p($l->t('Notify when the date your money runs out moves earlier')); ?></small>
                                 </div>
                             </label>
                         </div>

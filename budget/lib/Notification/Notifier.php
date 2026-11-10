@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Notification;
 
 use OCA\Budget\AppInfo\Application;
+use OCP\IL10N;
 use OCP\IURLGenerator;
 use OCP\L10N\IFactory;
 use OCP\Notification\INotification;
@@ -29,6 +30,27 @@ class Notifier implements INotifier {
 
 	public function getName(): string {
 		return $this->l10nFactory->get(Application::APP_ID)->t('Budget');
+	}
+
+	/**
+	 * "June 2028" in the recipient's language. IL10N has no month-year
+	 * format, so this goes through ICU (always present on Nextcloud).
+	 */
+	private function monthYear(IL10N $l, string $isoDate): string {
+		$date = \DateTimeImmutable::createFromFormat('!Y-m-d', $isoDate);
+		if ($date === false) {
+			return $isoDate;
+		}
+		$formatter = new \IntlDateFormatter(
+			$l->getLocaleCode() ?: 'en',
+			\IntlDateFormatter::NONE,
+			\IntlDateFormatter::NONE,
+			'UTC',
+			\IntlDateFormatter::GREGORIAN,
+			'LLLL y'
+		);
+		$text = $formatter->format($date->setTimezone(new \DateTimeZone('UTC')));
+		return $text === false ? $date->format('F Y') : $text;
 	}
 
 	public function prepare(INotification $notification, string $languageCode): INotification {
@@ -609,6 +631,29 @@ class Notifier implements INotifier {
 				$notification->setLink($this->urlGenerator->linkToRouteAbsolute(
 					Application::APP_ID . '.page.index'
 				) . '#forecast');
+
+				break;
+
+			case 'runway_warning':
+				$notification->setRichSubject($l->t('Your money is forecast to run out sooner'));
+
+				// TRANSLATORS: {date}, {months}, {previous} are placeholders — do NOT translate them. Keep all {placeholder} names exactly as-is.
+				$notification->setRichMessage(
+					$l->t('It now runs out around {date}, {months} earlier than {previous}.'),
+					[
+						'date' => ['type' => 'highlight', 'id' => 'date', 'name' => $this->monthYear($l, (string)$parameters['runsOutOn'])],
+						'months' => ['type' => 'highlight', 'id' => 'months', 'name' => $l->n('%n month', '%n months', (int)$parameters['months'])],
+						'previous' => ['type' => 'highlight', 'id' => 'previous', 'name' => $this->monthYear($l, (string)$parameters['previous'])],
+					]
+				);
+
+				$notification->setIcon($this->urlGenerator->getAbsoluteURL(
+					$this->urlGenerator->imagePath(Application::APP_ID, 'app.svg')
+				));
+
+				$notification->setLink($this->urlGenerator->linkToRouteAbsolute(
+					Application::APP_ID . '.page.index'
+				) . '#dashboard');
 
 				break;
 

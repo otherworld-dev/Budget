@@ -191,6 +191,10 @@ return [
 
 		// Forecast routes
 		['name' => 'forecast#live', 'url' => '/api/forecast/live', 'verb' => 'GET'],
+		['name' => 'runway#index', 'url' => '/api/runway', 'verb' => 'GET'],
+		['name' => 'runway#createOneOff', 'url' => '/api/runway/one-offs', 'verb' => 'POST'],
+		['name' => 'runway#updateOneOff', 'url' => '/api/runway/one-offs/{id}', 'verb' => 'PUT'],
+		['name' => 'runway#destroyOneOff', 'url' => '/api/runway/one-offs/{id}', 'verb' => 'DELETE'],
 		['name' => 'forecast#generate', 'url' => '/api/forecast/generate', 'verb' => 'POST'],
 		['name' => 'forecast#enhanced', 'url' => '/api/forecast/enhanced', 'verb' => 'POST'],
 		['name' => 'forecast#export', 'url' => '/api/forecast/export', 'verb' => 'POST'],
@@ -502,6 +506,7 @@ return [
 		// "Capture and check" (#767): read-only figures for the phone.
 		['name' => 'apiV1Budget#status', 'url' => '/api/v1/budget/status', 'verb' => 'GET'],
 		['name' => 'apiV1Bill#upcoming', 'url' => '/api/v1/bills/upcoming', 'verb' => 'GET'],
+		['name' => 'apiV1Runway#show', 'url' => '/api/v1/runway', 'verb' => 'GET'],
 
 		['name' => 'apiV1Transaction#index', 'url' => '/api/v1/transactions', 'verb' => 'GET'],
 		['name' => 'apiV1Transaction#create', 'url' => '/api/v1/transactions', 'verb' => 'POST'],

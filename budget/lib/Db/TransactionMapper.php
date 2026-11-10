@@ -2743,6 +2743,103 @@ class TransactionMapper extends QBMapper {
 	}
 
 	/**
+	 * Every row the runway needs on these accounts, dated from..to inclusive
+	 * (a null bound is open). The runway calculator decides what counts, so
+	 * nothing is filtered out here: scheduled, pending, pension legs and
+	 * flagged rows all come back with the facts that classify them.
+	 *
+	 * `linked_account_id` is the account of the linked partner row (LEFT JOIN
+	 * on linked_transaction_id), which is how a transfer between two chosen
+	 * accounts is told from one that leaves them.
+	 *
+	 * `amount` is signed (credit positive, debit negative) in the account's own
+	 * currency; the stored column is unsigned with a separate `type`.
+	 *
+	 * @param int[] $accountIds
+	 * @return array<int, array{id: int, account_id: int, date: string, amount: string, description: string, category_id: ?int, status: ?string, excluded_from_forecast: bool, pension_contrib_id: ?int, linked_transaction_id: ?int, linked_account_id: ?int, bill_id: ?int, is_split: bool}>
+	 */
+	public function findRunwayRows(array $accountIds, ?string $from, ?string $to): array {
+		if (empty($accountIds)) {
+			return [];
+		}
+
+		$rows = [];
+		// Chunked like the other id-list queries: Oracle caps an IN list at 1000.
+		foreach (array_chunk(array_values(array_map('intval', $accountIds)), 500) as $chunk) {
+			$qb = $this->db->getQueryBuilder();
+
+			$qb->select(
+				't.id', 't.account_id', 't.date', 't.description', 't.category_id', 't.status',
+				't.excluded_from_forecast', 't.pension_contrib_id', 't.linked_transaction_id',
+				't.bill_id', 't.is_split'
+			)
+				->selectAlias(
+					$qb->createFunction('CASE WHEN t.type = \'credit\' THEN t.amount ELSE -t.amount END'),
+					'amount'
+				)
+				->selectAlias('lt.account_id', 'linked_account_id')
+				->from($this->getTableName(), 't')
+				->leftJoin('t', $this->getTableName(), 'lt', $qb->expr()->eq('t.linked_transaction_id', 'lt.id'))
+				->where($qb->expr()->in('t.account_id', $qb->createNamedParameter($chunk, IQueryBuilder::PARAM_INT_ARRAY)));
+
+			if ($from !== null) {
+				$qb->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($from)));
+			}
+			if ($to !== null) {
+				$qb->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($to)));
+			}
+
+			$result = $qb->executeQuery();
+			$data = $result->fetchAll();
+			$result->closeCursor();
+
+			foreach ($data as $row) {
+				$rows[] = [
+					'id' => (int)$row['id'],
+					'account_id' => (int)$row['account_id'],
+					'date' => (string)$row['date'],
+					'amount' => (string)$row['amount'],
+					'description' => (string)($row['description'] ?? ''),
+					'category_id' => $row['category_id'] !== null ? (int)$row['category_id'] : null,
+					'status' => $row['status'] !== null ? (string)$row['status'] : null,
+					// Boolean columns are NULL on rows older than the column.
+					'excluded_from_forecast' => !empty($row['excluded_from_forecast']),
+					'pension_contrib_id' => $row['pension_contrib_id'] !== null ? (int)$row['pension_contrib_id'] : null,
+					'linked_transaction_id' => $row['linked_transaction_id'] !== null ? (int)$row['linked_transaction_id'] : null,
+					'linked_account_id' => $row['linked_account_id'] !== null ? (int)$row['linked_account_id'] : null,
+					'bill_id' => $row['bill_id'] !== null ? (int)$row['bill_id'] : null,
+					'is_split' => !empty($row['is_split']),
+				];
+			}
+		}
+
+		return $rows;
+	}
+
+	/**
+	 * Date of the oldest transaction on these accounts, or null if there are none.
+	 * The runway uses it to know how much history its averages can draw on.
+	 *
+	 * @param int[] $accountIds
+	 */
+	public function firstTransactionDate(array $accountIds): ?string {
+		if (empty($accountIds)) {
+			return null;
+		}
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->selectAlias($qb->createFunction('MIN(t.date)'), 'first_date')
+			->from($this->getTableName(), 't')
+			->where($qb->expr()->in('t.account_id', $qb->createNamedParameter(array_values(array_map('intval', $accountIds)), IQueryBuilder::PARAM_INT_ARRAY)));
+
+		$result = $qb->executeQuery();
+		$value = $result->fetchOne();
+		$result->closeCursor();
+
+		return ($value === false || $value === null) ? null : (string)$value;
+	}
+
+	/**
 	 * Get daily balance changes for an account (for efficient balance history calculation)
 	 *
 	 * The rows the stored balance counts, and only those (getNetChangeAll()'s

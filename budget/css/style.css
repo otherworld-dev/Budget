@@ -18565,9 +18565,16 @@ button.secondary.compact {
 }
 
 /* Phase 3: Advanced Hero Tile Styles */
-.hero-burn-rate .hero-icon {
-    background: rgba(255, 87, 34, 0.1);
-    color: #ff5722;
+/* Runway hero: the on-budget line carries the chart's on-budget colour as a dot */
+.hero-runway-budget::before {
+    content: '';
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--color-warning);
+    margin-right: 6px;
+    vertical-align: middle;
 }
 
 .hero-debt-free .hero-icon {
@@ -21900,4 +21907,447 @@ th.sortable:focus-visible {
 
 .status-badge.badge-outstanding {
     background: var(--color-warning);
+}
+
+/* ===========================
+   Runway tiles (src/modules/dashboard/runway/)
+   =========================== */
+
+/* Some of these rules set display, which would beat the hidden attribute */
+.runway-card [hidden],
+.hero-runway [hidden] {
+    display: none !important;
+}
+
+.runway-tile-body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+.runway-card .runway-chart {
+    flex: 1;
+    min-height: 160px;
+}
+
+.runway-muted {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+    margin: 6px 0 0;
+}
+
+.runway-warning {
+    font-size: 12px;
+    color: var(--color-warning-text, var(--color-main-text));
+    background: var(--color-warning-element-light, rgba(250, 180, 40, 0.1));
+    padding: 6px 10px;
+    border-radius: var(--border-radius, 4px);
+    margin: 8px 0 0;
+}
+
+.runway-card .negative,
+.runway-setup .negative {
+    color: var(--budget-color-negative);
+}
+
+.runway-card .positive {
+    color: var(--budget-color-positive);
+}
+
+/* Headline */
+.runway-headline-label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--color-text-maxcontrast);
+}
+
+.runway-headline-value {
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--color-main-text);
+}
+
+.runway-headline-until {
+    font-size: 14px;
+    color: var(--color-main-text);
+}
+
+/* Two scenarios side by side */
+.runway-scenario-pair {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+}
+
+.runway-scenario {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 12px;
+    border-radius: var(--border-radius-element, 8px);
+    background: var(--color-background-dark);
+    border-left: 3px solid var(--color-primary-element);
+}
+
+.runway-scenario--budget {
+    border-left-color: var(--color-warning);
+}
+
+.runway-scenario-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-text-maxcontrast);
+}
+
+.runway-scenario-months {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--color-main-text);
+}
+
+.runway-scenario-note {
+    font-size: 13px;
+    color: var(--color-main-text);
+}
+
+.runway-scenario-drain,
+.runway-scenario-until {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+}
+
+.runway-difference {
+    margin: 10px 0 0;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-main-text);
+}
+
+/* Where the drain comes from */
+.runway-breakdown-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 0;
+}
+
+.runway-breakdown-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: var(--color-background-dark);
+    font-size: 13px;
+}
+
+.runway-breakdown-row dt {
+    color: var(--color-text-maxcontrast);
+}
+
+.runway-breakdown-row dd {
+    margin: 0;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-main-text);
+}
+
+.runway-breakdown-total {
+    background: transparent;
+    border-top: 1px solid var(--color-border);
+    border-radius: 0;
+}
+
+.runway-excluded summary {
+    margin-top: 10px;
+    font-size: 13px;
+    color: var(--color-main-text);
+    cursor: pointer;
+}
+
+.runway-excluded-list {
+    list-style: none;
+    margin: 4px 0 0;
+    padding: 0;
+}
+
+.runway-excluded-open {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 8px;
+    width: 100%;
+    min-height: 0;
+    margin: 0;
+    padding: 4px 6px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--color-main-text);
+    font-size: 12px;
+    font-weight: normal;
+    text-align: left;
+    cursor: pointer;
+}
+
+.runway-excluded-open:hover,
+.runway-excluded-open:focus-visible {
+    background: var(--color-background-hover);
+}
+
+.runway-excluded-date {
+    color: var(--color-text-maxcontrast);
+}
+
+.runway-excluded-description {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.runway-excluded-amount {
+    font-variant-numeric: tabular-nums;
+}
+
+/* Planned one-offs */
+.runway-oneoffs {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 0;
+}
+
+.runway-oneoff-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.runway-oneoff {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: var(--color-background-dark);
+}
+
+.runway-oneoff--past {
+    opacity: 0.6;
+}
+
+.runway-oneoff-main {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+}
+
+.runway-oneoff-description {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-main-text);
+}
+
+.runway-oneoff-date {
+    font-size: 11px;
+    color: var(--color-text-maxcontrast);
+}
+
+.runway-oneoff-amount {
+    font-size: 13px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.runway-oneoff-actions {
+    display: flex;
+    gap: 2px;
+}
+
+.runway-oneoff-empty {
+    padding: 4px 0;
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+}
+
+.runway-oneoff-add {
+    align-self: flex-start;
+}
+
+.runway-oneoff-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+}
+
+.runway-oneoff-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 6px;
+}
+
+.runway-oneoff-field {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    font-size: 11px;
+    color: var(--color-text-maxcontrast);
+}
+
+.runway-oneoff-field input,
+.runway-oneoff-field select {
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+}
+
+.runway-oneoff-form-actions {
+    display: flex;
+    gap: 6px;
+}
+
+/* Overview: headline and scenarios on the left, chart and one-offs on the right */
+.runway-overview {
+    display: grid;
+    grid-template-columns: minmax(220px, 2fr) 3fr;
+    gap: 20px;
+    flex: 1;
+    min-height: 0;
+}
+
+.runway-overview-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 0;
+    overflow-y: auto;
+}
+
+.runway-overview-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+    min-height: 0;
+}
+
+.runway-overview-detail .runway-oneoffs {
+    flex: 0 1 auto;
+    max-height: 40%;
+    overflow-y: auto;
+}
+
+@media (max-width: 640px) {
+    .runway-overview {
+        grid-template-columns: 1fr;
+    }
+
+    .runway-overview-detail .runway-chart {
+        flex: none;
+        height: 200px;
+    }
+
+    .runway-overview-detail .runway-oneoffs {
+        max-height: none;
+    }
+}
+
+/* The runway setup, in the tile settings dialog */
+.runway-setup {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.runway-setup-accounts {
+    margin: 0;
+    padding: 8px 12px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-element, 8px);
+}
+
+.runway-setup-accounts legend {
+    padding: 0 4px;
+    font-weight: 600;
+}
+
+.runway-setup-group-title {
+    margin: 8px 0 4px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--color-text-maxcontrast);
+}
+
+.runway-setup-account,
+.runway-setup-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+    font-weight: normal;
+    cursor: pointer;
+}
+
+.runway-setup-account input,
+.runway-setup-check input {
+    width: auto;
+    min-height: auto;
+    margin: 0;
+}
+
+.runway-setup-account-name {
+    flex: 1;
+    min-width: 0;
+}
+
+.runway-setup-account-note {
+    font-size: 12px;
+    color: var(--color-text-maxcontrast);
+}
+
+.runway-setup-account-balance {
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    color: var(--color-text-maxcontrast);
+}
+
+.runway-setup-default {
+    align-self: flex-start;
+    margin-bottom: 4px;
+}
+
+.runway-setup-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.runway-setup-field {
+    margin: 0;
+}
+
+.runway-setup-actions {
+    display: flex;
+    justify-content: flex-end;
 }

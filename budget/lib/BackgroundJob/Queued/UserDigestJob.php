@@ -8,6 +8,7 @@ use OCA\Budget\Service\AnomalyDetectionService;
 use OCA\Budget\Service\BudgetAlertService;
 use OCA\Budget\Service\DigestService;
 use OCA\Budget\Service\Forecast\ForecastWarningService;
+use OCA\Budget\Service\Runway\RunwayAlertService;
 use OCA\Budget\Service\SettingService;
 use OCA\Budget\Service\UserClock;
 use OCP\AppFramework\Utility\ITimeFactory;
@@ -89,6 +90,14 @@ class UserDigestJob extends QueuedJob {
 			}
 		} catch (\Exception $e) {
 			$logger->warning("Forecast warning failed for {$userId}: " . $e->getMessage(), ['app' => 'budget']);
+		}
+
+		try {
+			if ($settingService->get($userId, 'notification_runway_alert') !== 'false') {
+				Server::get(RunwayAlertService::class)->checkAndNotify($userId);
+			}
+		} catch (\Exception $e) {
+			$logger->warning("Runway alert failed for {$userId}: " . $e->getMessage(), ['app' => 'budget']);
 		}
 	}
 }

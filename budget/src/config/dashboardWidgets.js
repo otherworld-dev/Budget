@@ -27,7 +27,9 @@ export const DASHBOARD_WIDGETS = {
         lowBalanceAlert: { id: 'hero-low-balance', name: t('budget', 'Low Balance Alert'), defaultSize: 'hero', defaultVisible: false, category: 'alerts', settingsSchema: {} },
 
         // Phase 3 - Advanced Features (lazy loaded with charts)
-        burnRate: { id: 'hero-burn-rate', name: t('budget', 'Burn Rate'), defaultSize: 'hero', defaultVisible: false, category: 'forecasting', settingsSchema: {} },
+        // Replaces the old Burn Rate tile, which never showed anything; a
+        // saved layout still naming burnRate just skips it.
+        runway: { id: 'hero-runway', name: t('budget', 'Runway'), defaultSize: 'hero', defaultVisible: false, category: 'forecasting', settingsSchema: { runwaySetup: true } },
         daysUntilDebtFree: { id: 'hero-debt-free', name: t('budget', 'Days Until Debt Free'), defaultSize: 'hero', defaultVisible: false, category: 'debts', settingsSchema: { displayFormat: ['compact', 'full'], showChangeIndicator: true } }
     },
     widgets: {
@@ -81,6 +83,12 @@ export const DASHBOARD_WIDGETS = {
 
         // Phase 3 - Advanced Features (lazy loaded with charts)
         cashFlowForecast: { id: 'cash-flow-forecast-card', name: t('budget', 'Cash Flow Forecast'), defaultSize: 'l', allowedSizes: ['s', 'm', 'l'], defaultVisible: false, category: 'forecasting', settingsSchema: { forecastMonths: true, excludeShared: true } },
+        // Runway: one shared setup (the gear on any of them), one fetch
+        runwayChart: { id: 'runway-chart-card', name: t('budget', 'Runway forecast'), defaultSize: 'm', allowedSizes: ['m', 'l'], defaultVisible: false, category: 'forecasting', settingsSchema: { runwaySetup: true } },
+        runwayOneOffs: { id: 'runway-one-offs-card', name: t('budget', 'Planned one-offs'), defaultSize: 's', allowedSizes: ['s', 'm'], defaultVisible: false, category: 'forecasting', settingsSchema: { runwaySetup: true } },
+        runwayScenarios: { id: 'runway-scenarios-card', name: t('budget', 'How long will it last'), defaultSize: 'm', allowedSizes: ['m', 'l'], defaultVisible: false, category: 'forecasting', settingsSchema: { runwaySetup: true } },
+        runwayBreakdown: { id: 'runway-breakdown-card', name: t('budget', 'Where the drain comes from'), defaultSize: 's', allowedSizes: ['s', 'm'], defaultVisible: false, category: 'forecasting', settingsSchema: { runwaySetup: true } },
+        runwayOverview: { id: 'runway-overview-card', name: t('budget', 'Runway overview'), defaultSize: 'l', allowedSizes: ['l'], defaultVisible: false, category: 'forecasting', settingsSchema: { runwaySetup: true } },
         yoyComparison: { id: 'yoy-comparison-card', name: t('budget', 'Year-over-Year'), defaultSize: 'l', allowedSizes: ['s', 'm', 'l'], defaultVisible: false, category: 'insights', settingsSchema: { yearsToCompare: true, accountSelector: true, excludeShared: true, showLegend: true } },
         incomeTracking: { id: 'income-tracking-card', name: t('budget', 'Income Tracking'), defaultSize: 'hero', defaultVisible: false, category: 'income', settingsSchema: { accountSelector: true } },
         recentImports: { id: 'recent-imports-card', name: t('budget', 'Recent Imports'), defaultSize: 's', allowedSizes: ['xs', 's', 'm', 'l'], defaultVisible: false, category: 'transactions', settingsSchema: {} },
