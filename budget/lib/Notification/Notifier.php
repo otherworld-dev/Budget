@@ -612,6 +612,35 @@ class Notifier implements INotifier {
 
 				break;
 
+			case 'promo_rate_ending':
+				$notification->setRichSubject(
+					// TRANSLATORS: {account} is a placeholder — do NOT translate it. Keep all {placeholder} names exactly as-is.
+					$l->t('Promotional rate ending on {account}'),
+					[
+						'account' => ['type' => 'highlight', 'id' => 'account', 'name' => $parameters['accountName']],
+					]
+				);
+
+				// TRANSLATORS: {promoRate}, {date}, {rate} are placeholders — do NOT translate them. Keep all {placeholder} names exactly as-is.
+				$notification->setRichMessage(
+					$l->t('The {promoRate}%% rate ends on {date}. After that, {rate}%% applies.'),
+					[
+						'promoRate' => ['type' => 'highlight', 'id' => 'promoRate', 'name' => (string)$parameters['promoRate']],
+						'date' => ['type' => 'highlight', 'id' => 'date', 'name' => $l->l('date', new \DateTime($parameters['promoEnd']))],
+						'rate' => ['type' => 'highlight', 'id' => 'rate', 'name' => (string)$parameters['normalRate']],
+					]
+				);
+
+				$notification->setIcon($this->urlGenerator->getAbsoluteURL(
+					$this->urlGenerator->imagePath(Application::APP_ID, 'app.svg')
+				));
+
+				$notification->setLink($this->urlGenerator->linkToRouteAbsolute(
+					Application::APP_ID . '.page.index'
+				) . '#accounts');
+
+				break;
+
 			case 'import_folder_done':
 				// TRANSLATORS: {file} and {account} are placeholders — do NOT translate them. Keep all {placeholder} names exactly as-is.
 				$notification->setRichSubject(

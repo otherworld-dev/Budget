@@ -64,6 +64,7 @@ class BillReminderJobTest extends TestCase {
 			[RecurringIncomeService::class, $this->incomeService],
 			[PensionRecurringContributionMapper::class, $this->pensionRecurMapper],
 			[PensionRecurringService::class, $this->pensionRecurService],
+			[\OCA\Budget\Service\PromoRateWarningService::class, $this->createMock(\OCA\Budget\Service\PromoRateWarningService::class)],
 			[INotificationManager::class, $this->notificationManager],
 			[IDBConnection::class, $this->db],
 			[LoggerInterface::class, $this->logger],
