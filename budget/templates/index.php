@@ -4662,6 +4662,16 @@ style('budget', 'budget-app');
 
                         <div class="setting-item checkbox-setting">
                             <label>
+                                <input type="checkbox" id="setting-notification-runway-alert" class="setting-input">
+                                <div>
+                                    <strong><?php p($l->t('Runway alerts')); ?></strong>
+                                    <small><?php p($l->t('Notify when the date your money runs out moves earlier')); ?></small>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="setting-item checkbox-setting">
+                            <label>
                                 <input type="checkbox" id="setting-anomaly-alerts-enabled" class="setting-input">
                                 <div>
                                     <strong><?php p($l->t('Unusual Spending Alerts')); ?></strong>

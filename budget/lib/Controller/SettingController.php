@@ -482,7 +482,10 @@ class SettingController extends Controller {
 	 */
 	#[UserRateLimit(limit: 20, period: 60)]
 	public function destroy(string $key): DataResponse {
-		if (self::isHiddenKey($key)) {
+		// Only what update() can write. The rest is the app's own memory
+		// (forecast_warning_notified, runway_alert_baseline...): deleting one
+		// would re-arm that alert on demand.
+		if (self::isHiddenKey($key) || !self::isClientKey($key)) {
 			return $this->refusedKey($key);
 		}
 		try {
@@ -517,7 +520,7 @@ class SettingController extends Controller {
 	public function reset(): DataResponse {
 		try {
 			$this->leaveImportFilesAlone('');
-			$deleted = $this->mapper->deleteAll($this->getEffectiveUserId(), self::HIDDEN_KEYS);
+			$deleted = $this->mapper->deleteAll($this->getEffectiveUserId(), [...self::HIDDEN_KEYS, 'runway_alert_baseline']);
 
 			return new DataResponse([
 				'message' => $this->l->t('All settings reset to defaults'),

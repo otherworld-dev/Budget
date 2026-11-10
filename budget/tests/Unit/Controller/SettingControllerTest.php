@@ -411,18 +411,19 @@ class SettingControllerTest extends TestCase {
 	public function testDestroyReturns404WhenNotFound(): void {
 		$this->mapper->method('deleteByKey')->willReturn(0);
 
-		$response = $this->controller->destroy('nonexistent');
+		$response = $this->controller->destroy('date_format');
 
 		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
 	}
 
-	public function testDestroyReturnsNullDefaultForUnknownKey(): void {
-		$this->mapper->method('deleteByKey')->with('user1', 'custom_key')->willReturn(1);
+	public function testDestroyRefusesKeysTheClientCannotWrite(): void {
+		// runway_alert_baseline and the *_notified markers are the alerts' own
+		// memory: deleting one re-arms (or silences) an alert on demand
+		$this->mapper->expects($this->never())->method('deleteByKey');
 
-		$response = $this->controller->destroy('custom_key');
-
-		$this->assertSame(Http::STATUS_OK, $response->getStatus());
-		$this->assertNull($response->getData()['default_value']);
+		foreach (['runway_alert_baseline', 'forecast_warning_notified', 'custom_key'] as $key) {
+			$this->assertSame(Http::STATUS_BAD_REQUEST, $this->controller->destroy($key)->getStatus(), $key);
+		}
 	}
 
 	// ── reset ───────────────────────────────────────────────────────
@@ -440,10 +441,10 @@ class SettingControllerTest extends TestCase {
 		$this->assertSame('GBP', $data['defaults']['default_currency']);
 	}
 
-	public function testResetKeepsTheEnableBankingKeys(): void {
+	public function testResetKeepsTheEnableBankingKeysAndTheRunwayBaseline(): void {
 		$this->mapper->expects($this->once())
 			->method('deleteAll')
-			->with('user1', ['enablebanking_keys'])
+			->with('user1', ['enablebanking_keys', 'runway_alert_baseline'])
 			->willReturn(4);
 
 		$response = $this->controller->reset();
