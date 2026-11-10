@@ -401,7 +401,9 @@ export async function openRunwaySetup(onSaved, container = document.getElementBy
 
     let data;
     try {
-        data = await loadRunway();
+        // A failure is kept for the tiles until the next dashboard load, so
+        // the setup asks the server again rather than show that one forever
+        data = await loadRunway().catch(() => loadRunway(true));
     } catch (error) {
         if (!stillOurs()) return;
         container.textContent = '';

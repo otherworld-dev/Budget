@@ -603,3 +603,26 @@ describe('review fixes', () => {
         expect(card.querySelector('[data-runway-part="drain"]').textContent).toBe('Monthly drain £0.00 · last 3 months');
     });
 });
+
+describe('final review fixes', () => {
+    it('asks the server again when the setup opens after a failed load', async () => {
+        global.fetch = vi.fn(async () => respond({ error: 'boom' }, 500));
+        await expect(loadRunway()).rejects.toThrow();
+        installFetch();
+
+        const container = document.getElementById('tile-settings-specific');
+        await openRunwaySetup(() => {}, container);
+
+        expect(runwayGets()).toHaveLength(1);
+        expect(container.querySelector('.runway-setup')).not.toBeNull();
+    });
+
+    it('says the alert fires at the chosen number of months or more', async () => {
+        const container = document.getElementById('tile-settings-specific');
+        await openRunwaySetup(() => {}, container);
+
+        expect(container.querySelector('label[for="runway-setup-alert"]').textContent).toBe('Notify me if the runway drops by');
+        const options = [...container.querySelectorAll('[data-runway-setting="alert"] option')].map((o) => o.textContent);
+        expect(options.slice(0, 2)).toEqual(['1 month or more', '2 months or more']);
+    });
+});

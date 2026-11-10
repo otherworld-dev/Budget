@@ -83,7 +83,7 @@ class RunwayService {
 	public function get(string $userId): array {
 		$today = $this->clock->today($userId);
 		$settings = $this->settings($userId);
-		$chosen = $this->chosenFrom($userId, $settings['accountIds']);
+		[$chosen, $isDefault] = $this->chosenFrom($userId, $settings['accountIds']);
 
 		$conversion = $this->currencyTotals->accountRates($chosen, $userId);
 		$rates = $conversion['rates'];
@@ -135,40 +135,49 @@ class RunwayService {
 				'accountIds' => self::sortedIds($chosen),
 				'windowMonths' => $settings['windowMonths'],
 				'includeScheduled' => $settings['includeScheduled'],
-				'accountIdsAreDefault' => $settings['accountIds'] === [],
+				'accountIdsAreDefault' => $isDefault,
 			],
 		];
 	}
 
 	/**
 	 * The accounts the runway counts. With none chosen, the default set:
-	 * the user's open spending accounts and cards (DEFAULT_TYPES), leaving
-	 * out any flagged out of reports. Otherwise exactly the chosen ones the
-	 * user can still see; one deleted or no longer shared just drops out.
+	 * the user's own open spending accounts and cards (DEFAULT_TYPES),
+	 * leaving out any flagged out of reports. An account someone shares
+	 * with the user is only counted if ticked: the default would otherwise
+	 * count a partner's money and spending as the user's. Otherwise exactly
+	 * the chosen ones the user can still see; one deleted or no longer
+	 * shared just drops out, and when none is left the default set applies,
+	 * as it does when a restore maps none of them back.
 	 *
 	 * @return Account[]
 	 */
 	public function chosenAccounts(string $userId): array {
-		return $this->chosenFrom($userId, $this->settings($userId)['accountIds']);
+		return $this->chosenFrom($userId, $this->settings($userId)['accountIds'])[0];
 	}
 
 	/**
 	 * chosenAccounts() for the ids already read from the setup, sorted by
-	 * name as the account list is.
+	 * name as the account list is, and whether they are the default set.
 	 *
 	 * @param int[] $chosenIds empty for the default set
-	 * @return Account[]
+	 * @return array{0: Account[], 1: bool}
 	 */
 	private function chosenFrom(string $userId, array $chosenIds): array {
 		$visible = array_map('intval', $this->granularShareService->getVisibleAccountIds($userId));
 
+		$accounts = [];
 		if ($chosenIds !== []) {
-			$accounts = $this->accountMapper->findByIds(array_values(array_intersect($chosenIds, $visible)));
-		} else {
+			$stillThere = array_values(array_intersect($chosenIds, $visible));
+			$accounts = $stillThere === [] ? [] : $this->accountMapper->findByIds($stillThere);
+		}
+		$isDefault = $accounts === [];
+		if ($isDefault) {
 			$defaultTypes = array_map(static fn (AccountType $type) => $type->value, self::DEFAULT_TYPES);
 			$accounts = array_values(array_filter(
 				$this->accountMapper->findByIds($visible),
-				static fn (Account $a) => in_array((string)$a->getType(), $defaultTypes, true)
+				static fn (Account $a) => $a->getUserId() === $userId
+					&& in_array((string)$a->getType(), $defaultTypes, true)
 					&& !($a->getClosed() ?? false)
 					&& !($a->getExcludedFromReports() ?? false)
 			));
@@ -176,7 +185,7 @@ class RunwayService {
 
 		usort($accounts, static fn (Account $a, Account $b) => [strtolower((string)$a->getName()), (int)$a->getId()]
 			<=> [strtolower((string)$b->getName()), (int)$b->getId()]);
-		return $accounts;
+		return [$accounts, $isDefault];
 	}
 
 	/**
@@ -489,7 +498,7 @@ class RunwayService {
 			return $converted;
 		}
 		if ($counted !== []) {
-			return strtoupper((string)($counted[0]->getCurrency() ?: 'USD'));
+			return strtoupper($counted[0]->getCurrency() ?: 'USD');
 		}
 		return strtoupper($this->conversionService->getBaseCurrency($userId));
 	}

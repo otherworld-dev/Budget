@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-11-10 04:41+0000\n"
+"POT-Creation-Date: 2026-11-10 05:49+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2356,92 +2356,92 @@ msgstr ""
 msgid "Failed to delete saved report"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:127
+#: /app/lib/Controller/SettingController.php:131
 #, php-format
 msgid "This setting can't be changed: %1$s"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:172
+#: /app/lib/Controller/SettingController.php:176
 msgid "Failed to retrieve settings"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:184
-#: /app/lib/Controller/SettingController.php:203
-#: /app/lib/Controller/SettingController.php:499
+#: /app/lib/Controller/SettingController.php:188
+#: /app/lib/Controller/SettingController.php:207
+#: /app/lib/Controller/SettingController.php:536
 msgid "Setting not found"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:207
+#: /app/lib/Controller/SettingController.php:211
 msgid "Failed to retrieve setting"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:255
-#: /app/lib/Controller/SettingController.php:323
+#: /app/lib/Controller/SettingController.php:260
+#: /app/lib/Controller/SettingController.php:332
 #, php-format
 msgid "Invalid receipts folder: %1$s"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:264
-#: /app/lib/Controller/SettingController.php:330
+#: /app/lib/Controller/SettingController.php:269
+#: /app/lib/Controller/SettingController.php:339
 #, php-format
 msgid "Invalid import folder: %1$s"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:275
+#: /app/lib/Controller/SettingController.php:284
 msgid "Settings updated successfully"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:285
+#: /app/lib/Controller/SettingController.php:294
 msgid "Failed to update settings"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:301
+#: /app/lib/Controller/SettingController.php:310
 msgid "Value parameter is required"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:340
+#: /app/lib/Controller/SettingController.php:352
 msgid "Setting updated successfully"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:345
+#: /app/lib/Controller/SettingController.php:357
 msgid "Failed to update setting"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:373
+#: /app/lib/Controller/SettingController.php:385
 msgid "Invalid colour setting"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:424
+#: /app/lib/Controller/SettingController.php:436
 #, php-format
 msgid "Invalid runway setting: %1$s"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:505
+#: /app/lib/Controller/SettingController.php:542
 msgid "Setting reset to default"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:510
+#: /app/lib/Controller/SettingController.php:547
 msgid "Failed to reset setting"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:526
+#: /app/lib/Controller/SettingController.php:563
 msgid "All settings reset to defaults"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:531
+#: /app/lib/Controller/SettingController.php:568
 #: /app/src/modules/settings/SettingsModule.js:569
 msgid "Failed to reset settings"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:560 /app/templates/index.php:4579
+#: /app/lib/Controller/SettingController.php:597 /app/templates/index.php:4579
 msgid "Sunday"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:561 /app/templates/index.php:4580
+#: /app/lib/Controller/SettingController.php:598 /app/templates/index.php:4580
 msgid "Monday"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:564
+#: /app/lib/Controller/SettingController.php:601
 #: /app/src/modules/bills/BillsModule.js:344
 #: /app/src/modules/categories/CategoriesModule.js:2667
 #: /app/src/modules/income/IncomeModule.js:102
@@ -2453,7 +2453,7 @@ msgstr ""
 msgid "Weekly"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:565
+#: /app/lib/Controller/SettingController.php:602
 #: /app/src/modules/accounts/AccountsModule.js:1381
 #: /app/src/modules/bills/BillsModule.js:347
 #: /app/src/modules/categories/CategoriesModule.js:2666
@@ -2468,7 +2468,7 @@ msgstr ""
 msgid "Monthly"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:566
+#: /app/lib/Controller/SettingController.php:603
 #: /app/src/modules/bills/BillsModule.js:348
 #: /app/src/modules/categories/CategoriesModule.js:2668
 #: /app/src/modules/income/IncomeModule.js:106
@@ -2481,7 +2481,7 @@ msgstr ""
 msgid "Quarterly"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:567
+#: /app/lib/Controller/SettingController.php:604
 #: /app/src/modules/accounts/AccountsModule.js:1382
 #: /app/src/modules/bills/BillsModule.js:350
 #: /app/src/modules/categories/CategoriesModule.js:2669
@@ -9208,12 +9208,12 @@ msgid "Include scheduled payments"
 msgstr ""
 
 #: /app/src/modules/dashboard/runway/RunwaySetup.js:142
-msgid "Notify me if the runway drops by more than"
+msgid "Notify me if the runway drops by"
 msgstr ""
 
 #: /app/src/modules/dashboard/runway/RunwaySetup.js:143
-msgid "{count} month"
-msgid_plural "{count} months"
+msgid "{count} month or more"
+msgid_plural "{count} months or more"
 msgstr[0] ""
 msgstr[1] ""
 
@@ -9359,7 +9359,7 @@ msgstr ""
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:251
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:350
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:374
-#: /app/src/modules/dashboard/runway/RunwayTiles.js:408
+#: /app/src/modules/dashboard/runway/RunwayTiles.js:410
 msgid "The runway could not be loaded"
 msgstr ""
 
@@ -9367,11 +9367,11 @@ msgstr ""
 msgid "No accounts are counted"
 msgstr ""
 
-#: /app/src/modules/dashboard/runway/RunwayTiles.js:418
+#: /app/src/modules/dashboard/runway/RunwayTiles.js:420
 msgid "Failed to save the runway settings"
 msgstr ""
 
-#: /app/src/modules/dashboard/runway/RunwayTiles.js:422
+#: /app/src/modules/dashboard/runway/RunwayTiles.js:424
 msgid "Runway settings saved"
 msgstr ""
 

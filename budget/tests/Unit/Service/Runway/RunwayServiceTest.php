@@ -139,6 +139,7 @@ class RunwayServiceTest extends TestCase {
 		$account->setCurrency($extra['currency'] ?? 'GBP');
 		$account->setClosed($extra['closed'] ?? false);
 		$account->setExcludedFromReports($extra['excluded'] ?? false);
+		$account->setUserId($extra['owner'] ?? 'user1');
 		$this->accounts[] = $account;
 		$this->visible[] = $id;
 		return $account;
@@ -222,6 +223,33 @@ class RunwayServiceTest extends TestCase {
 		$this->visible = [2];
 
 		$this->assertSame([2], self::ids($this->service->chosenAccounts('user1')));
+	}
+
+	public function testTheDefaultSetLeavesOutAccountsSharedWithTheUser(): void {
+		$this->account(1, 'checking');
+		$this->account(2, 'savings', 0.0, ['owner' => 'partner']);
+		$this->account(3, 'credit_card', 0.0, ['owner' => 'partner']);
+
+		$this->assertSame([1], self::ids($this->service->chosenAccounts('user1')));
+
+		// but one can still be ticked
+		$this->settings['runway_account_ids'] = '[1,2]';
+		$this->assertSame([1, 2], self::ids($this->service->chosenAccounts('user1')));
+	}
+
+	public function testWhenEveryChosenAccountIsGoneTheDefaultSetApplies(): void {
+		$this->account(1, 'checking');
+		$this->account(2, 'savings');
+		$this->account(3, 'investment');
+		$this->visible = [1, 2];
+		// 3 is no longer shared, 99 was deleted
+		$this->settings['runway_account_ids'] = '[3,99]';
+
+		$this->assertSame([1, 2], self::ids($this->service->chosenAccounts('user1')));
+
+		$result = $this->service->get('user1');
+		$this->assertTrue($result['settings']['accountIdsAreDefault']);
+		$this->assertSame([1, 2], $result['settings']['accountIds']);
 	}
 
 	public function testChosenAccountsSkipGoneIds(): void {

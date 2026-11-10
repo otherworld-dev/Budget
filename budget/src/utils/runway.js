@@ -105,7 +105,9 @@ export function chartDatasets(series, colours) {
  * Chart points for the one-off events (scheduled ones are already in the
  * projection, so a marker would double them). Each sits ON the projection
  * line: y is the projection's total on the event date, or on the last day
- * before it when that date has no point.
+ * before it when that date has no point. An event outside the projection's
+ * dates (after the run-out date, or with no projection at all) has no line
+ * to sit on, so it gets no marker.
  *
  * @param {Array<{date: string, amount: string|number, description: string, source: string}>} events
  * @param {Array<{date: string, total: string|number}>} projection e.g. series.current
@@ -113,14 +115,17 @@ export function chartDatasets(series, colours) {
  */
 export function eventMarkers(events, projection) {
     const line = [...(projection || [])].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    if (!line.length) return [];
+    const first = line[0].date;
+    const last = line[line.length - 1].date;
     return (events || [])
-        .filter((e) => e.source === 'oneOff')
+        .filter((e) => e.source === 'oneOff' && e.date >= first && e.date <= last)
         .map((e) => {
-            let point = null;
+            let point = line[0];
             for (const p of line) {
                 if (p.date > e.date) break;
                 point = p;
             }
-            return { x: e.date, y: point ? Number(point.total) : Number(e.amount), label: e.description };
+            return { x: e.date, y: Number(point.total), label: e.description };
         });
 }

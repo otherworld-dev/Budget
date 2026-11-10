@@ -122,4 +122,16 @@ describe('eventMarkers', () => {
     it('copes with no events', () => {
         expect(eventMarkers(null, projection)).toEqual([]);
     });
+
+    it('leaves out events after the projection ends or with no projection', () => {
+        const events = [
+            { date: '2026-11-30', amount: '-50.00', description: 'Before', source: 'oneOff' },
+            { date: '2026-12-10', amount: '-60.00', description: 'Last day', source: 'oneOff' },
+            { date: '2027-01-05', amount: '-864.00', description: 'After', source: 'oneOff' },
+        ];
+
+        expect(eventMarkers(events, projection)).toEqual([{ x: '2026-12-10', y: 600, label: 'Last day' }]);
+        expect(eventMarkers(events, [])).toEqual([]);
+        expect(eventMarkers(events, null)).toEqual([]);
+    });
 });

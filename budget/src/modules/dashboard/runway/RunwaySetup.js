@@ -139,8 +139,8 @@ export function renderRunwaySetup(container, data, { onSave }) {
     fields.appendChild(include);
 
     const alertMonths = parseInt(settings().runway_alert_months, 10) || 1;
-    fields.appendChild(select('alert', t('budget', 'Notify me if the runway drops by more than'), ALERT_CHOICES, alertMonths,
-        (count) => n('budget', '{count} month', '{count} months', count, { count })));
+    fields.appendChild(select('alert', t('budget', 'Notify me if the runway drops by'), ALERT_CHOICES, alertMonths,
+        (count) => n('budget', '{count} month or more', '{count} months or more', count, { count })));
     panel.appendChild(fields);
 
     const actions = el('div', 'runway-setup-actions');

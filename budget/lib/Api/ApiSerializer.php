@@ -414,6 +414,17 @@ final class ApiSerializer {
 		$window = $r['window'] ?? [];
 		$excluded = $r['excluded'] ?? [];
 		$scenarios = $r['scenarios'] ?? [];
+		$oneOffs = [];
+		foreach ($r['oneOffs'] ?? [] as $o) {
+			if (is_array($o) && empty($o['past'])) {
+				$oneOffs[] = [
+					'id' => (int)($o['id'] ?? 0),
+					'description' => (string)($o['description'] ?? ''),
+					'amount' => self::money($o['amount'] ?? 0, $currency),
+					'date' => $o['date'] ?? null,
+				];
+			}
+		}
 
 		return [
 			'currency' => $currency,
@@ -440,15 +451,7 @@ final class ApiSerializer {
 				'on_budget' => $scenario($scenarios['onBudget'] ?? []),
 			],
 			'difference_months' => isset($r['differenceMonths']) ? (float)$r['differenceMonths'] : null,
-			'one_offs' => array_values(array_map(
-				static fn (array $o): array => [
-					'id' => (int)($o['id'] ?? 0),
-					'description' => (string)($o['description'] ?? ''),
-					'amount' => self::money($o['amount'] ?? 0, $currency),
-					'date' => $o['date'] ?? null,
-				],
-				array_filter($r['oneOffs'] ?? [], static fn (array $o): bool => empty($o['past']))
-			)),
+			'one_offs' => $oneOffs,
 			'calculated_at' => gmdate('Y-m-d\TH:i:s\Z'),
 		];
 	}

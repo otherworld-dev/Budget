@@ -310,7 +310,7 @@ class RunwayCalculatorTest extends TestCase {
 		$oneMonth = $this->calc([
 			'rows' => [$this->row('2026-10-15', '-300', 40, billId: 4)],
 			'bills' => $quarterly,
-			'firstActivityDate' => '2026-10-05',
+			'firstActivityDate' => '2026-10-01',
 		]);
 		$this->assertSame(1, $oneMonth['window']['effectiveMonths']);
 		$this->assertSame('100.00', $oneMonth['monthlyOut']);
@@ -320,7 +320,7 @@ class RunwayCalculatorTest extends TestCase {
 		$this->assertSame(3, $threeMonths['window']['effectiveMonths']);
 		$this->assertSame('0.00', $threeMonths['monthlyOut']);
 
-		$twoMonths = $this->calc(['bills' => $quarterly, 'firstActivityDate' => '2026-09-05']);
+		$twoMonths = $this->calc(['bills' => $quarterly, 'firstActivityDate' => '2026-09-01']);
 		$this->assertSame(2, $twoMonths['window']['effectiveMonths']);
 		$this->assertSame('100.00', $twoMonths['monthlyOut']);
 	}
@@ -406,13 +406,31 @@ class RunwayCalculatorTest extends TestCase {
 		$noActivity = $this->calc(['firstActivityDate' => null]);
 		$this->assertSame('insufficient_data', $noActivity['scenarios']['current']['state']);
 
-		$oneMonth = $this->calc([
+		// October is only a full month of history if it started on the 1st
+		$partMonth = $this->calc([
 			'rows' => [$this->row('2026-10-15', '-1000')],
 			'firstActivityDate' => '2026-10-05',
+		]);
+		$this->assertSame(0, $partMonth['window']['effectiveMonths']);
+		$this->assertSame('insufficient_data', $partMonth['scenarios']['current']['state']);
+
+		$oneMonth = $this->calc([
+			'rows' => [$this->row('2026-10-15', '-1000')],
+			'firstActivityDate' => '2026-10-01',
 		]);
 		$this->assertSame(1, $oneMonth['window']['effectiveMonths']);
 		$this->assertSame('1000.00', $oneMonth['monthlyOut']);
 		$this->assertSame('running_out', $oneMonth['scenarios']['current']['state']);
+	}
+
+	public function testAFirstRowLateInAMonthDoesNotMakeItCount(): void {
+		$result = $this->calc([
+			'rows' => [$this->row('2026-09-25', '-300'), $this->row('2026-10-15', '-1000')],
+			'firstActivityDate' => '2026-09-25',
+		]);
+
+		$this->assertSame(1, $result['window']['effectiveMonths'], 'October only');
+		$this->assertSame('2026-08-01', $result['window']['from']);
 	}
 
 	public function testOnBudgetSwap(): void {

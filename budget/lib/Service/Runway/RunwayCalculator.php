@@ -116,17 +116,20 @@ class RunwayCalculator {
 	}
 
 	/**
-	 * Window months from the first one with any activity on the chosen
-	 * accounts, so a user with two months of history isn't averaged over three.
+	 * Window months with activity on the chosen accounts from their first
+	 * day, so a user with two months of history isn't averaged over three.
+	 * Only full months count: a first row on the 25th is a week of data,
+	 * and averaged as a whole month it would make the drain look smaller
+	 * and the money last longer than it will.
 	 */
 	private function effectiveMonths(\DateTimeImmutable $from, int $windowMonths, ?string $firstActivityDate): int {
 		if ($firstActivityDate === null || $firstActivityDate === '') {
 			return 0;
 		}
-		$firstMonth = (new \DateTimeImmutable($firstActivityDate))->modify('first day of this month')->format('Y-m-d');
+		$first = (new \DateTimeImmutable($firstActivityDate))->format('Y-m-d');
 		$count = 0;
 		for ($i = 0; $i < $windowMonths; $i++) {
-			if ($from->modify("+{$i} months")->format('Y-m-d') >= $firstMonth) {
+			if ($from->modify("+{$i} months")->format('Y-m-d') >= $first) {
 				$count++;
 			}
 		}
@@ -365,30 +368,30 @@ class RunwayCalculator {
 	/**
 	 * Month-end totals for the last 12 months plus today, rebuilt backwards
 	 * from today's total. Every non-scheduled row counts, excluded rows and
-	 * transfers included, because this is the true balance.
+	 * transfers included, because this is the true balance. One pass, newest
+	 * row first: each row is taken off once, as the dates step back past it.
 	 *
 	 * @param RunwayRow[] $historyRows
 	 * @return list<array{date: string, total: string}>
 	 */
 	private function history(array $historyRows, string $total, \DateTimeImmutable $monthStart, string $today): array {
-		$rows = array_filter($historyRows, fn (RunwayRow $row) => $row->status !== 'scheduled' && $row->date <= $today);
-		$dates = [];
-		for ($i = self::HISTORY_MONTHS; $i >= 1; $i--) {
+		$rows = array_values(array_filter($historyRows, fn (RunwayRow $row) => $row->status !== 'scheduled' && $row->date <= $today));
+		usort($rows, fn (RunwayRow $a, RunwayRow $b) => strcmp($b->date, $a->date));
+		$dates = [$today];
+		for ($i = 1; $i <= self::HISTORY_MONTHS; $i++) {
 			$dates[] = $monthStart->modify("-{$i} months")->modify('last day of this month')->format('Y-m-d');
 		}
-		$dates[] = $today;
 
 		$history = [];
+		$balance = $total;
+		$next = 0;
 		foreach ($dates as $date) {
-			$balance = $total;
-			foreach ($rows as $row) {
-				if ($row->date > $date) {
-					$balance = MoneyCalculator::subtract($balance, $row->amount, self::SCALE);
-				}
+			for (; $next < count($rows) && $rows[$next]->date > $date; $next++) {
+				$balance = MoneyCalculator::subtract($balance, $rows[$next]->amount, self::SCALE);
 			}
 			$history[] = ['date' => $date, 'total' => self::round2($balance)];
 		}
-		return $history;
+		return array_reverse($history);
 	}
 
 	/**

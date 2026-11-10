@@ -8,7 +8,6 @@ use OCA\Budget\Db\QueryFilterBuilder;
 use OCA\Budget\Db\TransactionMapper;
 use OCP\DB\IResult;
 use OCP\DB\QueryBuilder\IExpressionBuilder;
-use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\DB\QueryBuilder\IQueryFunction;
 use OCP\IDBConnection;
 use PHPUnit\Framework\TestCase;
