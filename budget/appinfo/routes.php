@@ -191,6 +191,10 @@ return [
 
 		// Forecast routes
 		['name' => 'forecast#live', 'url' => '/api/forecast/live', 'verb' => 'GET'],
+		['name' => 'runway#index', 'url' => '/api/runway', 'verb' => 'GET'],
+		['name' => 'runway#createOneOff', 'url' => '/api/runway/one-offs', 'verb' => 'POST'],
+		['name' => 'runway#updateOneOff', 'url' => '/api/runway/one-offs/{id}', 'verb' => 'PUT'],
+		['name' => 'runway#destroyOneOff', 'url' => '/api/runway/one-offs/{id}', 'verb' => 'DELETE'],
 		['name' => 'forecast#generate', 'url' => '/api/forecast/generate', 'verb' => 'POST'],
 		['name' => 'forecast#enhanced', 'url' => '/api/forecast/enhanced', 'verb' => 'POST'],
 		['name' => 'forecast#export', 'url' => '/api/forecast/export', 'verb' => 'POST'],
