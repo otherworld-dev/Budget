@@ -3235,7 +3235,7 @@
             "nullable": true,
             "format": "float",
             "example": 4.3,
-            "description": "How many months longer the money lasts on budget. Null unless both scenarios are running_out."
+            "description": "Months until the money runs out on budget minus months at current spending, so it is negative when sticking to budget runs out sooner. Null unless both scenarios are running_out."
           },
           "one_offs": {
             "type": "array",

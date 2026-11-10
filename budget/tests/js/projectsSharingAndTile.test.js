@@ -298,4 +298,9 @@ describe('help', () => {
         expect(HELP_TOPICS.projects.doc).toBe('projects');
         expect(HELP_TOPICS.projects.title()).toBe('Projects');
     });
+
+    it('has a topic for runway', () => {
+        expect(HELP_TOPICS.runway.doc).toBe('runway');
+        expect(HELP_TOPICS.runway.title()).toBe('Runway');
+    });
 });
