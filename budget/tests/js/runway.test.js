@@ -31,6 +31,9 @@ describe('monthsPhrase', () => {
         expect(monthsPhrase(running(1.2))).toBe('About 1 month');
         expect(monthsPhrase(running(20.7))).toBe('About 21 months');
         expect(monthsPhrase(running(120))).toBe('More than 10 years');
+        expect(monthsPhrase(running(119.4))).toBe('About 119 months');
+        expect(monthsPhrase(running(119.9))).toBe('More than 10 years');
+        expect(monthsPhrase(running(0.96))).toBe('About 1 month');
     });
 });
 
@@ -52,6 +55,12 @@ describe('differencePhrase', () => {
         expect(differencePhrase(1)).toBe('About 1 more month on budget');
     });
 
+    it('writes halves with the half sign', () => {
+        expect(differencePhrase(0.25)).toBe('About ½ more months on budget');
+        expect(differencePhrase(1.4)).toBe('About 1½ more months on budget');
+        expect(differencePhrase(-1.75)).toBe('About 2 fewer months on budget');
+    });
+
     it('calls a negligible difference the same', () => {
         expect(differencePhrase(0.2)).toBe('About the same');
         expect(differencePhrase(-0.2)).toBe('About the same');
@@ -69,7 +78,7 @@ describe('chartDatasets', () => {
         current: [{ date: '2026-11-01', total: 900 }],
         onBudget: [{ date: '2026-11-01', total: '950.50' }],
     };
-    const colours = ['#111111', '#222222', '#333333'];
+    const colours = ['#111111', '#222222'];
 
     it('builds history solid and the projections dashed', () => {
         const sets = chartDatasets(series, colours);
@@ -91,13 +100,26 @@ describe('chartDatasets', () => {
 });
 
 describe('eventMarkers', () => {
-    it('keeps the one-off events as points', () => {
-        const pts = eventMarkers([
-            { date: '2026-12-01', amount: '-500.00', description: 'Boiler', source: 'oneOff' },
-            { date: '2026-12-05', amount: '-20.00', description: 'Bill', source: 'scheduled' },
-        ]);
+    const projection = [
+        { date: '2026-12-01', total: '800.00' },
+        { date: '2026-12-02', total: '790.00' },
+        { date: '2026-12-10', total: 600 },
+    ];
 
-        expect(pts).toEqual([{ x: '2026-12-01', y: -500, label: 'Boiler' }]);
-        expect(eventMarkers(null)).toEqual([]);
+    it('puts one-off events on the projection line', () => {
+        const pts = eventMarkers([
+            { date: '2026-12-02', amount: '-500.00', description: 'Boiler', source: 'oneOff' },
+            { date: '2026-12-05', amount: '-20.00', description: 'Gift', source: 'oneOff' },
+            { date: '2026-12-05', amount: '-20.00', description: 'Bill', source: 'scheduled' },
+        ], projection);
+
+        expect(pts).toEqual([
+            { x: '2026-12-02', y: 790, label: 'Boiler' },
+            { x: '2026-12-05', y: 790, label: 'Gift' },
+        ]);
+    });
+
+    it('copes with no events', () => {
+        expect(eventMarkers(null, projection)).toEqual([]);
     });
 });

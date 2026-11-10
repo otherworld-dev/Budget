@@ -22,10 +22,11 @@ const MAX_MONTHS = 120;
 export function monthsPhrase(scenario) {
     switch (scenario?.state) {
         case 'running_out': {
-            const months = Number(scenario.months);
-            if (months >= MAX_MONTHS) return t('budget', 'More than 10 years');
-            if (months < 1) return t('budget', 'Less than a month');
-            const whole = Math.round(months);
+            // Judge the rounded figure, so 119.6 cannot read "About 120 months"
+            // beside "More than 10 years".
+            const whole = Math.round(Number(scenario.months));
+            if (whole >= MAX_MONTHS) return t('budget', 'More than 10 years');
+            if (whole < 1) return t('budget', 'Less than a month');
             return n('budget', 'About {count} month', 'About {count} months', whole, { count: whole });
         }
         case 'not_running_out':
@@ -102,13 +103,24 @@ export function chartDatasets(series, colours) {
 
 /**
  * Chart points for the one-off events (scheduled ones are already in the
- * projection, so a marker would double them).
+ * projection, so a marker would double them). Each sits ON the projection
+ * line: y is the projection's total on the event date, or on the last day
+ * before it when that date has no point.
  *
  * @param {Array<{date: string, amount: string|number, description: string, source: string}>} events
+ * @param {Array<{date: string, total: string|number}>} projection e.g. series.current
  * @returns {Array<{x: string, y: number, label: string}>}
  */
-export function eventMarkers(events) {
+export function eventMarkers(events, projection) {
+    const line = [...(projection || [])].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
     return (events || [])
         .filter((e) => e.source === 'oneOff')
-        .map((e) => ({ x: e.date, y: Number(e.amount), label: e.description }));
+        .map((e) => {
+            let point = null;
+            for (const p of line) {
+                if (p.date > e.date) break;
+                point = p;
+            }
+            return { x: e.date, y: point ? Number(point.total) : Number(e.amount), label: e.description };
+        });
 }
