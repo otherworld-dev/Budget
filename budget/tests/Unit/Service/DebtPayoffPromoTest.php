@@ -24,13 +24,13 @@ class DebtPayoffPromoTest extends TestCase {
 	/**
 	 * @param Account[] $accounts
 	 */
-	private function service(array $accounts): DebtPayoffService {
+	private function service(array $accounts, string $today = self::TODAY): DebtPayoffService {
 		$mapper = $this->createMock(AccountMapper::class);
 		$mapper->method('findAll')->willReturn($accounts);
 		$transactions = $this->createMock(TransactionMapper::class);
 		$transactions->method('getNetChangeAfterDateBatch')->willReturn([]);
 		$clock = $this->createMock(UserClock::class);
-		$clock->method('today')->willReturn(self::TODAY);
+		$clock->method('today')->willReturn($today);
 		return new DebtPayoffService($mapper, $transactions, null, $clock);
 	}
 
@@ -149,6 +149,22 @@ class DebtPayoffPromoTest extends TestCase {
 
 		$this->assertNotNull($plan['payoffDate']);
 		$this->assertLessThan(480, $plan['totalMonths']);
+	}
+
+	public function testMonthDateClampsToTheEndOfAShortMonth(): void {
+		// Today is 31 January: month 2 is 28 February, not 3 March, so a
+		// promo ending 1 March still covers it
+		$service = $this->service([
+			$this->card(1, -1200.0, 22.9, 50.0, 0.0, '2027-01-01', '2027-03-01'),
+		], '2027-01-31');
+
+		$plan = $service->calculatePayoffPlan('alice', 'avalanche', 0.0);
+		$interest = self::interestByMonth($plan, 1);
+
+		$this->assertEquals(0.0, $interest[1]);
+		$this->assertEquals(0.0, $interest[2]);
+		// Month 3 is 31 March, after the promo
+		$this->assertGreaterThan(0.0, $interest[3]);
 	}
 
 	public function testRateOverrideKeepsPromo(): void {

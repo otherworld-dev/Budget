@@ -303,7 +303,7 @@ class DebtPayoffService {
 
 			// This month's rates: a debt carries its promotional rate in the
 			// months the promo covers and its normal rate in the rest
-			$monthDate = date('Y-m-d', strtotime("$today +" . ($month - 1) . ' months'));
+			$monthDate = self::monthDate($today, $month);
 			foreach ($debtData as &$debt) {
 				if ($debt['paidOff']) {
 					continue;
@@ -602,6 +602,19 @@ class DebtPayoffService {
 	 */
 	private function isDebt(Account $account): bool {
 		return in_array($account->getType(), self::LIABILITY_TYPES, true);
+	}
+
+	/**
+	 * The date month $month of the plan falls on: today's day of the month,
+	 * $month - 1 months on, clamped to the end of a shorter month. strtotime's
+	 * "+1 months" overflows instead (31 January + 1 month is 3 March), which
+	 * skipped February and read a promo ending 1 March as already over.
+	 */
+	private static function monthDate(string $today, int $month): string {
+		$start = new \DateTimeImmutable($today);
+		$first = $start->modify('first day of +' . ($month - 1) . ' months');
+		$day = min((int)$start->format('j'), (int)$first->format('t'));
+		return $first->setDate((int)$first->format('Y'), (int)$first->format('n'), $day)->format('Y-m-d');
 	}
 
 	/**
