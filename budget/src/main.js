@@ -2950,7 +2950,7 @@ class BudgetApp {
                 const promoEnd = debt.promoEnd
                     ? new Date(debt.promoEnd + 'T00:00:00').toLocaleDateString(formatters.userLocale(), { day: 'numeric', month: 'short', year: 'numeric' })
                     : '';
-                promoLine = `<div>${dom.escapeHtml(t('budget', 'Promotional rate: {rate}% until {date}', { rate: Number(debt.promoRate), date: promoEnd }))}</div>`;
+                promoLine = `<div>${dom.escapeHtml(/* xgettext:no-javascript-format */ t('budget', 'Promotional rate: {rate}% until {date}', { rate: Number(debt.promoRate), date: promoEnd }))}</div>`;
             }
 
             return `

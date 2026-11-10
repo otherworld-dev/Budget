@@ -2531,8 +2531,8 @@ export default class AccountsModule {
         const date = this.formatDate(account.promoEnd);
         const ended = account.promoEnd < formatters.getTodayDateString();
         display.textContent = ended
-            ? t('budget', '{rate}% ended {date}', { rate, date })
-            : t('budget', '{rate}% until {date}', { rate, date });
+            ? /* xgettext:no-javascript-format */ t('budget', '{rate}% ended {date}', { rate, date })
+            : /* xgettext:no-javascript-format */ t('budget', '{rate}% until {date}', { rate, date });
         info.style.display = 'block';
     }
 
