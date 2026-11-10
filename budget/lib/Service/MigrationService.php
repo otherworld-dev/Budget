@@ -2637,7 +2637,8 @@ class MigrationService {
 			'dashboard_widgets_config', 'dashboard_hero_config' => $this->remapDashboardConfig($value, $idMaps),
 			// BudgetAlertService: the categories muted on the alerts tile
 			'budget_alert_muted_categories' => $this->remapSettingIdList($value, $idMaps),
-			// RunwayService: the accounts the runway counts
+			// RunwayService: the accounts the runway counts. If none of them
+			// come back this leaves '[]', which the runway reads as its default set
 			'runway_account_ids' => $this->remapSettingIdList($value, $idMaps, 'accounts'),
 			// BudgetAlertService and AnomalyDetectionService: what was last
 			// notified, per category

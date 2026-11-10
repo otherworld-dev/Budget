@@ -425,4 +425,21 @@ class BudgetStatusServiceTest extends TestCase {
 		// swaps each category's own spending
 		$this->assertSame([10 => '100.00', 11 => '30.00'], $this->service->monthlyBaseBudgets('user1'));
 	}
+
+	/**
+	 * The tree the runway groups categories by: the Budget page's, so a
+	 * shared category sits where the page puts it and an excluded branch
+	 * isn't there at all.
+	 */
+	public function testBudgetParentMapIsThePagesTree(): void {
+		$this->tree = [
+			self::cat(8, 'Business', ['excludedFromBudget' => true, 'children' => [self::cat(9, 'Travel', ['parentId' => 8])]]),
+			self::cat(10, 'Food', ['children' => [
+				self::cat(11, 'Takeaway', ['parentId' => 10, 'children' => [self::cat(12, 'Pizza', ['parentId' => 11])]]),
+			]]),
+		];
+		$this->sharedCategories = [self::cat(95, 'Vet', ['_shared' => true, 'userId' => 'owner1', 'parentId' => 70])];
+
+		$this->assertSame([10 => null, 11 => 10, 12 => 11, 95 => null], $this->service->budgetParentMap('user1'));
+	}
 }

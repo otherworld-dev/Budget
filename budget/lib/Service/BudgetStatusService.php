@@ -86,6 +86,23 @@ class BudgetStatusService {
 	}
 
 	/**
+	 * Each category's parent on the Budget page (null at the top), over the
+	 * same tree monthlyBaseBudgets() and forMonth() use: own and shared
+	 * categories merged, excluded branches gone. The runway groups a
+	 * category's spending under its nearest budgeted ancestor through this,
+	 * as the page lets a parent's budget cover its unbudgeted children.
+	 *
+	 * @return array<int, ?int> by category id
+	 */
+	public function budgetParentMap(string $userId): array {
+		$parents = [];
+		foreach (self::flatten($this->budgetTree($userId)) as $row) {
+			$parents[(int)$row['id']] = $row['treeParentId'] !== null ? (int)$row['treeParentId'] : null;
+		}
+		return $parents;
+	}
+
+	/**
 	 * What the Budget page builds a month from: the account scope it reads
 	 * budgets and spending over, each category's budget entry, and the
 	 * category tree (own and shared, merged, with excluded branches gone)
@@ -100,11 +117,16 @@ class BudgetStatusService {
 		$budgets = $this->categoryService->resolveEffectiveBudgets($userId, $month, $accountIds)
 			+ $this->sharedBudgets->effectiveBudgets($userId, $month);
 
-		$tree = self::filterBudgetCategories(self::mergeCategoryTree(
+		$tree = $this->budgetTree($userId);
+		return [$accountIds, $budgets, $tree, self::flatten($tree)];
+	}
+
+	/** The page's category tree: own and shared merged, excluded branches gone. */
+	private function budgetTree(string $userId): array {
+		return self::filterBudgetCategories(self::mergeCategoryTree(
 			$this->categoryService->getCategoryTree($userId),
 			self::sharedTree($this->granularShareService->getSharedCategories($userId))
 		));
-		return [$accountIds, $budgets, $tree, self::flatten($tree)];
 	}
 
 	/**

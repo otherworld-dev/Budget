@@ -98,8 +98,13 @@ class RunwayService {
 		}
 		$countedIds = array_map(static fn (Account $a) => (int)$a->getId(), $counted);
 
+		$budgets = $this->budgetStatus->monthlyBaseBudgets($userId);
+		$groups = $this->budgetGroups($userId, $budgets);
+
 		[$accounts, $total] = $this->balances($counted, $rates, $today);
-		[$rows, $historyRows, $futureRows] = $this->rows($countedIds, $rates, $today);
+		[$rows, $historyRows, $futureRows] = $this->rows($countedIds, $rates, $today, $groups);
+		$bills = $this->bills($userId, $rates, $countedIds, $groups);
+		$futureRows = $this->withoutRecurringPreBookings($futureRows, $bills);
 		$oneOffs = $this->oneOffs($userId);
 
 		$result = $this->calculator->calculate([
@@ -112,9 +117,9 @@ class RunwayService {
 			'historyRows' => $historyRows,
 			'futureRows' => $futureRows,
 			'includeScheduled' => $settings['includeScheduled'],
-			'bills' => $this->bills($userId, $rates, $countedIds),
+			'bills' => $bills,
 			'oneOffs' => $oneOffs,
-			'budgets' => $this->budgetStatus->monthlyBaseBudgets($userId),
+			'budgets' => $budgets,
 		]);
 
 		return $result + [
@@ -188,7 +193,10 @@ class RunwayService {
 	 * The stored setup, each value falling back to its default when it is
 	 * missing or doesn't read as expected (SettingController validates new
 	 * values, but a restored or older one isn't checked). accountIds is
-	 * empty when the default set applies.
+	 * empty when the default set applies: unset, '', or '[]'. A restore
+	 * leaves '[]' when none of the chosen accounts came back
+	 * (MigrationService drops ids it can't map), so the runway falls back
+	 * to the default set rather than counting nothing.
 	 *
 	 * @return array{accountIds: int[], windowMonths: int, includeScheduled: bool}
 	 */
@@ -255,9 +263,10 @@ class RunwayService {
 	 *
 	 * @param int[] $accountIds
 	 * @param array<int, string> $rates
+	 * @param array<int, int> $groups budgetGroups()
 	 * @return array{0: RunwayRow[], 1: RunwayRow[], 2: RunwayRow[]}
 	 */
-	private function rows(array $accountIds, array $rates, string $today): array {
+	private function rows(array $accountIds, array $rates, string $today, array $groups): array {
 		if ($accountIds === []) {
 			return [[], [], []];
 		}
@@ -278,7 +287,7 @@ class RunwayService {
 		$history = [];
 		$future = [];
 		foreach ($data as $row) {
-			$runwayRow = $this->runwayRow($row, $rates[(int)$row['account_id']] ?? '1', $splits[(int)$row['id']] ?? []);
+			$runwayRow = $this->runwayRow($row, $rates[(int)$row['account_id']] ?? '1', $splits[(int)$row['id']] ?? [], $groups);
 			if ($runwayRow->date > $today) {
 				$future[] = $runwayRow;
 				continue;
@@ -295,11 +304,13 @@ class RunwayService {
 	 * One mapper row as the calculator takes it. Split parts are stored
 	 * the way the parent's amount is, as a share of it before its sign:
 	 * a part of a debit is money out, so it takes the parent's sign.
+	 * Categories are given as their budget group (budgetGroups()).
 	 *
 	 * @param array<string, mixed> $row TransactionMapper::findRunwayRows()
 	 * @param list<array{categoryId: ?int, amount: float|string}> $parts
+	 * @param array<int, int> $groups
 	 */
-	private function runwayRow(array $row, string $rate, array $parts): RunwayRow {
+	private function runwayRow(array $row, string $rate, array $parts, array $groups): RunwayRow {
 		$amount = $this->inBase($row['amount'], $rate);
 		$isDebit = MoneyCalculator::compare(ReportScope::sqlMoney($row['amount']), '0', self::SCALE) < 0;
 
@@ -308,7 +319,7 @@ class RunwayService {
 			foreach ($parts as $part) {
 				$partAmount = ReportScope::sqlMoney($part['amount'] ?? null);
 				$splits[] = [
-					'categoryId' => isset($part['categoryId']) ? (int)$part['categoryId'] : null,
+					'categoryId' => self::group(isset($part['categoryId']) ? (int)$part['categoryId'] : null, $groups),
 					'amount' => $this->inBase($isDebit ? MoneyCalculator::negate($partAmount, self::SCALE) : $partAmount, $rate),
 				];
 			}
@@ -318,7 +329,7 @@ class RunwayService {
 			(int)$row['id'],
 			substr((string)$row['date'], 0, 10),
 			$amount,
-			$row['category_id'] !== null ? (int)$row['category_id'] : null,
+			self::group($row['category_id'] !== null ? (int)$row['category_id'] : null, $groups),
 			// Rows older than the status column hold NULL: they were never scheduled
 			(string)($row['status'] ?? 'cleared'),
 			(bool)$row['excluded_from_forecast'],
@@ -336,12 +347,14 @@ class RunwayService {
 	 * between accounts isn't spending), and a fixed amount. A statement or
 	 * balance amount comes from the card's ledger at payment time, so it
 	 * has no monthly figure. A frequency that doesn't parse is skipped.
+	 * The category is the bill's budget group (budgetGroups()).
 	 *
 	 * @param array<int, string> $rates
 	 * @param int[] $accountIds
+	 * @param array<int, int> $groups
 	 * @return array<int, RunwayBill> by bill id
 	 */
-	private function bills(string $userId, array $rates, array $accountIds): array {
+	private function bills(string $userId, array $rates, array $accountIds, array $groups): array {
 		if ($accountIds === []) {
 			return [];
 		}
@@ -364,10 +377,86 @@ class RunwayService {
 				(int)$bill->getId(),
 				$frequency->value,
 				$this->inBase($monthly, $rates[(int)$accountId]),
-				$bill->getCategoryId() !== null ? (int)$bill->getCategoryId() : null,
+				self::group($bill->getCategoryId() !== null ? (int)$bill->getCategoryId() : null, $groups),
 			);
 		}
 		return $bills;
+	}
+
+	/**
+	 * Future rows without the pre-bookings of any recurring bill. Such a
+	 * bill is in the average already (as actual rows, or smoothed), so its
+	 * pre-booked rows would count it twice. The calculator skips those of
+	 * the bills it is given; this drops the rest: transfers, statement or
+	 * balance amounts, frequencies that don't parse, another user's bill on
+	 * a shared account. Only a one-time bill's row is applied (it is in no
+	 * average), and so is one whose bill is gone, as nothing says it recurs.
+	 * Bills are looked up by id, whoever owns them, only to read how often
+	 * they come round.
+	 *
+	 * @param RunwayRow[] $futureRows
+	 * @param array<int, RunwayBill> $bills the calculator's
+	 * @return RunwayRow[]
+	 */
+	private function withoutRecurringPreBookings(array $futureRows, array $bills): array {
+		$billIds = [];
+		foreach ($futureRows as $row) {
+			if ($row->billId !== null && !isset($bills[$row->billId])) {
+				$billIds[$row->billId] = true;
+			}
+		}
+		if ($billIds === []) {
+			return $futureRows;
+		}
+
+		$recurring = [];
+		foreach ($this->billMapper->findByIds(array_keys($billIds)) as $bill) {
+			if (Frequency::tryFromString((string)$bill->getFrequency()) !== Frequency::ONE_TIME) {
+				$recurring[(int)$bill->getId()] = true;
+			}
+		}
+		return array_values(array_filter(
+			$futureRows,
+			static fn (RunwayRow $row) => $row->billId === null || !isset($recurring[$row->billId])
+		));
+	}
+
+	/**
+	 * Each category's budget group for the on-budget swap: itself when it
+	 * has a budget, else its nearest ancestor with one, on the Budget page's
+	 * tree. The page lets a parent's budget cover its unbudgeted children,
+	 * so their spending must be swapped with the parent's; a child with its
+	 * own budget stays its own group. Categories with no budgeted ancestor
+	 * have no entry and keep their own id.
+	 *
+	 * @param array<int, string> $budgets monthlyBaseBudgets()
+	 * @return array<int, int> category id => group id
+	 */
+	private function budgetGroups(string $userId, array $budgets): array {
+		if ($budgets === []) {
+			return [];
+		}
+		$parents = $this->budgetStatus->budgetParentMap($userId);
+		$groups = [];
+		foreach (array_keys($parents) as $id) {
+			$seen = [];
+			// $seen guards against a cycle in bad data
+			for ($at = $id; $at !== null && !isset($seen[$at]); $at = $parents[$at] ?? null) {
+				if (isset($budgets[$at])) {
+					$groups[$id] = $at;
+					break;
+				}
+				$seen[$at] = true;
+			}
+		}
+		return $groups;
+	}
+
+	/**
+	 * @param array<int, int> $groups
+	 */
+	private static function group(?int $categoryId, array $groups): ?int {
+		return $categoryId === null ? null : ($groups[$categoryId] ?? $categoryId);
 	}
 
 	/**

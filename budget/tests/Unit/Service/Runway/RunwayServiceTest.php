@@ -40,8 +40,12 @@ class RunwayServiceTest extends TestCase {
 	private array $rows = [];
 	/** @var array<int, list<array>> */
 	private array $splits = [];
-	/** @var Bill[] */
+	/** @var Bill[] The user's active bills */
 	private array $bills = [];
+	/** @var Bill[] Bills findActive() doesn't return: another user's, or inactive */
+	private array $otherBills = [];
+	/** @var array<int, ?int> category id => parent id, as the Budget page's tree */
+	private array $parentMap = [];
 	/** @var RunwayOneOff[] */
 	private array $oneOffs = [];
 	/** @var array<int, string> */
@@ -77,12 +81,17 @@ class RunwayServiceTest extends TestCase {
 
 		$bills = $this->createMock(BillMapper::class);
 		$bills->method('findActive')->willReturnCallback(fn () => $this->bills);
+		$bills->method('findByIds')->willReturnCallback(fn (array $ids) => array_values(array_filter(
+			[...$this->bills, ...$this->otherBills],
+			static fn (Bill $b) => in_array($b->getId(), array_map('intval', $ids), true)
+		)));
 
 		$oneOffs = $this->createMock(RunwayOneOffMapper::class);
 		$oneOffs->method('findAll')->willReturnCallback(fn () => $this->oneOffs);
 
 		$budgetStatus = $this->createMock(BudgetStatusService::class);
 		$budgetStatus->method('monthlyBaseBudgets')->willReturnCallback(fn () => $this->budgets);
+		$budgetStatus->method('budgetParentMap')->willReturnCallback(fn () => $this->parentMap);
 
 		$currencyTotals = $this->createMock(CurrencyTotals::class);
 		$currencyTotals->method('accountRates')->willReturnCallback(function (array $accounts) {
@@ -153,7 +162,11 @@ class RunwayServiceTest extends TestCase {
 		$bill->setAmountType(array_key_exists('amountType', $extra) ? $extra['amountType'] : 'fixed');
 		$bill->setIsTransfer($extra['isTransfer'] ?? false);
 		$bill->setCategoryId($extra['categoryId'] ?? null);
-		$this->bills[] = $bill;
+		if ($extra['other'] ?? false) {
+			$this->otherBills[] = $bill;
+		} else {
+			$this->bills[] = $bill;
+		}
 		return $bill;
 	}
 
@@ -185,7 +198,7 @@ class RunwayServiceTest extends TestCase {
 		$this->account(8, 'mortgage');
 		$this->account(9, 'cryptocurrency');
 		$this->account(10, 'line_of_credit');
-		$this->account(11, 'pension');
+		$this->account(11, 'loan', 0.0, ['name' => 'Second loan']);
 		$this->account(12, 'checking', 0.0, ['closed' => true]);
 		$this->account(13, 'savings', 0.0, ['excluded' => true]);
 
@@ -356,6 +369,98 @@ class RunwayServiceTest extends TestCase {
 			16 => new RunwayBill(16, 'monthly', '30.00', null),
 			17 => new RunwayBill(17, 'quarterly', '10.00', null),
 		], $this->in['bills']);
+	}
+
+	/**
+	 * A recurring bill is in the average (as actual rows or smoothed), so
+	 * its pre-booked rows are never applied on top, whether or not it is
+	 * one the calculator smooths: a transfer, a statement-amount card bill
+	 * or another user's bill on a shared account leaked through as events.
+	 */
+	public function testPreBookingsOfAnyRecurringBillAreNotApplied(): void {
+		$this->account(1, 'checking', 5000.0);
+		// A monthly transfer to an account outside the runway
+		$this->bill(20, 1, 300.0, 'monthly', ['isTransfer' => true]);
+		// The card's statement, paid from the current account
+		$this->bill(21, 1, 0.0, 'monthly', ['amountType' => 'statement']);
+		// Another user's monthly bill on this shared account
+		$this->bill(22, 1, 40.0, 'monthly', ['other' => true]);
+		// A frequency that doesn't parse is taken as recurring
+		$this->bill(23, 1, 10.0, 'fortnightly-ish');
+		// One-time: in no average, so its row is applied
+		$this->bill(24, 1, 900.0, 'one-time', ['other' => true]);
+		$this->rows = [
+			$this->row(1, 1, '2026-12-01', '-300', ['status' => 'scheduled', 'bill_id' => 20]),
+			$this->row(2, 1, '2026-12-02', '-412.30', ['status' => 'scheduled', 'bill_id' => 21]),
+			$this->row(3, 1, '2026-12-03', '-40', ['status' => 'scheduled', 'bill_id' => 22]),
+			$this->row(4, 1, '2026-12-04', '-10', ['status' => 'scheduled', 'bill_id' => 23]),
+			$this->row(5, 1, '2026-12-05', '-900', ['status' => 'scheduled', 'bill_id' => 24, 'description' => 'Boiler']),
+			// A bill since deleted: nothing says it recurs, so it's applied
+			$this->row(6, 1, '2026-12-06', '-25', ['status' => 'scheduled', 'bill_id' => 99, 'description' => 'Gone']),
+			$this->row(7, 1, '2026-12-07', '-60', ['status' => 'scheduled', 'description' => 'Dentist']),
+		];
+
+		$result = $this->service->get('user1');
+
+		$this->assertSame(
+			[['2026-12-05', '-900.00', 'Boiler'], ['2026-12-06', '-25.00', 'Gone'], ['2026-12-07', '-60.00', 'Dentist']],
+			array_map(static fn (array $e) => [$e['date'], $e['amount'], $e['description']], $result['events'])
+		);
+	}
+
+	/**
+	 * A budget on a parent covers its unbudgeted children, as on the Budget
+	 * page: Food's 400 stands for Groceries and Takeaway too, so on budget
+	 * swaps the whole branch's 450 a month for 400, not adds 400 to it.
+	 */
+	public function testAParentsBudgetCoversItsUnbudgetedChildren(): void {
+		$this->account(1, 'checking', 100000.0);
+		$this->parentMap = [1 => null, 2 => 1, 3 => 1, 4 => null];
+		$this->budgets = [1 => '400.00'];
+		foreach (['2026-08-10', '2026-09-10', '2026-10-10'] as $i => $date) {
+			$this->rows[] = $this->row(10 + $i, 1, $date, '-300', ['category_id' => 2]);
+			$this->rows[] = $this->row(20 + $i, 1, $date, '-150', ['category_id' => 3]);
+		}
+
+		$result = $this->service->get('user1');
+
+		$this->assertSame('450.00', $result['scenarios']['current']['monthlyDrain']);
+		$this->assertSame('400.00', $result['scenarios']['onBudget']['monthlyDrain']);
+	}
+
+	/**
+	 * A budgeted child stays its own group: Groceries' spending swaps for
+	 * its 250, and Food's own spending with Takeaway's swaps for Food's 400.
+	 * Rows, split parts and smoothed bills all move to their group.
+	 */
+	public function testABudgetedChildIsItsOwnGroup(): void {
+		$this->account(1, 'checking', 100000.0);
+		$this->parentMap = [1 => null, 2 => 1, 3 => 1, 5 => 3, 6 => null];
+		$this->budgets = [1 => '400.00', 2 => '250.00'];
+		foreach (['2026-08-10', '2026-09-10', '2026-10-10'] as $i => $date) {
+			$this->rows[] = $this->row(10 + $i, 1, $date, '-300', ['category_id' => 2]);
+			$this->rows[] = $this->row(20 + $i, 1, $date, '-150', ['category_id' => 3]);
+			$this->rows[] = $this->row(30 + $i, 1, $date, '-50', ['category_id' => 1]);
+		}
+		$this->rows[] = $this->row(40, 1, '2026-10-20', '-30', ['is_split' => true]);
+		$this->splits = [40 => [['categoryId' => 5, 'amount' => 20.0], ['categoryId' => 6, 'amount' => 10.0]]];
+		$this->bill(50, 1, 120.0, 'yearly', ['categoryId' => 5]);
+
+		$result = $this->service->get('user1');
+
+		$categories = [];
+		foreach ($this->in['rows'] as $row) {
+			$categories[$row->id] = $row->categoryId;
+		}
+		$this->assertSame([10 => 2, 20 => 1, 30 => 1, 11 => 2, 21 => 1, 31 => 1, 12 => 2, 22 => 1, 32 => 1, 40 => null], $categories);
+		// A grandchild goes to its nearest budgeted ancestor; an unbudgeted branch is left alone
+		$this->assertSame([['categoryId' => 1, 'amount' => '-20.00'], ['categoryId' => 6, 'amount' => '-10.00']], end($this->in['rows'])->splits);
+		$this->assertSame(1, $this->in['bills'][50]->categoryId);
+
+		// Out a month: 500 + 10 split + 10 smoothed bill = 520. Swapped: Groceries'
+		// 300 for 250, and Food's group (50 + 150 + 6.67 split + 10 bill) for 400.
+		$this->assertSame('520.00', $result['scenarios']['current']['monthlyDrain']);
+		$this->assertSame('653.33', $result['scenarios']['onBudget']['monthlyDrain']);
 	}
 
 	public function testOneOffsFlagPast(): void {
