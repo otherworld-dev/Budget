@@ -26,6 +26,7 @@ vi.mock('../../src/utils/api.js', async (importOriginal) => {
 
 import AccountsModule from '../../src/modules/accounts/AccountsModule.js';
 import { apiFetch } from '../../src/utils/api.js';
+import { showWarning } from '../../src/utils/notifications.js';
 import * as formatters from '../../src/utils/formatters.js';
 
 const GROUPS = [
@@ -123,6 +124,30 @@ describe('promotional rate on the account form', () => {
         expect(sent()).not.toHaveProperty('promoRate');
         expect(sent()).not.toHaveProperty('promoStart');
         expect(sent()).not.toHaveProperty('promoEnd');
+    });
+
+    it('refuses a rate without an end date', async () => {
+        showWarning.mockClear();
+        document.getElementById('account-type').value = 'credit_card';
+        document.getElementById('account-promo-rate').value = '0';
+
+        await mod._saveAccount();
+
+        expect(apiFetch).not.toHaveBeenCalled();
+        expect(showWarning).toHaveBeenCalledWith('Please enter the date the promotional rate ends');
+    });
+
+    it('refuses a start that is not before the end', async () => {
+        showWarning.mockClear();
+        document.getElementById('account-type').value = 'credit_card';
+        document.getElementById('account-promo-rate').value = '0';
+        document.getElementById('account-promo-start').value = '2027-01-01';
+        document.getElementById('account-promo-end').value = '2027-01-01';
+
+        await mod._saveAccount();
+
+        expect(apiFetch).not.toHaveBeenCalled();
+        expect(showWarning).toHaveBeenCalledWith('The promotional rate must start before it ends.');
     });
 
     it('clear sends nulls', async () => {

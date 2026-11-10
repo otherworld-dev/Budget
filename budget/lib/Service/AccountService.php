@@ -94,7 +94,7 @@ class AccountService extends AbstractCrudService {
 		// '' is not a date: the mapper would bind it as one and Postgres would refuse
 		$promoStart = ($promoStart === '') ? null : $promoStart;
 		$promoEnd = ($promoEnd === '') ? null : $promoEnd;
-		PromoRate::validate($promoRate, $promoStart, $promoEnd);
+		PromoRate::validate($this->l, $promoRate, $promoStart, $promoEnd);
 		if ($promoRate !== null && !(AccountType::tryFrom($type)?->isLiability() ?? false)) {
 			throw new \InvalidArgumentException(
 				$this->l->t('A promotional rate can only be set on a credit card, loan, mortgage or line of credit.')
@@ -392,7 +392,7 @@ class AccountService extends AbstractCrudService {
 		$start = ($start === null || $start === '') ? null : (string)$start;
 		$end = ($end === null || $end === '') ? null : (string)$end;
 
-		PromoRate::validate($rate, $start, $end);
+		PromoRate::validate($this->l, $rate, $start, $end);
 		if ($rate !== null && !$isLiability) {
 			throw new \InvalidArgumentException(
 				$this->l->t('A promotional rate can only be set on a credit card, loan, mortgage or line of credit.')

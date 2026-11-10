@@ -2709,6 +2709,21 @@ export default class AccountsModule {
                 return;
             }
 
+            // A promotional rate needs an end date after its start; caught here
+            // so the form says which box is wrong before the server refuses it
+            if (targetIsLiability && formData.promoRate !== null) {
+                if (!formData.promoEnd) {
+                    showWarning(t('budget', 'Please enter the date the promotional rate ends'));
+                    document.getElementById('account-promo-end')?.focus();
+                    return;
+                }
+                if (formData.promoStart >= formData.promoEnd) {
+                    showWarning(t('budget', 'The promotional rate must start before it ends.'));
+                    document.getElementById('account-promo-start')?.focus();
+                    return;
+                }
+            }
+
             // Make API request (accountId already defined above for isEdit check)
             const url = accountId
                 ? `/apps/budget/api/accounts/${accountId}`

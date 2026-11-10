@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Service;
 
 use OCA\Budget\Db\Account;
+use OCP\IL10N;
 
 /**
  * A promotional interest rate (for example 0% on a balance transfer) that
@@ -39,32 +40,33 @@ final class PromoRate {
 
 	/**
 	 * Nothing set is valid. Anything set needs all three parts, in order.
+	 * The messages reach the account form as they are, so they are translated.
 	 *
 	 * @throws \InvalidArgumentException
 	 */
-	public static function validate(?float $rate, ?string $start, ?string $end): void {
+	public static function validate(IL10N $l, ?float $rate, ?string $start, ?string $end): void {
 		if ($rate === null && $start === null && $end === null) {
 			return;
 		}
 		if ($rate === null) {
-			throw new \InvalidArgumentException('A promotional rate is needed along with its dates.');
+			throw new \InvalidArgumentException($l->t('A promotional rate is needed along with its dates.'));
 		}
 		if ($rate < 0 || $rate > self::MAX_RATE) {
-			throw new \InvalidArgumentException('The promotional rate must be between 0 and 999.9999.');
+			throw new \InvalidArgumentException($l->t('The promotional rate must be between 0 and 999.9999.'));
 		}
 		if ($start === null) {
-			throw new \InvalidArgumentException('A promotional rate needs a start date.');
+			throw new \InvalidArgumentException($l->t('A promotional rate needs a start date.'));
 		}
 		if ($end === null) {
-			throw new \InvalidArgumentException('A promotional rate needs an end date.');
+			throw new \InvalidArgumentException($l->t('A promotional rate needs an end date.'));
 		}
 		foreach ([$start, $end] as $date) {
 			if (!self::isDate($date)) {
-				throw new \InvalidArgumentException('Promotional dates must be in YYYY-MM-DD format.');
+				throw new \InvalidArgumentException($l->t('Promotional dates must be in YYYY-MM-DD format.'));
 			}
 		}
 		if ($start >= $end) {
-			throw new \InvalidArgumentException('The promotional rate must start before it ends.');
+			throw new \InvalidArgumentException($l->t('The promotional rate must start before it ends.'));
 		}
 	}
 
