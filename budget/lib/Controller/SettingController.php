@@ -14,6 +14,7 @@ use OCA\Budget\Service\BankSync\EnableBanking\EnableBankingKeyStore;
 use OCA\Budget\Service\BudgetCarryoverService;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\ImportFolderService;
+use OCA\Budget\Service\Runway\RunwayAlertService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCA\Budget\Traits\SharedAccessTrait;
 use OCP\AppFramework\Controller;
@@ -86,6 +87,9 @@ class SettingController extends Controller {
 	];
 
 	private const RUNWAY_SWITCHES = ['runway_include_scheduled', 'notification_runway_alert'];
+
+	/** What the run-out alert remembers between its checks (RunwayAlertService) */
+	private const RUNWAY_ALERT_STATE = [RunwayAlertService::BASELINE_KEY, RunwayAlertService::CHECKS_KEY];
 
 	/**
 	 * Keys the web app saves beyond those with a default. Together with
@@ -219,6 +223,7 @@ class SettingController extends Controller {
 			$now = date('Y-m-d H:i:s');
 			$updated = [];
 			$importFolderLeftAlone = null;
+			$runwayChanged = false;
 
 			// Skip internal parameters
 			$data = array_diff_key($data, array_flip(['_route', 'controller', 'action']));
@@ -266,9 +271,13 @@ class SettingController extends Controller {
 					$importFolderLeftAlone = $this->leaveImportFilesAlone($value);
 				}
 
-				$this->storeSetting($this->getEffectiveUserId(), (string)$key, (string)$value, $now);
+				$previous = $this->storeSetting($this->getEffectiveUserId(), (string)$key, (string)$value, $now);
+				$runwayChanged = $runwayChanged || self::changesTheRunway((string)$key, $previous, (string)$value);
 
 				$updated[$key] = $value;
+			}
+			if ($runwayChanged) {
+				$this->forgetRunwayAlert($this->getEffectiveUserId());
 			}
 
 			$response = [
@@ -334,7 +343,10 @@ class SettingController extends Controller {
 
 			$now = date('Y-m-d H:i:s');
 
-			$this->storeSetting($this->getEffectiveUserId(), $key, (string)$value, $now);
+			$previous = $this->storeSetting($this->getEffectiveUserId(), $key, (string)$value, $now);
+			if (self::changesTheRunway($key, $previous, (string)$value)) {
+				$this->forgetRunwayAlert($this->getEffectiveUserId());
+			}
 
 			return new DataResponse([
 				'message' => $this->l->t('Setting updated successfully'),
@@ -444,13 +456,36 @@ class SettingController extends Controller {
 	}
 
 	/**
+	 * Whether writing $value over $previous (null: never stored, so the
+	 * default) changes the runway setup or the alert switch. The run-out
+	 * date then moves for a reason that isn't spending, so the alert's
+	 * baseline no longer compares like with like. The setup saves all its
+	 * controls on every Save, so only a real change counts: otherwise each
+	 * Save would set the alert settling again.
+	 */
+	private static function changesTheRunway(string $key, ?string $previous, string $value): bool {
+		if (!str_starts_with($key, 'runway_') && $key !== 'notification_runway_alert') {
+			return false;
+		}
+		return ($previous ?? self::DEFAULTS[$key] ?? null) !== $value;
+	}
+
+	private function forgetRunwayAlert(string $userId): void {
+		foreach (self::RUNWAY_ALERT_STATE as $key) {
+			$this->mapper->deleteByKey($userId, $key);
+		}
+	}
+
+	/**
 	 * Create or update one setting. Two saves of a setting that has never
 	 * been stored can overlap (the settings page saves on every change), and
 	 * then both find nothing and both insert: the second hits the unique
 	 * (user_id, key) index. That row is the one this save should have
 	 * updated, so update it rather than failing with a 500.
+	 *
+	 * @return ?string the value it had before, null if it had none
 	 */
-	private function storeSetting(string $userId, string $key, string $value, string $now): void {
+	private function storeSetting(string $userId, string $key, string $value, string $now): ?string {
 		try {
 			$setting = $this->mapper->findByKey($userId, $key);
 		} catch (DoesNotExistException $e) {
@@ -462,7 +497,7 @@ class SettingController extends Controller {
 			$setting->setUpdatedAt($now);
 			try {
 				$this->mapper->insert($setting);
-				return;
+				return null;
 			} catch (DbException $e) {
 				if ($e->getReason() !== DbException::REASON_UNIQUE_CONSTRAINT_VIOLATION) {
 					throw $e;
@@ -470,9 +505,11 @@ class SettingController extends Controller {
 				$setting = $this->mapper->findByKey($userId, $key);
 			}
 		}
+		$previous = $setting->getValue();
 		$setting->setValue($value);
 		$setting->setUpdatedAt($now);
 		$this->mapper->update($setting);
+		return $previous;
 	}
 
 	/**
@@ -520,7 +557,7 @@ class SettingController extends Controller {
 	public function reset(): DataResponse {
 		try {
 			$this->leaveImportFilesAlone('');
-			$deleted = $this->mapper->deleteAll($this->getEffectiveUserId(), [...self::HIDDEN_KEYS, 'runway_alert_baseline']);
+			$deleted = $this->mapper->deleteAll($this->getEffectiveUserId(), [...self::HIDDEN_KEYS, ...self::RUNWAY_ALERT_STATE]);
 
 			return new DataResponse([
 				'message' => $this->l->t('All settings reset to defaults'),

@@ -441,10 +441,10 @@ class SettingControllerTest extends TestCase {
 		$this->assertSame('GBP', $data['defaults']['default_currency']);
 	}
 
-	public function testResetKeepsTheEnableBankingKeysAndTheRunwayBaseline(): void {
+	public function testResetKeepsTheEnableBankingKeysAndTheRunwayAlertState(): void {
 		$this->mapper->expects($this->once())
 			->method('deleteAll')
-			->with('user1', ['enablebanking_keys', 'runway_alert_baseline'])
+			->with('user1', ['enablebanking_keys', 'runway_alert_baseline', 'runway_alert_checks'])
 			->willReturn(4);
 
 		$response = $this->controller->reset();
@@ -863,5 +863,85 @@ class SettingControllerTest extends TestCase {
 				$this->assertSame("Invalid runway setting: $key", $response->getData()['error']);
 			}
 		}
+	}
+
+	// ── the run-out alert after a setup change ──────────────────────
+
+	/**
+	 * Stored settings as findByKey() finds them, and the keys deleted.
+	 *
+	 * @param array<string, string> $stored
+	 */
+	private function withStored(array $stored): \ArrayObject {
+		$deleted = new \ArrayObject();
+		$this->mapper->method('findByKey')->willReturnCallback(function (string $userId, string $key) use ($stored) {
+			if (!isset($stored[$key])) {
+				throw new DoesNotExistException('');
+			}
+			return $this->makeSetting($key, $stored[$key]);
+		});
+		$this->mapper->method('insert')->willReturnArgument(0);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->mapper->method('deleteByKey')->willReturnCallback(function (string $userId, string $key) use ($deleted) {
+			$deleted[] = $key;
+			return 1;
+		});
+		return $deleted;
+	}
+
+	public function testChangingTheRunwaySetupForgetsTheAlertBaseline(): void {
+		$deleted = $this->withStored(['runway_window_months' => '3', 'runway_alert_months' => '1']);
+		$this->request->method('getParams')->willReturn([
+			'runway_window_months' => '6',
+			'runway_include_scheduled' => 'true',
+			'runway_alert_months' => '1',
+		]);
+
+		$this->assertSame(Http::STATUS_OK, $this->controller->update()->getStatus());
+		$this->assertSame(['runway_alert_baseline', 'runway_alert_checks'], $deleted->getArrayCopy());
+	}
+
+	#[\PHPUnit\Framework\Attributes\DataProvider('runwayKeyChanges')]
+	public function testChangingOneRunwayKeyForgetsTheAlertBaseline(string $key, string $value): void {
+		$deleted = $this->withStored(['runway_account_ids' => '[1,2]']);
+		$this->request->method('getParam')->with('value')->willReturn($value);
+
+		$this->assertSame(Http::STATUS_OK, $this->controller->updateKey($key)->getStatus());
+		$this->assertSame(['runway_alert_baseline', 'runway_alert_checks'], $deleted->getArrayCopy());
+	}
+
+	public static function runwayKeyChanges(): array {
+		return [
+			'accounts' => ['runway_account_ids', '[1]'],
+			'back to the default accounts' => ['runway_account_ids', ''],
+			'window' => ['runway_window_months', '12'],
+			'scheduled' => ['runway_include_scheduled', 'false'],
+			'threshold' => ['runway_alert_months', '3'],
+			'alert off' => ['notification_runway_alert', 'false'],
+		];
+	}
+
+	public function testSavingTheRunwaySetupUnchangedKeepsTheAlertBaseline(): void {
+		// Stored where it was saved before, the default where it never was
+		$deleted = $this->withStored(['runway_window_months' => '6', 'runway_account_ids' => '[1,2]']);
+		$this->request->method('getParams')->willReturn([
+			'runway_account_ids' => '[1, 2]',
+			'runway_window_months' => '6',
+			'runway_include_scheduled' => 'true',
+			'runway_alert_months' => '1',
+			'notification_runway_alert' => 'true',
+			'date_format' => 'd/m/Y',
+		]);
+
+		$this->assertSame(Http::STATUS_OK, $this->controller->update()->getStatus());
+		$this->assertSame([], $deleted->getArrayCopy());
+	}
+
+	public function testOtherSettingsLeaveTheAlertBaselineAlone(): void {
+		$deleted = $this->withStored(['date_format' => 'Y-m-d']);
+		$this->request->method('getParam')->with('value')->willReturn('d/m/Y');
+
+		$this->assertSame(Http::STATUS_OK, $this->controller->updateKey('date_format')->getStatus());
+		$this->assertSame([], $deleted->getArrayCopy());
 	}
 }
