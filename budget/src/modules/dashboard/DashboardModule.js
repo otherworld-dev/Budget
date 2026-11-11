@@ -597,6 +597,7 @@ export default class DashboardModule {
             },
             topCategories: () => this.refreshTopCategoriesWidget('topCategories'),
             budgetProgress: () => this.refreshBudgetProgressWidget('budgetProgress'),
+            budgetBreakdown: () => this.refreshBudgetBreakdownWidget('budgetBreakdown'),
         };
 
         for (const [widgetId, refreshFn] of Object.entries(widgetRefreshMap)) {
@@ -616,12 +617,14 @@ export default class DashboardModule {
     /**
      * The date range a tile shows when the user hasn't chosen one. Net worth and
      * asset history default to 30 days (their initial render); Weekly Spending
-     * defaults to 7 days (its name); the trend and spending charts default to
-     * 6 months.
+     * defaults to 7 days (its name); the budget tiles default to the current
+     * budget period (their initial render); the trend and spending charts
+     * default to 6 months.
      */
     _defaultDateRange(baseType) {
         if (baseType === 'netWorthHistory' || baseType === 'assetValueHistory') return '30d';
         if (baseType === 'weeklyTrend') return '7d';
+        if (baseType === 'budgetProgress' || baseType === 'budgetBreakdown') return 'period';
         return '6m';
     }
 
@@ -2023,25 +2026,45 @@ export default class DashboardModule {
         }).join('');
     }
 
+    /**
+     * The budget report for one of the budget tiles, scoped by its settings.
+     *
+     * @param {string} instanceId - budgetProgress or budgetBreakdown
+     * @returns {Promise<Array>} The report's categories
+     */
+    async _fetchTileBudgetReport(instanceId) {
+        const settings = this.dashboardConfig.widgets?.tileSettings?.[instanceId] || {};
+        // label is only set when the range resolved to the budget period,
+        // saved or by default
+        const { startDate, endDate, label } = this._tileRangeParams(instanceId);
+
+        let url = `/apps/budget/api/reports/budget?startDate=${startDate}&endDate=${endDate}`;
+        if (label) {
+            url += `&snapshotMonth=${formatters.budgetMonthForCycle(startDate, endDate)}`;
+        }
+        if (settings.accountId) {
+            url += `&accountId=${settings.accountId}`;
+        }
+        if (settings.excludeShared) {
+            url += '&excludeShared=1';
+        }
+        const data = await apiFetch(url, { errorMessage: 'Failed to fetch budget data' });
+        return data.categories || [];
+    }
+
     async refreshBudgetProgressWidget(instanceId = 'budgetProgress') {
         try {
-            const settings = this.dashboardConfig.widgets?.tileSettings?.[instanceId] || {};
-            const { startDate, endDate } = this._tileRangeParams(instanceId);
-
-            let url = `/apps/budget/api/reports/budget?startDate=${startDate}&endDate=${endDate}`;
-            if (settings.dateRange === 'period') {
-                url += `&snapshotMonth=${formatters.budgetMonthForCycle(startDate, endDate)}`;
-            }
-            if (settings.accountId) {
-                url += `&accountId=${settings.accountId}`;
-            }
-            if (settings.excludeShared) {
-                url += '&excludeShared=1';
-            }
-            const data = await apiFetch(url, { errorMessage: 'Failed to fetch budget data' });
-            this.updateBudgetProgressWidget(data.categories || []);
+            this.updateBudgetProgressWidget(await this._fetchTileBudgetReport(instanceId));
         } catch (error) {
             console.error('Failed to refresh budget progress:', error);
+        }
+    }
+
+    async refreshBudgetBreakdownWidget(instanceId = 'budgetBreakdown') {
+        try {
+            this.updateBudgetBreakdownWidget(await this._fetchTileBudgetReport(instanceId));
+        } catch (error) {
+            console.error('Failed to refresh budget breakdown:', error);
         }
     }
 
@@ -2347,6 +2370,10 @@ export default class DashboardModule {
         if (!Array.isArray(categories) || categories.length === 0) {
             container.innerHTML = `<div class="empty-state-small">${t('budget', 'No budget data')}</div>`;
             return;
+        }
+
+        if (this.dashboardConfig.widgets?.tileSettings?.budgetBreakdown?.topLevelOnly) {
+            categories = this.aggregateToTopLevel(categories);
         }
 
         container.innerHTML = `
@@ -5712,6 +5739,7 @@ export default class DashboardModule {
             // Stat widgets
             'accounts': () => this.updateAccountsWidget(this._allDashboardAccounts),
             'budgetProgress': () => this.refreshBudgetProgressWidget(widgetId),
+            'budgetBreakdown': () => this.refreshBudgetBreakdownWidget(widgetId),
             'topCategories': () => this.refreshTopCategoriesWidget(widgetId),
             // Refetches: the alerts filter is applied server-side, and
             // repainting with no argument would blank the tile (#389)
