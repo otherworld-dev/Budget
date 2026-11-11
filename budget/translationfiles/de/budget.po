@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-11-10 12:34+0000\n"
-"PO-Revision-Date: 2026-11-02 15:51+0000\n"
+"PO-Revision-Date: 2026-11-11 01:54+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 2026.11.dev0\n"
+"X-Generator: Weblate 2026.11.2.dev0\n"
 
 #: /app/lib/Controller/AccountController.php:80
 #: /app/lib/Controller/ApiV1AccountController.php:57
@@ -9884,10 +9884,8 @@ msgid "Choose a date"
 msgstr "Wähle ein Konto"
 
 #: /app/src/modules/dashboard/runway/RunwayOneOffs.js:165
-#, fuzzy
-#| msgid "Select {description}"
 msgid "Delete the one-off \"{description}\"?"
-msgstr "{description} auswählen"
+msgstr "Die einmalige Buchung „{description}“ löschen?"
 
 #: /app/src/modules/dashboard/runway/RunwayOneOffs.js:182
 msgid "{date} · past"
@@ -20727,10 +20725,8 @@ msgid "Redirect URL to register in Enable Banking"
 msgstr ""
 
 #: /app/templates/index.php:7737
-#, fuzzy
-#| msgid "Copy URL"
 msgid "Copy"
-msgstr "URL kopieren"
+msgstr "Kopieren"
 
 #: /app/templates/index.php:7739
 msgid "Register an application and create its keys at"
