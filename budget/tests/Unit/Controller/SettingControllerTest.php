@@ -258,7 +258,7 @@ class SettingControllerTest extends TestCase {
 	public static function keysTheAppSaves(): array {
 		$keys = [
 			// The Settings page
-			'anomaly_alerts_enabled', 'budget_alert_threshold', 'budget_period', 'budget_start_day', 'date_format',
+			'anomaly_alerts_enabled', 'budget_alert_threshold', 'budget_from_bills', 'budget_period', 'budget_start_day', 'date_format',
 			'default_currency', 'digest_email_enabled', 'digest_enabled', 'digest_frequency', 'export_default_format',
 			'first_day_of_week', 'import_auto_apply_rules', 'import_folder', 'notification_budget_alert',
 			'notification_forecast_warning', 'number_format_decimal_sep', 'number_format_decimals',

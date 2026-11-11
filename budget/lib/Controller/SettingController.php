@@ -15,6 +15,7 @@ use OCA\Budget\Service\BillService;
 use OCA\Budget\Service\BudgetCarryoverService;
 use OCA\Budget\Service\GranularShareService;
 use OCA\Budget\Service\ImportFolderService;
+use OCA\Budget\Service\RecurringBudgetService;
 use OCA\Budget\Service\Runway\RunwayAlertService;
 use OCA\Budget\Traits\ApiErrorHandlerTrait;
 use OCA\Budget\Traits\SharedAccessTrait;
@@ -61,6 +62,7 @@ class SettingController extends Controller {
 		'export_default_format' => 'csv',
 		'budget_period' => 'monthly',
 		'budget_start_day' => '1',
+		RecurringBudgetService::ENABLED_SETTING => 'true', // bills budget a category with none of its own (#479)
 		BudgetCarryoverService::REPORT_MONTHS_SETTING => 'calendar', // or 'budget' (#457)
 		'budget_alert_threshold' => '80',
 		'budget_alert_scope' => 'all', // or 'manual': only budgets the user set (#389)
