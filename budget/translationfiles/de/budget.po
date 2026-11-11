@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-11-10 12:34+0000\n"
-"PO-Revision-Date: 2026-11-11 01:54+0000\n"
+"PO-Revision-Date: 2026-11-12 02:51+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -79,7 +79,7 @@ msgstr "Die Kontoart ist erforderlich und darf nicht leer sein"
 #: /app/lib/Controller/AccountController.php:312
 #, php-format
 msgid "Invalid account type: %1$s"
-msgstr "Ungültiger Kontoart: %1$s"
+msgstr "Ungültige Kontoart: %1$s"
 
 #: /app/lib/Controller/AccountController.php:142
 #: /app/lib/Controller/AccountController.php:321
@@ -203,7 +203,7 @@ msgstr "Abgleich konnte nicht abgeschlossen werden"
 
 #: /app/lib/Controller/AccountController.php:895
 msgid "Interest rate must be between 0 and 999.9999"
-msgstr "Der Zinssatz muss zwischen 0 und 999,9999"
+msgstr "Der Zinssatz muss zwischen 0 und 999,9999 liegen"
 
 #: /app/lib/Controller/AccountController.php:900
 #: /app/src/modules/accounts/AccountsModule.js:1445
@@ -252,11 +252,11 @@ msgstr ""
 
 #: /app/lib/Controller/AlertController.php:51
 msgid "Failed to retrieve budget alerts"
-msgstr "Budgetwarnungen wurden nicht abgerufen"
+msgstr "Budgetwarnungen konnten nicht abgerufen werden"
 
 #: /app/lib/Controller/AlertController.php:64
 msgid "Failed to retrieve budget status"
-msgstr "Budgetstatus wurde nicht abgerufen"
+msgstr "Budgetstatus konnte nicht abgerufen werden"
 
 #: /app/lib/Controller/AlertController.php:77
 msgid "Failed to retrieve budget summary"
@@ -330,10 +330,8 @@ msgstr ""
 "fehlgeschlagen. Versuche es erneut oder erfasse die Transaktion manuell"
 
 #: /app/lib/Controller/ApiV1RunwayController.php:51
-#, fuzzy
-#| msgid "Failed to retrieve tags"
 msgid "Failed to retrieve the runway"
-msgstr "Fehler beim Abrufen der Schlagwörter"
+msgstr "Die Liquiditätsreichweite konnte nicht abgerufen werden"
 
 #: /app/lib/Controller/ApiV1TagController.php:58
 #: /app/lib/Controller/TagSetController.php:220
@@ -372,7 +370,7 @@ msgstr "%s muss entweder wahr oder falsch sein"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:229
 msgid "Use either categoryId or uncategorized, not both"
-msgstr "Verwende entweder „categoryId“ oder „ Unkategorisiert“, nicht beides"
+msgstr "Verwende entweder „categoryId“ oder „uncategorized“, nicht beides"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:242
 #: /app/lib/Controller/ApiV1TransactionController.php:565
@@ -388,7 +386,7 @@ msgstr "%s muss eine Zahl größer oder gleich null sein"
 #: /app/lib/Controller/ApiV1TransactionController.php:302
 #, php-format
 msgid "tag_ids must be a list of at most %d tag ids"
-msgstr "tag_ids muss eine liste mit höchstens %d tag-ids sein"
+msgstr "tag_ids muss eine Liste mit höchstens %d Tag-IDs sein"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:386
 #: /app/lib/Controller/ApiV1TransactionController.php:406
@@ -468,13 +466,13 @@ msgid ""
 "The two accounts are in different currencies. Record this transfer in the "
 "web UI, where each side has its own amount"
 msgstr ""
-"Die beiden Konten lauten auf unterschiedliche Währungen. Erfassen Sie diese "
-"Überweisung in der Web-Benutzeroberfläche, wobei jede Seite ihren eigenen "
-"Betrag hat"
+"Die beiden Konten haben unterschiedliche Währungen. Erfasse diese Umbuchung "
+"in der Weboberfläche, in der jede Seite einen eigenen Betrag hat"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:930
 msgid "This account is closed. Reopen it to record anything in it"
-msgstr "This account is closed. Reopen it to record transactions in it"
+msgstr ""
+"Dieses Konto ist geschlossen. Öffne es wieder, um darin Buchungen zu erfassen"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:1003
 msgid "This idempotency key was already used for a different transaction"
@@ -590,8 +588,8 @@ msgid ""
 "This transaction has been reconciled against a statement. Send "
 "confirm_reconciled to go ahead"
 msgstr ""
-"Diese Buchung wurde mit einem Kontoauszug abgeglichen. Sende `Abgleich "
-"bestätigen`, um fortzufahren"
+"Diese Buchung wurde mit einem Kontoauszug abgeglichen. Sende "
+"confirm_reconciled, um fortzufahren"
 
 #: /app/lib/Controller/ApiV1TransactionController.php:1801
 #, php-format
@@ -683,7 +681,7 @@ msgstr "Vermögenswert konnte nicht aktualisiert werden"
 
 #: /app/lib/Controller/AssetController.php:279
 msgid "Asset deleted successfully"
-msgstr "Vermögenswert erfogreich gelöscht"
+msgstr "Vermögenswert erfolgreich gelöscht"
 
 #: /app/lib/Controller/AssetController.php:281
 #: /app/src/modules/assets/AssetsModule.js:410
@@ -758,16 +756,16 @@ msgid ""
 "Your bank is connected. You can close this tab, or go back to Budget to "
 "choose which accounts to sync."
 msgstr ""
+"Deine Bank ist verbunden. Du kannst diesen Tab schließen oder zu Budget "
+"zurückkehren, um auszuwählen, welche Konten synchronisiert werden sollen."
 
 #: /app/lib/Controller/BankSyncCallbackController.php:91
-#, fuzzy
-#| msgid "This page could not be loaded. Reload the page to try again."
 msgid ""
 "The bank connection could not be completed. Please go back to Budget and try "
 "again."
 msgstr ""
-"Diese Seite konnte nicht geladen werden. Lade die Seite neu, um es erneut zu "
-"versuchen."
+"Die Bankverbindung konnte nicht hergestellt werden. Kehre zu Budget zurück "
+"und versuche es erneut."
 
 #: /app/lib/Controller/BankSyncController.php:51
 #: /app/lib/Controller/EnableBankingController.php:131
@@ -829,10 +827,8 @@ msgstr "Zuordnungen konnten nicht abgerufen werden"
 
 #: /app/lib/Controller/BankSyncController.php:334
 #: /app/src/modules/bank-sync/BankSyncModule.js:1064
-#, fuzzy
-#| msgid "Failed to reconcile transactions"
 msgid "Failed to reconcile the balance"
-msgstr "Fehler beim Abgleichen der Buchungen"
+msgstr "Der Kontostand konnte nicht abgeglichen werden"
 
 #: /app/lib/Controller/BankSyncController.php:358
 #: /app/src/modules/bank-sync/BankSyncModule.js:1081
@@ -856,6 +852,9 @@ msgid ""
 "Your Enable Banking application is not active yet. Link at least one of your "
 "accounts in the Enable Banking control panel, then try again."
 msgstr ""
+"Deine Anwendung bei Enable Banking ist noch nicht aktiv. Verknüpfe "
+"mindestens eines deiner Konten im Verwaltungsbereich von Enable Banking und "
+"versuche es anschließend erneut."
 
 #: /app/lib/Controller/BankSyncController.php:443
 msgid ""
@@ -863,6 +862,10 @@ msgid ""
 "belong to the same application in the Enable Banking control panel, then "
 "enter them again with Replace keys."
 msgstr ""
+"Enable Banking hat die Anwendungs-ID oder den privaten Schlüssel abgelehnt. "
+"Prüfe im Verwaltungsbereich von Enable Banking, ob beide zur selben "
+"Anwendung gehören, und gib sie anschließend über „Schlüssel ersetzen“ erneut "
+"ein."
 
 #: /app/lib/Controller/BillController.php:109
 msgid "Failed to retrieve bills"
@@ -933,7 +936,7 @@ msgstr "Umbuchung erfordert ein Zielkonto"
 #: /app/lib/Service/BillService.php:1064
 #: /app/src/modules/transfers/TransfersModule.js:881
 msgid "Cannot transfer to the same account"
-msgstr "Die Umbuchung kann nicht auf das selbe Konto erfolgen"
+msgstr "Die Umbuchung kann nicht auf dasselbe Konto erfolgen"
 
 #: /app/lib/Controller/BillController.php:350
 #: /app/lib/Controller/BillController.php:517
@@ -978,7 +981,7 @@ msgstr "Das Startdatum muss vor dem Enddatum liegen"
 #: /app/lib/Controller/BillController.php:424
 #: /app/lib/Controller/BillController.php:649
 msgid "Remaining payments must be at least 1"
-msgstr "Die verbleibenden Zahlungen müssen mindesten 1 betragen"
+msgstr "Die Anzahl der verbleibenden Zahlungen muss mindestens 1 betragen"
 
 #: /app/lib/Controller/BillController.php:477
 #: /app/src/modules/bills/BillsModule.js:339
@@ -1031,27 +1034,25 @@ msgstr "Es konnte nicht nach nicht erfassten Zahlungen gesucht werden"
 #: /app/lib/Controller/BillController.php:974
 msgid "Failed to look for bill payments beside the bank's rows"
 msgstr ""
+"Es konnte nicht nach Rechnungszahlungen gesucht werden, zu denen zusätzlich "
+"eine Bankbuchung vorliegt"
 
 #: /app/lib/Controller/BillController.php:991
 #: /app/lib/Service/BillService.php:502
 #: /app/src/modules/transactions/TransactionsModule.js:5828
-#, fuzzy
-#| msgid "The payment could not be recorded"
 msgid "The payment could not be merged"
-msgstr "Die Zahlung konnte nicht verbucht werden"
+msgstr "Die Zahlung konnte nicht zusammengeführt werden"
 
 #: /app/lib/Controller/BillController.php:1004
-#, fuzzy
-#| msgid "Failed to check for unrecorded payments"
 msgid "Failed to check for payments the bank hasn't shown"
-msgstr "Es konnte nicht nach nicht erfassten Zahlungen gesucht werden"
+msgstr ""
+"Die Prüfung auf Zahlungen, die von der Bank noch nicht angezeigt werden, ist "
+"fehlgeschlagen"
 
 #: /app/lib/Controller/BillController.php:1022
 #: /app/src/modules/bills/BillsModule.js:237
-#, fuzzy
-#| msgid "Failed to record the payment"
 msgid "Failed to confirm the payment"
-msgstr "Die Zahlung konnte nicht erfasst werden"
+msgstr "Die Zahlung konnte nicht bestätigt werden"
 
 #: /app/lib/Controller/BillController.php:1040
 #: /app/src/modules/bills/BillsModule.js:264
@@ -1094,7 +1095,7 @@ msgstr "Vorheriges Fälligkeitsdatum"
 
 #: /app/lib/Controller/BillController.php:1221
 msgid "Failed to undo skip"
-msgstr "Überspringen könnte nicht rückgängig gemacht werden"
+msgstr "Überspringen konnte nicht rückgängig gemacht werden"
 
 #: /app/lib/Controller/BillController.php:1249
 msgid "Failed to retrieve bills due this month"
@@ -1142,7 +1143,7 @@ msgstr "Jahresüberblick konnte nicht generiert werden"
 
 #: /app/lib/Controller/BillController.php:1525
 msgid "Failed to export bills calendar"
-msgstr "Export des Rechnungskalender schlug fehl"
+msgstr "Export des Rechnungskalenders fehlgeschlagen"
 
 #: /app/lib/Controller/BillController.php:1534
 #: /app/lib/Controller/BillController.php:1719
@@ -1206,10 +1207,9 @@ msgstr "Summe"
 
 #. TRANSLATORS: %s is a category name. The row is the category's budget, shown in the bills calendar as estimated spending.
 #: /app/lib/Controller/BillController.php:1601
-#, fuzzy, php-format
-#| msgid "Over budget"
+#, php-format
 msgid "%s (budget)"
-msgstr "Über dem Budget"
+msgstr "%s (Budget)"
 
 #: /app/lib/Controller/BillController.php:1680
 #: /app/src/modules/dashboard/DashboardModule.js:3394
@@ -1591,26 +1591,21 @@ msgid "Failed to compare debt scenarios"
 msgstr "Schuldenszenarien konnten nicht verglichen werden"
 
 #: /app/lib/Controller/EnableBankingController.php:83
-#, fuzzy
-#| msgid "Institution ID is required"
 msgid "Application ID is required"
-msgstr "Die ID des Finanzinstituts ist erforderlich"
+msgstr "Die Anwendungs-ID ist erforderlich"
 
 #: /app/lib/Controller/EnableBankingController.php:84
-#, fuzzy
-#| msgid "Invalid strategy"
 msgid "Invalid private key"
-msgstr "Ungültige Strategie"
+msgstr "Ungültiger privater Schlüssel"
 
 #: /app/lib/Controller/EnableBankingController.php:87
-#, fuzzy
-#| msgid "Failed to save settings"
 msgid "Failed to save Enable Banking keys"
-msgstr "Fehler beim Speichern der Einstellungen"
+msgstr "Die Schlüssel für Enable Banking konnten nicht gespeichert werden"
 
 #: /app/lib/Controller/EnableBankingController.php:110
 msgid "Disconnect all Enable Banking connections before removing the keys"
 msgstr ""
+"Trenne alle Verbindungen zu Enable Banking, bevor du die Schlüssel entfernst"
 
 #: /app/lib/Controller/ExchangeRateController.php:112
 #: /app/src/modules/exchange-rates/ExchangeRatesModule.js:38
@@ -1714,7 +1709,7 @@ msgstr "Der aktuelle Betrag darf nicht negativ sein"
 #: /app/lib/Controller/GoalsController.php:295
 #: /app/lib/Service/GranularShareService.php:241
 msgid "Invalid tag ID"
-msgstr "Ungültige Schlagwort ID"
+msgstr "Ungültige Schlagwort-ID"
 
 #: /app/lib/Controller/GoalsController.php:173
 #: /app/lib/Controller/GoalsController.php:227
@@ -1882,7 +1877,7 @@ msgstr "Ungültiger Vergleichstyp. Muss einer der folgenden sein: %1$s"
 #: /app/lib/Controller/ImportRuleController.php:173
 #: /app/lib/Controller/ImportRuleController.php:288
 msgid "Invalid regex pattern"
-msgstr "Ungültiger regex Ausdruck"
+msgstr "Ungültiger regulärer Ausdruck"
 
 #: /app/lib/Controller/ImportRuleController.php:219
 msgid "Failed to create import rule"
@@ -1965,7 +1960,7 @@ msgstr "Fehler beim Abrufen der Nettovermögens-Momentaufnahme"
 
 #: /app/lib/Controller/NetWorthController.php:99
 msgid "Failed to create net worth snapshot"
-msgstr "Fehler beim Erstellen des Nettovermögens-Momentaufnahme"
+msgstr "Fehler beim Erstellen der Nettovermögens-Momentaufnahme"
 
 #: /app/lib/Controller/NetWorthController.php:112
 msgid "Snapshot deleted"
@@ -2067,7 +2062,7 @@ msgstr "Das Jahreseinkommen darf nicht negativ sein"
 #: /app/lib/Controller/PensionController.php:179
 #: /app/lib/Controller/PensionController.php:277
 msgid "Transfer value cannot be negative"
-msgstr "Umbuchungwert kann nicht negativ sein"
+msgstr "Der Übertragungswert darf nicht negativ sein"
 
 #: /app/lib/Controller/PensionController.php:182
 msgid "Projection target cannot be negative"
@@ -2337,13 +2332,13 @@ msgstr ""
 #: /app/lib/Controller/RecurringIncomeController.php:355
 #: /app/lib/Controller/RecurringIncomeController.php:673
 msgid "Expected day must be between 1 and 31"
-msgstr "Erwartender Tag muss zwischen 1 und 31 sein"
+msgstr "Der erwartete Tag muss zwischen 1 und 31 liegen"
 
 #: /app/lib/Controller/RecurringIncomeController.php:229
 #: /app/lib/Controller/RecurringIncomeController.php:362
 #: /app/lib/Controller/RecurringIncomeController.php:676
 msgid "Expected month must be between 1 and 12"
-msgstr "Erwartender Monat muss zwischen 1 und 12 sein"
+msgstr "Der erwartete Monat muss zwischen 1 und 12 liegen"
 
 #: /app/lib/Controller/RecurringIncomeController.php:294
 msgid "Failed to create recurring income"
@@ -2445,35 +2440,28 @@ msgid "Failed to generate category monthly report"
 msgstr "Der monatliche Kategorienbericht konnte nicht erstellt werden"
 
 #: /app/lib/Controller/RunwayController.php:49
-#, fuzzy
-#| msgid "Failed to load the project"
 msgid "Failed to load the runway forecast"
-msgstr "Das Projekt konnte nicht geladen werden"
+msgstr "Die Prognose zur Liquiditätsreichweite konnte nicht geladen werden"
 
 #: /app/lib/Controller/RunwayController.php:64
 #: /app/lib/Controller/RunwayController.php:74
 #: /app/src/modules/dashboard/runway/RunwayOneOffs.js:139
-#, fuzzy
-#| msgid "Failed to save the project"
 msgid "Failed to save the one-off"
-msgstr "Das Projekt konnte nicht gespeichert werden"
+msgstr "Die einmalige Buchung konnte nicht gespeichert werden"
 
 #: /app/lib/Controller/RunwayController.php:84
 #: /app/src/modules/dashboard/runway/RunwayOneOffs.js:173
-#, fuzzy
-#| msgid "Failed to delete the project"
 msgid "Failed to delete the one-off"
-msgstr "Das Projekt konnte nicht gelöscht werden"
+msgstr "Die einmalige Buchung konnte nicht gelöscht werden"
 
 #: /app/lib/Controller/RunwayController.php:107
-#, fuzzy, php-format
-#| msgid "Invalid receipts folder: %1$s"
+#, php-format
 msgid "Invalid value for %1$s."
-msgstr "Ungültiger Belegordner: %1$s"
+msgstr "Ungültiger Wert für %1$s."
 
 #: /app/lib/Controller/RunwayController.php:119
 msgid "One-off"
-msgstr ""
+msgstr "Einmalige Buchung"
 
 #: /app/lib/Controller/SavedReportController.php:48
 msgid "Failed to load saved reports"
@@ -2511,7 +2499,7 @@ msgstr "Einstellungen nicht gefunden"
 
 #: /app/lib/Controller/SettingController.php:213
 msgid "Failed to retrieve setting"
-msgstr "Einstellung konnten nicht abgerufen werden"
+msgstr "Einstellung konnte nicht abgerufen werden"
 
 #: /app/lib/Controller/SettingController.php:262
 #: /app/lib/Controller/SettingController.php:334
@@ -2550,10 +2538,9 @@ msgid "Invalid colour setting"
 msgstr "Ungültige Farbeinstellung"
 
 #: /app/lib/Controller/SettingController.php:441
-#, fuzzy, php-format
-#| msgid "Invalid routing number: %1$s"
+#, php-format
 msgid "Invalid runway setting: %1$s"
-msgstr "Ungültige Routingnummer: %1$s"
+msgstr "Ungültige Einstellung für die Liquiditätsreichweite: %1$s"
 
 #: /app/lib/Controller/SettingController.php:547
 msgid "Setting reset to default"
@@ -2720,15 +2707,15 @@ msgstr "Systeminformationen konnten nicht abgerufen werden"
 #: /app/lib/Controller/ShareController.php:63
 #: /app/lib/Controller/ShareController.php:77
 msgid "Failed to retrieve shares"
-msgstr "Abruf der Aktien fehlgeschlagen"
+msgstr "Freigaben konnten nicht abgerufen werden"
 
 #: /app/lib/Controller/ShareController.php:91
 msgid "Failed to retrieve pending shares"
-msgstr "Abruf wartender Aktien fehlgeschlagen"
+msgstr "Ausstehende Freigaben konnten nicht abgerufen werden"
 
 #: /app/lib/Controller/ShareController.php:108
 msgid "Failed to create share"
-msgstr "Erstellung Aktie fehlgeschlagen"
+msgstr "Freigabe konnte nicht erstellt werden"
 
 #: /app/lib/Controller/ShareController.php:124
 #: /app/lib/Controller/ShareController.php:142
@@ -2737,35 +2724,35 @@ msgstr "Erstellung Aktie fehlgeschlagen"
 #: /app/lib/Controller/ShareController.php:207
 #: /app/lib/Controller/ShareController.php:244
 msgid "Share"
-msgstr "Aktie"
+msgstr "Freigabe"
 
 #: /app/lib/Controller/ShareController.php:126
 #: /app/src/modules/sharing/SharingModule.js:419
 msgid "Failed to accept share"
-msgstr "Annehmen Aktie fehlgeschlagen"
+msgstr "Freigabe konnte nicht angenommen werden"
 
 #: /app/lib/Controller/ShareController.php:144
 #: /app/src/modules/sharing/SharingModule.js:427
 msgid "Failed to decline share"
-msgstr "Ablehnen Aktie fehlgeschlagen"
+msgstr "Freigabe konnte nicht abgelehnt werden"
 
 #: /app/lib/Controller/ShareController.php:164
 #: /app/src/modules/sharing/SharingModule.js:437
 msgid "Failed to revoke share"
-msgstr "Widerruf Aktie fehlgeschlagen"
+msgstr "Freigabe konnte nicht widerrufen werden"
 
 #: /app/lib/Controller/ShareController.php:184
 #: /app/src/modules/sharing/SharingModule.js:447
 msgid "Failed to leave share"
-msgstr "Aktie verlassen fehlgeschlagen"
+msgstr "Freigabe konnte nicht verlassen werden"
 
 #: /app/lib/Controller/ShareController.php:201
 msgid "Share not found"
-msgstr "Aktie nicht gefunden"
+msgstr "Freigabe nicht gefunden"
 
 #: /app/lib/Controller/ShareController.php:209
 msgid "Failed to retrieve share configuration"
-msgstr "Konfiguration Aktie konnte nicht abgerufen werden"
+msgstr "Freigabekonfiguration konnte nicht abgerufen werden"
 
 #: /app/lib/Controller/ShareController.php:225
 msgid "Invalid entity IDs"
@@ -2773,7 +2760,7 @@ msgstr "Entitäts-ID ungültig"
 
 #: /app/lib/Controller/ShareController.php:246
 msgid "Failed to update share configuration"
-msgstr "Aktualisieren Aktieneinstellung fehlgeschlagen"
+msgstr "Freigabekonfiguration konnte nicht aktualisiert werden"
 
 #: /app/lib/Controller/ShareController.php:267
 msgid "Failed to retrieve auto-share configuration"
@@ -2931,11 +2918,11 @@ msgstr "Abrechnung konnte nicht entfernt werden"
 
 #: /app/lib/Controller/TagSetController.php:101
 msgid "Failed to retrieve tag sets"
-msgstr "Fehler beim Abrufen der Schlagwort Gruppe"
+msgstr "Fehler beim Abrufen der Schlagwortgruppen"
 
 #: /app/lib/Controller/TagSetController.php:114
 msgid "Tag set"
-msgstr "Schlagwort Gruppe"
+msgstr "Schlagwortgruppe"
 
 #: /app/lib/Controller/TagSetController.php:128
 msgid "Category ID and name are required"
@@ -2946,20 +2933,20 @@ msgstr "Kategorie-ID und Name sind erforderlich"
 #: /app/src/modules/tagsets/TagSetsModule.js:533
 #: /app/src/modules/tagsets/TagSetsModule.js:891
 msgid "Failed to create tag set"
-msgstr "Fehler beim Erstellen des Schlagwort Gruppe"
+msgstr "Fehler beim Erstellen der Schlagwortgruppe"
 
 #: /app/lib/Controller/TagSetController.php:193
 #: /app/src/modules/tagsets/TagSetsModule.js:902
 #: /app/src/modules/tagsets/TagSetsModule.js:965
 msgid "Failed to update tag set"
-msgstr "Fehler beim Aktualisieren des Schlagwort Gruppe"
+msgstr "Fehler beim Aktualisieren der Schlagwortgruppe"
 
 #: /app/lib/Controller/TagSetController.php:207
 #: /app/src/modules/tagsets/TagSetsModule.js:456
 #: /app/src/modules/tagsets/TagSetsModule.js:543
 #: /app/src/modules/tagsets/TagSetsModule.js:819
 msgid "Failed to delete tag set"
-msgstr "Fehler beim löschen der Schlagwort Gruppe"
+msgstr "Fehler beim Löschen der Schlagwortgruppe"
 
 #: /app/lib/Controller/TagSetController.php:234
 #: /app/lib/Controller/TagSetController.php:358
@@ -2998,11 +2985,11 @@ msgstr "Fehler beim Erstellen des globalen Schlagwortes"
 
 #: /app/lib/Controller/TagSetController.php:418
 msgid "Failed to update global tag"
-msgstr "Fehler beim update des globalen Schlagwortes"
+msgstr "Fehler beim Aktualisieren des globalen Schlagworts"
 
 #: /app/lib/Controller/TagSetController.php:431
 msgid "Failed to delete global tag"
-msgstr "Fehler beim löschen des globalen Schlagwortes"
+msgstr "Fehler beim Löschen des globalen Schlagworts"
 
 #: /app/lib/Controller/TransactionController.php:256
 #: /app/src/modules/accounts/AccountsModule.js:3596
@@ -3042,7 +3029,7 @@ msgstr "Buchungen kategorisieren fehlgeschlagen"
 #: /app/lib/Controller/TransactionController.php:803 /app/src/main.js:3592
 #: /app/src/modules/transactions/TransactionsModule.js:4028
 msgid "Failed to unlink transaction"
-msgstr "Aufheben der Buchungsvernüpfung fehlgeschlagen"
+msgstr "Aufheben der Buchungsverknüpfung fehlgeschlagen"
 
 #: /app/lib/Controller/TransactionController.php:826
 #: /app/src/modules/transactions/TransactionsModule.js:4062
@@ -3383,7 +3370,7 @@ msgstr "Budget: Fällige Zahlungen"
 #: /app/src/modules/dashboard/DashboardModule.js:1919
 #: /app/templates/index.php:730
 msgid "No upcoming bills"
-msgstr "Keine fällige Zahlungen"
+msgstr "Keine fälligen Zahlungen"
 
 #: /app/lib/Dashboard/UpcomingBillsWidget.php:89
 msgid "All bills"
@@ -3613,22 +3600,20 @@ msgid "Your projected balance falls to {balance} in {month}."
 msgstr "Dein prognostizierter Kontostand fällt im {month} auf {balance}."
 
 #: /app/lib/Notification/Notifier.php:638
-#, fuzzy
-#| msgid "Your balance is forecast to go negative"
 msgid "Your money is forecast to run out sooner"
-msgstr "Dein Kontostand wird voraussichtlich ins Minus rutschen"
+msgstr "Dein Geld wird voraussichtlich früher aufgebraucht sein"
 
 #: /app/lib/Notification/Notifier.php:642
 msgid "It now runs out around {date}, {months} earlier than {previous}."
 msgstr ""
+"Es wird jetzt voraussichtlich um den {date} aufgebraucht sein, {months} "
+"früher als zuvor ({previous})."
 
 #: /app/lib/Notification/Notifier.php:645
-#, fuzzy
-#| msgid "3 months"
 msgid "%n month"
 msgid_plural "%n months"
-msgstr[0] "3 Monate"
-msgstr[1] "3 Monate"
+msgstr[0] "%n Monat"
+msgstr[1] "%n Monate"
 
 #: /app/lib/Notification/Notifier.php:663
 msgid "{file} imported into {account}"
@@ -3904,6 +3889,9 @@ msgid ""
 "The bank did not share any accounts. Link the account in the Enable Banking "
 "control panel, then use Re-authorize."
 msgstr ""
+"Die Bank hat keine Konten freigegeben. Verknüpfe das Konto im "
+"Verwaltungsbereich von Enable Banking und wähle anschließend „Erneut "
+"autorisieren“."
 
 #: /app/lib/Service/Bill/BillIcsService.php:147
 #, php-format
@@ -3912,14 +3900,13 @@ msgstr "Rechnung fällig: %1$s"
 
 #. TRANSLATORS: %1$s is a category name, %2$s the amount its budget plans to spend in the month. A calendar event title.
 #: /app/lib/Service/Bill/BillIcsService.php:190
-#, fuzzy, php-format
-#| msgid "No budget set"
+#, php-format
 msgid "%1$s budget: %2$s"
-msgstr "Kein Budget festgelegt"
+msgstr "Budget für %1$s: %2$s"
 
 #: /app/lib/Service/Bill/BillIcsService.php:191
 msgid "Estimated spending for the month, from your budget."
-msgstr ""
+msgstr "Geschätzte Ausgaben für den Monat auf Grundlage deines Budgets."
 
 #: /app/lib/Service/BillService.php:160
 #: /app/src/modules/bills/BillsModule.js:120 /app/src/utils/billDates.js:61
@@ -3952,18 +3939,16 @@ msgid ""
 "These two rows can no longer be merged. Reload the list to see where they "
 "stand."
 msgstr ""
+"Diese beiden Buchungen können nicht mehr zusammengeführt werden. Lade die "
+"Liste neu, um ihren aktuellen Status zu sehen."
 
 #: /app/lib/Service/BillService.php:599
-#, fuzzy
-#| msgid ""
-#| "This date was already paid or skipped. Reload the page to see the next "
-#| "one."
 msgid ""
 "That payment is no longer waiting for the bank. Reload the page to see where "
 "it stands."
 msgstr ""
-"Für dieses Datum wurde bereits eine Zahlung erfasst oder der Termin wurde "
-"übersprungen. Lade die Seite neu, um den nächsten Termin anzuzeigen."
+"Diese Zahlung wartet nicht mehr auf die Verbuchung durch die Bank. Lade die "
+"Seite neu, um den aktuellen Status zu sehen."
 
 #: /app/lib/Service/BillService.php:612 /app/lib/Service/BillService.php:668
 msgid "This bill has never been marked as paid"
@@ -4532,7 +4517,7 @@ msgstr ""
 #: /app/lib/Service/ImportFolderService.php:1227
 #: /app/src/modules/import/ImportModule.js:50
 msgid "Column: {number}"
-msgstr "spalte: {number}"
+msgstr "Spalte: {number}"
 
 #: /app/lib/Service/ImportFolderService.php:1342
 msgid "A folder's files are either imported automatically or held for review."
@@ -4878,7 +4863,9 @@ msgstr "Für diese Einnahme ist keine Zahlung zu erhalten"
 
 #: /app/lib/Service/RecurringIncomeService.php:416
 msgid "This income has no recorded receipt to undo"
-msgstr "Transfer marked as paid"
+msgstr ""
+"Für diese Einnahme gibt es keinen erfassten Zahlungseingang zum "
+"Rückgängigmachen"
 
 #: /app/lib/Service/RecurringIncomeService.php:421
 msgid "Undo the skip first: a later date has been skipped since this receipt."
@@ -5006,7 +4993,7 @@ msgstr "Juni"
 #: /app/lib/Service/Report/MonthNames.php:48 /app/templates/index.php:3628
 #: /app/templates/index.php:6453 /app/templates/index.php:6930
 msgid "July"
-msgstr "July"
+msgstr "Juli"
 
 #: /app/lib/Service/Report/MonthNames.php:49 /app/templates/index.php:3629
 #: /app/templates/index.php:6454 /app/templates/index.php:6931
@@ -5310,13 +5297,11 @@ msgstr ""
 
 #: /app/lib/Service/Runway/RunwayOneOffService.php:102
 msgid "Amount must have at most two decimal places"
-msgstr ""
+msgstr "Der Betrag darf höchstens zwei Nachkommastellen haben"
 
 #: /app/lib/Service/Runway/RunwayOneOffService.php:106
-#, fuzzy
-#| msgid "Split %1$s: amount cannot be zero"
 msgid "Amount cannot be zero"
-msgstr "Aufteilung %1$s: Der Betrag darf nicht null sein"
+msgstr "Der Betrag darf nicht null sein"
 
 #: /app/lib/Service/SavedReportService.php:75
 #: /app/src/modules/reports/ReportsModule.js:429
@@ -5393,16 +5378,16 @@ msgstr "Budget wird bereits mit diesem Benutzer geteilt"
 
 #: /app/lib/Service/ShareService.php:105
 msgid "A pending share already exists for this user"
-msgstr "Es existiert bereits eine ausstehende Aktie für diesen Benutzer"
+msgstr "Für diesen Benutzer besteht bereits eine ausstehende Freigabe"
 
 #: /app/lib/Service/ShareService.php:142 /app/lib/Service/ShareService.php:172
 #: /app/lib/Service/ShareService.php:234
 msgid "You are not the recipient of this share"
-msgstr "Du bist nicht der Empfänger dieser Aktie"
+msgstr "Du bist nicht der Empfänger dieser Freigabe"
 
 #: /app/lib/Service/ShareService.php:146 /app/lib/Service/ShareService.php:176
 msgid "This share is not pending"
-msgstr "Diese Aktie ist nicht ausstehend"
+msgstr "Diese Freigabe ist nicht ausstehend"
 
 #: /app/lib/Service/SharedExpenseService.php:824
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:62
@@ -5749,7 +5734,7 @@ msgstr ""
 #: /app/src/modules/dashboard/DashboardModule.js:3183
 #: /app/templates/index.php:371 /app/templates/index.php:1208
 msgid "Net Worth"
-msgstr "Reinvermögen"
+msgstr "Nettovermögen"
 
 #: /app/src/config/dashboardWidgets.js:9 /app/templates/index.php:384
 msgid "Income This Month"
@@ -5792,7 +5777,7 @@ msgstr "verbleibendes Budget"
 
 #: /app/src/config/dashboardWidgets.js:19 /app/templates/index.php:492
 msgid "Budget Health"
-msgstr "Budget Status"
+msgstr "Budgetstatus"
 
 #: /app/src/config/dashboardWidgets.js:22 /app/templates/index.php:507
 msgid "Account Income"
@@ -5804,13 +5789,13 @@ msgstr "Kontoausgaben"
 
 #: /app/src/config/dashboardWidgets.js:27 /app/templates/index.php:552
 msgid "Low Balance Alert"
-msgstr "Alarm Geringer Kontostand"
+msgstr "Warnung bei niedrigem Kontostand"
 
 #: /app/src/config/dashboardWidgets.js:32
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:103
 #: /app/src/modules/help/HelpModule.js:43 /app/templates/index.php:567
 msgid "Runway"
-msgstr ""
+msgstr "Liquiditätsreichweite"
 
 #: /app/src/config/dashboardWidgets.js:33 /app/templates/index.php:582
 msgid "Days Until Debt Free"
@@ -5943,26 +5928,24 @@ msgid "Cash Flow Forecast"
 msgstr "Geldflussprognose"
 
 #: /app/src/config/dashboardWidgets.js:87 /app/templates/index.php:981
-#, fuzzy
-#| msgid "No forecast"
 msgid "Runway forecast"
-msgstr "Keine Prognose"
+msgstr "Prognose zur Liquiditätsreichweite"
 
 #: /app/src/config/dashboardWidgets.js:88 /app/templates/index.php:990
 msgid "Planned one-offs"
-msgstr ""
+msgstr "Geplante einmalige Buchungen"
 
 #: /app/src/config/dashboardWidgets.js:89 /app/templates/index.php:999
 msgid "How long will it last"
-msgstr ""
+msgstr "Wie lange reicht das Geld"
 
 #: /app/src/config/dashboardWidgets.js:90 /app/templates/index.php:1008
 msgid "Where the drain comes from"
-msgstr ""
+msgstr "Woher der Geldabfluss kommt"
 
 #: /app/src/config/dashboardWidgets.js:91 /app/templates/index.php:1017
 msgid "Runway overview"
-msgstr ""
+msgstr "Übersicht der Liquiditätsreichweite"
 
 #: /app/src/config/dashboardWidgets.js:92
 msgid "Year-over-Year"
@@ -6190,11 +6173,11 @@ msgstr "Kostenteilung"
 
 #: /app/src/main.js:525
 msgid "Unlink transfer"
-msgstr "transfer aufheben"
+msgstr "Verknüpfung der Umbuchung aufheben"
 
 #: /app/src/main.js:527
 msgid "Match transfer"
-msgstr "Transfer zuordnen"
+msgstr "Umbuchung zuordnen"
 
 #: /app/src/main.js:530
 msgid "Link to bill…"
@@ -6359,7 +6342,7 @@ msgstr "Neuberechnung Kontostände fehlgeschlagen: {error}"
 
 #: /app/src/main.js:1734
 msgid "Scanning..."
-msgstr "Scanning..."
+msgstr "Wird geprüft…"
 
 #: /app/src/main.js:1744
 msgid "Failed to scan for issues: {error}"
@@ -6620,19 +6603,19 @@ msgstr "Deine Daten wurden erfolgreich importiert."
 
 #: /app/src/main.js:2452
 msgid "categories"
-msgstr "categorien"
+msgstr "Kategorien"
 
 #: /app/src/main.js:2453
 msgid "accounts"
-msgstr "konten"
+msgstr "Konten"
 
 #: /app/src/main.js:2454
 msgid "transactions"
-msgstr "buchungen"
+msgstr "Buchungen"
 
 #: /app/src/main.js:2455
 msgid "bills"
-msgstr "rechnungen"
+msgstr "Rechnungen"
 
 #: /app/src/main.js:2456
 msgid "import rules"
@@ -6640,7 +6623,7 @@ msgstr "Importregeln"
 
 #: /app/src/main.js:2457
 msgid "settings"
-msgstr "einstellungen"
+msgstr "Einstellungen"
 
 #: /app/src/main.js:2469
 msgid "Import completed successfully"
@@ -6648,7 +6631,7 @@ msgstr "Import erfolgreich durchgeführt"
 
 #: /app/src/main.js:2477
 msgid "Import Failed"
-msgstr "Import Fehlgeschlagen"
+msgstr "Import fehlgeschlagen"
 
 #: /app/src/main.js:2479
 msgid "Your existing data has not been modified."
@@ -6687,7 +6670,7 @@ msgstr ""
 
 #: /app/src/main.js:2978 /app/src/main.js:3209
 msgid "Snowball"
-msgstr "Snowball"
+msgstr "Schneeballmethode"
 
 #: /app/src/main.js:2978 /app/src/main.js:3198
 msgid "Avalanche"
@@ -6747,7 +6730,7 @@ msgstr "Gesamtzinsen"
 
 #: /app/src/main.js:3233
 msgid "Avalanche Recommended"
-msgstr "Empfohlen nach der Avalanche-Methode"
+msgstr "Lawinenmethode empfohlen"
 
 #: /app/src/main.js:3234
 msgid "Snowball Recommended"
@@ -6782,17 +6765,17 @@ msgstr "Unbekanntes Konto"
 #: /app/src/main.js:3429
 #: /app/src/modules/transactions/TransactionsModule.js:3992
 msgid "Link as Transfer"
-msgstr "Als Transfer verknüpfen"
+msgstr "Als Umbuchung verknüpfen"
 
 #: /app/src/main.js:3438
 #: /app/src/modules/transactions/TransactionsModule.js:4001
 msgid "Failed to search for matches. Please try again."
-msgstr "Keine Treffer gefunden. Bitte erneut versuchen."
+msgstr "Suche nach Übereinstimmungen fehlgeschlagen. Bitte versuche es erneut."
 
 #: /app/src/main.js:3448
 #: /app/src/modules/transactions/TransactionsModule.js:4008
 msgid "Transactions linked as transfer"
-msgstr "Buchung als Transfer verknüpft"
+msgstr "Buchungen als Umbuchung verknüpft"
 
 #: /app/src/main.js:3454
 #: /app/src/modules/transactions/TransactionsModule.js:4014
@@ -6823,7 +6806,8 @@ msgstr "Verknüpfte Buchung konnte nicht geöffnet werden"
 msgid ""
 "Are you sure you want to unlink this transaction from its transfer pair?"
 msgstr ""
-"Bist Du sicher, dass Du diese Buchung von seinem Transferpaar ablösen willst?"
+"Möchtest du die Verknüpfung dieser Buchung mit ihrer Gegenbuchung wirklich "
+"aufheben?"
 
 #: /app/src/main.js:3589
 #: /app/src/modules/transactions/TransactionsModule.js:4025
@@ -6833,7 +6817,7 @@ msgstr "Buchung abgelöst"
 #: /app/src/main.js:3620
 #: /app/src/modules/transactions/TransactionsModule.js:4139
 msgid "Edit Transaction Splits"
-msgstr "Buchungsteilungen editieren"
+msgstr "Buchungsaufteilung bearbeiten"
 
 #: /app/src/main.js:3620
 #: /app/src/modules/transactions/TransactionsModule.js:4139
@@ -6873,7 +6857,7 @@ msgstr ""
 #: /app/src/main.js:3842
 #: /app/src/modules/transactions/TransactionsModule.js:4315
 msgid "Transaction split successfully"
-msgstr "Buchung teilen erfolgreich"
+msgstr "Buchung erfolgreich aufgeteilt"
 
 #: /app/src/main.js:3846
 #: /app/src/modules/transactions/TransactionsModule.js:4319
@@ -6959,7 +6943,7 @@ msgstr "Noch nie abgeglichen"
 #: /app/src/modules/accounts/AccountsModule.js:499
 #: /app/src/modules/accounts/AccountsModule.js:581
 msgid "Unnamed Account"
-msgstr "unbenanntes Konto"
+msgstr "Unbenanntes Konto"
 
 #: /app/src/modules/accounts/AccountsModule.js:516
 msgid "Owed"
@@ -7072,7 +7056,7 @@ msgstr "Immer angezeigt"
 
 #: /app/src/modules/accounts/AccountsModule.js:1093
 msgid "Failed to load account details"
-msgstr "Fehler beim Laden der Konto Details"
+msgstr "Fehler beim Laden der Kontodetails"
 
 #: /app/src/modules/accounts/AccountsModule.js:1216
 msgid "Day {day} each month"
@@ -7128,7 +7112,7 @@ msgstr "Neuen jährlichen Zinssatz eingeben (%)"
 
 #: /app/src/modules/accounts/AccountsModule.js:1436
 msgid "Invalid rate. Must be between 0 and 999.9999"
-msgstr "Ungültiger Zinssatz. Er muss zwischen 0 und 999.9999 liegen"
+msgstr "Ungültiger Zinssatz. Er muss zwischen 0 und 999,9999 liegen"
 
 #: /app/src/modules/accounts/AccountsModule.js:1440
 msgid "Effective date (YYYY-MM-DD)"
@@ -7204,7 +7188,7 @@ msgstr "Keine Schlagwörter verfügbar"
 #: /app/src/modules/transactions/TransactionsModule.js:610
 #: /app/src/modules/transactions/TransactionsModule.js:5262
 msgid "Type to filter tags..."
-msgstr "Tippe um nach Schlagwörtern zu filtern..."
+msgstr "Tippe, um nach Schlagwörtern zu filtern…"
 
 #: /app/src/modules/accounts/AccountsModule.js:2077
 #: /app/src/modules/reports/ReportsModule.js:590
@@ -7249,7 +7233,7 @@ msgstr "Bitte gib eine gültige Summe ein"
 #: /app/src/modules/accounts/AccountsModule.js:2294
 #: /app/src/modules/accounts/AccountsModule.js:2401
 msgid "Please enter a description"
-msgstr "Bitte geben Sie eine Beschreibung ein"
+msgstr "Bitte gib eine Beschreibung ein"
 
 #: /app/src/modules/accounts/AccountsModule.js:2322
 #: /app/src/modules/accounts/AccountsModule.js:2341
@@ -7258,11 +7242,11 @@ msgstr "Bitte geben Sie eine Beschreibung ein"
 #: /app/src/modules/transactions/TransactionsModule.js:3307
 #: /app/templates/quick-add.php:104
 msgid "Failed to save transaction"
-msgstr "Speichern der Buchungen fehlgeschlagen"
+msgstr "Buchung konnte nicht gespeichert werden"
 
 #: /app/src/modules/accounts/AccountsModule.js:2332
 msgid "Transaction saved successfully"
-msgstr "Buchungen wurden erfolgreich gespeichert"
+msgstr "Buchung erfolgreich gespeichert"
 
 #: /app/src/modules/accounts/AccountsModule.js:2420
 #: /app/src/modules/accounts/AccountsModule.js:2435
@@ -7308,7 +7292,7 @@ msgstr "Bitte gib einen Kontonamen ein"
 
 #: /app/src/modules/accounts/AccountsModule.js:2642
 msgid "Please select an account type"
-msgstr "Bitte wählen Sie eine Kontoart aus"
+msgstr "Bitte wähle eine Kontoart aus"
 
 #: /app/src/modules/accounts/AccountsModule.js:2649
 msgid "Account name is too long (maximum 255 characters)"
@@ -7353,7 +7337,7 @@ msgstr "Aus Buchungen berechnet"
 
 #: /app/src/modules/accounts/AccountsModule.js:2911
 msgid "••••••••  (leave blank to keep current)"
-msgstr "••••••••  (leave blank to keep current)"
+msgstr "••••••••  (leer lassen, um den aktuellen Wert beizubehalten)"
 
 #: /app/src/modules/accounts/AccountsModule.js:2935
 msgid "Failed to load account data"
@@ -7439,7 +7423,7 @@ msgstr "Konto und die zugehörigen {count} Transaktion(en) gelöscht"
 
 #: /app/src/modules/accounts/AccountsModule.js:3162
 msgid "Account deleted successfully"
-msgstr "Konto erfolgreich gelöscht“"
+msgstr "Konto erfolgreich gelöscht"
 
 #: /app/src/modules/accounts/AccountsModule.js:3172
 msgid "Failed to delete account: {error}"
@@ -7734,24 +7718,21 @@ msgid "Next"
 msgstr "Weiter"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:415
-#, fuzzy
-#| msgid "Failed to load banks: {error}"
 msgid "Failed to load Enable Banking settings: {error}"
-msgstr "Banken konnten nicht geladen werden: {error}"
+msgstr ""
+"Die Einstellungen für Enable Banking konnten nicht geladen werden: {error}"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:448
-#, fuzzy
-#| msgid "Could not read that file: {error}"
 msgid "Could not read the key file"
-msgstr "Diese Datei konnte nicht gelesen werden: {error}"
+msgstr "Die Schlüsseldatei konnte nicht gelesen werden"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:458
 msgid "Copied"
-msgstr ""
+msgstr "Kopiert"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:479
 msgid "Please enter your application ID and private key"
-msgstr ""
+msgstr "Bitte gib deine Anwendungs-ID und deinen privaten Schlüssel ein"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:494
 #: /app/src/modules/bank-sync/BankSyncModule.js:532
@@ -7886,11 +7867,13 @@ msgstr "— Nicht zugeordnet —"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:1044
 msgid "Bank: {bank} · Budget: {budget} · Difference: {difference}"
-msgstr ""
+msgstr "Bank: {bank} · Budget: {budget} · Differenz: {difference}"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:1051
 msgid "Set the opening balance so that the balance matches the bank"
 msgstr ""
+"Den Anfangssaldo so anpassen, dass der Kontostand mit dem der Bank "
+"übereinstimmt"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:1051
 #: /app/templates/index.php:1277 /app/templates/index.php:1647
@@ -7898,10 +7881,8 @@ msgid "Reconcile"
 msgstr "Abgleichen"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:1062
-#, fuzzy
-#| msgid "Balance trend (tiles only)"
 msgid "Balance matched to the bank"
-msgstr "Saldoentwicklung (nur Kacheln)"
+msgstr "Kontostand mit der Bank abgeglichen"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:1079
 msgid "Mapping updated"
@@ -7979,14 +7960,13 @@ msgid "Dismiss"
 msgstr "Verwerfen"
 
 #: /app/src/modules/bills/BillsModule.js:199
-#, fuzzy
-#| msgid "{date} (minimum payment)"
 msgid "Due {date}, no payment found"
-msgstr "{date} (Mindestzahlung)"
+msgstr "Fällig am {date}, keine Zahlung gefunden"
 
 #: /app/src/modules/bills/BillsModule.js:200
 msgid "Auto-paid {date}, not yet in the bank's rows"
 msgstr ""
+"Am {date} automatisch bezahlt, noch nicht in den Bankbuchungen enthalten"
 
 #: /app/src/modules/bills/BillsModule.js:202
 #: /app/src/modules/bills/BillsModule.js:461
@@ -8004,7 +7984,7 @@ msgstr "Überspringen"
 
 #: /app/src/modules/bills/BillsModule.js:204
 msgid "End or pause the bill if it has stopped"
-msgstr ""
+msgstr "Beende oder pausiere die Rechnung, wenn sie nicht mehr anfällt"
 
 #: /app/src/modules/bills/BillsModule.js:204
 #: /app/src/modules/bills/BillsModule.js:476
@@ -8012,22 +7992,16 @@ msgid "Edit bill"
 msgstr "Rechnung bearbeiten"
 
 #: /app/src/modules/bills/BillsModule.js:205
-#, fuzzy
-#| msgid "The payment could not be recorded"
 msgid "The payment went out: mark it cleared"
-msgstr "Die Zahlung konnte nicht verbucht werden"
+msgstr "Die Zahlung wurde ausgeführt: als verbucht markieren"
 
 #: /app/src/modules/bills/BillsModule.js:205
-#, fuzzy
-#| msgid "Investment Account"
 msgid "It went out"
-msgstr "Anlagekonto"
+msgstr "Wurde ausgeführt"
 
 #: /app/src/modules/bills/BillsModule.js:234
-#, fuzzy
-#| msgid "Payment already recorded"
 msgid "Payment marked cleared"
-msgstr "Zahlung bereits erfasst"
+msgstr "Zahlung als verbucht markiert"
 
 #: /app/src/modules/bills/BillsModule.js:260
 msgid "Transaction recorded"
@@ -8933,14 +8907,14 @@ msgid ""
 "Envelope budgeting on: unspent budget carries to next month. Click to turn "
 "off."
 msgstr ""
-"Umlagebudgetierung aktiviert: Nicht verbrauchtes Budget wird in den nächsten "
-"Monat übernommen. Klicke hier, um sie zu deaktivieren."
+"Umschlagbudgetierung aktiviert: Nicht verbrauchtes Budget wird in den "
+"nächsten Monat übertragen. Klicke hier, um sie zu deaktivieren."
 
 #: /app/src/modules/categories/CategoriesModule.js:2636
 msgid "Turn on envelope budgeting: unspent budget carries to next month"
 msgstr ""
-"Umlagebudgetierung aktivieren: Nicht verbrauchtes Budget wird in den "
-"nächsten Monat übernommen"
+"Umschlagbudgetierung aktivieren: Nicht verbrauchtes Budget wird in den "
+"nächsten Monat übertragen"
 
 #: /app/src/modules/categories/CategoriesModule.js:2637
 msgid "Envelope budgeting"
@@ -8949,13 +8923,13 @@ msgstr "Umschlagbudgetierung"
 #: /app/src/modules/categories/CategoriesModule.js:2643
 msgid "Shown in the Bills Calendar as estimated spending. Click to hide it."
 msgstr ""
+"Wird im Rechnungskalender als geschätzte Ausgabe angezeigt. Klicke hier, um "
+"sie auszublenden."
 
 #: /app/src/modules/categories/CategoriesModule.js:2643
 #: /app/src/modules/categories/CategoriesModule.js:2644
-#, fuzzy
-#| msgid "Bills Calendar"
 msgid "Show in Bills Calendar"
-msgstr "Rechnungskalender"
+msgstr "Im Rechnungskalender anzeigen"
 
 #: /app/src/modules/categories/CategoriesModule.js:2651
 msgid "Budget for {category}"
@@ -9013,17 +8987,16 @@ msgstr "Einstellung zur Umschlagbudgetierung konnte nicht aktualisiert werden"
 
 #: /app/src/modules/categories/CategoriesModule.js:2801
 msgid "This budget now shows in the Bills Calendar"
-msgstr ""
+msgstr "Dieses Budget wird jetzt im Rechnungskalender angezeigt"
 
 #: /app/src/modules/categories/CategoriesModule.js:2802
 msgid "This budget no longer shows in the Bills Calendar"
-msgstr ""
+msgstr "Dieses Budget wird nicht mehr im Rechnungskalender angezeigt"
 
 #: /app/src/modules/categories/CategoriesModule.js:2805
-#, fuzzy
-#| msgid "Failed to update envelope setting"
 msgid "Failed to update the Bills Calendar setting"
-msgstr "Einstellung zur Umschlagbudgetierung konnte nicht aktualisiert werden"
+msgstr ""
+"Die Einstellung für den Rechnungskalender konnte nicht aktualisiert werden"
 
 #: /app/src/modules/categories/CategoriesModule.js:2878
 msgid "Budget updated"
@@ -9050,7 +9023,7 @@ msgstr "{percent}% im Vergleich zum Vormonat"
 #: /app/src/modules/dashboard/DashboardModule.js:460
 #, no-javascript-format
 msgid "{percent}% savings rate"
-msgstr "{percent}% sparquote"
+msgstr "{percent} % Sparquote"
 
 #: /app/src/modules/dashboard/DashboardModule.js:509
 msgid "Great"
@@ -9554,8 +9527,8 @@ msgstr "Bisher keine historischen Vermögensdaten erfasst"
 #: /app/templates/index.php:678
 msgid "Add snapshots to your assets to track their combined value over time."
 msgstr ""
-"Fügen Sie Ihren Vermögenswerten Momentaufnahmen hinzu, um deren kombinierten "
-"Wert im Laufe der Zeit zu verfolgen."
+"Füge deinen Vermögenswerten Momentaufnahmen hinzu, um ihren Gesamtwert im "
+"Zeitverlauf zu verfolgen."
 
 #: /app/src/modules/dashboard/DashboardModule.js:4183
 #: /app/templates/index.php:691 /app/templates/index.php:727
@@ -9570,7 +9543,7 @@ msgstr "Fehler beim Speichern des Übersicht-Sperrstatus"
 #: /app/src/modules/dashboard/DashboardModule.js:5165
 #: /app/templates/index.php:352
 msgid "Unlock Dashboard"
-msgstr "Entsperre Dashboard"
+msgstr "Dashboard entsperren"
 
 #: /app/src/modules/dashboard/DashboardModule.js:5154
 #: /app/src/modules/dashboard/DashboardModule.js:5180
@@ -9581,8 +9554,8 @@ msgstr "Übersicht sperren"
 #: /app/templates/index.php:329
 msgid "Dashboard is locked. Click unlock to reorder tiles."
 msgstr ""
-"Dashboard ist gesperrt. Klicken Sie auf Entsperren, um die Kacheln neu zu "
-"ordnen."
+"Das Dashboard ist gesperrt. Klicke auf „Entsperren“, um die Kacheln neu "
+"anzuordnen."
 
 #: /app/src/modules/dashboard/DashboardModule.js:5182
 msgid "Use the arrows on each tile to reorder your dashboard"
@@ -9809,39 +9782,33 @@ msgstr "Kachel entfernt"
 
 #: /app/src/modules/dashboard/runway/RunwayChart.js:41
 msgid "Today"
-msgstr ""
+msgstr "Heute"
 
 #: /app/src/modules/dashboard/runway/RunwayChart.js:75
-#, fuzzy
-#| msgid "Nothing to import"
 msgid "Nothing to draw yet"
-msgstr "Nichts zu importieren"
+msgstr "Noch nichts darzustellen"
 
 #: /app/src/modules/dashboard/runway/RunwayChart.js:82
 msgid "Runway forecast chart"
-msgstr ""
+msgstr "Diagramm zur Prognose der Liquiditätsreichweite"
 
 #: /app/src/modules/dashboard/runway/RunwayChart.js:97
 msgid "Planned one-off"
-msgstr ""
+msgstr "Geplante einmalige Buchung"
 
 #: /app/src/modules/dashboard/runway/RunwayOneOffs.js:62
 msgid "e.g. Car repair"
-msgstr ""
+msgstr "z. B. Autoreparatur"
 
 #: /app/src/modules/dashboard/runway/RunwayOneOffs.js:67
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:196
-#, fuzzy
-#| msgid "Money Flow"
 msgid "Money out"
-msgstr "Geldfluss"
+msgstr "Geldabfluss"
 
 #: /app/src/modules/dashboard/runway/RunwayOneOffs.js:67
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:197
-#, fuzzy
-#| msgid "Money Flow"
 msgid "Money in"
-msgstr "Geldfluss"
+msgstr "Geldzufluss"
 
 #: /app/src/modules/dashboard/runway/RunwayOneOffs.js:87
 #: /app/src/modules/dashboard/runway/RunwaySetup.js:147
@@ -9860,28 +9827,20 @@ msgid "Add"
 msgstr "Hinzufügen"
 
 #: /app/src/modules/dashboard/runway/RunwayOneOffs.js:94
-#, fuzzy
-#| msgid "Protection"
 msgid "Direction"
-msgstr "Schutz"
+msgstr "Richtung"
 
 #: /app/src/modules/dashboard/runway/RunwayOneOffs.js:108
-#, fuzzy
-#| msgid "Enter description..."
 msgid "Enter a description"
-msgstr "Geben Sie die Beschreibung ein..."
+msgstr "Gib eine Beschreibung ein"
 
 #: /app/src/modules/dashboard/runway/RunwayOneOffs.js:113
-#, fuzzy
-#| msgid "Enter an amount for everyone ticked."
 msgid "Enter an amount above zero"
-msgstr "Gib für jede angehakte Person einen Betrag ein."
+msgstr "Gib einen Betrag größer als null ein"
 
 #: /app/src/modules/dashboard/runway/RunwayOneOffs.js:118
-#, fuzzy
-#| msgid "Choose an account"
 msgid "Choose a date"
-msgstr "Wähle ein Konto"
+msgstr "Wähle ein Datum"
 
 #: /app/src/modules/dashboard/runway/RunwayOneOffs.js:165
 msgid "Delete the one-off \"{description}\"?"
@@ -9889,192 +9848,157 @@ msgstr "Die einmalige Buchung „{description}“ löschen?"
 
 #: /app/src/modules/dashboard/runway/RunwayOneOffs.js:182
 msgid "{date} · past"
-msgstr ""
+msgstr "{date} · vergangen"
 
 #: /app/src/modules/dashboard/runway/RunwayOneOffs.js:193
-#, fuzzy
-#| msgid "Edit income"
 msgid "Edit one-off"
-msgstr "Einnahme bearbeiten"
+msgstr "Einmalige Buchung bearbeiten"
 
 #: /app/src/modules/dashboard/runway/RunwayOneOffs.js:198
-#, fuzzy
-#| msgid "Delete {name}"
 msgid "Delete one-off"
-msgstr "{name} löschen"
+msgstr "Einmalige Buchung löschen"
 
 #: /app/src/modules/dashboard/runway/RunwayOneOffs.js:219
-#, fuzzy
-#| msgid "+ Add money"
 msgid "+ Add one-off"
-msgstr "+ Geld hinzufügen"
+msgstr "+ Einmalige Buchung hinzufügen"
 
 #: /app/src/modules/dashboard/runway/RunwayOneOffs.js:222
 msgid ""
 "No planned one-offs. Add money you expect to spend or receive once, such as "
 "a car repair or a tax refund."
 msgstr ""
+"Keine einmaligen Buchungen geplant. Füge Beträge hinzu, die du "
+"voraussichtlich einmalig ausgeben oder erhalten wirst, etwa für eine "
+"Autoreparatur oder eine Steuererstattung."
 
 #: /app/src/modules/dashboard/runway/RunwaySetup.js:48
-#, fuzzy
-#| msgid "{amount} left"
 msgid "{amount} taken off"
-msgstr "{amount} verfügbar"
+msgstr "{amount} abgezogen"
 
 #: /app/src/modules/dashboard/runway/RunwaySetup.js:61
-#, fuzzy
-#| msgid "Closed"
 msgid "(closed)"
-msgstr "Geschlossen"
+msgstr "(geschlossen)"
 
 #: /app/src/modules/dashboard/runway/RunwaySetup.js:89
 msgid "Every runway tile uses this setup."
-msgstr ""
+msgstr "Alle Kacheln zur Liquiditätsreichweite verwenden diese Einstellungen."
 
 #: /app/src/modules/dashboard/runway/RunwaySetup.js:93
-#, fuzzy
-#| msgid "Accounts to create:"
 msgid "Accounts to count"
-msgstr "Zu erstellende Konten:"
+msgstr "Einzubeziehende Konten"
 
 #: /app/src/modules/dashboard/runway/RunwaySetup.js:95
 msgid ""
 "Using the default accounts: your current, savings and cash accounts and "
 "credit cards. Change a tick to choose your own."
 msgstr ""
+"Die Standardkonten werden verwendet: deine Giro-, Spar- und Bargeldkonten "
+"sowie Kreditkarten. Ändere die Auswahl, um selbst Konten festzulegen."
 
 #: /app/src/modules/dashboard/runway/RunwaySetup.js:97
-#, fuzzy
-#| msgid "Failed to delete accounts"
 msgid "Use the default accounts"
-msgstr "Konten konnten nicht gelöscht werden"
+msgstr "Standardkonten verwenden"
 
 #: /app/src/modules/dashboard/runway/RunwaySetup.js:111
-#, fuzzy
-#| msgid "Money out, dark theme"
 msgid "Money you have"
-msgstr "Money in, dark theme"
+msgstr "Verfügbares Geld"
 
 #: /app/src/modules/dashboard/runway/RunwaySetup.js:112
-#, fuzzy
-#| msgid "Create and link"
 msgid "Cards and loans"
-msgstr "Erstellen und verknüpfen"
+msgstr "Kreditkarten und Darlehen"
 
 #: /app/src/modules/dashboard/runway/RunwaySetup.js:122
-#, fuzzy
-#| msgid "No accounts yet"
 msgid "No accounts yet."
-msgstr "Noch keine Konten"
+msgstr "Noch keine Konten."
 
 #: /app/src/modules/dashboard/runway/RunwaySetup.js:125
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:233
 msgid "{name} is left out: there is no exchange rate for its currency yet."
 msgstr ""
+"{name} wird nicht berücksichtigt: Für die Währung ist noch kein Wechselkurs "
+"verfügbar."
 
 #: /app/src/modules/dashboard/runway/RunwaySetup.js:130
-#, fuzzy
-#| msgid "Monthly Averages"
 msgid "Months to average"
-msgstr "Monatliche Durchschnittswerte"
+msgstr "Monate für die Durchschnittsberechnung"
 
 #: /app/src/modules/dashboard/runway/RunwaySetup.js:131
-#, fuzzy
-#| msgid "{amount} a month"
 msgid "Last {count} full month"
 msgid_plural "Last {count} full months"
-msgstr[0] "{amount} pro Monat"
-msgstr[1] "{amount} pro Monat"
+msgstr[0] "Letzter {count} vollständiger Monat"
+msgstr[1] "Letzte {count} vollständige Monate"
 
 #: /app/src/modules/dashboard/runway/RunwaySetup.js:138
-#, fuzzy
-#| msgid "Exclude shared accounts"
 msgid "Include scheduled payments"
-msgstr "Geteilte Konten ausschließen"
+msgstr "Geplante Zahlungen einbeziehen"
 
 #: /app/src/modules/dashboard/runway/RunwaySetup.js:142
 msgid "Notify me if the runway drops by"
-msgstr ""
+msgstr "Benachrichtige mich, wenn die Liquiditätsreichweite sinkt um"
 
 #: /app/src/modules/dashboard/runway/RunwaySetup.js:143
-#, fuzzy
-#| msgid "{amount} a month"
 msgid "{count} month or more"
 msgid_plural "{count} months or more"
-msgstr[0] "{amount} pro Monat"
-msgstr[1] "{amount} pro Monat"
+msgstr[0] "{count} Monat oder mehr"
+msgstr[1] "{count} Monate oder mehr"
 
 #: /app/src/modules/dashboard/runway/RunwaySetup.js:171
-#, fuzzy
-#| msgid "Please map at least one account"
 msgid "Tick at least one account."
-msgstr "Bitte ordne mindestens ein Konto zu"
+msgstr "Wähle mindestens ein Konto aus."
 
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:58
 msgid "Monthly drain {amount} · last {count} month"
 msgid_plural "Monthly drain {amount} · last {count} months"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Monatlicher Nettoabfluss {amount} · letzter {count} Monat"
+msgstr[1] "Monatlicher Nettoabfluss {amount} · letzte {count} Monate"
 
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:59
 msgid "Monthly surplus {amount} · last {count} month"
 msgid_plural "Monthly surplus {amount} · last {count} months"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Monatlicher Überschuss {amount} · letzter {count} Monat"
+msgstr[1] "Monatlicher Überschuss {amount} · letzte {count} Monate"
 
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:68
 msgid "On budget: {months}, {until}"
-msgstr ""
+msgstr "Bei Einhaltung des Budgets: {months}, {until}"
 
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:69
-#, fuzzy
-#| msgid "Budget month"
 msgid "On budget: {months}"
-msgstr "Budgetmonat"
+msgstr "Bei Einhaltung des Budgets: {months}"
 
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:74
-#, fuzzy
-#| msgid "Whether this is money coming in or going out"
 msgid "More is coming in than going out"
-msgstr "Ob es sich nun um eingehende oder ausgehende Zahlungen handelt"
+msgstr "Es kommt mehr Geld herein, als ausgegeben wird"
 
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:75
-#, fuzzy
-#| msgid "Failed to select all matching transactions"
 msgid "It needs at least one full month of transactions"
-msgstr "Alle passenden Buchungen konnten nicht ausgewählt werden"
+msgstr "Es werden Buchungen aus mindestens einem vollständigen Monat benötigt"
 
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:84
-#, fuzzy
-#| msgid "{amount} a month"
 msgid "{amount} a month going out"
-msgstr "{amount} pro Monat"
+msgstr "{amount} monatlicher Geldabfluss"
 
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:85
-#, fuzzy
-#| msgid "{amount} a month"
 msgid "{amount} a month more coming in"
-msgstr "{amount} pro Monat"
+msgstr "{amount} monatlicher Einnahmenüberschuss"
 
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:93
 msgid ""
 "No accounts are counted. Choose some with the gear on this tile while the "
 "dashboard is unlocked."
 msgstr ""
+"Es werden keine Konten berücksichtigt. Entsperre das Dashboard und wähle "
+"über das Zahnrad dieser Kachel Konten aus."
 
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:129
 #: /app/src/utils/runway.js:96
-#, fuzzy
-#| msgid "Include pending"
 msgid "At current spending"
-msgstr "Ausstehende einbeziehen"
+msgstr "Bei aktuellen Ausgaben"
 
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:130
 #: /app/src/utils/runway.js:99
-#, fuzzy
-#| msgid "Over budget"
 msgid "On budget"
-msgstr "Über dem Budget"
+msgstr "Bei Einhaltung des Budgets"
 
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:148
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:396
@@ -10096,11 +10020,8 @@ msgid "Loading..."
 msgstr "Lädt..."
 
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:161
-#, fuzzy
-#| msgid "%n transaction"
-#| msgid_plural "%n transactions"
 msgid "Open transaction"
-msgstr "%n Buchung"
+msgstr "Buchung öffnen"
 
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:164
 #: /app/src/modules/transactions/TransactionsModule.js:5856
@@ -10109,8 +10030,6 @@ msgid "(no description)"
 msgstr "(keine Beschreibung)"
 
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:172
-#, fuzzy
-#| msgid "This page could not be loaded. Reload the page to try again."
 msgid ""
 "{count} transaction could not be loaded. Close and open the list to try "
 "again."
@@ -10118,37 +10037,33 @@ msgid_plural ""
 "{count} transactions could not be loaded. Close and open the list to try "
 "again."
 msgstr[0] ""
-"Diese Seite konnte nicht geladen werden. Lade die Seite neu, um es erneut zu "
-"versuchen."
+"{count} Buchung konnte nicht geladen werden. Schließe die Liste und öffne "
+"sie erneut, um es noch einmal zu versuchen."
 msgstr[1] ""
-"Diese Seite konnte nicht geladen werden. Lade die Seite neu, um es erneut zu "
-"versuchen."
+"{count} Buchungen konnten nicht geladen werden. Schließe die Liste und öffne "
+"sie erneut, um es noch einmal zu versuchen."
 
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:177
-#, fuzzy
-#| msgid "and {more} more"
 msgid "and {count} more"
 msgid_plural "and {count} more"
-msgstr[0] "und {more} weitere"
-msgstr[1] "und {more} weitere"
+msgstr[0] "und {count} weiterer"
+msgstr[1] "und {count} weitere"
 
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:186
 msgid ""
 "Not enough history yet: the average needs at least one full month of "
 "transactions."
 msgstr ""
+"Noch nicht genügend Verlaufsdaten: Für den Durchschnitt werden Buchungen aus "
+"mindestens einem vollständigen Monat benötigt."
 
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:199
-#, fuzzy
-#| msgid "Net Savings"
 msgid "Net drain"
-msgstr "Nettoersparnis"
+msgstr "Nettoabfluss"
 
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:199
-#, fuzzy
-#| msgid "Surplus"
 msgid "Net surplus"
-msgstr "Überschuss"
+msgstr "Nettoüberschuss"
 
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:204
 msgid ""
@@ -10156,50 +10071,50 @@ msgid ""
 msgid_plural ""
 "A month, over the last {count} full months (that is all the history there is)"
 msgstr[0] ""
+"Pro Monat, berechnet über den letzten {count} vollständigen Monat (mehr "
+"Verlaufsdaten sind nicht vorhanden)"
 msgstr[1] ""
+"Pro Monat, berechnet über die letzten {count} vollständigen Monate (mehr "
+"Verlaufsdaten sind nicht vorhanden)"
 
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:205
 msgid "A month, over the last {count} full month"
 msgid_plural "A month, over the last {count} full months"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Pro Monat, berechnet über den letzten {count} vollständigen Monat"
+msgstr[1] "Pro Monat, berechnet über die letzten {count} vollständigen Monate"
 
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:211
 msgid "Left out of the average: {count} transaction, {amount}"
 msgid_plural "Left out of the average: {count} transactions, {amount}"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Nicht im Durchschnitt berücksichtigt: {count} Buchung, {amount}"
+msgstr[1] "Nicht im Durchschnitt berücksichtigt: {count} Buchungen, {amount}"
 
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:214
 msgid "These are marked \"Exclude from forecast\". Open one to change that."
 msgstr ""
+"Diese Buchungen sind mit „Von der Prognose ausschließen“ markiert. Öffne "
+"eine Buchung, um dies zu ändern."
 
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:251
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:350
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:374
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:410
-#, fuzzy
-#| msgid "The payment could not be recorded"
 msgid "The runway could not be loaded"
-msgstr "Die Zahlung konnte nicht verbucht werden"
+msgstr "Die Liquiditätsreichweite konnte nicht geladen werden"
 
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:258
-#, fuzzy
-#| msgid "No accounts to reconcile"
 msgid "No accounts are counted"
-msgstr "Keine Konten zum Abgleichen"
+msgstr "Es werden keine Konten berücksichtigt"
 
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:420
-#, fuzzy
-#| msgid "Failed to save settings"
 msgid "Failed to save the runway settings"
-msgstr "Fehler beim Speichern der Einstellungen"
+msgstr ""
+"Die Einstellungen für die Liquiditätsreichweite konnten nicht gespeichert "
+"werden"
 
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:424
-#, fuzzy
-#| msgid "Admin settings saved"
 msgid "Runway settings saved"
-msgstr "Administratoreinstellungen gespeichert"
+msgstr "Einstellungen für die Liquiditätsreichweite gespeichert"
 
 #: /app/src/modules/exchange-rates/ExchangeRatesModule.js:115
 msgid "No rate available"
@@ -10306,7 +10221,7 @@ msgstr "Keine Kategoriedaten verfügbar"
 
 #: /app/src/modules/forecast/ForecastModule.js:359
 msgid "{amount}/mo"
-msgstr "{amount}/mo"
+msgstr "{amount}/Monat"
 
 #: /app/src/modules/forecast/ForecastModule.js:385
 msgid "Based on {months} month(s) of data ({count} transactions)"
@@ -10457,6 +10372,10 @@ msgid ""
 "Add the runway tiles from the dashboard, choose which accounts count, and "
 "list planned one-off amounts."
 msgstr ""
+"Sieh, wie lange dein Geld bei deinen aktuellen Ausgaben und bei Einhaltung "
+"des Budgets reicht. Füge dem Dashboard Kacheln zur Liquiditätsreichweite "
+"hinzu, wähle die zu berücksichtigenden Konten aus und trage geplante "
+"einmalige Beträge ein."
 
 #: /app/src/modules/help/HelpModule.js:44
 msgid ""
@@ -10882,7 +10801,14 @@ msgid_plural ""
 "without one: match them from Find Duplicates on the Transactions page, or "
 "with Link to bill in their menu."
 msgstr[0] ""
+"%n Buchung könnte die Zahlung für mehrere Rechnungen sein. Sie wird ohne "
+"Rechnungszuordnung importiert. Ordne sie auf der Buchungsseite über „"
+"Duplikate finden“ oder über „Mit Rechnung verknüpfen“ in ihrem Menü zu."
 msgstr[1] ""
+"%n Buchungen könnten Zahlungen für mehrere Rechnungen sein. Sie werden ohne "
+"Rechnungszuordnung importiert. Ordne sie auf der Buchungsseite über „"
+"Duplikate finden“ oder über „Mit Rechnung verknüpfen“ in ihrem jeweiligen "
+"Menü zu."
 
 #: /app/src/modules/import/ImportModule.js:1917
 msgid "Accounts to create:"
@@ -10993,19 +10919,15 @@ msgstr "Keine Buchungen zum Importieren vorhanden"
 
 #: /app/src/modules/import/ImportModule.js:2161
 msgid "Could be the payment of more than one bill"
-msgstr ""
+msgstr "Könnte die Zahlung für mehrere Rechnungen sein"
 
 #: /app/src/modules/import/ImportModule.js:2161
-#, fuzzy
-#| msgid "Create bill"
 msgid "Check bill"
-msgstr "Rechnung erstellen"
+msgstr "Rechnung prüfen"
 
 #: /app/src/modules/import/ImportModule.js:2162
-#, fuzzy
-#| msgid "Rule: {name}"
 msgid "Bill: {name}"
-msgstr "Regel: {name}"
+msgstr "Rechnung: {name}"
 
 #: /app/src/modules/import/ImportModule.js:2186
 #: /app/src/modules/import/ImportModule.js:2239
@@ -11128,7 +11050,14 @@ msgid_plural ""
 "one. Match them from Find Duplicates on the Transactions page, or with Link "
 "to bill in their menu."
 msgstr[0] ""
+"%n Buchung könnte die Zahlung für mehrere Rechnungen sein und wurde ohne "
+"Rechnungszuordnung importiert. Ordne sie auf der Buchungsseite über „"
+"Duplikate finden“ oder über „Mit Rechnung verknüpfen“ in ihrem Menü zu."
 msgstr[1] ""
+"%n Buchungen könnten Zahlungen für mehrere Rechnungen sein und wurden ohne "
+"Rechnungszuordnung importiert. Ordne sie auf der Buchungsseite über „"
+"Duplikate finden“ oder über „Mit Rechnung verknüpfen“ in ihrem jeweiligen "
+"Menü zu."
 
 #: /app/src/modules/import/ImportModule.js:2700
 msgid "%n transfer between your accounts was linked"
@@ -12007,7 +11936,7 @@ msgstr "Anzahl der Rechnungen"
 #: /app/src/modules/reports/ReportsModule.js:2021
 #: /app/src/utils/billsCalendarCell.js:51
 msgid "Budgeted spending (estimate)"
-msgstr ""
+msgstr "Budgetierte Ausgaben (Schätzung)"
 
 #. TRANSLATORS: {amount} is a placeholder, do NOT translate it. It is what was paid in this month of the calendar.
 #: /app/src/modules/reports/ReportsModule.js:2012
@@ -12066,10 +11995,8 @@ msgid "Lowest: {balance} in {month}."
 msgstr "Tiefststand: {balance} im {month}."
 
 #: /app/src/modules/reports/ReportsModule.js:2136
-#, fuzzy
-#| msgid "{count} updated"
 msgid "{amount} budgeted"
-msgstr "{count} aktualisiert"
+msgstr "{amount} budgetiert"
 
 #: /app/src/modules/reports/ReportsModule.js:2142
 #: /app/src/modules/reports/ReportsModule.js:2144
@@ -12881,7 +12808,7 @@ msgstr "Aktion {number}: Ungültiger Buchungstyp"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:693
 msgid "Action {number}: Reference value is empty"
-msgstr "Action {number}: Referenz ist leer"
+msgstr "Aktion {number}: Referenz ist leer"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:698
 msgid "Action {number}: Regex field is invalid"
@@ -12926,7 +12853,7 @@ msgstr "Diese Gruppe entfernen"
 
 #: /app/src/modules/rules/components/CriteriaBuilder.js:168
 msgid "+ Add Condition"
-msgstr "+ Bedinung hinzufügen"
+msgstr "+ Bedingung hinzufügen"
 
 #: /app/src/modules/rules/components/CriteriaBuilder.js:169
 msgid "+ Add Group"
@@ -12966,7 +12893,7 @@ msgstr "ist gleich (genaue Übereinstimmung)"
 
 #: /app/src/modules/rules/components/CriteriaBuilder.js:257
 msgid "matches regex"
-msgstr "passt zu regulären Ausdruck (regex)"
+msgstr "entspricht einem regulären Ausdruck (Regex)"
 
 #: /app/src/modules/rules/components/CriteriaBuilder.js:262
 msgid "greater than"
@@ -13020,8 +12947,8 @@ msgstr "z.B. amazon"
 msgid ""
 "Cannot remove the last condition from a group. Remove the group instead."
 msgstr ""
-"Die letzte Bedingung einer Gruppe kann nicht entfernt werden. Entfernen Sie "
-"die gesamte Gruppe."
+"Die letzte Bedingung einer Gruppe kann nicht entfernt werden. Entferne die "
+"gesamte Gruppe."
 
 #: /app/src/modules/rules/components/CriteriaBuilder.js:521
 msgid "root"
@@ -13057,8 +12984,8 @@ msgstr ""
 #: /app/src/modules/rules/components/CriteriaBuilder.js:554
 msgid "Condition at {path} 'between' pattern must be valid JSON with min/max"
 msgstr ""
-"Bedingung bei {path}: 'zwischen'-Muster muss validen JSON-Syntax mit "
-"'min'/'max' enthalten"
+"Bedingung bei {path}: Das Muster für „zwischen“ muss gültiges JSON mit den "
+"Eigenschaften „min“ und „max“ enthalten"
 
 #: /app/src/modules/savings/SavingsModule.js:48
 #: /app/src/modules/savings/SavingsModule.js:51
@@ -13383,7 +13310,7 @@ msgstr "Einstellungen wurden zurückgesetzt"
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:798
 #: /app/src/modules/transactions/transactionRow.js:112
 msgid "Settled"
-msgstr "Abgeklärt"
+msgstr "Beglichen"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:68
 msgid "Outstanding"
@@ -13396,7 +13323,7 @@ msgstr "von {owner}"
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:158
 #: /app/templates/index.php:4326
 msgid "Add contacts to start splitting expenses"
-msgstr "Fügen Sie Kontakte hinzu, um Ausgaben aufteilen zu können"
+msgstr "Füge Kontakte hinzu, um Ausgaben aufteilen zu können"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:171
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:387
@@ -13450,7 +13377,7 @@ msgstr "Fehler beim Laden der Kontaktdetails"
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:439
 #: /app/templates/index.php:7595
 msgid "No shared expenses"
-msgstr "Keine geteilte Ausgaben"
+msgstr "Keine geteilten Ausgaben"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:447
 msgid "Only {name} can settle the expenses they split with you."
@@ -13509,7 +13436,7 @@ msgstr "Alle Ausgaben sind beglichen"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:662
 msgid "Please add contacts first in Shared Expenses"
-msgstr "Bitte fügen Sie zunächst Kontakte in den ‚Gemeinsamen Ausgaben‘ hinzu"
+msgstr "Bitte füge zunächst unter „Geteilte Ausgaben“ Kontakte hinzu"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:671
 msgid "Failed to load the split"
@@ -13641,8 +13568,8 @@ msgid ""
 "Invite a Nextcloud user and then configure which parts of your budget they "
 "can access."
 msgstr ""
-"Lade einen Nextcloud-Benutzer ein und entscheide auf welche Teile deines "
-"Budgets dieser zugreifen darf."
+"Lade einen Nextcloud-Benutzer ein und entscheide, auf welche Teile deines "
+"Budgets er zugreifen darf."
 
 #: /app/src/modules/sharing/SharingModule.js:95
 msgid "User to share with"
@@ -13791,12 +13718,12 @@ msgstr "Geteiltes Budget verlassen - deine Daten werden neu geladen"
 #: /app/src/modules/tagsets/TagSetsModule.js:399
 #: /app/src/modules/tagsets/TagSetsModule.js:733
 msgid "No tags yet"
-msgstr "Noch keine Stichwörter"
+msgstr "Noch keine Schlagwörter"
 
 #: /app/src/modules/tagsets/TagSetsModule.js:63
 msgid "Create tags to classify your transactions across all categories."
 msgstr ""
-"Erstelle Stichwörter, um deine Buchungen in allen Kategorien zu "
+"Erstelle Schlagwörter, um deine Buchungen in allen Kategorien zu "
 "klassifizieren."
 
 #: /app/src/modules/tagsets/TagSetsModule.js:66
@@ -13868,7 +13795,7 @@ msgstr "Schlagwörter konnten nicht aktualisiert werden"
 
 #: /app/src/modules/tagsets/TagSetsModule.js:354
 msgid "Save category first to manage tag sets"
-msgstr "Speichern Sie zuerst die Kategorie, um Tag-Gruppen zu verwalten"
+msgstr "Speichere zuerst die Kategorie, um Schlagwortgruppen zu verwalten"
 
 #: /app/src/modules/tagsets/TagSetsModule.js:363 /app/templates/index.php:2124
 msgid "Tag Sets"
@@ -13877,7 +13804,7 @@ msgstr "Schlagwort-Sammlungen"
 #: /app/src/modules/tagsets/TagSetsModule.js:365 /app/templates/index.php:7096
 #: /app/templates/index.php:7116
 msgid "Add Tag Set"
-msgstr "Schlagwort Gruppe erstellen"
+msgstr "Schlagwortgruppe erstellen"
 
 #: /app/src/modules/tagsets/TagSetsModule.js:371
 msgid ""
@@ -13919,7 +13846,7 @@ msgstr ""
 
 #: /app/src/modules/tagsets/TagSetsModule.js:431
 msgid "Enter description (optional):"
-msgstr "Geben Sie die Beschreibung ein (optional):"
+msgstr "Gib eine Beschreibung ein (optional):"
 
 #: /app/src/modules/tagsets/TagSetsModule.js:436
 #: /app/src/modules/tagsets/TagSetsModule.js:888
@@ -14849,7 +14776,7 @@ msgstr "Buchungen wurden verknüpft"
 
 #: /app/src/modules/transactions/TransactionsModule.js:4990
 msgid "Enter description..."
-msgstr "Geben Sie die Beschreibung ein..."
+msgstr "Gib eine Beschreibung ein…"
 
 #: /app/src/modules/transactions/TransactionsModule.js:5020
 #: /app/src/utils/userPicker.js:66 /app/templates/index.php:7455
@@ -14896,7 +14823,7 @@ msgstr "anstehend"
 
 #: /app/src/modules/transactions/TransactionsModule.js:5778
 msgid "Bill payments with a bank row beside them"
-msgstr ""
+msgstr "Rechnungszahlungen mit zusätzlicher Bankbuchung"
 
 #: /app/src/modules/transactions/TransactionsModule.js:5779
 msgid ""
@@ -14905,28 +14832,32 @@ msgid ""
 "and text, and gives it the bill, its category and tags. The booked payment "
 "is deleted."
 msgstr ""
+"Zu jeder der folgenden Rechnungszahlungen liegt wenige Tage davor oder "
+"danach eine Bankbuchung mit demselben Betrag vor. Dadurch könnte das Geld "
+"doppelt gezählt werden. Beim Zusammenführen bleibt die Bankbuchung mit ihrem "
+"Datum und Text erhalten und erhält die Rechnungszuordnung sowie die "
+"Kategorie und Schlagwörter der Rechnungszahlung. Die bereits erfasste "
+"Rechnungszahlung wird gelöscht."
 
 #: /app/src/modules/transactions/TransactionsModule.js:5790
 msgid "bill, not yet paid"
-msgstr ""
+msgstr "Rechnung, noch nicht bezahlt"
 
 #: /app/src/modules/transactions/TransactionsModule.js:5790
 msgid "booked by the bill"
-msgstr ""
+msgstr "durch die Rechnung erfasst"
 
 #: /app/src/modules/transactions/TransactionsModule.js:5791
 msgid "from the bank"
-msgstr ""
+msgstr "von der Bank"
 
 #: /app/src/modules/transactions/TransactionsModule.js:5796
 msgid "Merge"
-msgstr ""
+msgstr "Zusammenführen"
 
 #: /app/src/modules/transactions/TransactionsModule.js:5816
-#, fuzzy
-#| msgid "Balance trend (tiles only)"
 msgid "Payment merged into the bank row"
-msgstr "Saldoentwicklung (nur Kacheln)"
+msgstr "Zahlung mit der Bankbuchung zusammengeführt"
 
 #: /app/src/modules/transactions/TransactionsModule.js:5838
 msgid ""
@@ -14951,7 +14882,7 @@ msgstr "behalten"
 
 #: /app/src/modules/transactions/TransactionsModule.js:5868
 msgid "bill"
-msgstr "rechnung"
+msgstr "Rechnung"
 
 #: /app/src/modules/transactions/TransactionsModule.js:5932
 msgid "Delete %n suspected duplicate transaction? This cannot be undone."
@@ -15031,7 +14962,7 @@ msgstr "Klicken, um die verknüpfte Buchung in {account} anzuzeigen"
 
 #: /app/src/modules/transactions/transactionRow.js:97
 msgid "Linked transfer"
-msgstr "Verknüpfter Transfer"
+msgstr "Verknüpfte Umbuchung"
 
 #: /app/src/modules/transactions/transactionRow.js:110
 msgid "Shared expense - unsettled"
@@ -15147,12 +15078,12 @@ msgid ""
 "Set up automatic transfers between your accounts to automate savings or bill "
 "payments."
 msgstr ""
-"Richten Sie automatische Überweisungen zwischen Ihren Konten ein, um das "
-"Sparen oder die Rechnungszahlungen zu automatisieren."
+"Richte automatische Umbuchungen zwischen deinen Konten ein, um das Sparen "
+"oder Rechnungszahlungen zu automatisieren."
 
 #: /app/src/modules/transfers/TransfersModule.js:166
 msgid "Add Your First Transfer"
-msgstr "Fügen Sie Ihre erste Überweisung hinzu"
+msgstr "Füge deine erste Umbuchung hinzu"
 
 #: /app/src/modules/transfers/TransfersModule.js:174
 msgid "Detected Recurring Transfers"
@@ -15252,7 +15183,8 @@ msgstr "z.B. Sparen"
 
 #: /app/src/modules/transfers/TransfersModule.js:559
 msgid "Used to match imported transactions"
-msgstr "Wir benutzt, um Übereinstimmungen bei importierten Buchungen zu finden"
+msgstr ""
+"Wird verwendet, um Übereinstimmungen bei importierten Buchungen zu finden"
 
 #: /app/src/modules/transfers/TransfersModule.js:568
 msgid "Category for created transactions (optional)"
@@ -15748,7 +15680,7 @@ msgstr "Schutz"
 
 #: /app/src/utils/categoryIcons.js:80
 msgid "Interest"
-msgstr "Interesse"
+msgstr "Zinsen"
 
 #: /app/src/utils/categoryIcons.js:81
 msgid "Card"
@@ -15811,15 +15743,10 @@ msgid "Week of {date}"
 msgstr "Woche vom {date}"
 
 #: /app/src/utils/formatters.js:583
-#, fuzzy
-#| msgid ""
-#| "Each bar is a budget month starting on day {day}, your Budget Cycle Start "
-#| "Day in Settings."
 msgid "Months are budget periods starting on day {day}, as chosen in Settings."
 msgstr ""
-"Jeder Balken stellt einen Budgetmonat dar, der am Tag {day} beginnt, "
-"entsprechend dem in den Einstellungen festgelegten Starttag deines "
-"Budgetzyklus."
+"Monate sind Budgetzeiträume, die am Tag {day} beginnen, wie in den "
+"Einstellungen festgelegt."
 
 #: /app/src/utils/incomeStatus.js:47 /app/src/utils/repairFindings.js:190
 msgid "Received {date}"
@@ -16078,81 +16005,65 @@ msgstr "Reparatur abgeschlossen: {details}"
 
 #: /app/src/utils/runway.js:28
 msgid "More than 10 years"
-msgstr ""
+msgstr "Mehr als 10 Jahre"
 
 #: /app/src/utils/runway.js:29
-#, fuzzy
-#| msgid "Last 6 months"
 msgid "Less than a month"
-msgstr "Letzte 6 Monate"
+msgstr "Weniger als ein Monat"
 
 #: /app/src/utils/runway.js:30
-#, fuzzy
-#| msgid "{amount} a month"
 msgid "About {count} month"
 msgid_plural "About {count} months"
-msgstr[0] "{amount} pro Monat"
-msgstr[1] "{amount} pro Monat"
+msgstr[0] "Etwa {count} Monat"
+msgstr[1] "Etwa {count} Monate"
 
 #: /app/src/utils/runway.js:33
 msgid "Not running out"
-msgstr ""
+msgstr "Wird nicht aufgebraucht"
 
 #: /app/src/utils/runway.js:35
 msgid "Already at or below zero"
-msgstr ""
+msgstr "Bereits bei oder unter null"
 
 #: /app/src/utils/runway.js:37
-#, fuzzy
-#| msgid "Not enough history yet to forecast"
 msgid "Not enough history yet"
-msgstr "Noch nicht genügend Verlaufsdaten für eine Prognose"
+msgstr "Noch nicht genügend Verlaufsdaten"
 
 #: /app/src/utils/runway.js:39
-#, fuzzy
-#| msgid "Select a category to manage tag sets"
 msgid "Set category budgets to see this"
-msgstr "Wähle eine Kategorie, um Schlagwortgruppen zu verwalten"
+msgstr "Lege Kategorienbudgets fest, um dies anzuzeigen"
 
 #: /app/src/utils/runway.js:56
-#, fuzzy
-#| msgid "{amount} a month"
 msgid "until around {month}"
-msgstr "{amount} pro Monat"
+msgstr "bis etwa {month}"
 
 #: /app/src/utils/runway.js:69
 msgid "About the same"
-msgstr ""
+msgstr "Etwa gleich"
 
 #: /app/src/utils/runway.js:77
 msgid "About {count} more month on budget"
 msgid_plural "About {count} more months on budget"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Bei Einhaltung des Budgets etwa {count} Monat länger"
+msgstr[1] "Bei Einhaltung des Budgets etwa {count} Monate länger"
 
 #: /app/src/utils/runway.js:78
 msgid "About {count} fewer month on budget"
 msgid_plural "About {count} fewer months on budget"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Bei Einhaltung des Budgets etwa {count} Monat kürzer"
+msgstr[1] "Bei Einhaltung des Budgets etwa {count} Monate kürzer"
 
 #: /app/templates/bank-sync-callback.php:11
-#, fuzzy
-#| msgid "Bank disconnected"
 msgid "Bank connected"
-msgstr "Bankverbindung getrennt"
+msgstr "Bankverbindung hergestellt"
 
 #: /app/templates/bank-sync-callback.php:11
-#, fuzzy
-#| msgid "Bank Connections"
 msgid "Bank connection failed"
-msgstr "Bankverbindungen"
+msgstr "Bankverbindung fehlgeschlagen"
 
 #: /app/templates/bank-sync-callback.php:14
-#, fuzzy
-#| msgid "Bank sync"
 msgid "Back to bank sync"
-msgstr "Banksynchronisierung"
+msgstr "Zurück zur Banksynchronisierung"
 
 #: /app/templates/index.php:8
 msgid "Toggle navigation"
@@ -16224,7 +16135,7 @@ msgid ""
 "Snapshots are recorded automatically every day. Your first snapshot will "
 "appear within 24 hours."
 msgstr ""
-"Momentaufnahmen werden automatisch täglich aufgezeichnet. Ihre erste "
+"Momentaufnahmen werden täglich automatisch erstellt. Deine erste "
 "Momentaufnahme erscheint innerhalb von 24 Stunden."
 
 #: /app/templates/index.php:655
@@ -16267,7 +16178,7 @@ msgstr "Noch nicht genügend Verlaufsdaten für eine Prognose"
 
 #: /app/templates/index.php:1026
 msgid "Year-over-Year Comparison"
-msgstr "Jahresvergleich im Vorjahresvergleich"
+msgstr "Vorjahresvergleich"
 
 #: /app/templates/index.php:1032
 msgid "No yearly data to compare yet"
@@ -16778,7 +16689,7 @@ msgstr "Alle Buchungen anzeigen"
 
 #: /app/templates/index.php:2125
 msgid "Add new tag set"
-msgstr "Schlagwortgruppe erstellen"
+msgstr "Neue Schlagwortgruppe erstellen"
 
 #: /app/templates/index.php:2142
 msgid ""
@@ -16977,7 +16888,7 @@ msgstr "Exportiere deine Einträge für alle Konten als CSV-Datei."
 
 #: /app/templates/index.php:2411
 msgid "Supported Formats:"
-msgstr "Unterstütze Formate:"
+msgstr "Unterstützte Formate:"
 
 #: /app/templates/index.php:2413
 msgid "Comma-separated values from any bank"
@@ -17023,7 +16934,7 @@ msgstr ""
 
 #: /app/templates/index.php:2449
 msgid "CSV Delimiter"
-msgstr "CSV Trennzeichen"
+msgstr "CSV-Trennzeichen"
 
 #: /app/templates/index.php:2451 /app/templates/index.php:4625
 #: /app/templates/index.php:4635
@@ -17040,7 +16951,7 @@ msgstr "Tab"
 
 #: /app/templates/index.php:2455
 msgid "Change if columns are not detected correctly"
-msgstr "Ändere dies, wenn die spalten nicht richtig erkannt werden"
+msgstr "Ändere dies, wenn die Spalten nicht richtig erkannt werden"
 
 #: /app/templates/index.php:2464 /app/templates/index.php:2470
 #: /app/templates/index.php:2478 /app/templates/index.php:2484
@@ -17055,7 +16966,7 @@ msgstr "Oder verwende geteilte Einnahme/Ausgabe-Spalten mit den Feldern unten"
 
 #: /app/templates/index.php:2476
 msgid "Income Column"
-msgstr "Einname-Spalte"
+msgstr "Einnahmenspalte"
 
 #: /app/templates/index.php:2482
 msgid "Expense Column"
@@ -17126,10 +17037,8 @@ msgid "Auto-categorized:"
 msgstr "Automatisch kategorisiert:"
 
 #: /app/templates/index.php:2582
-#, fuzzy
-#| msgid "Matched Pairs"
 msgid "Matched to bills:"
-msgstr "Verknüpfte Buchungspaare"
+msgstr "Rechnungen zugeordnet:"
 
 #: /app/templates/index.php:2598
 msgid "Map Source Accounts to Destination Accounts"
@@ -17181,7 +17090,7 @@ msgstr "Neue Rechnung hinzufügen"
 
 #: /app/templates/index.php:2704
 msgid "Bill payments the bank hasn't shown"
-msgstr ""
+msgstr "Rechnungszahlungen, die von der Bank noch nicht angezeigt werden"
 
 #: /app/templates/index.php:2706
 msgid ""
@@ -17189,6 +17098,10 @@ msgid ""
 "overdue may have stopped or moved to another account; an auto-paid payment "
 "may have gone out for a different amount."
 msgstr ""
+"Auch nach mehr als einer Woche gibt es keine passende Bankbuchung. Eine "
+"überfällige Rechnung fällt möglicherweise nicht mehr an oder wird über ein "
+"anderes Konto bezahlt. Bei einer automatisch bezahlten Rechnung wurde "
+"möglicherweise ein anderer Betrag abgebucht."
 
 #: /app/templates/index.php:2713
 msgid "Payments without a recorded transaction"
@@ -17667,12 +17580,12 @@ msgid ""
 "Budgets you chose to show in the Bills Calendar, as estimated spending each "
 "month"
 msgstr ""
+"Budgets, die du im Rechnungskalender als geschätzte monatliche Ausgaben "
+"anzeigen lässt"
 
 #: /app/templates/index.php:3702
-#, fuzzy
-#| msgid "Include pending"
 msgid "Include budgeted spending"
-msgstr "Ausstehende einbeziehen"
+msgstr "Budgetierte Ausgaben einbeziehen"
 
 #: /app/templates/index.php:3712
 msgid "View"
@@ -17695,6 +17608,9 @@ msgid ""
 "Budgeted spending is only shown for All Accounts, with Active Only or All "
 "Bills: a budget has no account and is never an inactive bill."
 msgstr ""
+"Budgetierte Ausgaben werden nur bei „Alle Konten“ in Verbindung mit „Nur "
+"aktive“ oder „Alle Rechnungen“ angezeigt: Ein Budget ist keinem Konto "
+"zugeordnet und ist nie eine inaktive Rechnung."
 
 #: /app/templates/index.php:3725
 msgid "Monthly Bill Totals"
@@ -18183,10 +18099,8 @@ msgstr ""
 "abzustimmen."
 
 #: /app/templates/index.php:4548
-#, fuzzy
-#| msgid "Starting day for calendars and weekly reports"
 msgid "Months in dashboard charts and reports"
-msgstr "Legt den ersten Tag für Kalender und Wochenberichte fest"
+msgstr "Monate in Dashboard-Diagrammen und Berichten"
 
 #: /app/templates/index.php:4549
 msgid ""
@@ -18195,6 +18109,10 @@ msgid ""
 "periods. Budget periods run from your start day, the same as on the Budget "
 "page."
 msgstr ""
+"Wenn dein Budgetzyklus an einem anderen Tag als dem 1. beginnt, kannst du "
+"wählen, ob die Dashboard-Diagramme und die monatlichen Berichte "
+"Kalendermonate oder Budgetzeiträume verwenden. Budgetzeiträume beginnen an "
+"deinem festgelegten Starttag, genauso wie auf der Budgetseite."
 
 #: /app/templates/index.php:4559
 #, php-format
@@ -18340,11 +18258,13 @@ msgstr "Über negative Cashflow-Prognosen informieren"
 
 #: /app/templates/index.php:4730
 msgid "Runway alerts"
-msgstr ""
+msgstr "Warnungen zur Liquiditätsreichweite"
 
 #: /app/templates/index.php:4731
 msgid "Notify when the date your money runs out moves earlier"
 msgstr ""
+"Benachrichtigen, wenn sich das Datum, an dem dein Geld aufgebraucht ist, "
+"nach vorne verschiebt"
 
 #: /app/templates/index.php:4740
 msgid "Unusual Spending Alerts"
@@ -18503,16 +18423,17 @@ msgid "Automatically categorize transactions when importing"
 msgstr "Buchungen automatisch bei Import kategorisieren"
 
 #: /app/templates/index.php:4889
-#, fuzzy
-#| msgid "Date window (days):"
 msgid "Bill match window (days)"
-msgstr "Zeitraum (Tage):"
+msgstr "Zeitraum für die Rechnungszuordnung (Tage)"
 
 #: /app/templates/index.php:4890
 msgid ""
 "How many days either side of a bill payment an imported row can be and still "
 "be matched to it by the bill's name. The amount must match to the penny."
 msgstr ""
+"Wie viele Tage eine importierte Buchung vor oder nach einer Rechnungszahlung "
+"liegen darf, damit sie anhand des Rechnungsnamens zugeordnet werden kann. "
+"Der Betrag muss auf den Cent genau übereinstimmen."
 
 #: /app/templates/index.php:4898
 msgid "Default Export Format"
@@ -18860,7 +18781,7 @@ msgstr ""
 
 #: /app/templates/index.php:5158 /app/templates/index.php:5163
 msgid "Factory Reset"
-msgstr "Auf Werkeinstellungen zurücksetzen"
+msgstr "Auf Werkseinstellungen zurücksetzen"
 
 #: /app/templates/index.php:5159
 msgid ""
@@ -19101,7 +19022,7 @@ msgstr "Zieldatum (optional)"
 
 #: /app/templates/index.php:5449
 msgid "Linked Account (optional)"
-msgstr "Verknüpfter Account (optional)"
+msgstr "Verknüpftes Konto (optional)"
 
 #: /app/templates/index.php:5457
 msgid "Linked Tag (optional)"
@@ -19232,7 +19153,7 @@ msgstr "Erwartetes Jahreseinkommen im Ruhestand"
 
 #: /app/templates/index.php:5612
 msgid "Transfer Value"
-msgstr "Buchungswert"
+msgstr "Übertragungswert"
 
 #: /app/templates/index.php:5614
 msgid "Cash equivalent transfer value (CETV) if known"
@@ -19248,11 +19169,11 @@ msgstr "Rente speichern"
 
 #: /app/templates/index.php:5653
 msgid "Update"
-msgstr "Update"
+msgstr "Aktualisieren"
 
 #: /app/templates/index.php:5676
 msgid "Came from account"
-msgstr "Kam von Konto"
+msgstr "Vom Konto"
 
 #: /app/templates/index.php:5680
 msgid ""
@@ -19273,7 +19194,7 @@ msgstr "z. B. Bonusaufladung"
 
 #: /app/templates/index.php:5689
 msgid "Log"
-msgstr "Log"
+msgstr "Erfassen"
 
 #: /app/templates/index.php:5712
 msgid "Paid into account"
@@ -19369,7 +19290,7 @@ msgid ""
 "Record a new valuation for this asset. This creates a snapshot in the value "
 "history."
 msgstr ""
-"Erfassen Sie eine neue Bewertung für diesen Vermögenswert. Dadurch wird ein "
+"Erfasse eine neue Bewertung für diesen Vermögenswert. Dadurch wird ein "
 "Eintrag im Werteverlauf erstellt."
 
 #: /app/templates/index.php:5912
@@ -19394,11 +19315,11 @@ msgstr "Strategie"
 
 #: /app/templates/index.php:5922
 msgid "Avalanche (highest rate first)"
-msgstr "Avalanche (höchster Zinssatz zuerst)"
+msgstr "Lawinenmethode (höchster Zinssatz zuerst)"
 
 #: /app/templates/index.php:5923
 msgid "Snowball (smallest balance first)"
-msgstr "Snowball (kleinster Saldo zuerst)"
+msgstr "Schneeballmethode (kleinster Saldo zuerst)"
 
 #: /app/templates/index.php:5925
 msgid ""
@@ -19626,7 +19547,7 @@ msgstr "SWIFT-/BIC-Code"
 
 #: /app/templates/index.php:6284
 msgid "Wallet Address"
-msgstr "Wallet Adresse"
+msgstr "Wallet-Adresse"
 
 #: /app/templates/index.php:6286
 msgid "Stored encrypted"
@@ -19759,7 +19680,7 @@ msgstr "Monat auswählen..."
 
 #: /app/templates/index.php:6460
 msgid "Month when yearly bill is due"
-msgstr "Monat in dem die jährliche Rechnung anfällt"
+msgstr "Monat, in dem die jährliche Rechnung anfällt"
 
 #: /app/templates/index.php:6468
 msgid "Payment"
@@ -19772,7 +19693,7 @@ msgstr "Diese Rechnung kategorisieren (optional)"
 #: /app/templates/index.php:6485
 msgid "Define how this bill should be split across categories when paid"
 msgstr ""
-"Legen Sie fest, wie diese Rechnung bei Zahlung auf Kategorien aufgeteilt "
+"Lege fest, wie diese Rechnung bei der Zahlung auf Kategorien aufgeteilt "
 "werden soll"
 
 #: /app/templates/index.php:6489
@@ -19867,15 +19788,15 @@ msgstr "Eine Woche vorher"
 
 #: /app/templates/index.php:6543
 msgid "2 weeks before"
-msgstr "2 Woche vorher"
+msgstr "2 Wochen vorher"
 
 #: /app/templates/index.php:6545
 msgid "Receive a notification before bill is due"
-msgstr "Erhalten Sie eine Benachrichtigung, bevor die Rechnung fällig ist"
+msgstr "Erhalte eine Benachrichtigung, bevor die Rechnung fällig ist"
 
 #: /app/templates/index.php:6551
 msgid "Create future transaction for this bill"
-msgstr "Erstelle zukünftige Buchung für diese Rechnung"
+msgstr "Zukünftige Buchung für diese Rechnung erstellen"
 
 #: /app/templates/index.php:6553
 msgid ""
@@ -19918,8 +19839,8 @@ msgid ""
 "Auto-pay has been disabled. Please check the bill details and re-enable if "
 "needed."
 msgstr ""
-"Automatische Zahlung wurde deaktiviert. Kontrolliere die Rechnungsdetails "
-"und aktiviere Sie wieder, falls gewollt."
+"Die automatische Zahlung wurde deaktiviert. Prüfe die Rechnungsdetails und "
+"aktiviere sie bei Bedarf wieder."
 
 #: /app/templates/index.php:6591 /app/templates/index.php:7357
 msgid "Add Split"
@@ -19979,7 +19900,7 @@ msgstr "Übereinstimmungsfeld"
 
 #: /app/templates/index.php:6659
 msgid "Which transaction field to match against"
-msgstr "Buchungsfeld das auf Übereinstimmung geprüft werden soll"
+msgstr "Buchungsfeld, das auf Übereinstimmung geprüft werden soll"
 
 #: /app/templates/index.php:6665
 msgid "Contains"
@@ -20157,7 +20078,7 @@ msgstr "Verbuchen auf"
 
 #: /app/templates/index.php:6953
 msgid "Account where income is received (optional)"
-msgstr "Konto auf welches diese Einnahme gebucht wird (optional)"
+msgstr "Konto, auf das diese Einnahme gebucht wird (optional)"
 
 #: /app/templates/index.php:6959
 msgid "Auto-create transaction when due"
@@ -20471,7 +20392,7 @@ msgstr "Kontaktformular"
 
 #: /app/templates/index.php:7454
 msgid "Nextcloud User"
-msgstr "Nextcloud Benutzer"
+msgstr "Nextcloud-Benutzer"
 
 #: /app/templates/index.php:7456
 msgid ""
@@ -20563,7 +20484,7 @@ msgstr "Alle begleichen"
 
 #: /app/templates/index.php:7585
 msgid "Record Payment"
-msgstr "Zahlung aufnehmen"
+msgstr "Zahlung erfassen"
 
 #: /app/templates/index.php:7590
 msgid "Settlement History"
@@ -20580,7 +20501,7 @@ msgstr "ACHTUNG: Dieser Vorgang kann nicht rückgängig gemacht werden!"
 #: /app/templates/index.php:7621
 msgid "A factory reset will permanently delete ALL of your data including:"
 msgstr ""
-"Durch das Zurücksetzen auf die Werkseinstellungen werden ALLE Ihre Daten "
+"Durch das Zurücksetzen auf die Werkseinstellungen werden ALLE deine Daten "
 "dauerhaft gelöscht, darunter:"
 
 #: /app/templates/index.php:7623
@@ -20618,11 +20539,11 @@ msgstr ""
 
 #: /app/templates/index.php:7632
 msgid "You will need to set up everything from scratch after this operation."
-msgstr "Nach diesem Vorgang müssen Sie alles von Grund auf neu einrichten."
+msgstr "Nach diesem Vorgang musst du alles von Grund auf neu einrichten."
 
 #: /app/templates/index.php:7637
 msgid "Type DELETE to confirm:"
-msgstr "Geben Sie „ DELETE“ zur Bestätigung ein:"
+msgstr "Gib zur Bestätigung „DELETE“ ein:"
 
 #: /app/templates/index.php:7642
 msgid "Type DELETE to confirm"
@@ -20630,7 +20551,7 @@ msgstr "Tippe „DELETE“, um diesen Vorgang zu bestätigen"
 
 #: /app/templates/index.php:7645
 msgid "You must type DELETE (all caps) exactly to proceed"
-msgstr "Geben Sie „DELETE“ (in Großbuchstaben) genau so ein, um fortzufahren"
+msgstr "Gib „DELETE“ genau so (in Großbuchstaben) ein, um fortzufahren"
 
 #: /app/templates/index.php:7674 /app/templates/index.php:7678
 msgid "Add Bank Connection"
@@ -20645,10 +20566,8 @@ msgid "GoCardless (UK/Europe)"
 msgstr "GoCardless (Großbritannien/Europa)"
 
 #: /app/templates/index.php:7685
-#, fuzzy
-#| msgid "Enable Bank Sync"
 msgid "Enable Banking (Europe)"
-msgstr "Banksynchronisierung aktivieren"
+msgstr "Enable Banking (Europa)"
 
 #: /app/templates/index.php:7686
 msgid "SimpleFIN Bridge (US)"
@@ -20696,33 +20615,31 @@ msgstr "API-Schlüssel von bankaccountdata.gocardless.com erhalten"
 
 #: /app/templates/index.php:7720
 msgid "Your Enable Banking keys are stored."
-msgstr ""
+msgstr "Deine Schlüssel für Enable Banking sind gespeichert."
 
 #: /app/templates/index.php:7721
-#, fuzzy
-#| msgid "Replace notes"
 msgid "Replace keys"
-msgstr "Notizen ersetzen"
+msgstr "Schlüssel ersetzen"
 
 #: /app/templates/index.php:7725
 msgid "Application ID"
-msgstr ""
+msgstr "Anwendungs-ID"
 
 #: /app/templates/index.php:7726
 msgid "Your Enable Banking application ID"
-msgstr ""
+msgstr "Deine Anwendungs-ID bei Enable Banking"
 
 #: /app/templates/index.php:7729
 msgid "Private Key (PEM)"
-msgstr ""
+msgstr "Privater Schlüssel (PEM)"
 
 #: /app/templates/index.php:7731
 msgid "Load private key from file"
-msgstr ""
+msgstr "Privaten Schlüssel aus Datei laden"
 
 #: /app/templates/index.php:7735
 msgid "Redirect URL to register in Enable Banking"
-msgstr ""
+msgstr "Weiterleitungs-URL zur Registrierung bei Enable Banking"
 
 #: /app/templates/index.php:7737
 msgid "Copy"
@@ -20730,7 +20647,7 @@ msgstr "Kopieren"
 
 #: /app/templates/index.php:7739
 msgid "Register an application and create its keys at"
-msgstr ""
+msgstr "Registriere eine Anwendung und erstelle ihre Schlüssel unter"
 
 #: /app/templates/index.php:7752
 msgid "Select Your Bank"
@@ -20765,6 +20682,8 @@ msgid ""
 "Confirm in your bank's app. When the new tab says 'Connected', come back "
 "here."
 msgstr ""
+"Bestätige den Zugriff in deiner Banking-App. Kehre hierher zurück, sobald im "
+"neuen Tab „Verbunden“ angezeigt wird."
 
 #: /app/templates/index.php:7783
 msgid "A new window has been opened for you to authorize access at your bank."
