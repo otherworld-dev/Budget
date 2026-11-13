@@ -1,5 +1,18 @@
 [
     {
+        "version": "3.4.0",
+        "title": "Runway, Enable Banking and promotional rates",
+        "items": [
+            "Runway tiles show how long your money will last, at your current spending and on your budgets.",
+            "Enable Banking can now be used for bank sync, next to GoCardless and SimpleFIN.",
+            "Credit cards and loans can have a 0% promotional rate with an end date.",
+            "Dashboard charts and reports can count budget periods instead of calendar months.",
+            "Budgets can show in the Bills Calendar, and bills no longer have to set budgets.",
+            "Bank rows are matched to bill payments on import, so a payment isn't counted twice."
+        ],
+        "link": "https://github.com/otherworld-dev/Budget/blob/main/budget/CHANGELOG.md"
+    },
+    {
         "version": "3.3.0",
         "title": "Calendar months in Category Details, and import and receipt fixes",
         "items": [
