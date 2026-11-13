@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-11-10 12:34+0000\n"
+"POT-Creation-Date: 2026-11-11 00:43+0000\n"
 "PO-Revision-Date: 2026-09-21 19:51+0000\n"
 "Last-Translator: Leonid Zaliubovskyi <la399fox@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/nextcloud-budget/"
@@ -62,9 +62,9 @@ msgstr "Счёт не найден"
 #: /app/templates/index.php:1906 /app/templates/index.php:2087
 #: /app/templates/index.php:2520 /app/templates/index.php:2669
 #: /app/templates/index.php:3298 /app/templates/index.php:3407
-#: /app/templates/index.php:3706 /app/templates/index.php:4819
-#: /app/templates/index.php:4831 /app/templates/index.php:6048
-#: /app/templates/index.php:6786 /app/templates/quick-add.php:39
+#: /app/templates/index.php:3706 /app/templates/index.php:4829
+#: /app/templates/index.php:4841 /app/templates/index.php:6058
+#: /app/templates/index.php:6796 /app/templates/quick-add.php:39
 msgid "Account"
 msgstr "Счёт"
 
@@ -90,7 +90,7 @@ msgstr "Недопустимая валюта: %1$s"
 
 #: /app/lib/Controller/AccountController.php:148
 #: /app/src/modules/accounts/AccountsModule.js:29 /app/templates/index.php:1157
-#: /app/templates/index.php:6237
+#: /app/templates/index.php:6247
 msgid "Institution"
 msgstr "Учреждение"
 
@@ -425,10 +425,10 @@ msgstr "Необходимо указать счёт"
 #: /app/templates/index.php:1083 /app/templates/index.php:1586
 #: /app/templates/index.php:1827 /app/templates/index.php:1882
 #: /app/templates/index.php:2462 /app/templates/index.php:2631
-#: /app/templates/index.php:2668 /app/templates/index.php:5647
-#: /app/templates/index.php:5672 /app/templates/index.php:5708
-#: /app/templates/index.php:5886 /app/templates/index.php:6060
-#: /app/templates/index.php:6736 /app/templates/index.php:7551
+#: /app/templates/index.php:2668 /app/templates/index.php:5657
+#: /app/templates/index.php:5682 /app/templates/index.php:5718
+#: /app/templates/index.php:5896 /app/templates/index.php:6070
+#: /app/templates/index.php:6746 /app/templates/index.php:7561
 #: /app/templates/quick-add.php:34
 msgid "Date"
 msgstr "Дата"
@@ -868,7 +868,7 @@ msgstr "Не удалось получить платежи"
 #: /app/lib/Controller/BillController.php:1534
 #: /app/lib/Controller/BillController.php:1718
 #: /app/lib/Service/TransactionService.php:1302 /app/templates/index.php:3741
-#: /app/templates/index.php:6383
+#: /app/templates/index.php:6393
 msgid "Bill"
 msgstr "Платёж"
 
@@ -909,19 +909,19 @@ msgstr "Укажите название и сумму"
 
 #: /app/lib/Controller/BillController.php:311
 #: /app/lib/Controller/BillController.php:793
-#: /app/lib/Service/BillService.php:1054 /app/lib/Service/BillService.php:1180
+#: /app/lib/Service/BillService.php:1063 /app/lib/Service/BillService.php:1189
 msgid "Auto-pay requires an account to be set"
 msgstr "Для автоплатежа нужно выбрать счёт"
 
 #: /app/lib/Controller/BillController.php:319
 #: /app/lib/Controller/BillController.php:727
-#: /app/lib/Service/BillService.php:1059
+#: /app/lib/Service/BillService.php:1068
 msgid "Transfer requires a destination account"
 msgstr "Для перевода нужен счёт назначения"
 
 #: /app/lib/Controller/BillController.php:327
 #: /app/lib/Controller/BillController.php:755
-#: /app/lib/Service/BillService.php:1064
+#: /app/lib/Service/BillService.php:1073
 #: /app/src/modules/transfers/TransfersModule.js:881
 msgid "Cannot transfer to the same account"
 msgstr "Нельзя выполнить перевод на тот же счёт"
@@ -953,7 +953,7 @@ msgstr "Дата транзакции"
 #: /app/lib/Controller/RecurringIncomeController.php:252
 #: /app/lib/Controller/RecurringIncomeController.php:369
 #: /app/lib/Controller/RecurringIncomeController.php:680
-#: /app/templates/index.php:3291 /app/templates/index.php:5385
+#: /app/templates/index.php:3291 /app/templates/index.php:5395
 msgid "Start date"
 msgstr "Дата начала"
 
@@ -1020,7 +1020,7 @@ msgid "Failed to look for bill payments beside the bank's rows"
 msgstr ""
 
 #: /app/lib/Controller/BillController.php:991
-#: /app/lib/Service/BillService.php:502
+#: /app/lib/Service/BillService.php:506
 #: /app/src/modules/transactions/TransactionsModule.js:5828
 #, fuzzy
 #| msgid "The receipt could not be read"
@@ -1163,18 +1163,18 @@ msgstr "Не удалось экспортировать календарь пл
 #: /app/templates/index.php:2468 /app/templates/index.php:2635
 #: /app/templates/index.php:3433 /app/templates/index.php:3451
 #: /app/templates/index.php:3496 /app/templates/index.php:3517
-#: /app/templates/index.php:5668 /app/templates/index.php:5704
-#: /app/templates/index.php:5740 /app/templates/index.php:6039
-#: /app/templates/index.php:6397 /app/templates/index.php:6657
-#: /app/templates/index.php:6738 /app/templates/index.php:7343
+#: /app/templates/index.php:5678 /app/templates/index.php:5714
+#: /app/templates/index.php:5750 /app/templates/index.php:6049
+#: /app/templates/index.php:6407 /app/templates/index.php:6667
+#: /app/templates/index.php:6748 /app/templates/index.php:7353
 #: /app/templates/quick-add.php:57
 msgid "Amount"
 msgstr "Сумма"
 
 #: /app/lib/Controller/BillController.php:1534
 #: /app/src/modules/transfers/TransfersModule.js:488
-#: /app/templates/index.php:5744 /app/templates/index.php:6403
-#: /app/templates/index.php:6894
+#: /app/templates/index.php:5754 /app/templates/index.php:6413
+#: /app/templates/index.php:6904
 msgid "Frequency"
 msgstr "Периодичность"
 
@@ -1191,7 +1191,7 @@ msgstr "Итого за год"
 #: /app/lib/Service/Report/ReportExporter.php:598
 #: /app/lib/Service/Report/ReportExporter.php:673
 #: /app/src/modules/categories/CategoriesModule.js:2599
-#: /app/src/modules/reports/ReportsModule.js:1954 /app/templates/index.php:7545
+#: /app/src/modules/reports/ReportsModule.js:1954 /app/templates/index.php:7555
 msgid "Total"
 msgstr "Всего"
 
@@ -1346,10 +1346,10 @@ msgstr "Не удалось получить количество транзак
 #: /app/templates/index.php:2292 /app/templates/index.php:2514
 #: /app/templates/index.php:2636 /app/templates/index.php:3432
 #: /app/templates/index.php:3450 /app/templates/index.php:3495
-#: /app/templates/index.php:3665 /app/templates/index.php:5375
-#: /app/templates/index.php:6079 /app/templates/index.php:6470
-#: /app/templates/index.php:6941 /app/templates/index.php:7342
-#: /app/templates/index.php:7383 /app/templates/quick-add.php:72
+#: /app/templates/index.php:3665 /app/templates/index.php:5385
+#: /app/templates/index.php:6089 /app/templates/index.php:6480
+#: /app/templates/index.php:6951 /app/templates/index.php:7352
+#: /app/templates/index.php:7393 /app/templates/quick-add.php:72
 msgid "Category"
 msgstr "Категория"
 
@@ -1660,8 +1660,8 @@ msgstr "Не удалось получить цели"
 #: /app/lib/Controller/GoalsController.php:380
 #: /app/lib/Controller/GoalsController.php:409
 #: /app/lib/Controller/GoalsController.php:428
-#: /app/src/utils/categoryIcons.js:89 /app/templates/index.php:5423
-#: /app/templates/index.php:5498
+#: /app/src/utils/categoryIcons.js:89 /app/templates/index.php:5433
+#: /app/templates/index.php:5508
 msgid "Goal"
 msgstr "Цель"
 
@@ -1784,8 +1784,8 @@ msgstr "Не удалось создать правило импорта"
 
 #: /app/lib/Controller/ImportFolderController.php:77
 #: /app/lib/Controller/ImportFolderController.php:94
-#: /app/templates/index.php:4499 /app/templates/index.php:4800
-#: /app/templates/index.php:4804
+#: /app/templates/index.php:4499 /app/templates/index.php:4810
+#: /app/templates/index.php:4814
 #, fuzzy
 #| msgid "Import failed"
 msgid "Import folder"
@@ -1919,7 +1919,7 @@ msgstr "Проверка не пройдена"
 
 #: /app/lib/Controller/ImportTemplateController.php:63
 #: /app/lib/Controller/ImportTemplateController.php:173
-#: /app/templates/index.php:4820 /app/templates/index.php:4832
+#: /app/templates/index.php:4830 /app/templates/index.php:4842
 msgid "Import template"
 msgstr "Шаблон импорта"
 
@@ -2489,108 +2489,108 @@ msgstr "Не удалось обновить сохранённый отчёт"
 msgid "Failed to delete saved report"
 msgstr "Не удалось удалить сохранённый отчёт"
 
-#: /app/lib/Controller/SettingController.php:133
+#: /app/lib/Controller/SettingController.php:135
 #, php-format
 msgid "This setting can't be changed: %1$s"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:178
+#: /app/lib/Controller/SettingController.php:180
 msgid "Failed to retrieve settings"
 msgstr "Не удалось получить настройки"
 
-#: /app/lib/Controller/SettingController.php:190
-#: /app/lib/Controller/SettingController.php:209
-#: /app/lib/Controller/SettingController.php:541
+#: /app/lib/Controller/SettingController.php:192
+#: /app/lib/Controller/SettingController.php:211
+#: /app/lib/Controller/SettingController.php:543
 msgid "Setting not found"
 msgstr "Настройка не найдена"
 
-#: /app/lib/Controller/SettingController.php:213
+#: /app/lib/Controller/SettingController.php:215
 msgid "Failed to retrieve setting"
 msgstr "Не удалось получить настройку"
 
-#: /app/lib/Controller/SettingController.php:262
-#: /app/lib/Controller/SettingController.php:334
+#: /app/lib/Controller/SettingController.php:264
+#: /app/lib/Controller/SettingController.php:336
 #, php-format
 msgid "Invalid receipts folder: %1$s"
 msgstr "Недопустимая папка для чеков: %1$s"
 
-#: /app/lib/Controller/SettingController.php:271
-#: /app/lib/Controller/SettingController.php:341
+#: /app/lib/Controller/SettingController.php:273
+#: /app/lib/Controller/SettingController.php:343
 #, fuzzy, php-format
 #| msgid "Invalid receipts folder: %1$s"
 msgid "Invalid import folder: %1$s"
 msgstr "Недопустимая папка для чеков: %1$s"
 
-#: /app/lib/Controller/SettingController.php:286
+#: /app/lib/Controller/SettingController.php:288
 msgid "Settings updated successfully"
 msgstr "Настройки успешно обновлены"
 
-#: /app/lib/Controller/SettingController.php:296
+#: /app/lib/Controller/SettingController.php:298
 msgid "Failed to update settings"
 msgstr "Не удалось обновить настройки"
 
-#: /app/lib/Controller/SettingController.php:312
+#: /app/lib/Controller/SettingController.php:314
 msgid "Value parameter is required"
 msgstr "Параметр value обязателен"
 
-#: /app/lib/Controller/SettingController.php:354
+#: /app/lib/Controller/SettingController.php:356
 msgid "Setting updated successfully"
 msgstr "Настройка обновлена"
 
-#: /app/lib/Controller/SettingController.php:359
+#: /app/lib/Controller/SettingController.php:361
 msgid "Failed to update setting"
 msgstr "Не удалось обновить настройку"
 
-#: /app/lib/Controller/SettingController.php:390
+#: /app/lib/Controller/SettingController.php:392
 #, fuzzy
 #| msgid "Invalid position"
 msgid "Invalid colour setting"
 msgstr "Недопустимая позиция"
 
-#: /app/lib/Controller/SettingController.php:441
+#: /app/lib/Controller/SettingController.php:443
 #, fuzzy, php-format
 #| msgid "Invalid routing number: %1$s"
 msgid "Invalid runway setting: %1$s"
 msgstr "Недопустимый банковский маршрутный номер: %1$s"
 
-#: /app/lib/Controller/SettingController.php:547
+#: /app/lib/Controller/SettingController.php:549
 msgid "Setting reset to default"
 msgstr "Для настройки восстановлено значение по умолчанию"
 
-#: /app/lib/Controller/SettingController.php:552
+#: /app/lib/Controller/SettingController.php:554
 msgid "Failed to reset setting"
 msgstr "Не удалось сбросить настройку"
 
-#: /app/lib/Controller/SettingController.php:568
+#: /app/lib/Controller/SettingController.php:570
 msgid "All settings reset to defaults"
 msgstr "Все настройки сброшены по умолчанию"
 
-#: /app/lib/Controller/SettingController.php:573
+#: /app/lib/Controller/SettingController.php:575
 #: /app/src/modules/settings/SettingsModule.js:569
 msgid "Failed to reset settings"
 msgstr "Не удалось сбросить настройки"
 
-#: /app/lib/Controller/SettingController.php:602 /app/templates/index.php:4593
+#: /app/lib/Controller/SettingController.php:604 /app/templates/index.php:4603
 msgid "Sunday"
 msgstr "Воскресенье"
 
-#: /app/lib/Controller/SettingController.php:603 /app/templates/index.php:4594
+#: /app/lib/Controller/SettingController.php:605 /app/templates/index.php:4604
 msgid "Monday"
 msgstr "Понедельник"
 
-#: /app/lib/Controller/SettingController.php:606
+#: /app/lib/Controller/SettingController.php:608
 #: /app/src/modules/bills/BillsModule.js:415
 #: /app/src/modules/categories/CategoriesModule.js:2667
 #: /app/src/modules/income/IncomeModule.js:102
 #: /app/src/modules/transfers/TransfersModule.js:330
 #: /app/src/modules/transfers/TransfersModule.js:492
 #: /app/src/modules/transfers/TransfersModule.js:1256
-#: /app/templates/index.php:4530 /app/templates/index.php:4762
-#: /app/templates/index.php:6405 /app/templates/index.php:6896
+#: /app/templates/index.php:4530 /app/templates/index.php:4772
+#: /app/templates/index.php:6415 /app/templates/index.php:6906
 msgid "Weekly"
 msgstr "Еженедельно"
 
-#: /app/lib/Controller/SettingController.php:607
+#: /app/lib/Controller/SettingController.php:609
 #: /app/src/modules/accounts/AccountsModule.js:1381
 #: /app/src/modules/bills/BillsModule.js:418
 #: /app/src/modules/categories/CategoriesModule.js:2666
@@ -2599,13 +2599,13 @@ msgstr "Еженедельно"
 #: /app/src/modules/transfers/TransfersModule.js:333
 #: /app/src/modules/transfers/TransfersModule.js:495
 #: /app/src/modules/transfers/TransfersModule.js:1259
-#: /app/templates/index.php:4531 /app/templates/index.php:4763
-#: /app/templates/index.php:5746 /app/templates/index.php:6305
-#: /app/templates/index.php:6408 /app/templates/index.php:6899
+#: /app/templates/index.php:4531 /app/templates/index.php:4773
+#: /app/templates/index.php:5756 /app/templates/index.php:6315
+#: /app/templates/index.php:6418 /app/templates/index.php:6909
 msgid "Monthly"
 msgstr "Ежемесячно"
 
-#: /app/lib/Controller/SettingController.php:608
+#: /app/lib/Controller/SettingController.php:610
 #: /app/src/modules/bills/BillsModule.js:419
 #: /app/src/modules/categories/CategoriesModule.js:2668
 #: /app/src/modules/income/IncomeModule.js:106
@@ -2613,12 +2613,12 @@ msgstr "Ежемесячно"
 #: /app/src/modules/transfers/TransfersModule.js:334
 #: /app/src/modules/transfers/TransfersModule.js:496
 #: /app/src/modules/transfers/TransfersModule.js:1260
-#: /app/templates/index.php:4532 /app/templates/index.php:5747
-#: /app/templates/index.php:6409 /app/templates/index.php:6900
+#: /app/templates/index.php:4532 /app/templates/index.php:5757
+#: /app/templates/index.php:6419 /app/templates/index.php:6910
 msgid "Quarterly"
 msgstr "Ежеквартально"
 
-#: /app/lib/Controller/SettingController.php:609
+#: /app/lib/Controller/SettingController.php:611
 #: /app/src/modules/accounts/AccountsModule.js:1382
 #: /app/src/modules/bills/BillsModule.js:421
 #: /app/src/modules/categories/CategoriesModule.js:2669
@@ -2627,9 +2627,9 @@ msgstr "Ежеквартально"
 #: /app/src/modules/transfers/TransfersModule.js:336
 #: /app/src/modules/transfers/TransfersModule.js:498
 #: /app/src/modules/transfers/TransfersModule.js:1262
-#: /app/templates/index.php:4533 /app/templates/index.php:5748
-#: /app/templates/index.php:6306 /app/templates/index.php:6411
-#: /app/templates/index.php:6902
+#: /app/templates/index.php:4533 /app/templates/index.php:5758
+#: /app/templates/index.php:6316 /app/templates/index.php:6421
+#: /app/templates/index.php:6912
 msgid "Yearly"
 msgstr "Ежегодно"
 
@@ -3026,7 +3026,7 @@ msgstr "Не удалось экспортировать транзакции"
 #: /app/lib/Controller/TransactionController.php:1335
 #: /app/lib/Controller/TransactionController.php:1398 /app/src/main.js:1933
 #: /app/src/modules/dashboard/DashboardModule.js:1407
-#: /app/templates/index.php:6020
+#: /app/templates/index.php:6030
 msgid "Transaction"
 msgstr "Транзакция"
 
@@ -3235,8 +3235,8 @@ msgstr "Год"
 #: /app/templates/index.php:1524 /app/templates/index.php:1690
 #: /app/templates/index.php:1934 /app/templates/index.php:2285
 #: /app/templates/index.php:3408 /app/templates/index.php:3426
-#: /app/templates/index.php:3572 /app/templates/index.php:6028
-#: /app/templates/index.php:6034 /app/templates/index.php:7031
+#: /app/templates/index.php:3572 /app/templates/index.php:6038
+#: /app/templates/index.php:6044 /app/templates/index.php:7041
 #: /app/templates/quick-add.php:52
 msgid "Income"
 msgstr "Доход"
@@ -3285,7 +3285,7 @@ msgstr "Сбережения"
 #: /app/templates/index.php:2058 /app/templates/index.php:2670
 #: /app/templates/index.php:3434 /app/templates/index.php:3452
 #: /app/templates/index.php:3498 /app/templates/index.php:3518
-#: /app/templates/index.php:4975
+#: /app/templates/index.php:4985
 msgid "Transactions"
 msgstr "Транзакции"
 
@@ -3422,7 +3422,7 @@ msgstr[2] "срок оплаты через %n дней"
 #: /app/src/modules/projects/ProjectsModule.js:147
 #: /app/src/modules/reports/ReportsModule.js:2021 /app/templates/index.php:93
 #: /app/templates/index.php:2208 /app/templates/index.php:2293
-#: /app/templates/index.php:5350
+#: /app/templates/index.php:5360
 msgid "Budget"
 msgstr "Бюджет"
 
@@ -3821,7 +3821,7 @@ msgstr ""
 #: /app/src/modules/reports/ReportsModule.js:1925
 #: /app/src/modules/sharing/SharingModule.js:274
 #: /app/src/utils/categoryIcons.js:79 /app/templates/index.php:113
-#: /app/templates/index.php:2684 /app/templates/index.php:4979
+#: /app/templates/index.php:2684 /app/templates/index.php:4989
 msgid "Bills"
 msgstr "Платежи"
 
@@ -3952,13 +3952,13 @@ msgid ""
 "amount."
 msgstr ""
 
-#: /app/lib/Service/BillService.php:494
+#: /app/lib/Service/BillService.php:498
 msgid ""
 "These two rows can no longer be merged. Reload the list to see where they "
 "stand."
 msgstr ""
 
-#: /app/lib/Service/BillService.php:599
+#: /app/lib/Service/BillService.php:608
 #, fuzzy
 #| msgid ""
 #| "Your session has expired, so categories could not be loaded. Reload the "
@@ -3970,15 +3970,15 @@ msgstr ""
 "Срок действия сеанса истёк, поэтому не удалось загрузить категории. "
 "Перезагрузите страницу, чтобы восстановить их."
 
-#: /app/lib/Service/BillService.php:612 /app/lib/Service/BillService.php:668
+#: /app/lib/Service/BillService.php:621 /app/lib/Service/BillService.php:677
 msgid "This bill has never been marked as paid"
 msgstr "Этот платёж ещё ни разу не отмечался как оплаченный"
 
-#: /app/lib/Service/BillService.php:615
+#: /app/lib/Service/BillService.php:624
 msgid "Assign an account to the bill first"
 msgstr "Сначала привяжите счёт к платежу"
 
-#: /app/lib/Service/BillService.php:625
+#: /app/lib/Service/BillService.php:634
 msgid ""
 "The account linked to this bill no longer exists. Edit the bill and choose "
 "an account."
@@ -3986,25 +3986,25 @@ msgstr ""
 "Связанный с этим платежом счёт больше не существует. Отредактируйте платёж и "
 "выберите счёт."
 
-#: /app/lib/Service/BillService.php:630
+#: /app/lib/Service/BillService.php:639
 msgid "A transaction for this payment already exists"
 msgstr "Транзакция для этого платежа уже существует"
 
-#: /app/lib/Service/BillService.php:1120 /app/lib/Service/BillService.php:1228
+#: /app/lib/Service/BillService.php:1129 /app/lib/Service/BillService.php:1237
 #, fuzzy
 #| msgid "{count} one-time bills deactivated"
 msgid "A one-time bill needs its due date"
 msgstr "Деактивировано разовых платежей: {count}"
 
-#: /app/lib/Service/BillService.php:1554 /app/lib/Service/BillService.php:2124
-#: /app/lib/Service/BillService.php:2220
+#: /app/lib/Service/BillService.php:1563 /app/lib/Service/BillService.php:2133
+#: /app/lib/Service/BillService.php:2229
 #, fuzzy
 #| msgid "This bill has no recorded payment to undo"
 msgid "This bill has nothing left to pay"
 msgstr "У этого платежа нет учтённой оплаты, которую можно отменить"
 
-#: /app/lib/Service/BillService.php:1560 /app/lib/Service/BillService.php:1703
-#: /app/lib/Service/BillService.php:2128 /app/lib/Service/BillService.php:2157
+#: /app/lib/Service/BillService.php:1569 /app/lib/Service/BillService.php:1712
+#: /app/lib/Service/BillService.php:2137 /app/lib/Service/BillService.php:2166
 #: /app/lib/Service/RecurringIncomeService.php:298
 #: /app/lib/Service/RecurringIncomeService.php:320
 #: /app/lib/Service/RecurringIncomeService.php:765
@@ -4019,29 +4019,29 @@ msgstr ""
 "Срок действия сеанса истёк, поэтому не удалось загрузить категории. "
 "Перезагрузите страницу, чтобы восстановить их."
 
-#: /app/lib/Service/BillService.php:1617
+#: /app/lib/Service/BillService.php:1626
 #: /app/lib/Service/TransactionService.php:1325
 #, fuzzy
 #| msgid "Create future transaction for this bill"
 msgid "That transaction can't pay this bill"
 msgstr "Создать будущую транзакцию для этого платежа"
 
-#: /app/lib/Service/BillService.php:1717
+#: /app/lib/Service/BillService.php:1726
 #: /app/lib/Service/TransactionService.php:1317
 #, fuzzy
 #| msgid "Transactions linked as transfer"
 msgid "That transaction already pays another bill"
 msgstr "Транзакции помечены как переводы"
 
-#: /app/lib/Service/BillService.php:2054 /app/lib/Service/BillService.php:2074
+#: /app/lib/Service/BillService.php:2063 /app/lib/Service/BillService.php:2083
 msgid "This bill has no recorded payment to undo"
 msgstr "У этого платежа нет учтённой оплаты, которую можно отменить"
 
-#: /app/lib/Service/BillService.php:2060
+#: /app/lib/Service/BillService.php:2069
 msgid "Undo the skip first: a later date has been skipped since this payment."
 msgstr ""
 
-#: /app/lib/Service/BillService.php:2083
+#: /app/lib/Service/BillService.php:2092
 #, fuzzy
 #| msgid ""
 #| "This transaction was reconciled against a bank statement. Deleting it "
@@ -4053,37 +4053,37 @@ msgstr ""
 "Эта транзакция сверена с банковской выпиской. После её удаления предыдущие "
 "сверки перестанут совпадать."
 
-#: /app/lib/Service/BillService.php:2115 /app/lib/Service/BillService.php:2216
+#: /app/lib/Service/BillService.php:2124 /app/lib/Service/BillService.php:2225
 msgid "Cannot skip a one-time bill"
 msgstr "Нельзя пропустить разовый платёж"
 
-#: /app/lib/Service/BillService.php:2119
+#: /app/lib/Service/BillService.php:2128
 msgid "Cannot skip an inactive bill"
 msgstr "Нельзя пропустить неактивный платёж"
 
-#: /app/lib/Service/BillService.php:2223
+#: /app/lib/Service/BillService.php:2232
 #, fuzzy
 #| msgid "Automatically creates a transaction on the bill's due date"
 msgid "That date is after the bill's next due date"
 msgstr "Автоматически создает транзакцию в дату оплаты счета"
 
-#: /app/lib/Service/BillService.php:2228
+#: /app/lib/Service/BillService.php:2237
 #, fuzzy
 #| msgid "Automatically creates a transaction on the bill's due date"
 msgid "That date isn't one of this bill's due dates"
 msgstr "Автоматически создает транзакцию в дату оплаты счета"
 
-#: /app/lib/Service/BillService.php:2551
+#: /app/lib/Service/BillService.php:2560
 #: /app/lib/Service/RecurringIncomeService.php:1000
 #: /app/src/modules/accounts/AccountsModule.js:27
 #: /app/src/modules/transfers/TransfersModule.js:464
 #: /app/templates/index.php:1154 /app/templates/index.php:2885
-#: /app/templates/index.php:5371 /app/templates/index.php:5800
-#: /app/templates/index.php:7460
+#: /app/templates/index.php:5381 /app/templates/index.php:5810
+#: /app/templates/index.php:7470
 msgid "Name"
 msgstr "Название"
 
-#: /app/lib/Service/BillService.php:2551
+#: /app/lib/Service/BillService.php:2560
 #: /app/lib/Service/RecurringIncomeService.php:1000
 #: /app/lib/Service/ValidationService.php:74
 #: /app/lib/Service/ValidationService.php:187
@@ -4092,21 +4092,21 @@ msgstr "Название"
 msgid "%1$s is required"
 msgstr "Поле %1$s обязательно"
 
-#: /app/lib/Service/BillService.php:3521
+#: /app/lib/Service/BillService.php:3530
 msgid "Auto-pay is not enabled for this bill"
 msgstr "Автоплатёж для этого платежа не включён"
 
-#: /app/lib/Service/BillService.php:3535
+#: /app/lib/Service/BillService.php:3544
 msgid "Bill has no account associated"
 msgstr "С платежом не связан счёт"
 
-#: /app/lib/Service/BillService.php:3581
+#: /app/lib/Service/BillService.php:3590
 #, fuzzy
 #| msgid "The receipt could not be read"
 msgid "The payment could not be recorded"
 msgstr "Не удалось распознать чек"
 
-#: /app/lib/Service/BillService.php:3598
+#: /app/lib/Service/BillService.php:3607
 msgid "Bill auto-paid successfully"
 msgstr "Платёж успешно выполнен автоматически"
 
@@ -4315,11 +4315,11 @@ msgstr[2] ""
 #: /app/templates/index.php:1105 /app/templates/index.php:1106
 #: /app/templates/index.php:1589 /app/templates/index.php:1831
 #: /app/templates/index.php:1886 /app/templates/index.php:2490
-#: /app/templates/index.php:2632 /app/templates/index.php:5817
-#: /app/templates/index.php:6071 /app/templates/index.php:6391
-#: /app/templates/index.php:6653 /app/templates/index.php:6737
-#: /app/templates/index.php:6876 /app/templates/index.php:7108
-#: /app/templates/index.php:7209 /app/templates/quick-add.php:62
+#: /app/templates/index.php:2632 /app/templates/index.php:5827
+#: /app/templates/index.php:6081 /app/templates/index.php:6401
+#: /app/templates/index.php:6663 /app/templates/index.php:6747
+#: /app/templates/index.php:6886 /app/templates/index.php:7118
+#: /app/templates/index.php:7219 /app/templates/quick-add.php:62
 msgid "Description"
 msgstr "Описание"
 
@@ -4331,24 +4331,24 @@ msgstr "Описание"
 #: /app/src/modules/rules/components/CriteriaBuilder.js:189
 #: /app/templates/index.php:1591 /app/templates/index.php:1835
 #: /app/templates/index.php:1890 /app/templates/index.php:3516
-#: /app/templates/index.php:6075 /app/templates/index.php:6654
-#: /app/templates/index.php:7391 /app/templates/quick-add.php:67
+#: /app/templates/index.php:6085 /app/templates/index.php:6664
+#: /app/templates/index.php:7401 /app/templates/quick-add.php:67
 msgid "Vendor"
 msgstr "Продавец"
 
 #: /app/lib/Service/Export/TransactionCsvExporter.php:35
 #: /app/lib/Service/Report/ReportExporter.php:250 /app/templates/index.php:1093
 #: /app/templates/index.php:1521 /app/templates/index.php:1687
-#: /app/templates/index.php:3906 /app/templates/index.php:5806
-#: /app/templates/index.php:6022 /app/templates/index.php:7028
+#: /app/templates/index.php:3906 /app/templates/index.php:5816
+#: /app/templates/index.php:6032 /app/templates/index.php:7038
 #: /app/templates/quick-add.php:49
 msgid "Type"
 msgstr "Тип"
 
 #: /app/lib/Service/Export/TransactionCsvExporter.php:37
 #: /app/templates/index.php:1427 /app/templates/index.php:2526
-#: /app/templates/index.php:5561 /app/templates/index.php:5832
-#: /app/templates/index.php:6230
+#: /app/templates/index.php:5571 /app/templates/index.php:5842
+#: /app/templates/index.php:6240
 msgid "Currency"
 msgstr "Валюта"
 
@@ -4359,7 +4359,7 @@ msgstr "Валюта"
 #: /app/src/modules/rules/components/ActionBuilder.js:234
 #: /app/src/modules/rules/components/ActionBuilder.js:258
 #: /app/src/modules/rules/components/CriteriaBuilder.js:192
-#: /app/templates/index.php:6655 /app/templates/index.php:7397
+#: /app/templates/index.php:6665 /app/templates/index.php:7407
 msgid "Reference"
 msgstr "Ссылка"
 
@@ -4371,10 +4371,10 @@ msgstr "Ссылка"
 #: /app/src/modules/rules/components/CriteriaBuilder.js:193
 #: /app/src/modules/transfers/TransfersModule.js:574
 #: /app/templates/index.php:2495 /app/templates/index.php:2634
-#: /app/templates/index.php:5479 /app/templates/index.php:6139
-#: /app/templates/index.php:6503 /app/templates/index.php:6656
-#: /app/templates/index.php:6971 /app/templates/index.php:7403
-#: /app/templates/index.php:7510 /app/templates/index.php:7556
+#: /app/templates/index.php:5489 /app/templates/index.php:6149
+#: /app/templates/index.php:6513 /app/templates/index.php:6666
+#: /app/templates/index.php:6981 /app/templates/index.php:7413
+#: /app/templates/index.php:7520 /app/templates/index.php:7566
 #: /app/templates/quick-add.php:82
 msgid "Notes"
 msgstr "Заметки"
@@ -4392,8 +4392,8 @@ msgid "Split of"
 msgstr "Часть транзакции"
 
 #: /app/lib/Service/Export/TransactionCsvExporter.php:46
-#: /app/templates/index.php:4498 /app/templates/index.php:4781
-#: /app/templates/index.php:6127
+#: /app/templates/index.php:4498 /app/templates/index.php:4791
+#: /app/templates/index.php:6137
 msgid "Receipts"
 msgstr "Чеки"
 
@@ -4403,8 +4403,8 @@ msgstr "Чеки"
 #: /app/src/modules/rules/components/ActionBuilder.js:415
 #: /app/src/modules/rules/components/CriteriaBuilder.js:217
 #: /app/templates/index.php:1096 /app/templates/index.php:1525
-#: /app/templates/index.php:1691 /app/templates/index.php:6027
-#: /app/templates/index.php:6033 /app/templates/index.php:7030
+#: /app/templates/index.php:1691 /app/templates/index.php:6037
+#: /app/templates/index.php:6043 /app/templates/index.php:7040
 #: /app/templates/quick-add.php:51
 msgid "Expense"
 msgstr "Расход"
@@ -4903,119 +4903,119 @@ msgid "This income has no expected date to skip"
 msgstr "У этого платежа нет учтённой оплаты, которую можно отменить"
 
 #: /app/lib/Service/Report/MonthNames.php:21 /app/templates/index.php:3742
-#: /app/templates/index.php:6421
+#: /app/templates/index.php:6431
 msgid "Jan"
 msgstr "Янв"
 
 #: /app/lib/Service/Report/MonthNames.php:22 /app/templates/index.php:3743
-#: /app/templates/index.php:6422
+#: /app/templates/index.php:6432
 msgid "Feb"
 msgstr "Фев"
 
 #: /app/lib/Service/Report/MonthNames.php:23 /app/templates/index.php:3744
-#: /app/templates/index.php:6423
+#: /app/templates/index.php:6433
 msgid "Mar"
 msgstr "Мар"
 
 #: /app/lib/Service/Report/MonthNames.php:24 /app/templates/index.php:3745
-#: /app/templates/index.php:6424
+#: /app/templates/index.php:6434
 msgid "Apr"
 msgstr "Апр"
 
 #: /app/lib/Service/Report/MonthNames.php:25
 #: /app/lib/Service/Report/MonthNames.php:46 /app/templates/index.php:3626
-#: /app/templates/index.php:3746 /app/templates/index.php:6425
-#: /app/templates/index.php:6451 /app/templates/index.php:6928
+#: /app/templates/index.php:3746 /app/templates/index.php:6435
+#: /app/templates/index.php:6461 /app/templates/index.php:6938
 msgid "May"
 msgstr "Май"
 
 #: /app/lib/Service/Report/MonthNames.php:26 /app/templates/index.php:3747
-#: /app/templates/index.php:6426
+#: /app/templates/index.php:6436
 msgid "Jun"
 msgstr "Июн"
 
 #: /app/lib/Service/Report/MonthNames.php:27 /app/templates/index.php:3748
-#: /app/templates/index.php:6427
+#: /app/templates/index.php:6437
 msgid "Jul"
 msgstr "Июл"
 
 #: /app/lib/Service/Report/MonthNames.php:28 /app/templates/index.php:3749
-#: /app/templates/index.php:6428
+#: /app/templates/index.php:6438
 msgid "Aug"
 msgstr "Авг"
 
 #: /app/lib/Service/Report/MonthNames.php:29 /app/templates/index.php:3750
-#: /app/templates/index.php:6429
+#: /app/templates/index.php:6439
 msgid "Sep"
 msgstr "Сент"
 
 #: /app/lib/Service/Report/MonthNames.php:30 /app/templates/index.php:3751
-#: /app/templates/index.php:6430
+#: /app/templates/index.php:6440
 msgid "Oct"
 msgstr "Окт"
 
 #: /app/lib/Service/Report/MonthNames.php:31 /app/templates/index.php:3752
-#: /app/templates/index.php:6431
+#: /app/templates/index.php:6441
 msgid "Nov"
 msgstr "Ноя"
 
 #: /app/lib/Service/Report/MonthNames.php:32 /app/templates/index.php:3753
-#: /app/templates/index.php:6432
+#: /app/templates/index.php:6442
 msgid "Dec"
 msgstr "Дек"
 
 #: /app/lib/Service/Report/MonthNames.php:42 /app/templates/index.php:3622
-#: /app/templates/index.php:6447 /app/templates/index.php:6924
+#: /app/templates/index.php:6457 /app/templates/index.php:6934
 msgid "January"
 msgstr "Январь"
 
 #: /app/lib/Service/Report/MonthNames.php:43 /app/templates/index.php:3623
-#: /app/templates/index.php:6448 /app/templates/index.php:6925
+#: /app/templates/index.php:6458 /app/templates/index.php:6935
 msgid "February"
 msgstr "Февраль"
 
 #: /app/lib/Service/Report/MonthNames.php:44 /app/templates/index.php:3624
-#: /app/templates/index.php:6449 /app/templates/index.php:6926
+#: /app/templates/index.php:6459 /app/templates/index.php:6936
 msgid "March"
 msgstr "Март"
 
 #: /app/lib/Service/Report/MonthNames.php:45 /app/templates/index.php:3625
-#: /app/templates/index.php:6450 /app/templates/index.php:6927
+#: /app/templates/index.php:6460 /app/templates/index.php:6937
 msgid "April"
 msgstr "Апрель"
 
 #: /app/lib/Service/Report/MonthNames.php:47 /app/templates/index.php:3627
-#: /app/templates/index.php:6452 /app/templates/index.php:6929
+#: /app/templates/index.php:6462 /app/templates/index.php:6939
 msgid "June"
 msgstr "Июнь"
 
 #: /app/lib/Service/Report/MonthNames.php:48 /app/templates/index.php:3628
-#: /app/templates/index.php:6453 /app/templates/index.php:6930
+#: /app/templates/index.php:6463 /app/templates/index.php:6940
 msgid "July"
 msgstr "Июль"
 
 #: /app/lib/Service/Report/MonthNames.php:49 /app/templates/index.php:3629
-#: /app/templates/index.php:6454 /app/templates/index.php:6931
+#: /app/templates/index.php:6464 /app/templates/index.php:6941
 msgid "August"
 msgstr "Август"
 
 #: /app/lib/Service/Report/MonthNames.php:50 /app/templates/index.php:3630
-#: /app/templates/index.php:6455 /app/templates/index.php:6932
+#: /app/templates/index.php:6465 /app/templates/index.php:6942
 msgid "September"
 msgstr "Сентябрь"
 
 #: /app/lib/Service/Report/MonthNames.php:51 /app/templates/index.php:3631
-#: /app/templates/index.php:6456 /app/templates/index.php:6933
+#: /app/templates/index.php:6466 /app/templates/index.php:6943
 msgid "October"
 msgstr "Октябрь"
 
 #: /app/lib/Service/Report/MonthNames.php:52 /app/templates/index.php:3632
-#: /app/templates/index.php:6457 /app/templates/index.php:6934
+#: /app/templates/index.php:6467 /app/templates/index.php:6944
 msgid "November"
 msgstr "Ноябрь"
 
 #: /app/lib/Service/Report/MonthNames.php:53 /app/templates/index.php:3633
-#: /app/templates/index.php:6458 /app/templates/index.php:6935
+#: /app/templates/index.php:6468 /app/templates/index.php:6945
 msgid "December"
 msgstr "Декабрь"
 
@@ -5107,7 +5107,7 @@ msgstr "Без категории"
 #: /app/src/modules/rules/components/CriteriaBuilder.js:226
 #: /app/src/modules/rules/components/CriteriaBuilder.js:238
 #: /app/src/modules/rules/components/CriteriaBuilder.js:246
-#: /app/templates/index.php:5890
+#: /app/templates/index.php:5900
 msgid "Value"
 msgstr "Значение"
 
@@ -5136,8 +5136,8 @@ msgstr "Общие расходы"
 #: /app/lib/Service/Report/ReportExporter.php:453
 #: /app/src/modules/accounts/AccountsModule.js:2839
 #: /app/templates/index.php:1309 /app/templates/index.php:3153
-#: /app/templates/index.php:3918 /app/templates/index.php:5573
-#: /app/templates/index.php:5643
+#: /app/templates/index.php:3918 /app/templates/index.php:5583
+#: /app/templates/index.php:5653
 msgid "Current Balance"
 msgstr "Текущий баланс"
 
@@ -5203,7 +5203,7 @@ msgid "Average Monthly Net"
 msgstr "Средний чистый итог за месяц"
 
 #: /app/lib/Service/Report/ReportExporter.php:351
-#: /app/lib/Service/Report/ReportExporter.php:585 /app/templates/index.php:6888
+#: /app/lib/Service/Report/ReportExporter.php:585 /app/templates/index.php:6898
 msgid "Source"
 msgstr "Источник"
 
@@ -5228,7 +5228,7 @@ msgstr "Заложено в бюджет"
 #: /app/src/modules/categories/CategoriesModule.js:2672
 #: /app/src/modules/dashboard/DashboardModule.js:2358
 #: /app/src/modules/projects/ProjectsModule.js:148
-#: /app/templates/index.php:2295 /app/templates/index.php:5351
+#: /app/templates/index.php:2295 /app/templates/index.php:5361
 msgid "Spent"
 msgstr "Потрачено"
 
@@ -5238,7 +5238,7 @@ msgstr "Потрачено"
 #: /app/src/modules/dashboard/DashboardModule.js:2359
 #: /app/src/modules/projects/ProjectsModule.js:149
 #: /app/templates/index.php:2263 /app/templates/index.php:2296
-#: /app/templates/index.php:5352
+#: /app/templates/index.php:5362
 msgid "Remaining"
 msgstr "Осталось"
 
@@ -5850,12 +5850,12 @@ msgstr "Последние транзакции"
 #: /app/src/modules/sharing/SharingModule.js:272 /app/templates/index.php:53
 #: /app/templates/index.php:700 /app/templates/index.php:778
 #: /app/templates/index.php:1130 /app/templates/index.php:1265
-#: /app/templates/index.php:4971
+#: /app/templates/index.php:4981
 msgid "Accounts"
 msgstr "Счета"
 
 #: /app/src/config/dashboardWidgets.js:42 /app/templates/index.php:715
-#: /app/templates/index.php:4710
+#: /app/templates/index.php:4720
 msgid "Budget Alerts"
 msgstr "Оповещения о бюджете"
 
@@ -6030,7 +6030,7 @@ msgstr "Главный экран"
 #: /app/src/modules/dashboard/DashboardModule.js:5517
 #: /app/src/modules/help/HelpModule.js:30
 #: /app/src/modules/sharing/SharingModule.js:273 /app/templates/index.php:73
-#: /app/templates/index.php:1927 /app/templates/index.php:4967
+#: /app/templates/index.php:1927 /app/templates/index.php:4977
 msgid "Categories"
 msgstr "Категории"
 
@@ -6068,7 +6068,7 @@ msgstr "Активы"
 
 #: /app/src/core/KeyboardShortcuts.js:361
 #: /app/src/modules/help/HelpModule.js:41 /app/templates/index.php:183
-#: /app/templates/index.php:4291 /app/templates/index.php:7589
+#: /app/templates/index.php:4291 /app/templates/index.php:7599
 msgid "Shared Expenses"
 msgstr "Совместные расходы"
 
@@ -6086,7 +6086,7 @@ msgstr "Отчёты"
 #: /app/src/modules/help/HelpModule.js:45
 #: /app/src/modules/rules/RulesModule.js:156 /app/templates/index.php:227
 #: /app/templates/index.php:1494 /app/templates/index.php:1948
-#: /app/templates/index.php:2834 /app/templates/index.php:7004
+#: /app/templates/index.php:2834 /app/templates/index.php:7014
 msgid "Import"
 msgstr "Импорт"
 
@@ -6115,7 +6115,7 @@ msgstr "Синхронизация с банком"
 
 #: /app/src/core/KeyboardShortcuts.js:369
 #: /app/src/modules/help/HelpModule.js:52 /app/templates/index.php:277
-#: /app/templates/index.php:4486 /app/templates/index.php:4987
+#: /app/templates/index.php:4486 /app/templates/index.php:4997
 msgid "Settings"
 msgstr "Настройки"
 
@@ -6169,16 +6169,16 @@ msgstr "Сочетания клавиш"
 #: /app/src/utils/billLinkDialog.js:127 /app/src/utils/matchingDialog.js:80
 #: /app/src/utils/modals.js:81 /app/src/utils/paymentRecordedDialog.js:55
 #: /app/templates/index.php:2800 /app/templates/index.php:2998
-#: /app/templates/index.php:3898 /app/templates/index.php:5309
-#: /app/templates/index.php:5330 /app/templates/index.php:5336
-#: /app/templates/index.php:5360 /app/templates/index.php:5499
-#: /app/templates/index.php:5527 /app/templates/index.php:5639
-#: /app/templates/index.php:5664 /app/templates/index.php:5700
-#: /app/templates/index.php:5736 /app/templates/index.php:5790
-#: /app/templates/index.php:5880 /app/templates/index.php:5989
-#: /app/templates/index.php:6836 /app/templates/index.php:7257
-#: /app/templates/index.php:7606 /app/templates/index.php:7668
-#: /app/templates/index.php:7796 /app/templates/index.php:7806
+#: /app/templates/index.php:3898 /app/templates/index.php:5319
+#: /app/templates/index.php:5340 /app/templates/index.php:5346
+#: /app/templates/index.php:5370 /app/templates/index.php:5509
+#: /app/templates/index.php:5537 /app/templates/index.php:5649
+#: /app/templates/index.php:5674 /app/templates/index.php:5710
+#: /app/templates/index.php:5746 /app/templates/index.php:5800
+#: /app/templates/index.php:5890 /app/templates/index.php:5999
+#: /app/templates/index.php:6846 /app/templates/index.php:7267
+#: /app/templates/index.php:7616 /app/templates/index.php:7678
+#: /app/templates/index.php:7806 /app/templates/index.php:7816
 msgid "Close"
 msgstr "Закрыть"
 
@@ -6235,7 +6235,7 @@ msgstr "(из платежа)"
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:193
 #: /app/src/modules/tagsets/TagSetsModule.js:85 /app/templates/index.php:1227
 #: /app/templates/index.php:1774 /app/templates/index.php:2027
-#: /app/templates/index.php:3259 /app/templates/index.php:5359
+#: /app/templates/index.php:3259 /app/templates/index.php:5369
 msgid "Delete"
 msgstr "Удалить"
 
@@ -6311,7 +6311,7 @@ msgstr "Учёт бюджета"
 msgid "Auto-Categorisation Rules"
 msgstr "Правила автоматической категоризации"
 
-#: /app/src/main.js:1060 /app/templates/index.php:5203
+#: /app/src/main.js:1060 /app/templates/index.php:5213
 msgid "Support Budget"
 msgstr "Поддержать приложение «Бюджет»"
 
@@ -6321,11 +6321,11 @@ msgstr ""
 "Бесплатное ПО с открытым исходным кодом. Если приложение \"Бюджет\" вам "
 "помогает, поддержите его разработку пожертвованием."
 
-#: /app/src/main.js:1063 /app/templates/index.php:5213
+#: /app/src/main.js:1063 /app/templates/index.php:5223
 msgid "Sponsor on GitHub"
 msgstr "Стать спонсором на GitHub"
 
-#: /app/src/main.js:1064 /app/templates/index.php:5216
+#: /app/src/main.js:1064 /app/templates/index.php:5226
 msgid "Donate via PayPal"
 msgstr "Пожертвовать через PayPal"
 
@@ -6543,7 +6543,7 @@ msgid "Deleting..."
 msgstr "Удаление..."
 
 #: /app/src/main.js:2225 /app/src/modules/settings/SettingsModule.js:836
-#: /app/templates/index.php:7652
+#: /app/templates/index.php:7662
 msgid "Delete Everything"
 msgstr "Удалить всё"
 
@@ -6696,7 +6696,7 @@ msgstr "Лавина"
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:190
 #: /app/src/modules/tagsets/TagSetsModule.js:84 /app/templates/index.php:1273
 #: /app/templates/index.php:2023 /app/templates/index.php:4109
-#: /app/templates/index.php:5358
+#: /app/templates/index.php:5368
 msgid "Edit"
 msgstr "Изменить"
 
@@ -6709,7 +6709,7 @@ msgid "Edit Scenario"
 msgstr "Изменить сценарий"
 
 #: /app/src/main.js:3005 /app/templates/index.php:4213
-#: /app/templates/index.php:4215 /app/templates/index.php:5906
+#: /app/templates/index.php:4215 /app/templates/index.php:5916
 msgid "New Scenario"
 msgstr "Новый сценарий"
 
@@ -6833,7 +6833,7 @@ msgstr "Изменить разбивку транзакции"
 
 #: /app/src/main.js:3620
 #: /app/src/modules/transactions/TransactionsModule.js:4139
-#: /app/templates/index.php:7322
+#: /app/templates/index.php:7332
 msgid "Split Transaction"
 msgstr "Разбить транзакцию"
 
@@ -6844,7 +6844,7 @@ msgstr "Общая сумма"
 #: /app/src/main.js:3710
 #: /app/src/modules/transactions/TransactionsModule.js:3484
 #: /app/src/modules/transactions/TransactionsModule.js:4226
-#: /app/templates/index.php:5767
+#: /app/templates/index.php:5777
 msgid "Optional note"
 msgstr "Необязательное примечание"
 
@@ -7109,7 +7109,7 @@ msgstr "Всего: {amount}"
 
 #: /app/src/modules/accounts/AccountsModule.js:1380
 #: /app/src/modules/transfers/TransfersModule.js:491
-#: /app/templates/index.php:6304
+#: /app/templates/index.php:6314
 msgid "Daily"
 msgstr "Ежедневно"
 
@@ -7285,8 +7285,8 @@ msgstr "Транзакция успешно добавлена!"
 #: /app/src/modules/transactions/TransactionsModule.js:2037
 #: /app/src/modules/transactions/TransactionsModule.js:2262
 #: /app/src/modules/transfers/TransfersModule.js:565
-#: /app/templates/index.php:1111 /app/templates/index.php:6081
-#: /app/templates/index.php:6472 /app/templates/index.php:6943
+#: /app/templates/index.php:1111 /app/templates/index.php:6091
+#: /app/templates/index.php:6482 /app/templates/index.php:6953
 msgid "No category"
 msgstr "Категория не указана"
 
@@ -7370,7 +7370,7 @@ msgid "Amount owed"
 msgstr "Сумма задолженности"
 
 #: /app/src/modules/accounts/AccountsModule.js:3014
-#: /app/templates/index.php:6209
+#: /app/templates/index.php:6219
 msgid "Opening Balance"
 msgstr "Начальный баланс"
 
@@ -7383,13 +7383,13 @@ msgstr ""
 "учтёт её как ваш долг."
 
 #: /app/src/modules/accounts/AccountsModule.js:3020
-#: /app/templates/index.php:6211
+#: /app/templates/index.php:6221
 msgid "The starting balance when this account was created"
 msgstr "Начальный баланс на момент создания этого счёта"
 
 #: /app/src/modules/accounts/AccountsModule.js:3026
 #: /app/src/modules/accounts/AccountsModule.js:3068
-#: /app/templates/index.php:6224
+#: /app/templates/index.php:6234
 msgid "Starting Balance"
 msgstr "Начальный баланс"
 
@@ -7404,7 +7404,7 @@ msgstr ""
 "Если должны вы, снимите флажок выше и сохраните изменения."
 
 #: /app/src/modules/accounts/AccountsModule.js:3072
-#: /app/templates/index.php:6226
+#: /app/templates/index.php:6236
 msgid "The balance this account starts with"
 msgstr "Начальный остаток по этому счёту"
 
@@ -7450,18 +7450,18 @@ msgid "Valid"
 msgstr "Корректно"
 
 #: /app/src/modules/accounts/AccountsModule.js:3456
-#: /app/templates/index.php:6196
+#: /app/templates/index.php:6206
 msgid "Checking Account"
 msgstr "Текущий счёт"
 
 #: /app/src/modules/accounts/AccountsModule.js:3461
-#: /app/templates/index.php:6197
+#: /app/templates/index.php:6207
 msgid "Savings Account"
 msgstr "Сберегательный счёт"
 
 #: /app/src/modules/accounts/AccountsModule.js:3466
 #: /app/src/modules/dashboard/DashboardModule.js:1116
-#: /app/src/utils/formatters.js:270 /app/templates/index.php:6198
+#: /app/src/utils/formatters.js:270 /app/templates/index.php:6208
 msgid "Credit Card"
 msgstr "Кредитная карта"
 
@@ -7480,12 +7480,12 @@ msgstr "Кредит"
 #: /app/src/modules/accounts/AccountsModule.js:3481
 #: /app/src/modules/dashboard/DashboardModule.js:1118
 #: /app/src/utils/categoryIcons.js:82 /app/src/utils/formatters.js:272
-#: /app/templates/index.php:6203
+#: /app/templates/index.php:6213
 msgid "Cash"
 msgstr "Наличные"
 
 #: /app/src/modules/accounts/AccountsModule.js:3486
-#: /app/src/utils/formatters.js:276 /app/templates/index.php:6204
+#: /app/src/utils/formatters.js:276 /app/templates/index.php:6214
 msgid "Cryptocurrency"
 msgstr "Криптовалюта"
 
@@ -7518,26 +7518,26 @@ msgstr "Нет транзакций для экспорта"
 msgid "Failed to load assets"
 msgstr "Не удалось загрузить активы"
 
-#: /app/src/modules/assets/AssetsModule.js:91 /app/templates/index.php:5808
+#: /app/src/modules/assets/AssetsModule.js:91 /app/templates/index.php:5818
 msgid "Real Estate"
 msgstr "Недвижимость"
 
-#: /app/src/modules/assets/AssetsModule.js:96 /app/templates/index.php:5809
+#: /app/src/modules/assets/AssetsModule.js:96 /app/templates/index.php:5819
 msgid "Vehicle"
 msgstr "Автотранспорт"
 
-#: /app/src/modules/assets/AssetsModule.js:101 /app/templates/index.php:5810
+#: /app/src/modules/assets/AssetsModule.js:101 /app/templates/index.php:5820
 msgid "Jewelry"
 msgstr "Ювелирные изделия"
 
-#: /app/src/modules/assets/AssetsModule.js:106 /app/templates/index.php:5811
+#: /app/src/modules/assets/AssetsModule.js:106 /app/templates/index.php:5821
 msgid "Collectibles"
 msgstr "Предметы коллекционирования"
 
 #: /app/src/modules/assets/AssetsModule.js:111
 #: /app/src/modules/dashboard/DashboardModule.js:2444
 #: /app/src/modules/dashboard/DashboardModule.js:5892
-#: /app/src/utils/categoryIcons.js:90 /app/templates/index.php:5812
+#: /app/src/utils/categoryIcons.js:90 /app/templates/index.php:5822
 msgid "Other"
 msgstr "Другое"
 
@@ -7547,7 +7547,7 @@ msgstr "Приобретено за {price}"
 
 #: /app/src/modules/assets/AssetsModule.js:178 /app/templates/index.php:1350
 #: /app/templates/index.php:3914 /app/templates/index.php:4130
-#: /app/templates/index.php:5826
+#: /app/templates/index.php:5836
 msgid "Current Value"
 msgstr "Текущая стоимость"
 
@@ -7577,7 +7577,7 @@ msgid "Edit Asset"
 msgstr "Изменить актив"
 
 #: /app/src/modules/assets/AssetsModule.js:343 /app/templates/index.php:4017
-#: /app/templates/index.php:5788
+#: /app/templates/index.php:5798
 msgid "Add Asset"
 msgstr "Добавить актив"
 
@@ -7628,7 +7628,7 @@ msgstr ""
 #: /app/src/modules/projects/ProjectsModule.js:88
 #: /app/src/modules/sharing/SharingModule.js:122
 #: /app/src/modules/sharing/SharingModule.js:152 /app/templates/index.php:2861
-#: /app/templates/index.php:2874 /app/templates/index.php:6700
+#: /app/templates/index.php:2874 /app/templates/index.php:6710
 msgid "Active"
 msgstr "Активно"
 
@@ -7727,7 +7727,7 @@ msgstr "Недопустимые учётные данные: {error}"
 #: /app/src/modules/bank-sync/BankSyncModule.js:536
 #: /app/templates/index.php:1614 /app/templates/index.php:1869
 #: /app/templates/index.php:1919 /app/templates/index.php:2649
-#: /app/templates/index.php:7745
+#: /app/templates/index.php:7755
 msgid "Next"
 msgstr "Далее"
 
@@ -7780,7 +7780,7 @@ msgid "No banks found for this country."
 msgstr "Для этой страны банки не найдены."
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:728
-#: /app/templates/index.php:7772
+#: /app/templates/index.php:7782
 msgid "Connect"
 msgstr "Подключить"
 
@@ -7797,7 +7797,7 @@ msgstr ""
 "окно и настроить сопоставление счетов."
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:763
-#: /app/templates/index.php:5010
+#: /app/templates/index.php:5020
 msgid "Done"
 msgstr "Готово"
 
@@ -7813,7 +7813,7 @@ msgid "Authorization check failed: {error}"
 msgstr "Не удалось проверить авторизацию: {error}"
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:774
-#: /app/templates/index.php:7795
+#: /app/templates/index.php:7805
 msgid "I've Completed Authorization"
 msgstr "Я завершил(а) авторизацию"
 
@@ -8061,7 +8061,7 @@ msgstr "Не удалось скрыть предложения"
 #: /app/src/modules/transfers/TransfersModule.js:331
 #: /app/src/modules/transfers/TransfersModule.js:493
 #: /app/src/modules/transfers/TransfersModule.js:1257
-#: /app/templates/index.php:6406 /app/templates/index.php:6897
+#: /app/templates/index.php:6416 /app/templates/index.php:6907
 msgid "Bi-Weekly"
 msgstr "Раз в две недели"
 
@@ -8070,7 +8070,7 @@ msgstr "Раз в две недели"
 #: /app/src/modules/transfers/TransfersModule.js:332
 #: /app/src/modules/transfers/TransfersModule.js:494
 #: /app/src/modules/transfers/TransfersModule.js:1258
-#: /app/templates/index.php:6407 /app/templates/index.php:6898
+#: /app/templates/index.php:6417 /app/templates/index.php:6908
 msgid "Semi-Monthly"
 msgstr "Дважды в месяц"
 
@@ -8079,7 +8079,7 @@ msgstr "Дважды в месяц"
 #: /app/src/modules/transfers/TransfersModule.js:335
 #: /app/src/modules/transfers/TransfersModule.js:497
 #: /app/src/modules/transfers/TransfersModule.js:1261
-#: /app/templates/index.php:6410 /app/templates/index.php:6901
+#: /app/templates/index.php:6420 /app/templates/index.php:6911
 msgid "Semi-Annually"
 msgstr "Раз в полгода"
 
@@ -8088,7 +8088,7 @@ msgstr "Раз в полгода"
 #: /app/src/modules/transfers/TransfersModule.js:329
 #: /app/src/modules/transfers/TransfersModule.js:490
 #: /app/src/modules/transfers/TransfersModule.js:1263
-#: /app/templates/index.php:6412 /app/templates/index.php:6903
+#: /app/templates/index.php:6422 /app/templates/index.php:6913
 msgid "One-Time"
 msgstr "Разово"
 
@@ -8109,8 +8109,8 @@ msgstr ""
 msgid "Check date"
 msgstr "Следующая дата"
 
-#: /app/src/modules/bills/BillsModule.js:449 /app/templates/index.php:6089
-#: /app/templates/index.php:6483
+#: /app/src/modules/bills/BillsModule.js:449 /app/templates/index.php:6099
+#: /app/templates/index.php:6493
 msgid "Split across categories"
 msgstr "Разбито по категориям"
 
@@ -8188,7 +8188,7 @@ msgstr "Дата оплаты"
 #: /app/src/modules/bills/BillsModule.js:975
 #: /app/src/modules/transfers/TransfersModule.js:544
 #: /app/src/modules/transfers/TransfersModule.js:786
-#: /app/templates/index.php:6515
+#: /app/templates/index.php:6525
 msgid "Start Date"
 msgstr "Дата начала"
 
@@ -8200,7 +8200,7 @@ msgstr ""
 "Дата, когда платёж должен быть выполнен. Она может быть в прошлом: если вы "
 "вносите платёж с опозданием, его исходная дата оплаты сохраняется."
 
-#: /app/src/modules/bills/BillsModule.js:980 /app/templates/index.php:6517
+#: /app/src/modules/bills/BillsModule.js:980 /app/templates/index.php:6527
 msgid "Bill only occurs on or after this date (optional)"
 msgstr "Платёж появляется только в эту дату или после неё (необязательно)"
 
@@ -8222,7 +8222,7 @@ msgid "Follows the start date"
 msgstr "Соответствует дате начала"
 
 #: /app/src/modules/bills/BillsModule.js:1010
-#: /app/src/modules/bills/BillsModule.js:1014 /app/templates/index.php:6438
+#: /app/src/modules/bills/BillsModule.js:1014 /app/templates/index.php:6448
 msgid "Due Day"
 msgstr "День оплаты"
 
@@ -8230,17 +8230,17 @@ msgstr "День оплаты"
 msgid "Day of the selected months when bill is due"
 msgstr "День выбранных месяцев, когда должен быть выполнен платёж"
 
-#: /app/src/modules/bills/BillsModule.js:1015 /app/templates/index.php:6440
+#: /app/src/modules/bills/BillsModule.js:1015 /app/templates/index.php:6450
 msgid "Day of the month when bill is due"
 msgstr "День месяца, когда должен быть выполнен платёж"
 
 #: /app/src/modules/bills/BillsModule.js:1034
-#: /app/src/modules/income/IncomeModule.js:487 /app/templates/index.php:6491
-#: /app/templates/index.php:6951
+#: /app/src/modules/income/IncomeModule.js:487 /app/templates/index.php:6501
+#: /app/templates/index.php:6961
 msgid "No specific account"
 msgstr "Без привязки к определённому счёту"
 
-#: /app/src/modules/bills/BillsModule.js:1099 /app/templates/index.php:7344
+#: /app/src/modules/bills/BillsModule.js:1099 /app/templates/index.php:7354
 msgid "Description (optional)"
 msgstr "Описание (необязательно)"
 
@@ -8572,7 +8572,7 @@ msgstr "Порядок категории успешно изменён"
 #: /app/templates/index.php:597 /app/templates/index.php:620
 #: /app/templates/index.php:638 /app/templates/index.php:689
 #: /app/templates/index.php:1674 /app/templates/index.php:2088
-#: /app/templates/index.php:3708 /app/templates/index.php:6788
+#: /app/templates/index.php:3708 /app/templates/index.php:6798
 msgid "All Accounts"
 msgstr "Все счета"
 
@@ -8749,7 +8749,7 @@ msgid "Failed to recolor: {errors}"
 msgstr "Не удалось изменить цвет: {errors}"
 
 #: /app/src/modules/categories/CategoriesModule.js:1652
-#: /app/templates/index.php:7038
+#: /app/templates/index.php:7048
 msgid "None (Top Level)"
 msgstr "Нет (верхний уровень)"
 
@@ -8867,24 +8867,24 @@ msgstr "Подтвердить"
 #: /app/src/utils/paymentRecordedDialog.js:61 /app/templates/index.php:1775
 #: /app/templates/index.php:1805 /app/templates/index.php:2651
 #: /app/templates/index.php:2809 /app/templates/index.php:3007
-#: /app/templates/index.php:4993 /app/templates/index.php:5297
-#: /app/templates/index.php:5318 /app/templates/index.php:5407
-#: /app/templates/index.php:5488 /app/templates/index.php:5508
-#: /app/templates/index.php:5628 /app/templates/index.php:5652
-#: /app/templates/index.php:5688 /app/templates/index.php:5724
-#: /app/templates/index.php:5771 /app/templates/index.php:5862
-#: /app/templates/index.php:5896 /app/templates/index.php:5971
-#: /app/templates/index.php:6002 /app/templates/index.php:6168
-#: /app/templates/index.php:6365 /app/templates/index.php:6599
-#: /app/templates/index.php:6769 /app/templates/index.php:6857
-#: /app/templates/index.php:6986 /app/templates/index.php:7005
-#: /app/templates/index.php:7087 /app/templates/index.php:7117
-#: /app/templates/index.php:7148 /app/templates/index.php:7187
-#: /app/templates/index.php:7218 /app/templates/index.php:7314
-#: /app/templates/index.php:7370 /app/templates/index.php:7410
-#: /app/templates/index.php:7436 /app/templates/index.php:7474
-#: /app/templates/index.php:7516 /app/templates/index.php:7562
-#: /app/templates/index.php:7649 /app/templates/index.php:7746
+#: /app/templates/index.php:5003 /app/templates/index.php:5307
+#: /app/templates/index.php:5328 /app/templates/index.php:5417
+#: /app/templates/index.php:5498 /app/templates/index.php:5518
+#: /app/templates/index.php:5638 /app/templates/index.php:5662
+#: /app/templates/index.php:5698 /app/templates/index.php:5734
+#: /app/templates/index.php:5781 /app/templates/index.php:5872
+#: /app/templates/index.php:5906 /app/templates/index.php:5981
+#: /app/templates/index.php:6012 /app/templates/index.php:6178
+#: /app/templates/index.php:6375 /app/templates/index.php:6609
+#: /app/templates/index.php:6779 /app/templates/index.php:6867
+#: /app/templates/index.php:6996 /app/templates/index.php:7015
+#: /app/templates/index.php:7097 /app/templates/index.php:7127
+#: /app/templates/index.php:7158 /app/templates/index.php:7197
+#: /app/templates/index.php:7228 /app/templates/index.php:7324
+#: /app/templates/index.php:7380 /app/templates/index.php:7420
+#: /app/templates/index.php:7446 /app/templates/index.php:7484
+#: /app/templates/index.php:7526 /app/templates/index.php:7572
+#: /app/templates/index.php:7659 /app/templates/index.php:7756
 msgid "Cancel"
 msgstr "Отмена"
 
@@ -9004,7 +9004,7 @@ msgid "Budget period for {category}"
 msgstr "Указано в категории «{category}»"
 
 #: /app/src/modules/categories/CategoriesModule.js:2678
-#: /app/templates/index.php:2297 /app/templates/index.php:5353
+#: /app/templates/index.php:2297 /app/templates/index.php:5363
 msgid "Progress"
 msgstr "Выполнение"
 
@@ -9656,7 +9656,7 @@ msgstr "Переместить на счёт"
 
 #: /app/src/modules/dashboard/DashboardModule.js:5287
 #: /app/src/modules/dashboard/DashboardModule.js:5391
-#: /app/templates/index.php:7661
+#: /app/templates/index.php:7671
 msgid "Tile Settings"
 msgstr "Настройки плитки"
 
@@ -9802,7 +9802,7 @@ msgid "Forecasting"
 msgstr "Прогнозирование"
 
 #: /app/src/modules/dashboard/DashboardModule.js:5887
-#: /app/templates/index.php:5953
+#: /app/templates/index.php:5963
 msgid "Debts"
 msgstr "Долги"
 
@@ -9883,17 +9883,17 @@ msgstr "Движение денежных средств"
 
 #: /app/src/modules/dashboard/runway/RunwayOneOffs.js:87
 #: /app/src/modules/dashboard/runway/RunwaySetup.js:147
-#: /app/templates/index.php:3258 /app/templates/index.php:5298
-#: /app/templates/index.php:5319 /app/templates/index.php:5406
-#: /app/templates/index.php:5772 /app/templates/index.php:6167
-#: /app/templates/index.php:6364 /app/templates/index.php:6598
-#: /app/templates/index.php:6768 /app/templates/index.php:6985
-#: /app/templates/index.php:7086 /app/templates/index.php:7473
+#: /app/templates/index.php:3258 /app/templates/index.php:5308
+#: /app/templates/index.php:5329 /app/templates/index.php:5416
+#: /app/templates/index.php:5782 /app/templates/index.php:6177
+#: /app/templates/index.php:6374 /app/templates/index.php:6608
+#: /app/templates/index.php:6778 /app/templates/index.php:6995
+#: /app/templates/index.php:7096 /app/templates/index.php:7483
 msgid "Save"
 msgstr "Сохранить"
 
 #: /app/src/modules/dashboard/runway/RunwayOneOffs.js:87
-#: /app/templates/index.php:2126 /app/templates/index.php:5509
+#: /app/templates/index.php:2126 /app/templates/index.php:5519
 msgid "Add"
 msgstr "Добавить"
 
@@ -10133,7 +10133,7 @@ msgstr "Бюджет превышен"
 #: /app/templates/index.php:1002 /app/templates/index.php:1011
 #: /app/templates/index.php:1020 /app/templates/index.php:1041
 #: /app/templates/index.php:1050 /app/templates/index.php:1059
-#: /app/templates/index.php:1068 /app/templates/index.php:5258
+#: /app/templates/index.php:1068 /app/templates/index.php:5268
 msgid "Loading..."
 msgstr "Загрузка..."
 
@@ -10273,7 +10273,7 @@ msgid "Manual"
 msgstr "Вручную"
 
 #: /app/src/modules/exchange-rates/ExchangeRatesModule.js:173
-#: /app/templates/index.php:4638 /app/templates/index.php:6630
+#: /app/templates/index.php:4648 /app/templates/index.php:6640
 msgid "None"
 msgstr "Нет"
 
@@ -10282,7 +10282,7 @@ msgid "Edit Manual Rate"
 msgstr "Изменить ручной курс обмена"
 
 #: /app/src/modules/exchange-rates/ExchangeRatesModule.js:268
-#: /app/templates/index.php:5987
+#: /app/templates/index.php:5997
 msgid "Set Manual Rate"
 msgstr "Задать ручной курс обмена"
 
@@ -10589,7 +10589,7 @@ msgstr ""
 "безопасность и перенос данных."
 
 #: /app/src/modules/help/HelpModule.js:53 /app/templates/index.php:287
-#: /app/templates/index.php:5174 /app/templates/index.php:7812
+#: /app/templates/index.php:5184 /app/templates/index.php:7822
 msgid "Help & Docs"
 msgstr "Справка и документация"
 
@@ -11274,7 +11274,7 @@ msgstr "Редактировать регулярный доход"
 msgid "Add Recurring Income"
 msgstr "Добавить регулярный доход"
 
-#: /app/src/modules/income/IncomeModule.js:420 /app/templates/index.php:6915
+#: /app/src/modules/income/IncomeModule.js:420 /app/templates/index.php:6925
 msgid "First payment date"
 msgstr "Дата первого поступления"
 
@@ -11284,7 +11284,7 @@ msgstr "Дата первого поступления"
 msgid "The date this income is expected. It can be in the past."
 msgstr "У этого платежа нет учтённой оплаты, которую можно отменить"
 
-#: /app/src/modules/income/IncomeModule.js:424 /app/templates/index.php:6917
+#: /app/src/modules/income/IncomeModule.js:424 /app/templates/index.php:6927
 msgid "Payments repeat from this date (optional)"
 msgstr "Поступления повторяются начиная с этой даты (необязательно)"
 
@@ -11292,11 +11292,11 @@ msgstr "Поступления повторяются начиная с этой
 msgid "Expected Day (1-7)"
 msgstr "Ожидаемый день (1–7)"
 
-#: /app/src/modules/income/IncomeModule.js:453 /app/templates/index.php:6909
+#: /app/src/modules/income/IncomeModule.js:453 /app/templates/index.php:6919
 msgid "Expected Day"
 msgstr "Ожидаемый день"
 
-#: /app/src/modules/income/IncomeModule.js:454 /app/templates/index.php:6911
+#: /app/src/modules/income/IncomeModule.js:454 /app/templates/index.php:6921
 msgid "Day of the month when income is expected"
 msgstr "День месяца, когда ожидается поступление дохода"
 
@@ -11608,19 +11608,19 @@ msgstr "Личная"
 
 #: /app/src/modules/pensions/PensionsModule.js:116
 #: /app/src/modules/pensions/PensionsModule.js:566
-#: /app/templates/index.php:5547
+#: /app/templates/index.php:5557
 msgid "SIPP"
 msgstr "SIPP"
 
 #: /app/src/modules/pensions/PensionsModule.js:117
 #: /app/src/modules/pensions/PensionsModule.js:567
-#: /app/templates/index.php:5548
+#: /app/templates/index.php:5558
 msgid "Defined Benefit"
 msgstr "С установленными выплатами"
 
 #: /app/src/modules/pensions/PensionsModule.js:118
 #: /app/src/modules/pensions/PensionsModule.js:568
-#: /app/templates/index.php:5549
+#: /app/templates/index.php:5559
 msgid "State Pension"
 msgstr "Государственная пенсия"
 
@@ -11652,7 +11652,7 @@ msgid "Edit Pension"
 msgstr "Редактировать пенсию"
 
 #: /app/src/modules/pensions/PensionsModule.js:442
-#: /app/templates/index.php:3804 /app/templates/index.php:5525
+#: /app/templates/index.php:3804 /app/templates/index.php:5535
 msgid "Add Pension"
 msgstr "Добавить пенсию"
 
@@ -11797,7 +11797,7 @@ msgstr "Баланс обновлён"
 
 #: /app/src/modules/pensions/PensionsModule.js:970
 #: /app/src/modules/pensions/PensionsModule.js:1141
-#: /app/templates/index.php:5678 /app/templates/index.php:5758
+#: /app/templates/index.php:5688 /app/templates/index.php:5768
 msgid "Not from a tracked account"
 msgstr "Не с отслеживаемого счёта"
 
@@ -11810,7 +11810,7 @@ msgid "Contribution logged"
 msgstr "Взнос зарегистрирован"
 
 #: /app/src/modules/pensions/PensionsModule.js:1020
-#: /app/templates/index.php:5714
+#: /app/templates/index.php:5724
 msgid "Not into a tracked account"
 msgstr "Не на отслеживаемый счёт"
 
@@ -11928,7 +11928,7 @@ msgstr "Изменить проект"
 
 #: /app/src/modules/projects/ProjectsModule.js:259
 #: /app/templates/index.php:3096 /app/templates/index.php:3103
-#: /app/templates/index.php:5368
+#: /app/templates/index.php:5378
 msgid "New Project"
 msgstr "Новый проект"
 
@@ -12073,7 +12073,7 @@ msgstr[2] "{amount} в месяц"
 #: /app/src/modules/transactions/TransactionsModule.js:2071
 #: /app/src/modules/transactions/transactionRow.js:94
 #: /app/src/modules/transfers/TransfersModule.js:462
-#: /app/templates/index.php:6029 /app/templates/index.php:6035
+#: /app/templates/index.php:6039 /app/templates/index.php:6045
 msgid "Transfer"
 msgstr "Перевод"
 
@@ -12342,12 +12342,12 @@ msgstr "Недопустимые критерии: {errors}"
 msgid "Failed to preview rule: {error}"
 msgstr "Не удалось выполнить предпросмотр правила: {error}"
 
-#: /app/src/modules/rules/RulesModule.js:955 /app/templates/index.php:6766
+#: /app/src/modules/rules/RulesModule.js:955 /app/templates/index.php:6776
 msgid "Preview Matches"
 msgstr "Предпросмотр совпадений"
 
 #: /app/src/modules/rules/RulesModule.js:975
-#: /app/src/modules/rules/RulesModule.js:1177 /app/templates/index.php:6739
+#: /app/src/modules/rules/RulesModule.js:1177 /app/templates/index.php:6749
 msgid "Current Category"
 msgstr "Текущая категория"
 
@@ -12388,7 +12388,7 @@ msgstr "Ни одна транзакция не была обновлена"
 msgid "Failed to run rule: {error}"
 msgstr "Не удалось применить правило: {error}"
 
-#: /app/src/modules/rules/RulesModule.js:1079 /app/templates/index.php:6767
+#: /app/src/modules/rules/RulesModule.js:1079 /app/templates/index.php:6777
 msgid "Run Rule Now"
 msgstr "Применить правило сейчас"
 
@@ -12519,7 +12519,7 @@ msgstr "Не удалось обновить правило: {error}"
 msgid "Run rule \"{name}\" on matching transactions?"
 msgstr "Применить правило «{name}» к подходящим транзакциям?"
 
-#: /app/src/modules/rules/RulesModule.js:1749 /app/templates/index.php:6856
+#: /app/src/modules/rules/RulesModule.js:1749 /app/templates/index.php:6866
 msgid "Run"
 msgstr "Выполнить"
 
@@ -12565,7 +12565,7 @@ msgid "Failed to apply rules"
 msgstr "Не удалось применить правила"
 
 #: /app/src/modules/rules/RulesModule.js:1886 /app/templates/index.php:2826
-#: /app/templates/index.php:6835
+#: /app/templates/index.php:6845
 msgid "Apply Rules"
 msgstr "Применить правила"
 
@@ -12695,7 +12695,7 @@ msgid "Only if empty"
 msgstr "Только если пусто"
 
 #: /app/src/modules/rules/components/ActionBuilder.js:218
-#: /app/templates/index.php:6675
+#: /app/templates/index.php:6685
 msgid "Pattern"
 msgstr "Шаблон"
 
@@ -12807,7 +12807,7 @@ msgstr "напр., Amazon, Starbucks"
 #: /app/src/modules/rules/components/ActionBuilder.js:314
 #: /app/src/modules/rules/components/ActionBuilder.js:315
 #: /app/src/modules/transactions/TransactionsModule.js:4151
-#: /app/templates/index.php:7327
+#: /app/templates/index.php:7337
 msgid "Description:"
 msgstr "Описание:"
 
@@ -13025,7 +13025,7 @@ msgid "Transaction Type"
 msgstr "Тип транзакции"
 
 #: /app/src/modules/rules/components/CriteriaBuilder.js:196
-#: /app/templates/index.php:1298 /app/templates/index.php:6193
+#: /app/templates/index.php:1298 /app/templates/index.php:6203
 msgid "Account Type"
 msgstr "Тип счёта"
 
@@ -13034,7 +13034,7 @@ msgid "Import Source"
 msgstr "Источник импорта"
 
 #: /app/src/modules/rules/components/CriteriaBuilder.js:199
-#: /app/templates/index.php:6663
+#: /app/templates/index.php:6673
 msgid "Match Type"
 msgstr "Тип сопоставления"
 
@@ -13188,11 +13188,11 @@ msgstr "из {amount}"
 msgid "Auto-calculated from tag"
 msgstr "Автоматически рассчитано на основании тега"
 
-#: /app/src/modules/savings/SavingsModule.js:272 /app/templates/index.php:5451
+#: /app/src/modules/savings/SavingsModule.js:272 /app/templates/index.php:5461
 msgid "No linked account"
 msgstr "Нет связанного счёта"
 
-#: /app/src/modules/savings/SavingsModule.js:294 /app/templates/index.php:5459
+#: /app/src/modules/savings/SavingsModule.js:294 /app/templates/index.php:5469
 msgid "No linked tag"
 msgstr "Нет связанного тега"
 
@@ -13200,7 +13200,7 @@ msgstr "Нет связанного тега"
 msgid "Edit Savings Goal"
 msgstr "Редактировать цель накоплений"
 
-#: /app/src/modules/savings/SavingsModule.js:353 /app/templates/index.php:5416
+#: /app/src/modules/savings/SavingsModule.js:353 /app/templates/index.php:5426
 msgid "Add Savings Goal"
 msgstr "Добавить цель накоплений"
 
@@ -13255,13 +13255,13 @@ msgid ""
 "are imported."
 msgstr ""
 
-#: /app/src/modules/settings/ImportFolders.js:95 /app/templates/index.php:4834
+#: /app/src/modules/settings/ImportFolders.js:95 /app/templates/index.php:4844
 #, fuzzy
 #| msgid "Detect automatically"
 msgid "Import automatically"
 msgstr "Определять автоматически"
 
-#: /app/src/modules/settings/ImportFolders.js:96 /app/templates/index.php:4835
+#: /app/src/modules/settings/ImportFolders.js:96 /app/templates/index.php:4845
 #, fuzzy
 #| msgid "Import Preview"
 msgid "Hold for review"
@@ -13523,7 +13523,7 @@ msgid "Edit Contact"
 msgstr "Редактировать контакт"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:269
-#: /app/templates/index.php:4295 /app/templates/index.php:7445
+#: /app/templates/index.php:4295 /app/templates/index.php:7455
 msgid "Add Contact"
 msgstr "Добавить контакт"
 
@@ -13556,7 +13556,7 @@ msgid "Failed to load contact details"
 msgstr "Не удалось загрузить информацию о контакте"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:439
-#: /app/templates/index.php:7595
+#: /app/templates/index.php:7605
 msgid "No shared expenses"
 msgstr "Нет совместных расходов"
 
@@ -13575,7 +13575,7 @@ msgid "Open"
 msgstr "Открыть"
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:474
-#: /app/templates/index.php:7601
+#: /app/templates/index.php:7611
 msgid "No settlements yet"
 msgstr "Взаиморасчётов пока нет"
 
@@ -13809,7 +13809,7 @@ msgstr ""
 msgid "Recurring Income"
 msgstr "Регулярный доход"
 
-#: /app/src/modules/sharing/SharingModule.js:278 /app/templates/index.php:4983
+#: /app/src/modules/sharing/SharingModule.js:278 /app/templates/index.php:4993
 msgid "Import Rules"
 msgstr "Правила импорта"
 
@@ -13916,19 +13916,19 @@ msgstr "Скрыто: не предлагается при добавлении 
 
 #: /app/src/modules/tagsets/TagSetsModule.js:83
 #: /app/src/modules/tagsets/TagSetsModule.js:395
-#: /app/src/modules/tagsets/TagSetsModule.js:729 /app/templates/index.php:5292
-#: /app/templates/index.php:7177
+#: /app/src/modules/tagsets/TagSetsModule.js:729 /app/templates/index.php:5302
+#: /app/templates/index.php:7187
 msgid "Hidden"
 msgstr "Скрыто"
 
-#: /app/src/modules/tagsets/TagSetsModule.js:181 /app/templates/index.php:7157
+#: /app/src/modules/tagsets/TagSetsModule.js:181 /app/templates/index.php:7167
 msgid "Edit Tag"
 msgstr "Редактировать тег"
 
 #: /app/src/modules/tagsets/TagSetsModule.js:189
 #: /app/src/modules/tagsets/TagSetsModule.js:738 /app/templates/index.php:2155
-#: /app/templates/index.php:5274 /app/templates/index.php:7126
-#: /app/templates/index.php:7147
+#: /app/templates/index.php:5284 /app/templates/index.php:7136
+#: /app/templates/index.php:7157
 msgid "Add Tag"
 msgstr "Добавить тег"
 
@@ -13977,8 +13977,8 @@ msgstr "Чтобы управлять наборами тегов, сначал�
 msgid "Tag Sets"
 msgstr "Наборы тегов"
 
-#: /app/src/modules/tagsets/TagSetsModule.js:365 /app/templates/index.php:7096
-#: /app/templates/index.php:7116
+#: /app/src/modules/tagsets/TagSetsModule.js:365 /app/templates/index.php:7106
+#: /app/templates/index.php:7126
 msgid "Add Tag Set"
 msgstr "Добавить набор тегов"
 
@@ -14065,7 +14065,7 @@ msgstr "Выберите категорию, чтобы управлять на�
 msgid "No tag sets yet."
 msgstr "Наборов тегов пока нет."
 
-#: /app/src/modules/tagsets/TagSetsModule.js:741 /app/templates/index.php:7196
+#: /app/src/modules/tagsets/TagSetsModule.js:741 /app/templates/index.php:7206
 msgid "Edit Tag Set"
 msgstr "Изменить набор тегов"
 
@@ -14221,7 +14221,7 @@ msgid "Failed to unreconcile transactions"
 msgstr "Не удалось снять сверку с транзакций"
 
 #: /app/src/modules/transactions/TransactionsModule.js:1241
-#: /app/templates/index.php:7385
+#: /app/templates/index.php:7395
 msgid "Don't change"
 msgstr "Не изменять"
 
@@ -14463,7 +14463,7 @@ msgid "Failed to create adjustment: {message}"
 msgstr "Не удалось создать корректировку: {message}"
 
 #: /app/src/modules/transactions/TransactionsModule.js:1995
-#: /app/templates/index.php:6050
+#: /app/templates/index.php:6060
 msgid "Choose an account"
 msgstr "Выберите счёт"
 
@@ -14482,7 +14482,7 @@ msgid "Edit transaction"
 msgstr "Изменить транзакцию"
 
 #: /app/src/modules/transactions/TransactionsModule.js:2058
-#: /app/templates/index.php:6011
+#: /app/templates/index.php:6021
 #, fuzzy
 #| msgid "View transactions"
 msgid "New transaction"
@@ -14824,7 +14824,7 @@ msgid "Transaction unlinked from its bill"
 msgstr "Транзакция отвязана"
 
 #: /app/src/modules/transactions/TransactionsModule.js:4147
-#: /app/templates/index.php:7335
+#: /app/templates/index.php:7345
 msgid "Date:"
 msgstr "Дата:"
 
@@ -14867,12 +14867,12 @@ msgid "All candidates shown for your confirmation before linking."
 msgstr "Все кандидаты показываются для подтверждения перед связыванием."
 
 #: /app/src/modules/transactions/TransactionsModule.js:4438
-#: /app/templates/index.php:7273
+#: /app/templates/index.php:7283
 msgid "Scanning for matching transactions..."
 msgstr "Поиск совпадающих транзакций..."
 
 #: /app/src/modules/transactions/TransactionsModule.js:4449
-#: /app/templates/index.php:7306
+#: /app/templates/index.php:7316
 msgid "No matching transactions found."
 msgstr "Совпадающие транзакции не найдены."
 
@@ -14941,7 +14941,7 @@ msgid "These transactions have been linked. Click Undo to unlink a pair."
 msgstr "Эти транзакции связаны. Нажмите «Отменить», чтобы отвязать пару."
 
 #: /app/src/modules/transactions/TransactionsModule.js:4777
-#: /app/templates/index.php:7313
+#: /app/templates/index.php:7323
 msgid "Confirm Selected"
 msgstr "Подтвердить выбранное"
 
@@ -14966,7 +14966,7 @@ msgid "Enter description..."
 msgstr "Введите описание..."
 
 #: /app/src/modules/transactions/TransactionsModule.js:5020
-#: /app/src/utils/userPicker.js:66 /app/templates/index.php:7455
+#: /app/src/utils/userPicker.js:66 /app/templates/index.php:7465
 msgid "Type to search..."
 msgstr "Начните вводить для поиска..."
 
@@ -15319,7 +15319,7 @@ msgid "Minimum payment"
 msgstr "Минимальный платёж"
 
 #: /app/src/modules/transfers/TransfersModule.js:499
-#: /app/templates/index.php:4662 /app/templates/index.php:6413
+#: /app/templates/index.php:4672 /app/templates/index.php:6423
 msgid "Custom"
 msgstr "Настраиваемый"
 
@@ -15328,7 +15328,7 @@ msgid "From Account"
 msgstr "Со счёта"
 
 #: /app/src/modules/transfers/TransfersModule.js:516
-#: /app/templates/index.php:6054
+#: /app/templates/index.php:6064
 msgid "To Account"
 msgstr "На счёт"
 
@@ -15342,7 +15342,7 @@ msgid "e.g., 15"
 msgstr "напр., 15"
 
 #: /app/src/modules/transfers/TransfersModule.js:536
-#: /app/templates/index.php:6444
+#: /app/templates/index.php:6454
 msgid "Due Month"
 msgstr "Месяц оплаты"
 
@@ -15352,8 +15352,8 @@ msgstr ""
 
 #: /app/src/modules/transfers/TransfersModule.js:553
 #: /app/templates/index.php:716 /app/templates/index.php:738
-#: /app/templates/index.php:5447 /app/templates/index.php:6069
-#: /app/templates/index.php:6186 /app/templates/index.php:7021
+#: /app/templates/index.php:5457 /app/templates/index.php:6079
+#: /app/templates/index.php:6196 /app/templates/index.php:7031
 msgid "Details"
 msgstr "Детали"
 
@@ -15386,12 +15386,12 @@ msgid "Creates paired debit/credit transactions immediately"
 msgstr "Сразу создаёт парные транзакции списания и зачисления"
 
 #: /app/src/modules/transfers/TransfersModule.js:589
-#: /app/templates/index.php:6557
+#: /app/templates/index.php:6567
 msgid "Transaction Date"
 msgstr "Дата транзакции"
 
 #: /app/src/modules/transfers/TransfersModule.js:591
-#: /app/templates/index.php:6559
+#: /app/templates/index.php:6569
 msgid "Leave empty to use next due date"
 msgstr "Оставьте пустым, чтобы использовать следующую дату платежа"
 
@@ -15960,7 +15960,7 @@ msgstr ""
 msgid "{category} (not shared with you)"
 msgstr "Недоступно (вам не предоставлен доступ)"
 
-#: /app/src/utils/formatters.js:274 /app/templates/index.php:6201
+#: /app/src/utils/formatters.js:274 /app/templates/index.php:6211
 msgid "Mortgage"
 msgstr "Ипотека"
 
@@ -16329,7 +16329,7 @@ msgstr "Очистить поиск"
 msgid "Tools & Settings"
 msgstr "Инструменты и настройки"
 
-#: /app/templates/index.php:217 /app/templates/index.php:7805
+#: /app/templates/index.php:217 /app/templates/index.php:7815
 msgid "Help"
 msgstr "Справка"
 
@@ -16532,7 +16532,7 @@ msgstr "Создать ежемесячный платёж по выписке �
 msgid "Set up payment"
 msgstr "Настроить оплату"
 
-#: /app/templates/index.php:1295 /app/templates/index.php:6188
+#: /app/templates/index.php:1295 /app/templates/index.php:6198
 msgid "Account Name"
 msgstr "Название счёта"
 
@@ -16540,11 +16540,11 @@ msgstr "Название счёта"
 msgid "Available Balance"
 msgstr "Доступный баланс"
 
-#: /app/templates/index.php:1322 /app/templates/index.php:6312
+#: /app/templates/index.php:1322 /app/templates/index.php:6322
 msgid "Credit Limit"
 msgstr "Кредитный лимит"
 
-#: /app/templates/index.php:1330 /app/templates/index.php:6328
+#: /app/templates/index.php:1330 /app/templates/index.php:6338
 msgid "Statement due day"
 msgstr "День оплаты по выписке"
 
@@ -16588,19 +16588,19 @@ msgstr "Средняя транзакция"
 msgid "Account Information"
 msgstr "Информация о счёте"
 
-#: /app/templates/index.php:1407 /app/templates/index.php:6254
+#: /app/templates/index.php:1407 /app/templates/index.php:6264
 msgid "Account Number"
 msgstr "Номер счёта"
 
-#: /app/templates/index.php:1411 /app/templates/index.php:6264
+#: /app/templates/index.php:1411 /app/templates/index.php:6274
 msgid "Routing Number"
 msgstr "Банковский код (routing number)"
 
-#: /app/templates/index.php:1415 /app/templates/index.php:6274
+#: /app/templates/index.php:1415 /app/templates/index.php:6284
 msgid "IBAN"
 msgstr "IBAN"
 
-#: /app/templates/index.php:1419 /app/templates/index.php:6269
+#: /app/templates/index.php:1419 /app/templates/index.php:6279
 msgid "Sort Code"
 msgstr "Код банка (sort code)"
 
@@ -16666,7 +16666,7 @@ msgid "Filters"
 msgstr "Фильтры"
 
 #: /app/templates/index.php:1510 /app/templates/index.php:1669
-#: /app/templates/index.php:6782
+#: /app/templates/index.php:6792
 msgid "Filter Transactions"
 msgstr "Фильтровать транзакции"
 
@@ -16679,12 +16679,12 @@ msgid "Cleared"
 msgstr "Проведено"
 
 #: /app/templates/index.php:1541 /app/templates/index.php:1716
-#: /app/templates/index.php:6793
+#: /app/templates/index.php:6803
 msgid "From Date"
 msgstr "Дата с"
 
 #: /app/templates/index.php:1546 /app/templates/index.php:1721
-#: /app/templates/index.php:6798
+#: /app/templates/index.php:6808
 msgid "To Date"
 msgstr "Дата по"
 
@@ -16717,8 +16717,8 @@ msgid "Save Preset"
 msgstr "Сохранить пресет"
 
 #: /app/templates/index.php:1597 /app/templates/index.php:1909
-#: /app/templates/index.php:2888 /app/templates/index.php:4823
-#: /app/templates/index.php:6689
+#: /app/templates/index.php:2888 /app/templates/index.php:4833
+#: /app/templates/index.php:6699
 msgid "Actions"
 msgstr "Действия"
 
@@ -16837,7 +16837,7 @@ msgstr "100 на странице"
 msgid "250 per page"
 msgstr "250 на странице"
 
-#: /app/templates/index.php:1879 /app/templates/index.php:7539
+#: /app/templates/index.php:1879 /app/templates/index.php:7549
 msgid "Select all"
 msgstr "Выбрать все"
 
@@ -16923,13 +16923,13 @@ msgstr "Последние 2 года"
 msgid "Group by"
 msgstr "Группа"
 
-#: /app/templates/index.php:2097 /app/templates/index.php:4553
+#: /app/templates/index.php:2097 /app/templates/index.php:4563
 #, fuzzy
 #| msgid "Budget Period"
 msgid "Budget periods"
 msgstr "Период бюджета"
 
-#: /app/templates/index.php:2098 /app/templates/index.php:4552
+#: /app/templates/index.php:2098 /app/templates/index.php:4562
 #, fuzzy
 #| msgid "Calendar"
 msgid "Calendar months"
@@ -17077,7 +17077,7 @@ msgstr ""
 msgid "Drag and drop your bank statement here"
 msgstr "Перетащите сюда ваш файл банковской выписки"
 
-#: /app/templates/index.php:2361 /app/templates/index.php:4943
+#: /app/templates/index.php:2361 /app/templates/index.php:4953
 msgid "or"
 msgstr "или"
 
@@ -17085,7 +17085,7 @@ msgstr "или"
 msgid "Browse for file to import"
 msgstr "Выберите файл для импорта"
 
-#: /app/templates/index.php:2362 /app/templates/index.php:4944
+#: /app/templates/index.php:2362 /app/templates/index.php:4954
 msgid "Browse Files"
 msgstr "Выберите файлы"
 
@@ -17177,8 +17177,8 @@ msgstr ""
 msgid "CSV Delimiter"
 msgstr "Разделитель CSV"
 
-#: /app/templates/index.php:2451 /app/templates/index.php:4625
-#: /app/templates/index.php:4635
+#: /app/templates/index.php:2451 /app/templates/index.php:4635
+#: /app/templates/index.php:4645
 msgid "Comma (,)"
 msgstr "Запятая (,)"
 
@@ -17928,12 +17928,12 @@ msgstr "Сведения о пенсии"
 msgid "Edit pension"
 msgstr "Редактировать пенсию"
 
-#: /app/templates/index.php:3910 /app/templates/index.php:5073
-#: /app/templates/index.php:5555 /app/templates/index.php:7681
+#: /app/templates/index.php:3910 /app/templates/index.php:5083
+#: /app/templates/index.php:5565 /app/templates/index.php:7691
 msgid "Provider"
 msgstr "Провайдер"
 
-#: /app/templates/index.php:3922 /app/templates/index.php:5579
+#: /app/templates/index.php:3922 /app/templates/index.php:5589
 msgid "Monthly Contribution"
 msgstr "Ежемесячный взнос"
 
@@ -17941,20 +17941,20 @@ msgstr "Ежемесячный взнос"
 msgid "Expected Return"
 msgstr "Ожидаемая доходность"
 
-#: /app/templates/index.php:3930 /app/templates/index.php:5591
-#: /app/templates/index.php:5618
+#: /app/templates/index.php:3930 /app/templates/index.php:5601
+#: /app/templates/index.php:5628
 msgid "Retirement Age"
 msgstr "Возраст выхода на пенсию"
 
-#: /app/templates/index.php:3938 /app/templates/index.php:5638
+#: /app/templates/index.php:3938 /app/templates/index.php:5648
 msgid "Update Balance"
 msgstr "Обновить баланс"
 
-#: /app/templates/index.php:3942 /app/templates/index.php:5663
+#: /app/templates/index.php:3942 /app/templates/index.php:5673
 msgid "Log Contribution"
 msgstr "Записать взнос"
 
-#: /app/templates/index.php:3946 /app/templates/index.php:5699
+#: /app/templates/index.php:3946 /app/templates/index.php:5709
 msgid "Record Withdrawal"
 msgstr "Записать снятие"
 
@@ -18019,7 +18019,7 @@ msgstr ""
 msgid "Add Your First Asset"
 msgstr "Добавить первый актив"
 
-#: /app/templates/index.php:4100 /app/templates/index.php:5798
+#: /app/templates/index.php:4100 /app/templates/index.php:5808
 msgid "Asset Details"
 msgstr "Сведения об активе"
 
@@ -18027,8 +18027,8 @@ msgstr "Сведения об активе"
 msgid "Update value"
 msgstr "Обновить стоимость"
 
-#: /app/templates/index.php:4105 /app/templates/index.php:5878
-#: /app/templates/index.php:5897
+#: /app/templates/index.php:4105 /app/templates/index.php:5888
+#: /app/templates/index.php:5907
 msgid "Update Value"
 msgstr "Обновить стоимость"
 
@@ -18040,7 +18040,7 @@ msgstr "Редактировать актив"
 msgid "Asset Name"
 msgstr "Название актива"
 
-#: /app/templates/index.php:4135 /app/templates/index.php:5839
+#: /app/templates/index.php:4135 /app/templates/index.php:5849
 msgid "Purchase Price"
 msgstr "Цена покупки"
 
@@ -18052,7 +18052,7 @@ msgstr "Прибыль / убыток"
 msgid "Annual Change Rate"
 msgstr "Годовая ставка изменения"
 
-#: /app/templates/index.php:4163 /app/templates/index.php:5845
+#: /app/templates/index.php:4163 /app/templates/index.php:5855
 msgid "Purchase Date"
 msgstr "Дата покупки"
 
@@ -18256,45 +18256,45 @@ msgstr "Прогноз накоплений"
 msgid "General Settings"
 msgstr "Общие настройки"
 
-#: /app/templates/index.php:4494 /app/templates/index.php:4570
+#: /app/templates/index.php:4494 /app/templates/index.php:4580
 msgid "Display Settings"
 msgstr "Настройки отображения"
 
-#: /app/templates/index.php:4495 /app/templates/index.php:4603
+#: /app/templates/index.php:4495 /app/templates/index.php:4613
 msgid "Number Format"
 msgstr "Формат чисел"
 
-#: /app/templates/index.php:4496 /app/templates/index.php:4651
+#: /app/templates/index.php:4496 /app/templates/index.php:4661
 #, fuzzy
 #| msgid "Color"
 msgid "Colours"
 msgstr "Цвет"
 
-#: /app/templates/index.php:4497 /app/templates/index.php:4703
+#: /app/templates/index.php:4497 /app/templates/index.php:4713
 msgid "Notifications"
 msgstr "Уведомления"
 
-#: /app/templates/index.php:4500 /app/templates/index.php:4847
+#: /app/templates/index.php:4500 /app/templates/index.php:4857
 msgid "Scheduled Reports"
 msgstr "Запланированные отчёты"
 
-#: /app/templates/index.php:4501 /app/templates/index.php:4874
+#: /app/templates/index.php:4501 /app/templates/index.php:4884
 msgid "Import & Export"
 msgstr "Импорт и экспорт"
 
-#: /app/templates/index.php:4502 /app/templates/index.php:4912
+#: /app/templates/index.php:4502 /app/templates/index.php:4922
 msgid "Data Migration"
 msgstr "Миграция данных"
 
-#: /app/templates/index.php:4503 /app/templates/index.php:5018
+#: /app/templates/index.php:4503 /app/templates/index.php:5028
 msgid "Maintenance"
 msgstr "Обслуживание"
 
-#: /app/templates/index.php:4504 /app/templates/index.php:5045
+#: /app/templates/index.php:4504 /app/templates/index.php:5055
 msgid "Admin Settings"
 msgstr "Настройки администратора"
 
-#: /app/templates/index.php:4505 /app/templates/index.php:5138
+#: /app/templates/index.php:4505 /app/templates/index.php:5148
 msgid "Danger Zone"
 msgstr "Опасная зона"
 
@@ -18326,13 +18326,27 @@ msgstr ""
 "День месяца, когда бюджетный цикл сбрасывается (1 = первый день месяца, 31 = "
 "последний день). Полезно для привязки бюджета к дню зарплаты."
 
-#: /app/templates/index.php:4548
+#: /app/templates/index.php:4550
+#, fuzzy
+#| msgid "No categories found in the file"
+msgid "Budget categories from their bills"
+msgstr "В файле не найдены категории"
+
+#: /app/templates/index.php:4551
+msgid ""
+"A category with no budget of its own uses the monthly total of its recurring "
+"bills and income as its budget, marked auto on the Budget page. Turn this "
+"off to budget only the amounts you set. Bills keep working the same either "
+"way."
+msgstr ""
+
+#: /app/templates/index.php:4558
 #, fuzzy
 #| msgid "Starting day for calendars and weekly reports"
 msgid "Months in dashboard charts and reports"
 msgstr "День начала недели в календарях и еженедельных отчётах"
 
-#: /app/templates/index.php:4549
+#: /app/templates/index.php:4559
 msgid ""
 "With a budget cycle start day other than 1, choose whether the dashboard "
 "charts and the month-by-month reports count calendar months or budget "
@@ -18340,12 +18354,12 @@ msgid ""
 "page."
 msgstr ""
 
-#: /app/templates/index.php:4559
+#: /app/templates/index.php:4569
 #, php-format
 msgid "Budget alert threshold (%%)"
 msgstr "Порог оповещения о бюджете (%%)"
 
-#: /app/templates/index.php:4560
+#: /app/templates/index.php:4570
 msgid ""
 "Show a category on the Budget Alerts tile once its spending passes this "
 "percentage of its budget. Set to 100 to alert only when a category goes over "
@@ -18355,144 +18369,144 @@ msgstr ""
 "этот процент бюджета. Укажите 100, чтобы показывать оповещение только после "
 "превышения бюджета."
 
-#: /app/templates/index.php:4575
+#: /app/templates/index.php:4585
 msgid "Date Format"
 msgstr "Формат даты"
 
-#: /app/templates/index.php:4576
+#: /app/templates/index.php:4586
 msgid "How dates are displayed throughout the app"
 msgstr "Как даты отображаются в приложении"
 
-#: /app/templates/index.php:4579
+#: /app/templates/index.php:4589
 msgid "YYYY-MM-DD (2025-10-12)"
 msgstr "ГГГГ-ММ-ДД (2025-10-12)"
 
-#: /app/templates/index.php:4580
+#: /app/templates/index.php:4590
 msgid "MM/DD/YYYY (10/12/2025)"
 msgstr "ММ/ДД/ГГГГ (10/12/2025)"
 
-#: /app/templates/index.php:4581
+#: /app/templates/index.php:4591
 msgid "DD/MM/YYYY (12/10/2025)"
 msgstr "ДД/ММ/ГГГГ (12/10/2025)"
 
-#: /app/templates/index.php:4582
+#: /app/templates/index.php:4592
 msgid "DD.MM.YYYY (12.10.2025)"
 msgstr "ДД.ММ.ГГГГ (12.10.2025)"
 
-#: /app/templates/index.php:4583
+#: /app/templates/index.php:4593
 msgid "Mon D, YYYY (Oct 12, 2025)"
 msgstr "Мес Д, ГГГГ (окт 12, 2025)"
 
-#: /app/templates/index.php:4589
+#: /app/templates/index.php:4599
 msgid "First Day of Week"
 msgstr "Первый день недели"
 
-#: /app/templates/index.php:4590
+#: /app/templates/index.php:4600
 msgid "Starting day for calendars and weekly reports"
 msgstr "День начала недели в календарях и еженедельных отчётах"
 
-#: /app/templates/index.php:4608
+#: /app/templates/index.php:4618
 msgid "Decimal Places"
 msgstr "Знаков после запятой"
 
-#: /app/templates/index.php:4609
+#: /app/templates/index.php:4619
 msgid "Number of decimal places to display"
 msgstr "Количество знаков после запятой для отображения"
 
-#: /app/templates/index.php:4620
+#: /app/templates/index.php:4630
 msgid "Decimal Separator"
 msgstr "Десятичный разделитель"
 
-#: /app/templates/index.php:4621
+#: /app/templates/index.php:4631
 msgid "Character used for decimal separation"
 msgstr "Символ для десятичного разделителя"
 
-#: /app/templates/index.php:4624 /app/templates/index.php:4636
+#: /app/templates/index.php:4634 /app/templates/index.php:4646
 msgid "Period (.)"
 msgstr "Точка (.)"
 
-#: /app/templates/index.php:4631
+#: /app/templates/index.php:4641
 msgid "Thousands Separator"
 msgstr "Разделитель тысяч"
 
-#: /app/templates/index.php:4632
+#: /app/templates/index.php:4642
 msgid "Character used for thousands separation"
 msgstr "Символ для разделения тысяч"
 
-#: /app/templates/index.php:4637
+#: /app/templates/index.php:4647
 msgid "Space ( )"
 msgstr "Пробел ( )"
 
-#: /app/templates/index.php:4644 /app/templates/index.php:4692
-#: /app/templates/index.php:6731
+#: /app/templates/index.php:4654 /app/templates/index.php:4702
+#: /app/templates/index.php:6741
 msgid "Preview:"
 msgstr "Предпросмотр:"
 
-#: /app/templates/index.php:4656
+#: /app/templates/index.php:4666
 msgid "Money in and money out"
 msgstr ""
 
-#: /app/templates/index.php:4657
+#: /app/templates/index.php:4667
 msgid ""
 "The colours used for income and expenses, balances, budget bars and charts"
 msgstr ""
 
-#: /app/templates/index.php:4660
+#: /app/templates/index.php:4670
 #, fuzzy
 #| msgid "Default Currency"
 msgid "Default"
 msgstr "Валюта по умолчанию"
 
-#: /app/templates/index.php:4661
+#: /app/templates/index.php:4671
 msgid "Colour-blind friendly (blue and orange)"
 msgstr ""
 
-#: /app/templates/index.php:4669
+#: /app/templates/index.php:4679
 msgid "Money in, light theme"
 msgstr ""
 
-#: /app/templates/index.php:4671 /app/templates/index.php:4676
 #: /app/templates/index.php:4681 /app/templates/index.php:4686
+#: /app/templates/index.php:4691 /app/templates/index.php:4696
 msgid "Hard to read on this background"
 msgstr ""
 
-#: /app/templates/index.php:4674
+#: /app/templates/index.php:4684
 msgid "Money out, light theme"
 msgstr ""
 
-#: /app/templates/index.php:4679
+#: /app/templates/index.php:4689
 msgid "Money in, dark theme"
 msgstr ""
 
-#: /app/templates/index.php:4684
+#: /app/templates/index.php:4694
 msgid "Money out, dark theme"
 msgstr ""
 
-#: /app/templates/index.php:4711
+#: /app/templates/index.php:4721
 msgid "Notify when approaching or exceeding budget limits"
 msgstr "Уведомлять при приближении к лимитам бюджета или их превышении"
 
-#: /app/templates/index.php:4720
+#: /app/templates/index.php:4730
 msgid "Forecast Warnings"
 msgstr "Предупреждения прогноза"
 
-#: /app/templates/index.php:4721
+#: /app/templates/index.php:4731
 msgid "Notify about negative cash flow predictions"
 msgstr "Уведомлять о прогнозируемом отрицательном движении денежных средств"
 
-#: /app/templates/index.php:4730
+#: /app/templates/index.php:4740
 msgid "Runway alerts"
 msgstr ""
 
-#: /app/templates/index.php:4731
+#: /app/templates/index.php:4741
 msgid "Notify when the date your money runs out moves earlier"
 msgstr ""
 
-#: /app/templates/index.php:4740
+#: /app/templates/index.php:4750
 msgid "Unusual Spending Alerts"
 msgstr "Предупреждения о необычных расходах"
 
-#: /app/templates/index.php:4741
+#: /app/templates/index.php:4751
 msgid ""
 "Notify when a category runs well above its 6-month typical spending (max one "
 "alert per category per month)"
@@ -18500,33 +18514,33 @@ msgstr ""
 "Уведомлять, когда расходы в категории значительно превышают обычный уровень "
 "за 6 месяцев (не более одного предупреждения на категорию в месяц)"
 
-#: /app/templates/index.php:4750
+#: /app/templates/index.php:4760
 msgid "Budget Digest"
 msgstr "Сводка по бюджету"
 
-#: /app/templates/index.php:4751
+#: /app/templates/index.php:4761
 msgid "Periodic summary of spending, budgets, upcoming bills and goals"
 msgstr "Периодическая сводка расходов, бюджетов, предстоящих платежей и целей"
 
-#: /app/templates/index.php:4758
+#: /app/templates/index.php:4768
 msgid "Digest Frequency"
 msgstr "Периодичность сводки"
 
-#: /app/templates/index.php:4759
+#: /app/templates/index.php:4769
 msgid "How often the budget digest is sent"
 msgstr "Как часто отправляется сводка по бюджету"
 
-#: /app/templates/index.php:4771
+#: /app/templates/index.php:4781
 msgid "Email Digest"
 msgstr "Сводка по электронной почте"
 
-#: /app/templates/index.php:4772
+#: /app/templates/index.php:4782
 msgid "Also send the digest by email (requires a working mail server)"
 msgstr ""
 "Также отправлять сводку по электронной почте (требуется работающий почтовый "
 "сервер)"
 
-#: /app/templates/index.php:4782
+#: /app/templates/index.php:4792
 msgid ""
 "Where uploaded receipts are filed in your Files. Year and month subfolders "
 "are created underneath. Receipts already attached stay where they are."
@@ -18534,15 +18548,15 @@ msgstr ""
 "Папка в ваших файлах для загруженных чеков. В ней создаются подпапки года и "
 "месяца. Уже прикреплённые чеки остаются на прежнем месте."
 
-#: /app/templates/index.php:4785
+#: /app/templates/index.php:4795
 msgid "Receipts folder"
 msgstr "Папка для чеков"
 
-#: /app/templates/index.php:4790 /app/templates/index.php:4809
+#: /app/templates/index.php:4800 /app/templates/index.php:4819
 msgid "Browse…"
 msgstr "Обзор…"
 
-#: /app/templates/index.php:4793
+#: /app/templates/index.php:4803
 msgid ""
 "A path inside your Files, for example Applications/Budget. Leave empty for "
 "the default, Budget/Receipts."
@@ -18550,7 +18564,7 @@ msgstr ""
 "Путь внутри ваших файлов, например Applications/Budget. Оставьте пустым, "
 "чтобы использовать путь по умолчанию: Budget/Receipts."
 
-#: /app/templates/index.php:4801
+#: /app/templates/index.php:4811
 msgid ""
 "A statement dropped into one of the subfolders below is imported in the "
 "background, into the account and with the import template you choose for it. "
@@ -18561,115 +18575,115 @@ msgid ""
 "transactions to that account."
 msgstr ""
 
-#: /app/templates/index.php:4801
+#: /app/templates/index.php:4811
 msgid "How it works"
 msgstr ""
 
-#: /app/templates/index.php:4812
+#: /app/templates/index.php:4822
 msgid ""
 "A path inside your Files. Leave empty for the default, Budget/Import. "
 "Changing it does not move subfolders you already have."
 msgstr ""
 
-#: /app/templates/index.php:4818
+#: /app/templates/index.php:4828
 #, fuzzy
 #| msgid "Builder"
 msgid "Subfolder"
 msgstr "Конструктор"
 
-#: /app/templates/index.php:4821 /app/templates/index.php:4833
+#: /app/templates/index.php:4831 /app/templates/index.php:4843
 msgid "When a file arrives"
 msgstr ""
 
-#: /app/templates/index.php:4822
+#: /app/templates/index.php:4832
 #, fuzzy
 #| msgid "Open"
 msgid "On"
 msgstr "Открыть"
 
-#: /app/templates/index.php:4828
+#: /app/templates/index.php:4838
 msgid "No subfolders yet. Add the first one below."
 msgstr ""
 
-#: /app/templates/index.php:4830
+#: /app/templates/index.php:4840
 #, fuzzy
 #| msgid "Account holder name"
 msgid "Subfolder name"
 msgstr "Имя владельца счёта"
 
-#: /app/templates/index.php:4837
+#: /app/templates/index.php:4847
 #, fuzzy
 #| msgid "Add Rule"
 msgid "Add subfolder"
 msgstr "Добавить правило"
 
-#: /app/templates/index.php:4840
+#: /app/templates/index.php:4850
 #, fuzzy
 #| msgid "Checking"
 msgid "Check now"
 msgstr "Текущий"
 
-#: /app/templates/index.php:4854
+#: /app/templates/index.php:4864
 msgid "Monthly Report to Files"
 msgstr "Ежемесячный отчёт в файлы"
 
-#: /app/templates/index.php:4855
+#: /app/templates/index.php:4865
 msgid ""
 "Save a PDF summary of the previous month into Budget/Reports in your Files"
 msgstr ""
 "Сохранять PDF-сводку за предыдущий месяц в папку Budget/Reports ваших файлов"
 
-#: /app/templates/index.php:4864
+#: /app/templates/index.php:4874
 msgid "Monthly Report by Email"
 msgstr "Ежемесячный отчёт по электронной почте"
 
-#: /app/templates/index.php:4865
+#: /app/templates/index.php:4875
 msgid "Email the monthly PDF report (requires a working mail server)"
 msgstr ""
 "Отправлять ежемесячный PDF-отчёт по электронной почте (требуется работающий "
 "почтовый сервер)"
 
-#: /app/templates/index.php:4881
+#: /app/templates/index.php:4891
 msgid "Auto-apply Import Rules"
 msgstr "Автоматически применять правила импорта"
 
-#: /app/templates/index.php:4882
+#: /app/templates/index.php:4892
 msgid "Automatically categorize transactions when importing"
 msgstr "Автоматически категоризировать транзакции при импорте"
 
-#: /app/templates/index.php:4889
+#: /app/templates/index.php:4899
 #, fuzzy
 #| msgid "Date window (days):"
 msgid "Bill match window (days)"
 msgstr "Интервал между датами (дни):"
 
-#: /app/templates/index.php:4890
+#: /app/templates/index.php:4900
 msgid ""
 "How many days either side of a bill payment an imported row can be and still "
 "be matched to it by the bill's name. The amount must match to the penny."
 msgstr ""
 
-#: /app/templates/index.php:4898
+#: /app/templates/index.php:4908
 msgid "Default Export Format"
 msgstr "Формат экспорта по умолчанию"
 
-#: /app/templates/index.php:4899
+#: /app/templates/index.php:4909
 msgid "Preferred format for data exports"
 msgstr "Предпочитаемый формат экспорта данных"
 
-#: /app/templates/index.php:4902
+#: /app/templates/index.php:4912
 msgid "CSV"
 msgstr "CSV"
 
-#: /app/templates/index.php:4903 /app/templates/index.php:6615
+#: /app/templates/index.php:4913 /app/templates/index.php:6625
 msgid "JSON"
 msgstr "JSON"
 
-#: /app/templates/index.php:4904
+#: /app/templates/index.php:4914
 msgid "PDF"
 msgstr "PDF"
 
-#: /app/templates/index.php:4913
+#: /app/templates/index.php:4923
 msgid ""
 "Export all your data for backup or migration to another Nextcloud instance. "
 "Import to restore or migrate data."
@@ -18677,11 +18691,11 @@ msgstr ""
 "Экспортируйте все данные для резервной копии или миграции в другой экземпляр "
 "Nextcloud. Импортируйте их для восстановления или переноса данных."
 
-#: /app/templates/index.php:4918
+#: /app/templates/index.php:4928
 msgid "Export Data"
 msgstr "Экспорт данных"
 
-#: /app/templates/index.php:4919
+#: /app/templates/index.php:4929
 msgid ""
 "Download all your accounts, transactions, categories, bills, import rules, "
 "and settings as a ZIP file."
@@ -18689,11 +18703,11 @@ msgstr ""
 "Скачайте все счета, транзакции, категории, платежи, правила импорта и "
 "настройки в ZIP-файле."
 
-#: /app/templates/index.php:4922
+#: /app/templates/index.php:4932
 msgid "Security Notice:"
 msgstr "Уведомление о безопасности:"
 
-#: /app/templates/index.php:4922
+#: /app/templates/index.php:4932
 msgid ""
 "The export file contains sensitive data including decrypted banking details. "
 "Store it securely and delete after use."
@@ -18702,15 +18716,15 @@ msgstr ""
 "банковские реквизиты. Храните его в безопасном месте и удалите после "
 "использования."
 
-#: /app/templates/index.php:4926
+#: /app/templates/index.php:4936
 msgid "Export All Data"
 msgstr "Экспортировать все данные"
 
-#: /app/templates/index.php:4932
+#: /app/templates/index.php:4942
 msgid "Import Data"
 msgstr "Импорт данных"
 
-#: /app/templates/index.php:4933
+#: /app/templates/index.php:4943
 msgid ""
 "Import data from a previously exported ZIP file. This will replace all "
 "existing data."
@@ -18718,11 +18732,11 @@ msgstr ""
 "Импортируйте данные из ранее экспортированного ZIP-файла. Все существующие "
 "данные будут заменены."
 
-#: /app/templates/index.php:4936 /app/templates/index.php:5141
+#: /app/templates/index.php:4946 /app/templates/index.php:5151
 msgid "Warning:"
 msgstr "Предупреждение:"
 
-#: /app/templates/index.php:4936
+#: /app/templates/index.php:4946
 msgid ""
 "Importing will permanently delete all your current data and replace it with "
 "the imported data. This cannot be undone."
@@ -18730,39 +18744,39 @@ msgstr ""
 "Импорт навсегда удалит все текущие данные и заменит их импортированными. Это "
 "действие нельзя отменить."
 
-#: /app/templates/index.php:4942
+#: /app/templates/index.php:4952
 msgid "Drag and drop your export file here"
 msgstr "Перетащите сюда файл экспорта"
 
-#: /app/templates/index.php:4946
+#: /app/templates/index.php:4956
 msgid "Supported format: ZIP (exported from Budget app)"
 msgstr "Поддерживаемый формат: ZIP (экспорт из приложения Budget)"
 
-#: /app/templates/index.php:4952
+#: /app/templates/index.php:4962
 msgid "Import Preview"
 msgstr "Предпросмотр импорта"
 
-#: /app/templates/index.php:4956
+#: /app/templates/index.php:4966
 msgid "Export Version:"
 msgstr "Версия экспорта:"
 
-#: /app/templates/index.php:4960
+#: /app/templates/index.php:4970
 msgid "Exported At:"
 msgstr "Дата экспорта:"
 
-#: /app/templates/index.php:4996
+#: /app/templates/index.php:5006
 msgid "Confirm Import"
 msgstr "Подтвердить импорт"
 
-#: /app/templates/index.php:5004
+#: /app/templates/index.php:5014
 msgid "Processing import..."
 msgstr "Обработка импорта..."
 
-#: /app/templates/index.php:5022
+#: /app/templates/index.php:5032
 msgid "Recalculate Account Balances"
 msgstr "Пересчитать остатки по счетам"
 
-#: /app/templates/index.php:5023
+#: /app/templates/index.php:5033
 msgid ""
 "Recalculates all account balances from their opening balance and transaction "
 "history. Use this if account balances appear incorrect."
@@ -18770,15 +18784,15 @@ msgstr ""
 "Пересчитывает остатки по всем счетам на основе начального остатка и истории "
 "транзакций. Используйте, если остатки по счетам отображаются неверно."
 
-#: /app/templates/index.php:5027
+#: /app/templates/index.php:5037
 msgid "Recalculate"
 msgstr "Пересчитать"
 
-#: /app/templates/index.php:5032
+#: /app/templates/index.php:5042
 msgid "Repair Data"
 msgstr "Исправить данные"
 
-#: /app/templates/index.php:5033
+#: /app/templates/index.php:5043
 msgid ""
 "Scans for data integrity issues: duplicate auto-generated transactions, "
 "bills with stuck due dates, and balance inconsistencies. Shows findings for "
@@ -18788,15 +18802,15 @@ msgstr ""
 "платежи с некорректными датами оплаты и расхождения остатков. Перед "
 "внесением изменений показывает найденные проблемы для проверки."
 
-#: /app/templates/index.php:5037
+#: /app/templates/index.php:5047
 msgid "Scan for Issues"
 msgstr "Найти проблемы"
 
-#: /app/templates/index.php:5050
+#: /app/templates/index.php:5060
 msgid "Experimental Feature"
 msgstr "Экспериментальная функция"
 
-#: /app/templates/index.php:5051
+#: /app/templates/index.php:5061
 msgid ""
 "Bank Sync is a new feature that is still being tested and may be unreliable. "
 "If you encounter any issues, please submit a report on GitHub so we can "
@@ -18806,15 +18820,15 @@ msgstr ""
 "работать нестабильно. Если возникнут проблемы, отправьте отчёт на GitHub, "
 "чтобы мы могли их устранить."
 
-#: /app/templates/index.php:5052
+#: /app/templates/index.php:5062
 msgid "Report an issue on GitHub"
 msgstr "Сообщить о проблеме на GitHub"
 
-#: /app/templates/index.php:5059
+#: /app/templates/index.php:5069
 msgid "Enable Bank Sync"
 msgstr "Включить синхронизацию с банком"
 
-#: /app/templates/index.php:5060
+#: /app/templates/index.php:5070
 msgid ""
 "Allow users to connect external bank accounts for automatic transaction "
 "imports. Supports GoCardless (UK/Europe) and SimpleFIN (US). Disabled by "
@@ -18825,11 +18839,11 @@ msgstr ""
 "(Великобритания/Европа) и SimpleFIN (США). В целях безопасности по умолчанию "
 "отключено."
 
-#: /app/templates/index.php:5066
+#: /app/templates/index.php:5076
 msgid "Receipt scanning"
 msgstr "Сканирование чеков"
 
-#: /app/templates/index.php:5068
+#: /app/templates/index.php:5078
 msgid ""
 "Read a photographed receipt and fill in the transaction for the user. Off by "
 "default: while it is off, this app sends receipt images nowhere."
@@ -18838,7 +18852,7 @@ msgstr ""
 "умолчанию отключено: пока функция выключена, приложение никуда не отправляет "
 "изображения чеков."
 
-#: /app/templates/index.php:5069
+#: /app/templates/index.php:5079
 msgid ""
 "The scan buttons themselves arrive with the next update — settings saved now "
 "take effect the moment they do."
@@ -18846,29 +18860,29 @@ msgstr ""
 "Кнопки сканирования появятся в следующем обновлении — сохранённые сейчас "
 "настройки начнут действовать сразу после этого."
 
-#: /app/templates/index.php:5075
+#: /app/templates/index.php:5085
 msgid "Off — no receipt scanning"
 msgstr "Отключено — без сканирования чеков"
 
-#: /app/templates/index.php:5076
+#: /app/templates/index.php:5086
 msgid "Nextcloud AI (uses this server's configured AI provider)"
 msgstr "ИИ Nextcloud (использует поставщика ИИ, настроенного на сервере)"
 
-#: /app/templates/index.php:5077
+#: /app/templates/index.php:5087
 msgid "Custom endpoint (OpenAI-compatible, e.g. a local Ollama)"
 msgstr ""
 "Пользовательская конечная точка (совместимая с OpenAI, например локальный "
 "сервер Ollama)"
 
-#: /app/templates/index.php:5078
+#: /app/templates/index.php:5088
 msgid "Otherworld hosted relay (license key)"
 msgstr "Облачный ретранслятор Otherworld (лицензионный ключ)"
 
-#: /app/templates/index.php:5084
+#: /app/templates/index.php:5094
 msgid "Endpoint URL"
 msgstr "URL конечной точки"
 
-#: /app/templates/index.php:5086
+#: /app/templates/index.php:5096
 msgid ""
 "The base URL of an OpenAI-compatible server. This server makes the request, "
 "so an address only reachable on your local network works — and keeps "
@@ -18882,11 +18896,11 @@ msgstr ""
 "allow_local_remote_servers в config.php, иначе Nextcloud откажется "
 "обращаться к нему."
 
-#: /app/templates/index.php:5090
+#: /app/templates/index.php:5100
 msgid "Model"
 msgstr "Модель"
 
-#: /app/templates/index.php:5092
+#: /app/templates/index.php:5102
 msgid ""
 "The vision model to ask for, exactly as the endpoint names it. It must be "
 "able to read images."
@@ -18894,15 +18908,15 @@ msgstr ""
 "Название модели с поддержкой изображений — в точности как оно указано в "
 "конечной точке. Модель должна уметь распознавать изображения."
 
-#: /app/templates/index.php:5096
+#: /app/templates/index.php:5106
 msgid "API key"
 msgstr "Ключ API"
 
-#: /app/templates/index.php:5097
+#: /app/templates/index.php:5107
 msgid "Leave blank to keep the saved key"
 msgstr "Оставьте пустым, чтобы сохранить текущий ключ"
 
-#: /app/templates/index.php:5098
+#: /app/templates/index.php:5108
 msgid ""
 "Stored encrypted, and never shown again after saving. Leave blank to keep "
 "the current key; clear it with the Remove key button."
@@ -18911,43 +18925,43 @@ msgstr ""
 "Оставьте поле пустым, чтобы сохранить текущий ключ; для удаления используйте "
 "кнопку «Удалить ключ»."
 
-#: /app/templates/index.php:5099
+#: /app/templates/index.php:5109
 msgid "Remove key"
 msgstr "Удалить ключ"
 
-#: /app/templates/index.php:5103
+#: /app/templates/index.php:5113
 msgid "Subscription"
 msgstr "Подписка"
 
-#: /app/templates/index.php:5107
+#: /app/templates/index.php:5117
 #, fuzzy, php-format
 #| msgid "Standard — £2.99/month (500 scans)"
 msgid "Standard — %s/month (500 scans)"
 msgstr "Стандартный — 2,99 £/месяц (500 сканирований)"
 
-#: /app/templates/index.php:5108
+#: /app/templates/index.php:5118
 #, fuzzy, php-format
 #| msgid "Standard — £29/year (500 scans a month)"
 msgid "Standard — %s/year (500 scans a month)"
 msgstr "Стандартный — 29 £/год (500 сканирований в месяц)"
 
-#: /app/templates/index.php:5109
+#: /app/templates/index.php:5119
 #, fuzzy, php-format
 #| msgid "Business — £7.99/month (1,500 scans)"
 msgid "Business — %s/month (1,500 scans)"
 msgstr "Бизнес — 7,99 £/месяц (1 500 сканирований)"
 
-#: /app/templates/index.php:5110
+#: /app/templates/index.php:5120
 #, fuzzy, php-format
 #| msgid "Business — £79/year (1,500 scans a month)"
 msgid "Business — %s/year (1,500 scans a month)"
 msgstr "Бизнес — 79 £/год (1 500 сканирований в месяц)"
 
-#: /app/templates/index.php:5112
+#: /app/templates/index.php:5122
 msgid "Subscribe"
 msgstr "Оформить подписку"
 
-#: /app/templates/index.php:5113
+#: /app/templates/index.php:5123
 msgid ""
 "Checkout opens in a new tab. Your license key is shown once after payment "
 "and emailed to you — paste it into the field above."
@@ -18956,47 +18970,47 @@ msgstr ""
 "один раз после оплаты и отправлен по электронной почте — вставьте его в поле "
 "выше."
 
-#: /app/templates/index.php:5115
+#: /app/templates/index.php:5125
 msgid "Manage subscription"
 msgstr "Управление подпиской"
 
-#: /app/templates/index.php:5116
+#: /app/templates/index.php:5126
 msgid "Change plan, update the card, or cancel — opens Stripe in a new tab."
 msgstr ""
 "Изменить тариф, обновить карту или отменить подписку — Stripe откроется в "
 "новой вкладке."
 
-#: /app/templates/index.php:5123
+#: /app/templates/index.php:5133
 msgid "What gets sent"
 msgstr "Какие данные отправляются"
 
-#: /app/templates/index.php:5125
+#: /app/templates/index.php:5135
 msgid "Receipt scanning documentation"
 msgstr "Документация по сканированию чеков"
 
-#: /app/templates/index.php:5131
+#: /app/templates/index.php:5141
 msgid "Save receipt scanning settings"
 msgstr "Сохранить настройки сканирования чеков"
 
-#: /app/templates/index.php:5141
+#: /app/templates/index.php:5151
 msgid "Actions in this section are destructive and cannot be undone."
 msgstr "Действия в этом разделе необратимы и могут привести к потере данных."
 
-#: /app/templates/index.php:5147 /app/templates/index.php:5152
+#: /app/templates/index.php:5157 /app/templates/index.php:5162
 msgid "Reset All to Defaults"
 msgstr "Сбросить все к значениям по умолчанию"
 
-#: /app/templates/index.php:5148
+#: /app/templates/index.php:5158
 msgid ""
 "Put every setting on this page back to its default. Your accounts, "
 "transactions and other data are not touched."
 msgstr ""
 
-#: /app/templates/index.php:5158 /app/templates/index.php:5163
+#: /app/templates/index.php:5168 /app/templates/index.php:5173
 msgid "Factory Reset"
 msgstr "Сброс к заводским настройкам"
 
-#: /app/templates/index.php:5159
+#: /app/templates/index.php:5169
 msgid ""
 "Permanently delete ALL your data including accounts, transactions, bills, "
 "categories, settings, and more. Only audit logs will be preserved for "
@@ -19006,23 +19020,23 @@ msgstr ""
 "категории, настройки и другие данные. Для соблюдения требований будут "
 "сохранены только журналы аудита. Это действие нельзя отменить."
 
-#: /app/templates/index.php:5179
+#: /app/templates/index.php:5189
 msgid "What's new"
 msgstr ""
 
-#: /app/templates/index.php:5183
+#: /app/templates/index.php:5193
 msgid "Open docs site"
 msgstr "Открыть сайт документации"
 
-#: /app/templates/index.php:5187 /app/templates/index.php:7813
+#: /app/templates/index.php:5197 /app/templates/index.php:7823
 msgid "Report an Issue"
 msgstr "Сообщить о проблеме"
 
-#: /app/templates/index.php:5195
+#: /app/templates/index.php:5205
 msgid "Documentation"
 msgstr "Документация"
 
-#: /app/templates/index.php:5196
+#: /app/templates/index.php:5206
 msgid ""
 "A guide for every part of the app. Each one opens the full page on the "
 "documentation site."
@@ -19030,11 +19044,11 @@ msgstr ""
 "Руководство для каждого раздела приложения. Каждая ссылка открывает полную "
 "страницу на сайте документации."
 
-#: /app/templates/index.php:5207
+#: /app/templates/index.php:5217
 msgid "Enjoying the app?"
 msgstr "Нравится приложение?"
 
-#: /app/templates/index.php:5208
+#: /app/templates/index.php:5218
 msgid ""
 "Budget is free and open source. If it helps you keep your finances straight, "
 "a donation helps keep it maintained — everything works fully without one."
@@ -19043,15 +19057,15 @@ msgstr ""
 "вам управлять финансами, пожертвование поддержит его разработку, но и без "
 "него все функции доступны полностью."
 
-#: /app/templates/index.php:5225
+#: /app/templates/index.php:5235
 msgid "Keyboard Shortcuts"
 msgstr "Сочетания клавиш"
 
-#: /app/templates/index.php:5229
+#: /app/templates/index.php:5239
 msgid "Drive Budget from the keyboard"
 msgstr "Управляйте Budget с клавиатуры"
 
-#: /app/templates/index.php:5230
+#: /app/templates/index.php:5240
 msgid ""
 "Press ? anywhere in the app for the full cheat sheet. Jump between pages "
 "with g followed by a letter, focus search with /, and edit or select rows in "
@@ -19062,15 +19076,15 @@ msgstr ""
 "поиску клавишей /, редактируйте и выбирайте строки списка транзакций без "
 "мыши."
 
-#: /app/templates/index.php:5234
+#: /app/templates/index.php:5244
 msgid "Show shortcuts"
 msgstr "Показать сочетания"
 
-#: /app/templates/index.php:5242
+#: /app/templates/index.php:5252
 msgid "Quick Add Page"
 msgstr "Страница быстрого добавления"
 
-#: /app/templates/index.php:5243
+#: /app/templates/index.php:5253
 msgid ""
 "A minimal page for adding transactions on mobile. Bookmark this URL or add "
 "it to your home screen."
@@ -19078,48 +19092,48 @@ msgstr ""
 "Упрощённая страница для добавления транзакций с телефона. Добавьте этот URL "
 "в закладки или на главный экран."
 
-#: /app/templates/index.php:5245
+#: /app/templates/index.php:5255
 #, fuzzy
 #| msgid "Quick Add Page"
 msgid "Quick Add Page URL"
 msgstr "Страница быстрого добавления"
 
-#: /app/templates/index.php:5248
+#: /app/templates/index.php:5258
 msgid "Copy URL"
 msgstr "Копировать URL"
 
-#: /app/templates/index.php:5255
+#: /app/templates/index.php:5265
 msgid "System Info"
 msgstr "Сведения о системе"
 
-#: /app/templates/index.php:5256
+#: /app/templates/index.php:5266
 msgid "Copy this information when reporting issues."
 msgstr "Скопируйте эти сведения при сообщении о проблемах."
 
-#: /app/templates/index.php:5262
+#: /app/templates/index.php:5272
 msgid "Copy to Clipboard"
 msgstr "Копировать в буфер обмена"
 
-#: /app/templates/index.php:5279 /app/templates/index.php:7135
-#: /app/templates/index.php:7167
+#: /app/templates/index.php:5289 /app/templates/index.php:7145
+#: /app/templates/index.php:7177
 msgid "Tag Name"
 msgstr "Название тега"
 
-#: /app/templates/index.php:5280
+#: /app/templates/index.php:5290
 msgid "e.g., Business, Vacation, Groceries"
 msgstr "например, Бизнес, Отпуск, Продукты"
 
-#: /app/templates/index.php:5283 /app/templates/index.php:5471
-#: /app/templates/index.php:7044 /app/templates/index.php:7139
-#: /app/templates/index.php:7171
+#: /app/templates/index.php:5293 /app/templates/index.php:5481
+#: /app/templates/index.php:7054 /app/templates/index.php:7149
+#: /app/templates/index.php:7181
 msgid "Color"
 msgstr "Цвет"
 
-#: /app/templates/index.php:5286
+#: /app/templates/index.php:5296
 msgid "Color (hex code)"
 msgstr ""
 
-#: /app/templates/index.php:5294 /app/templates/index.php:7179
+#: /app/templates/index.php:5304 /app/templates/index.php:7189
 msgid ""
 "Stop offering this tag when tagging new transactions. Transactions that "
 "already have it keep it."
@@ -19127,19 +19141,19 @@ msgstr ""
 "Не предлагать этот тег при добавлении тегов к новым транзакциям. У "
 "транзакций, где он уже есть, тег сохранится."
 
-#: /app/templates/index.php:5308
+#: /app/templates/index.php:5318
 msgid "Save Import Template"
 msgstr "Сохранить шаблон импорта"
 
-#: /app/templates/index.php:5313
+#: /app/templates/index.php:5323
 msgid "Template Name"
 msgstr "Название шаблона"
 
-#: /app/templates/index.php:5314
+#: /app/templates/index.php:5324
 msgid "e.g., My Bank Checking"
 msgstr "например, мой текущий счёт"
 
-#: /app/templates/index.php:5315
+#: /app/templates/index.php:5325
 msgid ""
 "Saves the current import settings (column mapping or account routing, plus "
 "options) so you can reuse them for future imports."
@@ -19148,11 +19162,11 @@ msgstr ""
 "маршрутизацию счетов и параметры), чтобы их можно было использовать при "
 "следующих импортах."
 
-#: /app/templates/index.php:5329
+#: /app/templates/index.php:5339
 msgid "Manage Import Templates"
 msgstr "Управление шаблонами импорта"
 
-#: /app/templates/index.php:5347
+#: /app/templates/index.php:5357
 msgid ""
 "The figures include everything filed under the project categories, including "
 "by people you share them with. View transactions only lists the ones in "
@@ -19162,46 +19176,46 @@ msgstr ""
 "которыми вы ими делитесь. В просмотре транзакций показаны только записи на "
 "доступных вам счетах."
 
-#: /app/templates/index.php:5349
+#: /app/templates/index.php:5359
 msgid "Subcategory"
 msgstr "Подкатегория"
 
-#: /app/templates/index.php:5357
+#: /app/templates/index.php:5367
 msgid "View transactions"
 msgstr "Просмотреть транзакции"
 
-#: /app/templates/index.php:5369
+#: /app/templates/index.php:5379
 msgid "Project form"
 msgstr "Форма проекта"
 
-#: /app/templates/index.php:5372
+#: /app/templates/index.php:5382
 msgid "e.g., House renovation"
 msgstr "например, ремонт дома"
 
-#: /app/templates/index.php:5377
+#: /app/templates/index.php:5387
 msgid ""
 "Everything filed under this category and its subcategories counts towards "
 "the project."
 msgstr ""
 "Всё, отнесённое к этой категории и её подкатегориям, учитывается в проекте."
 
-#: /app/templates/index.php:5380
+#: /app/templates/index.php:5390
 msgid "Total budget"
 msgstr "Общий бюджет"
 
-#: /app/templates/index.php:5389
+#: /app/templates/index.php:5399
 msgid "End date (optional)"
 msgstr "Дата окончания (необязательно)"
 
-#: /app/templates/index.php:5394
+#: /app/templates/index.php:5404
 msgid "Subcategory amounts (optional)"
 msgstr "Суммы подкатегорий (необязательно)"
 
-#: /app/templates/index.php:5401
+#: /app/templates/index.php:5411
 msgid "Leave these categories out of monthly budgets"
 msgstr "Исключить эти категории из ежемесячных бюджетов"
 
-#: /app/templates/index.php:5403
+#: /app/templates/index.php:5413
 msgid ""
 "Ticks Exclude from budgeting on the category, so a big project bill does not "
 "show as over budget on the Budget page. The spending still counts in reports "
@@ -19211,35 +19225,35 @@ msgstr ""
 "платёж по проекту не отображался как превышение бюджета на странице бюджета. "
 "Расходы всё равно учитываются в отчётах и на панели управления."
 
-#: /app/templates/index.php:5425
+#: /app/templates/index.php:5435
 msgid "Goal Name"
 msgstr "Название цели"
 
-#: /app/templates/index.php:5426
+#: /app/templates/index.php:5436
 msgid "e.g., Emergency Fund, Vacation, New Car"
 msgstr "например, резервный фонд, отпуск, новый автомобиль"
 
-#: /app/templates/index.php:5430
+#: /app/templates/index.php:5440
 msgid "Target Amount"
 msgstr "Целевая сумма"
 
-#: /app/templates/index.php:5435
+#: /app/templates/index.php:5445
 msgid "Current Amount"
 msgstr "Текущая сумма"
 
-#: /app/templates/index.php:5440
+#: /app/templates/index.php:5450
 msgid "Target Date (optional)"
 msgstr "Целевая дата (необязательно)"
 
-#: /app/templates/index.php:5449
+#: /app/templates/index.php:5459
 msgid "Linked Account (optional)"
 msgstr "Связанный счёт (необязательно)"
 
-#: /app/templates/index.php:5457
+#: /app/templates/index.php:5467
 msgid "Linked Tag (optional)"
 msgstr "Связанный тег (необязательно)"
 
-#: /app/templates/index.php:5463
+#: /app/templates/index.php:5473
 msgid ""
 "Money in with this tag adds to the goal and money out takes it away, "
 "including bills and transfers. A tagged transfer between your accounts "
@@ -19247,98 +19261,98 @@ msgid ""
 "in that account count."
 msgstr ""
 
-#: /app/templates/index.php:5466
+#: /app/templates/index.php:5476
 msgid ""
 "Current amount will be automatically calculated from tagged transactions."
 msgstr ""
 "Текущая сумма будет автоматически рассчитываться по транзакциям с тегом."
 
-#: /app/templates/index.php:5480
+#: /app/templates/index.php:5490
 msgid "Any notes about this goal..."
 msgstr "Заметки об этой цели..."
 
-#: /app/templates/index.php:5487
+#: /app/templates/index.php:5497
 msgid "Save Goal"
 msgstr "Сохранить цель"
 
-#: /app/templates/index.php:5498
+#: /app/templates/index.php:5508
 msgid "Add to"
 msgstr "Добавить к"
 
-#: /app/templates/index.php:5503
+#: /app/templates/index.php:5513
 msgid "Amount to Add"
 msgstr "Сумма для добавления"
 
-#: /app/templates/index.php:5535
+#: /app/templates/index.php:5545
 msgid "Basic Information"
 msgstr "Основная информация"
 
-#: /app/templates/index.php:5537
+#: /app/templates/index.php:5547
 msgid "Pension Name"
 msgstr "Название пенсии"
 
-#: /app/templates/index.php:5538
+#: /app/templates/index.php:5548
 msgid "e.g., Company Pension, Vanguard SIPP"
 msgstr "например, корпоративная пенсия, Vanguard SIPP"
 
-#: /app/templates/index.php:5539
+#: /app/templates/index.php:5549
 msgid "A descriptive name for this pension"
 msgstr "Описательное название этой пенсии"
 
-#: /app/templates/index.php:5543
+#: /app/templates/index.php:5553
 msgid "Pension Type"
 msgstr "Тип пенсии"
 
-#: /app/templates/index.php:5545
+#: /app/templates/index.php:5555
 msgid "Workplace Pension"
 msgstr "Пенсия от работодателя"
 
-#: /app/templates/index.php:5546
+#: /app/templates/index.php:5556
 msgid "Personal Pension"
 msgstr "Личная пенсия"
 
-#: /app/templates/index.php:5551
+#: /app/templates/index.php:5561
 msgid "Determines which fields are available below"
 msgstr "Определяет, какие поля будут доступны ниже"
 
-#: /app/templates/index.php:5556
+#: /app/templates/index.php:5566
 msgid "e.g., Scottish Widows, Aviva"
 msgstr "например, Scottish Widows, Aviva"
 
-#: /app/templates/index.php:5557
+#: /app/templates/index.php:5567
 msgid "Pension provider or scheme administrator"
 msgstr "Пенсионный провайдер или администратор схемы"
 
-#: /app/templates/index.php:5570
+#: /app/templates/index.php:5580
 msgid "Financial Details"
 msgstr "Финансовые сведения"
 
-#: /app/templates/index.php:5575
+#: /app/templates/index.php:5585
 msgid "Current total value of the pension pot"
 msgstr "Текущая общая стоимость пенсионного капитала"
 
-#: /app/templates/index.php:5581
+#: /app/templates/index.php:5591
 msgid "Combined employee and employer contribution"
 msgstr "Общий взнос работника и работодателя"
 
-#: /app/templates/index.php:5585
+#: /app/templates/index.php:5595
 #, php-format
 msgid "Expected Annual Return (%%)"
 msgstr "Ожидаемая годовая доходность (%%)"
 
-#: /app/templates/index.php:5587
+#: /app/templates/index.php:5597
 msgid "Estimated yearly growth rate for projections"
 msgstr "Расчётный годовой темп роста для прогнозов"
 
-#: /app/templates/index.php:5593
+#: /app/templates/index.php:5603
 msgid "Age you plan to start drawing this pension"
 msgstr "Возраст, с которого вы планируете получать эту пенсию"
 
-#: /app/templates/index.php:5597
+#: /app/templates/index.php:5607
 msgid "Target Pot at Retirement"
 msgstr "Целевая сумма накоплений к пенсии"
 
-#: /app/templates/index.php:5599
+#: /app/templates/index.php:5609
 msgid ""
 "Goal pot value used for the projection progress bar (leave blank for the "
 "default)"
@@ -19346,43 +19360,43 @@ msgstr ""
 "Размер накоплений для цели, используемый на индикаторе прогноза (оставьте "
 "пустым для значения по умолчанию)"
 
-#: /app/templates/index.php:5603
+#: /app/templates/index.php:5613
 msgid "Income Details"
 msgstr "Сведения о доходе"
 
-#: /app/templates/index.php:5606
+#: /app/templates/index.php:5616
 msgid "Projected Annual Income"
 msgstr "Прогнозируемый годовой доход"
 
-#: /app/templates/index.php:5608
+#: /app/templates/index.php:5618
 msgid "Expected yearly income at retirement"
 msgstr "Ожидаемый годовой доход после выхода на пенсию"
 
-#: /app/templates/index.php:5612
+#: /app/templates/index.php:5622
 msgid "Transfer Value"
 msgstr "Стоимость перевода"
 
-#: /app/templates/index.php:5614
+#: /app/templates/index.php:5624
 msgid "Cash equivalent transfer value (CETV) if known"
 msgstr "Денежный эквивалент стоимости перевода (CETV), если известен"
 
-#: /app/templates/index.php:5620
+#: /app/templates/index.php:5630
 msgid "Normal retirement age for this scheme"
 msgstr "Стандартный возраст выхода на пенсию для этой схемы"
 
-#: /app/templates/index.php:5627
+#: /app/templates/index.php:5637
 msgid "Save Pension"
 msgstr "Сохранить пенсию"
 
-#: /app/templates/index.php:5653
+#: /app/templates/index.php:5663
 msgid "Update"
 msgstr "Обновить"
 
-#: /app/templates/index.php:5676
+#: /app/templates/index.php:5686
 msgid "Came from account"
 msgstr "Поступил со счёта"
 
-#: /app/templates/index.php:5680
+#: /app/templates/index.php:5690
 msgid ""
 "Optional: records a matching withdrawal in that account and keeps it out of "
 "your spending"
@@ -19390,96 +19404,96 @@ msgstr ""
 "Необязательно: записывает соответствующее списание с этого счёта и не "
 "учитывает его в расходах"
 
-#: /app/templates/index.php:5683 /app/templates/index.php:5719
-#: /app/templates/index.php:5766
+#: /app/templates/index.php:5693 /app/templates/index.php:5729
+#: /app/templates/index.php:5776
 msgid "Note"
 msgstr "Примечание"
 
-#: /app/templates/index.php:5684
+#: /app/templates/index.php:5694
 msgid "e.g., Bonus top-up"
 msgstr "например, бонусное пополнение"
 
-#: /app/templates/index.php:5689
+#: /app/templates/index.php:5699
 msgid "Log"
 msgstr "Записать"
 
-#: /app/templates/index.php:5712
+#: /app/templates/index.php:5722
 msgid "Paid into account"
 msgstr "Зачислено на счёт"
 
-#: /app/templates/index.php:5716
+#: /app/templates/index.php:5726
 msgid "Optional: records a matching deposit in that account"
 msgstr "Необязательно: записывает соответствующее пополнение этого счёта"
 
-#: /app/templates/index.php:5720
+#: /app/templates/index.php:5730
 msgid "e.g., Tax-free lump sum"
 msgstr "например, необлагаемая налогом единовременная выплата"
 
-#: /app/templates/index.php:5725
+#: /app/templates/index.php:5735
 msgid "Record"
 msgstr "Записать"
 
-#: /app/templates/index.php:5735
+#: /app/templates/index.php:5745
 msgid "Scheduled Contribution"
 msgstr "Запланированный взнос"
 
-#: /app/templates/index.php:5752
+#: /app/templates/index.php:5762
 msgid "Next Date"
 msgstr "Следующая дата"
 
-#: /app/templates/index.php:5756
+#: /app/templates/index.php:5766
 msgid "From account"
 msgstr "Со счёта"
 
-#: /app/templates/index.php:5762
+#: /app/templates/index.php:5772
 msgid "Auto-post when due"
 msgstr "Автоматически записывать в срок"
 
-#: /app/templates/index.php:5763
+#: /app/templates/index.php:5773
 msgid ""
 "Automatically record the contribution (and transfer, if an account is set) "
 "on the due date"
 msgstr ""
 "Автоматически записывать взнос (и перевод, если указан счёт) в дату оплаты"
 
-#: /app/templates/index.php:5801
+#: /app/templates/index.php:5811
 msgid "e.g., 42 Maple Street, Tesla Model 3"
 msgstr "например, 42 Maple Street, Tesla Model 3"
 
-#: /app/templates/index.php:5802
+#: /app/templates/index.php:5812
 msgid "A descriptive name for this asset"
 msgstr "Описательное название этого актива"
 
-#: /app/templates/index.php:5818
+#: /app/templates/index.php:5828
 msgid "Optional notes about this asset"
 msgstr "Дополнительные заметки об этом активе"
 
-#: /app/templates/index.php:5824
+#: /app/templates/index.php:5834
 msgid "Valuation"
 msgstr "Оценка стоимости"
 
-#: /app/templates/index.php:5828
+#: /app/templates/index.php:5838
 msgid "Today's estimated market value"
 msgstr "Оценочная рыночная стоимость на сегодня"
 
-#: /app/templates/index.php:5841
+#: /app/templates/index.php:5851
 msgid "Original acquisition cost"
 msgstr "Первоначальная стоимость приобретения"
 
-#: /app/templates/index.php:5850
+#: /app/templates/index.php:5860
 msgid "Growth / Depreciation"
 msgstr "Рост / снижение стоимости"
 
-#: /app/templates/index.php:5852
+#: /app/templates/index.php:5862
 #, php-format
 msgid "Annual Change Rate (%%)"
 msgstr "Годовая ставка изменения (%%)"
 
-#: /app/templates/index.php:5853
+#: /app/templates/index.php:5863
 msgid "e.g., 3.5"
 msgstr "например, 3.5"
 
-#: /app/templates/index.php:5854
+#: /app/templates/index.php:5864
 msgid ""
 "Positive for appreciation (e.g., 3.5), negative for depreciation (e.g., "
 "-15). Used for value projections."
@@ -19488,11 +19502,11 @@ msgstr ""
 "отрицательное — снижение стоимости (например, -15). Используется для "
 "прогнозов стоимости."
 
-#: /app/templates/index.php:5861
+#: /app/templates/index.php:5871
 msgid "Save Asset"
 msgstr "Сохранить актив"
 
-#: /app/templates/index.php:5884
+#: /app/templates/index.php:5894
 msgid ""
 "Record a new valuation for this asset. This creates a snapshot in the value "
 "history."
@@ -19500,35 +19514,35 @@ msgstr ""
 "Запишите новую оценку стоимости этого актива. Это создаст снимок в истории "
 "стоимости."
 
-#: /app/templates/index.php:5912
+#: /app/templates/index.php:5922
 msgid "Scenario"
 msgstr "Сценарий"
 
-#: /app/templates/index.php:5914
+#: /app/templates/index.php:5924
 msgid "Scenario Name"
 msgstr "Название сценария"
 
-#: /app/templates/index.php:5915
+#: /app/templates/index.php:5925
 msgid "e.g., Aggressive Payoff"
 msgstr "например, ускоренное погашение"
 
-#: /app/templates/index.php:5916
+#: /app/templates/index.php:5926
 msgid "A descriptive name for this scenario"
 msgstr "Описательное название этого сценария"
 
-#: /app/templates/index.php:5920
+#: /app/templates/index.php:5930
 msgid "Strategy"
 msgstr "Стратегия"
 
-#: /app/templates/index.php:5922
+#: /app/templates/index.php:5932
 msgid "Avalanche (highest rate first)"
 msgstr "Лавина (сначала самая высокая ставка)"
 
-#: /app/templates/index.php:5923
+#: /app/templates/index.php:5933
 msgid "Snowball (smallest balance first)"
 msgstr "Снежный ком (сначала наименьший остаток)"
 
-#: /app/templates/index.php:5925
+#: /app/templates/index.php:5935
 msgid ""
 "Avalanche saves the most interest. Snowball pays off small debts first for "
 "motivation."
@@ -19536,101 +19550,101 @@ msgstr ""
 "Метод лавины позволяет больше всего сэкономить на процентах. Метод снежного "
 "кома сначала погашает небольшие долги для поддержания мотивации."
 
-#: /app/templates/index.php:5931
+#: /app/templates/index.php:5941
 msgid "Payments"
 msgstr "Платежи"
 
-#: /app/templates/index.php:5933
+#: /app/templates/index.php:5943
 msgid "Extra Monthly Payment"
 msgstr "Дополнительный ежемесячный платёж"
 
-#: /app/templates/index.php:5935
+#: /app/templates/index.php:5945
 msgid "Additional amount paid each month beyond minimums"
 msgstr "Дополнительная ежемесячная сумма сверх минимальных платежей"
 
-#: /app/templates/index.php:5939
+#: /app/templates/index.php:5949
 msgid "One-Time Lump Sum"
 msgstr "Единовременная выплата"
 
-#: /app/templates/index.php:5941
+#: /app/templates/index.php:5951
 msgid "A single extra payment applied once"
 msgstr "Однократный дополнительный платёж"
 
-#: /app/templates/index.php:5945
+#: /app/templates/index.php:5955
 msgid "Apply Lump Sum In Month"
 msgstr "Месяц единовременного платежа"
 
-#: /app/templates/index.php:5947
+#: /app/templates/index.php:5957
 msgid "Which month to apply the lump sum (1 = immediately)"
 msgstr "В каком месяце внести единовременный платёж (1 = немедленно)"
 
-#: /app/templates/index.php:5955
+#: /app/templates/index.php:5965
 msgid "Include Debts"
 msgstr "Включить долги"
 
-#: /app/templates/index.php:5957
+#: /app/templates/index.php:5967
 msgid "Select which debts to include in this scenario"
 msgstr "Выберите долги для включения в этот сценарий"
 
-#: /app/templates/index.php:5961
+#: /app/templates/index.php:5971
 msgid "Rate Overrides"
 msgstr "Переопределение ставок"
 
-#: /app/templates/index.php:5962
+#: /app/templates/index.php:5972
 msgid "Optionally override interest rates for what-if analysis"
 msgstr "При необходимости замените процентные ставки для анализа вариантов"
 
-#: /app/templates/index.php:5970
+#: /app/templates/index.php:5980
 msgid "Save & Calculate"
 msgstr "Сохранить и рассчитать"
 
-#: /app/templates/index.php:5999
+#: /app/templates/index.php:6009
 msgid "This overrides the automatic rate for your account only."
 msgstr "Это переопределяет автоматический курс только для вашего счета."
 
-#: /app/templates/index.php:6003
+#: /app/templates/index.php:6013
 msgid "Save Rate"
 msgstr "Сохранить курс"
 
-#: /app/templates/index.php:6032
+#: /app/templates/index.php:6042
 msgid "Choose transaction type"
 msgstr "Выберите тип транзакции"
 
-#: /app/templates/index.php:6043
+#: /app/templates/index.php:6053
 msgid "Destination Amount"
 msgstr "Сумма назначения"
 
-#: /app/templates/index.php:6045
+#: /app/templates/index.php:6055
 msgid "Auto-filled from the exchange rate, editable"
 msgstr "Автоматически заполнено по обменному курсу, можно изменить"
 
-#: /app/templates/index.php:6056
+#: /app/templates/index.php:6066
 msgid "Choose destination account"
 msgstr "Выберите счёт назначения"
 
-#: /app/templates/index.php:6076
+#: /app/templates/index.php:6086
 msgid "Merchant or person"
 msgstr "Продавец или человек"
 
-#: /app/templates/index.php:6104
+#: /app/templates/index.php:6114
 #, fuzzy
 #| msgid "More actions"
 msgid "More options"
 msgstr "Другие действия"
 
-#: /app/templates/index.php:6110
+#: /app/templates/index.php:6120
 msgid "Scan a receipt"
 msgstr "Сканировать чек"
 
-#: /app/templates/index.php:6114
+#: /app/templates/index.php:6124
 msgid "Drop a photo here, or click to choose one"
 msgstr "Перетащите сюда фотографию или нажмите, чтобы выбрать файл"
 
-#: /app/templates/index.php:6118 /app/templates/quick-add.php:106
+#: /app/templates/index.php:6128 /app/templates/quick-add.php:106
 msgid "Reading the receipt…"
 msgstr "Распознавание чека…"
 
-#: /app/templates/index.php:6123
+#: /app/templates/index.php:6133
 #, fuzzy
 #| msgid ""
 #| "The photo is read on your server and fills in the fields below for you to "
@@ -19643,26 +19657,26 @@ msgstr ""
 "Фотография распознаётся на вашем сервере и заполняет поля ниже для проверки. "
 "При сохранении она прикрепляется к транзакции."
 
-#: /app/templates/index.php:6130 /app/templates/quick-add.php:22
+#: /app/templates/index.php:6140 /app/templates/quick-add.php:22
 msgid "Upload receipt"
 msgstr "Загрузить чек"
 
-#: /app/templates/index.php:6132
+#: /app/templates/index.php:6142
 msgid "Choose from Files"
 msgstr "Выбрать из файлов"
 
-#: /app/templates/index.php:6134
+#: /app/templates/index.php:6144
 msgid ""
 "Receipts are stored in your Files (Budget/Receipts) and linked to this "
 "transaction."
 msgstr ""
 "Чеки хранятся в ваших файлах (Budget/Receipts) и связаны с этой транзакцией."
 
-#: /app/templates/index.php:6146
+#: /app/templates/index.php:6156
 msgid "Exclude from forecast (extraordinary / one-time)"
 msgstr "Исключить из прогноза (внеплановая / разовая)"
 
-#: /app/templates/index.php:6148
+#: /app/templates/index.php:6158
 msgid ""
 "Keeps this one-off amount out of forecast averages. It still affects your "
 "account balance."
@@ -19670,55 +19684,55 @@ msgstr ""
 "Исключает эту разовую сумму из средних значений прогноза. Она по-прежнему "
 "влияет на остаток счёта."
 
-#: /app/templates/index.php:6158
+#: /app/templates/index.php:6168
 msgid "Split Details"
 msgstr "Сведения о разбивке"
 
-#: /app/templates/index.php:6162
+#: /app/templates/index.php:6172
 msgid "Add Row"
 msgstr "Добавить строку"
 
-#: /app/templates/index.php:6167
+#: /app/templates/index.php:6177
 msgid "Save transaction"
 msgstr "Сохранить транзакцию"
 
-#: /app/templates/index.php:6168 /app/templates/index.php:6365
-#: /app/templates/index.php:6599 /app/templates/index.php:6769
-#: /app/templates/index.php:6986 /app/templates/index.php:7005
-#: /app/templates/index.php:7087 /app/templates/index.php:7370
-#: /app/templates/index.php:7410 /app/templates/index.php:7436
+#: /app/templates/index.php:6178 /app/templates/index.php:6375
+#: /app/templates/index.php:6609 /app/templates/index.php:6779
+#: /app/templates/index.php:6996 /app/templates/index.php:7015
+#: /app/templates/index.php:7097 /app/templates/index.php:7380
+#: /app/templates/index.php:7420 /app/templates/index.php:7446
 msgid "Cancel and close dialog"
 msgstr "Отменить и закрыть диалог"
 
-#: /app/templates/index.php:6177
+#: /app/templates/index.php:6187
 msgid "Add/Edit Account"
 msgstr "Добавить/изменить счёт"
 
-#: /app/templates/index.php:6189
+#: /app/templates/index.php:6199
 msgid "e.g. Everyday Current"
 msgstr "например, основной текущий счёт"
 
-#: /app/templates/index.php:6195
+#: /app/templates/index.php:6205
 msgid "Choose account type"
 msgstr "Выберите тип счёта"
 
-#: /app/templates/index.php:6199
+#: /app/templates/index.php:6209
 msgid "Investment Account"
 msgstr "Инвестиционный счёт"
 
-#: /app/templates/index.php:6200
+#: /app/templates/index.php:6210
 msgid "Loan Account"
 msgstr "Кредитный счёт"
 
-#: /app/templates/index.php:6202
+#: /app/templates/index.php:6212
 msgid "Line of Credit"
 msgstr "Кредитная линия"
 
-#: /app/templates/index.php:6217
+#: /app/templates/index.php:6227
 msgid "This account is in credit — you have overpaid it"
 msgstr "На этом счёте положительный остаток — вы переплатили"
 
-#: /app/templates/index.php:6219
+#: /app/templates/index.php:6229
 msgid ""
 "Tick this only if the lender owes you money. For a normal debt, leave it "
 "unticked and the app adds the minus sign for you."
@@ -19726,90 +19740,90 @@ msgstr ""
 "Установите этот флажок, только если кредитор должен вам. Для обычного долга "
 "не устанавливайте его — приложение само добавит знак минус."
 
-#: /app/templates/index.php:6238
+#: /app/templates/index.php:6248
 msgid "e.g. Chase, NatWest"
 msgstr "например, Chase, NatWest"
 
-#: /app/templates/index.php:6247
+#: /app/templates/index.php:6257
 msgid "Banking"
 msgstr "Банковские реквизиты"
 
-#: /app/templates/index.php:6249
+#: /app/templates/index.php:6259
 msgid "Account Holder Name"
 msgstr "Имя владельца счёта"
 
-#: /app/templates/index.php:6259
+#: /app/templates/index.php:6269
 msgid "Opening Date"
 msgstr "Дата открытия"
 
-#: /app/templates/index.php:6265
+#: /app/templates/index.php:6275
 msgid "9 digits (US banks)"
 msgstr "9 цифр (банки США)"
 
-#: /app/templates/index.php:6270
+#: /app/templates/index.php:6280
 msgid "6 digits (UK banks)"
 msgstr "6 цифр (банки Великобритании)"
 
-#: /app/templates/index.php:6279
+#: /app/templates/index.php:6289
 msgid "SWIFT/BIC Code"
 msgstr "Код SWIFT/BIC"
 
-#: /app/templates/index.php:6284
+#: /app/templates/index.php:6294
 msgid "Wallet Address"
 msgstr "Адрес кошелька"
 
-#: /app/templates/index.php:6286
+#: /app/templates/index.php:6296
 msgid "Stored encrypted"
 msgstr "Хранится в зашифрованном виде"
 
-#: /app/templates/index.php:6295
+#: /app/templates/index.php:6305
 msgid "Rates & limits"
 msgstr "Ставки и лимиты"
 
-#: /app/templates/index.php:6297
+#: /app/templates/index.php:6307
 #, php-format
 msgid "Interest Rate (%%)"
 msgstr "Процентная ставка (%%)"
 
-#: /app/templates/index.php:6302
+#: /app/templates/index.php:6312
 msgid "Compounding Frequency"
 msgstr "Периодичность капитализации"
 
-#: /app/templates/index.php:6307
+#: /app/templates/index.php:6317
 msgid "Simple (no compounding)"
 msgstr "Простые проценты (без капитализации)"
 
-#: /app/templates/index.php:6317
+#: /app/templates/index.php:6327
 msgid "Overdraft Limit"
 msgstr "Лимит овердрафта"
 
-#: /app/templates/index.php:6322
+#: /app/templates/index.php:6332
 msgid "Minimum Payment"
 msgstr "Минимальный платёж"
 
-#: /app/templates/index.php:6324
+#: /app/templates/index.php:6334
 msgid "Used for debt payoff calculations"
 msgstr "Используется при расчёте погашения долгов"
 
-#: /app/templates/index.php:6330
+#: /app/templates/index.php:6340
 msgid "Day of the month the statement payment is due"
 msgstr "День месяца, когда необходимо оплатить выписку"
 
-#: /app/templates/index.php:6336
+#: /app/templates/index.php:6346
 msgid "Track accrued interest over time, with variable rate support"
 msgstr ""
 "Отслеживать начисленные проценты с течением времени, включая переменную "
 "ставку"
 
-#: /app/templates/index.php:6342
+#: /app/templates/index.php:6352
 msgid "Advanced"
 msgstr "Дополнительно"
 
-#: /app/templates/index.php:6346
+#: /app/templates/index.php:6356
 msgid "Exclude from reports, dashboard & forecast"
 msgstr "Исключить из отчётов, главного экрана и прогноза"
 
-#: /app/templates/index.php:6348
+#: /app/templates/index.php:6358
 msgid ""
 "Keep tracking this account, but leave its transactions and balance out of "
 "every \"all accounts\" total — reports, the dashboard, forecast, net worth "
@@ -19821,11 +19835,11 @@ msgstr ""
 "чистом капитале и бюджетах. Счёт по-прежнему отображается в списке счетов и "
 "на собственной странице."
 
-#: /app/templates/index.php:6353
+#: /app/templates/index.php:6363
 msgid "This account is closed"
 msgstr "Этот счёт закрыт"
 
-#: /app/templates/index.php:6355
+#: /app/templates/index.php:6365
 msgid ""
 "Keeps its history and its figures in reports, but the account no longer "
 "appears where you pick an account for new transactions, transfers, bills, "
@@ -19837,87 +19851,87 @@ msgstr ""
 "доходов и импорта. Остаток должен быть нулевым, а запланированных "
 "поступлений и списаний быть не должно."
 
-#: /app/templates/index.php:6364
+#: /app/templates/index.php:6374
 msgid "Save account"
 msgstr "Сохранить счёт"
 
-#: /app/templates/index.php:6374
+#: /app/templates/index.php:6384
 msgid "Add/Edit Bill"
 msgstr "Добавить/изменить платёж"
 
-#: /app/templates/index.php:6385
+#: /app/templates/index.php:6395
 msgid "Bill Name / Vendor"
 msgstr "Название платежа / продавец"
 
-#: /app/templates/index.php:6386
+#: /app/templates/index.php:6396
 msgid "e.g., Netflix, Rent, Electric Bill"
 msgstr "например, Netflix, аренда, электричество"
 
-#: /app/templates/index.php:6387
+#: /app/templates/index.php:6397
 msgid "Name of the vendor or recurring bill"
 msgstr "Название продавца или регулярного платежа"
 
-#: /app/templates/index.php:6392 /app/templates/index.php:6877
+#: /app/templates/index.php:6402 /app/templates/index.php:6887
 msgid "Transaction description (optional)"
 msgstr "Описание транзакции (необязательно)"
 
-#: /app/templates/index.php:6393 /app/templates/index.php:6878
+#: /app/templates/index.php:6403 /app/templates/index.php:6888
 msgid "Used as the description when transactions are auto-generated"
 msgstr "Используется как описание при автоматическом создании транзакций"
 
-#: /app/templates/index.php:6399
+#: /app/templates/index.php:6409
 msgid "Expected bill amount"
 msgstr "Ожидаемая сумма платежа"
 
-#: /app/templates/index.php:6415
+#: /app/templates/index.php:6425
 msgid "How often this bill is due"
 msgstr "Как часто наступает срок оплаты этого платежа"
 
-#: /app/templates/index.php:6419
+#: /app/templates/index.php:6429
 msgid "Select Months"
 msgstr "Выберите месяцы"
 
-#: /app/templates/index.php:6434
+#: /app/templates/index.php:6444
 msgid "Select which months this bill occurs"
 msgstr "Выберите месяцы, в которые выполняется этот платёж"
 
-#: /app/templates/index.php:6446 /app/templates/index.php:6923
+#: /app/templates/index.php:6456 /app/templates/index.php:6933
 msgid "Select month..."
 msgstr "Выберите месяц..."
 
-#: /app/templates/index.php:6460
+#: /app/templates/index.php:6470
 msgid "Month when yearly bill is due"
 msgstr "Месяц оплаты ежегодного платежа"
 
-#: /app/templates/index.php:6468
+#: /app/templates/index.php:6478
 msgid "Payment"
 msgstr "Оплата"
 
-#: /app/templates/index.php:6474
+#: /app/templates/index.php:6484
 msgid "Categorize this bill (optional)"
 msgstr "Назначить категорию этому платежу (необязательно)"
 
-#: /app/templates/index.php:6485
+#: /app/templates/index.php:6495
 msgid "Define how this bill should be split across categories when paid"
 msgstr "Определите, как распределять этот платёж между категориями при оплате"
 
-#: /app/templates/index.php:6489
+#: /app/templates/index.php:6499
 msgid "Pay From Account"
 msgstr "Оплатить со счёта"
 
-#: /app/templates/index.php:6493
+#: /app/templates/index.php:6503
 msgid "Account used to pay this bill (optional)"
 msgstr "Счёт для оплаты этого платежа (необязательно)"
 
-#: /app/templates/index.php:6497 /app/templates/index.php:6965
+#: /app/templates/index.php:6507 /app/templates/index.php:6975
 msgid "Auto-detect Pattern"
 msgstr "Шаблон автоопределения"
 
-#: /app/templates/index.php:6498
+#: /app/templates/index.php:6508
 msgid "e.g., NETFLIX, SPOTIFY"
 msgstr "например, NETFLIX, SPOTIFY"
 
-#: /app/templates/index.php:6499
+#: /app/templates/index.php:6509
 msgid ""
 "Imported transactions matching this pattern (similar amount, near the due "
 "date) automatically mark the bill as paid"
@@ -19925,85 +19939,85 @@ msgstr ""
 "Импортированные транзакции, соответствующие этому шаблону (похожая сумма и "
 "дата рядом со сроком), автоматически отмечают платёж как оплаченный"
 
-#: /app/templates/index.php:6504 /app/templates/index.php:6972
+#: /app/templates/index.php:6514 /app/templates/index.php:6982
 msgid "Additional notes..."
 msgstr "Дополнительные заметки..."
 
-#: /app/templates/index.php:6505 /app/templates/index.php:6973
+#: /app/templates/index.php:6515 /app/templates/index.php:6983
 msgid "Any additional notes (optional)"
 msgstr "Дополнительные заметки (необязательно)"
 
-#: /app/templates/index.php:6513
+#: /app/templates/index.php:6523
 msgid "Schedule"
 msgstr "График"
 
-#: /app/templates/index.php:6522
+#: /app/templates/index.php:6532
 msgid "End Date"
 msgstr "Дата окончания"
 
-#: /app/templates/index.php:6524
+#: /app/templates/index.php:6534
 msgid "Bill will automatically stop after this date (optional)"
 msgstr "После этой даты платёж будет автоматически отключён (необязательно)"
 
-#: /app/templates/index.php:6528
+#: /app/templates/index.php:6538
 msgid "Remaining Payments"
 msgstr "Оставшиеся платежи"
 
-#: /app/templates/index.php:6529
+#: /app/templates/index.php:6539
 msgid "e.g., 10"
 msgstr "например, 10"
 
-#: /app/templates/index.php:6530
+#: /app/templates/index.php:6540
 msgid "Number of payments left before bill auto-deactivates (optional)"
 msgstr ""
 "Количество оставшихся оплат до автоматического отключения платежа "
 "(необязательно)"
 
-#: /app/templates/index.php:6534
+#: /app/templates/index.php:6544
 msgid "Reminder"
 msgstr "Напоминание"
 
-#: /app/templates/index.php:6536
+#: /app/templates/index.php:6546
 msgid "No reminder"
 msgstr "Без напоминания"
 
-#: /app/templates/index.php:6537
+#: /app/templates/index.php:6547
 msgid "On due date"
 msgstr "В день оплаты"
 
-#: /app/templates/index.php:6538
+#: /app/templates/index.php:6548
 msgid "1 day before"
 msgstr "За 1 день"
 
-#: /app/templates/index.php:6539
+#: /app/templates/index.php:6549
 msgid "2 days before"
 msgstr "За 2 дня"
 
-#: /app/templates/index.php:6540
+#: /app/templates/index.php:6550
 msgid "3 days before"
 msgstr "За 3 дня"
 
-#: /app/templates/index.php:6541
+#: /app/templates/index.php:6551
 msgid "5 days before"
 msgstr "За 5 дней"
 
-#: /app/templates/index.php:6542
+#: /app/templates/index.php:6552
 msgid "1 week before"
 msgstr "За 1 неделю"
 
-#: /app/templates/index.php:6543
+#: /app/templates/index.php:6553
 msgid "2 weeks before"
 msgstr "За 2 недели"
 
-#: /app/templates/index.php:6545
+#: /app/templates/index.php:6555
 msgid "Receive a notification before bill is due"
 msgstr "Получать уведомление до наступления даты оплаты"
 
-#: /app/templates/index.php:6551
+#: /app/templates/index.php:6561
 msgid "Create future transaction for this bill"
 msgstr "Создать будущую транзакцию для этого платежа"
 
-#: /app/templates/index.php:6553
+#: /app/templates/index.php:6563
 msgid ""
 "Keeps a scheduled transaction for the next due date so the upcoming payment "
 "shows in the transaction list and forecasts. Untick to never pre-create "
@@ -20013,32 +20027,32 @@ msgstr ""
 "оплата отображалась в списке транзакций и прогнозах. Снимите флажок, чтобы "
 "не создавать транзакции для этого платежа заранее."
 
-#: /app/templates/index.php:6565
+#: /app/templates/index.php:6575
 msgid "Auto-pay when due"
 msgstr "Автоплатеж в срок оплаты"
 
-#: /app/templates/index.php:6567
+#: /app/templates/index.php:6577
 msgid ""
 "Automatically mark this bill as paid when due date arrives (requires account)"
 msgstr ""
 "Автоматически отмечать этот платёж как оплаченный в дату оплаты (требуется "
 "счёт)"
 
-#: /app/templates/index.php:6573 /app/templates/index.php:6979
+#: /app/templates/index.php:6583 /app/templates/index.php:6989
 msgid "Exclude from forecast (extraordinary)"
 msgstr "Исключить из прогноза (внеплановое)"
 
-#: /app/templates/index.php:6575
+#: /app/templates/index.php:6585
 msgid "Transactions generated by this bill are left out of forecast averages."
 msgstr ""
 "Транзакции, созданные этим платежом, не учитываются в средних значениях "
 "прогноза."
 
-#: /app/templates/index.php:6580
+#: /app/templates/index.php:6590
 msgid "Auto-pay failed!"
 msgstr "Не удалось выполнить автоплатеж!"
 
-#: /app/templates/index.php:6580
+#: /app/templates/index.php:6590
 msgid ""
 "Auto-pay has been disabled. Please check the bill details and re-enable if "
 "needed."
@@ -20046,119 +20060,119 @@ msgstr ""
 "Автоплатёж отключён. Проверьте сведения о платеже и при необходимости "
 "включите его снова."
 
-#: /app/templates/index.php:6591 /app/templates/index.php:7357
+#: /app/templates/index.php:6601 /app/templates/index.php:7367
 msgid "Add Split"
 msgstr "Добавить часть"
 
-#: /app/templates/index.php:6598
+#: /app/templates/index.php:6608
 msgid "Save bill"
 msgstr "Сохранить платёж"
 
-#: /app/templates/index.php:6608
+#: /app/templates/index.php:6618
 msgid "Add/Edit Rule"
 msgstr "Добавить/редактировать правило"
 
-#: /app/templates/index.php:6613
+#: /app/templates/index.php:6623
 msgid "Rule editor view"
 msgstr "Режим редактора правил"
 
-#: /app/templates/index.php:6614
+#: /app/templates/index.php:6624
 msgid "Builder"
 msgstr "Конструктор"
 
-#: /app/templates/index.php:6623
+#: /app/templates/index.php:6633
 msgid "Rule Name"
 msgstr "Название правила"
 
-#: /app/templates/index.php:6624
+#: /app/templates/index.php:6634
 msgid "e.g., Amazon Purchases, Grocery Stores"
 msgstr "например, покупки Amazon, продуктовые магазины"
 
-#: /app/templates/index.php:6625
+#: /app/templates/index.php:6635
 msgid "A descriptive name for this rule"
 msgstr "Описательное название этого правила"
 
-#: /app/templates/index.php:6629
+#: /app/templates/index.php:6639
 msgid "Group"
 msgstr "Группа"
 
-#: /app/templates/index.php:6632
+#: /app/templates/index.php:6642
 msgid "Optional"
 msgstr "Необязательно"
 
-#: /app/templates/index.php:6636
+#: /app/templates/index.php:6646
 msgid "Priority"
 msgstr "Приоритет"
 
-#: /app/templates/index.php:6645
+#: /app/templates/index.php:6655
 msgid "Matching Criteria"
 msgstr "Условия сопоставления"
 
-#: /app/templates/index.php:6646
+#: /app/templates/index.php:6656
 msgid "Define when this rule should apply to a transaction"
 msgstr "Определите, когда это правило должно применяться к транзакции"
 
-#: /app/templates/index.php:6651
+#: /app/templates/index.php:6661
 msgid "Match Field"
 msgstr "Поле сопоставления"
 
-#: /app/templates/index.php:6659
+#: /app/templates/index.php:6669
 msgid "Which transaction field to match against"
 msgstr "Поле транзакции, по которому нужно выполнять сопоставление"
 
-#: /app/templates/index.php:6665
+#: /app/templates/index.php:6675
 msgid "Contains"
 msgstr "Содержит"
 
-#: /app/templates/index.php:6666
+#: /app/templates/index.php:6676
 msgid "Exact Match"
 msgstr "Точное совпадение"
 
-#: /app/templates/index.php:6667
+#: /app/templates/index.php:6677
 msgid "Starts With"
 msgstr "Начинается с"
 
-#: /app/templates/index.php:6668
+#: /app/templates/index.php:6678
 msgid "Ends With"
 msgstr "Заканчивается на"
 
-#: /app/templates/index.php:6669
+#: /app/templates/index.php:6679
 msgid "Regex"
 msgstr "Регулярное выражение"
 
-#: /app/templates/index.php:6671
+#: /app/templates/index.php:6681
 msgid "How to match the pattern"
 msgstr "Как сопоставлять шаблон"
 
-#: /app/templates/index.php:6676
+#: /app/templates/index.php:6686
 msgid "e.g., AMAZON, grocery|supermarket"
 msgstr "например, AMAZON, grocery|supermarket"
 
-#: /app/templates/index.php:6677
+#: /app/templates/index.php:6687
 msgid "Text or pattern to match (case-insensitive)"
 msgstr "Текст или шаблон для сопоставления (без учёта регистра)"
 
-#: /app/templates/index.php:6690
+#: /app/templates/index.php:6700
 msgid "What to do when a transaction matches these criteria"
 msgstr "Что делать, когда транзакция соответствует этим условиям"
 
-#: /app/templates/index.php:6702
+#: /app/templates/index.php:6712
 msgid "Only active rules are applied"
 msgstr "Применяются только активные правила"
 
-#: /app/templates/index.php:6708
+#: /app/templates/index.php:6718
 msgid "Apply during import"
 msgstr "Применять при импорте"
 
-#: /app/templates/index.php:6710
+#: /app/templates/index.php:6720
 msgid "Auto-apply when importing transactions"
 msgstr "Автоматически применять при импорте транзакций"
 
-#: /app/templates/index.php:6719
+#: /app/templates/index.php:6729
 msgid "Rule JSON"
 msgstr "JSON правила"
 
-#: /app/templates/index.php:6721
+#: /app/templates/index.php:6731
 msgid ""
 "The raw rule structure. Edit or paste JSON here — it is checked when you "
 "save. Copy it to move a rule between instances (category and account IDs are "
@@ -20169,51 +20183,51 @@ msgstr ""
 "экземплярами (идентификаторы категорий и счетов зависят от экземпляра и "
 "могут потребовать изменения)."
 
-#: /app/templates/index.php:6725
+#: /app/templates/index.php:6735
 msgid "Copy JSON"
 msgstr "Копировать JSON"
 
-#: /app/templates/index.php:6731
+#: /app/templates/index.php:6741
 msgid "matching transactions"
 msgstr "совпадающих транзакций"
 
-#: /app/templates/index.php:6731
+#: /app/templates/index.php:6741
 msgid "showing first 50"
 msgstr "показаны первые 50"
 
-#: /app/templates/index.php:6752 /app/templates/index.php:6821
+#: /app/templates/index.php:6762 /app/templates/index.php:6831
 msgid "Updated"
 msgstr "Обновлено"
 
-#: /app/templates/index.php:6756 /app/templates/index.php:6825
+#: /app/templates/index.php:6766 /app/templates/index.php:6835
 msgid "Skipped"
 msgstr "Пропущено"
 
-#: /app/templates/index.php:6760 /app/templates/index.php:6829
+#: /app/templates/index.php:6770 /app/templates/index.php:6839
 msgid "Failed"
 msgstr "Ошибка"
 
-#: /app/templates/index.php:6766
+#: /app/templates/index.php:6776
 msgid "Preview matching transactions"
 msgstr "Предпросмотр совпадающих транзакций"
 
-#: /app/templates/index.php:6767
+#: /app/templates/index.php:6777
 msgid "Apply rule to uncategorized transactions now"
 msgstr "Применить правило сейчас к транзакциям без категории"
 
-#: /app/templates/index.php:6768
+#: /app/templates/index.php:6778
 msgid "Save rule"
 msgstr "Сохранить правило"
 
-#: /app/templates/index.php:6778
+#: /app/templates/index.php:6788
 msgid "Apply Rules to Transactions"
 msgstr "Применить правила к транзакциям"
 
-#: /app/templates/index.php:6807 /app/templates/index.php:6851
+#: /app/templates/index.php:6817 /app/templates/index.php:6861
 msgid "Only apply to uncategorized transactions"
 msgstr "Применять только к транзакциям без категории"
 
-#: /app/templates/index.php:6809
+#: /app/templates/index.php:6819
 msgid ""
 "When enabled, rules will only be applied to transactions that don't have a "
 "category assigned"
@@ -20221,100 +20235,100 @@ msgstr ""
 "Если включено, правила будут применяться только к транзакциям без "
 "назначенной категории"
 
-#: /app/templates/index.php:6844
+#: /app/templates/index.php:6854
 msgid "Run Rule"
 msgstr "Применить правило"
 
-#: /app/templates/index.php:6865
+#: /app/templates/index.php:6875
 msgid "Add/Edit Recurring Income"
 msgstr "Добавить/редактировать регулярный доход"
 
-#: /app/templates/index.php:6870
+#: /app/templates/index.php:6880
 msgid "Income Name"
 msgstr "Название дохода"
 
-#: /app/templates/index.php:6871
+#: /app/templates/index.php:6881
 msgid "e.g., Salary, Dividends, Rental Income"
 msgstr "например, зарплата, дивиденды, доход от аренды"
 
-#: /app/templates/index.php:6872
+#: /app/templates/index.php:6882
 msgid "Name of the recurring income"
 msgstr "Название регулярного дохода"
 
-#: /app/templates/index.php:6882
+#: /app/templates/index.php:6892
 msgid "Expected Amount"
 msgstr "Ожидаемая сумма"
 
-#: /app/templates/index.php:6884
+#: /app/templates/index.php:6894
 msgid "Expected amount each period"
 msgstr "Ожидаемая сумма за период"
 
-#: /app/templates/index.php:6889
+#: /app/templates/index.php:6899
 msgid "e.g., Employer Name, Company"
 msgstr "например, работодатель, компания"
 
-#: /app/templates/index.php:6890
+#: /app/templates/index.php:6900
 msgid "Who pays this income (optional)"
 msgstr "Кто выплачивает этот доход (необязательно)"
 
-#: /app/templates/index.php:6905
+#: /app/templates/index.php:6915
 msgid "How often you receive this income"
 msgstr "Как часто вы получаете этот доход"
 
-#: /app/templates/index.php:6921
+#: /app/templates/index.php:6931
 msgid "Expected Month"
 msgstr "Ожидаемый месяц"
 
-#: /app/templates/index.php:6937
+#: /app/templates/index.php:6947
 msgid "Month when yearly income is expected"
 msgstr "Месяц, в котором ожидается годовой доход"
 
-#: /app/templates/index.php:6945
+#: /app/templates/index.php:6955
 msgid "Categorize this income (optional)"
 msgstr "Назначить категорию этому доходу (необязательно)"
 
-#: /app/templates/index.php:6949
+#: /app/templates/index.php:6959
 msgid "Receive To Account"
 msgstr "Получать на счёт"
 
-#: /app/templates/index.php:6953
+#: /app/templates/index.php:6963
 msgid "Account where income is received (optional)"
 msgstr "Счёт, на который поступает доход (необязательно)"
 
-#: /app/templates/index.php:6959
+#: /app/templates/index.php:6969
 msgid "Auto-create transaction when due"
 msgstr "Автоматически создавать транзакцию в срок"
 
-#: /app/templates/index.php:6961
+#: /app/templates/index.php:6971
 msgid ""
 "Automatically create a transaction when the expected date arrives (requires "
 "account)"
 msgstr "Автоматически создавать транзакцию в ожидаемую дату (требуется счёт)"
 
-#: /app/templates/index.php:6966
+#: /app/templates/index.php:6976
 msgid "e.g., PAYROLL, DIVIDEND"
 msgstr "например, PAYROLL, DIVIDEND"
 
-#: /app/templates/index.php:6967
+#: /app/templates/index.php:6977
 msgid "Pattern to match in transaction descriptions for auto-linking"
 msgstr "Шаблон для сопоставления в описаниях транзакций при автосвязывании"
 
-#: /app/templates/index.php:6981
+#: /app/templates/index.php:6991
 msgid ""
 "Transactions generated by this income are left out of forecast averages."
 msgstr ""
 "Транзакции, созданные этим доходом, не учитываются в средних значениях "
 "прогноза."
 
-#: /app/templates/index.php:6985
+#: /app/templates/index.php:6995
 msgid "Save income"
 msgstr "Сохранить доход"
 
-#: /app/templates/index.php:6996
+#: /app/templates/index.php:7006
 msgid "Import Categories"
 msgstr "Импорт категорий"
 
-#: /app/templates/index.php:7001
+#: /app/templates/index.php:7011
 msgid ""
 "Categories that already exist are left unchanged; anything missing is "
 "created underneath them."
@@ -20322,39 +20336,39 @@ msgstr ""
 "Существующие категории остаются без изменений; недостающие создаются внутри "
 "них."
 
-#: /app/templates/index.php:7012
+#: /app/templates/index.php:7022
 msgid "Add/Edit Category"
 msgstr "Добавить/редактировать категорию"
 
-#: /app/templates/index.php:7023
+#: /app/templates/index.php:7033
 msgid "Category Name"
 msgstr "Название категории"
 
-#: /app/templates/index.php:7036
+#: /app/templates/index.php:7046
 msgid "Parent Category"
 msgstr "Родительская категория"
 
-#: /app/templates/index.php:7040
+#: /app/templates/index.php:7050
 msgid "Make this a subcategory (optional)"
 msgstr "Сделать подкатегорией (необязательно)"
 
-#: /app/templates/index.php:7046
+#: /app/templates/index.php:7056
 msgid "Color for charts and display"
 msgstr "Цвет для графиков и отображения"
 
-#: /app/templates/index.php:7050
+#: /app/templates/index.php:7060
 msgid "Icon"
 msgstr ""
 
-#: /app/templates/index.php:7060
+#: /app/templates/index.php:7070
 msgid "Options"
 msgstr "Параметры"
 
-#: /app/templates/index.php:7064
+#: /app/templates/index.php:7074
 msgid "Exclude from reports"
 msgstr "Исключить из отчётов"
 
-#: /app/templates/index.php:7066
+#: /app/templates/index.php:7076
 msgid ""
 "Transactions in this category will not count toward budgets, spending "
 "reports, or dashboard totals."
@@ -20362,11 +20376,11 @@ msgstr ""
 "Транзакции в этой категории не будут учитываться в бюджетах, отчётах о "
 "расходах и итогах главного экрана."
 
-#: /app/templates/index.php:7072
+#: /app/templates/index.php:7082
 msgid "Exclude from budgeting"
 msgstr "Исключить из бюджетирования"
 
-#: /app/templates/index.php:7074
+#: /app/templates/index.php:7084
 msgid ""
 "For spending you track but never budget against. The category keeps counting "
 "in reports, the dashboard and every total — it just drops out of the Budget "
@@ -20377,47 +20391,47 @@ msgstr ""
 "вместе с подкатегориями исключается со страницы бюджета, из оповещений о "
 "бюджете и отчёта по бюджету."
 
-#: /app/templates/index.php:7086
+#: /app/templates/index.php:7096
 msgid "Save category"
 msgstr "Сохранить категорию"
 
-#: /app/templates/index.php:7104 /app/templates/index.php:7205
+#: /app/templates/index.php:7114 /app/templates/index.php:7215
 msgid "Tag Set Name"
 msgstr "Название набора тегов"
 
-#: /app/templates/index.php:7105 /app/templates/index.php:7206
+#: /app/templates/index.php:7115 /app/templates/index.php:7216
 msgid "e.g., Activity, Equipment, Location"
 msgstr "например, активность, оборудование, место"
 
-#: /app/templates/index.php:7109 /app/templates/index.php:7210
+#: /app/templates/index.php:7119 /app/templates/index.php:7220
 msgid "Optional description"
 msgstr "Описание (необязательно)"
 
-#: /app/templates/index.php:7136 /app/templates/index.php:7168
+#: /app/templates/index.php:7146 /app/templates/index.php:7178
 msgid "e.g., Fishing, Rods, Online"
 msgstr "например, рыбалка, удочки, онлайн"
 
-#: /app/templates/index.php:7186 /app/templates/index.php:7217
+#: /app/templates/index.php:7196 /app/templates/index.php:7227
 msgid "Save Changes"
 msgstr "Сохранить изменения"
 
-#: /app/templates/index.php:7227
+#: /app/templates/index.php:7237
 msgid "Find Transfer Matches"
 msgstr "Найти совпадения переводов"
 
-#: /app/templates/index.php:7229
+#: /app/templates/index.php:7239
 msgid "Source Transaction"
 msgstr "Исходная транзакция"
 
-#: /app/templates/index.php:7240
+#: /app/templates/index.php:7250
 msgid "Searching for matches..."
 msgstr "Поиск совпадений..."
 
-#: /app/templates/index.php:7243
+#: /app/templates/index.php:7253
 msgid "No matching transactions found within the date range."
 msgstr "В диапазоне дат совпадающие транзакции не найдены."
 
-#: /app/templates/index.php:7244
+#: /app/templates/index.php:7254
 msgid ""
 "Matches must have the same amount, opposite type (income/expense), and be "
 "within 3 days."
@@ -20425,11 +20439,11 @@ msgstr ""
 "Совпадения должны иметь ту же сумму, противоположный тип (доход/расход) и "
 "попадать в интервал 3 дней."
 
-#: /app/templates/index.php:7249
+#: /app/templates/index.php:7259
 msgid "No match? Create the other side"
 msgstr "Нет совпадения? Создать встречную транзакцию"
 
-#: /app/templates/index.php:7250
+#: /app/templates/index.php:7260
 msgid ""
 "Creates the opposite transaction in the account you pick and links the pair "
 "as a transfer. Useful when the other account has nothing to import (e.g. a "
@@ -20439,46 +20453,46 @@ msgstr ""
 "перевод. Полезно, если с другого счёта нечего импортировать (например, для "
 "кредитного счёта)."
 
-#: /app/templates/index.php:7252
+#: /app/templates/index.php:7262
 msgid "Counterpart account"
 msgstr "Встречный счёт"
 
-#: /app/templates/index.php:7253
+#: /app/templates/index.php:7263
 msgid "Create and link"
 msgstr "Создать и связать"
 
-#: /app/templates/index.php:7257 /app/templates/index.php:7314
+#: /app/templates/index.php:7267 /app/templates/index.php:7324
 msgid "Close dialog"
 msgstr "Закрыть диалог"
 
-#: /app/templates/index.php:7265
+#: /app/templates/index.php:7275
 msgid "Match Transfers"
 msgstr "Сопоставить переводы"
 
-#: /app/templates/index.php:7282
+#: /app/templates/index.php:7292
 msgid "Matched Pairs"
 msgstr "Сопоставленные пары"
 
-#: /app/templates/index.php:7286
+#: /app/templates/index.php:7296
 msgid "Need Review"
 msgstr "Нужна проверка"
 
-#: /app/templates/index.php:7292
+#: /app/templates/index.php:7302
 msgid "Auto-Matched Pairs"
 msgstr "Автоматически сопоставленные пары"
 
-#: /app/templates/index.php:7293
+#: /app/templates/index.php:7303
 msgid ""
 "These transactions were automatically linked. Click Undo to unlink a pair."
 msgstr ""
 "Эти транзакции были связаны автоматически. Нажмите «Отменить», чтобы "
 "разорвать связь пары."
 
-#: /app/templates/index.php:7299
+#: /app/templates/index.php:7309
 msgid "Needs Manual Review"
 msgstr "Нужна ручная проверка"
 
-#: /app/templates/index.php:7300
+#: /app/templates/index.php:7310
 msgid ""
 "These transactions have multiple potential matches. Select the correct match "
 "for each."
@@ -20486,7 +20500,7 @@ msgstr ""
 "У этих транзакций есть несколько возможных совпадений. Выберите правильное "
 "совпадение для каждой."
 
-#: /app/templates/index.php:7307
+#: /app/templates/index.php:7317
 msgid ""
 "Matches require: same amount, same currency, opposite type (income/expense), "
 "different accounts, within your configured date window."
@@ -20494,406 +20508,406 @@ msgstr ""
 "Для совпадения нужны: та же сумма, та же валюта, противоположный тип (доход/"
 "расход), разные счета и попадание в настроенное окно дат."
 
-#: /app/templates/index.php:7312
+#: /app/templates/index.php:7322
 msgid "Scan for Matches"
 msgstr "Найти совпадения"
 
-#: /app/templates/index.php:7331
+#: /app/templates/index.php:7341
 msgid "Amount:"
 msgstr "Сумма:"
 
-#: /app/templates/index.php:7362
+#: /app/templates/index.php:7372
 msgid "Remaining to allocate:"
 msgstr "Осталось распределить:"
 
-#: /app/templates/index.php:7367
+#: /app/templates/index.php:7377
 msgid "Unsplit Transaction"
 msgstr "Отменить разбивку транзакции"
 
-#: /app/templates/index.php:7369
+#: /app/templates/index.php:7379
 msgid "Save Splits"
 msgstr "Сохранить части"
 
-#: /app/templates/index.php:7379
+#: /app/templates/index.php:7389
 msgid "Bulk Edit Transactions"
 msgstr "Массовое редактирование транзакций"
 
-#: /app/templates/index.php:7380
+#: /app/templates/index.php:7390
 msgid "Edit fields for"
 msgstr "Изменить поля для"
 
-#: /app/templates/index.php:7380
+#: /app/templates/index.php:7390
 msgid "selected transactions. Leave fields empty to keep existing values."
 msgstr ""
 "выбранных транзакций. Оставьте поля пустыми, чтобы сохранить текущие "
 "значения."
 
-#: /app/templates/index.php:7381
+#: /app/templates/index.php:7391
 msgid "Bulk edit form"
 msgstr "Форма массового редактирования"
 
-#: /app/templates/index.php:7387
+#: /app/templates/index.php:7397
 msgid "Update category for all selected transactions (optional)"
 msgstr "Обновить категорию для всех выбранных транзакций (необязательно)"
 
-#: /app/templates/index.php:7393
+#: /app/templates/index.php:7403
 msgid "Update vendor name for all selected transactions (optional)"
 msgstr "Обновить имя продавца для всех выбранных транзакций (необязательно)"
 
-#: /app/templates/index.php:7399
+#: /app/templates/index.php:7409
 msgid "Update reference number for all selected transactions (optional)"
 msgstr "Обновить идентификатор для всех выбранных транзакций (необязательно)"
 
-#: /app/templates/index.php:7405
+#: /app/templates/index.php:7415
 msgid "Update notes for all selected transactions (optional)"
 msgstr "Обновить заметки для всех выбранных транзакций (необязательно)"
 
-#: /app/templates/index.php:7409
+#: /app/templates/index.php:7419
 msgid "Update selected transactions"
 msgstr "Обновить выбранные транзакции"
 
-#: /app/templates/index.php:7409
+#: /app/templates/index.php:7419
 msgid "Update Transactions"
 msgstr "Обновить транзакции"
 
-#: /app/templates/index.php:7419
+#: /app/templates/index.php:7429
 msgid "Bulk Edit Tags"
 msgstr "Массовое редактирование тегов"
 
-#: /app/templates/index.php:7421
+#: /app/templates/index.php:7431
 msgid "Bulk tag form"
 msgstr "Форма массового редактирования тегов"
 
-#: /app/templates/index.php:7423
+#: /app/templates/index.php:7433
 msgid "Add these tags"
 msgstr "Добавить эти теги"
 
-#: /app/templates/index.php:7428
+#: /app/templates/index.php:7438
 msgid "Remove these tags"
 msgstr "Удалить эти теги"
 
-#: /app/templates/index.php:7435
+#: /app/templates/index.php:7445
 msgid "Apply tag changes to selected transactions"
 msgstr "Применить изменения тегов к выбранным транзакциям"
 
-#: /app/templates/index.php:7435
+#: /app/templates/index.php:7445
 msgid "Apply Tags"
 msgstr "Применить теги"
 
-#: /app/templates/index.php:7446
+#: /app/templates/index.php:7456
 msgid "Contact form"
 msgstr "Форма контакта"
 
-#: /app/templates/index.php:7454
+#: /app/templates/index.php:7464
 msgid "Nextcloud User"
 msgstr "Пользователь Nextcloud"
 
-#: /app/templates/index.php:7456
+#: /app/templates/index.php:7466
 msgid ""
 "Type a name, user ID or email to link a Nextcloud user, or leave it empty "
 "for someone without an account"
 msgstr ""
 
-#: /app/templates/index.php:7461
+#: /app/templates/index.php:7471
 msgid "e.g., John, Roommate, Partner"
 msgstr "например, Иван, сосед, партнёр"
 
-#: /app/templates/index.php:7465
+#: /app/templates/index.php:7475
 msgid "Email"
 msgstr "Электронная почта"
 
-#: /app/templates/index.php:7466
+#: /app/templates/index.php:7476
 msgid "Optional email address"
 msgstr "Адрес электронной почты (необязательно)"
 
-#: /app/templates/index.php:7483
+#: /app/templates/index.php:7493
 msgid "Share Expense"
 msgstr "Разделить расход"
 
-#: /app/templates/index.php:7484
+#: /app/templates/index.php:7494
 msgid "Share expense form"
 msgstr "Форма разделения расхода"
 
-#: /app/templates/index.php:7494
+#: /app/templates/index.php:7504
 msgid "Split Method"
 msgstr "Способ разделения"
 
-#: /app/templates/index.php:7496
+#: /app/templates/index.php:7506
 msgid "Equally"
 msgstr "Поровну"
 
-#: /app/templates/index.php:7497
+#: /app/templates/index.php:7507
 msgid "By percentage"
 msgstr "По проценту"
 
-#: /app/templates/index.php:7498
+#: /app/templates/index.php:7508
 msgid "By amount"
 msgstr "По сумме"
 
-#: /app/templates/index.php:7503
+#: /app/templates/index.php:7513
 msgid "Split between"
 msgstr "Разделить между"
 
-#: /app/templates/index.php:7511
+#: /app/templates/index.php:7521
 msgid "Optional notes about this split"
 msgstr "Заметки об этом разделении (необязательно)"
 
-#: /app/templates/index.php:7515
+#: /app/templates/index.php:7525
 msgid "Save Split"
 msgstr "Сохранить распределение"
 
-#: /app/templates/index.php:7525
+#: /app/templates/index.php:7535
 msgid "Settle Expenses"
 msgstr "Провести взаиморасчёт"
 
-#: /app/templates/index.php:7526
+#: /app/templates/index.php:7536
 msgid "Settlement form"
 msgstr "Форма взаиморасчёта"
 
-#: /app/templates/index.php:7535
+#: /app/templates/index.php:7545
 msgid "Select expenses to settle"
 msgstr "Выберите расходы для погашения"
 
-#: /app/templates/index.php:7557 /app/templates/quick-add.php:83
+#: /app/templates/index.php:7567 /app/templates/quick-add.php:83
 msgid "Optional notes"
 msgstr "Заметки (необязательно)"
 
-#: /app/templates/index.php:7561
+#: /app/templates/index.php:7571
 msgid "Settle Selected"
 msgstr "Погасить выбранные"
 
-#: /app/templates/index.php:7571
+#: /app/templates/index.php:7581
 msgid "Contact Details"
 msgstr "Сведения о контакте"
 
-#: /app/templates/index.php:7578
+#: /app/templates/index.php:7588
 msgid "Balance:"
 msgstr "Баланс:"
 
-#: /app/templates/index.php:7584
+#: /app/templates/index.php:7594
 msgid "Settle All"
 msgstr "Завершить все взаиморасчёты"
 
-#: /app/templates/index.php:7585
+#: /app/templates/index.php:7595
 msgid "Record Payment"
 msgstr "Записать платёж"
 
-#: /app/templates/index.php:7590
+#: /app/templates/index.php:7600
 msgid "Settlement History"
 msgstr "История взаиморасчётов"
 
-#: /app/templates/index.php:7616
+#: /app/templates/index.php:7626
 msgid "Confirm Factory Reset"
 msgstr "Подтвердите сброс к заводским настройкам"
 
-#: /app/templates/index.php:7620
+#: /app/templates/index.php:7630
 msgid "WARNING: This action cannot be undone!"
 msgstr "ВНИМАНИЕ: это действие нельзя отменить!"
 
-#: /app/templates/index.php:7621
+#: /app/templates/index.php:7631
 msgid "A factory reset will permanently delete ALL of your data including:"
 msgstr "Сброс к заводским настройкам навсегда удалит ВСЕ ваши данные, включая:"
 
-#: /app/templates/index.php:7623
+#: /app/templates/index.php:7633
 msgid "All accounts and their balances"
 msgstr "Все счета и их балансы"
 
-#: /app/templates/index.php:7624
+#: /app/templates/index.php:7634
 msgid "All transactions and transaction history"
 msgstr "Все транзакции и историю транзакций"
 
-#: /app/templates/index.php:7625
+#: /app/templates/index.php:7635
 msgid "All bills and recurring income"
 msgstr "Все платежи и регулярные доходы"
 
-#: /app/templates/index.php:7626
+#: /app/templates/index.php:7636
 msgid "All categories and budget settings"
 msgstr "Все категории и настройки бюджета"
 
-#: /app/templates/index.php:7627
+#: /app/templates/index.php:7637
 msgid "All savings goals and pension accounts"
 msgstr "Все цели накоплений и пенсионные счета"
 
-#: /app/templates/index.php:7628
+#: /app/templates/index.php:7638
 msgid "All import rules and settings"
 msgstr "Все правила импорта и настройки"
 
-#: /app/templates/index.php:7629
+#: /app/templates/index.php:7639
 msgid "All shared expenses and contacts"
 msgstr "Все совместные расходы и контакты"
 
-#: /app/templates/index.php:7631
+#: /app/templates/index.php:7641
 msgid "Only audit logs will be preserved for compliance purposes."
 msgstr "Для соблюдения требований будут сохранены только журналы аудита."
 
-#: /app/templates/index.php:7632
+#: /app/templates/index.php:7642
 msgid "You will need to set up everything from scratch after this operation."
 msgstr "После этой операции всё придётся настроить заново."
 
-#: /app/templates/index.php:7637
+#: /app/templates/index.php:7647
 msgid "Type DELETE to confirm:"
 msgstr "Введите DELETE для подтверждения:"
 
-#: /app/templates/index.php:7642
+#: /app/templates/index.php:7652
 msgid "Type DELETE to confirm"
 msgstr "Введите DELETE для подтверждения"
 
-#: /app/templates/index.php:7645
+#: /app/templates/index.php:7655
 msgid "You must type DELETE (all caps) exactly to proceed"
 msgstr ""
 "Чтобы продолжить, введите DELETE точно в таком виде, заглавными буквами"
 
-#: /app/templates/index.php:7674 /app/templates/index.php:7678
+#: /app/templates/index.php:7684 /app/templates/index.php:7688
 msgid "Add Bank Connection"
 msgstr "Добавить подключение к банку"
 
-#: /app/templates/index.php:7683
+#: /app/templates/index.php:7693
 msgid "Select a provider..."
 msgstr "Выберите поставщика..."
 
-#: /app/templates/index.php:7684
+#: /app/templates/index.php:7694
 msgid "GoCardless (UK/Europe)"
 msgstr "GoCardless (Великобритания/Европа)"
 
-#: /app/templates/index.php:7685
+#: /app/templates/index.php:7695
 #, fuzzy
 #| msgid "Enable Bank Sync"
 msgid "Enable Banking (Europe)"
 msgstr "Включить синхронизацию с банком"
 
-#: /app/templates/index.php:7686
+#: /app/templates/index.php:7696
 msgid "SimpleFIN Bridge (US)"
 msgstr "SimpleFIN Bridge (США)"
 
-#: /app/templates/index.php:7691
+#: /app/templates/index.php:7701
 msgid "Connection Name"
 msgstr "Название подключения"
 
-#: /app/templates/index.php:7692
+#: /app/templates/index.php:7702
 msgid "e.g. My Bank"
 msgstr "например, мой банк"
 
-#: /app/templates/index.php:7698
+#: /app/templates/index.php:7708
 msgid "Setup Token"
 msgstr "Токен настройки"
 
-#: /app/templates/index.php:7699
+#: /app/templates/index.php:7709
 msgid "Paste your SimpleFIN setup token"
 msgstr "Вставьте токен настройки SimpleFIN"
 
-#: /app/templates/index.php:7700
+#: /app/templates/index.php:7710
 msgid "Get a token from beta-bridge.simplefin.org"
 msgstr "Получите токен на beta-bridge.simplefin.org"
 
-#: /app/templates/index.php:7707
+#: /app/templates/index.php:7717
 msgid "Secret ID"
 msgstr "Секретный идентификатор"
 
-#: /app/templates/index.php:7708
+#: /app/templates/index.php:7718
 msgid "Your GoCardless Secret ID"
 msgstr "Ваш секретный идентификатор GoCardless"
 
-#: /app/templates/index.php:7711
+#: /app/templates/index.php:7721
 msgid "Secret Key"
 msgstr "Секретный ключ"
 
-#: /app/templates/index.php:7712
+#: /app/templates/index.php:7722
 msgid "Your GoCardless Secret Key"
 msgstr "Ваш секретный ключ GoCardless"
 
-#: /app/templates/index.php:7714
+#: /app/templates/index.php:7724
 msgid "Get API keys from bankaccountdata.gocardless.com"
 msgstr "Получите ключи API на bankaccountdata.gocardless.com"
 
-#: /app/templates/index.php:7720
+#: /app/templates/index.php:7730
 msgid "Your Enable Banking keys are stored."
 msgstr ""
 
-#: /app/templates/index.php:7721
+#: /app/templates/index.php:7731
 #, fuzzy
 #| msgid "Replace notes"
 msgid "Replace keys"
 msgstr "Заменить заметки"
 
-#: /app/templates/index.php:7725
+#: /app/templates/index.php:7735
 msgid "Application ID"
 msgstr ""
 
-#: /app/templates/index.php:7726
+#: /app/templates/index.php:7736
 msgid "Your Enable Banking application ID"
 msgstr ""
 
-#: /app/templates/index.php:7729
+#: /app/templates/index.php:7739
 msgid "Private Key (PEM)"
 msgstr ""
 
-#: /app/templates/index.php:7731
+#: /app/templates/index.php:7741
 msgid "Load private key from file"
 msgstr ""
 
-#: /app/templates/index.php:7735
+#: /app/templates/index.php:7745
 msgid "Redirect URL to register in Enable Banking"
 msgstr ""
 
-#: /app/templates/index.php:7737
+#: /app/templates/index.php:7747
 #, fuzzy
 #| msgid "Copy URL"
 msgid "Copy"
 msgstr "Копировать URL"
 
-#: /app/templates/index.php:7739
+#: /app/templates/index.php:7749
 msgid "Register an application and create its keys at"
 msgstr ""
 
-#: /app/templates/index.php:7752
+#: /app/templates/index.php:7762
 msgid "Select Your Bank"
 msgstr "Выберите свой банк"
 
-#: /app/templates/index.php:7755
+#: /app/templates/index.php:7765
 msgid "Country"
 msgstr "Страна"
 
-#: /app/templates/index.php:7760
+#: /app/templates/index.php:7770
 msgid "Search banks..."
 msgstr "Поиск банков..."
 
-#: /app/templates/index.php:7760
+#: /app/templates/index.php:7770
 #, fuzzy
 #| msgid "Search banks..."
 msgid "Search banks"
 msgstr "Поиск банков..."
 
-#: /app/templates/index.php:7764
+#: /app/templates/index.php:7774
 msgid "Loading banks..."
 msgstr "Загрузка банков..."
 
-#: /app/templates/index.php:7773
+#: /app/templates/index.php:7783
 msgid "Back"
 msgstr "Назад"
 
-#: /app/templates/index.php:7779
+#: /app/templates/index.php:7789
 msgid "Authorize with Your Bank"
 msgstr "Авторизация в банке"
 
-#: /app/templates/index.php:7782
+#: /app/templates/index.php:7792
 msgid ""
 "Confirm in your bank's app. When the new tab says 'Connected', come back "
 "here."
 msgstr ""
 
-#: /app/templates/index.php:7783
+#: /app/templates/index.php:7793
 msgid "A new window has been opened for you to authorize access at your bank."
 msgstr "Открыто новое окно для авторизации доступа в вашем банке."
 
-#: /app/templates/index.php:7784
+#: /app/templates/index.php:7794
 msgid "Once you have completed the authorization, click the button below."
 msgstr "После завершения авторизации нажмите кнопку ниже."
 
-#: /app/templates/index.php:7786
+#: /app/templates/index.php:7796
 msgid "If the window did not open, "
 msgstr "Если окно не открылось, "
 
-#: /app/templates/index.php:7787
+#: /app/templates/index.php:7797
 msgid "click here to authorize"
 msgstr "нажмите здесь для авторизации"
 
