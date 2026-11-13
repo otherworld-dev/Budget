@@ -133,6 +133,10 @@ trait FullDataset {
 			'user_id' => $userId, 'name' => 'Current account', 'account_id' => $ids['current'],
 			'template_id' => $ids['import_template'], 'mode' => 'auto', 'enabled' => true, 'created_at' => $now,
 		]);
+		$this->insertRow('budget_runway_oneoffs', [
+			'user_id' => $userId, 'description' => 'Car repair', 'amount' => '-864.27', 'date' => '2026-12-15',
+			'created_at' => $now,
+		]);
 		$this->insertRow('budget_imp_links', [
 			'user_id' => $userId, 'format' => 'ofx', 'source_key' => 'acct-1234', 'budget_account_id' => $ids['current'], 'updated_at' => $now,
 		]);

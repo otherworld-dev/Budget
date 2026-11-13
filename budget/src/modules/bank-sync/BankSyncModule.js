@@ -4,14 +4,50 @@ import { confirmDialog } from '../../utils/dialogs.js';
 import { apiFetch } from '../../utils/api.js';
 import { refreshBankSyncNav } from './bankSyncStatus.js';
 import { importTargetAccounts, accountOptionLabel } from '../../utils/accounts.js';
-import { userLocale } from '../../utils/formatters.js';
+import { userLocale, formatCurrency } from '../../utils/formatters.js';
 import { escapeHtml } from '../../utils/dom.js';
+
+/**
+ * Whether a bank authorization link is safe to send the browser to: https
+ * only, so a javascript: or data: link from the provider never runs here.
+ * The server refuses anything else too; this is the second check.
+ * @param {unknown} url
+ * @returns {boolean}
+ */
+export function isHttpsUrl(url) {
+    if (typeof url !== 'string' || url === '') return false;
+    try {
+        return new URL(url).protocol === 'https:';
+    } catch (e) {
+        return false;
+    }
+}
+
+/**
+ * Open the bank's authorization page in a new window with no link back to
+ * this one (noopener) and no referrer. With noopener, window.open always
+ * returns null, so a blocked popup can't be told apart from an open one:
+ * the "click here" link is always shown and carries the same rel.
+ * @param {string} url an https link (see isHttpsUrl)
+ */
+export function openAuthorizationUrl(url) {
+    window.open(url, '_blank', 'noopener,noreferrer');
+    const fallback = document.getElementById('bank-sync-auth-link-fallback');
+    const link = document.getElementById('bank-sync-auth-link');
+    if (link) {
+        link.href = url;
+        link.rel = 'noopener noreferrer';
+    }
+    if (fallback) fallback.style.display = 'block';
+}
 
 /**
  * Bank Sync Module — manages bank connections, account mappings, and sync operations.
  * Only visible when the admin has enabled bank sync.
  *
  * GoCardless flow: 3-step wizard (credentials → bank selection → authorization).
+ * Enable Banking flow: same three steps, but the API keys live server-side, so
+ * step 1 only asks for them once (and is skipped when they are stored).
  * SimpleFIN flow: single-step (credentials → connect → done).
  */
 export default class BankSyncModule {
@@ -28,6 +64,8 @@ export default class BankSyncModule {
         this._selectedInstitutionId = null;
         this._institutions = [];
         this._reauthorizeConnectionId = null;
+        this._ebSettings = null;
+        this._ebReplaceKeys = false;
 
         // GoCardless supported country codes
         this._countryCodes = [
@@ -63,6 +101,15 @@ export default class BankSyncModule {
             } else if (e.target.closest('#bank-sync-step2-back')) {
                 e.preventDefault();
                 this.showWizardStep(1);
+            } else if (e.target.closest('#bank-sync-eb-replace-keys')) {
+                e.preventDefault();
+                this._showEnableBankingKeyInputs();
+            } else if (e.target.closest('#bank-sync-eb-copy-callback')) {
+                e.preventDefault();
+                this._copyEnableBankingCallbackUrl();
+            } else if (e.target.closest('#bank-sync-modal .cancel-btn')) {
+                // main.js hides the modal; the entered key must not stay in the page
+                this._resetWizardState();
             } else if (e.target.closest('#bank-sync-check-auth')) {
                 e.preventDefault();
                 this.handleCheckAuth();
@@ -76,10 +123,14 @@ export default class BankSyncModule {
         });
 
         document.addEventListener('change', (e) => {
-            if (e.target.id === 'bank-sync-provider') {
+            if (e.target.id === 'bank-sync-eb-private-key-file') {
+                this._readPrivateKeyFile(e.target.files && e.target.files[0]);
+            } else if (e.target.id === 'bank-sync-provider') {
                 const provider = e.target.value;
                 document.getElementById('simplefin-fields').style.display = provider === 'simplefin' ? 'block' : 'none';
                 document.getElementById('gocardless-fields').style.display = provider === 'gocardless' ? 'block' : 'none';
+                document.getElementById('enablebanking-fields').style.display = provider === 'enablebanking' ? 'block' : 'none';
+                if (provider === 'enablebanking') this.loadEnableBankingSettings();
             } else if (e.target.id === 'bank-sync-country') {
                 this.loadInstitutions(e.target.value);
             }
@@ -135,24 +186,23 @@ export default class BankSyncModule {
             return;
         }
 
-        container.innerHTML = this.connections.map(({ connection, mappings }) => {
+        container.innerHTML = this.connections.map(({ connection, mappings, canReauthorize }) => {
             const statusClass = connection.status === 'active' ? 'positive' : (connection.status === 'error' ? 'negative' : (connection.status === 'pending_auth' ? 'warning' : ''));
             const statusLabel = {
                 active: t('budget', 'Active'),
                 pending_auth: t('budget', 'Awaiting Authorization'),
                 error: t('budget', 'Error'),
                 expired: t('budget', 'Expired'),
-            }[connection.status] || connection.status;
+            }[connection.status] || escapeHtml(connection.status);
 
-            const providerLabel = connection.provider === 'gocardless' ? 'GoCardless' : 'SimpleFIN';
+            const providerLabel = { gocardless: 'GoCardless', enablebanking: 'Enable Banking' }[connection.provider] || 'SimpleFIN';
             const lastSync = connection.lastSyncAt
                 ? t('budget', 'Last sync: {date}', { date: new Date(connection.lastSyncAt).toLocaleString(userLocale()) })
                 : t('budget', 'Never synced');
             const mappedCount = mappings.filter(m => m.budgetAccountId && m.enabled).length;
-            const isExpired = connection.status === 'expired';
-            const isGoCardless = connection.provider === 'gocardless';
-
-            const actionBtn = (isExpired && isGoCardless)
+            // The server decides: it alone sees whether a pending Enable
+            // Banking authorization failed, timed out or is still under way.
+            const actionBtn = canReauthorize
                 ? `<button class="btn-warning bank-reauth-btn" data-connection-id="${connection.id}" title="${t('budget', 'Re-authorize')}">${t('budget', 'Re-authorize')}</button>`
                 : `<button class="bank-sync-btn" data-connection-id="${connection.id}" title="${t('budget', 'Sync now')}" aria-label="${t('budget', 'Sync now')}">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z"/></svg>
@@ -235,6 +285,7 @@ export default class BankSyncModule {
         document.getElementById('bank-sync-secret-key').value = '';
         document.getElementById('simplefin-fields').style.display = 'none';
         document.getElementById('gocardless-fields').style.display = 'none';
+        document.getElementById('enablebanking-fields').style.display = 'none';
         document.getElementById('bank-sync-provider').disabled = false;
         document.getElementById('bank-sync-name').disabled = false;
 
@@ -264,10 +315,26 @@ export default class BankSyncModule {
         this._selectedInstitutionId = null;
         this._institutions = [];
         this._reauthorizeConnectionId = null;
+        this._ebReplaceKeys = false;
         this._authComplete = false;
         this._busy = false;
         const fallback = document.getElementById('bank-sync-auth-link-fallback');
         if (fallback) fallback.style.display = 'none';
+        this._setAuthText(false);
+        // The private key must not linger in the page after cancel or reopen
+        for (const id of ['bank-sync-eb-private-key', 'bank-sync-eb-application-id', 'bank-sync-eb-private-key-file']) {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        }
+    }
+
+    /** Step 3 wording differs for Enable Banking: the bank's own tab says "Connected". */
+    _setAuthText(isEnableBanking) {
+        const eb = document.getElementById('bank-sync-auth-text-eb');
+        if (eb) eb.style.display = isEnableBanking ? 'block' : 'none';
+        document.querySelectorAll('.bank-sync-auth-text-default').forEach(el => {
+            el.style.display = isEnableBanking ? 'none' : '';
+        });
     }
 
     _showStepError(step, message) {
@@ -300,6 +367,11 @@ export default class BankSyncModule {
             return;
         }
 
+        if (provider === 'enablebanking') {
+            await this._connectEnableBankingStep1(name);
+            return;
+        }
+
         const secretId = document.getElementById('bank-sync-secret-id').value.trim();
         const secretKey = document.getElementById('bank-sync-secret-key').value.trim();
 
@@ -327,6 +399,112 @@ export default class BankSyncModule {
             btn.disabled = false;
             btn.textContent = t('budget', 'Next');
         }
+    }
+
+    // ── Enable Banking: keys & step 1 ───────────────────────────
+
+    /**
+     * Fetches the stored-keys state (never the key itself) and shows either the
+     * "keys stored" notice or the key inputs. Also fills the redirect URL the
+     * user has to register with Enable Banking.
+     */
+    async loadEnableBankingSettings() {
+        try {
+            this._ebSettings = await apiFetch('/apps/budget/api/bank-sync/enablebanking/settings');
+        } catch (error) {
+            this._showStepError(1, t('budget', 'Failed to load Enable Banking settings: {error}', { error: error.message }));
+            return null;
+        }
+
+        this._ebReplaceKeys = false;
+        const callback = document.getElementById('bank-sync-eb-callback-url');
+        if (callback) callback.value = this._ebSettings.callbackUrl || '';
+        this._toggleEnableBankingKeyInputs(!this._ebSettings.hasKeys);
+        return this._ebSettings;
+    }
+
+    _toggleEnableBankingKeyInputs(showInputs) {
+        const stored = document.getElementById('bank-sync-eb-keys-stored');
+        const inputs = document.getElementById('bank-sync-eb-key-inputs');
+        if (stored) stored.style.display = showInputs ? 'none' : 'block';
+        if (inputs) inputs.style.display = showInputs ? 'block' : 'none';
+    }
+
+    _showEnableBankingKeyInputs() {
+        this._ebReplaceKeys = true;
+        const appId = document.getElementById('bank-sync-eb-application-id');
+        if (appId && !appId.value && this._ebSettings?.applicationId) appId.value = this._ebSettings.applicationId;
+        this._toggleEnableBankingKeyInputs(true);
+    }
+
+    /** Reads the PEM client-side so the file itself never leaves the browser except as the PUT body. */
+    _readPrivateKeyFile(file) {
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+            document.getElementById('bank-sync-eb-private-key').value = String(reader.result || '');
+        };
+        reader.onerror = () => {
+            this._showStepError(1, t('budget', 'Could not read the key file'));
+        };
+        reader.readAsText(file);
+    }
+
+    async _copyEnableBankingCallbackUrl() {
+        const input = document.getElementById('bank-sync-eb-callback-url');
+        if (!input || !input.value) return;
+        try {
+            await navigator.clipboard.writeText(input.value);
+            showSuccess(t('budget', 'Copied'));
+        } catch (error) {
+            input.select();
+        }
+    }
+
+    async _connectEnableBankingStep1(name) {
+        this._wizardCredentials = { name, provider: 'enablebanking' };
+
+        const btn = document.getElementById('bank-sync-step1-next');
+        this._busy = true;
+        btn.disabled = true;
+        btn.textContent = t('budget', 'Validating...');
+
+        try {
+            if (!this._ebSettings) await this.loadEnableBankingSettings();
+
+            if (!this._ebSettings?.hasKeys || this._ebReplaceKeys) {
+                const applicationId = document.getElementById('bank-sync-eb-application-id').value.trim();
+                const privateKey = document.getElementById('bank-sync-eb-private-key').value.trim();
+                if (!applicationId || !privateKey) {
+                    this._showStepError(1, t('budget', 'Please enter your application ID and private key'));
+                    return;
+                }
+                await apiFetch('/apps/budget/api/bank-sync/enablebanking/settings', {
+                    method: 'PUT',
+                    body: { applicationId, privateKey },
+                });
+                this._ebSettings = { ...this._ebSettings, hasKeys: true, applicationId };
+                this._ebReplaceKeys = false;
+                this._toggleEnableBankingKeyInputs(false);
+                document.getElementById('bank-sync-eb-private-key').value = '';
+            }
+
+            await this._showEnableBankingBanks();
+        } catch (error) {
+            this._showStepError(1, t('budget', 'Failed to connect: {error}', { error: error.message }));
+        } finally {
+            this._busy = false;
+            btn.disabled = false;
+            btn.textContent = t('budget', 'Next');
+        }
+    }
+
+    async _showEnableBankingBanks() {
+        this._populateCountryDropdown();
+        // Germany is the main market; the user can switch country on step 2.
+        document.getElementById('bank-sync-country').value = 'DE';
+        await this.loadInstitutions('DE');
+        this.showWizardStep(2);
     }
 
     async _connectSimpleFIN(name) {
@@ -406,15 +584,16 @@ export default class BankSyncModule {
         this._updateConnectButton();
 
         const creds = this._wizardCredentials || {};
+        const provider = creds.provider || 'gocardless';
+        // Enable Banking keys are held server-side, so only GoCardless sends secrets.
+        const body = provider === 'gocardless'
+            ? { country, secretId: creds.secretId || '', secretKey: creds.secretKey || '' }
+            : { country };
 
         try {
-            this._institutions = await apiFetch('/apps/budget/api/bank-sync/providers/gocardless/institutions', {
+            this._institutions = await apiFetch(`/apps/budget/api/bank-sync/providers/${provider}/institutions`, {
                 method: 'POST',
-                body: {
-                    country,
-                    secretId: creds.secretId || '',
-                    secretKey: creds.secretKey || '',
-                },
+                body,
             });
             this.renderInstitutions(this._institutions);
         } catch (error) {
@@ -434,9 +613,12 @@ export default class BankSyncModule {
             return;
         }
 
+        // Nextcloud's CSP blocks Enable Banking's logo hosts, so show names only.
+        const showLogos = this._wizardCredentials?.provider !== 'enablebanking';
+
         grid.innerHTML = institutions.map(inst => `
             <div class="bank-institution-tile" data-institution-id="${escapeHtml(inst.id)}" tabindex="0" role="button">
-                ${inst.logo ? `<img src="${escapeHtml(inst.logo)}" alt="" class="bank-institution-logo" loading="lazy">` : '<div class="bank-institution-logo-placeholder"></div>'}
+                ${!showLogos ? '' : inst.logo ? `<img src="${escapeHtml(inst.logo)}" alt="" class="bank-institution-logo" loading="lazy">` : '<div class="bank-institution-logo-placeholder"></div>'}
                 <span class="bank-institution-name">${escapeHtml(inst.name)}</span>
             </div>
         `).join('');
@@ -484,6 +666,18 @@ export default class BankSyncModule {
         btn.textContent = t('budget', 'Connecting...');
 
         const redirectUrl = window.location.href.split('#')[0];
+        const isEnableBanking = this._wizardCredentials?.provider === 'enablebanking';
+
+        // Enable Banking needs the country and the bank's consent limit, and the
+        // server sets the redirect URL itself (it points at the callback page).
+        let ebFields = {};
+        if (isEnableBanking) {
+            const inst = this._institutions.find(i => i.id === this._selectedInstitutionId);
+            ebFields = {
+                country: document.getElementById('bank-sync-country').value,
+                maximumConsentValidity: inst?.maximumConsentValidity,
+            };
+        }
 
         try {
             let result;
@@ -491,37 +685,38 @@ export default class BankSyncModule {
             if (this._reauthorizeConnectionId) {
                 result = await apiFetch(`/apps/budget/api/bank-sync/connections/${this._reauthorizeConnectionId}/reauthorize`, {
                     method: 'POST',
-                    body: {
-                        institutionId: this._selectedInstitutionId,
-                        redirectUrl,
-                    },
+                    body: isEnableBanking
+                        ? { institutionId: this._selectedInstitutionId, ...ebFields }
+                        : { institutionId: this._selectedInstitutionId, redirectUrl },
                 });
                 this._wizardConnectionId = this._reauthorizeConnectionId;
             } else {
                 const creds = this._wizardCredentials;
                 result = await apiFetch('/apps/budget/api/bank-sync/connections', {
                     method: 'POST',
-                    body: {
-                        provider: 'gocardless',
-                        name: creds.name,
-                        secretId: creds.secretId,
-                        secretKey: creds.secretKey,
-                        institutionId: this._selectedInstitutionId,
-                        redirectUrl,
-                    },
+                    body: isEnableBanking
+                        ? {
+                            provider: 'enablebanking',
+                            name: creds.name,
+                            institutionId: this._selectedInstitutionId,
+                            ...ebFields,
+                        }
+                        : {
+                            provider: 'gocardless',
+                            name: creds.name,
+                            secretId: creds.secretId,
+                            secretKey: creds.secretKey,
+                            institutionId: this._selectedInstitutionId,
+                            redirectUrl,
+                        },
                 });
                 this._wizardConnectionId = result.connection?.id;
             }
 
-            this._wizardAuthUrl = result.authorizationUrl;
+            this._setAuthText(isEnableBanking);
+            this._wizardAuthUrl = isHttpsUrl(result.authorizationUrl) ? result.authorizationUrl : null;
             if (this._wizardAuthUrl) {
-                const authWindow = window.open(this._wizardAuthUrl, '_blank');
-                if (!authWindow) {
-                    const fallback = document.getElementById('bank-sync-auth-link-fallback');
-                    const link = document.getElementById('bank-sync-auth-link');
-                    if (fallback) fallback.style.display = 'block';
-                    if (link) link.href = this._wizardAuthUrl;
-                }
+                openAuthorizationUrl(this._wizardAuthUrl);
             }
 
             this.showWizardStep(3);
@@ -583,7 +778,7 @@ export default class BankSyncModule {
 
     // ── Re-Authorization ────────────────────────────────────────
 
-    startReauthorize(connectionId) {
+    async startReauthorize(connectionId) {
         const conn = this.connections.find(c => c.connection.id === connectionId);
         if (!conn) return;
 
@@ -593,17 +788,50 @@ export default class BankSyncModule {
         const modal = document.getElementById('bank-sync-modal');
         if (!modal) return;
 
+        if (conn.connection.provider === 'enablebanking') {
+            await this._startEnableBankingReauthorize(conn, modal);
+            return;
+        }
+
         document.getElementById('bank-sync-provider').value = 'gocardless';
         document.getElementById('bank-sync-provider').disabled = true;
         document.getElementById('bank-sync-name').value = conn.connection.name;
         document.getElementById('bank-sync-name').disabled = true;
         document.getElementById('gocardless-fields').style.display = 'block';
         document.getElementById('simplefin-fields').style.display = 'none';
+        document.getElementById('enablebanking-fields').style.display = 'none';
         document.getElementById('bank-sync-secret-id').value = '';
         document.getElementById('bank-sync-secret-key').value = '';
 
         this.showWizardStep(1);
         modal.style.display = 'flex';
+    }
+
+    /** Keys are stored server-side, so re-authorizing goes straight to the bank list unless they are missing. */
+    async _startEnableBankingReauthorize(conn, modal) {
+        document.getElementById('bank-sync-provider').value = 'enablebanking';
+        document.getElementById('bank-sync-provider').disabled = true;
+        document.getElementById('bank-sync-name').value = conn.connection.name;
+        document.getElementById('bank-sync-name').disabled = true;
+        document.getElementById('gocardless-fields').style.display = 'none';
+        document.getElementById('simplefin-fields').style.display = 'none';
+        document.getElementById('enablebanking-fields').style.display = 'block';
+        document.getElementById('bank-sync-eb-application-id').value = '';
+        document.getElementById('bank-sync-eb-private-key').value = '';
+        this._wizardCredentials = { name: conn.connection.name, provider: 'enablebanking' };
+
+        this.showWizardStep(1);
+        modal.style.display = 'flex';
+
+        const settings = await this.loadEnableBankingSettings();
+        if (!settings?.hasKeys) return;
+
+        try {
+            await this._showEnableBankingBanks();
+        } catch (error) {
+            // loadInstitutions already printed the reason on step 2; show it where the user is
+            this._showStepError(1, t('budget', 'Failed to load banks: {error}', { error: error.message }));
+        }
     }
 
     // ── Sync ────────────────────────────────────────────────────
@@ -732,12 +960,16 @@ export default class BankSyncModule {
         // shared with you: the sync imports as you, not as their owner.
         const accounts = importTargetAccounts(this.app.accounts, mappings.map(m => m.budgetAccountId));
         const accountOptions = accounts.map(a =>
-            `<option value="${a.id}">${escapeHtml(accountOptionLabel(a))} (${a.currency})</option>`
+            `<option value="${escapeHtml(a.id)}">${escapeHtml(accountOptionLabel(a))} (${escapeHtml(a.currency)})</option>`
         ).join('');
 
         container.innerHTML = mappings.map(mapping => {
             const enabled = mapping.enabled ? 'checked' : '';
-            const balance = mapping.lastBalance ? `${mapping.lastCurrency || ''} ${mapping.lastBalance}` : '';
+            // Both come from the bank provider: text, never markup
+            const balance = mapping.lastBalance
+                ? `${escapeHtml(mapping.lastCurrency || '')} ${escapeHtml(mapping.lastBalance)}`
+                : '';
+            const balanceCheck = this.renderBalanceCheck(mapping);
 
             return `
                 <div class="bank-mapping-row" data-mapping-id="${mapping.id}">
@@ -750,6 +982,7 @@ export default class BankSyncModule {
                             <strong>${escapeHtml(mapping.externalAccountName || mapping.externalAccountId)}</strong>
                             ${balance ? `<small>${balance}</small>` : ''}
                             ${mapping.consentExpires ? `<small class="consent-warning">${t('budget', 'Consent expires: {date}', { date: new Date(mapping.consentExpires).toLocaleDateString(userLocale()) })}</small>` : ''}
+                            ${balanceCheck}
                         </div>
                     </div>
                     <div class="bank-mapping-target">
@@ -778,6 +1011,14 @@ export default class BankSyncModule {
             ));
         });
 
+        container.querySelectorAll('.bank-reconcile-btn').forEach(btn => {
+            btn.addEventListener('click', () => this.reconcileMapping(
+                mappings,
+                connectionId,
+                parseInt(btn.dataset.mappingId)
+            ));
+        });
+
         container.querySelectorAll('.mapping-account-select').forEach(sel => {
             sel.addEventListener('change', () => this.updateMapping(
                 parseInt(sel.dataset.connectionId),
@@ -786,6 +1027,42 @@ export default class BankSyncModule {
                 null
             ));
         });
+    }
+
+    /**
+     * The bank's balance against Budget's, shown only when they differ. The
+     * gap usually means a missing or doubled transaction, so it is never
+     * corrected on its own: Reconcile is the user's call.
+     */
+    renderBalanceCheck(mapping) {
+        const difference = mapping.balanceDifference;
+        if (difference === null || difference === undefined || Number(difference) === 0) return '';
+
+        const settings = this.app.settings || {};
+        const currency = mapping.lastCurrency;
+        const bank = Number(mapping.lastBalance);
+        const text = t('budget', 'Bank: {bank} · Budget: {budget} · Difference: {difference}', {
+            bank: formatCurrency(bank, currency, settings),
+            budget: formatCurrency(bank - Number(difference), currency, settings),
+            difference: formatCurrency(Number(difference), currency, settings),
+        });
+
+        return `<small class="bank-balance-check consent-warning">${text}</small>
+            <button class="bank-reconcile-btn" data-mapping-id="${mapping.id}" title="${t('budget', 'Set the opening balance so that the balance matches the bank')}">${t('budget', 'Reconcile')}</button>`;
+    }
+
+    async reconcileMapping(mappings, connectionId, mappingId) {
+        try {
+            const result = await apiFetch(`/apps/budget/api/bank-sync/connections/${connectionId}/mappings/${mappingId}/reconcile`, {
+                method: 'POST',
+            });
+            const mapping = mappings.find(m => m.id === mappingId);
+            if (mapping) mapping.balanceDifference = result.balanceDifference;
+            this.renderMappings(mappings, connectionId);
+            showSuccess(t('budget', 'Balance matched to the bank'));
+        } catch (error) {
+            showError(t('budget', 'Failed to reconcile the balance'));
+        }
     }
 
     async updateMapping(connectionId, mappingId, budgetAccountId, enabled) {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Budget\Db;
 
+use OCA\Budget\Service\BudgetPeriod;
 use OCA\Budget\Service\MoneyCalculator;
 use OCP\DB\QueryBuilder\ICompositeExpression;
 use OCP\DB\QueryBuilder\IQueryBuilder;
@@ -41,6 +42,36 @@ final class ReportScope {
 	 */
 	public static function monthExpr(string $alias = 't'): string {
 		return "SUBSTR(CAST({$alias}.date AS CHAR(10)), 1, 7)";
+	}
+
+	/**
+	 * The bucket a month-by-month report groups by. Calendar months
+	 * ($monthStartDay 1) are cut in SQL. A budget month can't be cut out of
+	 * a date in SQL every database runs, so with a budget start day the
+	 * query groups by date and toBudgetMonths() names each date's month.
+	 */
+	public static function monthBucketExpr(int $monthStartDay, string $alias = 't'): string {
+		return $monthStartDay > 1 ? "CAST({$alias}.date AS CHAR(10))" : self::monthExpr($alias);
+	}
+
+	/**
+	 * Rows grouped by monthBucketExpr(), with $column turned from a date into
+	 * its budget month (Y-m). Several dates then share a month, so the rows
+	 * go through mergeReportHalves() afterwards to add them up. Calendar
+	 * month rows come back unchanged.
+	 *
+	 * @param array[] $rows
+	 * @return array[]
+	 */
+	public static function toBudgetMonths(array $rows, int $monthStartDay, string $column = 'month'): array {
+		if ($monthStartDay <= 1) {
+			return $rows;
+		}
+		foreach ($rows as &$row) {
+			$row[$column] = BudgetPeriod::monthContaining(substr((string)$row[$column], 0, 10), $monthStartDay);
+		}
+		unset($row);
+		return $rows;
 	}
 
 	/**

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Tests\Unit\Service;
 
 use OCA\Budget\Service\AmountColours;
+use OCA\Budget\Service\BudgetCarryoverService;
 use OCA\Budget\Service\Report\ReportAggregator;
 use OCA\Budget\Service\Report\ReportCalculator;
 use OCA\Budget\Service\Report\ReportExporter;
@@ -183,6 +184,38 @@ class ReportServiceTest extends TestCase {
 			->with('user1', 3, '2025-01-01', '2025-12-31', [], true);
 
 		$this->service->getCashFlowReport('user1', '2025-01-01', '2025-12-31', 3);
+	}
+
+	// ===== Month grouping (#457) =====
+
+	private function serviceWithMonthStartDay(int $day): ReportService {
+		$carryover = $this->createMock(BudgetCarryoverService::class);
+		$carryover->method('reportMonthStartDay')->with('user1')->willReturn($day);
+		return new ReportService($this->calculator, $this->aggregator, $this->exporter, $this->tagReportService, $this->amountColours, $carryover);
+	}
+
+	public function testMonthByMonthReportsUseTheUsersMonthStartDay(): void {
+		$service = $this->serviceWithMonthStartDay(26);
+		$this->aggregator->expects($this->once())->method('generateSummary')
+			->with('user1', null, '2026-01-01', '2026-12-31', [], true, [], 26);
+		$this->aggregator->expects($this->once())->method('generateSummaryWithComparison')
+			->with('user1', null, '2026-01-01', '2026-12-31', [], true, [], 26);
+		$this->aggregator->expects($this->once())->method('getCashFlowReport')
+			->with('user1', null, '2026-01-01', '2026-12-31', [], true, null, 26);
+		$this->aggregator->expects($this->once())->method('getCategoryMonthlyReport')
+			->with('user1', '2026-01-01', '2026-12-31', null, 'alpha', [], 26);
+
+		$service->generateSummary('user1', '2026-01-01', '2026-12-31');
+		$service->generateSummaryWithComparison('user1', '2026-01-01', '2026-12-31');
+		$service->getCashFlowReport('user1', '2026-01-01', '2026-12-31');
+		$service->getCategoryMonthlyReport('user1', '2026-01-01', '2026-12-31');
+	}
+
+	public function testMonthByMonthReportsUseCalendarMonthsWithoutTheSetting(): void {
+		$this->aggregator->expects($this->once())->method('getCashFlowReport')
+			->with('user1', null, '2026-01-01', '2026-12-31', [], true, null, 1);
+
+		$this->service->getCashFlowReport('user1', '2026-01-01', '2026-12-31');
 	}
 
 	// ===== Tag report delegation =====

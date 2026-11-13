@@ -46,6 +46,9 @@ function mountDialog() {
                     <small id="liability-in-credit-notice"></small></div>
                 <input type="text" id="account-holder-name">
                 <input type="text" id="account-opening-date">
+                <input type="text" inputmode="decimal" data-amount id="account-promo-rate">
+                <input type="text" id="account-promo-start">
+                <input type="text" id="account-promo-end">
                 <input type="number" id="account-interest-rate">
                 <input type="number" id="account-credit-limit">
                 <input type="number" id="account-overdraft-limit">

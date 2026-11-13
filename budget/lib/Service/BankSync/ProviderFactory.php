@@ -14,9 +14,11 @@ class ProviderFactory {
 	public function __construct(
 		SimpleFINProvider $simplefin,
 		GoCardlessProvider $gocardless,
+		EnableBankingProvider $enablebanking,
 	) {
 		$this->providers['simplefin'] = $simplefin;
 		$this->providers['gocardless'] = $gocardless;
+		$this->providers['enablebanking'] = $enablebanking;
 	}
 
 	public function getProvider(string $identifier): BankSyncProviderInterface {

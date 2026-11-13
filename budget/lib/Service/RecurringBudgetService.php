@@ -24,8 +24,15 @@ use OCA\Budget\Db\Bill as BillEntity;
  * measured over, and a transfer must take the money out of that scope.
  * Otherwise the category stays fully "remaining" every month, however
  * faithfully the bill is paid.
+ *
+ * The user can switch the fallback off (#479), and then a category has a
+ * budget only when they set one. Every surface gets its figures from
+ * getMonthlyBudgetsByCategory(), so that is the one place the switch is read.
  */
 class RecurringBudgetService {
+	/** 'false' turns the fallback off; anything else, or nothing, leaves it on */
+	public const ENABLED_SETTING = 'budget_from_bills';
+
 	private BillService $billService;
 	private RecurringIncomeService $recurringIncomeService;
 	private Bill\FrequencyCalculator $frequencyCalculator;
@@ -59,9 +66,13 @@ class RecurringBudgetService {
 	 *                           ending bill no longer counts for the months
 	 *                           after it, and its replacement counts from the
 	 *                           month it starts in.
-	 * @return array<int, float> categoryId => monthly amount
+	 * @return array<int, float> categoryId => monthly amount; empty when the
+	 *                           user has switched the fallback off
 	 */
 	public function getMonthlyBudgetsByCategory(string $userId, ?string $month = null): array {
+		if (!$this->isEnabled($userId)) {
+			return [];
+		}
 		$totals = [];
 		[$from, $to] = $this->monthRange($userId, $month);
 		$scope = $this->spendingScope($userId);
@@ -147,6 +158,15 @@ class RecurringBudgetService {
 		}
 
 		return $budgets;
+	}
+
+	/**
+	 * Whether $userId's categories take their bills as a budget. A category
+	 * shared with someone follows its owner's choice, as it is the owner's
+	 * figure the Budget page shows them.
+	 */
+	public function isEnabled(string $userId): bool {
+		return $this->settingService?->get($userId, self::ENABLED_SETTING) !== 'false';
 	}
 
 	/**

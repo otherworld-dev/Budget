@@ -13,6 +13,7 @@ use OCA\Budget\Service\Ocr\OcrProviderException;
 use OCA\Budget\Service\Ocr\ReceiptExtractionService;
 use OCA\Budget\Service\Ocr\ReceiptParser;
 use OCA\Budget\Service\OcrSettingsService;
+use OCA\Budget\Service\SettingService;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\Http\Client\IClient;
 use OCP\Http\Client\IClientService;
@@ -31,6 +32,7 @@ class ReceiptExtractionServiceTest extends TestCase {
 	private NextcloudOcrBackend $backend;
 	private ImportRuleService $ruleService;
 	private CategoryService $categoryService;
+	private SettingService $settingService;
 
 	/** Captured options of the last HTTP POST the service made. */
 	private ?array $lastRequest = null;
@@ -46,6 +48,7 @@ class ReceiptExtractionServiceTest extends TestCase {
 		$this->backend = $this->createMock(NextcloudOcrBackend::class);
 		$this->ruleService = $this->createMock(ImportRuleService::class);
 		$this->categoryService = $this->createMock(CategoryService::class);
+		$this->settingService = $this->createMock(SettingService::class);
 
 		$this->service = new ReceiptExtractionService(
 			$this->settings,
@@ -54,6 +57,7 @@ class ReceiptExtractionServiceTest extends TestCase {
 			new ReceiptParser(),
 			$this->ruleService,
 			$this->categoryService,
+			$this->settingService,
 			$this->createMock(LoggerInterface::class)
 		);
 	}
@@ -625,6 +629,110 @@ class ReceiptExtractionServiceTest extends TestCase {
 		$this->assertSame('2.00', $draft['total']);
 		$this->assertNull($draft['suggestedCategoryId']);
 		$this->assertNull($draft['lineItems'][0]['suggestedCategoryId']);
+	}
+
+	// ── ambiguous printed dates ─────────────────────────────────────
+
+	public function testAnAmbiguousDateOnAPoundsReceiptIsReadDayFirst(): void {
+		// The Android test receipt: the model read 08/11/2026 month-first.
+		$this->configureCustom();
+		$this->modelAnswers(json_encode([
+			'merchant' => 'Tesco Stores', 'date' => '2026-08-11', 'dateText' => '08/11/2026 14:32',
+			'currency' => 'GBP', 'total' => 37.95,
+		]));
+
+		$this->assertSame('2026-11-08', $this->service->extract('user1', $this->pngUpload())['date']);
+	}
+
+	public function testAnAmbiguousDateOnADollarReceiptIsReadMonthFirst(): void {
+		$this->configureCustom();
+		$this->modelAnswers(json_encode([
+			'merchant' => 'Walmart', 'date' => '2026-11-08', 'dateText' => '08/11/2026',
+			'currency' => 'USD', 'total' => 12.00,
+		]));
+
+		$this->assertSame('2026-08-11', $this->service->extract('user1', $this->pngUpload())['date']);
+	}
+
+	public function testWithNoCurrencyOnTheReceiptTheUsersBaseCurrencyDecides(): void {
+		$this->configureCustom();
+		$this->settingService->method('get')->with('user1', 'default_currency')->willReturn('USD');
+		$this->modelAnswers(json_encode([
+			'merchant' => 'Shop', 'date' => '2026-11-08', 'dateText' => '08/11/26', 'total' => 5.00,
+		]));
+
+		$this->assertSame('2026-08-11', $this->service->extract('user1', $this->pngUpload())['date']);
+	}
+
+	public function testWithNoCurrencyAnywhereTheDateIsReadDayFirst(): void {
+		// No base currency set means GBP, the app's default.
+		$this->configureCustom();
+		$this->settingService->method('get')->willReturn(null);
+		$this->modelAnswers(json_encode([
+			'merchant' => 'Shop', 'date' => '2026-08-11', 'dateText' => '08-11-2026', 'total' => 5.00,
+		]));
+
+		$this->assertSame('2026-11-08', $this->service->extract('user1', $this->pngUpload())['date']);
+	}
+
+	public function testAGenuinelyAmbiguousDateIsLeftNullNotGuessed(): void {
+		// Canada prints both orders, so the currency settles nothing.
+		$this->configureCustom();
+		$this->modelAnswers(json_encode([
+			'merchant' => 'Shop', 'date' => '2026-08-11', 'dateText' => '08/11/2026',
+			'currency' => 'CAD', 'total' => 5.00,
+		]));
+
+		$draft = $this->service->extract('user1', $this->pngUpload());
+
+		$this->assertNull($draft['date']);
+		$this->assertContains('no-date', $draft['warnings']);
+	}
+
+	public function testADateThatReadsOnlyOneWayIsTakenAsRead(): void {
+		$this->configureCustom();
+		$this->modelAnswers(json_encode([
+			'merchant' => 'Shop', 'date' => null, 'dateText' => '12/31/2025', 'currency' => 'GBP', 'total' => 5.00,
+		]));
+		$this->assertSame('2025-12-31', $this->service->extract('user1', $this->pngUpload())['date']);
+	}
+
+	public function testTheSameDayAndMonthIsNotAmbiguous(): void {
+		$this->configureCustom();
+		$this->modelAnswers(json_encode([
+			'merchant' => 'Shop', 'dateText' => '08/08/2026', 'currency' => 'CAD', 'total' => 5.00,
+		]));
+
+		$this->assertSame('2026-08-08', $this->service->extract('user1', $this->pngUpload())['date']);
+	}
+
+	public function testAPrintedMonthNameKeepsTheModelsOwnDate(): void {
+		$this->configureCustom();
+		$this->modelAnswers(json_encode([
+			'merchant' => 'Shop', 'date' => '2026-11-08', 'dateText' => '8 Nov 2026', 'currency' => 'USD', 'total' => 5.00,
+		]));
+
+		$this->assertSame('2026-11-08', $this->service->extract('user1', $this->pngUpload())['date']);
+	}
+
+	public function testAPrintedDateThatReadsNeitherWayFallsBackToTheModelsDate(): void {
+		// Nothing better to go on: the model may have read the digits right.
+		$this->configureCustom();
+		$this->modelAnswers(json_encode([
+			'merchant' => 'Shop', 'date' => '2026-08-11', 'dateText' => '33/13/2026', 'currency' => 'GBP', 'total' => 5.00,
+		]));
+
+		$this->assertSame('2026-08-11', $this->service->extract('user1', $this->pngUpload())['date']);
+	}
+
+	public function testThePromptAsksForTheDateAsPrinted(): void {
+		$this->configureCustom();
+		$this->modelAnswers('{"merchant": "Shop", "total": 5}');
+
+		$this->service->extract('user1', $this->pngUpload());
+
+		$body = json_decode($this->lastRequest['options']['body'], true);
+		$this->assertStringContainsString('"dateText"', $body['messages'][0]['content'][0]['text']);
 	}
 
 	// ── helpers ─────────────────────────────────────────────────────

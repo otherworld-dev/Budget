@@ -556,16 +556,19 @@ style('budget', 'budget-app');
                 </div>
 
                 <!-- Phase 3: Advanced Hero Tiles -->
-                <div class="hero-card hero-burn-rate" data-widget-id="burnRate" data-widget-category="hero" style="display: none;">
+                <!-- Runway: how long the chosen accounts last (replaces Burn Rate) -->
+                <div class="hero-card hero-runway" data-widget-id="runway" data-widget-category="hero" style="display: none;">
                     <div class="hero-icon">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4zM13 19H11v-2h2v2zm0-4H11v-4h2v4zm0-6H11V7h2v2z"/>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                            <path d="M6 2v6h.01L6 8.01 10 12l-4 4 .01.01H6V22h12v-5.99h-.01L18 16l-4-4 4-3.99-.01-.01H18V2H6zm10 14.5V20H8v-3.5l4-4 4 4zm-4-5l-4-4V4h8v3.5l-4 4z"/>
                         </svg>
                     </div>
                     <div class="hero-content">
-                        <span class="hero-label"><?php p($l->t('Burn Rate')); ?></span>
-                        <span id="hero-burn-rate-value" class="hero-value">--</span>
-                        <span id="hero-burn-rate-change" class="hero-subtext"></span>
+                        <span class="hero-label"><?php p($l->t('Runway')); ?></span>
+                        <span id="hero-runway-value" class="hero-value" data-runway-part="value">--</span>
+                        <span id="hero-runway-until" class="hero-subtext" data-runway-part="until"></span>
+                        <span id="hero-runway-budget" class="hero-subtext hero-runway-budget" data-runway-part="budget" hidden></span>
+                        <span id="hero-runway-drain" class="hero-subtext" data-runway-part="drain" hidden></span>
                     </div>
                 </div>
 
@@ -605,6 +608,7 @@ style('budget', 'budget-app');
                             <canvas id="trend-chart"></canvas>
                         </div>
                         <div id="trend-chart-legend" class="chart-legend"></div>
+                        <p class="month-grouping-note" style="display: none;"></p>
                     </div>
 
                     <!-- Spending by Category Chart -->
@@ -971,6 +975,52 @@ style('budget', 'budget-app');
                         </div>
                     </div>
 
+                    <!-- Runway tiles: drawn by src/modules/dashboard/runway/RunwayTiles.js -->
+                    <div id="runway-chart-card" class="dashboard-card runway-card dashboard-tile-m" data-widget-id="runwayChart" data-widget-category="widget" style="display: none;">
+                        <div class="card-header">
+                            <h3><?php p($l->t('Runway forecast')); ?></h3>
+                        </div>
+                        <div class="runway-tile-body" data-runway-body>
+                            <div class="empty-state-small"><?php p($l->t('Loading...')); ?></div>
+                        </div>
+                    </div>
+
+                    <div id="runway-one-offs-card" class="dashboard-card runway-card dashboard-tile-s" data-widget-id="runwayOneOffs" data-widget-category="widget" style="display: none;">
+                        <div class="card-header">
+                            <h3><?php p($l->t('Planned one-offs')); ?></h3>
+                        </div>
+                        <div class="runway-tile-body" data-runway-body>
+                            <div class="empty-state-small"><?php p($l->t('Loading...')); ?></div>
+                        </div>
+                    </div>
+
+                    <div id="runway-scenarios-card" class="dashboard-card runway-card dashboard-tile-m" data-widget-id="runwayScenarios" data-widget-category="widget" style="display: none;">
+                        <div class="card-header">
+                            <h3><?php p($l->t('How long will it last')); ?></h3>
+                        </div>
+                        <div class="runway-tile-body" data-runway-body>
+                            <div class="empty-state-small"><?php p($l->t('Loading...')); ?></div>
+                        </div>
+                    </div>
+
+                    <div id="runway-breakdown-card" class="dashboard-card runway-card dashboard-tile-s" data-widget-id="runwayBreakdown" data-widget-category="widget" style="display: none;">
+                        <div class="card-header">
+                            <h3><?php p($l->t('Where the drain comes from')); ?></h3>
+                        </div>
+                        <div class="runway-tile-body" data-runway-body>
+                            <div class="empty-state-small"><?php p($l->t('Loading...')); ?></div>
+                        </div>
+                    </div>
+
+                    <div id="runway-overview-card" class="dashboard-card runway-card dashboard-tile-l" data-widget-id="runwayOverview" data-widget-category="widget" style="display: none;">
+                        <div class="card-header">
+                            <h3><?php p($l->t('Runway overview')); ?></h3>
+                        </div>
+                        <div class="runway-tile-body" data-runway-body>
+                            <div class="empty-state-small"><?php p($l->t('Loading...')); ?></div>
+                        </div>
+                    </div>
+
                     <div id="yoy-comparison-card" class="dashboard-card dashboard-card-large dashboard-tile-l" data-widget-id="yoyComparison" data-widget-category="widget" style="display: none;">
                         <div class="card-header">
                             <h3><?php p($l->t('Year-over-Year Comparison')); ?></h3>
@@ -1275,6 +1325,10 @@ style('budget', 'budget-app');
                                 <div class="balance-item" id="minimum-payment-info" style="display: none;">
                                     <label><?php p($l->t('Min Payment')); ?></label>
                                     <div id="account-minimum-payment-display" class="balance-amount"></div>
+                                </div>
+                                <div class="balance-item" id="promo-rate-info" style="display: none;">
+                                    <label><?php p($l->t('Promotional rate')); ?></label>
+                                    <div id="account-promo-display" class="balance-amount"></div>
                                 </div>
                                 <div class="balance-item" id="statement-day-info" style="display: none;">
                                     <label><?php p($l->t('Statement due day')); ?></label>
@@ -2528,7 +2582,12 @@ style('budget', 'budget-app');
                                     <span class="stat-label"><?php p($l->t('Auto-categorized:')); ?></span>
                                     <span class="stat-value" id="categorized-transactions">0</span>
                                 </div>
+                                <div class="stat-item">
+                                    <span class="stat-label"><?php p($l->t('Matched to bills:')); ?></span>
+                                    <span class="stat-value" id="import-bill-matches">0</span>
+                                </div>
                             </div>
+                            <p id="import-bill-review" class="import-bill-review" style="display: none;"></p>
 
                             <!-- Single account selection (for CSV) -->
                             <div class="account-selection" id="single-account-selection">
@@ -2641,6 +2700,15 @@ style('budget', 'budget-app');
                         <?php p($l->t('Add Bill')); ?>
                     </button>
                 </div>
+            </div>
+
+            <!-- Bill payments the bank's rows haven't shown a week on -->
+            <div id="unconfirmed-payments-card" class="unrecorded-payments-card" style="display: none;">
+                <div class="bill-suggestions-header">
+                    <h3><?php p($l->t('Bill payments the bank hasn\'t shown')); ?> <span id="unconfirmed-payments-count" class="badge"></span></h3>
+                </div>
+                <p class="bill-suggestions-hint"><?php p($l->t('More than a week on, no row from the bank matches these. A bill that is overdue may have stopped or moved to another account; an auto-paid payment may have gone out for a different amount.')); ?></p>
+                <div id="unconfirmed-payments-list"></div>
             </div>
 
             <!-- Proactive recurring-bill suggestions -->
@@ -3328,6 +3396,7 @@ style('budget', 'budget-app');
                         <div class="chart-container chart-container-large">
                             <canvas id="report-trend-chart"></canvas>
                         </div>
+                        <p id="report-trend-month-note" class="month-grouping-note" style="display: none;"></p>
                     </div>
 
                     <!-- Account Breakdown Table -->
@@ -3491,6 +3560,7 @@ style('budget', 'budget-app');
                         <div class="chart-container chart-container-large">
                             <canvas id="report-cashflow-chart"></canvas>
                         </div>
+                        <p id="report-cashflow-month-note" class="month-grouping-note" style="display: none;"></p>
                     </div>
 
                     <!-- Cash Flow Table -->
@@ -3631,6 +3701,12 @@ style('budget', 'budget-app');
                             </label>
                         </div>
                         <div class="control-group">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;" title="<?php p($l->t('Budgets you chose to show in the Bills Calendar, as estimated spending each month')); ?>">
+                                <input type="checkbox" id="bills-calendar-include-budgets" checked>
+                                <span><?php p($l->t('Include budgeted spending')); ?></span>
+                            </label>
+                        </div>
+                        <div class="control-group">
                             <label for="bills-calendar-account"><?php p($l->t('Account')); ?></label>
                             <select id="bills-calendar-account" class="report-select">
                                 <option value=""><?php p($l->t('All Accounts')); ?></option>
@@ -3645,6 +3721,7 @@ style('budget', 'budget-app');
                         </div>
                         <button id="generate-bills-calendar-btn" class="primary"><?php p($l->t('Generate')); ?></button>
                     </div>
+                    <p id="bills-calendar-budget-hint" class="bills-calendar-budget-hint" style="display: none;"><?php p($l->t('Budgeted spending is only shown for All Accounts, with Active Only or All Bills: a budget has no account and is never an inactive bill.')); ?></p>
 
                     <!-- Monthly Totals Chart -->
                     <div id="bills-calendar-chart-container" class="dashboard-card" style="display: none;">
@@ -3713,6 +3790,7 @@ style('budget', 'budget-app');
                             </div>
                         </div>
                         <p class="report-hint"><?php p($l->t('Income is shown positive, expenses negative. Parent categories include the totals of their sub-categories.')); ?></p>
+                        <p id="category-monthly-month-note" class="month-grouping-note" style="display: none;"></p>
                         <div id="category-monthly-table">
                             <!-- Matrix rendered by JavaScript -->
                         </div>
@@ -4469,6 +4547,27 @@ style('budget', 'budget-app');
                                    min="1" max="31" step="1" value="1">
                         </div>
 
+                        <div class="setting-item checkbox-setting">
+                            <label>
+                                <input type="checkbox" id="setting-budget-from-bills" class="setting-input" checked>
+                                <div>
+                                    <strong><?php p($l->t('Budget categories from their bills')); ?></strong>
+                                    <small><?php p($l->t('A category with no budget of its own uses the monthly total of its recurring bills and income as its budget, marked auto on the Budget page. Turn this off to budget only the amounts you set. Bills keep working the same either way.')); ?></small>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="setting-item">
+                            <label for="setting-report-month-grouping">
+                                <strong><?php p($l->t('Months in dashboard charts and reports')); ?></strong>
+                                <small><?php p($l->t('With a budget cycle start day other than 1, choose whether the dashboard charts and the month-by-month reports count calendar months or budget periods. Budget periods run from your start day, the same as on the Budget page.')); ?></small>
+                            </label>
+                            <select id="setting-report-month-grouping" class="setting-input">
+                                <option value="calendar"><?php p($l->t('Calendar months')); ?></option>
+                                <option value="budget"><?php p($l->t('Budget periods')); ?></option>
+                            </select>
+                        </div>
+
                         <div class="setting-item">
                             <label for="setting-budget-alert-threshold">
                                 <strong><?php p($l->t('Budget alert threshold (%%)')); ?></strong>
@@ -4640,6 +4739,16 @@ style('budget', 'budget-app');
 
                         <div class="setting-item checkbox-setting">
                             <label>
+                                <input type="checkbox" id="setting-notification-runway-alert" class="setting-input">
+                                <div>
+                                    <strong><?php p($l->t('Runway alerts')); ?></strong>
+                                    <small><?php p($l->t('Notify when the date your money runs out moves earlier')); ?></small>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="setting-item checkbox-setting">
+                            <label>
                                 <input type="checkbox" id="setting-anomaly-alerts-enabled" class="setting-input">
                                 <div>
                                     <strong><?php p($l->t('Unusual Spending Alerts')); ?></strong>
@@ -4787,6 +4896,15 @@ style('budget', 'budget-app');
                                     <small><?php p($l->t('Automatically categorize transactions when importing')); ?></small>
                                 </div>
                             </label>
+                        </div>
+
+                        <div class="setting-item">
+                            <label for="setting-bill-match-window-days">
+                                <strong><?php p($l->t('Bill match window (days)')); ?></strong>
+                                <small><?php p($l->t('How many days either side of a bill payment an imported row can be and still be matched to it by the bill\'s name. The amount must match to the penny.')); ?></small>
+                            </label>
+                            <input type="number" id="setting-bill-match-window-days" class="setting-input"
+                                   min="1" max="30" step="1" value="5">
                         </div>
 
                         <div class="setting-item">
@@ -6204,6 +6322,17 @@ style('budget', 'budget-app');
                             </select>
                         </div>
 
+                        <div class="form-group conditional" id="promo-rate-group">
+                            <label for="account-promo-rate"><?php p($l->t('Promotional rate (%%)')); ?></label>
+                            <input type="text" inputmode="decimal" data-amount id="account-promo-rate" min="0">
+                            <label for="account-promo-start"><?php p($l->t('Starts on')); ?></label>
+                            <input type="date" id="account-promo-start">
+                            <label for="account-promo-end"><?php p($l->t('Ends on')); ?></label>
+                            <input type="date" id="account-promo-end">
+                            <small><?php p($l->t('e.g. 0%% on purchases or balance transfers. The normal rate applies from the end date.')); ?></small>
+                            <a href="#" class="card-link" id="account-promo-clear"><?php p($l->t('Remove promotional rate')); ?></a>
+                        </div>
+
                         <div class="form-group conditional" id="credit-limit-group">
                             <label for="account-credit-limit"><?php p($l->t('Credit Limit')); ?></label>
                             <input type="text" inputmode="decimal" data-amount id="account-credit-limit" min="0">
@@ -7578,6 +7707,7 @@ style('budget', 'budget-app');
                 <select id="bank-sync-provider">
                     <option value=""><?php p($l->t('Select a provider...')); ?></option>
                     <option value="gocardless"><?php p($l->t('GoCardless (UK/Europe)')); ?></option>
+                    <option value="enablebanking"><?php p($l->t('Enable Banking (Europe)')); ?></option>
                     <option value="simplefin"><?php p($l->t('SimpleFIN Bridge (US)')); ?></option>
                 </select>
             </div>
@@ -7609,6 +7739,31 @@ style('budget', 'budget-app');
                 <small class="form-text"><?php p($l->t('Get API keys from bankaccountdata.gocardless.com')); ?></small>
             </div>
 
+            <!-- Enable Banking fields -->
+            <div id="enablebanking-fields" style="display: none;">
+                <div id="bank-sync-eb-keys-stored" class="form-text" style="display: none;">
+                    <?php p($l->t('Your Enable Banking keys are stored.')); ?>
+                    <a href="#" id="bank-sync-eb-replace-keys"><?php p($l->t('Replace keys')); ?></a>
+                </div>
+                <div id="bank-sync-eb-key-inputs">
+                    <div class="form-group">
+                        <label for="bank-sync-eb-application-id"><?php p($l->t('Application ID')); ?></label>
+                        <input type="text" id="bank-sync-eb-application-id" placeholder="<?php p($l->t('Your Enable Banking application ID')); ?>" autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label for="bank-sync-eb-private-key"><?php p($l->t('Private Key (PEM)')); ?></label>
+                        <textarea id="bank-sync-eb-private-key" rows="5" placeholder="-----BEGIN PRIVATE KEY-----" autocomplete="off" spellcheck="false"></textarea>
+                        <input type="file" id="bank-sync-eb-private-key-file" accept=".pem,.key,text/plain" aria-label="<?php p($l->t('Load private key from file')); ?>">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="bank-sync-eb-callback-url"><?php p($l->t('Redirect URL to register in Enable Banking')); ?></label>
+                    <input type="text" id="bank-sync-eb-callback-url" readonly>
+                    <button type="button" class="secondary" id="bank-sync-eb-copy-callback"><?php p($l->t('Copy')); ?></button>
+                </div>
+                <small class="form-text"><?php p($l->t('Register an application and create its keys at')); ?> <a href="https://enablebanking.com/docs/" target="_blank" rel="noopener">enablebanking.com/docs</a></small>
+            </div>
+
             <div id="bank-sync-step1-error" class="bank-sync-error" style="display: none;"></div>
 
             <div class="modal-buttons">
@@ -7617,7 +7772,7 @@ style('budget', 'budget-app');
             </div>
         </div>
 
-        <!-- Step 2: Select Institution (GoCardless only) -->
+        <!-- Step 2: Select Institution (GoCardless and Enable Banking) -->
         <div id="bank-sync-step-2" class="bank-sync-step" style="display: none;">
             <h3><?php p($l->t('Select Your Bank')); ?></h3>
 
@@ -7649,11 +7804,12 @@ style('budget', 'budget-app');
             <h3><?php p($l->t('Authorize with Your Bank')); ?></h3>
 
             <div class="bank-sync-auth-status">
-                <p><?php p($l->t('A new window has been opened for you to authorize access at your bank.')); ?></p>
-                <p><?php p($l->t('Once you have completed the authorization, click the button below.')); ?></p>
+                <p id="bank-sync-auth-text-eb" style="display: none;"><?php p($l->t('Confirm in your bank\'s app. When the new tab says \'Connected\', come back here.')); ?></p>
+                <p class="bank-sync-auth-text-default"><?php p($l->t('A new window has been opened for you to authorize access at your bank.')); ?></p>
+                <p class="bank-sync-auth-text-default"><?php p($l->t('Once you have completed the authorization, click the button below.')); ?></p>
                 <p id="bank-sync-auth-link-fallback" style="display: none;">
                     <?php p($l->t('If the window did not open, ')); ?>
-                    <a id="bank-sync-auth-link" href="#" target="_blank" rel="noopener"><?php p($l->t('click here to authorize')); ?></a>.
+                    <a id="bank-sync-auth-link" href="#" target="_blank" rel="noopener noreferrer"><?php p($l->t('click here to authorize')); ?></a>.
                 </p>
             </div>
 

@@ -13,7 +13,8 @@ import MultiSelect from '../../utils/multiselect.js';
 import { buildMoneyFlows, CENTER_KEY } from './moneyFlow.js';
 import { apiFetch } from '../../utils/api.js';
 import { semanticColour } from '../../utils/amountColours.js';
-import { calendarCell } from '../../utils/billsCalendarCell.js';
+import { calendarCell, budgetTotalsByMonth } from '../../utils/billsCalendarCell.js';
+import { roundMoney } from '../../utils/money.js';
 
 /**
  * A category row's label. The server flags the row for money with no
@@ -127,6 +128,12 @@ export default class ReportsModule {
     }
 
     setReportDateRange(preset) {
+        const monthStartDay = formatters.reportMonthStartDay(this.settings);
+        if (monthStartDay > 1) {
+            this.setBudgetMonthReportDateRange(preset, monthStartDay);
+            return;
+        }
+
         const now = new Date();
         let startDate, endDate;
 
@@ -154,6 +161,46 @@ export default class ReportsModule {
 
         setDateValue('report-start-date', formatters.formatDateForAPI(startDate));
         setDateValue('report-end-date', formatters.formatDateForAPI(endDate));
+    }
+
+    /**
+     * The presets in whole budget months, when the user chose budget months
+     * for the reports (#457). "This Month" as a calendar month would span
+     * two budget months: with start day 26, 1-25 October is October's and
+     * 26-31 October already November's.
+     *
+     * @param {string} preset - The period selector's value
+     * @param {number} startDay - The budget start day (2-31)
+     */
+    setBudgetMonthReportDateRange(preset, startDay) {
+        const today = formatters.formatDateForAPI(new Date());
+        const current = formatters.currentBudgetMonth(startDay);
+        const year = parseInt(current.slice(0, 4), 10);
+        const range = (first, last) => [
+            formatters.budgetMonthRange(first, startDay).start,
+            last === null ? today : formatters.budgetMonthRange(last, startDay).end,
+        ];
+
+        let startDate, endDate;
+        switch (preset) {
+            case 'this-month':
+                [startDate, endDate] = range(current, current);
+                break;
+            case 'last-3-months':
+                [startDate, endDate] = range(formatters.shiftMonth(current, -2), current);
+                break;
+            case 'ytd':
+                [startDate, endDate] = range(`${year}-01`, null);
+                break;
+            case 'last-year':
+                [startDate, endDate] = range(`${year - 1}-01`, `${year - 1}-12`);
+                break;
+            default:
+                [startDate, endDate] = range(formatters.shiftMonth(current, -2), null);
+        }
+
+        setDateValue('report-start-date', startDate);
+        setDateValue('report-end-date', endDate);
     }
 
     async loadReportsView() {
@@ -744,6 +791,7 @@ export default class ReportsModule {
     renderReportTrendChart(trends) {
         const canvas = document.getElementById('report-trend-chart');
         if (!canvas || !trends) return;
+        formatters.showMonthGroupingNote(document.getElementById('report-trend-month-note'), trends.monthStartDay || 1);
 
         if (this.reportCharts.trend) {
             this.reportCharts.trend.destroy();
@@ -1052,6 +1100,7 @@ export default class ReportsModule {
         if (avgNetEl) avgNetEl.textContent = this.formatCurrency(averages.net || 0, currency);
 
         // Render chart
+        formatters.showMonthGroupingNote(document.getElementById('report-cashflow-month-note'), data.period?.monthStartDay || 1);
         this.renderCashFlowChart(data.data || []);
 
         // Render table
@@ -1069,6 +1118,7 @@ export default class ReportsModule {
         const sortSel = document.getElementById('category-monthly-sort');
         if (sortSel && sortSel.value !== sort) sortSel.value = sort;
 
+        formatters.showMonthGroupingNote(document.getElementById('category-monthly-month-note'), data.period?.monthStartDay || 1);
         this.renderCategoryMonthlyMatrix(data);
     }
 
@@ -1669,6 +1719,7 @@ export default class ReportsModule {
         const billStatus = document.getElementById('bills-calendar-status')?.value || 'active';
         const includeTransfers = document.getElementById('bills-calendar-include-transfers')?.checked || false;
         const accountId = document.getElementById('bills-calendar-account')?.value || '';
+        const includeBudgets = document.getElementById('bills-calendar-include-budgets')?.checked || false;
 
         return apiFetch('/apps/budget/api/bills/export-calendar', {
             method: 'POST',
@@ -1677,6 +1728,7 @@ export default class ReportsModule {
                 year: parseInt(year),
                 billStatus,
                 includeTransfers: includeTransfers.toString(),
+                includeBudgets: includeBudgets.toString(),
                 ...(accountId && { accountId: parseInt(accountId) })
             },
             responseType: 'blob',
@@ -1740,6 +1792,7 @@ export default class ReportsModule {
         const yearSelect = document.getElementById('bills-calendar-year');
         const statusSelect = document.getElementById('bills-calendar-status');
         const transfersCheckbox = document.getElementById('bills-calendar-include-transfers');
+        const budgetsCheckbox = document.getElementById('bills-calendar-include-budgets');
 
         if (generateBtn) {
             generateBtn.addEventListener('click', () => this.generateBillsCalendar());
@@ -1750,6 +1803,7 @@ export default class ReportsModule {
         if (yearSelect) yearSelect.addEventListener('change', () => this.generateBillsCalendar());
         if (statusSelect) statusSelect.addEventListener('change', () => this.generateBillsCalendar());
         if (transfersCheckbox) transfersCheckbox.addEventListener('change', () => this.generateBillsCalendar());
+        if (budgetsCheckbox) budgetsCheckbox.addEventListener('change', () => this.generateBillsCalendar());
 
         // Switching the view only swapped the containers, and the heatmap
         // stayed empty until Generate was pressed (#399): draw the chosen
@@ -1790,6 +1844,14 @@ export default class ReportsModule {
         const billStatus = document.getElementById('bills-calendar-status')?.value || 'active';
         const includeTransfers = document.getElementById('bills-calendar-include-transfers')?.checked || false;
         const accountId = document.getElementById('bills-calendar-account')?.value || '';
+        const includeBudgets = document.getElementById('bills-calendar-include-budgets')?.checked || false;
+
+        // Budgets have no account, and are never inactive bills: the server
+        // leaves them out then, and the hint says why (#459)
+        const budgetHint = document.getElementById('bills-calendar-budget-hint');
+        if (budgetHint) {
+            budgetHint.style.display = includeBudgets && (accountId || billStatus === 'inactive') ? '' : 'none';
+        }
 
         // Show loading
         const loadingEl = document.getElementById('report-loading');
@@ -1800,6 +1862,7 @@ export default class ReportsModule {
                 year: year.toString(),
                 billStatus,
                 includeTransfers: includeTransfers.toString(),
+                includeBudgets: includeBudgets.toString(),
                 ...(accountId && { accountId })
             });
 
@@ -1807,7 +1870,7 @@ export default class ReportsModule {
             this.billsCalendarData = data;
 
             // Render monthly totals chart
-            this.renderBillsCalendarChart(data.monthlyTotals);
+            this.renderBillsCalendarChart(data.monthlyTotals, data.bills);
             document.getElementById('bills-calendar-chart-container').style.display = '';
 
             this.renderBillsCalendarView(data);
@@ -1834,7 +1897,7 @@ export default class ReportsModule {
         if (heatmapContainer) heatmapContainer.style.display = view === 'table' ? 'none' : '';
     }
 
-    renderBillsCalendarChart(monthlyTotals) {
+    renderBillsCalendarChart(monthlyTotals, rows = []) {
         const canvas = document.getElementById('bills-calendar-chart');
         if (!canvas) return;
 
@@ -1846,36 +1909,56 @@ export default class ReportsModule {
         const currency = this.getPrimaryCurrency();
 
         const months = Array.from({ length: 12 }, (_, i) => formatters.monthName(i + 1, 'short'));
+        // Budgets put in the calendar (#459) are stacked on the bills in a
+        // bar of their own, so the estimate never reads as a bill
+        const decimals = formatters.currencyDecimals(currency, this.settings);
+        const budgets = budgetTotalsByMonth(rows, decimals);
+        const hasBudgets = Object.values(budgets).some(amount => amount !== 0);
         const data = [];
+        const budgetData = [];
         for (let i = 1; i <= 12; i++) {
-            data.push(monthlyTotals[i] || 0);
+            data.push(hasBudgets ? roundMoney((monthlyTotals[i] || 0) - budgets[i], decimals) : (monthlyTotals[i] || 0));
+            budgetData.push(budgets[i]);
+        }
+
+        const datasets = [{
+            label: hasBudgets ? t('budget', 'Bills') : t('budget', 'Total Bills'),
+            data: data,
+            backgroundColor: semanticColour('negative', 'rgba(198, 40, 40, 0.7)', 0.7),
+            borderColor: semanticColour('negative', 'rgba(198, 40, 40, 1)', 1),
+            borderWidth: 1
+        }];
+        if (hasBudgets) {
+            datasets.push({
+                label: t('budget', 'Budgeted spending (estimate)'),
+                data: budgetData,
+                backgroundColor: semanticColour('negative', 'rgba(198, 40, 40, 0.25)', 0.25),
+                borderColor: semanticColour('negative', 'rgba(198, 40, 40, 1)', 1),
+                borderWidth: 1,
+            });
         }
 
         this.reportCharts.billsCalendar = new Chart(ctx, {
             type: 'bar',
             data: {
                 labels: months,
-                datasets: [{
-                    label: t('budget', 'Total Bills'),
-                    data: data,
-                    backgroundColor: semanticColour('negative', 'rgba(198, 40, 40, 0.7)', 0.7),
-                    borderColor: semanticColour('negative', 'rgba(198, 40, 40, 1)', 1),
-                    borderWidth: 1
-                }]
+                datasets
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { display: false },
+                    legend: { display: hasBudgets },
                     tooltip: {
                         callbacks: {
-                            label: (context) => `${t('budget', 'Total')}: ${this.formatCurrency(context.raw, currency)}`
+                            label: (context) => `${hasBudgets ? context.dataset.label : t('budget', 'Total')}: ${this.formatCurrency(context.raw, currency)}`
                         }
                     }
                 },
                 scales: {
+                    x: { stacked: hasBudgets },
                     y: {
+                        stacked: hasBudgets,
                         beginAtZero: true,
                         ticks: {
                             callback: (value) => this.formatCurrencyCompact(value, currency)
@@ -1901,6 +1984,7 @@ export default class ReportsModule {
             owed: 'has-bill',
             unrecorded: 'has-bill unrecorded',
             expected: 'has-bill',
+            budget: 'has-bill budget-estimate',
             none: 'no-bill',
         };
 
@@ -1932,10 +2016,14 @@ export default class ReportsModule {
             }
 
             const transferBadge = bill.isTransfer ? ` <span class="transfer-badge">${t('budget', 'Transfer')}</span>` : '';
+            // A budget put in the calendar is an estimate, not a bill (#459)
+            const budgetBadge = bill.isBudget
+                ? ` <span class="budget-estimate-badge" title="${dom.escapeHtml(t('budget', 'Budgeted spending (estimate)'))}">${t('budget', 'Budget')}</span>`
+                : '';
 
             return `
-                <tr>
-                    <td class="bill-name-col">${dom.escapeHtml(bill.name)}${transferBadge}</td>
+                <tr${bill.isBudget ? ' class="budget-estimate-row"' : ''}>
+                    <td class="bill-name-col">${dom.escapeHtml(bill.name)}${transferBadge}${budgetBadge}</td>
                     ${months.join('')}
                 </tr>
             `;
@@ -2032,6 +2120,7 @@ export default class ReportsModule {
 
         // Find max total for color scaling
         const maxTotal = Math.max(...Object.values(monthlyTotals));
+        const budgets = budgetTotalsByMonth(bills, formatters.currencyDecimals(currency, this.settings));
 
         let html = '<div class="heatmap-grid">';
 
@@ -2040,17 +2129,21 @@ export default class ReportsModule {
             // The bills that make up the total: a month moved past with no
             // payment recorded adds nothing to it, nor does a transfer into
             // the picked account (#399)
-            const billsThisMonth = bills.filter(b => b.inTotals !== false
+            const billsThisMonth = bills.filter(b => b.inTotals !== false && !b.isBudget
                 && !['none', 'unrecorded'].includes(calendarCell(b, month).state)).length;
+            // The budgets put in the calendar are in the total, and said so (#459)
+            const budgeted = budgets[month];
+            const budgetLine = budgeted ? t('budget', '{amount} budgeted', { amount: this.formatCurrency(budgeted, currency) }) : '';
             // How deep the box's tint is (css/style.css). The text on the
             // old red fill was barely readable on the busiest months (#399).
             const heat = maxTotal > 0 ? Math.max(0, Math.min(1, total / maxTotal)) : 0;
 
             html += `
-                <div class="heatmap-month" style="--heat: ${Number(heat.toFixed(3))};" title="${months[month - 1]}: ${n('budget', '%n bill', '%n bills', billsThisMonth)}, ${this.formatCurrency(total, currency)}">
+                <div class="heatmap-month" style="--heat: ${Number(heat.toFixed(3))};" title="${months[month - 1]}: ${n('budget', '%n bill', '%n bills', billsThisMonth)}, ${this.formatCurrency(total, currency)}${budgetLine ? dom.escapeHtml(` (${budgetLine})`) : ''}">
                     <div class="heatmap-month-name">${months[month - 1]}</div>
                     <div class="heatmap-month-count">${n('budget', '%n bill', '%n bills', billsThisMonth)}</div>
                     <div class="heatmap-month-total">${this.formatCurrency(total, currency)}</div>
+                    ${budgetLine ? `<div class="heatmap-month-budget">${dom.escapeHtml(budgetLine)}</div>` : ''}
                 </div>
             `;
         }

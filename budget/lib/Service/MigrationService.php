@@ -21,6 +21,7 @@ use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Enum\AccountType;
 use OCA\Budget\Enum\Currency;
 use OCA\Budget\Migration\Version001000104Date20260916;
+use OCA\Budget\Service\BankSync\EnableBanking\EnableBankingKeyStore;
 use OCA\Budget\Service\Import\SetupDefaultRules;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
@@ -57,8 +58,13 @@ class MigrationService {
 	 * user's bills feed without a login and must be unique; restored from
 	 * someone else's backup, or one from another server, it duplicated a
 	 * token and the feed answered 404 for both users.
+	 *
+	 * The Enable Banking keys belong with the bank connections, which are not
+	 * backed up either: they are encrypted with this server's secret, and a
+	 * restore that replaced them left the remaining connections unable to
+	 * sync or be revoked.
 	 */
-	private const SERVER_SETTINGS = ['bills_feed_token'];
+	private const SERVER_SETTINGS = ['bills_feed_token', EnableBankingKeyStore::SETTING_KEY];
 
 	/**
 	 * Table-level round-trip specs (#351): everything beyond the five bespoke
@@ -232,6 +238,11 @@ class MigrationService {
 				'account_id' => ['map' => 'accounts', 'onMissing' => 'drop'],
 				'template_id' => ['map' => 'import_templates', 'onMissing' => 'null'],
 			],
+		],
+		// Planned one-offs for the runway forecast: no references to other rows
+		'runway_oneoffs' => [
+			'table' => 'budget_runway_oneoffs',
+			'scope' => 'user',
 		],
 		'imp_links' => [
 			'table' => 'budget_imp_links',
@@ -1287,6 +1298,7 @@ class MigrationService {
 			$category->setExcludedFromBudget(self::flag($catData, 'excludedFromBudget', false));
 			$category->setBudgetRollover(self::flag($catData, 'budgetRollover', false));
 			$category->setRolloverStart($catData['rolloverStart'] ?? null);
+			$category->setShowInCalendar(self::flag($catData, 'showInCalendar', false));
 			$category->setCreatedAt($catData['createdAt'] ?? date('Y-m-d H:i:s'));
 			// The Full control recipient who added it, so they can still delete
 			// it after a restore. Imported into that same person's account it
@@ -2625,6 +2637,9 @@ class MigrationService {
 			'dashboard_widgets_config', 'dashboard_hero_config' => $this->remapDashboardConfig($value, $idMaps),
 			// BudgetAlertService: the categories muted on the alerts tile
 			'budget_alert_muted_categories' => $this->remapSettingIdList($value, $idMaps),
+			// RunwayService: the accounts the runway counts. If none of them
+			// come back this leaves '[]', which the runway reads as its default set
+			'runway_account_ids' => $this->remapSettingIdList($value, $idMaps, 'accounts'),
 			// BudgetAlertService and AnomalyDetectionService: what was last
 			// notified, per category
 			'budget_alert_notified', 'anomaly_notified' => $this->remapSettingIdKeys($value, $idMaps),
@@ -2689,16 +2704,17 @@ class MigrationService {
 	}
 
 	/**
-	 * A JSON list of category ids, moved to the restored ids.
+	 * A JSON list of category (or account) ids, moved to the restored ids.
 	 *
 	 * @param array<string, array<int, int>> $idMaps
+	 * @param 'accounts'|'categories' $kind Which id map the ids go through
 	 */
-	private function remapSettingIdList(string $value, array $idMaps): string {
+	private function remapSettingIdList(string $value, array $idMaps, string $kind = 'categories'): string {
 		$ids = json_decode($value, true);
 		if (!is_array($ids) || !array_is_list($ids)) {
 			return $value;
 		}
-		return (string)json_encode($this->restoredSettingIds($ids, 'categories', $idMaps));
+		return (string)json_encode($this->restoredSettingIds($ids, $kind, $idMaps));
 	}
 
 	/**

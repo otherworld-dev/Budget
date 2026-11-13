@@ -961,6 +961,69 @@ class BillController extends Controller {
 	}
 
 	/**
+	 * A payment a bill booked beside the bank's own row of it, for the
+	 * duplicate finder
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 10, period: 60)]
+	public function paymentPairs(): DataResponse {
+		try {
+			$pairs = $this->service->findPaymentPairs($this->getEffectiveUserId());
+			return new DataResponse(['pairs' => $pairs, 'count' => count($pairs)]);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to look for bill payments beside the bank\'s rows'));
+		}
+	}
+
+	/**
+	 * Merge a bill's booked payment into the bank's own row of it
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function mergePayment(int $id, int $bookedId, int $bankId): DataResponse {
+		try {
+			$this->requireWriteAccess('bill', $id);
+			$this->requireBillAccountsWritable($id);
+			return new DataResponse($this->service->mergePayment($this->billOwner($id), $id, $bookedId, $bankId));
+		} catch (\InvalidArgumentException $e) {
+			return $this->handleError($e, $e->getMessage(), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('The payment could not be merged'), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
+		}
+	}
+
+	/**
+	 * Bill payments the bank's rows haven't shown a week on
+	 * @NoAdminRequired
+	 */
+	public function unconfirmedPayments(): DataResponse {
+		try {
+			$items = $this->service->findUnconfirmedPayments($this->getEffectiveUserId());
+			return new DataResponse(['items' => $items, 'count' => count($items)]);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to check for payments the bank hasn\'t shown'));
+		}
+	}
+
+	/**
+	 * Take an auto-paid payment the bank hasn't shown as gone out after all
+	 * @NoAdminRequired
+	 */
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function confirmPayment(int $id, int $transactionId): DataResponse {
+		try {
+			$this->requireWriteAccess('bill', $id);
+			$this->requireBillAccountsWritable($id);
+			$this->service->confirmPayment($this->billOwner($id), $id, $transactionId);
+			return new DataResponse(['status' => 'success']);
+		} catch (\InvalidArgumentException $e) {
+			return $this->handleError($e, $e->getMessage(), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to confirm the payment'), Http::STATUS_BAD_REQUEST, ['billId' => $id]);
+		}
+	}
+
+	/**
 	 * Record the missing transaction for a payment marked paid without one (#274)
 	 * @NoAdminRequired
 	 */
@@ -1395,7 +1458,7 @@ class BillController extends Controller {
 	 * Get annual overview of bills
 	 * @NoAdminRequired
 	 */
-	public function annualOverview(?int $year = null, $includeTransfers = 'false', ?string $billStatus = 'active', ?int $accountId = null): DataResponse {
+	public function annualOverview(?int $year = null, $includeTransfers = 'false', ?string $billStatus = 'active', ?int $accountId = null, $includeBudgets = 'false'): DataResponse {
 		try {
 			// Default to current year if not specified
 			$year = $year ?? (int)date('Y');
@@ -1414,7 +1477,7 @@ class BillController extends Controller {
 				$billStatus = 'active';
 			}
 
-			$overview = $this->service->getAnnualOverview($this->getEffectiveUserId(), $year, $includeTransfersBool, $billStatus, $accountId);
+			$overview = $this->service->getAnnualOverview($this->getEffectiveUserId(), $year, $includeTransfersBool, $billStatus, $accountId, $this->toBool($includeBudgets));
 			return new DataResponse($overview);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to generate annual overview'));
@@ -1431,6 +1494,7 @@ class BillController extends Controller {
 		$includeTransfers = 'false',
 		?string $billStatus = 'active',
 		?int $accountId = null,
+		$includeBudgets = 'false',
 	): DataDownloadResponse|DataResponse {
 		try {
 			$year = $year ?? (int)date('Y');
@@ -1444,7 +1508,7 @@ class BillController extends Controller {
 				$billStatus = 'active';
 			}
 
-			$data = $this->service->getAnnualOverview($this->getEffectiveUserId(), $year, $includeTransfersBool, $billStatus, $accountId);
+			$data = $this->service->getAnnualOverview($this->getEffectiveUserId(), $year, $includeTransfersBool, $billStatus, $accountId, $this->toBool($includeBudgets));
 
 			if ($format === 'pdf') {
 				$result = $this->exportCalendarToPdf($data);
@@ -1478,7 +1542,7 @@ class BillController extends Controller {
 		foreach ($data['bills'] ?? [] as $bill) {
 			[$months, $annualTotal] = $this->calendarExportCells($bill);
 			CsvSafe::put($csv, array_merge(
-				[$bill['name'] ?? '', $this->calendarExportAmount($bill), $bill['frequency'] ?? ''],
+				[$this->calendarExportName($bill), $this->calendarExportAmount($bill), $bill['frequency'] ?? ''],
 				$months,
 				[$annualTotal]
 			));
@@ -1524,6 +1588,19 @@ class BillController extends Controller {
 			}
 		}
 		return [$months, number_format(MoneyCalculator::toFloat($annual), $decimals)];
+	}
+
+	/**
+	 * A calendar row's name as an export prints it: a budget put in the
+	 * calendar is marked as one, so it can't pass for a bill (#459).
+	 */
+	private function calendarExportName(array $bill): string {
+		$name = (string)($bill['name'] ?? '');
+		if (!empty($bill['isBudget'])) {
+			// TRANSLATORS: %s is a category name. The row is the category's budget, shown in the bills calendar as estimated spending.
+			return $this->l->t('%s (budget)', [$name]);
+		}
+		return $name;
 	}
 
 	/**
@@ -1649,7 +1726,7 @@ class BillController extends Controller {
 		// to fit it; written on one line it ran on into the Amount (#399).
 		$pdf->SetFont('dejavusans', '', 7);
 		foreach ($data['bills'] ?? [] as $bill) {
-			$name = (string)($bill['name'] ?? '');
+			$name = $this->calendarExportName($bill);
 			// A millimetre's room keeps the last line inside the cell's limit
 			$height = max(5, $pdf->getStringHeight($nameW, $name) + 1);
 			if ($pdf->GetY() + $height > $pdf->getPageHeight() - $pdf->getBreakMargin()) {

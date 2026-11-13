@@ -15,6 +15,7 @@ use OCA\Budget\Db\Setting;
 use OCA\Budget\Db\SettingMapper;
 use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Service\BankSync\EnableBanking\EnableBankingKeyStore;
 use OCA\Budget\Service\ImportFolderService;
 use OCA\Budget\Service\MigrationService;
 use OCP\IDBConnection;
@@ -1234,7 +1235,7 @@ class MigrationServiceTest extends TestCase {
 			'categories.json' => json_encode([
 				['id' => 1, 'name' => 'Renovation', 'type' => 'expense', 'parentId' => null,
 					'excludedFromReports' => true, 'excludedFromBudget' => true,
-					'budgetRollover' => true, 'rolloverStart' => '2026-01'],
+					'budgetRollover' => true, 'rolloverStart' => '2026-01', 'showInCalendar' => true],
 				['id' => 2, 'name' => 'Groceries', 'type' => 'expense', 'parentId' => null],
 			]),
 			'accounts.json' => json_encode([]),
@@ -1263,6 +1264,7 @@ class MigrationServiceTest extends TestCase {
 		$this->assertTrue($renovation->getExcludedFromBudget(), 'excludedFromBudget must survive a restore');
 		$this->assertTrue($renovation->getBudgetRollover(), 'budgetRollover must survive a restore');
 		$this->assertSame('2026-01', $renovation->getRolloverStart());
+		$this->assertTrue($renovation->getShowInCalendar(), 'showInCalendar must survive a restore (#459)');
 
 		// An older backup without the keys restores the defaults
 		$groceries = $captured['Groceries'];
@@ -1270,6 +1272,7 @@ class MigrationServiceTest extends TestCase {
 		$this->assertFalse((bool)$groceries->getExcludedFromBudget());
 		$this->assertFalse((bool)$groceries->getBudgetRollover());
 		$this->assertNull($groceries->getRolloverStart());
+		$this->assertFalse((bool)$groceries->getShowInCalendar());
 	}
 
 	/**
@@ -1472,6 +1475,39 @@ class MigrationServiceTest extends TestCase {
 		$this->assertSame(['default_currency' => 'GBP', 'bills_feed_token' => str_repeat('m', 64)], $inserted);
 	}
 
+	/**
+	 * The Enable Banking keys belong to the bank connections, which are not
+	 * backed up: they are never exported, and a restore keeps the user's
+	 * own, so the connections that remain can still sync and be revoked.
+	 */
+	public function testTheEnableBankingKeysAreNeverExportedAndSurviveARestore(): void {
+		foreach ([$this->categoryMapper, $this->accountMapper, $this->transactionMapper, $this->billMapper, $this->importRuleMapper] as $mapper) {
+			$mapper->method('findAll')->willReturn([]);
+		}
+		$this->settingMapper->method('findAll')->with('user1')->willReturn([
+			$this->setting(EnableBankingKeyStore::SETTING_KEY, 'enc:mine'),
+			$this->setting('default_currency', 'GBP'),
+		]);
+		$inserted = [];
+		$this->settingMapper->method('insert')->willReturnCallback(function (Setting $s) use (&$inserted) {
+			$inserted[$s->getKey()] = $s->getValue();
+			return $s;
+		});
+
+		$archive = $this->readTestZip($this->service->exportAll('user1')['content']);
+		$this->assertSame(['default_currency' => 'GBP'], json_decode($archive['settings.json'], true));
+
+		$this->service->importAll('user1', $this->createTestZip([
+			'manifest.json' => json_encode(['version' => '1.3.0', 'appId' => 'budget']),
+			'categories.json' => '[]',
+			'accounts.json' => '[]',
+			'transactions.json' => '[]',
+			'settings.json' => json_encode([EnableBankingKeyStore::SETTING_KEY => 'enc:archived', 'default_currency' => 'EUR']),
+		]));
+
+		$this->assertSame(['default_currency' => 'EUR', EnableBankingKeyStore::SETTING_KEY => 'enc:mine'], $inserted);
+	}
+
 	public function testTheFeedTokenKeyIsTheOneTheFeedUses(): void {
 		$feedKey = (new \ReflectionClassConstant(\OCA\Budget\Controller\CalendarFeedController::class, 'TOKEN_KEY'))->getValue();
 		$serverSettings = (new \ReflectionClassConstant(MigrationService::class, 'SERVER_SETTINGS'))->getValue();
@@ -1540,6 +1576,29 @@ class MigrationServiceTest extends TestCase {
 		$this->assertSame('not json', $settings['dashboard_widgets_config']);
 		$this->assertSame('{"a":1}', $settings['budget_alert_muted_categories']);
 		$this->assertSame('"x"', $settings['anomaly_notified']);
+	}
+
+	/**
+	 * The runway's chosen accounts are account ids, so they go through the
+	 * accounts map: through the categories map, 3 and 4 would have become
+	 * whatever categories 3 and 4 were restored as, or nothing.
+	 */
+	public function testTheRunwayAccountsFollowTheRestoredAccountIds(): void {
+		$idMaps = ['accounts' => [3 => 30, 4 => 40], 'categories' => [3 => 300, 4 => 400]];
+
+		$settings = $this->importedSettings([
+			'runway_account_ids' => '[4,3,99]',
+			'runway_window_months' => '6',
+		], $idMaps);
+
+		$this->assertSame('[40,30]', $settings['runway_account_ids']);
+		$this->assertSame('6', $settings['runway_window_months']);
+	}
+
+	public function testNoRunwayAccountsChosenIsRestoredAsItWas(): void {
+		$settings = $this->importedSettings(['runway_account_ids' => ''], ['accounts' => [], 'categories' => []]);
+
+		$this->assertSame('', $settings['runway_account_ids']);
 	}
 
 	/**
@@ -1666,5 +1725,16 @@ class MigrationServiceTest extends TestCase {
 			];
 		}
 		return $result;
+	}
+
+	/**
+	 * The promotional rate columns come back from a backup: the import copies
+	 * whatever copiedAccountProperties() lists.
+	 */
+	public function testCopiedAccountPropertiesIncludesPromoFields(): void {
+		$copied = MigrationService::copiedAccountProperties();
+		foreach (['promoRate', 'promoStart', 'promoEnd', 'promoWarned'] as $property) {
+			$this->assertContains($property, $copied);
+		}
 	}
 }

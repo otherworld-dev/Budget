@@ -51,6 +51,16 @@ class CurrencyTest extends TestCase {
 		$this->assertFalse($byn->isCrypto());
 	}
 
+	public function testMkdIsSupported(): void {
+		$mkd = Currency::tryFromString('mkd');
+
+		$this->assertSame(Currency::MKD, $mkd);
+		$this->assertSame('ден', $mkd->symbol());
+		$this->assertSame('Macedonian Denar', $mkd->name());
+		$this->assertSame(2, $mkd->decimals());
+		$this->assertFalse($mkd->isCrypto());
+	}
+
 	public function testXmrIsSupported(): void {
 		$xmr = Currency::tryFromString('xmr');
 

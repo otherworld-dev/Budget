@@ -340,6 +340,39 @@ class GoCardlessProviderTest extends TestCase {
 		$this->assertSame('Good Account', $result['accounts'][0]['name']);
 	}
 
+	/**
+	 * A bank that reports no balances has no balance: '0' read as a real
+	 * zero, and the difference to Budget's balance was a made-up one.
+	 */
+	public function testAccountWithoutBalancesHasNullBalance(): void {
+		$creds = json_encode([
+			'secretId' => 'id',
+			'secretKey' => 'key',
+			'accessToken' => 'token',
+			'tokenExpires' => time() + 3600,
+			'requisitionId' => 'req-123',
+		]);
+		$responses = [
+			'/requisitions/' => ['accounts' => ['acct-aaa']],
+			'/details/' => ['account' => ['name' => 'Current', 'currency' => 'GBP']],
+			'/balances/' => ['balances' => []],
+			'/transactions/' => ['transactions' => ['booked' => []]],
+		];
+		$this->client->method('get')->willReturnCallback(function (string $url) use ($responses) {
+			foreach ($responses as $suffix => $body) {
+				if (str_contains($url, $suffix)) {
+					$response = $this->createMock(IResponse::class);
+					$response->method('getBody')->willReturn(json_encode($body));
+					return $response;
+				}
+			}
+			throw new \RuntimeException('Unexpected ' . $url);
+		});
+
+		$this->assertNull($this->provider->fetchAccounts($creds)['accounts'][0]['balance']);
+		$this->assertNull($this->provider->fetchAccountList($creds)['accounts'][0]['balance']);
+	}
+
 	// ── requiresReauthorization ─────────────────────────────────────
 
 	/**
@@ -610,5 +643,38 @@ class GoCardlessProviderTest extends TestCase {
 			->willReturn($response);
 
 		$this->provider->getInstitutions('token');
+	}
+
+	// ── listInstitutions / reinitializeConnection ───────────────────
+
+	public function testListInstitutionsRequiresCredentials(): void {
+		$this->expectException(\InvalidArgumentException::class);
+		$this->provider->listInstitutions('user1', ['country' => 'GB']);
+	}
+
+	public function testListInstitutionsFetchesTokenThenInstitutions(): void {
+		$tokenResponse = $this->createMock(IResponse::class);
+		$tokenResponse->method('getBody')->willReturn(json_encode(['access' => 'tok']));
+		$listResponse = $this->createMock(IResponse::class);
+		$listResponse->method('getBody')->willReturn(json_encode([['id' => 'B1', 'name' => 'Bank']]));
+
+		$this->client->method('post')->willReturn($tokenResponse);
+		$this->client->expects($this->once())->method('get')
+			->with($this->stringContains('country=DE'), $this->callback(fn ($o) => $o['headers']['Authorization'] === 'Bearer tok'))
+			->willReturn($listResponse);
+
+		$result = $this->provider->listInstitutions('user1', ['country' => 'DE', 'secretId' => 's', 'secretKey' => 'k']);
+		$this->assertSame('B1', $result[0]['id']);
+	}
+
+	public function testReinitializeConnectionRejectsIncompleteCredentials(): void {
+		$this->expectException(\Exception::class);
+		$this->expectExceptionMessage('Stored credentials are incomplete');
+		$this->provider->reinitializeConnection('{"secretId":"s"}', ['institutionId' => 'B1']);
+	}
+
+	public function testReinitializeConnectionRequiresInstitution(): void {
+		$this->expectException(\InvalidArgumentException::class);
+		$this->provider->reinitializeConnection('{"secretId":"s","secretKey":"k"}', []);
 	}
 }

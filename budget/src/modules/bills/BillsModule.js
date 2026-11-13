@@ -69,6 +69,9 @@ export default class BillsModule {
 
             // Payments marked paid without a recorded transaction (non-blocking, #274)
             this.loadUnrecordedPayments();
+
+            // Bill payments no bank row has matched a week on (non-blocking)
+            this.loadUnconfirmedPayments();
         } catch (error) {
             console.error('Failed to load bills:', error);
             showError(t('budget', 'Failed to load bills'));
@@ -165,6 +168,74 @@ export default class BillsModule {
             card.style.display = 'block';
         } catch (error) {
             card.style.display = 'none';
+        }
+    }
+
+    /**
+     * Bill payments the bank's rows haven't shown a week on, in accounts
+     * that take statements: a bill long overdue with no payment matched to
+     * it (pay it, skip it or end it), and a payment auto-pay booked as
+     * pending that no bank row has replaced (confirm it went out).
+     */
+    async loadUnconfirmedPayments() {
+        const card = document.getElementById('unconfirmed-payments-card');
+        const list = document.getElementById('unconfirmed-payments-list');
+        if (!card || !list) return;
+
+        const data = await apiFetch('/apps/budget/api/bills/unconfirmed-payments').catch(() => null);
+        const items = data?.items || [];
+        if (items.length === 0) {
+            card.style.display = 'none';
+            return;
+        }
+
+        const countBadge = document.getElementById('unconfirmed-payments-count');
+        if (countBadge) countBadge.textContent = String(items.length);
+
+        list.innerHTML = items.map(item => {
+            const writable = this.accounts === undefined || billAccountsWritable(item, this.accounts);
+            const date = formatters.formatDate(item.date, this.settings);
+            const meta = item.kind === 'overdue'
+                ? t('budget', 'Due {date}, no payment found', { date })
+                : t('budget', 'Auto-paid {date}, not yet in the bank\'s rows', { date });
+            const actions = !writable ? '' : (item.kind === 'overdue'
+                ? `<button class="primary unconfirmed-pay" data-bill-id="${item.billId}">${t('budget', 'Mark Paid')}</button>
+                   <button class="unconfirmed-skip" data-bill-id="${item.billId}">${t('budget', 'Skip')}</button>
+                   <button class="secondary unconfirmed-edit" data-bill-id="${item.billId}" title="${t('budget', 'End or pause the bill if it has stopped')}">${t('budget', 'Edit bill')}</button>`
+                : `<button class="primary unconfirmed-confirm" data-bill-id="${item.billId}" data-transaction-id="${item.transactionId}" title="${t('budget', 'The payment went out: mark it cleared')}">${t('budget', 'It went out')}</button>`);
+            return `
+                <div class="unrecorded-payment-row">
+                    <div class="bill-suggestion-info">
+                        <strong>${dom.escapeHtml(item.name)}</strong>
+                        <span class="bill-suggestion-meta">${dom.escapeHtml(meta)} &middot; ${formatters.formatCurrency(item.amount, item.currency, this.settings)}</span>
+                    </div>
+                    <div class="bill-suggestion-actions">${actions}</div>
+                </div>`;
+        }).join('');
+
+        const on = (selector, handler) => list.querySelectorAll(selector).forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                if (isRepeatClick(e)) return;
+                handler(e.currentTarget);
+            });
+        });
+        on('.unconfirmed-pay', btn => this.markBillPaid(parseInt(btn.dataset.billId), btn));
+        on('.unconfirmed-skip', btn => this.skipBillPayment(parseInt(btn.dataset.billId), btn));
+        on('.unconfirmed-edit', btn => this.editBill(parseInt(btn.dataset.billId)));
+        on('.unconfirmed-confirm', btn => this.confirmUnconfirmedPayment(parseInt(btn.dataset.billId), parseInt(btn.dataset.transactionId), btn));
+
+        card.style.display = 'block';
+    }
+
+    async confirmUnconfirmedPayment(billId, transactionId, button) {
+        button.disabled = true;
+        try {
+            await apiFetch(`/apps/budget/api/bills/${billId}/confirm-payment`, { method: 'POST', body: { transactionId } });
+            showSuccess(t('budget', 'Payment marked cleared'));
+            await this.loadUnconfirmedPayments();
+        } catch (error) {
+            showError(error.message || t('budget', 'Failed to confirm the payment'));
+            button.disabled = false;
         }
     }
 

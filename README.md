@@ -10,7 +10,7 @@ Budget is a personal finance app for Nextcloud. It keeps your bank accounts, cre
 
 - Accounts and transactions in over 45 currencies, with splits, tags, transfers and statement reconciliation
 - Statement import from CSV, Excel and LibreOffice spreadsheets, OFX, QIF and camt.053 XML, exports from Firefly III, YNAB, Actual Budget, Mint and Monarch Money, and an import folder that imports the statements you drop into your Files
-- Rules that categorise transactions for you, and bank sync through GoCardless or SimpleFIN (in beta)
+- Rules that categorise transactions for you, and bank sync through GoCardless, SimpleFIN or Enable Banking (in beta)
 - Receipt photos attached to transactions, and receipt scanning (OCR) that reads the amount and items once an admin sets it up
 - Category budgets (including envelope budgets that roll over) with a "ready to assign" figure, project budgets for jobs that run over months, bills, recurring income and balance forecasts
 - Detection of payments that look recurring but are not tracked yet, so subscriptions become bills in one click

@@ -1036,6 +1036,28 @@ class TransactionMapper extends QBMapper {
 	}
 
 	/**
+	 * Whether the account holds any row whose import ID starts with $prefix,
+	 * e.g. "enablebanking:" once a bank sync has imported into it.
+	 *
+	 * Escapes through the connection: the query builder only gained
+	 * escapeLikeParameter() in Nextcloud 31.
+	 */
+	public function hasImportIdPrefix(int $accountId, string $prefix): bool {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('id')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->like('import_id', $qb->createNamedParameter($this->db->escapeLikeParameter($prefix) . '%')))
+			->setMaxResults(1);
+
+		$result = $qb->executeQuery();
+		$found = $result->fetchOne();
+		$result->closeCursor();
+
+		return $found !== false;
+	}
+
+	/**
 	 * Find a single transaction by account + import ID, or null if none.
 	 */
 	public function findByImportId(int $accountId, string $importId): ?Transaction {
@@ -2721,6 +2743,103 @@ class TransactionMapper extends QBMapper {
 	}
 
 	/**
+	 * Every row the runway needs on these accounts, dated from..to inclusive
+	 * (a null bound is open). The runway calculator decides what counts, so
+	 * nothing is filtered out here: scheduled, pending, pension legs and
+	 * flagged rows all come back with the facts that classify them.
+	 *
+	 * `linked_account_id` is the account of the linked partner row (LEFT JOIN
+	 * on linked_transaction_id), which is how a transfer between two chosen
+	 * accounts is told from one that leaves them.
+	 *
+	 * `amount` is signed (credit positive, debit negative) in the account's own
+	 * currency; the stored column is unsigned with a separate `type`.
+	 *
+	 * @param int[] $accountIds
+	 * @return array<int, array{id: int, account_id: int, date: string, amount: string, description: string, category_id: ?int, status: ?string, excluded_from_forecast: bool, pension_contrib_id: ?int, linked_transaction_id: ?int, linked_account_id: ?int, bill_id: ?int, is_split: bool}>
+	 */
+	public function findRunwayRows(array $accountIds, ?string $from, ?string $to): array {
+		if (empty($accountIds)) {
+			return [];
+		}
+
+		$rows = [];
+		// Chunked like the other id-list queries: Oracle caps an IN list at 1000.
+		foreach (array_chunk(array_values(array_map('intval', $accountIds)), 500) as $chunk) {
+			$qb = $this->db->getQueryBuilder();
+
+			$qb->select(
+				't.id', 't.account_id', 't.date', 't.description', 't.category_id', 't.status',
+				't.excluded_from_forecast', 't.pension_contrib_id', 't.linked_transaction_id',
+				't.bill_id', 't.is_split'
+			)
+				->selectAlias(
+					$qb->createFunction('CASE WHEN t.type = \'credit\' THEN t.amount ELSE -t.amount END'),
+					'amount'
+				)
+				->selectAlias('lt.account_id', 'linked_account_id')
+				->from($this->getTableName(), 't')
+				->leftJoin('t', $this->getTableName(), 'lt', $qb->expr()->eq('t.linked_transaction_id', 'lt.id'))
+				->where($qb->expr()->in('t.account_id', $qb->createNamedParameter($chunk, IQueryBuilder::PARAM_INT_ARRAY)));
+
+			if ($from !== null) {
+				$qb->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($from)));
+			}
+			if ($to !== null) {
+				$qb->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($to)));
+			}
+
+			$result = $qb->executeQuery();
+			$data = $result->fetchAll();
+			$result->closeCursor();
+
+			foreach ($data as $row) {
+				$rows[] = [
+					'id' => (int)$row['id'],
+					'account_id' => (int)$row['account_id'],
+					'date' => (string)$row['date'],
+					'amount' => (string)$row['amount'],
+					'description' => (string)($row['description'] ?? ''),
+					'category_id' => $row['category_id'] !== null ? (int)$row['category_id'] : null,
+					'status' => $row['status'] !== null ? (string)$row['status'] : null,
+					// Boolean columns are NULL on rows older than the column.
+					'excluded_from_forecast' => !empty($row['excluded_from_forecast']),
+					'pension_contrib_id' => $row['pension_contrib_id'] !== null ? (int)$row['pension_contrib_id'] : null,
+					'linked_transaction_id' => $row['linked_transaction_id'] !== null ? (int)$row['linked_transaction_id'] : null,
+					'linked_account_id' => $row['linked_account_id'] !== null ? (int)$row['linked_account_id'] : null,
+					'bill_id' => $row['bill_id'] !== null ? (int)$row['bill_id'] : null,
+					'is_split' => !empty($row['is_split']),
+				];
+			}
+		}
+
+		return $rows;
+	}
+
+	/**
+	 * Date of the oldest transaction on these accounts, or null if there are none.
+	 * The runway uses it to know how much history its averages can draw on.
+	 *
+	 * @param int[] $accountIds
+	 */
+	public function firstTransactionDate(array $accountIds): ?string {
+		if (empty($accountIds)) {
+			return null;
+		}
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->selectAlias($qb->createFunction('MIN(t.date)'), 'first_date')
+			->from($this->getTableName(), 't')
+			->where($qb->expr()->in('t.account_id', $qb->createNamedParameter(array_values(array_map('intval', $accountIds)), IQueryBuilder::PARAM_INT_ARRAY)));
+
+		$result = $qb->executeQuery();
+		$value = $result->fetchOne();
+		$result->closeCursor();
+
+		return ($value === false || $value === null) ? null : (string)$value;
+	}
+
+	/**
 	 * Get daily balance changes for an account (for efficient balance history calculation)
 	 *
 	 * The rows the stored balance counts, and only those (getNetChangeAll()'s
@@ -3339,6 +3458,83 @@ class TransactionMapper extends QBMapper {
 			->orderBy('date', 'ASC');
 
 		return $this->findEntities($qb);
+	}
+
+	/**
+	 * Debits the app booked for any of the bills (by their generated notes,
+	 * never an imported row), scheduled placeholders included
+	 *
+	 * @param int[] $billIds
+	 * @return Transaction[]
+	 */
+	public function findGeneratedBillDebits(array $billIds): array {
+		if ($billIds === []) {
+			return [];
+		}
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->getTableName())
+			->where($qb->expr()->in('bill_id', $qb->createNamedParameter($billIds, IQueryBuilder::PARAM_INT_ARRAY)))
+			->andWhere($qb->expr()->eq('type', $qb->createNamedParameter('debit')))
+			->andWhere($qb->expr()->orX(
+				$qb->expr()->like('notes', $qb->createNamedParameter('Auto-generated from bill:%')),
+				$qb->expr()->like('notes', $qb->createNamedParameter('Auto-generated transfer:%'))
+			))
+			->andWhere($qb->expr()->orX(
+				$qb->expr()->isNull('import_id'),
+				$qb->expr()->eq('import_id', $qb->createNamedParameter(''))
+			))
+			->orderBy('date', 'ASC')
+			->addOrderBy('id', 'ASC');
+
+		return $this->findEntities($qb);
+	}
+
+	/**
+	 * Debits that came from a statement or a bank sync into the account
+	 * between two dates and pay no bill (or one since deleted)
+	 *
+	 * @return Transaction[]
+	 */
+	public function findUnbilledImportedDebits(int $accountId, string $from, string $to): array {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('t.*')
+			->from($this->getTableName(), 't')
+			->leftJoin('t', 'budget_bills', 'b', $qb->expr()->eq('t.bill_id', 'b.id'))
+			->where($qb->expr()->eq('t.account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->eq('t.type', $qb->createNamedParameter('debit')))
+			->andWhere($qb->expr()->isNotNull('t.import_id'))
+			->andWhere($qb->expr()->neq('t.import_id', $qb->createNamedParameter('')))
+			->andWhere($qb->expr()->gte('t.date', $qb->createNamedParameter($from)))
+			->andWhere($qb->expr()->lte('t.date', $qb->createNamedParameter($to)))
+			->andWhere($qb->expr()->orX(
+				$qb->expr()->neq('t.status', $qb->createNamedParameter('scheduled')),
+				$qb->expr()->isNull('t.status')
+			))
+			->andWhere($qb->expr()->orX(
+				$qb->expr()->isNull('t.bill_id'),
+				$qb->expr()->eq('t.bill_id', $qb->createNamedParameter(0, IQueryBuilder::PARAM_INT)),
+				$qb->expr()->isNull('b.id')
+			))
+			->orderBy('t.date', 'ASC')
+			->addOrderBy('t.id', 'ASC');
+
+		return $this->findEntities($qb);
+	}
+
+	/** Whether any row of the account came from a statement or a bank sync (carries an import id) */
+	public function hasImportedRows(int $accountId): bool {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('id')
+			->from($this->getTableName())
+			->where($qb->expr()->eq('account_id', $qb->createNamedParameter($accountId, IQueryBuilder::PARAM_INT)))
+			->andWhere($qb->expr()->isNotNull('import_id'))
+			->andWhere($qb->expr()->neq('import_id', $qb->createNamedParameter('')))
+			->setMaxResults(1);
+		$result = $qb->executeQuery();
+		$found = $result->fetchOne() !== false;
+		$result->closeCursor();
+		return $found;
 	}
 
 	/**

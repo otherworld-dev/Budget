@@ -6,6 +6,8 @@ namespace OCA\Budget\Tests\Unit\Service;
 
 use OCA\Budget\Db\AccountMapper;
 use OCA\Budget\Db\AttachmentMapper;
+use OCA\Budget\Db\BankConnection;
+use OCA\Budget\Db\BankConnectionMapper;
 use OCA\Budget\Db\Bill;
 use OCA\Budget\Db\BillMapper;
 use OCA\Budget\Db\CategoryMapper;
@@ -14,6 +16,10 @@ use OCA\Budget\Db\ImportRuleMapper;
 use OCA\Budget\Db\SettingMapper;
 use OCA\Budget\Db\ShareMapper;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Service\BankSync\BankConnectionRevoker;
+use OCA\Budget\Service\BankSync\BankSyncProviderInterface;
+use OCA\Budget\Service\BankSync\EnableBanking\EnableBankingKeyStore;
+use OCA\Budget\Service\BankSync\ProviderFactory;
 use OCA\Budget\Service\CrossUserLinks;
 use OCA\Budget\Service\FactoryResetService;
 use OCA\Budget\Service\MigrationService;
@@ -503,5 +509,145 @@ class FactoryResetServiceTest extends TestCase {
 		$this->assertSame(0, $counts['pen_snaps']);
 		$this->assertSame(0, $counts['attachments']);
 		$this->assertSame(1, $counts['transactions']);
+	}
+
+	// ===== bank connections are ended at the provider =====
+
+	private function resetWithBank(BankSyncProviderInterface $provider, ?BankConnectionMapper $connections = null): FactoryResetService {
+		if ($connections === null) {
+			$connections = $this->createMock(BankConnectionMapper::class);
+			$connections->method('findAll')->with('user1')->willReturn([
+				$this->bankConnection(1, 'gocardless', '{"secretKey":"GC-SECRET"}'),
+				$this->bankConnection(2, 'simplefin', 'https://user:SF-SECRET@bridge.simplefin.org/simplefin'),
+			]);
+		}
+		$factory = $this->createMock(ProviderFactory::class);
+		$factory->method('getProvider')->willReturn($provider);
+		$this->bankLog = [];
+		$logger = $this->createMock(LoggerInterface::class);
+		$logger->method('warning')->willReturnCallback(function (string $message, array $context) {
+			$this->bankLog[] = [$message, $context];
+		});
+		return new FactoryResetService(
+			$this->accountMapper,
+			$this->transactionMapper,
+			$this->billMapper,
+			$this->categoryMapper,
+			$this->importRuleMapper,
+			$this->settingMapper,
+			$this->attachmentMapper,
+			$this->db,
+			bankRevoker: new BankConnectionRevoker($connections, $factory, $logger),
+		);
+	}
+
+	/** Warnings the revoker logged, as [message, context] */
+	private array $bankLog = [];
+
+	private function bankConnection(int $id, string $provider, ?string $credentials): BankConnection {
+		$c = new BankConnection();
+		$c->setId($id);
+		$c->setUserId('user1');
+		$c->setProvider($provider);
+		$c->setCredentials($credentials);
+		return $c;
+	}
+
+	/**
+	 * A reset deleted the connection rows and never told the provider, so
+	 * the consent given to the bank stayed live with nothing left in Budget
+	 * to end it. Disconnect always revoked; a reset now does the same.
+	 */
+	public function testResetRevokesEveryBankConnectionOnceTheDeleteHasCommitted(): void {
+		$steps = [];
+		$this->db->method('commit')->willReturnCallback(function () use (&$steps) {
+			$steps[] = 'commit';
+		});
+		$provider = $this->createMock(BankSyncProviderInterface::class);
+		$provider->expects($this->exactly(2))->method('revokeConnection')
+			->willReturnCallback(function (string $credentials) use (&$steps) {
+				$steps[] = 'revoke ' . $credentials;
+			});
+
+		$this->resetWithBank($provider)->executeFactoryReset('user1');
+
+		$this->assertSame([
+			'commit',
+			'revoke {"secretKey":"GC-SECRET"}',
+			'revoke https://user:SF-SECRET@bridge.simplefin.org/simplefin',
+		], $steps);
+		$this->assertContains('budget_bc', $this->deletedTables());
+	}
+
+	public function testPurgingADeletedUserRevokesTheirBankConnections(): void {
+		$provider = $this->createMock(BankSyncProviderInterface::class);
+		$provider->expects($this->exactly(2))->method('revokeConnection');
+
+		$this->resetWithBank($provider)->purgeDeletedUser('user1');
+	}
+
+	/**
+	 * Enable Banking signs its revoke call with the user's keys, which live
+	 * in the settings. Deleted with the other settings, they were gone by
+	 * the time the revoke ran, so it quietly skipped the call.
+	 */
+	public function testTheEnableBankingKeysOutliveTheRevoke(): void {
+		$steps = [];
+		// Fresh mock: the setUp() stub on deleteAll would win over a new one
+		$this->settingMapper = $this->createMock(SettingMapper::class);
+		$this->settingMapper->expects($this->once())->method('deleteAll')
+			->with('user1', [EnableBankingKeyStore::SETTING_KEY])
+			->willReturnCallback(function () use (&$steps) {
+				$steps[] = 'settings';
+				return 1;
+			});
+		$this->settingMapper->expects($this->once())->method('deleteByKey')
+			->with('user1', EnableBankingKeyStore::SETTING_KEY)
+			->willReturnCallback(function () use (&$steps) {
+				$steps[] = 'keys';
+				return 1;
+			});
+		$provider = $this->createMock(BankSyncProviderInterface::class);
+		$provider->method('revokeConnection')->willReturnCallback(function () use (&$steps) {
+			$steps[] = 'revoke';
+		});
+
+		$this->resetWithBank($provider)->executeFactoryReset('user1');
+
+		$this->assertSame(['settings', 'revoke', 'revoke', 'keys'], $steps);
+	}
+
+	public function testAResetThatRollsBackRevokesNothing(): void {
+		$this->failingTables['budget_accounts'] = 'DB error';
+		$provider = $this->createMock(BankSyncProviderInterface::class);
+		$provider->expects($this->never())->method('revokeConnection');
+
+		$this->expectExceptionMessage('DB error');
+		$this->resetWithBank($provider)->executeFactoryReset('user1');
+	}
+
+	public function testAProviderThatFailsToRevokeNeverStopsTheReset(): void {
+		$provider = $this->createMock(BankSyncProviderInterface::class);
+		$provider->method('revokeConnection')->willThrowException(new \RuntimeException('provider down'));
+
+		$counts = $this->resetWithBank($provider)->executeFactoryReset('user1');
+
+		$this->assertSame(1, $counts['bank_connections']);
+		$this->assertCount(2, $this->bankLog);
+		$log = print_r($this->bankLog, true);
+		$this->assertStringNotContainsString('GC-SECRET', $log);
+		$this->assertStringNotContainsString('SF-SECRET', $log);
+		$this->assertStringContainsString('provider down', $log);
+	}
+
+	public function testUnreadableBankConnectionsNeverStopTheReset(): void {
+		$connections = $this->createMock(BankConnectionMapper::class);
+		$connections->method('findAll')->willThrowException(new \Exception('no such table: oc_budget_bc'));
+		$provider = $this->createMock(BankSyncProviderInterface::class);
+		$provider->expects($this->never())->method('revokeConnection');
+
+		$counts = $this->resetWithBank($provider, $connections)->executeFactoryReset('user1');
+
+		$this->assertSame(1, $counts['bank_connections']);
 	}
 }

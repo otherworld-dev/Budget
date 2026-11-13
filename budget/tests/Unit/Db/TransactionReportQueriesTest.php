@@ -141,6 +141,74 @@ class TransactionReportQueriesTest extends TestCase {
 		$this->assertEquals(-500.00, $data[1]['net']);
 	}
 
+	public function testGetCashFlowByMonthGroupsByBudgetMonthWithAStartDay(): void {
+		// Start day 26: 26 Sep - 25 Oct is October, 26 Oct on is November
+		$this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+			$this->resultOf([
+				['month' => '2026-09-26', 'income' => '3000.00', 'expenses' => '0', 'count' => '1'],
+				['month' => '2026-10-03', 'income' => '0', 'expenses' => '200.00', 'count' => '2'],
+				['month' => '2026-10-26', 'income' => '3000.00', 'expenses' => '0', 'count' => '1'],
+			]),
+			$this->resultOf([
+				['month' => '2026-10-25', 'income' => '0', 'expenses' => '50.00', 'count' => '1'],
+			])
+		);
+
+		$data = $this->mapper->getCashFlowByMonth('user1', null, '2026-09-26', '2026-11-25', monthStartDay: 26);
+
+		$this->assertSame(['2026-10', '2026-11'], array_column($data, 'month'));
+		$this->assertEquals(3000.00, $data[0]['income']);
+		$this->assertEquals(250.00, $data[0]['expenses']);
+		$this->assertSame(4, $data[0]['count']);
+		$this->assertEquals(3000.00, $data[1]['income']);
+		// Grouped by date, then folded into budget months in PHP
+		$this->assertContains('CAST(t.date AS CHAR(10)) as month', $this->capturedFunctions);
+	}
+
+	public function testGetCashFlowByMonthKeepsCalendarMonthsByDefault(): void {
+		$this->qb->method('executeQuery')->willReturnOnConsecutiveCalls($this->resultOf([]), $this->resultOf([]));
+
+		$this->mapper->getCashFlowByMonth('user1', null, '2026-09-01', '2026-10-31');
+
+		$this->assertContains('SUBSTR(CAST(t.date AS CHAR(10)), 1, 7) as month', $this->capturedFunctions);
+	}
+
+	public function testGetCashFlowByMonthByAccountGroupsByBudgetMonthPerAccount(): void {
+		$this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+			$this->resultOf([
+				['account_id' => '1', 'month' => '2026-09-26', 'income' => '100.00', 'expenses' => '0', 'count' => '1'],
+				['account_id' => '1', 'month' => '2026-10-01', 'income' => '50.00', 'expenses' => '0', 'count' => '1'],
+				['account_id' => '2', 'month' => '2026-10-01', 'income' => '7.00', 'expenses' => '0', 'count' => '1'],
+			]),
+			$this->resultOf([])
+		);
+
+		$data = $this->mapper->getCashFlowByMonthByAccount('user1', '2026-09-26', '2026-10-25', monthStartDay: 26);
+
+		$this->assertCount(2, $data);
+		$byAccount = array_column($data, null, 'account_id');
+		$this->assertSame('2026-10', $byAccount[1]['month']);
+		$this->assertEquals(150.00, $byAccount[1]['income']);
+		$this->assertSame(2, $byAccount[1]['count']);
+		$this->assertEquals(7.00, $byAccount[2]['income']);
+	}
+
+	public function testGetCategoryNetByMonthGroupsByBudgetMonth(): void {
+		$this->qb->method('executeQuery')->willReturnOnConsecutiveCalls(
+			$this->resultOf([
+				['category_id' => '5', 'month' => '2026-09-26', 'net' => '3000.00'],
+				['category_id' => '5', 'month' => '2026-10-25', 'net' => '10.00'],
+				['category_id' => null, 'month' => '2026-10-26', 'net' => '-4.00'],
+			]),
+			$this->resultOf([])
+		);
+
+		$totals = $this->mapper->getCategoryNetByMonth('user1', '2026-09-26', '2026-11-25', monthStartDay: 26);
+
+		$this->assertEquals(['2026-10' => 3010.00], $totals[5]);
+		$this->assertEquals(['2026-11' => -4.00], $totals[TransactionReportQueries::UNCATEGORIZED]);
+	}
+
 	// ===== getSpendingByAccountAggregated =====
 
 	public function testGetSpendingByAccountAggregatedReturnsFormattedArray(): void {

@@ -1657,8 +1657,11 @@ export default class TransactionsModule {
         const adjustmentType = diff > 0 ? 'credit' : 'debit';
         // Before anything is ticked the "difference" is the whole account
         // history, so an adjustment for it would be nonsense - the button is
-        // only offered once the ticking has started (#374).
+        // only offered once the ticking has started (#374). With nothing
+        // left to tick, though, it is the only way to a zero difference:
+        // otherwise Finish stayed disabled for good (#473).
         const untickedCount = state.untickedCount || 0;
+        const offerAdjustment = !balanced && ((state.tickedCount || 0) > 0 || untickedCount === 0);
 
         bar.innerHTML = `
             <div class="reconcile-bar-stats">
@@ -1682,7 +1685,7 @@ export default class TransactionsModule {
             <div class="reconcile-bar-actions">
                 <button id="finish-reconcile-btn" class="primary" ${!balanced ? 'disabled' : ''}>${t('budget', 'Finish')}</button>
                 ${untickedCount > 0 ? `<button id="tick-all-reconcile-btn" class="secondary">${n('budget', 'Tick %n transaction up to {date}', 'Tick all %n transactions up to {date}', untickedCount, { date: this.formatDate(state.session.statementDate) })}</button>` : ''}
-                ${!balanced && (state.tickedCount || 0) > 0 ? `<button id="adjust-reconcile-btn" class="secondary">${t('budget', 'Create {amount} adjustment', { amount: this.formatCurrency(Math.abs(diff)) })}</button>` : ''}
+                ${offerAdjustment ? `<button id="adjust-reconcile-btn" class="secondary">${t('budget', 'Create {amount} adjustment', { amount: this.formatCurrency(Math.abs(diff)) })}</button>` : ''}
                 <button id="leave-reconcile-btn" class="secondary" title="${t('budget', 'Keep the session and come back later')}">${t('budget', 'Leave')}</button>
                 <button id="cancel-reconcile-session-btn" class="secondary">${t('budget', 'Cancel session')}</button>
             </div>
@@ -5710,24 +5713,120 @@ export default class TransactionsModule {
         this._duplicatesDirty = false;
 
         try {
-            const data = await apiFetch('/apps/budget/api/transactions/duplicates');
+            // A bill's booked payment beside the bank's own row of it has a
+            // different date and text, so the plain finder never sees it.
+            // Best-effort: the finder works without it.
+            const [data, pairData] = await Promise.all([
+                apiFetch('/apps/budget/api/transactions/duplicates'),
+                apiFetch('/apps/budget/api/bills/payment-pairs').catch(() => ({ pairs: [] })),
+            ]);
 
             document.getElementById('duplicates-loading').style.display = 'none';
             const content = document.getElementById('duplicates-content');
             content.style.display = 'block';
+            content.innerHTML = '<div id="duplicates-bill-pairs"></div><div id="duplicates-groups-section"></div>';
 
+            const pairs = pairData?.pairs || [];
+            this.renderBillPairs(document.getElementById('duplicates-bill-pairs'), pairs);
+
+            const groupsSection = document.getElementById('duplicates-groups-section');
             if (!data.groups || data.groups.length === 0) {
-                content.innerHTML = `<p class="empty-message">${t('budget', 'No duplicate transactions found.')}</p>`;
+                groupsSection.innerHTML = pairs.length === 0
+                    ? `<p class="empty-message">${t('budget', 'No duplicate transactions found.')}</p>`
+                    : '';
                 return;
             }
 
-            this.renderDuplicateGroups(content, data.groups);
+            this.renderDuplicateGroups(groupsSection, data.groups);
         } catch (error) {
             console.error('Failed to find duplicates:', error);
             document.getElementById('duplicates-loading').style.display = 'none';
             const content = document.getElementById('duplicates-content');
             content.style.display = 'block';
             content.innerHTML = `<p class="error-message">${t('budget', 'Failed to scan for duplicates. Please try again.')}</p>`;
+        }
+    }
+
+    /**
+     * Payments the app booked for a bill beside the bank's own row of the
+     * same payment, which Merge turns into the one bank row with the bill.
+     */
+    renderBillPairs(container, pairs) {
+        if (!container) {
+            return;
+        }
+        if (!pairs.length) {
+            container.innerHTML = '';
+            return;
+        }
+        const row = (tx, label) => {
+            const status = tx.status === 'scheduled'
+                ? `<span class="scheduled-badge">${t('budget', 'scheduled')}</span>`
+                : (tx.status === 'pending' ? `<span class="pending-badge">${t('budget', 'pending')}</span>` : '');
+            return `
+                <div class="duplicate-item bill-pair-row">
+                    <span class="duplicate-item-details">
+                        <span class="duplicate-date">${dom.escapeHtml(tx.date)}</span>
+                        <span class="duplicate-vendor">${dom.escapeHtml(tx.description || tx.vendor || '') || '-'}</span>
+                        <span class="duplicate-amount">${formatters.formatCurrency(tx.amount, tx.currency, this.settings)}</span>
+                        <span class="bill-badge">${dom.escapeHtml(label)}</span>${status}
+                    </span>
+                </div>`;
+        };
+        let html = `
+            <div class="duplicates-summary">
+                <h3>${t('budget', 'Bill payments with a bank row beside them')}</h3>
+                <p>${t('budget', 'Each bill payment below has a bank row of the same amount a few days away, so the money may be counted twice. Merge keeps the bank row, with its date and text, and gives it the bill, its category and tags. The booked payment is deleted.')}</p>
+            </div>`;
+        pairs.forEach((pair) => {
+            html += `
+                <div class="duplicate-group bill-pair">
+                    <div class="duplicate-group-header">
+                        <strong>${dom.escapeHtml(pair.billName)}</strong>
+                        &mdash; ${formatters.formatCurrency(pair.bank.amount, pair.bank.currency, this.settings)}
+                        &mdash; ${dom.escapeHtml(pair.bank.accountName || '')}
+                    </div>
+                    <div class="duplicate-group-items">
+                        ${row(pair.booked, pair.booked.status === 'scheduled' ? t('budget', 'bill, not yet paid') : t('budget', 'booked by the bill'))}
+                        ${row(pair.bank, t('budget', 'from the bank'))}
+                    </div>
+                    <div class="bill-pair-actions">
+                        <button type="button" class="budget-btn primary bill-pair-merge"
+                            data-bill-id="${pair.billId}" data-booked-id="${pair.booked.id}" data-bank-id="${pair.bank.id}">
+                            ${t('budget', 'Merge')}
+                        </button>
+                    </div>
+                </div>`;
+        });
+        container.innerHTML = html;
+
+        container.querySelectorAll('.bill-pair-merge').forEach((button) => {
+            button.addEventListener('click', () => this.mergeBillPair(button));
+        });
+    }
+
+    async mergeBillPair(button) {
+        const { billId, bookedId, bankId } = button.dataset;
+        button.disabled = true;
+        try {
+            await apiFetch(`/apps/budget/api/bills/${encodeURIComponent(billId)}/merge-payment`, {
+                method: 'POST',
+                body: { bookedId: parseInt(bookedId, 10), bankId: parseInt(bankId, 10) },
+            });
+            showSuccess(t('budget', 'Payment merged into the bank row'));
+            this._duplicatesDirty = true;
+            // The booked row is gone, and with it any group it was in
+            document.querySelectorAll(`#duplicates-groups-section .duplicate-checkbox[data-tx-id="${CSS.escape(bookedId)}"]`)
+                .forEach(cb => cb.closest('.duplicate-item')?.remove());
+            document.querySelectorAll('#duplicates-groups-section .duplicate-group').forEach(group => {
+                if (group.querySelectorAll('.duplicate-item').length <= 1) group.remove();
+            });
+            this.updateDuplicatesSelectedCount();
+            const data = await apiFetch('/apps/budget/api/bills/payment-pairs');
+            this.renderBillPairs(document.getElementById('duplicates-bill-pairs'), data?.pairs || []);
+        } catch (error) {
+            showError(error?.message || t('budget', 'The payment could not be merged'));
+            button.disabled = false;
         }
     }
 
@@ -5858,7 +5957,7 @@ export default class TransactionsModule {
                 });
 
                 // Remove groups that now have only one item
-                document.querySelectorAll('.duplicate-group').forEach(group => {
+                document.querySelectorAll('#duplicates-groups-section .duplicate-group').forEach(group => {
                     const remaining = group.querySelectorAll('.duplicate-item');
                     if (remaining.length <= 1) {
                         group.remove();
@@ -5868,10 +5967,10 @@ export default class TransactionsModule {
                 this.updateDuplicatesSelectedCount();
 
                 // Check if all groups are resolved
-                const remainingGroups = document.querySelectorAll('.duplicate-group');
+                const remainingGroups = document.querySelectorAll('#duplicates-groups-section .duplicate-group');
                 if (remainingGroups.length === 0) {
-                    const content = document.getElementById('duplicates-content');
-                    content.innerHTML = `<p class="empty-message">${t('budget', 'All duplicates have been resolved.')}</p>`;
+                    const section = document.getElementById('duplicates-groups-section');
+                    section.innerHTML = `<p class="empty-message">${t('budget', 'All duplicates have been resolved.')}</p>`;
                 }
             }
 

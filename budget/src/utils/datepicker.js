@@ -82,6 +82,19 @@ export function clearDateValue(elementOrId) {
 }
 
 /**
+ * Destroy one flatpickr instance and stop tracking it, for a date box that
+ * goes away on its own (an inline editor closing).
+ * @param {object|null} instance - What initSingleDatePicker returned
+ */
+export function destroyDatePicker(instance) {
+	if (!instance) return;
+	activePickers = activePickers.filter(fp => fp !== instance);
+	if (typeof instance.destroy === 'function') {
+		instance.destroy();
+	}
+}
+
+/**
  * Destroy all tracked flatpickr instances.
  */
 export function destroyAllDatePickers() {

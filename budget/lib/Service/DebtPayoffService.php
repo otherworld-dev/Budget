@@ -105,7 +105,8 @@ class DebtPayoffService {
 			$minPayment = $this->toBase((float)($debt->getMinimumPayment() ?? 0), $debt, $userId);
 			$totalMinimumPayment = MoneyCalculator::add($totalMinimumPayment, $minPayment, 8);
 
-			$rate = (float)($debt->getInterestRate() ?? 0);
+			// The rate it carries today: a 0% promo is not the highest rate
+			$rate = PromoRate::rateOn($debt, $today);
 			if ($rate > $highestRate) {
 				$highestRate = $rate;
 			}
@@ -201,9 +202,17 @@ class DebtPayoffService {
 			$minimumPayment = $debt->getMinimumPayment() !== null
 				? $this->toBase((float)$debt->getMinimumPayment(), $debt, $userId)
 				: 25.0; // Default minimum, in the base currency
-			$interestRate = (float)($debt->getInterestRate() ?? 0) / 100; // Convert percentage to decimal
+			$normalRate = (float)($debt->getInterestRate() ?? 0) / 100; // Convert percentage to decimal
+			$promoRate = $debt->getPromoRate() !== null ? (float)$debt->getPromoRate() / 100 : null;
+			$promoStart = $debt->getPromoStart();
+			$promoEnd = $debt->getPromoEnd();
+			// Month 1's rate: the promotional one when the promo covers today
+			$interestRate = PromoRate::applies($promoRate, $promoStart, $promoEnd, $today)
+				? $promoRate
+				: $normalRate;
 
-			// Minimum payment should be at least enough to cover monthly interest + some principal
+			// Minimum payment should be at least enough to cover monthly interest + some principal.
+			// Checked again when a promo ends (see the monthly loop)
 			$monthlyInterest = $balance * ($interestRate / 12);
 			if ($minimumPayment <= $monthlyInterest && $interestRate > 0) {
 				$minimumPayment = $monthlyInterest + 10; // Ensure progress
@@ -218,8 +227,18 @@ class DebtPayoffService {
 				'currency' => $debt->getCurrency() ?: $this->baseCurrency($userId),
 				'nativeBalance' => $nativeBalance,
 				'minimumPayment' => $minimumPayment,
+				// Month 1's minimum, before any raise when a promo ends
+				'startMinimum' => $minimumPayment,
+				// The rate in force this month (set at the top of each month),
+				// and the normal and promotional rates it is picked from
 				'interestRate' => $interestRate,
 				'monthlyRate' => $interestRate / 12,
+				'normalRate' => $normalRate,
+				'promoRate' => $promoRate,
+				'promoStart' => $promoStart,
+				'promoEnd' => $promoEnd,
+				// Whether last month's rate was the promo's
+				'onPromo' => false,
 				'interestPaid' => 0,
 				'paidOff' => false,
 				'payoffMonth' => null,
@@ -233,13 +252,17 @@ class DebtPayoffService {
 			}));
 		}
 
-		// Apply rate overrides
+		// Apply rate overrides. They replace the normal rate only: a promo
+		// still runs its course first
 		if ($rateOverrides !== null) {
 			foreach ($debtData as &$debt) {
 				$idStr = (string)$debt['id'];
 				if (isset($rateOverrides[$idStr])) {
-					$debt['interestRate'] = (float)$rateOverrides[$idStr] / 100;
-					$debt['monthlyRate'] = $debt['interestRate'] / 12;
+					$debt['normalRate'] = (float)$rateOverrides[$idStr] / 100;
+					if (!PromoRate::applies($debt['promoRate'], $debt['promoStart'], $debt['promoEnd'], $today)) {
+						$debt['interestRate'] = $debt['normalRate'];
+						$debt['monthlyRate'] = $debt['interestRate'] / 12;
+					}
 				}
 			}
 			unset($debt);
@@ -279,6 +302,39 @@ class DebtPayoffService {
 		while ($this->hasActiveDebts($debtData) && $month < self::MAX_MONTHS) {
 			$month++;
 			$monthData = ['month' => $month, 'payments' => [], 'debtsPaidOff' => []];
+
+			// This month's rates: a debt carries its promotional rate in the
+			// months the promo covers and its normal rate in the rest
+			$monthDate = self::monthDate($today, $month);
+			foreach ($debtData as &$debt) {
+				if ($debt['paidOff']) {
+					continue;
+				}
+				$onPromo = PromoRate::applies($debt['promoRate'], $debt['promoStart'], $debt['promoEnd'], $monthDate);
+				$debt['interestRate'] = $onPromo ? $debt['promoRate'] : $debt['normalRate'];
+				$debt['monthlyRate'] = $debt['interestRate'] / 12;
+
+				// When a promo ends, a minimum set for 0% may no longer cover
+				// the interest, and the debt would never be paid: raise it as
+				// the setup does, and the budget with it from now on
+				if ($debt['onPromo'] && !$onPromo) {
+					$monthlyInterest = $debt['balance'] * $debt['monthlyRate'];
+					if ($debt['minimumPayment'] <= $monthlyInterest && $debt['monthlyRate'] > 0) {
+						$raised = $monthlyInterest + 10;
+						$monthlyBudget += $raised - $debt['minimumPayment'];
+						$debt['minimumPayment'] = $raised;
+					}
+				}
+				$debt['onPromo'] = $onPromo;
+			}
+			unset($debt);
+
+			// Rates can change from month to month, so the avalanche ranks
+			// by this month's
+			if ($strategy === 'avalanche') {
+				$debtData = $this->sortByStrategy($debtData, $strategy);
+			}
+
 			$available = $monthlyBudget;
 			if ($lumpSum > 0 && $month === $lumpSumMonth) {
 				$available += $lumpSum;
@@ -387,6 +443,12 @@ class DebtPayoffService {
 		// Build debt results
 		$debtResults = [];
 		foreach ($debtData as $debt) {
+			// A promo still to run (or running), for the page to show; one
+			// that has ended is of no interest
+			$promoActive = $debt['promoRate'] !== null
+				&& $debt['promoStart'] !== null
+				&& $debt['promoEnd'] !== null
+				&& $debt['promoEnd'] > $today;
 			$debtResults[] = [
 				'id' => $debt['id'],
 				'name' => $debt['name'],
@@ -399,9 +461,20 @@ class DebtPayoffService {
 				// What the plan pays on it each month before any extra: the
 				// account's minimum, 25 when none is set, or more when that
 				// would not cover the interest. The Debt Payoff page adds these
-				// up for its Monthly Payment, which read 0 without them.
-				'minimumPayment' => round($debt['minimumPayment'], 2),
-				'interestRate' => round($debt['interestRate'] * 100, 2),
+				// up for its Monthly Payment, which read 0 without them. It is
+				// month 1's: a promo ending can raise it later (below), and
+				// the raised one is not what is paid now.
+				'minimumPayment' => round($debt['startMinimum'], 2),
+				// The minimum once a promo has ended and the old one no longer
+				// covered the interest; null when the promo end changed nothing
+				'minimumAfterPromo' => $debt['minimumPayment'] > $debt['startMinimum']
+					? round($debt['minimumPayment'], 2)
+					: null,
+				// The normal rate (after any override), not a promo's
+				'interestRate' => round($debt['normalRate'] * 100, 2),
+				'promoRate' => $promoActive ? round($debt['promoRate'] * 100, 2) : null,
+				'promoStart' => $promoActive ? $debt['promoStart'] : null,
+				'promoEnd' => $promoActive ? $debt['promoEnd'] : null,
 				'interestPaid' => round($debt['interestPaid'], 2),
 				'payoffMonth' => $debt['payoffMonth'],
 			];
@@ -539,6 +612,19 @@ class DebtPayoffService {
 	 */
 	private function isDebt(Account $account): bool {
 		return in_array($account->getType(), self::LIABILITY_TYPES, true);
+	}
+
+	/**
+	 * The date month $month of the plan falls on: today's day of the month,
+	 * $month - 1 months on, clamped to the end of a shorter month. strtotime's
+	 * "+1 months" overflows instead (31 January + 1 month is 3 March), which
+	 * skipped February and read a promo ending 1 March as already over.
+	 */
+	private static function monthDate(string $today, int $month): string {
+		$start = new \DateTimeImmutable($today);
+		$first = $start->modify('first day of +' . ($month - 1) . ' months');
+		$day = min((int)$start->format('j'), (int)$first->format('t'));
+		return $first->setDate((int)$first->format('Y'), (int)$first->format('n'), $day)->format('Y-m-d');
 	}
 
 	/**

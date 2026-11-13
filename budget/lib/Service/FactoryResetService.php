@@ -13,6 +13,8 @@ use OCA\Budget\Db\ImportRuleMapper;
 use OCA\Budget\Db\SettingMapper;
 use OCA\Budget\Db\ShareMapper;
 use OCA\Budget\Db\TransactionMapper;
+use OCA\Budget\Service\BankSync\BankConnectionRevoker;
+use OCA\Budget\Service\BankSync\EnableBanking\EnableBankingKeyStore;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
 use OCP\Notification\IManager as INotificationManager;
@@ -40,6 +42,11 @@ use Psr\Log\LoggerInterface;
  * splits, bills, income and rules under the user's shared categories go to
  * No category, their bills on the user's shared accounts stop auto-paying,
  * and their transfer legs paired with the user's rows are unlinked.
+ *
+ * Bank connections are ended at the provider too, as Disconnect does: the
+ * rows going is not enough, the consent given to the bank stayed live. They
+ * are read before anything is deleted and revoked only once the deletion
+ * has committed, so a reset that rolls back leaves them working.
  */
 class FactoryResetService {
 	private UserTableCleaner $tableCleaner;
@@ -59,6 +66,7 @@ class FactoryResetService {
 		private ?ContactMapper $contactMapper = null,
 		private ?CrossUserLinks $crossUserLinks = null,
 		private ?LoggerInterface $logger = null,
+		private ?BankConnectionRevoker $bankRevoker = null,
 	) {
 		$this->tableCleaner = new UserTableCleaner($db);
 	}
@@ -109,6 +117,10 @@ class FactoryResetService {
 			// scheduled job later booked them into the other user's balance.
 			// Read here; deleted inside the transaction below.
 			$billIds = $this->findBillIds($userId);
+
+			// The bank connections to end at the provider once the rows are
+			// gone. Never throws: an unreadable secret can't block a reset.
+			$bankConnections = $this->bankRevoker?->collect($userId) ?? [];
 		} catch (\Throwable $e) {
 			// Nothing was deleted yet, but a deleted uid's access goes all the
 			// same, as when the purge fails inside its transaction
@@ -143,7 +155,9 @@ class FactoryResetService {
 			$counts['importRules'] = $this->safeDelete($this->importRuleMapper, $userId);
 			$counts['accounts'] = $this->safeDelete($this->accountMapper, $userId);
 			$counts['categories'] = $this->safeDelete($this->categoryMapper, $userId);
-			$counts['settings'] = $this->safeDelete($this->settingMapper, $userId);
+			// The Enable Banking keys sign the revoke calls made after the
+			// commit, so they stay until those have run
+			$counts['settings'] = $this->settingMapper->deleteAll($userId, [EnableBankingKeyStore::SETTING_KEY]);
 
 			// 3. Attachment rows only — the receipt files stay in the user's Files
 			$counts['attachments'] = $this->safeDelete($this->attachmentMapper, $userId);
@@ -180,7 +194,27 @@ class FactoryResetService {
 
 		$this->dismissShareInvitations($grantedShares);
 
+		// Best-effort and after the commit: the data is gone either way, and
+		// a provider that is down only leaves its consent to lapse by itself
+		$this->bankRevoker?->revokeAll($bankConnections);
+		$this->deleteBankKeys($userId);
+
 		return $counts;
+	}
+
+	/**
+	 * The Enable Banking keys outlive the delete so the revoke can sign its
+	 * calls, and go straight after it. A failure is logged without the
+	 * exception, whose trace could carry the keys.
+	 */
+	private function deleteBankKeys(string $userId): void {
+		try {
+			$this->settingMapper->deleteByKey($userId, EnableBankingKeyStore::SETTING_KEY);
+		} catch (\Throwable $e) {
+			$this->logger?->error('Could not delete the Enable Banking keys of {user}: {class}', [
+				'app' => 'budget', 'user' => $userId, 'class' => get_class($e),
+			]);
+		}
 	}
 
 	/**

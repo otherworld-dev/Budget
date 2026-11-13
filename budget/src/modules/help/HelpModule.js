@@ -40,6 +40,7 @@ export const HELP_TOPICS = {
     assets: { title: () => t('budget', 'Assets'), summary: () => t('budget', 'Track non-liquid assets like property, vehicles, and collectibles with value snapshots over time.'), doc: 'assets' },
     'shared-expenses': { title: () => t('budget', 'Shared Expenses'), summary: () => t('budget', 'Split expenses with contacts and track who owes whom. Record settlements to clear debts.'), doc: 'shared-expenses' },
     forecast: { title: () => t('budget', 'Forecast'), summary: () => t('budget', 'Predict future account balances using historical spending patterns and scenario modeling.'), doc: 'forecast' },
+    runway: { title: () => t('budget', 'Runway'), summary: () => t('budget', 'See how long your money will last, at your current spending and on budget. Add the runway tiles from the dashboard, choose which accounts count, and list planned one-off amounts.'), doc: 'runway' },
     reports: { title: () => t('budget', 'Reports'), summary: () => t('budget', 'Six report types: budget analysis, spending by category, income vs expenses, year-over-year, bills calendar, and net worth history.'), doc: 'reports' },
     import: { title: () => t('budget', 'Import'), summary: () => t('budget', 'Import bank statements from CSV, OFX, or QIF files. Auto-detects delimiters and supports European number formats.'), doc: 'import' },
     rules: { title: () => t('budget', 'Rules'), summary: () => t('budget', 'Auto-categorise transactions with pattern-based rules. Build complex criteria with AND/OR/NOT logic and preview matches.'), doc: 'rules' },

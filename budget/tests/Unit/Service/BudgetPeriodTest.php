@@ -9,6 +9,26 @@ use PHPUnit\Framework\TestCase;
 
 class BudgetPeriodTest extends TestCase {
 
+	// ── monthsBetween ────────────────────────────────────────────────
+
+	public function testMonthsBetweenAreCalendarMonthsForStartDayOne(): void {
+		$this->assertSame(['2026-09', '2026-10'], BudgetPeriod::monthsBetween('2026-09-26', '2026-10-25', 1));
+	}
+
+	public function testMonthsBetweenNameBudgetMonthsForALateStartDay(): void {
+		// Start day 26: 26 Sep - 25 Oct is October
+		$this->assertSame(['2026-10'], BudgetPeriod::monthsBetween('2026-09-26', '2026-10-25', 26));
+		$this->assertSame(['2026-10', '2026-11'], BudgetPeriod::monthsBetween('2026-10-01', '2026-10-31', 26));
+	}
+
+	public function testMonthsBetweenCrossTheYearEnd(): void {
+		$this->assertSame(['2026-12', '2027-01'], BudgetPeriod::monthsBetween('2026-11-26', '2026-12-26', 26));
+	}
+
+	public function testMonthsBetweenIsEmptyForAReversedRange(): void {
+		$this->assertSame([], BudgetPeriod::monthsBetween('2026-10-02', '2026-10-01', 26));
+	}
+
 	// ── range ────────────────────────────────────────────────────────
 
 	public function testRangeIsTheCalendarMonthForStartDayOne(): void {

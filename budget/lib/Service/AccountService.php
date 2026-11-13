@@ -51,6 +51,7 @@ class AccountService extends AbstractCrudService {
 		private ?UserClock $userClock = null,
 		private ?ImportFolderMapper $importFolderMapper = null,
 		private ?ImportAccountLinkMapper $importLinkMapper = null,
+		private ?PromoRateWarningService $promoWarnings = null,
 	) {
 		$this->mapper = $mapper;
 		$this->transactionMapper = $transactionMapper;
@@ -87,7 +88,19 @@ class AccountService extends AbstractCrudService {
 		bool $excludedFromReports = false,
 		?int $statementDay = null,
 		?bool $liabilityInCredit = null,
+		?float $promoRate = null,
+		?string $promoStart = null,
+		?string $promoEnd = null,
 	): Account {
+		// '' is not a date: the mapper would bind it as one and Postgres would refuse
+		$promoStart = ($promoStart === '') ? null : $promoStart;
+		$promoEnd = ($promoEnd === '') ? null : $promoEnd;
+		PromoRate::validate($this->l, $promoRate, $promoStart, $promoEnd);
+		if ($promoRate !== null && !(AccountType::tryFrom($type)?->isLiability() ?? false)) {
+			throw new \InvalidArgumentException(
+				$this->l->t('A promotional rate can only be set on a credit card, loan, mortgage or line of credit.')
+			);
+		}
 		$account = new Account();
 		$account->setUserId($userId);
 		$account->setName($name);
@@ -117,6 +130,9 @@ class AccountService extends AbstractCrudService {
 		$account->setMinimumPayment($minimumPayment);
 		$account->setStatementDay($statementDay);
 		$account->setExcludedFromReports($excludedFromReports);
+		$account->setPromoRate($promoRate);
+		$account->setPromoStart($promoStart);
+		$account->setPromoEnd($promoEnd);
 		$this->setTimestamps($account, true);
 
 		$account = $this->mapper->insert($account);
@@ -153,6 +169,10 @@ class AccountService extends AbstractCrudService {
 		// Bills, transfers and recurring income on the account (anyone's)
 		// would otherwise go on running against a deleted id
 		$this->closureService?->stopSchedulesFor($entity);
+		// A promo ending reminder would point at an account that is gone
+		if ($entity->getPromoWarned() !== null) {
+			$this->promoWarnings?->dismiss($entity->getUserId(), $entity->getId());
+		}
 	}
 
 	/**
@@ -327,7 +347,16 @@ class AccountService extends AbstractCrudService {
 		}
 		// -------------------------------------------------------------------
 
+		$updates = $this->resolvePromoUpdates($existing, $updates, $isLiability);
+		// A reminder already sent is about a promo that has just been removed
+		// or moved to another end date
+		$staleWarning = $existing->getPromoWarned() !== null
+			&& array_key_exists('promoWarned', $updates) && $updates['promoWarned'] === null;
+
 		$account = parent::update($id, $userId, $updates);
+		if ($staleWarning) {
+			$this->promoWarnings?->dismiss($userId, $id);
+		}
 		if ($closing) {
 			// What can no longer post into it lets go of it (#372)
 			$this->closureService?->detachStaleSchedules($existing);
@@ -340,6 +369,55 @@ class AccountService extends AbstractCrudService {
 		}
 
 		return $account;
+	}
+
+	/**
+	 * Promotional rate (start, end, rate) handling for update(). The three
+	 * fields are validated together over the stored values, and an empty
+	 * value is stored as null, never ''. A changed or cleared end date
+	 * re-arms the ending reminder. A promo left on an account that stops
+	 * being a liability is dropped rather than blocking the type change.
+	 *
+	 * @param array<string, mixed> $updates
+	 * @return array<string, mixed>
+	 */
+	private function resolvePromoUpdates(Account $existing, array $updates, bool $isLiability): array {
+		$touched = array_key_exists('promoRate', $updates)
+			|| array_key_exists('promoStart', $updates)
+			|| array_key_exists('promoEnd', $updates);
+
+		if (!$touched) {
+			if (!$isLiability && ($existing->getPromoRate() !== null
+				|| $existing->getPromoStart() !== null || $existing->getPromoEnd() !== null)) {
+				$updates['promoRate'] = null;
+				$updates['promoStart'] = null;
+				$updates['promoEnd'] = null;
+				$updates['promoWarned'] = null;
+			}
+			return $updates;
+		}
+
+		$rate = array_key_exists('promoRate', $updates) ? $updates['promoRate'] : $existing->getPromoRate();
+		$start = array_key_exists('promoStart', $updates) ? $updates['promoStart'] : $existing->getPromoStart();
+		$end = array_key_exists('promoEnd', $updates) ? $updates['promoEnd'] : $existing->getPromoEnd();
+		$rate = ($rate === null || $rate === '') ? null : (float)$rate;
+		$start = ($start === null || $start === '') ? null : (string)$start;
+		$end = ($end === null || $end === '') ? null : (string)$end;
+
+		PromoRate::validate($this->l, $rate, $start, $end);
+		if ($rate !== null && !$isLiability) {
+			throw new \InvalidArgumentException(
+				$this->l->t('A promotional rate can only be set on a credit card, loan, mortgage or line of credit.')
+			);
+		}
+
+		$updates['promoRate'] = $rate;
+		$updates['promoStart'] = $start;
+		$updates['promoEnd'] = $end;
+		if ($end !== $existing->getPromoEnd()) {
+			$updates['promoWarned'] = null;
+		}
+		return $updates;
 	}
 
 	/**

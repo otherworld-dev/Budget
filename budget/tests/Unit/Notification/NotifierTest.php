@@ -25,6 +25,7 @@ class NotifierTest extends TestCase {
 	private string $richMessage = '';
 	private array $richMessageParams = [];
 	private string $parsedMessage = '';
+	private string $link = '';
 
 	protected function setUp(): void {
 		$l = $this->createMock(IL10N::class);
@@ -34,6 +35,10 @@ class NotifierTest extends TestCase {
 		$l->method('n')->willReturnCallback(
 			static fn (string $singular, string $plural, int $count, array $params = []): string
 				=> vsprintf(str_replace('%n', (string)$count, $count === 1 ? $singular : $plural), $params)
+		);
+
+		$l->method('l')->willReturnCallback(
+			static fn (string $type, $date): string => $date instanceof \DateTimeInterface ? $date->format('j M Y') : (string)$date
 		);
 
 		$l10nFactory = $this->createMock(IFactory::class);
@@ -69,6 +74,11 @@ class NotifierTest extends TestCase {
 		$notification->method('setParsedMessage')
 			->willReturnCallback(function (string $text) use ($notification) {
 				$this->parsedMessage = $text;
+				return $notification;
+			});
+		$notification->method('setLink')
+			->willReturnCallback(function (string $link) use ($notification) {
+				$this->link = $link;
 				return $notification;
 			});
 		$notification->method($this->anything())->willReturnSelf();
@@ -185,6 +195,30 @@ class NotifierTest extends TestCase {
 		$this->assertSame('-$120.50', $this->richMessageParams['balance']['name']);
 	}
 
+	public function testPromoRateEndingMessage(): void {
+		$this->prepare('promo_rate_ending', [
+			'accountName' => 'Barclaycard', 'promoRate' => '0', 'promoEnd' => '2026-12-09', 'normalRate' => '22.9',
+		]);
+
+		$this->assertSame('Promotional rate ending on {account}', $this->richSubject);
+		$this->assertSame('Barclaycard', $this->richSubjectParams['account']['name']);
+		$this->assertSame('The {promoRate}% rate ends on {date}. After that, {rate}% applies.', $this->richMessage);
+		$this->assertSame('0', $this->richMessageParams['promoRate']['name']);
+		$this->assertSame('22.9', $this->richMessageParams['rate']['name']);
+		$this->assertSame('9 Dec 2026', $this->richMessageParams['date']['name']);
+		$this->assertStringEndsWith('#accounts', $this->link);
+	}
+
+	public function testRunwayWarningRenders(): void {
+		$this->prepare('runway_warning', ['runsOutOn' => '2028-06-19', 'previous' => '2028-09-02', 'months' => 3]);
+
+		$this->assertSame('Your money is forecast to run out sooner', $this->richSubject);
+		$this->assertSame('It now runs out around {date}, {months} earlier than {previous}.', $this->richMessage);
+		$this->assertSame('June 2028', $this->richMessageParams['date']['name']);
+		$this->assertSame('September 2028', $this->richMessageParams['previous']['name']);
+		$this->assertSame('3 months', $this->richMessageParams['months']['name']);
+	}
+
 	/**
 	 * Every subject, with parameters typed the way its sender builds them.
 	 * Bill and income senders pass entity ids straight from getId(), so they
@@ -205,6 +239,8 @@ class NotifierTest extends TestCase {
 			'report_ready' => ['report_ready', ['month' => '2026-08', 'fileId' => '123', 'fileName' => 'report.pdf']],
 			'budget_alert' => ['budget_alert', ['categoryName' => 'Dining', 'severity' => 'danger', 'percentage' => '112', 'spent' => '$224.00', 'budget' => '$200.00']],
 			'forecast_warning' => ['forecast_warning', ['month' => '2026-11', 'balance' => '-$150.00']],
+			'promo_rate_ending' => ['promo_rate_ending', ['accountName' => 'Barclaycard', 'promoRate' => '0', 'promoEnd' => '2026-12-09', 'normalRate' => '22.9']],
+			'runway_warning' => ['runway_warning', ['runsOutOn' => '2028-06-19', 'previous' => '2028-09-02', 'months' => 3]],
 			// Stored as the service sends them: ids are ints in the parameters
 			'receipt_added_by_other' => ['receipt_added_by_other', ['actorUserId' => 'bob', 'actorDisplayName' => 'Bob', 'transactionId' => 42, 'description' => 'Tesco', 'fileId' => 321, 'fileName' => '2026-08-05 Tesco 23.77.jpg']],
 		];

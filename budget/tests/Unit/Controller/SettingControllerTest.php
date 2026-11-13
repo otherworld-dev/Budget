@@ -101,6 +101,34 @@ class SettingControllerTest extends TestCase {
 		$this->assertArrayNotHasKey('import_skip_duplicates', $this->controller->index()->getData());
 	}
 
+	/**
+	 * The Enable Banking keys are an encrypted private key. The settings UI
+	 * only learns whether they exist, from its own endpoint; this API must
+	 * not hand the ciphertext to the browser, nor write or delete it.
+	 */
+	public function testTheEnableBankingKeysNeverLeaveThroughTheSettingsApi(): void {
+		$this->mapper->method('findAll')->with('user1')->willReturn([
+			$this->makeSetting('enablebanking_keys', 'CIPHERTEXT'),
+			$this->makeSetting('default_currency', 'EUR'),
+		]);
+		$this->mapper->method('findByKey')->willReturn($this->makeSetting('enablebanking_keys', 'CIPHERTEXT'));
+		$this->mapper->expects($this->never())->method('deleteByKey');
+		$this->mapper->expects($this->never())->method('insert');
+		$this->mapper->expects($this->never())->method('update');
+
+		$index = $this->controller->index();
+		$this->assertArrayNotHasKey('enablebanking_keys', $index->getData());
+		$this->assertSame('EUR', $index->getData()['default_currency']);
+
+		$show = $this->controller->show('enablebanking_keys');
+		$this->assertSame(Http::STATUS_NOT_FOUND, $show->getStatus());
+		$this->assertStringNotContainsString('CIPHERTEXT', json_encode($show->getData()));
+
+		$this->request->method('getParam')->with('value')->willReturn('x');
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $this->controller->updateKey('enablebanking_keys')->getStatus());
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $this->controller->destroy('enablebanking_keys')->getStatus());
+	}
+
 	public function testIndexHandlesException(): void {
 		$this->mapper->method('findAll')->willThrowException(new \RuntimeException('DB error'));
 
@@ -230,7 +258,7 @@ class SettingControllerTest extends TestCase {
 	public static function keysTheAppSaves(): array {
 		$keys = [
 			// The Settings page
-			'anomaly_alerts_enabled', 'budget_alert_threshold', 'budget_period', 'budget_start_day', 'date_format',
+			'anomaly_alerts_enabled', 'budget_alert_threshold', 'budget_from_bills', 'budget_period', 'budget_start_day', 'date_format',
 			'default_currency', 'digest_email_enabled', 'digest_enabled', 'digest_frequency', 'export_default_format',
 			'first_day_of_week', 'import_auto_apply_rules', 'import_folder', 'notification_budget_alert',
 			'notification_forecast_warning', 'number_format_decimal_sep', 'number_format_decimals',
@@ -383,18 +411,19 @@ class SettingControllerTest extends TestCase {
 	public function testDestroyReturns404WhenNotFound(): void {
 		$this->mapper->method('deleteByKey')->willReturn(0);
 
-		$response = $this->controller->destroy('nonexistent');
+		$response = $this->controller->destroy('date_format');
 
 		$this->assertSame(Http::STATUS_NOT_FOUND, $response->getStatus());
 	}
 
-	public function testDestroyReturnsNullDefaultForUnknownKey(): void {
-		$this->mapper->method('deleteByKey')->with('user1', 'custom_key')->willReturn(1);
+	public function testDestroyRefusesKeysTheClientCannotWrite(): void {
+		// runway_alert_baseline and the *_notified markers are the alerts' own
+		// memory: deleting one re-arms (or silences) an alert on demand
+		$this->mapper->expects($this->never())->method('deleteByKey');
 
-		$response = $this->controller->destroy('custom_key');
-
-		$this->assertSame(Http::STATUS_OK, $response->getStatus());
-		$this->assertNull($response->getData()['default_value']);
+		foreach (['runway_alert_baseline', 'forecast_warning_notified', 'custom_key'] as $key) {
+			$this->assertSame(Http::STATUS_BAD_REQUEST, $this->controller->destroy($key)->getStatus(), $key);
+		}
 	}
 
 	// ── reset ───────────────────────────────────────────────────────
@@ -410,6 +439,18 @@ class SettingControllerTest extends TestCase {
 		$this->assertSame(5, $data['deleted_count']);
 		$this->assertIsArray($data['defaults']);
 		$this->assertSame('GBP', $data['defaults']['default_currency']);
+	}
+
+	public function testResetKeepsTheEnableBankingKeysAndTheRunwayAlertState(): void {
+		$this->mapper->expects($this->once())
+			->method('deleteAll')
+			->with('user1', ['enablebanking_keys', 'runway_alert_baseline', 'runway_alert_checks'])
+			->willReturn(4);
+
+		$response = $this->controller->reset();
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame(4, $response->getData()['deleted_count']);
 	}
 
 	public function testResetHandlesException(): void {
@@ -710,5 +751,197 @@ class SettingControllerTest extends TestCase {
 
 		$this->assertSame('default', $data['amount_color_scheme']);
 		$this->assertSame(\OCA\Budget\Service\AmountColours::DEFAULT_CUSTOM_JSON, $data['amount_color_custom']);
+	}
+
+	// ── runway setup ────────────────────────────────────────────────
+
+	public function testIndexIncludesRunwayDefaults(): void {
+		$this->mapper->method('findAll')->willReturn([]);
+
+		$data = $this->controller->index()->getData();
+
+		$this->assertSame(
+			['', '3', 'true', 'true', '1'],
+			[$data['runway_account_ids'], $data['runway_window_months'], $data['runway_include_scheduled'],
+				$data['notification_runway_alert'], $data['runway_alert_months']]
+		);
+	}
+
+	public function testUpdateStoresRunwaySettingsInTheirPlainForm(): void {
+		$this->request->method('getParams')->willReturn([
+			'runway_account_ids' => '[3, 1]',
+			'runway_window_months' => 6,
+			'runway_include_scheduled' => false,
+			'notification_runway_alert' => 'true',
+			'runway_alert_months' => '2',
+		]);
+		$stored = $this->captureStoredValues();
+
+		$response = $this->controller->update();
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame([
+			'runway_account_ids' => '[3,1]',
+			'runway_window_months' => '6',
+			'runway_include_scheduled' => 'false',
+			'notification_runway_alert' => 'true',
+			'runway_alert_months' => '2',
+		], $stored->getArrayCopy());
+	}
+
+	public function testUpdateAcceptsNoRunwayAccountsAsTheDefaultSet(): void {
+		$this->request->method('getParams')->willReturn(['runway_account_ids' => '']);
+		$stored = $this->captureStoredValues();
+
+		$this->assertSame(Http::STATUS_OK, $this->controller->update()->getStatus());
+		$this->assertSame('', $stored['runway_account_ids']);
+	}
+
+	#[\PHPUnit\Framework\Attributes\DataProvider('badRunwaySettings')]
+	public function testUpdateRefusesABadRunwaySetting(string $key, mixed $value): void {
+		// date_format comes first and is valid: all or nothing
+		$this->request->method('getParams')->willReturn(['date_format' => 'd/m/Y', $key => $value]);
+		$this->mapper->expects($this->never())->method('insert');
+		$this->mapper->expects($this->never())->method('update');
+
+		$response = $this->controller->update();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertSame("Invalid runway setting: $key", $response->getData()['error']);
+	}
+
+	public static function badRunwaySettings(): array {
+		return [
+			'window of 0' => ['runway_window_months', '0'],
+			'window of 13' => ['runway_window_months', '13'],
+			'window not a number' => ['runway_window_months', 'abc'],
+			'window with a fraction' => ['runway_window_months', '2.5'],
+			'alert months of 0' => ['runway_alert_months', '0'],
+			'alert months of 7' => ['runway_alert_months', '7'],
+			'account ids an object' => ['runway_account_ids', '{"a":1}'],
+			'account ids not json' => ['runway_account_ids', 'abc'],
+			'account ids a number' => ['runway_account_ids', '5'],
+			'account ids with a string' => ['runway_account_ids', '[1,"x"]'],
+			'account ids with a fraction' => ['runway_account_ids', '[1.5]'],
+			'account ids with zero' => ['runway_account_ids', '[0]'],
+			'include scheduled maybe' => ['runway_include_scheduled', 'maybe'],
+			'alert switch yes' => ['notification_runway_alert', 'yes'],
+		];
+	}
+
+	public function testUpdateKeyValidatesRunwayKeys(): void {
+		$values = [
+			['runway_window_months', '13', false, null],
+			['runway_window_months', '12', true, '12'],
+			['runway_account_ids', '[1,"x"]', false, null],
+			['runway_account_ids', '[ 4 ]', true, '[4]'],
+			['runway_include_scheduled', true, true, 'true'],
+		];
+		foreach ($values as [$key, $value, $ok, $expected]) {
+			$request = $this->createMock(IRequest::class);
+			$request->method('getParam')->with('value')->willReturn($value);
+			$mapper = $this->createMock(SettingMapper::class);
+			$mapper->method('findByKey')->willThrowException(new DoesNotExistException(''));
+			$stored = null;
+			$mapper->expects($ok ? $this->once() : $this->never())->method('insert')
+				->willReturnCallback(function (Setting $s) use (&$stored) {
+					$stored = $s->getValue();
+					return $s;
+				});
+			$l = $this->createMock(IL10N::class);
+			$l->method('t')->willReturnCallback(fn ($text, $parameters = []) => vsprintf($text, $parameters));
+			$controller = new SettingController($request, $mapper, $this->createMock(GranularShareService::class), $l, 'user1', $this->logger, $this->importFolders);
+
+			$response = $controller->updateKey($key);
+
+			if ($ok) {
+				$this->assertSame(Http::STATUS_OK, $response->getStatus(), "$key=" . var_export($value, true));
+				$this->assertSame($expected, $stored);
+				$this->assertSame($expected, $response->getData()['value']);
+			} else {
+				$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus(), "$key=" . var_export($value, true));
+				$this->assertSame("Invalid runway setting: $key", $response->getData()['error']);
+			}
+		}
+	}
+
+	// ── the run-out alert after a setup change ──────────────────────
+
+	/**
+	 * Stored settings as findByKey() finds them, and the keys deleted.
+	 *
+	 * @param array<string, string> $stored
+	 */
+	private function withStored(array $stored): \ArrayObject {
+		$deleted = new \ArrayObject();
+		$this->mapper->method('findByKey')->willReturnCallback(function (string $userId, string $key) use ($stored) {
+			if (!isset($stored[$key])) {
+				throw new DoesNotExistException('');
+			}
+			return $this->makeSetting($key, $stored[$key]);
+		});
+		$this->mapper->method('insert')->willReturnArgument(0);
+		$this->mapper->method('update')->willReturnArgument(0);
+		$this->mapper->method('deleteByKey')->willReturnCallback(function (string $userId, string $key) use ($deleted) {
+			$deleted[] = $key;
+			return 1;
+		});
+		return $deleted;
+	}
+
+	public function testChangingTheRunwaySetupForgetsTheAlertBaseline(): void {
+		$deleted = $this->withStored(['runway_window_months' => '3', 'runway_alert_months' => '1']);
+		$this->request->method('getParams')->willReturn([
+			'runway_window_months' => '6',
+			'runway_include_scheduled' => 'true',
+			'runway_alert_months' => '1',
+		]);
+
+		$this->assertSame(Http::STATUS_OK, $this->controller->update()->getStatus());
+		$this->assertSame(['runway_alert_baseline', 'runway_alert_checks'], $deleted->getArrayCopy());
+	}
+
+	#[\PHPUnit\Framework\Attributes\DataProvider('runwayKeyChanges')]
+	public function testChangingOneRunwayKeyForgetsTheAlertBaseline(string $key, string $value): void {
+		$deleted = $this->withStored(['runway_account_ids' => '[1,2]']);
+		$this->request->method('getParam')->with('value')->willReturn($value);
+
+		$this->assertSame(Http::STATUS_OK, $this->controller->updateKey($key)->getStatus());
+		$this->assertSame(['runway_alert_baseline', 'runway_alert_checks'], $deleted->getArrayCopy());
+	}
+
+	public static function runwayKeyChanges(): array {
+		return [
+			'accounts' => ['runway_account_ids', '[1]'],
+			'back to the default accounts' => ['runway_account_ids', ''],
+			'window' => ['runway_window_months', '12'],
+			'scheduled' => ['runway_include_scheduled', 'false'],
+			'threshold' => ['runway_alert_months', '3'],
+			'alert off' => ['notification_runway_alert', 'false'],
+		];
+	}
+
+	public function testSavingTheRunwaySetupUnchangedKeepsTheAlertBaseline(): void {
+		// Stored where it was saved before, the default where it never was
+		$deleted = $this->withStored(['runway_window_months' => '6', 'runway_account_ids' => '[1,2]']);
+		$this->request->method('getParams')->willReturn([
+			'runway_account_ids' => '[1, 2]',
+			'runway_window_months' => '6',
+			'runway_include_scheduled' => 'true',
+			'runway_alert_months' => '1',
+			'notification_runway_alert' => 'true',
+			'date_format' => 'd/m/Y',
+		]);
+
+		$this->assertSame(Http::STATUS_OK, $this->controller->update()->getStatus());
+		$this->assertSame([], $deleted->getArrayCopy());
+	}
+
+	public function testOtherSettingsLeaveTheAlertBaselineAlone(): void {
+		$deleted = $this->withStored(['date_format' => 'Y-m-d']);
+		$this->request->method('getParam')->with('value')->willReturn('d/m/Y');
+
+		$this->assertSame(Http::STATUS_OK, $this->controller->updateKey('date_format')->getStatus());
+		$this->assertSame([], $deleted->getArrayCopy());
 	}
 }
