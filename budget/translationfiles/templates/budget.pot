@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-11-10 16:42+0000\n"
+"POT-Creation-Date: 2026-11-13 14:21+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -49,8 +49,8 @@ msgstr ""
 #: /app/lib/Service/Export/TransactionCsvExporter.php:34
 #: /app/lib/Service/Report/ReportExporter.php:269
 #: /app/lib/Service/Report/ReportExporter.php:482
-#: /app/src/modules/dashboard/DashboardModule.js:5469
-#: /app/src/modules/dashboard/DashboardModule.js:5470
+#: /app/src/modules/dashboard/DashboardModule.js:5496
+#: /app/src/modules/dashboard/DashboardModule.js:5497
 #: /app/src/modules/rules/components/CriteriaBuilder.js:195
 #: /app/templates/index.php:508 /app/templates/index.php:524
 #: /app/templates/index.php:596 /app/templates/index.php:619
@@ -60,9 +60,9 @@ msgstr ""
 #: /app/templates/index.php:1910 /app/templates/index.php:2091
 #: /app/templates/index.php:2524 /app/templates/index.php:2673
 #: /app/templates/index.php:3302 /app/templates/index.php:3411
-#: /app/templates/index.php:3710 /app/templates/index.php:4823
-#: /app/templates/index.php:4835 /app/templates/index.php:6052
-#: /app/templates/index.php:6801 /app/templates/quick-add.php:39
+#: /app/templates/index.php:3710 /app/templates/index.php:4833
+#: /app/templates/index.php:4845 /app/templates/index.php:6062
+#: /app/templates/index.php:6811 /app/templates/quick-add.php:39
 msgid "Account"
 msgstr ""
 
@@ -88,7 +88,7 @@ msgstr ""
 
 #: /app/lib/Controller/AccountController.php:148
 #: /app/src/modules/accounts/AccountsModule.js:29 /app/templates/index.php:1157
-#: /app/templates/index.php:6241
+#: /app/templates/index.php:6251
 msgid "Institution"
 msgstr ""
 
@@ -412,10 +412,10 @@ msgstr ""
 #: /app/templates/index.php:1083 /app/templates/index.php:1590
 #: /app/templates/index.php:1831 /app/templates/index.php:1886
 #: /app/templates/index.php:2466 /app/templates/index.php:2635
-#: /app/templates/index.php:2672 /app/templates/index.php:5651
-#: /app/templates/index.php:5676 /app/templates/index.php:5712
-#: /app/templates/index.php:5890 /app/templates/index.php:6064
-#: /app/templates/index.php:6751 /app/templates/index.php:7566
+#: /app/templates/index.php:2672 /app/templates/index.php:5661
+#: /app/templates/index.php:5686 /app/templates/index.php:5722
+#: /app/templates/index.php:5900 /app/templates/index.php:6074
+#: /app/templates/index.php:6761 /app/templates/index.php:7576
 #: /app/templates/quick-add.php:34
 msgid "Date"
 msgstr ""
@@ -829,7 +829,7 @@ msgstr ""
 #: /app/lib/Controller/BillController.php:1534
 #: /app/lib/Controller/BillController.php:1718
 #: /app/lib/Service/TransactionService.php:1302 /app/templates/index.php:3745
-#: /app/templates/index.php:6398
+#: /app/templates/index.php:6408
 msgid "Bill"
 msgstr ""
 
@@ -914,7 +914,7 @@ msgstr ""
 #: /app/lib/Controller/RecurringIncomeController.php:252
 #: /app/lib/Controller/RecurringIncomeController.php:369
 #: /app/lib/Controller/RecurringIncomeController.php:680
-#: /app/templates/index.php:3295 /app/templates/index.php:5389
+#: /app/templates/index.php:3295 /app/templates/index.php:5399
 msgid "Start date"
 msgstr ""
 
@@ -1111,18 +1111,18 @@ msgstr ""
 #: /app/templates/index.php:2472 /app/templates/index.php:2639
 #: /app/templates/index.php:3437 /app/templates/index.php:3455
 #: /app/templates/index.php:3500 /app/templates/index.php:3521
-#: /app/templates/index.php:5672 /app/templates/index.php:5708
-#: /app/templates/index.php:5744 /app/templates/index.php:6043
-#: /app/templates/index.php:6412 /app/templates/index.php:6672
-#: /app/templates/index.php:6753 /app/templates/index.php:7358
+#: /app/templates/index.php:5682 /app/templates/index.php:5718
+#: /app/templates/index.php:5754 /app/templates/index.php:6053
+#: /app/templates/index.php:6422 /app/templates/index.php:6682
+#: /app/templates/index.php:6763 /app/templates/index.php:7368
 #: /app/templates/quick-add.php:57
 msgid "Amount"
 msgstr ""
 
 #: /app/lib/Controller/BillController.php:1534
 #: /app/src/modules/transfers/TransfersModule.js:488
-#: /app/templates/index.php:5748 /app/templates/index.php:6418
-#: /app/templates/index.php:6909
+#: /app/templates/index.php:5758 /app/templates/index.php:6428
+#: /app/templates/index.php:6919
 msgid "Frequency"
 msgstr ""
 
@@ -1139,7 +1139,7 @@ msgstr ""
 #: /app/lib/Service/Report/ReportExporter.php:598
 #: /app/lib/Service/Report/ReportExporter.php:673
 #: /app/src/modules/categories/CategoriesModule.js:2599
-#: /app/src/modules/reports/ReportsModule.js:1954 /app/templates/index.php:7560
+#: /app/src/modules/reports/ReportsModule.js:1954 /app/templates/index.php:7570
 msgid "Total"
 msgstr ""
 
@@ -1150,7 +1150,7 @@ msgid "%s (budget)"
 msgstr ""
 
 #: /app/lib/Controller/BillController.php:1680
-#: /app/src/modules/dashboard/DashboardModule.js:3394
+#: /app/src/modules/dashboard/DashboardModule.js:3421
 #: /app/src/modules/reports/ReportsModule.js:2108
 #: /app/src/modules/transactions/transactionRow.js:214
 msgid "Projected balance"
@@ -1279,7 +1279,7 @@ msgstr ""
 #: /app/lib/Service/Report/ReportExporter.php:653
 #: /app/lib/Service/Report/ReportExporter.php:690
 #: /app/lib/Service/Report/ReportExporter.php:736 /app/src/main.js:3728
-#: /app/src/main.js:3729 /app/src/modules/dashboard/DashboardModule.js:2356
+#: /app/src/main.js:3729 /app/src/modules/dashboard/DashboardModule.js:2383
 #: /app/src/modules/reports/ReportsModule.js:1179
 #: /app/src/modules/reports/ReportsModule.js:1627
 #: /app/src/modules/transactions/TransactionsModule.js:3476
@@ -1293,10 +1293,10 @@ msgstr ""
 #: /app/templates/index.php:2296 /app/templates/index.php:2518
 #: /app/templates/index.php:2640 /app/templates/index.php:3436
 #: /app/templates/index.php:3454 /app/templates/index.php:3499
-#: /app/templates/index.php:3669 /app/templates/index.php:5379
-#: /app/templates/index.php:6083 /app/templates/index.php:6485
-#: /app/templates/index.php:6956 /app/templates/index.php:7357
-#: /app/templates/index.php:7398 /app/templates/quick-add.php:72
+#: /app/templates/index.php:3669 /app/templates/index.php:5389
+#: /app/templates/index.php:6093 /app/templates/index.php:6495
+#: /app/templates/index.php:6966 /app/templates/index.php:7367
+#: /app/templates/index.php:7408 /app/templates/quick-add.php:72
 msgid "Category"
 msgstr ""
 
@@ -1590,8 +1590,8 @@ msgstr ""
 #: /app/lib/Controller/GoalsController.php:380
 #: /app/lib/Controller/GoalsController.php:409
 #: /app/lib/Controller/GoalsController.php:428
-#: /app/src/utils/categoryIcons.js:89 /app/templates/index.php:5427
-#: /app/templates/index.php:5502
+#: /app/src/utils/categoryIcons.js:89 /app/templates/index.php:5437
+#: /app/templates/index.php:5512
 msgid "Goal"
 msgstr ""
 
@@ -1710,8 +1710,8 @@ msgstr ""
 
 #: /app/lib/Controller/ImportFolderController.php:77
 #: /app/lib/Controller/ImportFolderController.php:94
-#: /app/templates/index.php:4503 /app/templates/index.php:4804
-#: /app/templates/index.php:4808
+#: /app/templates/index.php:4503 /app/templates/index.php:4814
+#: /app/templates/index.php:4818
 msgid "Import folder"
 msgstr ""
 
@@ -1831,7 +1831,7 @@ msgstr ""
 
 #: /app/lib/Controller/ImportTemplateController.php:63
 #: /app/lib/Controller/ImportTemplateController.php:173
-#: /app/templates/index.php:4824 /app/templates/index.php:4836
+#: /app/templates/index.php:4834 /app/templates/index.php:4846
 msgid "Import template"
 msgstr ""
 
@@ -2375,104 +2375,104 @@ msgstr ""
 msgid "Failed to delete saved report"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:133
+#: /app/lib/Controller/SettingController.php:135
 #, php-format
 msgid "This setting can't be changed: %1$s"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:178
+#: /app/lib/Controller/SettingController.php:180
 msgid "Failed to retrieve settings"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:190
-#: /app/lib/Controller/SettingController.php:209
-#: /app/lib/Controller/SettingController.php:541
+#: /app/lib/Controller/SettingController.php:192
+#: /app/lib/Controller/SettingController.php:211
+#: /app/lib/Controller/SettingController.php:543
 msgid "Setting not found"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:213
+#: /app/lib/Controller/SettingController.php:215
 msgid "Failed to retrieve setting"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:262
-#: /app/lib/Controller/SettingController.php:334
+#: /app/lib/Controller/SettingController.php:264
+#: /app/lib/Controller/SettingController.php:336
 #, php-format
 msgid "Invalid receipts folder: %1$s"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:271
-#: /app/lib/Controller/SettingController.php:341
+#: /app/lib/Controller/SettingController.php:273
+#: /app/lib/Controller/SettingController.php:343
 #, php-format
 msgid "Invalid import folder: %1$s"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:286
+#: /app/lib/Controller/SettingController.php:288
 msgid "Settings updated successfully"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:296
+#: /app/lib/Controller/SettingController.php:298
 msgid "Failed to update settings"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:312
+#: /app/lib/Controller/SettingController.php:314
 msgid "Value parameter is required"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:354
+#: /app/lib/Controller/SettingController.php:356
 msgid "Setting updated successfully"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:359
+#: /app/lib/Controller/SettingController.php:361
 msgid "Failed to update setting"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:390
+#: /app/lib/Controller/SettingController.php:392
 msgid "Invalid colour setting"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:441
+#: /app/lib/Controller/SettingController.php:443
 #, php-format
 msgid "Invalid runway setting: %1$s"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:547
+#: /app/lib/Controller/SettingController.php:549
 msgid "Setting reset to default"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:552
+#: /app/lib/Controller/SettingController.php:554
 msgid "Failed to reset setting"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:568
+#: /app/lib/Controller/SettingController.php:570
 msgid "All settings reset to defaults"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:573
+#: /app/lib/Controller/SettingController.php:575
 #: /app/src/modules/settings/SettingsModule.js:569
 msgid "Failed to reset settings"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:602 /app/templates/index.php:4597
+#: /app/lib/Controller/SettingController.php:604 /app/templates/index.php:4607
 msgid "Sunday"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:603 /app/templates/index.php:4598
+#: /app/lib/Controller/SettingController.php:605 /app/templates/index.php:4608
 msgid "Monday"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:606
+#: /app/lib/Controller/SettingController.php:608
 #: /app/src/modules/bills/BillsModule.js:415
 #: /app/src/modules/categories/CategoriesModule.js:2667
 #: /app/src/modules/income/IncomeModule.js:102
 #: /app/src/modules/transfers/TransfersModule.js:330
 #: /app/src/modules/transfers/TransfersModule.js:492
 #: /app/src/modules/transfers/TransfersModule.js:1256
-#: /app/templates/index.php:4534 /app/templates/index.php:4766
-#: /app/templates/index.php:6420 /app/templates/index.php:6911
+#: /app/templates/index.php:4534 /app/templates/index.php:4776
+#: /app/templates/index.php:6430 /app/templates/index.php:6921
 msgid "Weekly"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:607
+#: /app/lib/Controller/SettingController.php:609
 #: /app/src/modules/accounts/AccountsModule.js:1383
 #: /app/src/modules/bills/BillsModule.js:418
 #: /app/src/modules/categories/CategoriesModule.js:2666
@@ -2481,13 +2481,13 @@ msgstr ""
 #: /app/src/modules/transfers/TransfersModule.js:333
 #: /app/src/modules/transfers/TransfersModule.js:495
 #: /app/src/modules/transfers/TransfersModule.js:1259
-#: /app/templates/index.php:4535 /app/templates/index.php:4767
-#: /app/templates/index.php:5750 /app/templates/index.php:6309
-#: /app/templates/index.php:6423 /app/templates/index.php:6914
+#: /app/templates/index.php:4535 /app/templates/index.php:4777
+#: /app/templates/index.php:5760 /app/templates/index.php:6319
+#: /app/templates/index.php:6433 /app/templates/index.php:6924
 msgid "Monthly"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:608
+#: /app/lib/Controller/SettingController.php:610
 #: /app/src/modules/bills/BillsModule.js:419
 #: /app/src/modules/categories/CategoriesModule.js:2668
 #: /app/src/modules/income/IncomeModule.js:106
@@ -2495,12 +2495,12 @@ msgstr ""
 #: /app/src/modules/transfers/TransfersModule.js:334
 #: /app/src/modules/transfers/TransfersModule.js:496
 #: /app/src/modules/transfers/TransfersModule.js:1260
-#: /app/templates/index.php:4536 /app/templates/index.php:5751
-#: /app/templates/index.php:6424 /app/templates/index.php:6915
+#: /app/templates/index.php:4536 /app/templates/index.php:5761
+#: /app/templates/index.php:6434 /app/templates/index.php:6925
 msgid "Quarterly"
 msgstr ""
 
-#: /app/lib/Controller/SettingController.php:609
+#: /app/lib/Controller/SettingController.php:611
 #: /app/src/modules/accounts/AccountsModule.js:1384
 #: /app/src/modules/bills/BillsModule.js:421
 #: /app/src/modules/categories/CategoriesModule.js:2669
@@ -2509,9 +2509,9 @@ msgstr ""
 #: /app/src/modules/transfers/TransfersModule.js:336
 #: /app/src/modules/transfers/TransfersModule.js:498
 #: /app/src/modules/transfers/TransfersModule.js:1262
-#: /app/templates/index.php:4537 /app/templates/index.php:5752
-#: /app/templates/index.php:6310 /app/templates/index.php:6426
-#: /app/templates/index.php:6917
+#: /app/templates/index.php:4537 /app/templates/index.php:5762
+#: /app/templates/index.php:6320 /app/templates/index.php:6436
+#: /app/templates/index.php:6927
 msgid "Yearly"
 msgstr ""
 
@@ -2895,8 +2895,8 @@ msgstr ""
 #: /app/lib/Controller/TransactionController.php:1312
 #: /app/lib/Controller/TransactionController.php:1335
 #: /app/lib/Controller/TransactionController.php:1398 /app/src/main.js:1941
-#: /app/src/modules/dashboard/DashboardModule.js:1407
-#: /app/templates/index.php:6024
+#: /app/src/modules/dashboard/DashboardModule.js:1410
+#: /app/templates/index.php:6034
 msgid "Transaction"
 msgstr ""
 
@@ -3008,7 +3008,7 @@ msgstr ""
 
 #: /app/lib/Controller/TransactionController.php:1376
 #: /app/src/modules/bills/BillsModule.js:449
-#: /app/src/modules/dashboard/DashboardModule.js:1361
+#: /app/src/modules/dashboard/DashboardModule.js:1364
 #: /app/src/modules/rules/RulesModule.js:1023
 #: /app/src/modules/transactions/TransactionsModule.js:5880
 #: /app/src/modules/transactions/transactionRow.js:107
@@ -3084,11 +3084,11 @@ msgstr ""
 #: /app/src/modules/categories/CategoriesModule.js:878
 #: /app/src/modules/categories/CategoriesModule.js:1049
 #: /app/src/modules/categories/CategoriesModule.js:1866
-#: /app/src/modules/dashboard/DashboardModule.js:2521
-#: /app/src/modules/dashboard/DashboardModule.js:3089
-#: /app/src/modules/dashboard/DashboardModule.js:3414
-#: /app/src/modules/dashboard/DashboardModule.js:3477
-#: /app/src/modules/dashboard/DashboardModule.js:5886
+#: /app/src/modules/dashboard/DashboardModule.js:2548
+#: /app/src/modules/dashboard/DashboardModule.js:3116
+#: /app/src/modules/dashboard/DashboardModule.js:3441
+#: /app/src/modules/dashboard/DashboardModule.js:3504
+#: /app/src/modules/dashboard/DashboardModule.js:5914
 #: /app/src/modules/help/HelpModule.js:33
 #: /app/src/modules/reports/ReportsModule.js:813
 #: /app/src/modules/reports/ReportsModule.js:1209
@@ -3101,8 +3101,8 @@ msgstr ""
 #: /app/templates/index.php:1528 /app/templates/index.php:1694
 #: /app/templates/index.php:1938 /app/templates/index.php:2289
 #: /app/templates/index.php:3412 /app/templates/index.php:3430
-#: /app/templates/index.php:3576 /app/templates/index.php:6032
-#: /app/templates/index.php:6038 /app/templates/index.php:7046
+#: /app/templates/index.php:3576 /app/templates/index.php:6042
+#: /app/templates/index.php:6048 /app/templates/index.php:7056
 #: /app/templates/quick-add.php:52
 msgid "Income"
 msgstr ""
@@ -3115,10 +3115,10 @@ msgstr ""
 #: /app/lib/Service/Report/ReportExporter.php:484
 #: /app/lib/Service/Report/ReportExporter.php:559
 #: /app/lib/Service/Report/ReportExporter.php:610
-#: /app/src/modules/dashboard/DashboardModule.js:2526
-#: /app/src/modules/dashboard/DashboardModule.js:3098
-#: /app/src/modules/dashboard/DashboardModule.js:3415
-#: /app/src/modules/dashboard/DashboardModule.js:3484
+#: /app/src/modules/dashboard/DashboardModule.js:2553
+#: /app/src/modules/dashboard/DashboardModule.js:3125
+#: /app/src/modules/dashboard/DashboardModule.js:3442
+#: /app/src/modules/dashboard/DashboardModule.js:3511
 #: /app/src/modules/reports/ReportsModule.js:820
 #: /app/src/modules/reports/ReportsModule.js:1217
 #: /app/src/modules/reports/ReportsModule.js:1518
@@ -3130,8 +3130,8 @@ msgid "Expenses"
 msgstr ""
 
 #: /app/lib/Controller/YearOverYearController.php:250
-#: /app/src/modules/dashboard/DashboardModule.js:1115
-#: /app/src/modules/dashboard/DashboardModule.js:2440
+#: /app/src/modules/dashboard/DashboardModule.js:1118
+#: /app/src/modules/dashboard/DashboardModule.js:2467
 #: /app/src/modules/reports/ReportsModule.js:1539
 #: /app/src/utils/categoryIcons.js:84 /app/src/utils/formatters.js:269
 msgid "Savings"
@@ -3145,13 +3145,13 @@ msgstr ""
 #: /app/lib/Service/Report/ReportExporter.php:587
 #: /app/lib/Service/Report/ReportExporter.php:630
 #: /app/src/core/KeyboardShortcuts.js:350
-#: /app/src/modules/dashboard/DashboardModule.js:5885
+#: /app/src/modules/dashboard/DashboardModule.js:5913
 #: /app/src/modules/help/HelpModule.js:29 /app/templates/index.php:63
 #: /app/templates/index.php:1476 /app/templates/index.php:1630
 #: /app/templates/index.php:2062 /app/templates/index.php:2674
 #: /app/templates/index.php:3438 /app/templates/index.php:3456
 #: /app/templates/index.php:3502 /app/templates/index.php:3522
-#: /app/templates/index.php:4979
+#: /app/templates/index.php:4989
 msgid "Transactions"
 msgstr ""
 
@@ -3177,10 +3177,10 @@ msgstr ""
 #: /app/lib/Service/Report/ReportExporter.php:243 /app/src/main.js:2379
 #: /app/src/main.js:2382 /app/src/main.js:3454
 #: /app/src/modules/accounts/AccountsModule.js:3571
-#: /app/src/modules/dashboard/DashboardModule.js:2549
-#: /app/src/modules/dashboard/DashboardModule.js:2627
-#: /app/src/modules/dashboard/DashboardModule.js:2791
-#: /app/src/modules/dashboard/DashboardModule.js:2938
+#: /app/src/modules/dashboard/DashboardModule.js:2576
+#: /app/src/modules/dashboard/DashboardModule.js:2654
+#: /app/src/modules/dashboard/DashboardModule.js:2818
+#: /app/src/modules/dashboard/DashboardModule.js:2965
 #: /app/src/modules/exchange-rates/ExchangeRatesModule.js:175
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:795
 #: /app/src/modules/transactions/TransactionsModule.js:3990
@@ -3201,7 +3201,7 @@ msgid "Budget: Overview"
 msgstr ""
 
 #: /app/lib/Dashboard/BudgetOverviewWidget.php:79
-#: /app/src/modules/dashboard/DashboardModule.js:1097
+#: /app/src/modules/dashboard/DashboardModule.js:1100
 msgid "No accounts yet"
 msgstr ""
 
@@ -3251,7 +3251,7 @@ msgid "Budget: Upcoming bills"
 msgstr ""
 
 #: /app/lib/Dashboard/UpcomingBillsWidget.php:80
-#: /app/src/modules/dashboard/DashboardModule.js:1919
+#: /app/src/modules/dashboard/DashboardModule.js:1922
 #: /app/templates/index.php:730
 msgid "No upcoming bills"
 msgstr ""
@@ -3280,12 +3280,12 @@ msgstr[1] ""
 #: /app/src/core/KeyboardShortcuts.js:353
 #: /app/src/modules/categories/CategoriesModule.js:1070
 #: /app/src/modules/categories/CategoriesModule.js:2648
-#: /app/src/modules/dashboard/DashboardModule.js:2357
+#: /app/src/modules/dashboard/DashboardModule.js:2384
 #: /app/src/modules/help/HelpModule.js:32
 #: /app/src/modules/projects/ProjectsModule.js:147
 #: /app/src/modules/reports/ReportsModule.js:2021 /app/templates/index.php:93
 #: /app/templates/index.php:2212 /app/templates/index.php:2297
-#: /app/templates/index.php:5354
+#: /app/templates/index.php:5364
 msgid "Budget"
 msgstr ""
 
@@ -3632,12 +3632,12 @@ msgstr ""
 #: /app/lib/Service/AccountClosureService.php:93
 #: /app/lib/Service/Bill/BillIcsService.php:55
 #: /app/src/core/KeyboardShortcuts.js:355
-#: /app/src/modules/dashboard/DashboardModule.js:5889
+#: /app/src/modules/dashboard/DashboardModule.js:5917
 #: /app/src/modules/help/HelpModule.js:34
 #: /app/src/modules/reports/ReportsModule.js:1925
 #: /app/src/modules/sharing/SharingModule.js:274
 #: /app/src/utils/categoryIcons.js:79 /app/templates/index.php:113
-#: /app/templates/index.php:2688 /app/templates/index.php:4983
+#: /app/templates/index.php:2688 /app/templates/index.php:4993
 msgid "Bills"
 msgstr ""
 
@@ -3852,8 +3852,8 @@ msgstr ""
 #: /app/src/modules/accounts/AccountsModule.js:27
 #: /app/src/modules/transfers/TransfersModule.js:464
 #: /app/templates/index.php:1154 /app/templates/index.php:2889
-#: /app/templates/index.php:5375 /app/templates/index.php:5804
-#: /app/templates/index.php:7475
+#: /app/templates/index.php:5385 /app/templates/index.php:5814
+#: /app/templates/index.php:7485
 msgid "Name"
 msgstr ""
 
@@ -4052,11 +4052,11 @@ msgstr[1] ""
 #: /app/templates/index.php:1105 /app/templates/index.php:1106
 #: /app/templates/index.php:1593 /app/templates/index.php:1835
 #: /app/templates/index.php:1890 /app/templates/index.php:2494
-#: /app/templates/index.php:2636 /app/templates/index.php:5821
-#: /app/templates/index.php:6075 /app/templates/index.php:6406
-#: /app/templates/index.php:6668 /app/templates/index.php:6752
-#: /app/templates/index.php:6891 /app/templates/index.php:7123
-#: /app/templates/index.php:7224 /app/templates/quick-add.php:62
+#: /app/templates/index.php:2636 /app/templates/index.php:5831
+#: /app/templates/index.php:6085 /app/templates/index.php:6416
+#: /app/templates/index.php:6678 /app/templates/index.php:6762
+#: /app/templates/index.php:6901 /app/templates/index.php:7133
+#: /app/templates/index.php:7234 /app/templates/quick-add.php:62
 msgid "Description"
 msgstr ""
 
@@ -4068,24 +4068,24 @@ msgstr ""
 #: /app/src/modules/rules/components/CriteriaBuilder.js:189
 #: /app/templates/index.php:1595 /app/templates/index.php:1839
 #: /app/templates/index.php:1894 /app/templates/index.php:3520
-#: /app/templates/index.php:6079 /app/templates/index.php:6669
-#: /app/templates/index.php:7406 /app/templates/quick-add.php:67
+#: /app/templates/index.php:6089 /app/templates/index.php:6679
+#: /app/templates/index.php:7416 /app/templates/quick-add.php:67
 msgid "Vendor"
 msgstr ""
 
 #: /app/lib/Service/Export/TransactionCsvExporter.php:35
 #: /app/lib/Service/Report/ReportExporter.php:250 /app/templates/index.php:1093
 #: /app/templates/index.php:1525 /app/templates/index.php:1691
-#: /app/templates/index.php:3910 /app/templates/index.php:5810
-#: /app/templates/index.php:6026 /app/templates/index.php:7043
+#: /app/templates/index.php:3910 /app/templates/index.php:5820
+#: /app/templates/index.php:6036 /app/templates/index.php:7053
 #: /app/templates/quick-add.php:49
 msgid "Type"
 msgstr ""
 
 #: /app/lib/Service/Export/TransactionCsvExporter.php:37
 #: /app/templates/index.php:1431 /app/templates/index.php:2530
-#: /app/templates/index.php:5565 /app/templates/index.php:5836
-#: /app/templates/index.php:6234
+#: /app/templates/index.php:5575 /app/templates/index.php:5846
+#: /app/templates/index.php:6244
 msgid "Currency"
 msgstr ""
 
@@ -4096,7 +4096,7 @@ msgstr ""
 #: /app/src/modules/rules/components/ActionBuilder.js:234
 #: /app/src/modules/rules/components/ActionBuilder.js:258
 #: /app/src/modules/rules/components/CriteriaBuilder.js:192
-#: /app/templates/index.php:6670 /app/templates/index.php:7412
+#: /app/templates/index.php:6680 /app/templates/index.php:7422
 msgid "Reference"
 msgstr ""
 
@@ -4108,10 +4108,10 @@ msgstr ""
 #: /app/src/modules/rules/components/CriteriaBuilder.js:193
 #: /app/src/modules/transfers/TransfersModule.js:574
 #: /app/templates/index.php:2499 /app/templates/index.php:2638
-#: /app/templates/index.php:5483 /app/templates/index.php:6143
-#: /app/templates/index.php:6518 /app/templates/index.php:6671
-#: /app/templates/index.php:6986 /app/templates/index.php:7418
-#: /app/templates/index.php:7525 /app/templates/index.php:7571
+#: /app/templates/index.php:5493 /app/templates/index.php:6153
+#: /app/templates/index.php:6528 /app/templates/index.php:6681
+#: /app/templates/index.php:6996 /app/templates/index.php:7428
+#: /app/templates/index.php:7535 /app/templates/index.php:7581
 #: /app/templates/quick-add.php:82
 msgid "Notes"
 msgstr ""
@@ -4129,8 +4129,8 @@ msgid "Split of"
 msgstr ""
 
 #: /app/lib/Service/Export/TransactionCsvExporter.php:46
-#: /app/templates/index.php:4502 /app/templates/index.php:4785
-#: /app/templates/index.php:6131
+#: /app/templates/index.php:4502 /app/templates/index.php:4795
+#: /app/templates/index.php:6141
 msgid "Receipts"
 msgstr ""
 
@@ -4140,8 +4140,8 @@ msgstr ""
 #: /app/src/modules/rules/components/ActionBuilder.js:415
 #: /app/src/modules/rules/components/CriteriaBuilder.js:217
 #: /app/templates/index.php:1096 /app/templates/index.php:1529
-#: /app/templates/index.php:1695 /app/templates/index.php:6031
-#: /app/templates/index.php:6037 /app/templates/index.php:7045
+#: /app/templates/index.php:1695 /app/templates/index.php:6041
+#: /app/templates/index.php:6047 /app/templates/index.php:7055
 #: /app/templates/quick-add.php:51
 msgid "Expense"
 msgstr ""
@@ -4602,119 +4602,119 @@ msgid "This income has no expected date to skip"
 msgstr ""
 
 #: /app/lib/Service/Report/MonthNames.php:21 /app/templates/index.php:3746
-#: /app/templates/index.php:6436
+#: /app/templates/index.php:6446
 msgid "Jan"
 msgstr ""
 
 #: /app/lib/Service/Report/MonthNames.php:22 /app/templates/index.php:3747
-#: /app/templates/index.php:6437
+#: /app/templates/index.php:6447
 msgid "Feb"
 msgstr ""
 
 #: /app/lib/Service/Report/MonthNames.php:23 /app/templates/index.php:3748
-#: /app/templates/index.php:6438
+#: /app/templates/index.php:6448
 msgid "Mar"
 msgstr ""
 
 #: /app/lib/Service/Report/MonthNames.php:24 /app/templates/index.php:3749
-#: /app/templates/index.php:6439
+#: /app/templates/index.php:6449
 msgid "Apr"
 msgstr ""
 
 #: /app/lib/Service/Report/MonthNames.php:25
 #: /app/lib/Service/Report/MonthNames.php:46 /app/templates/index.php:3630
-#: /app/templates/index.php:3750 /app/templates/index.php:6440
-#: /app/templates/index.php:6466 /app/templates/index.php:6943
+#: /app/templates/index.php:3750 /app/templates/index.php:6450
+#: /app/templates/index.php:6476 /app/templates/index.php:6953
 msgid "May"
 msgstr ""
 
 #: /app/lib/Service/Report/MonthNames.php:26 /app/templates/index.php:3751
-#: /app/templates/index.php:6441
+#: /app/templates/index.php:6451
 msgid "Jun"
 msgstr ""
 
 #: /app/lib/Service/Report/MonthNames.php:27 /app/templates/index.php:3752
-#: /app/templates/index.php:6442
+#: /app/templates/index.php:6452
 msgid "Jul"
 msgstr ""
 
 #: /app/lib/Service/Report/MonthNames.php:28 /app/templates/index.php:3753
-#: /app/templates/index.php:6443
+#: /app/templates/index.php:6453
 msgid "Aug"
 msgstr ""
 
 #: /app/lib/Service/Report/MonthNames.php:29 /app/templates/index.php:3754
-#: /app/templates/index.php:6444
+#: /app/templates/index.php:6454
 msgid "Sep"
 msgstr ""
 
 #: /app/lib/Service/Report/MonthNames.php:30 /app/templates/index.php:3755
-#: /app/templates/index.php:6445
+#: /app/templates/index.php:6455
 msgid "Oct"
 msgstr ""
 
 #: /app/lib/Service/Report/MonthNames.php:31 /app/templates/index.php:3756
-#: /app/templates/index.php:6446
+#: /app/templates/index.php:6456
 msgid "Nov"
 msgstr ""
 
 #: /app/lib/Service/Report/MonthNames.php:32 /app/templates/index.php:3757
-#: /app/templates/index.php:6447
+#: /app/templates/index.php:6457
 msgid "Dec"
 msgstr ""
 
 #: /app/lib/Service/Report/MonthNames.php:42 /app/templates/index.php:3626
-#: /app/templates/index.php:6462 /app/templates/index.php:6939
+#: /app/templates/index.php:6472 /app/templates/index.php:6949
 msgid "January"
 msgstr ""
 
 #: /app/lib/Service/Report/MonthNames.php:43 /app/templates/index.php:3627
-#: /app/templates/index.php:6463 /app/templates/index.php:6940
+#: /app/templates/index.php:6473 /app/templates/index.php:6950
 msgid "February"
 msgstr ""
 
 #: /app/lib/Service/Report/MonthNames.php:44 /app/templates/index.php:3628
-#: /app/templates/index.php:6464 /app/templates/index.php:6941
+#: /app/templates/index.php:6474 /app/templates/index.php:6951
 msgid "March"
 msgstr ""
 
 #: /app/lib/Service/Report/MonthNames.php:45 /app/templates/index.php:3629
-#: /app/templates/index.php:6465 /app/templates/index.php:6942
+#: /app/templates/index.php:6475 /app/templates/index.php:6952
 msgid "April"
 msgstr ""
 
 #: /app/lib/Service/Report/MonthNames.php:47 /app/templates/index.php:3631
-#: /app/templates/index.php:6467 /app/templates/index.php:6944
+#: /app/templates/index.php:6477 /app/templates/index.php:6954
 msgid "June"
 msgstr ""
 
 #: /app/lib/Service/Report/MonthNames.php:48 /app/templates/index.php:3632
-#: /app/templates/index.php:6468 /app/templates/index.php:6945
+#: /app/templates/index.php:6478 /app/templates/index.php:6955
 msgid "July"
 msgstr ""
 
 #: /app/lib/Service/Report/MonthNames.php:49 /app/templates/index.php:3633
-#: /app/templates/index.php:6469 /app/templates/index.php:6946
+#: /app/templates/index.php:6479 /app/templates/index.php:6956
 msgid "August"
 msgstr ""
 
 #: /app/lib/Service/Report/MonthNames.php:50 /app/templates/index.php:3634
-#: /app/templates/index.php:6470 /app/templates/index.php:6947
+#: /app/templates/index.php:6480 /app/templates/index.php:6957
 msgid "September"
 msgstr ""
 
 #: /app/lib/Service/Report/MonthNames.php:51 /app/templates/index.php:3635
-#: /app/templates/index.php:6471 /app/templates/index.php:6948
+#: /app/templates/index.php:6481 /app/templates/index.php:6958
 msgid "October"
 msgstr ""
 
 #: /app/lib/Service/Report/MonthNames.php:52 /app/templates/index.php:3636
-#: /app/templates/index.php:6472 /app/templates/index.php:6949
+#: /app/templates/index.php:6482 /app/templates/index.php:6959
 msgid "November"
 msgstr ""
 
 #: /app/lib/Service/Report/MonthNames.php:53 /app/templates/index.php:3637
-#: /app/templates/index.php:6473 /app/templates/index.php:6950
+#: /app/templates/index.php:6483 /app/templates/index.php:6960
 msgid "December"
 msgstr ""
 
@@ -4760,7 +4760,7 @@ msgid "Net Income"
 msgstr ""
 
 #: /app/lib/Service/Report/ReportExporter.php:219
-#: /app/src/modules/dashboard/DashboardModule.js:1850
+#: /app/src/modules/dashboard/DashboardModule.js:1853
 msgid "On track"
 msgstr ""
 
@@ -4782,7 +4782,7 @@ msgstr ""
 #: /app/src/config/dashboardWidgets.js:26 /app/src/main.js:1943
 #: /app/src/main.js:3730 /app/src/modules/accounts/AccountsModule.js:1931
 #: /app/src/modules/categories/CategoriesModule.js:954
-#: /app/src/modules/dashboard/DashboardModule.js:1330
+#: /app/src/modules/dashboard/DashboardModule.js:1333
 #: /app/src/modules/import/ImportModule.js:200
 #: /app/src/modules/reports/ReportsModule.js:23
 #: /app/src/modules/rules/RulesModule.js:1028
@@ -4806,7 +4806,7 @@ msgstr ""
 #: /app/src/modules/rules/components/CriteriaBuilder.js:226
 #: /app/src/modules/rules/components/CriteriaBuilder.js:238
 #: /app/src/modules/rules/components/CriteriaBuilder.js:246
-#: /app/templates/index.php:5894
+#: /app/templates/index.php:5904
 msgid "Value"
 msgstr ""
 
@@ -4835,8 +4835,8 @@ msgstr ""
 #: /app/lib/Service/Report/ReportExporter.php:453
 #: /app/src/modules/accounts/AccountsModule.js:2911
 #: /app/templates/index.php:1309 /app/templates/index.php:3157
-#: /app/templates/index.php:3922 /app/templates/index.php:5577
-#: /app/templates/index.php:5647
+#: /app/templates/index.php:3922 /app/templates/index.php:5587
+#: /app/templates/index.php:5657
 msgid "Current Balance"
 msgstr ""
 
@@ -4850,8 +4850,8 @@ msgstr ""
 #: /app/src/modules/accounts/AccountsModule.js:32
 #: /app/src/modules/accounts/AccountsModule.js:516
 #: /app/src/modules/accounts/AccountsModule.js:517
-#: /app/src/modules/dashboard/DashboardModule.js:3173
-#: /app/src/modules/dashboard/DashboardModule.js:3408
+#: /app/src/modules/dashboard/DashboardModule.js:3200
+#: /app/src/modules/dashboard/DashboardModule.js:3435
 #: /app/src/modules/forecast/ForecastModule.js:311
 #: /app/src/modules/pensions/PensionsModule.js:652 /app/src/utils/runway.js:95
 #: /app/templates/index.php:1155 /app/templates/index.php:1600
@@ -4902,7 +4902,7 @@ msgid "Average Monthly Net"
 msgstr ""
 
 #: /app/lib/Service/Report/ReportExporter.php:351
-#: /app/lib/Service/Report/ReportExporter.php:585 /app/templates/index.php:6903
+#: /app/lib/Service/Report/ReportExporter.php:585 /app/templates/index.php:6913
 msgid "Source"
 msgstr ""
 
@@ -4925,19 +4925,19 @@ msgstr ""
 #: /app/lib/Service/Report/ReportExporter.php:416
 #: /app/lib/Service/Report/ReportExporter.php:655
 #: /app/src/modules/categories/CategoriesModule.js:2672
-#: /app/src/modules/dashboard/DashboardModule.js:2358
+#: /app/src/modules/dashboard/DashboardModule.js:2385
 #: /app/src/modules/projects/ProjectsModule.js:148
-#: /app/templates/index.php:2299 /app/templates/index.php:5355
+#: /app/templates/index.php:2299 /app/templates/index.php:5365
 msgid "Spent"
 msgstr ""
 
 #: /app/lib/Service/Report/ReportExporter.php:417
 #: /app/lib/Service/Report/ReportExporter.php:656
 #: /app/src/modules/categories/CategoriesModule.js:2675
-#: /app/src/modules/dashboard/DashboardModule.js:2359
+#: /app/src/modules/dashboard/DashboardModule.js:2386
 #: /app/src/modules/projects/ProjectsModule.js:149
 #: /app/templates/index.php:2267 /app/templates/index.php:2300
-#: /app/templates/index.php:5356
+#: /app/templates/index.php:5366
 msgid "Remaining"
 msgstr ""
 
@@ -5312,7 +5312,7 @@ msgid ""
 msgstr ""
 
 #: /app/src/config/dashboardWidgets.js:8
-#: /app/src/modules/dashboard/DashboardModule.js:3183
+#: /app/src/modules/dashboard/DashboardModule.js:3210
 #: /app/templates/index.php:371 /app/templates/index.php:1208
 msgid "Net Worth"
 msgstr ""
@@ -5330,8 +5330,8 @@ msgid "Net Savings"
 msgstr ""
 
 #: /app/src/config/dashboardWidgets.js:12
-#: /app/src/modules/dashboard/DashboardModule.js:2199
-#: /app/src/modules/dashboard/DashboardModule.js:2205
+#: /app/src/modules/dashboard/DashboardModule.js:2222
+#: /app/src/modules/dashboard/DashboardModule.js:2228
 #: /app/src/modules/pensions/PensionsModule.js:180
 #: /app/src/modules/pensions/PensionsModule.js:186 /app/templates/index.php:423
 msgid "Pension Worth"
@@ -5405,12 +5405,12 @@ msgstr ""
 #: /app/src/modules/sharing/SharingModule.js:272 /app/templates/index.php:53
 #: /app/templates/index.php:700 /app/templates/index.php:778
 #: /app/templates/index.php:1130 /app/templates/index.php:1265
-#: /app/templates/index.php:4975
+#: /app/templates/index.php:4985
 msgid "Accounts"
 msgstr ""
 
 #: /app/src/config/dashboardWidgets.js:42 /app/templates/index.php:715
-#: /app/templates/index.php:4714
+#: /app/templates/index.php:4724
 msgid "Budget Alerts"
 msgstr ""
 
@@ -5580,10 +5580,10 @@ msgid "Dashboard"
 msgstr ""
 
 #: /app/src/core/KeyboardShortcuts.js:351
-#: /app/src/modules/dashboard/DashboardModule.js:5517
+#: /app/src/modules/dashboard/DashboardModule.js:5544
 #: /app/src/modules/help/HelpModule.js:30
 #: /app/src/modules/sharing/SharingModule.js:273 /app/templates/index.php:73
-#: /app/templates/index.php:1931 /app/templates/index.php:4971
+#: /app/templates/index.php:1931 /app/templates/index.php:4981
 msgid "Categories"
 msgstr ""
 
@@ -5612,7 +5612,7 @@ msgid "Pensions"
 msgstr ""
 
 #: /app/src/core/KeyboardShortcuts.js:360
-#: /app/src/modules/dashboard/DashboardModule.js:3190
+#: /app/src/modules/dashboard/DashboardModule.js:3217
 #: /app/src/modules/help/HelpModule.js:40 /app/templates/index.php:173
 #: /app/templates/index.php:1235 /app/templates/index.php:4018
 #: /app/templates/index.php:4101
@@ -5621,7 +5621,7 @@ msgstr ""
 
 #: /app/src/core/KeyboardShortcuts.js:361
 #: /app/src/modules/help/HelpModule.js:41 /app/templates/index.php:183
-#: /app/templates/index.php:4295 /app/templates/index.php:7604
+#: /app/templates/index.php:4295 /app/templates/index.php:7614
 msgid "Shared Expenses"
 msgstr ""
 
@@ -5639,7 +5639,7 @@ msgstr ""
 #: /app/src/modules/help/HelpModule.js:45
 #: /app/src/modules/rules/RulesModule.js:156 /app/templates/index.php:227
 #: /app/templates/index.php:1498 /app/templates/index.php:1952
-#: /app/templates/index.php:2838 /app/templates/index.php:7019
+#: /app/templates/index.php:2838 /app/templates/index.php:7029
 msgid "Import"
 msgstr ""
 
@@ -5668,7 +5668,7 @@ msgstr ""
 
 #: /app/src/core/KeyboardShortcuts.js:369
 #: /app/src/modules/help/HelpModule.js:52 /app/templates/index.php:277
-#: /app/templates/index.php:4490 /app/templates/index.php:4991
+#: /app/templates/index.php:4490 /app/templates/index.php:5001
 msgid "Settings"
 msgstr ""
 
@@ -5722,16 +5722,16 @@ msgstr ""
 #: /app/src/utils/billLinkDialog.js:127 /app/src/utils/matchingDialog.js:80
 #: /app/src/utils/modals.js:81 /app/src/utils/paymentRecordedDialog.js:55
 #: /app/templates/index.php:2804 /app/templates/index.php:3002
-#: /app/templates/index.php:3902 /app/templates/index.php:5313
-#: /app/templates/index.php:5334 /app/templates/index.php:5340
-#: /app/templates/index.php:5364 /app/templates/index.php:5503
-#: /app/templates/index.php:5531 /app/templates/index.php:5643
-#: /app/templates/index.php:5668 /app/templates/index.php:5704
-#: /app/templates/index.php:5740 /app/templates/index.php:5794
-#: /app/templates/index.php:5884 /app/templates/index.php:5993
-#: /app/templates/index.php:6851 /app/templates/index.php:7272
-#: /app/templates/index.php:7621 /app/templates/index.php:7683
-#: /app/templates/index.php:7811 /app/templates/index.php:7821
+#: /app/templates/index.php:3902 /app/templates/index.php:5323
+#: /app/templates/index.php:5344 /app/templates/index.php:5350
+#: /app/templates/index.php:5374 /app/templates/index.php:5513
+#: /app/templates/index.php:5541 /app/templates/index.php:5653
+#: /app/templates/index.php:5678 /app/templates/index.php:5714
+#: /app/templates/index.php:5750 /app/templates/index.php:5804
+#: /app/templates/index.php:5894 /app/templates/index.php:6003
+#: /app/templates/index.php:6861 /app/templates/index.php:7282
+#: /app/templates/index.php:7631 /app/templates/index.php:7693
+#: /app/templates/index.php:7821 /app/templates/index.php:7831
 msgid "Close"
 msgstr ""
 
@@ -5780,7 +5780,7 @@ msgstr ""
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:193
 #: /app/src/modules/tagsets/TagSetsModule.js:85 /app/templates/index.php:1227
 #: /app/templates/index.php:1778 /app/templates/index.php:2031
-#: /app/templates/index.php:3263 /app/templates/index.php:5363
+#: /app/templates/index.php:3263 /app/templates/index.php:5373
 msgid "Delete"
 msgstr ""
 
@@ -5848,7 +5848,7 @@ msgstr ""
 msgid "Auto-Categorisation Rules"
 msgstr ""
 
-#: /app/src/main.js:1068 /app/templates/index.php:5207
+#: /app/src/main.js:1068 /app/templates/index.php:5217
 msgid "Support Budget"
 msgstr ""
 
@@ -5856,11 +5856,11 @@ msgstr ""
 msgid "Free and open source. If Budget helps you, a donation keeps it going."
 msgstr ""
 
-#: /app/src/main.js:1071 /app/templates/index.php:5217
+#: /app/src/main.js:1071 /app/templates/index.php:5227
 msgid "Sponsor on GitHub"
 msgstr ""
 
-#: /app/src/main.js:1072 /app/templates/index.php:5220
+#: /app/src/main.js:1072 /app/templates/index.php:5230
 msgid "Donate via PayPal"
 msgstr ""
 
@@ -5872,7 +5872,7 @@ msgstr ""
 msgid "{displayed} of {total} transactions"
 msgstr ""
 
-#: /app/src/main.js:1583 /app/src/modules/dashboard/DashboardModule.js:2799
+#: /app/src/main.js:1583 /app/src/modules/dashboard/DashboardModule.js:2826
 #: /app/src/modules/import/ImportModule.js:2357
 msgid "%n transaction"
 msgid_plural "%n transactions"
@@ -6066,7 +6066,7 @@ msgid "Deleting..."
 msgstr ""
 
 #: /app/src/main.js:2233 /app/src/modules/settings/SettingsModule.js:836
-#: /app/templates/index.php:7667
+#: /app/templates/index.php:7677
 msgid "Delete Everything"
 msgstr ""
 
@@ -6177,7 +6177,7 @@ msgstr ""
 msgid "Failed to calculate scenario"
 msgstr ""
 
-#: /app/src/main.js:2775 /app/src/modules/dashboard/DashboardModule.js:1027
+#: /app/src/main.js:2775 /app/src/modules/dashboard/DashboardModule.js:1030
 #: /app/src/modules/reports/ReportsModule.js:1635
 msgid "N/A"
 msgstr ""
@@ -6231,7 +6231,7 @@ msgstr ""
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:190
 #: /app/src/modules/tagsets/TagSetsModule.js:84 /app/templates/index.php:1273
 #: /app/templates/index.php:2027 /app/templates/index.php:4113
-#: /app/templates/index.php:5362
+#: /app/templates/index.php:5372
 msgid "Edit"
 msgstr ""
 
@@ -6244,7 +6244,7 @@ msgid "Edit Scenario"
 msgstr ""
 
 #: /app/src/main.js:3032 /app/templates/index.php:4217
-#: /app/templates/index.php:4219 /app/templates/index.php:5910
+#: /app/templates/index.php:4219 /app/templates/index.php:5920
 msgid "New Scenario"
 msgstr ""
 
@@ -6367,7 +6367,7 @@ msgstr ""
 
 #: /app/src/main.js:3647
 #: /app/src/modules/transactions/TransactionsModule.js:4139
-#: /app/templates/index.php:7337
+#: /app/templates/index.php:7347
 msgid "Split Transaction"
 msgstr ""
 
@@ -6378,7 +6378,7 @@ msgstr ""
 #: /app/src/main.js:3737
 #: /app/src/modules/transactions/TransactionsModule.js:3484
 #: /app/src/modules/transactions/TransactionsModule.js:4226
-#: /app/templates/index.php:5771
+#: /app/templates/index.php:5781
 msgid "Optional note"
 msgstr ""
 
@@ -6617,7 +6617,7 @@ msgstr ""
 
 #: /app/src/modules/accounts/AccountsModule.js:1382
 #: /app/src/modules/transfers/TransfersModule.js:491
-#: /app/templates/index.php:6308
+#: /app/templates/index.php:6318
 msgid "Daily"
 msgstr ""
 
@@ -6789,8 +6789,8 @@ msgstr ""
 #: /app/src/modules/transactions/TransactionsModule.js:2037
 #: /app/src/modules/transactions/TransactionsModule.js:2262
 #: /app/src/modules/transfers/TransfersModule.js:565
-#: /app/templates/index.php:1111 /app/templates/index.php:6085
-#: /app/templates/index.php:6487 /app/templates/index.php:6958
+#: /app/templates/index.php:1111 /app/templates/index.php:6095
+#: /app/templates/index.php:6497 /app/templates/index.php:6968
 msgid "No category"
 msgstr ""
 
@@ -6889,7 +6889,7 @@ msgid "Amount owed"
 msgstr ""
 
 #: /app/src/modules/accounts/AccountsModule.js:3089
-#: /app/templates/index.php:6213
+#: /app/templates/index.php:6223
 msgid "Opening Balance"
 msgstr ""
 
@@ -6900,13 +6900,13 @@ msgid ""
 msgstr ""
 
 #: /app/src/modules/accounts/AccountsModule.js:3095
-#: /app/templates/index.php:6215
+#: /app/templates/index.php:6225
 msgid "The starting balance when this account was created"
 msgstr ""
 
 #: /app/src/modules/accounts/AccountsModule.js:3101
 #: /app/src/modules/accounts/AccountsModule.js:3144
-#: /app/templates/index.php:6228
+#: /app/templates/index.php:6238
 msgid "Starting Balance"
 msgstr ""
 
@@ -6918,7 +6918,7 @@ msgid ""
 msgstr ""
 
 #: /app/src/modules/accounts/AccountsModule.js:3148
-#: /app/templates/index.php:6230
+#: /app/templates/index.php:6240
 msgid "The balance this account starts with"
 msgstr ""
 
@@ -6960,42 +6960,42 @@ msgid "Valid"
 msgstr ""
 
 #: /app/src/modules/accounts/AccountsModule.js:3534
-#: /app/templates/index.php:6200
+#: /app/templates/index.php:6210
 msgid "Checking Account"
 msgstr ""
 
 #: /app/src/modules/accounts/AccountsModule.js:3539
-#: /app/templates/index.php:6201
+#: /app/templates/index.php:6211
 msgid "Savings Account"
 msgstr ""
 
 #: /app/src/modules/accounts/AccountsModule.js:3544
-#: /app/src/modules/dashboard/DashboardModule.js:1116
-#: /app/src/utils/formatters.js:270 /app/templates/index.php:6202
+#: /app/src/modules/dashboard/DashboardModule.js:1119
+#: /app/src/utils/formatters.js:270 /app/templates/index.php:6212
 msgid "Credit Card"
 msgstr ""
 
 #: /app/src/modules/accounts/AccountsModule.js:3549
-#: /app/src/modules/dashboard/DashboardModule.js:1117
+#: /app/src/modules/dashboard/DashboardModule.js:1120
 #: /app/src/utils/formatters.js:271
 msgid "Investment"
 msgstr ""
 
 #: /app/src/modules/accounts/AccountsModule.js:3554
-#: /app/src/modules/dashboard/DashboardModule.js:1119
+#: /app/src/modules/dashboard/DashboardModule.js:1122
 #: /app/src/utils/formatters.js:273
 msgid "Loan"
 msgstr ""
 
 #: /app/src/modules/accounts/AccountsModule.js:3559
-#: /app/src/modules/dashboard/DashboardModule.js:1118
+#: /app/src/modules/dashboard/DashboardModule.js:1121
 #: /app/src/utils/categoryIcons.js:82 /app/src/utils/formatters.js:272
-#: /app/templates/index.php:6207
+#: /app/templates/index.php:6217
 msgid "Cash"
 msgstr ""
 
 #: /app/src/modules/accounts/AccountsModule.js:3564
-#: /app/src/utils/formatters.js:276 /app/templates/index.php:6208
+#: /app/src/utils/formatters.js:276 /app/templates/index.php:6218
 msgid "Cryptocurrency"
 msgstr ""
 
@@ -7028,26 +7028,26 @@ msgstr ""
 msgid "Failed to load assets"
 msgstr ""
 
-#: /app/src/modules/assets/AssetsModule.js:91 /app/templates/index.php:5812
+#: /app/src/modules/assets/AssetsModule.js:91 /app/templates/index.php:5822
 msgid "Real Estate"
 msgstr ""
 
-#: /app/src/modules/assets/AssetsModule.js:96 /app/templates/index.php:5813
+#: /app/src/modules/assets/AssetsModule.js:96 /app/templates/index.php:5823
 msgid "Vehicle"
 msgstr ""
 
-#: /app/src/modules/assets/AssetsModule.js:101 /app/templates/index.php:5814
+#: /app/src/modules/assets/AssetsModule.js:101 /app/templates/index.php:5824
 msgid "Jewelry"
 msgstr ""
 
-#: /app/src/modules/assets/AssetsModule.js:106 /app/templates/index.php:5815
+#: /app/src/modules/assets/AssetsModule.js:106 /app/templates/index.php:5825
 msgid "Collectibles"
 msgstr ""
 
 #: /app/src/modules/assets/AssetsModule.js:111
-#: /app/src/modules/dashboard/DashboardModule.js:2444
-#: /app/src/modules/dashboard/DashboardModule.js:5892
-#: /app/src/utils/categoryIcons.js:90 /app/templates/index.php:5816
+#: /app/src/modules/dashboard/DashboardModule.js:2471
+#: /app/src/modules/dashboard/DashboardModule.js:5920
+#: /app/src/utils/categoryIcons.js:90 /app/templates/index.php:5826
 msgid "Other"
 msgstr ""
 
@@ -7057,7 +7057,7 @@ msgstr ""
 
 #: /app/src/modules/assets/AssetsModule.js:178 /app/templates/index.php:1354
 #: /app/templates/index.php:3918 /app/templates/index.php:4134
-#: /app/templates/index.php:5830
+#: /app/templates/index.php:5840
 msgid "Current Value"
 msgstr ""
 
@@ -7066,7 +7066,7 @@ msgid "View Details"
 msgstr ""
 
 #: /app/src/modules/assets/AssetsModule.js:215
-#: /app/src/modules/dashboard/DashboardModule.js:2243
+#: /app/src/modules/dashboard/DashboardModule.js:2266
 msgid "%n asset"
 msgid_plural "%n assets"
 msgstr[0] ""
@@ -7083,7 +7083,7 @@ msgid "Edit Asset"
 msgstr ""
 
 #: /app/src/modules/assets/AssetsModule.js:343 /app/templates/index.php:4021
-#: /app/templates/index.php:5792
+#: /app/templates/index.php:5802
 msgid "Add Asset"
 msgstr ""
 
@@ -7133,7 +7133,7 @@ msgstr ""
 #: /app/src/modules/projects/ProjectsModule.js:88
 #: /app/src/modules/sharing/SharingModule.js:122
 #: /app/src/modules/sharing/SharingModule.js:152 /app/templates/index.php:2865
-#: /app/templates/index.php:2878 /app/templates/index.php:6715
+#: /app/templates/index.php:2878 /app/templates/index.php:6725
 msgid "Active"
 msgstr ""
 
@@ -7229,7 +7229,7 @@ msgstr ""
 #: /app/src/modules/bank-sync/BankSyncModule.js:536
 #: /app/templates/index.php:1618 /app/templates/index.php:1873
 #: /app/templates/index.php:1923 /app/templates/index.php:2653
-#: /app/templates/index.php:7760
+#: /app/templates/index.php:7770
 msgid "Next"
 msgstr ""
 
@@ -7278,7 +7278,7 @@ msgid "No banks found for this country."
 msgstr ""
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:728
-#: /app/templates/index.php:7787
+#: /app/templates/index.php:7797
 msgid "Connect"
 msgstr ""
 
@@ -7293,7 +7293,7 @@ msgid ""
 msgstr ""
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:763
-#: /app/templates/index.php:5014
+#: /app/templates/index.php:5024
 msgid "Done"
 msgstr ""
 
@@ -7308,7 +7308,7 @@ msgid "Authorization check failed: {error}"
 msgstr ""
 
 #: /app/src/modules/bank-sync/BankSyncModule.js:774
-#: /app/templates/index.php:7810
+#: /app/templates/index.php:7820
 msgid "I've Completed Authorization"
 msgstr ""
 
@@ -7537,7 +7537,7 @@ msgstr ""
 #: /app/src/modules/transfers/TransfersModule.js:331
 #: /app/src/modules/transfers/TransfersModule.js:493
 #: /app/src/modules/transfers/TransfersModule.js:1257
-#: /app/templates/index.php:6421 /app/templates/index.php:6912
+#: /app/templates/index.php:6431 /app/templates/index.php:6922
 msgid "Bi-Weekly"
 msgstr ""
 
@@ -7546,7 +7546,7 @@ msgstr ""
 #: /app/src/modules/transfers/TransfersModule.js:332
 #: /app/src/modules/transfers/TransfersModule.js:494
 #: /app/src/modules/transfers/TransfersModule.js:1258
-#: /app/templates/index.php:6422 /app/templates/index.php:6913
+#: /app/templates/index.php:6432 /app/templates/index.php:6923
 msgid "Semi-Monthly"
 msgstr ""
 
@@ -7555,7 +7555,7 @@ msgstr ""
 #: /app/src/modules/transfers/TransfersModule.js:335
 #: /app/src/modules/transfers/TransfersModule.js:497
 #: /app/src/modules/transfers/TransfersModule.js:1261
-#: /app/templates/index.php:6425 /app/templates/index.php:6916
+#: /app/templates/index.php:6435 /app/templates/index.php:6926
 msgid "Semi-Annually"
 msgstr ""
 
@@ -7564,7 +7564,7 @@ msgstr ""
 #: /app/src/modules/transfers/TransfersModule.js:329
 #: /app/src/modules/transfers/TransfersModule.js:490
 #: /app/src/modules/transfers/TransfersModule.js:1263
-#: /app/templates/index.php:6427 /app/templates/index.php:6918
+#: /app/templates/index.php:6437 /app/templates/index.php:6928
 msgid "One-Time"
 msgstr ""
 
@@ -7577,8 +7577,8 @@ msgstr ""
 msgid "Check date"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:449 /app/templates/index.php:6093
-#: /app/templates/index.php:6498
+#: /app/src/modules/bills/BillsModule.js:449 /app/templates/index.php:6103
+#: /app/templates/index.php:6508
 msgid "Split across categories"
 msgstr ""
 
@@ -7656,7 +7656,7 @@ msgstr ""
 #: /app/src/modules/bills/BillsModule.js:975
 #: /app/src/modules/transfers/TransfersModule.js:544
 #: /app/src/modules/transfers/TransfersModule.js:786
-#: /app/templates/index.php:6530
+#: /app/templates/index.php:6540
 msgid "Start Date"
 msgstr ""
 
@@ -7666,7 +7666,7 @@ msgid ""
 "entering late stays due on its own date."
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:980 /app/templates/index.php:6532
+#: /app/src/modules/bills/BillsModule.js:980 /app/templates/index.php:6542
 msgid "Bill only occurs on or after this date (optional)"
 msgstr ""
 
@@ -7688,7 +7688,7 @@ msgid "Follows the start date"
 msgstr ""
 
 #: /app/src/modules/bills/BillsModule.js:1010
-#: /app/src/modules/bills/BillsModule.js:1014 /app/templates/index.php:6453
+#: /app/src/modules/bills/BillsModule.js:1014 /app/templates/index.php:6463
 msgid "Due Day"
 msgstr ""
 
@@ -7696,17 +7696,17 @@ msgstr ""
 msgid "Day of the selected months when bill is due"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1015 /app/templates/index.php:6455
+#: /app/src/modules/bills/BillsModule.js:1015 /app/templates/index.php:6465
 msgid "Day of the month when bill is due"
 msgstr ""
 
 #: /app/src/modules/bills/BillsModule.js:1034
-#: /app/src/modules/income/IncomeModule.js:487 /app/templates/index.php:6506
-#: /app/templates/index.php:6966
+#: /app/src/modules/income/IncomeModule.js:487 /app/templates/index.php:6516
+#: /app/templates/index.php:6976
 msgid "No specific account"
 msgstr ""
 
-#: /app/src/modules/bills/BillsModule.js:1099 /app/templates/index.php:7359
+#: /app/src/modules/bills/BillsModule.js:1099 /app/templates/index.php:7369
 msgid "Description (optional)"
 msgstr ""
 
@@ -8001,7 +8001,7 @@ msgid "Category reordered successfully"
 msgstr ""
 
 #: /app/src/modules/categories/CategoriesModule.js:788
-#: /app/src/modules/dashboard/DashboardModule.js:5461
+#: /app/src/modules/dashboard/DashboardModule.js:5488
 #: /app/src/modules/reports/ReportsModule.js:259
 #: /app/src/modules/reports/ReportsModule.js:262
 #: /app/src/modules/reports/ReportsModule.js:264
@@ -8010,7 +8010,7 @@ msgstr ""
 #: /app/templates/index.php:597 /app/templates/index.php:620
 #: /app/templates/index.php:638 /app/templates/index.php:689
 #: /app/templates/index.php:1678 /app/templates/index.php:2092
-#: /app/templates/index.php:3712 /app/templates/index.php:6803
+#: /app/templates/index.php:3712 /app/templates/index.php:6813
 msgid "All Accounts"
 msgstr ""
 
@@ -8171,7 +8171,7 @@ msgid "Failed to recolor: {errors}"
 msgstr ""
 
 #: /app/src/modules/categories/CategoriesModule.js:1652
-#: /app/templates/index.php:7053
+#: /app/templates/index.php:7063
 msgid "None (Top Level)"
 msgstr ""
 
@@ -8281,24 +8281,24 @@ msgstr ""
 #: /app/src/utils/paymentRecordedDialog.js:61 /app/templates/index.php:1779
 #: /app/templates/index.php:1809 /app/templates/index.php:2655
 #: /app/templates/index.php:2813 /app/templates/index.php:3011
-#: /app/templates/index.php:4997 /app/templates/index.php:5301
-#: /app/templates/index.php:5322 /app/templates/index.php:5411
-#: /app/templates/index.php:5492 /app/templates/index.php:5512
-#: /app/templates/index.php:5632 /app/templates/index.php:5656
-#: /app/templates/index.php:5692 /app/templates/index.php:5728
-#: /app/templates/index.php:5775 /app/templates/index.php:5866
-#: /app/templates/index.php:5900 /app/templates/index.php:5975
-#: /app/templates/index.php:6006 /app/templates/index.php:6172
-#: /app/templates/index.php:6380 /app/templates/index.php:6614
-#: /app/templates/index.php:6784 /app/templates/index.php:6872
-#: /app/templates/index.php:7001 /app/templates/index.php:7020
-#: /app/templates/index.php:7102 /app/templates/index.php:7132
-#: /app/templates/index.php:7163 /app/templates/index.php:7202
-#: /app/templates/index.php:7233 /app/templates/index.php:7329
-#: /app/templates/index.php:7385 /app/templates/index.php:7425
-#: /app/templates/index.php:7451 /app/templates/index.php:7489
-#: /app/templates/index.php:7531 /app/templates/index.php:7577
-#: /app/templates/index.php:7664 /app/templates/index.php:7761
+#: /app/templates/index.php:5007 /app/templates/index.php:5311
+#: /app/templates/index.php:5332 /app/templates/index.php:5421
+#: /app/templates/index.php:5502 /app/templates/index.php:5522
+#: /app/templates/index.php:5642 /app/templates/index.php:5666
+#: /app/templates/index.php:5702 /app/templates/index.php:5738
+#: /app/templates/index.php:5785 /app/templates/index.php:5876
+#: /app/templates/index.php:5910 /app/templates/index.php:5985
+#: /app/templates/index.php:6016 /app/templates/index.php:6182
+#: /app/templates/index.php:6390 /app/templates/index.php:6624
+#: /app/templates/index.php:6794 /app/templates/index.php:6882
+#: /app/templates/index.php:7011 /app/templates/index.php:7030
+#: /app/templates/index.php:7112 /app/templates/index.php:7142
+#: /app/templates/index.php:7173 /app/templates/index.php:7212
+#: /app/templates/index.php:7243 /app/templates/index.php:7339
+#: /app/templates/index.php:7395 /app/templates/index.php:7435
+#: /app/templates/index.php:7461 /app/templates/index.php:7499
+#: /app/templates/index.php:7541 /app/templates/index.php:7587
+#: /app/templates/index.php:7674 /app/templates/index.php:7771
 msgid "Cancel"
 msgstr ""
 
@@ -8396,7 +8396,7 @@ msgid "Budget period for {category}"
 msgstr ""
 
 #: /app/src/modules/categories/CategoriesModule.js:2678
-#: /app/templates/index.php:2301 /app/templates/index.php:5357
+#: /app/templates/index.php:2301 /app/templates/index.php:5367
 msgid "Progress"
 msgstr ""
 
@@ -8467,731 +8467,731 @@ msgstr ""
 msgid "Low"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:631
-#: /app/src/modules/dashboard/DashboardModule.js:701
-msgid "Last 7 days"
-msgstr ""
-
-#: /app/src/modules/dashboard/DashboardModule.js:632
-#: /app/src/modules/dashboard/DashboardModule.js:704
-msgid "Last 30 days"
-msgstr ""
-
-#: /app/src/modules/dashboard/DashboardModule.js:633
-#: /app/src/modules/dashboard/DashboardModule.js:705
-msgid "Last 90 days"
-msgstr ""
-
 #: /app/src/modules/dashboard/DashboardModule.js:634
-#: /app/src/modules/dashboard/DashboardModule.js:706
-msgid "Last 6 months"
+#: /app/src/modules/dashboard/DashboardModule.js:704
+msgid "Last 7 days"
 msgstr ""
 
 #: /app/src/modules/dashboard/DashboardModule.js:635
 #: /app/src/modules/dashboard/DashboardModule.js:707
-msgid "Last year"
+msgid "Last 30 days"
 msgstr ""
 
 #: /app/src/modules/dashboard/DashboardModule.js:636
+#: /app/src/modules/dashboard/DashboardModule.js:708
+msgid "Last 90 days"
+msgstr ""
+
+#: /app/src/modules/dashboard/DashboardModule.js:637
+#: /app/src/modules/dashboard/DashboardModule.js:709
+msgid "Last 6 months"
+msgstr ""
+
+#: /app/src/modules/dashboard/DashboardModule.js:638
 #: /app/src/modules/dashboard/DashboardModule.js:710
+msgid "Last year"
+msgstr ""
+
+#: /app/src/modules/dashboard/DashboardModule.js:639
+#: /app/src/modules/dashboard/DashboardModule.js:713
 msgid "Current budget period"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:718
-#: /app/src/modules/dashboard/DashboardModule.js:719
+#: /app/src/modules/dashboard/DashboardModule.js:721
+#: /app/src/modules/dashboard/DashboardModule.js:722
 #: /app/templates/index.php:2675
 msgid "Date Range"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:740
+#: /app/src/modules/dashboard/DashboardModule.js:743
 msgid "Exclude shared bills"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:756
+#: /app/src/modules/dashboard/DashboardModule.js:759
 msgid "Show bills overdue for more than a week"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:859
-#: /app/src/modules/dashboard/DashboardModule.js:861
+#: /app/src/modules/dashboard/DashboardModule.js:862
+#: /app/src/modules/dashboard/DashboardModule.js:864
 msgid "All accounts"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:978
+#: /app/src/modules/dashboard/DashboardModule.js:981
 msgid "%n category under budget"
 msgid_plural "%n categories under budget"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1010
+#: /app/src/modules/dashboard/DashboardModule.js:1013
 msgid "{onTrack}/{total} on track"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1041
+#: /app/src/modules/dashboard/DashboardModule.js:1044
 msgid "Debt free by {date}"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1067
+#: /app/src/modules/dashboard/DashboardModule.js:1070
 msgid "Rates unavailable for {currencies}"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1069
+#: /app/src/modules/dashboard/DashboardModule.js:1072
 msgid "Converted to {currency} at current rates"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1114
-#: /app/src/modules/dashboard/DashboardModule.js:2439
+#: /app/src/modules/dashboard/DashboardModule.js:1117
+#: /app/src/modules/dashboard/DashboardModule.js:2466
 #: /app/src/utils/formatters.js:268
 msgid "Checking"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1144
+#: /app/src/modules/dashboard/DashboardModule.js:1147
 msgid "All accounts hidden"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1190
+#: /app/src/modules/dashboard/DashboardModule.js:1193
 msgid "No accounts"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1216
+#: /app/src/modules/dashboard/DashboardModule.js:1219
 #: /app/src/modules/rules/components/ActionBuilder.js:150
 msgid "Move up"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1217
+#: /app/src/modules/dashboard/DashboardModule.js:1220
 #: /app/src/modules/rules/components/ActionBuilder.js:151
 msgid "Move down"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1361
+#: /app/src/modules/dashboard/DashboardModule.js:1364
 #: /app/src/modules/transactions/transactionRow.js:107
 msgid "Split transaction"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1385
+#: /app/src/modules/dashboard/DashboardModule.js:1388
 msgid "No recent transactions"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1467
+#: /app/src/modules/dashboard/DashboardModule.js:1470
 msgid "No budget alerts. %n category is muted."
 msgid_plural "No budget alerts. %n categories are muted."
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1468
+#: /app/src/modules/dashboard/DashboardModule.js:1471
 msgid "No budget alerts from the budgets you set."
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1486
+#: /app/src/modules/dashboard/DashboardModule.js:1489
 #, no-javascript-format
 msgid "{percent}% over"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1487
+#: /app/src/modules/dashboard/DashboardModule.js:1490
 msgid "{percent}% used"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1523
+#: /app/src/modules/dashboard/DashboardModule.js:1526
 msgid "(from a bill)"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1559
+#: /app/src/modules/dashboard/DashboardModule.js:1562
 msgid "No category has a budget yet."
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1598
+#: /app/src/modules/dashboard/DashboardModule.js:1601
 msgid "Failed to save the budget alert filter"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1636
+#: /app/src/modules/dashboard/DashboardModule.js:1639
 #: /app/templates/index.php:2003 /app/templates/index.php:2309
 msgid "No categories yet"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1710
+#: /app/src/modules/dashboard/DashboardModule.js:1713
 msgid "Highest rate: {rate}% APR"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1741
+#: /app/src/modules/dashboard/DashboardModule.js:1744
 #: /app/templates/index.php:774 /app/templates/index.php:4226
 msgid "Total Debt"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1742
+#: /app/src/modules/dashboard/DashboardModule.js:1745
 msgid "Debt Free"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1817
+#: /app/src/modules/dashboard/DashboardModule.js:1820
 msgid "remaining"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1820
+#: /app/src/modules/dashboard/DashboardModule.js:1823
 msgid "paid off"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1848
+#: /app/src/modules/dashboard/DashboardModule.js:1851
 msgid "Ahead of schedule"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1849
+#: /app/src/modules/dashboard/DashboardModule.js:1852
 msgid "Behind schedule"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1934
-#: /app/src/modules/dashboard/DashboardModule.js:2686
+#: /app/src/modules/dashboard/DashboardModule.js:1937
+#: /app/src/modules/dashboard/DashboardModule.js:2713
 msgid "Overdue by %n day"
 msgid_plural "Overdue by %n days"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1937
-#: /app/src/modules/dashboard/DashboardModule.js:2689
+#: /app/src/modules/dashboard/DashboardModule.js:1940
+#: /app/src/modules/dashboard/DashboardModule.js:2716
 #: /app/src/modules/pensions/PensionsModule.js:34
 msgid "Due today"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1940
-#: /app/src/modules/dashboard/DashboardModule.js:2692
+#: /app/src/modules/dashboard/DashboardModule.js:1943
+#: /app/src/modules/dashboard/DashboardModule.js:2719
 msgid "Due in %n day"
 msgid_plural "Due in %n days"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1942
+#: /app/src/modules/dashboard/DashboardModule.js:1945
 #: /app/src/utils/billLinkDialog.js:95
 msgid "Due {date}"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:1962
-#: /app/src/modules/dashboard/DashboardModule.js:1980
+#: /app/src/modules/dashboard/DashboardModule.js:1965
+#: /app/src/modules/dashboard/DashboardModule.js:1983
 #: /app/templates/index.php:741
 msgid "No budgets configured"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2081
+#: /app/src/modules/dashboard/DashboardModule.js:2104
 #: /app/templates/index.php:752 /app/templates/index.php:3075
 msgid "No savings goals yet"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2097
+#: /app/src/modules/dashboard/DashboardModule.js:2120
 msgid "Target: {amount}"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2103
+#: /app/src/modules/dashboard/DashboardModule.js:2126
 msgid "{amount} saved"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2166
+#: /app/src/modules/dashboard/DashboardModule.js:2189
 #: /app/src/modules/projects/ProjectsModule.js:79
 msgid "{spent} of {total}"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2202
+#: /app/src/modules/dashboard/DashboardModule.js:2225
 #: /app/src/modules/pensions/PensionsModule.js:183
 msgid "Pension Income"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2209
+#: /app/src/modules/dashboard/DashboardModule.js:2232
 #: /app/src/modules/pensions/PensionsModule.js:190
 msgid "%n pension"
 msgid_plural "%n pensions"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2212
+#: /app/src/modules/dashboard/DashboardModule.js:2235
 #: /app/src/modules/pensions/PensionsModule.js:193
 msgid "{amount}/yr income"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2252
+#: /app/src/modules/dashboard/DashboardModule.js:2275
 msgid "{amount} ({percent}%) vs 30d ago"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2269
-#: /app/src/modules/dashboard/DashboardModule.js:2276
-#: /app/src/modules/dashboard/DashboardModule.js:2281
+#: /app/src/modules/dashboard/DashboardModule.js:2292
+#: /app/src/modules/dashboard/DashboardModule.js:2299
+#: /app/src/modules/dashboard/DashboardModule.js:2304
 #: /app/templates/index.php:852
 msgid "No spending data"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2315
-#: /app/src/modules/dashboard/DashboardModule.js:2423
+#: /app/src/modules/dashboard/DashboardModule.js:2338
+#: /app/src/modules/dashboard/DashboardModule.js:2450
 #: /app/templates/index.php:861 /app/templates/index.php:888
 msgid "No account data"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2348
+#: /app/src/modules/dashboard/DashboardModule.js:2371
 #: /app/templates/index.php:870
 msgid "No budget data"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2388
+#: /app/src/modules/dashboard/DashboardModule.js:2415
 #: /app/templates/index.php:879
 msgid "No savings goals"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2441
+#: /app/src/modules/dashboard/DashboardModule.js:2468
 msgid "Credit Cards"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2442
+#: /app/src/modules/dashboard/DashboardModule.js:2469
 #: /app/src/utils/categoryIcons.js:85
 msgid "Investments"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2443
+#: /app/src/modules/dashboard/DashboardModule.js:2470
 msgid "Loans"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2451
+#: /app/src/modules/dashboard/DashboardModule.js:2478
 msgid "%n account"
 msgid_plural "%n accounts"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2463
+#: /app/src/modules/dashboard/DashboardModule.js:2490
 #: /app/templates/index.php:897
 msgid "No accounts to reconcile"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2476
+#: /app/src/modules/dashboard/DashboardModule.js:2503
 msgid "All accounts reconciled"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2484
+#: /app/src/modules/dashboard/DashboardModule.js:2511
 msgid "Up to date"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2500
+#: /app/src/modules/dashboard/DashboardModule.js:2527
 msgid "No data available"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2539
+#: /app/src/modules/dashboard/DashboardModule.js:2566
 msgid "No large transactions"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2563
+#: /app/src/modules/dashboard/DashboardModule.js:2590
 msgid "No spending data for this period"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2582
+#: /app/src/modules/dashboard/DashboardModule.js:2609
 msgid "Daily average"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2593
+#: /app/src/modules/dashboard/DashboardModule.js:2620
 msgid "No pensions to project"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2598
+#: /app/src/modules/dashboard/DashboardModule.js:2625
 msgid ""
 "Set your date of birth in your Nextcloud profile for an accurate horizon"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2604
+#: /app/src/modules/dashboard/DashboardModule.js:2631
 msgid "Projected at retirement"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2608
+#: /app/src/modules/dashboard/DashboardModule.js:2635
 msgid "Projected income / yr"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2620
+#: /app/src/modules/dashboard/DashboardModule.js:2647
 msgid "No unmatched transfers"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2640
+#: /app/src/modules/dashboard/DashboardModule.js:2667
 msgid "No category trends available"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2672
+#: /app/src/modules/dashboard/DashboardModule.js:2699
 msgid "No bills due soon"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2747
+#: /app/src/modules/dashboard/DashboardModule.js:2774
 msgid "No recurring income set up"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2762
+#: /app/src/modules/dashboard/DashboardModule.js:2789
 msgid "Monthly income"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2763
+#: /app/src/modules/dashboard/DashboardModule.js:2790
 msgid "{received} of {due} received this month"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2767
+#: /app/src/modules/dashboard/DashboardModule.js:2794
 msgid "Income received this month"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2786
+#: /app/src/modules/dashboard/DashboardModule.js:2813
 #: /app/src/modules/import/ImportModule.js:2851
 msgid "No recent imports"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2812
+#: /app/src/modules/dashboard/DashboardModule.js:2839
 msgid "No import rules configured"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2820
+#: /app/src/modules/dashboard/DashboardModule.js:2847
 msgid "Active rules"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2824
+#: /app/src/modules/dashboard/DashboardModule.js:2851
 msgid "Total rules"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2835
+#: /app/src/modules/dashboard/DashboardModule.js:2862
 msgid "No spending data available"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2845
+#: /app/src/modules/dashboard/DashboardModule.js:2872
 msgid "Per day"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2849
+#: /app/src/modules/dashboard/DashboardModule.js:2876
 msgid "Projected monthly"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2864
+#: /app/src/modules/dashboard/DashboardModule.js:2891
 msgid "Uncategorized transactions"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:2986
+#: /app/src/modules/dashboard/DashboardModule.js:3013
 #: /app/src/modules/reports/ReportsModule.js:958
 msgid "Click to view transactions"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:3011
+#: /app/src/modules/dashboard/DashboardModule.js:3038
 msgid "%n category hidden"
 msgid_plural "%n categories hidden"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:3016
+#: /app/src/modules/dashboard/DashboardModule.js:3043
 msgid "Total Spending"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:3119
+#: /app/src/modules/dashboard/DashboardModule.js:3146
 msgid "{month} (so far)"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:3197
+#: /app/src/modules/dashboard/DashboardModule.js:3224
 #: /app/templates/index.php:1244
 msgid "Liabilities"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:3290
+#: /app/src/modules/dashboard/DashboardModule.js:3317
 msgid "Asset Value"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:3313
+#: /app/src/modules/dashboard/DashboardModule.js:3340
 msgid "Portfolio"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:3386
+#: /app/src/modules/dashboard/DashboardModule.js:3413
 #: /app/templates/index.php:804
 msgid "Now"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:3533
+#: /app/src/modules/dashboard/DashboardModule.js:3560
 msgid "just now"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:3535
+#: /app/src/modules/dashboard/DashboardModule.js:3562
 msgid "%n hour ago"
 msgid_plural "%n hours ago"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:3538
+#: /app/src/modules/dashboard/DashboardModule.js:3565
 msgid "yesterday"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:3540
+#: /app/src/modules/dashboard/DashboardModule.js:3567
 msgid "%n day ago"
 msgid_plural "%n days ago"
 msgstr[0] ""
 msgstr[1] ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:3543
-#: /app/src/modules/dashboard/DashboardModule.js:3545
+#: /app/src/modules/dashboard/DashboardModule.js:3570
+#: /app/src/modules/dashboard/DashboardModule.js:3572
 msgid "Snapshots recorded automatically daily"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:3543
+#: /app/src/modules/dashboard/DashboardModule.js:3570
 msgid "Last: {time}"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:3548
+#: /app/src/modules/dashboard/DashboardModule.js:3575
 msgid "Record now"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:3828
+#: /app/src/modules/dashboard/DashboardModule.js:3855
 msgid "Net worth snapshot recorded"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:3836
+#: /app/src/modules/dashboard/DashboardModule.js:3863
 msgid "Failed to record snapshot"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4097
+#: /app/src/modules/dashboard/DashboardModule.js:4124
 msgid "Failed to save dashboard layout"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4159
+#: /app/src/modules/dashboard/DashboardModule.js:4186
 #: /app/templates/index.php:653
 msgid "No net worth history yet"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4160
+#: /app/src/modules/dashboard/DashboardModule.js:4187
 msgid "Snapshots are recorded automatically every day."
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4174
+#: /app/src/modules/dashboard/DashboardModule.js:4201
 #: /app/templates/index.php:677
 msgid "No asset value history yet"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4175
+#: /app/src/modules/dashboard/DashboardModule.js:4202
 #: /app/templates/index.php:678
 msgid "Add snapshots to your assets to track their combined value over time."
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:4183
+#: /app/src/modules/dashboard/DashboardModule.js:4210
 #: /app/templates/index.php:691 /app/templates/index.php:727
 msgid "View All"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5136
+#: /app/src/modules/dashboard/DashboardModule.js:5163
 msgid "Failed to save dashboard lock state"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5154
-#: /app/src/modules/dashboard/DashboardModule.js:5165
+#: /app/src/modules/dashboard/DashboardModule.js:5181
+#: /app/src/modules/dashboard/DashboardModule.js:5192
 #: /app/templates/index.php:352
 msgid "Unlock Dashboard"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5154
-#: /app/src/modules/dashboard/DashboardModule.js:5180
+#: /app/src/modules/dashboard/DashboardModule.js:5181
+#: /app/src/modules/dashboard/DashboardModule.js:5207
 msgid "Lock Dashboard"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5166
+#: /app/src/modules/dashboard/DashboardModule.js:5193
 #: /app/templates/index.php:329
 msgid "Dashboard is locked. Click unlock to reorder tiles."
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5182
+#: /app/src/modules/dashboard/DashboardModule.js:5209
 msgid "Use the arrows on each tile to reorder your dashboard"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5183
+#: /app/src/modules/dashboard/DashboardModule.js:5210
 msgid "Drag tiles to reorder your dashboard"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5228
+#: /app/src/modules/dashboard/DashboardModule.js:5255
 msgid "Extra small"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5229
+#: /app/src/modules/dashboard/DashboardModule.js:5256
 msgid "Small"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5230
+#: /app/src/modules/dashboard/DashboardModule.js:5257
 msgid "Medium"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5231
+#: /app/src/modules/dashboard/DashboardModule.js:5258
 msgid "Large"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5258
+#: /app/src/modules/dashboard/DashboardModule.js:5285
 msgid "Move earlier"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5258
+#: /app/src/modules/dashboard/DashboardModule.js:5285
 msgid "Move later"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5287
-#: /app/src/modules/dashboard/DashboardModule.js:5391
-#: /app/templates/index.php:7676
+#: /app/src/modules/dashboard/DashboardModule.js:5314
+#: /app/src/modules/dashboard/DashboardModule.js:5418
+#: /app/templates/index.php:7686
 msgid "Tile Settings"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5305
+#: /app/src/modules/dashboard/DashboardModule.js:5332
 msgid "Remove tile"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5305
+#: /app/src/modules/dashboard/DashboardModule.js:5332
 msgid "Hide tile"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5421
+#: /app/src/modules/dashboard/DashboardModule.js:5448
 msgid "Look ahead"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5424
+#: /app/src/modules/dashboard/DashboardModule.js:5451
 msgid "Next 30 days"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5425
+#: /app/src/modules/dashboard/DashboardModule.js:5452
 msgid "Next 60 days"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5426
+#: /app/src/modules/dashboard/DashboardModule.js:5453
 msgid "Next 90 days"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5435
+#: /app/src/modules/dashboard/DashboardModule.js:5462
 msgid "Forecast horizon"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5438
+#: /app/src/modules/dashboard/DashboardModule.js:5465
 msgid "Next 3 months"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5439
+#: /app/src/modules/dashboard/DashboardModule.js:5466
 msgid "Next 6 months"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5440
+#: /app/src/modules/dashboard/DashboardModule.js:5467
 msgid "Next 12 months"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5449
+#: /app/src/modules/dashboard/DashboardModule.js:5476
 msgid "Years to compare"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5452
+#: /app/src/modules/dashboard/DashboardModule.js:5479
 msgid "Last 2 years"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5453
+#: /app/src/modules/dashboard/DashboardModule.js:5480
 msgid "Last 3 years"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5454
+#: /app/src/modules/dashboard/DashboardModule.js:5481
 msgid "Last 5 years"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5485
+#: /app/src/modules/dashboard/DashboardModule.js:5512
 #: /app/templates/index.php:3309
 msgid "Exclude shared accounts"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5506
+#: /app/src/modules/dashboard/DashboardModule.js:5533
 msgid "Show legend"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5521
-msgid "Show top-level categories only"
-msgstr ""
-
-#: /app/src/modules/dashboard/DashboardModule.js:5536
-#: /app/src/modules/dashboard/DashboardModule.js:5537
-msgid "Chart Type"
-msgstr ""
-
-#: /app/src/modules/dashboard/DashboardModule.js:5547
 #: /app/src/modules/dashboard/DashboardModule.js:5548
-msgid "Rows to show"
+msgid "Show top-level categories only"
 msgstr ""
 
 #: /app/src/modules/dashboard/DashboardModule.js:5563
 #: /app/src/modules/dashboard/DashboardModule.js:5564
-msgid "Display Format"
+msgid "Chart Type"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5576
-msgid "Show change indicator"
+#: /app/src/modules/dashboard/DashboardModule.js:5574
+#: /app/src/modules/dashboard/DashboardModule.js:5575
+msgid "Rows to show"
 msgstr ""
 
 #: /app/src/modules/dashboard/DashboardModule.js:5590
-msgid "No settings available for this tile."
+#: /app/src/modules/dashboard/DashboardModule.js:5591
+msgid "Display Format"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5597
-msgid "Drag to reorder. Toggle visibility for each item."
-msgstr ""
-
-#: /app/src/modules/dashboard/DashboardModule.js:5615
-msgid "Only categories with a budget I set"
+#: /app/src/modules/dashboard/DashboardModule.js:5603
+msgid "Show change indicator"
 msgstr ""
 
 #: /app/src/modules/dashboard/DashboardModule.js:5617
+msgid "No settings available for this tile."
+msgstr ""
+
+#: /app/src/modules/dashboard/DashboardModule.js:5624
+msgid "Drag to reorder. Toggle visibility for each item."
+msgstr ""
+
+#: /app/src/modules/dashboard/DashboardModule.js:5642
+msgid "Only categories with a budget I set"
+msgstr ""
+
+#: /app/src/modules/dashboard/DashboardModule.js:5644
 msgid "Leaves out the budgets worked out from your bills and recurring income."
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5618
+#: /app/src/modules/dashboard/DashboardModule.js:5645
 msgid "Untick a category to stop it alerting, here and in notifications."
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5638
+#: /app/src/modules/dashboard/DashboardModule.js:5665
 msgid "Categories to show"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5639
+#: /app/src/modules/dashboard/DashboardModule.js:5666
 msgid ""
 "Untick a category to leave it off this tile, along with its subcategories. "
 "Reports and totals still count it."
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5876
+#: /app/src/modules/dashboard/DashboardModule.js:5904
 msgid "All tiles are visible"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5882
+#: /app/src/modules/dashboard/DashboardModule.js:5910
 msgid "Insights & Analytics"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5883
+#: /app/src/modules/dashboard/DashboardModule.js:5911
 msgid "Budgeting"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5884
+#: /app/src/modules/dashboard/DashboardModule.js:5912
 msgid "Forecasting"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5887
-#: /app/templates/index.php:5957
+#: /app/src/modules/dashboard/DashboardModule.js:5915
+#: /app/templates/index.php:5967
 msgid "Debts"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5888
+#: /app/src/modules/dashboard/DashboardModule.js:5916
 msgid "Goals"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5890
+#: /app/src/modules/dashboard/DashboardModule.js:5918
 msgid "Alerts"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5891
+#: /app/src/modules/dashboard/DashboardModule.js:5919
 msgid "Interactive"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5913
+#: /app/src/modules/dashboard/DashboardModule.js:5941
 msgid "Hero"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5922
-#: /app/src/modules/dashboard/DashboardModule.js:5956
+#: /app/src/modules/dashboard/DashboardModule.js:5950
+#: /app/src/modules/dashboard/DashboardModule.js:5984
 msgid "Add {name}"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:5944
+#: /app/src/modules/dashboard/DashboardModule.js:5972
 msgid "Add Another"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:6018
+#: /app/src/modules/dashboard/DashboardModule.js:6046
 msgid "Maximum of {max} instances reached"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:6088
+#: /app/src/modules/dashboard/DashboardModule.js:6116
 msgid "Tile added"
 msgstr ""
 
-#: /app/src/modules/dashboard/DashboardModule.js:6126
+#: /app/src/modules/dashboard/DashboardModule.js:6154
 msgid "Tile removed"
 msgstr ""
 
@@ -9227,17 +9227,17 @@ msgstr ""
 
 #: /app/src/modules/dashboard/runway/RunwayOneOffs.js:87
 #: /app/src/modules/dashboard/runway/RunwaySetup.js:147
-#: /app/templates/index.php:3262 /app/templates/index.php:5302
-#: /app/templates/index.php:5323 /app/templates/index.php:5410
-#: /app/templates/index.php:5776 /app/templates/index.php:6171
-#: /app/templates/index.php:6379 /app/templates/index.php:6613
-#: /app/templates/index.php:6783 /app/templates/index.php:7000
-#: /app/templates/index.php:7101 /app/templates/index.php:7488
+#: /app/templates/index.php:3262 /app/templates/index.php:5312
+#: /app/templates/index.php:5333 /app/templates/index.php:5420
+#: /app/templates/index.php:5786 /app/templates/index.php:6181
+#: /app/templates/index.php:6389 /app/templates/index.php:6623
+#: /app/templates/index.php:6793 /app/templates/index.php:7010
+#: /app/templates/index.php:7111 /app/templates/index.php:7498
 msgid "Save"
 msgstr ""
 
 #: /app/src/modules/dashboard/runway/RunwayOneOffs.js:87
-#: /app/templates/index.php:2130 /app/templates/index.php:5513
+#: /app/templates/index.php:2130 /app/templates/index.php:5523
 msgid "Add"
 msgstr ""
 
@@ -9421,7 +9421,7 @@ msgstr ""
 #: /app/templates/index.php:1002 /app/templates/index.php:1011
 #: /app/templates/index.php:1020 /app/templates/index.php:1041
 #: /app/templates/index.php:1050 /app/templates/index.php:1059
-#: /app/templates/index.php:1068 /app/templates/index.php:5262
+#: /app/templates/index.php:1068 /app/templates/index.php:5272
 msgid "Loading..."
 msgstr ""
 
@@ -9529,7 +9529,7 @@ msgid "Manual"
 msgstr ""
 
 #: /app/src/modules/exchange-rates/ExchangeRatesModule.js:173
-#: /app/templates/index.php:4642 /app/templates/index.php:6645
+#: /app/templates/index.php:4652 /app/templates/index.php:6655
 msgid "None"
 msgstr ""
 
@@ -9538,7 +9538,7 @@ msgid "Edit Manual Rate"
 msgstr ""
 
 #: /app/src/modules/exchange-rates/ExchangeRatesModule.js:268
-#: /app/templates/index.php:5991
+#: /app/templates/index.php:6001
 msgid "Set Manual Rate"
 msgstr ""
 
@@ -9786,7 +9786,7 @@ msgid ""
 msgstr ""
 
 #: /app/src/modules/help/HelpModule.js:53 /app/templates/index.php:287
-#: /app/templates/index.php:5178 /app/templates/index.php:7827
+#: /app/templates/index.php:5188 /app/templates/index.php:7837
 msgid "Help & Docs"
 msgstr ""
 
@@ -10400,7 +10400,7 @@ msgstr ""
 msgid "Add Recurring Income"
 msgstr ""
 
-#: /app/src/modules/income/IncomeModule.js:420 /app/templates/index.php:6930
+#: /app/src/modules/income/IncomeModule.js:420 /app/templates/index.php:6940
 msgid "First payment date"
 msgstr ""
 
@@ -10408,7 +10408,7 @@ msgstr ""
 msgid "The date this income is expected. It can be in the past."
 msgstr ""
 
-#: /app/src/modules/income/IncomeModule.js:424 /app/templates/index.php:6932
+#: /app/src/modules/income/IncomeModule.js:424 /app/templates/index.php:6942
 msgid "Payments repeat from this date (optional)"
 msgstr ""
 
@@ -10416,11 +10416,11 @@ msgstr ""
 msgid "Expected Day (1-7)"
 msgstr ""
 
-#: /app/src/modules/income/IncomeModule.js:453 /app/templates/index.php:6924
+#: /app/src/modules/income/IncomeModule.js:453 /app/templates/index.php:6934
 msgid "Expected Day"
 msgstr ""
 
-#: /app/src/modules/income/IncomeModule.js:454 /app/templates/index.php:6926
+#: /app/src/modules/income/IncomeModule.js:454 /app/templates/index.php:6936
 msgid "Day of the month when income is expected"
 msgstr ""
 
@@ -10690,19 +10690,19 @@ msgstr ""
 
 #: /app/src/modules/pensions/PensionsModule.js:116
 #: /app/src/modules/pensions/PensionsModule.js:566
-#: /app/templates/index.php:5551
+#: /app/templates/index.php:5561
 msgid "SIPP"
 msgstr ""
 
 #: /app/src/modules/pensions/PensionsModule.js:117
 #: /app/src/modules/pensions/PensionsModule.js:567
-#: /app/templates/index.php:5552
+#: /app/templates/index.php:5562
 msgid "Defined Benefit"
 msgstr ""
 
 #: /app/src/modules/pensions/PensionsModule.js:118
 #: /app/src/modules/pensions/PensionsModule.js:568
-#: /app/templates/index.php:5553
+#: /app/templates/index.php:5563
 msgid "State Pension"
 msgstr ""
 
@@ -10734,7 +10734,7 @@ msgid "Edit Pension"
 msgstr ""
 
 #: /app/src/modules/pensions/PensionsModule.js:442
-#: /app/templates/index.php:3808 /app/templates/index.php:5529
+#: /app/templates/index.php:3808 /app/templates/index.php:5539
 msgid "Add Pension"
 msgstr ""
 
@@ -10873,7 +10873,7 @@ msgstr ""
 
 #: /app/src/modules/pensions/PensionsModule.js:970
 #: /app/src/modules/pensions/PensionsModule.js:1141
-#: /app/templates/index.php:5682 /app/templates/index.php:5762
+#: /app/templates/index.php:5692 /app/templates/index.php:5772
 msgid "Not from a tracked account"
 msgstr ""
 
@@ -10886,7 +10886,7 @@ msgid "Contribution logged"
 msgstr ""
 
 #: /app/src/modules/pensions/PensionsModule.js:1020
-#: /app/templates/index.php:5718
+#: /app/templates/index.php:5728
 msgid "Not into a tracked account"
 msgstr ""
 
@@ -11000,7 +11000,7 @@ msgstr ""
 
 #: /app/src/modules/projects/ProjectsModule.js:259
 #: /app/templates/index.php:3100 /app/templates/index.php:3107
-#: /app/templates/index.php:5372
+#: /app/templates/index.php:5382
 msgid "New Project"
 msgstr ""
 
@@ -11140,7 +11140,7 @@ msgstr[1] ""
 #: /app/src/modules/transactions/TransactionsModule.js:2071
 #: /app/src/modules/transactions/transactionRow.js:94
 #: /app/src/modules/transfers/TransfersModule.js:462
-#: /app/templates/index.php:6033 /app/templates/index.php:6039
+#: /app/templates/index.php:6043 /app/templates/index.php:6049
 msgid "Transfer"
 msgstr ""
 
@@ -11398,12 +11398,12 @@ msgstr ""
 msgid "Failed to preview rule: {error}"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:955 /app/templates/index.php:6781
+#: /app/src/modules/rules/RulesModule.js:955 /app/templates/index.php:6791
 msgid "Preview Matches"
 msgstr ""
 
 #: /app/src/modules/rules/RulesModule.js:975
-#: /app/src/modules/rules/RulesModule.js:1177 /app/templates/index.php:6754
+#: /app/src/modules/rules/RulesModule.js:1177 /app/templates/index.php:6764
 msgid "Current Category"
 msgstr ""
 
@@ -11443,7 +11443,7 @@ msgstr ""
 msgid "Failed to run rule: {error}"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1079 /app/templates/index.php:6782
+#: /app/src/modules/rules/RulesModule.js:1079 /app/templates/index.php:6792
 msgid "Run Rule Now"
 msgstr ""
 
@@ -11566,7 +11566,7 @@ msgstr ""
 msgid "Run rule \"{name}\" on matching transactions?"
 msgstr ""
 
-#: /app/src/modules/rules/RulesModule.js:1749 /app/templates/index.php:6871
+#: /app/src/modules/rules/RulesModule.js:1749 /app/templates/index.php:6881
 msgid "Run"
 msgstr ""
 
@@ -11607,7 +11607,7 @@ msgid "Failed to apply rules"
 msgstr ""
 
 #: /app/src/modules/rules/RulesModule.js:1886 /app/templates/index.php:2830
-#: /app/templates/index.php:6850
+#: /app/templates/index.php:6860
 msgid "Apply Rules"
 msgstr ""
 
@@ -11727,7 +11727,7 @@ msgid "Only if empty"
 msgstr ""
 
 #: /app/src/modules/rules/components/ActionBuilder.js:218
-#: /app/templates/index.php:6690
+#: /app/templates/index.php:6700
 msgid "Pattern"
 msgstr ""
 
@@ -11825,7 +11825,7 @@ msgstr ""
 #: /app/src/modules/rules/components/ActionBuilder.js:314
 #: /app/src/modules/rules/components/ActionBuilder.js:315
 #: /app/src/modules/transactions/TransactionsModule.js:4151
-#: /app/templates/index.php:7342
+#: /app/templates/index.php:7352
 msgid "Description:"
 msgstr ""
 
@@ -12022,7 +12022,7 @@ msgid "Transaction Type"
 msgstr ""
 
 #: /app/src/modules/rules/components/CriteriaBuilder.js:196
-#: /app/templates/index.php:1298 /app/templates/index.php:6197
+#: /app/templates/index.php:1298 /app/templates/index.php:6207
 msgid "Account Type"
 msgstr ""
 
@@ -12031,7 +12031,7 @@ msgid "Import Source"
 msgstr ""
 
 #: /app/src/modules/rules/components/CriteriaBuilder.js:199
-#: /app/templates/index.php:6678
+#: /app/templates/index.php:6688
 msgid "Match Type"
 msgstr ""
 
@@ -12181,11 +12181,11 @@ msgstr ""
 msgid "Auto-calculated from tag"
 msgstr ""
 
-#: /app/src/modules/savings/SavingsModule.js:272 /app/templates/index.php:5455
+#: /app/src/modules/savings/SavingsModule.js:272 /app/templates/index.php:5465
 msgid "No linked account"
 msgstr ""
 
-#: /app/src/modules/savings/SavingsModule.js:294 /app/templates/index.php:5463
+#: /app/src/modules/savings/SavingsModule.js:294 /app/templates/index.php:5473
 msgid "No linked tag"
 msgstr ""
 
@@ -12193,7 +12193,7 @@ msgstr ""
 msgid "Edit Savings Goal"
 msgstr ""
 
-#: /app/src/modules/savings/SavingsModule.js:353 /app/templates/index.php:5420
+#: /app/src/modules/savings/SavingsModule.js:353 /app/templates/index.php:5430
 msgid "Add Savings Goal"
 msgstr ""
 
@@ -12247,11 +12247,11 @@ msgid ""
 "are imported."
 msgstr ""
 
-#: /app/src/modules/settings/ImportFolders.js:95 /app/templates/index.php:4838
+#: /app/src/modules/settings/ImportFolders.js:95 /app/templates/index.php:4848
 msgid "Import automatically"
 msgstr ""
 
-#: /app/src/modules/settings/ImportFolders.js:96 /app/templates/index.php:4839
+#: /app/src/modules/settings/ImportFolders.js:96 /app/templates/index.php:4849
 msgid "Hold for review"
 msgstr ""
 
@@ -12462,7 +12462,7 @@ msgid "Edit Contact"
 msgstr ""
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:269
-#: /app/templates/index.php:4299 /app/templates/index.php:7460
+#: /app/templates/index.php:4299 /app/templates/index.php:7470
 msgid "Add Contact"
 msgstr ""
 
@@ -12493,7 +12493,7 @@ msgid "Failed to load contact details"
 msgstr ""
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:439
-#: /app/templates/index.php:7610
+#: /app/templates/index.php:7620
 msgid "No shared expenses"
 msgstr ""
 
@@ -12510,7 +12510,7 @@ msgid "Open"
 msgstr ""
 
 #: /app/src/modules/shared-expenses/SharedExpensesModule.js:474
-#: /app/templates/index.php:7616
+#: /app/templates/index.php:7626
 msgid "No settlements yet"
 msgstr ""
 
@@ -12727,7 +12727,7 @@ msgstr ""
 msgid "Recurring Income"
 msgstr ""
 
-#: /app/src/modules/sharing/SharingModule.js:278 /app/templates/index.php:4987
+#: /app/src/modules/sharing/SharingModule.js:278 /app/templates/index.php:4997
 msgid "Import Rules"
 msgstr ""
 
@@ -12832,19 +12832,19 @@ msgstr ""
 
 #: /app/src/modules/tagsets/TagSetsModule.js:83
 #: /app/src/modules/tagsets/TagSetsModule.js:395
-#: /app/src/modules/tagsets/TagSetsModule.js:729 /app/templates/index.php:5296
-#: /app/templates/index.php:7192
+#: /app/src/modules/tagsets/TagSetsModule.js:729 /app/templates/index.php:5306
+#: /app/templates/index.php:7202
 msgid "Hidden"
 msgstr ""
 
-#: /app/src/modules/tagsets/TagSetsModule.js:181 /app/templates/index.php:7172
+#: /app/src/modules/tagsets/TagSetsModule.js:181 /app/templates/index.php:7182
 msgid "Edit Tag"
 msgstr ""
 
 #: /app/src/modules/tagsets/TagSetsModule.js:189
 #: /app/src/modules/tagsets/TagSetsModule.js:738 /app/templates/index.php:2159
-#: /app/templates/index.php:5278 /app/templates/index.php:7141
-#: /app/templates/index.php:7162
+#: /app/templates/index.php:5288 /app/templates/index.php:7151
+#: /app/templates/index.php:7172
 msgid "Add Tag"
 msgstr ""
 
@@ -12893,8 +12893,8 @@ msgstr ""
 msgid "Tag Sets"
 msgstr ""
 
-#: /app/src/modules/tagsets/TagSetsModule.js:365 /app/templates/index.php:7111
-#: /app/templates/index.php:7131
+#: /app/src/modules/tagsets/TagSetsModule.js:365 /app/templates/index.php:7121
+#: /app/templates/index.php:7141
 msgid "Add Tag Set"
 msgstr ""
 
@@ -12978,7 +12978,7 @@ msgstr ""
 msgid "No tag sets yet."
 msgstr ""
 
-#: /app/src/modules/tagsets/TagSetsModule.js:741 /app/templates/index.php:7211
+#: /app/src/modules/tagsets/TagSetsModule.js:741 /app/templates/index.php:7221
 msgid "Edit Tag Set"
 msgstr ""
 
@@ -13113,7 +13113,7 @@ msgid "Failed to unreconcile transactions"
 msgstr ""
 
 #: /app/src/modules/transactions/TransactionsModule.js:1241
-#: /app/templates/index.php:7400
+#: /app/templates/index.php:7410
 msgid "Don't change"
 msgstr ""
 
@@ -13325,7 +13325,7 @@ msgid "Failed to create adjustment: {message}"
 msgstr ""
 
 #: /app/src/modules/transactions/TransactionsModule.js:1995
-#: /app/templates/index.php:6054
+#: /app/templates/index.php:6064
 msgid "Choose an account"
 msgstr ""
 
@@ -13344,7 +13344,7 @@ msgid "Edit transaction"
 msgstr ""
 
 #: /app/src/modules/transactions/TransactionsModule.js:2058
-#: /app/templates/index.php:6015
+#: /app/templates/index.php:6025
 msgid "New transaction"
 msgstr ""
 
@@ -13653,7 +13653,7 @@ msgid "Transaction unlinked from its bill"
 msgstr ""
 
 #: /app/src/modules/transactions/TransactionsModule.js:4147
-#: /app/templates/index.php:7350
+#: /app/templates/index.php:7360
 msgid "Date:"
 msgstr ""
 
@@ -13692,12 +13692,12 @@ msgid "All candidates shown for your confirmation before linking."
 msgstr ""
 
 #: /app/src/modules/transactions/TransactionsModule.js:4438
-#: /app/templates/index.php:7288
+#: /app/templates/index.php:7298
 msgid "Scanning for matching transactions..."
 msgstr ""
 
 #: /app/src/modules/transactions/TransactionsModule.js:4449
-#: /app/templates/index.php:7321
+#: /app/templates/index.php:7331
 msgid "No matching transactions found."
 msgstr ""
 
@@ -13760,7 +13760,7 @@ msgid "These transactions have been linked. Click Undo to unlink a pair."
 msgstr ""
 
 #: /app/src/modules/transactions/TransactionsModule.js:4777
-#: /app/templates/index.php:7328
+#: /app/templates/index.php:7338
 msgid "Confirm Selected"
 msgstr ""
 
@@ -13785,7 +13785,7 @@ msgid "Enter description..."
 msgstr ""
 
 #: /app/src/modules/transactions/TransactionsModule.js:5020
-#: /app/src/utils/userPicker.js:66 /app/templates/index.php:7470
+#: /app/src/utils/userPicker.js:66 /app/templates/index.php:7480
 msgid "Type to search..."
 msgstr ""
 
@@ -14112,7 +14112,7 @@ msgid "Minimum payment"
 msgstr ""
 
 #: /app/src/modules/transfers/TransfersModule.js:499
-#: /app/templates/index.php:4666 /app/templates/index.php:6428
+#: /app/templates/index.php:4676 /app/templates/index.php:6438
 msgid "Custom"
 msgstr ""
 
@@ -14121,7 +14121,7 @@ msgid "From Account"
 msgstr ""
 
 #: /app/src/modules/transfers/TransfersModule.js:516
-#: /app/templates/index.php:6058
+#: /app/templates/index.php:6068
 msgid "To Account"
 msgstr ""
 
@@ -14135,7 +14135,7 @@ msgid "e.g., 15"
 msgstr ""
 
 #: /app/src/modules/transfers/TransfersModule.js:536
-#: /app/templates/index.php:6459
+#: /app/templates/index.php:6469
 msgid "Due Month"
 msgstr ""
 
@@ -14145,8 +14145,8 @@ msgstr ""
 
 #: /app/src/modules/transfers/TransfersModule.js:553
 #: /app/templates/index.php:716 /app/templates/index.php:738
-#: /app/templates/index.php:5451 /app/templates/index.php:6073
-#: /app/templates/index.php:6190 /app/templates/index.php:7036
+#: /app/templates/index.php:5461 /app/templates/index.php:6083
+#: /app/templates/index.php:6200 /app/templates/index.php:7046
 msgid "Details"
 msgstr ""
 
@@ -14179,12 +14179,12 @@ msgid "Creates paired debit/credit transactions immediately"
 msgstr ""
 
 #: /app/src/modules/transfers/TransfersModule.js:589
-#: /app/templates/index.php:6572
+#: /app/templates/index.php:6582
 msgid "Transaction Date"
 msgstr ""
 
 #: /app/src/modules/transfers/TransfersModule.js:591
-#: /app/templates/index.php:6574
+#: /app/templates/index.php:6584
 msgid "Leave empty to use next due date"
 msgstr ""
 
@@ -14685,7 +14685,7 @@ msgstr ""
 msgid "{category} (not shared with you)"
 msgstr ""
 
-#: /app/src/utils/formatters.js:274 /app/templates/index.php:6205
+#: /app/src/utils/formatters.js:274 /app/templates/index.php:6215
 msgid "Mortgage"
 msgstr ""
 
@@ -15007,7 +15007,7 @@ msgstr ""
 msgid "Tools & Settings"
 msgstr ""
 
-#: /app/templates/index.php:217 /app/templates/index.php:7820
+#: /app/templates/index.php:217 /app/templates/index.php:7830
 msgid "Help"
 msgstr ""
 
@@ -15206,7 +15206,7 @@ msgstr ""
 msgid "Set up payment"
 msgstr ""
 
-#: /app/templates/index.php:1295 /app/templates/index.php:6192
+#: /app/templates/index.php:1295 /app/templates/index.php:6202
 msgid "Account Name"
 msgstr ""
 
@@ -15214,7 +15214,7 @@ msgstr ""
 msgid "Available Balance"
 msgstr ""
 
-#: /app/templates/index.php:1322 /app/templates/index.php:6327
+#: /app/templates/index.php:1322 /app/templates/index.php:6337
 msgid "Credit Limit"
 msgstr ""
 
@@ -15222,7 +15222,7 @@ msgstr ""
 msgid "Promotional rate"
 msgstr ""
 
-#: /app/templates/index.php:1334 /app/templates/index.php:6343
+#: /app/templates/index.php:1334 /app/templates/index.php:6353
 msgid "Statement due day"
 msgstr ""
 
@@ -15266,19 +15266,19 @@ msgstr ""
 msgid "Account Information"
 msgstr ""
 
-#: /app/templates/index.php:1411 /app/templates/index.php:6258
+#: /app/templates/index.php:1411 /app/templates/index.php:6268
 msgid "Account Number"
 msgstr ""
 
-#: /app/templates/index.php:1415 /app/templates/index.php:6268
+#: /app/templates/index.php:1415 /app/templates/index.php:6278
 msgid "Routing Number"
 msgstr ""
 
-#: /app/templates/index.php:1419 /app/templates/index.php:6278
+#: /app/templates/index.php:1419 /app/templates/index.php:6288
 msgid "IBAN"
 msgstr ""
 
-#: /app/templates/index.php:1423 /app/templates/index.php:6273
+#: /app/templates/index.php:1423 /app/templates/index.php:6283
 msgid "Sort Code"
 msgstr ""
 
@@ -15344,7 +15344,7 @@ msgid "Filters"
 msgstr ""
 
 #: /app/templates/index.php:1514 /app/templates/index.php:1673
-#: /app/templates/index.php:6797
+#: /app/templates/index.php:6807
 msgid "Filter Transactions"
 msgstr ""
 
@@ -15357,12 +15357,12 @@ msgid "Cleared"
 msgstr ""
 
 #: /app/templates/index.php:1545 /app/templates/index.php:1720
-#: /app/templates/index.php:6808
+#: /app/templates/index.php:6818
 msgid "From Date"
 msgstr ""
 
 #: /app/templates/index.php:1550 /app/templates/index.php:1725
-#: /app/templates/index.php:6813
+#: /app/templates/index.php:6823
 msgid "To Date"
 msgstr ""
 
@@ -15395,8 +15395,8 @@ msgid "Save Preset"
 msgstr ""
 
 #: /app/templates/index.php:1601 /app/templates/index.php:1913
-#: /app/templates/index.php:2892 /app/templates/index.php:4827
-#: /app/templates/index.php:6704
+#: /app/templates/index.php:2892 /app/templates/index.php:4837
+#: /app/templates/index.php:6714
 msgid "Actions"
 msgstr ""
 
@@ -15512,7 +15512,7 @@ msgstr ""
 msgid "250 per page"
 msgstr ""
 
-#: /app/templates/index.php:1883 /app/templates/index.php:7554
+#: /app/templates/index.php:1883 /app/templates/index.php:7564
 msgid "Select all"
 msgstr ""
 
@@ -15594,11 +15594,11 @@ msgstr ""
 msgid "Group by"
 msgstr ""
 
-#: /app/templates/index.php:2101 /app/templates/index.php:4557
+#: /app/templates/index.php:2101 /app/templates/index.php:4567
 msgid "Budget periods"
 msgstr ""
 
-#: /app/templates/index.php:2102 /app/templates/index.php:4556
+#: /app/templates/index.php:2102 /app/templates/index.php:4566
 msgid "Calendar months"
 msgstr ""
 
@@ -15731,7 +15731,7 @@ msgstr ""
 msgid "Drag and drop your bank statement here"
 msgstr ""
 
-#: /app/templates/index.php:2365 /app/templates/index.php:4947
+#: /app/templates/index.php:2365 /app/templates/index.php:4957
 msgid "or"
 msgstr ""
 
@@ -15739,7 +15739,7 @@ msgstr ""
 msgid "Browse for file to import"
 msgstr ""
 
-#: /app/templates/index.php:2366 /app/templates/index.php:4948
+#: /app/templates/index.php:2366 /app/templates/index.php:4958
 msgid "Browse Files"
 msgstr ""
 
@@ -15827,8 +15827,8 @@ msgstr ""
 msgid "CSV Delimiter"
 msgstr ""
 
-#: /app/templates/index.php:2455 /app/templates/index.php:4629
-#: /app/templates/index.php:4639
+#: /app/templates/index.php:2455 /app/templates/index.php:4639
+#: /app/templates/index.php:4649
 msgid "Comma (,)"
 msgstr ""
 
@@ -16543,12 +16543,12 @@ msgstr ""
 msgid "Edit pension"
 msgstr ""
 
-#: /app/templates/index.php:3914 /app/templates/index.php:5077
-#: /app/templates/index.php:5559 /app/templates/index.php:7696
+#: /app/templates/index.php:3914 /app/templates/index.php:5087
+#: /app/templates/index.php:5569 /app/templates/index.php:7706
 msgid "Provider"
 msgstr ""
 
-#: /app/templates/index.php:3926 /app/templates/index.php:5583
+#: /app/templates/index.php:3926 /app/templates/index.php:5593
 msgid "Monthly Contribution"
 msgstr ""
 
@@ -16556,20 +16556,20 @@ msgstr ""
 msgid "Expected Return"
 msgstr ""
 
-#: /app/templates/index.php:3934 /app/templates/index.php:5595
-#: /app/templates/index.php:5622
+#: /app/templates/index.php:3934 /app/templates/index.php:5605
+#: /app/templates/index.php:5632
 msgid "Retirement Age"
 msgstr ""
 
-#: /app/templates/index.php:3942 /app/templates/index.php:5642
+#: /app/templates/index.php:3942 /app/templates/index.php:5652
 msgid "Update Balance"
 msgstr ""
 
-#: /app/templates/index.php:3946 /app/templates/index.php:5667
+#: /app/templates/index.php:3946 /app/templates/index.php:5677
 msgid "Log Contribution"
 msgstr ""
 
-#: /app/templates/index.php:3950 /app/templates/index.php:5703
+#: /app/templates/index.php:3950 /app/templates/index.php:5713
 msgid "Record Withdrawal"
 msgstr ""
 
@@ -16629,7 +16629,7 @@ msgstr ""
 msgid "Add Your First Asset"
 msgstr ""
 
-#: /app/templates/index.php:4104 /app/templates/index.php:5802
+#: /app/templates/index.php:4104 /app/templates/index.php:5812
 msgid "Asset Details"
 msgstr ""
 
@@ -16637,8 +16637,8 @@ msgstr ""
 msgid "Update value"
 msgstr ""
 
-#: /app/templates/index.php:4109 /app/templates/index.php:5882
-#: /app/templates/index.php:5901
+#: /app/templates/index.php:4109 /app/templates/index.php:5892
+#: /app/templates/index.php:5911
 msgid "Update Value"
 msgstr ""
 
@@ -16650,7 +16650,7 @@ msgstr ""
 msgid "Asset Name"
 msgstr ""
 
-#: /app/templates/index.php:4139 /app/templates/index.php:5843
+#: /app/templates/index.php:4139 /app/templates/index.php:5853
 msgid "Purchase Price"
 msgstr ""
 
@@ -16662,7 +16662,7 @@ msgstr ""
 msgid "Annual Change Rate"
 msgstr ""
 
-#: /app/templates/index.php:4167 /app/templates/index.php:5849
+#: /app/templates/index.php:4167 /app/templates/index.php:5859
 msgid "Purchase Date"
 msgstr ""
 
@@ -16856,43 +16856,43 @@ msgstr ""
 msgid "General Settings"
 msgstr ""
 
-#: /app/templates/index.php:4498 /app/templates/index.php:4574
+#: /app/templates/index.php:4498 /app/templates/index.php:4584
 msgid "Display Settings"
 msgstr ""
 
-#: /app/templates/index.php:4499 /app/templates/index.php:4607
+#: /app/templates/index.php:4499 /app/templates/index.php:4617
 msgid "Number Format"
 msgstr ""
 
-#: /app/templates/index.php:4500 /app/templates/index.php:4655
+#: /app/templates/index.php:4500 /app/templates/index.php:4665
 msgid "Colours"
 msgstr ""
 
-#: /app/templates/index.php:4501 /app/templates/index.php:4707
+#: /app/templates/index.php:4501 /app/templates/index.php:4717
 msgid "Notifications"
 msgstr ""
 
-#: /app/templates/index.php:4504 /app/templates/index.php:4851
+#: /app/templates/index.php:4504 /app/templates/index.php:4861
 msgid "Scheduled Reports"
 msgstr ""
 
-#: /app/templates/index.php:4505 /app/templates/index.php:4878
+#: /app/templates/index.php:4505 /app/templates/index.php:4888
 msgid "Import & Export"
 msgstr ""
 
-#: /app/templates/index.php:4506 /app/templates/index.php:4916
+#: /app/templates/index.php:4506 /app/templates/index.php:4926
 msgid "Data Migration"
 msgstr ""
 
-#: /app/templates/index.php:4507 /app/templates/index.php:5022
+#: /app/templates/index.php:4507 /app/templates/index.php:5032
 msgid "Maintenance"
 msgstr ""
 
-#: /app/templates/index.php:4508 /app/templates/index.php:5049
+#: /app/templates/index.php:4508 /app/templates/index.php:5059
 msgid "Admin Settings"
 msgstr ""
 
-#: /app/templates/index.php:4509 /app/templates/index.php:5142
+#: /app/templates/index.php:4509 /app/templates/index.php:5152
 msgid "Danger Zone"
 msgstr ""
 
@@ -16922,11 +16922,23 @@ msgid ""
 "last day). Useful for aligning budgets with payday."
 msgstr ""
 
-#: /app/templates/index.php:4552
+#: /app/templates/index.php:4554
+msgid "Budget categories from their bills"
+msgstr ""
+
+#: /app/templates/index.php:4555
+msgid ""
+"A category with no budget of its own uses the monthly total of its recurring "
+"bills and income as its budget, marked auto on the Budget page. Turn this "
+"off to budget only the amounts you set. Bills keep working the same either "
+"way."
+msgstr ""
+
+#: /app/templates/index.php:4562
 msgid "Months in dashboard charts and reports"
 msgstr ""
 
-#: /app/templates/index.php:4553
+#: /app/templates/index.php:4563
 msgid ""
 "With a budget cycle start day other than 1, choose whether the dashboard "
 "charts and the month-by-month reports count calendar months or budget "
@@ -16934,204 +16946,204 @@ msgid ""
 "page."
 msgstr ""
 
-#: /app/templates/index.php:4563
+#: /app/templates/index.php:4573
 #, php-format
 msgid "Budget alert threshold (%%)"
 msgstr ""
 
-#: /app/templates/index.php:4564
+#: /app/templates/index.php:4574
 msgid ""
 "Show a category on the Budget Alerts tile once its spending passes this "
 "percentage of its budget. Set to 100 to alert only when a category goes over "
 "budget."
 msgstr ""
 
-#: /app/templates/index.php:4579
+#: /app/templates/index.php:4589
 msgid "Date Format"
 msgstr ""
 
-#: /app/templates/index.php:4580
+#: /app/templates/index.php:4590
 msgid "How dates are displayed throughout the app"
 msgstr ""
 
-#: /app/templates/index.php:4583
+#: /app/templates/index.php:4593
 msgid "YYYY-MM-DD (2025-10-12)"
 msgstr ""
 
-#: /app/templates/index.php:4584
+#: /app/templates/index.php:4594
 msgid "MM/DD/YYYY (10/12/2025)"
 msgstr ""
 
-#: /app/templates/index.php:4585
+#: /app/templates/index.php:4595
 msgid "DD/MM/YYYY (12/10/2025)"
 msgstr ""
 
-#: /app/templates/index.php:4586
+#: /app/templates/index.php:4596
 msgid "DD.MM.YYYY (12.10.2025)"
 msgstr ""
 
-#: /app/templates/index.php:4587
+#: /app/templates/index.php:4597
 msgid "Mon D, YYYY (Oct 12, 2025)"
 msgstr ""
 
-#: /app/templates/index.php:4593
+#: /app/templates/index.php:4603
 msgid "First Day of Week"
 msgstr ""
 
-#: /app/templates/index.php:4594
+#: /app/templates/index.php:4604
 msgid "Starting day for calendars and weekly reports"
 msgstr ""
 
-#: /app/templates/index.php:4612
+#: /app/templates/index.php:4622
 msgid "Decimal Places"
 msgstr ""
 
-#: /app/templates/index.php:4613
+#: /app/templates/index.php:4623
 msgid "Number of decimal places to display"
 msgstr ""
 
-#: /app/templates/index.php:4624
+#: /app/templates/index.php:4634
 msgid "Decimal Separator"
 msgstr ""
 
-#: /app/templates/index.php:4625
+#: /app/templates/index.php:4635
 msgid "Character used for decimal separation"
 msgstr ""
 
-#: /app/templates/index.php:4628 /app/templates/index.php:4640
+#: /app/templates/index.php:4638 /app/templates/index.php:4650
 msgid "Period (.)"
 msgstr ""
 
-#: /app/templates/index.php:4635
+#: /app/templates/index.php:4645
 msgid "Thousands Separator"
 msgstr ""
 
-#: /app/templates/index.php:4636
+#: /app/templates/index.php:4646
 msgid "Character used for thousands separation"
 msgstr ""
 
-#: /app/templates/index.php:4641
+#: /app/templates/index.php:4651
 msgid "Space ( )"
 msgstr ""
 
-#: /app/templates/index.php:4648 /app/templates/index.php:4696
-#: /app/templates/index.php:6746
+#: /app/templates/index.php:4658 /app/templates/index.php:4706
+#: /app/templates/index.php:6756
 msgid "Preview:"
 msgstr ""
 
-#: /app/templates/index.php:4660
+#: /app/templates/index.php:4670
 msgid "Money in and money out"
 msgstr ""
 
-#: /app/templates/index.php:4661
+#: /app/templates/index.php:4671
 msgid ""
 "The colours used for income and expenses, balances, budget bars and charts"
 msgstr ""
 
-#: /app/templates/index.php:4664
+#: /app/templates/index.php:4674
 msgid "Default"
 msgstr ""
 
-#: /app/templates/index.php:4665
+#: /app/templates/index.php:4675
 msgid "Colour-blind friendly (blue and orange)"
 msgstr ""
 
-#: /app/templates/index.php:4673
+#: /app/templates/index.php:4683
 msgid "Money in, light theme"
 msgstr ""
 
-#: /app/templates/index.php:4675 /app/templates/index.php:4680
 #: /app/templates/index.php:4685 /app/templates/index.php:4690
+#: /app/templates/index.php:4695 /app/templates/index.php:4700
 msgid "Hard to read on this background"
 msgstr ""
 
-#: /app/templates/index.php:4678
+#: /app/templates/index.php:4688
 msgid "Money out, light theme"
 msgstr ""
 
-#: /app/templates/index.php:4683
+#: /app/templates/index.php:4693
 msgid "Money in, dark theme"
 msgstr ""
 
-#: /app/templates/index.php:4688
+#: /app/templates/index.php:4698
 msgid "Money out, dark theme"
 msgstr ""
 
-#: /app/templates/index.php:4715
+#: /app/templates/index.php:4725
 msgid "Notify when approaching or exceeding budget limits"
 msgstr ""
 
-#: /app/templates/index.php:4724
+#: /app/templates/index.php:4734
 msgid "Forecast Warnings"
 msgstr ""
 
-#: /app/templates/index.php:4725
+#: /app/templates/index.php:4735
 msgid "Notify about negative cash flow predictions"
 msgstr ""
 
-#: /app/templates/index.php:4734
+#: /app/templates/index.php:4744
 msgid "Runway alerts"
 msgstr ""
 
-#: /app/templates/index.php:4735
+#: /app/templates/index.php:4745
 msgid "Notify when the date your money runs out moves earlier"
 msgstr ""
 
-#: /app/templates/index.php:4744
+#: /app/templates/index.php:4754
 msgid "Unusual Spending Alerts"
 msgstr ""
 
-#: /app/templates/index.php:4745
+#: /app/templates/index.php:4755
 msgid ""
 "Notify when a category runs well above its 6-month typical spending (max one "
 "alert per category per month)"
 msgstr ""
 
-#: /app/templates/index.php:4754
+#: /app/templates/index.php:4764
 msgid "Budget Digest"
 msgstr ""
 
-#: /app/templates/index.php:4755
+#: /app/templates/index.php:4765
 msgid "Periodic summary of spending, budgets, upcoming bills and goals"
 msgstr ""
 
-#: /app/templates/index.php:4762
+#: /app/templates/index.php:4772
 msgid "Digest Frequency"
 msgstr ""
 
-#: /app/templates/index.php:4763
+#: /app/templates/index.php:4773
 msgid "How often the budget digest is sent"
 msgstr ""
 
-#: /app/templates/index.php:4775
+#: /app/templates/index.php:4785
 msgid "Email Digest"
 msgstr ""
 
-#: /app/templates/index.php:4776
+#: /app/templates/index.php:4786
 msgid "Also send the digest by email (requires a working mail server)"
 msgstr ""
 
-#: /app/templates/index.php:4786
+#: /app/templates/index.php:4796
 msgid ""
 "Where uploaded receipts are filed in your Files. Year and month subfolders "
 "are created underneath. Receipts already attached stay where they are."
 msgstr ""
 
-#: /app/templates/index.php:4789
+#: /app/templates/index.php:4799
 msgid "Receipts folder"
 msgstr ""
 
-#: /app/templates/index.php:4794 /app/templates/index.php:4813
+#: /app/templates/index.php:4804 /app/templates/index.php:4823
 msgid "Browse…"
 msgstr ""
 
-#: /app/templates/index.php:4797
+#: /app/templates/index.php:4807
 msgid ""
 "A path inside your Files, for example Applications/Budget. Leave empty for "
 "the default, Budget/Receipts."
 msgstr ""
 
-#: /app/templates/index.php:4805
+#: /app/templates/index.php:4815
 msgid ""
 "A statement dropped into one of the subfolders below is imported in the "
 "background, into the account and with the import template you choose for it. "
@@ -17142,269 +17154,269 @@ msgid ""
 "transactions to that account."
 msgstr ""
 
-#: /app/templates/index.php:4805
+#: /app/templates/index.php:4815
 msgid "How it works"
 msgstr ""
 
-#: /app/templates/index.php:4816
+#: /app/templates/index.php:4826
 msgid ""
 "A path inside your Files. Leave empty for the default, Budget/Import. "
 "Changing it does not move subfolders you already have."
 msgstr ""
 
-#: /app/templates/index.php:4822
+#: /app/templates/index.php:4832
 msgid "Subfolder"
 msgstr ""
 
-#: /app/templates/index.php:4825 /app/templates/index.php:4837
+#: /app/templates/index.php:4835 /app/templates/index.php:4847
 msgid "When a file arrives"
 msgstr ""
 
-#: /app/templates/index.php:4826
+#: /app/templates/index.php:4836
 msgid "On"
 msgstr ""
 
-#: /app/templates/index.php:4832
+#: /app/templates/index.php:4842
 msgid "No subfolders yet. Add the first one below."
 msgstr ""
 
-#: /app/templates/index.php:4834
+#: /app/templates/index.php:4844
 msgid "Subfolder name"
 msgstr ""
 
-#: /app/templates/index.php:4841
+#: /app/templates/index.php:4851
 msgid "Add subfolder"
 msgstr ""
 
-#: /app/templates/index.php:4844
+#: /app/templates/index.php:4854
 msgid "Check now"
 msgstr ""
 
-#: /app/templates/index.php:4858
+#: /app/templates/index.php:4868
 msgid "Monthly Report to Files"
 msgstr ""
 
-#: /app/templates/index.php:4859
+#: /app/templates/index.php:4869
 msgid ""
 "Save a PDF summary of the previous month into Budget/Reports in your Files"
 msgstr ""
 
-#: /app/templates/index.php:4868
+#: /app/templates/index.php:4878
 msgid "Monthly Report by Email"
 msgstr ""
 
-#: /app/templates/index.php:4869
+#: /app/templates/index.php:4879
 msgid "Email the monthly PDF report (requires a working mail server)"
 msgstr ""
 
-#: /app/templates/index.php:4885
+#: /app/templates/index.php:4895
 msgid "Auto-apply Import Rules"
 msgstr ""
 
-#: /app/templates/index.php:4886
+#: /app/templates/index.php:4896
 msgid "Automatically categorize transactions when importing"
 msgstr ""
 
-#: /app/templates/index.php:4893
+#: /app/templates/index.php:4903
 msgid "Bill match window (days)"
 msgstr ""
 
-#: /app/templates/index.php:4894
+#: /app/templates/index.php:4904
 msgid ""
 "How many days either side of a bill payment an imported row can be and still "
 "be matched to it by the bill's name. The amount must match to the penny."
 msgstr ""
 
-#: /app/templates/index.php:4902
+#: /app/templates/index.php:4912
 msgid "Default Export Format"
 msgstr ""
 
-#: /app/templates/index.php:4903
+#: /app/templates/index.php:4913
 msgid "Preferred format for data exports"
 msgstr ""
 
-#: /app/templates/index.php:4906
+#: /app/templates/index.php:4916
 msgid "CSV"
 msgstr ""
 
-#: /app/templates/index.php:4907 /app/templates/index.php:6630
+#: /app/templates/index.php:4917 /app/templates/index.php:6640
 msgid "JSON"
 msgstr ""
 
-#: /app/templates/index.php:4908
+#: /app/templates/index.php:4918
 msgid "PDF"
 msgstr ""
 
-#: /app/templates/index.php:4917
+#: /app/templates/index.php:4927
 msgid ""
 "Export all your data for backup or migration to another Nextcloud instance. "
 "Import to restore or migrate data."
 msgstr ""
 
-#: /app/templates/index.php:4922
+#: /app/templates/index.php:4932
 msgid "Export Data"
 msgstr ""
 
-#: /app/templates/index.php:4923
+#: /app/templates/index.php:4933
 msgid ""
 "Download all your accounts, transactions, categories, bills, import rules, "
 "and settings as a ZIP file."
 msgstr ""
 
-#: /app/templates/index.php:4926
+#: /app/templates/index.php:4936
 msgid "Security Notice:"
 msgstr ""
 
-#: /app/templates/index.php:4926
+#: /app/templates/index.php:4936
 msgid ""
 "The export file contains sensitive data including decrypted banking details. "
 "Store it securely and delete after use."
 msgstr ""
 
-#: /app/templates/index.php:4930
+#: /app/templates/index.php:4940
 msgid "Export All Data"
 msgstr ""
 
-#: /app/templates/index.php:4936
+#: /app/templates/index.php:4946
 msgid "Import Data"
 msgstr ""
 
-#: /app/templates/index.php:4937
+#: /app/templates/index.php:4947
 msgid ""
 "Import data from a previously exported ZIP file. This will replace all "
 "existing data."
 msgstr ""
 
-#: /app/templates/index.php:4940 /app/templates/index.php:5145
+#: /app/templates/index.php:4950 /app/templates/index.php:5155
 msgid "Warning:"
 msgstr ""
 
-#: /app/templates/index.php:4940
+#: /app/templates/index.php:4950
 msgid ""
 "Importing will permanently delete all your current data and replace it with "
 "the imported data. This cannot be undone."
 msgstr ""
 
-#: /app/templates/index.php:4946
+#: /app/templates/index.php:4956
 msgid "Drag and drop your export file here"
 msgstr ""
 
-#: /app/templates/index.php:4950
+#: /app/templates/index.php:4960
 msgid "Supported format: ZIP (exported from Budget app)"
 msgstr ""
 
-#: /app/templates/index.php:4956
+#: /app/templates/index.php:4966
 msgid "Import Preview"
 msgstr ""
 
-#: /app/templates/index.php:4960
+#: /app/templates/index.php:4970
 msgid "Export Version:"
 msgstr ""
 
-#: /app/templates/index.php:4964
+#: /app/templates/index.php:4974
 msgid "Exported At:"
 msgstr ""
 
-#: /app/templates/index.php:5000
+#: /app/templates/index.php:5010
 msgid "Confirm Import"
 msgstr ""
 
-#: /app/templates/index.php:5008
+#: /app/templates/index.php:5018
 msgid "Processing import..."
 msgstr ""
 
-#: /app/templates/index.php:5026
+#: /app/templates/index.php:5036
 msgid "Recalculate Account Balances"
 msgstr ""
 
-#: /app/templates/index.php:5027
+#: /app/templates/index.php:5037
 msgid ""
 "Recalculates all account balances from their opening balance and transaction "
 "history. Use this if account balances appear incorrect."
 msgstr ""
 
-#: /app/templates/index.php:5031
+#: /app/templates/index.php:5041
 msgid "Recalculate"
 msgstr ""
 
-#: /app/templates/index.php:5036
+#: /app/templates/index.php:5046
 msgid "Repair Data"
 msgstr ""
 
-#: /app/templates/index.php:5037
+#: /app/templates/index.php:5047
 msgid ""
 "Scans for data integrity issues: duplicate auto-generated transactions, "
 "bills with stuck due dates, and balance inconsistencies. Shows findings for "
 "your review before making any changes."
 msgstr ""
 
-#: /app/templates/index.php:5041
+#: /app/templates/index.php:5051
 msgid "Scan for Issues"
 msgstr ""
 
-#: /app/templates/index.php:5054
+#: /app/templates/index.php:5064
 msgid "Experimental Feature"
 msgstr ""
 
-#: /app/templates/index.php:5055
+#: /app/templates/index.php:5065
 msgid ""
 "Bank Sync is a new feature that is still being tested and may be unreliable. "
 "If you encounter any issues, please submit a report on GitHub so we can "
 "resolve them."
 msgstr ""
 
-#: /app/templates/index.php:5056
+#: /app/templates/index.php:5066
 msgid "Report an issue on GitHub"
 msgstr ""
 
-#: /app/templates/index.php:5063
+#: /app/templates/index.php:5073
 msgid "Enable Bank Sync"
 msgstr ""
 
-#: /app/templates/index.php:5064
+#: /app/templates/index.php:5074
 msgid ""
 "Allow users to connect external bank accounts for automatic transaction "
 "imports. Supports GoCardless (UK/Europe) and SimpleFIN (US). Disabled by "
 "default for security."
 msgstr ""
 
-#: /app/templates/index.php:5070
+#: /app/templates/index.php:5080
 msgid "Receipt scanning"
 msgstr ""
 
-#: /app/templates/index.php:5072
+#: /app/templates/index.php:5082
 msgid ""
 "Read a photographed receipt and fill in the transaction for the user. Off by "
 "default: while it is off, this app sends receipt images nowhere."
 msgstr ""
 
-#: /app/templates/index.php:5073
+#: /app/templates/index.php:5083
 msgid ""
 "The scan buttons themselves arrive with the next update — settings saved now "
 "take effect the moment they do."
 msgstr ""
 
-#: /app/templates/index.php:5079
+#: /app/templates/index.php:5089
 msgid "Off — no receipt scanning"
 msgstr ""
 
-#: /app/templates/index.php:5080
+#: /app/templates/index.php:5090
 msgid "Nextcloud AI (uses this server's configured AI provider)"
 msgstr ""
 
-#: /app/templates/index.php:5081
+#: /app/templates/index.php:5091
 msgid "Custom endpoint (OpenAI-compatible, e.g. a local Ollama)"
 msgstr ""
 
-#: /app/templates/index.php:5082
+#: /app/templates/index.php:5092
 msgid "Otherworld hosted relay (license key)"
 msgstr ""
 
-#: /app/templates/index.php:5088
+#: /app/templates/index.php:5098
 msgid "Endpoint URL"
 msgstr ""
 
-#: /app/templates/index.php:5090
+#: /app/templates/index.php:5100
 msgid ""
 "The base URL of an OpenAI-compatible server. This server makes the request, "
 "so an address only reachable on your local network works — and keeps "
@@ -17413,322 +17425,322 @@ msgid ""
 "to call it."
 msgstr ""
 
-#: /app/templates/index.php:5094
+#: /app/templates/index.php:5104
 msgid "Model"
 msgstr ""
 
-#: /app/templates/index.php:5096
+#: /app/templates/index.php:5106
 msgid ""
 "The vision model to ask for, exactly as the endpoint names it. It must be "
 "able to read images."
 msgstr ""
 
-#: /app/templates/index.php:5100
+#: /app/templates/index.php:5110
 msgid "API key"
 msgstr ""
 
-#: /app/templates/index.php:5101
+#: /app/templates/index.php:5111
 msgid "Leave blank to keep the saved key"
 msgstr ""
 
-#: /app/templates/index.php:5102
+#: /app/templates/index.php:5112
 msgid ""
 "Stored encrypted, and never shown again after saving. Leave blank to keep "
 "the current key; clear it with the Remove key button."
 msgstr ""
 
-#: /app/templates/index.php:5103
+#: /app/templates/index.php:5113
 msgid "Remove key"
 msgstr ""
 
-#: /app/templates/index.php:5107
+#: /app/templates/index.php:5117
 msgid "Subscription"
 msgstr ""
 
-#: /app/templates/index.php:5111
+#: /app/templates/index.php:5121
 #, php-format
 msgid "Standard — %s/month (500 scans)"
 msgstr ""
 
-#: /app/templates/index.php:5112
+#: /app/templates/index.php:5122
 #, php-format
 msgid "Standard — %s/year (500 scans a month)"
 msgstr ""
 
-#: /app/templates/index.php:5113
+#: /app/templates/index.php:5123
 #, php-format
 msgid "Business — %s/month (1,500 scans)"
 msgstr ""
 
-#: /app/templates/index.php:5114
+#: /app/templates/index.php:5124
 #, php-format
 msgid "Business — %s/year (1,500 scans a month)"
 msgstr ""
 
-#: /app/templates/index.php:5116
+#: /app/templates/index.php:5126
 msgid "Subscribe"
 msgstr ""
 
-#: /app/templates/index.php:5117
+#: /app/templates/index.php:5127
 msgid ""
 "Checkout opens in a new tab. Your license key is shown once after payment "
 "and emailed to you — paste it into the field above."
 msgstr ""
 
-#: /app/templates/index.php:5119
+#: /app/templates/index.php:5129
 msgid "Manage subscription"
 msgstr ""
 
-#: /app/templates/index.php:5120
+#: /app/templates/index.php:5130
 msgid "Change plan, update the card, or cancel — opens Stripe in a new tab."
 msgstr ""
 
-#: /app/templates/index.php:5127
+#: /app/templates/index.php:5137
 msgid "What gets sent"
 msgstr ""
 
-#: /app/templates/index.php:5129
+#: /app/templates/index.php:5139
 msgid "Receipt scanning documentation"
 msgstr ""
 
-#: /app/templates/index.php:5135
+#: /app/templates/index.php:5145
 msgid "Save receipt scanning settings"
 msgstr ""
 
-#: /app/templates/index.php:5145
+#: /app/templates/index.php:5155
 msgid "Actions in this section are destructive and cannot be undone."
 msgstr ""
 
-#: /app/templates/index.php:5151 /app/templates/index.php:5156
+#: /app/templates/index.php:5161 /app/templates/index.php:5166
 msgid "Reset All to Defaults"
 msgstr ""
 
-#: /app/templates/index.php:5152
+#: /app/templates/index.php:5162
 msgid ""
 "Put every setting on this page back to its default. Your accounts, "
 "transactions and other data are not touched."
 msgstr ""
 
-#: /app/templates/index.php:5162 /app/templates/index.php:5167
+#: /app/templates/index.php:5172 /app/templates/index.php:5177
 msgid "Factory Reset"
 msgstr ""
 
-#: /app/templates/index.php:5163
+#: /app/templates/index.php:5173
 msgid ""
 "Permanently delete ALL your data including accounts, transactions, bills, "
 "categories, settings, and more. Only audit logs will be preserved for "
 "compliance. This action cannot be undone."
 msgstr ""
 
-#: /app/templates/index.php:5183
+#: /app/templates/index.php:5193
 msgid "What's new"
 msgstr ""
 
-#: /app/templates/index.php:5187
+#: /app/templates/index.php:5197
 msgid "Open docs site"
 msgstr ""
 
-#: /app/templates/index.php:5191 /app/templates/index.php:7828
+#: /app/templates/index.php:5201 /app/templates/index.php:7838
 msgid "Report an Issue"
 msgstr ""
 
-#: /app/templates/index.php:5199
+#: /app/templates/index.php:5209
 msgid "Documentation"
 msgstr ""
 
-#: /app/templates/index.php:5200
+#: /app/templates/index.php:5210
 msgid ""
 "A guide for every part of the app. Each one opens the full page on the "
 "documentation site."
 msgstr ""
 
-#: /app/templates/index.php:5211
+#: /app/templates/index.php:5221
 msgid "Enjoying the app?"
 msgstr ""
 
-#: /app/templates/index.php:5212
+#: /app/templates/index.php:5222
 msgid ""
 "Budget is free and open source. If it helps you keep your finances straight, "
 "a donation helps keep it maintained — everything works fully without one."
 msgstr ""
 
-#: /app/templates/index.php:5229
+#: /app/templates/index.php:5239
 msgid "Keyboard Shortcuts"
 msgstr ""
 
-#: /app/templates/index.php:5233
+#: /app/templates/index.php:5243
 msgid "Drive Budget from the keyboard"
 msgstr ""
 
-#: /app/templates/index.php:5234
+#: /app/templates/index.php:5244
 msgid ""
 "Press ? anywhere in the app for the full cheat sheet. Jump between pages "
 "with g followed by a letter, focus search with /, and edit or select rows in "
 "the transaction list without reaching for the mouse."
 msgstr ""
 
-#: /app/templates/index.php:5238
+#: /app/templates/index.php:5248
 msgid "Show shortcuts"
 msgstr ""
 
-#: /app/templates/index.php:5246
+#: /app/templates/index.php:5256
 msgid "Quick Add Page"
 msgstr ""
 
-#: /app/templates/index.php:5247
+#: /app/templates/index.php:5257
 msgid ""
 "A minimal page for adding transactions on mobile. Bookmark this URL or add "
 "it to your home screen."
 msgstr ""
 
-#: /app/templates/index.php:5249
+#: /app/templates/index.php:5259
 msgid "Quick Add Page URL"
 msgstr ""
 
-#: /app/templates/index.php:5252
+#: /app/templates/index.php:5262
 msgid "Copy URL"
 msgstr ""
 
-#: /app/templates/index.php:5259
+#: /app/templates/index.php:5269
 msgid "System Info"
 msgstr ""
 
-#: /app/templates/index.php:5260
+#: /app/templates/index.php:5270
 msgid "Copy this information when reporting issues."
 msgstr ""
 
-#: /app/templates/index.php:5266
+#: /app/templates/index.php:5276
 msgid "Copy to Clipboard"
 msgstr ""
 
-#: /app/templates/index.php:5283 /app/templates/index.php:7150
-#: /app/templates/index.php:7182
+#: /app/templates/index.php:5293 /app/templates/index.php:7160
+#: /app/templates/index.php:7192
 msgid "Tag Name"
 msgstr ""
 
-#: /app/templates/index.php:5284
+#: /app/templates/index.php:5294
 msgid "e.g., Business, Vacation, Groceries"
 msgstr ""
 
-#: /app/templates/index.php:5287 /app/templates/index.php:5475
-#: /app/templates/index.php:7059 /app/templates/index.php:7154
-#: /app/templates/index.php:7186
+#: /app/templates/index.php:5297 /app/templates/index.php:5485
+#: /app/templates/index.php:7069 /app/templates/index.php:7164
+#: /app/templates/index.php:7196
 msgid "Color"
 msgstr ""
 
-#: /app/templates/index.php:5290
+#: /app/templates/index.php:5300
 msgid "Color (hex code)"
 msgstr ""
 
-#: /app/templates/index.php:5298 /app/templates/index.php:7194
+#: /app/templates/index.php:5308 /app/templates/index.php:7204
 msgid ""
 "Stop offering this tag when tagging new transactions. Transactions that "
 "already have it keep it."
 msgstr ""
 
-#: /app/templates/index.php:5312
+#: /app/templates/index.php:5322
 msgid "Save Import Template"
 msgstr ""
 
-#: /app/templates/index.php:5317
+#: /app/templates/index.php:5327
 msgid "Template Name"
 msgstr ""
 
-#: /app/templates/index.php:5318
+#: /app/templates/index.php:5328
 msgid "e.g., My Bank Checking"
 msgstr ""
 
-#: /app/templates/index.php:5319
+#: /app/templates/index.php:5329
 msgid ""
 "Saves the current import settings (column mapping or account routing, plus "
 "options) so you can reuse them for future imports."
 msgstr ""
 
-#: /app/templates/index.php:5333
+#: /app/templates/index.php:5343
 msgid "Manage Import Templates"
 msgstr ""
 
-#: /app/templates/index.php:5351
+#: /app/templates/index.php:5361
 msgid ""
 "The figures include everything filed under the project categories, including "
 "by people you share them with. View transactions only lists the ones in "
 "accounts you can see."
 msgstr ""
 
-#: /app/templates/index.php:5353
+#: /app/templates/index.php:5363
 msgid "Subcategory"
 msgstr ""
 
-#: /app/templates/index.php:5361
+#: /app/templates/index.php:5371
 msgid "View transactions"
 msgstr ""
 
-#: /app/templates/index.php:5373
+#: /app/templates/index.php:5383
 msgid "Project form"
 msgstr ""
 
-#: /app/templates/index.php:5376
+#: /app/templates/index.php:5386
 msgid "e.g., House renovation"
 msgstr ""
 
-#: /app/templates/index.php:5381
+#: /app/templates/index.php:5391
 msgid ""
 "Everything filed under this category and its subcategories counts towards "
 "the project."
 msgstr ""
 
-#: /app/templates/index.php:5384
+#: /app/templates/index.php:5394
 msgid "Total budget"
 msgstr ""
 
-#: /app/templates/index.php:5393
+#: /app/templates/index.php:5403
 msgid "End date (optional)"
 msgstr ""
 
-#: /app/templates/index.php:5398
+#: /app/templates/index.php:5408
 msgid "Subcategory amounts (optional)"
 msgstr ""
 
-#: /app/templates/index.php:5405
+#: /app/templates/index.php:5415
 msgid "Leave these categories out of monthly budgets"
 msgstr ""
 
-#: /app/templates/index.php:5407
+#: /app/templates/index.php:5417
 msgid ""
 "Ticks Exclude from budgeting on the category, so a big project bill does not "
 "show as over budget on the Budget page. The spending still counts in reports "
 "and on the dashboard."
 msgstr ""
 
-#: /app/templates/index.php:5429
+#: /app/templates/index.php:5439
 msgid "Goal Name"
 msgstr ""
 
-#: /app/templates/index.php:5430
+#: /app/templates/index.php:5440
 msgid "e.g., Emergency Fund, Vacation, New Car"
 msgstr ""
 
-#: /app/templates/index.php:5434
+#: /app/templates/index.php:5444
 msgid "Target Amount"
 msgstr ""
 
-#: /app/templates/index.php:5439
+#: /app/templates/index.php:5449
 msgid "Current Amount"
 msgstr ""
 
-#: /app/templates/index.php:5444
+#: /app/templates/index.php:5454
 msgid "Target Date (optional)"
 msgstr ""
 
-#: /app/templates/index.php:5453
+#: /app/templates/index.php:5463
 msgid "Linked Account (optional)"
 msgstr ""
 
-#: /app/templates/index.php:5461
+#: /app/templates/index.php:5471
 msgid "Linked Tag (optional)"
 msgstr ""
 
-#: /app/templates/index.php:5467
+#: /app/templates/index.php:5477
 msgid ""
 "Money in with this tag adds to the goal and money out takes it away, "
 "including bills and transfers. A tagged transfer between your accounts "
@@ -17736,565 +17748,565 @@ msgid ""
 "in that account count."
 msgstr ""
 
-#: /app/templates/index.php:5470
+#: /app/templates/index.php:5480
 msgid ""
 "Current amount will be automatically calculated from tagged transactions."
 msgstr ""
 
-#: /app/templates/index.php:5484
+#: /app/templates/index.php:5494
 msgid "Any notes about this goal..."
 msgstr ""
 
-#: /app/templates/index.php:5491
+#: /app/templates/index.php:5501
 msgid "Save Goal"
 msgstr ""
 
-#: /app/templates/index.php:5502
+#: /app/templates/index.php:5512
 msgid "Add to"
 msgstr ""
 
-#: /app/templates/index.php:5507
+#: /app/templates/index.php:5517
 msgid "Amount to Add"
 msgstr ""
 
-#: /app/templates/index.php:5539
+#: /app/templates/index.php:5549
 msgid "Basic Information"
 msgstr ""
 
-#: /app/templates/index.php:5541
+#: /app/templates/index.php:5551
 msgid "Pension Name"
 msgstr ""
 
-#: /app/templates/index.php:5542
+#: /app/templates/index.php:5552
 msgid "e.g., Company Pension, Vanguard SIPP"
 msgstr ""
 
-#: /app/templates/index.php:5543
+#: /app/templates/index.php:5553
 msgid "A descriptive name for this pension"
 msgstr ""
 
-#: /app/templates/index.php:5547
+#: /app/templates/index.php:5557
 msgid "Pension Type"
 msgstr ""
 
-#: /app/templates/index.php:5549
+#: /app/templates/index.php:5559
 msgid "Workplace Pension"
 msgstr ""
 
-#: /app/templates/index.php:5550
+#: /app/templates/index.php:5560
 msgid "Personal Pension"
 msgstr ""
 
-#: /app/templates/index.php:5555
+#: /app/templates/index.php:5565
 msgid "Determines which fields are available below"
 msgstr ""
 
-#: /app/templates/index.php:5560
+#: /app/templates/index.php:5570
 msgid "e.g., Scottish Widows, Aviva"
 msgstr ""
 
-#: /app/templates/index.php:5561
+#: /app/templates/index.php:5571
 msgid "Pension provider or scheme administrator"
 msgstr ""
 
-#: /app/templates/index.php:5574
+#: /app/templates/index.php:5584
 msgid "Financial Details"
 msgstr ""
 
-#: /app/templates/index.php:5579
+#: /app/templates/index.php:5589
 msgid "Current total value of the pension pot"
 msgstr ""
 
-#: /app/templates/index.php:5585
+#: /app/templates/index.php:5595
 msgid "Combined employee and employer contribution"
 msgstr ""
 
-#: /app/templates/index.php:5589
+#: /app/templates/index.php:5599
 #, php-format
 msgid "Expected Annual Return (%%)"
 msgstr ""
 
-#: /app/templates/index.php:5591
+#: /app/templates/index.php:5601
 msgid "Estimated yearly growth rate for projections"
 msgstr ""
 
-#: /app/templates/index.php:5597
+#: /app/templates/index.php:5607
 msgid "Age you plan to start drawing this pension"
 msgstr ""
 
-#: /app/templates/index.php:5601
+#: /app/templates/index.php:5611
 msgid "Target Pot at Retirement"
 msgstr ""
 
-#: /app/templates/index.php:5603
+#: /app/templates/index.php:5613
 msgid ""
 "Goal pot value used for the projection progress bar (leave blank for the "
 "default)"
 msgstr ""
 
-#: /app/templates/index.php:5607
+#: /app/templates/index.php:5617
 msgid "Income Details"
 msgstr ""
 
-#: /app/templates/index.php:5610
+#: /app/templates/index.php:5620
 msgid "Projected Annual Income"
 msgstr ""
 
-#: /app/templates/index.php:5612
+#: /app/templates/index.php:5622
 msgid "Expected yearly income at retirement"
 msgstr ""
 
-#: /app/templates/index.php:5616
+#: /app/templates/index.php:5626
 msgid "Transfer Value"
 msgstr ""
 
-#: /app/templates/index.php:5618
+#: /app/templates/index.php:5628
 msgid "Cash equivalent transfer value (CETV) if known"
 msgstr ""
 
-#: /app/templates/index.php:5624
+#: /app/templates/index.php:5634
 msgid "Normal retirement age for this scheme"
 msgstr ""
 
-#: /app/templates/index.php:5631
+#: /app/templates/index.php:5641
 msgid "Save Pension"
 msgstr ""
 
-#: /app/templates/index.php:5657
+#: /app/templates/index.php:5667
 msgid "Update"
 msgstr ""
 
-#: /app/templates/index.php:5680
+#: /app/templates/index.php:5690
 msgid "Came from account"
 msgstr ""
 
-#: /app/templates/index.php:5684
+#: /app/templates/index.php:5694
 msgid ""
 "Optional: records a matching withdrawal in that account and keeps it out of "
 "your spending"
 msgstr ""
 
-#: /app/templates/index.php:5687 /app/templates/index.php:5723
-#: /app/templates/index.php:5770
+#: /app/templates/index.php:5697 /app/templates/index.php:5733
+#: /app/templates/index.php:5780
 msgid "Note"
 msgstr ""
 
-#: /app/templates/index.php:5688
+#: /app/templates/index.php:5698
 msgid "e.g., Bonus top-up"
 msgstr ""
 
-#: /app/templates/index.php:5693
+#: /app/templates/index.php:5703
 msgid "Log"
 msgstr ""
 
-#: /app/templates/index.php:5716
+#: /app/templates/index.php:5726
 msgid "Paid into account"
 msgstr ""
 
-#: /app/templates/index.php:5720
+#: /app/templates/index.php:5730
 msgid "Optional: records a matching deposit in that account"
 msgstr ""
 
-#: /app/templates/index.php:5724
+#: /app/templates/index.php:5734
 msgid "e.g., Tax-free lump sum"
 msgstr ""
 
-#: /app/templates/index.php:5729
+#: /app/templates/index.php:5739
 msgid "Record"
 msgstr ""
 
-#: /app/templates/index.php:5739
+#: /app/templates/index.php:5749
 msgid "Scheduled Contribution"
 msgstr ""
 
-#: /app/templates/index.php:5756
+#: /app/templates/index.php:5766
 msgid "Next Date"
 msgstr ""
 
-#: /app/templates/index.php:5760
+#: /app/templates/index.php:5770
 msgid "From account"
 msgstr ""
 
-#: /app/templates/index.php:5766
+#: /app/templates/index.php:5776
 msgid "Auto-post when due"
 msgstr ""
 
-#: /app/templates/index.php:5767
+#: /app/templates/index.php:5777
 msgid ""
 "Automatically record the contribution (and transfer, if an account is set) "
 "on the due date"
 msgstr ""
 
-#: /app/templates/index.php:5805
+#: /app/templates/index.php:5815
 msgid "e.g., 42 Maple Street, Tesla Model 3"
 msgstr ""
 
-#: /app/templates/index.php:5806
+#: /app/templates/index.php:5816
 msgid "A descriptive name for this asset"
 msgstr ""
 
-#: /app/templates/index.php:5822
+#: /app/templates/index.php:5832
 msgid "Optional notes about this asset"
 msgstr ""
 
-#: /app/templates/index.php:5828
+#: /app/templates/index.php:5838
 msgid "Valuation"
 msgstr ""
 
-#: /app/templates/index.php:5832
+#: /app/templates/index.php:5842
 msgid "Today's estimated market value"
 msgstr ""
 
-#: /app/templates/index.php:5845
+#: /app/templates/index.php:5855
 msgid "Original acquisition cost"
 msgstr ""
 
-#: /app/templates/index.php:5854
+#: /app/templates/index.php:5864
 msgid "Growth / Depreciation"
 msgstr ""
 
-#: /app/templates/index.php:5856
+#: /app/templates/index.php:5866
 #, php-format
 msgid "Annual Change Rate (%%)"
 msgstr ""
 
-#: /app/templates/index.php:5857
+#: /app/templates/index.php:5867
 msgid "e.g., 3.5"
 msgstr ""
 
-#: /app/templates/index.php:5858
+#: /app/templates/index.php:5868
 msgid ""
 "Positive for appreciation (e.g., 3.5), negative for depreciation (e.g., "
 "-15). Used for value projections."
 msgstr ""
 
-#: /app/templates/index.php:5865
+#: /app/templates/index.php:5875
 msgid "Save Asset"
 msgstr ""
 
-#: /app/templates/index.php:5888
+#: /app/templates/index.php:5898
 msgid ""
 "Record a new valuation for this asset. This creates a snapshot in the value "
 "history."
 msgstr ""
 
-#: /app/templates/index.php:5916
+#: /app/templates/index.php:5926
 msgid "Scenario"
 msgstr ""
 
-#: /app/templates/index.php:5918
+#: /app/templates/index.php:5928
 msgid "Scenario Name"
 msgstr ""
 
-#: /app/templates/index.php:5919
+#: /app/templates/index.php:5929
 msgid "e.g., Aggressive Payoff"
 msgstr ""
 
-#: /app/templates/index.php:5920
+#: /app/templates/index.php:5930
 msgid "A descriptive name for this scenario"
 msgstr ""
 
-#: /app/templates/index.php:5924
+#: /app/templates/index.php:5934
 msgid "Strategy"
 msgstr ""
 
-#: /app/templates/index.php:5926
+#: /app/templates/index.php:5936
 msgid "Avalanche (highest rate first)"
 msgstr ""
 
-#: /app/templates/index.php:5927
+#: /app/templates/index.php:5937
 msgid "Snowball (smallest balance first)"
 msgstr ""
 
-#: /app/templates/index.php:5929
+#: /app/templates/index.php:5939
 msgid ""
 "Avalanche saves the most interest. Snowball pays off small debts first for "
 "motivation."
 msgstr ""
 
-#: /app/templates/index.php:5935
+#: /app/templates/index.php:5945
 msgid "Payments"
 msgstr ""
 
-#: /app/templates/index.php:5937
+#: /app/templates/index.php:5947
 msgid "Extra Monthly Payment"
 msgstr ""
 
-#: /app/templates/index.php:5939
+#: /app/templates/index.php:5949
 msgid "Additional amount paid each month beyond minimums"
 msgstr ""
 
-#: /app/templates/index.php:5943
+#: /app/templates/index.php:5953
 msgid "One-Time Lump Sum"
 msgstr ""
 
-#: /app/templates/index.php:5945
+#: /app/templates/index.php:5955
 msgid "A single extra payment applied once"
 msgstr ""
 
-#: /app/templates/index.php:5949
+#: /app/templates/index.php:5959
 msgid "Apply Lump Sum In Month"
 msgstr ""
 
-#: /app/templates/index.php:5951
+#: /app/templates/index.php:5961
 msgid "Which month to apply the lump sum (1 = immediately)"
 msgstr ""
 
-#: /app/templates/index.php:5959
+#: /app/templates/index.php:5969
 msgid "Include Debts"
 msgstr ""
 
-#: /app/templates/index.php:5961
+#: /app/templates/index.php:5971
 msgid "Select which debts to include in this scenario"
 msgstr ""
 
-#: /app/templates/index.php:5965
+#: /app/templates/index.php:5975
 msgid "Rate Overrides"
 msgstr ""
 
-#: /app/templates/index.php:5966
+#: /app/templates/index.php:5976
 msgid "Optionally override interest rates for what-if analysis"
 msgstr ""
 
-#: /app/templates/index.php:5974
+#: /app/templates/index.php:5984
 msgid "Save & Calculate"
 msgstr ""
 
-#: /app/templates/index.php:6003
+#: /app/templates/index.php:6013
 msgid "This overrides the automatic rate for your account only."
 msgstr ""
 
-#: /app/templates/index.php:6007
+#: /app/templates/index.php:6017
 msgid "Save Rate"
 msgstr ""
 
-#: /app/templates/index.php:6036
+#: /app/templates/index.php:6046
 msgid "Choose transaction type"
 msgstr ""
 
-#: /app/templates/index.php:6047
+#: /app/templates/index.php:6057
 msgid "Destination Amount"
 msgstr ""
 
-#: /app/templates/index.php:6049
+#: /app/templates/index.php:6059
 msgid "Auto-filled from the exchange rate, editable"
 msgstr ""
 
-#: /app/templates/index.php:6060
+#: /app/templates/index.php:6070
 msgid "Choose destination account"
 msgstr ""
 
-#: /app/templates/index.php:6080
+#: /app/templates/index.php:6090
 msgid "Merchant or person"
 msgstr ""
 
-#: /app/templates/index.php:6108
+#: /app/templates/index.php:6118
 msgid "More options"
 msgstr ""
 
-#: /app/templates/index.php:6114
+#: /app/templates/index.php:6124
 msgid "Scan a receipt"
 msgstr ""
 
-#: /app/templates/index.php:6118
+#: /app/templates/index.php:6128
 msgid "Drop a photo here, or click to choose one"
 msgstr ""
 
-#: /app/templates/index.php:6122 /app/templates/quick-add.php:106
+#: /app/templates/index.php:6132 /app/templates/quick-add.php:106
 msgid "Reading the receipt…"
 msgstr ""
 
-#: /app/templates/index.php:6127
+#: /app/templates/index.php:6137
 msgid ""
 "The photo is read by the receipt scanning set up in Budget's Admin Settings "
 "and fills in the form for you to check. It is attached to the transaction "
 "when you save."
 msgstr ""
 
-#: /app/templates/index.php:6134 /app/templates/quick-add.php:22
+#: /app/templates/index.php:6144 /app/templates/quick-add.php:22
 msgid "Upload receipt"
 msgstr ""
 
-#: /app/templates/index.php:6136
+#: /app/templates/index.php:6146
 msgid "Choose from Files"
 msgstr ""
 
-#: /app/templates/index.php:6138
+#: /app/templates/index.php:6148
 msgid ""
 "Receipts are stored in your Files (Budget/Receipts) and linked to this "
 "transaction."
 msgstr ""
 
-#: /app/templates/index.php:6150
+#: /app/templates/index.php:6160
 msgid "Exclude from forecast (extraordinary / one-time)"
 msgstr ""
 
-#: /app/templates/index.php:6152
+#: /app/templates/index.php:6162
 msgid ""
 "Keeps this one-off amount out of forecast averages. It still affects your "
 "account balance."
 msgstr ""
 
-#: /app/templates/index.php:6162
+#: /app/templates/index.php:6172
 msgid "Split Details"
 msgstr ""
 
-#: /app/templates/index.php:6166
+#: /app/templates/index.php:6176
 msgid "Add Row"
 msgstr ""
 
-#: /app/templates/index.php:6171
+#: /app/templates/index.php:6181
 msgid "Save transaction"
 msgstr ""
 
-#: /app/templates/index.php:6172 /app/templates/index.php:6380
-#: /app/templates/index.php:6614 /app/templates/index.php:6784
-#: /app/templates/index.php:7001 /app/templates/index.php:7020
-#: /app/templates/index.php:7102 /app/templates/index.php:7385
-#: /app/templates/index.php:7425 /app/templates/index.php:7451
+#: /app/templates/index.php:6182 /app/templates/index.php:6390
+#: /app/templates/index.php:6624 /app/templates/index.php:6794
+#: /app/templates/index.php:7011 /app/templates/index.php:7030
+#: /app/templates/index.php:7112 /app/templates/index.php:7395
+#: /app/templates/index.php:7435 /app/templates/index.php:7461
 msgid "Cancel and close dialog"
 msgstr ""
 
-#: /app/templates/index.php:6181
+#: /app/templates/index.php:6191
 msgid "Add/Edit Account"
 msgstr ""
 
-#: /app/templates/index.php:6193
+#: /app/templates/index.php:6203
 msgid "e.g. Everyday Current"
 msgstr ""
 
-#: /app/templates/index.php:6199
+#: /app/templates/index.php:6209
 msgid "Choose account type"
 msgstr ""
 
-#: /app/templates/index.php:6203
+#: /app/templates/index.php:6213
 msgid "Investment Account"
 msgstr ""
 
-#: /app/templates/index.php:6204
+#: /app/templates/index.php:6214
 msgid "Loan Account"
 msgstr ""
 
-#: /app/templates/index.php:6206
+#: /app/templates/index.php:6216
 msgid "Line of Credit"
 msgstr ""
 
-#: /app/templates/index.php:6221
+#: /app/templates/index.php:6231
 msgid "This account is in credit — you have overpaid it"
 msgstr ""
 
-#: /app/templates/index.php:6223
+#: /app/templates/index.php:6233
 msgid ""
 "Tick this only if the lender owes you money. For a normal debt, leave it "
 "unticked and the app adds the minus sign for you."
 msgstr ""
 
-#: /app/templates/index.php:6242
+#: /app/templates/index.php:6252
 msgid "e.g. Chase, NatWest"
 msgstr ""
 
-#: /app/templates/index.php:6251
+#: /app/templates/index.php:6261
 msgid "Banking"
 msgstr ""
 
-#: /app/templates/index.php:6253
+#: /app/templates/index.php:6263
 msgid "Account Holder Name"
 msgstr ""
 
-#: /app/templates/index.php:6263
+#: /app/templates/index.php:6273
 msgid "Opening Date"
 msgstr ""
 
-#: /app/templates/index.php:6269
+#: /app/templates/index.php:6279
 msgid "9 digits (US banks)"
 msgstr ""
 
-#: /app/templates/index.php:6274
+#: /app/templates/index.php:6284
 msgid "6 digits (UK banks)"
 msgstr ""
 
-#: /app/templates/index.php:6283
+#: /app/templates/index.php:6293
 msgid "SWIFT/BIC Code"
 msgstr ""
 
-#: /app/templates/index.php:6288
+#: /app/templates/index.php:6298
 msgid "Wallet Address"
 msgstr ""
 
-#: /app/templates/index.php:6290
+#: /app/templates/index.php:6300
 msgid "Stored encrypted"
 msgstr ""
 
-#: /app/templates/index.php:6299
+#: /app/templates/index.php:6309
 msgid "Rates & limits"
 msgstr ""
 
-#: /app/templates/index.php:6301
+#: /app/templates/index.php:6311
 #, php-format
 msgid "Interest Rate (%%)"
 msgstr ""
 
-#: /app/templates/index.php:6306
+#: /app/templates/index.php:6316
 msgid "Compounding Frequency"
 msgstr ""
 
-#: /app/templates/index.php:6311
+#: /app/templates/index.php:6321
 msgid "Simple (no compounding)"
 msgstr ""
 
-#: /app/templates/index.php:6316
+#: /app/templates/index.php:6326
 #, php-format
 msgid "Promotional rate (%%)"
 msgstr ""
 
-#: /app/templates/index.php:6318
+#: /app/templates/index.php:6328
 msgid "Starts on"
 msgstr ""
 
-#: /app/templates/index.php:6320
+#: /app/templates/index.php:6330
 msgid "Ends on"
 msgstr ""
 
-#: /app/templates/index.php:6322
+#: /app/templates/index.php:6332
 #, php-format
 msgid ""
 "e.g. 0%% on purchases or balance transfers. The normal rate applies from the "
 "end date."
 msgstr ""
 
-#: /app/templates/index.php:6323
+#: /app/templates/index.php:6333
 msgid "Remove promotional rate"
 msgstr ""
 
-#: /app/templates/index.php:6332
+#: /app/templates/index.php:6342
 msgid "Overdraft Limit"
 msgstr ""
 
-#: /app/templates/index.php:6337
+#: /app/templates/index.php:6347
 msgid "Minimum Payment"
 msgstr ""
 
-#: /app/templates/index.php:6339
+#: /app/templates/index.php:6349
 msgid "Used for debt payoff calculations"
 msgstr ""
 
-#: /app/templates/index.php:6345
+#: /app/templates/index.php:6355
 msgid "Day of the month the statement payment is due"
 msgstr ""
 
-#: /app/templates/index.php:6351
+#: /app/templates/index.php:6361
 msgid "Track accrued interest over time, with variable rate support"
 msgstr ""
 
-#: /app/templates/index.php:6357
+#: /app/templates/index.php:6367
 msgid "Advanced"
 msgstr ""
 
-#: /app/templates/index.php:6361
+#: /app/templates/index.php:6371
 msgid "Exclude from reports, dashboard & forecast"
 msgstr ""
 
-#: /app/templates/index.php:6363
+#: /app/templates/index.php:6373
 msgid ""
 "Keep tracking this account, but leave its transactions and balance out of "
 "every \"all accounts\" total — reports, the dashboard, forecast, net worth "
@@ -18302,11 +18314,11 @@ msgid ""
 "page."
 msgstr ""
 
-#: /app/templates/index.php:6368
+#: /app/templates/index.php:6378
 msgid "This account is closed"
 msgstr ""
 
-#: /app/templates/index.php:6370
+#: /app/templates/index.php:6380
 msgid ""
 "Keeps its history and its figures in reports, but the account no longer "
 "appears where you pick an account for new transactions, transfers, bills, "
@@ -18314,1012 +18326,1012 @@ msgid ""
 "into or out of it."
 msgstr ""
 
-#: /app/templates/index.php:6379
+#: /app/templates/index.php:6389
 msgid "Save account"
 msgstr ""
 
-#: /app/templates/index.php:6389
+#: /app/templates/index.php:6399
 msgid "Add/Edit Bill"
 msgstr ""
 
-#: /app/templates/index.php:6400
+#: /app/templates/index.php:6410
 msgid "Bill Name / Vendor"
 msgstr ""
 
-#: /app/templates/index.php:6401
+#: /app/templates/index.php:6411
 msgid "e.g., Netflix, Rent, Electric Bill"
 msgstr ""
 
-#: /app/templates/index.php:6402
+#: /app/templates/index.php:6412
 msgid "Name of the vendor or recurring bill"
 msgstr ""
 
-#: /app/templates/index.php:6407 /app/templates/index.php:6892
+#: /app/templates/index.php:6417 /app/templates/index.php:6902
 msgid "Transaction description (optional)"
 msgstr ""
 
-#: /app/templates/index.php:6408 /app/templates/index.php:6893
+#: /app/templates/index.php:6418 /app/templates/index.php:6903
 msgid "Used as the description when transactions are auto-generated"
 msgstr ""
 
-#: /app/templates/index.php:6414
+#: /app/templates/index.php:6424
 msgid "Expected bill amount"
 msgstr ""
 
-#: /app/templates/index.php:6430
+#: /app/templates/index.php:6440
 msgid "How often this bill is due"
 msgstr ""
 
-#: /app/templates/index.php:6434
+#: /app/templates/index.php:6444
 msgid "Select Months"
 msgstr ""
 
-#: /app/templates/index.php:6449
+#: /app/templates/index.php:6459
 msgid "Select which months this bill occurs"
 msgstr ""
 
-#: /app/templates/index.php:6461 /app/templates/index.php:6938
+#: /app/templates/index.php:6471 /app/templates/index.php:6948
 msgid "Select month..."
 msgstr ""
 
-#: /app/templates/index.php:6475
+#: /app/templates/index.php:6485
 msgid "Month when yearly bill is due"
 msgstr ""
 
-#: /app/templates/index.php:6483
+#: /app/templates/index.php:6493
 msgid "Payment"
 msgstr ""
 
-#: /app/templates/index.php:6489
+#: /app/templates/index.php:6499
 msgid "Categorize this bill (optional)"
 msgstr ""
 
-#: /app/templates/index.php:6500
+#: /app/templates/index.php:6510
 msgid "Define how this bill should be split across categories when paid"
 msgstr ""
 
-#: /app/templates/index.php:6504
+#: /app/templates/index.php:6514
 msgid "Pay From Account"
 msgstr ""
 
-#: /app/templates/index.php:6508
+#: /app/templates/index.php:6518
 msgid "Account used to pay this bill (optional)"
 msgstr ""
 
-#: /app/templates/index.php:6512 /app/templates/index.php:6980
+#: /app/templates/index.php:6522 /app/templates/index.php:6990
 msgid "Auto-detect Pattern"
 msgstr ""
 
-#: /app/templates/index.php:6513
+#: /app/templates/index.php:6523
 msgid "e.g., NETFLIX, SPOTIFY"
 msgstr ""
 
-#: /app/templates/index.php:6514
+#: /app/templates/index.php:6524
 msgid ""
 "Imported transactions matching this pattern (similar amount, near the due "
 "date) automatically mark the bill as paid"
 msgstr ""
 
-#: /app/templates/index.php:6519 /app/templates/index.php:6987
+#: /app/templates/index.php:6529 /app/templates/index.php:6997
 msgid "Additional notes..."
 msgstr ""
 
-#: /app/templates/index.php:6520 /app/templates/index.php:6988
+#: /app/templates/index.php:6530 /app/templates/index.php:6998
 msgid "Any additional notes (optional)"
 msgstr ""
 
-#: /app/templates/index.php:6528
+#: /app/templates/index.php:6538
 msgid "Schedule"
 msgstr ""
 
-#: /app/templates/index.php:6537
+#: /app/templates/index.php:6547
 msgid "End Date"
 msgstr ""
 
-#: /app/templates/index.php:6539
+#: /app/templates/index.php:6549
 msgid "Bill will automatically stop after this date (optional)"
 msgstr ""
 
-#: /app/templates/index.php:6543
+#: /app/templates/index.php:6553
 msgid "Remaining Payments"
 msgstr ""
 
-#: /app/templates/index.php:6544
+#: /app/templates/index.php:6554
 msgid "e.g., 10"
 msgstr ""
 
-#: /app/templates/index.php:6545
+#: /app/templates/index.php:6555
 msgid "Number of payments left before bill auto-deactivates (optional)"
 msgstr ""
 
-#: /app/templates/index.php:6549
+#: /app/templates/index.php:6559
 msgid "Reminder"
 msgstr ""
 
-#: /app/templates/index.php:6551
+#: /app/templates/index.php:6561
 msgid "No reminder"
 msgstr ""
 
-#: /app/templates/index.php:6552
+#: /app/templates/index.php:6562
 msgid "On due date"
 msgstr ""
 
-#: /app/templates/index.php:6553
+#: /app/templates/index.php:6563
 msgid "1 day before"
 msgstr ""
 
-#: /app/templates/index.php:6554
+#: /app/templates/index.php:6564
 msgid "2 days before"
 msgstr ""
 
-#: /app/templates/index.php:6555
+#: /app/templates/index.php:6565
 msgid "3 days before"
 msgstr ""
 
-#: /app/templates/index.php:6556
+#: /app/templates/index.php:6566
 msgid "5 days before"
 msgstr ""
 
-#: /app/templates/index.php:6557
+#: /app/templates/index.php:6567
 msgid "1 week before"
 msgstr ""
 
-#: /app/templates/index.php:6558
+#: /app/templates/index.php:6568
 msgid "2 weeks before"
 msgstr ""
 
-#: /app/templates/index.php:6560
+#: /app/templates/index.php:6570
 msgid "Receive a notification before bill is due"
 msgstr ""
 
-#: /app/templates/index.php:6566
+#: /app/templates/index.php:6576
 msgid "Create future transaction for this bill"
 msgstr ""
 
-#: /app/templates/index.php:6568
+#: /app/templates/index.php:6578
 msgid ""
 "Keeps a scheduled transaction for the next due date so the upcoming payment "
 "shows in the transaction list and forecasts. Untick to never pre-create "
 "transactions for this bill."
 msgstr ""
 
-#: /app/templates/index.php:6580
+#: /app/templates/index.php:6590
 msgid "Auto-pay when due"
 msgstr ""
 
-#: /app/templates/index.php:6582
+#: /app/templates/index.php:6592
 msgid ""
 "Automatically mark this bill as paid when due date arrives (requires account)"
 msgstr ""
 
-#: /app/templates/index.php:6588 /app/templates/index.php:6994
+#: /app/templates/index.php:6598 /app/templates/index.php:7004
 msgid "Exclude from forecast (extraordinary)"
 msgstr ""
 
-#: /app/templates/index.php:6590
+#: /app/templates/index.php:6600
 msgid "Transactions generated by this bill are left out of forecast averages."
 msgstr ""
 
-#: /app/templates/index.php:6595
+#: /app/templates/index.php:6605
 msgid "Auto-pay failed!"
 msgstr ""
 
-#: /app/templates/index.php:6595
+#: /app/templates/index.php:6605
 msgid ""
 "Auto-pay has been disabled. Please check the bill details and re-enable if "
 "needed."
 msgstr ""
 
-#: /app/templates/index.php:6606 /app/templates/index.php:7372
+#: /app/templates/index.php:6616 /app/templates/index.php:7382
 msgid "Add Split"
 msgstr ""
 
-#: /app/templates/index.php:6613
+#: /app/templates/index.php:6623
 msgid "Save bill"
 msgstr ""
 
-#: /app/templates/index.php:6623
+#: /app/templates/index.php:6633
 msgid "Add/Edit Rule"
 msgstr ""
 
-#: /app/templates/index.php:6628
+#: /app/templates/index.php:6638
 msgid "Rule editor view"
 msgstr ""
 
-#: /app/templates/index.php:6629
+#: /app/templates/index.php:6639
 msgid "Builder"
 msgstr ""
 
-#: /app/templates/index.php:6638
+#: /app/templates/index.php:6648
 msgid "Rule Name"
 msgstr ""
 
-#: /app/templates/index.php:6639
+#: /app/templates/index.php:6649
 msgid "e.g., Amazon Purchases, Grocery Stores"
 msgstr ""
 
-#: /app/templates/index.php:6640
+#: /app/templates/index.php:6650
 msgid "A descriptive name for this rule"
 msgstr ""
 
-#: /app/templates/index.php:6644
+#: /app/templates/index.php:6654
 msgid "Group"
 msgstr ""
 
-#: /app/templates/index.php:6647
+#: /app/templates/index.php:6657
 msgid "Optional"
 msgstr ""
 
-#: /app/templates/index.php:6651
+#: /app/templates/index.php:6661
 msgid "Priority"
 msgstr ""
 
-#: /app/templates/index.php:6660
+#: /app/templates/index.php:6670
 msgid "Matching Criteria"
 msgstr ""
 
-#: /app/templates/index.php:6661
+#: /app/templates/index.php:6671
 msgid "Define when this rule should apply to a transaction"
 msgstr ""
 
-#: /app/templates/index.php:6666
+#: /app/templates/index.php:6676
 msgid "Match Field"
 msgstr ""
 
-#: /app/templates/index.php:6674
+#: /app/templates/index.php:6684
 msgid "Which transaction field to match against"
 msgstr ""
 
-#: /app/templates/index.php:6680
+#: /app/templates/index.php:6690
 msgid "Contains"
 msgstr ""
 
-#: /app/templates/index.php:6681
+#: /app/templates/index.php:6691
 msgid "Exact Match"
 msgstr ""
 
-#: /app/templates/index.php:6682
+#: /app/templates/index.php:6692
 msgid "Starts With"
 msgstr ""
 
-#: /app/templates/index.php:6683
+#: /app/templates/index.php:6693
 msgid "Ends With"
 msgstr ""
 
-#: /app/templates/index.php:6684
+#: /app/templates/index.php:6694
 msgid "Regex"
 msgstr ""
 
-#: /app/templates/index.php:6686
+#: /app/templates/index.php:6696
 msgid "How to match the pattern"
 msgstr ""
 
-#: /app/templates/index.php:6691
+#: /app/templates/index.php:6701
 msgid "e.g., AMAZON, grocery|supermarket"
 msgstr ""
 
-#: /app/templates/index.php:6692
+#: /app/templates/index.php:6702
 msgid "Text or pattern to match (case-insensitive)"
 msgstr ""
 
-#: /app/templates/index.php:6705
+#: /app/templates/index.php:6715
 msgid "What to do when a transaction matches these criteria"
 msgstr ""
 
-#: /app/templates/index.php:6717
+#: /app/templates/index.php:6727
 msgid "Only active rules are applied"
 msgstr ""
 
-#: /app/templates/index.php:6723
+#: /app/templates/index.php:6733
 msgid "Apply during import"
 msgstr ""
 
-#: /app/templates/index.php:6725
+#: /app/templates/index.php:6735
 msgid "Auto-apply when importing transactions"
 msgstr ""
 
-#: /app/templates/index.php:6734
+#: /app/templates/index.php:6744
 msgid "Rule JSON"
 msgstr ""
 
-#: /app/templates/index.php:6736
+#: /app/templates/index.php:6746
 msgid ""
 "The raw rule structure. Edit or paste JSON here — it is checked when you "
 "save. Copy it to move a rule between instances (category and account IDs are "
 "instance-specific and may need adjusting)."
 msgstr ""
 
-#: /app/templates/index.php:6740
+#: /app/templates/index.php:6750
 msgid "Copy JSON"
 msgstr ""
 
-#: /app/templates/index.php:6746
+#: /app/templates/index.php:6756
 msgid "matching transactions"
 msgstr ""
 
-#: /app/templates/index.php:6746
+#: /app/templates/index.php:6756
 msgid "showing first 50"
 msgstr ""
 
-#: /app/templates/index.php:6767 /app/templates/index.php:6836
+#: /app/templates/index.php:6777 /app/templates/index.php:6846
 msgid "Updated"
 msgstr ""
 
-#: /app/templates/index.php:6771 /app/templates/index.php:6840
+#: /app/templates/index.php:6781 /app/templates/index.php:6850
 msgid "Skipped"
 msgstr ""
 
-#: /app/templates/index.php:6775 /app/templates/index.php:6844
+#: /app/templates/index.php:6785 /app/templates/index.php:6854
 msgid "Failed"
 msgstr ""
 
-#: /app/templates/index.php:6781
+#: /app/templates/index.php:6791
 msgid "Preview matching transactions"
 msgstr ""
 
-#: /app/templates/index.php:6782
+#: /app/templates/index.php:6792
 msgid "Apply rule to uncategorized transactions now"
 msgstr ""
 
-#: /app/templates/index.php:6783
+#: /app/templates/index.php:6793
 msgid "Save rule"
 msgstr ""
 
-#: /app/templates/index.php:6793
+#: /app/templates/index.php:6803
 msgid "Apply Rules to Transactions"
 msgstr ""
 
-#: /app/templates/index.php:6822 /app/templates/index.php:6866
+#: /app/templates/index.php:6832 /app/templates/index.php:6876
 msgid "Only apply to uncategorized transactions"
 msgstr ""
 
-#: /app/templates/index.php:6824
+#: /app/templates/index.php:6834
 msgid ""
 "When enabled, rules will only be applied to transactions that don't have a "
 "category assigned"
 msgstr ""
 
-#: /app/templates/index.php:6859
+#: /app/templates/index.php:6869
 msgid "Run Rule"
 msgstr ""
 
-#: /app/templates/index.php:6880
+#: /app/templates/index.php:6890
 msgid "Add/Edit Recurring Income"
 msgstr ""
 
-#: /app/templates/index.php:6885
+#: /app/templates/index.php:6895
 msgid "Income Name"
 msgstr ""
 
-#: /app/templates/index.php:6886
+#: /app/templates/index.php:6896
 msgid "e.g., Salary, Dividends, Rental Income"
 msgstr ""
 
-#: /app/templates/index.php:6887
+#: /app/templates/index.php:6897
 msgid "Name of the recurring income"
 msgstr ""
 
-#: /app/templates/index.php:6897
+#: /app/templates/index.php:6907
 msgid "Expected Amount"
 msgstr ""
 
-#: /app/templates/index.php:6899
+#: /app/templates/index.php:6909
 msgid "Expected amount each period"
 msgstr ""
 
-#: /app/templates/index.php:6904
+#: /app/templates/index.php:6914
 msgid "e.g., Employer Name, Company"
 msgstr ""
 
-#: /app/templates/index.php:6905
+#: /app/templates/index.php:6915
 msgid "Who pays this income (optional)"
 msgstr ""
 
-#: /app/templates/index.php:6920
+#: /app/templates/index.php:6930
 msgid "How often you receive this income"
 msgstr ""
 
-#: /app/templates/index.php:6936
+#: /app/templates/index.php:6946
 msgid "Expected Month"
 msgstr ""
 
-#: /app/templates/index.php:6952
+#: /app/templates/index.php:6962
 msgid "Month when yearly income is expected"
 msgstr ""
 
-#: /app/templates/index.php:6960
+#: /app/templates/index.php:6970
 msgid "Categorize this income (optional)"
 msgstr ""
 
-#: /app/templates/index.php:6964
+#: /app/templates/index.php:6974
 msgid "Receive To Account"
 msgstr ""
 
-#: /app/templates/index.php:6968
+#: /app/templates/index.php:6978
 msgid "Account where income is received (optional)"
 msgstr ""
 
-#: /app/templates/index.php:6974
+#: /app/templates/index.php:6984
 msgid "Auto-create transaction when due"
 msgstr ""
 
-#: /app/templates/index.php:6976
+#: /app/templates/index.php:6986
 msgid ""
 "Automatically create a transaction when the expected date arrives (requires "
 "account)"
 msgstr ""
 
-#: /app/templates/index.php:6981
+#: /app/templates/index.php:6991
 msgid "e.g., PAYROLL, DIVIDEND"
 msgstr ""
 
-#: /app/templates/index.php:6982
+#: /app/templates/index.php:6992
 msgid "Pattern to match in transaction descriptions for auto-linking"
 msgstr ""
 
-#: /app/templates/index.php:6996
+#: /app/templates/index.php:7006
 msgid ""
 "Transactions generated by this income are left out of forecast averages."
 msgstr ""
 
-#: /app/templates/index.php:7000
+#: /app/templates/index.php:7010
 msgid "Save income"
 msgstr ""
 
-#: /app/templates/index.php:7011
+#: /app/templates/index.php:7021
 msgid "Import Categories"
 msgstr ""
 
-#: /app/templates/index.php:7016
+#: /app/templates/index.php:7026
 msgid ""
 "Categories that already exist are left unchanged; anything missing is "
 "created underneath them."
 msgstr ""
 
-#: /app/templates/index.php:7027
+#: /app/templates/index.php:7037
 msgid "Add/Edit Category"
 msgstr ""
 
-#: /app/templates/index.php:7038
+#: /app/templates/index.php:7048
 msgid "Category Name"
 msgstr ""
 
-#: /app/templates/index.php:7051
+#: /app/templates/index.php:7061
 msgid "Parent Category"
 msgstr ""
 
-#: /app/templates/index.php:7055
+#: /app/templates/index.php:7065
 msgid "Make this a subcategory (optional)"
 msgstr ""
 
-#: /app/templates/index.php:7061
+#: /app/templates/index.php:7071
 msgid "Color for charts and display"
 msgstr ""
 
-#: /app/templates/index.php:7065
+#: /app/templates/index.php:7075
 msgid "Icon"
 msgstr ""
 
-#: /app/templates/index.php:7075
+#: /app/templates/index.php:7085
 msgid "Options"
 msgstr ""
 
-#: /app/templates/index.php:7079
+#: /app/templates/index.php:7089
 msgid "Exclude from reports"
 msgstr ""
 
-#: /app/templates/index.php:7081
+#: /app/templates/index.php:7091
 msgid ""
 "Transactions in this category will not count toward budgets, spending "
 "reports, or dashboard totals."
 msgstr ""
 
-#: /app/templates/index.php:7087
+#: /app/templates/index.php:7097
 msgid "Exclude from budgeting"
 msgstr ""
 
-#: /app/templates/index.php:7089
+#: /app/templates/index.php:7099
 msgid ""
 "For spending you track but never budget against. The category keeps counting "
 "in reports, the dashboard and every total — it just drops out of the Budget "
 "page, budget alerts and the budget report, along with its subcategories."
 msgstr ""
 
-#: /app/templates/index.php:7101
+#: /app/templates/index.php:7111
 msgid "Save category"
 msgstr ""
 
-#: /app/templates/index.php:7119 /app/templates/index.php:7220
+#: /app/templates/index.php:7129 /app/templates/index.php:7230
 msgid "Tag Set Name"
 msgstr ""
 
-#: /app/templates/index.php:7120 /app/templates/index.php:7221
+#: /app/templates/index.php:7130 /app/templates/index.php:7231
 msgid "e.g., Activity, Equipment, Location"
 msgstr ""
 
-#: /app/templates/index.php:7124 /app/templates/index.php:7225
+#: /app/templates/index.php:7134 /app/templates/index.php:7235
 msgid "Optional description"
 msgstr ""
 
-#: /app/templates/index.php:7151 /app/templates/index.php:7183
+#: /app/templates/index.php:7161 /app/templates/index.php:7193
 msgid "e.g., Fishing, Rods, Online"
 msgstr ""
 
-#: /app/templates/index.php:7201 /app/templates/index.php:7232
+#: /app/templates/index.php:7211 /app/templates/index.php:7242
 msgid "Save Changes"
 msgstr ""
 
-#: /app/templates/index.php:7242
+#: /app/templates/index.php:7252
 msgid "Find Transfer Matches"
 msgstr ""
 
-#: /app/templates/index.php:7244
+#: /app/templates/index.php:7254
 msgid "Source Transaction"
 msgstr ""
 
-#: /app/templates/index.php:7255
+#: /app/templates/index.php:7265
 msgid "Searching for matches..."
 msgstr ""
 
-#: /app/templates/index.php:7258
+#: /app/templates/index.php:7268
 msgid "No matching transactions found within the date range."
 msgstr ""
 
-#: /app/templates/index.php:7259
+#: /app/templates/index.php:7269
 msgid ""
 "Matches must have the same amount, opposite type (income/expense), and be "
 "within 3 days."
 msgstr ""
 
-#: /app/templates/index.php:7264
+#: /app/templates/index.php:7274
 msgid "No match? Create the other side"
 msgstr ""
 
-#: /app/templates/index.php:7265
+#: /app/templates/index.php:7275
 msgid ""
 "Creates the opposite transaction in the account you pick and links the pair "
 "as a transfer. Useful when the other account has nothing to import (e.g. a "
 "loan account)."
 msgstr ""
 
-#: /app/templates/index.php:7267
+#: /app/templates/index.php:7277
 msgid "Counterpart account"
 msgstr ""
 
-#: /app/templates/index.php:7268
+#: /app/templates/index.php:7278
 msgid "Create and link"
 msgstr ""
 
-#: /app/templates/index.php:7272 /app/templates/index.php:7329
+#: /app/templates/index.php:7282 /app/templates/index.php:7339
 msgid "Close dialog"
 msgstr ""
 
-#: /app/templates/index.php:7280
+#: /app/templates/index.php:7290
 msgid "Match Transfers"
 msgstr ""
 
-#: /app/templates/index.php:7297
+#: /app/templates/index.php:7307
 msgid "Matched Pairs"
 msgstr ""
 
-#: /app/templates/index.php:7301
+#: /app/templates/index.php:7311
 msgid "Need Review"
 msgstr ""
 
-#: /app/templates/index.php:7307
+#: /app/templates/index.php:7317
 msgid "Auto-Matched Pairs"
 msgstr ""
 
-#: /app/templates/index.php:7308
+#: /app/templates/index.php:7318
 msgid ""
 "These transactions were automatically linked. Click Undo to unlink a pair."
 msgstr ""
 
-#: /app/templates/index.php:7314
+#: /app/templates/index.php:7324
 msgid "Needs Manual Review"
 msgstr ""
 
-#: /app/templates/index.php:7315
+#: /app/templates/index.php:7325
 msgid ""
 "These transactions have multiple potential matches. Select the correct match "
 "for each."
 msgstr ""
 
-#: /app/templates/index.php:7322
+#: /app/templates/index.php:7332
 msgid ""
 "Matches require: same amount, same currency, opposite type (income/expense), "
 "different accounts, within your configured date window."
 msgstr ""
 
-#: /app/templates/index.php:7327
+#: /app/templates/index.php:7337
 msgid "Scan for Matches"
 msgstr ""
 
-#: /app/templates/index.php:7346
+#: /app/templates/index.php:7356
 msgid "Amount:"
 msgstr ""
 
-#: /app/templates/index.php:7377
+#: /app/templates/index.php:7387
 msgid "Remaining to allocate:"
 msgstr ""
 
-#: /app/templates/index.php:7382
+#: /app/templates/index.php:7392
 msgid "Unsplit Transaction"
 msgstr ""
 
-#: /app/templates/index.php:7384
+#: /app/templates/index.php:7394
 msgid "Save Splits"
 msgstr ""
 
-#: /app/templates/index.php:7394
+#: /app/templates/index.php:7404
 msgid "Bulk Edit Transactions"
 msgstr ""
 
-#: /app/templates/index.php:7395
+#: /app/templates/index.php:7405
 msgid "Edit fields for"
 msgstr ""
 
-#: /app/templates/index.php:7395
+#: /app/templates/index.php:7405
 msgid "selected transactions. Leave fields empty to keep existing values."
 msgstr ""
 
-#: /app/templates/index.php:7396
+#: /app/templates/index.php:7406
 msgid "Bulk edit form"
 msgstr ""
 
-#: /app/templates/index.php:7402
+#: /app/templates/index.php:7412
 msgid "Update category for all selected transactions (optional)"
 msgstr ""
 
-#: /app/templates/index.php:7408
+#: /app/templates/index.php:7418
 msgid "Update vendor name for all selected transactions (optional)"
 msgstr ""
 
-#: /app/templates/index.php:7414
+#: /app/templates/index.php:7424
 msgid "Update reference number for all selected transactions (optional)"
 msgstr ""
 
-#: /app/templates/index.php:7420
+#: /app/templates/index.php:7430
 msgid "Update notes for all selected transactions (optional)"
 msgstr ""
 
-#: /app/templates/index.php:7424
+#: /app/templates/index.php:7434
 msgid "Update selected transactions"
 msgstr ""
 
-#: /app/templates/index.php:7424
+#: /app/templates/index.php:7434
 msgid "Update Transactions"
 msgstr ""
 
-#: /app/templates/index.php:7434
+#: /app/templates/index.php:7444
 msgid "Bulk Edit Tags"
 msgstr ""
 
-#: /app/templates/index.php:7436
+#: /app/templates/index.php:7446
 msgid "Bulk tag form"
 msgstr ""
 
-#: /app/templates/index.php:7438
+#: /app/templates/index.php:7448
 msgid "Add these tags"
 msgstr ""
 
-#: /app/templates/index.php:7443
+#: /app/templates/index.php:7453
 msgid "Remove these tags"
 msgstr ""
 
-#: /app/templates/index.php:7450
+#: /app/templates/index.php:7460
 msgid "Apply tag changes to selected transactions"
 msgstr ""
 
-#: /app/templates/index.php:7450
+#: /app/templates/index.php:7460
 msgid "Apply Tags"
 msgstr ""
 
-#: /app/templates/index.php:7461
+#: /app/templates/index.php:7471
 msgid "Contact form"
 msgstr ""
 
-#: /app/templates/index.php:7469
+#: /app/templates/index.php:7479
 msgid "Nextcloud User"
 msgstr ""
 
-#: /app/templates/index.php:7471
+#: /app/templates/index.php:7481
 msgid ""
 "Type a name, user ID or email to link a Nextcloud user, or leave it empty "
 "for someone without an account"
 msgstr ""
 
-#: /app/templates/index.php:7476
+#: /app/templates/index.php:7486
 msgid "e.g., John, Roommate, Partner"
 msgstr ""
 
-#: /app/templates/index.php:7480
+#: /app/templates/index.php:7490
 msgid "Email"
 msgstr ""
 
-#: /app/templates/index.php:7481
+#: /app/templates/index.php:7491
 msgid "Optional email address"
 msgstr ""
 
-#: /app/templates/index.php:7498
+#: /app/templates/index.php:7508
 msgid "Share Expense"
 msgstr ""
 
-#: /app/templates/index.php:7499
+#: /app/templates/index.php:7509
 msgid "Share expense form"
 msgstr ""
 
-#: /app/templates/index.php:7509
+#: /app/templates/index.php:7519
 msgid "Split Method"
 msgstr ""
 
-#: /app/templates/index.php:7511
+#: /app/templates/index.php:7521
 msgid "Equally"
 msgstr ""
 
-#: /app/templates/index.php:7512
+#: /app/templates/index.php:7522
 msgid "By percentage"
 msgstr ""
 
-#: /app/templates/index.php:7513
+#: /app/templates/index.php:7523
 msgid "By amount"
 msgstr ""
 
-#: /app/templates/index.php:7518
+#: /app/templates/index.php:7528
 msgid "Split between"
 msgstr ""
 
-#: /app/templates/index.php:7526
+#: /app/templates/index.php:7536
 msgid "Optional notes about this split"
 msgstr ""
 
-#: /app/templates/index.php:7530
+#: /app/templates/index.php:7540
 msgid "Save Split"
 msgstr ""
 
-#: /app/templates/index.php:7540
+#: /app/templates/index.php:7550
 msgid "Settle Expenses"
 msgstr ""
 
-#: /app/templates/index.php:7541
+#: /app/templates/index.php:7551
 msgid "Settlement form"
 msgstr ""
 
-#: /app/templates/index.php:7550
+#: /app/templates/index.php:7560
 msgid "Select expenses to settle"
 msgstr ""
 
-#: /app/templates/index.php:7572 /app/templates/quick-add.php:83
+#: /app/templates/index.php:7582 /app/templates/quick-add.php:83
 msgid "Optional notes"
 msgstr ""
 
-#: /app/templates/index.php:7576
+#: /app/templates/index.php:7586
 msgid "Settle Selected"
 msgstr ""
 
-#: /app/templates/index.php:7586
+#: /app/templates/index.php:7596
 msgid "Contact Details"
 msgstr ""
 
-#: /app/templates/index.php:7593
+#: /app/templates/index.php:7603
 msgid "Balance:"
 msgstr ""
 
-#: /app/templates/index.php:7599
+#: /app/templates/index.php:7609
 msgid "Settle All"
 msgstr ""
 
-#: /app/templates/index.php:7600
+#: /app/templates/index.php:7610
 msgid "Record Payment"
 msgstr ""
 
-#: /app/templates/index.php:7605
+#: /app/templates/index.php:7615
 msgid "Settlement History"
 msgstr ""
 
-#: /app/templates/index.php:7631
+#: /app/templates/index.php:7641
 msgid "Confirm Factory Reset"
 msgstr ""
 
-#: /app/templates/index.php:7635
+#: /app/templates/index.php:7645
 msgid "WARNING: This action cannot be undone!"
 msgstr ""
 
-#: /app/templates/index.php:7636
+#: /app/templates/index.php:7646
 msgid "A factory reset will permanently delete ALL of your data including:"
 msgstr ""
 
-#: /app/templates/index.php:7638
+#: /app/templates/index.php:7648
 msgid "All accounts and their balances"
 msgstr ""
 
-#: /app/templates/index.php:7639
+#: /app/templates/index.php:7649
 msgid "All transactions and transaction history"
 msgstr ""
 
-#: /app/templates/index.php:7640
+#: /app/templates/index.php:7650
 msgid "All bills and recurring income"
 msgstr ""
 
-#: /app/templates/index.php:7641
+#: /app/templates/index.php:7651
 msgid "All categories and budget settings"
 msgstr ""
 
-#: /app/templates/index.php:7642
+#: /app/templates/index.php:7652
 msgid "All savings goals and pension accounts"
 msgstr ""
 
-#: /app/templates/index.php:7643
+#: /app/templates/index.php:7653
 msgid "All import rules and settings"
 msgstr ""
 
-#: /app/templates/index.php:7644
+#: /app/templates/index.php:7654
 msgid "All shared expenses and contacts"
 msgstr ""
 
-#: /app/templates/index.php:7646
+#: /app/templates/index.php:7656
 msgid "Only audit logs will be preserved for compliance purposes."
 msgstr ""
 
-#: /app/templates/index.php:7647
+#: /app/templates/index.php:7657
 msgid "You will need to set up everything from scratch after this operation."
 msgstr ""
 
-#: /app/templates/index.php:7652
+#: /app/templates/index.php:7662
 msgid "Type DELETE to confirm:"
 msgstr ""
 
-#: /app/templates/index.php:7657
+#: /app/templates/index.php:7667
 msgid "Type DELETE to confirm"
 msgstr ""
 
-#: /app/templates/index.php:7660
+#: /app/templates/index.php:7670
 msgid "You must type DELETE (all caps) exactly to proceed"
 msgstr ""
 
-#: /app/templates/index.php:7689 /app/templates/index.php:7693
+#: /app/templates/index.php:7699 /app/templates/index.php:7703
 msgid "Add Bank Connection"
 msgstr ""
 
-#: /app/templates/index.php:7698
+#: /app/templates/index.php:7708
 msgid "Select a provider..."
 msgstr ""
 
-#: /app/templates/index.php:7699
+#: /app/templates/index.php:7709
 msgid "GoCardless (UK/Europe)"
 msgstr ""
 
-#: /app/templates/index.php:7700
+#: /app/templates/index.php:7710
 msgid "Enable Banking (Europe)"
 msgstr ""
 
-#: /app/templates/index.php:7701
+#: /app/templates/index.php:7711
 msgid "SimpleFIN Bridge (US)"
 msgstr ""
 
-#: /app/templates/index.php:7706
+#: /app/templates/index.php:7716
 msgid "Connection Name"
 msgstr ""
 
-#: /app/templates/index.php:7707
+#: /app/templates/index.php:7717
 msgid "e.g. My Bank"
 msgstr ""
 
-#: /app/templates/index.php:7713
+#: /app/templates/index.php:7723
 msgid "Setup Token"
 msgstr ""
 
-#: /app/templates/index.php:7714
+#: /app/templates/index.php:7724
 msgid "Paste your SimpleFIN setup token"
 msgstr ""
 
-#: /app/templates/index.php:7715
+#: /app/templates/index.php:7725
 msgid "Get a token from beta-bridge.simplefin.org"
 msgstr ""
 
-#: /app/templates/index.php:7722
+#: /app/templates/index.php:7732
 msgid "Secret ID"
 msgstr ""
 
-#: /app/templates/index.php:7723
+#: /app/templates/index.php:7733
 msgid "Your GoCardless Secret ID"
 msgstr ""
 
-#: /app/templates/index.php:7726
+#: /app/templates/index.php:7736
 msgid "Secret Key"
 msgstr ""
 
-#: /app/templates/index.php:7727
+#: /app/templates/index.php:7737
 msgid "Your GoCardless Secret Key"
 msgstr ""
 
-#: /app/templates/index.php:7729
+#: /app/templates/index.php:7739
 msgid "Get API keys from bankaccountdata.gocardless.com"
 msgstr ""
 
-#: /app/templates/index.php:7735
+#: /app/templates/index.php:7745
 msgid "Your Enable Banking keys are stored."
 msgstr ""
 
-#: /app/templates/index.php:7736
+#: /app/templates/index.php:7746
 msgid "Replace keys"
 msgstr ""
 
-#: /app/templates/index.php:7740
+#: /app/templates/index.php:7750
 msgid "Application ID"
 msgstr ""
 
-#: /app/templates/index.php:7741
+#: /app/templates/index.php:7751
 msgid "Your Enable Banking application ID"
 msgstr ""
 
-#: /app/templates/index.php:7744
+#: /app/templates/index.php:7754
 msgid "Private Key (PEM)"
 msgstr ""
 
-#: /app/templates/index.php:7746
+#: /app/templates/index.php:7756
 msgid "Load private key from file"
 msgstr ""
 
-#: /app/templates/index.php:7750
+#: /app/templates/index.php:7760
 msgid "Redirect URL to register in Enable Banking"
 msgstr ""
 
-#: /app/templates/index.php:7752
+#: /app/templates/index.php:7762
 msgid "Copy"
 msgstr ""
 
-#: /app/templates/index.php:7754
+#: /app/templates/index.php:7764
 msgid "Register an application and create its keys at"
 msgstr ""
 
-#: /app/templates/index.php:7767
+#: /app/templates/index.php:7777
 msgid "Select Your Bank"
 msgstr ""
 
-#: /app/templates/index.php:7770
+#: /app/templates/index.php:7780
 msgid "Country"
 msgstr ""
 
-#: /app/templates/index.php:7775
+#: /app/templates/index.php:7785
 msgid "Search banks..."
 msgstr ""
 
-#: /app/templates/index.php:7775
+#: /app/templates/index.php:7785
 msgid "Search banks"
 msgstr ""
 
-#: /app/templates/index.php:7779
+#: /app/templates/index.php:7789
 msgid "Loading banks..."
 msgstr ""
 
-#: /app/templates/index.php:7788
+#: /app/templates/index.php:7798
 msgid "Back"
 msgstr ""
 
-#: /app/templates/index.php:7794
+#: /app/templates/index.php:7804
 msgid "Authorize with Your Bank"
 msgstr ""
 
-#: /app/templates/index.php:7797
+#: /app/templates/index.php:7807
 msgid ""
 "Confirm in your bank's app. When the new tab says 'Connected', come back "
 "here."
 msgstr ""
 
-#: /app/templates/index.php:7798
+#: /app/templates/index.php:7808
 msgid "A new window has been opened for you to authorize access at your bank."
 msgstr ""
 
-#: /app/templates/index.php:7799
+#: /app/templates/index.php:7809
 msgid "Once you have completed the authorization, click the button below."
 msgstr ""
 
-#: /app/templates/index.php:7801
+#: /app/templates/index.php:7811
 msgid "If the window did not open, "
 msgstr ""
 
-#: /app/templates/index.php:7802
+#: /app/templates/index.php:7812
 msgid "click here to authorize"
 msgstr ""
 

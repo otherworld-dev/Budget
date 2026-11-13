@@ -4547,6 +4547,16 @@ style('budget', 'budget-app');
                                    min="1" max="31" step="1" value="1">
                         </div>
 
+                        <div class="setting-item checkbox-setting">
+                            <label>
+                                <input type="checkbox" id="setting-budget-from-bills" class="setting-input" checked>
+                                <div>
+                                    <strong><?php p($l->t('Budget categories from their bills')); ?></strong>
+                                    <small><?php p($l->t('A category with no budget of its own uses the monthly total of its recurring bills and income as its budget, marked auto on the Budget page. Turn this off to budget only the amounts you set. Bills keep working the same either way.')); ?></small>
+                                </div>
+                            </label>
+                        </div>
+
                         <div class="setting-item">
                             <label for="setting-report-month-grouping">
                                 <strong><?php p($l->t('Months in dashboard charts and reports')); ?></strong>
