@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-11-13 14:21+0000\n"
-"PO-Revision-Date: 2026-11-12 02:51+0000\n"
+"PO-Revision-Date: 2026-11-14 20:51+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 2026.11.2.dev0\n"
+"X-Generator: Weblate 2026.12.dev0\n"
 
 #: /app/lib/Controller/AccountController.php:80
 #: /app/lib/Controller/ApiV1AccountController.php:57
@@ -3601,15 +3601,15 @@ msgstr "Dein prognostizierter Kontostand fällt im {month} auf {balance}."
 
 #. TRANSLATORS: {account} is a placeholder — do NOT translate it. Keep all {placeholder} names exactly as-is.
 #: /app/lib/Notification/Notifier.php:640
-#, fuzzy
-#| msgid "{file} imported into {account}"
 msgid "Promotional rate ending on {account}"
-msgstr "{file} wurde in importiert {account}"
+msgstr "Aktionszinssatz für {account} läuft aus"
 
 #: /app/lib/Notification/Notifier.php:648
 #, php-format
 msgid "The {promoRate}%% rate ends on {date}. After that, {rate}%% applies."
 msgstr ""
+"Der Aktionszinssatz von {promoRate}%% endet am {date}. Danach gilt ein "
+"Zinssatz von {rate}%%."
 
 #: /app/lib/Notification/Notifier.php:667
 msgid "Your money is forecast to run out sooner"
@@ -3866,6 +3866,8 @@ msgid ""
 "A promotional rate can only be set on a credit card, loan, mortgage or line "
 "of credit."
 msgstr ""
+"Ein Aktionszinssatz kann nur für eine Kreditkarte, einen Kredit, ein "
+"Hypothekendarlehen oder eine Kreditlinie festgelegt werden."
 
 #: /app/lib/Service/AccountService.php:154
 msgid ""
@@ -4855,31 +4857,29 @@ msgstr ""
 #: /app/lib/Service/PromoRate.php:52
 msgid "A promotional rate is needed along with its dates."
 msgstr ""
+"Ein Aktionszinssatz muss zusammen mit dem Beginn- und Enddatum angegeben "
+"werden."
 
 #: /app/lib/Service/PromoRate.php:55
-#, fuzzy
-#| msgid "Interest rate must be between 0 and 999.9999"
 msgid "The promotional rate must be between 0 and 999.9999."
-msgstr "Der Zinssatz muss zwischen 0 und 999,9999 liegen"
+msgstr "Der Aktionszinssatz muss zwischen 0 und 999,9999 liegen."
 
 #: /app/lib/Service/PromoRate.php:58
 msgid "A promotional rate needs a start date."
-msgstr ""
+msgstr "Für einen Aktionszinssatz ist ein Startdatum erforderlich."
 
 #: /app/lib/Service/PromoRate.php:61
 msgid "A promotional rate needs an end date."
-msgstr ""
+msgstr "Für einen Aktionszinssatz ist ein Enddatum erforderlich."
 
 #: /app/lib/Service/PromoRate.php:65
-#, fuzzy
-#| msgid "%1$s must be in YYYY-MM-DD format"
 msgid "Promotional dates must be in YYYY-MM-DD format."
-msgstr "%1$s muss im Format JJJJ-MM-TT sein"
+msgstr "Aktionsdaten müssen im Format YYYY-MM-DD angegeben werden."
 
 #: /app/lib/Service/PromoRate.php:69
 #: /app/src/modules/accounts/AccountsModule.js:2727
 msgid "The promotional rate must start before it ends."
-msgstr ""
+msgstr "Das Startdatum des Aktionszinssatzes muss vor dem Enddatum liegen."
 
 #: /app/lib/Service/ReconciliationService.php:70
 #: /app/lib/Service/ReconciliationService.php:101
@@ -6697,16 +6697,16 @@ msgstr "Nicht verfügbar"
 #: /app/src/main.js:2954
 #, no-javascript-format
 msgid "Promotional rate: {rate}% from {start} until {date}"
-msgstr ""
+msgstr "Aktionszinssatz: {rate}% von {start} bis zum {date}"
 
 #: /app/src/main.js:2955
 #, no-javascript-format
 msgid "Promotional rate: {rate}% until {date}"
-msgstr ""
+msgstr "Aktionszinssatz: {rate}% bis zum {date}"
 
 #: /app/src/main.js:2962
 msgid "Min payment rises to {amount} when the promotional rate ends"
-msgstr ""
+msgstr "Die Mindestzahlung steigt auf {amount}, wenn der Aktionszinssatz endet"
 
 #: /app/src/main.js:2973 /app/templates/index.php:1326
 msgid "Min Payment"
@@ -7332,21 +7332,19 @@ msgid "No category"
 msgstr "Keine Kategorie"
 
 #: /app/src/modules/accounts/AccountsModule.js:2535
-#, fuzzy, no-javascript-format
-#| msgid "Received {date}"
+#, no-javascript-format
 msgid "{rate}% ended {date}"
-msgstr "Erhalten am {date}"
+msgstr "{rate}% endeten am {date}"
 
 #: /app/src/modules/accounts/AccountsModule.js:2538
 #, no-javascript-format
 msgid "{rate}% from {start} until {date}"
-msgstr ""
+msgstr "{rate}% vom {start} bis zum {date}"
 
 #: /app/src/modules/accounts/AccountsModule.js:2540
-#, fuzzy, no-javascript-format
-#| msgid "Paid {amount} on {date}"
+#, no-javascript-format
 msgid "{rate}% until {date}"
-msgstr "{amount} am {date} bezahlt"
+msgstr "{rate}% bis zum {date}"
 
 #: /app/src/modules/accounts/AccountsModule.js:2566
 msgid "Form error: Account name field not found"
@@ -7382,10 +7380,8 @@ msgid "Please enter a valid balance amount"
 msgstr "Bitte gib einen gültigen Saldo ein"
 
 #: /app/src/modules/accounts/AccountsModule.js:2722
-#, fuzzy
-#| msgid "Please enter the date the transfer is due"
 msgid "Please enter the date the promotional rate ends"
-msgstr "Bitte gib das Fälligkeitsdatum der Umbuchung ein"
+msgstr "Bitte gib das Enddatum des Aktionszinssatzes ein"
 
 #: /app/src/modules/accounts/AccountsModule.js:2748
 msgid "Account saved successfully"
@@ -16386,10 +16382,8 @@ msgid "Credit Limit"
 msgstr "Kreditlimit"
 
 #: /app/templates/index.php:1330
-#, fuzzy
-#| msgid "Optional note"
 msgid "Promotional rate"
-msgstr "optionaler Kommentar"
+msgstr "Aktionszinssatz"
 
 #: /app/templates/index.php:1334 /app/templates/index.php:6353
 msgid "Statement due day"
@@ -18190,10 +18184,8 @@ msgstr ""
 "abzustimmen."
 
 #: /app/templates/index.php:4554
-#, fuzzy
-#| msgid "No categories found in the file"
 msgid "Budget categories from their bills"
-msgstr "Keine Kategorien in der Datei gefunden"
+msgstr "Budgetkategorien aus den zugehörigen Rechnungen"
 
 #: /app/templates/index.php:4555
 msgid ""
@@ -18202,6 +18194,11 @@ msgid ""
 "off to budget only the amounts you set. Bills keep working the same either "
 "way."
 msgstr ""
+"Eine Kategorie ohne eigenes Budget verwendet die monatliche Gesamtsumme "
+"ihrer wiederkehrenden Rechnungen und Einnahmen als Budget. Auf der "
+"Budgetseite wird dies mit „Auto“ gekennzeichnet. Deaktiviere diese Option, "
+"um nur die von dir festgelegten Beträge zu budgetieren. Die Rechnungen "
+"funktionieren in beiden Fällen unverändert."
 
 #: /app/templates/index.php:4562
 msgid "Months in dashboard charts and reports"
@@ -19678,19 +19675,15 @@ msgstr "Einfache Verzinsung (kein Zinseszins)"
 #: /app/templates/index.php:6326
 #, php-format
 msgid "Promotional rate (%%)"
-msgstr ""
+msgstr "Aktionszinssatz (%%)"
 
 #: /app/templates/index.php:6328
-#, fuzzy
-#| msgid "Starts With"
 msgid "Starts on"
-msgstr "Beginnt mit"
+msgstr "Beginnt am"
 
 #: /app/templates/index.php:6330
-#, fuzzy
-#| msgid "Ends With"
 msgid "Ends on"
-msgstr "Endet mit"
+msgstr "Endet am"
 
 #: /app/templates/index.php:6332
 #, php-format
@@ -19698,12 +19691,12 @@ msgid ""
 "e.g. 0%% on purchases or balance transfers. The normal rate applies from the "
 "end date."
 msgstr ""
+"z. B. 0 %% auf Einkäufe oder Saldoübertragungen. Ab dem Enddatum gilt der "
+"reguläre Zinssatz."
 
 #: /app/templates/index.php:6333
-#, fuzzy
-#| msgid "Remove manual rate"
 msgid "Remove promotional rate"
-msgstr "Manuellen Wechselkurs entfernen"
+msgstr "Aktionszinssatz entfernen"
 
 #: /app/templates/index.php:6342
 msgid "Overdraft Limit"
