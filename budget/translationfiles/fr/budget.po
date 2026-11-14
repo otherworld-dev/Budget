@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-11-13 14:21+0000\n"
-"PO-Revision-Date: 2026-11-14 20:51+0000\n"
+"PO-Revision-Date: 2026-11-15 13:53+0000\n"
 "Last-Translator: Christophe <capersys@users.noreply.hosted.weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/fr/>\n"
@@ -3903,7 +3903,7 @@ msgstr "Facture à payer : %1$s"
 #: /app/lib/Service/Bill/BillIcsService.php:190
 #, php-format
 msgid "%1$s budget: %2$s"
-msgstr "budget %1$s: %2$s"
+msgstr "budget %1$s : %2$s"
 
 #: /app/lib/Service/Bill/BillIcsService.php:191
 msgid "Estimated spending for the month, from your budget."
@@ -8048,7 +8048,7 @@ msgstr "Modifier une facture"
 
 #: /app/src/modules/bills/BillsModule.js:205
 msgid "The payment went out: mark it cleared"
-msgstr "Le paiement a été effectué : marquez-le comme « encaissé »."
+msgstr "Le paiement a été effectué : marquez-le comme « encaissé »"
 
 #: /app/src/modules/bills/BillsModule.js:205
 msgid "It went out"
@@ -16086,44 +16086,36 @@ msgid "Set category budgets to see this"
 msgstr "Définissez des budgets par catégorie pour afficher ces informations"
 
 #: /app/src/utils/runway.js:56
-#, fuzzy
-#| msgid "{amount} a month"
 msgid "until around {month}"
-msgstr "{amount} par mois"
+msgstr "jusqu'à environ {month}"
 
 #: /app/src/utils/runway.js:69
 msgid "About the same"
-msgstr ""
+msgstr "À peu près pareil"
 
 #: /app/src/utils/runway.js:77
 msgid "About {count} more month on budget"
 msgid_plural "About {count} more months on budget"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Environ {count} mois supplémentaire dans les limites du budget"
+msgstr[1] "Environ {count} mois supplémentaires dans les limites du budget"
 
 #: /app/src/utils/runway.js:78
 msgid "About {count} fewer month on budget"
 msgid_plural "About {count} fewer months on budget"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Environ {count} mois de moins que prévu"
+msgstr[1] "Environ {count} mois de moins que prévu"
 
 #: /app/templates/bank-sync-callback.php:11
-#, fuzzy
-#| msgid "Bank disconnected"
 msgid "Bank connected"
-msgstr "Banque déconnectée"
+msgstr "Banque connectée"
 
 #: /app/templates/bank-sync-callback.php:11
-#, fuzzy
-#| msgid "Bank Connections"
 msgid "Bank connection failed"
-msgstr "Connexions bancaires"
+msgstr "La connexion bancaire a échoué"
 
 #: /app/templates/bank-sync-callback.php:14
-#, fuzzy
-#| msgid "Bank sync"
 msgid "Back to bank sync"
-msgstr "Synchronisation bancaire"
+msgstr "Retour à la synchronisation bancaire"
 
 #: /app/templates/index.php:8
 msgid "Toggle navigation"
@@ -16364,10 +16356,8 @@ msgid "Credit Limit"
 msgstr "Limite de crédit"
 
 #: /app/templates/index.php:1330
-#, fuzzy
-#| msgid "Optional note"
 msgid "Promotional rate"
-msgstr "Remarque facultative"
+msgstr "Tarif promotionnel"
 
 #: /app/templates/index.php:1334 /app/templates/index.php:6353
 msgid "Statement due day"
@@ -17111,10 +17101,8 @@ msgid "Auto-categorized:"
 msgstr "Catégorisé automatiquement :"
 
 #: /app/templates/index.php:2586
-#, fuzzy
-#| msgid "Matched Pairs"
 msgid "Matched to bills:"
-msgstr "Paires appariées"
+msgstr "Correspondant aux factures :"
 
 #: /app/templates/index.php:2602
 msgid "Map Source Accounts to Destination Accounts"
@@ -17167,7 +17155,7 @@ msgstr "Ajouter une nouvelle facture"
 
 #: /app/templates/index.php:2708
 msgid "Bill payments the bank hasn't shown"
-msgstr ""
+msgstr "Paiements de factures que la banque n'a pas affichés"
 
 #: /app/templates/index.php:2710
 msgid ""
@@ -17659,12 +17647,12 @@ msgid ""
 "Budgets you chose to show in the Bills Calendar, as estimated spending each "
 "month"
 msgstr ""
+"Les budgets que vous avez choisi d'afficher dans le calendrier des factures, "
+"sous forme de dépenses estimées pour chaque mois"
 
 #: /app/templates/index.php:3706
-#, fuzzy
-#| msgid "Include pending"
 msgid "Include budgeted spending"
-msgstr "Inclure les éléments en attente"
+msgstr "Inclure les dépenses prévues au budget"
 
 #: /app/templates/index.php:3716
 msgid "View"
@@ -17687,6 +17675,10 @@ msgid ""
 "Budgeted spending is only shown for All Accounts, with Active Only or All "
 "Bills: a budget has no account and is never an inactive bill."
 msgstr ""
+"Les dépenses budgétisées ne s'affichent que pour les options « Tous les "
+"comptes », « Comptes actifs uniquement » ou « Toutes les factures » : un "
+"budget ne correspond à aucun compte et ne correspond jamais à une facture "
+"inactive."
 
 #: /app/templates/index.php:3729
 msgid "Monthly Bill Totals"
@@ -18181,10 +18173,8 @@ msgstr ""
 "versement du salaire."
 
 #: /app/templates/index.php:4554
-#, fuzzy
-#| msgid "No categories found in the file"
 msgid "Budget categories from their bills"
-msgstr "Aucune catégorie n'a été trouvée dans le fichier"
+msgstr "Catégories budgétaires issues de leurs factures"
 
 #: /app/templates/index.php:4555
 msgid ""
@@ -18193,12 +18183,15 @@ msgid ""
 "off to budget only the amounts you set. Bills keep working the same either "
 "way."
 msgstr ""
+"Une catégorie ne disposant pas de budget propre utilise le total mensuel de "
+"ses dépenses récurrentes et de ses revenus comme budget, option marquée « "
+"auto » sur la page « Budget ». Désactivez cette option pour ne budgétiser "
+"que les montants que vous définissez. Les dépenses récurrentes continuent de "
+"fonctionner de la même manière dans les deux cas."
 
 #: /app/templates/index.php:4562
-#, fuzzy
-#| msgid "Starting day for calendars and weekly reports"
 msgid "Months in dashboard charts and reports"
-msgstr "Jour de début pour les calendriers et les rapports hebdomadaires"
+msgstr "Les mois dans les graphiques et les rapports du tableau de bord"
 
 #: /app/templates/index.php:4563
 msgid ""
@@ -18207,6 +18200,11 @@ msgid ""
 "periods. Budget periods run from your start day, the same as on the Budget "
 "page."
 msgstr ""
+"Si la date de début du cycle budgétaire n'est pas le jour 1, indiquez si les "
+"graphiques du tableau de bord et les rapports mensuels doivent prendre en "
+"compte les mois civils ou les périodes budgétaires. Les périodes budgétaires "
+"commencent à la date de début que vous avez définie, comme sur la page « "
+"Budget »."
 
 #: /app/templates/index.php:4573
 #, php-format
@@ -18356,6 +18354,7 @@ msgstr "Alertes sur la réserve"
 #: /app/templates/index.php:4745
 msgid "Notify when the date your money runs out moves earlier"
 msgstr ""
+"M'avertir lorsque la date à laquelle mon argent viendra à manquer est avancée"
 
 #: /app/templates/index.php:4754
 msgid "Unusual Spending Alerts"
@@ -18515,16 +18514,17 @@ msgid "Automatically categorize transactions when importing"
 msgstr "Catégoriser automatiquement les opérations lors de l'importation"
 
 #: /app/templates/index.php:4903
-#, fuzzy
-#| msgid "Date window (days):"
 msgid "Bill match window (days)"
-msgstr "Intervalle de date (jours) :"
+msgstr "Fenêtre de rapprochement des factures (jours)"
 
 #: /app/templates/index.php:4904
 msgid ""
 "How many days either side of a bill payment an imported row can be and still "
 "be matched to it by the bill's name. The amount must match to the penny."
 msgstr ""
+"Combien de jours avant ou après la date de paiement d'une facture une ligne "
+"importée peut-elle être enregistrée tout en pouvant être associée à cette "
+"facture grâce à son nom ? Le montant doit correspondre au centime près."
 
 #: /app/templates/index.php:4912
 msgid "Default Export Format"
@@ -19673,19 +19673,15 @@ msgstr "Simple (sans capitalisation)"
 #: /app/templates/index.php:6326
 #, php-format
 msgid "Promotional rate (%%)"
-msgstr ""
+msgstr "Taux promotionnel (%%)"
 
 #: /app/templates/index.php:6328
-#, fuzzy
-#| msgid "Starts With"
 msgid "Starts on"
-msgstr "Commence par"
+msgstr "À partir du"
 
 #: /app/templates/index.php:6330
-#, fuzzy
-#| msgid "Ends With"
 msgid "Ends on"
-msgstr "Se termine par"
+msgstr "Se termine le"
 
 #: /app/templates/index.php:6332
 #, php-format
@@ -19693,12 +19689,12 @@ msgid ""
 "e.g. 0%% on purchases or balance transfers. The normal rate applies from the "
 "end date."
 msgstr ""
+"Par exemple, 0 %% sur les achats ou les transferts de solde. Le taux normal "
+"s'applique à compter de la date de fin."
 
 #: /app/templates/index.php:6333
-#, fuzzy
-#| msgid "Remove manual rate"
 msgid "Remove promotional rate"
-msgstr "Supprimer le taux manuel"
+msgstr "Supprimer le tarif promotionnel"
 
 #: /app/templates/index.php:6342
 msgid "Overdraft Limit"
@@ -20703,10 +20699,8 @@ msgid "GoCardless (UK/Europe)"
 msgstr "GoCardless (Royaume-Uni/Europe)"
 
 #: /app/templates/index.php:7710
-#, fuzzy
-#| msgid "Enable Bank Sync"
 msgid "Enable Banking (Europe)"
-msgstr "Activer la synchronisation bancaire"
+msgstr "Enable Banking (Europe)"
 
 #: /app/templates/index.php:7711
 msgid "SimpleFIN Bridge (US)"
@@ -20754,43 +20748,39 @@ msgstr "Obtenez les clés API sur bankaccountdata.gocardless.com"
 
 #: /app/templates/index.php:7745
 msgid "Your Enable Banking keys are stored."
-msgstr ""
+msgstr "Vos clés « Enable Banking » ont été enregistrées."
 
 #: /app/templates/index.php:7746
-#, fuzzy
-#| msgid "Replace notes"
 msgid "Replace keys"
-msgstr "Remplacer les remarques"
+msgstr "Remplacer les clés"
 
 #: /app/templates/index.php:7750
 msgid "Application ID"
-msgstr ""
+msgstr "Identifiant de l'application"
 
 #: /app/templates/index.php:7751
 msgid "Your Enable Banking application ID"
-msgstr ""
+msgstr "Votre identifiant d'application « Enable Banking »"
 
 #: /app/templates/index.php:7754
 msgid "Private Key (PEM)"
-msgstr ""
+msgstr "Clé privée (PEM)"
 
 #: /app/templates/index.php:7756
 msgid "Load private key from file"
-msgstr ""
+msgstr "Charger la clé privée à partir d'un fichier"
 
 #: /app/templates/index.php:7760
 msgid "Redirect URL to register in Enable Banking"
-msgstr ""
+msgstr "URL de redirection pour s'inscrire à Enable Banking"
 
 #: /app/templates/index.php:7762
-#, fuzzy
-#| msgid "Copy URL"
 msgid "Copy"
-msgstr "Copier l'URL"
+msgstr "Copier"
 
 #: /app/templates/index.php:7764
 msgid "Register an application and create its keys at"
-msgstr ""
+msgstr "Enregistrez une application et créez ses clés à"
 
 #: /app/templates/index.php:7777
 msgid "Select Your Bank"
@@ -20825,6 +20815,8 @@ msgid ""
 "Confirm in your bank's app. When the new tab says 'Connected', come back "
 "here."
 msgstr ""
+"Vérifiez dans l'application de votre banque. Lorsque le nouvel onglet "
+"indique « Connecté », revenez ici."
 
 #: /app/templates/index.php:7808
 msgid "A new window has been opened for you to authorize access at your bank."
