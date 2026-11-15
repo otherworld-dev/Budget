@@ -3219,6 +3219,42 @@ style('budget', 'budget-app');
                 </div>
             </div>
 
+            <!-- What-if scenario (#487) -->
+            <div id="forecast-scenario" class="forecast-section" style="display: none;">
+                <div class="forecast-scenario-header">
+                    <h3><?php p($l->t('What If?')); ?></h3>
+                    <button type="button" id="forecast-scenario-reset" class="secondary" style="display: none;"><?php p($l->t('Reset')); ?></button>
+                </div>
+                <p class="forecast-scenario-hint"><?php p($l->t('Change your income or spending to see how the balance projection above would move. Nothing is saved.')); ?></p>
+                <div class="forecast-scenario-form">
+                    <div class="form-group">
+                        <label for="forecast-scenario-income"><?php p($l->t('Income change (%%)')); ?></label>
+                        <input type="text" inputmode="decimal" data-amount id="forecast-scenario-income" placeholder="0">
+                        <small class="form-text"><?php p($l->t('-10 for a 10%% pay cut')); ?></small>
+                    </div>
+                    <div class="form-group">
+                        <label for="forecast-scenario-spending"><?php p($l->t('Spending change (%%)')); ?></label>
+                        <input type="text" inputmode="decimal" data-amount id="forecast-scenario-spending" placeholder="0">
+                        <small class="form-text"><?php p($l->t('-5 to spend 5%% less')); ?></small>
+                    </div>
+                    <div class="form-group">
+                        <label for="forecast-scenario-monthly"><?php p($l->t('Every month')); ?></label>
+                        <input type="text" inputmode="decimal" data-amount id="forecast-scenario-monthly" placeholder="0">
+                        <small class="form-text"><?php p($l->t('-200 for a new bill, 200 for extra income')); ?></small>
+                    </div>
+                    <div class="form-group">
+                        <label for="forecast-scenario-oneoff"><?php p($l->t('One-off amount')); ?></label>
+                        <input type="text" inputmode="decimal" data-amount id="forecast-scenario-oneoff" placeholder="0">
+                        <small class="form-text"><?php p($l->t('-1500 for a big purchase')); ?></small>
+                    </div>
+                    <div class="form-group">
+                        <label for="forecast-scenario-oneoff-month"><?php p($l->t('One-off in')); ?></label>
+                        <select id="forecast-scenario-oneoff-month"></select>
+                    </div>
+                </div>
+                <div id="forecast-scenario-result" class="forecast-scenario-result"></div>
+            </div>
+
             <!-- Category Spending Trends -->
             <div id="forecast-categories" class="forecast-section" style="display: none;">
                 <h3><?php p($l->t('Spending by Category')); ?></h3>
