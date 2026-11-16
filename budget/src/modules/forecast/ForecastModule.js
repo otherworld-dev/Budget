@@ -160,7 +160,7 @@ export default class ForecastModule {
         monthlyProjections.forEach((projection, index) => {
             const option = document.createElement('option');
             option.value = String(index);
-            option.textContent = projectionMonthLabel(projection);
+            option.textContent = formatters.projectionMonthLabel(projection);
             select.appendChild(option);
         });
         if (previous !== '' && Number(previous) < monthlyProjections.length) {
@@ -220,7 +220,7 @@ export default class ForecastModule {
         // which can be a penny off it
         const baseline = applyScenario(this.forecastData.currentBalance, projections, EMPTY_SCENARIO);
         const difference = result.projectedBalance - baseline.projectedBalance;
-        const lastMonth = projectionMonthLabel(projections[projections.length - 1]);
+        const lastMonth = formatters.projectionMonthLabel(projections[projections.length - 1]);
 
         const line = (text, className = '') => {
             const p = document.createElement('p');
@@ -246,12 +246,12 @@ export default class ForecastModule {
         const belowZero = result.months.findIndex(month => month.balance < 0);
         if (belowZero !== -1) {
             line(t('budget', 'Your balance would go below zero in {month}.', {
-                month: projectionMonthLabel(projections[belowZero]),
+                month: formatters.projectionMonthLabel(projections[belowZero]),
             }), 'forecast-scenario-warning');
         } else if (result.lowest) {
             line(t('budget', 'Lowest point: {amount} in {month}.', {
                 amount: this.formatCurrency(result.lowest.balance, currency),
-                month: projectionMonthLabel(projections[result.lowest.index]),
+                month: formatters.projectionMonthLabel(projections[result.lowest.index]),
             }));
         }
     }
