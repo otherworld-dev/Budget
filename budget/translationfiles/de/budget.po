@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-11-15 13:50+0000\n"
-"PO-Revision-Date: 2026-11-14 20:51+0000\n"
+"PO-Revision-Date: 2026-11-17 06:51+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -10273,27 +10273,23 @@ msgstr "Fehler beim Laden der Prognosedaten"
 
 #: /app/src/modules/forecast/ForecastModule.js:207
 msgid "What if"
-msgstr ""
+msgstr "Was wäre, wenn"
 
 #: /app/src/modules/forecast/ForecastModule.js:242
 msgid "By {month} your balance would be {amount}."
-msgstr ""
+msgstr "Bis zum {month} würde dein Kontostand {amount} betragen."
 
 #: /app/src/modules/forecast/ForecastModule.js:250
 msgid "{change} compared with the forecast"
-msgstr ""
+msgstr "{change} im Vergleich zur Prognose"
 
 #: /app/src/modules/forecast/ForecastModule.js:257
-#, fuzzy
-#| msgid "Your projected balance falls to {balance} in {month}."
 msgid "Your balance would go below zero in {month}."
-msgstr "Dein prognostizierter Kontostand fällt im {month} auf {balance}."
+msgstr "Dein Kontostand würde im {month} unter null fallen."
 
 #: /app/src/modules/forecast/ForecastModule.js:261
-#, fuzzy
-#| msgid "Lowest: {balance} in {month}."
 msgid "Lowest point: {amount} in {month}."
-msgstr "Tiefststand: {balance} im {month}."
+msgstr "Tiefststand: {amount} im {month}."
 
 #: /app/src/modules/forecast/ForecastModule.js:367
 msgid "Cumulative Savings"
@@ -17522,67 +17518,59 @@ msgstr "Saldenprognose"
 
 #: /app/templates/index.php:3225
 msgid "What If?"
-msgstr ""
+msgstr "Was wäre, wenn?"
 
 #: /app/templates/index.php:3226
-#, fuzzy
-#| msgid "Reset All"
 msgid "Reset"
-msgstr "Alles zurücksetzen"
+msgstr "Reset"
 
 #: /app/templates/index.php:3228
 msgid ""
 "Change your income or spending to see how the balance projection above would "
 "move. Nothing is saved."
 msgstr ""
+"Ändere deine Einnahmen oder Ausgaben, um zu sehen, wie sich die oben "
+"angezeigte Kontostandsprognose verändert. Es wird nichts gespeichert."
 
 #: /app/templates/index.php:3231
-#, fuzzy, php-format
-#| msgid "Income Change %%"
+#, php-format
 msgid "Income change (%%)"
-msgstr "Einnahmenänderung %%"
+msgstr "Einnahmenänderung (%%)"
 
 #: /app/templates/index.php:3233
 #, php-format
 msgid "-10 for a 10%% pay cut"
-msgstr ""
+msgstr "-10 für eine Gehaltskürzung um 10 %%"
 
 #: /app/templates/index.php:3236
-#, fuzzy, php-format
-#| msgid "Expense Change %%"
+#, php-format
 msgid "Spending change (%%)"
-msgstr "Ausgabenänderung %%"
+msgstr "Ausgabenänderung (%%)"
 
 #: /app/templates/index.php:3238
 #, php-format
 msgid "-5 to spend 5%% less"
-msgstr ""
+msgstr "-5, um 5 %% weniger auszugeben"
 
 #: /app/templates/index.php:3241
-#, fuzzy
-#| msgid "Next month"
 msgid "Every month"
-msgstr "Nächster Monat"
+msgstr "Jeden Monat"
 
 #: /app/templates/index.php:3243
 msgid "-200 for a new bill, 200 for extra income"
-msgstr ""
+msgstr "-200 für eine neue Rechnung, 200 für zusätzliche Einnahmen"
 
 #: /app/templates/index.php:3246
-#, fuzzy
-#| msgid "of {amount}"
 msgid "One-off amount"
-msgstr "von {amount}"
+msgstr "Einmalbetrag"
 
 #: /app/templates/index.php:3248
 msgid "-1500 for a big purchase"
-msgstr ""
+msgstr "-1500 für eine größere Anschaffung"
 
 #: /app/templates/index.php:3251
-#, fuzzy
-#| msgid "One-off"
 msgid "One-off in"
-msgstr "Einmalige Buchung"
+msgstr "Einmalig im"
 
 #: /app/templates/index.php:3267
 msgid "Forecast Confidence:"
