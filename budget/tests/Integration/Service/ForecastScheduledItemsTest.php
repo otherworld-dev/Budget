@@ -203,6 +203,82 @@ class ForecastScheduledItemsTest extends IntegrationTestCase {
 		}
 	}
 
+	/** Nor is the owner's placeholder: the rent is in the average already */
+	public function testTheOwnersPlaceholderIsNotCountedForWhoTheAccountIsSharedWith(): void {
+		$rent = $this->service(BillService::class)->create($this->userId, 'Rent', 900.0, 'monthly', 5, accountId: $this->account);
+		$this->assertSame(1, $this->countRows('budget_transactions', ['status' => 'scheduled', 'account_id' => $this->account]));
+		foreach ($this->lastMonths(3) as $month) {
+			$this->makeTransaction($this->account, ['amount' => '2500.00', 'type' => 'credit', 'date' => $month->format('Y-m-01')]);
+			$this->makeTransaction($this->account, ['amount' => '900.00', 'vendor' => 'Rent', 'bill_id' => $rent->getId(), 'date' => $month->format('Y-m-05')]);
+			$this->makeTransaction($this->account, ['amount' => '400.00', 'date' => $month->format('Y-m-10')]);
+			$this->pennies($month);
+		}
+
+		$viewer = $this->newUserId();
+		$shared = $this->service(ForecastService::class)->getLiveForecast($viewer, 6, [$this->account]);
+
+		// Nothing is scheduled for the viewer, in whichever month the placeholder falls
+		foreach ($shared['monthlyProjections'] as $month) {
+			$this->assertSame(0.0, $month['scheduledExpenses'], $month['yearMonth']);
+		}
+	}
+
+	/** A recognised row near the bill's amount comes before one nearer its date */
+	public function testARecognisedRowNearTheAmountComesFirst(): void {
+		$this->service(BillService::class)->create($this->userId, 'Prime', 8.99, 'monthly', 20, accountId: $this->account, autoDetectPattern: 'AMAZON', createTransaction: false);
+		foreach ($this->lastMonths(3) as $month) {
+			$this->makeTransaction($this->account, ['amount' => '2500.00', 'type' => 'credit', 'date' => $month->format('Y-m-01')]);
+			$this->makeTransaction($this->account, ['amount' => '400.00', 'date' => $month->format('Y-m-10')]);
+			$this->makeTransaction($this->account, ['amount' => '120.00', 'description' => 'AMAZON MKTPLACE', 'date' => $month->format('Y-m-20')]);
+			$this->makeTransaction($this->account, ['amount' => '8.99', 'description' => 'AMAZON PRIME', 'date' => $month->format('Y-m-21')]);
+			$this->pennies($month);
+		}
+
+		foreach ($this->fullMonths($this->forecast()) as $month) {
+			// 400 and the order averaged, Prime's 8.99 on its date
+			$this->assertSame(528.99, $month['expenses'], $month['yearMonth']);
+		}
+	}
+
+	/** Before a bill was added, a row with neither link nor name is its payment only at its exact amount */
+	public function testANewBillDoesNotTakeAShopNearItsAmountFromBeforeItExisted(): void {
+		$this->service(BillService::class)->create($this->userId, 'Gym', 30.0, 'monthly', 15, accountId: $this->account, createTransaction: false);
+		foreach ($this->lastMonths(3) as $month) {
+			$this->makeTransaction($this->account, ['amount' => '2500.00', 'type' => 'credit', 'date' => $month->format('Y-m-01')]);
+			$this->makeTransaction($this->account, ['amount' => '400.00', 'date' => $month->format('Y-m-10')]);
+			$this->makeTransaction($this->account, ['amount' => '28.00', 'vendor' => 'TESCO', 'description' => '', 'date' => $month->format('Y-m-15')]);
+			$this->pennies($month);
+		}
+
+		foreach ($this->fullMonths($this->forecast()) as $month) {
+			// The shopping stays in the average, the gym's 30 on its date
+			$this->assertSame(458.0, $month['expenses'], $month['yearMonth']);
+		}
+	}
+
+	/** A date just before the history claims the row that paid it then, not one from the first month */
+	public function testADateBeforeTheHistoryClaimsItsOwnRow(): void {
+		$account = $this->makeAccount(['name' => 'Card', 'openingBalance' => 1000.0, 'balance' => 1000.0])->getId();
+		$this->service(BillService::class)->create($this->userId, 'Prime', 8.99, 'monthly', 20, accountId: $account, autoDetectPattern: 'AMAZON', createTransaction: false);
+		$before = $this->lastMonths(4)[0];
+		// The account's first row, on the 21st: its history starts the month after
+		$this->makeTransaction($account, ['amount' => '8.99', 'description' => 'AMAZON PRIME', 'date' => $before->format('Y-m-21')]);
+		foreach ($this->lastMonths(3) as $month) {
+			$this->makeTransaction($account, ['amount' => '2500.00', 'type' => 'credit', 'date' => $month->format('Y-m-01')]);
+			$this->makeTransaction($account, ['amount' => '25.00', 'description' => 'AMAZON MKTPLACE', 'date' => $month->format('Y-m-03')]);
+			$this->makeTransaction($account, ['amount' => '400.00', 'date' => $month->format('Y-m-10')]);
+			$this->makeTransaction($account, ['amount' => '8.99', 'description' => 'AMAZON PRIME', 'date' => $month->format('Y-m-21')]);
+		}
+
+		$forecast = $this->service(ForecastService::class)->getLiveForecast($this->userId, 6, [$account]);
+
+		$this->assertSame(3, $forecast['dataQuality']['monthsOfData']);
+		foreach ($this->fullMonths($forecast) as $month) {
+			// 400 and the purchase averaged in every month, Prime on its date
+			$this->assertSame(433.99, $month['expenses'], $month['yearMonth']);
+		}
+	}
+
 	/** Months of a bill nobody marked paid: only the latest is still owed */
 	public function testABillLongUnmarkedCountsOnceFirst(): void {
 		$this->history(['400.00', '400.00', '400.00']);

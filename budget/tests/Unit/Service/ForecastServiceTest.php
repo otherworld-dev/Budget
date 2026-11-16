@@ -429,7 +429,8 @@ class ForecastServiceTest extends TestCase {
 	public function testLiveForecastLearnsFromCalendarMonthsByDefault(): void {
 		$result = $this->forecastOn30October(1, [$this->accountWithOpeningBalance(1, 0.0)], [], $seen);
 
-		$this->assertSame(['2025-10-01', '2026-09-30'], $seen['range']);
+		// Read with the 15 days' margin either side
+		$this->assertSame(['2025-09-16', '2026-10-15'], $seen['range']);
 		$this->assertSame(1, $seen['aggregatedWith']);
 		// The rest of October, then the months after it
 		$this->assertSame(['2026-10', '2026-11', '2026-12', '2027-01'], array_column($result['monthlyProjections'], 'yearMonth'));
@@ -440,7 +441,8 @@ class ForecastServiceTest extends TestCase {
 		// 30 October with start day 26 is in November's budget month
 		$result = $this->forecastOn30October(26, [$this->accountWithOpeningBalance(1, 0.0)], [], $seen);
 
-		$this->assertSame(['2025-10-26', '2026-10-25'], $seen['range']);
+		// Read with the 15 days' margin either side
+		$this->assertSame(['2025-10-11', '2026-11-09'], $seen['range']);
 		$this->assertSame(26, $seen['aggregatedWith']);
 		// The rest of November (26 October to 25 November), then the months after it
 		$this->assertSame(['2026-11', '2026-12', '2027-01', '2027-02'], array_column($result['monthlyProjections'], 'yearMonth'));
@@ -502,7 +504,8 @@ class ForecastServiceTest extends TestCase {
 		], [1 => '2025-01-01', 2 => '2026-09-15'], $seen,
 			$this->historyRows('1 2025-11-05', '1 2026-09-05', '2 2026-09-15', '2 2026-09-28'));
 
-		$this->assertSame(['2025-10-01', '2026-09-30'], $seen['range']);
+		// Read with the 15 days' margin either side
+		$this->assertSame(['2025-09-16', '2026-10-15'], $seen['range']);
 		$this->assertSame(['1 2025-11-05', '1 2026-09-05'], $seen['learnedFrom']);
 	}
 
@@ -514,7 +517,8 @@ class ForecastServiceTest extends TestCase {
 		], [1 => '2026-09-06', 2 => '2025-01-01'], $seen);
 
 		$this->assertSame([2], $seen['firstDatesFor']);
-		$this->assertSame(['2025-10-01', '2026-09-30'], $seen['range']);
+		// Read with the 15 days' margin either side
+		$this->assertSame(['2025-09-16', '2026-10-15'], $seen['range']);
 	}
 
 	public function testLiveForecastIgnoresAnAccountAddedAfterTheHistory(): void {
@@ -524,6 +528,7 @@ class ForecastServiceTest extends TestCase {
 			$this->accountWithOpeningBalance(2, 300.0),
 		], [1 => '2025-01-01', 2 => '2026-10-12'], $seen);
 
-		$this->assertSame(['2025-10-01', '2026-09-30'], $seen['range']);
+		// Read with the 15 days' margin either side
+		$this->assertSame(['2025-09-16', '2026-10-15'], $seen['range']);
 	}
 }

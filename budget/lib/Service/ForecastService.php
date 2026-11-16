@@ -295,9 +295,12 @@ class ForecastService {
 	 * takes the item's account: a salary the bank books under the
 	 * employer's name is the salary's, any credit near a pension's amount
 	 * in any account was not. Of several rows, a linked one comes first,
-	 * then a recognised one, then the nearest the date, then the nearest
-	 * the amount. An item with a pattern takes only the rows it matches:
-	 * the user said what its payments look like.
+	 * then a recognised one within a fifth of the amount, then one near the
+	 * amount alone, then a recognised one at any amount; within each, the
+	 * nearest the date, then the nearest the amount. An item with a pattern
+	 * takes only the rows it matches: the user said what its payments look
+	 * like. Before a bill was added, by amount alone only at its exact
+	 * amount.
 	 *
 	 * @param \OCA\Budget\Db\Bill|\OCA\Budget\Db\RecurringIncome $item
 	 * @param string[] $dates
@@ -313,6 +316,11 @@ class ForecastService {
 		$expected = abs((float)$item->getAmount());
 		$name = mb_strtolower(trim((string)$item->getName()));
 		$pattern = trim((string)($item->getAutoDetectPattern() ?? ''));
+		// Before a bill was added, a row is its payment by amount alone only
+		// at the bill's exact amount. A rent set up after months of paying
+		// it is still recognised; a 30 gym bill no longer takes a 28 shop
+		// out of every month before it, so the gym barely showed.
+		$created = $isBill ? substr((string)($item->getCreatedAt() ?? ''), 0, 10) : '';
 
 		$candidates = [];
 		foreach ($rows as $row) {
@@ -328,9 +336,14 @@ class ForecastService {
 			$vendor = trim((string)($row->getVendor() ?? ''));
 			$recognised = ($name !== '' && strcmp(mb_strtolower($vendor), $name) === 0)
 				|| ($pattern !== '' && self::mentions(($row->getDescription() ?? '') . ' ' . $vendor, $pattern));
-			$rank = $billId !== null ? 0 : ($recognised ? 1 : 2);
 			$amountOff = abs((float)$row->getAmount() - $expected);
-			if ($rank === 2 && ($accountId === null || $pattern !== '' || $amountOff > $expected * 0.2)) {
+			$near = $amountOff <= $expected * 0.2;
+			// Linked first, then recognised near the amount, then near the
+			// amount alone, then recognised at any amount: with Prime 8.99
+			// on the 20th, a 120 Amazon order that day is not its payment
+			// when the 8.99 charge came the day after
+			$rank = $billId !== null ? 0 : ($recognised ? ($near ? 1 : 3) : 2);
+			if ($rank === 2 && ($accountId === null || $pattern !== '' || !$near)) {
 				continue;
 			}
 			$candidates[] = [$row, $rank, strtotime(substr((string)$row->getDate(), 0, 10)), $amountOff];
@@ -340,11 +353,13 @@ class ForecastService {
 		$any = false;
 		foreach ($dates as $date) {
 			$day = strtotime($date);
+			$beforeCreated = $created !== '' && $date < $created;
 			$best = null;
 			$bestKey = null;
 			foreach ($candidates as [$row, $rank, $rowDay, $amountOff]) {
 				$days = abs($rowDay - $day) / 86400;
-				if ($days > $window || isset($claimed[spl_object_id($row)])) {
+				if ($days > $window || isset($claimed[spl_object_id($row)])
+					|| ($rank === 2 && $beforeCreated && $amountOff >= 0.005)) {
 					continue;
 				}
 				$key = [$rank, $days, $amountOff];
@@ -481,16 +496,20 @@ class ForecastService {
 	 * meant for it: transfers between them move no money in or out. A
 	 * bill's scheduled placeholder is left out: the bill itself is placed
 	 * on its dates, and with "Create future transaction" on (the default)
-	 * a 900 rent came out 900 too high in the month of its placeholder.
+	 * a 900 rent came out 900 too high in the month of its placeholder. So
+	 * are the rows of another user's bill, on an account shared with them:
+	 * that bill is in their average, and the owner's placeholder made the
+	 * rent count twice in its month.
 	 *
 	 * @param array<int, string>|null $rates
 	 * @param array<int, true> $scheduledBillIds the bills placed on their dates
+	 * @param array<int, true> $ownBills the ids of the user's own bills
 	 * @return array Transaction entities
 	 */
-	private function futureRows(string $userId, string $from, string $to, ?array $visibleAccountIds, ?array $rates, array $scheduledBillIds): array {
+	private function futureRows(string $userId, string $from, string $to, ?array $visibleAccountIds, ?array $rates, array $scheduledBillIds, array $ownBills): array {
 		$rows = $this->transactionMapper->findAllByUserAndDateRange($userId, $from, $to, null, $visibleAccountIds);
 		$rows = array_filter($rows, static fn ($t) => ($rates === null || isset($rates[(int)$t->getAccountId()]))
-			&& !($t->getBillId() !== null && isset($scheduledBillIds[(int)$t->getBillId()])));
+			&& !($t->getBillId() !== null && (isset($scheduledBillIds[(int)$t->getBillId()]) || !isset($ownBills[(int)$t->getBillId()]))));
 		return PatternAnalyzer::withoutInternalTransfers($this->filterForecastTransactions(array_values($rows)));
 	}
 
@@ -671,7 +690,33 @@ class ForecastService {
 		$thisMonth = BudgetPeriod::monthContaining($today, $monthStartDay);
 		$startDate = BudgetPeriod::range(self::shiftMonth($thisMonth, -12), $monthStartDay)[0];
 		$endDate = BudgetPeriod::range(self::shiftMonth($thisMonth, -1), $monthStartDay)[1];
-		$transactions = $this->transactionMapper->findAllByUserAndDateRange($userId, $startDate, $endDate, null, $visibleAccountIds);
+		// Read with a margin either side, as wide as the widest window a
+		// payment may fall from its date in: a bill due on 20 July, the
+		// month before the history starts, is paid by a row on 21 July, not
+		// by a purchase on 3 August. The margin's rows only stand for the
+		// payments they are; they are not history.
+		$margin = RecurringIncomeService::expectedWindowDays(null);
+		$rows = $this->transactionMapper->findAllByUserAndDateRange(
+			$userId,
+			(new \DateTimeImmutable($startDate))->modify("-{$margin} days")->format('Y-m-d'),
+			(new \DateTimeImmutable($endDate))->modify("+{$margin} days")->format('Y-m-d'),
+			null,
+			$visibleAccountIds
+		);
+		// The rows of an account left out above stay out with it, and a
+		// bill's scheduled placeholder is not a payment
+		$rows = array_values(array_filter(
+			$rows,
+			static fn ($t) => ($rates === null || isset($rates[(int)$t->getAccountId()]))
+				&& ($t->getStatus() ?? 'cleared') !== 'scheduled'
+		));
+		// Drop extraordinary/one-time transactions so they don't skew the
+		// projection averages. They still affect the real (current) balance
+		// above — we only exclude them from the historical pattern (#270).
+		$rows = $this->filterForecastTransactions($rows);
+		// Transfers between the accounts forecast are neither income nor spending
+		$rows = PatternAnalyzer::withoutInternalTransfers($rows);
+
 		// Nor is a month an account's history only reaches part of: that
 		// account's rows before its first complete month drop out, the
 		// other accounts' stay. Cut for every account at once, a savings
@@ -679,23 +724,14 @@ class ForecastService {
 		// months to none.
 		$historyStarts = $this->completeHistoryStarts($accounts, $monthStartDay, $endDate);
 		$transactions = array_values(array_filter(
-			$transactions,
-			static function ($t) use ($rates, $historyStarts): bool {
+			$rows,
+			static function ($t) use ($startDate, $endDate, $historyStarts): bool {
+				$date = substr((string)$t->getDate(), 0, 10);
 				$accountId = (int)$t->getAccountId();
-				// The history of an account left out above stays out with
-				// it, and a bill's scheduled placeholder is no history
-				return ($rates === null || isset($rates[$accountId]))
-					&& ($t->getStatus() ?? 'cleared') !== 'scheduled'
-					&& (!isset($historyStarts[$accountId]) || substr((string)$t->getDate(), 0, 10) >= $historyStarts[$accountId]);
+				return $date >= $startDate && $date <= $endDate
+					&& (!isset($historyStarts[$accountId]) || $date >= $historyStarts[$accountId]);
 			}
 		));
-
-		// Drop extraordinary/one-time transactions so they don't skew the
-		// projection averages. They still affect the real (current) balance
-		// above — we only exclude them from the historical pattern (#270).
-		$transactions = $this->filterForecastTransactions($transactions);
-		// Transfers between the accounts forecast are neither income nor spending
-		$transactions = PatternAnalyzer::withoutInternalTransfers($transactions);
 
 		// Analyze patterns, each amount in the forecast's currency
 		$monthlyData = $this->patternAnalyzer->aggregateMonthlyData($transactions, $rates ?? [], $monthStartDay);
@@ -733,8 +769,10 @@ class ForecastService {
 		// Those linked to another user's bill stay: on an account shared
 		// with them that bill isn't placed in their forecast, and the
 		// owner's rent dropped out of it altogether.
-		$paid = $this->scheduledPayments($transactions, $incomes, 'credit', $startDate, $endDate)
-			+ $this->scheduledPayments($transactions, $bills, 'debit', $startDate, $endDate);
+		// The rows of the margin and before an account's history count as
+		// payments too, so a date there claims its own row
+		$paid = $this->scheduledPayments($rows, $incomes, 'credit', $startDate, $endDate)
+			+ $this->scheduledPayments($rows, $bills, 'debit', $startDate, $endDate);
 		$ownBills = $this->ownBillIds($userId);
 		$variable = array_values(array_filter(
 			$transactions,
@@ -778,7 +816,7 @@ class ForecastService {
 		foreach ([...$bills, ...$incomingTransfers] as [$bill]) {
 			$scheduledBillIds[(int)$bill->getId()] = true;
 		}
-		$futureRows = $this->futureRows($userId, $tomorrow, $lastProjected, $visibleAccountIds, $rates, $scheduledBillIds);
+		$futureRows = $this->futureRows($userId, $tomorrow, $lastProjected, $visibleAccountIds, $rates, $scheduledBillIds, $ownBills);
 		$overdue = $this->overdueBills($userId, $bills, $today, $visibleAccountIds);
 
 		// Generate monthly projections

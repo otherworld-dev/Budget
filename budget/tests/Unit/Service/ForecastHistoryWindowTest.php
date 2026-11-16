@@ -46,7 +46,8 @@ class ForecastHistoryWindowTest extends TestCase {
 		$forecast = $service->getLiveForecast('alice', 3);
 
 		$this->assertSame(['2030-10', '2030-11', '2030-12', '2031-01'], array_column($forecast['monthlyProjections'], 'yearMonth'));
-		// The history, then the rows dated after today to the last month projected
-		$this->assertSame([['alice', '2029-10-01', '2030-09-30'], ['alice', '2030-10-05', '2031-01-31']], $asked);
+		// The history with 15 days' margin either side, then the rows dated
+		// after today to the last month projected
+		$this->assertSame([['alice', '2029-09-16', '2030-10-15'], ['alice', '2030-10-05', '2031-01-31']], $asked);
 	}
 }
