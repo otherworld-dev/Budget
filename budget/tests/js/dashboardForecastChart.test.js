@@ -102,6 +102,22 @@ describe('updateCashFlowForecastWidget', () => {
         expect(labels[2]).toBe('Oct 2026');
     });
 
+    it('marks the running month as only what is left of it', () => {
+        const dash = makeDashboard({ cashFlowForecast: {
+            currentBalance: 0,
+            monthlyProjections: [
+                { month: 'Nov 2026', yearMonth: '2026-11', partial: true, balance: 1, income: 0, expenses: 0 },
+                { month: 'Dec 2026', yearMonth: '2026-12', partial: false, balance: 2, income: 0, expenses: 0 },
+            ],
+        } });
+
+        dash.updateCashFlowForecastWidget();
+
+        const { labels } = chartInstances[0].config.data;
+        expect(labels[1]).toBe(`${formatYearMonth('2026-11')} (rest)`);
+        expect(labels[2]).toBe(formatYearMonth('2026-12'));
+    });
+
     it('draws a line chart', () => {
         const dash = makeDashboard({ cashFlowForecast: forecast });
 
