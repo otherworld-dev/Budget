@@ -349,6 +349,14 @@ class BudgetApp {
             });
         }
 
+        const promoClear = document.getElementById('account-promo-clear');
+        if (promoClear) {
+            promoClear.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.accountsModule.clearPromoRate();
+            });
+        }
+
         // Category form
         const categoryForm = document.getElementById('category-form');
         if (categoryForm) {
@@ -2937,6 +2945,23 @@ class BudgetApp {
                 payoffDateStr = payoffDate.toLocaleDateString(formatters.userLocale(), { month: 'short', year: 'numeric' });
             }
 
+            // The plan only carries a promo that has not ended yet
+            let promoLine = '';
+            if (debt.promoRate !== null && debt.promoRate !== undefined) {
+                const promoRate = Number(debt.promoRate);
+                const promoEnd = debt.promoEnd ? this.formatDate(debt.promoEnd) : '';
+                const text = debt.promoStart && debt.promoStart > formatters.getTodayDateString()
+                    ? /* xgettext:no-javascript-format */ t('budget', 'Promotional rate: {rate}% from {start} until {date}', { rate: promoRate, start: this.formatDate(debt.promoStart), date: promoEnd })
+                    : /* xgettext:no-javascript-format */ t('budget', 'Promotional rate: {rate}% until {date}', { rate: promoRate, date: promoEnd });
+                promoLine = `<div>${dom.escapeHtml(text)}</div>`;
+            }
+
+            // Min Payment is this month's; a minimum set for the promo can
+            // rise once the normal rate comes back
+            const minAfterPromo = debt.minimumAfterPromo !== null && debt.minimumAfterPromo !== undefined
+                ? `<div>${dom.escapeHtml(t('budget', 'Min payment rises to {amount} when the promotional rate ends', { amount: this.formatCurrency(parseFloat(debt.minimumAfterPromo) || 0, currency) }))}</div>`
+                : '';
+
             return `
                 <div class="debt-card" data-debt-id="${debt.id || ''}" style="border-left-color: ${this._debtColor(index)};">
                     <div class="debt-card-header">
@@ -2946,6 +2971,8 @@ class BudgetApp {
                     <div class="debt-card-meta">
                         ${rate > 0 ? `<div>${t('budget', 'Interest Rate')}: ${rate.toFixed(1)}%</div>` : ''}
                         ${minPayment > 0 ? `<div>${t('budget', 'Min Payment')}: ${this.formatCurrency(minPayment, currency)}</div>` : ''}
+                        ${promoLine}
+                        ${minAfterPromo}
                         ${payoffDateStr ? `<div>${t('budget', 'Payoff')}: ${payoffDateStr} (${t('budget', 'month {month}', { month: debt.payoffMonth })})</div>` : ''}
                         ${interest > 0 ? `<div>${t('budget', 'Total Interest')}: ${this.formatCurrency(interest, currency)}</div>` : ''}
                     </div>

@@ -51,6 +51,10 @@ class AccountMapperUpdateTest extends IntegrationTestCase {
 		'excludedFromReports' => [false, true],
 		'liabilityInCredit' => [null, true],
 		'closed' => [false, true],
+		'promoRate' => [0.0, 1.9],
+		'promoStart' => ['2026-01-01', '2026-03-01'],
+		'promoEnd' => ['2026-12-31', '2027-03-01'],
+		'promoWarned' => [null, '2027-03-01'],
 	];
 
 	public function testEveryAccountPropertyIsCovered(): void {

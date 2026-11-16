@@ -11,6 +11,7 @@ use OCA\Budget\Service\CategoryService;
 use OCA\Budget\Service\ImportRuleService;
 use OCA\Budget\Service\MoneyCalculator;
 use OCA\Budget\Service\OcrSettingsService;
+use OCA\Budget\Service\SettingService;
 use OCP\Http\Client\IClientService;
 use Psr\Log\LoggerInterface;
 
@@ -45,11 +46,24 @@ class ReceiptExtractionService {
 	/** Model name sent to the relay, which picks its real backend itself. */
 	private const RELAY_MODEL = 'receipt-v1';
 
+	/** How an ambiguous printed date (08/11/2026) is read; see resolveDate(). */
+	private const DAY_FIRST = 'dmy';
+	private const MONTH_FIRST = 'mdy';
+
+	/** Currencies whose countries print numeric dates month-first. */
+	private const MONTH_FIRST_CURRENCIES = ['USD', 'PHP'];
+
+	/** Currencies whose countries print both orders, so neither is a safe bet. */
+	private const MIXED_ORDER_CURRENCIES = ['CAD'];
+
 	private const PROMPT = 'Read this till receipt. Reply with ONLY a JSON object — no code fences, no commentary: '
-		. '{"merchant": string|null, "date": "YYYY-MM-DD"|null, "currency": "ISO 4217 code"|null, '
+		. '{"merchant": string|null, "date": "YYYY-MM-DD"|null, "dateText": string|null, '
+		. '"currency": "ISO 4217 code"|null, '
 		. '"total": number|null, "subtotal": number|null, "tax": number|null, "discount": number|null, '
 		. '"lineItems": [{"description": string, "amount": number}]}. '
-		. 'Use null for anything unreadable rather than guessing. "total" is the amount actually paid. '
+		. 'Use null for anything unreadable rather than guessing. '
+		. '"dateText" is the date exactly as printed, digits and separators unchanged (e.g. "08/11/2026"). '
+		. '"total" is the amount actually paid. '
 		. '"subtotal" is the pre-tax figure and "tax" the VAT/sales tax line — report each ONLY when '
 		. 'the receipt prints it as its own labelled line. Never calculate subtotal or tax yourself, '
 		. 'and never report a negative one; use null when the receipt does not print it. '
@@ -69,6 +83,7 @@ class ReceiptExtractionService {
 		private ReceiptParser $parser,
 		private ImportRuleService $ruleService,
 		private CategoryService $categoryService,
+		private SettingService $settingService,
 		private LoggerInterface $logger,
 	) {
 	}
@@ -239,8 +254,8 @@ class ReceiptExtractionService {
 
 	private function buildDraft(string $userId, array $raw): array {
 		$merchant = $this->cleanString($raw['merchant'] ?? null, 80);
-		$date = $this->cleanDate($raw['date'] ?? null);
 		$currency = $this->cleanCurrency($raw['currency'] ?? null);
+		$date = $this->resolveDate($userId, $raw, $currency);
 		$total = $this->cleanAmount($raw['total'] ?? null);
 		if ($total !== null && (float)$total <= 0) {
 			// A refund receipt or a misread sign. The v1 contract says total
@@ -559,6 +574,68 @@ class ReceiptExtractionService {
 		$value = preg_replace('/\s{2,}/', ' ', $value) ?? $value;
 
 		return $value === '' ? null : mb_substr($value, 0, $maxLength);
+	}
+
+	/**
+	 * The receipt's date, with the day/month order decided here rather than
+	 * by the model.
+	 *
+	 * Asked for YYYY-MM-DD, a vision model still has to pick an order for a
+	 * printed 08/11/2026, and it picks month-first even on a UK receipt in
+	 * pounds. So it is also asked for the date exactly as printed, and that is
+	 * read both ways locally. One that reads only one way (31/12, 12/31, 08/08)
+	 * is taken as read; a genuinely ambiguous one follows the receipt's
+	 * currency, or the user's own when the receipt names none — and is left
+	 * null when that settles nothing (CAD), since a blank date the user fills
+	 * beats a wrong one they skim past.
+	 *
+	 * The model's own ISO date is used only when the printed text holds no
+	 * numeric date: "8 Nov 2026" was never ambiguous, and a custom endpoint
+	 * whose model ignores dateText behaves as it always did.
+	 */
+	private function resolveDate(string $userId, array $raw, ?string $currency): ?string {
+		$printed = $this->cleanString($raw['dateText'] ?? null, 60);
+		if ($printed !== null) {
+			$dayFirst = $this->cleanDate($this->parser->readDate($printed, false));
+			$monthFirst = $this->cleanDate($this->parser->readDate($printed, true));
+			if ($dayFirst !== null || $monthFirst !== null) {
+				if ($monthFirst === null || $dayFirst === $monthFirst) {
+					return $dayFirst;
+				}
+				if ($dayFirst === null) {
+					return $monthFirst;
+				}
+
+				return match ($this->dateOrder($userId, $currency)) {
+					self::DAY_FIRST => $dayFirst,
+					self::MONTH_FIRST => $monthFirst,
+					default => null,
+				};
+			}
+		}
+
+		return $this->cleanDate($raw['date'] ?? null);
+	}
+
+	/**
+	 * How an ambiguous numeric date on this receipt is most likely ordered:
+	 * from the receipt's own currency, else the user's base currency. Most
+	 * of the world, and this app's user base, writes day-first.
+	 */
+	private function dateOrder(string $userId, ?string $currency): ?string {
+		if ($currency === null) {
+			try {
+				$currency = $this->cleanCurrency($this->settingService->get($userId, 'default_currency') ?? 'GBP');
+			} catch (\Throwable $e) {
+				return null;
+			}
+		}
+
+		return match (true) {
+			$currency === null, in_array($currency, self::MIXED_ORDER_CURRENCIES, true) => null,
+			in_array($currency, self::MONTH_FIRST_CURRENCIES, true) => self::MONTH_FIRST,
+			default => self::DAY_FIRST,
+		};
 	}
 
 	private function cleanDate(mixed $value): ?string {

@@ -495,6 +495,47 @@ class AccountControllerTest extends TestCase {
 		$this->assertStringContainsString('Invalid request data', $response->getData()['error']);
 	}
 
+	public function testUpdateWithoutPromoKeysKeepsPromo(): void {
+		$this->mockInput(json_encode(['name' => 'Updated']));
+		$captured = null;
+		$this->service->method('update')->willReturnCallback(function ($id, $uid, $updates) use (&$captured) {
+			$captured = $updates;
+			return $this->makeAccount();
+		});
+
+		$this->controller->update(1);
+
+		$this->assertArrayNotHasKey('promoRate', $captured);
+		$this->assertArrayNotHasKey('promoStart', $captured);
+		$this->assertArrayNotHasKey('promoEnd', $captured);
+	}
+
+	public function testUpdatePassesPromoKeysAndNormalisesEmptyStrings(): void {
+		$this->mockInput(json_encode(['promoRate' => '0', 'promoStart' => '', 'promoEnd' => '2027-01-01']));
+		$captured = null;
+		$this->service->method('update')->willReturnCallback(function ($id, $uid, $updates) use (&$captured) {
+			$captured = $updates;
+			return $this->makeAccount();
+		});
+
+		$this->controller->update(1);
+
+		$this->assertSame(0.0, $captured['promoRate']);
+		$this->assertNull($captured['promoStart']);
+		$this->assertSame('2027-01-01', $captured['promoEnd']);
+	}
+
+	public function testUpdateWithInvalidPromoReturns400(): void {
+		$this->mockInput(json_encode(['promoRate' => 0, 'promoEnd' => '2027-01-01']));
+		$this->service->method('update')
+			->willThrowException(new \InvalidArgumentException('A promotional rate needs a start date.'));
+
+		$response = $this->controller->update(1);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertStringContainsString('start date', $response->getData()['error']);
+	}
+
 	public function testUpdateInvalidName(): void {
 		$vs = $this->createMock(ValidationService::class);
 		$vs->method('validateName')->willReturn(['valid' => false, 'error' => 'Bad name']);

@@ -97,6 +97,7 @@ class SchemaVersionService {
 		'budget_nw_snaps' => \OCA\Budget\Db\NetWorthSnapshot::class,
 		'budget_pensions' => \OCA\Budget\Db\PensionAccount::class,
 		'budget_pen_contribs' => \OCA\Budget\Db\PensionContribution::class,
+		'budget_runway_oneoffs' => \OCA\Budget\Db\RunwayOneOff::class,
 		'budget_pen_recur' => \OCA\Budget\Db\PensionRecurringContribution::class,
 		'budget_pen_snaps' => \OCA\Budget\Db\PensionSnapshot::class,
 		'budget_projects' => \OCA\Budget\Db\Project::class,

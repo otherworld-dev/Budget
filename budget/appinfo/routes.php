@@ -191,6 +191,10 @@ return [
 
 		// Forecast routes
 		['name' => 'forecast#live', 'url' => '/api/forecast/live', 'verb' => 'GET'],
+		['name' => 'runway#index', 'url' => '/api/runway', 'verb' => 'GET'],
+		['name' => 'runway#createOneOff', 'url' => '/api/runway/one-offs', 'verb' => 'POST'],
+		['name' => 'runway#updateOneOff', 'url' => '/api/runway/one-offs/{id}', 'verb' => 'PUT'],
+		['name' => 'runway#destroyOneOff', 'url' => '/api/runway/one-offs/{id}', 'verb' => 'DELETE'],
 		['name' => 'forecast#generate', 'url' => '/api/forecast/generate', 'verb' => 'POST'],
 		['name' => 'forecast#enhanced', 'url' => '/api/forecast/enhanced', 'verb' => 'POST'],
 		['name' => 'forecast#export', 'url' => '/api/forecast/export', 'verb' => 'POST'],
@@ -211,6 +215,9 @@ return [
 		['name' => 'bill#createFromDetected', 'url' => '/api/bills/create-from-detected', 'verb' => 'POST'],
 		['name' => 'bill#annualOverview', 'url' => '/api/bills/annual-overview', 'verb' => 'GET'],
 		['name' => 'bill#unrecordedPayments', 'url' => '/api/bills/unrecorded-payments', 'verb' => 'GET'],
+		// A bill's booked payment beside the bank's own row of it, and payments the bank hasn't shown
+		['name' => 'bill#paymentPairs', 'url' => '/api/bills/payment-pairs', 'verb' => 'GET'],
+		['name' => 'bill#unconfirmedPayments', 'url' => '/api/bills/unconfirmed-payments', 'verb' => 'GET'],
 		['name' => 'bill#exportCalendar', 'url' => '/api/bills/export-calendar', 'verb' => 'POST'],
 
 		// Bills calendar feed (ICS): public token-authenticated feed + token management
@@ -226,6 +233,8 @@ return [
 		['name' => 'bill#markPaid', 'url' => '/api/bills/{id}/paid', 'verb' => 'POST'],
 		['name' => 'bill#recordMissedPayment', 'url' => '/api/bills/{id}/record-payment', 'verb' => 'POST'],
 		['name' => 'bill#dismissUnrecordedPayment', 'url' => '/api/bills/{id}/dismiss-unrecorded', 'verb' => 'POST'],
+		['name' => 'bill#mergePayment', 'url' => '/api/bills/{id}/merge-payment', 'verb' => 'POST'],
+		['name' => 'bill#confirmPayment', 'url' => '/api/bills/{id}/confirm-payment', 'verb' => 'POST'],
 		['name' => 'bill#skipPayment', 'url' => '/api/bills/{id}/skip', 'verb' => 'POST'],
 		['name' => 'bill#undoSkip', 'url' => '/api/bills/{id}/undo-skip', 'verb' => 'POST'],
 		['name' => 'bill#undoPaid', 'url' => '/api/bills/{id}/undo-paid', 'verb' => 'POST'],
@@ -497,6 +506,7 @@ return [
 		// "Capture and check" (#767): read-only figures for the phone.
 		['name' => 'apiV1Budget#status', 'url' => '/api/v1/budget/status', 'verb' => 'GET'],
 		['name' => 'apiV1Bill#upcoming', 'url' => '/api/v1/bills/upcoming', 'verb' => 'GET'],
+		['name' => 'apiV1Runway#show', 'url' => '/api/v1/runway', 'verb' => 'GET'],
 
 		['name' => 'apiV1Transaction#index', 'url' => '/api/v1/transactions', 'verb' => 'GET'],
 		['name' => 'apiV1Transaction#create', 'url' => '/api/v1/transactions', 'verb' => 'POST'],

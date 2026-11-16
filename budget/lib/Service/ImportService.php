@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OCA\Budget\Service;
 
 use OCA\Budget\Db\AccountMapper;
+use OCA\Budget\Db\Transaction;
 use OCA\Budget\Db\TransactionMapper;
 use OCA\Budget\Service\Import\DuplicateDetector;
 use OCA\Budget\Service\Import\EncodingNormalizer;
@@ -1503,8 +1504,11 @@ class ImportService {
 
 		$totalRows = array_sum(array_map(fn ($a) => count($a['transactions']), $parsedData['accounts']));
 
+		$billMatches = $this->previewBillMatches($userId, $transactions);
+
 		return [
 			'transactions' => array_slice($transactions, 0, 50),
+			'billMatches' => $billMatches,
 			'totalRows' => $totalRows,
 			'validTransactions' => count($transactions),
 			'categorizedCount' => $this->countCategorized($transactions),
@@ -1512,6 +1516,48 @@ class ImportService {
 			'errors' => $errors,
 			'accountSummaries' => array_values($accountSummaries),
 		];
+	}
+
+	/**
+	 * The bills the import will settle with the previewed rows, as
+	 * BillService::previewImportMatches() works them out: how many rows pay a
+	 * bill or take the place of a payment it booked, and how many are left
+	 * for the user because they could be more than one. Each row gets its
+	 * bill as 'billMatch', for the preview table. Rows the import will skip
+	 * as duplicates are left out. Best-effort, like the match itself.
+	 *
+	 * @param array<int, array> $transactions the preview's rows, annotated in place
+	 * @return array{matched: int, review: int}
+	 */
+	private function previewBillMatches(string $userId, array &$transactions): array {
+		$rows = [];
+		foreach ($transactions as $index => $row) {
+			$accountId = $row['destinationAccountId'] ?? $row['_matchAccountId'] ?? null;
+			unset($transactions[$index]['_matchAccountId']);
+			$date = (string)($row['date'] ?? '');
+			if ($accountId === null || !empty($row['isDuplicate']) || preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) !== 1) {
+				continue;
+			}
+			$transaction = new Transaction();
+			$transaction->setAccountId((int)$accountId);
+			$transaction->setDate($date);
+			$transaction->setAmount((float)($row['amount'] ?? 0));
+			$transaction->setType((string)($row['type'] ?? ''));
+			$transaction->setDescription((string)($row['description'] ?? ''));
+			$transaction->setVendor(isset($row['vendor']) ? (string)$row['vendor'] : null);
+			$transaction->setStatus('cleared');
+			$rows[$index] = $transaction;
+		}
+
+		try {
+			$preview = $this->billService->previewImportMatches($userId, $rows);
+		} catch (\Exception $e) {
+			return ['matched' => 0, 'review' => 0];
+		}
+		foreach ($preview['rows'] ?? [] as $index => $match) {
+			$transactions[$index]['billMatch'] = $match;
+		}
+		return ['matched' => (int)($preview['matched'] ?? 0), 'review' => (int)($preview['review'] ?? 0)];
 	}
 
 	private function previewSingleAccountImport(string $userId, string $content, string $format, array $mapping, ?int $accountId, bool $skipDuplicates, string $delimiter = ',', ?string $presetId = null, bool $applyRules = true): array {
@@ -1673,6 +1719,8 @@ class ImportService {
 					$transactions[] = array_merge($transaction, [
 						'rowIndex' => $index,
 						'isDuplicate' => $isDuplicate,
+						// For the bill match preview only, dropped before the response
+						'_matchAccountId' => $txAccountId,
 					]);
 
 					// Tally the direction each row will land on, post-rules, so
@@ -1743,9 +1791,12 @@ class ImportService {
 			}
 		}
 
+		$billMatches = $this->previewBillMatches($userId, $transactions);
+
 		if ($hasAccountColumn) {
 			$result = [
 				'transactions' => array_slice($transactions, 0, 50),
+				'billMatches' => $billMatches,
 				'totalRows' => count($data),
 				'validTransactions' => count($transactions),
 				'categorizedCount' => $this->countCategorized($transactions),
@@ -1757,6 +1808,7 @@ class ImportService {
 		} else {
 			$result = [
 				'transactions' => array_slice($transactions, 0, 50),
+				'billMatches' => $billMatches,
 				'totalRows' => count($data),
 				'validTransactions' => count($transactions),
 				'categorizedCount' => $this->countCategorized($transactions),
@@ -2092,8 +2144,13 @@ class ImportService {
 		// Auto-mark bills paid from matching imported transactions (#274).
 		// Best-effort: a matching failure must never fail the import.
 		$billsMarkedPaid = 0;
+		$billsToReview = 0;
 		try {
-			$billsMarkedPaid = $this->billService->autoMatchPaidFromImport($userId, $createdForBillMatch);
+			$billMatch = $this->billService->matchImportedRows($userId, $createdForBillMatch);
+			$billsMarkedPaid = (int)($billMatch['matched'] ?? 0);
+			// Rows that could be more than one bill's payment, left as they
+			// came in for the user to match from the duplicate finder
+			$billsToReview = count($billMatch['review'] ?? []);
 		} catch (\Exception $e) {
 			// ignore
 		}
@@ -2132,6 +2189,7 @@ class ImportService {
 			'accountResults' => array_values($accountResults),
 			'transfersLinked' => $transfersLinked,
 			'billsMarkedPaid' => $billsMarkedPaid,
+			'billsToReview' => $billsToReview,
 			// The import screen pairs up transfers among these rows only
 			'transactionIds' => array_map(fn ($tx) => $tx->getId(), $createdForBillMatch),
 		];
@@ -2424,8 +2482,13 @@ class ImportService {
 		// Auto-mark bills paid from matching imported transactions (#274).
 		// Best-effort: a matching failure must never fail the import.
 		$billsMarkedPaid = 0;
+		$billsToReview = 0;
 		try {
-			$billsMarkedPaid = $this->billService->autoMatchPaidFromImport($userId, $createdForBillMatch);
+			$billMatch = $this->billService->matchImportedRows($userId, $createdForBillMatch);
+			$billsMarkedPaid = (int)($billMatch['matched'] ?? 0);
+			// Rows that could be more than one bill's payment, left as they
+			// came in for the user to match from the duplicate finder
+			$billsToReview = count($billMatch['review'] ?? []);
 		} catch (\Exception $e) {
 			// ignore
 		}
@@ -2483,6 +2546,7 @@ class ImportService {
 		if ($transfersLinked > 0) {
 			$result['transfersLinked'] = $transfersLinked;
 		}
+		$result['billsToReview'] = $billsToReview;
 		// The import screen pairs up transfers among these rows only
 		$result['transactionIds'] = array_map(fn ($tx) => $tx->getId(), $createdForBillMatch);
 

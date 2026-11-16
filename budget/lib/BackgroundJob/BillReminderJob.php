@@ -10,6 +10,7 @@ use OCA\Budget\Db\BillMapper;
 use OCA\Budget\Db\RecurringIncomeMapper;
 use OCA\Budget\Service\BillService;
 use OCA\Budget\Service\PensionRecurringService;
+use OCA\Budget\Service\PromoRateWarningService;
 use OCA\Budget\Service\RecurringIncomeService;
 use OCA\Budget\Service\SettingService;
 use OCA\Budget\Service\UserClock;
@@ -48,6 +49,7 @@ class BillReminderJob extends TimedJob {
 		$logger = Server::get(LoggerInterface::class);
 		$settingService = Server::get(SettingService::class);
 		$clock = Server::get(UserClock::class);
+		$promoWarnings = Server::get(PromoRateWarningService::class);
 
 		try {
 			$userIds = $this->getAllUserIds($db);
@@ -58,6 +60,7 @@ class BillReminderJob extends TimedJob {
 			$autoCreateIncomeFailedCount = 0;
 			$pensionPostCount = 0;
 			$pensionPostFailedCount = 0;
+			$promoWarningCount = 0;
 			foreach ($userIds as $userId) {
 				try {
 					// The user's today: the server's date put reminders and
@@ -81,6 +84,13 @@ class BillReminderJob extends TimedJob {
 					$pensionPost = $this->processAutoPostPensionsForUser($userId, $pensionRecurService, $notificationManager, $settingService, $logger);
 					$pensionPostCount += $pensionPost['success'];
 					$pensionPostFailedCount += $pensionPost['failed'];
+
+					// A promotional rate about to end (30 days out)
+					try {
+						$promoWarningCount += $promoWarnings->sendDueWarnings($userId, $today->format('Y-m-d'));
+					} catch (\Exception $e) {
+						$logger->warning("Promo rate warnings failed for user {$userId}: " . $e->getMessage(), ['app' => 'budget']);
+					}
 
 					$bills = $billMapper->findActive($userId);
 					// Each in its account's currency, not the user's default
@@ -127,9 +137,9 @@ class BillReminderJob extends TimedJob {
 				}
 			}
 
-			if ($notificationCount > 0 || $autoPayCount > 0 || $autoCreateIncomeCount > 0 || $pensionPostCount > 0) {
+			if ($notificationCount > 0 || $autoPayCount > 0 || $autoCreateIncomeCount > 0 || $pensionPostCount > 0 || $promoWarningCount > 0) {
 				$logger->info(
-					"Bill reminder job completed: {$notificationCount} reminders sent, {$autoPayCount} bills auto-paid, {$autoPayFailedCount} auto-pay failures, {$autoCreateIncomeCount} income auto-created, {$autoCreateIncomeFailedCount} income auto-create failures, {$pensionPostCount} pension contributions posted, {$pensionPostFailedCount} pension post failures",
+					"Bill reminder job completed: {$notificationCount} reminders sent, {$autoPayCount} bills auto-paid, {$autoPayFailedCount} auto-pay failures, {$autoCreateIncomeCount} income auto-created, {$autoCreateIncomeFailedCount} income auto-create failures, {$pensionPostCount} pension contributions posted, {$pensionPostFailedCount} pension post failures, {$promoWarningCount} promo rate warnings",
 					['app' => 'budget']
 				);
 			}
@@ -250,7 +260,8 @@ class BillReminderJob extends TimedJob {
 
 	/**
 	 * Users with an active bill, active recurring income (for auto-create)
-	 * or an auto-posting pension contribution schedule (#251).
+	 * an auto-posting pension contribution schedule (#251), or any account
+	 * (a promotional rate can end on one with no bills).
 	 *
 	 * @return string[]
 	 */
@@ -259,7 +270,9 @@ class BillReminderJob extends TimedJob {
 		return JobUsers::union(
 			$users->from('budget_bills', ['is_active' => true]),
 			$users->from('budget_recurring_income', ['is_active' => true]),
-			$users->from('budget_pen_recur', ['is_active' => true, 'auto_post_enabled' => true])
+			$users->from('budget_pen_recur', ['is_active' => true, 'auto_post_enabled' => true]),
+			// A card with only a promotional rate (no bills) still needs its warning
+			$users->accountOwners()
 		);
 	}
 

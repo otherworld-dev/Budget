@@ -10,6 +10,7 @@ use OCA\Budget\Service\Bill\FrequencyCalculator;
 use OCA\Budget\Service\BillService;
 use OCA\Budget\Service\RecurringBudgetService;
 use OCA\Budget\Service\RecurringIncomeService;
+use OCA\Budget\Service\SettingService;
 use PHPUnit\Framework\TestCase;
 
 class RecurringBudgetServiceTest extends TestCase {
@@ -173,5 +174,51 @@ class RecurringBudgetServiceTest extends TestCase {
 		$result = $this->service->getMonthlyBudgetsByCategory('user1');
 
 		$this->assertSame([], $result);
+	}
+
+	private function serviceWithSetting(?string $value): RecurringBudgetService {
+		$settings = $this->createMock(SettingService::class);
+		$settings->method('get')->willReturnCallback(
+			static fn (string $userId, string $key) => $key === RecurringBudgetService::ENABLED_SETTING ? $value : null
+		);
+		return new RecurringBudgetService(
+			$this->billService,
+			$this->recurringIncomeService,
+			new FrequencyCalculator(),
+			null,
+			null,
+			$settings
+		);
+	}
+
+	public function testSwitchedOffBudgetsNothingFromBillsOrIncome(): void {
+		// #479: a parent budgeted by hand, its children's bills shouldn't
+		// add budgets of their own on top
+		$this->billService->method('findActive')->willReturn([
+			$this->makeBill(100.0, 'monthly', 5),
+			$this->makeBill(120.0, 'yearly', 6),
+		]);
+		$this->recurringIncomeService->method('findActive')->willReturn([
+			$this->makeIncome(2000.0, 'monthly', 10),
+		]);
+
+		$service = $this->serviceWithSetting('false');
+
+		$this->assertFalse($service->isEnabled('user1'));
+		$this->assertSame([], $service->getMonthlyBudgetsByCategory('user1'));
+		$this->assertSame([], $service->getMonthlyBudgetsForViewer('user1'));
+	}
+
+	public function testOnUnlessSwitchedOff(): void {
+		$this->billService->method('findActive')->willReturn([
+			$this->makeBill(100.0, 'monthly', 5),
+		]);
+		$this->recurringIncomeService->method('findActive')->willReturn([]);
+
+		foreach ([null, 'true'] as $value) {
+			$service = $this->serviceWithSetting($value);
+			$this->assertTrue($service->isEnabled('user1'));
+			$this->assertSame([5 => 100.0], $service->getMonthlyBudgetsByCategory('user1'));
+		}
 	}
 }

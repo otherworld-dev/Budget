@@ -394,6 +394,69 @@ final class ApiSerializer {
 	}
 
 	/**
+	 * GET /runway: how long the money lasts. The lean public view of
+	 * RunwayService::get(): the chart series, settings, skipped accounts and
+	 * past one-offs stay in the web UI's own payload. All money is in the
+	 * base `currency`. `months` is a decimal the clients round, and it, the
+	 * run-out date and `difference_months` are null unless the money does
+	 * run out; a client must read an unknown `state` as "no figure".
+	 */
+	public static function runway(array $r): array {
+		$currency = $r['currency'] ?? null;
+		$scenario = static function (array $s) use ($currency): array {
+			return [
+				'state' => (string)($s['state'] ?? 'unavailable'),
+				'monthly_drain' => isset($s['monthlyDrain']) ? self::money($s['monthlyDrain'], $currency) : null,
+				'months' => isset($s['months']) ? (float)$s['months'] : null,
+				'runs_out_on' => $s['runsOutOn'] ?? null,
+			];
+		};
+		$window = $r['window'] ?? [];
+		$excluded = $r['excluded'] ?? [];
+		$scenarios = $r['scenarios'] ?? [];
+		$oneOffs = [];
+		foreach ($r['oneOffs'] ?? [] as $o) {
+			if (is_array($o) && empty($o['past'])) {
+				$oneOffs[] = [
+					'id' => (int)($o['id'] ?? 0),
+					'description' => (string)($o['description'] ?? ''),
+					'amount' => self::money($o['amount'] ?? 0, $currency),
+					'date' => $o['date'] ?? null,
+				];
+			}
+		}
+
+		return [
+			'currency' => $currency,
+			'total' => self::money($r['total'] ?? 0, $currency),
+			'accounts' => array_values(array_map(
+				static fn (array $a): array => [
+					'id' => (int)($a['id'] ?? 0),
+					'name' => (string)($a['name'] ?? ''),
+					'balance' => self::money($a['balance'] ?? 0, $currency),
+				],
+				$r['accounts'] ?? []
+			)),
+			'window' => [
+				'months' => (int)($window['months'] ?? 0),
+				'from' => $window['from'] ?? null,
+				'to' => $window['to'] ?? null,
+			],
+			'monthly_out' => self::money($r['monthlyOut'] ?? 0, $currency),
+			'monthly_in' => self::money($r['monthlyIn'] ?? 0, $currency),
+			'excluded_count' => (int)($excluded['count'] ?? 0),
+			'excluded_total' => self::money($excluded['total'] ?? 0, $currency),
+			'scenarios' => [
+				'current' => $scenario($scenarios['current'] ?? []),
+				'on_budget' => $scenario($scenarios['onBudget'] ?? []),
+			],
+			'difference_months' => isset($r['differenceMonths']) ? (float)$r['differenceMonths'] : null,
+			'one_offs' => $oneOffs,
+			'calculated_at' => gmdate('Y-m-d\TH:i:s\Z'),
+		];
+	}
+
+	/**
 	 * One bill of GET /bills/upcoming (#767). `amount` is the stored figure:
 	 * for an `amount_type` other than 'fixed' the real one is only worked
 	 * out from the card's statement when the bill is paid.

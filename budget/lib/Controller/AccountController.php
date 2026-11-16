@@ -178,6 +178,14 @@ class AccountController extends Controller {
 				$interestRate = (float)$data['interestRate'];
 			}
 
+			// Promotional rate: '' means "not set". The service validates the trio.
+			$promoRate = null;
+			if (isset($data['promoRate']) && $data['promoRate'] !== '') {
+				$promoRate = (float)$data['promoRate'];
+			}
+			$promoStart = (isset($data['promoStart']) && $data['promoStart'] !== '') ? (string)$data['promoStart'] : null;
+			$promoEnd = (isset($data['promoEnd']) && $data['promoEnd'] !== '') ? (string)$data['promoEnd'] : null;
+
 			$creditLimit = null;
 			if (isset($data['creditLimit']) && $data['creditLimit'] !== '' && $data['creditLimit'] !== null) {
 				$creditLimit = (float)$data['creditLimit'];
@@ -267,13 +275,18 @@ class AccountController extends Controller {
 				$walletAddress,
 				$excludedFromReports,
 				$statementDay,
-				$liabilityInCredit
+				$liabilityInCredit,
+				$promoRate,
+				$promoStart,
+				$promoEnd
 			);
 
 			// Audit log the account creation
 			$this->auditService->logAccountCreated($this->getEffectiveUserId(), $account->getId(), $name);
 
 			return new DataResponse($account, Http::STATUS_CREATED);
+		} catch (\InvalidArgumentException $e) {
+			return $this->handleValidationError($e);
 		} catch (\Exception $e) {
 			return $this->handleError($e, $this->l->t('Failed to create account'));
 		}
@@ -432,6 +445,17 @@ class AccountController extends Controller {
 			}
 			if (isset($data['minimumPayment'])) {
 				$updates['minimumPayment'] = $data['minimumPayment'] !== '' ? (float)$data['minimumPayment'] : null;
+			}
+			// Promotional rate. Only keys present in the request are touched, so a
+			// form that never mentions them cannot wipe a stored promo. '' and null
+			// both clear; the service validates the three together.
+			if (array_key_exists('promoRate', $data)) {
+				$updates['promoRate'] = ($data['promoRate'] === null || $data['promoRate'] === '') ? null : (float)$data['promoRate'];
+			}
+			foreach (['promoStart', 'promoEnd'] as $promoKey) {
+				if (array_key_exists($promoKey, $data)) {
+					$updates[$promoKey] = ($data[$promoKey] === null || $data[$promoKey] === '') ? null : (string)$data[$promoKey];
+				}
 			}
 			if (isset($data['statementDay'])) {
 				$statementDay = $data['statementDay'] !== '' && $data['statementDay'] !== null ? (int)$data['statementDay'] : null;

@@ -1579,6 +1579,29 @@ class MigrationServiceTest extends TestCase {
 	}
 
 	/**
+	 * The runway's chosen accounts are account ids, so they go through the
+	 * accounts map: through the categories map, 3 and 4 would have become
+	 * whatever categories 3 and 4 were restored as, or nothing.
+	 */
+	public function testTheRunwayAccountsFollowTheRestoredAccountIds(): void {
+		$idMaps = ['accounts' => [3 => 30, 4 => 40], 'categories' => [3 => 300, 4 => 400]];
+
+		$settings = $this->importedSettings([
+			'runway_account_ids' => '[4,3,99]',
+			'runway_window_months' => '6',
+		], $idMaps);
+
+		$this->assertSame('[40,30]', $settings['runway_account_ids']);
+		$this->assertSame('6', $settings['runway_window_months']);
+	}
+
+	public function testNoRunwayAccountsChosenIsRestoredAsItWas(): void {
+		$settings = $this->importedSettings(['runway_account_ids' => ''], ['accounts' => [], 'categories' => []]);
+
+		$this->assertSame('', $settings['runway_account_ids']);
+	}
+
+	/**
 	 * @param array<string, string> $archived
 	 * @return array<string, string> key => value as inserted
 	 */
@@ -1702,5 +1725,16 @@ class MigrationServiceTest extends TestCase {
 			];
 		}
 		return $result;
+	}
+
+	/**
+	 * The promotional rate columns come back from a backup: the import copies
+	 * whatever copiedAccountProperties() lists.
+	 */
+	public function testCopiedAccountPropertiesIncludesPromoFields(): void {
+		$copied = MigrationService::copiedAccountProperties();
+		foreach (['promoRate', 'promoStart', 'promoEnd', 'promoWarned'] as $property) {
+			$this->assertContains($property, $copied);
+		}
 	}
 }

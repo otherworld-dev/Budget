@@ -9,6 +9,7 @@ use OCA\Budget\Service\AnomalyDetectionService;
 use OCA\Budget\Service\BudgetAlertService;
 use OCA\Budget\Service\DigestService;
 use OCA\Budget\Service\Forecast\ForecastWarningService;
+use OCA\Budget\Service\Runway\RunwayAlertService;
 use OCA\Budget\Service\SettingService;
 use OCA\Budget\Service\UserClock;
 use OCP\AppFramework\Utility\ITimeFactory;
@@ -22,6 +23,7 @@ class UserDigestJobTest extends TestCase {
 	private AnomalyDetectionService $anomalyService;
 	private BudgetAlertService $budgetAlertService;
 	private ForecastWarningService $forecastWarningService;
+	private RunwayAlertService $runwayAlertService;
 	/** @var array<string, string> */
 	private array $settings = [];
 	/** @var array<string, string> settings written */
@@ -34,6 +36,7 @@ class UserDigestJobTest extends TestCase {
 		$this->anomalyService = $this->createMock(AnomalyDetectionService::class);
 		$this->budgetAlertService = $this->createMock(BudgetAlertService::class);
 		$this->forecastWarningService = $this->createMock(ForecastWarningService::class);
+		$this->runwayAlertService = $this->createMock(RunwayAlertService::class);
 
 		$settingService = $this->createMock(SettingService::class);
 		$settingService->method('get')
@@ -55,6 +58,7 @@ class UserDigestJobTest extends TestCase {
 			[AnomalyDetectionService::class, $this->anomalyService],
 			[BudgetAlertService::class, $this->budgetAlertService],
 			[ForecastWarningService::class, $this->forecastWarningService],
+			[RunwayAlertService::class, $this->runwayAlertService],
 			[LoggerInterface::class, $this->createMock(LoggerInterface::class)],
 			[UserClock::class, $clock],
 		]);
@@ -93,6 +97,26 @@ class UserDigestJobTest extends TestCase {
 	public function testSkipsForecastWarningsWhenTheUserTurnedThemOff(): void {
 		$this->settings['notification_forecast_warning'] = 'false';
 		$this->forecastWarningService->expects($this->never())->method('checkAndNotify');
+
+		$this->runFor();
+	}
+
+	public function testChecksTheRunwayByDefault(): void {
+		$this->runwayAlertService->expects($this->once())->method('checkAndNotify')->with('alice');
+
+		$this->runFor();
+	}
+
+	public function testSkipsRunwayAlertsWhenTheUserTurnedThemOff(): void {
+		$this->settings['notification_runway_alert'] = 'false';
+		$this->runwayAlertService->expects($this->never())->method('checkAndNotify');
+
+		$this->runFor();
+	}
+
+	public function testAFailingForecastWarningStillLetsTheRunwayCheckRun(): void {
+		$this->forecastWarningService->method('checkAndNotify')->willThrowException(new \RuntimeException('boom'));
+		$this->runwayAlertService->expects($this->once())->method('checkAndNotify');
 
 		$this->runFor();
 	}

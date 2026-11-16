@@ -178,42 +178,59 @@ class ReceiptParser {
 	 */
 	private function findDate(array $lines): ?string {
 		foreach ($lines as $line) {
-			// ISO first: unambiguous, increasingly common on card terminals.
-			if (preg_match('/\b(20\d{2})-(\d{2})-(\d{2})\b/', $line, $m)) {
-				if ($this->isRealDate((int)$m[1], (int)$m[2], (int)$m[3])) {
-					return sprintf('%04d-%02d-%02d', $m[1], $m[2], $m[3]);
-				}
+			$date = $this->readDate($line);
+			if ($date !== null) {
+				return $date;
 			}
+		}
 
-			// 31/12/2026, 31-12-26 — day first, same separator both times.
-			if (preg_match('~\b(\d{1,2})([/\-])(\d{1,2})\2(\d{2,4})\b~', $line, $m)) {
-				$year = (int)$m[4];
-				if ($year < 100) {
-					$year += 2000;
-				}
-				$day = (int)$m[1];
-				$month = (int)$m[3];
-				// 12/31/2026 can only be month-first; accept the receipt's word for it.
-				if ($month > 12 && $day <= 12) {
-					[$day, $month] = [$month, $day];
-				}
-				if ($this->isRealDate($year, $month, $day)) {
-					return sprintf('%04d-%02d-%02d', $year, $month, $day);
-				}
+		return null;
+	}
+
+	/**
+	 * The date printed in one piece of text, as YYYY-MM-DD, or null.
+	 *
+	 * $monthFirst only changes how an ambiguous slashed or dashed date
+	 * (08/11/2026) is read; one that can only be read one way is read that
+	 * way either way. The extraction service reads a vision model's printed
+	 * date both ways to tell an ambiguous date from an unambiguous one.
+	 */
+	public function readDate(string $text, bool $monthFirst = false): ?string {
+		// ISO first: unambiguous, increasingly common on card terminals.
+		if (preg_match('/\b(20\d{2})-(\d{2})-(\d{2})\b/', $text, $m)) {
+			if ($this->isRealDate((int)$m[1], (int)$m[2], (int)$m[3])) {
+				return sprintf('%04d-%02d-%02d', $m[1], $m[2], $m[3]);
 			}
+		}
 
-			// 31.12.26 — the dotted form is read strictly day-first, with NO
-			// month/day swap: a POS timestamp printed hh.mm.ss ("12.30.15")
-			// would otherwise swap itself into a plausible date years off.
-			// An impossible dotted date is a time; skip it, don't rescue it.
-			if (preg_match('~\b(\d{1,2})\.(\d{1,2})\.(\d{2,4})\b~', $line, $m)) {
-				$year = (int)$m[3];
-				if ($year < 100) {
-					$year += 2000;
-				}
-				if ($this->isRealDate($year, (int)$m[2], (int)$m[1])) {
-					return sprintf('%04d-%02d-%02d', $year, $m[2], $m[1]);
-				}
+		// 31/12/2026, 31-12-26 — same separator both times.
+		if (preg_match('~\b(\d{1,2})([/\-])(\d{1,2})\2(\d{2,4})\b~', $text, $m)) {
+			$year = (int)$m[4];
+			if ($year < 100) {
+				$year += 2000;
+			}
+			[$day, $month] = $monthFirst ? [(int)$m[3], (int)$m[1]] : [(int)$m[1], (int)$m[3]];
+			// 12/31/2026 can only be month-first (and 31/12 only day-first);
+			// accept the receipt's word for it.
+			if ($month > 12 && $day <= 12) {
+				[$day, $month] = [$month, $day];
+			}
+			if ($this->isRealDate($year, $month, $day)) {
+				return sprintf('%04d-%02d-%02d', $year, $month, $day);
+			}
+		}
+
+		// 31.12.26 — the dotted form is read strictly day-first, with NO
+		// month/day swap: a POS timestamp printed hh.mm.ss ("12.30.15")
+		// would otherwise swap itself into a plausible date years off.
+		// An impossible dotted date is a time; skip it, don't rescue it.
+		if (preg_match('~\b(\d{1,2})\.(\d{1,2})\.(\d{2,4})\b~', $text, $m)) {
+			$year = (int)$m[3];
+			if ($year < 100) {
+				$year += 2000;
+			}
+			if ($this->isRealDate($year, (int)$m[2], (int)$m[1])) {
+				return sprintf('%04d-%02d-%02d', $year, $m[2], $m[1]);
 			}
 		}
 

@@ -1639,6 +1639,54 @@
         }
       }
     },
+    "/runway": {
+      "get": {
+        "tags": [
+          "budgets"
+        ],
+        "operationId": "getRunway",
+        "summary": "How long the money lasts",
+        "description": "The runway forecast: how many months the counted accounts last at the current pace and if spending kept to the budgets. The same figures as the dashboard tile, from the setup the user saved there. Takes no parameters.",
+        "responses": {
+          "200": {
+            "description": "The runway forecast",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/OcsEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "ocs": {
+                          "type": "object",
+                          "properties": {
+                            "data": {
+                              "$ref": "#/components/schemas/Runway"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorised"
+          },
+          "412": {
+            "$ref": "#/components/responses/MissingOcsHeader"
+          }
+        }
+      }
+    },
     "/bills/upcoming": {
       "get": {
         "tags": [
@@ -2008,6 +2056,10 @@
               "set_tags": {
                 "type": "boolean",
                 "description": "tag_ids on POST and PATCH /transactions."
+              },
+              "runway": {
+                "type": "boolean",
+                "description": "GET /runway."
               },
               "receipt_ocr": {
                 "type": "boolean",
@@ -2681,6 +2733,11 @@
             "example": true,
             "description": "Whether POST and PATCH /transactions take tag_ids. Absent on older servers, which ignore the field and answer success: never send it without this flag."
           },
+          "runway_available": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether this server has GET /runway. Absent on older servers; treat absence as false."
+          },
           "transaction_filters": {
             "type": "array",
             "items": {
@@ -3021,6 +3078,194 @@
               "$ref": "#/components/schemas/BudgetLine"
             },
             "description": "Every category with a budget, in the Budget page's order. Income categories are listed but left out of totals."
+          }
+        }
+      },
+      "Runway": {
+        "type": "object",
+        "description": "How long the money lasts at the current pace and on budget. Read-only. All money is in the base `currency`.",
+        "properties": {
+          "currency": {
+            "type": "string",
+            "example": "GBP"
+          },
+          "total": {
+            "type": "string",
+            "example": "1234.50",
+            "description": "Counted accounts' combined balance as of today."
+          },
+          "accounts": {
+            "type": "array",
+            "description": "The accounts counted in the total.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "balance": {
+                  "type": "string",
+                  "example": "1234.50",
+                  "description": "In the base currency."
+                }
+              }
+            }
+          },
+          "window": {
+            "type": "object",
+            "description": "The history the pace is worked out from.",
+            "properties": {
+              "months": {
+                "type": "integer",
+                "example": 3
+              },
+              "from": {
+                "type": "string",
+                "format": "date"
+              },
+              "to": {
+                "type": "string",
+                "format": "date"
+              }
+            }
+          },
+          "monthly_out": {
+            "type": "string",
+            "example": "1234.50",
+            "description": "Average money out per month over the window."
+          },
+          "monthly_in": {
+            "type": "string",
+            "example": "1234.50",
+            "description": "Average money in per month over the window."
+          },
+          "excluded_count": {
+            "type": "integer",
+            "description": "How many transactions in the window were left out of the pace."
+          },
+          "excluded_total": {
+            "type": "string",
+            "example": "1234.50",
+            "description": "Their combined amount, as net money out: positive when they took money out, negative when they brought more in (a refund or windfall)."
+          },
+          "scenarios": {
+            "type": "object",
+            "properties": {
+              "current": {
+                "type": "object",
+                "properties": {
+                  "state": {
+                    "type": "string",
+                    "enum": [
+                      "running_out",
+                      "not_running_out",
+                      "at_zero",
+                      "insufficient_data",
+                      "unavailable"
+                    ],
+                    "description": "running_out: the money runs out inside the 120-month cap. not_running_out: it does not. at_zero: the balance is already at or below zero. insufficient_data: not enough history to work out a pace. unavailable: only on_budget, when no budgets are set. New states may be added later: treat an unknown state as 'no figure'."
+                  },
+                  "monthly_drain": {
+                    "type": "string",
+                    "nullable": true,
+                    "example": "500.50",
+                    "description": "Money out less money in per month, in `currency`. Negative when more comes in than goes out. Null when there is no figure."
+                  },
+                  "months": {
+                    "type": "number",
+                    "nullable": true,
+                    "format": "float",
+                    "example": 20.7,
+                    "description": "Months until the money runs out, as a decimal capped at 120 (clients round it). Null unless state is running_out."
+                  },
+                  "runs_out_on": {
+                    "type": "string",
+                    "nullable": true,
+                    "format": "date",
+                    "example": "2028-07-01",
+                    "description": "The date the money runs out. Null unless state is running_out."
+                  }
+                },
+                "description": "At the pace of the window."
+              },
+              "on_budget": {
+                "type": "object",
+                "properties": {
+                  "state": {
+                    "type": "string",
+                    "enum": [
+                      "running_out",
+                      "not_running_out",
+                      "at_zero",
+                      "insufficient_data",
+                      "unavailable"
+                    ],
+                    "description": "running_out: the money runs out inside the 120-month cap. not_running_out: it does not. at_zero: the balance is already at or below zero. insufficient_data: not enough history to work out a pace. unavailable: only on_budget, when no budgets are set. New states may be added later: treat an unknown state as 'no figure'."
+                  },
+                  "monthly_drain": {
+                    "type": "string",
+                    "nullable": true,
+                    "example": "500.50",
+                    "description": "Money out less money in per month, in `currency`. Negative when more comes in than goes out. Null when there is no figure."
+                  },
+                  "months": {
+                    "type": "number",
+                    "nullable": true,
+                    "format": "float",
+                    "example": 20.7,
+                    "description": "Months until the money runs out, as a decimal capped at 120 (clients round it). Null unless state is running_out."
+                  },
+                  "runs_out_on": {
+                    "type": "string",
+                    "nullable": true,
+                    "format": "date",
+                    "example": "2028-07-01",
+                    "description": "The date the money runs out. Null unless state is running_out."
+                  }
+                },
+                "description": "If spending kept to the budgets."
+              }
+            }
+          },
+          "difference_months": {
+            "type": "number",
+            "nullable": true,
+            "format": "float",
+            "example": 4.3,
+            "description": "Months until the money runs out on budget minus months at current spending, so it is negative when sticking to budget runs out sooner. Null unless both scenarios are running_out."
+          },
+          "one_offs": {
+            "type": "array",
+            "description": "Future one-off amounts only; past ones are not listed.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "amount": {
+                  "type": "string",
+                  "example": "1234.50",
+                  "description": "Signed: negative is money out."
+                },
+                "date": {
+                  "type": "string",
+                  "format": "date"
+                }
+              }
+            }
+          },
+          "calculated_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-11-10T09:30:00Z",
+            "description": "When this answer was worked out, UTC."
           }
         }
       },

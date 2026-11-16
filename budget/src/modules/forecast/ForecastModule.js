@@ -8,6 +8,16 @@ import { showError } from '../../utils/notifications.js';
 import { escapeHtml } from '../../utils/dom.js';
 import { apiFetch } from '../../utils/api.js';
 import { semanticColour } from '../../utils/amountColours.js';
+import { applyScenario, EMPTY_SCENARIO, isEmptyScenario, parseScenario } from '../../utils/forecastScenario.js';
+
+/** The what-if boxes, by the scenario field each one fills. */
+const SCENARIO_INPUTS = {
+    incomePercent: 'forecast-scenario-income',
+    spendingPercent: 'forecast-scenario-spending',
+    monthlyAmount: 'forecast-scenario-monthly',
+    oneOffAmount: 'forecast-scenario-oneoff',
+    oneOffMonth: 'forecast-scenario-oneoff-month',
+};
 
 export default class ForecastModule {
     constructor(app) {
@@ -47,6 +57,7 @@ export default class ForecastModule {
             'forecast-trends',
             'forecast-savings',
             'forecast-chart',
+            'forecast-scenario',
             'forecast-categories',
             'forecast-quality'
         ];
@@ -81,6 +92,8 @@ export default class ForecastModule {
             this.displayTrendsSummary(data.trends);
             this.displaySavingsProjection(data.savingsProjection, data.monthlyProjections);
             this.displayBalanceProjectionChart(data.monthlyProjections);
+            this.populateScenarioMonths(data.monthlyProjections);
+            this.refreshScenario();
             this.displayCategoryTrends(data.categoryBreakdown);
             this.displayDataQuality(data);
 
@@ -104,6 +117,142 @@ export default class ForecastModule {
             horizonSelect.addEventListener('change', () => {
                 this.loadForecastView();
             });
+        }
+
+        // What-if boxes redraw as they are typed in; nothing goes to the server
+        Object.values(SCENARIO_INPUTS).forEach(id => {
+            const input = document.getElementById(id);
+            if (input) {
+                input.addEventListener(input.tagName === 'SELECT' ? 'change' : 'input', () => this.refreshScenario());
+            }
+        });
+
+        const resetBtn = document.getElementById('forecast-scenario-reset');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => {
+                Object.values(SCENARIO_INPUTS).forEach(id => {
+                    const input = document.getElementById(id);
+                    if (input && input.tagName !== 'SELECT') input.value = '';
+                });
+                this.refreshScenario();
+            });
+        }
+    }
+
+    readScenario() {
+        const raw = {};
+        Object.entries(SCENARIO_INPUTS).forEach(([field, id]) => {
+            raw[field] = document.getElementById(id)?.value ?? '';
+        });
+        return parseScenario(raw);
+    }
+
+    /**
+     * The months a one-off can land in are the forecast's own, so they follow
+     * the forecast period. The chosen month is kept while it is still in it.
+     */
+    populateScenarioMonths(monthlyProjections) {
+        const select = document.getElementById(SCENARIO_INPUTS.oneOffMonth);
+        if (!select) return;
+
+        const previous = select.value;
+        select.innerHTML = '';
+        monthlyProjections.forEach((projection, index) => {
+            const option = document.createElement('option');
+            option.value = String(index);
+            option.textContent = projectionMonthLabel(projection);
+            select.appendChild(option);
+        });
+        if (previous !== '' && Number(previous) < monthlyProjections.length) {
+            select.value = previous;
+        }
+    }
+
+    refreshScenario() {
+        const data = this.forecastData;
+        if (!data) return;
+
+        const projections = data.monthlyProjections || [];
+        const scenario = this.readScenario();
+        const empty = isEmptyScenario(scenario) || projections.length === 0;
+
+        const resetBtn = document.getElementById('forecast-scenario-reset');
+        if (resetBtn) resetBtn.style.display = empty ? 'none' : '';
+
+        const result = empty ? null : applyScenario(data.currentBalance, projections, scenario);
+        this.drawScenarioLine(result ? result.months : null);
+        this.displayScenarioResult(result, projections);
+    }
+
+    /**
+     * Puts the scenario on the balance chart as a dashed line, or takes it
+     * off again.
+     */
+    drawScenarioLine(months) {
+        const chart = this.balanceChart;
+        if (!chart) return;
+
+        chart.data.datasets = chart.data.datasets.filter(dataset => !dataset.whatIf);
+        if (months) {
+            chart.data.datasets.push({
+                label: t('budget', 'What if'),
+                data: months.map(month => month.balance),
+                borderColor: 'rgba(255, 159, 64, 1)',
+                backgroundColor: 'transparent',
+                borderDash: [8, 4],
+                tension: 0.3,
+                yAxisID: 'y',
+                whatIf: true,
+            });
+        }
+        chart.update('none');
+    }
+
+    displayScenarioResult(result, projections) {
+        const container = document.getElementById('forecast-scenario-result');
+        if (!container) return;
+
+        container.replaceChildren();
+        if (!result) return;
+
+        const currency = this.forecastCurrency;
+        // Against the same sum with nothing changed, not the server's balances,
+        // which can be a penny off it
+        const baseline = applyScenario(this.forecastData.currentBalance, projections, EMPTY_SCENARIO);
+        const difference = result.projectedBalance - baseline.projectedBalance;
+        const lastMonth = projectionMonthLabel(projections[projections.length - 1]);
+
+        const line = (text, className = '') => {
+            const p = document.createElement('p');
+            p.textContent = text;
+            if (className) p.className = className;
+            container.appendChild(p);
+            return p;
+        };
+
+        const end = line(t('budget', 'By {month} your balance would be {amount}.', {
+            month: lastMonth,
+            amount: this.formatCurrency(result.projectedBalance, currency),
+        }), 'forecast-scenario-end');
+
+        const sign = difference > 0 ? '+' : '';
+        const change = document.createElement('span');
+        change.className = `forecast-scenario-change ${difference >= 0 ? 'positive' : 'negative'}`;
+        change.textContent = ' ' + t('budget', '{change} compared with the forecast', {
+            change: sign + this.formatCurrency(difference, currency),
+        });
+        end.appendChild(change);
+
+        const belowZero = result.months.findIndex(month => month.balance < 0);
+        if (belowZero !== -1) {
+            line(t('budget', 'Your balance would go below zero in {month}.', {
+                month: projectionMonthLabel(projections[belowZero]),
+            }), 'forecast-scenario-warning');
+        } else if (result.lowest) {
+            line(t('budget', 'Lowest point: {amount} in {month}.', {
+                amount: this.formatCurrency(result.lowest.balance, currency),
+                month: projectionMonthLabel(projections[result.lowest.index]),
+            }));
         }
     }
 

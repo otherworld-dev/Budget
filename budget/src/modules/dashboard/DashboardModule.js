@@ -23,6 +23,7 @@ import { apiFetch, ApiError } from '../../utils/api.js';
 import { semanticColour } from '../../utils/amountColours.js';
 import { hiddenCategoryBranch, withoutHiddenCategories, categoryPickerRows } from '../../utils/categoryVisibility.js';
 import { rowCategoryName } from '../transactions/transactionRow.js';
+import { loadRunway, resetRunway, renderRunwayTile, openRunwaySetup, setRunwayContext, RUNWAY_TILE_KEYS } from './runway/RunwayTiles.js';
 
 const GRIDSTACK_SIZE_MAP = {
     xs: { w: 1, h: 1 },
@@ -199,6 +200,9 @@ export default class DashboardModule {
 
             // Cache-busting timestamp to ensure fresh data
             const cacheBuster = Date.now();
+
+            // The runway tiles fetch once per load, after edits included
+            this._resetRunwayTiles();
 
             // Projects tile (#391): asked for alongside the rest and never
             // rejects, so a failure only leaves the tile out
@@ -593,6 +597,7 @@ export default class DashboardModule {
             },
             topCategories: () => this.refreshTopCategoriesWidget('topCategories'),
             budgetProgress: () => this.refreshBudgetProgressWidget('budgetProgress'),
+            budgetBreakdown: () => this.refreshBudgetBreakdownWidget('budgetBreakdown'),
         };
 
         for (const [widgetId, refreshFn] of Object.entries(widgetRefreshMap)) {
@@ -612,12 +617,14 @@ export default class DashboardModule {
     /**
      * The date range a tile shows when the user hasn't chosen one. Net worth and
      * asset history default to 30 days (their initial render); Weekly Spending
-     * defaults to 7 days (its name); the trend and spending charts default to
-     * 6 months.
+     * defaults to 7 days (its name); the budget tiles default to the current
+     * budget period (their initial render); the trend and spending charts
+     * default to 6 months.
      */
     _defaultDateRange(baseType) {
         if (baseType === 'netWorthHistory' || baseType === 'assetValueHistory') return '30d';
         if (baseType === 'weeklyTrend') return '7d';
+        if (baseType === 'budgetProgress' || baseType === 'budgetBreakdown') return 'period';
         return '6m';
     }
 
@@ -2019,25 +2026,45 @@ export default class DashboardModule {
         }).join('');
     }
 
+    /**
+     * The budget report for one of the budget tiles, scoped by its settings.
+     *
+     * @param {string} instanceId - budgetProgress or budgetBreakdown
+     * @returns {Promise<Array>} The report's categories
+     */
+    async _fetchTileBudgetReport(instanceId) {
+        const settings = this.dashboardConfig.widgets?.tileSettings?.[instanceId] || {};
+        // label is only set when the range resolved to the budget period,
+        // saved or by default
+        const { startDate, endDate, label } = this._tileRangeParams(instanceId);
+
+        let url = `/apps/budget/api/reports/budget?startDate=${startDate}&endDate=${endDate}`;
+        if (label) {
+            url += `&snapshotMonth=${formatters.budgetMonthForCycle(startDate, endDate)}`;
+        }
+        if (settings.accountId) {
+            url += `&accountId=${settings.accountId}`;
+        }
+        if (settings.excludeShared) {
+            url += '&excludeShared=1';
+        }
+        const data = await apiFetch(url, { errorMessage: 'Failed to fetch budget data' });
+        return data.categories || [];
+    }
+
     async refreshBudgetProgressWidget(instanceId = 'budgetProgress') {
         try {
-            const settings = this.dashboardConfig.widgets?.tileSettings?.[instanceId] || {};
-            const { startDate, endDate } = this._tileRangeParams(instanceId);
-
-            let url = `/apps/budget/api/reports/budget?startDate=${startDate}&endDate=${endDate}`;
-            if (settings.dateRange === 'period') {
-                url += `&snapshotMonth=${formatters.budgetMonthForCycle(startDate, endDate)}`;
-            }
-            if (settings.accountId) {
-                url += `&accountId=${settings.accountId}`;
-            }
-            if (settings.excludeShared) {
-                url += '&excludeShared=1';
-            }
-            const data = await apiFetch(url, { errorMessage: 'Failed to fetch budget data' });
-            this.updateBudgetProgressWidget(data.categories || []);
+            this.updateBudgetProgressWidget(await this._fetchTileBudgetReport(instanceId));
         } catch (error) {
             console.error('Failed to refresh budget progress:', error);
+        }
+    }
+
+    async refreshBudgetBreakdownWidget(instanceId = 'budgetBreakdown') {
+        try {
+            this.updateBudgetBreakdownWidget(await this._fetchTileBudgetReport(instanceId));
+        } catch (error) {
+            console.error('Failed to refresh budget breakdown:', error);
         }
     }
 
@@ -2343,6 +2370,10 @@ export default class DashboardModule {
         if (!Array.isArray(categories) || categories.length === 0) {
             container.innerHTML = `<div class="empty-state-small">${t('budget', 'No budget data')}</div>`;
             return;
+        }
+
+        if (this.dashboardConfig.widgets?.tileSettings?.budgetBreakdown?.topLevelOnly) {
+            categories = this.aggregateToTopLevel(categories);
         }
 
         container.innerHTML = `
@@ -3995,7 +4026,8 @@ export default class DashboardModule {
         config.visibility[widgetId] = true;
 
         if (category === 'hero') {
-            const element = document.querySelector(`[data-widget-id="${widgetId}"]`);
+            // Scoped: the Add Tiles menu's own button carries the same id
+            const element = document.querySelector(`[data-widget-id="${widgetId}"][data-widget-category="hero"]`);
             if (element) element.style.display = '';
         } else if (this.gridstack) {
             let wrapper = document.querySelector(`[gs-id="${widgetId}"]`);
@@ -4789,6 +4821,22 @@ export default class DashboardModule {
         return !phase1Tiles.includes(widgetKey);
     }
 
+    /** What the runway tiles read from the dashboard. */
+    _useRunwayContext() {
+        setRunwayContext({
+            accounts: () => this.accounts || [],
+            settings: () => this.settings || {},
+            charts: () => this.charts || {},
+            openTransaction: (id) => this.app.editTransaction?.(id),
+        });
+    }
+
+    /** Lets the next load fetch the runway again (a dashboard load, or an edit). */
+    _resetRunwayTiles() {
+        resetRunway();
+        RUNWAY_TILE_KEYS.forEach((key) => { delete this.widgetDataLoaded[key]; });
+    }
+
     async loadWidgetData(widgetKey, force = false) {
         if (this.widgetDataLoaded[widgetKey] && !force) return; // Already loaded
 
@@ -4864,6 +4912,22 @@ export default class DashboardModule {
                             .filter(income => income.isActive !== false)
                             .filter(income => !accountId || String(income.accountId) === String(accountId)),
                     };
+                    break;
+                }
+
+                // One shared request for every runway tile
+                case 'runway':
+                case 'runwayChart':
+                case 'runwayOneOffs':
+                case 'runwayScenarios':
+                case 'runwayBreakdown':
+                case 'runwayOverview': {
+                    this._useRunwayContext();
+                    const runway = await loadRunway().catch((error) => {
+                        renderRunwayTile(widgetKey, null);
+                        throw error;
+                    });
+                    renderRunwayTile(widgetKey, runway);
                     break;
                 }
 
@@ -5239,8 +5303,9 @@ export default class DashboardModule {
             moveDivider.className = 'tile-controls-divider';
             controls.appendChild(moveDivider);
 
-            // Gear icon (widgets only — hero tiles have no settings)
-            if (category !== 'hero') {
+            // Gear icon (widgets only — hero tiles have no settings, except
+            // the runway hero, which opens the setup every runway tile shares)
+            if (category !== 'hero' || widgetDef?.settingsSchema?.runwaySetup) {
                 const gearBtn = document.createElement('button');
                 gearBtn.className = 'tile-gear-btn';
                 gearBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>';
@@ -5540,7 +5605,7 @@ export default class DashboardModule {
         }
 
         // Tiles that bring their own section below rather than a schema field
-        const hasOwnSection = ['accounts', 'budgetAlerts'].includes(widgetId);
+        const hasOwnSection = ['accounts', 'budgetAlerts'].includes(widgetId) || !!schema.runwaySetup;
 
         // Render fields
         if (commonSection) {
@@ -5601,6 +5666,13 @@ export default class DashboardModule {
                 `;
             }
             this.renderSpendingTileCategoryList(widgetId);
+        }
+
+        // Runway tiles: one setup shared by all of them, saved as user
+        // settings, which redraws every runway tile itself
+        if (schema.runwaySetup && specificSection) {
+            this._useRunwayContext();
+            openRunwaySetup(null, specificSection);
         }
 
         // Wire change handlers (save immediately on change)
@@ -5665,6 +5737,7 @@ export default class DashboardModule {
             // Stat widgets
             'accounts': () => this.updateAccountsWidget(this._allDashboardAccounts),
             'budgetProgress': () => this.refreshBudgetProgressWidget(widgetId),
+            'budgetBreakdown': () => this.refreshBudgetBreakdownWidget(widgetId),
             'topCategories': () => this.refreshTopCategoriesWidget(widgetId),
             // Refetches: the alerts filter is applied server-side, and
             // repainting with no argument would blank the tile (#389)

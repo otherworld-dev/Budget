@@ -108,6 +108,7 @@ class ApiV1ControllerTest extends TestCase {
 			'reconcile_available' => true,
 			'transfers_available' => true,
 			'tag_ids_available' => true,
+			'runway_available' => true,
 			'transaction_filters' => [
 				'accountId', 'categoryId', 'dateFrom', 'dateTo', 'search',
 				'type', 'status', 'reconciled', 'uncategorized', 'tagId', 'amountMin', 'amountMax',
@@ -182,6 +183,7 @@ class ApiV1ControllerTest extends TestCase {
 
 		$this->assertTrue($features['budget_status']);
 		$this->assertTrue($features['upcoming_bills']);
+		$this->assertTrue($features['runway']);
 	}
 
 	public function testUnauthenticatedConstructionDoesNotFatal(): void {

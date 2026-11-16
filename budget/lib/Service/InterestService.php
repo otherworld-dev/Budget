@@ -89,28 +89,41 @@ class InterestService {
 			];
 		}
 
+		// A promotional rate overrides the history while its window is open.
+		// It is a view over the history, which is never written.
+		$promoRate = $account->getPromoRate();
+		$promoStart = $account->getPromoStart();
+		$promoEnd = $account->getPromoEnd();
+		$hasPromo = $promoRate !== null && $promoStart !== null && $promoEnd !== null;
+		if ($hasPromo) {
+			$promoRateStr = MoneyCalculator::plain($promoRate);
+			$events[] = ['date' => $promoStart, 'type' => 'promo_start'];
+			$events[] = ['date' => $promoEnd, 'type' => 'promo_end'];
+		}
+
 		// Sort by date, then rate changes before transactions on the same day
 		usort($events, function ($a, $b) {
 			$cmp = strcmp($a['date'], $b['date']);
 			if ($cmp !== 0) {
 				return $cmp;
 			}
-			// Rate changes apply before transactions on the same day
-			$order = ['rate_change' => 0, 'transaction' => 1];
-			return ($order[$a['type']] ?? 2) - ($order[$b['type']] ?? 2);
+			// Rate changes, then promo boundaries, then transactions on the same day
+			$order = ['rate_change' => 0, 'promo_start' => 1, 'promo_end' => 1, 'transaction' => 2];
+			return ($order[$a['type']] ?? 3) - ($order[$b['type']] ?? 3);
 		});
 
 		// Walk forward computing interest
 		$principal = $openingBalance;
 		$accruedInterest = '0.00';
-		$currentRate = '0';
+		$historyRate = '0';
 		$currentCompounding = 'daily';
 		$currentDate = $openingDate;
+		$inPromo = $hasPromo && PromoRate::applies($promoRate, $promoStart, $promoEnd, $openingDate);
 
 		// Set initial rate from the first rate period that's <= opening date
 		foreach ($ratePeriods as $rp) {
 			if ($rp->getEffectiveDate() <= $openingDate) {
-				$currentRate = MoneyCalculator::plain($rp->getRate());
+				$historyRate = MoneyCalculator::plain($rp->getRate());
 				$currentCompounding = $rp->getCompoundingFrequency();
 			}
 		}
@@ -121,7 +134,7 @@ class InterestService {
 			// Skip events before or on the opening date
 			if ($eventDate <= $currentDate && $currentDate === $openingDate) {
 				if ($event['type'] === 'rate_change') {
-					$currentRate = $event['rate'];
+					$historyRate = $event['rate'];
 					$currentCompounding = $event['compounding'];
 				} elseif ($event['type'] === 'transaction') {
 					// Transactions on opening date adjust the starting principal
@@ -151,7 +164,7 @@ class InterestService {
 						$outstandingBalance = bcadd(MoneyCalculator::abs($principal, self::CALC_SCALE), $accruedInterest, self::CALC_SCALE);
 						$interest = $this->calculateIntervalInterest(
 							$outstandingBalance,
-							$currentRate,
+							$inPromo ? $promoRateStr : $historyRate,
 							$currentCompounding,
 							$days,
 							$currentDate,
@@ -165,8 +178,12 @@ class InterestService {
 
 			// Apply the event
 			if ($event['type'] === 'rate_change') {
-				$currentRate = $event['rate'];
+				$historyRate = $event['rate'];
 				$currentCompounding = $event['compounding'];
+			} elseif ($event['type'] === 'promo_start') {
+				$inPromo = true;
+			} elseif ($event['type'] === 'promo_end') {
+				$inPromo = false;
 			} elseif ($event['type'] === 'transaction') {
 				$principal = $this->applyTransaction($principal, $event);
 			}
@@ -183,7 +200,7 @@ class InterestService {
 				$outstandingBalance = bcadd(MoneyCalculator::abs($principal, self::CALC_SCALE), $accruedInterest, self::CALC_SCALE);
 				$interest = $this->calculateIntervalInterest(
 					$outstandingBalance,
-					$currentRate,
+					$inPromo ? $promoRateStr : $historyRate,
 					$currentCompounding,
 					$days,
 					$currentDate,

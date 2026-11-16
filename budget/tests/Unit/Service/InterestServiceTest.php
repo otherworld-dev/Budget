@@ -48,6 +48,9 @@ class InterestServiceTest extends TestCase {
 			'openingBalance' => '-1000.00',
 			'interestRate' => 19.99,
 			'compoundingFrequency' => 'daily',
+			'promoRate' => null,
+			'promoStart' => null,
+			'promoEnd' => null,
 		];
 		$data = array_merge($defaults, $overrides);
 
@@ -62,6 +65,9 @@ class InterestServiceTest extends TestCase {
 		$account->setOpeningBalance((float)$data['openingBalance']);
 		$account->setInterestRate((float)$data['interestRate']);
 		$account->setCompoundingFrequency($data['compoundingFrequency']);
+		$account->setPromoRate($data['promoRate']);
+		$account->setPromoStart($data['promoStart']);
+		$account->setPromoEnd($data['promoEnd']);
 
 		return $account;
 	}
@@ -98,6 +104,57 @@ class InterestServiceTest extends TestCase {
 		$this->transactionMapper->method('findAllClearedByAccount')
 			->with(self::ACCOUNT_ID, self::USER_ID)
 			->willReturn($transactions);
+	}
+
+	// ── Promotional rate ────────────────────────────────────────────
+
+	private function promoAccount(array $overrides = []): Account {
+		return $this->makeAccount(array_merge([
+			'promoRate' => 0.0,
+			'promoStart' => '2025-01-01',
+			'promoEnd' => '2026-01-01',
+		], $overrides));
+	}
+
+	public function testPromoWindowAccruesNothing(): void {
+		$this->setupCalculation($this->promoAccount(), [$this->makeRate(19.99, '2025-01-01')]);
+
+		$result = $this->service->calculateAccruedInterest(self::ACCOUNT_ID, self::USER_ID, '2025-12-31');
+
+		$this->assertSame(0.0, $result['accruedInterest']);
+	}
+
+	public function testInterestResumesAfterPromoEnds(): void {
+		$twin = $this->makeAccount(['openingDate' => '2026-01-01']);
+		$this->accountMapper->method('find')
+			->willReturnOnConsecutiveCalls($this->promoAccount(), $twin);
+		$this->rateMapper->method('findByAccount')
+			->willReturn([$this->makeRate(19.99, '2025-01-01')]);
+		$this->transactionMapper->method('findAllClearedByAccount')->willReturn([]);
+
+		$withPromo = $this->service->calculateAccruedInterest(self::ACCOUNT_ID, self::USER_ID, '2026-01-31');
+		$expected = $this->service->calculateAccruedInterest(self::ACCOUNT_ID, self::USER_ID, '2026-01-31');
+
+		$this->assertGreaterThan(0.0, $expected['accruedInterest']);
+		$this->assertSame($expected['accruedInterest'], $withPromo['accruedInterest']);
+	}
+
+	public function testPromoCoveringOpeningDateStartsAtPromoRate(): void {
+		$account = $this->promoAccount(['promoStart' => '2024-06-01', 'promoEnd' => '2025-06-01']);
+		$this->setupCalculation($account, [$this->makeRate(19.99, '2025-01-01')]);
+
+		$result = $this->service->calculateAccruedInterest(self::ACCOUNT_ID, self::USER_ID, '2025-05-31');
+
+		$this->assertSame(0.0, $result['accruedInterest']);
+	}
+
+	public function testPromoDoesNotChangeRateHistory(): void {
+		$this->setupCalculation($this->promoAccount(), [$this->makeRate(19.99, '2025-01-01')]);
+		$this->rateMapper->expects($this->never())->method('insert');
+		$this->rateMapper->expects($this->never())->method('update');
+		$this->rateMapper->expects($this->never())->method('delete');
+
+		$this->service->calculateAccruedInterest(self::ACCOUNT_ID, self::USER_ID, '2026-01-31');
 	}
 
 	// ── calculateAccruedInterest Tests ──────────────────────────────

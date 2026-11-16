@@ -239,6 +239,11 @@ class MigrationService {
 				'template_id' => ['map' => 'import_templates', 'onMissing' => 'null'],
 			],
 		],
+		// Planned one-offs for the runway forecast: no references to other rows
+		'runway_oneoffs' => [
+			'table' => 'budget_runway_oneoffs',
+			'scope' => 'user',
+		],
 		'imp_links' => [
 			'table' => 'budget_imp_links',
 			'scope' => 'user',
@@ -2632,6 +2637,9 @@ class MigrationService {
 			'dashboard_widgets_config', 'dashboard_hero_config' => $this->remapDashboardConfig($value, $idMaps),
 			// BudgetAlertService: the categories muted on the alerts tile
 			'budget_alert_muted_categories' => $this->remapSettingIdList($value, $idMaps),
+			// RunwayService: the accounts the runway counts. If none of them
+			// come back this leaves '[]', which the runway reads as its default set
+			'runway_account_ids' => $this->remapSettingIdList($value, $idMaps, 'accounts'),
 			// BudgetAlertService and AnomalyDetectionService: what was last
 			// notified, per category
 			'budget_alert_notified', 'anomaly_notified' => $this->remapSettingIdKeys($value, $idMaps),
@@ -2696,16 +2704,17 @@ class MigrationService {
 	}
 
 	/**
-	 * A JSON list of category ids, moved to the restored ids.
+	 * A JSON list of category (or account) ids, moved to the restored ids.
 	 *
 	 * @param array<string, array<int, int>> $idMaps
+	 * @param 'accounts'|'categories' $kind Which id map the ids go through
 	 */
-	private function remapSettingIdList(string $value, array $idMaps): string {
+	private function remapSettingIdList(string $value, array $idMaps, string $kind = 'categories'): string {
 		$ids = json_decode($value, true);
 		if (!is_array($ids) || !array_is_list($ids)) {
 			return $value;
 		}
-		return (string)json_encode($this->restoredSettingIds($ids, 'categories', $idMaps));
+		return (string)json_encode($this->restoredSettingIds($ids, $kind, $idMaps));
 	}
 
 	/**

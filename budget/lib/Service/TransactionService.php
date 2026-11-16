@@ -546,10 +546,13 @@ class TransactionService {
 	 * converts the withdrawal as createFromBill() does; the card's figure on
 	 * both legs took 500 GBP out to pay a 500 EUR statement.
 	 *
+	 * $status is what the legs become: 'pending' for auto-pay in an account
+	 * the bank's rows come into, until the bank's row takes their place.
+	 *
 	 * @return Transaction|null The cleared withdrawal leg, or null if none found
 	 * @throws \Exception when the legs are in two currencies with no rate between them
 	 */
-	public function clearScheduledBillTransaction(string $userId, int $billId, string $clearedDate, ?float $amount = null, bool $isTransfer = false, ?Bill $bill = null): ?Transaction {
+	public function clearScheduledBillTransaction(string $userId, int $billId, string $clearedDate, ?float $amount = null, bool $isTransfer = false, ?Bill $bill = null, string $status = 'cleared'): ?Transaction {
 		$allScheduled = $this->mapper->findAllScheduledByBillId($billId);
 		$cleared = null;
 		$partnerId = null;
@@ -617,7 +620,7 @@ class TransactionService {
 				// from the acting user when the bill points at a shared
 				// account — update under the owner (#334).
 				$ownerUserId = $this->accountMapper->findById($scheduled->getAccountId())->getUserId();
-				$updates = ['status' => 'cleared', 'date' => $clearedDate];
+				$updates = ['status' => $status, 'date' => $clearedDate];
 				if ($legAmounts !== null) {
 					$updates['amount'] = $legAmounts[$scheduled->getType()] ?? $amount ?? $scheduled->getAmount();
 				} elseif ($amount !== null) {
@@ -1103,6 +1106,30 @@ class TransactionService {
 	 */
 	public function findBookedBillRows(int $billId, string $type, string $notesPrefix, string $from, string $to): array {
 		return $this->mapper->findBookedBillRows($billId, $type, $notesPrefix, $from, $to);
+	}
+
+	/**
+	 * Debits the app booked for the bills, placeholders included
+	 *
+	 * @param int[] $billIds
+	 * @return Transaction[]
+	 */
+	public function findGeneratedBillDebits(array $billIds): array {
+		return $this->mapper->findGeneratedBillDebits($billIds);
+	}
+
+	/**
+	 * The bank's debits in an account between two dates that pay no bill
+	 *
+	 * @return Transaction[]
+	 */
+	public function findUnbilledImportedDebits(int $accountId, string $from, string $to): array {
+		return $this->mapper->findUnbilledImportedDebits($accountId, $from, $to);
+	}
+
+	/** Whether the bank's own rows come into the account: an import or a bank sync has stored one */
+	public function accountTakesStatements(int $accountId): bool {
+		return $this->mapper->hasImportedRows($accountId);
 	}
 
 	/**
