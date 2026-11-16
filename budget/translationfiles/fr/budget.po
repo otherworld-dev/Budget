@@ -8,8 +8,8 @@ msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-11-15 13:50+0000\n"
-"PO-Revision-Date: 2026-11-15 13:53+0000\n"
-"Last-Translator: Christophe <capersys@users.noreply.hosted.weblate.org>\n"
+"PO-Revision-Date: 2026-11-17 06:51+0000\n"
+"Last-Translator: ZackosQc <zackosqc@users.noreply.hosted.weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/fr/>\n"
 "Language: fr\n"
@@ -10247,27 +10247,23 @@ msgstr "Échec du chargement des données de prévision"
 
 #: /app/src/modules/forecast/ForecastModule.js:207
 msgid "What if"
-msgstr ""
+msgstr "Et si"
 
 #: /app/src/modules/forecast/ForecastModule.js:242
 msgid "By {month} your balance would be {amount}."
-msgstr ""
+msgstr "Dès {month}, votre balance serait de {amount}."
 
 #: /app/src/modules/forecast/ForecastModule.js:250
 msgid "{change} compared with the forecast"
-msgstr ""
+msgstr "{change} par rapport aux prévisions"
 
 #: /app/src/modules/forecast/ForecastModule.js:257
-#, fuzzy
-#| msgid "Your projected balance falls to {balance} in {month}."
 msgid "Your balance would go below zero in {month}."
-msgstr "Votre solde prévisionnel s'établit à {balance} en {month}."
+msgstr "Votre solde prévisionnel sera en négatif en {month}."
 
 #: /app/src/modules/forecast/ForecastModule.js:261
-#, fuzzy
-#| msgid "Lowest: {balance} in {month}."
 msgid "Lowest point: {amount} in {month}."
-msgstr "Montant le plus bas : {balance} en {month}."
+msgstr "Montant le plus bas : {amount} en {month}."
 
 #: /app/src/modules/forecast/ForecastModule.js:367
 msgid "Cumulative Savings"
@@ -17507,30 +17503,30 @@ msgstr "Projection du solde"
 
 #: /app/templates/index.php:3225
 msgid "What If?"
-msgstr ""
+msgstr "Et si ?"
 
 #: /app/templates/index.php:3226
-#, fuzzy
-#| msgid "Reset All"
 msgid "Reset"
-msgstr "Tout réinitialiser"
+msgstr "Réinitialiser"
 
 #: /app/templates/index.php:3228
+#, fuzzy
 msgid ""
 "Change your income or spending to see how the balance projection above would "
 "move. Nothing is saved."
 msgstr ""
+"Modifiez vos revenus ou dépenses pour observer l’évolution de la projection "
+"du solde ci-dessus. Rien n’est enregistré."
 
 #: /app/templates/index.php:3231
-#, fuzzy, php-format
-#| msgid "Income Change %%"
+#, php-format
 msgid "Income change (%%)"
-msgstr "Variation des revenus %%"
+msgstr "Variation des revenus (%%)"
 
 #: /app/templates/index.php:3233
-#, php-format
+#, fuzzy, php-format
 msgid "-10 for a 10%% pay cut"
-msgstr ""
+msgstr "-10 pour une baisse de salaire de 10%%"
 
 #: /app/templates/index.php:3236
 #, fuzzy, php-format
@@ -17539,29 +17535,27 @@ msgid "Spending change (%%)"
 msgstr "Variation des dépenses %%"
 
 #: /app/templates/index.php:3238
-#, php-format
+#, fuzzy, php-format
 msgid "-5 to spend 5%% less"
-msgstr ""
+msgstr "-5 pour une baisse des dépenses de 5%%"
 
 #: /app/templates/index.php:3241
-#, fuzzy
-#| msgid "Next month"
 msgid "Every month"
-msgstr "Mois suivant"
+msgstr "Chaque mois"
 
 #: /app/templates/index.php:3243
 msgid "-200 for a new bill, 200 for extra income"
-msgstr ""
+msgstr "-200 pour une nouvelle facture, 200 pour un revenu supplémentaire"
 
 #: /app/templates/index.php:3246
 #, fuzzy
 #| msgid "of {amount}"
 msgid "One-off amount"
-msgstr "d'un montant de {amount}"
+msgstr "Montant unique"
 
 #: /app/templates/index.php:3248
 msgid "-1500 for a big purchase"
-msgstr ""
+msgstr "-1500 pour un gros achat"
 
 #: /app/templates/index.php:3251
 #, fuzzy
