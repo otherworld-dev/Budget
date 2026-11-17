@@ -8,8 +8,8 @@ msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-11-15 13:50+0000\n"
-"PO-Revision-Date: 2026-11-17 06:51+0000\n"
-"Last-Translator: ZackosQc <zackosqc@users.noreply.hosted.weblate.org>\n"
+"PO-Revision-Date: 2026-11-17 23:53+0000\n"
+"Last-Translator: Christophe <capersys@users.noreply.hosted.weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/fr/>\n"
 "Language: fr\n"
@@ -17510,13 +17510,12 @@ msgid "Reset"
 msgstr "Réinitialiser"
 
 #: /app/templates/index.php:3228
-#, fuzzy
 msgid ""
 "Change your income or spending to see how the balance projection above would "
 "move. Nothing is saved."
 msgstr ""
-"Modifiez vos revenus ou dépenses pour observer l’évolution de la projection "
-"du solde ci-dessus. Rien n’est enregistré."
+"Modifiez vos revenus ou vos dépenses pour voir comment évoluerait la "
+"prévision de solde ci-dessus. Rien n'est enregistré."
 
 #: /app/templates/index.php:3231
 #, php-format
@@ -17524,18 +17523,17 @@ msgid "Income change (%%)"
 msgstr "Variation des revenus (%%)"
 
 #: /app/templates/index.php:3233
-#, fuzzy, php-format
+#, php-format
 msgid "-10 for a 10%% pay cut"
-msgstr "-10 pour une baisse de salaire de 10%%"
+msgstr "-10 pour une baisse de salaire de 10 %%"
 
 #: /app/templates/index.php:3236
-#, fuzzy, php-format
-#| msgid "Expense Change %%"
+#, php-format
 msgid "Spending change (%%)"
-msgstr "Variation des dépenses %%"
+msgstr "Évolution des dépenses (%%)"
 
 #: /app/templates/index.php:3238
-#, fuzzy, php-format
+#, php-format
 msgid "-5 to spend 5%% less"
 msgstr "-5 pour une baisse des dépenses de 5%%"
 
@@ -17548,8 +17546,6 @@ msgid "-200 for a new bill, 200 for extra income"
 msgstr "-200 pour une nouvelle facture, 200 pour un revenu supplémentaire"
 
 #: /app/templates/index.php:3246
-#, fuzzy
-#| msgid "of {amount}"
 msgid "One-off amount"
 msgstr "Montant unique"
 
@@ -17558,10 +17554,8 @@ msgid "-1500 for a big purchase"
 msgstr "-1500 pour un gros achat"
 
 #: /app/templates/index.php:3251
-#, fuzzy
-#| msgid "One-off"
 msgid "One-off in"
-msgstr "Ponctuel"
+msgstr "En une seule fois à"
 
 #: /app/templates/index.php:3267
 msgid "Forecast Confidence:"
