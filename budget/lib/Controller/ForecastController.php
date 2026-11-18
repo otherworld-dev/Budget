@@ -114,26 +114,6 @@ class ForecastController extends Controller {
 	/**
 	 * @NoAdminRequired
 	 */
-	public function scenarios(
-		?int $accountId = null,
-		array $scenarios = [],
-	): DataResponse {
-		try {
-			$results = $this->service->runScenarios(
-				$this->getEffectiveUserId(),
-				$accountId,
-				$scenarios,
-				$this->getVisibleAccountIds()
-			);
-			return new DataResponse($results);
-		} catch (\Exception $e) {
-			return $this->handleError($e, $this->l->t('Failed to run forecast scenarios'));
-		}
-	}
-
-	/**
-	 * @NoAdminRequired
-	 */
 	public function enhanced(
 		?int $accountId = null,
 		int $historicalPeriod = 6,

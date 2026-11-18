@@ -172,50 +172,6 @@ class ScenarioBuilder {
 	}
 
 	/**
-	 * Run multiple scenarios and return results.
-	 *
-	 * @param string $userId User ID
-	 * @param int|null $accountId Optional account filter
-	 * @param array $customScenarios Optional custom scenarios
-	 * @return array Scenario results
-	 */
-	public function runScenarios(
-		string $userId,
-		?int $accountId = null,
-		array $customScenarios = [],
-	): array {
-		$results = [
-			'baseCase' => [
-				'balance' => $this->calculateScenarioBalance($userId, $accountId, 0.02, 0.03),
-				'assumptions' => 'Current trend continues'
-			],
-			'optimistic' => [
-				'balance' => $this->calculateScenarioBalance($userId, $accountId, 0.10, -0.02),
-				'assumptions' => '10% income increase, 2% expense reduction'
-			],
-			'pessimistic' => [
-				'balance' => $this->calculateScenarioBalance($userId, $accountId, -0.15, 0.10),
-				'assumptions' => '15% income decrease, 10% expense increase'
-			],
-			'custom' => []
-		];
-
-		foreach ($customScenarios as $name => $scenario) {
-			$results['custom'][$name] = [
-				'balance' => $this->calculateScenarioBalance(
-					$userId,
-					$accountId,
-					$scenario['incomeGrowth'] ?? 0,
-					$scenario['expenseGrowth'] ?? 0
-				),
-				'assumptions' => $scenario['description'] ?? ''
-			];
-		}
-
-		return $results;
-	}
-
-	/**
 	 * Generate month labels for charts.
 	 *
 	 * @param int $historicalPeriod Months of history

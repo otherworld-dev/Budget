@@ -152,41 +152,6 @@ class ForecastControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 	}
 
-	// ── scenarios ───────────────────────────────────────────────────
-
-	public function testScenariosReturnsResults(): void {
-		$results = ['scenarios' => []];
-		$this->service->method('runScenarios')
-			->with('user1', null, [])
-			->willReturn($results);
-
-		$response = $this->controller->scenarios();
-
-		$this->assertSame(Http::STATUS_OK, $response->getStatus());
-	}
-
-	public function testScenariosWithParams(): void {
-		$scenarioInput = [['name' => 'optimistic', 'modifier' => 0.8]];
-		$results = ['scenarios' => []];
-		$this->service->expects($this->once())
-			->method('runScenarios')
-			->with('user1', 1, $scenarioInput)
-			->willReturn($results);
-
-		$response = $this->controller->scenarios(1, $scenarioInput);
-
-		$this->assertSame(Http::STATUS_OK, $response->getStatus());
-	}
-
-	public function testScenariosHandlesException(): void {
-		$this->service->method('runScenarios')
-			->willThrowException(new \RuntimeException('error'));
-
-		$response = $this->controller->scenarios();
-
-		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
-	}
-
 	// ── enhanced ────────────────────────────────────────────────────
 
 	public function testEnhancedReturnsForecast(): void {

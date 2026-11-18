@@ -127,44 +127,6 @@ class ScenarioBuilderTest extends TestCase {
 		$this->assertEqualsWithDelta(10000.0, $result, 1.0);
 	}
 
-	// ===== runScenarios =====
-
-	public function testRunScenariosReturnsAllCases(): void {
-		$account = $this->makeAccount(1, 10000.0);
-		$this->accountMapper->method('findAll')->willReturn([$account]);
-		$this->transactionMapper->method('getNetChangeAfterDateBatch')->willReturn([]);
-		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturn([]);
-
-		$result = $this->builder->runScenarios('user1');
-
-		$this->assertArrayHasKey('baseCase', $result);
-		$this->assertArrayHasKey('optimistic', $result);
-		$this->assertArrayHasKey('pessimistic', $result);
-		$this->assertArrayHasKey('custom', $result);
-		$this->assertArrayHasKey('balance', $result['baseCase']);
-		$this->assertArrayHasKey('assumptions', $result['baseCase']);
-	}
-
-	public function testRunScenariosWithCustomScenarios(): void {
-		$account = $this->makeAccount(1, 10000.0);
-		$this->accountMapper->method('findAll')->willReturn([$account]);
-		$this->transactionMapper->method('getNetChangeAfterDateBatch')->willReturn([]);
-		$this->transactionMapper->method('findAllByUserAndDateRange')->willReturn([]);
-
-		$custom = [
-			'highGrowth' => [
-				'incomeGrowth' => 0.2,
-				'expenseGrowth' => -0.1,
-				'description' => '20% income boost',
-			],
-		];
-
-		$result = $this->builder->runScenarios('user1', null, $custom);
-
-		$this->assertArrayHasKey('highGrowth', $result['custom']);
-		$this->assertEquals('20% income boost', $result['custom']['highGrowth']['assumptions']);
-	}
-
 	// ===== generateMonthLabels =====
 
 	public function testGenerateMonthLabelsCorrectCount(): void {
