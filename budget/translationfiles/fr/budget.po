@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud Budget\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-11-17 22:55+0000\n"
+"POT-Creation-Date: 2026-11-18 00:43+0000\n"
 "PO-Revision-Date: 2026-11-17 23:53+0000\n"
 "Last-Translator: Christophe <capersys@users.noreply.hosted.weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/nextcloud-budget/"
@@ -1643,19 +1643,15 @@ msgstr "Impossible de générer les prévisions de flux de trésorerie"
 msgid "Failed to retrieve spending trends"
 msgstr "Impossible de récupérer les tendances de dépenses"
 
-#: /app/lib/Controller/ForecastController.php:130
-msgid "Failed to run forecast scenarios"
-msgstr "Impossible d’exécuter les scénarios de prévision"
-
-#: /app/lib/Controller/ForecastController.php:154
+#: /app/lib/Controller/ForecastController.php:134
 msgid "Failed to generate enhanced forecast"
 msgstr "Impossible de générer les prévisions avancées"
 
-#: /app/lib/Controller/ForecastController.php:171
+#: /app/lib/Controller/ForecastController.php:151
 msgid "Failed to retrieve live forecast"
 msgstr "Impossible de récupérer les prévisions en temps réel"
 
-#: /app/lib/Controller/ForecastController.php:189
+#: /app/lib/Controller/ForecastController.php:169
 msgid "Failed to export forecast"
 msgstr "Impossible d’exporter les prévisions"
 
@@ -20934,6 +20930,9 @@ msgid ""
 msgstr ""
 "L'opération a été enregistrée, mais il n'a pas été possible de joindre le "
 "justificatif. Ouvrez-la dans Budget pour ajouter le justificatif."
+
+#~ msgid "Failed to run forecast scenarios"
+#~ msgstr "Impossible d’exécuter les scénarios de prévision"
 
 #~ msgid "Cumulative Savings"
 #~ msgstr "Économies cumulées"

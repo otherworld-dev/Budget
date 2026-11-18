@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-11-17 22:55+0000\n"
+"POT-Creation-Date: 2026-11-18 00:43+0000\n"
 "PO-Revision-Date: 2026-09-21 19:51+0000\n"
 "Last-Translator: Leonid Zaliubovskyi <la399fox@gmail.com>\n"
 "Language-Team: Ukrainian <https://hosted.weblate.org/projects/nextcloud-"
@@ -1634,19 +1634,15 @@ msgstr "Не вдалося створити прогноз грошових п�
 msgid "Failed to retrieve spending trends"
 msgstr "Не вдалося отримати тенденції витрат"
 
-#: /app/lib/Controller/ForecastController.php:130
-msgid "Failed to run forecast scenarios"
-msgstr "Не вдалося виконати сценарії прогнозу"
-
-#: /app/lib/Controller/ForecastController.php:154
+#: /app/lib/Controller/ForecastController.php:134
 msgid "Failed to generate enhanced forecast"
 msgstr "Не вдалося створити розширений прогноз"
 
-#: /app/lib/Controller/ForecastController.php:171
+#: /app/lib/Controller/ForecastController.php:151
 msgid "Failed to retrieve live forecast"
 msgstr "Не вдалося отримати актуальний прогноз"
 
-#: /app/lib/Controller/ForecastController.php:189
+#: /app/lib/Controller/ForecastController.php:169
 msgid "Failed to export forecast"
 msgstr "Не вдалося експортувати прогноз"
 
@@ -21114,6 +21110,9 @@ msgid ""
 "The transaction was saved, but the receipt could not be attached. Open it in "
 "Budget to add the receipt."
 msgstr "Транзакцію збережено, але не вдалося прикріпити чеків: {count}"
+
+#~ msgid "Failed to run forecast scenarios"
+#~ msgstr "Не вдалося виконати сценарії прогнозу"
 
 #~ msgid "Cumulative Savings"
 #~ msgstr "Накопичені заощадження"
