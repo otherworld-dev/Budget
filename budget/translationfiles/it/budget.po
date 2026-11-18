@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-11-17 22:55+0000\n"
+"POT-Creation-Date: 2026-11-18 00:43+0000\n"
 "PO-Revision-Date: 2026-10-21 10:51+0000\n"
 "Last-Translator: belze-bu <belze-bu@users.noreply.hosted.weblate.org>\n"
 "Language-Team: Italian <https://hosted.weblate.org/projects/nextcloud-budget/"
@@ -1631,19 +1631,15 @@ msgstr "Generazione della previsione del movimento di cassa non riuscito"
 msgid "Failed to retrieve spending trends"
 msgstr "Recupero delle tendenze di spesa non riuscito"
 
-#: /app/lib/Controller/ForecastController.php:130
-msgid "Failed to run forecast scenarios"
-msgstr "Esecuzione degli scenari di previsioni non riuscita"
-
-#: /app/lib/Controller/ForecastController.php:154
+#: /app/lib/Controller/ForecastController.php:134
 msgid "Failed to generate enhanced forecast"
 msgstr "Generazione delle previsioni migliorate non riuscita"
 
-#: /app/lib/Controller/ForecastController.php:171
+#: /app/lib/Controller/ForecastController.php:151
 msgid "Failed to retrieve live forecast"
 msgstr "Recupero delle previsioni dal vivo non riuscito"
 
-#: /app/lib/Controller/ForecastController.php:189
+#: /app/lib/Controller/ForecastController.php:169
 msgid "Failed to export forecast"
 msgstr "Esportazione delle previsioni non riuscito"
 
@@ -19580,6 +19576,9 @@ msgid ""
 "The transaction was saved, but the receipt could not be attached. Open it in "
 "Budget to add the receipt."
 msgstr ""
+
+#~ msgid "Failed to run forecast scenarios"
+#~ msgstr "Esecuzione degli scenari di previsioni non riuscita"
 
 #~ msgid "Failed to execute import"
 #~ msgstr "Importazione non riuscita"
