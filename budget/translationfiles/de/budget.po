@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-11-18 00:43+0000\n"
-"PO-Revision-Date: 2026-11-17 06:51+0000\n"
+"PO-Revision-Date: 2026-11-19 21:05+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -10038,11 +10038,11 @@ msgstr[1] "Monatlicher Überschuss {amount} · letzte {count} Monate"
 
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:68
 msgid "On budget: {months}, {until}"
-msgstr "Bei Einhaltung des Budgets: {months}, {until}"
+msgstr "Im Budgetrahmen: {months}, {until}"
 
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:69
 msgid "On budget: {months}"
-msgstr "Bei Einhaltung des Budgets: {months}"
+msgstr "Im Budgetrahmen: {months}"
 
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:74
 msgid "More is coming in than going out"
@@ -10076,7 +10076,7 @@ msgstr "Bei aktuellen Ausgaben"
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:130
 #: /app/src/utils/runway.js:99
 msgid "On budget"
-msgstr "Bei Einhaltung des Budgets"
+msgstr "Im Budgetrahmen"
 
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:148
 #: /app/src/modules/dashboard/runway/RunwayTiles.js:396
@@ -10290,7 +10290,7 @@ msgstr "Tiefststand: {amount} im {month}."
 
 #: /app/src/modules/forecast/ForecastModule.js:318
 msgid "{rate} of income saved"
-msgstr ""
+msgstr "{rate} des Einkommens gespart"
 
 #: /app/src/modules/forecast/ForecastModule.js:369
 #: /app/templates/index.php:1318 /app/templates/index.php:3151
@@ -16109,7 +16109,7 @@ msgstr[1] "Etwa {count} Monate"
 
 #: /app/src/utils/runway.js:33
 msgid "Not running out"
-msgstr "Wird nicht aufgebraucht"
+msgstr "Wird nichts aufgebraucht"
 
 #: /app/src/utils/runway.js:35
 msgid "Already at or below zero"
@@ -17457,10 +17457,8 @@ msgstr ""
 "mindestens ein Monat Buchungshistorie."
 
 #: /app/templates/index.php:3156
-#, fuzzy
-#| msgid "Forecast Confidence:"
 msgid "Forecast Confidence"
-msgstr "Prognosesicherheit:"
+msgstr "Prognosesicherheit"
 
 #: /app/templates/index.php:3165
 msgid "Balance Projection"
@@ -17471,6 +17469,8 @@ msgid ""
 "Estimated from your past income and spending. Use it as a guide, not a "
 "guarantee."
 msgstr ""
+"Geschätzt anhand deiner bisherigen Einnahmen und Ausgaben. Nutze die "
+"Prognose als Orientierung, nicht als Garantie."
 
 #: /app/templates/index.php:3174
 msgid "What If?"
