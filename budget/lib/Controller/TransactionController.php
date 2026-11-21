@@ -630,6 +630,28 @@ class TransactionController extends Controller {
 	}
 
 	/**
+	 * How many uncategorised transactions there are, for the dashboard's
+	 * Uncategorized tile: {"count": N}. The same number the transactions list
+	 * reports as its total when filtered to Uncategorized — same predicate,
+	 * same accounts (own plus shared, or own only with excludeShared) —
+	 * counted in SQL. The tile used to count the rows uncategorized()
+	 * returns, which stop at the limit of 100 (#493).
+	 *
+	 * @NoAdminRequired
+	 */
+	public function uncategorizedCount(?bool $excludeShared = null): DataResponse {
+		try {
+			$count = $this->service->countUncategorized(
+				$this->userId,
+				$this->getEffectiveAccountIds((bool)$excludeShared)
+			);
+			return new DataResponse(['count' => $count]);
+		} catch (\Exception $e) {
+			return $this->handleError($e, $this->l->t('Failed to retrieve uncategorized transactions'));
+		}
+	}
+
+	/**
 	 * @NoAdminRequired
 	 */
 	#[UserRateLimit(limit: 10, period: 60)]

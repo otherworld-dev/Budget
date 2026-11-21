@@ -61,6 +61,7 @@ return [
 		['name' => 'transaction#ids', 'url' => '/api/transactions/ids', 'verb' => 'GET'],
 		['name' => 'transaction#export', 'url' => '/api/transactions/export', 'verb' => 'GET'],
 		['name' => 'transaction#uncategorized', 'url' => '/api/transactions/uncategorized', 'verb' => 'GET'],
+		['name' => 'transaction#uncategorizedCount', 'url' => '/api/transactions/uncategorized/count', 'verb' => 'GET'],
 		['name' => 'transaction#bulkCategorize', 'url' => '/api/transactions/bulk-categorize', 'verb' => 'POST'],
 		['name' => 'transaction#bulkMatch', 'url' => '/api/transactions/bulk-match', 'verb' => 'POST'],
 		['name' => 'transaction#scanMatches', 'url' => '/api/transactions/scan-matches', 'verb' => 'GET'],

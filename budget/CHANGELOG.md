@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **The Forecast page is tidier.** The top row now has your current balance, the projected balance and the forecast confidence, which used to sit at the bottom of the page. The balance chart and **What If?** share one panel, and the chart shows just the balance, with each month's projected income and spending in its tooltip instead of on a second scale. The Savings Projection chart is gone, as it drew the same line as the balance chart and repeated figures shown elsewhere; the savings rate is now under the average monthly savings. Spending by Category lists the ten biggest categories with **Show all** for the rest, and the note at the top is a single line under the chart.
 
+### Fixed
+- **The Uncategorized dashboard tile shows the same number as the Uncategorized filter in the transactions list.** It counted at most 100 transactions and only those in your own accounts, so with more than 100 uncategorized transactions it stopped at 100. It now counts every uncategorized transaction in the accounts the list shows, including accounts shared with you, and leaves out split transactions whose parts have categories, as the list does. Reported by @SGiersch ([#493](https://github.com/otherworld-dev/Budget/issues/493))
+
 ## [3.4.0] - 2026-11-13
 
 ### Added

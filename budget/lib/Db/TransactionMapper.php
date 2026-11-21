@@ -1244,6 +1244,37 @@ class TransactionMapper extends QBMapper {
 	}
 
 	/**
+	 * How many transactions the transactions list shows for these filters:
+	 * the 'total' findWithFilters() reports, as one COUNT in SQL with the same
+	 * account scope (excluded accounts included, #286) and the same
+	 * QueryFilterBuilder predicates.
+	 *
+	 * The dashboard's Uncategorized tile counts with this and
+	 * ['category' => 'uncategorized'], so it always agrees with the list
+	 * filtered to Uncategorized. It used to count the rows findUncategorized()
+	 * returned, capped at 100 and scoped to the user's own accounts (#493).
+	 *
+	 * @param int[]|null $visibleAccountIds If provided, scope by account IDs instead of userId
+	 */
+	public function countWithFilters(string $userId, array $filters, ?array $visibleAccountIds = null): int {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select($qb->func()->count('t.id'))
+			->from($this->getTableName(), 't')
+			->innerJoin('t', 'budget_accounts', 'a', $qb->expr()->eq('t.account_id', 'a.id'));
+
+		// List/search views still show excluded accounts' transactions (#286)
+		ReportScope::applyUserScope($qb, $userId, $visibleAccountIds, true);
+
+		$this->filterBuilder->applyTransactionFilters($qb, $filters, 't');
+
+		$result = $qb->executeQuery();
+		$count = (int)$result->fetchOne();
+		$result->closeCursor();
+
+		return $count;
+	}
+
+	/**
 	 * Find transactions with filters, pagination and sorting
 	 */
 	/**
@@ -1262,20 +1293,7 @@ class TransactionMapper extends QBMapper {
 		// Apply filters using the filter builder
 		$this->filterBuilder->applyTransactionFilters($qb, $filters, 't');
 
-		// Count query - reuse filter builder for consistency
-		$countQb = $this->db->getQueryBuilder();
-		$countQb->select($countQb->func()->count('t.id'))
-			->from($this->getTableName(), 't')
-			->innerJoin('t', 'budget_accounts', 'a', $countQb->expr()->eq('t.account_id', 'a.id'));
-
-		ReportScope::applyUserScope($countQb, $userId, $visibleAccountIds, true);
-
-		// Apply same filters to count query
-		$this->filterBuilder->applyTransactionFilters($countQb, $filters, 't');
-
-		$countResult = $countQb->executeQuery();
-		$total = (int)$countResult->fetchOne();
-		$countResult->closeCursor();
+		$total = $this->countWithFilters($userId, $filters, $visibleAccountIds);
 
 		// Apply sorting and pagination
 		$this->filterBuilder->applySorting($qb, $filters['sort'] ?? null, $filters['direction'] ?? null, 't');

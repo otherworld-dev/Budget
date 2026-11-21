@@ -603,6 +603,49 @@ class TransactionControllerTest extends TestCase {
 		$this->assertSame(Http::STATUS_OK, $response->getStatus());
 	}
 
+	/**
+	 * The dashboard tile's count comes from SQL over the accounts the
+	 * transactions list uses (own + shared), not from the length of a row
+	 * list capped at 100 (#493).
+	 */
+	public function testUncategorizedCountCountsOverTheListsAccounts(): void {
+		$shares = $this->createMock(GranularShareService::class);
+		$shares->method('getOwnAccountIds')->willReturn([1, 2, 3]);
+		$shares->method('getVisibleAccountIds')->willReturn([1, 2, 3, 9]);
+		$controller = new TransactionController(
+			$this->request, $this->service, $this->splitService,
+			$this->tagService, $this->validationService, $shares,
+			new TransactionCsvExporter($this->l), $this->l, 'user1', $this->logger
+		);
+		$this->service->expects($this->once())
+			->method('countUncategorized')
+			->with('user1', [1, 2, 3, 9])
+			->willReturn(7075);
+		$this->service->expects($this->never())->method('findUncategorized');
+
+		$response = $controller->uncategorizedCount();
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame(['count' => 7075], $response->getData());
+	}
+
+	public function testUncategorizedCountCanLeaveOutSharedAccounts(): void {
+		$this->service->expects($this->once())
+			->method('countUncategorized')
+			->with('user1', [1, 2, 3])
+			->willReturn(4);
+
+		$this->assertSame(['count' => 4], $this->controller->uncategorizedCount(true)->getData());
+	}
+
+	public function testUncategorizedCountReportsAFailure(): void {
+		$this->service->method('countUncategorized')->willThrowException(new \Exception('boom'));
+
+		$response = $this->controller->uncategorizedCount();
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+	}
+
 	// ── bulkCategorize ──────────────────────────────────────────────
 
 	public function testBulkCategorizeReturnsResults(): void {

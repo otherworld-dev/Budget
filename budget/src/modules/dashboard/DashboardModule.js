@@ -2882,8 +2882,10 @@ export default class DashboardModule {
         const container = document.getElementById('uncategorized-count-content');
         if (!container) return;
 
-        const transactions = this.widgetData.uncategorizedCount;
-        const count = Array.isArray(transactions) ? transactions.length : 0;
+        // A real count from the server ({count: N}), the same number the
+        // transactions list gives filtered to Uncategorized. Counting the
+        // rows of /transactions/uncategorized stopped at its limit of 100 (#493).
+        const count = Number(this.widgetData.uncategorizedCount?.count) || 0;
 
         container.innerHTML = `
             <div class="widget-stat">
@@ -4845,7 +4847,7 @@ export default class DashboardModule {
         try {
             switch(widgetKey) {
                 case 'uncategorizedCount': {
-                    this.widgetData.uncategorizedCount = await apiFetch('/apps/budget/api/transactions/uncategorized?limit=100');
+                    this.widgetData.uncategorizedCount = await apiFetch('/apps/budget/api/transactions/uncategorized/count');
                     break;
                 }
 

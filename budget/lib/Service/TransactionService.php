@@ -132,6 +132,17 @@ class TransactionService {
 		return $this->mapper->findUncategorized($userId, $limit);
 	}
 
+	/**
+	 * How many transactions the transactions list shows when filtered to
+	 * Uncategorized, over the same accounts: the same QueryFilterBuilder
+	 * predicate and scope, counted in SQL (#493).
+	 *
+	 * @param int[]|null $visibleAccountIds Own + shared account ids, as the list is scoped
+	 */
+	public function countUncategorized(string $userId, ?array $visibleAccountIds = null): int {
+		return $this->mapper->countWithFilters($userId, ['category' => 'uncategorized'], $visibleAccountIds);
+	}
+
 	public function search(string $userId, string $query, int $limit = 100): array {
 		return $this->mapper->search($userId, $query, $limit);
 	}

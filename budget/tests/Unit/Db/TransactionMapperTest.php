@@ -563,6 +563,30 @@ class TransactionMapperTest extends TestCase {
 		$this->assertEquals('USD', $result['transactions'][0]['accountCurrency']);
 	}
 
+	// ===== countWithFilters =====
+
+	/**
+	 * Call structure only (the behaviour is in the Integration
+	 * UncategorizedCountTest): one COUNT query, the list's filter builder,
+	 * no row fetch and no LIMIT (#493).
+	 */
+	public function testCountWithFiltersIsOneSqlCountThroughTheFilterBuilder(): void {
+		$countResult = $this->createMock(IResult::class);
+		$countResult->method('fetchOne')->willReturn('7075');
+		$countResult->expects($this->never())->method('fetchAll');
+		$countResult->method('closeCursor');
+		$this->qb->expects($this->once())->method('executeQuery')->willReturn($countResult);
+		$this->qb->expects($this->never())->method('setMaxResults');
+		$this->func->expects($this->once())->method('count')->with('t.id');
+
+		$this->filterBuilder->expects($this->once())
+			->method('applyTransactionFilters')
+			->with($this->qb, ['category' => 'uncategorized'], 't');
+		$this->filterBuilder->expects($this->never())->method('applyPagination');
+
+		$this->assertSame(7075, $this->mapper->countWithFilters('user1', ['category' => 'uncategorized'], [1, 9]));
+	}
+
 	// ===== findIdsWithFilters =====
 
 	public function testFindIdsWithFiltersDedupesAndCountsBills(): void {
