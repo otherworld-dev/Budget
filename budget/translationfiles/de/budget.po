@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
 "POT-Creation-Date: 2026-11-18 00:43+0000\n"
-"PO-Revision-Date: 2026-11-19 21:05+0000\n"
+"PO-Revision-Date: 2026-11-22 22:51+0000\n"
 "Last-Translator: SGiersch <Forum@SGiersch.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/nextcloud-budget/"
 "budget/de/>\n"
@@ -10810,7 +10810,7 @@ msgstr "Manuell (unten festlegen)"
 
 #: /app/src/modules/import/ImportModule.js:837
 msgid "Save routing as template…"
-msgstr "uordnung als Vorlage speichern …"
+msgstr "Zuordnung als Vorlage speichern…"
 
 #: /app/src/modules/import/ImportModule.js:885
 msgid "This template’s accounts don’t match the uploaded file"
