@@ -18552,6 +18552,30 @@ button.secondary.compact {
     vertical-align: middle;
 }
 
+/* Runway hero (#492): its figure is a phrase ("About 21 months", longer in
+   German), not an amount, so the shared one-line .hero-value rule pushed it
+   past the tile's edge. Here every line wraps, breaks a word too long for the
+   tile, and stops at two lines with an ellipsis; the title has the full text. */
+.hero-runway .hero-content > * {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.hero-runway .hero-value {
+    font-size: clamp(14px, 11cqi, 24px);
+}
+
+.hero-runway .hero-value,
+.hero-runway .hero-subtext {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+}
+
 .hero-debt-free .hero-icon {
     background: var(--budget-tint-positive-10, rgba(76, 175, 80, 0.1));
     color: var(--color-success);

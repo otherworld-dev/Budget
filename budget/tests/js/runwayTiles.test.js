@@ -129,7 +129,6 @@ function tileMarkup() {
             <span data-runway-part="value" class="hero-value">--</span>
             <span data-runway-part="until" class="hero-subtext"></span>
             <span data-runway-part="budget" class="hero-subtext"></span>
-            <span data-runway-part="drain" class="hero-subtext"></span>
         </div>
         ${['runwayChart', 'runwayOneOffs', 'runwayScenarios', 'runwayBreakdown', 'runwayOverview'].map((key) => `
             <div class="dashboard-card" data-widget-id="${key}" data-widget-category="widget">
@@ -264,7 +263,43 @@ describe('renderRunwayTile', () => {
         expect(value.children).toHaveLength(0);
         expect(until.children).toHaveLength(0);
         expect(card.querySelector('[data-runway-part="budget"]').textContent).toContain('About 25 months');
-        expect(card.querySelector('[data-runway-part="drain"]').textContent).toContain('£1,350.00');
+    });
+
+    // #492: the hero is sized for a figure and a short hint, so the lines
+    // wrap and clip there; the title keeps the full text within reach.
+    it('puts the full text of each hero line in its title', () => {
+        renderRunwayTile('runway', payload());
+
+        const card = document.querySelector('[data-widget-id="runway"]');
+        for (const part of ['value', 'until', 'budget']) {
+            const node = card.querySelector(`[data-runway-part="${part}"]`);
+            expect(node.textContent).not.toBe('');
+            expect(node.title).toBe(node.textContent);
+        }
+    });
+
+    it('clears the title along with an emptied hero line', () => {
+        renderRunwayTile('runway', payload());
+        renderRunwayTile('runway', payload({
+            scenarios: {
+                current: { state: 'not_running_out', monthlyDrain: '-100.00', months: null, runsOutOn: null },
+                onBudget: { state: 'unavailable', monthlyDrain: null, months: null, runsOutOn: null },
+            },
+        }));
+
+        const budget = document.querySelector('[data-widget-id="runway"] [data-runway-part="budget"]');
+        expect(budget.hidden).toBe(true);
+        expect(budget.hasAttribute('title')).toBe(false);
+    });
+
+    it('leaves the monthly drain off the hero, and keeps it on the overview tile', () => {
+        renderRunwayTile('runway', payload());
+        renderRunwayTile('runwayOverview', payload());
+
+        const hero = document.querySelector('[data-widget-id="runway"][data-widget-category="hero"]');
+        expect(hero.textContent).not.toContain('Monthly drain');
+        expect(document.querySelector('[data-widget-id="runwayOverview"]').textContent)
+            .toContain('Monthly drain £1,350.00 · last 3 months');
     });
 
     it('shows a one-off description as text, not markup', () => {
@@ -600,7 +635,14 @@ describe('review fixes', () => {
 
         const card = document.querySelector('[data-widget-id="runway"]');
         expect(card.querySelector('[data-runway-part="budget"]').hidden).toBe(true);
-        expect(card.querySelector('[data-runway-part="drain"]').textContent).toBe('Monthly drain £0.00 · last 3 months');
+        renderRunwayTile('runwayOverview', payload({
+            scenarios: {
+                current: { state: 'not_running_out', monthlyDrain: '0.00', months: null, runsOutOn: null },
+                onBudget: { state: 'unavailable', monthlyDrain: null, months: null, runsOutOn: null },
+            },
+            differenceMonths: null,
+        }));
+        expect(document.querySelector('[data-widget-id="runwayOverview"]').textContent).toContain('Monthly drain £0.00 · last 3 months');
     });
 });
 

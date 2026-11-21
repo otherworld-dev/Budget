@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **The Forecast page is tidier.** The top row now has your current balance, the projected balance and the forecast confidence, which used to sit at the bottom of the page. The balance chart and **What If?** share one panel, and the chart shows just the balance, with each month's projected income and spending in its tooltip instead of on a second scale. The Savings Projection chart is gone, as it drew the same line as the balance chart and repeated figures shown elsewhere; the savings rate is now under the average monthly savings. Spending by Category lists the ten biggest categories with **Show all** for the rest, and the note at the top is a single line under the chart.
 
+### Fixed
+- Fixed the Runway dashboard tile's text running past the edge of the tile, mainly in longer languages. Its lines now wrap and stop at two lines, with the full text when you hover over them, and the monthly drain is left to the Runway overview tile, which has room for it. Reported by @SGiersch ([#492](https://github.com/otherworld-dev/Budget/issues/492))
+
 ## [3.4.0] - 2026-11-13
 
 ### Added

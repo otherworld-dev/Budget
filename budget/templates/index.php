@@ -568,7 +568,6 @@ style('budget', 'budget-app');
                         <span id="hero-runway-value" class="hero-value" data-runway-part="value">--</span>
                         <span id="hero-runway-until" class="hero-subtext" data-runway-part="until"></span>
                         <span id="hero-runway-budget" class="hero-subtext hero-runway-budget" data-runway-part="budget" hidden></span>
-                        <span id="hero-runway-drain" class="hero-subtext" data-runway-part="drain" hidden></span>
                     </div>
                 </div>
 

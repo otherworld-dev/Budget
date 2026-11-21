@@ -239,32 +239,36 @@ function breakdown(data) {
 // Tiles
 // ---------------------------------------------------------------------------
 
+/**
+ * The hero is sized for a figure and a short hint (#492): its lines wrap and
+ * clip there, so each carries its full text as a title. The monthly drain is
+ * left to the overview tile, which has the room for it.
+ */
 function renderHero(card, data) {
     const set = (part, text) => {
         const node = card.querySelector(`[data-runway-part="${part}"]`);
         if (!node) return;
         node.textContent = text;
         node.hidden = !text;
+        if (text) node.title = text;
+        else node.removeAttribute('title');
     };
     if (!data) {
         set('value', '--');
         set('until', t('budget', 'The runway could not be loaded'));
         set('budget', '');
-        set('drain', '');
         return;
     }
     if (noAccounts(data)) {
         set('value', '--');
         set('until', t('budget', 'No accounts are counted'));
         set('budget', '');
-        set('drain', '');
         return;
     }
     const current = data.scenarios.current;
     set('value', monthsPhrase(current));
     set('until', untilLine(current));
     set('budget', onBudgetLine(data.scenarios.onBudget));
-    set('drain', drainLine(data));
 }
 
 /** The one-offs list as a tile shows it; `key` is the tile it sits in. */
