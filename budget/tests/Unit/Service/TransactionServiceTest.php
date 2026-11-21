@@ -2000,6 +2000,133 @@ class TransactionServiceTest extends TestCase {
 		$this->service->bulkFindAndMatch('user1', 3, 100, [10, 20], []);
 	}
 
+	// ===== createTransfer(): the category on both sides (#494) =====
+
+	/**
+	 * A transfer of 30 from account 10 (user1's) into account 20, owned by
+	 * $targetOwner, filed under category 7. Returns [first side, other
+	 * side, counterpart_category_error].
+	 *
+	 * @return array{0: Transaction, 1: Transaction, 2: ?string}
+	 */
+	private function transferWithCategory(string $targetOwner, ?\OCA\Budget\Service\GranularShareService $shares): array {
+		$this->accountById[10] = $this->makeAccount(['id' => 10, 'userId' => 'user1']);
+		$this->accountById[20] = $this->makeAccount(['id' => 20, 'userId' => $targetOwner]);
+		$this->accountMapper->method('find')->willReturnCallback(
+			fn (int $id, string $userId) => $this->accountById[$id]
+		);
+		$rows = [];
+		$this->mapper->method('insert')->willReturnCallback(
+			function (Transaction $tx) use (&$rows) {
+				$tx->setId(count($rows) + 1);
+				$rows[$tx->getId()] = $tx;
+				return $tx;
+			}
+		);
+		$this->mapper->method('findForAccounts')->willReturnCallback(
+			function (int $id) use (&$rows) {
+				return $rows[$id];
+			}
+		);
+
+		$service = new TransactionService(
+			$this->mapper,
+			$this->accountMapper,
+			$this->transactionTagMapper,
+			$this->splitMapper,
+			$this->expenseShareMapper,
+			$this->createMock(DismissedImportMapper::class),
+			$this->attachmentMapper,
+			$this->createMock(\OCA\Budget\Service\AuditService::class),
+			$this->createMock(\OCA\Budget\Db\PensionContributionMapper::class),
+			$this->userClock,
+			granularShareService: $shares,
+		);
+
+		$error = 'unset';
+		$first = $service->createTransfer('user1', 'user1', 10, 20, [10, 20], '2026-01-15', 'Move', 30.0, 'debit', 7, null, null, null, $error);
+
+		$this->assertCount(2, $rows);
+		return [$first, $rows[2], $error];
+	}
+
+	public function testATransferBetweenOnesOwnAccountsPutsTheCategoryOnBothSides(): void {
+		$shares = $this->createMock(\OCA\Budget\Service\GranularShareService::class);
+		$shares->expects($this->never())->method('requireUsableCategory');
+
+		[$first, $other, $error] = $this->transferWithCategory('user1', $shares);
+
+		$this->assertSame(7, $first->getCategoryId());
+		$this->assertSame(7, $other->getCategoryId());
+		$this->assertSame(20, $other->getAccountId());
+		$this->assertNull($error);
+	}
+
+	public function testATransferIntoAnotherOwnersAccountCopiesACategoryTheyCanUse(): void {
+		$shares = $this->createMock(\OCA\Budget\Service\GranularShareService::class);
+		$shares->expects($this->once())->method('requireUsableCategory')->with('owner2', 7);
+		$shares->expects($this->once())->method('requireCategoryVisibleToWriter')->with('owner2', 'user1', 7);
+
+		[$first, $other, $error] = $this->transferWithCategory('owner2', $shares);
+
+		$this->assertSame(7, $first->getCategoryId());
+		$this->assertSame(7, $other->getCategoryId());
+		$this->assertNull($error);
+	}
+
+	public function testATransferIntoAnotherOwnersAccountLeavesTheirSideUncategorisedWhenTheyCannotUseIt(): void {
+		$shares = $this->createMock(\OCA\Budget\Service\GranularShareService::class);
+		$shares->method('requireUsableCategory')->willThrowException(new \InvalidArgumentException('Category not found'));
+
+		[$first, $other, $error] = $this->transferWithCategory('owner2', $shares);
+
+		$this->assertSame(7, $first->getCategoryId());
+		$this->assertNull($other->getCategoryId());
+		$this->assertIsString($error);
+	}
+
+	public function testATransferIntoAnotherOwnersAccountLeavesTheirSideUncategorisedWhenTheCallerCannotSeeIt(): void {
+		$shares = $this->createMock(\OCA\Budget\Service\GranularShareService::class);
+		$shares->method('requireCategoryVisibleToWriter')->willThrowException(new \InvalidArgumentException('Category not found'));
+
+		[, $other, $error] = $this->transferWithCategory('owner2', $shares);
+
+		$this->assertNull($other->getCategoryId());
+		$this->assertIsString($error);
+	}
+
+	public function testWithoutTheShareServiceAnotherOwnersSideIsLeftUncategorised(): void {
+		[$first, $other, $error] = $this->transferWithCategory('owner2', null);
+
+		$this->assertSame(7, $first->getCategoryId());
+		$this->assertNull($other->getCategoryId());
+		$this->assertIsString($error);
+	}
+
+	public function testConvertToTransferWithoutACategoryLeavesTheOtherSideUncategorised(): void {
+		$source = $this->makeTransaction(['id' => 1, 'accountId' => 10, 'categoryId' => 7]);
+		$counterpart = null;
+		$this->mapper->method('find')->willReturnCallback(
+			function (int $id) use ($source, &$counterpart) {
+				return $id === 1 ? $source : $counterpart;
+			}
+		);
+		$this->mapper->method('insert')->willReturnCallback(
+			function (Transaction $tx) use (&$counterpart) {
+				$tx->setId(2);
+				$counterpart = $tx;
+				return $tx;
+			}
+		);
+		$this->accountMapper->method('find')->willReturnCallback(
+			fn (int $id) => $this->makeAccount(['id' => $id])
+		);
+
+		$this->service->convertToTransfer(1, 20, 'user1');
+
+		$this->assertNull($counterpart->getCategoryId());
+	}
+
 	private function serviceWithMapperReturning(Transaction $tx): TransactionService {
 		$mapper = $this->createMock(TransactionMapper::class);
 		$mapper->method('find')->willReturn($tx);

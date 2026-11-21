@@ -118,6 +118,69 @@ class TransferCreateTest extends IntegrationTestCase {
 	}
 
 	/**
+	 * A transfer with a category puts it on both sides (#494): only the side
+	 * in the first account used to get it.
+	 */
+	public function testBothSidesCarryTheCategory(): void {
+		$current = $this->makeAccount()->getId();
+		$savings = $this->makeAccount()->getId();
+		$category = $this->makeCategory(['name' => 'Savings']);
+
+		$error = 'unset';
+		$this->transactions->createTransfer(
+			$this->userId, $this->userId, $current, $savings, [$current, $savings],
+			'2026-03-15', 'To savings', 200.0, 'debit', $category, null, null, null, $error
+		);
+
+		$rows = $this->rowsIn($current, $savings);
+		$this->assertCount(2, $rows);
+		$this->assertSame([$category, $category], array_map('intval', array_column($rows, 'category_id')));
+		$this->assertNull($error);
+	}
+
+	/**
+	 * Into another user's account, with a category of the caller's that the
+	 * other owner can't use: that side would be filed in their ledger under
+	 * a category that isn't theirs. It is recorded uncategorised instead,
+	 * and the transfer still goes through.
+	 */
+	public function testTheOtherSideIsLeftUncategorisedWhenItsOwnerCannotUseTheCategory(): void {
+		$owner = $this->newUserId();
+		$mine = $this->makeAccount()->getId();
+		$theirs = $this->makeAccount(['name' => 'Joint'], $owner)->getId();
+		$category = $this->makeCategory(['name' => 'Private']);
+
+		$error = null;
+		$first = $this->transactions->createTransfer(
+			$this->userId, $this->userId, $mine, $theirs, [$mine, $theirs],
+			'2026-03-15', 'Rent share', 75.0, 'debit', $category, null, null, null, $error
+		);
+
+		$this->assertSame($category, $first->getCategoryId());
+		$this->assertSame($category, (int)$this->fetchRow('budget_transactions', $first->getId())['category_id']);
+		$otherSide = $this->mapper->find((int)$first->getLinkedTransactionId(), $owner);
+		$this->assertNull($otherSide->getCategoryId());
+		$this->assertNotNull($error);
+		$this->assertEqualsWithDelta(75.0, $this->balance($theirs), 0.001);
+	}
+
+	/**
+	 * Convert to transfer in the web UI names no category, and its new
+	 * other side stays uncategorised as before.
+	 */
+	public function testConvertToTransferStillLeavesTheOtherSideUncategorised(): void {
+		$current = $this->makeAccount()->getId();
+		$savings = $this->makeAccount()->getId();
+		$category = $this->makeCategory();
+		$row = $this->makeTransaction($current, ['category_id' => $category]);
+
+		$result = $this->transactions->convertToTransfer($row, $savings, $this->userId, [$current, $savings]);
+
+		$this->assertSame($category, $result['transaction']->getCategoryId());
+		$this->assertNull($result['linkedTransaction']->getCategoryId());
+	}
+
+	/**
 	 * The other side is refused only after the first is written (two
 	 * currencies). Nothing may be left of either, and no money may have moved.
 	 */

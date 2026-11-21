@@ -2721,6 +2721,54 @@ class ApiV1TransactionControllerTest extends TestCase {
 		$this->assertSame('Account 2', $data['linked_account_name']);
 	}
 
+	/**
+	 * The category goes to the service for both sides (#494): it was only
+	 * ever stored on the side in account_id.
+	 */
+	public function testATransferWithACategoryHandsItToTheService(): void {
+		$this->accountsIn();
+		$this->params = $this->captureParams(['transfer_account_id' => '2', 'category_id' => '7']);
+		$first = $this->linkedTo(56);
+		$first->setCategoryId(7);
+		$this->service->expects($this->never())->method('create');
+		$this->service->expects($this->once())->method('createTransfer')
+			->with('user1', 'user1', 1, 2, [1, 2, 9], '2026-08-01', 'Weekly shop', 42.5, 'debit', 7)
+			->willReturn($first);
+		$this->service->method('findForAccounts')->with(56, [1, 2, 9])->willReturn($this->otherSideIn(2));
+
+		$response = $this->controller->create();
+		$data = $response->getData();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+		$this->assertSame(7, $data['category_id']);
+		$this->assertArrayNotHasKey('category_error', $data);
+		$this->assertArrayNotHasKey('counterpart_category_error', $data);
+	}
+
+	/**
+	 * The other account's owner can't use the category: that side is left
+	 * uncategorised by the service and the response says so, still a 201.
+	 */
+	public function testATransferWhoseOtherSideCouldNotTakeTheCategorySaysSo(): void {
+		$this->accountsIn();
+		$this->params = $this->captureParams(['transfer_account_id' => '2', 'category_id' => '7']);
+		$this->service->expects($this->once())->method('createTransfer')
+			->willReturnCallback(function (
+				string $ownerId, string $actingUserId, int $accountId, int $targetAccountId, array $visible,
+				string $date, string $description, float $amount, string $type, ?int $categoryId = null,
+				?string $vendor = null, ?string $reference = null, ?string $notes = null, ?string &$counterpartCategoryError = null,
+			): Transaction {
+				$counterpartCategoryError = 'The other side was left uncategorised';
+				return $this->linkedTo(56);
+			});
+		$this->service->method('findForAccounts')->with(56, [1, 2, 9])->willReturn($this->otherSideIn(2));
+
+		$response = $this->controller->create();
+
+		$this->assertSame(Http::STATUS_CREATED, $response->getStatus());
+		$this->assertSame('The other side was left uncategorised', $response->getData()['counterpart_category_error']);
+	}
+
 	public function testAnEmptyTransferAccountIsAnOrdinaryTransaction(): void {
 		$this->params = $this->captureParams(['transfer_account_id' => '']);
 		$this->service->expects($this->once())->method('create')->willReturn($this->transaction());

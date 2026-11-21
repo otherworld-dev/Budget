@@ -52,6 +52,9 @@ class TransactionService {
 		// Link to bill and Unlink from bill (#399); last, as the tests build
 		// this service by position
 		private ?BillMapper $billMapper = null,
+		// Whether the other side of a transfer may carry its category
+		// (#494); without it that side is left uncategorised
+		private ?GranularShareService $granularShareService = null,
 	) {
 		$this->mapper = $mapper;
 		$this->accountMapper = $accountMapper;
@@ -2370,9 +2373,13 @@ class TransactionService {
 	 * no importable feed (e.g. a loan account) there is never an existing
 	 * counterpart to match against, so one is created on demand.
 	 *
+	 * The counterpart is uncategorised unless $counterpartCategoryId is
+	 * given. Only createTransfer() gives one, after checking that the target
+	 * account's owner may use it; Convert to transfer in the web UI doesn't.
+	 *
 	 * @throws \Exception if the transaction cannot be converted
 	 */
-	public function convertToTransfer(int $transactionId, int $targetAccountId, string $userId, ?array $visibleAccountIds = null): array {
+	public function convertToTransfer(int $transactionId, int $targetAccountId, string $userId, ?array $visibleAccountIds = null, ?int $counterpartCategoryId = null): array {
 		$transaction = $this->findScoped($transactionId, $userId, $visibleAccountIds);
 
 		// Validate before creating the counterpart so a failed conversion
@@ -2418,6 +2425,7 @@ class TransactionService {
 			description: $transaction->getDescription() ?? '',
 			amount: $transaction->getAmount(),
 			type: $transaction->getType() === 'debit' ? 'credit' : 'debit',
+			categoryId: $counterpartCategoryId,
 			vendor: $transaction->getVendor(),
 			notes: 'Auto-created transfer counterpart',
 			// The other side of a bill's payment is part of that payment, so
@@ -2440,9 +2448,16 @@ class TransactionService {
 	 * somebody else's, and the caller's retry recorded the pair on top of it.
 	 * Inside one database transaction the first side is undone with the rest.
 	 *
+	 * Both sides carry $categoryId (#494) when the other account's owner may
+	 * use it: the same owner, or one it is shared with who can use it, and
+	 * $actingUserId can see it. Otherwise the other side is recorded
+	 * uncategorised, never refused, and $counterpartCategoryError says why.
+	 * $categoryId itself must already be one $ownerId may use.
+	 *
 	 * @param string $ownerId The owner of $accountId, whose ledger the first side joins
 	 * @param string $actingUserId Who is asking, for the scoping convertToTransfer() does
 	 * @param int[] $visibleAccountIds The accounts $actingUserId may use; both must be among them
+	 * @param-out string|null $counterpartCategoryError
 	 * @return Transaction The side in $accountId, linked to the other
 	 * @throws \Exception if the two accounts cannot hold a transfer between them
 	 */
@@ -2460,11 +2475,14 @@ class TransactionService {
 		?string $vendor = null,
 		?string $reference = null,
 		?string $notes = null,
+		?string &$counterpartCategoryError = null,
 	): Transaction {
-		$record = function () use ($ownerId, $actingUserId, $accountId, $targetAccountId, $visibleAccountIds, $date, $description, $amount, $type, $categoryId, $vendor, $reference, $notes): Transaction {
+		$counterpartCategoryError = null;
+		$record = function () use ($ownerId, $actingUserId, $accountId, $targetAccountId, $visibleAccountIds, $date, $description, $amount, $type, $categoryId, $vendor, $reference, $notes, &$counterpartCategoryError): Transaction {
 			$first = $this->create($ownerId, $accountId, $date, $description, $amount, $type, $categoryId, $vendor, $reference, $notes);
+			$counterpartCategoryId = $this->transferCounterpartCategory($ownerId, $actingUserId, $targetAccountId, $categoryId, $counterpartCategoryError);
 
-			return $this->convertToTransfer($first->getId(), $targetAccountId, $actingUserId, $visibleAccountIds)['transaction'];
+			return $this->convertToTransfer($first->getId(), $targetAccountId, $actingUserId, $visibleAccountIds, $counterpartCategoryId)['transaction'];
 		};
 
 		if ($this->db === null) {
@@ -2481,6 +2499,45 @@ class TransactionService {
 			$this->db->rollBack();
 			throw $e;
 		}
+	}
+
+	/**
+	 * The category the other side of a transfer gets (#494): the first
+	 * side's, if the target account's owner may use it. That side is in the
+	 * owner's ledger, so an owner other than $ownerId must be able to use
+	 * the category, and $actingUserId see it, as for any write into a
+	 * ledger that isn't theirs. Otherwise null, with the reason in $error.
+	 *
+	 * @param-out string|null $error
+	 */
+	private function transferCounterpartCategory(string $ownerId, string $actingUserId, int $targetAccountId, ?int $categoryId, ?string &$error): ?int {
+		$error = null;
+		if ($categoryId === null) {
+			return null;
+		}
+		try {
+			$targetOwner = $this->accountMapper->findById($targetAccountId)->getUserId();
+		} catch (DoesNotExistException $e) {
+			// convertToTransfer() refuses the transfer itself
+			return null;
+		}
+		if ($targetOwner === $ownerId) {
+			return $categoryId;
+		}
+		if ($this->granularShareService !== null) {
+			try {
+				$this->granularShareService->requireUsableCategory($targetOwner, $categoryId);
+				$this->granularShareService->requireCategoryVisibleToWriter($targetOwner, $actingUserId, $categoryId);
+				return $categoryId;
+			} catch (\InvalidArgumentException $e) {
+				// Refused below
+			}
+		}
+		// Spelled out twice so the translation template picks it up
+		$error = $this->l !== null
+			? $this->l->t('The owner of the other account cannot use this category, so the other side of the transfer was left uncategorised')
+			: 'The owner of the other account cannot use this category, so the other side of the transfer was left uncategorised';
+		return null;
 	}
 
 	/**

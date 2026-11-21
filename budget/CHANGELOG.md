@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **The Forecast page is tidier.** The top row now has your current balance, the projected balance and the forecast confidence, which used to sit at the bottom of the page. The balance chart and **What If?** share one panel, and the chart shows just the balance, with each month's projected income and spending in its tooltip instead of on a second scale. The Savings Projection chart is gone, as it drew the same line as the balance chart and repeated figures shown elsewhere; the savings rate is now under the average monthly savings. Spending by Category lists the ten biggest categories with **Show all** for the rest, and the note at the top is a single line under the chart.
 
+### Fixed
+- **Transfers created through the API put the category on both sides.** A transfer sent to `POST /api/v1/transactions` with a `category_id` only filed the side in `account_id` under it, and the other side was left uncategorised. Both sides now get the category. When the other account belongs to someone who can't use that category, their side is still recorded, uncategorised, and the response says so in `counterpart_category_error`. Convert to transfer in the web UI is unchanged. Reported by @SGiersch ([#494](https://github.com/otherworld-dev/Budget/issues/494))
+
 ## [3.4.0] - 2026-11-13
 
 ### Added
