@@ -2154,6 +2154,13 @@ class TransactionService {
 	public function bulkEdit(string $userId, array $ids, array $updates): array {
 		$results = ['success' => 0, 'failed' => 0, 'errors' => []];
 
+		// update() applies each key through its setter, which stores what it
+		// is given: keep the flag a real bool so the entity's change
+		// tracking and the boolean column see true/false, not "1" (#491)
+		if (array_key_exists('excludedFromForecast', $updates)) {
+			$updates['excludedFromForecast'] = filter_var($updates['excludedFromForecast'], FILTER_VALIDATE_BOOLEAN);
+		}
+
 		foreach ($ids as $id) {
 			try {
 				$this->update($id, $userId, $updates);

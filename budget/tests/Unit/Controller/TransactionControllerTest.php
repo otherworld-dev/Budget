@@ -15,6 +15,7 @@ use OCA\Budget\Service\ValidationService;
 use OCP\AppFramework\Http;
 use OCP\IL10N;
 use OCP\IRequest;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
@@ -765,6 +766,86 @@ class TransactionControllerTest extends TestCase {
 
 		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
 		$this->assertStringContainsString('Invalid fields', $response->getData()['error']);
+	}
+
+	/**
+	 * Exclude from forecast can be set or cleared for a whole selection
+	 * (#491), and whatever form the client sends it in reaches the service
+	 * as a real bool.
+	 */
+	#[DataProvider('excludedFromForecastValues')]
+	public function testBulkEditAcceptsExcludedFromForecast(mixed $sent, bool $expected): void {
+		$this->service->expects($this->once())->method('bulkEdit')
+			->with('user1', [1, 2], ['excludedFromForecast' => $expected])
+			->willReturn(['success' => 2, 'failed' => 0, 'errors' => []]);
+
+		$response = $this->controllerForSharedRows()->bulkEdit([1, 2], ['excludedFromForecast' => $sent]);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	public static function excludedFromForecastValues(): array {
+		return [
+			'true' => [true, true],
+			'false' => [false, false],
+			'int 1' => [1, true],
+			'int 0' => [0, false],
+			'string "1"' => ['1', true],
+			'string "0"' => ['0', false],
+			'string "true"' => ['true', true],
+			'string "false"' => ['false', false],
+		];
+	}
+
+	/**
+	 * Anything that is not a yes or no is refused rather than read as one:
+	 * "yes" or 2 turned into true, or null into false, would flip the flag
+	 * on every selected row.
+	 */
+	#[DataProvider('badExcludedFromForecastValues')]
+	public function testBulkEditRefusesABadExcludedFromForecast(mixed $sent): void {
+		$this->service->expects($this->never())->method('bulkEdit');
+
+		$response = $this->controller->bulkEdit([1], ['excludedFromForecast' => $sent]);
+
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $response->getStatus());
+		$this->assertStringContainsString('excludedFromForecast', $response->getData()['error']);
+	}
+
+	public static function badExcludedFromForecastValues(): array {
+		return [
+			'null' => [null],
+			'empty string' => [''],
+			'yes' => ['yes'],
+			'int 2' => [2],
+			'array' => [[true]],
+		];
+	}
+
+	/** "Don't change" sends no key, and the rows' own flags stay out of the update. */
+	public function testBulkEditWithoutExcludedFromForecastLeavesTheFlagAlone(): void {
+		$this->service->expects($this->once())->method('bulkEdit')
+			->with('user1', [1], $this->callback(fn (array $updates) => !array_key_exists('excludedFromForecast', $updates)))
+			->willReturn(['success' => 1, 'failed' => 0, 'errors' => []]);
+
+		$response = $this->controllerForSharedRows()->bulkEdit([1], ['notes' => 'checked']);
+
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+	}
+
+	/** A row in a read-only share stays refused for the flag too. */
+	public function testBulkEditExcludedFromForecastRefusesAReadOnlySharedRow(): void {
+		$calls = [];
+		$this->service->method('bulkEdit')->willReturnCallback(function (string $owner, array $ids, array $updates) use (&$calls) {
+			$calls[$owner] = [$ids, $updates];
+			return ['success' => count($ids), 'failed' => 0, 'errors' => []];
+		});
+
+		$response = $this->controllerForSharedRows()->bulkEdit([1, 5], ['excludedFromForecast' => true]);
+
+		$this->assertSame(['user1' => [[1], ['excludedFromForecast' => true]]], $calls);
+		$this->assertSame(1, $response->getData()['success']);
+		$this->assertSame(1, $response->getData()['failed']);
 	}
 
 	// ── bulkTags (#379) ─────────────────────────────────────────────

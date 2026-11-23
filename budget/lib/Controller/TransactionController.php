@@ -1048,6 +1048,24 @@ class TransactionController extends Controller {
 	}
 
 	/**
+	 * A bulk-edit yes/no flag as sent by the client: a bool, 0/1 or
+	 * "0"/"1"/"true"/"false". Anything else (null included) is null, which
+	 * the caller refuses.
+	 */
+	private static function parseBulkFlag(mixed $raw): ?bool {
+		if (is_bool($raw)) {
+			return $raw;
+		}
+		if ($raw === 1 || $raw === '1' || $raw === 'true') {
+			return true;
+		}
+		if ($raw === 0 || $raw === '0' || $raw === 'false') {
+			return false;
+		}
+		return null;
+	}
+
+	/**
 	 * The ledger-category check for a row of $ownerId's. On the user's own
 	 * rows the refusal stays the plain "Category not found"; on someone
 	 * else's it says whose categories are needed, as the API does.
@@ -1129,12 +1147,25 @@ class TransactionController extends Controller {
 			}
 
 			// Validate allowed fields
-			$allowedFields = ['categoryId', 'vendor', 'reference', 'notes'];
+			$allowedFields = ['categoryId', 'vendor', 'reference', 'notes', 'excludedFromForecast'];
 			$invalidFields = array_diff(array_keys($updates), $allowedFields);
 			if (!empty($invalidFields)) {
 				return new DataResponse([
 					'error' => $this->l->t('Invalid fields: %1$s', [implode(', ', $invalidFields)])
 				], Http::STATUS_BAD_REQUEST);
+			}
+
+			// Exclude from forecast (#491): only a real yes or no. The form
+			// leaves the key out for "Don't change", so a null or anything
+			// else is a bad request rather than a silent false.
+			if (array_key_exists('excludedFromForecast', $updates)) {
+				$flag = self::parseBulkFlag($updates['excludedFromForecast']);
+				if ($flag === null) {
+					return new DataResponse([
+						'error' => $this->l->t('Invalid fields: %1$s', ['excludedFromForecast'])
+					], Http::STATUS_BAD_REQUEST);
+				}
+				$updates['excludedFromForecast'] = $flag;
 			}
 
 			// Validate and sanitize string fields
