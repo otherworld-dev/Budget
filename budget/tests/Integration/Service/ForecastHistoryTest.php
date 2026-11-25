@@ -6,6 +6,7 @@ namespace OCA\Budget\Tests\Integration\Service;
 
 use OCA\Budget\Service\Forecast\ForecastWarningService;
 use OCA\Budget\Service\ForecastService;
+use OCA\Budget\Service\UserClock;
 use OCA\Budget\Tests\Integration\IntegrationTestCase;
 
 /**
@@ -39,9 +40,19 @@ class ForecastHistoryTest extends IntegrationTestCase {
 
 		$forecast = $this->service(ForecastService::class)->getLiveForecast($this->userId, 6);
 
-		$this->assertSame(array_fill(0, 6, 3100.0), array_column($forecast['monthlyProjections'], 'income'));
-		$this->assertSame(array_fill(0, 6, 2000.0), array_column($forecast['monthlyProjections'], 'expenses'));
-		$this->assertEqualsWithDelta(3925.0 + 6 * 1100.0, $forecast['projectedBalance'], 0.001);
+		// Last month spent 1,200 on the 10th and 800 on the 11th: what of
+		// that is still to come this month
+		$rest = ($this->stillToCome(10) ? 1200.0 : 0.0) + ($this->stillToCome(11) ? 800.0 : 0.0);
+		$months = $this->fullMonths($forecast);
+		$this->assertSame(array_fill(0, 6, 3100.0), array_column($months, 'income'));
+		$this->assertSame(array_fill(0, 6, 2000.0), array_column($months, 'expenses'));
+		// What is left of this month comes first, with the spending the
+		// same days had last month
+		if ($rest > 0) {
+			$this->assertTrue($forecast['monthlyProjections'][0]['partial']);
+			$this->assertSame($rest, $forecast['monthlyProjections'][0]['expenses']);
+		}
+		$this->assertEqualsWithDelta(3925.0 + 6 * 1100.0 - $rest, $forecast['projectedBalance'], 0.01);
 		$this->assertSame(1, $forecast['dataQuality']['monthsOfData']);
 		$this->assertFalse($forecast['dataQuality']['isReliable']);
 	}
@@ -64,7 +75,10 @@ class ForecastHistoryTest extends IntegrationTestCase {
 
 		$forecast = $this->service(ForecastService::class)->getLiveForecast($this->userId, 6);
 		$this->assertTrue($forecast['dataQuality']['isReliable']);
-		$this->assertSame([400.0, -200.0], array_slice(array_column($forecast['monthlyProjections'], 'balance'), 0, 2));
+		// 600 a month more out than in, after what is left of this month:
+		// 1,300 on the 10th and on the 11th, if still to come
+		$first = round(1000.0 - 600.0 - ($this->stillToCome(10) ? 1300.0 : 0.0) - ($this->stillToCome(11) ? 1300.0 : 0.0), 2);
+		$this->assertSame([$first, round($first - 600.0, 2)], array_slice(array_column($this->fullMonths($forecast), 'balance'), 0, 2));
 
 		$this->assertTrue($this->service(ForecastWarningService::class)->checkAndNotify($this->userId));
 	}
@@ -79,9 +93,12 @@ class ForecastHistoryTest extends IntegrationTestCase {
 
 		$forecast = $this->service(ForecastService::class)->getLiveForecast($this->userId, 6);
 
-		foreach ($forecast['monthlyProjections'] as $month) {
+		$months = $this->fullMonths($forecast);
+		foreach ($months as $month) {
 			$this->assertGreaterThanOrEqual(3100.0, $month['income'], $month['yearMonth']);
 		}
+		// The bonus stopped: it is not carried on as if it still came
+		$this->assertLessThan(5100.0, $months[0]['income']);
 	}
 
 	/**
@@ -92,15 +109,21 @@ class ForecastHistoryTest extends IntegrationTestCase {
 	 */
 	private function monthOf(int $back, string $income, array $spending): void {
 		$month = $this->thisMonth->modify("-{$back} months");
-		$this->makeTransaction($this->account, ['amount' => $income, 'type' => 'credit', 'date' => $month->format('Y-m-01')]);
+		$this->makeTransaction($this->account, ['amount' => $income, 'type' => 'credit', 'description' => 'Salary ACME', 'date' => $month->format('Y-m-01')]);
 		foreach ($spending as $i => $amount) {
 			$this->makeTransaction($this->account, ['amount' => $amount, 'date' => $month->format('Y-m-') . sprintf('%02d', 10 + $i)]);
 		}
 	}
 
+	/** The months projected after this one, without what is left of it */
+	private function fullMonths(array $forecast): array {
+		return array_values(array_filter($forecast['monthlyProjections'], static fn (array $m) => !$m['partial']));
+	}
+
 	private function recurringIncome(string $amount): void {
 		$this->insertRow('budget_recurring_income', [
-			'user_id' => $this->userId, 'name' => 'Salary', 'amount' => $amount, 'frequency' => 'monthly',
+			// The pattern is what tells the salary's credits from any other
+			'user_id' => $this->userId, 'name' => 'Salary', 'amount' => $amount, 'frequency' => 'monthly', 'auto_detect_pattern' => 'ACME',
 			'account_id' => $this->account, 'is_active' => true, 'created_at' => $this->now(),
 		]);
 	}
@@ -110,5 +133,13 @@ class ForecastHistoryTest extends IntegrationTestCase {
 			'UPDATE *PREFIX*budget_accounts SET balance = ? WHERE id = ?',
 			[number_format($balance, 2, '.', ''), $this->account]
 		);
+	}
+
+	/**
+	 * Whether the day of the month $day is still to come this month, on
+	 * the user's calendar as the forecast reads it.
+	 */
+	private function stillToCome(int $day): bool {
+		return (int)(new \DateTimeImmutable($this->service(UserClock::class)->today($this->userId)))->format('j') < $day;
 	}
 }

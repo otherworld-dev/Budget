@@ -3138,6 +3138,7 @@ style('budget', 'budget-app');
                 <div class="empty-icon">📊</div>
                 <h3><?php p($l->t('Not Enough Data')); ?></h3>
                 <p><?php p($l->t('Add more transactions to generate an accurate forecast. We need at least 1 month of transaction history.')); ?></p>
+                <p><?php p($l->t('Only complete months count: a month your accounts\' history only partly covers, such as the first month a bank sync fetched, is left out.')); ?></p>
             </div>
 
             <!-- Summary: where the balance is, where it is heading, how sure we are -->
@@ -3167,6 +3168,7 @@ style('budget', 'budget-app');
                     <canvas id="balance-projection-chart"></canvas>
                 </div>
                 <p class="forecast-caption"><?php p($l->t('Estimated from your past income and spending. Use it as a guide, not a guarantee.')); ?></p>
+                <p id="forecast-month-note" class="month-grouping-note" style="display: none;"></p>
 
                 <!-- What-if scenario (#487) -->
                 <div id="forecast-scenario" class="forecast-scenario">
