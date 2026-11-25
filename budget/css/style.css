@@ -8103,12 +8103,92 @@ label .required {
     font-size: 18px;
 }
 
-/* What-if scenario (#487) */
-#forecast-scenario {
+/* Forecast summary: current, projected, confidence */
+.forecast-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+}
+
+.forecast-card,
+.forecast-panel,
+.forecast-trends-row {
     background: var(--color-background-hover);
     border-radius: var(--border-radius-container, 12px);
-    padding: 24px;
     border: 1px solid var(--color-border);
+}
+
+.forecast-card {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.forecast-card .card-label,
+.forecast-trend .trend-label {
+    font-size: 13px;
+    color: var(--color-text-lighter);
+}
+
+.forecast-card .card-value {
+    font-size: 28px;
+    font-weight: bold;
+    color: var(--color-main-text);
+}
+
+.forecast-card .card-change {
+    font-size: 14px;
+}
+
+.forecast-card .card-change.positive {
+    color: var(--budget-color-positive);
+}
+
+.forecast-card .card-change.negative {
+    color: var(--budget-color-negative);
+}
+
+.forecast-card .card-note,
+.forecast-trend .card-note {
+    font-size: 13px;
+    color: var(--color-text-lighter);
+}
+
+/* Confidence: the colour says how far to trust the forecast */
+.forecast-card .quality-value.high {
+    color: var(--color-success);
+}
+
+.forecast-card .quality-value.medium {
+    color: var(--color-warning);
+}
+
+.forecast-card .quality-value.low {
+    color: var(--color-error);
+}
+
+/* Balance projection and What If? in one panel */
+.forecast-panel {
+    padding: 24px;
+}
+
+.forecast-panel .chart-container {
+    position: relative;
+    height: 320px;
+}
+
+.forecast-caption {
+    margin: 8px 0 0 0;
+    font-size: 13px;
+    color: var(--color-text-lighter);
+}
+
+/* What-if scenario (#487) */
+.forecast-scenario {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--color-border);
 }
 
 .forecast-scenario-header {
@@ -8178,87 +8258,28 @@ label .required {
     color: var(--budget-color-negative);
 }
 
-/* Balance Overview Cards */
-.overview-cards {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 20px;
-}
-
-.overview-card {
-    background: var(--color-background-hover);
-    border-radius: var(--border-radius-container, 12px);
-    padding: 24px;
-    border: 1px solid var(--color-border);
-}
-
-.overview-card .card-label {
-    display: block;
-    font-size: 14px;
-    color: var(--color-text-lighter);
-    margin-bottom: 8px;
-}
-
-.overview-card .card-value {
-    display: block;
-    font-size: 32px;
-    font-weight: bold;
-    color: var(--color-main-text);
-}
-
-.overview-card .card-change {
-    display: block;
-    font-size: 14px;
-    margin-top: 8px;
-}
-
-.overview-card .card-change.positive {
-    color: var(--budget-color-positive);
-}
-
-.overview-card .card-change.negative {
-    color: var(--budget-color-negative);
-}
-
-.overview-card.current-balance {
-    border-left: 4px solid var(--color-primary);
-}
-
-.overview-card.projected-balance {
-    border-left: 4px solid var(--color-success);
-}
-
-/* Trends Grid */
-.trends-grid {
+/* Monthly averages in one row */
+.forecast-trends-row {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 16px;
+    padding: 16px 20px;
 }
 
-.trend-card {
-    background: var(--color-background-hover);
-    border-radius: var(--border-radius-element, 8px);
-    padding: 20px;
-    border: 1px solid var(--color-border);
+.forecast-trend {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 4px;
 }
 
-.trend-card .trend-label {
-    font-size: 13px;
-    color: var(--color-text-lighter);
-}
-
-.trend-card .trend-value {
-    font-size: 24px;
+.forecast-trend .trend-value {
+    font-size: 20px;
     font-weight: bold;
     color: var(--color-main-text);
 }
 
-.trend-card .trend-direction {
+.forecast-trend .trend-direction {
     font-size: 18px;
-    font-weight: bold;
 }
 
 .trend-direction.positive {
@@ -8271,62 +8292,6 @@ label .required {
 
 .trend-direction.neutral {
     color: var(--color-text-lighter);
-}
-
-.trend-card.income {
-    border-top: 3px solid var(--color-success);
-}
-
-.trend-card.expenses {
-    border-top: 3px solid var(--color-error);
-}
-
-.trend-card.savings {
-    border-top: 3px solid var(--color-primary);
-}
-
-/* Savings Container */
-.savings-container {
-    display: grid;
-    grid-template-columns: 2fr 1fr;
-    gap: 24px;
-    background: var(--color-background-hover);
-    border-radius: var(--border-radius-container, 12px);
-    padding: 24px;
-    border: 1px solid var(--color-border);
-}
-
-.savings-chart {
-    min-height: 200px;
-}
-
-.savings-chart canvas {
-    width: 100% !important;
-    height: 200px !important;
-}
-
-.savings-summary {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 20px;
-}
-
-.savings-stat {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.savings-stat .stat-label {
-    font-size: 13px;
-    color: var(--color-text-lighter);
-}
-
-.savings-stat .stat-value {
-    font-size: 20px;
-    font-weight: bold;
-    color: var(--color-main-text);
 }
 
 /* Chart Container (non-dashboard pages) */
@@ -8395,69 +8360,11 @@ label .required {
     color: var(--color-text-lighter);
 }
 
-/* Data Quality Indicator */
-.quality-indicator {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 16px 20px;
-    background: var(--color-background-hover);
-    border-radius: var(--border-radius-element, 8px);
-    border: 1px solid var(--color-border);
-}
-
-.quality-indicator .quality-label {
-    font-size: 14px;
-    color: var(--color-text-lighter);
-}
-
-.quality-indicator .quality-value {
-    font-size: 16px;
-    font-weight: bold;
-    padding: 4px 12px;
-    border-radius: var(--border-radius-container, 12px);
-    background: var(--color-border);
-}
-
-.quality-indicator .quality-value.high {
-    background: var(--budget-tint-positive-20, rgba(76, 175, 80, 0.2));
-    color: var(--color-success);
-}
-
-.quality-indicator .quality-value.medium {
-    background: rgba(255, 152, 0, 0.2);
-    color: var(--color-warning);
-}
-
-.quality-indicator .quality-value.low {
-    background: var(--budget-tint-negative-20, rgba(198, 40, 40, 0.2));
-    color: var(--color-error);
-}
-
-.quality-indicator .quality-info {
-    font-size: 13px;
-    color: var(--color-text-lighter);
-    margin-left: auto;
+.category-trends-toggle {
+    margin-top: 12px;
 }
 
 /* Forecast Responsive Design */
-@media (max-width: 1024px) {
-    .savings-container {
-        grid-template-columns: 1fr;
-    }
-
-    .savings-summary {
-        flex-direction: row;
-        flex-wrap: wrap;
-        gap: 16px;
-    }
-
-    .savings-stat {
-        flex: 1;
-        min-width: 120px;
-    }
-}
-
 @media (max-width: 768px) {
     .forecast-header {
         flex-direction: column;
@@ -8465,22 +8372,12 @@ label .required {
         gap: 12px;
     }
 
-    .overview-cards {
-        grid-template-columns: 1fr;
+    .forecast-panel {
+        padding: 16px;
     }
 
-    .trends-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .quality-indicator {
-        flex-wrap: wrap;
-    }
-
-    .quality-indicator .quality-info {
-        width: 100%;
-        margin-left: 0;
-        margin-top: 8px;
+    .forecast-panel .chart-container {
+        height: 260px;
     }
 }
 

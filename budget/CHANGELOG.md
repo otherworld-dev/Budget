@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **What if? on the Forecast page.** Scenario modelling was listed as a forecast feature from the start but never made it onto the page. A new **What If?** section under the balance projection lets you change your income or spending by a percentage, add an amount every month (a minus for a new bill) and a one-off amount in a month you pick, such as a big purchase. The balance chart gets a dashed **What if** line next to the forecast, and the section says where your balance would end up, how far that is from the forecast, and its lowest point, or the month it would go below zero. It works on the forecast's own months as you type and nothing is saved. Asked about by @ZackosQc ([#487](https://github.com/otherworld-dev/Budget/discussions/487))
 
+### Changed
+- **The Forecast page is tidier.** The top row now has your current balance, the projected balance and the forecast confidence, which used to sit at the bottom of the page. The balance chart and **What If?** share one panel, and the chart shows just the balance, with each month's projected income and spending in its tooltip instead of on a second scale. The Savings Projection chart is gone, as it drew the same line as the balance chart and repeated figures shown elsewhere; the savings rate is now under the average monthly savings. Spending by Category lists the ten biggest categories with **Show all** for the rest, and the note at the top is a single line under the chart.
+
 ## [3.4.0] - 2026-11-13
 
 ### Added

@@ -3127,16 +3127,6 @@ style('budget', 'budget-app');
                 </div>
             </div>
 
-            <!-- Info Notice -->
-            <div class="forecast-notice" style="background-color: rgba(100, 116, 139, 0.08); border: 1px solid rgba(100, 116, 139, 0.15); border-radius: 4px; padding: 12px 16px; margin: 16px 0; display: flex; align-items: flex-start; gap: 12px;">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="rgba(100, 116, 139, 0.6)" style="flex-shrink: 0; margin-top: 2px;">
-                    <path d="M11,9H13V7H11M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17H13V11H11V17Z"/>
-                </svg>
-                <div style="color: rgba(100, 116, 139, 0.85); font-size: 14px;">
-                    <strong><?php p($l->t('Note:')); ?></strong> <?php p($l->t('Forecasts are estimates based on historical spending patterns and trends. Actual results may vary due to unexpected expenses, income changes, or shifts in spending behavior. Use these projections as guidance rather than guarantees.')); ?>
-                </div>
-            </div>
-
             <!-- Loading State -->
             <div id="forecast-loading" class="forecast-loading">
                 <div class="loading-spinner"></div>
@@ -3151,125 +3141,97 @@ style('budget', 'budget-app');
                 <p><?php p($l->t('Only complete months count: a month your accounts\' history only partly covers, such as the first month a bank sync fetched, is left out.')); ?></p>
             </div>
 
-            <!-- Balance Overview Cards -->
+            <!-- Summary: where the balance is, where it is heading, how sure we are -->
             <div id="forecast-overview" class="forecast-section" style="display: none;">
-                <div class="overview-cards">
-                    <div class="overview-card current-balance">
+                <div class="forecast-summary">
+                    <div class="forecast-card">
                         <span class="card-label"><?php p($l->t('Current Balance')); ?></span>
                         <span class="card-value" id="current-balance">--</span>
                     </div>
-                    <div class="overview-card projected-balance">
+                    <div class="forecast-card">
                         <span class="card-label"><?php p($l->t('Projected Balance')); ?></span>
                         <span class="card-value" id="projected-balance">--</span>
                         <span class="card-change" id="balance-change">--</span>
                     </div>
-                </div>
-            </div>
-
-            <!-- Trends Summary -->
-            <div id="forecast-trends" class="forecast-section" style="display: none;">
-                <h3><?php p($l->t('Monthly Trends')); ?></h3>
-                <div class="trends-grid">
-                    <div class="trend-card income">
-                        <span class="trend-label"><?php p($l->t('Avg Monthly Income')); ?></span>
-                        <span class="trend-value" id="avg-income">--</span>
-                        <span class="trend-direction" id="income-direction"></span>
-                    </div>
-                    <div class="trend-card expenses">
-                        <span class="trend-label"><?php p($l->t('Avg Monthly Expenses')); ?></span>
-                        <span class="trend-value" id="avg-expenses">--</span>
-                        <span class="trend-direction" id="expense-direction"></span>
-                    </div>
-                    <div class="trend-card savings">
-                        <span class="trend-label"><?php p($l->t('Avg Monthly Savings')); ?></span>
-                        <span class="trend-value" id="avg-savings">--</span>
-                        <span class="trend-direction" id="savings-direction"></span>
+                    <div class="forecast-card">
+                        <span class="card-label"><?php p($l->t('Forecast Confidence')); ?></span>
+                        <span class="card-value quality-value" id="forecast-confidence">--</span>
+                        <span class="card-note" id="data-info">--</span>
                     </div>
                 </div>
             </div>
 
-            <!-- Savings Projection (Chart + Numbers) -->
-            <div id="forecast-savings" class="forecast-section" style="display: none;">
-                <h3><?php p($l->t('Savings Projection')); ?></h3>
-                <div class="savings-container">
-                    <div class="savings-chart">
-                        <canvas id="savings-chart"></canvas>
-                    </div>
-                    <div class="savings-summary">
-                        <div class="savings-stat">
-                            <span class="stat-label"><?php p($l->t('Current Monthly Savings')); ?></span>
-                            <span class="stat-value" id="current-monthly-savings">--</span>
-                        </div>
-                        <div class="savings-stat">
-                            <span class="stat-label"><?php p($l->t('Projected Total Savings')); ?></span>
-                            <span class="stat-value" id="projected-total-savings">--</span>
-                        </div>
-                        <div class="savings-stat">
-                            <span class="stat-label"><?php p($l->t('Savings Rate')); ?></span>
-                            <span class="stat-value" id="savings-rate">--</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Balance Projection Chart -->
-            <div id="forecast-chart" class="forecast-section" style="display: none;">
+            <!-- Balance projection with the what-if controls that redraw it -->
+            <div id="forecast-chart" class="forecast-section forecast-panel" style="display: none;">
                 <h3><?php p($l->t('Balance Projection')); ?></h3>
                 <div class="chart-container">
                     <canvas id="balance-projection-chart"></canvas>
                 </div>
+                <p class="forecast-caption"><?php p($l->t('Estimated from your past income and spending. Use it as a guide, not a guarantee.')); ?></p>
+                <p id="forecast-month-note" class="month-grouping-note" style="display: none;"></p>
+
+                <!-- What-if scenario (#487) -->
+                <div id="forecast-scenario" class="forecast-scenario">
+                    <div class="forecast-scenario-header">
+                        <h3><?php p($l->t('What If?')); ?></h3>
+                        <button type="button" id="forecast-scenario-reset" class="secondary" style="display: none;"><?php p($l->t('Reset')); ?></button>
+                    </div>
+                    <p class="forecast-scenario-hint"><?php p($l->t('Change your income or spending to see how the balance projection above would move. Nothing is saved.')); ?></p>
+                    <div class="forecast-scenario-form">
+                        <div class="form-group">
+                            <label for="forecast-scenario-income"><?php p($l->t('Income change (%%)')); ?></label>
+                            <input type="text" inputmode="decimal" data-amount id="forecast-scenario-income" placeholder="0">
+                            <small class="form-text"><?php p($l->t('-10 for a 10%% pay cut')); ?></small>
+                        </div>
+                        <div class="form-group">
+                            <label for="forecast-scenario-spending"><?php p($l->t('Spending change (%%)')); ?></label>
+                            <input type="text" inputmode="decimal" data-amount id="forecast-scenario-spending" placeholder="0">
+                            <small class="form-text"><?php p($l->t('-5 to spend 5%% less')); ?></small>
+                        </div>
+                        <div class="form-group">
+                            <label for="forecast-scenario-monthly"><?php p($l->t('Every month')); ?></label>
+                            <input type="text" inputmode="decimal" data-amount id="forecast-scenario-monthly" placeholder="0">
+                            <small class="form-text"><?php p($l->t('-200 for a new bill, 200 for extra income')); ?></small>
+                        </div>
+                        <div class="form-group">
+                            <label for="forecast-scenario-oneoff"><?php p($l->t('One-off amount')); ?></label>
+                            <input type="text" inputmode="decimal" data-amount id="forecast-scenario-oneoff" placeholder="0">
+                            <small class="form-text"><?php p($l->t('-1500 for a big purchase')); ?></small>
+                        </div>
+                        <div class="form-group">
+                            <label for="forecast-scenario-oneoff-month"><?php p($l->t('One-off in')); ?></label>
+                            <select id="forecast-scenario-oneoff-month"></select>
+                        </div>
+                    </div>
+                    <div id="forecast-scenario-result" class="forecast-scenario-result"></div>
+                </div>
             </div>
 
-            <!-- What-if scenario (#487) -->
-            <div id="forecast-scenario" class="forecast-section" style="display: none;">
-                <div class="forecast-scenario-header">
-                    <h3><?php p($l->t('What If?')); ?></h3>
-                    <button type="button" id="forecast-scenario-reset" class="secondary" style="display: none;"><?php p($l->t('Reset')); ?></button>
-                </div>
-                <p class="forecast-scenario-hint"><?php p($l->t('Change your income or spending to see how the balance projection above would move. Nothing is saved.')); ?></p>
-                <div class="forecast-scenario-form">
-                    <div class="form-group">
-                        <label for="forecast-scenario-income"><?php p($l->t('Income change (%%)')); ?></label>
-                        <input type="text" inputmode="decimal" data-amount id="forecast-scenario-income" placeholder="0">
-                        <small class="form-text"><?php p($l->t('-10 for a 10%% pay cut')); ?></small>
+            <!-- Monthly averages the projection starts from -->
+            <div id="forecast-trends" class="forecast-section" style="display: none;">
+                <h3><?php p($l->t('Monthly Trends')); ?></h3>
+                <div class="forecast-trends-row">
+                    <div class="forecast-trend">
+                        <span class="trend-label"><?php p($l->t('Avg Monthly Income')); ?></span>
+                        <span class="trend-value"><span id="avg-income">--</span> <span class="trend-direction" id="income-direction"></span></span>
                     </div>
-                    <div class="form-group">
-                        <label for="forecast-scenario-spending"><?php p($l->t('Spending change (%%)')); ?></label>
-                        <input type="text" inputmode="decimal" data-amount id="forecast-scenario-spending" placeholder="0">
-                        <small class="form-text"><?php p($l->t('-5 to spend 5%% less')); ?></small>
+                    <div class="forecast-trend">
+                        <span class="trend-label"><?php p($l->t('Avg Monthly Expenses')); ?></span>
+                        <span class="trend-value"><span id="avg-expenses">--</span> <span class="trend-direction" id="expense-direction"></span></span>
                     </div>
-                    <div class="form-group">
-                        <label for="forecast-scenario-monthly"><?php p($l->t('Every month')); ?></label>
-                        <input type="text" inputmode="decimal" data-amount id="forecast-scenario-monthly" placeholder="0">
-                        <small class="form-text"><?php p($l->t('-200 for a new bill, 200 for extra income')); ?></small>
-                    </div>
-                    <div class="form-group">
-                        <label for="forecast-scenario-oneoff"><?php p($l->t('One-off amount')); ?></label>
-                        <input type="text" inputmode="decimal" data-amount id="forecast-scenario-oneoff" placeholder="0">
-                        <small class="form-text"><?php p($l->t('-1500 for a big purchase')); ?></small>
-                    </div>
-                    <div class="form-group">
-                        <label for="forecast-scenario-oneoff-month"><?php p($l->t('One-off in')); ?></label>
-                        <select id="forecast-scenario-oneoff-month"></select>
+                    <div class="forecast-trend">
+                        <span class="trend-label"><?php p($l->t('Avg Monthly Savings')); ?></span>
+                        <span class="trend-value"><span id="avg-savings">--</span> <span class="trend-direction" id="savings-direction"></span></span>
+                        <span class="card-note" id="savings-rate"></span>
                     </div>
                 </div>
-                <div id="forecast-scenario-result" class="forecast-scenario-result"></div>
             </div>
 
             <!-- Category Spending Trends -->
             <div id="forecast-categories" class="forecast-section" style="display: none;">
                 <h3><?php p($l->t('Spending by Category')); ?></h3>
                 <div id="category-trends-list" class="category-trends"></div>
-            </div>
-
-            <!-- Data Quality Indicator -->
-            <div id="forecast-quality" class="forecast-section" style="display: none;">
-                <div class="quality-indicator">
-                    <span class="quality-label"><?php p($l->t('Forecast Confidence:')); ?></span>
-                    <span class="quality-value" id="forecast-confidence">--</span>
-                    <span class="quality-info" id="data-info">--</span>
-                </div>
-                <p id="forecast-month-note" class="month-grouping-note" style="display: none;"></p>
+                <button type="button" id="category-trends-toggle" class="secondary category-trends-toggle" style="display: none;"></button>
             </div>
         </div>
         

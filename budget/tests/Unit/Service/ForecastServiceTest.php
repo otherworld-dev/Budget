@@ -341,13 +341,6 @@ class ForecastServiceTest extends TestCase {
 		$this->assertArrayHasKey('categoryTrends', $result);
 	}
 
-	public function testRunScenariosDelegates(): void {
-		$this->scenarioBuilder->expects($this->once())->method('runScenarios')
-			->with('user1', null, []);
-
-		$this->service->runScenarios('user1');
-	}
-
 	public function testExportForecastReturnsWrappedData(): void {
 		$forecastData = ['summary' => []];
 		$result = $this->service->exportForecast('user1', $forecastData);

@@ -1111,18 +1111,6 @@ class ForecastService {
 	}
 
 	/**
-	 * Run scenario analysis.
-	 */
-	public function runScenarios(
-		string $userId,
-		?int $accountId = null,
-		array $scenarios = [],
-		?array $visibleAccountIds = null,
-	): array {
-		return $this->scenarioBuilder->runScenarios($userId, $accountId, $scenarios);
-	}
-
-	/**
 	 * Generate enhanced forecast with scenarios and charts.
 	 */
 	public function generateEnhancedForecast(

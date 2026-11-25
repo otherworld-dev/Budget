@@ -7,8 +7,10 @@ import Chart from '../../utils/chart.js';
 import { showError } from '../../utils/notifications.js';
 import { escapeHtml } from '../../utils/dom.js';
 import { apiFetch } from '../../utils/api.js';
-import { semanticColour } from '../../utils/amountColours.js';
 import { applyScenario, EMPTY_SCENARIO, isEmptyScenario, parseScenario } from '../../utils/forecastScenario.js';
+
+/** Categories listed before "Show all". */
+export const CATEGORY_TRENDS_SHOWN = 10;
 
 /** The what-if boxes, by the scenario field each one fills. */
 const SCENARIO_INPUTS = {
@@ -22,7 +24,7 @@ const SCENARIO_INPUTS = {
 export default class ForecastModule {
     constructor(app) {
         this.app = app;
-        this.savingsChart = null;
+        this.showAllCategories = false;
         this.balanceChart = null;
         this.forecastData = null;
         this.forecastCurrency = null;
@@ -54,12 +56,9 @@ export default class ForecastModule {
         const emptyEl = document.getElementById('forecast-empty');
         const sections = [
             'forecast-overview',
-            'forecast-trends',
-            'forecast-savings',
             'forecast-chart',
-            'forecast-scenario',
-            'forecast-categories',
-            'forecast-quality'
+            'forecast-trends',
+            'forecast-categories'
         ];
 
         // Show loading, hide everything else
@@ -89,8 +88,7 @@ export default class ForecastModule {
 
             // Display all sections (currency is accessed via this.forecastCurrency)
             this.displayBalanceOverview(data);
-            this.displayTrendsSummary(data.trends);
-            this.displaySavingsProjection(data.savingsProjection, data.monthlyProjections);
+            this.displayTrendsSummary(data.trends, data.savingsProjection);
             this.displayBalanceProjectionChart(data.monthlyProjections);
             this.populateScenarioMonths(data.monthlyProjections);
             this.refreshScenario();
@@ -135,6 +133,14 @@ export default class ForecastModule {
                     if (input && input.tagName !== 'SELECT') input.value = '';
                 });
                 this.refreshScenario();
+            });
+        }
+
+        const categoriesToggle = document.getElementById('category-trends-toggle');
+        if (categoriesToggle) {
+            categoriesToggle.addEventListener('click', () => {
+                this.showAllCategories = !this.showAllCategories;
+                this.displayCategoryTrends(this.forecastData?.categoryBreakdown);
             });
         }
     }
@@ -281,18 +287,27 @@ export default class ForecastModule {
         }
     }
 
-    displayTrendsSummary(trends) {
+    displayTrendsSummary(trends, savingsProjection = null) {
         const avgIncomeEl = document.getElementById('avg-income');
         const avgExpensesEl = document.getElementById('avg-expenses');
         const avgSavingsEl = document.getElementById('avg-savings');
         const incomeDirectionEl = document.getElementById('income-direction');
         const expenseDirectionEl = document.getElementById('expense-direction');
         const savingsDirectionEl = document.getElementById('savings-direction');
+        const savingsRateEl = document.getElementById('savings-rate');
         const currency = this.forecastCurrency;
 
         if (avgIncomeEl) avgIncomeEl.textContent = this.formatCurrency(trends.avgMonthlyIncome, currency);
         if (avgExpensesEl) avgExpensesEl.textContent = this.formatCurrency(trends.avgMonthlyExpenses, currency);
         if (avgSavingsEl) avgSavingsEl.textContent = this.formatCurrency(trends.avgMonthlySavings, currency);
+        if (savingsRateEl) {
+            const rate = savingsProjection?.savingsRate;
+            // The % stays out of the string: translation tools read a literal
+            // % in a msgid as a placeholder
+            savingsRateEl.textContent = rate === undefined || rate === null
+                ? ''
+                : t('budget', '{rate} of income saved', { rate: `${rate}%` });
+        }
 
         this.setDirectionIndicator(incomeDirectionEl, trends.incomeDirection);
         this.setDirectionIndicator(expenseDirectionEl, trends.expenseDirection, true);
@@ -317,75 +332,11 @@ export default class ForecastModule {
         element.className = `trend-direction ${colorClass}`;
     }
 
-    displaySavingsProjection(savings, monthlyProjections) {
-        const monthlySavingsEl = document.getElementById('current-monthly-savings');
-        const projectedTotalEl = document.getElementById('projected-total-savings');
-        const savingsRateEl = document.getElementById('savings-rate');
-        const currency = this.forecastCurrency;
-
-        if (monthlySavingsEl) monthlySavingsEl.textContent = this.formatCurrency(savings.currentMonthlySavings, currency);
-        if (projectedTotalEl) projectedTotalEl.textContent = this.formatCurrency(savings.projectedTotalSavings, currency);
-        if (savingsRateEl) savingsRateEl.textContent = `${savings.savingsRate}%`;
-
-        // Render savings chart
-        this.renderSavingsChart(monthlyProjections);
-    }
-
-    renderSavingsChart(monthlyProjections) {
-        const canvas = document.getElementById('savings-chart');
-        if (!canvas) return;
-
-        const ctx = canvas.getContext('2d');
-        const currency = this.forecastCurrency;
-
-        if (this.savingsChart) {
-            this.savingsChart.destroy();
-        }
-
-        const labels = monthlyProjections.map(formatters.projectionMonthLabel);
-        const savingsData = [];
-        let cumulative = 0;
-        monthlyProjections.forEach(p => {
-            cumulative += p.savings;
-            savingsData.push(cumulative);
-        });
-
-        this.savingsChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: t('budget', 'Cumulative Savings'),
-                    data: savingsData,
-                    borderColor: 'rgba(75, 192, 192, 1)',
-                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                    fill: true,
-                    tension: 0.3
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            callback: (value) => formatters.formatCurrencyCompact(value, currency, this.settings)
-                        }
-                    }
-                },
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: (context) => t('budget', 'Savings: {amount}', { amount: this.formatCurrency(context.parsed.y, currency) })
-                        }
-                    }
-                }
-            }
-        });
-    }
-
+    /**
+     * The balance line, with the what-if line drawn beside it. Each month's
+     * projected income and spending are in the tooltip rather than on a
+     * second axis, which put two scales on one chart.
+     */
     displayBalanceProjectionChart(monthlyProjections) {
         const canvas = document.getElementById('balance-projection-chart');
         if (!canvas) return;
@@ -399,8 +350,6 @@ export default class ForecastModule {
 
         const labels = monthlyProjections.map(formatters.projectionMonthLabel);
         const balanceData = monthlyProjections.map(p => p.balance);
-        const incomeData = monthlyProjections.map(p => p.income);
-        const expenseData = monthlyProjections.map(p => p.expenses);
 
         this.balanceChart = new Chart(ctx, {
             type: 'line',
@@ -415,24 +364,6 @@ export default class ForecastModule {
                         fill: true,
                         tension: 0.3,
                         yAxisID: 'y'
-                    },
-                    {
-                        label: t('budget', 'Projected Income'),
-                        data: incomeData,
-                        borderColor: semanticColour('positive', 'rgba(75, 192, 192, 1)', 1),
-                        backgroundColor: 'transparent',
-                        borderDash: [5, 5],
-                        tension: 0.3,
-                        yAxisID: 'y1'
-                    },
-                    {
-                        label: t('budget', 'Projected Expenses'),
-                        data: expenseData,
-                        borderColor: semanticColour('negative', 'rgba(255, 99, 132, 1)', 1),
-                        backgroundColor: 'transparent',
-                        borderDash: [5, 5],
-                        tension: 0.3,
-                        yAxisID: 'y1'
                     }
                 ]
             },
@@ -448,17 +379,6 @@ export default class ForecastModule {
                         type: 'linear',
                         display: true,
                         position: 'left',
-                        title: { display: true, text: t('budget', 'Balance') },
-                        ticks: {
-                            callback: (value) => formatters.formatCurrencyCompact(value, currency, this.settings)
-                        }
-                    },
-                    y1: {
-                        type: 'linear',
-                        display: true,
-                        position: 'right',
-                        title: { display: true, text: t('budget', 'Income/Expenses') },
-                        grid: { drawOnChartArea: false },
                         ticks: {
                             callback: (value) => formatters.formatCurrencyCompact(value, currency, this.settings)
                         }
@@ -468,7 +388,8 @@ export default class ForecastModule {
                     legend: { position: 'top' },
                     tooltip: {
                         callbacks: {
-                            label: (context) => `${context.dataset.label}: ${this.formatCurrency(context.parsed.y, currency)}`
+                            label: (context) => `${context.dataset.label}: ${this.formatCurrency(context.parsed.y, currency)}`,
+                            afterBody: (items) => this.projectionTooltipLines(monthlyProjections[items[0]?.dataIndex])
                         }
                     }
                 }
@@ -476,19 +397,42 @@ export default class ForecastModule {
         });
     }
 
+    /**
+     * A month's projected income and spending, for under the balances in the
+     * chart's tooltip.
+     */
+    projectionTooltipLines(month) {
+        if (!month) return [];
+        const currency = this.forecastCurrency;
+        return [
+            `${t('budget', 'Projected Income')}: ${this.formatCurrency(month.income, currency)}`,
+            `${t('budget', 'Projected Expenses')}: ${this.formatCurrency(month.expenses, currency)}`,
+        ];
+    }
+
+    /**
+     * The biggest categories, with the rest behind "Show all": the whole
+     * list filled half the page.
+     */
     displayCategoryTrends(categoryBreakdown) {
         const container = document.getElementById('category-trends-list');
         if (!container) return;
 
         container.innerHTML = '';
         const currency = this.forecastCurrency;
+        const toggle = document.getElementById('category-trends-toggle');
+        if (toggle) toggle.style.display = 'none';
 
         if (!categoryBreakdown || categoryBreakdown.length === 0) {
             container.innerHTML = `<p class="empty-message">${t('budget', 'No category data available')}</p>`;
             return;
         }
 
-        categoryBreakdown.forEach(category => {
+        const shown = this.showAllCategories
+            ? categoryBreakdown
+            : categoryBreakdown.slice(0, CATEGORY_TRENDS_SHOWN);
+
+        shown.forEach(category => {
             const trendArrow = { up: '↑', down: '↓', stable: '→' }[category.trend] || '→';
             const trendClass = category.trend === 'up' ? 'negative' : (category.trend === 'down' ? 'positive' : 'neutral');
 
@@ -501,6 +445,13 @@ export default class ForecastModule {
             `;
             container.appendChild(item);
         });
+
+        if (toggle && categoryBreakdown.length > CATEGORY_TRENDS_SHOWN) {
+            toggle.textContent = this.showAllCategories
+                ? t('budget', 'Show fewer')
+                : t('budget', 'Show all ({count})', { count: categoryBreakdown.length });
+            toggle.style.display = '';
+        }
     }
 
     displayDataQuality(data) {
@@ -510,7 +461,7 @@ export default class ForecastModule {
         if (confidenceEl) {
             confidenceEl.textContent = `${data.confidence}%`;
             // Add color class based on confidence
-            confidenceEl.className = 'quality-value';
+            confidenceEl.className = 'card-value quality-value';
             if (data.confidence >= 75) {
                 confidenceEl.classList.add('high');
             } else if (data.confidence >= 50) {
