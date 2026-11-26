@@ -1251,6 +1251,8 @@ export default class TransactionsModule {
         document.getElementById('bulk-edit-vendor').value = '';
         document.getElementById('bulk-edit-reference').value = '';
         document.getElementById('bulk-edit-notes').value = '';
+        const forecastSelect = document.getElementById('bulk-edit-excluded-from-forecast');
+        if (forecastSelect) forecastSelect.value = '';
 
         modal.style.display = 'flex';
     }
@@ -1272,6 +1274,11 @@ export default class TransactionsModule {
         if (vendor) updates.vendor = vendor;
         if (reference) updates.reference = reference;
         if (notes) updates.notes = notes;
+        // '' = leave each row's own setting alone (#491)
+        const forecast = document.getElementById('bulk-edit-excluded-from-forecast')?.value || '';
+        if (forecast === 'true' || forecast === 'false') {
+            updates.excludedFromForecast = forecast === 'true';
+        }
 
         if (Object.keys(updates).length === 0) {
             showWarning(t('budget', 'Please fill in at least one field to update'));

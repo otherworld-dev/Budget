@@ -344,6 +344,59 @@ class TransactionServiceTest extends TestCase {
 		$this->assertEquals('Updated', $result->getDescription());
 	}
 
+	// ===== bulkEdit() =====
+
+	/**
+	 * Bulk "Exclude from forecast" (#491) writes the flag on every selected
+	 * row as a real bool and leaves the rest of each row as it was.
+	 */
+	public function testBulkEditSetsExcludedFromForecastOnEveryRow(): void {
+		$first = $this->makeTransaction(['id' => 1, 'vendor' => 'Shop', 'notes' => 'keep me', 'categoryId' => 5]);
+		$second = $this->makeTransaction(['id' => 2, 'vendor' => 'Garage', 'notes' => null, 'categoryId' => 7]);
+		$first->setExcludedFromForecast(false);
+		$second->setExcludedFromForecast(true);
+		$this->mapper->method('find')->willReturnMap([
+			[1, 'user1', $first],
+			[2, 'user1', $second],
+		]);
+		$this->mapper->expects($this->exactly(2))->method('update')->willReturnArgument(0);
+		$this->accountMapper->expects($this->never())->method('updateBalance');
+
+		$result = $this->service->bulkEdit('user1', [1, 2], ['excludedFromForecast' => true]);
+
+		$this->assertSame(['success' => 2, 'failed' => 0, 'errors' => []], $result);
+		$this->assertTrue($first->getExcludedFromForecast());
+		$this->assertTrue($second->getExcludedFromForecast());
+		$this->assertSame('Shop', $first->getVendor());
+		$this->assertSame('keep me', $first->getNotes());
+		$this->assertSame(5, $first->getCategoryId());
+		$this->assertSame('Garage', $second->getVendor());
+		$this->assertSame(7, $second->getCategoryId());
+	}
+
+	public function testBulkEditClearsExcludedFromForecastFromAStringForm(): void {
+		$tx = $this->makeTransaction();
+		$tx->setExcludedFromForecast(true);
+		$this->mapper->method('find')->willReturn($tx);
+		$this->mapper->method('update')->willReturnArgument(0);
+
+		$this->service->bulkEdit('user1', [1], ['excludedFromForecast' => 'false']);
+
+		$this->assertFalse($tx->getExcludedFromForecast());
+	}
+
+	public function testBulkEditWithoutTheFlagLeavesItAlone(): void {
+		$tx = $this->makeTransaction();
+		$tx->setExcludedFromForecast(true);
+		$this->mapper->method('find')->willReturn($tx);
+		$this->mapper->method('update')->willReturnArgument(0);
+
+		$this->service->bulkEdit('user1', [1], ['notes' => 'checked']);
+
+		$this->assertTrue($tx->getExcludedFromForecast());
+		$this->assertSame('checked', $tx->getNotes());
+	}
+
 	public function testUpdateClearsCategoryWhenIdIsNull(): void {
 		// Bulk "No Category" (#332) relies on update() applying an explicit null
 		// categoryId to clear it, rather than treating null as "leave unchanged".

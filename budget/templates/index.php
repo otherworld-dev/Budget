@@ -7428,6 +7428,15 @@ style('budget', 'budget-app');
                 <small id="bulk-edit-notes-help" class="form-text"><?php p($l->t('Update notes for all selected transactions (optional)')); ?></small>
             </div>
 
+            <div class="form-group">
+                <label for="bulk-edit-excluded-from-forecast"><?php p($l->t('Forecast')); ?></label>
+                <select id="bulk-edit-excluded-from-forecast" name="excludedFromForecast">
+                    <option value=""><?php p($l->t('Don\'t change')); ?></option>
+                    <option value="true"><?php p($l->t('Exclude from forecast')); ?></option>
+                    <option value="false"><?php p($l->t('Include in forecast')); ?></option>
+                </select>
+            </div>
+
             <div class="modal-buttons">
                 <button type="button" class="primary" id="bulk-edit-submit-btn" aria-label="<?php p($l->t('Update selected transactions')); ?>"><?php p($l->t('Update Transactions')); ?></button>
                 <button type="button" class="secondary cancel-bulk-edit-btn" aria-label="<?php p($l->t('Cancel and close dialog')); ?>"><?php p($l->t('Cancel')); ?></button>
