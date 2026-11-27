@@ -711,8 +711,12 @@ class ApiV1TransactionController extends OCSController {
 				];
 				// A transfer is both sides or neither, which only the service
 				// can promise: it records the two in one database transaction
+				// The category goes on both sides (#494), unless the other
+				// account's owner can't use it: that side is then recorded
+				// uncategorised and the response says why
+				$counterpartCategoryError = null;
 				$transaction = $transferAccountId !== null
-					? $this->service->createTransfer($effectiveUserId, $this->userId, $accountId, $transferAccountId, $this->getEffectiveAccountIds(), ...$details)
+					? $this->service->createTransfer($effectiveUserId, $this->userId, $accountId, $transferAccountId, $this->getEffectiveAccountIds(), ...$details, counterpartCategoryError: $counterpartCategoryError)
 					: $this->service->create($effectiveUserId, $accountId, ...$details);
 			} catch (\Throwable $e) {
 				// The reservation must not outlive a failed create, or every
@@ -744,6 +748,9 @@ class ApiV1TransactionController extends OCSController {
 				: ApiSerializer::transaction($transaction, $this->currencyOf($accountId));
 			if ($categoryError !== null) {
 				$out['category_error'] = $categoryError;
+			}
+			if ($counterpartCategoryError !== null) {
+				$out['counterpart_category_error'] = $counterpartCategoryError;
 			}
 			$photo = $this->request->getUploadedFile('photo');
 			if ($photo) {

@@ -490,6 +490,11 @@
                                       "type": "string",
                                       "description": "Present only when the category_id sent is not one the account owner can use or, on an account shared with you, not one you can see (one of the owner's categories that was never shared with you; the message is then \"Category not found\"). The transaction is recorded anyway, uncategorised (category_id null), so never re-post; set a category later with PATCH /transactions/{id}. A replay of the same idempotency_key returns the recorded transaction without this field.",
                                       "example": "Category not found. It must be one of the account owner's categories"
+                                    },
+                                    "counterpart_category_error": {
+                                      "type": "string",
+                                      "description": "Transfers only. Present only when the transfer's category was put on the side in account_id but not on the other side, because the owner of transfer_account_id cannot use it (or, on an account shared with you, you cannot see it in their ledger). Both sides are recorded and linked anyway, the other one uncategorised, so never re-post. A replay of the same idempotency_key returns the recorded transaction without this field.",
+                                      "example": "The owner of the other account cannot use this category, so the other side of the transfer was left uncategorised"
                                     }
                                   }
                                 }
@@ -2497,7 +2502,7 @@
           },
           "transfer_account_id": {
             "type": "integer",
-            "description": "Makes this a transfer: the other account. The transaction is recorded in account_id as usual, its other side is created in this account with the opposite type and the same date, amount, description and vendor, and the two are linked. The response carries linked_transaction_id and linked_account_name. Both accounts must be ones you can write to, open (not closed) and in the same currency, and a transfer cannot be sent together with splits. Needs transfers_available on GET /capabilities: an older server ignores the field and records a plain transaction.",
+            "description": "Makes this a transfer: the other account. The transaction is recorded in account_id as usual, its other side is created in this account with the opposite type and the same date, amount, description, vendor and category (see counterpart_category_error), and the two are linked. The response carries linked_transaction_id and linked_account_name. Both accounts must be ones you can write to, open (not closed) and in the same currency, and a transfer cannot be sent together with splits. Needs transfers_available on GET /capabilities: an older server ignores the field and records a plain transaction.",
             "example": 37
           },
           "tag_ids": {
